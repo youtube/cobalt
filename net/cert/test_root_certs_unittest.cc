@@ -59,15 +59,10 @@ class TestRootCertsTest : public testing::TestWithParam<bool> {
         /*cert_net_fetcher=*/nullptr, CRLSet::BuiltinCRLSet().get(),
         std::make_unique<DoNothingCTVerifier>(),
         base::MakeRefCounted<DefaultCTPolicyEnforcer>(),
-<<<<<<< HEAD
         /*root_store_data=*/nullptr,
         /*root_store_mtc_metadata=*/nullptr,
         /*instance_params=*/{}, std::nullopt);
-#elif BUILDFLAG(IS_FUCHSIA)
-=======
-        /*root_store_data=*/nullptr, /*instance_params=*/{}, std::nullopt);
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return CertVerifyProc::CreateBuiltinVerifyProc(
         /*cert_net_fetcher=*/nullptr, CRLSet::BuiltinCRLSet().get(),
         std::make_unique<DoNothingCTVerifier>(),

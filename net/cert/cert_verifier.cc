@@ -49,16 +49,10 @@ class DefaultCertVerifyProcFactory : public net::CertVerifyProcFactory {
         std::move(cert_net_fetcher), impl_params.crl_set,
         std::make_unique<net::DoNothingCTVerifier>(),
         base::MakeRefCounted<DefaultCTPolicyEnforcer>(),
-<<<<<<< HEAD
         base::OptionalToPtr(impl_params.root_store_data),
         base::OptionalToPtr(impl_params.root_store_mtc_metadata),
         instance_params, impl_params.time_tracker);
-#elif BUILDFLAG(IS_FUCHSIA)
-=======
-        base::OptionalToPtr(impl_params.root_store_data), instance_params,
-        impl_params.time_tracker);
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return CertVerifyProc::CreateBuiltinVerifyProc(
         std::move(cert_net_fetcher), impl_params.crl_set,
         std::make_unique<net::DoNothingCTVerifier>(),
