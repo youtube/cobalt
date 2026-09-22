@@ -20,7 +20,6 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
-import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -191,11 +190,6 @@ public class ContentViewRenderView extends FrameLayout {
         .setOverlayVideoMode(mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
   }
 
-  @CalledByNative
-  private void didSwapFrame() {
-    // In Window Surface mode, no child SurfaceView background to clear.
-  }
-
   /**
    * Takes ownership of the Activity's Window surface. This allows direct rendering to the window
    * surface instead of a child SurfaceView.
@@ -203,7 +197,7 @@ public class ContentViewRenderView extends FrameLayout {
    * <p>Lifetime: Bound to the lifetime of the outer ContentViewRenderView and the associated
    * Activity. Threading: Must be called on the UI thread.
    */
-  protected static class WindowSurfaceBridge {
+  private static class WindowSurfaceBridge {
     private Window mWindow;
     private SurfaceHolder mWindowSurfaceHolder;
 
@@ -254,7 +248,7 @@ public class ContentViewRenderView extends FrameLayout {
               });
     }
 
-    protected void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
+    private void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
       mWindow = getWindow(windowAndroid);
       if (mWindow == null) {
         Log.w(
@@ -322,7 +316,7 @@ public class ContentViewRenderView extends FrameLayout {
           });
     }
 
-    protected void disconnect() {
+    private void disconnect() {
       if (mWindow != null) {
         mWindow.takeSurface(null);
       } else {
@@ -335,7 +329,7 @@ public class ContentViewRenderView extends FrameLayout {
       mIsSurfaceCreatedDispatched = false;
     }
 
-    protected void setFormat(int format) {
+    private void setFormat(int format) {
       mPendingSurfaceFormat = format;
       applyPendingSurfaceFormat();
     }
