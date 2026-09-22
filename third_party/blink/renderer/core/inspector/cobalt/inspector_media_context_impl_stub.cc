@@ -20,4 +20,6 @@ MediaInspectorContextImpl* MediaInspectorContextImpl::From(ExecutionContext&) {
   return nullptr;
 }
 
+void MediaInspectorContextImpl::Trace(Visitor*) const {}
+
 }  // namespace blink
