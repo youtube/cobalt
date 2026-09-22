@@ -18,6 +18,8 @@
 
 #include <jni.h>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
@@ -36,10 +38,12 @@ using ::starboard::StarboardBridge;
 const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";
 
+#if !BUILDFLAG(IS_STARBOARD)
 // This is a format string template and the %s is meant to be replaced by
 // the Android release version number (e.g. "7.0" for Nougat).
 const char kPlatformNameFormat[] =
     "Linux " STRINGIZE(ANDROID_ABI) "; Android %s";
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -71,6 +75,11 @@ bool GetAndroidSystemProperty(const char* system_property_name,
 // |value_length| is large enough to store the result, copy the result into
 // |out_value|.
 bool CopyAndroidPlatformName(char* out_value, int value_length) {
+#if BUILDFLAG(IS_STARBOARD)
+  // This feeds the User-Agent's OS-name field, which must be a recognized
+  // platform identifier rather than a "Linux <abi>"-style string.
+  return CopyStringAndTestIfSuccess(out_value, value_length, "AOSP");
+#else   // BUILDFLAG(IS_STARBOARD)
   // Get the Android version number (e.g. "7.0" for Nougat).
   const int kStringBufferSize = 256;
   char version_string_buffer[kStringBufferSize];
@@ -85,6 +94,7 @@ bool CopyAndroidPlatformName(char* out_value, int value_length) {
            version_string_buffer);
 
   return CopyStringAndTestIfSuccess(out_value, value_length, result_string);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 }  // namespace
