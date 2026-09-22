@@ -33,7 +33,8 @@ class ExecutionContext;
 // if one exists.
 class MODULES_EXPORT DialServerManager final
     : public GarbageCollected<DialServerManager>,
-      public in_app_dial::mojom::blink::DialRequestHandler {
+      public in_app_dial::mojom::blink::DialRequestHandler,
+      public GarbageCollectedMixin {
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];

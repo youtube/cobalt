@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -38,7 +39,8 @@ class ScriptState;
 
 class MODULES_EXPORT OnScreenKeyboard final
     : public EventTarget,
-      public on_screen_keyboard::mojom::blink::OnScreenKeyboardClient {
+      public on_screen_keyboard::mojom::blink::OnScreenKeyboardClient,
+      public GarbageCollectedMixin {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
