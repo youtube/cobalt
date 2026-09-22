@@ -581,7 +581,7 @@ class CC_EXPORT GpuImageDecodeCache
   void OnInProcessImageTransferCompleted(
       scoped_refptr<ImageData> image_data);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
   void DecodeImageAndGenerateDarkModeFilterIfNecessary(
       const DrawImage& draw_image,

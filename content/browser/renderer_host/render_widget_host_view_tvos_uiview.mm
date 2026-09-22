@@ -336,7 +336,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
              withType:(blink::WebInputEvent::Type)type {
   // If any of `presses` is not handled, set `needToHandleInFramework`.
   BOOL needToHandleInFramework = NO;
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   for (UIPress* press in presses) {
     RemoteButton button = remoteButtonFromPressType(press.type);
     if (button == kNone) {
@@ -375,7 +375,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     }
   }
   return !needToHandleInFramework;
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 - (void)pressesBegan:(NSSet<UIPress*>*)presses
@@ -398,7 +398,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
                             withType:blink::WebInputEvent::Type::kKeyDown];
   if (!handled) {
     [super pressesBegan:presses withEvent:event];
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -412,7 +412,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   BOOL handled = [self handlePresses:presses
                             withType:blink::WebInputEvent::Type::kKeyUp];
   if (!handled) {
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     [super pressesEnded:presses withEvent:event];
   }
 }

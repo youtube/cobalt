@@ -236,7 +236,7 @@ class CORE_EXPORT LocalDOMWindow final
     kOnScreenKeyboard = 50
   };
 
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   class CORE_EXPORT EventListenerObserver : public GarbageCollectedMixin {
    public:
     virtual void DidAddEventListener(LocalDOMWindow*, const AtomicString&) = 0;

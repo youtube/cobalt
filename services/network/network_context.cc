@@ -54,7 +54,7 @@
 #include "components/ip_protection/common/ip_protection_core_impl_mojo.h"    // nogncheck
 #include "components/ip_protection/common/ip_protection_proxy_delegate.h"   // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -1265,7 +1265,7 @@ void NetworkContext::SetTrackingProtectionContentSetting(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void NetworkContext::OnProxyLookupComplete(
     ProxyLookupRequest* proxy_lookup_request) {
   auto it = proxy_lookup_requests_.find(proxy_lookup_request);
@@ -2798,7 +2798,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   if (!requires_ipp_proxy_delegate &&
       (params_->initial_custom_proxy_config ||
        params_->custom_proxy_config_client_receiver)) {
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     builder.set_proxy_delegate(std::make_unique<NetworkServiceProxyDelegate>(
         std::move(params_->initial_custom_proxy_config),
         std::move(params_->custom_proxy_config_client_receiver),

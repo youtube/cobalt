@@ -1846,7 +1846,7 @@ void Range::ScheduleVisualUpdateIfInRegisteredHighlight(Document& document) {
 =======
             window->Supplementable<LocalDOMWindow, 51>::RequireSupplement<
                 HighlightRegistry>()) {
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       for (const auto& highlight_registry_map_entry :
            highlight_registry->GetHighlights()) {
         const auto& highlight = highlight_registry_map_entry->highlight;

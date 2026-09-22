@@ -26,7 +26,7 @@
 #    if !defined(__BIONIC__) && !_LIBCPP_LIBC_NEWLIB && !defined(__EMSCRIPTEN__)
 =======
 #    if !defined(__BIONIC__) && !defined(_NEWLIB_VERSION) && !defined(__EMSCRIPTEN__) && !defined(STARBOARD)
->>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 554d267192b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #      define _LIBCPP_HAS_CATOPEN 1
 #      include <nl_types.h>
 #    else
