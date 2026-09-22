@@ -14,11 +14,13 @@
 
 package dev.cobalt.media;
 
+import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.ForwardingTimeline;
@@ -26,15 +28,21 @@ import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
-import javax.annotation.concurrent.GuardedBy;
 
 /**
- * A custom {@link BaseMediaSource} that receives encoded media data from the native Starboard layer
- * and provides it to ExoPlayer.
+ * A custom {@link BaseMediaSource} that provides native Starboard media streams to ExoPlayer.
  *
- * <p>This source is designed for a single-period lifecycle, mapping to a single audio or video
- * stream provided by the native application.
+ * <p>Purpose: Manages timeline generation and creates {@link ExoPlayerMediaPeriod} instances for a
+ * single audio or video stream received from the Starboard native layer.
+ *
+ * <p>Lifetime and Ownership: Instantiated and owned by {@link ExoPlayerBridge} for each active
+ * audio and video track. Released when the parent {@link ExoPlayerBridge} is released.
+ *
+ * <p>Threading Model: Thread-affine to ExoPlayer's internal playback thread. Timeline updates and
+ * period creation are guarded by an internal lock ({@code mLock}) to allow safe timeline time
+ * adjustments.
  */
+@UnstableApi
 public final class ExoPlayerMediaSource extends BaseMediaSource {
   private final Format mFormat;
   private final Object mLock = new Object();
@@ -127,9 +135,9 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
     @Override
     public Window getWindow(int windowIndex, Window window, long defaultPositionProjectionUs) {
-      Window w = super.getWindow(windowIndex, window, defaultPositionProjectionUs);
-      w.positionInFirstPeriodUs = mOffsetUs;
-      return w;
+      super.getWindow(windowIndex, window, defaultPositionProjectionUs);
+      window.positionInFirstPeriodUs -= mOffsetUs;
+      return window;
     }
   }
 }

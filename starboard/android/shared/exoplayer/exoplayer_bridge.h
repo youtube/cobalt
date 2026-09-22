@@ -85,8 +85,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info,
-                  JobQueue* job_queue);
+                  const SbMediaVideoStreamInfo& video_stream_info);
 
   ~ExoPlayerBridge();
 
@@ -149,6 +148,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   // thread.
   std::atomic_bool playback_error_occurred_ = false;
   std::atomic_bool initialized_ = false;
+  std::atomic_bool is_ready_ = false;
   std::atomic_bool seeking_ = false;
   std::atomic_bool has_written_first_sample_ = false;
   std::atomic_bool is_playing_ = false;

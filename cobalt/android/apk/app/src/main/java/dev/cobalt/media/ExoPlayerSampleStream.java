@@ -18,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleStream;
@@ -25,10 +26,20 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * A custom {@link SampleStream} that interfaces with the native Cobalt C++ layer to provide media
- * samples to ExoPlayer. It pulls data from the native queues and handles memory allocation for
- * zero-copy JNI transfer.
+ * A custom {@link SampleStream} that interfaces with the native Starboard C++ layer to provide
+ * encoded media samples to ExoPlayer decoders.
+ *
+ * <p>Purpose: Pulls encoded audio and video buffers from native queues via {@link ExoPlayerBridge}
+ * and handles direct buffer allocations for zero-copy JNI transfer into ExoPlayer's decoder
+ * pipeline.
+ *
+ * <p>Lifetime and Ownership: Created and owned by {@link ExoPlayerMediaPeriod} during {@link
+ * MediaPeriod#selectTracks}, and discarded when the track is deselected or the period is released.
+ *
+ * <p>Threading Model: Thread-affine to ExoPlayer's internal playback Looper thread, which
+ * synchronously calls {@link #readData} to populate decoder input buffers.
  */
+@UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
   // Custom signal from native indicating the buffer requires allocation before reading data.
   private static final int RESULT_NEEDS_ALLOCATION = -6;

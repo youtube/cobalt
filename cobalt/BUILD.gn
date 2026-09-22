@@ -56,10 +56,7 @@ group("gn_all") {
   }
   if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
-    deps += [
-      "android:cobalt_apk",
-      "android:cobalt_main_java",
-    ]
+    deps += [ "android:cobalt_apk" ]
   } else if (is_ios && target_platform == "tvos") {
     deps += [ ":cobalt" ]
   } else if (!is_cobalt_hermetic_build) {

@@ -37,7 +37,8 @@ ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
       update_job_([this]() { Update(); }),
-      creation_param_(*creation_param) {
+      audio_stream_info_(creation_param->audio_stream_info),
+      video_stream_info_(creation_param->video_stream_info) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
       << "ExoPlayer only supports punch-out playback.";
 }
@@ -63,9 +64,13 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   Attach(job_queue);
 
-  bridge_ = std::make_unique<ExoPlayerBridge>(creation_param_.audio_stream_info,
-                                              creation_param_.video_stream_info,
-                                              job_queue);
+  SbMediaAudioStreamInfo audio_stream_info = {};
+  audio_stream_info_.ConvertTo(&audio_stream_info);
+  SbMediaVideoStreamInfo video_stream_info = {};
+  video_stream_info_.ConvertTo(&video_stream_info);
+
+  bridge_ =
+      std::make_unique<ExoPlayerBridge>(audio_stream_info, video_stream_info);
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(

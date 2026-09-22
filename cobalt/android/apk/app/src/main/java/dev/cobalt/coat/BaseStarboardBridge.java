@@ -36,7 +36,6 @@ import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.media.VideoSurfaceView;
-import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -86,10 +85,10 @@ public class BaseStarboardBridge {
   private final CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private final AudioOutputManager mAudioOutputManager;
+  private final ExoPlayerManager mExoPlayerManager;
   private final AudioPermissionRequester mAudioPermissionRequester;
   private final ResourceOverlay mResourceOverlay;
   private final AdvertisingId mAdvertisingId;
-  private final ExoPlayerManager mExoPlayerManager;
   private final Context mAppContext;
   protected final Holder<Activity> mActivityHolder;
   private final Holder<Service> mServiceHolder;
@@ -153,6 +152,7 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = null;
     mTtsHelper = null;
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = null;
     mResourceOverlay = null;
     mAdvertisingId = null;

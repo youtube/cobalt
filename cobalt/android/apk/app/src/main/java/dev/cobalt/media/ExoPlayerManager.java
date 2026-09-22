@@ -15,7 +15,6 @@
 package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
-import static dev.cobalt.media.MediaCodecUtil.getHdrStaticInfo;
 
 import android.content.Context;
 import android.view.Surface;
@@ -23,6 +22,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
@@ -30,6 +30,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,11 +39,21 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 
 /**
- * Entry point for creating ExoPlayer components from the native layer.
+ * Factory and configuration manager for creating ExoPlayer playback components from the native
+ * layer.
  *
- * <p>This manager provides factory methods for creating the {@link ExoPlayerBridge} and various
- * {@link MediaSource} instances tailored for Starboard's playback requirements.
+ * <p>Purpose: Serves as the primary JNI entry point from Starboard to instantiate {@link
+ * ExoPlayerBridge} and build Media3 {@link Format} and {@link ColorInfo} metadata objects tailored
+ * to Starboard's playback and codec requirements.
+ *
+ * <p>Lifetime and Ownership: Instantiated and held by {@code StarboardBridge} with an
+ * application-scoped lifetime. It persists across multiple sequential playback sessions.
+ *
+ * <p>Threading Model: Thread-safe. {@link #createExoPlayerBridge} is {@code synchronized}, and
+ * static factory methods (such as {@link #createAudioFormat} and {@link #createVideoFormat}) are
+ * stateless and can be called concurrently from any native thread.
  */
+@UnstableApi
 @JNINamespace("starboard")
 public class ExoPlayerManager {
   private final Context mContext;
@@ -277,5 +288,50 @@ public class ExoPlayerManager {
         .setColorTransfer(colorTransfer)
         .setHdrStaticInfo(staticInfoArray)
         .build();
+  }
+
+  private static ByteBuffer getHdrStaticInfo(
+      float primaryRChromaticityX,
+      float primaryRChromaticityY,
+      float primaryGChromaticityX,
+      float primaryGChromaticityY,
+      float primaryBChromaticityX,
+      float primaryBChromaticityY,
+      float whitePointChromaticityX,
+      float whitePointChromaticityY,
+      float maxMasteringLuminance,
+      float minMasteringLuminance,
+      int maxCll,
+      int maxFall) {
+    final int maxChromaticity = 50000; // Defined in CTA-861.3.
+    final int defaultMaxCll = 1000;
+    final int defaultMaxFall = 200;
+
+    if (maxCll <= 0) {
+      maxCll = defaultMaxCll;
+    }
+    if (maxFall <= 0) {
+      maxFall = defaultMaxFall;
+    }
+
+    ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25);
+    hdrStaticInfo.order(ByteOrder.LITTLE_ENDIAN);
+
+    hdrStaticInfo.put((byte) 0);
+    hdrStaticInfo.putShort((short) ((primaryRChromaticityX * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((primaryRChromaticityY * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((primaryGChromaticityX * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((primaryGChromaticityY * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((primaryBChromaticityX * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((primaryBChromaticityY * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((whitePointChromaticityX * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) ((whitePointChromaticityY * maxChromaticity) + 0.5f));
+    hdrStaticInfo.putShort((short) (maxMasteringLuminance + 0.5f));
+    hdrStaticInfo.putShort((short) (minMasteringLuminance + 0.5f));
+    hdrStaticInfo.putShort((short) maxCll);
+    hdrStaticInfo.putShort((short) maxFall);
+    hdrStaticInfo.rewind();
+
+    return hdrStaticInfo;
   }
 }

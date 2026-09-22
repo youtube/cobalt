@@ -28,6 +28,25 @@
 
 namespace starboard {
 
+// Implements `PlayerWorker::Handler` to delegate Starboard media playback on
+// Android to Java `ExoPlayer` via `ExoPlayerBridge`.
+//
+// Provides a Starboard `SbPlayer` backend powered by AndroidX Media3 ExoPlayer
+// in punch-out output mode, handling state transitions, media clock reporting,
+// and sample ingestion between `PlayerWorker` and `ExoPlayerBridge`.
+//
+// Lifetime and Ownership:
+// Instantiated during `SbPlayerCreate` and owned exclusively by the
+// `PlayerWorker` instance for the duration of the playback session until
+// `SbPlayerDestroy` tears down the worker.
+//
+// Threading Model:
+// Constructed on the calling thread of `SbPlayerCreate`. Once `Init()` is
+// invoked, all `PlayerWorker::Handler` overrides and periodic `Update()` tasks
+// are strictly thread-affine to the `PlayerWorker` `JobQueue` thread.
+// Asynchronous status callbacks (`OnError`, `OnPrerolled`, `OnEnded`) invoked
+// from ExoPlayer's internal Looper thread marshal execution back onto the
+// `PlayerWorker` `JobQueue` via `RunOnWorker()`.
 class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
                                      private JobQueue::JobOwner {
  public:
@@ -82,7 +101,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   std::unique_ptr<ExoPlayerBridge> bridge_;
 
-  const SbPlayerCreationParam creation_param_;
+  const AudioStreamInfo audio_stream_info_;
+  const VideoStreamInfo video_stream_info_;
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;

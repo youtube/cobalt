@@ -28,6 +28,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -42,7 +43,23 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
-/** Facilitates communication between the native ExoPlayerBridge and the Java ExoPlayer */
+/**
+ * Facilitates bidirectional communication and synchronization between the native Starboard {@code
+ * ExoPlayerBridge} C++ instance and the AndroidX Media3 {@link ExoPlayer}.
+ *
+ * <p>Purpose: Manages the AndroidX Media3 {@link ExoPlayer} lifecycle, audio/video track selection,
+ * playback parameters, and event dispatching for Starboard media playback.
+ *
+ * <p>Lifetime and Ownership: Instantiated by {@link ExoPlayerManager} and owned by the native
+ * {@code starboard::ExoPlayerBridge} C++ class for the duration of a playback session. Released
+ * when {@link #release()} is invoked by the native player during teardown.
+ *
+ * <p>Threading Model: Thread-safe. Playback commands from the native {@code PlayerWorker} thread
+ * are posted to an internal {@link HandlerThread} ({@code mExoPlayerThread}). Position tracking and
+ * sample consumption across threads are synchronized using {@code mPositionLock} and {@code
+ * mNativeLock}.
+ */
+@UnstableApi
 @JNINamespace("starboard")
 public class ExoPlayerBridge {
   public static final int TYPE_AUDIO = 0;

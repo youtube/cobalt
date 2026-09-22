@@ -17,6 +17,7 @@ package dev.cobalt.media;
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.TrackGroup;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.LoadingInfo;
 import androidx.media3.exoplayer.SeekParameters;
 import androidx.media3.exoplayer.source.MediaPeriod;
@@ -25,7 +26,20 @@ import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import java.io.IOException;
 
-/** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
+/**
+ * Implements the ExoPlayer {@link MediaPeriod} interface to manage sample streams.
+ *
+ * <p>Purpose: Exposes track groups and coordinates the instantiation of {@link
+ * ExoPlayerSampleStream} instances during ExoPlayer track selection for Starboard media data.
+ *
+ * <p>Lifetime and Ownership: Created and owned by {@link ExoPlayerMediaSource} during {@link
+ * ExoPlayerMediaSource#createPeriod} and discarded when {@link ExoPlayerMediaSource#releasePeriod}
+ * is called.
+ *
+ * <p>Threading Model: Thread-affine. All methods must be invoked exclusively on ExoPlayer's
+ * internal playback Looper thread.
+ */
+@UnstableApi
 public class ExoPlayerMediaPeriod implements MediaPeriod {
   private final ExoPlayerMediaSource mMediaSource;
   private final ExoPlayerBridge mBridge;

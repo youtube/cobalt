@@ -67,8 +67,7 @@ constexpr int kResultNeedsAllocation = -6;
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
-    const SbMediaVideoStreamInfo& video_stream_info,
-    JobQueue* job_queue)
+    const SbMediaVideoStreamInfo& video_stream_info)
     :  // Max audio buffer duration 10 seconds, minus memory pressure 500ms.
       max_audio_buffer_duration_us_(10 * 1000 * 1000 - 500 * 1000),
       max_video_buffer_duration_us_([&]() {
@@ -198,6 +197,10 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
   // timeout.
   if (timestamp == 0 && !has_written_first_sample_.load()) {
     seeking_.store(true);
+    if (is_ready_.load() && seeking_.exchange(false)) {
+      SB_CHECK(prerolled_cb_);
+      prerolled_cb_();
+    }
     return;
   }
 
@@ -216,6 +219,7 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
     last_video_timestamp_ = timestamp;
   }
 
+  is_ready_.store(false);
   seeking_.store(true);
   Java_ExoPlayerBridge_seek(AttachCurrentThread(), j_exoplayer_bridge_,
                             timestamp);
@@ -361,6 +365,7 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   int size = input_buffer->size() - offset;
 
   if (size < 0) {
+    pending_samples.pop_front();
     ReportError("Input buffer size is smaller than the required offset.");
     return kResultNothingRead;
   }
@@ -395,6 +400,7 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   if (size > 0) {
     const uint8_t* source_data = input_buffer->data();
     if (!source_data) {
+      pending_samples.pop_front();
       ReportError("Input buffer data is null for non-empty sample.");
       return kResultNothingRead;
     }
@@ -472,6 +478,7 @@ void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
 }
 
 void ExoPlayerBridge::OnReady(JNIEnv*) {
+  is_ready_.store(true);
   if (seeking_.exchange(false)) {
     SB_CHECK(prerolled_cb_);
     prerolled_cb_();
