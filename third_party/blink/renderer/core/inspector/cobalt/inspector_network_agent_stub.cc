@@ -171,6 +171,11 @@ void InspectorNetworkAgent::DidFinishLoading(uint64_t identifier,
                                              base::TimeTicks,
                                              int64_t,
                                              int64_t) {}
+void InspectorNetworkAgent::DirectUDPSocketJoinedMulticastGroup(uint64_t,
+                                                                const String&) {
+}
+void InspectorNetworkAgent::DirectUDPSocketLeftMulticastGroup(uint64_t,
+                                                              const String&) {}
 void InspectorNetworkAgent::SetDevToolsIds(ResourceRequest&,
                                            const FetchInitiatorInfo&) {}
 void InspectorNetworkAgent::IsCacheDisabled(bool* is_cache_disabled) const {}
