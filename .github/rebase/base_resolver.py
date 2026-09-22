@@ -452,7 +452,7 @@ def apply_search_replace(file_path: str, search_block: str,
 def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
   """Applies a unified diff patch to source files, returning modified paths."""
   file_match = re.search(
-      r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-]+)",
+      r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-\+]+)",
       diff_text,
       re.MULTILINE,
   )
@@ -524,7 +524,7 @@ _FILE_HEADER_PREFIX = (
     r"(?:(?:#{1,6}\s*)?"  # Optional markdown header (### )
     r"\*{0,2}(?:FILE|TARGET FILE)\*{0,2}"  # Optional bold (**)
     r":\s*"  # Colon
-    r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*"  # Captured relative path (Group 1)
+    r"[`'\"]*([a-zA-Z0-9_/\.\-\+]+)[`'\"]*"  # Captured relative path (Group 1)
     r"\s*[\r\n]+)?"  # Trailing newline (entire header is optional)
 )
 
@@ -1400,7 +1400,7 @@ def extract_meaningful_error_summary(raw_msg: str) -> str:
       continue
     if any(l_strip.startswith(p) for p in ignored_prefixes):
       continue
-    return l_strip
+    return re.sub(r"^FAILED:\s+[0-9a-fA-F-]{36}\s+", "FAILED: ", l_strip)
   return raw_msg.strip().splitlines()[0]
 
 

@@ -495,6 +495,9 @@ def resolve_file_conflicts(
                            "Unresolved conflict markers"))
       return False
 
+    if (block.raw_block.endswith("\n") and resolved_code and
+        not resolved_code.endswith("\n")):
+      resolved_code += "\n"
     content = content.replace(block.raw_block, resolved_code, 1)
     if session_changes is not None:
       session_changes.append(

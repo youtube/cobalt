@@ -939,6 +939,78 @@ void Foo() {{}}
       self.assertIn("achoreographer_compat.o", sum1)
       self.assertIn("blit.o", sum2)
 
+  def test_libcxx_plus_path_and_conflict_newline_and_siso_uuid(self):
+    """Tests '+' path parsing/patching, conflict trailing newline, and UUID."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      rel_msg = "third_party/libc++/src/include/__locale_dir/messages.h"
+      msg_path = os.path.join(tmp_dir, rel_msg)
+      os.makedirs(os.path.dirname(msg_path), exist_ok=True)
+      with open(msg_path, "w", encoding="utf-8") as f:
+        f.write("#if defined(__unix__)\n"
+                "<<<<<<< HEAD\n"
+                "#  if !defined(__BIONIC__)\n"
+                "=======\n"
+                "#  if !defined(__BIONIC__) && !defined(STARBOARD)\n"
+                ">>>>>>> upstream\n"
+                "#    define _LIBCPP_HAS_CATOPEN 1\n"
+                "#  endif\n"
+                "#endif\n")
+
+      class _FakeEngine:
+
+        def generate_expert_guidance(self, **_kwargs):
+          return {"guidance": ""}
+
+        def resolve_conflict(self, **_kwargs):
+          return {
+              "replacement": ("```cpp\n#  if !defined(__BIONIC__) && "
+                              "!defined(STARBOARD)\n```"),
+              "model_used": "flash",
+          }
+
+      ok = resolve_file_conflicts(
+          file_path=msg_path,
+          repo_path=tmp_dir,
+          git_context="",
+          engine=_FakeEngine(),
+          mock_mode=False,
+      )
+      self.assertTrue(ok)
+      with open(msg_path, "r", encoding="utf-8") as f:
+        resolved = f.read()
+      self.assertIn(
+          "#  if !defined(__BIONIC__) && !defined(STARBOARD)\n"
+          "#    define _LIBCPP_HAS_CATOPEN 1\n",
+          resolved,
+      )
+
+      # Parse compiler error on a path containing '+'
+      err_out = (f"../../{rel_msg}:25:104: error: token is not a valid binary "
+                 "operator in a preprocessor subexpression\n")
+      diags = parse_compiler_errors(err_out, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertEqual(diags[0].file_path, msg_path)
+      self.assertEqual(diags[0].line_number, 25)
+
+      # Apply FILE:-directed SEARCH/REPLACE patch to a path containing '+'
+      patch = (f"FILE: {rel_msg}\n"
+               "<<<<<<< SEARCH\n"
+               "#    define _LIBCPP_HAS_CATOPEN 1\n"
+               "=======\n"
+               "#    define _LIBCPP_HAS_CATOPEN 0\n"
+               ">>>>>>> REPLACE\n")
+      modified = apply_patch_or_replacement(
+          patch, tmp_dir, default_file="build/BUILD.gn")
+      self.assertEqual(modified, [msg_path])
+
+      # Strip Siso UUIDs in extract_meaningful_error_summary
+      s1 = extract_meaningful_error_summary(
+          "FAILED: 8b3a1832-a70f-430a-980d-9c5ac4c8b11c \"./foo.o\" CXX foo.o")
+      s2 = extract_meaningful_error_summary(
+          "FAILED: 11112222-3333-4444-5555-666677778888 \"./foo.o\" CXX foo.o")
+      self.assertEqual(s1, s2)
+      self.assertEqual(s1, 'FAILED: "./foo.o" CXX foo.o')
+
   def test_reject_nested_file_in_search_replace(self):
     """Tests that SEARCH/REPLACE blocks with nested FILE: are rejected."""
     with tempfile.NamedTemporaryFile("w+", suffix=".gn", delete=False) as tmp:

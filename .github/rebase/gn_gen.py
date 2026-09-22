@@ -46,19 +46,19 @@ class GNDiagnostic:
 #   "source"     -> ERROR at //f.cc => that file AND its sibling BUILD.gn
 _GN_TARGET_DIR_PATTERNS = (
     # 1. Target definitions: "The target: //dir:target" or "The target //..."
-    re.compile(r"The target:?\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
+    re.compile(r"The target:?\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-\+]+):"),
     # 2. Caller targets missing a dependency: "dependency of //dir:target"
-    re.compile(r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):"),
+    re.compile(r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-\+]+):"),
     # 4. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
-    re.compile(r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-]+):"),
+    re.compile(r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-\+]+):"),
 )
 
 # 3. Universal scan: any //path/to/file.gn[i] with an optional line number.
-_GN_FILE_PATTERN = re.compile(r"//([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?")
+_GN_FILE_PATTERN = re.compile(r"//([a-zA-Z0-9_/\.\-\+]+\.gn[i]?)(?::(\d+))?")
 
 # 5. Source files named by a GN error: "ERROR at //path/to/file.cc:line".
 _GN_SOURCE_PATTERN = re.compile(
-    r"ERROR at //([a-zA-Z0-9_/\.\-]+\.(?:cc|h|mm|cpp|c))(?::(\d+))?")
+    r"ERROR at //([a-zA-Z0-9_/\.\-\+]+\.(?:cc|h|mm|cpp|c))(?::(\d+))?")
 
 
 def _add_build_file_for_dir(

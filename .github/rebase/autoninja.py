@@ -149,30 +149,30 @@ _ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
 # e.g.: FAILED: ... ACTION //third_party/blink/...:character_data(...)
 _ACTION_FAIL_PATTERN = re.compile(
-    r"FAILED:.*?\s+ACTION\s+//([a-zA-Z0-9_/\.\-]+):([a-zA-Z0-9_]+)")
+    r"FAILED:.*?\s+ACTION\s+//([a-zA-Z0-9_/\.\-\+]+):([a-zA-Z0-9_]+)")
 
 _STANDARD_ERROR_PATTERN = re.compile(
-    r"^([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+):(?:(\d+):)?\s*"
+    r"^([a-zA-Z0-9_/\.\-\+]+\.[a-zA-Z0-9_\+]+):(\d+):(?:(\d+):)?\s*"
     r"(?:fatal\s+)?error:\s*(.+)$")
 
 _CLANG_ERROR_PATTERN = re.compile(r"^\s*(?:\d+\.\d+s\s+)?(?:fatal\s+)?"
                                   r"(?:error|Error|ERROR):\s*(?:@config//|//)?"
-                                  r"([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+"
+                                  r"([a-zA-Z0-9_/\.\-\+]+):(\d+):(?:(\d+):)?\s+"
                                   r"(.+)$")
 
 _LLD_PATTERN = re.compile(r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
 _OBJ_PATTERN = re.compile(
-    r"obj/([a-zA-Z0-9_/\.\-]+(?:\([a-zA-Z0-9_/\.\-]+\))?)")
+    r"obj/([a-zA-Z0-9_/\.\-\+]+(?:\([a-zA-Z0-9_/\.\-\+]+\))?)")
 _REF_FILE_PATTERN = re.compile(
-    r"referenced by\s+([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+)")
+    r"referenced by\s+([a-zA-Z0-9_/\.\-\+]+\.[a-zA-Z0-9_\+]+):(\d+)")
 
 # e.g.: [0910/211026.345187:FATAL:path/to/file.cc:48] Check failed: ...
 _FATAL_LOG_PATTERN = re.compile(
-    r"^\s*(?:\[\d+/\d+\.\d+:FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\]|"
-    r"\[FATAL:([a-zA-Z0-9_/\.\-]+):(\d+)\])\s*(.+)$")
+    r"^\s*(?:\[\d+/\d+\.\d+:FATAL:([a-zA-Z0-9_/\.\-\+]+):(\d+)\]|"
+    r"\[FATAL:([a-zA-Z0-9_/\.\-\+]+):(\d+)\])\s*(.+)$")
 
 _PY_TB_PATTERN = re.compile(
-    r'^\s*File "([a-zA-Z0-9_/\.\-]+\.py)", line (\d+)(?:, in (.+))?')
+    r'^\s*File "([a-zA-Z0-9_/\.\-\+]+\.py)", line (\d+)(?:, in (.+))?')
 _PY_ERR_PATTERN = re.compile(r"^([a-zA-Z0-9_.]+(?:Error|Exception):\s*.+)$")
 
 
@@ -557,7 +557,7 @@ class AutoninjaResolver(BaseResolver):
 
       # Attempt to deduce a candidate build file from action references
       target_cand = ""
-      m_act = re.search(r"ACTION\s+//([a-zA-Z0-9_/\.\-]+):([a-zA-Z0-9_]+)",
+      m_act = re.search(r"ACTION\s+//([a-zA-Z0-9_/\.\-\+]+):([a-zA-Z0-9_]+)",
                         error_trace)
       if m_act:
         cand_gn = os.path.join(m_act.group(1), "BUILD.gn")
