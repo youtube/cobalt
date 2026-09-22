@@ -37,6 +37,41 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // and parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
+
+// When enabled, gates the GPU memory budget via Finch feature and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
+
+// When enabled, gates the V8 max old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MaxOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8MaxOldSpaceSizeMb);
+
+// When enabled, gates the V8 initial old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
+
+// When enabled, overrides the compositor skewport target times, which control
+// speculative pre-rastering of offscreen tiles. When disabled, the upstream
+// Chromium defaults apply (1.0 software raster / 0.2 GPU raster). Both params
+// default to 0, which disables pre-rastering to reduce GPU texture memory.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkewportTargetTime);
+// Applies to software raster. Upstream Chromium default is 1.0.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                       kCobaltSkewportTargetTimeInSeconds);
+// Applies to GPU raster. Upstream Chromium default is 0.2.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltGpuRasterizationSkewportTargetTimeInSeconds);
+
+// When enabled, gates the compositor's prepaint memory budget via Finch feature
+// and parameter. Applies to all Cobalt platforms (Android TV and 3P/Starboard).
+// The parameter is the percentage of the tile memory budget that may be spent
+// on prepaint (non-visible) tiles; 0 disables prepaint raster entirely.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                       kCobaltMaxMemoryForPrepaintPercentage);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);

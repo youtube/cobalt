@@ -21,7 +21,7 @@
 #include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
-  if (address == nullptr || *reinterpret_cast<const uintptr_t*>(address) == 0) {
+  if (address == nullptr) {
     return false;
   }
   // I believe this casting-away const in the implementation is better than the

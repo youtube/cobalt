@@ -45,7 +45,7 @@ Because Evergreen support is required for certification, partners deploy officia
    cobalt/build/gn.py -p evergreen-arm-softfp-aosp -c qa --no-rbe
 
    # For 64-bit ARM AOSP targets
-   # cobalt/build/gn.py -p evergreen-arm64-aosp -c qa --no-rbe
+   cobalt/build/gn.py -p evergreen-arm64-aosp -c qa --no-rbe
    ```
 
 2. Build the application loader APK:

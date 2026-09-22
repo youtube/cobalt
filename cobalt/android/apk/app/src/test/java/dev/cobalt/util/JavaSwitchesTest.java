@@ -219,6 +219,24 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_EnabledByDefault() {
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
+    assertThat(args).contains("--enable-low-end-device-mode");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_NotForcedByExperiment() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+
+    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // physical memory threshold. Devices at or below it stay low-end.
+    assertThat(args).doesNotContain("--enable-low-end-device-mode");
+  }
+
+  @Test
   public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
@@ -240,7 +258,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
@@ -270,7 +287,6 @@ public class JavaSwitchesTest {
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
     assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--enable-gpu-shader-disk-cache");
     assertThat(args).contains("--max-http-cache-size=50000000");
     assertThat(args).contains("--avoid-cc-reuse-resource");
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
@@ -322,7 +338,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
@@ -350,7 +365,6 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
     assertThat(args).doesNotContain("--enable-scaling-clipped-images");
     assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--enable-gpu-shader-disk-cache");
     assertThat(args).doesNotContain("--max-http-cache-size=50000000");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
     assertThat(args).doesNotContain("--use-surface-view-for-ui");
@@ -379,6 +393,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
     assertThat(args).contains("--force-device-scale-factor=1");
+    // Safe mode / no experiment config must not silently flip low-end mode off.
+    assertThat(args).contains("--enable-low-end-device-mode");
   }
 
   @Test
