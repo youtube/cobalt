@@ -37,17 +37,22 @@ namespace blink {
 // This will be used again in a future milestone.
 // const char OnScreenKeyboard::kSupplementName[] = "OnScreenKeyboard";
 
+// static
+const unsigned OnScreenKeyboard::kSupplementIndex =
+    static_cast<unsigned>(LocalDOMWindow::Supplements::kOnScreenKeyboard);
+
 OnScreenKeyboard::OnScreenKeyboard(LocalDOMWindow& window)
-    : local_dom_window_(window),
+    : Supplement<LocalDOMWindow>(window),
       on_screen_keyboard_remote_(window.GetExecutionContext()),
-      on_screen_keyboard_client_receiver_(this, local_dom_window_) {}
+      on_screen_keyboard_client_receiver_(this, GetSupplementable()) {}
 
 // static
 OnScreenKeyboard* OnScreenKeyboard::From(LocalDOMWindow& window) {
-  OnScreenKeyboard* on_screen_keyboard = window.GetOnScreenKeyboard();
+  OnScreenKeyboard* on_screen_keyboard =
+      Supplement<LocalDOMWindow>::From<OnScreenKeyboard>(window);
   if (!on_screen_keyboard) {
     on_screen_keyboard = MakeGarbageCollected<OnScreenKeyboard>(window);
-    window.SetOnScreenKeyboard(on_screen_keyboard);
+    ProvideTo(window, on_screen_keyboard);
   }
   return on_screen_keyboard;
 }
@@ -62,7 +67,7 @@ const AtomicString& OnScreenKeyboard::InterfaceName() const {
 }
 
 ExecutionContext* OnScreenKeyboard::GetExecutionContext() const {
-  return local_dom_window_;
+  return GetSupplementable();
 }
 
 void OnScreenKeyboard::KeyboardTextChanged(const String& text) {
@@ -284,10 +289,10 @@ void OnScreenKeyboard::EnsureReceiverIsBound() {
 }
 
 void OnScreenKeyboard::Trace(Visitor* visitor) const {
-  visitor->Trace(local_dom_window_);
   visitor->Trace(on_screen_keyboard_remote_);
   visitor->Trace(on_screen_keyboard_client_receiver_);
   EventTarget::Trace(visitor);
+  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 }  // namespace blink
