@@ -1367,7 +1367,7 @@ bool RasterImplementation::RasterCHROMIUMInProcess(
     payload->image_to_transfer_cache_id = std::move(image_to_transfer_cache_id);
 
     InProcessRasterPayloadRegistry::GetInstance().Register(payload);
-    std::memcpy(mem, &payload, sizeof(payload));
+    UNSAFE_TODO(std::memcpy(mem, &payload, sizeof(payload)));
     UnmapRasterCHROMIUM(sizeof(InProcessRasterPayload*),
                         sizeof(InProcessRasterPayload*));
     return true;
