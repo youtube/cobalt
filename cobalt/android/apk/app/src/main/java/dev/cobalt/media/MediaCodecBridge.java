@@ -36,6 +36,7 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
@@ -43,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -55,6 +57,29 @@ class MediaCodecBridge {
   private static final String KEY_CROP_RIGHT = "crop-right";
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
+
+  @VisibleForTesting
+  static final String METRIC_DECODER_FRAMEWORK = "Cobalt.Media.Android.DecoderFramework";
+
+  @VisibleForTesting static final int DECODER_FRAMEWORK_UNKNOWN = 0;
+  @VisibleForTesting static final int DECODER_FRAMEWORK_OMX = 1;
+  @VisibleForTesting static final int DECODER_FRAMEWORK_CODEC2 = 2;
+  @VisibleForTesting static final int DECODER_FRAMEWORK_MAX = 3;
+
+  @VisibleForTesting
+  static int getDecoderFramework(String decoderName) {
+    if (decoderName == null) {
+      return DECODER_FRAMEWORK_UNKNOWN;
+    }
+    String lowerName = decoderName.toLowerCase(Locale.US);
+    if (lowerName.startsWith("c2.")) {
+      return DECODER_FRAMEWORK_CODEC2;
+    }
+    if (lowerName.startsWith("omx.")) {
+      return DECODER_FRAMEWORK_OMX;
+    }
+    return DECODER_FRAMEWORK_UNKNOWN;
+  }
 
   private final Object mNativeBridgeLock = new Object();
 
@@ -613,6 +638,9 @@ class MediaCodecBridge {
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
       return;
     }
+
+    RecordHistogram.recordEnumeratedHistogram(
+        METRIC_DECODER_FRAMEWORK, getDecoderFramework(decoderName), DECODER_FRAMEWORK_MAX);
 
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
