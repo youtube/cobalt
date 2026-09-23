@@ -195,10 +195,11 @@ class TestRebaseAutomationSuite(unittest.TestCase):
       with open(tp_file, "w", encoding="utf-8") as f:
         f.write("source_set(\"xnnpack\") {\n"
                 "<<<<<<< HEAD\n"
-                "  sources = [ \"old.c\" ]\n"
-                "=======\n"
                 "  sources = [ \"new.c\" ]\n"
-                ">>>>>>> upstream/main (CONFLICTED Revert Cobalt.)\n"
+                "=======\n"
+                "  sources = [ \"old.c\" ]\n"
+                ">>>>>>> parent of 65ea0fa (CONFLICTED Chromium Cherry pick: "
+                "Revert Cobalt.)\n"
                 "}\n")
 
       tracker = TokenUsage()
@@ -1010,6 +1011,66 @@ void Foo() {{}}
           "FAILED: 11112222-3333-4444-5555-666677778888 \"./foo.o\" CXX foo.o")
       self.assertEqual(s1, s2)
       self.assertEqual(s1, 'FAILED: "./foo.o" CXX foo.o')
+
+  def test_execute_investigation_tools_preserves_guidance_and_synthesizes(self):
+    """Tests tool loop preserves guidance/history and synthesizes on break."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      calls = []
+
+      class _ToolLoopResolver(BaseResolver):
+        """Stub resolver for testing execute_investigation_tools."""
+
+        @property
+        def name(self):
+          return "ToolLoopTest"
+
+        def run_command(self, iteration):
+          del iteration
+          return True, "", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return []
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+            **_kwargs,
+        ):
+          del diagnostic, use_expert
+          calls.append({
+              "history": list(history_records),
+              "guidance": expert_guidance,
+          })
+          if any(r.get("iteration") == "Tool-Final" for r in history_records):
+            return (
+                "FILE: h_5_vcc.h\n<<<<<<< SEARCH\nold\n=======\nnew\n"
+                ">>>>>>> REPLACE\n",
+                "gemini-3.8-flash",
+                "h_5_vcc.h",
+            )
+          return ("TOOL_FIND_FILE: *supplementable*", "gemini-3.8-flash",
+                  "h_5_vcc.h")
+
+      resolver = _ToolLoopResolver(tmp_dir)
+      base_hist = [{"iteration": 1, "file": "h_5_vcc.h", "error": "missing"}]
+      patch, _ = resolver.execute_investigation_tools(
+          initial_patch="TOOL_FIND_FILE: *supplementable*",
+          diagnostic="diag",
+          base_history_records=base_hist,
+          expert_guidance="Migrate Supplement<LocalDOMWindow>",
+      )
+      self.assertIn(">>>>>>> REPLACE", patch)
+      self.assertNotIn("TOOL_FIND_FILE", patch)
+      self.assertTrue(
+          all(c["guidance"] == "Migrate Supplement<LocalDOMWindow>"
+              for c in calls))
+      hist_str, inv_str = format_history_records(calls[-1]["history"], window=2)
+      self.assertIn("Iteration 1: Modified h_5_vcc.h", hist_str)
+      self.assertIn("TOOL BUDGET EXHAUSTED", inv_str)
 
   def test_reject_nested_file_in_search_replace(self):
     """Tests that SEARCH/REPLACE blocks with nested FILE: are rejected."""

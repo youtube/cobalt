@@ -43,6 +43,40 @@ class ConflictBlock:
   context_before: str
   context_after: str
 
+  @property
+  def upstream_is_ours(self) -> bool:
+    """Whether the '<<<<<<<' (ours) side holds the new upstream Chromium code.
+
+    Polarity depends on how the conflict was produced:
+
+    * Normal merge / cherry-pick of an upstream change onto Cobalt:
+      ours = Cobalt, theirs = upstream. Upstream is on the 'theirs' side.
+
+    * autoroll_chromium.py, which reverts the Cobalt commits off a new
+      Chromium snapshot: the conflict is labelled
+      '>>>>>>> parent of <sha> (CONFLICTED Chromium Cherry pick: Revert
+      Cobalt.)'. Here 'theirs' is the OLD pre-roll Cobalt content and
+      'ours' (HEAD) is the NEW Chromium snapshot, so upstream is on the
+      'ours' side.
+
+    Getting this backwards silently rewinds untouched third-party files to
+    the previous milestone, so the polarity is derived from the marker
+    label rather than assumed.
+    """
+    lines = self.raw_block.splitlines()
+    if not lines:
+      return False
+    closing = lines[-1]
+    if not closing.startswith(">>>>>>>"):
+      return False
+    label = closing[len(">>>>>>>"):].strip().lower()
+    return label.startswith("parent of") or "revert cobalt" in label
+
+  @property
+  def upstream_content(self) -> str:
+    """The side of the conflict holding the new upstream Chromium code."""
+    return self.ours_content if self.upstream_is_ours else self.theirs_content
+
 
 @dataclasses.dataclass
 class EscalationItem:
@@ -326,14 +360,16 @@ def resolve_file_conflicts(
 
   # 1. Fast-path: Check if this is an unmodified third_party file
   if is_unmodified_third_party(file_path, repo_path):
+    side = "ours/HEAD" if blocks[0].upstream_is_ours else "theirs"
     print(
         f"\n[resolve_conflicts] Fast-path: {rel_path} is unmodified "
         f"third_party. Resolving {len(blocks)} conflict(s) with "
-        "upstream (theirs)...",
+        f"upstream ({side})...",
         file=sys.stderr,
     )
     for block in blocks:
-      content = content.replace(block.raw_block, block.theirs_content, 1)
+      upstream = block.upstream_content
+      content = content.replace(block.raw_block, upstream, 1)
       if session_changes is not None:
         session_changes.append(
             AgentChangeRecord(
@@ -342,7 +378,7 @@ def resolve_file_conflicts(
                 target_file=rel_path,
                 file_changes={
                     rel_path: ("Unmodified third_party resolved with upstream "
-                               f"(theirs):\n{block.theirs_content}")
+                               f"({side}):\n{upstream}")
                 },
                 error=None,
                 applied_cleanly=True,

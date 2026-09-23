@@ -60,12 +60,21 @@ When something that used to work has broken after a roll, **run both on the rele
        Instead, open the referencing caller `.cc` file (`FILE: path/to/caller.cc`) and wrap the new upstream call site (and its `#include`) in `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` or `#if !BUILDFLAG(IS_COBALT)`. Check sibling files (e.g., `render_frame_host_impl.cc`) to confirm the exact `BUILDFLAG(...)` macro used for that subsystem.
      * **Case B — Unintentionally stripped helper file for an enabled feature:**
        Only if Cobalt actively uses the feature and a wildcard exclusion accidentally caught a required shared observer/helper file (e.g. `fenced_frame_viewport_observer.cc` needed by core frame code), refine the exclusion list in `BUILD.gn`.
+     * **Case C — `jni_zero` Muxed JNI Entrypoints (`undefined symbol: Muxed_<pkg>_<ClassName>_<method>` or `unused function 'JNI_<ClassName>_<Method>' [-Werror,-Wunused-function]`):**
+       In M145+, `jni_zero` wraps generated `Muxed_<pkg>_<ClassName>_<method>` C entrypoints inside a macro that only expands when the `.cc` file calls **`DEFINE_JNI(<ClassName>)`**.
+       - **At compile time (`unused function 'JNI_<ClassName>_<Method>'`):** NEVER remove the `static` keyword to silence the warning! Removing `static` suppresses the compiler canary and causes `undefined symbol: Muxed_..._<ClassName>_<method>` at final `.so` link time. Instead, add `DEFINE_JNI(<ClassName>)` (wrapped in `#if BUILDFLAG(IS_ANDROID)` if the `#include ".../<ClassName>_jni.h"` is Android-guarded) at the bottom of the `.cc` file.
+       - **At link time (`undefined symbol: Muxed_<pkg>_<ClassName>_<method>`):** The defect is NEVER in `BUILD.gn` (even though the diagnostic `Target` points to `cobalt/android/BUILD.gn`). Extract `<ClassName>` from the `Muxed_` symbol name, run `TOOL_GREP: <ClassName>_jni.h` to locate the `.cc` file that includes `<ClassName>_jni.h` (e.g. `cobalt/browser/cobalt_content_browser_client.cc` or `starboard/android/shared/application_android.cc`), and emit a patch with an explicit **`FILE: <path/to/that_file.cc>`** header adding `DEFINE_JNI(<ClassName>)` at the end of the `.cc` file.
    - If the implementation is actually missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`).
 7. Missing Include Headers ('<header.h>' file not found):
    - When Clang reports `'<header.h>' file not found`:
-   - NEVER guess or invent alternative include paths or namespaces.
-   - You MUST first issue a `TOOL_FIND_FILE: *<header_stem>*` or `TOOL_GREP: <SymbolOrClassName>` query to find where the header or class was relocated in the Chromium milestone.
-   - Once the tool returns the true path on disk, update the `#include` line with the exact matching path.
+   - NEVER guess or invent alternative include paths or namespaces (e.g. `platform/bindings/...` or `platform/wtf/...`).
+   - First issue a `TOOL_FIND_FILE: *<header_stem>*` query to check whether the header was relocated on disk.
+   - **If `TOOL_FIND_FILE` finds the moved path on disk:** update `#include` to that exact path.
+   - **If `TOOL_FIND_FILE` returns no matching files (the header was DELETED upstream in this milestone):**
+     * Do NOT repeat `TOOL_FIND_FILE` or `TOOL_GREP` searching for the deleted file in a loop.
+     * **Case A — Unused `#include`:** If the file does not reference any type/symbol from the deleted header (e.g. `crash_log.h` including `supplementable.h`), simply delete the `#include` line.
+     * **Case B — Upstream removed the base class / mixin defined in that header (e.g. `third_party/blink/renderer/platform/supplementable.h` and `Supplement<LocalDOMWindow>`):**
+       Use `TOOL_UPSTREAM_DIFF` on the host class header (e.g. `TOOL_UPSTREAM_DIFF: third_party/blink/renderer/core/frame/local_dom_window.h`) to see how upstream migrated supplements (e.g. replacing `public Supplement<LocalDOMWindow>` with `public GarbageCollectedMixin` + a `Member<LocalDOMWindow>` member on the supplement class, and adding `ForwardDeclaredMember<T>` + `GetFoo()`/`SetFoo()` + `Trace()` on `LocalDOMWindow` under `#if BUILDFLAG(IS_COBALT)`). Emit multi-file `FILE:` `SEARCH/REPLACE` blocks for both the supplement `.h`/`.cc` and host `.h`/`.cc` in one turn.
 8. Siso Build Diagnostics & Target Names (cobalt_apk, *.apk, *.ninja):
    - Siso error outputs often start with high-level build targets (e.g. `FAILED: obj/.../wrappers.o`, `build step: cobalt_apk`).
    - `cobalt_apk` is the top-level build target, NOT a source code file! NEVER generate a patch targeting `FILE: cobalt_apk`, `FILE: *.apk`, or `FILE: *.ninja`.

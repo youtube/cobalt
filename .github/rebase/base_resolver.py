@@ -1428,7 +1428,7 @@ def format_history_records(
   """
   history_items = []
   investigation_items = []
-  for record in history_records[-window:]:
+  for record in history_records:
     iteration = str(record.get("iteration", ""))
     rec_file = record.get("file", "")
     rec_error = record.get("error", "")
@@ -1439,7 +1439,8 @@ def format_history_records(
       history_items.append(
           f"- Iteration {iteration}: Modified {rec_file} to fix "
           f"\"{rec_error}\"")
-  return "\n".join(history_items), "\n\n".join(investigation_items)
+  return ("\n".join(history_items[-window:]),
+          "\n\n".join(investigation_items[-window:]))
 
 
 class BaseResolver(abc.ABC):
@@ -1551,12 +1552,15 @@ class BaseResolver(abc.ABC):
       self,
       initial_patch: str,
       diagnostic: Any,
+      *,
       max_rounds: int = 12,
+      base_history_records: Optional[List[Dict[str, Any]]] = None,
+      expert_guidance: str = "",
   ) -> Tuple[str, str]:
     """Runs multi-turn tool loop supporting batch tool requests from LLM."""
     current_patch = initial_patch
     model_used = self.model
-    history_records: List[Dict[str, Any]] = []
+    history_records: List[Dict[str, Any]] = list(base_history_records or [])
     seen_cmds: Dict[str, int] = collections.defaultdict(int)
 
     for round_idx in range(1, max_rounds + 1):
@@ -1601,14 +1605,6 @@ class BaseResolver(abc.ABC):
           "error": combined_output,
       })
 
-      patch_res, m_used, _ = self.resolve_diagnostic(
-          diagnostic=diagnostic,
-          history_records=history_records,
-          use_expert=True,
-      )
-      current_patch = patch_res
-      model_used = m_used
-
       if any(seen_cmds[cmd] >= 3 for cmd in tool_cmds):
         print(
             f"  [{self.name}] [Anti-Loop] Breaking repeated tool loop after "
@@ -1616,6 +1612,34 @@ class BaseResolver(abc.ABC):
             file=sys.stderr,
         )
         break
+
+      patch_res, m_used, _ = self.resolve_diagnostic(
+          diagnostic=diagnostic,
+          history_records=history_records,
+          use_expert=True,
+          expert_guidance=expert_guidance,
+      )
+      current_patch = patch_res
+      model_used = m_used
+
+    if extract_tool_commands(current_patch):
+      history_records.append({
+          "iteration":
+              "Tool-Final",
+          "file":
+              "SYSTEM_DIRECTIVE",
+          "error":
+              ("=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* commands. "
+               "Synthesize the findings above and output ONLY the final FILE: "
+               "and <<<<<<< SEARCH / ======= / >>>>>>> REPLACE patch block(s) "
+               "now. ==="),
+      })
+      current_patch, model_used, _ = self.resolve_diagnostic(
+          diagnostic=diagnostic,
+          history_records=history_records,
+          use_expert=True,
+          expert_guidance=expert_guidance,
+      )
 
     return current_patch, model_used
 
@@ -1969,6 +1993,8 @@ class BaseResolver(abc.ABC):
         patch, model_used = self.execute_investigation_tools(
             initial_patch=patch,
             diagnostic=first_diag,
+            base_history_records=history_records,
+            expert_guidance=expert_guidance,
         )
 
       if not patch:
