@@ -296,6 +296,7 @@ android_assets("coat_assets") {
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
   add_stubs_for_missing_jni = true
+  manual_jni_registration = true
   deps = [
     ":app_event_bridge",
     ":jni_headers",
