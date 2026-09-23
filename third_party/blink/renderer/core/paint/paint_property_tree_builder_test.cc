@@ -4,12 +4,9 @@
 
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder_test.h"
 
-<<<<<<< HEAD
 #include "base/compiler_specific.h"
-=======
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
->>>>>>> 11ab517c82c (blink: Gate kTrivial3DTransform preservation behind kCobaltPreserveTrivial3DTransform feature (#12724))
 #include "cc/test/fake_layer_tree_host_client.h"
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/features.h"
