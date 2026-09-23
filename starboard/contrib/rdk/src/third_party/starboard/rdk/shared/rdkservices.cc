@@ -833,14 +833,20 @@ void DisplayInfoImpl::Refresh() {
 }
 
 void DisplayInfoImpl::OnUpdated(const Core::JSON::String&) {
-  if (needs_refresh_.load() == false) {
-    needs_refresh_.store(true);
-    SbEventSchedule([](void* data) {
-      // Clear mime cache until display info is updated
-      MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-      ApplicationRdk::Get()->DisplayInfoChanged();
-    }, nullptr, 0);
-  }
+  needs_refresh_.store(true);
+  // HDMI dynamic range transitions (such as HDR-to-SDR when a hardware video
+  // plane is disabled) can emit multiple sequential udev and DisplayInfo
+  // update events: an initial DRM InfoFrame update when the video layer stops,
+  // followed after the HDMI mute window by a final SDR state event. If
+  // DisplayInfoImpl::Refresh() is not queried between those two events,
+  // needs_refresh_ remains true. Always schedule DisplayInfoChanged() on every
+  // notification so Cobalt forces a compositor redraw after the final HDMI
+  // state settles.
+  SbEventSchedule([](void* data) {
+    // Clear mime cache until display info is updated
+    MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+    ApplicationRdk::Get()->DisplayInfoChanged();
+  }, nullptr, 0);
 }
 
 struct NetworkInfoImpl {
