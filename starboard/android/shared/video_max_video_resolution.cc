@@ -14,10 +14,12 @@
 
 #include "starboard/android/shared/video_max_video_resolution.h"
 
+#include <cstdio>
+
 namespace starboard {
 namespace {
 
-thread_local std::string g_max_video_resolution;
+thread_local char g_max_video_resolution[256] = {0};
 
 }  // namespace
 
@@ -27,9 +29,10 @@ std::string GetMaxVideoResolutionForCurrentThread() {
 
 void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution) {
   if (max_video_resolution) {
-    g_max_video_resolution = max_video_resolution;
+    snprintf(g_max_video_resolution, sizeof(g_max_video_resolution), "%s",
+             max_video_resolution);
   } else {
-    g_max_video_resolution.clear();
+    g_max_video_resolution[0] = '\0';
   }
 }
 
