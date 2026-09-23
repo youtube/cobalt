@@ -418,22 +418,9 @@ BASE_FEATURE(kIncreasedCmdBufferParseSlice,
 // Prune transfer cache entries not accessed recently. This also turns off
 // similar logic in cc::GpuImageDecodeCache which is the largest (often single)
 // client of transfer cache.
-//
-// Cobalt: enabled by default, backporting https://crrev.com/c/8134219
-// (M153, main@{#1666633}), which flipped this to FEATURE_ENABLED_BY_DEFAULT
-// upstream. On Cobalt this flag is the kill switch for idle transfer cache
-// pruning: it gates ServiceTransferCache::MaybePostPruneOldEntries(), which is
-// the only thing that runs while the UI is idle and therefore the only thing
-// that can act on entries once cc::GpuImageDecodeCache finally unlocks them.
-// See also EnablePurgeGpuImageDecodeCache() below.
 BASE_FEATURE(kPruneOldTransferCacheEntries,
              "PruneOldTransferCacheEntries",
-#if BUILDFLAG(IS_COBALT)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // On platforms with delegated compositing, try to release overlays later, when
 // no new frames are swapped.
