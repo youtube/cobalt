@@ -257,15 +257,15 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     private void releaseSurfaceControl() {
-      if (mSurfaceControl != null) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-            transaction.reparent(mSurfaceControl, null).apply();
-          }
-        }
-        mSurfaceControl.release();
-        mSurfaceControl = null;
+      if (mSurfaceControl == null) {
+        return;
       }
+
+      try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+        transaction.reparent(mSurfaceControl, null).apply();
+      }
+      mSurfaceControl.release();
+      mSurfaceControl = null;
     }
 
     private void registerStartupListener() {

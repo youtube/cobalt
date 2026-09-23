@@ -23,7 +23,7 @@
 #include "base/system/sys_info.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/media_switches.h"
+#include "media/base/media_switches.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -766,8 +766,10 @@ bool IsAndroidSurfaceControlEnabled() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Starboard media renders video via VideoSurfaceView underlay rather than
   // AImageReader, and uses SurfaceControl (GLSurfaceEGLSurfaceControl +
-  // VizBufferQueue) on Android TV when SinglePlaneVideoPassthrough is enabled.
-  if (base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough)) {
+  // VizBufferQueue) on Android 12+ (API 31+, where Window.getRootSurfaceControl
+  // is available) when SinglePlaneVideoPassthrough is enabled.
+  if (build_info->sdk_int() >= base::android::SDK_VERSION_S &&
+      base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough)) {
     return true;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

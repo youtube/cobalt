@@ -20,6 +20,10 @@
 #include "media/base/media_switches.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/config/gpu_finch_features.h"
+#endif
+
 namespace viz {
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
@@ -146,6 +150,7 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 
 #if BUILDFLAG(IS_ANDROID)
   const bool single_plane_mode =
+      features::IsAndroidSurfaceControlEnabled() &&
       base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough) &&
       found_underlay && content_rect.IsEmpty();
   if (is_single_plane_mode_ != single_plane_mode) {
