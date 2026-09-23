@@ -295,6 +295,7 @@ android_assets("coat_assets") {
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
+  manual_jni_registration = true
   deps = [
     ":app_event_bridge",
     "//cobalt:cobalt_app",

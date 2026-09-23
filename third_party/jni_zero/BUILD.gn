@@ -72,7 +72,7 @@ component("jni_zero") {
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   defines = []
-  if (enable_jni_multiplexing) {
+  if (enable_jni_multiplexing && !is_cobalt) {
     defines += [ "JNI_ZERO_MULTIPLEXING_ENABLED" ]
   }
   if (is_robolectric) {

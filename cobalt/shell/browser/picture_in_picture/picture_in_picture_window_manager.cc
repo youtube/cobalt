@@ -28,10 +28,6 @@ PictureInPictureWindowManager& PictureInPictureWindowManager::GetInstance() {
   return *instance;
 }
 
-PictureInPictureWindowManager::PictureInPictureWindowManager() = default;
-
-PictureInPictureWindowManager::~PictureInPictureWindowManager() = default;
-
 content::WebContents* PictureInPictureWindowManager::GetWebContents() const {
   if (!pip_window_controller_) {
     return nullptr;
@@ -102,6 +98,10 @@ class PictureInPictureWindowManager::
  private:
   raw_ptr<PictureInPictureWindowManager> owner_ = nullptr;
 };
+
+PictureInPictureWindowManager::PictureInPictureWindowManager() = default;
+
+PictureInPictureWindowManager::~PictureInPictureWindowManager() = default;
 
 void PictureInPictureWindowManager::ExitPictureInPicture() {
   if (!pip_window_controller_) {

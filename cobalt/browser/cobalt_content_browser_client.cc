@@ -204,6 +204,8 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
   }
   client->DispatchFocus();
 }
+
+DEFINE_JNI(CobaltContentBrowserClient)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {

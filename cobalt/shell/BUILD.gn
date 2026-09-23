@@ -83,6 +83,7 @@ group("cobalt_shell_lib_deps") {
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
+    "//device/bluetooth",
     "//components/network_hints/browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",

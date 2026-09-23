@@ -277,3 +277,5 @@ jboolean JNI_AudioOutputManager_IsSeamlessAudioSwitchingEnabled(JNIEnv* env) {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(AudioOutputManager)

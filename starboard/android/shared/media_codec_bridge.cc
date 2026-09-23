@@ -444,3 +444,5 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(MediaCodecBridge)

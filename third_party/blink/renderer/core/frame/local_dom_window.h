@@ -57,11 +57,20 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/storage/blink_storage_key.h"
+#include "third_party/blink/renderer/platform/forward_declared_member.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
+
+#if BUILDFLAG(IS_COBALT)
+class CobaltLifecycleController;
+class H5vcc;
+#if BUILDFLAG(IS_IOS_TVOS)
+class OnScreenKeyboard;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
 
 class BarProp;
 class CSSStyleDeclaration;
@@ -509,6 +518,17 @@ class CORE_EXPORT LocalDOMWindow final
   TrustedTypePolicyFactory* GetTrustedTypesForWorld(
       const DOMWrapperWorld&) const;
 
+#if BUILDFLAG(IS_COBALT)
+  CobaltLifecycleController* GetCobaltLifecycleController() const;
+  void SetCobaltLifecycleController(CobaltLifecycleController* controller);
+  H5vcc* GetH5vcc() const;
+  void SetH5vcc(H5vcc* h5vcc);
+#if BUILDFLAG(IS_IOS_TVOS)
+  OnScreenKeyboard* GetOnScreenKeyboard() const;
+  void SetOnScreenKeyboard(OnScreenKeyboard* keyboard);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Returns true if this window is cross-site to the outermost main frame.
   // Defaults to false in a detached window. Note: This uses an outdated
   // definition of "site" which only includes the registrable domain and not the
@@ -746,8 +766,7 @@ class CORE_EXPORT LocalDOMWindow final
   Member<SoftNavigationHeuristics> soft_navigation_heuristics_;
 
 #if BUILDFLAG(IS_COBALT)
-  ForwardDeclaredMember<CobaltLifecycleController,
-                        ExecutionContextLifecycleStateObserver>
+  Member<ExecutionContextLifecycleObserver>
       cobalt_lifecycle_controller_;
   ForwardDeclaredMember<H5vcc> h5vcc_;
 

@@ -143,6 +143,10 @@
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"  // nogncheck
+#include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"  // nogncheck
+#endif
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy_factory.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
@@ -2503,6 +2507,36 @@ DOMWindow* LocalDOMWindow::openPictureInPictureWindow(
 
   return pip_dom_window;
 }
+
+#if BUILDFLAG(IS_COBALT)
+CobaltLifecycleController* LocalDOMWindow::GetCobaltLifecycleController() const {
+  return static_cast<CobaltLifecycleController*>(
+      cobalt_lifecycle_controller_.Get());
+}
+
+void LocalDOMWindow::SetCobaltLifecycleController(
+    CobaltLifecycleController* controller) {
+  cobalt_lifecycle_controller_ = controller;
+}
+
+H5vcc* LocalDOMWindow::GetH5vcc() const {
+  return h5vcc_;
+}
+
+void LocalDOMWindow::SetH5vcc(H5vcc* h5vcc) {
+  h5vcc_ = h5vcc;
+}
+
+#if BUILDFLAG(IS_IOS_TVOS)
+OnScreenKeyboard* LocalDOMWindow::GetOnScreenKeyboard() const {
+  return on_screen_keyboard_;
+}
+
+void LocalDOMWindow::SetOnScreenKeyboard(OnScreenKeyboard* keyboard) {
+  on_screen_keyboard_ = keyboard;
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#endif  // BUILDFLAG(IS_COBALT)
 
 void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(script_controller_);

@@ -31,9 +31,9 @@
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
-using base::android::JavaParamRef;
-using base::android::JavaRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
+using jni_zero::ScopedJavaLocalRef;
 
 namespace {
 
@@ -103,10 +103,10 @@ void DestroyShellManager() {
   Java_ShellManager_destroy(env, g_global_state.Get().j_shell_manager);
 }
 
-base::android::ScopedJavaLocalRef<jstring>
+ScopedJavaLocalRef<jstring>
 JNI_ShellManager_AppendMigrationStatus(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& jurl) {
+    const JavaParamRef<jstring>& jurl) {
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   const std::string status_param = cobalt::migrate_storage_record::
       MigrationManager::GetMigrationStatusUrlParameter();
@@ -128,3 +128,5 @@ JNI_ShellManager_AppendMigrationStatus(
 }
 
 }  // namespace content
+
+DEFINE_JNI(ShellManager)

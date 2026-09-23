@@ -28,8 +28,8 @@
 #include "content/public/common/content_switches.h"
 
 using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 namespace content {
 
@@ -186,3 +186,5 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
 }
 
 }  // namespace content
+
+DEFINE_JNI(Shell)

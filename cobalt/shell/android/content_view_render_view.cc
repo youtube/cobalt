@@ -22,8 +22,8 @@
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/size.h"
 
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 namespace cobalt {
 
@@ -138,3 +138,5 @@ void ContentViewRenderView::InitCompositor() {
 }
 
 }  // namespace cobalt
+
+DEFINE_JNI(ContentViewRenderView)
