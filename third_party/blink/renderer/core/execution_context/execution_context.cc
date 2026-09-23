@@ -544,48 +544,6 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(origin_trial_context_);
   visitor->Trace(content_security_policy_);
   visitor->Trace(runtime_feature_state_override_context_);
-<<<<<<< HEAD
-=======
-  visitor->Trace(global_indexed_db_);
-  visitor->Trace(abort_signal_registry_);
-  visitor->Trace(context_feature_settings_);
-  visitor->Trace(dom_scheduler_);
-  visitor->Trace(file_backed_blob_factory_dispatcher_);
-  visitor->Trace(media_inspector_context_impl_);
-  visitor->Trace(reporting_context_);
-  visitor->Trace(scripted_idle_task_controller_);
-  visitor->Trace(ai_interface_proxy_);
-  visitor->Trace(background_readback_);
-  visitor->Trace(barcode_detector_statics_);
-  visitor->Trace(cached_video_frame_pool_);
-  visitor->Trace(canvas_resource_provider_cache_);
-  visitor->Trace(codec_pressure_manager_provider_);
-  visitor->Trace(cros_kiosk_);
-  visitor->Trace(dom_timer_coordinator_);
-  visitor->Trace(execution_context_clipboard_event_state_);
-  visitor->Trace(file_system_access_manager_);
-  visitor->Trace(file_system_dispatcher_);
-  visitor->Trace(file_system_observation_collection_);
-  visitor->Trace(idle_manager_);
-  visitor->Trace(image_bitmap_factories_);
-  visitor->Trace(local_file_system_);
-  visitor->Trace(navigator_badge_);
-  visitor->Trace(notification_manager_);
-  visitor->Trace(parsed_feature_policies_);
-  visitor->Trace(peer_connection_dependency_factory_);
-  visitor->Trace(pressure_observer_manager_);
-  visitor->Trace(rtc_transport_dependencies_);
-  visitor->Trace(service_worker_container_);
-  visitor->Trace(throttling_controller_);
-  visitor->Trace(web_codecs_logger_);
-  visitor->Trace(web_printing_manager_);
-  visitor->Trace(web_view_android_);
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_IOS_TVOS)
-  visitor->Trace(dial_server_manager_);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   MojoBindingContext::Trace(visitor);
   ConsoleLogger::Trace(visitor);
   Supplementable<ExecutionContext, 34>::Trace(visitor);

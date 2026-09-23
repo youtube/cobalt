@@ -2263,7 +2263,6 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   DCHECK_LE(region.size(), old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-<<<<<<< HEAD
 #ifdef V8_OS_IOS
   // iOS devices do not support toggling the page permissions after a MAP_JIT
   // call. See https://developer.apple.com/forums/thread/672804
@@ -2272,10 +2271,6 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
                                 region.size());
 #else
-  if (V8_UNLIKELY(!allocator->DecommitPages(
-          reinterpret_cast<void*>(region.begin()), region.size()))) {
-    // Decommit can fail in near-OOM situations.
-=======
 #if BUILDFLAG(IS_COBALT)
   // no_decommit_pooled_pages to address crash at b/527944046.
   bool success = allocator->DiscardSystemPages(
@@ -2287,7 +2282,6 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
 
   if (V8_UNLIKELY(!success)) {
     // Decommit/Discard can fail in near-OOM situations.
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",

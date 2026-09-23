@@ -1683,12 +1683,9 @@ source_set("platform_browser_tests") {
       "//chrome/browser/ui/zoom",
       "//components/bookmarks/managed",
       "//components/embedder_support",
-<<<<<<< HEAD
-      "//components/enterprise/browser/promotion",
-=======
+"//components/enterprise/browser/promotion",
       "//components/infobars/content",
       "//components/javascript_dialogs",
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "//components/media_device_salt",
       "//components/privacy_sandbox:privacy_sandbox_settings_headers",
       "//components/proxy_config",
