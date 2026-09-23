@@ -22,13 +22,13 @@
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/size.h"
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace cobalt {
 
 ContentViewRenderView::ContentViewRenderView(JNIEnv* env,
-                                             const JavaParamRef<jobject>& obj,
+                                             const JavaRef<jobject>& obj,
                                              gfx::NativeWindow root_window)
     : root_window_(root_window), current_surface_format_(0) {
   java_obj_.Reset(env, obj);
@@ -39,8 +39,8 @@ ContentViewRenderView::~ContentViewRenderView() {}
 // static
 static jlong JNI_ContentViewRenderView_Init(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jobject>& jroot_window_android) {
+    const JavaRef<jobject>& obj,
+    const JavaRef<jobject>& jroot_window_android) {
   gfx::NativeWindow root_window =
       ui::WindowAndroid::FromJavaWindowAndroid(jroot_window_android);
   ContentViewRenderView* content_view_render_view =
@@ -48,15 +48,14 @@ static jlong JNI_ContentViewRenderView_Init(
   return reinterpret_cast<intptr_t>(content_view_render_view);
 }
 
-void ContentViewRenderView::Destroy(JNIEnv* env,
-                                    const JavaParamRef<jobject>& obj) {
+void ContentViewRenderView::Destroy(JNIEnv* env, const JavaRef<jobject>& obj) {
   delete this;
 }
 
 void ContentViewRenderView::SetCurrentWebContents(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jobject>& jweb_contents) {
+    const JavaRef<jobject>& obj,
+    const JavaRef<jobject>& jweb_contents) {
   InitCompositor();
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(jweb_contents);
@@ -67,8 +66,8 @@ void ContentViewRenderView::SetCurrentWebContents(
 
 void ContentViewRenderView::OnPhysicalBackingSizeChanged(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jobject>& jweb_contents,
+    const JavaRef<jobject>& obj,
+    const JavaRef<jobject>& jweb_contents,
     jint width,
     jint height) {
   content::WebContents* web_contents =
@@ -78,13 +77,13 @@ void ContentViewRenderView::OnPhysicalBackingSizeChanged(
 }
 
 void ContentViewRenderView::SurfaceCreated(JNIEnv* env,
-                                           const JavaParamRef<jobject>& obj) {
+                                           const JavaRef<jobject>& obj) {
   current_surface_format_ = 0;
   InitCompositor();
 }
 
 void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
-                                             const JavaParamRef<jobject>& obj) {
+                                             const JavaRef<jobject>& obj) {
   // When we switch from Chrome to other app we can't detach child surface
   // controls because it leads to a visible hole: b/157439199. To avoid this we
   // don't detach surfaces if the surface is going to be destroyed, they will be
@@ -97,12 +96,12 @@ void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
 
 void ContentViewRenderView::SurfaceChanged(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
+    const JavaRef<jobject>& obj,
     jint format,
     jint width,
     jint height,
-    const JavaParamRef<jobject>& surface,
-    const JavaParamRef<jobject>& host_input_token) {
+    const JavaRef<jobject>& surface,
+    const JavaRef<jobject>& host_input_token) {
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
     compositor_->SetSurface(
@@ -111,10 +110,9 @@ void ContentViewRenderView::SurfaceChanged(
   compositor_->SetWindowBounds(gfx::Size(width, height));
 }
 
-void ContentViewRenderView::SetOverlayVideoMode(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    bool enabled) {
+void ContentViewRenderView::SetOverlayVideoMode(JNIEnv* env,
+                                                const JavaRef<jobject>& obj,
+                                                bool enabled) {
   compositor_->SetRequiresAlphaChannel(enabled);
   compositor_->SetBackgroundColor(enabled ? SK_ColorTRANSPARENT
                                           : SK_ColorWHITE);
