@@ -1377,9 +1377,14 @@ component("base") {
 
     if (android_ndk_api_level >= 29) {
       deps += [ ":build_info_aidl_native" ]
+    }
+
+    # These wrappers only use AHardwareBuffer, which is API 26, not the API 29
+    # NDK binder/AIDL that gates build_info_aidl_native above. Cobalt targets
+    # API 28 and its graphics path needs AHardwareBuffer, so include them for
+    # Cobalt too. (Cronet uses an even lower NDK level and does not need them.)
+    if (android_ndk_api_level >= 29 || is_cobalt) {
       sources += [
-        # Cronet uses lower NDK API level than is required for these files,
-        # but it doesn't need AHardwareBuffer anyway.
         "android/scoped_hardware_buffer_fence_sync.cc",
         "android/scoped_hardware_buffer_fence_sync.h",
         "android/scoped_hardware_buffer_handle.cc",

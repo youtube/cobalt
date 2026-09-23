@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<lint>
+  <!--
+    ObsoleteSdkInt fires on every SDK_INT check that is now always-true or
+    always-false for our min SDK, so the set churns every time min SDK moves and
+    it flags upstream Chromium code we do not own. Chromium's own APKs ignore it
+    (chrome/android/expectations/lint-suppressions.xml,
+    android_webview/tools/system_webview_shell/lint-suppressions.xml).
+
+    The findings are still useful as a one-off cleanup list; they do not gate
+    the build.
+  -->
+  <issue id="ObsoleteSdkInt" severity="ignore"/>
+
+  <!--
+    The categories below are ignored (not baselined). Enabling lint on cobalt_apk
+    is about catching API-level mistakes (NewApi) that crash on Android P; NewApi
+    is therefore the only category kept as a burn-down list in lint-baseline.xml.
+
+    Everything below fired almost entirely (424 of 450 findings) on upstream
+    Chromium code that Cobalt pulls into the APK but does not own and cannot fix
+    (unused resources, layout/RTL/i18n style, manifest/permission shape on code
+    paths Cobalt does not author). Carrying them as ~4800 baseline lines made the
+    baseline unreviewable without adding any actionable signal. Ignoring the
+    category is the right tool for "upstream, not ours"; the baseline is for
+    "ours, burn it down".
+
+    Re-enable any of these (move back to a baseline, or fix) if Cobalt starts
+    authoring code that should be gated on it.
+  -->
+  <!-- Unused / layout / accessibility resources (cosmetic, upstream). -->
+  <issue id="UnusedResources" severity="ignore"/>
+  <issue id="IconMissingDensityFolder" severity="ignore"/>
+  <issue id="MergeRootFrame" severity="ignore"/>
+  <issue id="UselessParent" severity="ignore"/>
+  <issue id="ViewConstructor" severity="ignore"/>
+  <issue id="ContentDescription" severity="ignore"/>
+  <issue id="ClickableViewAccessibility" severity="ignore"/>
+  <issue id="AccessibilityWindowStateChangedEvent" severity="ignore"/>
+
+  <!-- Internationalization / RTL style (upstream). -->
+  <issue id="DefaultLocale" severity="ignore"/>
+  <issue id="RtlSymmetry" severity="ignore"/>
+  <issue id="RtlHardcoded" severity="ignore"/>
+  <issue id="RtlCompat" severity="ignore"/>
+
+  <!-- Manifest / permission / platform-feature shape on upstream code paths. -->
+  <issue id="MissingPermission" severity="ignore"/>
+  <issue id="QueryPermissionsNeeded" severity="ignore"/>
+  <issue id="UnspecifiedRegisterReceiverFlag" severity="ignore"/>
+  <issue id="PictureInPictureIssue" severity="ignore"/>
+  <issue id="GestureBackNavigation" severity="ignore"/>
+  <issue id="AppBundleLocaleChanges" severity="ignore"/>
+
+  <!-- Misc upstream-code findings. -->
+  <issue id="PrivateApi" severity="ignore"/>
+  <issue id="UnclosedTrace" severity="ignore"/>
+  <issue id="SupportAnnotationUsage" severity="ignore"/>
+</lint>

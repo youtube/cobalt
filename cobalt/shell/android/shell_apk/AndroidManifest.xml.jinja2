@@ -53,7 +53,16 @@
     <application android:name="{% block application_name %}dev.cobalt.app.CobaltApplication{% endblock %}"
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
+            {# NEW SUPPRESSION: android:zygotePreloadName is API 29 (Android Q). Older
+               platforms ignore attributes they do not know, so this is inert rather than
+               harmful at API 28 - zygote preload, a startup performance feature, simply does
+               not run. tools:targetApi tells lint the attribute is deliberate. Nothing to
+               restore; the attribute has never been suppressed here.
+
+               WARNING: upstream has no suppression here, because upstream's floor is API 29.
+               A roll that rewrites this manifest will drop it silently. #}
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
+            tools:targetApi="q"
             {# Always enable debuggable=true for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
             android:debuggable="true"
             android:enableOnBackInvokedCallback="true"

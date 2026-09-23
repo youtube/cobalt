@@ -160,6 +160,15 @@ public final class BindService {
         context.unbindService(connection);
     }
 
+    // NEW ANNOTATION, no behaviour change: Context#updateServiceGroup is API 29 (Android Q),
+    // but the only caller - ChildServiceConnectionImpl - already gates on
+    // supportVariableConnections(), which is SDK_INT >= Q. This annotation just makes that
+    // existing contract visible to lint. Nothing to restore: the call arrived with the
+    // 142.7430 roll (c747ed8adb4), after Cobalt had stopped targeting API 24.
+    //
+    // WARNING: upstream has no annotation here, because upstream's floor is API 29.
+    // A roll that rewrites this code will drop it silently.
+    @RequiresApi(Build.VERSION_CODES.Q)
     static void doUpdateServiceGroup(
             Context context, ServiceConnection connection, int group, int importanceInGroup) {
         if (sBinderCallCounter != null) {

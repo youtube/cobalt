@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.0-alpha04" type="baseline" client="" dependencies="true" name="" variant="all" version="9.2.0-alpha04">
+
+    <!-- Next 5 (embedder_support ContentViewRenderView): all under
+         `if (InputUtils.isTransferInputToVizSupported())`, which returns false below
+         API 35 (native gate, SDK_VERSION_V=35 in components/input/utils.cc), so the
+         block never runs on Android P. Safe; lint can't see the native-side gate. -->
+    <issue
+        id="NewApi"
+        message="Call requires API level 31 (current min is 28): `android.view.Window#getRootSurfaceControl`"
+        errorLine1="                                    window.getRootSurfaceControl();"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java"
+            line="98"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 35 (current min is 28): `android.view.AttachedSurfaceControl#getInputTransferToken`"
+        errorLine1="                            browserInputToken = rootSurfaceControl.getInputTransferToken();"
+        errorLine2="                                                                   ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java"
+            line="100"
+            column="68"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 35 (current min is 28): `InputTransferHandler`"
+        errorLine1="                                    new InputTransferHandler("
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java"
+            line="113"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 35 (current min is 28): `getMap`"
+        errorLine1="                            SurfaceInputTransferHandlerMap.getMap().put(mSurfaceId, handler);"
+        errorLine2="                                                           ~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java"
+            line="119"
+            column="60"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 35 (current min is 28): `remove`"
+        errorLine1="                            SurfaceInputTransferHandlerMap.remove(mSurfaceId);"
+        errorLine2="                                                           ~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java"
+            line="154"
+            column="60"/>
+    </issue>
+
+    <!-- Callee AnrCollector.collectAndWriteAnrs is @RequiresApi(R) and self-guards
+         (early-return below R); only the unannotated wrapper is flagged. Safe. -->
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 28): `collectAndWriteAnrs`"
+        errorLine1="            List&lt;String> anrs = AnrCollector.collectAndWriteAnrs(anrDir);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/CrashFileManager.java"
+            line="389"
+            column="46"/>
+    </issue>
+
+    <!-- Callee getExitReason() self-guards (returns -1 below R). Safe. -->
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 28): `getExitReason`"
+        errorLine1="        recordAsEnumHistogram(umaName, getExitReason(pid));"
+        errorLine2="                                       ~~~~~~~~~~~~~">
+        <location
+            file="../../components/crash/android/java/src/org/chromium/components/crash/browser/ProcessExitReasonFromSystem.java"
+            line="108"
+            column="40"/>
+    </issue>
+
+</issues>

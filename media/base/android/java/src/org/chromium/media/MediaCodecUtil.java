@@ -11,6 +11,7 @@ import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecList;
 import android.media.MediaCrypto;
 import android.media.MediaFormat;
+import android.os.Build;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -112,7 +113,16 @@ class MediaCodecUtil {
 
     /** Return true if and only if info is a software codec. */
     public static boolean isSoftwareCodec(MediaCodecInfo info) {
-        if (!info.isHardwareAccelerated() || info.isSoftwareOnly()) return true;
+        // MediaCodecInfo.isHardwareAccelerated() and isSoftwareOnly() require API 29
+        // (Android Q). On Android P fall through to the name-based heuristics below, which
+        // are exactly the pre-Q way of making this determination.
+        //
+        // RESTORED: this guard was present in Cobalt until the 142.7403 roll (7a6e307489c)
+        // silently dropped it during conflict resolution. It is not a new invention. The shape
+        // is kept identical to the original so future rolls conflict predictably.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (!info.isHardwareAccelerated() || info.isSoftwareOnly()) return true;
+        }
 
         String name = info.getName().toLowerCase(Locale.ROOT);
 
