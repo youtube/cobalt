@@ -30,9 +30,7 @@ source_set("libunwind") {
     visibility += [ "//services/tracing/public/cpp" ]
 
     if (is_cobalt && is_partner_toolchain) {
-      # On AOSP, devil_util_bin is built statically against the NDK, and needs
-      # the unwinder symbols to build.
-      visibility += [ "//tools/android/devil_util:devil_util_bin" ]
+      visibility += [ "//build/config:common_deps" ]
     }
   }
   if (!is_component_build) {

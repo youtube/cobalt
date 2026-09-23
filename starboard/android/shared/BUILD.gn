@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/abi.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
@@ -130,6 +131,9 @@ static_library("starboard_platform") {
     "audio_permission_requester.h",
     "audio_renderer_passthrough.cc",
     "audio_renderer_passthrough.h",
+    "audio_renderer_sink_android.cc",
+    "audio_renderer_sink_android.h",
+    "audio_sink_android.h",
     "audio_sink_get_max_channels.cc",
     "audio_sink_get_min_buffer_size_in_frames.cc",
     "audio_sink_get_nearest_supported_sample_frequency.cc",
@@ -289,6 +293,13 @@ static_library("starboard_platform") {
     ":starboard_platform_libs",
   ]
 
+  defines = [
+    # system_get_property.cc stringizes this to build the platform name
+    # (e.g. for the User-Agent string). Without it, the ABI ends up as the
+    # literal text "ANDROID_ABI" instead of e.g. "armeabi-v7a".
+    "ANDROID_ABI=$android_app_abi",
+  ]
+
   public_deps = [
     ":starboard_base_symbolize",
     "//cobalt/android:app_event_bridge",
@@ -404,6 +415,9 @@ static_library("media_codec_video_decoder_helpers") {
   deps = [
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
+
+    # TODO: b/545881570 - Make this target depend on experimental_feature only.
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 }
 
@@ -440,6 +454,7 @@ test("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "audio_renderer_passthrough_test.cc",
+              "audio_renderer_sink_android_test.cc",
               "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
               "features_extension_test.cc",
@@ -472,6 +487,10 @@ test("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  deps += [ "//cobalt/android:cobalt_testing_java" ]
+  android_manifest_template =
+      "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
 }
 
 java_cpp_enum("java_enums") {

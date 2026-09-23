@@ -521,7 +521,7 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 // media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
 BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
              "CobaltUseExternalMediaMemoryPool",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

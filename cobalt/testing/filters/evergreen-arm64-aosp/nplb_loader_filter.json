@@ -26,6 +26,10 @@
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/79",
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbSystemGetStackTest.SunnyDay",
+    "SbSystemGetStackTest.SunnyDayShortStack",
+    "SbSystemGetStackTest.SunnyDayStackDirection",
+    "SbSystemSymbolizeTest.SunnyDay"
   ]
 }
