@@ -26,6 +26,8 @@ namespace viz {
 namespace {
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
+// Only referenced in the !BUILDFLAG(USE_STARBOARD_MEDIA) branch of
+// OverlayProcessorSurfaceControl(); guard to avoid -Wunused-const-variable.
 BASE_FEATURE(kAndroidSurfaceControlSingleOnTOp,
              "AndroidSurfaceControlSingleOnTOp",
              base::FEATURE_ENABLED_BY_DEFAULT);

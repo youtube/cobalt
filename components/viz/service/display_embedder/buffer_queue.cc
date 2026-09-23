@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "components/viz/service/display/skia_output_surface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
@@ -271,8 +270,6 @@ void BufferQueue::DestroyBuffers() {
   buffers_destroyed_ = true;
   destroyed_timer_ = base::ElapsedTimer();
   FreeAllBuffers();
-  LOG(INFO) << "VizBufferQueue: Destroyed " << number_of_buffers_
-            << " UI buffers (" << size_.ToString() << ")";
 }
 
 void BufferQueue::SetBuffersPurgeable() {
@@ -294,12 +291,8 @@ void BufferQueue::RecreateBuffersIfDestroyed() {
 
   if (buffers_destroyed_) {
     buffers_destroyed_ = false;
-    base::ElapsedTimer alloc_timer;
     AllocateBuffers(number_of_buffers_);
     base::TimeDelta elapsed = destroyed_timer_->Elapsed();
-    LOG(INFO) << "VizBufferQueue: Recreated " << number_of_buffers_
-              << " UI buffers (" << size_.ToString() << ") in "
-              << alloc_timer.Elapsed().InMillisecondsF() << " ms";
     UMA_HISTOGRAM_TIMES("Compositing.BufferQueue.TimeUntilBuffersRecreatedMs",
                         elapsed);
     destroyed_timer_.reset();

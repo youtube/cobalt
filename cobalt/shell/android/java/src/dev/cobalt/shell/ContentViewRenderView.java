@@ -253,7 +253,6 @@ public class ContentViewRenderView extends FrameLayout {
 
       transaction.setVisibility(surfaceControl, true).apply();
       mSurfaceControl = surfaceControl;
-      Log.i(TAG, "ContentViewRenderView: Attached CobaltWindowSurfaceControl to Window");
     }
 
     private void releaseSurfaceControl() {
@@ -325,13 +324,9 @@ public class ContentViewRenderView extends FrameLayout {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
               mWindowSurfaceHolder = holder;
-              ensureSurfaceControl();
               if (!mIsNativeStarted) {
                 mPendingTasks.add(
-                    () -> {
-                      ensureSurfaceControl();
-                      surfaceCallback.surfaceChanged(holder, format, width, height);
-                    });
+                    () -> surfaceCallback.surfaceChanged(holder, format, width, height));
                 return;
               }
               surfaceCallback.surfaceChanged(holder, format, width, height);

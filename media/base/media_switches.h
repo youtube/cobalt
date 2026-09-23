@@ -230,6 +230,7 @@ MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDuratio
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSinglePlaneVideoPassthrough);
 #endif  // BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUseExternalMediaMemoryPool);

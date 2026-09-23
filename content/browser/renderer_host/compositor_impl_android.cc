@@ -69,6 +69,7 @@
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/common/swap_buffers_complete_params.h"
 #include "gpu/command_buffer/common/swap_buffers_flags.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/client/command_buffer_proxy_impl.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "gpu/ipc/common/gpu_surface_tracker.h"
@@ -331,6 +332,7 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
   // Register first, SetVisible() might create a LayerTreeFrameSink.
 #if BUILDFLAG(IS_COBALT)
   if (can_be_used_with_surface_control && host_input_token &&
+      features::IsAndroidSurfaceControlEnabled() &&
       gfx::SurfaceControl::SupportsSurfacelessControl()) {
     surface_handle_ = tracker->AddSurfaceForNativeWidget(
         gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
@@ -338,10 +340,15 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
     SetVisible(true);
     return surface_handle_;
   }
-#endif
+  surface_handle_ = tracker->AddSurfaceForNativeWidget(
+      gpu::SurfaceRecord(std::move(scoped_surface),
+                         /*can_be_used_with_surface_control=*/false,
+                         /*host_input_token=*/nullptr));
+#else
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),
                          can_be_used_with_surface_control, host_input_token));
+#endif
   SetVisible(true);
   return surface_handle_;
 }

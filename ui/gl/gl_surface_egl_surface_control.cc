@@ -181,8 +181,6 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
       surface_state.hardware_buffer = nullptr;
     }
     if (surface_state.visibility) {
-      LOG(INFO) << "GLSurfaceEGLSurfaceControl: Hiding ChromeChildSurface "
-                   "(buffer detached, 1-Surface Mode active)";
       pending_transaction_->SetVisibility(*surface_state.surface, false);
       surface_state.visibility = false;
     }
@@ -265,8 +263,6 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
 
   // Make the surface visible if its hidden or uninitialized..
   if (uninitialized || !surface_state.visibility) {
-    LOG(INFO) << "GLSurfaceEGLSurfaceControl: Showing ChromeChildSurface "
-                 "(UI plane visible)";
     pending_transaction_->SetVisibility(*surface_state.surface, true);
     surface_state.visibility = true;
   }

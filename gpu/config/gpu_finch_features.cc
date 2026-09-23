@@ -22,6 +22,9 @@
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_switches.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
@@ -760,7 +763,15 @@ bool IsAndroidSurfaceControlEnabled() {
   if (!gfx::SurfaceControl::IsSupported())
     return false;
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard media renders video via VideoSurfaceView underlay rather than
+  // AImageReader, and uses SurfaceControl (GLSurfaceEGLSurfaceControl +
+  // VizBufferQueue) on Android TV when SinglePlaneVideoPassthrough is enabled.
+  if (base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough)) {
+    return true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // We can use surface control only with AImageReader.
   if (!base::android::EnableAndroidImageReader()) {
     return false;
@@ -769,7 +780,6 @@ bool IsAndroidSurfaceControlEnabled() {
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())
     return false;
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // On WebView we require thread-safe media to use SurfaceControl
   if (IsUsingThreadSafeMediaForWebView()) {

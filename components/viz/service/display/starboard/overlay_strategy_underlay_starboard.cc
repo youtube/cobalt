@@ -11,20 +11,16 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
+#include "media/base/media_switches.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
-
-namespace {
-BASE_FEATURE(kSinglePlaneVideoPassthrough,
-             "SinglePlaneVideoPassthrough",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -148,17 +144,17 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     LOG(INFO) << (found_underlay ? "Overlay activated" : "Overlay deactivated");
   }
 
+#if BUILDFLAG(IS_ANDROID)
   const bool single_plane_mode =
-      base::FeatureList::IsEnabled(kSinglePlaneVideoPassthrough) &&
+      base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough) &&
       found_underlay && content_rect.IsEmpty();
   if (is_single_plane_mode_ != single_plane_mode) {
     is_single_plane_mode_ = single_plane_mode;
-    LOG(INFO)
-        << (single_plane_mode
-                ? "Single-plane video passthrough activated (UI plane removed)"
-                : "Single-plane video passthrough deactivated (UI plane "
-                  "restored)");
+    LOG(INFO) << (single_plane_mode ? "Single-plane video passthrough activated"
+                                    : "Single-plane video passthrough "
+                                      "deactivated");
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (found_underlay) {
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
