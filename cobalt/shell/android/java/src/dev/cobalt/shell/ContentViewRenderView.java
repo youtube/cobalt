@@ -193,7 +193,6 @@ public class ContentViewRenderView extends FrameLayout {
         .setOverlayVideoMode(mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
   }
 
-
   /**
    * Takes ownership of the Activity's Window surface. This allows direct rendering to the window
    * surface instead of a child SurfaceView.

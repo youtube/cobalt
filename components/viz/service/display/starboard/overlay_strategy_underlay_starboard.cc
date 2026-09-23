@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
@@ -18,6 +19,12 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
+
+namespace {
+BASE_FEATURE(kSinglePlaneVideoPassthrough,
+             "SinglePlaneVideoPassthrough",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -141,7 +148,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     LOG(INFO) << (found_underlay ? "Overlay activated" : "Overlay deactivated");
   }
 
-  const bool single_plane_mode = found_underlay && content_rect.IsEmpty();
+  const bool single_plane_mode =
+      base::FeatureList::IsEnabled(kSinglePlaneVideoPassthrough) &&
+      found_underlay && content_rect.IsEmpty();
   if (is_single_plane_mode_ != single_plane_mode) {
     is_single_plane_mode_ = single_plane_mode;
     LOG(INFO)

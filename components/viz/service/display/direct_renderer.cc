@@ -394,6 +394,9 @@ void DirectRenderer::DrawFrame(
       !current_frame()->output_surface_plane &&
       output_surface_->capabilities().renderer_allocates_images &&
       root_render_pass->copy_requests.empty();
+  if (output_surface_plane_removed) {
+    next_frame_needs_full_frame_redraw_ = true;
+  }
 
   bool skip_drawing_root_render_pass =
       output_surface_plane_removed ||
