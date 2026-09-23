@@ -50,6 +50,12 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
     const std::array<float, 16>& matrix4x4,
     const Size& display_size);
 
+// Returns a Size containing the minimum width and minimum height of |a| and
+// |b|. If only one optional contains a value, returns that value. If neither
+// contains a value, returns std::nullopt.
+std::optional<Size> GetLowerResolution(const std::optional<Size>& a,
+                                       const std::optional<Size>& b);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_VIDEO_DECODER_HELPERS_H_

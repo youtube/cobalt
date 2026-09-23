@@ -51,17 +51,6 @@
 namespace starboard {
 namespace {
 
-std::optional<Size> MergeMaxResolutions(const std::optional<Size>& a,
-                                        const std::optional<Size>& b) {
-  if (!a) {
-    return b;
-  }
-  if (!b) {
-    return a;
-  }
-  return Size{std::min(a->width, b->width), std::min(a->height, b->height)};
-}
-
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
@@ -318,7 +307,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_size_(MergeMaxResolutions(
+      max_video_size_(GetLowerResolution(
           ParseMaxResolution(stream_config.max_video_capabilities,
                              "max_video_capabilities",
                              stream_config.video_stream_info.frame_size),

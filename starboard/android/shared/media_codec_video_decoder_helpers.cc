@@ -206,4 +206,15 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
   return {content_region, coded_size};
 }
 
+std::optional<Size> GetLowerResolution(const std::optional<Size>& a,
+                                       const std::optional<Size>& b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return Size{std::min(a->width, b->width), std::min(a->height, b->height)};
+}
+
 }  // namespace starboard
