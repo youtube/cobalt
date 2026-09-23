@@ -126,3 +126,5 @@ JNI_ShellManager_AppendMigrationStatus(
 }
 
 }  // namespace content
+
+DEFINE_JNI(ShellManager)

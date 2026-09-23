@@ -27,3 +27,5 @@ void JNI_CrashAnnotatorImplFirstParty_SetAnnotation(
   cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(name,
                                                                         value);
 }
+
+DEFINE_JNI(CrashAnnotatorImplFirstParty)

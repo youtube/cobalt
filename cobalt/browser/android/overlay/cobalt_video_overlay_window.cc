@@ -307,3 +307,5 @@ void CobaltVideoOverlayWindow::CreateJavaActivity() {
       env, j_web_contents, reinterpret_cast<jlong>(this));
 }
 }  // namespace cobalt
+
+DEFINE_JNI(CobaltPictureInPictureActivity)

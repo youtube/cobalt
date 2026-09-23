@@ -102,3 +102,5 @@ void JNI_AppEventBridge_HandleOsNetworkEvent(JNIEnv* env, jboolean online) {
                             : kSbEventTypeOsNetworkDisconnected,
                      starboard::CurrentMonotonicTime());
 }
+
+DEFINE_JNI(AppEventBridge)

@@ -31,3 +31,5 @@ static jboolean JNI_StarboardFeatureList_IsEnabled(
   return FeatureList::IsEnabledByName(feature_name);
 }
 }  // namespace starboard::features
+
+DEFINE_JNI(StarboardFeatureList)

@@ -73,3 +73,5 @@ std::array<float, 16> VideoSurfaceTextureBridge::GetTransformMatrix(
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(VideoSurfaceTexture)

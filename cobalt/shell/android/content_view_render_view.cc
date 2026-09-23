@@ -136,3 +136,5 @@ void ContentViewRenderView::InitCompositor() {
 }
 
 }  // namespace cobalt
+
+DEFINE_JNI(ContentViewRenderView)
