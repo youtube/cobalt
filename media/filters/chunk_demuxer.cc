@@ -32,7 +32,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -1339,10 +1339,10 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
     current_mime_type = itr->second->mime_type();
   }
 
-  if (!SbMediaCanChangeType(current_mime_type.c_str(), 
-                            target_mime_type.c_str())) {
-    LOG(INFO) << "Codec transition unsupported: current_mime_type='" 
-              << current_mime_type << "' -> target_mime_type='" 
+  if (!GetSbMediaInterface()->CanChangeType(current_mime_type.c_str(),
+                                            target_mime_type.c_str())) {
+    LOG(INFO) << "Codec transition unsupported: current_mime_type='"
+              << current_mime_type << "' -> target_mime_type='"
               << target_mime_type << "'";
     return false;
   }
