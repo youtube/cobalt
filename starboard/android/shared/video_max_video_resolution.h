@@ -19,17 +19,13 @@
 
 namespace starboard {
 
-// Returns the max_video_resolution setting transferred for the active player
-// creation. Safe to call from the PlayerWorker / decoder thread.
-std::string GetMaxVideoResolutionForPlayer();
+// Get max_video_resolution setting set via
+// SetMaxVideoResolutionForCurrentThread(). Returns empty string if not set.
+std::string GetMaxVideoResolutionForCurrentThread();
 
-// Transfers the thread-local max_video_resolution setting set on the
-// SbPlayerCreate calling thread into storage accessible by the PlayerWorker
-// thread, and clears the calling thread's thread-local value.
-void TransferMaxVideoResolutionForCurrentThreadToPlayer();
-
-// Sets the maximum video resolution string for the next SbPlayer created on the
-// current calling thread. Pass nullptr or empty string to clear.
+// Sets the maximum video resolution string for any subsequently created
+// SbPlayer on the current calling thread. Pass nullptr or empty string to
+// clear.
 void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution);
 
 }  // namespace starboard

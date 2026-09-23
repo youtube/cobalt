@@ -35,9 +35,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           base::TimeDelta audio_write_duration_local,
                           base::TimeDelta audio_write_duration_remote,
                           const std::string& max_video_capabilities,
+                          const std::string& max_video_resolution,
                           const ExperimentalFeatures& experimental_features,
-                          const gfx::Size& viewport_size,
-                          const std::string& max_video_resolution = "");
+                          const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 

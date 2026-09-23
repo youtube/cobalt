@@ -100,6 +100,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, job_queue, drm_system_);
+  creation_parameters.set_max_video_resolution(max_video_resolution_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -379,6 +380,13 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
                << " to " << max_video_input_size;
   max_video_input_size_ = max_video_input_size;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMaxVideoResolution(
+    const std::string& max_video_resolution) {
+  SB_LOG(INFO) << "Set max_video_resolution from \"" << max_video_resolution_
+               << "\" to \"" << max_video_resolution << "\"";
+  max_video_resolution_ = max_video_resolution;
 }
 
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(

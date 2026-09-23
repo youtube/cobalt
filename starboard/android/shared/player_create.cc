@@ -210,7 +210,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           creation_param, provider);
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
-  starboard::TransferMaxVideoResolutionForCurrentThreadToPlayer();
+  handler->SetMaxVideoResolution(
+      starboard::GetMaxVideoResolutionForCurrentThread());
   handler->SetExperimentalFeatures(
       starboard::GetExperimentalFeaturesForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());

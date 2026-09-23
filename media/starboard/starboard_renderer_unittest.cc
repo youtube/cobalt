@@ -58,6 +58,7 @@ class StarboardRendererTest : public testing::Test {
         /*audio_write_duration_local=*/base::Seconds(1),
         /*audio_write_duration_remote=*/base::Seconds(1),
         /*max_video_capabilities=*/"",
+        /*max_video_resolution=*/"",
         StarboardRendererConfig::ExperimentalFeatures{},
         /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)

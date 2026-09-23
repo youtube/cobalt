@@ -14,35 +14,22 @@
 
 #include "starboard/android/shared/video_max_video_resolution.h"
 
-#include <mutex>
-#include <utility>
-
 namespace starboard {
 namespace {
 
-thread_local std::string g_thread_max_video_resolution;
-
-std::mutex g_player_max_video_resolution_mutex;
-std::string g_player_max_video_resolution;
+thread_local std::string g_max_video_resolution;
 
 }  // namespace
 
-std::string GetMaxVideoResolutionForPlayer() {
-  std::lock_guard<std::mutex> lock(g_player_max_video_resolution_mutex);
-  return g_player_max_video_resolution;
-}
-
-void TransferMaxVideoResolutionForCurrentThreadToPlayer() {
-  std::lock_guard<std::mutex> lock(g_player_max_video_resolution_mutex);
-  g_player_max_video_resolution = std::move(g_thread_max_video_resolution);
-  g_thread_max_video_resolution.clear();
+std::string GetMaxVideoResolutionForCurrentThread() {
+  return g_max_video_resolution;
 }
 
 void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution) {
   if (max_video_resolution) {
-    g_thread_max_video_resolution = max_video_resolution;
+    g_max_video_resolution = max_video_resolution;
   } else {
-    g_thread_max_video_resolution.clear();
+    g_max_video_resolution.clear();
   }
 }
 

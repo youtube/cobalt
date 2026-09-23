@@ -108,7 +108,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
       audio_write_duration_remote_, max_video_capabilities_,
-      experimental_features_, viewport_size_, max_video_resolution_);
+      max_video_resolution_, experimental_features_, viewport_size_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,

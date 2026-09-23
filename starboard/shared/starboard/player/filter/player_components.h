@@ -119,6 +119,15 @@ class PlayerComponents {
         return video_stream_info_.max_video_capabilities;
       }
 
+      const std::string& max_video_resolution() const {
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
+        return max_video_resolution_;
+      }
+
+      void set_max_video_resolution(const std::string& max_video_resolution) {
+        max_video_resolution_ = max_video_resolution;
+      }
+
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
@@ -149,6 +158,7 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
+      std::string max_video_resolution_;
       const ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*

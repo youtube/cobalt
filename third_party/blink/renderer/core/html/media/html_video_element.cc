@@ -813,7 +813,7 @@ void HTMLVideoElement::AddedEventListener(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void HTMLVideoElement::SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
+void HTMLVideoElement::SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state) {
   String srcAttr = FastGetAttribute(html_names::kSrcAttr);
   if (srcAttr != g_null_atom && srcAttr.length() > 0) {
     exception_state.ThrowDOMException(
@@ -824,7 +824,7 @@ void HTMLVideoElement::SetMaxVideoCapabilities(const String& max_video_capabilit
   max_video_capabilities_ = max_video_capabilities.Ascii();
 }
 
-void HTMLVideoElement::SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state){
+void HTMLVideoElement::SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state) {
   String srcAttr = FastGetAttribute(html_names::kSrcAttr);
   if (srcAttr != g_null_atom && srcAttr.length() > 0) {
     exception_state.ThrowDOMException(
