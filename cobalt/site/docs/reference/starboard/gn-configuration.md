@@ -27,7 +27,7 @@ Book: /youtube/cobalt/_book.yaml
 | **`sb_filter_based_player`**<br><br> Used to indicate that the player is filter based.<br><br>The default value is `true`. |
 | **`sb_has_unused_symbol_issue`**<br><br> Set this to true if the modular toolchain linker doesn't strip all unused symbols and nplb fails to link.<br><br>The default value is `false`. |
 | **`sb_libevent_method`**<br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to 'poll' if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is `"epoll"`. |
-| **`sb_static_contents_output_data_dir`**<br><br> Directory path to static contents' data.<br><br>The default value is `"/project_out_dir/content/data"`. |
+| **`sb_static_contents_output_data_dir`**<br><br> Directory path to static contents' data.<br><br>The default value is `"/project_out_dir"`. |
 | **`sb_use_no_rtti`**<br><br> Whether or not to disable run-time type information (adding no_rtti flag).<br><br>The default value is `false`. |
 | **`source_set_configs`**<br><br> Target-specific configurations for source_set targets.<br><br>The default value is `[]`. |
 | **`starboard_level_final_executable_type`**<br><br>The default value is `"executable"`. |
