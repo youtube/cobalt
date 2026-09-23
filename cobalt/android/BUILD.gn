@@ -434,6 +434,18 @@ shared_library_with_jni("libchrobalt") {
 
 android_apk("cobalt_apk") {
   apk_name = "Cobalt"
+
+  # Android lint is the only build-time check for
+  # Java API-level mistakes (NewApi). It is opt-in per target and was never
+  # enabled here, which is how two API 29 calls reached an Android P device as
+  # runtime crashes (PowerMonitor, EventForwarder). Keep this on.
+  enable_lint = true
+
+  # Existing findings are captured here so the build stays green while any NEW
+  # API-level mistake still fails. Entries should be burned down, not grown;
+  # the NewApi errors in it are triaged (all API 30+, none below the min SDK).
+  lint_baseline_file = "lint-baseline.xml"
+  lint_suppressions_file = "lint-suppressions.xml"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
   deps = [
