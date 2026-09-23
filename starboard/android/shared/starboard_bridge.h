@@ -43,7 +43,8 @@ class StarboardBridge {
   void RaisePlatformError(JNIEnv* env,
                           jint errorType,
                           jlong data,
-                          const std::string& url);
+                          const std::string& url,
+                          bool disable_dismiss_button = false);
 
   bool IsPlatformErrorShowing(JNIEnv* env);
 
@@ -61,6 +62,7 @@ class StarboardBridge {
   bool GetLimitAdTracking(JNIEnv* env);
   std::string GetFriendlyName(JNIEnv* env);
   double GetScreenDiagonal(JNIEnv* env);
+  bool GetWasLowMemoryKilled(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
   void RequestStop(JNIEnv* env, jint error_level);
@@ -99,7 +101,7 @@ class StarboardBridge {
       JNIEnv* env,
       jlong native_service,
       const char* service_name);
-  void CloseCobaltService(JNIEnv* env, const char* service_name);
+  void CloseCobaltService(JNIEnv* env, jlong native_service);
   bool HasCobaltService(JNIEnv* env, const char* service_name);
   void CloseAllCobaltService(JNIEnv* env) const;
 

@@ -26,7 +26,9 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -35,6 +37,7 @@
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -64,6 +67,11 @@
 #include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"  // nogncheck
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/tracing/public/cpp/trace_startup.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -153,9 +161,30 @@ void RegisterCobaltHeapProfilerOnDumpThread() {
 
   // 4. Add our process as a profiling client to the profiling service.
   auto params = heap_profiling::mojom::ProfilingParams::New();
-  params->sampling_rate = 128 * 1024;  // 128KB sampling rate
-  params->stack_mode =
+  int sampling_rate = 128 * 1024;  // Default to 128KB
+  const auto* cmdline = base::CommandLine::ForCurrentProcess();
+  if (cmdline->HasSwitch("memlog-sampling-rate")) {
+    int parsed_rate = 0;
+    if (base::StringToInt(cmdline->GetSwitchValueASCII("memlog-sampling-rate"),
+                          &parsed_rate) &&
+        parsed_rate > 0) {
+      sampling_rate = parsed_rate;
+    }
+  }
+  params->sampling_rate = sampling_rate;
+  heap_profiling::mojom::StackMode stack_mode =
       heap_profiling::mojom::StackMode::NATIVE_WITH_THREAD_NAMES;
+  if (cmdline->HasSwitch("memlog-stack-mode")) {
+    std::string stack_mode_str =
+        cmdline->GetSwitchValueASCII("memlog-stack-mode");
+    if (stack_mode_str == "native") {
+      stack_mode =
+          heap_profiling::mojom::StackMode::NATIVE_WITHOUT_THREAD_NAMES;
+    } else if (stack_mode_str == "native-with-thread-names") {
+      stack_mode = heap_profiling::mojom::StackMode::NATIVE_WITH_THREAD_NAMES;
+    }
+  }
+  params->stack_mode = stack_mode;
 
   (*g_profiling_service)
       ->AddProfilingClient(
@@ -182,7 +211,7 @@ void InitializeCobaltHeapProfiler() {
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 constexpr char kBrowserStabilityMetricsName[] = "BrowserStabilityMetrics";
-constexpr size_t kStabilityMetricsAllocSize = 512 * 1024;  // 512 KiB limit
+constexpr size_t kStabilityMetricsAllocSize = 128 * 1024;  // 128 KiB limit
 constexpr uint32_t kStabilityMetricsAllocId = 0x53544142;  // "STAB"
 
 void LogStabilityMetricsCapacity(const char* stage_label) {
@@ -215,21 +244,57 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
+void RecordPriorSessionExitReasons() {
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_R) {
+    return;
+  }
+  base::FilePath base_dir;
+  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
+    return;
+  }
+  base::FilePath metrics_dir =
+      base_dir.AppendASCII(kBrowserStabilityMetricsName);
+  for (base::ProcessId pid :
+       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
+                               base::GetCurrentProcId())) {
+    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
+        pid, "Cobalt.Stability.Android.SystemExitReason");
+  }
+}
+#endif
+
+bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch("browser-test") ||
+      command_line->HasSwitch("single-process-tests")) {
+    return false;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  return base::PathService::Get(base::DIR_ANDROID_APP_DATA, base_dir);
+#else
+  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, base_dir) &&
+      !base_dir->empty()) {
+    return true;
+  }
+  if (command_line->HasSwitch("user-data-dir")) {
+    *base_dir = command_line->GetSwitchValuePath("user-data-dir");
+    return !base_dir->empty();
+  }
+  return base::PathService::Get(base::DIR_TEMP, base_dir);
+#endif
+}
+
 }  // namespace
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
     base::FilePath base_dir;
-    bool path_ok = false;
-#if BUILDFLAG(IS_ANDROID)
-    path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
-#else
-    path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
-#endif
-    if (!path_ok) {
+    if (!GetStabilityMetricsBaseDirectory(&base_dir)) {
       LOG(WARNING) << "Failed to get base directory for "
                    << kBrowserStabilityMetricsName
-                   << ", falling back to 512 KB local memory.";
+                   << ", falling back to 128 KB local memory.";
       base::GlobalHistogramAllocator::CreateWithLocalMemory(
           kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
           kBrowserStabilityMetricsName);
@@ -239,25 +304,39 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
 
       base::CreateDirectory(metrics_dir);
 
-      base::FilePath active_file =
-          base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
-              metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
-              base::GetCurrentProcId());
-
-      // Instantiate 512 KB memory-mapped PMA
-      if (base::GlobalHistogramAllocator::CreateWithFile(
-              active_file, kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
-              kBrowserStabilityMetricsName, /*exclusive_write=*/true)) {
-        LOG(INFO) << "Cobalt Persistent Histogram Allocator ("
-                  << kBrowserStabilityMetricsName
-                  << ", 512 KB) initialized at: " << active_file.value();
-      } else {
-        LOG(WARNING) << "Failed to initialize file-backed PMA for "
-                     << kBrowserStabilityMetricsName
-                     << ", falling back to 512 KB local memory.";
+      constexpr int64_t kMaxStabilityMetricsPmaDirSizeBytes =
+          512 * 1024;  // 512 KiB max total disk quota for stability PMAs
+      if (!EnsurePmaDirectoryBudget(metrics_dir, kBrowserStabilityMetricsName,
+                                    kMaxStabilityMetricsPmaDirSizeBytes,
+                                    kStabilityMetricsAllocSize)) {
+        LOG(WARNING) << "Stability metrics directory exceeds 512 KB budget ("
+                     << metrics_dir.value()
+                     << "), falling back to 128 KB local memory.";
         base::GlobalHistogramAllocator::CreateWithLocalMemory(
             kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
             kBrowserStabilityMetricsName);
+      } else {
+        base::FilePath active_file =
+            base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+                metrics_dir, kBrowserStabilityMetricsName, base::Time::Now(),
+                base::GetCurrentProcId());
+
+        // Instantiate 128 KB memory-mapped PMA
+        if (base::GlobalHistogramAllocator::CreateWithFile(
+                active_file, kStabilityMetricsAllocSize,
+                kStabilityMetricsAllocId, kBrowserStabilityMetricsName,
+                /*exclusive_write=*/true)) {
+          LOG(INFO) << "Cobalt Persistent Histogram Allocator ("
+                    << kBrowserStabilityMetricsName
+                    << ", 128 KB) initialized at: " << active_file.value();
+        } else {
+          LOG(WARNING) << "Failed to initialize file-backed PMA for "
+                       << kBrowserStabilityMetricsName
+                       << ", falling back to 128 KB local memory.";
+          base::GlobalHistogramAllocator::CreateWithLocalMemory(
+              kStabilityMetricsAllocSize, kStabilityMetricsAllocId,
+              kBrowserStabilityMetricsName);
+        }
       }
     }
 
@@ -319,6 +398,29 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
+
+  base::FilePath base_dir;
+  if (GetStabilityMetricsBaseDirectory(&base_dir)) {
+    base::FilePath metrics_dir =
+        base_dir.AppendASCII(kBrowserStabilityMetricsName);
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&ClearOtherStabilityMetricsPmaFiles, metrics_dir,
+                       kBrowserStabilityMetricsName, base::GetCurrentProcId()));
+  }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_R) {
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&RecordPriorSessionExitReasons));
+  }
+#endif
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;

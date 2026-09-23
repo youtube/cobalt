@@ -14,37 +14,60 @@
 
 package dev.cobalt.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import org.chromium.base.BuildInfo;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.json.JSONObject;
 
 /** Defines the constant names for feature switches used in Kimono. */
+@JNINamespace("cobalt")
 public class JavaSwitches {
+  private static final String TAG = "JavaSwitches";
+
+  /** Default command line constants launched from A/B experiments. */
+  public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
+
   public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
   public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
   public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
+  public static final String DEFAULT_FORCE_DEVICE_SCALE_FACTOR = "1";
 
   public static final String ENABLE_QUIC = "EnableQUIC";
+
+  /**
+   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
+   * migration.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
+
+  /**
+   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
+   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
+
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
-  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
-  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
-      "EnableAutoRetryOnNetworkRecovery";
+  /** Kimono key to opt a device out of low-end device mode. */
+  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
 
-  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
 
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
-
-  /** flag to allow caching CSS and WebAssembly resources in the HTTP disk cache. */
-  public static final String ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE = "EnableCssAndWasmForHttpCache";
-
-  /** flag to enable aggressive HTTP disk cache and V8 generated code cache tuning exclusions. */
-  public static final String ENABLE_HTTP_AND_V8_CACHE_TUNING = "EnableHttpAndV8CacheTuning";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -63,9 +86,6 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to enable the GPU shader disk cache. */
-  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -94,6 +114,10 @@ public class JavaSwitches {
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
 
+  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
+  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
+      "EnableCobaltContentLengthAwareMojoPipeSizing";
+
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -109,9 +133,6 @@ public class JavaSwitches {
 
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
-
-  /** Flag for enable go/cobalt-direct-window-rendering */
-  public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
@@ -143,10 +164,165 @@ public class JavaSwitches {
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
 
+  /** flag to enable moderate memory pressure handling on Android. */
+  public static final String ENABLE_MODERATE_MEMORY_PRESSURE = "EnableModerateMemoryPressure";
+
+  /** flag to configure memory pressure throttling cooldown in seconds. */
+  public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
+      "MemoryPressureCooldownInSeconds";
+
+  /**
+   * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
+   * activities.
+   */
+  public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
+      "EnableActivityLifecycleCoordination";
+
+  /** Flag to force 720p UI for 1GB RAM devices on 1080p+ displays for A/B testing. */
+  public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
+
+  private static Boolean sOverrideForTesting;
+
+  public static void setOverrideForTesting(Boolean override) {
+    sOverrideForTesting = override;
+  }
+
+  @CalledByNative
+  public static boolean shouldApplyExperimentConfigs() {
+    if (sOverrideForTesting != null) {
+      return sOverrideForTesting;
+    }
+    // Read persisted crash streak and threshold directly from Variations beacon and
+    // Experiment Config in the cache directory.
+    // This allows Java to determine whether safe mode / empty config is active during early
+    // startup before native singletons and libraries are initialized, with zero extra disk writes.
+    try {
+      if (ContextUtils.getApplicationContext() == null) {
+        return true;
+      }
+      File cacheDir = ContextUtils.getApplicationContext().getCacheDir();
+      if (cacheDir == null) {
+        return true;
+      }
+
+      // Check the Variations beacon file first, where CleanExitBeacon synchronously records
+      // exit state and crash streak on Android. Fall back to Metrics Config.
+      File beaconFile = new File(cacheDir, CobaltPrefNames.VARIATIONS_BEACON_FILENAME);
+      boolean isBeaconFormat = true;
+      if (!beaconFile.exists()) {
+        beaconFile = new File(cacheDir, CobaltPrefNames.METRICS_CONFIG_FILENAME);
+        isBeaconFormat = false;
+        if (!beaconFile.exists()) {
+          return true;
+        }
+      }
+      String content = readFileToString(beaconFile);
+      if (content == null || content.isEmpty()) {
+        return true;
+      }
+
+      JSONObject json = new JSONObject(content);
+      int crashStreak = json.optInt(CobaltPrefNames.VARIATIONS_CRASH_STREAK, 0);
+
+      boolean exitedCleanly = true;
+      if (isBeaconFormat) {
+        exitedCleanly = json.optBoolean(CobaltPrefNames.STABILITY_EXITED_CLEANLY, true);
+      } else {
+        JSONObject userExp = json.optJSONObject("user_experience_metrics");
+        if (userExp != null) {
+          JSONObject stability = userExp.optJSONObject("stability");
+          if (stability != null) {
+            exitedCleanly = stability.optBoolean("exited_cleanly", true);
+          }
+        }
+      }
+
+      // If the previous session crashed (did not exit cleanly), native C++
+      // CleanExitBeacon::Initialize() will increment the crash streak on startup.
+      // Java must account for this pending increment so that Java and C++ evaluate
+      // the exact same threshold during early startup.
+      if (!exitedCleanly) {
+        crashStreak++;
+      }
+
+      int threshold = readCrashStreakEmptyConfigThreshold(cacheDir);
+      if (crashStreak >= threshold) {
+        return false;
+      }
+    } catch (Exception e) {
+      Log.w(TAG, "Failed to read crash streak or experiment config from disk", e);
+    }
+    return true;
+  }
+
+  private static int readCrashStreakEmptyConfigThreshold(File cacheDir) {
+    File expFile = new File(cacheDir, CobaltPrefNames.EXPERIMENT_CONFIG_FILENAME);
+    if (!expFile.exists()) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+    String expContent = readFileToString(expFile);
+    if (expContent == null || expContent.isEmpty()) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+    try {
+      JSONObject expJson = new JSONObject(expContent);
+      JSONObject finchParams = expJson.optJSONObject(CobaltExperimentNames.FINCH_PARAMETERS);
+      if (finchParams == null) {
+        return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+      }
+      return finchParams.optInt(
+          CobaltExperimentNames.CRASH_STREAK_EMPTY_CONFIG_THRESHOLD,
+          CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD);
+    } catch (Exception e) {
+      return CobaltCrashStreakThreshold.DEFAULT_CRASH_STREAK_EMPTY_CONFIG_THRESHOLD;
+    }
+  }
+
+  private static String readFileToString(File file) {
+    StringBuilder sb = new StringBuilder();
+    try (BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        sb.append(line);
+      }
+      return sb.toString();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  public static List<String> getDefaultCommandLineArgs() {
+    List<String> defaultArgs = new ArrayList<>();
+    defaultArgs.add(DEFAULT_DISABLE_QUIC);
+    defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
+    if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
+      defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
+    }
+    defaultArgs.add(
+        "--js-flags=--initial-old-space-size="
+            + DEFAULT_INITIAL_OLD_SPACE_SIZE
+            + ";--max-old-space-size="
+            + DEFAULT_MAX_OLD_SPACE_SIZE);
+    defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
+    return defaultArgs;
+  }
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
+    return getExtraCommandLineArgs(javaSwitches, shouldApplyExperimentConfigs());
+  }
+
+  public static List<String> getExtraCommandLineArgs(
+      Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs) {
+    if (!shouldApplyExperimentConfigs) {
+      return getDefaultCommandLineArgs();
+    }
+
     if (javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
+
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
@@ -155,7 +331,14 @@ public class JavaSwitches {
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      extraCommandLineArgs.add("--disable-quic");
+      extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
+    }
+
+    // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices. Use Java
+    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to Finch
+    // if high-end device benefits from removing this low-end-device-mode flag.
+    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+      extraCommandLineArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
@@ -205,11 +388,13 @@ public class JavaSwitches {
     if (limit != null) {
       extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
     }
+
     String decodeLimit =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB);
     if (decodeLimit != null) {
       extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + decodeLimit);
     }
+
     String budget =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES);
     if (budget != null) {
@@ -244,6 +429,11 @@ public class JavaSwitches {
       }
     }
 
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
+      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
+    }
+
     StringJoiner featureParams = new StringJoiner("/");
     String interestAreaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
@@ -261,30 +451,14 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
-      extraCommandLineArgs.add("--enable-optimized-font-loading");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
-      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
 
     String maxHttpCacheSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.MAX_HTTP_CACHE_SIZE);
     if (maxHttpCacheSize != null) {
       extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--enable-css-and-wasm-for-http-cache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING)) {
-      extraCommandLineArgs.add("--enable-http-and-v8-cache-tuning");
     }
 
     if (jsFlags.length() > 0) {
@@ -309,10 +483,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DIRECT_WINDOW_RENDERING)) {
-      extraCommandLineArgs.add("--use-window-surface-for-ui");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
@@ -333,6 +503,44 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
       extraCommandLineArgs.add("--disable-back-forward-cache");
+    }
+
+    List<String> enabledMemoryPressureFeatures = new ArrayList<>();
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
+      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
+      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+      if (cooldown != null) {
+        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
+        if (!cooldownVal.isEmpty()) {
+          enabledMemoryPressureFeatures.add(
+              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
+        }
+      }
+    }
+    if (!enabledMemoryPressureFeatures.isEmpty()) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
+    }
+
+    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
+    // (such as NetworkStatus) can query
+    // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
+    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
+      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
+      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
+        && DeviceUtil.is1GbDevice()
+        && DeviceUtil.isDisplayAtLeast1080p()) {
+      extraCommandLineArgs.add("--force-device-scale-factor=1.5");
+    } else {
+      extraCommandLineArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
     }
 
     return extraCommandLineArgs;

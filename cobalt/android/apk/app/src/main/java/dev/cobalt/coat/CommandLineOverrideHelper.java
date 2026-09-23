@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import androidx.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -31,17 +32,6 @@ import org.chromium.base.CommandLine;
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
 
-  /** Param class to simplify #getFlagOverrides method signature */
-  public static class CommandLineOverrideHelperParams {
-    public CommandLineOverrideHelperParams(boolean isOfficialBuild, String[] commandLineArgs) {
-      mIsOfficialBuild = isOfficialBuild;
-      mCommandLineArgs = commandLineArgs;
-    }
-
-    private boolean mIsOfficialBuild;
-    private String[] mCommandLineArgs;
-  }
-
   // This can be returned as a list, since it does not need to be a single
   // string object. The others can be combined into a single String because
   // they need to be enclosed in the feature's enable/disable header.
@@ -54,10 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Disable rescaling Webpage.
-    paramOverrides.add("--force-device-scale-factor=1");
-    // Enable low end device mode.
-    paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
     // causes rendering artifacts when
     // low-end-device-mode is enabled.
@@ -66,8 +52,6 @@ public final class CommandLineOverrideHelper {
     // Starboard's stack).
     paramOverrides.add("--disable-accelerated-video-decode");
     paramOverrides.add("--disable-accelerated-video-encode");
-    // Rasterize Tiles directly to GPU memory.
-    paramOverrides.add("--enable-zero-copy");
     // Set default raster threads to 2 for smoother performance.
     paramOverrides.add("--num-raster-threads=2");
     // Enforce ANGLE to use GLES backend by default on Android platforms excluding arm64.
@@ -76,6 +60,8 @@ public final class CommandLineOverrideHelper {
     }
     // Hide scrollbars to avoid memory allocation.
     paramOverrides.add("--hide-scrollbars");
+    // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
+    paramOverrides.add("--use-custom-android-fonts-xml");
 
     return paramOverrides;
   }
@@ -109,13 +95,7 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
-
-    // Reduce default thread stacks from the platform default (1MB on
-    // bionic) to 256KB. High-risk threads are carved out explicitly:
-    // the in-process renderer and GPU main threads, and all Blink
-    // NonMainThreads. Both features are needed for full coverage --
-    // Starboard threads bypass base::PlatformThread entirely.
-    paramOverrides.add("ReduceAndroidThreadStackSize");
+    paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
 
     return paramOverrides;
   }
@@ -155,7 +135,7 @@ public final class CommandLineOverrideHelper {
     return paramOverrides;
   }
 
-  public static void getFlagOverrides(CommandLineOverrideHelperParams params) {
+  public static void getFlagOverrides(@NonNull List<String> commandLineArgs) {
     List<String> cliOverrides = getDefaultCommandLineOverridesList();
     StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
     StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
@@ -164,67 +144,49 @@ public final class CommandLineOverrideHelper {
     StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
-    if (params != null) {
-      if (!params.mIsOfficialBuild) {
-        cliOverrides.add(
-            "--remote-allow-origins=" + "https://chrome-devtools-frontend.appspot.com");
+    for (String param : commandLineArgs) {
+      if (param == null || param.isEmpty()) {
+        continue;
+      }
+      String[] parts = param.split("=", 2);
+      if (parts.length != 2) {
+        cliOverrides.add(param);
+        continue;
       }
 
-      if (params.mCommandLineArgs != null) {
-        for (String param : params.mCommandLineArgs) {
-          if (param == null || param.isEmpty()) {
-            continue; // Skip null or empty params
-          }
-          String[] parts = param.split("=", 2);
-          if (parts.length == 2) {
-            String key = parts[0];
-            String value = parts[1];
-            String[] values = value.split(";");
-            for (String v : values) {
-              if (key.equals("--js-flags")) {
-                jsFlagOverrides.add(v);
-              } else if (key.equals("--enable-features")) {
-                enableFeatureOverrides.add(v);
-              } else if (key.equals("--disable-features")) {
-                disableFeatureOverrides.add(v);
-              } else if (key.equals("--enable-blink-features")) {
-                blinkEnableFeatureOverrides.add(v);
-              } else if (key.equals("--trace-startup")) {
-                traceStartupOverrides.add(v);
-              } else if (key.equals("--enable-h5vcc-settings")) {
-                enableH5vccSettings.add(v);
-              } else {
-                cliOverrides.add(param);
-                break; // Avoid adding the same param multiple times
-              }
-            }
-          } else {
-            cliOverrides.add(param);
-          }
+      String key = parts[0];
+      String value = parts[1];
+      for (String v : value.split(";")) {
+        if (key.equals("--js-flags")) {
+          jsFlagOverrides.add(v);
+        } else if (key.equals("--enable-features")) {
+          enableFeatureOverrides.add(v);
+        } else if (key.equals("--disable-features")) {
+          disableFeatureOverrides.add(v);
+        } else if (key.equals("--enable-blink-features")) {
+          blinkEnableFeatureOverrides.add(v);
+        } else if (key.equals("--trace-startup")) {
+          traceStartupOverrides.add(v);
+        } else if (key.equals("--enable-h5vcc-settings")) {
+          enableH5vccSettings.add(v);
+        } else {
+          cliOverrides.add(param);
+          break; // Avoid adding the same param multiple times
         }
       }
     }
-    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(new String[] {"--js-flags=" + jsFlagOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-features=" + enableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--disable-features=" + disableFeatureOverrides.toString()});
-    CommandLine.getInstance()
-        .appendSwitchesAndArguments(
-            new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
+
+    cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
+    cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
+    cliOverrides.add("--disable-features=" + disableFeatureOverrides.toString());
+    cliOverrides.add("--enable-blink-features=" + blinkEnableFeatureOverrides.toString());
     if (traceStartupOverrides.length() > 0) {
-      CommandLine.getInstance()
-          .appendSwitchesAndArguments(
-              new String[] {"--trace-startup=" + traceStartupOverrides.toString()});
+      cliOverrides.add("--trace-startup=" + traceStartupOverrides.toString());
     }
     if (enableH5vccSettings.length() > 0) {
-      CommandLine.getInstance()
-          .appendSwitchesAndArguments(
-              new String[] {"--enable-h5vcc-settings=" + enableH5vccSettings.toString()});
+      cliOverrides.add("--enable-h5vcc-settings=" + enableH5vccSettings.toString());
     }
+
+    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
   }
 }

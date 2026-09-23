@@ -365,6 +365,12 @@ test("nplb") {
 
   deps += cobalt_platform_dependencies
 
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
+
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }
@@ -374,6 +380,11 @@ test("nplb") {
   }
 
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
+
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//cobalt/common/icu_init" ]
+    data_deps += [ "//third_party/icu:icudata" ]
+  }
 
   if (is_starboard) {
     sources += [

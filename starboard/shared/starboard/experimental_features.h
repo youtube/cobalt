@@ -173,9 +173,6 @@ const void* GetExperimentalFeaturesConfigurationApi();
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaDecodedAudioBufferPool(
-    "Media.DecodedAudioBufferPool");
-
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
@@ -207,6 +204,11 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
     "Media.ForceDualThreads");
 
+// Decode-To-Texture (used by WebGL video shaders) may use this.
+// Main tracking bug: b/490474392, DRM exploration: b/494037632
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceSoftwareVideoDecoder(
+    "Media.ForceSoftwareVideoDecoder");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing",
@@ -224,6 +226,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaSeamlessAudioSwitching(
+    "Media.SeamlessAudioSwitching");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
@@ -237,9 +242,6 @@ inline constexpr ExperimentalFeatureKey<int>
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderMaxPendingInputsSize(
         "Media.VideoDecoderMaxPendingInputsSize");
-
-inline constexpr ExperimentalFeatureKey<bool> kMediaVideoFrameImplPool(
-    "Media.VideoFrameImplPool");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
