@@ -18,7 +18,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.cobalt.coat">
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
-    <application>
+    <application android:requestLegacyExternalStorage="true">
         <activity android:name="dev.cobalt.app.NplbActivity"
                   android:process=":test_process"
                   android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
