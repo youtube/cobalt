@@ -101,6 +101,10 @@ ContextResult CommandBufferProxyImpl::Initialize(
 
   base::UnsafeSharedMemoryRegion region = shared_state_shm_.Duplicate();
   if (!region.IsValid()) {
+#if BUILDFLAG(IS_COBALT)
+    shared_state_mapping_ = base::WritableSharedMemoryMapping();
+    shared_state_shm_ = base::UnsafeSharedMemoryRegion();
+#endif
     // TODO(piman): ShareToGpuProcess should alert if it is failing due to
     // being out of file descriptors, in which case this is a fatal error
     // that won't be recovered from.
@@ -124,6 +128,10 @@ ContextResult CommandBufferProxyImpl::Initialize(
   if (!sent) {
     command_buffer_.reset();
     client_receiver_.reset();
+#if BUILDFLAG(IS_COBALT)
+    shared_state_mapping_ = base::WritableSharedMemoryMapping();
+    shared_state_shm_ = base::UnsafeSharedMemoryRegion();
+#endif
     LOG(ERROR) << "ContextResult::kTransientFailure: "
                   "Failed to send GpuControl.CreateCommandBuffer.";
     return ContextResult::kTransientFailure;
@@ -131,6 +139,10 @@ ContextResult CommandBufferProxyImpl::Initialize(
   if (result != ContextResult::kSuccess) {
     command_buffer_.reset();
     client_receiver_.reset();
+#if BUILDFLAG(IS_COBALT)
+    shared_state_mapping_ = base::WritableSharedMemoryMapping();
+    shared_state_shm_ = base::UnsafeSharedMemoryRegion();
+#endif
     DLOG(ERROR) << "Failure processing GpuControl.CreateCommandBuffer.";
     return result;
   }
