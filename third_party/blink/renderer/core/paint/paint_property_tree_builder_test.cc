@@ -4,8 +4,16 @@
 
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder_test.h"
 
+<<<<<<< HEAD
 #include "base/compiler_specific.h"
+=======
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
+>>>>>>> 11ab517c82c (blink: Gate kTrivial3DTransform preservation behind kCobaltPreserveTrivial3DTransform feature (#12724))
 #include "cc/test/fake_layer_tree_host_client.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/public/common/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "cc/trees/effect_node.h"
 #include "cc/trees/scroll_node.h"
 #include "cc/trees/transform_node.h"
@@ -7325,6 +7333,11 @@ TEST_P(PaintPropertyTreeBuilderTest, PromoteTrivial3DWithHighEndDevice) {
 }
 
 TEST_P(PaintPropertyTreeBuilderTest, DontPromoteTrivial3DWithLowEndDevice) {
+#if BUILDFLAG(IS_COBALT)
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kCobaltPreserveTrivial3DTransform);
+#endif  // BUILDFLAG(IS_COBALT)
   class LowEndPlatform : public TestingPlatformSupport {
     bool IsLowEndDevice() override { return true; }
   };
@@ -7355,6 +7368,28 @@ TEST_P(PaintPropertyTreeBuilderTest, DontPromoteTrivial3DWithLowEndDevice) {
   EXPECT_FALSE(effect_properties->Transform()->HasDirectCompositingReasons());
   EXPECT_FALSE(effect_properties->Effect()->HasDirectCompositingReasons());
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(PaintPropertyTreeBuilderTest, PromoteTrivial3DWithCobaltFeature) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kCobaltPreserveTrivial3DTransform);
+
+  class LowEndPlatform : public TestingPlatformSupport {
+    bool IsLowEndDevice() override { return true; }
+  };
+
+  ScopedTestingPlatformSupport<LowEndPlatform> platform;
+  SetBodyInnerHTML(R"HTML(
+    <style>div {width: 100px; height: 100px; transform: translateZ(0)}</style>
+    <div id='non-scroll'></div>
+  )HTML");
+
+  const auto* non_scroll_properties = PaintPropertiesForElement("non-scroll");
+  EXPECT_TRUE(
+      non_scroll_properties->Transform()->HasDirectCompositingReasons());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 #define EXPECT_BACKGROUND_CLIP(properties, rect)                            \
   do {                                                                      \
