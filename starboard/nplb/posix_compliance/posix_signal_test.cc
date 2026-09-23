@@ -16,8 +16,10 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <ucontext.h>
 #include <unistd.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,6 +38,23 @@ volatile sig_atomic_t g_signal_received = 0;
 // access it. It is set up and torn down by the test fixture.
 static int g_signal_pipe_write_fd = -1;
 
+// A global, signal-safe flag set once SiginfoCapturingHandler has run.
+volatile sig_atomic_t g_siginfo_handler_invoked = 0;
+
+// The arguments observed by SiginfoCapturingHandler. Written only from inside
+// the handler and read only after raise() has returned, which is safe because
+// raise() does not return to the calling thread until the handler completes.
+struct SiginfoHandlerArgs {
+  int signum = 0;
+  bool info_is_null = true;
+  int info_signo = 0;
+  bool context_is_null = true;
+  // Copied out of the ucontext_t; only valid if !context_is_null.
+  sigset_t context_sigmask = {};
+  uintptr_t context_pc = 0;
+};
+SiginfoHandlerArgs g_siginfo_handler_args;
+
 // --- Signal Handlers ---
 
 // A simple signal handler that sets a global flag.
@@ -53,6 +72,41 @@ void PipeWritingSignalHandler(int signum) {
   // Avoid using library functions or complex logic in a handler.
   // If write fails, the test waiting on the pipe will time out.
   std::ignore = write(g_signal_pipe_write_fd, &signal_byte, 1);
+}
+
+// Returns the program counter of the interrupted thread from |ucontext|, read
+// the same way V8's SIGPROF sampler does (see v8/src/libsampler/sampler.cc).
+// Returns 0 on architectures where this test does not know the layout.
+uintptr_t GetProgramCounter(const ucontext_t* ucontext) {
+#if defined(__linux__) && defined(__x86_64__)
+  return static_cast<uintptr_t>(ucontext->uc_mcontext.gregs[REG_RIP]);
+#elif defined(__linux__) && defined(__i386__)
+  return static_cast<uintptr_t>(ucontext->uc_mcontext.gregs[REG_EIP]);
+#elif defined(__linux__) && defined(__aarch64__)
+  return static_cast<uintptr_t>(ucontext->uc_mcontext.pc);
+#elif defined(__linux__) && defined(__arm__)
+  return static_cast<uintptr_t>(ucontext->uc_mcontext.arm_pc);
+#else
+  return 0;
+#endif
+}
+
+// An SA_SIGINFO handler that records the arguments it was invoked with in
+// g_siginfo_handler_args. It only performs plain loads and stores, so it is
+// async-signal-safe.
+void SiginfoCapturingHandler(int signum, siginfo_t* info, void* context) {
+  g_siginfo_handler_args.signum = signum;
+  g_siginfo_handler_args.info_is_null = (info == nullptr);
+  if (info) {
+    g_siginfo_handler_args.info_signo = info->si_signo;
+  }
+  g_siginfo_handler_args.context_is_null = (context == nullptr);
+  if (context) {
+    const ucontext_t* ucontext = static_cast<const ucontext_t*>(context);
+    g_siginfo_handler_args.context_sigmask = ucontext->uc_sigmask;
+    g_siginfo_handler_args.context_pc = GetProgramCounter(ucontext);
+  }
+  g_siginfo_handler_invoked = 1;
 }
 
 // --- Threading Structures and Functions ---
@@ -131,6 +185,8 @@ class PosixSignalTest : public ::testing::Test {
 
     // Reset the global flag before each test.
     g_signal_received = 0;
+    g_siginfo_handler_invoked = 0;
+    g_siginfo_handler_args = SiginfoHandlerArgs();
 
     // --- Set up pipe and epoll for reliable signal waiting ---
     CreateNonBlockingPipe();
@@ -243,6 +299,50 @@ TEST_F(PosixSignalTest, KillSendsSignalToSelf) {
   int received_signal = 0;
   EXPECT_TRUE(WaitForSignalWithTimeout(&received_signal, 1000));
   EXPECT_EQ(received_signal, SIGUSR2);
+}
+
+// Verifies that an SA_SIGINFO handler receives a non-null siginfo_t and a
+// non-null, correctly laid out ucontext_t. V8's SIGPROF sampler and base's
+// crash handlers dereference the context unconditionally.
+TEST_F(PosixSignalTest, SigactionSiginfoHandlerReceivesContext) {
+  struct sigaction sa = {};
+  sa.sa_sigaction = SiginfoCapturingHandler;
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  ASSERT_EQ(sigaction(SIGUSR1, &sa, nullptr), 0);
+
+  // Block SIGUSR2 while SIGUSR1 is delivered. The kernel records the signal
+  // mask that was in effect at delivery time in ucontext_t::uc_sigmask, so
+  // this lets the test check that the context's contents, and not just its
+  // pointer, reach the handler intact.
+  sigset_t block_mask;
+  sigemptyset(&block_mask);
+  sigaddset(&block_mask, SIGUSR2);
+  sigset_t old_mask;
+  ASSERT_EQ(pthread_sigmask(SIG_BLOCK, &block_mask, &old_mask), 0);
+
+  // raise() does not return until the handler has run on this thread.
+  ASSERT_EQ(raise(SIGUSR1), 0);
+
+  ASSERT_EQ(pthread_sigmask(SIG_SETMASK, &old_mask, nullptr), 0);
+
+  ASSERT_EQ(g_siginfo_handler_invoked, 1);
+  EXPECT_EQ(g_siginfo_handler_args.signum, SIGUSR1);
+
+  ASSERT_FALSE(g_siginfo_handler_args.info_is_null);
+  EXPECT_EQ(g_siginfo_handler_args.info_signo, SIGUSR1);
+
+  ASSERT_FALSE(g_siginfo_handler_args.context_is_null)
+      << "The ucontext_t argument to an SA_SIGINFO handler must not be null.";
+  EXPECT_EQ(sigismember(&g_siginfo_handler_args.context_sigmask, SIGUSR2), 1)
+      << "ucontext_t::uc_sigmask does not reflect the mask in effect when the "
+         "signal was delivered.";
+  EXPECT_EQ(sigismember(&g_siginfo_handler_args.context_sigmask, SIGUSR1), 0);
+#if defined(__linux__) && (defined(__x86_64__) || defined(__i386__) || \
+                           defined(__aarch64__) || defined(__arm__))
+  EXPECT_NE(g_siginfo_handler_args.context_pc, 0u)
+      << "The program counter read from ucontext_t::uc_mcontext is zero.";
+#endif
 }
 
 TEST_F(PosixSignalTest, PauseIsInterruptedBySignal) {
