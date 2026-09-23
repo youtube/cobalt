@@ -41,6 +41,13 @@ declare_args() {
       !is_high_end_android && (is_android || is_castos || is_fuchsia)
 }
 
+# Cobalt needs to handle use_cxx17, which does not exist upstream.
+if (is_cobalt) {
+  if (use_cxx17) {
+    use_cxx23 = false
+  }
+}
+
 declare_args() {
   # Default to warnings as errors for default workflow, where we catch
   # warnings with known toolchains. Allow overriding this e.g. for Chromium
