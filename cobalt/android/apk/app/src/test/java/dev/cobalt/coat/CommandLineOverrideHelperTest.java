@@ -38,7 +38,6 @@ public class CommandLineOverrideHelperTest {
   @Test
   public void testDefaultCommandLineOverridesList() {
     List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
-    assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
     assertThat(overrides.contains("--use-custom-android-fonts-xml")).isTrue();
   }
 
@@ -76,7 +75,6 @@ public class CommandLineOverrideHelperTest {
 
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));

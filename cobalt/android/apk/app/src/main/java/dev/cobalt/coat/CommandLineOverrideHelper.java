@@ -44,8 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Enable low end device mode.
-    paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
     // causes rendering artifacts when
     // low-end-device-mode is enabled.
