@@ -2588,13 +2588,17 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(speech_recognition_controller_);
   visitor->Trace(speech_synthesis_);
   visitor->Trace(third_party_script_detector_);
+#if BUILDFLAG(IS_COBALT)
+  visitor->Trace(cobalt_lifecycle_controller_);
+  visitor->Trace(h5vcc_);
+#endif
   visitor->Trace(user_media_client_);
   visitor->Trace(web_launch_service_impl_);
   visitor->Trace(window_screen_details_);
   visitor->Trace(window_shared_storage_impl_);
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-Supplementable<LocalDOMWindow, 51>::Trace(visitor);}
+}
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {
   // When crossOriginIsolation is enabled by DocumentIsolationPolicy, it ignores

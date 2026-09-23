@@ -376,7 +376,6 @@ void GPU::Trace(Visitor* visitor) const {
   visitor->Trace(wgsl_language_features_);
   visitor->Trace(mappable_buffers_);
   ScriptWrappable::Trace(visitor);
-  Supplement<NavigatorBase>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

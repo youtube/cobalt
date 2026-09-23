@@ -22,19 +22,9 @@
 namespace blink {
 
 // static
-// This will be used again in a future milestone.
-// const char CobaltLifecycleController::kSupplementName[] =
-//     "CobaltLifecycleController";
-
-// static
-const unsigned CobaltLifecycleController::kSupplementIndex =
-    static_cast<unsigned>(
-        LocalDOMWindow::Supplements::kCobaltLifecycleController);
-
-// static
 CobaltLifecycleController* CobaltLifecycleController::From(
     LocalDOMWindow& window) {
-  return Supplement<LocalDOMWindow>::From<CobaltLifecycleController>(window);
+  return window.GetCobaltLifecycleController();
 }
 
 // static
@@ -46,12 +36,11 @@ void CobaltLifecycleController::BindReceiver(
     return;
   }
   LocalDOMWindow& window = *frame->DomWindow();
-  auto* controller =
-      Supplement<LocalDOMWindow>::From<CobaltLifecycleController>(window);
+  CobaltLifecycleController* controller = window.GetCobaltLifecycleController();
   if (!controller) {
     controller = MakeGarbageCollected<CobaltLifecycleController>(
         window, mojo::NullReceiver());
-    Supplement<LocalDOMWindow>::ProvideTo(window, controller);
+    window.SetCobaltLifecycleController(controller);
   }
   controller->BindMojoReceiver(std::move(receiver));
 }
@@ -77,7 +66,7 @@ CobaltLifecycleController::CobaltLifecycleController(
     : ExecutionContextLifecycleStateObserver(&window),
       PageVisibilityObserver(window.GetFrame()->GetPage()),
       FocusChangedObserver(window.GetFrame()->GetPage()),
-      Supplement<LocalDOMWindow>(window),
+      window_(window),
       receiver_(this, &window),
       remote_observer_(&window) {
   UpdateStateIfNeeded();
@@ -211,12 +200,12 @@ void CobaltLifecycleController::NotifyObserver(base::OnceClosure callback) {
 }
 
 void CobaltLifecycleController::Trace(Visitor* visitor) const {
+  visitor->Trace(window_);
   visitor->Trace(receiver_);
   visitor->Trace(remote_observer_);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);
   FocusChangedObserver::Trace(visitor);
-  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 }  // namespace blink

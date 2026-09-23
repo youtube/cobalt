@@ -51,7 +51,8 @@
 #include "components/ip_protection/common/ip_protection_core_host_remote.h"  // nogncheck
 #include "components/ip_protection/common/ip_protection_core_impl_mojo.h"    // nogncheck
 #include "components/ip_protection/common/ip_protection_proxy_delegate.h"   // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150#include "components/network_session_configurator/browser/network_session_configurator.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/prefs/json_pref_store.h"

@@ -138,6 +138,10 @@ class SpeechSynthesis;
 class TextElementTiming;
 class ThirdPartyScriptDetector;
 class UserMediaClient;
+#if BUILDFLAG(IS_COBALT)
+class CobaltLifecycleController;
+class H5vcc;
+#endif
 class WebLaunchServiceImpl;
 class WindowScreenDetails;
 class WindowSharedStorageImpl;
@@ -964,6 +968,22 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
     third_party_script_detector_ = third_party_script_detector;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  ForwardDeclaredMember<CobaltLifecycleController,
+                        ExecutionContextLifecycleObserver>
+  GetCobaltLifecycleController() const {
+    return cobalt_lifecycle_controller_;
+  }
+  void SetCobaltLifecycleController(
+      ForwardDeclaredMember<CobaltLifecycleController,
+                            ExecutionContextLifecycleObserver> controller) {
+    cobalt_lifecycle_controller_ = controller;
+  }
+
+  ForwardDeclaredMember<H5vcc> GetH5vcc() const { return h5vcc_; }
+  void SetH5vcc(ForwardDeclaredMember<H5vcc> h5vcc) { h5vcc_ = h5vcc; }
+#endif
+
   ForwardDeclaredMember<UserMediaClient> GetUserMediaClient() const {
     return user_media_client_;
   }
@@ -1183,6 +1203,12 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
       speech_recognition_controller_;
   ForwardDeclaredMember<SpeechSynthesis> speech_synthesis_;
   ForwardDeclaredMember<ThirdPartyScriptDetector> third_party_script_detector_;
+#if BUILDFLAG(IS_COBALT)
+  ForwardDeclaredMember<CobaltLifecycleController,
+                        ExecutionContextLifecycleObserver>
+      cobalt_lifecycle_controller_;
+  ForwardDeclaredMember<H5vcc> h5vcc_;
+#endif
   ForwardDeclaredMember<UserMediaClient> user_media_client_;
   ForwardDeclaredMember<WebLaunchServiceImpl> web_launch_service_impl_;
   ForwardDeclaredMember<WindowScreenDetails> window_screen_details_;

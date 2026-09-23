@@ -30,25 +30,22 @@
 namespace blink {
 
 // static
-// This will be used again in a future milestone.
-// const char H5vcc::kSupplementName[] = "H5vcc";
-
-// static
-const unsigned H5vcc::kSupplementIndex =
-    static_cast<unsigned>(LocalDOMWindow::Supplements::kH5vcc);
-
-// static
-H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
-  H5vcc* h5vcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
+H5vcc* H5vcc::From(LocalDOMWindow& window) {
+  H5vcc* h5vcc = window.GetH5vcc();
   if (!h5vcc && window.GetExecutionContext()) {
     h5vcc = MakeGarbageCollected<H5vcc>(window);
-    ProvideTo(window, h5vcc);
+    window.SetH5vcc(h5vcc);
   }
   return h5vcc;
 }
 
+// static
+H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
+  return From(window);
+}
+
 H5vcc::H5vcc(LocalDOMWindow& window)
-    : Supplement<LocalDOMWindow>(window),
+    : window_(window),
       crash_log_(MakeGarbageCollected<CrashLog>(window)),
       accessibility_(MakeGarbageCollected<H5vccAccessibility>(window)),
       experiments_(MakeGarbageCollected<H5vccExperiments>(window)),
@@ -62,6 +59,7 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       native_stability_(MakeGarbageCollected<H5vccNativeStability>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
+  visitor->Trace(window_);
   visitor->Trace(crash_log_);
   visitor->Trace(accessibility_);
   visitor->Trace(experiments_);
@@ -73,7 +71,6 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(settings_);
   visitor->Trace(updater_);
   visitor->Trace(native_stability_);
-  Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }
 

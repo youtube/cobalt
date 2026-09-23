@@ -17,37 +17,34 @@
 
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class CrashLog;
-class LocalDOMWindow;
 class H5vccAccessibility;
 class H5vccExperiments;
 class H5vccMemory;
 class H5vccMetrics;
-class H5vccSystem;
-class H5vccRuntime;
-class H5vccStorage;
-class H5vccSettings;
-class H5vccUpdater;
 class H5vccNativeStability;
+class H5vccRuntime;
+class H5vccSettings;
+class H5vccStorage;
+class H5vccSystem;
+class H5vccUpdater;
+class LocalDOMWindow;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
-                                   public Supplement<LocalDOMWindow> {
+                                   public GarbageCollectedMixin {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  // This will be used again in a future milestone.
-  // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
-
   // For window.h5vcc
+  static H5vcc* From(LocalDOMWindow&);
   static H5vcc* h5vcc(LocalDOMWindow&);
 
   explicit H5vcc(LocalDOMWindow&);
@@ -75,6 +72,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   void Trace(Visitor*) const override;
 
  private:
+  Member<LocalDOMWindow> window_;
   Member<CrashLog> crash_log_;
   Member<H5vccAccessibility> accessibility_;
   Member<H5vccExperiments> experiments_;

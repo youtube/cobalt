@@ -1632,7 +1632,8 @@ map->Add<blink::mojom::ReportingServiceProxy>(
                           base::Unretained(host)));
 #else
   (void)host;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+}
 
 void PopulateBinderMapWithContext(
     SharedStorageWorkletHost* host,
