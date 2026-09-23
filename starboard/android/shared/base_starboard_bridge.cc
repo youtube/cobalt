@@ -462,3 +462,5 @@ void StarboardBridge::SetStartupDiagnosisInfo(const char* key,
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(BaseStarboardBridge)

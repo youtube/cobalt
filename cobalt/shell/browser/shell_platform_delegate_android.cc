@@ -185,4 +185,6 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
   shell->Close();
 }
 
+DEFINE_JNI(Shell)
+
 }  // namespace content

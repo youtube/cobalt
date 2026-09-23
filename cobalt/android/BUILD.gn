@@ -299,6 +299,7 @@ shared_library_with_jni("libchrobalt") {
   deps = [
     ":app_event_bridge",
     ":jni_headers",
+    "//starboard/android/shared:starboard_platform",
     "//cobalt:cobalt_app",
     "//cobalt:common",
     "//cobalt/browser",

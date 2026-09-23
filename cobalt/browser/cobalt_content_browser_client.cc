@@ -825,3 +825,7 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(CobaltContentBrowserClient)
+#endif  // BUILDFLAG(IS_ANDROID)

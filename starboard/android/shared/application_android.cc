@@ -27,6 +27,7 @@
 
 #include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
+
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -166,3 +167,6 @@ int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(CobaltSystemConfigChangeReceiver)
+DEFINE_JNI(HTMLMediaElementExtension)
