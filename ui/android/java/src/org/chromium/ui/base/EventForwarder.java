@@ -341,7 +341,20 @@ public class EventForwarder {
                 }
             }
 
-            int gestureClassification = event.getClassification();
+            // NEW GUARD: MotionEvent.getClassification() requires API 29 (Android Q). On
+            // Android P report CLASSIFICATION_NONE, the value ui/android/event_forwarder.cc
+            // already passes on its three no-classification paths, so the value is not
+            // invented. The constant is a compile-time int, so referencing it does not itself
+            // need API 29. Nothing to restore - the call arrived with the 142.7444 roll
+            // (64675443f05), after Cobalt had stopped targeting API 24.
+            // Confirmed crash on device: any touch event killed the app without this.
+            //
+            // WARNING: upstream has no guard here, because upstream's floor is API 29.
+            // A roll that rewrites this code will drop the guard silently.
+            int gestureClassification =
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                            ? event.getClassification()
+                            : MotionEvent.CLASSIFICATION_NONE;
 
             final boolean consumed =
                     EventForwarderJni.get()

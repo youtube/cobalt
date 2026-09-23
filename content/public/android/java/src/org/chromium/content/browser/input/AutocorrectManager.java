@@ -101,7 +101,10 @@ public class AutocorrectManager {
         if (mCorrectionInfo == null) return 0;
         CharSequence text = mCorrectionInfo.getNewText();
         BreakIterator boundary = BreakIterator.getWordInstance();
-        boundary.setText(text);
+        // NEW REWRITE: setText(CharSequence) is API 29; the String overload is
+        // API 24+ and equivalent here, so switching to it keeps min SDK 28
+        // building without a runtime guard.
+        boundary.setText(text.toString());
 
         int last = boundary.last();
         int start = boundary.previous();

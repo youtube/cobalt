@@ -9,6 +9,7 @@ import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.view.Gravity;
@@ -898,7 +899,16 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
      */
     @Deprecated
     public void setTouchModal(boolean touchModal) {
-        mPopupWindow.setTouchModal(touchModal);
+        // NEW GUARD: PopupWindow#setTouchModal is API 29 (Android Q). Below Q the popup keeps
+        // the platform default, which is the behaviour this app had before the setter existed.
+        // Nothing to restore - the call arrived with the 141.7390 roll (0f9cb42bf11), after
+        // Cobalt had stopped targeting API 24.
+        //
+        // WARNING: upstream has no guard here, because upstream's floor is API 29.
+        // A roll that rewrites this code will drop the guard silently.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mPopupWindow.setTouchModal(touchModal);
+        }
     }
 
     /**

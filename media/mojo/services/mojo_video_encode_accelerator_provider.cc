@@ -20,7 +20,9 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/system/platform_handle.h"
 
-#if BUILDFLAG(IS_ANDROID)
+// NdkVideoEncodeAccelerator requires API 29 and Cobalt targets
+// API 28, so it is excluded from the Cobalt build. See //media/gpu/BUILD.gn.
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 #include "media/gpu/android/ndk_video_encode_accelerator.h"
 #endif
 
@@ -125,7 +127,7 @@ void MojoVideoEncodeAcceleratorProvider::CreateVideoEncodeAccelerator(
       {base::MayBlock()}, base::SingleThreadTaskRunnerThreadMode::DEDICATED);
 #elif BUILDFLAG(IS_APPLE)
   runner = base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
-#elif BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   if (media::NdkVideoEncodeAccelerator::ShouldUseSurfaceInput()) {
     runner = base::ThreadPool::CreateSingleThreadTaskRunner(
         {base::MayBlock(), base::WithBaseSyncPrimitives()},
