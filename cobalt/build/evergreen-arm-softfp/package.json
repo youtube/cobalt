@@ -20,6 +20,10 @@
                     "to_file": "content/cobalt_shell.pak"
                 },
                 {
+                    "from_file": "icudtl.dat",
+                    "to_file": "content/icudtl.dat"
+                },
+                {
                     "from_file": "libcobalt.so",
                     "to_file": "lib/libcobalt.so"
                 }
