@@ -16,6 +16,9 @@ inputs:
   test_device_family:
     description: "The test device family (e.g., rdk)."
     default: ""
+  gcs_results_path:
+    description: "GCS path the test logs are uploaded to and downloaded from. Logs are not surfaced in GitHub if unset."
+    default: ""
 
 runs:
   using: "composite"
@@ -63,6 +66,7 @@ runs:
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
         TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
         set -x
 
@@ -91,7 +95,8 @@ runs:
           --dimensions "${TEST_DIMENSIONS}" \
           --artifact_name "${ARTIFACT_NAME}" \
           --device_family "${TEST_DEVICE_FAMILY}" \
-          --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
+          --cobalt_path "${GCS_ARTIFACTS_PATH}" \
+          ${GCS_RESULTS_PATH:+"--gcs_result_path" "${GCS_RESULTS_PATH}"} || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
             # Fail the job so it's easy to retrigger.
@@ -99,3 +104,48 @@ runs:
           }
         echo "Finished running tests..."
       shell: bash
+
+    - name: Download ${{ matrix.platform }} Test Logs from GCS
+      if: always() && inputs.gcs_results_path != ''
+      env:
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        set -ux
+
+        test_output="${GITHUB_WORKSPACE}/results"
+        mkdir -p "${test_output}/${PLATFORM}"
+        echo "test_output=${test_output}" >> "${GITHUB_ENV}"
+
+        gsutil -q cp -r "${GCS_RESULTS_PATH}/*" "${test_output}/${PLATFORM}" || \
+          echo "::warning::No test logs found at ${GCS_RESULTS_PATH}."
+      shell: bash
+
+    - name: Print ${{ matrix.platform }} Cobalt Logs
+      if: always() && inputs.gcs_results_path != ''
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        set -u
+        shopt -s globstar nullglob
+
+        logs=("${test_output}/${PLATFORM}"/**/*cobalt.log)
+        if [[ "${#logs[@]}" -eq 0 ]]; then
+          echo "No cobalt logs were produced by this run."
+          exit 0
+        fi
+
+        for logfile in "${logs[@]}"; do
+          echo "::group::$(basename "${logfile}")"
+          cat "${logfile}"
+          echo "::endgroup::"
+        done
+      shell: bash
+
+    - name: Archive ${{ matrix.platform }} Test Logs
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      if: always() && inputs.gcs_results_path != ''
+      with:
+        name: ${{ matrix.platform }}_${{ inputs.test_type }}_logs
+        path: ${{ env.test_output }}/*
+        if-no-files-found: ignore
