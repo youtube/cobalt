@@ -11,16 +11,12 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "content/browser/media/capture/pip_screen_capture_coordinator.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/media_player_id.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "content/public/common/buildflags.h"
-
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
-#include "content/browser/media/capture/pip_screen_capture_coordinator.h"
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 namespace content {
 

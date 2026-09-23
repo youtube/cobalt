@@ -7,13 +7,8 @@
 
 #include <vector>
 
-#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/time/time.h"
-#include "url/gurl.h"
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -44,18 +39,6 @@ class MEDIA_EXPORT MediaResource {
   // A helper function that return the first stream of the given `type` if one
   // exists or a null pointer if there is no streams of that type.
   DemuxerStream* GetFirstStream(DemuxerStream::Type type);
-
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Returns the media URL for URL player.
-  virtual GURL GetMediaUrl() const;
-
-  // Forwards duration change to DemuxerHost.
-  virtual void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration);
-
-  // Forwards buffered ranges to DemuxerHost.
-  virtual void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
-                                                      base::TimeDelta length);
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

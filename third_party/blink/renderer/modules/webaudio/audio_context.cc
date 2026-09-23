@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
-#include "third_party/blink/public/common/buildflags.h"
 
 #include <atomic>
 
@@ -39,9 +38,7 @@
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_listener.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
@@ -50,9 +47,7 @@
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_destination_node.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
@@ -432,7 +427,6 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
-
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.
@@ -591,15 +585,6 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   }
 
   Initialize();
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "Cobalt AudioContext Initialized:"
-            << " SampleRate=" << sampleRate() << " Hz,"
-            << " SinkType="
-            << (sink_descriptor_.Type() == WebAudioSinkDescriptor::kAudible
-                    ? "Audible"
-                    : "Silent");
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Compute the base latency now and cache the value since it doesn't change
   // once the context is constructed.  We need the destination to be initialized

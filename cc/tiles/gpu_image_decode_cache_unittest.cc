@@ -16,12 +16,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#endif
 #include "base/memory/raw_ptr.h"
-#include "base/run_loop.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_mock_time_task_runner.h"
@@ -294,23 +289,8 @@ class GpuImageDecodeCacheTest
       RasterDarkModeFilter* const dark_mode_filter = nullptr) {
     return std::make_unique<GpuImageDecodeCache>(
         context_provider_.get(), color_type_, memory_limit_bytes,
-        max_texture_size_,
-#if BUILDFLAG(IS_COBALT)
-        /*max_persistent_cache_items=*/2000,
-        /*max_persistent_cache_memory_size=*/std::numeric_limits<size_t>::max(),
-#endif
-        dark_mode_filter);
+        max_texture_size_, dark_mode_filter);
   }
-
-#if BUILDFLAG(IS_COBALT)
-  void FlushRunLoop() {
-    if (base::FeatureList::IsEnabled(
-            base::features::kCobaltInProcessImageTransferCache) &&
-        base::SingleThreadTaskRunner::HasCurrentDefault()) {
-      base::RunLoop().RunUntilIdle();
-    }
-  }
-#endif
 
   // Returns dimensions for an image that will not fit in GPU memory and hence
   // triggers software fallback.
@@ -912,9 +892,6 @@ TEST_P(GpuImageDecodeCacheTest, GetTaskForImageSameImageDifferentClients) {
     EXPECT_FALSE(cache->IsInInUseCacheForTesting(draw_image));
     EXPECT_FALSE(cache->IsInInUseCacheForTesting(draw_image2));
     EXPECT_FALSE(cache->IsInInUseCacheForTesting(draw_image3));
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     cache->ClearCache();
   }
@@ -1485,9 +1462,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDraw) {
 
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1536,9 +1510,6 @@ TEST_P(GpuImageDecodeCacheTest, GetHdrDecodedImageForDrawToHdr) {
 
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1592,9 +1563,6 @@ TEST_P(GpuImageDecodeCacheTest, GetHdrDecodedImageForDrawToSdr) {
 
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1619,12 +1587,6 @@ TEST_P(GpuImageDecodeCacheTest, GetHdrDecodedImageForDrawToSdr) {
 }
 
 TEST_P(GpuImageDecodeCacheTest, GetLargeDecodedImageForDraw) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   auto cache = CreateCache();
   const uint32_t client_id = cache->GenerateClientId();
   PaintImage image = CreateLargePaintImageForSoftwareFallback();
@@ -1673,9 +1635,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDrawAtRasterDecode) {
       context_provider());
   DecodedDrawImage decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_TRUE(decoded_draw_image.image());
   EXPECT_FALSE(decoded_draw_image.is_budgeted());
   EXPECT_TRUE(decoded_draw_image.image()->isTextureBacked());
@@ -1713,9 +1672,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDrawLargerScale) {
 
   TestTileTaskRunner::ProcessTask(larger_result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(larger_result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1766,9 +1722,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDrawHigherQuality) {
   EXPECT_TRUE(hq_result.task);
   TestTileTaskRunner::ProcessTask(hq_result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(hq_result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1809,9 +1762,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDrawNegative) {
 
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -1835,12 +1785,6 @@ TEST_P(GpuImageDecodeCacheTest, GetDecodedImageForDrawNegative) {
 }
 
 TEST_P(GpuImageDecodeCacheTest, GetLargeScaledDecodedImageForDraw) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   auto cache = CreateCache();
   const uint32_t client_id = cache->GenerateClientId();
   PaintImage image = CreatePaintImageForFallbackToRGB(
@@ -1898,9 +1842,6 @@ TEST_P(GpuImageDecodeCacheTest, AtRasterUsedDirectlyIfSpaceAllows) {
       context_provider());
   DecodedDrawImage decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_TRUE(decoded_draw_image.image());
   EXPECT_TRUE(decoded_draw_image.image()->isTextureBacked());
   EXPECT_FALSE(decoded_draw_image.is_budgeted());
@@ -1935,9 +1876,6 @@ TEST_P(GpuImageDecodeCacheTest,
       context_provider());
   DecodedDrawImage decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_TRUE(decoded_draw_image.image());
   EXPECT_TRUE(decoded_draw_image.image()->isTextureBacked());
   EXPECT_FALSE(decoded_draw_image.is_budgeted());
@@ -1945,9 +1883,6 @@ TEST_P(GpuImageDecodeCacheTest,
 
   DecodedDrawImage another_decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_FALSE(another_decoded_draw_image.is_budgeted());
   EXPECT_EQ(decoded_draw_image.image()->uniqueID(),
             another_decoded_draw_image.image()->uniqueID());
@@ -1962,12 +1897,6 @@ TEST_P(GpuImageDecodeCacheTest,
 
 TEST_P(GpuImageDecodeCacheTest,
        GetLargeDecodedImageForDrawAtRasterDecodeMultipleTimes) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   auto cache = CreateCache();
   cache->SetWorkingSetLimitsForTesting(0 /* max_bytes */, 0 /* max_items */);
 
@@ -2087,9 +2016,6 @@ TEST_P(GpuImageDecodeCacheTest, ShouldAggressivelyFreeResources) {
     TestTileTaskRunner::ProcessTask(result.task.get());
 
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     // We should now have data image in our cache.
     EXPECT_GT(cache->GetNumCacheEntriesForTesting(), 0u);
@@ -2110,9 +2036,6 @@ TEST_P(GpuImageDecodeCacheTest, ShouldAggressivelyFreeResources) {
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     EXPECT_EQ(cache->GetNumCacheEntriesForTesting(), 0u);
   }
@@ -2129,9 +2052,6 @@ TEST_P(GpuImageDecodeCacheTest, ShouldAggressivelyFreeResources) {
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     EXPECT_GT(cache->GetNumCacheEntriesForTesting(), 0u);
   }
@@ -2173,9 +2093,6 @@ TEST_P(GpuImageDecodeCacheTest, OrphanedImagesFreeOnReachingZeroRefs) {
   TestTileTaskRunner::ProcessTask(first_result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(first_result.task.get());
   cache->UnrefImage(first_draw_image);
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // The cache should have exactly one image.
   EXPECT_EQ(1u, cache->GetNumCacheEntriesForTesting());
@@ -2197,9 +2114,6 @@ TEST_P(GpuImageDecodeCacheTest, OrphanedZeroRefImagesImmediatelyDeleted) {
   TestTileTaskRunner::ProcessTask(first_result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(first_result.task.get());
   cache->UnrefImage(first_draw_image);
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // The budget should account for exactly one image.
   EXPECT_EQ(cache->GetNumCacheEntriesForTesting(), 1u);
@@ -2469,9 +2383,6 @@ TEST_P(GpuImageDecodeCacheTest, ZeroCacheNormalWorkingSet) {
   // Unref both images.
   cache->UnrefImage(draw_image);
   cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Ensure the unref is processed:
   cache->ReduceCacheUsage();
@@ -2519,9 +2430,6 @@ TEST_P(GpuImageDecodeCacheTest, SmallCacheNormalWorkingSet) {
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
   }
 
   // Request the same image - it should be cached.
@@ -2546,9 +2454,6 @@ TEST_P(GpuImageDecodeCacheTest, SmallCacheNormalWorkingSet) {
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
     cache->UnrefImage(draw_image2);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
   }
 
   // Request the second image - it should be cached.
@@ -2614,9 +2519,6 @@ TEST_P(GpuImageDecodeCacheTest, ClearCacheInUse) {
   EXPECT_TRUE(result.task);
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // We should now have data image in our cache.
   EXPECT_GT(cache->GetWorkingSetBytesForTesting(), 0u);
@@ -2631,9 +2533,6 @@ TEST_P(GpuImageDecodeCacheTest, ClearCacheInUse) {
 
   // Unref the image, it should immidiately delete, leaving our cache empty.
   cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_EQ(cache->GetWorkingSetBytesForTesting(), 0u);
   EXPECT_EQ(cache->GetNumCacheEntriesForTesting(), 0u);
 }
@@ -2678,12 +2577,6 @@ TEST_P(GpuImageDecodeCacheTest, GetTaskForImageDifferentColorSpace) {
 }
 
 TEST_P(GpuImageDecodeCacheTest, GetTaskForLargeImageNonSRGBColorSpace) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   auto cache = CreateCache();
   const uint32_t client_id = cache->GenerateClientId();
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateXYZD50();
@@ -2944,12 +2837,6 @@ TEST_P(GpuImageDecodeCacheTest, ImageBudgetingBySize) {
 
 TEST_P(GpuImageDecodeCacheTest,
        ColorConversionDuringDecodeForLargeImageNonSRGBColorSpace) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   auto cache = CreateCache();
   const uint32_t client_id = cache->GenerateClientId();
   sk_sp<SkColorSpace> image_color_space =
@@ -3050,15 +2937,9 @@ TEST_P(GpuImageDecodeCacheTest, NonLazyImageUploadNoScale) {
       context_provider());
   DecodedDrawImage decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_TRUE(decoded_draw_image.image());
   EXPECT_TRUE(decoded_draw_image.is_budgeted());
   cache->DrawWithImageFinished(draw_image, decoded_draw_image);
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   // For non-lazy images used at the original scale, no cpu component should be
   // cached
   EXPECT_FALSE(cache->GetSWImageDecodeForTesting(draw_image));
@@ -3143,12 +3024,6 @@ TEST_P(GpuImageDecodeCacheTest,
 }
 
 TEST_P(GpuImageDecodeCacheTest, NonLazyImageLargeImageNotColorConverted) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltInProcessImageTransferCache)) {
-    return;
-  }
-#endif
   if (do_yuv_decode_) {
     // YUV bitmap images do not happen, so this test will always skip for YUV.
     return;
@@ -3223,9 +3098,6 @@ TEST_P(GpuImageDecodeCacheTest, KeepOnlyLast2ContentIds) {
   for (int i = 0; i < 10; ++i) {
     cache->DrawWithImageFinished(draw_images[i], decoded_draw_images[i]);
   }
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // We have a single tracked entry, that gets cleared once we purge the cache.
   EXPECT_EQ(cache->paint_image_entries_count_for_testing(), 1u);
@@ -3620,9 +3492,6 @@ TEST_P(GpuImageDecodeCacheTest,
 
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     // Must hold context lock before calling GetDecodedImageForDraw /
     // DrawWithImageFinished.
@@ -3653,9 +3522,6 @@ TEST_P(GpuImageDecodeCacheTest,
 
     cache->DrawWithImageFinished(draw_image, decoded_draw_image);
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
   };
 
   yuv_format_ = YUVSubsampling::k420;
@@ -3722,9 +3588,6 @@ TEST_P(GpuImageDecodeCacheTest, HighBitDepthYUVDecoding) {
 
     TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
     TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
 
     // Must hold context lock before calling GetDecodedImageForDraw /
     // DrawWithImageFinished.
@@ -3773,9 +3636,6 @@ TEST_P(GpuImageDecodeCacheTest, HighBitDepthYUVDecoding) {
 
     cache->DrawWithImageFinished(draw_image, decoded_draw_image);
     cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-    FlushRunLoop();
-#endif
   };
 
   gpu::Capabilities original_caps;
@@ -3935,9 +3795,6 @@ TEST_P(GpuImageDecodeCacheTest, ScaledYUVDecodeScaledDrawCorrectlyMipsPlanes) {
 
         TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
         TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-        FlushRunLoop();
-#endif
 
         // Must hold context lock before calling GetDecodedImageForDraw /
         // DrawWithImageFinished.
@@ -3965,9 +3822,6 @@ TEST_P(GpuImageDecodeCacheTest, ScaledYUVDecodeScaledDrawCorrectlyMipsPlanes) {
 
         cache->DrawWithImageFinished(draw_image, decoded_draw_image);
         cache->UnrefImage(draw_image);
-#if BUILDFLAG(IS_COBALT)
-        FlushRunLoop();
-#endif
       };
 
   gfx::Size image_size = GetNormalImageSize();
@@ -4044,9 +3898,6 @@ TEST_P(GpuImageDecodeCacheTest, GetBorderlineLargeDecodedImageForDraw) {
 
   TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
   TestTileTaskRunner::ProcessTask(result.task.get());
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
 
   // Must hold context lock before calling GetDecodedImageForDraw /
   // DrawWithImageFinished.
@@ -4218,9 +4069,6 @@ TEST_P(GpuImageDecodeCacheTest, ClippedAndScaledDrawImageRemovesCacheEntry) {
       context_provider());
   DecodedDrawImage decoded_draw_image =
       EnsureImageBacked(cache->GetDecodedImageForDraw(draw_image));
-#if BUILDFLAG(IS_COBALT)
-  FlushRunLoop();
-#endif
   EXPECT_TRUE(decoded_draw_image.image());
   EXPECT_TRUE(decoded_draw_image.image()->isTextureBacked());
   EXPECT_FALSE(cache->DiscardableIsLockedForTesting(draw_image));

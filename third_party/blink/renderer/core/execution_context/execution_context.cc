@@ -585,11 +585,6 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(web_codecs_logger_);
   visitor->Trace(web_printing_manager_);
   visitor->Trace(web_view_android_);
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_IOS_TVOS)
-  visitor->Trace(dial_server_manager_);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif
   MojoBindingContext::Trace(visitor);
   ConsoleLogger::Trace(visitor);
 }

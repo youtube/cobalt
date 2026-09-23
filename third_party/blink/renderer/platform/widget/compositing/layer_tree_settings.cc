@@ -9,7 +9,6 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/features.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_number_conversions.h"
@@ -150,11 +149,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   cc::ManagedMemoryPolicy actual = default_policy;
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
-#if BUILDFLAG(IS_COBALT)
-      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
-#else
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
-#endif
 
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
@@ -169,26 +164,6 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     }
     return actual;
   }
-#if BUILDFLAG(IS_COBALT)
-  int force_gpu_mem_mb = 0;
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltForceGpuMemAvailable)) {
-    force_gpu_mem_mb = base::features::kCobaltForceGpuMemAvailableMb.Get();
-#if defined(ARCH_CPU_32_BITS)
-  } else {
-    // Default to a 64MB GPU memory limit on 32-bit devices (e.g. arm), where
-    // the address space is constrained. 64-bit devices are excluded to avoid
-    // capping high-end devices that require higher memory budgets for 4K UI
-    // rendering.
-    force_gpu_mem_mb = 64;
-#endif  // defined(ARCH_CPU_32_BITS)
-  }
-  if (force_gpu_mem_mb > 0) {
-    actual.bytes_limit_when_visible =
-        static_cast<size_t>(force_gpu_mem_mb) * 1024 * 1024;
-    return actual;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::SysInfo::IsLowEndDevice() ||
@@ -527,25 +502,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_COBALT)
-  // Gates the compositor prepaint memory budget on every Cobalt platform (both
-  // Android TV and 3P/Starboard), overriding the platform defaults assigned
-  // above. This is the percentage of the tile memory budget available to
-  // prepaint tiles: it sets the tile manager's soft memory limit (see
-  // LayerTreeHostImpl::UpdateTileManagerMemoryPolicy), while tiles required for
-  // the current draw (TilePriority::NOW) always use the hard limit. The default
-  // of 0 disables prepaint raster entirely to minimize GPU/tile memory.
-  // Disabling the feature restores the upstream per-platform defaults.
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltMaxMemoryForPrepaint)) {
-    // Clamp because the setting is a size_t; a negative Finch parameter would
-    // otherwise wrap around and remove the soft memory limit entirely.
-    settings.max_memory_for_prepaint_percentage = static_cast<size_t>(
-        std::clamp(base::features::kCobaltMaxMemoryForPrepaintPercentage.Get(),
-                   0, 100));
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-
   if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
     settings.scrollbar_thinning_duration = base::TimeDelta();
     settings.scrollbar_fade_delay = base::TimeDelta::Max();
@@ -555,12 +511,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.decoded_image_working_set_budget_bytes =
       cc::ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/true);
-#if BUILDFLAG(IS_COBALT)
-  settings.decoded_image_persistent_cache_budget_count =
-      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
-  settings.decoded_image_persistent_cache_budget_bytes =
-      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
-#endif
 
   if (using_low_memory_policy) {
     // RGBA_4444 textures are only enabled:
@@ -629,27 +579,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   std::tie(settings.tiling_interest_area_padding,
            settings.skewport_extrapolation_limit_in_screen_pixels) =
       GetTilingInterestAreaSizes();
-
-#if BUILDFLAG(IS_COBALT)
-  // When enabled, overrides the compositor skewport target times, which control
-  // speculative pre-rastering of offscreen tiles. Both params default to 0,
-  // which disables pre-rastering to reduce GPU texture memory usage. When the
-  // feature is disabled the upstream Chromium defaults are left untouched
-  // (1.0 for software raster, 0.2 for GPU raster).
-  if (base::FeatureList::IsEnabled(base::features::kCobaltSkewportTargetTime)) {
-    double value = base::features::kCobaltSkewportTargetTimeInSeconds.Get();
-    if (value >= 0.0) {
-      settings.skewport_target_time_in_seconds = static_cast<float>(value);
-    }
-    double gpu_value =
-        base::features::kCobaltGpuRasterizationSkewportTargetTimeInSeconds
-            .Get();
-    if (gpu_value >= 0.0) {
-      settings.gpu_rasterization_skewport_target_time_in_seconds =
-          static_cast<float>(gpu_value);
-    }
-  }
-#endif
 
   return settings;
 }

@@ -4,7 +4,6 @@
 
 import("//build/config/c++/c++.gni")
 import("//build/config/cast.gni")
-import("//build/config/unwind.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/features.gni")
@@ -22,10 +21,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
 if (is_android) {
   import("//build/config/android/abi.gni")
-}
-
-if (is_cobalt) {
-  import("//starboard/build/config/toolchain_variables.gni")
 }
 
 # ==============================================
@@ -214,12 +209,7 @@ config("default_libs") {
     # Targets should choose to explicitly link frameworks they require. Since
     # linking can have run-time side effects, nothing should be listed here.
     libs = []
-  } else if (is_cobalt && is_native_toolchain) {
-    # This build configuration is only used for the crashpad handler executable.
-    # This binary needs dynamic linking but gets undefined symbols, which result
-    # in symbol lookup errors at runtime, when also linked with pthread.
-    libs = [ "dl" ]
-  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  } else if (is_linux || is_chromeos) {
     libs = [
       "dl",
       "pthread",
@@ -300,12 +290,6 @@ group("common_deps") {
 
   if (use_custom_libcxx) {
     public_deps += [ "//buildtools/third_party/libc++" ]
-  }
-
-  # Provide an unwinder for the native toolchain. The starboard toolchain gets
-  # its own evergreen-aware copy through unwind_starboard.
-  if (use_custom_libunwind && is_cobalt && is_native_toolchain) {
-    public_deps += [ "//buildtools/third_party/libunwind" ]
   }
 
   if (use_llvm_libatomic) {

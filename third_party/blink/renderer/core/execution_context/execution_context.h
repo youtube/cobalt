@@ -135,10 +135,6 @@ class WebCodecsLogger;
 class WebPrintingManager;
 class WebViewAndroid;
 
-#if BUILDFLAG(IS_COBALT)
-class DialServerManager;
-#endif  // BUILDFLAG(IS_COBALT)
-
 enum ReasonForCallingCanExecuteScripts {
   kAboutToExecuteScript,
   kNotAboutToExecuteScript
@@ -803,18 +799,6 @@ class CORE_EXPORT ExecutionContext : public MojoBindingContext,
     web_view_android_ = web_view_android;
   }
 
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_IOS_TVOS)
-  ForwardDeclaredMember<DialServerManager> GetDialServerManager() const {
-    return dial_server_manager_;
-  }
-  void SetDialServerManager(
-      ForwardDeclaredMember<DialServerManager> dial_server_manager) {
-    dial_server_manager_ = dial_server_manager;
-  }
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif  // BUILDFLAG(IS_COBALT)
-
  protected:
   ExecutionContext(v8::Isolate* isolate, Agent* agent, bool is_window = false);
   ~ExecutionContext() override;
@@ -921,12 +905,6 @@ class CORE_EXPORT ExecutionContext : public MojoBindingContext,
   ForwardDeclaredMember<WebCodecsLogger> web_codecs_logger_;
   ForwardDeclaredMember<WebPrintingManager> web_printing_manager_;
   ForwardDeclaredMember<WebViewAndroid> web_view_android_;
-
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(IS_IOS_TVOS)
-  ForwardDeclaredMember<DialServerManager> dial_server_manager_;
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace blink
