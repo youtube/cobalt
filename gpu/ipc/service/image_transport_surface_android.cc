@@ -70,13 +70,6 @@ scoped_refptr<gl::Presenter> ImageTransportSurface::CreatePresenter(
                              base::SingleThreadTaskRunner::GetCurrentDefault());
                        }},
       std::move(surface_record.surface_variant));
-  if (presenter &&
-      !static_cast<gl::GLSurfaceEGLSurfaceControl*>(presenter.get())
-           ->Initialize()) {
-    LOG(WARNING)
-        << "GLSurfaceEGLSurfaceControl failed to initialize root surface";
-    return nullptr;
-  }
 
   return presenter;
 }

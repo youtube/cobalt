@@ -243,22 +243,25 @@ public class ContentViewRenderView extends FrameLayout {
 
       SurfaceControl surfaceControl =
           new SurfaceControl.Builder().setName("CobaltWindowSurfaceControl").build();
-      SurfaceControl.Transaction transaction =
-          rootSurfaceControl.buildReparentTransaction(surfaceControl);
-      if (transaction == null) {
-        Log.w(TAG, "ContentViewRenderView: buildReparentTransaction returned null");
-        surfaceControl.release();
-        return;
-      }
+      try (SurfaceControl.Transaction transaction =
+          rootSurfaceControl.buildReparentTransaction(surfaceControl)) {
+        if (transaction == null) {
+          Log.w(TAG, "ContentViewRenderView: buildReparentTransaction returned null");
+          surfaceControl.release();
+          return;
+        }
 
-      transaction.setVisibility(surfaceControl, true).apply();
+        transaction.setVisibility(surfaceControl, true).apply();
+      }
       mSurfaceControl = surfaceControl;
     }
 
     private void releaseSurfaceControl() {
       if (mSurfaceControl != null) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-          new SurfaceControl.Transaction().reparent(mSurfaceControl, null).apply();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+            transaction.reparent(mSurfaceControl, null).apply();
+          }
         }
         mSurfaceControl.release();
         mSurfaceControl = null;
