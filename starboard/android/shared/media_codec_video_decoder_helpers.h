@@ -18,6 +18,7 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
@@ -33,6 +34,7 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
 
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,
+    std::string_view param_name,
     const Size& frame_size);
 
 bool Equal(const SbMediaMasteringMetadata& lhs,

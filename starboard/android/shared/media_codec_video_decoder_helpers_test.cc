@@ -65,19 +65,20 @@ TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
   Size frame_size = Resolution::k1080p;
 
   // Both dimensions provided
-  auto res = ParseMaxResolution("width=1280; height=720", frame_size);
+  auto res = ParseMaxResolution("width=1280; height=720",
+                                "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);
 
   // Only width provided (infer height)
-  res = ParseMaxResolution("width=1280", frame_size);
+  res = ParseMaxResolution("width=1280", "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);  // 1280 * 1080 / 1920 = 720
 
   // Only height provided (infer width)
-  res = ParseMaxResolution("height=720", frame_size);
+  res = ParseMaxResolution("height=720", "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);

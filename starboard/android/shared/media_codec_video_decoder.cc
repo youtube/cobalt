@@ -320,8 +320,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           stream_config.decode_target_graphics_context_provider),
       max_video_size_(MergeMaxResolutions(
           ParseMaxResolution(stream_config.max_video_capabilities,
+                             "max_video_capabilities",
                              stream_config.video_stream_info.frame_size),
           ParseMaxResolution(stream_config.max_video_resolution,
+                             "max_video_resolution",
                              stream_config.video_stream_info.frame_size))),
       require_software_codec_(
           IsSoftwareDecoderRequired(pipeline_config.experimental_features,

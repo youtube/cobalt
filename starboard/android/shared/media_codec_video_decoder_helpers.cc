@@ -64,24 +64,25 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
   return true;
 }
 
-std::optional<Size> ParseMaxResolution(
-    const std::string& max_video_capabilities,
-    const Size& frame_size) {
+std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
+                                       std::string_view param_name,
+                                       const Size& frame_size) {
   SB_DCHECK_GT(frame_size.width, 0);
   SB_DCHECK_GT(frame_size.height, 0);
 
-  if (max_video_capabilities.empty()) {
+  if (max_video_param.empty()) {
     return std::nullopt;
   }
 
-  SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
-               << max_video_capabilities << ").";
+  SB_LOG(INFO) << "Try to parse max resolutions from `" << param_name << "` ("
+               << max_video_param << ").";
 
   auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_param);
   if (!mime_type) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`max_video_capabilities` is invalid.";
+                       "`"
+                    << param_name << "` is invalid.";
     return std::nullopt;
   }
 
