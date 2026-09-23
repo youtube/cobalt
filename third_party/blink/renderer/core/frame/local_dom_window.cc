@@ -2588,7 +2588,7 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(on_screen_keyboard_);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
   Supplementable<LocalDOMWindow, 48>::Trace(visitor);

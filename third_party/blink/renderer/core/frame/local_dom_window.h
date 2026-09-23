@@ -161,7 +161,7 @@ template <typename T>
 class GlobalCookieStoreImpl;
 template <typename T, typename P>
 class GlobalPerformanceImpl;
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace scheduler {
 class TaskAttributionInfo;
@@ -1093,7 +1093,7 @@ class CORE_EXPORT LocalDOMWindow final
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -1298,7 +1298,7 @@ class CORE_EXPORT LocalDOMWindow final
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // If set, this window is a Document Picture in Picture window.
   // https://wicg.github.io/document-picture-in-picture/
   bool is_picture_in_picture_window_ = false;

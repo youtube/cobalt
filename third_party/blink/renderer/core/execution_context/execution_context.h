@@ -814,7 +814,7 @@ class CORE_EXPORT ExecutionContext
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  protected:
   ExecutionContext(v8::Isolate* isolate, Agent* agent, bool is_window = false);
   ~ExecutionContext() override;
@@ -929,7 +929,7 @@ class CORE_EXPORT ExecutionContext
   ForwardDeclaredMember<DialServerManager> dial_server_manager_;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink

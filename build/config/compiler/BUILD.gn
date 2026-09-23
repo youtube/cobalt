@@ -814,7 +814,7 @@ config("compiler") {
       # support "c++20"/"gnu++20".
       cflags_cc += [ "-std=${standard_prefix}++2a" ]
       }
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   } else if (is_win) {
     cflags_c += [ "/std:c11" ]

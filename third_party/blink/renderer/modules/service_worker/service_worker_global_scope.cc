@@ -2778,7 +2778,7 @@ bool ServiceWorkerGlobalScope::HasHidEventHandlers() {
   return false;
 #else
   HID* hid = navigator()->GetHID();
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return hid ? hid->HasEventListeners() : false;
 #endif
 }
@@ -2791,7 +2791,7 @@ bool ServiceWorkerGlobalScope::HasUsbEventHandlers() {
   return false;
 #else
   USB* usb = navigator()->GetUSB();
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return usb ? usb->HasEventListeners() : false;
 #endif
 }

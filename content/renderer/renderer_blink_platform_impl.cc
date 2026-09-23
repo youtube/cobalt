@@ -572,7 +572,7 @@ RendererBlinkPlatformImpl::DecodeAudioFileData(
 #else // BUILDFLAG(IS_COBALT)
   return content::DecodeAudioFileData(destination_bus, audio_file_data);
 #endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 //------------------------------------------------------------------------------

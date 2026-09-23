@@ -309,7 +309,7 @@ std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
 #else  // !BUILDFLAG(IS_COBALT)
 
 bool ParseProcMaps(const std::string& input,
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                    std::vector<MappedMemoryRegion>* regions_out) {
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;

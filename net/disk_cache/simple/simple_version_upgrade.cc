@@ -51,7 +51,7 @@ bool WriteFakeIndexFile(disk_cache::BackendFileOperations* file_operations,
       file_name, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
 #endif
   if (!file.IsValid())
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return false;
   }
 

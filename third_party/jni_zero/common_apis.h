@@ -93,7 +93,7 @@ inline ScopedJavaLocalRef<jobject> ListAdd(JNIEnv* env,
                                            const JavaRef<jobject>& list,
                                            const V& value) {
   return ListAdd(env, list, ToJniType(env, value));
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4600c87aa6d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionRemove(
