@@ -138,7 +138,6 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
                                      SbAudioSinkFrameBuffers frame_buffers,
                                      int frames_per_channel,
                                      RenderCallback* render_callback) {
-  is_flushed_ = false;
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
@@ -157,7 +156,13 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
     android_sink->SetPlaybackRate(playback_rate_);
     android_sink->SetVolume(volume_);
     render_callback_ = render_callback;
+    is_flushed_ = false;
     return;
+  }
+
+  if (is_flushed_) {
+    Stop();
+    is_flushed_ = false;
   }
 
   channels_ = channels;
