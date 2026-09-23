@@ -78,7 +78,6 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 class AlsaAudioSink : public SbAudioSinkImpl {
  public:
   static std::unique_ptr<AlsaAudioSink> Create(
-      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -89,7 +88,6 @@ class AlsaAudioSink : public SbAudioSinkImpl {
       void* context);
 
   AlsaAudioSink(PassKey<AlsaAudioSink>,
-                Type* type,
                 int channels,
                 SbMediaAudioSampleType sample_type,
                 SbAudioSinkFrameBuffers frame_buffers,
@@ -100,8 +98,6 @@ class AlsaAudioSink : public SbAudioSinkImpl {
                 void* playback_handle,
                 int64_t time_to_wait_us);
   ~AlsaAudioSink() override;
-
-  bool IsType(Type* type) override { return type_ == type; }
 
   void SetPlaybackRate(double playback_rate) override {
     std::lock_guard lock(mutex_);
@@ -132,7 +128,6 @@ class AlsaAudioSink : public SbAudioSinkImpl {
                    int frames_in_buffer,
                    int offset_in_frames);
 
-  Type* const type_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   const ConsumeFramesFunc consume_frames_func_;
   void* const context_;
@@ -159,7 +154,6 @@ class AlsaAudioSink : public SbAudioSinkImpl {
 };
 
 std::unique_ptr<AlsaAudioSink> AlsaAudioSink::Create(
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -182,14 +176,13 @@ std::unique_ptr<AlsaAudioSink> AlsaAudioSink::Create(
       kFramesPerRequest * 1'000'000LL / sampling_frequency_hz / 2;
 
   return std::make_unique<AlsaAudioSink>(
-      PassKey<AlsaAudioSink>(), type, channels, sample_type, frame_buffers,
+      PassKey<AlsaAudioSink>(), channels, sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context, playback_handle, time_to_wait_us);
 }
 
 AlsaAudioSink::AlsaAudioSink(
     PassKey<AlsaAudioSink>,
-    Type* type,
     int channels,
     SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
@@ -199,8 +192,7 @@ AlsaAudioSink::AlsaAudioSink(
     void* context,
     void* playback_handle,
     int64_t time_to_wait_us)
-    : type_(type),
-      update_source_status_func_(update_source_status_func),
+    : update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
       playback_rate_(1.0),
@@ -408,18 +400,6 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
 };
 
 SbAudioSink AlsaAudioSinkType::Create(
@@ -433,7 +413,7 @@ SbAudioSink AlsaAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   std::unique_ptr<AlsaAudioSink> audio_sink = AlsaAudioSink::Create(
-      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
   if (!audio_sink) {
