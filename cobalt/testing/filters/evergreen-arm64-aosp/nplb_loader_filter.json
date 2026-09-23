@@ -1,4 +1,5 @@
 {
+  "comment": "PosixIsattyTest tests are flaky",
   "failing_tests": [
     "*MaximumPlayerConfigurationExplorer*",
     "*MultiplePlayer*",
@@ -9,6 +10,8 @@
     "LoaderAppMetricsTest.VerifyLoaderAppMetricsExtension",
     "NativeStabilityTest.VerifyNativeStabilityExtension",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
+    "PosixIsattyTest.HandlesStderr",
+    "PosixIsattyTest.HandlesStdout",
     "PosixLinkTest.SuccessfulCreation",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/12",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/14",
