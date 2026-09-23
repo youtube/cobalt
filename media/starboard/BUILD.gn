@@ -121,6 +121,7 @@ source_set("unit_tests") {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "sbplayer_bridge_test.cc",
       "starboard_media_external_memory_allocator_unittest.cc",
       "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",
