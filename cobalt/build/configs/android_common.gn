@@ -9,3 +9,16 @@ use_errorprone_java_compiler = false
 # on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
 # See http://b/478022126#comment6
 media_use_opensles = true
+
+# Keep supporting Android P (API 28). Upstream's
+# default is 29.
+default_min_sdk_version = 28
+
+# Javaless renderers require the NDK Binder AIDL
+# bindings, which //build/config/android/rules.gni only generates when
+# android_ndk_api_level >= 29. Cobalt does not use javaless renderers (they are
+# additionally gated on SDK_INT >= 35 and a disabled-by-default feature flag),
+# so turn them off to keep building against API 28.
+# NOTE: upstream removed this GN flag in https://crrev.com/c/8037744; once that
+# lands in a roll, //content/app:javaless_renderer will need a local patch.
+enable_javaless_renderers = false
