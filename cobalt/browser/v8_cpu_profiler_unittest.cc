@@ -47,6 +47,21 @@ TEST_F(V8CpuProfilerTest, SamplingProfilerCollectsSamplesWithoutCrashing) {
       title, v8::CpuProfilingOptions(v8::kLeafNodeLineNumbers,
                                      v8::CpuProfilingOptions::kNoSampleLimit));
 
+  struct ScopedProfiler {
+    v8::CpuProfiler* profiler;
+    v8::Local<v8::String> title;
+    v8::CpuProfile* profile = nullptr;
+    ~ScopedProfiler() {
+      if (!profile) {
+        profile = profiler->StopProfiling(title);
+      }
+      if (profile) {
+        profile->Delete();
+      }
+      profiler->Dispose();
+    }
+  } scoped_profiler{profiler, title};
+
   // Run JavaScript on this thread for ~200ms so that it is sampled repeatedly.
   constexpr char kBusyLoopScript[] = R"(
     let x = 0;
@@ -63,13 +78,11 @@ TEST_F(V8CpuProfilerTest, SamplingProfilerCollectsSamplesWithoutCrashing) {
   v8::Local<v8::Value> unused_result;
   ASSERT_TRUE(script->Run(context).ToLocal(&unused_result));
 
-  v8::CpuProfile* profile = profiler->StopProfiling(title);
-  ASSERT_TRUE(profile);
-  EXPECT_GT(profile->GetSamplesCount(), 0)
+  scoped_profiler.profile = profiler->StopProfiling(title);
+  ASSERT_TRUE(scoped_profiler.profile);
+  EXPECT_GT(scoped_profiler.profile->GetSamplesCount(), 0)
       << "The sampling profiler produced no samples; SIGPROF was never "
          "handled.";
-  profile->Delete();
-  profiler->Dispose();
 }
 
 }  // namespace cobalt

@@ -22,6 +22,8 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include <atomic>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -41,17 +43,25 @@ static int g_signal_pipe_write_fd = -1;
 // A global, signal-safe flag set once SiginfoCapturingHandler has run.
 volatile sig_atomic_t g_siginfo_handler_invoked = 0;
 
-// The arguments observed by SiginfoCapturingHandler. Written only from inside
-// the handler and read only after raise() has returned, which is safe because
-// raise() does not return to the calling thread until the handler completes.
+// The arguments observed by SiginfoCapturingHandler.
 struct SiginfoHandlerArgs {
-  int signum = 0;
-  bool info_is_null = true;
-  int info_signo = 0;
-  bool context_is_null = true;
-  // Copied out of the ucontext_t; only valid if !context_is_null.
-  sigset_t context_sigmask = {};
-  uintptr_t context_pc = 0;
+  std::atomic<int> signum{0};
+  std::atomic<bool> info_is_null{true};
+  std::atomic<int> info_signo{0};
+  std::atomic<bool> context_is_null{true};
+  std::atomic<bool> context_has_sigusr2{false};
+  std::atomic<bool> context_has_sigusr1{false};
+  std::atomic<uintptr_t> context_pc{0};
+
+  void Reset() {
+    signum = 0;
+    info_is_null = true;
+    info_signo = 0;
+    context_is_null = true;
+    context_has_sigusr2 = false;
+    context_has_sigusr1 = false;
+    context_pc = 0;
+  }
 };
 SiginfoHandlerArgs g_siginfo_handler_args;
 
@@ -92,8 +102,7 @@ uintptr_t GetProgramCounter(const ucontext_t* ucontext) {
 }
 
 // An SA_SIGINFO handler that records the arguments it was invoked with in
-// g_siginfo_handler_args. It only performs plain loads and stores, so it is
-// async-signal-safe.
+// g_siginfo_handler_args.
 void SiginfoCapturingHandler(int signum, siginfo_t* info, void* context) {
   g_siginfo_handler_args.signum = signum;
   g_siginfo_handler_args.info_is_null = (info == nullptr);
@@ -103,7 +112,10 @@ void SiginfoCapturingHandler(int signum, siginfo_t* info, void* context) {
   g_siginfo_handler_args.context_is_null = (context == nullptr);
   if (context) {
     const ucontext_t* ucontext = static_cast<const ucontext_t*>(context);
-    g_siginfo_handler_args.context_sigmask = ucontext->uc_sigmask;
+    g_siginfo_handler_args.context_has_sigusr2 =
+        sigismember(&ucontext->uc_sigmask, SIGUSR2) == 1;
+    g_siginfo_handler_args.context_has_sigusr1 =
+        sigismember(&ucontext->uc_sigmask, SIGUSR1) == 1;
     g_siginfo_handler_args.context_pc = GetProgramCounter(ucontext);
   }
   g_siginfo_handler_invoked = 1;
@@ -186,7 +198,7 @@ class PosixSignalTest : public ::testing::Test {
     // Reset the global flag before each test.
     g_signal_received = 0;
     g_siginfo_handler_invoked = 0;
-    g_siginfo_handler_args = SiginfoHandlerArgs();
+    g_siginfo_handler_args.Reset();
 
     // --- Set up pipe and epoll for reliable signal waiting ---
     CreateNonBlockingPipe();
@@ -334,10 +346,10 @@ TEST_F(PosixSignalTest, SigactionSiginfoHandlerReceivesContext) {
 
   ASSERT_FALSE(g_siginfo_handler_args.context_is_null)
       << "The ucontext_t argument to an SA_SIGINFO handler must not be null.";
-  EXPECT_EQ(sigismember(&g_siginfo_handler_args.context_sigmask, SIGUSR2), 1)
+  EXPECT_TRUE(g_siginfo_handler_args.context_has_sigusr2)
       << "ucontext_t::uc_sigmask does not reflect the mask in effect when the "
          "signal was delivered.";
-  EXPECT_EQ(sigismember(&g_siginfo_handler_args.context_sigmask, SIGUSR1), 0);
+  EXPECT_FALSE(g_siginfo_handler_args.context_has_sigusr1);
 #if defined(__linux__) && (defined(__x86_64__) || defined(__i386__) || \
                            defined(__aarch64__) || defined(__arm__))
   EXPECT_NE(g_siginfo_handler_args.context_pc, 0u)
