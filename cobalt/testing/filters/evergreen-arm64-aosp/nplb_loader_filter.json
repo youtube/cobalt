@@ -9,6 +9,7 @@
     "CrashpadConfigTest.VerifyUploadCert",
     "LoaderAppMetricsTest.VerifyLoaderAppMetricsExtension",
     "NativeStabilityTest.VerifyNativeStabilityExtension",
+    "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixIsattyTest.HandlesStderr",
     "PosixIsattyTest.HandlesStdout",
@@ -33,6 +34,7 @@
     "SbSystemGetStackTest.SunnyDay",
     "SbSystemGetStackTest.SunnyDayShortStack",
     "SbSystemGetStackTest.SunnyDayStackDirection",
-    "SbSystemSymbolizeTest.SunnyDay"
+    "SbSystemSymbolizeTest.SunnyDay",
+    "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
 }
