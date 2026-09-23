@@ -50,8 +50,8 @@ std::string GetTempDir() {
 
 std::string GetFileTestsDataDir() {
   std::vector<char> content_path(kPathSize);
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
-                              content_path.data(), kPathSize));
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kPathSize));
   constexpr char kFileTestsDir[] = "/test/starboard/nplb/file_tests";
 
   // The locations to try, in order.
