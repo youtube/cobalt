@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 
+#include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
@@ -1799,5 +1800,23 @@ TEST_F(InlineNodeTest, ShapeCacheSpacingRequired) {
   EXPECT_FALSE(
       node.IsNGShapeCacheAllowed(text_content, nullptr, items, spacing));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(InlineNodeTest, ItemsAndOffsetMappingShrunkToFit) {
+  // EstimateInlineItemsCount() reserves 2 * 4 = 8 InlineItem slots for the 2
+  // direct children of #t, while only 4 items ("abc", <span>, "def", </span>)
+  // are produced. Verify PrepareLayout() shrinks items from 8 down to 4, and
+  // ComputeOffsetMappingIfNeeded() shrinks OffsetMapping::units_ as well.
+  SetupHtml("t", "<div id=t>abc<span>def</span></div>");
+  const InlineItems& items = Items();
+  EXPECT_EQ(4u, items.size());
+  EXPECT_EQ(items.size(), items.capacity());
+
+  InlineNode node(layout_block_flow_);
+  const OffsetMapping* mapping = node.ComputeOffsetMappingIfNeeded();
+  ASSERT_TRUE(mapping);
+  EXPECT_EQ(2u, mapping->GetUnits().size());
+}
+#endif
 
 }  // namespace blink

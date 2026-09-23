@@ -7,6 +7,12 @@
 
 #include <memory>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+
+#include "base/dcheck_is_on.h"
+#endif
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item_text_index.h"
@@ -69,7 +75,29 @@ struct CORE_EXPORT InlineItemsData : public GarbageCollected<InlineItemsData> {
   void CheckConsistency() const;
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+  void LogCapacity() {
+#if EXPENSIVE_DCHECKS_ARE_ON()
+    items_capacity_after_shrink_ = items.capacity();
+#endif
+  }
+  void ValidateCapacity() const {
+#if EXPENSIVE_DCHECKS_ARE_ON()
+    DCHECK(!items_capacity_after_shrink_ ||
+           items.capacity() <= *items_capacity_after_shrink_)
+        << "items grew from " << *items_capacity_after_shrink_ << " to "
+        << items.capacity()
+        << " after InlineNode::PrepareLayout() shrank it to fit";
+#endif
+  }
+#endif
+
   virtual void Trace(Visitor* visitor) const;
+
+#if BUILDFLAG(IS_COBALT) && EXPENSIVE_DCHECKS_ARE_ON()
+ private:
+  std::optional<wtf_size_t> items_capacity_after_shrink_;
+#endif
 };
 
 }  // namespace blink
