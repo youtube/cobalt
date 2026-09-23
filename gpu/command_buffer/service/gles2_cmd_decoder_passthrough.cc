@@ -1004,17 +1004,8 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
-<<<<<<< HEAD
-  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(context_type) ||
-=======
 #endif
-  FAIL_INIT_IF_NOT(!attrib_helper.fail_if_major_perf_caveat ||
-                       !feature_info_->feature_flags().is_software_webgl,
-                   "fail_if_major_perf_caveat + software gl");
-  FAIL_INIT_IF_NOT(!attrib_helper.enable_gpu_rasterization,
-                   "GPU rasterization not supported");
-  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(attrib_helper.context_type) ||
->>>>>>> 807d69b4c9f (cobalt: Fix GLES context init and SHM leaks (#12858))
+  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(context_type) ||
                        feature_info_->gl_version_info().IsAtLeastGLES(3, 1),
                    "ES 3.1 context type requires an ES 3.1 ANGLE context");
 
