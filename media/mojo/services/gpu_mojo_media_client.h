@@ -83,6 +83,7 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+  const std::string& max_video_resolution;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features;
   const gfx::Size& viewport_size;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
@@ -112,7 +113,8 @@ struct StarboardRendererTraits {
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
       GetStarboardCommandBufferStubCB
-          get_starboard_command_buffer_stub_cb);
+          get_starboard_command_buffer_stub_cb,
+      const std::string& max_video_resolution = "");
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };

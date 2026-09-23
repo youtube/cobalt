@@ -59,6 +59,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const std::string& max_video_resolution,
                     const StarboardRendererConfig::ExperimentalFeatures&
                         experimental_features,
                     const gfx::Size& viewport_size
@@ -234,6 +235,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const std::string max_video_resolution_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;

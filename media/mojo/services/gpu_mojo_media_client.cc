@@ -103,7 +103,8 @@ StarboardRendererTraits::StarboardRendererTraits(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote,
-    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb,
+    const std::string& max_video_resolution)
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),
@@ -112,6 +113,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
+      max_video_resolution(max_video_resolution),
       experimental_features(experimental_features),
       viewport_size(viewport_size),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
@@ -307,7 +309,8 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.viewport_size, std::move(renderer_extension_receiver),
       std::move(client_extension_remote),
       base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
-                          media_gpu_channel_manager_));
+                          media_gpu_channel_manager_),
+      config.max_video_resolution);
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

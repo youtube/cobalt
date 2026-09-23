@@ -29,6 +29,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/video_max_video_resolution.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
@@ -50,6 +51,17 @@
 
 namespace starboard {
 namespace {
+
+std::optional<Size> MergeMaxResolutions(const std::optional<Size>& a,
+                                        const std::optional<Size>& b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return Size{std::min(a->width, b->width), std::min(a->height, b->height)};
+}
 
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
@@ -307,9 +319,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_size_(
+      max_video_size_(MergeMaxResolutions(
           ParseMaxResolution(stream_config.max_video_capabilities,
-                             stream_config.video_stream_info.frame_size)),
+                             stream_config.video_stream_info.frame_size),
+          ParseMaxResolution(GetMaxVideoResolutionForPlayer(),
+                             stream_config.video_stream_info.frame_size))),
       require_software_codec_(
           IsSoftwareDecoderRequired(pipeline_config.experimental_features,
                                     stream_config.max_video_capabilities)),

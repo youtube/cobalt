@@ -823,6 +823,18 @@ void HTMLVideoElement::SetMaxVideoCapabilities(const String& max_video_capabilit
   }
   max_video_capabilities_ = max_video_capabilities.Ascii();
 }
+
+void HTMLVideoElement::SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state){
+  String srcAttr = FastGetAttribute(html_names::kSrcAttr);
+  if (srcAttr != g_null_atom && srcAttr.length() > 0) {
+    exception_state.ThrowDOMException(
+      DOMExceptionCode::kInvalidStateError,
+      "Cannot set maximum resolution after src is defined.");
+    return;
+  }
+  max_video_resolution_ = max_video_resolution.Ascii();
+}
+
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool HTMLVideoElement::IsRemotingInterstitialVisible() const {

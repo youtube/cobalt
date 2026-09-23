@@ -132,7 +132,7 @@ class MediaFactory {
       media::RemotePlaybackClientWrapper* client_wrapper,
       base::WeakPtr<media::MediaObserver>* out_media_observer,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-      int element_id, const std::string& max_video_capabilities);
+      int element_id, const std::string& max_video_capabilities, const std::string& max_video_resolution);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
       int element_id);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
