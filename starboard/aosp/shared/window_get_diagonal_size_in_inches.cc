@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/window.h"
+// clang-format on
+
 #include <jni.h>
 
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/window.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 float SbWindowGetDiagonalSizeInInches(SbWindow window) {
