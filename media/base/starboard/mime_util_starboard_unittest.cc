@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/starboard/sbmedia_interface.h"
-
 #include <string>
 #include <vector>
 
 #include "media/base/mime_util.h"
 #include "media/base/mime_util_internal.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "starboard/media.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,12 +25,9 @@
 namespace media {
 namespace {
 
-using ::testing::_;
 using ::testing::AnyOf;
-using ::testing::DoAll;
 using ::testing::IsNull;
 using ::testing::Return;
-using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 // A mock implementation of SbMediaInterface for unit testing the media
@@ -73,11 +69,16 @@ class MockSbMediaInterface : public SbMediaInterface {
               (const, override));
 };
 
-// Test fixture for testing SbMediaInterface and its integration with MimeUtil.
+// Test fixture for MimeUtil's Starboard code paths. When USE_STARBOARD_MEDIA
+// is enabled, MimeUtil delegates MIME support queries to Starboard via
+// SbMediaInterface instead of using upstream Chromium's codec parsing and
+// |media_format_map_| lookup. The fixture installs a mock interface so those
+// delegating code paths can be observed directly.
+//
 // This class is owned and managed by the gtest framework, with a lifetime
 // spanning a single test case execution. It is thread-affine to the main
 // test thread.
-class SbMediaInterfaceTest : public ::testing::Test {
+class MimeUtilStarboardTest : public ::testing::Test {
  protected:
   void SetUp() override { SetSbMediaInterfaceForTesting(&mock_interface_); }
 
@@ -86,87 +87,7 @@ class SbMediaInterfaceTest : public ::testing::Test {
   MockSbMediaInterface mock_interface_;
 };
 
-TEST_F(SbMediaInterfaceTest, MockCanPlayMimeAndKeySystem) {
-  const char kMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-      "tunnelmode=true; hdr=hdr10plus";
-  const char kKeySystem[] = "com.widevine.alpha";
-
-  EXPECT_CALL(mock_interface_,
-              CanPlayMimeAndKeySystem(StrEq(kMime), StrEq(kKeySystem)))
-      .WillOnce(Return(kSbMediaSupportTypeProbably));
-
-  EXPECT_EQ(GetSbMediaInterface()->CanPlayMimeAndKeySystem(kMime, kKeySystem),
-            kSbMediaSupportTypeProbably);
-}
-
-TEST_F(SbMediaInterfaceTest, MockCanChangeType) {
-  const char kCurrentMime[] = "video/mp4; codecs=\"avc1.64002a\"";
-  const char kNewMime[] = "video/webm; codecs=\"vp9\"";
-
-  EXPECT_CALL(mock_interface_,
-              CanChangeType(StrEq(kCurrentMime), StrEq(kNewMime)))
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
-
-  EXPECT_TRUE(GetSbMediaInterface()->CanChangeType(kCurrentMime, kNewMime));
-  EXPECT_FALSE(GetSbMediaInterface()->CanChangeType(kCurrentMime, kNewMime));
-}
-
-TEST_F(SbMediaInterfaceTest, MockAudioOutputAndConfiguration) {
-  EXPECT_CALL(mock_interface_, GetAudioOutputCount()).WillOnce(Return(2));
-  EXPECT_EQ(GetSbMediaInterface()->GetAudioOutputCount(), 2);
-
-  SbMediaAudioConfiguration expected_config = {};
-  expected_config.number_of_channels = 6;
-  expected_config.latency = 10000;
-  expected_config.coding_type = kSbMediaAudioCodingTypePcm;
-  expected_config.connector = kSbMediaAudioConnectorHdmi;
-
-  EXPECT_CALL(mock_interface_, GetAudioConfiguration(0, _))
-      .WillOnce(DoAll(SetArgPointee<1>(expected_config), Return(true)));
-
-  SbMediaAudioConfiguration actual_config = {};
-  EXPECT_TRUE(GetSbMediaInterface()->GetAudioConfiguration(0, &actual_config));
-  EXPECT_EQ(actual_config.number_of_channels, 6);
-  EXPECT_EQ(actual_config.latency, 10000);
-  EXPECT_EQ(actual_config.coding_type, kSbMediaAudioCodingTypePcm);
-  EXPECT_EQ(actual_config.connector, kSbMediaAudioConnectorHdmi);
-}
-
-TEST_F(SbMediaInterfaceTest, MockBufferParametersAndBudgets) {
-  EXPECT_CALL(mock_interface_, GetBufferAllocationUnit())
-      .WillOnce(Return(65536));
-  EXPECT_EQ(GetSbMediaInterface()->GetBufferAllocationUnit(), 65536);
-
-  EXPECT_CALL(mock_interface_, GetAudioBufferBudget())
-      .WillOnce(Return(5 * 1024 * 1024));
-  EXPECT_EQ(GetSbMediaInterface()->GetAudioBufferBudget(), 5 * 1024 * 1024);
-
-  EXPECT_CALL(mock_interface_, GetBufferGarbageCollectionDurationThreshold())
-      .WillOnce(Return(30000000LL));
-  EXPECT_EQ(
-      GetSbMediaInterface()->GetBufferGarbageCollectionDurationThreshold(),
-      30000000LL);
-
-  EXPECT_CALL(mock_interface_, GetInitialBufferCapacity())
-      .WillOnce(Return(1024 * 1024));
-  EXPECT_EQ(GetSbMediaInterface()->GetInitialBufferCapacity(), 1024 * 1024);
-
-  EXPECT_CALL(mock_interface_, IsBufferPoolAllocateOnDemand())
-      .WillOnce(Return(true));
-  EXPECT_TRUE(GetSbMediaInterface()->IsBufferPoolAllocateOnDemand());
-
-  EXPECT_CALL(mock_interface_,
-              GetVideoBufferBudget(kSbMediaVideoCodecH264, 3840, 2160, 8))
-      .WillOnce(Return(100 * 1024 * 1024));
-  EXPECT_EQ(GetSbMediaInterface()->GetVideoBufferBudget(kSbMediaVideoCodecH264,
-                                                        3840, 2160, 8),
-            100 * 1024 * 1024);
-}
-
-TEST_F(SbMediaInterfaceTest,
-       MimeUtilIsSupportedMediaMimeTypePreservesAttributes) {
+TEST_F(MimeUtilStarboardTest, IsSupportedMediaMimeTypeForwardsRawMime) {
   internal::MimeUtil mime_util;
 
   const std::string kMimeProbably =
@@ -197,7 +118,7 @@ TEST_F(SbMediaInterfaceTest,
   EXPECT_FALSE(mime_util.IsSupportedMediaMimeType(kMimeNotSupported));
 }
 
-TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
+TEST_F(MimeUtilStarboardTest, IsSupportedMediaFormatMapsSupportType) {
   internal::MimeUtil mime_util;
 
   const std::string kMimeProbably =
@@ -235,8 +156,13 @@ TEST_F(SbMediaInterfaceTest, MimeUtilIsSupportedMediaFormatSupportTypeMapping) {
             SupportsType::kNotSupported);
 }
 
-TEST_F(SbMediaInterfaceTest,
-       MimeUtilIsSupportedMediaMimeTypePreservesAllCustomParametersCombined) {
+// An executable inventory of every custom MIME parameter Cobalt is expected to
+// forward to Starboard untouched. The MIME string is kept byte-for-byte
+// identical to the one in
+// CustomMimeTypeBrowserTest.MediaSourceIsTypeSupported_AllCustomParametersCombined
+// so that this serves as a fast unit-level backstop for that browser test.
+TEST_F(MimeUtilStarboardTest,
+       IsSupportedMediaMimeTypeForwardsAllCustomParameters) {
   internal::MimeUtil mime_util;
 
   const std::string kAllParamsMime =
