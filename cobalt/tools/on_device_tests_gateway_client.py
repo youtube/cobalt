@@ -281,20 +281,16 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
       files = []
-      if test_type == 'yts_wpt_test':
-        test_type = 'e2e_test'
-        params = []
+      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
-        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
-        if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
-          params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+        if test_type == 'yts_test':
+          files.append(f'build_apk={bigstore_path}')
+          params.append('app=dev.cobalt.coat')
         else:
-          bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-          if test_type == 'yts_test':
-            files.append(f'build_apk={bigstore_path}')
-            params.append('app=dev.cobalt.coat')
-          else:
-            files.append(f'cobalt_path={bigstore_path}')
+          files.append(f'cobalt_path={bigstore_path}')
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
