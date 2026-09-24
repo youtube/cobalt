@@ -60,7 +60,7 @@
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "tensorflow_lite_support/cc/port/statusor.h"
-#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/image_embedder.h"  // nogncheck
+#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/image_embedder.h"
 #endif
 
 using content::BrowserThread;

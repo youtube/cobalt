@@ -2536,7 +2536,7 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(soft_navigation_heuristics_);
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-  Supplementable<LocalDOMWindow, 51>::Trace(visitor);
+  Supplementable<LocalDOMWindow, 48>::Trace(visitor);
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {

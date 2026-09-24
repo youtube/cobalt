@@ -27,11 +27,6 @@ source_set("service") {
     "//components/variations/service",
     "//content/public/browser",
   ]
-
-  if (is_cobalt) {
-    # This dependency is added implicitly in non-Cobalt builds.
-    deps += [ "//components/optimization_guide/proto:optimization_guide_proto" ]
-  }
 }
 
 source_set("unit_tests") {

@@ -1,5 +1,0 @@
-import("//cobalt/build/configs/evergreen_common.gn")
-
-target_cpu = "arm64"
-starboard_target_platform = "aosp-arm64"
-use_errorprone_java_compiler = false

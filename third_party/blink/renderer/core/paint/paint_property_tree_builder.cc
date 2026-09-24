@@ -9,13 +9,9 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
-#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/input/overscroll_behavior.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/public/common/features.h"
-#endif  // BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/css/clip_path_paint_image_generator.h"
@@ -3983,20 +3979,10 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
   }
 
   if (Platform::Current()->IsLowEndDevice()) {
-#if BUILDFLAG(IS_COBALT)
-    if (!base::FeatureList::IsEnabled(
-            features::kCobaltPreserveTrivial3DTransform)) {
-      // Don't composite "trivial" 3D transforms such as translateZ(0).
-      // These transforms still force comosited scrolling (see above).
-      context_.direct_compositing_reasons &=
-          ~CompositingReason::kTrivial3DTransform;
-    }
-#else
     // Don't composite "trivial" 3D transforms such as translateZ(0).
     // These transforms still force comosited scrolling (see above).
     context_.direct_compositing_reasons &=
         ~CompositingReason::kTrivial3DTransform;
-#endif
   }
 
   if (context_.fragment_context

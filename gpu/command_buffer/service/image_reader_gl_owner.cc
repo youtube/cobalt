@@ -22,27 +22,10 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gl/gl_fence_android_native_fence_sync.h"
 #include "ui/gl/gl_utils.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/android/requires_api.h"
-
-// NDK AImageReader was introduced in Android 7.0 (API 24), but this
-// implementation uses specific APIs that require Android 8.0 (API 26+).
-// Since Cobalt targets API 24, this pragma suppresses compile-time
-// -Wunguarded-availability warnings.
-//
-// Note that this code is entirely stripped during linking; Cobalt
-// utilizes its own Starboard media pipeline rather than Chromium's,
-// and ImageReaderGLOwner is exclusively used by the latter.
-#pragma clang attribute push DEFAULT_REQUIRES_ANDROID_API(26)
-
-#endif
 
 namespace gpu {
 
@@ -119,10 +102,6 @@ class ImageReaderGLOwner::ScopedHardwareBufferImpl
         image_(image) {
     DCHECK(image_);
     texture_owner_->RegisterRefOnImageLocked(image_);
-#if BUILDFLAG(IS_COBALT)
-    NOTREACHED() << "On Cobalt, the code path to ImageReaderGLOwner is disabled "
-                    "and not used. Instead, Cobalt should use Starboard media.";
-#endif
   }
 
   ~ScopedHardwareBufferImpl() override {
@@ -632,7 +611,3 @@ base::ScopedFD ImageReaderGLOwner::ScopedCurrentImageRef::GetReadyFence()
 }
 
 }  // namespace gpu
-
-#if BUILDFLAG(IS_COBALT)
-#pragma clang attribute pop
-#endif

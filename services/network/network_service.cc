@@ -441,7 +441,7 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
               params->initial_connection_subtype),
           mock_network_change_notifier);
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
   if (params->initial_address_map) {
     // The NetworkChangeNotifierPassive should only be included if it's
     // necessary to instantiate an AddressMapCacheLinux rather than an
@@ -485,9 +485,7 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   doh_probe_activator_ = std::make_unique<DelayedDohProbeActivator>(this);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   trust_token_key_commitments_ = std::make_unique<TrustTokenKeyCommitments>();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (params->default_observer) {
     default_url_loader_network_service_observer_.Bind(
@@ -903,9 +901,7 @@ void NetworkService::SetEnvironment(
 void NetworkService::SetTrustTokenKeyCommitments(
     const std::string& raw_commitments,
     base::OnceClosure done) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   trust_token_key_commitments_->ParseAndSet(raw_commitments);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::move(done).Run();
 }
 

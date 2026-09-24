@@ -262,14 +262,6 @@ source_set("permissions") {
   ]
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
-
-  if (is_cobalt && is_android) {
-    sources -= [
-      "android/permissions_android_feature_map.cc",
-      "android/permissions_android_feature_map.h",
-    ]
-    public_deps += [ "//components/permissions/android:core" ]
-  }
 }
 
 source_set("test_support") {

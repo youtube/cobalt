@@ -25,7 +25,7 @@
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"  // nogncheck
+#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"
 #endif
 namespace optimization_guide {
 class OptimizationGuideModelProvider;

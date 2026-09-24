@@ -62,7 +62,7 @@ class TestRootCertsTest : public testing::TestWithParam<bool> {
         /*root_store_data=*/nullptr,
         /*root_store_mtc_metadata=*/nullptr,
         /*instance_params=*/{}, std::nullopt);
-#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
+#elif BUILDFLAG(IS_FUCHSIA)
     return CertVerifyProc::CreateBuiltinVerifyProc(
         /*cert_net_fetcher=*/nullptr, CRLSet::BuiltinCRLSet().get(),
         std::make_unique<DoNothingCTVerifier>(),
