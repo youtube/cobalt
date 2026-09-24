@@ -285,7 +285,10 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_type = 'e2e_test'
         params = []
       else:
-        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+        yt_binary_name = (
+            os.path.splitext(os.path.basename(args.artifact_name))[0]
+            if args.artifact_name else _E2E_DEFAULT_YT_BINARY_NAME)
+        params = [f'yt_binary_name={yt_binary_name}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
           params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
         else:

@@ -22,6 +22,8 @@ runs:
           BUILD_PLATFORM="android"
         elif [[ "${MATRIX_PLATFORM}" == "linux"* ]]; then
           BUILD_PLATFORM="linux"
+        elif [[ "${MATRIX_PLATFORM}" == *"aosp"* && ! -f "cobalt/build/${MATRIX_PLATFORM}/package.json" ]]; then
+          BUILD_PLATFORM="android-coat"
         else
           BUILD_PLATFORM="${MATRIX_PLATFORM}"
         fi

@@ -164,6 +164,11 @@ runs:
         if [[ "${PLATFORM}" == *android* ]]; then
           cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/Cobalt.apk" \
              "${GITHUB_WORKSPACE}/artifacts/"
+        elif [[ "${PLATFORM}" == *aosp* ]]; then
+          if [[ -f "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/cobalt.apk" ]]; then
+            cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/cobalt.apk" \
+               "${GITHUB_WORKSPACE}/artifacts/"
+          fi
         fi
 
         gcloud storage cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
