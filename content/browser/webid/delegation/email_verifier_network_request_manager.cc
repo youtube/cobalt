@@ -32,6 +32,7 @@ constexpr char kWellKnownPath[] = "/.well-known/email-verification";
 
 // Well-known file JSON keys
 constexpr char kIssuanceEndpointKey[] = "issuance_endpoint";
+constexpr char kSigningAlgValuesSupportedKey[] = "signing_alg_values_supported";
 
 // Shared between the well-known files and config files
 constexpr char kIssuanceTokenKey[] = "issuance_token";
@@ -58,6 +59,16 @@ void OnWellKnownParsed(
 
   well_known.issuance_endpoint =
       ExtractEndpoint(well_known_url, *dict, kIssuanceEndpointKey);
+
+  const base::Value::List* signing_alg_values_supported_list =
+      dict->FindList(kSigningAlgValuesSupportedKey);
+  if (signing_alg_values_supported_list) {
+    for (const auto& value : *signing_alg_values_supported_list) {
+      if (value.is_string()) {
+        well_known.signing_alg_values_supported.push_back(value.GetString());
+      }
+    }
+  }
 
   if (well_known.issuance_endpoint.is_empty()) {
     std::move(callback).Run(
@@ -183,12 +194,8 @@ void EmailVerifierNetworkRequestManager::FetchWellKnown(
   replacements.SetPathStr(kWellKnownPath);
   GURL well_known_url = provider.ReplaceComponents(replacements);
 
-  std::unique_ptr<network::ResourceRequest> resource_request =
-      CreateUncredentialedResourceRequest(well_known_url,
-                                          /*send_origin=*/false,
-                                          /*follow_redirects=*/true);
-  DownloadJsonAndParse(
-      std::move(resource_request), /*url_encoded_post_data=*/std::nullopt,
+  DownloadAndParseUncredentialedUrl(
+      well_known_url,
       base::BindOnce(&OnWellKnownParsed, std::move(callback), well_known_url));
 }
 
@@ -204,6 +211,18 @@ void EmailVerifierNetworkRequestManager::SendTokenRequest(
   DownloadJsonAndParse(
       std::move(resource_request), url_encoded_post_data,
       base::BindOnce(&OnTokenRequestParsed, std::move(callback)));
+}
+
+void EmailVerifierNetworkRequestManager::DownloadAndParseUncredentialedUrl(
+    const GURL& url,
+    ParseJsonCallback callback) {
+  std::unique_ptr<network::ResourceRequest> resource_request =
+      CreateUncredentialedResourceRequest(url,
+                                          /*send_origin=*/false,
+                                          /*follow_redirects=*/true);
+  DownloadJsonAndParse(std::move(resource_request),
+                       /*url_encoded_post_data=*/std::nullopt,
+                       std::move(callback));
 }
 
 }  // namespace content::webid

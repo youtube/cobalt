@@ -309,6 +309,8 @@ typedef struct conf_st CONF;
 typedef struct conf_value_st CONF_VALUE;
 typedef struct crypto_buffer_pool_st CRYPTO_BUFFER_POOL;
 typedef struct crypto_buffer_st CRYPTO_BUFFER;
+typedef struct crypto_ivec_st CRYPTO_IVEC;
+typedef struct crypto_iovec_st CRYPTO_IOVEC;
 typedef struct ctr_drbg_state_st CTR_DRBG_STATE;
 typedef struct dh_st DH;
 typedef struct dsa_st DSA;
@@ -406,27 +408,6 @@ typedef void *OPENSSL_BLOCK;
 #define BSSL_NAMESPACE_END }
 #endif
 
-// MSVC doesn't set __cplusplus to 201103 to indicate C++11 support (see
-// https://connect.microsoft.com/VisualStudio/feedback/details/763051/a-value-of-predefined-macro-cplusplus-is-still-199711l)
-// so MSVC is just assumed to support C++11.
-#if !defined(BORINGSSL_NO_CXX) && __cplusplus < 201103L && !defined(_MSC_VER)
-#define BORINGSSL_NO_CXX
-#endif
-
-#if !defined(BORINGSSL_NO_CXX)
-
-#include <memory>
-
-extern "C++" {
-
-// STLPort, used by some Android consumers, not have std::unique_ptr.
-#if defined(_STLPORT_VERSION)
-#define BORINGSSL_NO_CXX
-#endif
-
-}  // extern C++
-#endif  // !BORINGSSL_NO_CXX
-
 #if defined(BORINGSSL_NO_CXX)
 
 #define BORINGSSL_MAKE_DELETER(type, deleter)
@@ -434,7 +415,10 @@ extern "C++" {
 
 #else
 
+// Work around consumers including our headers under extern "C".
 extern "C++" {
+
+#include <memory>
 
 BSSL_NAMESPACE_BEGIN
 

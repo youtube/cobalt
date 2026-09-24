@@ -13,9 +13,11 @@ import android.os.SystemClock;
 import android.view.View;
 import android.widget.ImageButton;
 
+import org.chromium.base.test.transit.OptionalViewElement;
 import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
@@ -28,11 +30,14 @@ import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.toolbar.top.ToggleTabStackButton;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
 import org.chromium.chrome.test.transit.ChromeTriggers;
+import org.chromium.chrome.test.transit.SoftKeyboardFacility;
 import org.chromium.chrome.test.transit.hub.IncognitoTabSwitcherStation;
 import org.chromium.chrome.test.transit.hub.RegularTabSwitcherStation;
 import org.chromium.chrome.test.transit.layouts.LayoutTypeVisibleCondition;
 import org.chromium.chrome.test.transit.ntp.IncognitoNewTabPageStation;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
+import org.chromium.chrome.test.transit.omnibox.FakeOmniboxSuggestions;
+import org.chromium.chrome.test.transit.omnibox.OmniboxFacility;
 import org.chromium.content_public.browser.test.util.TouchCommon;
 
 import java.util.function.Supplier;
@@ -45,9 +50,10 @@ import java.util.function.Supplier;
  */
 public class CtaPageStation extends BasePageStation<ChromeTabbedActivity> {
     public static final ViewSpec<UrlBar> URL_BAR = viewSpec(UrlBar.class, withId(R.id.url_bar));
-    public ViewElement<ToolbarControlContainer> toolbarElement;
-    public ViewElement<ToggleTabStackButton> tabSwitcherButtonElement;
-    public ViewElement<ImageButton> menuButtonElement;
+    public final OptionalViewElement<View> homeButtonElement;
+    public final ViewElement<ToolbarControlContainer> toolbarElement;
+    public final ViewElement<ToggleTabStackButton> tabSwitcherButtonElement;
+    public final ViewElement<ImageButton> menuButtonElement;
 
     /** Prefer the CtaPageStation's subclass |newBuilder()|. */
     public static Builder<CtaPageStation> newGenericBuilder() {
@@ -70,8 +76,6 @@ public class CtaPageStation extends BasePageStation<ChromeTabbedActivity> {
                         ToolbarControlContainer.class,
                         withId(R.id.control_container),
                         ViewElement.unscopedOption());
-        // TODO(crbug.com/416324280): Declare the HomeButton with R.id.home_button as an optional
-        //  ViewElement.
         tabSwitcherButtonElement =
                 declareView(
                         ToggleTabStackButton.class,
@@ -80,6 +84,10 @@ public class CtaPageStation extends BasePageStation<ChromeTabbedActivity> {
         menuButtonElement =
                 declareView(
                         ImageButton.class, withId(R.id.menu_button), ViewElement.unscopedOption());
+
+        // The home button may not appear in tablets if the available screen size is too small.
+        homeButtonElement =
+                declareOptionalView(withId(R.id.home_button), ViewElement.unscopedOption());
     }
 
     /** Long presses the tab switcher button to open the action menu. */
@@ -232,6 +240,37 @@ public class CtaPageStation extends BasePageStation<ChromeTabbedActivity> {
      */
     public WebPageStation openFakeLinkToWebPage(String url) {
         return openFakeLink(url, WebPageStation.newBuilder());
+    }
+
+    /** Click the URL bar or Search Box to enter the Omnibox. */
+    public OmniboxFacility openOmnibox() {
+        return openOmnibox(/* fakeSuggestions= */ null);
+    }
+
+    /**
+     * Click the URL bar or Search Box to enter the Omnibox.
+     *
+     * @param fakeSuggestions If non-null, fake suggestions expected to be shown in the Omnibox.
+     */
+    public OmniboxFacility openOmnibox(@Nullable FakeOmniboxSuggestions fakeSuggestions) {
+        OmniboxFacility omniboxFacility =
+                new OmniboxFacility(/* incognito= */ mIsIncognito, fakeSuggestions);
+        SoftKeyboardFacility softKeyboard = new SoftKeyboardFacility();
+
+        // The Omnibox opens and so does the soft keyboard.
+        clickUrlBarOrSearchBarTo().enterFacilities(omniboxFacility, softKeyboard);
+
+        // Close the soft keyboard before returning since autocomplete doesn't work well with the
+        // GBoard displayed in the 12L AVD image (android_32_google_apis_x64_foldable_*.textpb).
+        softKeyboard.close();
+
+        return omniboxFacility;
+    }
+
+    /** Trigger to click the URL bar or Search Box to enter the Omnibox. */
+    protected TripBuilder clickUrlBarOrSearchBarTo() {
+        throw new UnsupportedOperationException(
+                "Url bar / search box ViewElement not yet added to " + this.getClass());
     }
 
     /** Move to next tab by swiping the toolbar left. */

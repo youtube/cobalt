@@ -140,5 +140,17 @@ int64_t GetPacketsReceived(const scoped_refptr<const RTCStatsReport>& report) {
   return number_of_packets;
 }
 
+int64_t GetPacketsLost(const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return 0;
+  }
+  int64_t number_of_packets = 0;
+  for (const RTCInboundRtpStreamStats* stream_stats : stats) {
+    number_of_packets += stream_stats->packets_lost.value_or(0);
+  }
+  return number_of_packets;
+}
+
 }  // namespace test
 }  // namespace webrtc

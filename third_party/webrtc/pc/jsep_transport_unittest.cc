@@ -26,7 +26,6 @@
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
-#include "call/payload_type_picker.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
@@ -150,8 +149,7 @@ class JsepTransport2Test : public ::testing::Test {
         /*local_certificate=*/nullptr, std::move(rtp_transport),
         std::move(rtp_dtls_transport_wrapper),
         /*sctp_transport=*/nullptr,
-        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); },
-        payload_type_picker_);
+        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); });
 
     signal_rtcp_mux_active_received_ = false;
     return jsep_transport;
@@ -191,7 +189,6 @@ class JsepTransport2Test : public ::testing::Test {
   std::unique_ptr<JsepTransport> jsep_transport_;
   bool signal_rtcp_mux_active_received_ = false;
   FieldTrials field_trials_ = CreateTestFieldTrials();
-  PayloadTypePicker payload_type_picker_;
 };
 
 // The parameterized tests cover both cases when RTCP mux is enable and

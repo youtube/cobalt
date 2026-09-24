@@ -182,8 +182,7 @@ class TabStripModelBrowserTest : public InProcessBrowserTest,
                                  public TabStripModelObserver {
  public:
   TabStripModelBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {features::kTabOrganization, features::kSideBySide}, {});
+    feature_list_.InitWithFeatures({features::kTabOrganization}, {});
   }
 
   void TearDownOnMainThread() override { observer_.Reset(); }
@@ -640,7 +639,7 @@ class TabStripModelTestTabGroupEntryPointsEnabled
   }
 
   TabStrip* tabstrip() {
-    return views::AsViewClass<TabStripRegionView>(
+    return views::AsViewClass<HorizontalTabStripRegionView>(
                browser()->GetBrowserView().tab_strip_view())
         ->tab_strip();
   }

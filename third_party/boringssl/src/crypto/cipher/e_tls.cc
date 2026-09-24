@@ -102,18 +102,14 @@ static size_t aead_tls_tag_len(const EVP_AEAD_CTX *ctx, const size_t in_len,
                                const size_t extra_in_len) {
   assert(extra_in_len == 0);
   const AEAD_TLS_CTX *tls_ctx = (AEAD_TLS_CTX *)&ctx->state;
+  assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE);
 
   const size_t hmac_len = HMAC_size(tls_ctx->hmac_ctx);
-  if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) != EVP_CIPH_CBC_MODE) {
-    // The NULL cipher.
-    return hmac_len;
-  }
-
   const size_t block_size = EVP_CIPHER_CTX_block_size(&tls_ctx->cipher_ctx);
   // An overflow of |in_len + hmac_len| doesn't affect the result mod
   // |block_size|, provided that |block_size| is a smaller power of two.
-  assert(block_size != 0 && (block_size & (block_size - 1)) == 0);
-  const size_t pad_len = block_size - (in_len + hmac_len) % block_size;
+  assert(block_size == 8 /*3DES*/ || block_size == 16 /*AES*/);
+  const size_t pad_len = block_size - ((in_len + hmac_len) & (block_size - 1));
   return hmac_len + pad_len;
 }
 
@@ -167,8 +163,8 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
   }
 
   // Configure the explicit IV.
-  if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE &&
-      !tls_ctx->implicit_iv &&
+  assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE);
+  if (!tls_ctx->implicit_iv &&
       !EVP_EncryptInit_ex(&tls_ctx->cipher_ctx, nullptr, nullptr, nullptr,
                           nonce)) {
     return 0;
@@ -182,13 +178,13 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
   }
 
   unsigned block_size = EVP_CIPHER_CTX_block_size(&tls_ctx->cipher_ctx);
+  assert(block_size == 8 /*3DES*/ || block_size == 16 /*AES*/);
 
   // Feed the MAC into the cipher in two steps. First complete the final partial
   // block from encrypting the input and split the result between |out| and
   // |out_tag|. Then feed the rest.
 
-  const size_t early_mac_len =
-      (block_size - (in_len % block_size)) % block_size;
+  const size_t early_mac_len = (block_size - in_len) & (block_size - 1);
   if (early_mac_len != 0) {
     assert(len + block_size - early_mac_len == in_len);
     uint8_t buf[EVP_MAX_BLOCK_LENGTH];
@@ -210,21 +206,15 @@ static int aead_tls_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
   }
   tag_len += len;
 
-  if (block_size > 1) {
-    assert(block_size <= 256);
-    assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE);
-
-    // Compute padding and feed that into the cipher.
-    uint8_t padding[256];
-    unsigned padding_len = block_size - ((in_len + mac_len) % block_size);
-    OPENSSL_memset(padding, padding_len - 1, padding_len);
-    if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
-                              max_out_tag_len - tag_len, padding,
-                              padding_len)) {
-      return 0;
-    }
-    tag_len += len;
+  // Compute padding and feed that into the cipher.
+  uint8_t padding[256];
+  unsigned padding_len = block_size - ((in_len + mac_len) & (block_size - 1));
+  OPENSSL_memset(padding, padding_len - 1, padding_len);
+  if (!EVP_EncryptUpdate_ex(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
+                            max_out_tag_len - tag_len, padding, padding_len)) {
+    return 0;
   }
+  tag_len += len;
 
   if (!EVP_EncryptFinal_ex2(&tls_ctx->cipher_ctx, out_tag + tag_len, &len,
                             max_out_tag_len - tag_len)) {
@@ -272,8 +262,8 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
   }
 
   // Configure the explicit IV.
-  if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE &&
-      !tls_ctx->implicit_iv &&
+  assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE);
+  if (!tls_ctx->implicit_iv &&
       !EVP_DecryptInit_ex(&tls_ctx->cipher_ctx, nullptr, nullptr, nullptr,
                           nonce)) {
     return 0;
@@ -300,21 +290,13 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
   // |padding_ok| and |data_plus_mac_len| for CBC ciphers.
   size_t data_plus_mac_len;
   crypto_word_t padding_ok;
-  if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE) {
-    if (!EVP_tls_cbc_remove_padding(
-            &padding_ok, &data_plus_mac_len, out, total,
-            EVP_CIPHER_CTX_block_size(&tls_ctx->cipher_ctx),
-            HMAC_size(tls_ctx->hmac_ctx))) {
-      // Publicly invalid. This can be rejected in non-constant time.
-      OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
-      return 0;
-    }
-  } else {
-    padding_ok = CONSTTIME_TRUE_W;
-    data_plus_mac_len = total;
-    // |data_plus_mac_len| = |total| = |in_len| at this point. |in_len| has
-    // already been checked against the MAC size at the top of the function.
-    assert(data_plus_mac_len >= HMAC_size(tls_ctx->hmac_ctx));
+  if (!EVP_tls_cbc_remove_padding(
+          &padding_ok, &data_plus_mac_len, out, total,
+          EVP_CIPHER_CTX_block_size(&tls_ctx->cipher_ctx),
+          HMAC_size(tls_ctx->hmac_ctx))) {
+    // Publicly invalid. This can be rejected in non-constant time.
+    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
+    return 0;
   }
   size_t data_len = data_plus_mac_len - HMAC_size(tls_ctx->hmac_ctx);
 
@@ -333,37 +315,17 @@ static int aead_tls_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
   // Compute the MAC and extract the one in the record.
   uint8_t mac[EVP_MAX_MD_SIZE];
   size_t mac_len;
-  uint8_t record_mac_tmp[EVP_MAX_MD_SIZE];
-  uint8_t *record_mac;
-  if (EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) == EVP_CIPH_CBC_MODE &&
-      EVP_tls_cbc_record_digest_supported(tls_ctx->hmac_ctx->md)) {
-    if (!EVP_tls_cbc_digest_record(tls_ctx->hmac_ctx->md, mac, &mac_len,
-                                   ad_fixed, out, data_len, total,
-                                   tls_ctx->mac_key, tls_ctx->mac_key_len)) {
-      OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
-      return 0;
-    }
-    assert(mac_len == HMAC_size(tls_ctx->hmac_ctx));
-
-    record_mac = record_mac_tmp;
-    EVP_tls_cbc_copy_mac(record_mac, mac_len, out, data_plus_mac_len, total);
-  } else {
-    // We should support the constant-time path for all CBC-mode ciphers
-    // implemented.
-    assert(EVP_CIPHER_CTX_mode(&tls_ctx->cipher_ctx) != EVP_CIPH_CBC_MODE);
-
-    unsigned mac_len_u;
-    if (!HMAC_Init_ex(tls_ctx->hmac_ctx, nullptr, 0, nullptr, nullptr) ||
-        !HMAC_Update(tls_ctx->hmac_ctx, ad_fixed, ad_len) ||
-        !HMAC_Update(tls_ctx->hmac_ctx, out, data_len) ||
-        !HMAC_Final(tls_ctx->hmac_ctx, mac, &mac_len_u)) {
-      return 0;
-    }
-    mac_len = mac_len_u;
-
-    assert(mac_len == HMAC_size(tls_ctx->hmac_ctx));
-    record_mac = &out[data_len];
+  assert(EVP_tls_cbc_record_digest_supported(tls_ctx->hmac_ctx->md));
+  if (!EVP_tls_cbc_digest_record(tls_ctx->hmac_ctx->md, mac, &mac_len, ad_fixed,
+                                 out, data_len, total, tls_ctx->mac_key,
+                                 tls_ctx->mac_key_len)) {
+    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
+    return 0;
   }
+  assert(mac_len == HMAC_size(tls_ctx->hmac_ctx));
+
+  uint8_t record_mac[EVP_MAX_MD_SIZE];
+  EVP_tls_cbc_copy_mac(record_mac, mac_len, out, data_plus_mac_len, total);
 
   // Perform the MAC check and the padding check in constant-time. It should be
   // safe to simply perform the padding check first, but it would not be under a
@@ -465,6 +427,9 @@ static const EVP_AEAD aead_aes_128_cbc_sha1_tls = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,  // open_gather
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     aead_tls_tag_len,
 };
@@ -482,6 +447,9 @@ static const EVP_AEAD aead_aes_128_cbc_sha1_tls_implicit_iv = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,          // open_gather
+    nullptr,          // openv
+    nullptr,          // sealv
+    nullptr,          // openv_detached
     aead_tls_get_iv,  // get_iv
     aead_tls_tag_len,
 };
@@ -499,6 +467,9 @@ static const EVP_AEAD aead_aes_128_cbc_sha256_tls = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,  // open_gather
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     aead_tls_tag_len,
 };
@@ -516,6 +487,9 @@ static const EVP_AEAD aead_aes_256_cbc_sha1_tls = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,  // open_gather
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     aead_tls_tag_len,
 };
@@ -533,6 +507,9 @@ static const EVP_AEAD aead_aes_256_cbc_sha1_tls_implicit_iv = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,          // open_gather
+    nullptr,          // openv
+    nullptr,          // sealv
+    nullptr,          // openv_detached
     aead_tls_get_iv,  // get_iv
     aead_tls_tag_len,
 };
@@ -550,6 +527,9 @@ static const EVP_AEAD aead_des_ede3_cbc_sha1_tls = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,  // open_gather
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     aead_tls_tag_len,
 };
@@ -567,6 +547,9 @@ static const EVP_AEAD aead_des_ede3_cbc_sha1_tls_implicit_iv = {
     aead_tls_open,
     aead_tls_seal_scatter,
     nullptr,          // open_gather
+    nullptr,          // openv
+    nullptr,          // sealv
+    nullptr,          // openv_detached
     aead_tls_get_iv,  // get_iv
     aead_tls_tag_len,
 };

@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/frame_transformer_interface.h"
@@ -39,7 +40,7 @@ namespace webrtc {
 
 AudioRtpReceiver::AudioRtpReceiver(
     Thread* worker_thread,
-    std::string receiver_id,
+    absl::string_view receiver_id,
     std::vector<std::string> stream_ids,
     bool is_unified_plan,
     VoiceMediaReceiveChannelInterface* voice_channel /*= nullptr*/)
@@ -51,7 +52,7 @@ AudioRtpReceiver::AudioRtpReceiver(
 
 AudioRtpReceiver::AudioRtpReceiver(
     Thread* worker_thread,
-    const std::string& receiver_id,
+    absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
     bool is_unified_plan,
     VoiceMediaReceiveChannelInterface* voice_channel /*= nullptr*/)

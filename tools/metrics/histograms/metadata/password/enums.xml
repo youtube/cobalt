@@ -299,12 +299,13 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Passkey stored in Windows Hello"/>
   <int value="10" label="Passkey stored in iCloud Keychain"/>
   <int value="11" label="Passkey stored in Chrome profile"/>
-  <int value="12" label="Passkey other source"/>
+  <int value="12" label="Passkey hybrid flow"/>
   <int value="13" label="Passkey from a security key"/>
-  <int value="14" label="Passkey hybrid flow"/>
+  <int value="14" label="Passkey hybrid or security key"/>
+  <int value="15" label="Passkey unknown source"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/password_manager/core/browser/metrics/login_metrics.h:BrowserAssistedLoginType) -->
+<!-- LINT.ThenChange(//components/password_manager/core/browser/password_manager_metrics_util.h:BrowserAssistedLoginType) -->
 
 <enum name="CharacterClassPresenceChange">
   <int value="0" label="No change"/>
@@ -892,14 +893,20 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Open password checkup homepage"/>
 </enum>
 
+<!-- LINT.IfChange(PasswordCheckReferrer) -->
+
 <enum name="PasswordCheckReferrer">
   <int value="0" label="Safety Check"/>
   <int value="1" label="Password Settings"/>
   <int value="2" label="Phish Guard Dialog"/>
   <int value="3" label="Password Breach Dialog"/>
   <int value="4" label="More passwords to fix bubble"/>
-  <int value="5" label="Unsafe state bubble"/>
+  <int value="5" label="(obsolete) Unsafe state bubble"/>
+  <int value="6" label="Safety Check Magic Stack"/>
+  <int value="7" label="Safety Check Notification"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/settings/autofill_page/password_manager_proxy.ts:PasswordCheckReferrer, //components/password_manager/core/browser/ui/password_check_referrer.h:PasswordCheckReferrer) -->
 
 <enum name="PasswordCheckResolutionAction">
   <int value="0" label="Opened a site to change password manually"/>

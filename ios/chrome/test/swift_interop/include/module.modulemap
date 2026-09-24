@@ -43,4 +43,10 @@ module Struct {
   export *
 }
 
+module Closure {
+  header "closure.h"
+  header "observer.h"
+  export *
+}
+
 }

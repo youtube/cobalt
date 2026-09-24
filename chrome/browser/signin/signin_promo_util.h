@@ -62,8 +62,9 @@ bool ShouldShowAddressSignInPromo(Profile& profile,
 // Whether we should show the sign in promo after a bookmark was saved.
 bool ShouldShowBookmarkSignInPromo(Profile& profile);
 
-// Returns whether `access_point` has an equivalent autofill signin promo.
-bool IsAutofillSigninPromo(signin_metrics::AccessPoint access_point);
+// Returns whether `access_point` has an equivalent signin promo which is its
+// own bubble, rather than a footnote.
+bool IsBubbleSigninPromo(signin_metrics::AccessPoint access_point);
 
 // Returns whether `access_point` has an equivalent signin promo.
 bool IsSignInPromo(signin_metrics::AccessPoint access_point);
@@ -81,13 +82,20 @@ void RecordSignInPromoShown(signin_metrics::AccessPoint access_point,
 struct ProfileMenuAvatarButtonPromoInfo {
   // Different promo types that can be shown in the ProfileMenu and
   // AvatarButton.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(ProfileMenuAvatarButtonPromoType)
   enum class Type {
-    kHistorySyncPromo,
-    kBatchUploadPromo,
-    kBatchUploadBookmarksPromo,
-    kBatchUploadWindows10DepreciationPromo,
-    kSyncPromo,
+    kHistorySyncPromo = 0,
+    kBatchUploadPromo = 1,
+    kBatchUploadBookmarksPromo = 2,
+    kBatchUploadWindows10DepreciationPromo = 3,
+    kSyncPromo = 4,
+
+    kMaxValue = kSyncPromo,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:ProfileMenuAvatarButtonPromoType)
 
   std::optional<Type> type = std::nullopt;
   size_t local_data_count = 0;
@@ -97,11 +105,18 @@ struct ProfileMenuAvatarButtonPromoInfo {
       default;
 };
 
-// Returns the total number of times `promo_type` was shown for `gaia_id`.
-int GetShownCountOfAvatarButtonPromoType(
+// Records the show count at which the AvatarButton was showing `promo_type`
+// that lead to the promo being accepted.
+void RecordAvatarButtonPromoAcceptedAtPromoShownCount(
     ProfileMenuAvatarButtonPromoInfo::Type promo_type,
-    PrefService& prefs,
-    GaiaId gaia_id);
+    signin::IdentityManager* identity_manager,
+    PrefService& prefs);
+
+// Access point used to mark the source from the AvatarButton click event for
+// HistorySync promo.
+inline constexpr signin_metrics::AccessPoint
+    kHistoryOptinAvatarPromoAccessPoint =
+        signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup;
 
 // Based on the `profile` current state, compute the data to be shown for the
 // promos, if any, based on the promo priority and the profile state. The promo

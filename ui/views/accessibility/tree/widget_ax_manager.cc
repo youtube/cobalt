@@ -32,7 +32,7 @@ WidgetAXManager::WidgetAXManager(Widget* widget)
     : widget_(widget),
       ax_tree_id_(ui::AXTreeID::CreateNewAXTreeID()),
       cache_(std::make_unique<WidgetViewAXCache>()) {
-  CHECK(::features::IsAccessibilityTreeForViewsEnabled())
+  CHECK(ViewAccessibility::IsViewsAccessibilityTreeEnabled())
       << "WidgetAXManager should only be created when the "
          "accessibility tree feature is enabled.";
 
@@ -109,10 +109,30 @@ void WidgetAXManager::OnChildManagerRemoved(WidgetAXManager& child_manager) {
   child_manager.parent_ax_tree_id_ = ui::AXTreeID();
 }
 
+void WidgetAXManager::AddObserver(WidgetAXManagerObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void WidgetAXManager::RemoveObserver(WidgetAXManagerObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 void WidgetAXManager::OnAXModeAdded(ui::AXMode mode) {
   if (mode.has_mode(ui::AXMode::kNativeAPIs)) {
     Enable();
   }
+}
+
+gfx::NativeViewAccessible WidgetAXManager::GetNativeViewAccessibleForId(
+    ui::AXNodeID id) {
+  if (!ax_tree_manager_) {
+    return gfx::NativeViewAccessible();
+  }
+  ui::BrowserAccessibility* browser_node = ax_tree_manager_->GetFromID(id);
+  if (!browser_node) {
+    return gfx::NativeViewAccessible();
+  }
+  return browser_node->GetNativeViewAccessible();
 }
 
 ui::AXPlatformNodeId WidgetAXManager::GetOrCreateAXNodeUniqueId(
@@ -296,6 +316,9 @@ void WidgetAXManager::InitAXTreeManager() {
 }
 
 void WidgetAXManager::Enable() {
+  if (is_enabled_) {
+    return;
+  }
   is_enabled_ = true;
   tree_source_ = std::make_unique<ViewAccessibilityAXTreeSource>(
       widget_->GetRootView()->GetViewAccessibility().GetUniqueId(), ax_tree_id_,
@@ -315,6 +338,13 @@ void WidgetAXManager::Enable() {
   pending_data_updates_.insert(
       widget_->GetRootView()->GetViewAccessibility().GetUniqueId());
   SendPendingUpdate();
+  NotifyEnabled();
+}
+
+void WidgetAXManager::NotifyEnabled() {
+  for (WidgetAXManagerObserver& observer : observers_) {
+    observer.OnWidgetAXManagerEnabled();
+  }
 }
 
 void WidgetAXManager::SendPendingUpdate() {

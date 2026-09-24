@@ -17,6 +17,10 @@
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
 
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-segments.h"
+#endif  // V8_INTL_SUPPORT
+
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
@@ -364,6 +368,41 @@ void SandboxGetInstanceTypeIdFor(
   info.GetReturnValue().Set(type_id);
 }
 
+void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                              static_cast<int>(message.size()))
+          .ToLocalChecked()));
+}
+
+std::optional<int> GetFieldOffset(v8::Isolate* isolate,
+                                  InstanceType instance_type,
+                                  const std::string& field_name) {
+  SandboxTesting::FieldOffsetMap& all_fields =
+      SandboxTesting::GetFieldOffsetMap();
+  auto fields_it = all_fields.find(instance_type);
+  if (fields_it == all_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown object type \"" << ToString(instance_type)
+          << "\". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate, error.view());
+    return std::nullopt;
+  }
+
+  SandboxTesting::FieldOffsets& obj_fields = fields_it->second;
+  auto offset_it = obj_fields.find(field_name);
+  if (offset_it == obj_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown field \"" << field_name << "\" of instance type "
+          << ToString(instance_type)
+          << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate, error.view());
+    return std::nullopt;
+  }
+
+  return offset_it->second;
+}
+
 // Obtain the offset of a field in an object.
 //
 // This can be used to obtain the offsets of internal object fields in order to
@@ -403,24 +442,12 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  auto& all_fields = SandboxTesting::GetFieldOffsetMap();
-  if (all_fields.find(instance_type) == all_fields.end()) {
-    isolate->ThrowError(
-        "Unknown object type. If needed, add it in "
-        "SandboxTesting::GetFieldOffsetMap");
-    return;
+  if (std::optional<int> offset =
+          GetFieldOffset(isolate, instance_type, *field_name)) {
+    info.GetReturnValue().Set(offset.value());
+  } else {
+    DCHECK(isolate->HasPendingException());
   }
-
-  auto& obj_fields = all_fields[instance_type];
-  if (obj_fields.find(*field_name) == obj_fields.end()) {
-    isolate->ThrowError(
-        "Unknown field. If needed, add it in "
-        "SandboxTesting::GetFieldOffsetMap");
-    return;
-  }
-
-  int offset = obj_fields[*field_name];
-  info.GetReturnValue().Set(offset);
 }
 
 // Returns an array of all builtin names, index of the name is the builtin id.
@@ -480,6 +507,75 @@ void SandboxSetFunctionCodeToBuiltin(
   function->UpdateCode(i_isolate, i_isolate->builtins()->code(builtin));
 
   info.GetReturnValue().Set(true);
+}
+
+// Corrupt one field of an object without setting up a memory view first.
+//
+//   Sandbox.corruptObjectField(obj, offset, value);
+// is identical to
+//   (new DataView(new Sandbox.MemoryView(0, 0x100000000))).setUint32(
+//      Sandbox.getAddressOf(obj) + offset, value << kSmiTagSize, true);
+//
+// (note the Smi tagging and little endianness)
+//
+// Alternatively, a field name can be passed as the second argument; the effect
+// is identical to calling `Sandbox.getFieldOffset(getInstanceTypeIdOf(obj,
+// offset))` on that argument first.
+//
+// Sandbox.corruptObjectField(Object, Number, Number) -> undefined
+// Sandbox.corruptObjectField(Object, String, Number) -> undefined
+void SandboxCorruptObjectField(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  Tagged<HeapObject> obj;
+  if (!GetArgumentObjectPassedAsReference(info, &obj)) return;
+
+  int offset;
+  int value;
+
+  if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
+    v8::String::Utf8Value field_name(isolate, info[1]);
+    if (!*field_name) {
+      isolate->ThrowError("Second argument must be an integer or a string");
+      return;
+    }
+
+    InstanceType instance_type = obj->map()->instance_type();
+    if (std::optional<int> offset_from_name =
+            GetFieldOffset(isolate, instance_type, *field_name)) {
+      offset = offset_from_name.value();
+    } else {
+      DCHECK(isolate->HasPendingException());
+      return;
+    }
+  }
+
+  int object_size = obj->Size();
+  DCHECK_EQ(0, object_size % kTaggedSize);
+  if (offset < 0 || offset >= object_size) {
+    std::ostringstream error;
+    error << "Second argument (offset=" << offset << ") is "
+          << "out of bounds of the given object of size " << object_size;
+    ThrowTypeError(isolate, error.view());
+    return;
+  }
+  if ((offset % kTaggedSize) != 0) {
+    std::ostringstream error;
+    error << "Second argument (offset=" << offset << ") is "
+          << "not tagged-size-aligned";
+    ThrowTypeError(isolate, error.view());
+    return;
+  }
+
+  if (!info[2]->IsInt32() || !info[2]->Int32Value(context).To(&value)) {
+    isolate->ThrowError("Third argument must be an integer");
+    return;
+  }
+
+  obj->WriteField(offset, value);
 }
 
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
@@ -580,6 +676,8 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
                   0);
   InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
                   "setFunctionCodeToBuiltin", 2);
+  InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
+                  "corruptObjectField", 3);
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
@@ -949,17 +1047,14 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSTypedArray::kExternalPointerOffset;
     fields[JS_TYPED_ARRAY_TYPE]["base_pointer"] =
         JSTypedArray::kBasePointerOffset;
-    fields[SEQ_ONE_BYTE_STRING_TYPE]["length"] =
-        offsetof(SeqOneByteString, length_);
-    fields[SEQ_TWO_BYTE_STRING_TYPE]["hash"] =
-        offsetof(SeqTwoByteString, raw_hash_field_);
-    fields[SEQ_TWO_BYTE_STRING_TYPE]["length"] =
-        offsetof(SeqTwoByteString, length_);
-    fields[INTERNALIZED_ONE_BYTE_STRING_TYPE]["length"] =
-        offsetof(InternalizedString, length_);
+    for (std::underlying_type_t<InstanceType> string_type = FIRST_STRING_TYPE;
+         string_type <= LAST_STRING_TYPE; ++string_type) {
+      InstanceType instance_type = static_cast<InstanceType>(string_type);
+      fields[instance_type]["length"] = offsetof(String, length_);
+      fields[instance_type]["hash"] = offsetof(String, raw_hash_field_);
+    }
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
-    fields[CONS_ONE_BYTE_STRING_TYPE]["length"] = offsetof(ConsString, length_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
@@ -980,6 +1075,10 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(PromiseReaction, fulfill_handler_);
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
+#ifdef V8_INTL_SUPPORT
+    fields[JS_SEGMENTS_TYPE]["unicode_string"] =
+        JSSegments::kUnicodeStringOffset;
+#endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
         WasmModuleObject::kManagedNativeModuleOffset;

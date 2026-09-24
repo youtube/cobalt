@@ -57,6 +57,8 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/thread.h"
+#include "system_wrappers/include/clock.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 namespace {
@@ -1099,7 +1101,29 @@ void DtlsTransportInternalImpl::set_dtls_state(DtlsTransportState state) {
   RTC_LOG(LS_VERBOSE) << ToString() << ": set_dtls_state from:"
                       << static_cast<int>(dtls_state_) << " to "
                       << static_cast<int>(state);
+  if (dtls_state_ == DtlsTransportState::kConnecting &&
+      state == DtlsTransportState::kConnected) {
+    if (dtls_role_) {
+      TimeDelta connection_time_delta =
+          env_.clock().CurrentTime() - connecting_state_timestamp_;
+      switch (*dtls_role_) {
+        case SSL_CLIENT:
+          RTC_HISTOGRAM_COUNTS_1G(
+              "WebRTC.PeerConnection.DtlsClientRoleConnectionTime",
+              connection_time_delta.us());
+          break;
+        case SSL_SERVER:
+          RTC_HISTOGRAM_COUNTS_1G(
+              "WebRTC.PeerConnection.DtlsServerRoleConnectionTime",
+              connection_time_delta.us());
+          break;
+      }
+    }
+  }
   dtls_state_ = state;
+  if (dtls_state_ == DtlsTransportState::kConnecting) {
+    connecting_state_timestamp_ = env_.clock().CurrentTime();
+  }
   if (dtls_state_ == DtlsTransportState::kFailed) {
     dtls_stun_piggyback_controller_.SetDtlsFailed();
   }

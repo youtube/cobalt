@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/data_channel_interface.h"
 #include "api/jsep.h"
 #include "api/legacy_stats_types.h"
@@ -34,6 +35,7 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
 #include "api/stats/rtc_stats_collector_callback.h"
@@ -42,6 +44,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -445,6 +448,9 @@ class MockDataChannelObserver : public DataChannelObserver {
     messages_.push_back(
         {std::string(buffer.data.data<char>(), buffer.data.size()),
          buffer.binary});
+    if (on_message_callback_) {
+      on_message_callback_(buffer);
+    }
   }
 
   bool IsOpen() const { return state() == DataChannelInterface::kOpen; }
@@ -472,11 +478,17 @@ class MockDataChannelObserver : public DataChannelObserver {
     state_change_callback_ = std::move(func);
   }
 
+  void set_on_message_callback(
+      absl::AnyInvocable<void(const DataBuffer&)> func) {
+    on_message_callback_ = std::move(func);
+  }
+
  private:
   scoped_refptr<DataChannelInterface> channel_;
   std::vector<DataChannelInterface::DataState> states_;
   std::vector<Message> messages_;
   std::function<void(DataChannelInterface::DataState)> state_change_callback_;
+  absl::AnyInvocable<void(const DataBuffer&)> on_message_callback_;
 };
 
 class MockStatsObserver : public StatsObserver {

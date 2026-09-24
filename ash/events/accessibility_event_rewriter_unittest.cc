@@ -12,14 +12,17 @@
 #include "ash/accessibility/mouse_keys/mouse_keys_controller.h"
 #include "ash/constants/ash_constants.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/events/test_event_capturer.h"
 #include "ash/public/cpp/accessibility_event_rewriter_delegate.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "base/check_op.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "components/prefs/pref_service.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
@@ -480,7 +483,7 @@ TEST_F(ChromeVoxAccessibilityEventRewriterTest,
   size_t captured_count = 0;
 
   // Map Control key to Search.
-  SetModifierRemapping(prefs::kLanguageRemapControlKeyTo,
+  SetModifierRemapping(::prefs::kLanguageRemapControlKeyTo,
                        ui::mojom::ModifierKey::kMeta);
 
   // Anything with Search gets captured.
@@ -600,11 +603,11 @@ TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest, NextPendingEventId) {
   generator().ReleaseKey(ui::VKEY_A, ui::EF_NONE);
   EXPECT_EQ(2u, next_pending_event_id());
 
-  // Turning ChromeVox off will reset the counter.
+  // The unique ID counter will never be reset, even if ChromeVox is toggled
+  // off.
   controller->SetSpokenFeedbackEnabled(false, A11Y_NOTIFICATION_NONE);
   EXPECT_FALSE(controller->spoken_feedback().enabled());
-  EXPECT_TRUE(
-      base::test::RunUntil([this]() { return next_pending_event_id() == 0u; }));
+  EXPECT_EQ(2u, next_pending_event_id());
 }
 
 TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest, TabKey) {
@@ -751,8 +754,11 @@ TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest, InvalidCommand) {
 
 TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest,
        PropagatePendingEventsOnDisable) {
+  PrefService* prefs =
+      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
   AccessibilityController* controller = GetAccessibilityController();
-  controller->SetSpokenFeedbackEnabled(true, A11Y_NOTIFICATION_NONE);
+
+  prefs->SetBoolean(prefs::kAccessibilitySpokenFeedbackEnabled, true);
   EXPECT_TRUE(controller->spoken_feedback().enabled());
   accessibility_event_rewriter().SetSpokenFeedbackMv3KeyHandlingEnabled(true);
 
@@ -764,7 +770,7 @@ TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest,
 
   // Disable spoken feedback, which will cause all pending events to be
   // propagated.
-  controller->SetSpokenFeedbackEnabled(false, A11Y_NOTIFICATION_NONE);
+  prefs->SetBoolean(prefs::kAccessibilitySpokenFeedbackEnabled, false);
   EXPECT_FALSE(controller->spoken_feedback().enabled());
   EXPECT_TRUE(base::test::RunUntil(
       [this]() { return GetPendingKeyEventsSize() == 0u; }));
@@ -853,6 +859,22 @@ TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest, TearDownWithPendingEvents) {
 
   // If there are problems with teardown while there is a pending event, it
   // will be caught by memory sanitizers.
+}
+
+TEST_F(ChromeVoxMv3AccessibilityEventRewriterTest,
+       ProcessPendingEventEmptyQueue) {
+  AccessibilityController* controller = GetAccessibilityController();
+  controller->SetSpokenFeedbackEnabled(true, A11Y_NOTIFICATION_NONE);
+  EXPECT_TRUE(controller->spoken_feedback().enabled());
+  accessibility_event_rewriter().SetSpokenFeedbackMv3KeyHandlingEnabled(true);
+
+  // Attempt to propagate an event when the pending queue is empty. This can
+  // theoretically happen in edge cases where ChromeVox is toggled off and back
+  // on in quick succession.
+  EXPECT_EQ(0U, GetPendingKeyEventsSize());
+  accessibility_event_rewriter().ProcessPendingSpokenFeedbackEvent(123, true);
+  EXPECT_EQ(0, event_recorder().events_seen());
+  EXPECT_EQ(0U, GetPendingKeyEventsSize());
 }
 
 class MouseKeysAccessibilityEventRewriterTest
@@ -1118,7 +1140,7 @@ TEST_F(SwitchAccessAccessibilityEventRewriterTest, RespectsModifierRemappings) {
       SwitchAccessCommand::kSelect);
 
   // Map Control key to Alt.
-  SetModifierRemapping(prefs::kLanguageRemapControlKeyTo,
+  SetModifierRemapping(::prefs::kLanguageRemapControlKeyTo,
                        ui::mojom::ModifierKey::kAlt);
 
   // Send a key event for Control.

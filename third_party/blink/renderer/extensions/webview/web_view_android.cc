@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace {
@@ -25,17 +26,19 @@ const char kInvalidContext[] = "Invalid context";
 namespace blink {
 
 WebViewAndroid& WebViewAndroid::From(ExecutionContext& execution_context) {
-  WebViewAndroid* supplement = execution_context.GetWebViewAndroid();
+  auto* supplement =
+      Supplement<ExecutionContext>::From<WebViewAndroid>(execution_context);
 
   if (!supplement) {
     supplement = MakeGarbageCollected<WebViewAndroid>(execution_context);
-    execution_context.SetWebViewAndroid(supplement);
+    ProvideTo(execution_context, supplement);
   }
   return *supplement;
 }
 
 WebViewAndroid::WebViewAndroid(ExecutionContext& execution_context)
-    : ExecutionContextClient(&execution_context),
+    : Supplement<ExecutionContext>(execution_context),
+      ExecutionContextClient(&execution_context),
       media_integrity_service_remote_(&execution_context) {}
 
 void WebViewAndroid::EnsureServiceConnection(
@@ -168,6 +171,7 @@ void WebViewAndroid::OnGetIntegrityProviderResponse(
 void WebViewAndroid::Trace(Visitor* visitor) const {
   visitor->Trace(provider_resolvers_);
   visitor->Trace(media_integrity_service_remote_);
+  Supplement<ExecutionContext>::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

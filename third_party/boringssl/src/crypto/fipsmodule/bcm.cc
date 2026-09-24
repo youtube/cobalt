@@ -98,7 +98,6 @@
 #include "mlkem/mlkem.cc.inc"
 #include "rand/ctrdrbg.cc.inc"
 #include "rand/rand.cc.inc"
-#include "rsa/blinding.cc.inc"
 #include "rsa/padding.cc.inc"
 #include "rsa/rsa.cc.inc"
 #include "rsa/rsa_impl.cc.inc"

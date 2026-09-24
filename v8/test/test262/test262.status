@@ -275,6 +275,12 @@
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
 
   # Rounding window
   # Fix: https://github.com/boa-dev/temporal/pull/636
@@ -293,6 +299,8 @@
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [FAIL],
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [FAIL],
+
+  # Old tests with formatting differences between ICU4C versions
 
   # End Temporal test expectations
 
@@ -587,17 +595,8 @@
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
 
   # Older ICU4C revision with different era codes
-  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
   'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
   'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
   'intl402/DateTimeFormat/prototype/formatRangeToParts/chinese-calendar-dates': [SKIP],
@@ -827,34 +826,6 @@
 ####
 # import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
 [ALWAYS, {
-  'built-ins/Iterator/concat/arguments-checked-in-order': [FAIL],
-  'built-ins/Iterator/concat/fresh-iterator-result': [FAIL],
-  'built-ins/Iterator/concat/get-iterator-method-only-once': [FAIL],
-  'built-ins/Iterator/concat/get-iterator-method-throws': [FAIL],
-  'built-ins/Iterator/concat/inner-iterator-created-in-order': [FAIL],
-  'built-ins/Iterator/concat/is-function': [FAIL],
-  'built-ins/Iterator/concat/iterable-primitive-wrapper-objects': [FAIL],
-  'built-ins/Iterator/concat/length': [FAIL],
-  'built-ins/Iterator/concat/many-arguments': [FAIL],
-  'built-ins/Iterator/concat/name': [FAIL],
-  'built-ins/Iterator/concat/next-method-called-with-zero-arguments': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-non-object': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-done': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-value': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-value-done': [FAIL],
-  'built-ins/Iterator/concat/next-method-throws': [FAIL],
-  'built-ins/Iterator/concat/prop-desc': [FAIL],
-  'built-ins/Iterator/concat/proto': [FAIL],
-  'built-ins/Iterator/concat/result-is-iterator': [FAIL],
-  'built-ins/Iterator/concat/return-is-forwarded': [FAIL],
-  'built-ins/Iterator/concat/return-is-not-forwarded-after-exhaustion': [FAIL],
-  'built-ins/Iterator/concat/return-is-not-forwarded-before-initial-start': [FAIL],
-  'built-ins/Iterator/concat/return-method-called-with-zero-arguments': [FAIL],
-  'built-ins/Iterator/concat/single-argument': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-next': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-return': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-iterator-not-an-object': [FAIL],
-  'built-ins/Iterator/concat/zero-arguments': [FAIL],
   'language/import/import-defer/deferred-namespace-object/to-string-tag': [FAIL],
 
   'staging/sm/class/superCallOrder': [FAIL],
@@ -1110,27 +1081,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object': [SKIP],
-  'built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer': [SKIP],
-  'built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer': [SKIP],
-  'built-ins/DataView/prototype/setBigInt64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setBigUint64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt8/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint8/immutable-buffer': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'intl402/String/prototype/toLocaleLowerCase/validates-all-locale-identifiers': [SKIP],
   'intl402/String/prototype/toLocaleUpperCase/validates-all-locale-identifiers': [SKIP],
   'staging/sm/DataView/get-set-index-range': [SKIP],
@@ -1336,4 +1286,43 @@
 }],
 # end import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+####
+# import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+[ALWAYS, {
+  'language/import/import-defer/evaluation-triggers/ignore-exported-then-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-private-name-access': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-exported-string-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty-in-prototype': [SKIP],
+}],
+# end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+####
+
 ]

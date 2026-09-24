@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -44,10 +45,12 @@ class CobaltLifecycleController
       public cobalt::mojom::blink::CobaltLifecycleController,
       public ExecutionContextLifecycleStateObserver,
       public PageVisibilityObserver,
-      public FocusChangedObserver {
+      public FocusChangedObserver,
+      public Supplement<LocalDOMWindow> {
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   static CobaltLifecycleController* From(LocalDOMWindow& window);
 
@@ -89,8 +92,6 @@ class CobaltLifecycleController
  private:
   void EnsureRemoteIsBound();
   void NotifyObserver(base::OnceClosure callback);
-
-  Member<LocalDOMWindow> local_dom_window_;
 
   HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,
                    CobaltLifecycleController>

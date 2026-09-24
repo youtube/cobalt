@@ -27,7 +27,7 @@ static jboolean JNI_DtmfSender_CanInsertDtmf(JNIEnv* jni,
 static jboolean JNI_DtmfSender_InsertDtmf(
     JNIEnv* jni,
     jlong j_dtmf_sender_pointer,
-    const jni_zero::JavaParamRef<jstring>& tones,
+    const jni_zero::JavaRef<jstring>& tones,
     jint duration,
     jint inter_tone_gap) {
   return reinterpret_cast<DtmfSenderInterface*>(j_dtmf_sender_pointer)

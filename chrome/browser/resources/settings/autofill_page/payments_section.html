@@ -18,27 +18,32 @@
     padding-inline-start: 20px;
   }
 
+  .settings-card > * + * {
+    border-top: 1px solid var(--cr-separator-color);
+  }
 </style>
 <settings-subpage page-title="[[getPageTitleLabel_(isYourSavedInfoSubpage_)]]"
     learn-more-url="$i18n{addressesAndPaymentMethodsLearnMoreURL}"
     class$="[[getMultiCardClass_(isYourSavedInfoSubpage_)]]">
 
-<div class="card">
+<div class="card settings-card">
 
 <settings-toggle-button id="autofillCreditCardToggle"
     no-extension-indicator label="$i18n{enableCreditCardsLabel}"
     sub-label="$i18n{enableCreditCardsSublabel}"
     pref="{{prefs.autofill.credit_card_enabled}}">
 </settings-toggle-button>
-<if expr="is_win or is_macosx">
+<if expr="is_win or is_macosx or is_chromeos">
+<template is="dom-if" if="[[mandatoryReauthFeatureFlagEnabled_]]">
   <settings-toggle-button id="mandatoryAuthToggle"
       no-extension-indicator label="$i18n{enableMandatoryAuthToggleLabel}"
       sub-label="$i18n{enableMandatoryAuthToggleSublabel}"
       pref="{{prefs.autofill.payment_methods_mandatory_reauth}}" no-set-pref
       disabled="[[shouldDisableAuthToggle_(
-                prefs.autofill.credit_card_enabled.value, deviceAuthAvailable_)]]"
+          prefs.autofill.credit_card_enabled.value, deviceAuthAvailable_)]]"
       on-settings-boolean-control-change="onMandatoryAuthToggleChange_">
   </settings-toggle-button>
+</template>
 </if>
 <template is="dom-if" if="[[cvcStorageAvailable_]]">
   <settings-toggle-button id="cvcStorageToggle"
@@ -88,13 +93,16 @@
   </div>
 </template>
 
-<div id="manageLink" class="cr-row first">
+<div id="manageLink" class="cr-row">
   <!-- This span lays out the link correctly, relative to the text. -->
   <div class="cr-padded-text">$i18nRaw{manageCreditCardsLabel}</div>
 </div>
 
 </div>
 
+<template is="dom-if" if="[[!isYourSavedInfoSubpage_]]">
+  <div class="hr"></div>
+</template>
 <div class="card">
 
 <div class="cr-row continuation">

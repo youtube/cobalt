@@ -89,6 +89,31 @@ from telemetry import decorators
 #     ...
 #   }
 
+# A dictionary that maps a test suite name to the module name and module scheme
+# that corresponds to that test suite.
+
+
+_ModuleArgs = collections.namedtuple('ModuleArgs', ['name', 'scheme'])
+_STRUCTURED_TEST_ID_SUITES = {
+    'chrome_sizes':
+    _ModuleArgs('//chrome/test:chrome_sizes', 'single'),
+    'resource_sizes_system_webview_google_bundle ':
+    _ModuleArgs('//clank/java:resource_sizes_system_webview_google_bundle',
+                'single'),
+    'resource_sizes_trichrome_google':
+    _ModuleArgs('//clank/java:resource_sizes_trichrome_google', 'single'),
+    'performance_test_suite_android_trichrome_chrome_google_64_32_bundle':
+    _ModuleArgs(
+        '//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle',
+        'flat'),
+    'performance_test_suite_android_trichrome_chrome_google_bundle':
+    _ModuleArgs(
+        '//chrome/test:performance_test_suite_android_trichrome_chrome_google_bundle',
+        'flat'),
+    'performance_test_suite':
+    _ModuleArgs('//chrome/test:performance_test_suite', 'flat'),
+}
+
 
 class TEST_TYPES(object):
   GENERIC = 0
@@ -553,7 +578,7 @@ BUILDERS = {
         'tests': [{
             'isolate': 'performance_webview_test_suite',
         }],
-        'platform': 'android-webview-trichrome-google-bundle',
+        'platform': 'android-webview-standalone-google',
         'dimension': {
             'pool': 'chrome.tests.perf-webview',
             'os': 'Android',
@@ -566,7 +591,7 @@ BUILDERS = {
         'tests': [{
             'isolate': 'performance_webview_test_suite',
         }],
-        'platform': 'android-webview-trichrome-google-bundle',
+        'platform': 'android-webview-standalone-google',
         'dimension': {
             'pool': 'chrome.tests.perf-webview-pgo',
             'os': 'Android',
@@ -1947,6 +1972,11 @@ def generate_performance_test(tester_config, test, builder_name):
       'test': isolate_name,
       'name': test_name,
   }
+
+  mod_args = _STRUCTURED_TEST_ID_SUITES.get(isolate_name, None)
+  if mod_args:
+    result['module_name'] = mod_args.name
+    result['module_scheme'] = mod_args.scheme
 
   if test.get('resultdb'):
     result['resultdb'] = test['resultdb'].copy()

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {AdditionalContext, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {AdditionalContext, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, HostCapability} from '../../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../../observable.js';
 
@@ -11,7 +11,9 @@ import {newSenderId, PostMessageRequestReceiver, PostMessageRequestSender} from 
 import type {ResponseExtras} from './../post_message_transport.js';
 import type {AdditionalContextPrivate, AnnotatedPageDataPrivate, CredentialPrivate, FocusedTabDataPrivate, NavigationConfirmationRequestPrivate, NavigationConfirmationResponsePrivate, PdfDocumentDataPrivate, PinCandidatePrivate, RequestRequestType, RequestResponseType, ResumeActorTaskResultPrivate, RgbaImage, SelectAutofillSuggestionsDialogRequestPrivate, SelectAutofillSuggestionsDialogResponsePrivate, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, TransferableException, UserConfirmationDialogRequestPrivate, UserConfirmationDialogResponsePrivate, WebClientRequestTypes} from './../request_types.js';
 import {ConfirmationRequestErrorReason, ErrorWithReasonImpl, ImageAlphaType, ImageColorType, newTransferableException, SelectAutofillSuggestionsDialogErrorReason, SelectCredentialDialogErrorReason} from './../request_types.js';
+import {rgbaImageToBmpBlob} from './image_utils.js';
 
+let enableRgbaToBmp = false;
 
 // Web client side of the Glic API.
 // Communicates with the Chrome-WebUI-side in glic_api_host.ts
@@ -518,6 +520,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     const response = await this.sender.requestWithResponse(
         'glicBrowserWebClientCreated', undefined);
     const state = response.initialState;
+    enableRgbaToBmp = state.rgbaToBmp;
     this.receiver.setLoggingEnabled(state.loggingEnabled);
     this.sender.setLoggingEnabled(state.loggingEnabled);
     this.panelState.assignAndSignal(state.panelState);
@@ -1075,20 +1078,21 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return this.pinnedTabs;
   }
 
-  async pinTabs?(tabIds: string[]): Promise<boolean> {
+  async pinTabs?(tabIds: string[], options?: PinTabsOptions): Promise<boolean> {
     return (await this.sender.requestWithResponse(
-                'glicBrowserPinTabs', {tabIds}))
+                'glicBrowserPinTabs', {tabIds, options}))
         .pinnedAll;
   }
 
-  async unpinTabs?(tabIds: string[]): Promise<boolean> {
+  async unpinTabs?
+      (tabIds: string[], options?: UnpinTabsOptions): Promise<boolean> {
     return (await this.sender.requestWithResponse(
-                'glicBrowserUnpinTabs', {tabIds}))
+                'glicBrowserUnpinTabs', {tabIds, options}))
         .unpinnedAll;
   }
 
-  unpinAllTabs?(): void {
-    this.sender.requestNoResponse('glicBrowserUnpinAllTabs', undefined);
+  unpinAllTabs?(options?: UnpinTabsOptions): void {
+    this.sender.requestNoResponse('glicBrowserUnpinAllTabs', {options});
   }
 
   getPinCandidates?
@@ -1439,8 +1443,13 @@ class PinCandidatesObservable extends ObservableValueImpl<PinCandidate[]> {
   }
 }
 
-// Converts an RgbaImage into a Blob through the canvas API. Output is a PNG.
+
+// Converts an RgbaImage into a Blob through the canvas API. Output is a PNG or
+// BMP.
 async function rgbaImageToBlob(image: RgbaImage): Promise<Blob> {
+  if (enableRgbaToBmp) {
+    return rgbaImageToBmpBlob(image);
+  }
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
   canvas.height = image.height;

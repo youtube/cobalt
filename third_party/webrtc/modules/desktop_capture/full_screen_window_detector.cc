@@ -108,9 +108,6 @@ void FullScreenWindowDetector::CreateApplicationHandlerIfNeeded(
 
   if (app_handler_ == nullptr) {
     no_handler_source_id_ = source_id;
-  } else {
-    app_handler_->SetUseHeuristicFullscreenPowerPointWindows(
-        use_heuristic_fullscreen_powerpoint_windows_);
   }
 }
 

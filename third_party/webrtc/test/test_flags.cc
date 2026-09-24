@@ -30,14 +30,6 @@ ABSL_FLAG(
     "described by histogram.proto in "
     "https://chromium.googlesource.com/catapult/.");
 
-ABSL_FLAG(std::string,
-          webrtc_test_metrics_output_path,
-          "",
-          "Path where the test perf metrics should be stored using "
-          "api/test/metrics/metric.proto proto format. File will contain "
-          "MetricsSet as a root proto. On iOS, this MUST be a file name "
-          "and the file will be stored under NSDocumentDirectory.");
-
 ABSL_FLAG(bool,
           webrtc_quick_perf_test,
           false,

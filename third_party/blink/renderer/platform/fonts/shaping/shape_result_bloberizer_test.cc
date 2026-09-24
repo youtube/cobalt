@@ -52,7 +52,6 @@ class ShapeResultBloberizerTest : public FontTestBase {
     cache = MakeGarbageCollected<ShapeCache>();
   }
 
-  FontCachePurgePreventer font_cache_purge_preventer;
   FontDescription font_description;
 
   Persistent<ShapeCache> cache;

@@ -23,6 +23,26 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/url_constants.h"
 
+class PictureInPictureWindowManager::
+    PictureInPictureVideoWebContentsObserver final
+    : public content::WebContentsObserver {
+ public:
+  PictureInPictureVideoWebContentsObserver(PictureInPictureWindowManager* owner,
+                                           content::WebContents* web_contents)
+      : content::WebContentsObserver(web_contents), owner_(owner) {}
+
+  ~PictureInPictureVideoWebContentsObserver() final = default;
+
+  void PrimaryPageChanged(content::Page& page) final {
+    owner_->CloseWindowInternal();
+  }
+
+  void WebContentsDestroyed() final { owner_->CloseWindowInternal(); }
+
+ private:
+  raw_ptr<PictureInPictureWindowManager> owner_ = nullptr;
+};
+
 PictureInPictureWindowManager& PictureInPictureWindowManager::GetInstance() {
   static base::NoDestructor<PictureInPictureWindowManager> instance;
   return *instance;
@@ -82,26 +102,6 @@ void PictureInPictureWindowManager::EnterPictureInPictureWithController(
 
   base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", true);
 }
-
-class PictureInPictureWindowManager::
-    PictureInPictureVideoWebContentsObserver final
-    : public content::WebContentsObserver {
- public:
-  PictureInPictureVideoWebContentsObserver(PictureInPictureWindowManager* owner,
-                                           content::WebContents* web_contents)
-      : content::WebContentsObserver(web_contents), owner_(owner) {}
-
-  ~PictureInPictureVideoWebContentsObserver() final = default;
-
-  void PrimaryPageChanged(content::Page& page) final {
-    owner_->CloseWindowInternal();
-  }
-
-  void WebContentsDestroyed() final { owner_->CloseWindowInternal(); }
-
- private:
-  raw_ptr<PictureInPictureWindowManager> owner_ = nullptr;
-};
 
 void PictureInPictureWindowManager::ExitPictureInPicture() {
   if (!pip_window_controller_) {

@@ -462,9 +462,6 @@ class ExtensionWebRequestApiTest : public ExtensionApiTest {
                            bool use_web_socket,
                            scoped_refptr<net::X509Certificate> certificate,
                            GURL request_url) {
-    std::string sha256_string =
-        base::HexEncode(net::X509Certificate::CalculateFingerprint256(
-            certificate->cert_buffer()));
     std::string pem_string;
     net::X509Certificate::GetPEMEncoded(certificate->cert_buffer(),
                                         &pem_string);
@@ -472,7 +469,6 @@ class ExtensionWebRequestApiTest : public ExtensionApiTest {
     base::Value::Dict custom_args;
     custom_args.Set("request_url", request_url.spec());
     custom_args.Set("certificate_bytes", std::move(pem_string));
-    custom_args.Set("certificate_sha256", std::move(sha256_string));
     custom_args.Set("expect_state", std::move(expect_state));
     custom_args.Set("use_web_socket", use_web_socket);
 
@@ -8390,6 +8386,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest, SecurityInfo_Secure) {
                       embedded_test_server()->GetURL("/simple.html"));
 }
 
+// Tests that fetch('http://') results in web request listener
+// getting SecurityInfo with state='insecure' and all other fields not set.
 IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest, SecurityInfo_Insecure) {
   ASSERT_TRUE(StartEmbeddedTestServer());
 
@@ -8419,6 +8417,43 @@ IN_PROC_BROWSER_TEST_F(SecurityInfoBrokenWebRequestApiTest,
   RunSecurityInfoTest("broken", /*use_web_socket=*/false,
                       embedded_test_server()->GetCertificate(),
                       embedded_test_server()->GetURL("/simple.html"));
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
+                       SecurityInfo_WebSocket_Secure) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  InitWebSocketHttpsServer();
+  ASSERT_TRUE(StartWebSocketServer());
+
+  RunSecurityInfoTest("secure", /*use_web_socket=*/true,
+                      GetWebSocketServer().GetCertificate(),
+                      GetWebSocketServer().GetURL("/echo-with-no-extension"));
+}
+
+// Tests that new Websocket('ws://') results in web request listener
+// getting SecurityInfo with state='insecure' and all other fields not set.
+IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
+                       SecurityInfo_WebSocket_Insecure) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  ASSERT_TRUE(StartWebSocketServer());
+
+  RunSecurityInfoInsecureTest(
+      /*use_web_socket=*/true,
+      GetWebSocketServer().GetURL("/echo-with-no-extension"));
+}
+
+IN_PROC_BROWSER_TEST_F(SecurityInfoBrokenWebRequestApiTest,
+                       SecurityInfo_WebSocket_Broken) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  InitWebSocketHttpsServer(
+      net::test_server::EmbeddedTestServer::ServerCertificate::CERT_EXPIRED);
+  ASSERT_TRUE(StartWebSocketServer());
+
+  RunSecurityInfoTest("broken", /*use_web_socket=*/true,
+                      GetWebSocketServer().GetCertificate(),
+                      GetWebSocketServer().GetURL("/echo-with-no-extension"));
 }
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)

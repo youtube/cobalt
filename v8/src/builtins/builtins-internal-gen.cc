@@ -1435,18 +1435,6 @@ void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
   Generate_CEntry(masm, 1, ArgvMode::kStack, false, true);
 }
 
-#if !defined(V8_TARGET_ARCH_ARM)
-void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // !defined(V8_TARGET_ARCH_ARM)
-
-#ifndef V8_TARGET_ARCH_IA32
-void Builtins::Generate_MemMove(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // V8_TARGET_ARCH_IA32
-
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
 #ifdef V8_ENABLE_SPARKPLUG
   EmitReturnBaseline(masm);
@@ -1666,6 +1654,12 @@ TF_BUILTIN(InstantiateAsmJs, JSTrampolineAssembler) {
   BIND(&tailcall_to_function);
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
+  // Make sure that the dispatch table entry is still intact; calling out to JS
+  // might have free'd and re-allocated it (https://crbug.com/462217236).
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(DynamicJSParameterCount(),
+                  LoadParameterCountFromJSDispatchTable(dispatch_handle)));
   TailCallJSFunction(function);
 }
 

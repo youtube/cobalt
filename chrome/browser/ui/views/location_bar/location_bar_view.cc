@@ -77,6 +77,7 @@
 #include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_aim_presenter.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
@@ -119,6 +120,7 @@
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_text_util.h"
+#include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
@@ -185,6 +187,7 @@
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/property_effects.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/style/typography_provider.h"
 #include "ui/views/view.h"
@@ -359,7 +362,8 @@ void LocationBarView::Init() {
         /*location_bar_view=*/this);
   }
   if (omnibox::IsAimPopupFeatureEnabled()) {
-    omnibox_popup_file_selector_ = std::make_unique<OmniboxPopupFileSelector>();
+    omnibox_popup_file_selector_ = std::make_unique<OmniboxPopupFileSelector>(
+        GetWidget()->GetNativeWindow());
   }
 
   // Subscribe to popup state changes to coordinate popup visibility across
@@ -976,12 +980,17 @@ void LocationBarView::Layout(PassKey) {
               !all_page_actions_migrated
           ? -3
           : 5;
+  const PageActionInfo info = GetPageActionInfo();
+  const int kTrailingEdgePaddingForNonAim =
+      (info.num_legacy_page_actions_shown == 0) && !all_page_actions_migrated
+          ? 4
+          : trailing_decorations_edge_padding;
   add_trailing_decoration(page_action_icon_container_,
                           /*intra_item_padding=*/0,
                           /*edge_padding=*/
-                          IsAimLastVisiblePageAction()
+                          info.is_aim_last_visible_page_action
                               ? kTrailingEdgePaddingForAim
-                              : trailing_decorations_edge_padding);
+                              : kTrailingEdgePaddingForNonAim);
   add_trailing_decoration(page_action_container_,
                           /*intra_item_padding=*/0,
                           /*edge_padding=*/trailing_decorations_edge_padding);
@@ -1254,11 +1263,6 @@ bool LocationBarView::ShouldHidePageActionIcons() const {
     return false;
   }
 
-  if (ShouldHidePageActionIconsForContext(
-          GetOmniboxController()->edit_model()->GetPageClassification())) {
-    return true;
-  }
-
   // When the user is typing in the omnibox, the page action icons are no longer
   // associated with the current omnibox text, so hide them.
   if (GetOmniboxController()->edit_model()->user_input_in_progress()) {
@@ -1271,8 +1275,14 @@ bool LocationBarView::ShouldHidePageActionIcons() const {
 }
 
 bool LocationBarView::ShouldHidePageActionIcon(
-    PageActionIconView* icon_view) const {
+    const PageActionIconView* icon_view) const {
   if (ShouldHidePageActionIcons()) {
+    return true;
+  }
+
+  if (ShouldHidePageActionIconForContext(
+          icon_view,
+          GetOmniboxController()->edit_model()->GetPageClassification())) {
     return true;
   }
 
@@ -1292,33 +1302,21 @@ bool LocationBarView::ShouldHidePageActionIcon(
              icon_view->action_id().value_or(-1));
 }
 
-bool LocationBarView::ShouldHidePageActionIconsForContext(
+bool LocationBarView::ShouldHidePageActionIconForContext(
+    const PageActionIconView* icon_view,
     metrics::OmniboxEventProto::PageClassification page_context) const {
-  switch (page_context) {
-    case metrics::OmniboxEventProto::
-        INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS: {
-      // When the user is on the NTP and the AIM page action is eligible to be
-      // shown, suppress all other page actions in order to minimize UI
-      // instability when going from the steady-state to the on-focus Omnibox.
-      const auto* aim_eligibility_service =
-          AimEligibilityServiceFactory::GetForProfile(profile_);
-      const bool is_aim_page_action_enabled =
-          OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
-              aim_eligibility_service);
-      const bool hide_other_page_actions_on_ntp =
-          omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()
-              .hide_other_page_actions_on_ntp;
-      return is_aim_page_action_enabled && hide_other_page_actions_on_ntp;
-    }
-    default:
-      return false;
+  if (omnibox::IsNTPPage(page_context)) {
+    return icon_view->action_id().value_or(kChromeActionsEnd) ==
+           kActionBookmarkThisTab;
   }
+  return false;
 }
 
 /*
  * The logic in this function is intended to inform callers about whether or not
  * the AIM page action is being shown as the right-most page action in the
- * location bar.
+ * location bar, how many migrated page actions are shown, and how many legacy
+ * (non-migrated) page actions are shown.
  *
  * For context, given that there's ongoing page actions migrations work at the
  * moment, the location bar currently uses two page action containers in order
@@ -1360,14 +1358,14 @@ bool LocationBarView::ShouldHidePageActionIconsForContext(
  * AND the number of visible legacy page actions is exactly one (irrespective
  * of how many migrated page actions are visible).
  */
-bool LocationBarView::IsAimLastVisiblePageAction() const {
-  int visible_migrated_page_action_count = 0;
-  bool migrated_aim_page_action_is_visible = false;
+LocationBarView::PageActionInfo LocationBarView::GetPageActionInfo() const {
+  PageActionInfo info;
 
   // Check PageActionContainerView (migrated page actions).
+  bool migrated_aim_page_action_is_visible = false;
   for (views::View* view : page_action_container_->children()) {
     if (view->GetVisible()) {
-      visible_migrated_page_action_count++;
+      info.num_migrated_page_actions_shown++;
       page_actions::PageActionView* page_action_view =
           static_cast<page_actions::PageActionView*>(view);
       if (page_action_view->GetActionId() == kActionAiMode) {
@@ -1376,13 +1374,11 @@ bool LocationBarView::IsAimLastVisiblePageAction() const {
     }
   }
 
-  int visible_page_action_count = 0;
-  bool aim_page_action_is_visible = false;
-
   // Check PageActionIconContainerView (legacy page actions).
+  bool aim_page_action_is_visible = false;
   for (views::View* view : page_action_icon_container_->children()) {
     if (view->GetVisible()) {
-      visible_page_action_count++;
+      info.num_legacy_page_actions_shown++;
       PageActionIconView* icon_view = static_cast<PageActionIconView*>(view);
       if (icon_view->action_id() == kActionAiMode) {
         aim_page_action_is_visible = true;
@@ -1391,13 +1387,15 @@ bool LocationBarView::IsAimLastVisiblePageAction() const {
   }
 
   if (migrated_aim_page_action_is_visible &&
-      (visible_migrated_page_action_count + visible_page_action_count) == 1) {
-    return true;
-  } else if (aim_page_action_is_visible && visible_page_action_count == 1) {
-    return true;
+      (info.num_migrated_page_actions_shown +
+       info.num_legacy_page_actions_shown) == 1) {
+    info.is_aim_last_visible_page_action = true;
+  } else if (aim_page_action_is_visible &&
+             info.num_legacy_page_actions_shown == 1) {
+    info.is_aim_last_visible_page_action = true;
   }
 
-  return false;
+  return info;
 }
 
 // static
@@ -2030,7 +2028,15 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
 }
 
 void LocationBarView::OnLocationIconDragged(const ui::MouseEvent& event) {
-  GetOmniboxView()->CloseOmniboxPopup();
+  if (!browser_) {
+    return;
+  }
+
+  if (auto* popup_closer =
+          browser_->browser_window_features()->omnibox_popup_closer()) {
+    popup_closer->CloseWithReason(
+        omnibox::PopupCloseReason::kLocationIconDragged);
+  }
 }
 
 SkColor LocationBarView::GetSecurityChipColor(

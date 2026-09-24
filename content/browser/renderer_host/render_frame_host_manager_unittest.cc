@@ -256,12 +256,13 @@ class PluginFaviconMessageObserver : public WebContentsObserver {
 void DidNavigateFrame(RenderFrameHostManager* rfh_manager,
                       RenderFrameHostImpl* rfh) {
   const RenderFrameHostManager::ViewTransitionCommitInfo
-      view_transition_commit_info{.has_view_transition_resources = false};
+      view_transition_commit_info{.view_transition_resources = nullptr};
   rfh_manager->DidNavigateFrame(
       rfh, true /* was_caused_by_user_gesture */,
       false /* is_same_document_navigation */,
       false /* clear_proxies_on_commit */, blink::FramePolicy(),
-      true /* allow_paint_holding */, view_transition_commit_info);
+      true /* allow_paint_holding */, view_transition_commit_info,
+      /*navigation_request_url=*/std::nullopt);
 }
 
 class TestDevToolsClientHost : public DevToolsAgentHostClient {

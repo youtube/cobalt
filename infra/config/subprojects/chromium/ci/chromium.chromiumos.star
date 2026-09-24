@@ -730,6 +730,11 @@ ci.builder(
             "linux-jammy",
         ],
         per_test_modifications = {
+            "angle_unittests": targets.mixin(
+                args = [
+                    "--gtest_filter=-TestSuiteTest.RunFlakyTests:TestSuiteTest.RunMockTests",
+                ],
+            ),
             "browser_tests": targets.mixin(
                 swarming = targets.swarming(
                     shards = 160,
@@ -742,7 +747,7 @@ ci.builder(
             ),
             "interactive_ui_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 12,
+                    shards = 24,
                 ),
             ),
             "net_unittests": targets.mixin(

@@ -37,7 +37,6 @@ if (rtc_include_tests) {
       "../../api:enable_media_with_defaults",
       "../../api:field_trials",
       "../../api:jsep",
-      "../../api:libjingle_peerconnection_api",
       "../../api:make_ref_counted",
       "../../api:media_stream_interface",
       "../../api:network_emulation_manager_api",

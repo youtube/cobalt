@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
+#include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_service.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_web_view.h"
@@ -35,7 +36,6 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
-#include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_page_handler.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
@@ -93,6 +93,9 @@ ReadAnythingSidePanelController::ReadAnythingSidePanelController(
   tab_subscriptions_.push_back(tab_->RegisterDidActivate(
       base::BindRepeating(&ReadAnythingSidePanelController::TabForegrounded,
                           weak_factory_.GetWeakPtr())));
+  tab_subscriptions_.push_back(tab_->RegisterWillDeactivate(
+      base::BindRepeating(&ReadAnythingSidePanelController::TabBackgrounded,
+                          weak_factory_.GetWeakPtr())));
   Observe(tab_->GetContents());
   if (features::IsReadAnythingOmniboxChipEnabled() &&
       base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
@@ -113,8 +116,7 @@ ReadAnythingSidePanelController::~ReadAnythingSidePanelController() {
   }
 
   // Inform observers when |this| is destroyed so they can do their own cleanup.
-  observers_.Notify(&ReadAnythingSidePanelController::Observer::
-                        OnSidePanelControllerDestroyed);
+  observers_.Notify(&Observer::OnDestroyed);
 }
 
 void ReadAnythingSidePanelController::ResetForTabDiscard() {
@@ -135,13 +137,11 @@ void ReadAnythingSidePanelController::RemovePageHandlerAsObserver(
   RemoveObserver(page_handler.get());
 }
 
-void ReadAnythingSidePanelController::AddObserver(
-    ReadAnythingSidePanelController::Observer* observer) {
+void ReadAnythingSidePanelController::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
 }
 
-void ReadAnythingSidePanelController::RemoveObserver(
-    ReadAnythingSidePanelController::Observer* observer) {
+void ReadAnythingSidePanelController::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
@@ -200,8 +200,13 @@ void ReadAnythingSidePanelController::OnEntryShown(SidePanelEntry* entry) {
     }
   }
 
-  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate, true,
-                    read_anything_trigger);
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    auto* controller = ReadAnythingController::From(tab_);
+    CHECK(controller);
+    controller->OnEntryShown(read_anything_trigger);
+  } else {
+    observers_.Notify(&Observer::Activate, true, read_anything_trigger);
+  }
 }
 
 void ReadAnythingSidePanelController::OnEntryHidden(SidePanelEntry* entry) {
@@ -231,8 +236,14 @@ void ReadAnythingSidePanelController::OnEntryHidden(SidePanelEntry* entry) {
   if (service) {
     service->OnReadAnythingSidePanelEntryHidden();
   }
-  observers_.Notify(&ReadAnythingSidePanelController::Observer::Activate, false,
-                    std::optional<ReadAnythingOpenTrigger>());
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    auto* controller = ReadAnythingController::From(tab_);
+    CHECK(controller);
+    controller->OnEntryHidden();
+  } else {
+    observers_.Notify(&Observer::Activate, false,
+                      std::optional<ReadAnythingOpenTrigger>());
+  }
 }
 
 void ReadAnythingSidePanelController::OnEntryWillHide(
@@ -270,7 +281,8 @@ ReadAnythingSidePanelController::CreateContainerView(
   if (features::IsImmersiveReadAnythingEnabled()) {
     web_view = std::make_unique<ReadAnythingSidePanelWebView>(
         tab_->GetBrowserWindowInterface()->GetProfile(), scope,
-        ReadAnythingController::From(tab_)->GetOrCreateWebUIWrapper());
+        ReadAnythingController::From(tab_)->GetOrCreateWebUIWrapper(
+            ReadAnythingController::PresentationState::kInSidePanel));
   } else {
     web_view = std::make_unique<ReadAnythingSidePanelWebView>(
         tab_->GetBrowserWindowInterface()->GetProfile(), scope);
@@ -308,11 +320,31 @@ void ReadAnythingSidePanelController::TabForegrounded(tabs::TabInterface* tab) {
   CheckIfGoodCandidateForReadingMode();
 }
 
+void ReadAnythingSidePanelController::TabBackgrounded(tabs::TabInterface* tab) {
+  if (iph_response_timer_ && iph_response_timer_->IsRunning()) {
+    iph_response_timer_->Stop();
+    RecordOpenedAfterPromo();
+  }
+  if (page_dwell_timer_ && page_dwell_timer_->IsRunning()) {
+    page_dwell_timer_->Stop();
+  }
+}
+
 void ReadAnythingSidePanelController::TabWillDetach(
     tabs::TabInterface* tab,
     tabs::TabInterface::DetachReason reason) {
-  observers_.Notify(
-      &ReadAnythingSidePanelController::Observer::OnTabWillDetach);
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    observers_.Notify(&Observer::OnTabWillDetach);
+  }
+
+  // Use the cached is_good_candidate_for_rm_ since
+  // GetCurrentPageAction().showing will already be false if it was showing
+  // before. If it was a good candidate, then it's likely the entry point was
+  // showing, so mark it as "ignored".
+  if (features::IsReadAnythingOmniboxChipEnabled() &&
+      base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
+    UpdateOmniboxEntryPointIgnored(was_last_checked_page_distillable_);
+  }
 
   if (!tab_->IsActivated()) {
     return;
@@ -367,6 +399,11 @@ void ReadAnythingSidePanelController::CheckIfGoodCandidateForReadingMode() {
 }
 
 void ReadAnythingSidePanelController::OnReadabilityResult(bool should_show) {
+  // Cache the result of CheckIfGoodCandidateForReadingMode since the omnibox
+  // entry point is hidden when the tab is closed, but a closed tab should count
+  // as "ignored".
+  was_last_checked_page_distillable_ = should_show;
+
   if (!features::IsReadAnythingOmniboxChipEnabled() ||
       (!tab_->IsActivated() && should_show)) {
     return;
@@ -430,12 +467,39 @@ void ReadAnythingSidePanelController::PrimaryPageChanged(content::Page& page) {
   loading_ = true;
   distillable_ = IsActivePageDistillable();
   UpdateIphVisibility();
+  if (features::IsReadAnythingOmniboxChipEnabled() &&
+      base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
+    UpdateOmniboxEntryPointIgnored(GetCurrentPageActionState().showing);
+  }
 
   // If the user navigated to a new page, stop any pending IPH response timer,
   // since they are likely not interested in opening RM after seeing the IPH.
   if (iph_response_timer_ && iph_response_timer_->IsRunning()) {
     iph_response_timer_->Stop();
     RecordOpenedAfterPromo();
+  }
+}
+
+void ReadAnythingSidePanelController::UpdateOmniboxEntryPointIgnored(
+    bool is_showing) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() ||
+      !base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
+    return;
+  }
+
+  // Indicate that the omnibox entrypoint was ignored if it's still showing when
+  // the page changes or tab closes, and the user was on the previous page for a
+  // non-trivial amount of time. Without this time check, the omnibox would be
+  // snoozed if the user is quickly clicking through links without reading them,
+  // so they aren't truly ignoring the Reading mode entrypoint.
+  base::TimeDelta time_on_previous_page =
+      candidate_check_triggered_time_ms_.is_null()
+          ? base::Milliseconds(0)
+          : base::TimeTicks::Now() - candidate_check_triggered_time_ms_;
+  if (is_showing &&
+      time_on_previous_page.InMilliseconds() > kShowPageActionDelayMs) {
+    read_anything::ReadAnythingEntryPointController::OnPageActionIgnored(
+        tab_->GetBrowserWindowInterface());
   }
 }
 

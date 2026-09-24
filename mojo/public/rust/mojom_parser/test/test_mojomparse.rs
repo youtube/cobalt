@@ -24,6 +24,7 @@ use rust_gtest_interop::prelude::*;
 
 use mojom_parser_core::*;
 use parser_unittests_rust::parser_unittests::*;
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 /// Represents a type defined in a Mojom file.
@@ -56,45 +57,75 @@ fn wrap_struct_fields_value(fields: Vec<(String, MojomValue)>) -> MojomValue {
     MojomValue::Struct(field_names, fields)
 }
 
-fn wrap_packed_struct_fields(fields: Vec<(String, MojomWireType)>) -> MojomWireType {
+fn wrap_packed_struct_fields(
+    fields: Vec<(String, StructuredBodyElementOwned)>,
+    num_elements_in_value: usize,
+) -> MojomWireType {
     let (packed_field_names, packed_field_types) = fields.into_iter().unzip();
     MojomWireType::Pointer {
-        ordinal: 0,
-        nested_data_type: PackedStructuredType::Struct { packed_field_names, packed_field_types },
+        nested_data_type: PackedStructuredType::Struct {
+            packed_field_names,
+            packed_field_types,
+            num_elements_in_value,
+        },
+        is_nullable: false,
     }
+}
+
+// Helper macros since otherwise the lines get too long
+// and it's harder to read the test cases
+macro_rules! bare_leaf {
+    ($leaf_ty:expr) => {
+        MojomWireType::Leaf { leaf_type: $leaf_ty, is_nullable: false }
+    };
+    ($leaf_ty:expr, $nullable:expr) => {
+        MojomWireType::Leaf { leaf_type: $leaf_ty, is_nullable: $nullable }
+    };
+}
+
+macro_rules! struct_leaf {
+    ($ord:expr, $leaf_ty:expr) => {
+        StructuredBodyElement::SingleValue(
+            $ord,
+            MojomWireType::Leaf { leaf_type: $leaf_ty, is_nullable: false },
+        )
+    };
+    ($ord:expr, $leaf_ty:expr, $nullable:expr) => {
+        StructuredBodyElement::SingleValue(
+            $ord,
+            MojomWireType::Leaf { leaf_type: $leaf_ty, is_nullable: $nullable },
+        )
+    };
 }
 
 impl TestType {
     /// Return the packed version of this type as a struct field with the given
     /// ordinal
-    fn as_struct_field(&self, ordinal: Ordinal) -> MojomWireType {
-        match self.packed_type.clone() {
-            MojomWireType::Leaf { ordinal: _, leaf_type } => {
-                MojomWireType::Leaf { ordinal, leaf_type }
-            }
-            MojomWireType::Bitfield { ordinals: _ } => {
-                panic!("Bitfields aren't supported as individuals")
-            }
-            MojomWireType::Pointer { ordinal: _, nested_data_type } => {
-                MojomWireType::Pointer { ordinal, nested_data_type }
-            }
-            MojomWireType::Union { ordinal: _, variants } => {
-                MojomWireType::Union { ordinal, variants }
-            }
-        }
+    fn as_struct_field(&self, ordinal: Ordinal) -> StructuredBodyElementOwned {
+        StructuredBodyElement::SingleValue(ordinal, self.packed_type.clone())
     }
 
     /// Return the packed version of this type as a union field
     fn as_union_field(&self) -> MojomWireType {
         match self.packed_type.clone() {
             // Nested unions are represented as pointers
-            MojomWireType::Union { variants, .. } => MojomWireType::Pointer {
-                ordinal: 0,
+            MojomWireType::Union { variants, is_nullable } => MojomWireType::Pointer {
                 nested_data_type: PackedStructuredType::Union { variants },
+                is_nullable,
             },
             // Everything else is represented as itself.
             _ => self.packed_type.clone(),
         }
+    }
+
+    // These are separate functions mostly to avoid cluttering all the existing
+    // calls to as_struct_field with an extra, unused parameter
+    fn as_nullable_struct_field(&self, ordinal: Ordinal) -> StructuredBodyElementOwned {
+        StructuredBodyElement::SingleValue(ordinal, self.packed_type.clone().make_nullable())
+    }
+
+    fn as_nullable_union_field(&self) -> MojomWireType {
+        self.as_union_field().make_nullable()
     }
 
     /// Given the rust type T corresponding to this TestType, validate that:
@@ -117,7 +148,7 @@ impl TestType {
 
         expect_eq!(
             *T::wire_type(),
-            self.as_struct_field(0),
+            self.packed_type,
             "Type {} failed to pack correctly!",
             self.type_name
         );
@@ -136,7 +167,7 @@ impl TestType {
 static EMPTY_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
     type_name: "Empty",
     base_type: wrap_struct_fields_type(vec![]),
-    packed_type: wrap_packed_struct_fields(vec![]),
+    packed_type: wrap_packed_struct_fields(vec![], 0),
 });
 
 fn empty_mojom() -> MojomValue {
@@ -158,12 +189,15 @@ static FOUR_INTS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("c".to_string(), MojomType::Int32),
         ("d".to_string(), MojomType::Int64),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("a".to_string(), MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int8 }),
-        ("b".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::Int16 }),
-        ("c".to_string(), MojomWireType::Leaf { ordinal: 2, leaf_type: PackedLeafType::Int32 }),
-        ("d".to_string(), MojomWireType::Leaf { ordinal: 3, leaf_type: PackedLeafType::Int64 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("a".to_string(), struct_leaf!(0, PackedLeafType::Int8)),
+            ("b".to_string(), struct_leaf!(1, PackedLeafType::Int16)),
+            ("c".to_string(), struct_leaf!(2, PackedLeafType::Int32)),
+            ("d".to_string(), struct_leaf!(3, PackedLeafType::Int64)),
+        ],
+        4,
+    ),
 });
 
 fn four_ints_mojom(a: i8, b: i16, c: i32, d: i64) -> MojomValue {
@@ -190,12 +224,15 @@ static FOUR_INTS_REVERSED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("b".to_string(), MojomType::Int16),
         ("a".to_string(), MojomType::Int8),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("d".to_string(), MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int64 }),
-        ("c".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::Int32 }),
-        ("b".to_string(), MojomWireType::Leaf { ordinal: 2, leaf_type: PackedLeafType::Int16 }),
-        ("a".to_string(), MojomWireType::Leaf { ordinal: 3, leaf_type: PackedLeafType::Int8 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("d".to_string(), struct_leaf!(0, PackedLeafType::Int64)),
+            ("c".to_string(), struct_leaf!(1, PackedLeafType::Int32)),
+            ("b".to_string(), struct_leaf!(2, PackedLeafType::Int16)),
+            ("a".to_string(), struct_leaf!(3, PackedLeafType::Int8)),
+        ],
+        4,
+    ),
 });
 
 fn four_ints_reversed_mojom(a: i8, b: i16, c: i32, d: i64) -> MojomValue {
@@ -222,12 +259,15 @@ static FOUR_INTS_INTERMIXED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("c".to_string(), MojomType::Int16),
         ("d".to_string(), MojomType::Int8),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("a".to_string(), MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int8 }),
-        ("d".to_string(), MojomWireType::Leaf { ordinal: 3, leaf_type: PackedLeafType::Int8 }),
-        ("c".to_string(), MojomWireType::Leaf { ordinal: 2, leaf_type: PackedLeafType::Int16 }),
-        ("b".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::Int32 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("a".to_string(), struct_leaf!(0, PackedLeafType::Int8)),
+            ("d".to_string(), struct_leaf!(3, PackedLeafType::Int8)),
+            ("c".to_string(), struct_leaf!(2, PackedLeafType::Int16)),
+            ("b".to_string(), struct_leaf!(1, PackedLeafType::Int32)),
+        ],
+        4,
+    ),
 });
 
 fn four_ints_intermixed_mojom(a: i8, b: i32, c: i16, d: i8) -> MojomValue {
@@ -258,14 +298,17 @@ static ONCE_NESTED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("f3".to_string(), FOUR_INTS_INTERMIXED_TY.base_type.clone()),
         ("c".to_string(), MojomType::UInt16),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("f1".to_string(), FOUR_INTS_TY.as_struct_field(0)),
-        ("a".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::UInt32 }),
-        ("b".to_string(), MojomWireType::Leaf { ordinal: 2, leaf_type: PackedLeafType::Int8 }),
-        ("c".to_string(), MojomWireType::Leaf { ordinal: 5, leaf_type: PackedLeafType::UInt16 }),
-        ("f2".to_string(), FOUR_INTS_REVERSED_TY.as_struct_field(3)),
-        ("f3".to_string(), FOUR_INTS_INTERMIXED_TY.as_struct_field(4)),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("f1".to_string(), FOUR_INTS_TY.as_struct_field(0)),
+            ("a".to_string(), struct_leaf!(1, PackedLeafType::UInt32)),
+            ("b".to_string(), struct_leaf!(2, PackedLeafType::Int8)),
+            ("c".to_string(), struct_leaf!(5, PackedLeafType::UInt16)),
+            ("f2".to_string(), FOUR_INTS_REVERSED_TY.as_struct_field(3)),
+            ("f3".to_string(), FOUR_INTS_INTERMIXED_TY.as_struct_field(4)),
+        ],
+        6,
+    ),
 });
 
 fn once_nested_mojom(
@@ -301,13 +344,16 @@ static TWICE_NESTED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("b".to_string(), MojomType::Int32),
         ("c".to_string(), MojomType::Int32),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("o".to_string(), ONCE_NESTED_TY.as_struct_field(0)),
-        ("a".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::Int16 }),
-        ("b".to_string(), MojomWireType::Leaf { ordinal: 3, leaf_type: PackedLeafType::Int32 }),
-        ("f".to_string(), FOUR_INTS_TY.as_struct_field(2)),
-        ("c".to_string(), MojomWireType::Leaf { ordinal: 4, leaf_type: PackedLeafType::Int32 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("o".to_string(), ONCE_NESTED_TY.as_struct_field(0)),
+            ("a".to_string(), struct_leaf!(1, PackedLeafType::Int16)),
+            ("b".to_string(), struct_leaf!(3, PackedLeafType::Int32)),
+            ("f".to_string(), FOUR_INTS_TY.as_struct_field(2)),
+            ("c".to_string(), struct_leaf!(4, PackedLeafType::Int32)),
+        ],
+        5,
+    ),
 });
 
 fn twice_nested_mojom(o: MojomValue, a: i16, f: MojomValue, b: i32, c: i32) -> MojomValue {
@@ -341,21 +387,38 @@ static TEN_BOOLS_AND_A_BYTE_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("b8".to_string(), MojomType::Bool),
         ("b9".to_string(), MojomType::Bool),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        (
-            "b0".to_string(),
-            MojomWireType::Bitfield {
-                ordinals: [Some(0), Some(1), Some(2), Some(3), Some(4), Some(6), Some(7), Some(8)],
-            },
-        ),
-        ("n1".to_string(), MojomWireType::Leaf { ordinal: 5, leaf_type: PackedLeafType::UInt8 }),
-        (
-            "b8".to_string(),
-            MojomWireType::Bitfield {
-                ordinals: [Some(9), Some(10), None, None, None, None, None, None],
-            },
-        ),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            (
+                "b0".to_string(),
+                StructuredBodyElement::Bitfield([
+                    Some((0, false)),
+                    Some((1, false)),
+                    Some((2, false)),
+                    Some((3, false)),
+                    Some((4, false)),
+                    Some((6, false)),
+                    Some((7, false)),
+                    Some((8, false)),
+                ]),
+            ),
+            ("n1".to_string(), struct_leaf!(5, PackedLeafType::UInt8)),
+            (
+                "b8".to_string(),
+                StructuredBodyElement::Bitfield([
+                    Some((9, false)),
+                    Some((10, false)),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ]),
+            ),
+        ],
+        11,
+    ),
 });
 
 fn ten_bools_and_a_byte_mojom(
@@ -407,21 +470,38 @@ static TEN_BOOLS_AND_TWO_BYTES_TY: LazyLock<TestType> = LazyLock::new(|| TestTyp
         ("b8".to_string(), MojomType::Bool),
         ("b9".to_string(), MojomType::Bool),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        (
-            "b0".to_string(),
-            MojomWireType::Bitfield {
-                ordinals: [Some(0), Some(1), Some(2), Some(3), Some(4), Some(6), Some(7), Some(8)],
-            },
-        ),
-        (
-            "b8".to_string(),
-            MojomWireType::Bitfield {
-                ordinals: [Some(9), Some(10), None, None, None, None, None, None],
-            },
-        ),
-        ("n1".to_string(), MojomWireType::Leaf { ordinal: 5, leaf_type: PackedLeafType::UInt16 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            (
+                "b0".to_string(),
+                StructuredBodyElement::Bitfield([
+                    Some((0, false)),
+                    Some((1, false)),
+                    Some((2, false)),
+                    Some((3, false)),
+                    Some((4, false)),
+                    Some((6, false)),
+                    Some((7, false)),
+                    Some((8, false)),
+                ]),
+            ),
+            (
+                "b8".to_string(),
+                StructuredBodyElement::Bitfield([
+                    Some((9, false)),
+                    Some((10, false)),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ]),
+            ),
+            ("n1".to_string(), struct_leaf!(5, PackedLeafType::UInt16)),
+        ],
+        11,
+    ),
 });
 
 fn ten_bools_and_two_bytes_mojom(
@@ -606,23 +686,14 @@ static SOME_ENUMS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("n1".to_string(), MojomType::UInt64),
         ("e2".to_string(), MojomType::Enum { is_valid: TEST_ENUM2_PRED }),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        (
-            "e1".to_string(),
-            MojomWireType::Leaf {
-                ordinal: 0,
-                leaf_type: PackedLeafType::Enum { is_valid: TEST_ENUM_PRED },
-            },
-        ),
-        (
-            "e2".to_string(),
-            MojomWireType::Leaf {
-                ordinal: 2,
-                leaf_type: PackedLeafType::Enum { is_valid: TEST_ENUM2_PRED },
-            },
-        ),
-        ("n1".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::UInt64 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("e1".to_string(), struct_leaf!(0, PackedLeafType::Enum { is_valid: TEST_ENUM_PRED })),
+            ("e2".to_string(), struct_leaf!(2, PackedLeafType::Enum { is_valid: TEST_ENUM2_PRED })),
+            ("n1".to_string(), struct_leaf!(1, PackedLeafType::UInt64)),
+        ],
+        3,
+    ),
 });
 
 fn some_enums_mojom(e1: u32, n1: u64, e2: u32) -> MojomValue {
@@ -683,61 +754,45 @@ static BASE_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         .into(),
     },
     packed_type: MojomWireType::Union {
-        ordinal: 0,
         variants: [
-            (0, MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int8 }),
-            (1, MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::UInt64 }),
-            (
-                2,
-                MojomWireType::Leaf {
-                    ordinal: 0,
-                    leaf_type: PackedLeafType::Enum { is_valid: TEST_ENUM_PRED },
-                },
-            ),
-            (
-                3,
-                MojomWireType::Bitfield {
-                    ordinals: [Some(0), None, None, None, None, None, None, None],
-                },
-            ),
-            (
-                4,
-                MojomWireType::Bitfield {
-                    ordinals: [Some(0), None, None, None, None, None, None, None],
-                },
-            ),
+            (0, bare_leaf!(PackedLeafType::Int8)),
+            (1, bare_leaf!(PackedLeafType::UInt64)),
+            (2, bare_leaf!(PackedLeafType::Enum { is_valid: TEST_ENUM_PRED })),
+            (3, bare_leaf!(PackedLeafType::Bool)),
+            (4, bare_leaf!(PackedLeafType::Bool)),
             (5, EMPTY_TY.as_union_field()),
             (6, FOUR_INTS_TY.as_union_field()),
         ]
         .into(),
+        is_nullable: false,
     },
 });
 
-fn test_union_mojom_n1(n1: i8) -> MojomValue {
+fn base_union_mojom_n1(n1: i8) -> MojomValue {
     MojomValue::Union(0, Box::new(MojomValue::Int8(n1)))
 }
 
-fn test_union_mojom_u1(u1: u64) -> MojomValue {
+fn base_union_mojom_u1(u1: u64) -> MojomValue {
     MojomValue::Union(1, Box::new(MojomValue::UInt64(u1)))
 }
 
-fn test_union_mojom_e1(e1: u32) -> MojomValue {
+fn base_union_mojom_e1(e1: u32) -> MojomValue {
     MojomValue::Union(2, Box::new(MojomValue::Enum(e1)))
 }
 
-fn test_union_mojom_b1(b1: bool) -> MojomValue {
+fn base_union_mojom_b1(b1: bool) -> MojomValue {
     MojomValue::Union(3, Box::new(MojomValue::Bool(b1)))
 }
 
-fn test_union_mojom_b2(b2: bool) -> MojomValue {
+fn base_union_mojom_b2(b2: bool) -> MojomValue {
     MojomValue::Union(4, Box::new(MojomValue::Bool(b2)))
 }
 
-fn test_union_mojom_em1(em1: MojomValue) -> MojomValue {
+fn base_union_mojom_em1(em1: MojomValue) -> MojomValue {
     MojomValue::Union(5, Box::new(em1))
 }
 
-fn test_union_mojom_f1(f1: MojomValue) -> MojomValue {
+fn base_union_mojom_f1(f1: MojomValue) -> MojomValue {
     MojomValue::Union(6, Box::new(f1))
 }
 
@@ -752,12 +807,9 @@ static NESTED_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         variants: [(0, MojomType::Int32), (1, BASE_UNION_TY.base_type.clone())].into(),
     },
     packed_type: MojomWireType::Union {
-        ordinal: 0,
-        variants: [
-            (0, MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int32 }),
-            (1, BASE_UNION_TY.as_union_field()),
-        ]
-        .into(),
+        variants: [(0, bare_leaf!(PackedLeafType::Int32)), (1, BASE_UNION_TY.as_union_field())]
+            .into(),
+        is_nullable: false,
     },
 });
 
@@ -782,11 +834,14 @@ static WITH_NESTED_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("u".to_string(), NESTED_UNION_TY.base_type.clone()),
         ("n2".to_string(), MojomType::Int32),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("n1".to_string(), MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int64 }),
-        ("u".to_string(), NESTED_UNION_TY.as_struct_field(1)),
-        ("n2".to_string(), MojomWireType::Leaf { ordinal: 2, leaf_type: PackedLeafType::Int32 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("n1".to_string(), struct_leaf!(0, PackedLeafType::Int64)),
+            ("u".to_string(), NESTED_UNION_TY.as_struct_field(1)),
+            ("n2".to_string(), struct_leaf!(2, PackedLeafType::Int32)),
+        ],
+        3,
+    ),
 });
 
 fn with_nested_union_mojom(n1: i64, u: MojomValue, n2: i32) -> MojomValue {
@@ -816,19 +871,14 @@ static NESTEDER_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         .into(),
     },
     packed_type: MojomWireType::Union {
-        ordinal: 0,
         variants: [
-            (
-                0,
-                MojomWireType::Bitfield {
-                    ordinals: [Some(0), None, None, None, None, None, None, None],
-                },
-            ),
-            (1, MojomWireType::Leaf { ordinal: 0, leaf_type: PackedLeafType::Int8 }),
+            (0, bare_leaf!(PackedLeafType::Bool)),
+            (1, bare_leaf!(PackedLeafType::Int8)),
             (2, NESTED_UNION_TY.as_union_field()),
             (3, WITH_NESTED_UNION_TY.as_union_field()),
         ]
         .into(),
+        is_nullable: false,
     },
 });
 
@@ -870,16 +920,19 @@ static WITH_MANY_UNIONS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
         ("i3".to_string(), MojomType::Int32),
         ("i4".to_string(), MojomType::Int32),
     ]),
-    packed_type: wrap_packed_struct_fields(vec![
-        ("u1".to_string(), NESTED_UNION_TY.as_struct_field(0)),
-        ("i1".to_string(), MojomWireType::Leaf { ordinal: 1, leaf_type: PackedLeafType::Int8 }),
-        ("i3".to_string(), MojomWireType::Leaf { ordinal: 6, leaf_type: PackedLeafType::Int32 }),
-        ("u2".to_string(), NESTEDER_UNION_TY.as_struct_field(2)),
-        ("i2".to_string(), MojomWireType::Leaf { ordinal: 3, leaf_type: PackedLeafType::Int64 }),
-        ("u3".to_string(), BASE_UNION_TY.as_struct_field(4)),
-        ("u4".to_string(), NESTEDER_UNION_TY.as_struct_field(5)),
-        ("i4".to_string(), MojomWireType::Leaf { ordinal: 7, leaf_type: PackedLeafType::Int32 }),
-    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("u1".to_string(), NESTED_UNION_TY.as_struct_field(0)),
+            ("i1".to_string(), struct_leaf!(1, PackedLeafType::Int8)),
+            ("i3".to_string(), struct_leaf!(6, PackedLeafType::Int32)),
+            ("u2".to_string(), NESTEDER_UNION_TY.as_struct_field(2)),
+            ("i2".to_string(), struct_leaf!(3, PackedLeafType::Int64)),
+            ("u3".to_string(), BASE_UNION_TY.as_struct_field(4)),
+            ("u4".to_string(), NESTEDER_UNION_TY.as_struct_field(5)),
+            ("i4".to_string(), struct_leaf!(7, PackedLeafType::Int32)),
+        ],
+        8,
+    ),
 });
 
 fn with_many_unions_mojom(
@@ -906,16 +959,16 @@ fn with_many_unions_mojom(
 
 #[gtest(MojomParser, TestUnions)]
 fn test_unions() {
-    BASE_UNION_TY.validate_mojomparse(BaseUnion::n1(10), test_union_mojom_n1(10));
-    BASE_UNION_TY.validate_mojomparse(BaseUnion::u1(987654321), test_union_mojom_u1(987654321));
-    BASE_UNION_TY.validate_mojomparse(BaseUnion::e1(TestEnum::Three), test_union_mojom_e1(3));
-    BASE_UNION_TY.validate_mojomparse(BaseUnion::b1(false), test_union_mojom_b1(false));
-    BASE_UNION_TY.validate_mojomparse(BaseUnion::b2(true), test_union_mojom_b2(true));
+    BASE_UNION_TY.validate_mojomparse(BaseUnion::n1(10), base_union_mojom_n1(10));
+    BASE_UNION_TY.validate_mojomparse(BaseUnion::u1(987654321), base_union_mojom_u1(987654321));
+    BASE_UNION_TY.validate_mojomparse(BaseUnion::e1(TestEnum::Three), base_union_mojom_e1(3));
+    BASE_UNION_TY.validate_mojomparse(BaseUnion::b1(false), base_union_mojom_b1(false));
+    BASE_UNION_TY.validate_mojomparse(BaseUnion::b2(true), base_union_mojom_b2(true));
     BASE_UNION_TY
-        .validate_mojomparse(BaseUnion::em1(Empty {}), test_union_mojom_em1(empty_mojom()));
+        .validate_mojomparse(BaseUnion::em1(Empty {}), base_union_mojom_em1(empty_mojom()));
     BASE_UNION_TY.validate_mojomparse(
         BaseUnion::f1(FourInts { a: 5, b: 6, c: 7, d: 8 }),
-        test_union_mojom_f1(four_ints_mojom(5, 6, 7, 8)),
+        base_union_mojom_f1(four_ints_mojom(5, 6, 7, 8)),
     );
 
     expect_true!(BaseUnion::try_from(MojomValue::Union(99, Box::new(MojomValue::Int8(0)))).is_err());
@@ -926,7 +979,7 @@ fn test_unions() {
     NESTED_UNION_TY.validate_mojomparse(NestedUnion::n(60), nested_union_mojom_n(60));
     NESTED_UNION_TY.validate_mojomparse(
         NestedUnion::u(BaseUnion::n1(70)),
-        nested_union_mojom_u(test_union_mojom_n1(70)),
+        nested_union_mojom_u(base_union_mojom_n1(70)),
     );
 
     WITH_NESTED_UNION_TY.validate_mojomparse(
@@ -961,10 +1014,1208 @@ fn test_unions() {
             11,
             nesteder_union_mojom_b(false),
             22,
-            test_union_mojom_n1(55),
+            base_union_mojom_n1(55),
             nesteder_union_mojom_n(12),
             33,
             44,
+        ),
+    )
+}
+
+macro_rules! array {
+    ($element_type:expr, $num_elements:expr) => {
+        MojomType::Array { element_type: Box::new($element_type), num_elements: $num_elements }
+    };
+}
+
+macro_rules! packed_array {
+    ($element_type:expr, $num_elements:expr) => {
+        MojomWireType::Pointer {
+            nested_data_type: PackedStructuredType::Array {
+                element_type: std::sync::Arc::new($element_type),
+                array_type: if let Some(n) = $num_elements {
+                    PackedArrayType::SizedArray(n)
+                } else {
+                    PackedArrayType::UnsizedArray
+                },
+            },
+            is_nullable: false,
+        }
+    };
+}
+
+// Mojom Definition:
+// array<int16>
+static ARRAY_INT16_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<int16>",
+    base_type: array!(MojomType::Int16, None),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Int16), None),
+});
+
+fn array_int16_mojom(elts: Vec<i16>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::Int16).collect())
+}
+
+// Mojom Definition:
+// array<uint64, 3>
+static ARRAY_UINT64_SIZED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<uint64, 3>",
+    base_type: array!(MojomType::UInt64, Some(3)),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::UInt64), Some(3)),
+});
+
+fn array_uint64_sized_mojom(elts: [u64; 3]) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::UInt64).collect())
+}
+
+// Mojom Definition:
+// array<bool>
+static ARRAY_BOOL_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<bool>",
+    base_type: array!(MojomType::Bool, None),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Bool), None),
+});
+
+fn array_bool_mojom(elts: Vec<bool>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::Bool).collect())
+}
+
+// Mojom Definition:
+// array<bool, 13>
+static ARRAY_BOOL_SIZED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<bool, 13>",
+    base_type: array!(MojomType::Bool, Some(13)),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Bool), Some(13)),
+});
+
+fn array_bool_sized_mojom(elts: [bool; 13]) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::Bool).collect())
+}
+
+// Mojom Definition:
+// array<TestEnum>
+static ARRAY_ENUM_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<TestEnum>",
+    base_type: array!(MojomType::Enum { is_valid: TEST_ENUM_PRED }, None),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Enum { is_valid: TEST_ENUM_PRED }), None),
+});
+
+fn array_enum_mojom(elts: Vec<TestEnum>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(|e| MojomValue::Enum(e.into())).collect())
+}
+
+// Mojom Definition:
+// array<BaseUnion>
+static ARRAY_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<BaseUnion>",
+    base_type: array!(BASE_UNION_TY.base_type.clone(), None),
+    packed_type: packed_array!(BASE_UNION_TY.packed_type.clone(), None),
+});
+
+fn array_union_mojom(elts: Vec<BaseUnion>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::from).collect())
+}
+
+// Mojom Definition:
+// array<NestedUnion>
+static ARRAY_UNION_NESTED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<NestedUnion>",
+    base_type: array!(NESTED_UNION_TY.base_type.clone(), None),
+    packed_type: packed_array!(NESTED_UNION_TY.packed_type.clone(), None),
+});
+
+fn array_union_nested_mojom(elts: Vec<NestedUnion>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::from).collect())
+}
+
+// Mojom Definition:
+// array<FourInts>
+static ARRAY_FOURINTS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<FourInts>",
+    base_type: array!(FOUR_INTS_TY.base_type.clone(), None),
+    packed_type: packed_array!(FOUR_INTS_TY.packed_type.clone(), None),
+});
+
+fn array_fourints_mojom(elts: Vec<FourInts>) -> MojomValue {
+    MojomValue::Array(elts.into_iter().map(MojomValue::from).collect())
+}
+
+// Mojom Definition:
+// array<array<uint8>>
+static ARRAY_NESTED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<array<uint8>>",
+    base_type: array!(array!(MojomType::UInt8, None), None),
+    packed_type: packed_array!(packed_array!(bare_leaf!(PackedLeafType::UInt8), None), None),
+});
+
+fn array_nested_mojom(elts: Vec<Vec<u8>>) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter()
+            .map(|inner_vec| {
+                MojomValue::Array(inner_vec.into_iter().map(MojomValue::UInt8).collect())
+            })
+            .collect(),
+    )
+}
+
+// Mojom Definition:
+// array<array<uint8, 2>, 3>
+static ARRAY_NESTED_SIZED_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<array<uint8, 2>, 3>",
+    base_type: array!(array!(MojomType::UInt8, Some(2)), Some(3)),
+    packed_type: packed_array!(packed_array!(bare_leaf!(PackedLeafType::UInt8), Some(2)), Some(3)),
+});
+
+fn array_nested_sized_mojom(elts: [[u8; 2]; 3]) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter()
+            .map(|inner_arr| {
+                MojomValue::Array(inner_arr.into_iter().map(MojomValue::UInt8).collect())
+            })
+            .collect(),
+    )
+}
+
+// Mojom Definition:
+// struct Arrays {
+//   array<int16> ints;
+//   array<uint64, 3> ints_sized;
+//   array<bool> bools;
+//   array<bool, 13> bool_sized;
+//   array<TestEnum> enums;
+//   array<BaseUnion> unions;
+//   array<NestedUnion> unions_nested;
+//   array<FourInts> fourints;
+//   array<array<uint8>> nested;
+//   array<array<uint8, 2>, 3> nested_sized;
+// };
+static ARRAYS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "Arrays",
+    base_type: wrap_struct_fields_type(vec![
+        ("ints".to_string(), ARRAY_INT16_TY.base_type.clone()),
+        ("ints_sized".to_string(), ARRAY_UINT64_SIZED_TY.base_type.clone()),
+        ("bools".to_string(), ARRAY_BOOL_TY.base_type.clone()),
+        ("bool_sized".to_string(), ARRAY_BOOL_SIZED_TY.base_type.clone()),
+        ("enums".to_string(), ARRAY_ENUM_TY.base_type.clone()),
+        ("unions".to_string(), ARRAY_UNION_TY.base_type.clone()),
+        ("unions_nested".to_string(), ARRAY_UNION_NESTED_TY.base_type.clone()),
+        ("fourints".to_string(), ARRAY_FOURINTS_TY.base_type.clone()),
+        ("nested".to_string(), ARRAY_NESTED_TY.base_type.clone()),
+        ("nested_sized".to_string(), ARRAY_NESTED_SIZED_TY.base_type.clone()),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            (
+                "ints".to_string(),
+                StructuredBodyElement::SingleValue(0, ARRAY_INT16_TY.packed_type.clone()),
+            ),
+            (
+                "ints_sized".to_string(),
+                StructuredBodyElement::SingleValue(1, ARRAY_UINT64_SIZED_TY.packed_type.clone()),
+            ),
+            (
+                "bools".to_string(),
+                StructuredBodyElement::SingleValue(2, ARRAY_BOOL_TY.packed_type.clone()),
+            ),
+            (
+                "bool_sized".to_string(),
+                StructuredBodyElement::SingleValue(3, ARRAY_BOOL_SIZED_TY.packed_type.clone()),
+            ),
+            (
+                "enums".to_string(),
+                StructuredBodyElement::SingleValue(4, ARRAY_ENUM_TY.packed_type.clone()),
+            ),
+            (
+                "unions".to_string(),
+                StructuredBodyElement::SingleValue(5, ARRAY_UNION_TY.packed_type.clone()),
+            ),
+            (
+                "unions_nested".to_string(),
+                StructuredBodyElement::SingleValue(6, ARRAY_UNION_NESTED_TY.packed_type.clone()),
+            ),
+            (
+                "fourints".to_string(),
+                StructuredBodyElement::SingleValue(7, ARRAY_FOURINTS_TY.packed_type.clone()),
+            ),
+            (
+                "nested".to_string(),
+                StructuredBodyElement::SingleValue(8, ARRAY_NESTED_TY.packed_type.clone()),
+            ),
+            (
+                "nested_sized".to_string(),
+                StructuredBodyElement::SingleValue(9, ARRAY_NESTED_SIZED_TY.packed_type.clone()),
+            ),
+        ],
+        10,
+    ),
+});
+
+fn arrays_mojom(
+    ints: Vec<i16>,
+    ints_sized: [u64; 3],
+    bools: Vec<bool>,
+    bool_sized: [bool; 13],
+    enums: Vec<TestEnum>,
+    unions: Vec<BaseUnion>,
+    unions_nested: Vec<NestedUnion>,
+    fourints: Vec<FourInts>,
+    nested: Vec<Vec<u8>>,
+    nested_sized: [[u8; 2]; 3],
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("ints".to_string(), array_int16_mojom(ints)),
+        ("ints_sized".to_string(), array_uint64_sized_mojom(ints_sized)),
+        ("bools".to_string(), array_bool_mojom(bools)),
+        ("bool_sized".to_string(), array_bool_sized_mojom(bool_sized)),
+        ("enums".to_string(), array_enum_mojom(enums)),
+        ("unions".to_string(), array_union_mojom(unions)),
+        ("unions_nested".to_string(), array_union_nested_mojom(unions_nested)),
+        ("fourints".to_string(), array_fourints_mojom(fourints)),
+        ("nested".to_string(), array_nested_mojom(nested)),
+        ("nested_sized".to_string(), array_nested_sized_mojom(nested_sized)),
+    ])
+}
+
+#[gtest(MojomParser, TestArrays)]
+fn test_arrays() {
+    ARRAY_INT16_TY
+        .validate_mojomparse::<Vec<i16>>(vec![1, -2, 3, -4], array_int16_mojom(vec![1, -2, 3, -4]));
+    ARRAY_UINT64_SIZED_TY
+        .validate_mojomparse::<[u64; 3]>([5, 6, 7], array_uint64_sized_mojom([5, 6, 7]));
+    ARRAY_BOOL_TY.validate_mojomparse::<Vec<bool>>(
+        vec![true, false, true, false, true, false, true, false, true],
+        array_bool_mojom(vec![true, false, true, false, true, false, true, false, true]),
+    );
+    ARRAY_BOOL_SIZED_TY.validate_mojomparse::<[bool; 13]>(
+        [true, true, false, true, false, false, true, true, false, true, false, false, true],
+        array_bool_sized_mojom([
+            true, true, false, true, false, false, true, true, false, true, false, false, true,
+        ]),
+    );
+    ARRAY_ENUM_TY.validate_mojomparse::<Vec<TestEnum>>(
+        vec![TestEnum::Zero, TestEnum::Seven, TestEnum::Four],
+        array_enum_mojom(vec![TestEnum::Zero, TestEnum::Seven, TestEnum::Four]),
+    );
+    ARRAY_UNION_TY.validate_mojomparse::<Vec<BaseUnion>>(
+        vec![BaseUnion::n1(10), BaseUnion::u1(20), BaseUnion::e1(TestEnum::Three)],
+        array_union_mojom(vec![
+            BaseUnion::n1(10),
+            BaseUnion::u1(20),
+            BaseUnion::e1(TestEnum::Three),
+        ]),
+    );
+    ARRAY_UNION_NESTED_TY.validate_mojomparse::<Vec<NestedUnion>>(
+        vec![NestedUnion::n(30), NestedUnion::u(BaseUnion::n1(40))],
+        array_union_nested_mojom(vec![NestedUnion::n(30), NestedUnion::u(BaseUnion::n1(40))]),
+    );
+    ARRAY_FOURINTS_TY.validate_mojomparse::<Vec<FourInts>>(
+        vec![FourInts { a: 1, b: 2, c: 3, d: 4 }, FourInts { a: 5, b: 6, c: 7, d: 8 }],
+        array_fourints_mojom(vec![
+            FourInts { a: 1, b: 2, c: 3, d: 4 },
+            FourInts { a: 5, b: 6, c: 7, d: 8 },
+        ]),
+    );
+    ARRAY_NESTED_TY.validate_mojomparse::<Vec<Vec<u8>>>(
+        vec![vec![1, 2], vec![3, 4, 5]],
+        array_nested_mojom(vec![vec![1, 2], vec![3, 4, 5]]),
+    );
+    ARRAY_NESTED_SIZED_TY.validate_mojomparse::<[[u8; 2]; 3]>(
+        [[6, 7], [8, 9], [10, 11]],
+        array_nested_sized_mojom([[6, 7], [8, 9], [10, 11]]),
+    );
+
+    let array_val = array_int16_mojom(vec![]);
+    expect_true!(FourInts::try_from(array_val).is_err());
+
+    let empty_val = empty_mojom();
+    expect_true!(<Vec<i16>>::try_from(empty_val.clone()).is_err());
+    expect_true!(<[u64; 3]>::try_from(empty_val.clone()).is_err());
+
+    ARRAYS_TY.validate_mojomparse(
+        Arrays {
+            ints: vec![101, -201, 301, -401],
+            ints_sized: [501, 601, 701],
+            bools: vec![false, true, false, true, false, true, false, true, false],
+            bool_sized: [
+                false, false, true, false, true, true, false, false, true, false, true, true, false,
+            ],
+            enums: vec![TestEnum::Four, TestEnum::Zero, TestEnum::Seven],
+            unions: vec![BaseUnion::n1(12), BaseUnion::u1(22), BaseUnion::e1(TestEnum::Four)],
+            unions_nested: vec![NestedUnion::n(32), NestedUnion::u(BaseUnion::n1(42))],
+            fourints: vec![
+                FourInts { a: 12, b: 22, c: 32, d: 42 },
+                FourInts { a: 52, b: 62, c: 72, d: 82 },
+            ],
+            nested: vec![vec![11, 22], vec![33, 44, 55]],
+            nested_sized: [[16, 17], [18, 19], [20, 21]],
+        },
+        arrays_mojom(
+            vec![101, -201, 301, -401],
+            [501, 601, 701],
+            vec![false, true, false, true, false, true, false, true, false],
+            [false, false, true, false, true, true, false, false, true, false, true, true, false],
+            vec![TestEnum::Four, TestEnum::Zero, TestEnum::Seven],
+            vec![BaseUnion::n1(12), BaseUnion::u1(22), BaseUnion::e1(TestEnum::Four)],
+            vec![NestedUnion::n(32), NestedUnion::u(BaseUnion::n1(42))],
+            vec![FourInts { a: 12, b: 22, c: 32, d: 42 }, FourInts { a: 52, b: 62, c: 72, d: 82 }],
+            vec![vec![11, 22], vec![33, 44, 55]],
+            [[16, 17], [18, 19], [20, 21]],
+        ),
+    );
+}
+
+macro_rules! map {
+    ($key_type:expr, $value_type:expr) => {
+        MojomType::Map { key_type: Box::new($key_type), value_type: Box::new($value_type) }
+    };
+}
+
+macro_rules! packed_map {
+    ($key_type:expr, $value_type:expr) => {
+        MojomWireType::Pointer {
+            nested_data_type: PackedStructuredType::Map {
+                key_type: std::sync::Arc::new($key_type),
+                value_type: std::sync::Arc::new($value_type),
+            },
+            is_nullable: false,
+        }
+    };
+}
+
+// Mojom Definition:
+// map<uint8, uint8>
+static MAP_U8_U8_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<uint8, uint8>",
+    base_type: map!(MojomType::UInt8, MojomType::UInt8),
+    packed_type: packed_map!(bare_leaf!(PackedLeafType::UInt8), bare_leaf!(PackedLeafType::UInt8)),
+});
+
+fn map_u8_u8_mojom(elts: HashMap<u8, u8>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::UInt8(k), MojomValue::UInt8(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// map<bool, uint16>
+static MAP_BOOL_U16_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<bool, uint16>",
+    base_type: map!(MojomType::Bool, MojomType::UInt16),
+    packed_type: packed_map!(bare_leaf!(PackedLeafType::Bool), bare_leaf!(PackedLeafType::UInt16)),
+});
+
+fn map_bool_u16_mojom(elts: HashMap<bool, u16>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::Bool(k), MojomValue::UInt16(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// map<TestEnum, int32>
+static MAP_ENUM_I32_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<TestEnum, int32>",
+    base_type: map!(MojomType::Enum { is_valid: TEST_ENUM_PRED }, MojomType::Int32),
+    packed_type: packed_map!(
+        bare_leaf!(PackedLeafType::Enum { is_valid: TEST_ENUM_PRED }),
+        bare_leaf!(PackedLeafType::Int32)
+    ),
+});
+
+fn map_enum_i32_mojom(elts: HashMap<TestEnum, i32>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::Enum(k.into()), MojomValue::Int32(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// map<int8, FourInts>
+static MAP_I8_FOURINTS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<int8, FourInts>",
+    base_type: map!(MojomType::Int8, FOUR_INTS_TY.base_type.clone()),
+    packed_type: packed_map!(bare_leaf!(PackedLeafType::Int8), FOUR_INTS_TY.packed_type.clone()),
+});
+
+fn map_i8_fourints_mojom(elts: HashMap<i8, FourInts>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::Int8(k), MojomValue::from(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// map<int8, NestedUnion>
+static MAP_I8_NESTEDUNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<int8, NestedUnion>",
+    base_type: map!(MojomType::Int8, NESTED_UNION_TY.base_type.clone()),
+    packed_type: packed_map!(bare_leaf!(PackedLeafType::Int8), NESTED_UNION_TY.packed_type.clone()),
+});
+
+fn map_i8_nestedunion_mojom(elts: HashMap<i8, NestedUnion>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::Int8(k), MojomValue::from(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// map<int8, map<int16, uint32>>
+static MAP_I8_MAP_I16_U32_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<int8, map<int16, uint32>>",
+    base_type: map!(MojomType::Int8, map!(MojomType::Int16, MojomType::UInt32)),
+    packed_type: packed_map!(
+        bare_leaf!(PackedLeafType::Int8),
+        packed_map!(bare_leaf!(PackedLeafType::Int16), bare_leaf!(PackedLeafType::UInt32))
+    ),
+});
+
+fn map_i8_map_i16_u32_mojom(elts: HashMap<i8, HashMap<i16, u32>>) -> MojomValue {
+    MojomValue::Map(
+        elts.into_iter().map(|(k, v)| (MojomValue::Int8(k), MojomValue::from(v))).collect(),
+    )
+}
+
+// Mojom Definition:
+// struct Maps {
+//   map<uint8, uint8> eights;
+//   map<bool, uint16> bools;
+//   map<TestEnum, int32> enums;
+//   map<int8, FourInts> to_struct;
+//   map<int8, NestedUnion> to_union;
+//   map<int8, map<int16, uint32>> to_map;
+// }
+static MAPS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "Maps",
+    base_type: wrap_struct_fields_type(vec![
+        ("eights".to_string(), MAP_U8_U8_TY.base_type.clone()),
+        ("bools".to_string(), MAP_BOOL_U16_TY.base_type.clone()),
+        ("enums".to_string(), MAP_ENUM_I32_TY.base_type.clone()),
+        ("to_struct".to_string(), MAP_I8_FOURINTS_TY.base_type.clone()),
+        ("to_union".to_string(), MAP_I8_NESTEDUNION_TY.base_type.clone()),
+        ("to_map".to_string(), MAP_I8_MAP_I16_U32_TY.base_type.clone()),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("eights".to_string(), MAP_U8_U8_TY.as_struct_field(0)),
+            ("bools".to_string(), MAP_BOOL_U16_TY.as_struct_field(1)),
+            ("enums".to_string(), MAP_ENUM_I32_TY.as_struct_field(2)),
+            ("to_struct".to_string(), MAP_I8_FOURINTS_TY.as_struct_field(3)),
+            ("to_union".to_string(), MAP_I8_NESTEDUNION_TY.as_struct_field(4)),
+            ("to_map".to_string(), MAP_I8_MAP_I16_U32_TY.as_struct_field(5)),
+        ],
+        6,
+    ),
+});
+
+fn maps_mojom(
+    eights: HashMap<u8, u8>,
+    bools: HashMap<bool, u16>,
+    enums: HashMap<TestEnum, i32>,
+    to_struct: HashMap<i8, FourInts>,
+    to_union: HashMap<i8, NestedUnion>,
+    to_map: HashMap<i8, HashMap<i16, u32>>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("eights".to_string(), map_u8_u8_mojom(eights)),
+        ("bools".to_string(), map_bool_u16_mojom(bools)),
+        ("enums".to_string(), map_enum_i32_mojom(enums)),
+        ("to_struct".to_string(), map_i8_fourints_mojom(to_struct)),
+        ("to_union".to_string(), map_i8_nestedunion_mojom(to_union)),
+        ("to_map".to_string(), map_i8_map_i16_u32_mojom(to_map)),
+    ])
+}
+
+#[gtest(MojomParser, TestMaps)]
+fn test_maps() {
+    let eights_data = [(1, 2), (3, 4)];
+    MAP_U8_U8_TY.validate_mojomparse::<HashMap<u8, u8>>(
+        eights_data.clone().into(),
+        map_u8_u8_mojom(eights_data.clone().into()),
+    );
+
+    let bools_data = [(true, 10), (false, 20)];
+    MAP_BOOL_U16_TY.validate_mojomparse::<HashMap<bool, u16>>(
+        bools_data.clone().into(),
+        map_bool_u16_mojom(bools_data.clone().into()),
+    );
+
+    let enums_data = [(TestEnum::Zero, -1), (TestEnum::Seven, -2)];
+    MAP_ENUM_I32_TY.validate_mojomparse::<HashMap<TestEnum, i32>>(
+        enums_data.clone().into(),
+        map_enum_i32_mojom(enums_data.clone().into()),
+    );
+
+    let to_struct_data = [(5, FourInts { a: 1, b: 2, c: 3, d: 4 })];
+    MAP_I8_FOURINTS_TY.validate_mojomparse::<HashMap<i8, FourInts>>(
+        to_struct_data.clone().into(),
+        map_i8_fourints_mojom(to_struct_data.clone().into()),
+    );
+
+    let to_union_data = [(-8, NestedUnion::n(50)), (-9, NestedUnion::u(BaseUnion::n1(10)))];
+    MAP_I8_NESTEDUNION_TY.validate_mojomparse::<HashMap<i8, NestedUnion>>(
+        to_union_data.clone().into(),
+        map_i8_nestedunion_mojom(to_union_data.clone().into()),
+    );
+
+    let to_map_data =
+        [(1, [(10, 100), (20, 200)].into()), (2, [(30, 300), (40, 400), (50, 500)].into())];
+    MAP_I8_MAP_I16_U32_TY.validate_mojomparse::<HashMap<i8, HashMap<i16, u32>>>(
+        to_map_data.clone().into(),
+        map_i8_map_i16_u32_mojom(to_map_data.clone().into()),
+    );
+
+    MAPS_TY.validate_mojomparse(
+        Maps {
+            eights: eights_data.clone().into(),
+            bools: bools_data.clone().into(),
+            enums: enums_data.clone().into(),
+            to_struct: to_struct_data.clone().into(),
+            to_union: to_union_data.clone().into(),
+            to_map: to_map_data.clone().into(),
+        },
+        maps_mojom(
+            eights_data.into(),
+            bools_data.into(),
+            enums_data.into(),
+            to_struct_data.into(),
+            to_union_data.into(),
+            to_map_data.into(),
+        ),
+    );
+}
+
+// Mojom definition: string
+static STRING_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "string",
+    base_type: MojomType::String,
+    packed_type: MojomWireType::Pointer {
+        nested_data_type: PackedStructuredType::Array {
+            element_type: std::sync::Arc::new(MojomWireType::Leaf {
+                leaf_type: PackedLeafType::UInt8,
+                is_nullable: false,
+            }),
+            array_type: PackedArrayType::String,
+        },
+        is_nullable: false,
+    },
+});
+
+// Mojom Definition: array<string>
+static ARRAY_STRING_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<string>",
+    base_type: array!(MojomType::String, None),
+    packed_type: packed_array!(STRING_TY.packed_type.clone(), None),
+});
+
+// Mojom Definition: map<uint8, string>
+static MAP_U8_STRING_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<uint8, string>",
+    base_type: map!(MojomType::UInt8, MojomType::String),
+    packed_type: packed_map!(bare_leaf!(PackedLeafType::UInt8), STRING_TY.packed_type.clone()),
+});
+
+// Mojom Definition: map<string, int16>
+static MAP_STRING_I16_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "map<string, int16>",
+    base_type: map!(MojomType::String, MojomType::Int16),
+    packed_type: packed_map!(STRING_TY.packed_type.clone(), bare_leaf!(PackedLeafType::Int16)),
+});
+
+// Mojom Definition:
+// struct Strings {
+//   string str;
+//   array<string> arr;
+//   map<uint8, string> to_str;
+//   map<string, int16> from_str;
+//   HoldsComplexTypes u;
+// }
+static STRINGS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "Strings",
+    base_type: wrap_struct_fields_type(vec![
+        ("str".to_string(), STRING_TY.base_type.clone()),
+        ("arr".to_string(), ARRAY_STRING_TY.base_type.clone()),
+        ("to_str".to_string(), MAP_U8_STRING_TY.base_type.clone()),
+        ("from_str".to_string(), MAP_STRING_I16_TY.base_type.clone()),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("str".to_string(), STRING_TY.as_struct_field(0)),
+            ("arr".to_string(), ARRAY_STRING_TY.as_struct_field(1)),
+            ("to_str".to_string(), MAP_U8_STRING_TY.as_struct_field(2)),
+            ("from_str".to_string(), MAP_STRING_I16_TY.as_struct_field(3)),
+        ],
+        4,
+    ),
+});
+
+fn mojomvalue_from_str(str: &str) -> MojomValue {
+    MojomValue::String(MojomString::from_str(str))
+}
+
+fn strings_mojom(
+    str: &str,
+    arr: Vec<&str>,
+    to_str: HashMap<u8, &str>,
+    from_str: HashMap<&str, i16>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("str".to_string(), mojomvalue_from_str(str)),
+        ("arr".to_string(), MojomValue::Array(arr.into_iter().map(mojomvalue_from_str).collect())),
+        (
+            "to_str".to_string(),
+            MojomValue::Map(
+                to_str
+                    .into_iter()
+                    .map(|(k, v)| (MojomValue::UInt8(k), mojomvalue_from_str(v)))
+                    .collect(),
+            ),
+        ),
+        (
+            "from_str".to_string(),
+            MojomValue::Map(
+                from_str
+                    .into_iter()
+                    .map(|(k, v)| (mojomvalue_from_str(k), MojomValue::Int16(v)))
+                    .collect(),
+            ),
+        ),
+    ])
+}
+
+#[gtest(MojomParser, TestStrings)]
+fn test_strings() {
+    STRINGS_TY.validate_mojomparse(
+        Strings {
+            str: MojomString::from_str("test"),
+            arr: vec![MojomString::from_str("a"), MojomString::from_str("b")],
+            to_str: [(1, MojomString::from_str("one")), (2, MojomString::from_str("two"))].into(),
+            from_str: [(MojomString::from_str("three"), 3), (MojomString::from_str("four"), 4)]
+                .into(),
+        },
+        strings_mojom(
+            "test",
+            vec!["a", "b"],
+            [(1, "one"), (2, "two")].into(),
+            [("three", 3), ("four", 4)].into(),
+        ),
+    );
+
+    STRINGS_TY.validate_mojomparse(
+        Strings {
+            str: MojomString::from_str(""),
+            arr: vec![],
+            to_str: HashMap::new(),
+            from_str: HashMap::new(),
+        },
+        strings_mojom("", vec![], HashMap::new(), HashMap::new()),
+    );
+}
+
+// Mojom Definition:
+// union HoldsComplexTypes {
+//   string str;
+//   array<int8> arr;
+//   map<int8, int8> m;
+// }
+static HOLDS_COMPLEX_TYPES_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "HoldsComplexTypes",
+    base_type: MojomType::Union {
+        variants: [
+            (0, STRING_TY.base_type.clone()),
+            (1, ARRAY_INT16_TY.base_type.clone()),
+            (2, MAP_U8_U8_TY.base_type.clone()),
+        ]
+        .into(),
+    },
+    packed_type: MojomWireType::Union {
+        variants: [
+            (0, STRING_TY.as_union_field()),
+            (1, ARRAY_INT16_TY.as_union_field()),
+            (2, MAP_U8_U8_TY.as_union_field()),
+        ]
+        .into(),
+        is_nullable: false,
+    },
+});
+
+fn holds_complex_types_mojom_str(str: &str) -> MojomValue {
+    MojomValue::Union(0, Box::new(MojomValue::String(MojomString::from_str(str))))
+}
+
+fn holds_complex_types_mojom_arr(arr: Vec<i16>) -> MojomValue {
+    MojomValue::Union(
+        1,
+        Box::new(MojomValue::Array(arr.into_iter().map(MojomValue::Int16).collect())),
+    )
+}
+
+fn holds_complex_types_mojom_m(map: HashMap<u8, u8>) -> MojomValue {
+    MojomValue::Union(
+        2,
+        Box::new(MojomValue::Map(
+            map.into_iter().map(|(k, v)| (MojomValue::UInt8(k), MojomValue::UInt8(v))).collect(),
+        )),
+    )
+}
+
+static COMPLEX_UNION_HOLDER_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "ComplexUnionHolder",
+    base_type: wrap_struct_fields_type(vec![(
+        "u".to_string(),
+        HOLDS_COMPLEX_TYPES_TY.base_type.clone(),
+    )]),
+    packed_type: wrap_packed_struct_fields(
+        vec![("u".to_string(), HOLDS_COMPLEX_TYPES_TY.as_struct_field(0))],
+        1,
+    ),
+});
+
+#[gtest(MojomParser, TestComplexUnion)]
+fn test_complex_union() {
+    // Test both the union and the union inside a struct
+    HOLDS_COMPLEX_TYPES_TY.validate_mojomparse(
+        HoldsComplexTypes::str(MojomString::from_str("hello")),
+        holds_complex_types_mojom_str("hello"),
+    );
+
+    COMPLEX_UNION_HOLDER_TY.validate_mojomparse(
+        ComplexUnionHolder { u: HoldsComplexTypes::str(MojomString::from_str("eek")) },
+        wrap_struct_fields_value(vec![("u".to_string(), holds_complex_types_mojom_str("eek"))]),
+    );
+
+    HOLDS_COMPLEX_TYPES_TY.validate_mojomparse(
+        HoldsComplexTypes::arr(vec![1, 2, 3]),
+        holds_complex_types_mojom_arr(vec![1, 2, 3]),
+    );
+
+    COMPLEX_UNION_HOLDER_TY.validate_mojomparse(
+        ComplexUnionHolder { u: HoldsComplexTypes::arr(vec![99, 222, 301, 282]) },
+        wrap_struct_fields_value(vec![(
+            "u".to_string(),
+            holds_complex_types_mojom_arr(vec![99, 222, 301, 282]),
+        )]),
+    );
+
+    HOLDS_COMPLEX_TYPES_TY.validate_mojomparse(
+        HoldsComplexTypes::m([(1, 10), (2, 20)].into()),
+        holds_complex_types_mojom_m([(1, 10), (2, 20)].into()),
+    );
+
+    COMPLEX_UNION_HOLDER_TY.validate_mojomparse(
+        ComplexUnionHolder { u: HoldsComplexTypes::m([(19, 120), (29, 210)].into()) },
+        wrap_struct_fields_value(vec![(
+            "u".to_string(),
+            holds_complex_types_mojom_m([(19, 120), (29, 210)].into()),
+        )]),
+    );
+}
+
+macro_rules! nullable_ty {
+    ($inner_ty:expr) => {
+        MojomType::Nullable { inner_type: Box::new($inner_ty) }
+    };
+}
+
+macro_rules! nullable_val {
+    ($inner_val:expr) => {
+        MojomValue::Nullable($inner_val.map(Box::new))
+    };
+}
+
+// Mojom Definition:
+// struct NullableBasics {
+//   bool? b;
+//   uint16? u16;
+//   int8? i8;
+//   Empty? empty;
+//   TestEnum? e;
+//   FourInts? fourints;
+// }
+static NULLABLE_BASICS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "NullableBasics",
+    base_type: wrap_struct_fields_type(vec![
+        ("b".to_string(), nullable_ty!(MojomType::Bool)),
+        ("n1".to_string(), nullable_ty!(MojomType::UInt16)),
+        ("n2".to_string(), nullable_ty!(MojomType::Int8)),
+        ("empty".to_string(), nullable_ty!(EMPTY_TY.base_type.clone())),
+        ("e".to_string(), nullable_ty!(MojomType::Enum { is_valid: TEST_ENUM_PRED })),
+        ("fourints".to_string(), nullable_ty!(FOUR_INTS_TY.base_type.clone())),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            (
+                "b_tag".to_string(),
+                StructuredBodyElement::Bitfield([
+                    Some((0, true)),
+                    Some((0, false)),
+                    Some((1, true)),
+                    Some((2, true)),
+                    Some((4, true)),
+                    None,
+                    None,
+                    None,
+                ]),
+            ),
+            ("n2_val".to_string(), struct_leaf!(2, PackedLeafType::Int8, true)),
+            ("n1_val".to_string(), struct_leaf!(1, PackedLeafType::UInt16, true)),
+            (
+                "e_val".to_string(),
+                struct_leaf!(4, PackedLeafType::Enum { is_valid: TEST_ENUM_PRED }, true),
+            ),
+            ("empty".to_string(), EMPTY_TY.as_nullable_struct_field(3)),
+            ("fourints".to_string(), FOUR_INTS_TY.as_nullable_struct_field(5)),
+        ],
+        6,
+    ),
+});
+
+fn nullable_basics_mojom(
+    b: Option<bool>,
+    n1: Option<u16>,
+    n2: Option<i8>,
+    empty: Option<MojomValue>,
+    e: Option<u32>,
+    fourints: Option<MojomValue>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("b".to_string(), nullable_val!(b.map(MojomValue::Bool))),
+        ("n1".to_string(), nullable_val!(n1.map(MojomValue::UInt16))),
+        ("n2".to_string(), nullable_val!(n2.map(MojomValue::Int8))),
+        ("empty".to_string(), nullable_val!(empty)),
+        ("e".to_string(), nullable_val!(e.map(MojomValue::Enum))),
+        ("fourints".to_string(), nullable_val!(fourints)),
+    ])
+}
+
+// Mojom Definition:
+// array<bool?>
+static ARRAY_NULL_BOOL_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<bool?>",
+    base_type: array!(nullable_ty!(MojomType::Bool), None),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Bool, true), None),
+});
+
+fn array_null_bool_mojom(elts: Vec<Option<bool>>) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter().map(|elt| nullable_val!(elt.map(MojomValue::Bool))).collect(),
+    )
+}
+
+// Mojom Definition:
+// array<Empty?>
+static ARRAY_NULL_EMPTY_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<Empty?>",
+    base_type: array!(nullable_ty!(EMPTY_TY.base_type.clone()), None),
+    packed_type: packed_array!(EMPTY_TY.packed_type.clone().make_nullable(), None),
+});
+
+fn array_null_empty_mojom(elts: Vec<Option<Empty>>) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter().map(|elt| nullable_val!(elt.map(|e| MojomValue::from(e)))).collect(),
+    )
+}
+
+// Mojom Definition:
+// array<TestEnum?>
+static ARRAY_NULL_ENUM_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<TestEnum?>",
+    base_type: array!(nullable_ty!(MojomType::Enum { is_valid: TEST_ENUM_PRED }), None),
+    packed_type: packed_array!(
+        bare_leaf!(PackedLeafType::Enum { is_valid: TEST_ENUM_PRED }, true),
+        None
+    ),
+});
+
+fn array_null_enum_mojom(elts: Vec<Option<TestEnum>>) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter()
+            .map(|elt| nullable_val!(elt.map(|e| MojomValue::Enum(e.into()))))
+            .collect(),
+    )
+}
+
+// Mojom Definition:
+// array<BaseUnion?>
+static ARRAY_NULL_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<BaseUnion?>",
+    base_type: array!(nullable_ty!(BASE_UNION_TY.base_type.clone()), None),
+    packed_type: packed_array!(BASE_UNION_TY.packed_type.clone().make_nullable(), None),
+});
+
+fn array_null_union_mojom(elts: Vec<Option<BaseUnion>>) -> MojomValue {
+    MojomValue::Array(
+        elts.into_iter().map(|elt| nullable_val!(elt.map(|u| MojomValue::from(u)))).collect(),
+    )
+}
+
+// Mojom Definition:
+// struct ArraysOfNullables {
+//   array<bool?> bools;
+//   array<Empty?> empties;
+//   array<TestEnum?> enums;
+//   array<BaseUnion?> unions;
+// }
+static ARRAYS_OF_NULLABLES_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "ArraysOfNullables",
+    base_type: wrap_struct_fields_type(vec![
+        ("bools".to_string(), ARRAY_NULL_BOOL_TY.base_type.clone()),
+        ("empties".to_string(), ARRAY_NULL_EMPTY_TY.base_type.clone()),
+        ("enums".to_string(), ARRAY_NULL_ENUM_TY.base_type.clone()),
+        ("unions".to_string(), ARRAY_NULL_UNION_TY.base_type.clone()),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("bools".to_string(), ARRAY_NULL_BOOL_TY.as_struct_field(0)),
+            ("empties".to_string(), ARRAY_NULL_EMPTY_TY.as_struct_field(1)),
+            ("enums".to_string(), ARRAY_NULL_ENUM_TY.as_struct_field(2)),
+            ("unions".to_string(), ARRAY_NULL_UNION_TY.as_struct_field(3)),
+        ],
+        4,
+    ),
+});
+
+fn arrays_of_nullables_mojom(
+    bools: Vec<Option<bool>>,
+    empties: Vec<Option<Empty>>,
+    enums: Vec<Option<TestEnum>>,
+    unions: Vec<Option<BaseUnion>>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("bools".to_string(), array_null_bool_mojom(bools)),
+        ("empties".to_string(), array_null_empty_mojom(empties)),
+        ("enums".to_string(), array_null_enum_mojom(enums)),
+        ("unions".to_string(), array_null_union_mojom(unions)),
+    ])
+}
+
+// Mojom Definition:
+// array<bool>?
+static NULL_ARRAY_BOOL_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<bool>?",
+    base_type: nullable_ty!(array!(MojomType::Bool, None)),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Bool, false), None).make_nullable(),
+});
+
+fn null_array_bool_mojom(elts: Option<Vec<bool>>) -> MojomValue {
+    nullable_val!(elts.map(|e| MojomValue::Array(e.into_iter().map(MojomValue::Bool).collect())))
+}
+
+// Mojom Definition:
+// array<bool?>?
+static NULL_ARRAY_NULL_BOOL_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "array<bool?>?",
+    base_type: nullable_ty!(array!(nullable_ty!(MojomType::Bool), None)),
+    packed_type: packed_array!(bare_leaf!(PackedLeafType::Bool, true), None).make_nullable(),
+});
+
+fn null_array_null_bool_mojom(elts: Option<Vec<Option<bool>>>) -> MojomValue {
+    nullable_val!(elts.map(array_null_bool_mojom))
+}
+
+// Mojom Definition:
+// struct NullableArrays {
+//   array<bool>? null_arr;
+//   array<bool?>? double_null_arr;
+// }
+static NULLABLE_ARRAYS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "NullableArrays",
+    base_type: wrap_struct_fields_type(vec![
+        ("null_arr".to_string(), NULL_ARRAY_BOOL_TY.base_type.clone()),
+        ("double_null_arr".to_string(), NULL_ARRAY_NULL_BOOL_TY.base_type.clone()),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("null_arr".to_string(), NULL_ARRAY_BOOL_TY.as_struct_field(0)),
+            ("double_null_arr".to_string(), NULL_ARRAY_NULL_BOOL_TY.as_struct_field(1)),
+        ],
+        2,
+    ),
+});
+
+fn nullable_arrays_mojom(
+    null_arr: Option<Vec<bool>>,
+    double_null_arr: Option<Vec<Option<bool>>>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("null_arr".to_string(), null_array_bool_mojom(null_arr)),
+        ("double_null_arr".to_string(), null_array_null_bool_mojom(double_null_arr)),
+    ])
+}
+
+// Mojom Definition:
+// union UnionWithNullables {
+//   Empty? e;
+//   string? str;
+//   BaseUnion? u;
+// }
+static UNION_WITH_NULLABLES_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "UnionWithNullables",
+    base_type: MojomType::Union {
+        variants: [
+            (0, nullable_ty!(EMPTY_TY.base_type.clone())),
+            (1, nullable_ty!(MojomType::String)),
+            (2, nullable_ty!(BASE_UNION_TY.base_type.clone())),
+        ]
+        .into(),
+    },
+    packed_type: MojomWireType::Union {
+        variants: [
+            (0, EMPTY_TY.as_nullable_union_field()),
+            (1, STRING_TY.as_nullable_union_field()),
+            (2, BASE_UNION_TY.as_nullable_union_field()),
+        ]
+        .into(),
+        is_nullable: false,
+    },
+});
+
+fn union_with_nullables_mojom_e(e: Option<Empty>) -> MojomValue {
+    MojomValue::Union(0, Box::new(nullable_val!(e.map(|_| empty_mojom()))))
+}
+
+fn union_with_nullables_mojom_str(str: Option<&str>) -> MojomValue {
+    MojomValue::Union(
+        1,
+        Box::new(nullable_val!(str.map(|s| MojomValue::String(MojomString::from_str(s))))),
+    )
+}
+
+fn union_with_nullables_mojom_u(u: Option<MojomValue>) -> MojomValue {
+    MojomValue::Union(2, Box::new(nullable_val!(u)))
+}
+
+// Mojom Definition:
+// struct NullableOthers {
+//   UnionWithNullables? u;
+//   map<uint8, uint8>? m;
+//   string? str;
+// }
+static NULLABLE_OTHERS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "NullableOthers",
+    base_type: wrap_struct_fields_type(vec![
+        ("u".to_string(), nullable_ty!(UNION_WITH_NULLABLES_TY.base_type.clone())),
+        ("m".to_string(), nullable_ty!(MAP_U8_U8_TY.base_type.clone())),
+        ("str".to_string(), nullable_ty!(STRING_TY.base_type.clone())),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("u".to_string(), UNION_WITH_NULLABLES_TY.as_nullable_struct_field(0)),
+            ("m".to_string(), MAP_U8_U8_TY.as_nullable_struct_field(1)),
+            ("str".to_string(), STRING_TY.as_nullable_struct_field(2)),
+        ],
+        3,
+    ),
+});
+
+fn nullable_others_mojom(
+    u: Option<MojomValue>,
+    m: Option<HashMap<u8, u8>>,
+    str: Option<&str>,
+) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        ("u".to_string(), nullable_val!(u)),
+        ("m".to_string(), nullable_val!(m.map(map_u8_u8_mojom))),
+        (
+            "str".to_string(),
+            nullable_val!(str.map(|s| MojomValue::String(MojomString::from_str(s)))),
+        ),
+    ])
+}
+
+#[gtest(MojomParser, TestNullables)]
+fn test_nullables() {
+    NULLABLE_BASICS_TY.validate_mojomparse(
+        NullableBasics { b: None, n1: None, n2: None, empty: None, e: None, fourints: None },
+        nullable_basics_mojom(None, None, None, None, None, None),
+    );
+    NULLABLE_BASICS_TY.validate_mojomparse(
+        NullableBasics {
+            b: Some(true),
+            n1: Some(33),
+            n2: Some(12),
+            empty: Some(Empty {}),
+            e: Some(TestEnum::Four),
+            fourints: Some(FourInts { a: 1, b: 2, c: 3, d: 4 }),
+        },
+        nullable_basics_mojom(
+            Some(true),
+            Some(33),
+            Some(12),
+            Some(empty_mojom()),
+            Some(4),
+            Some(four_ints_mojom(1, 2, 3, 4)),
+        ),
+    );
+
+    ARRAYS_OF_NULLABLES_TY.validate_mojomparse(
+        ArraysOfNullables {
+            bools: vec![Some(true), None, Some(false)],
+            empties: vec![None, Some(Empty {}), None, None, None],
+            enums: vec![Some(TestEnum::Seven), None, Some(TestEnum::Zero), Some(TestEnum::Seven)],
+            unions: vec![Some(BaseUnion::n1(5)), None, Some(BaseUnion::b1(true))],
+        },
+        arrays_of_nullables_mojom(
+            vec![Some(true), None, Some(false)],
+            vec![None, Some(Empty {}), None, None, None],
+            vec![Some(TestEnum::Seven), None, Some(TestEnum::Zero), Some(TestEnum::Seven)],
+            vec![Some(BaseUnion::n1(5)), None, Some(BaseUnion::b1(true))],
+        ),
+    );
+
+    NULLABLE_ARRAYS_TY.validate_mojomparse(
+        NullableArrays {
+            null_arr: Some(vec![true, false, true]),
+            double_null_arr: Some(vec![Some(true), None, Some(false)]),
+        },
+        nullable_arrays_mojom(
+            Some(vec![true, false, true]),
+            Some(vec![Some(true), None, Some(false)]),
+        ),
+    );
+    NULLABLE_ARRAYS_TY.validate_mojomparse(
+        NullableArrays { null_arr: None, double_null_arr: None },
+        nullable_arrays_mojom(None, None),
+    );
+
+    UNION_WITH_NULLABLES_TY
+        .validate_mojomparse(UnionWithNullables::e(None), union_with_nullables_mojom_e(None));
+    UNION_WITH_NULLABLES_TY
+        .validate_mojomparse(UnionWithNullables::str(None), union_with_nullables_mojom_str(None));
+    UNION_WITH_NULLABLES_TY
+        .validate_mojomparse(UnionWithNullables::u(None), union_with_nullables_mojom_u(None));
+
+    UNION_WITH_NULLABLES_TY.validate_mojomparse(
+        UnionWithNullables::e(Some(Empty {})),
+        union_with_nullables_mojom_e(Some(Empty {})),
+    );
+    UNION_WITH_NULLABLES_TY.validate_mojomparse(
+        UnionWithNullables::str(Some(MojomString::from_str("hello"))),
+        union_with_nullables_mojom_str(Some("hello")),
+    );
+    UNION_WITH_NULLABLES_TY.validate_mojomparse(
+        UnionWithNullables::u(Some(BaseUnion::n1(123))),
+        union_with_nullables_mojom_u(Some(base_union_mojom_n1(123))),
+    );
+    UNION_WITH_NULLABLES_TY.validate_mojomparse(
+        UnionWithNullables::u(Some(BaseUnion::b1(true))),
+        union_with_nullables_mojom_u(Some(base_union_mojom_b1(true))),
+    );
+    UNION_WITH_NULLABLES_TY.validate_mojomparse(
+        UnionWithNullables::u(Some(BaseUnion::f1(FourInts { a: 1, b: 2, c: 3, d: 4 }))),
+        union_with_nullables_mojom_u(Some(base_union_mojom_f1(four_ints_mojom(1, 2, 3, 4)))),
+    );
+
+    NULLABLE_OTHERS_TY.validate_mojomparse(
+        NullableOthers { u: None, m: None, str: None },
+        nullable_others_mojom(None, None, None),
+    );
+    NULLABLE_OTHERS_TY.validate_mojomparse(
+        NullableOthers {
+            u: Some(UnionWithNullables::u(Some(BaseUnion::n1(42)))),
+            m: Some([(1, 2), (3, 4)].into()),
+            str: Some(MojomString::from_str("hello")),
+        },
+        nullable_others_mojom(
+            Some(union_with_nullables_mojom_u(Some(base_union_mojom_n1(42)))),
+            Some([(1, 2), (3, 4)].into()),
+            Some("hello"),
         ),
     );
 }

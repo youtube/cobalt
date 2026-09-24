@@ -240,7 +240,7 @@ void AudioTrackJni::AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) {
 
 void AudioTrackJni::CacheDirectBufferAddress(
     JNIEnv* env,
-    const jni_zero::JavaParamRef<jobject>& byte_buffer) {
+    const jni_zero::JavaRef<jobject>& byte_buffer) {
   RTC_LOG(LS_INFO) << "OnCacheDirectBufferAddress";
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!direct_buffer_address_);

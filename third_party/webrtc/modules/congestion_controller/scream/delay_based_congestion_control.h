@@ -81,6 +81,7 @@ class DelayBasedCongestionControl {
   TimeDelta min_base_delay() const {
     return std::min(next_base_delay_, base_delay_history_.GetMin());
   }
+  void UpdateSmoothedRtt(TimeDelta rtt_sample);
   void UpdateQueueDelayAverage(TimeDelta one_way_delay);
 
   const ScreamV2Parameters params_;

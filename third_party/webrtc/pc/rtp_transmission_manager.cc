@@ -11,7 +11,6 @@
 #include "pc/rtp_transmission_manager.h"
 
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
@@ -180,9 +179,12 @@ RtpTransmissionManager::AddTrackPlanB(
       media_type, track->id(), track, adjusted_stream_ids,
       init_send_encodings
           ? *init_send_encodings
-          : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}));
+          : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}),
+      media_type == MediaType::AUDIO
+          ? static_cast<MediaSendChannelInterface*>(voice_media_send_channel())
+          : static_cast<MediaSendChannelInterface*>(
+                video_media_send_channel()));
   if (track->kind() == MediaStreamTrackInterface::kAudioKind) {
-    new_sender->internal()->SetMediaChannel(voice_media_send_channel());
     GetAudioTransceiver()->internal()->AddSender(new_sender);
     const RtpSenderInfo* sender_info =
         FindSenderInfo(local_audio_sender_infos_,
@@ -192,7 +194,6 @@ RtpTransmissionManager::AddTrackPlanB(
     }
   } else {
     RTC_DCHECK_EQ(MediaStreamTrackInterface::kVideoKind, track->kind());
-    new_sender->internal()->SetMediaChannel(video_media_send_channel());
     GetVideoTransceiver()->internal()->AddSender(new_sender);
     const RtpSenderInfo* sender_info =
         FindSenderInfo(local_video_sender_infos_,
@@ -248,7 +249,8 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
         media_type, sender_id, track, stream_ids,
         init_send_encodings
             ? *init_send_encodings
-            : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}));
+            : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}),
+        /*media_channel=*/nullptr);
     auto receiver = CreateReceiver(media_type, CreateRandomUuid());
     transceiver = CreateAndAddTransceiver(sender, receiver);
     transceiver->internal()->set_created_by_addtrack(true);
@@ -263,7 +265,8 @@ RtpTransmissionManager::CreateSender(
     const std::string& id,
     scoped_refptr<MediaStreamTrackInterface> track,
     const std::vector<std::string>& stream_ids,
-    const std::vector<RtpEncodingParameters>& send_encodings) {
+    const std::vector<RtpEncodingParameters>& send_encodings,
+    MediaSendChannelInterface* media_channel) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> sender;
   if (media_type == MediaType::AUDIO) {
@@ -271,7 +274,8 @@ RtpTransmissionManager::CreateSender(
                (track->kind() == MediaStreamTrackInterface::kAudioKind));
     sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(),
-        AudioRtpSender::Create(env_, worker_thread(), id, legacy_stats_, this));
+        AudioRtpSender::Create(env_, worker_thread(), id, legacy_stats_, this,
+                               media_channel));
     NoteUsageEvent(UsageEvent::AUDIO_ADDED);
   } else {
     RTC_DCHECK_EQ(media_type, MediaType::VIDEO);
@@ -279,7 +283,7 @@ RtpTransmissionManager::CreateSender(
                (track->kind() == MediaStreamTrackInterface::kVideoKind));
     sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(),
-        VideoRtpSender::Create(env_, worker_thread(), id, this));
+        VideoRtpSender::Create(env_, worker_thread(), id, this, media_channel));
     NoteUsageEvent(UsageEvent::VIDEO_ADDED);
   }
   bool set_track_succeeded = sender->SetTrack(track.get());
@@ -323,8 +327,7 @@ RtpTransmissionManager::CreateAndAddTransceiver(
   // could be invalid, but should not cause a crash).
   RTC_DCHECK(!FindSenderById(sender->id()));
   std::vector<RtpHeaderExtensionCapability> header_extensions;
-  if (!env_.field_trials().IsDisabled(
-          "WebRTC-HeaderExtensionNegotiateMemory")) {
+  if (env_.field_trials().IsEnabled("WebRTC-HeaderExtensionNegotiateMemory")) {
     // If we have already negotiated header extensions for this type,
     // reuse the negotiated state for new transceivers of the same type.
     for (const auto& transceiver : transceivers()->List()) {
@@ -453,10 +456,9 @@ void RtpTransmissionManager::AddAudioTrack(AudioTrackInterface* track,
   }
 
   // Normal case; we've never seen this track before.
-  auto new_sender = CreateSender(MediaType::AUDIO, track->id(),
-                                 scoped_refptr<AudioTrackInterface>(track),
-                                 {stream->id()}, {{}});
-  new_sender->internal()->SetMediaChannel(voice_media_send_channel());
+  auto new_sender = CreateSender(
+      MediaType::AUDIO, track->id(), scoped_refptr<AudioTrackInterface>(track),
+      {stream->id()}, {{}}, voice_media_send_channel());
   GetAudioTransceiver()->internal()->AddSender(new_sender);
   // If the sender has already been configured in SDP, we call SetSsrc,
   // which will connect the sender to the underlying transport. This can
@@ -500,10 +502,9 @@ void RtpTransmissionManager::AddVideoTrack(VideoTrackInterface* track,
   }
 
   // Normal case; we've never seen this track before.
-  auto new_sender = CreateSender(MediaType::VIDEO, track->id(),
-                                 scoped_refptr<VideoTrackInterface>(track),
-                                 {stream->id()}, {{}});
-  new_sender->internal()->SetMediaChannel(video_media_send_channel());
+  auto new_sender = CreateSender(
+      MediaType::VIDEO, track->id(), scoped_refptr<VideoTrackInterface>(track),
+      {stream->id()}, {{}}, video_media_send_channel());
   GetVideoTransceiver()->internal()->AddSender(new_sender);
   const RtpSenderInfo* sender_info =
       FindSenderInfo(local_video_sender_infos_, stream->id(), track->id());

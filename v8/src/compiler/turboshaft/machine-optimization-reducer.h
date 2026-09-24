@@ -366,7 +366,9 @@ class MachineOptimizationReducer : public Next {
     if (const ConstantOp* cst = matcher_.TryCast<ConstantOp>(input)) {
       // Try to constant-fold Word constant -> Tagged (Smi).
       if (cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
-        if (Smi::IsValid(cst->integral())) {
+        // Any Tagged value that has the Smi Tag is a Smi, regardless of its
+        // value, so there is no need to check that {cst} is in Smi range.
+        if (HAS_SMI_TAG(cst->integral())) {
           return __ SmiConstant(
               i::Tagged<Smi>(static_cast<intptr_t>(cst->integral())));
         }
@@ -1243,7 +1245,7 @@ class MachineOptimizationReducer : public Next {
     if (matcher_.MatchWordSub(high->right(), &a, &b, rep) &&
         matcher_.MatchIntegralWordConstant(a, rep, &k) && b == low->right() &&
         k == rep.bit_width()) {
-      return __ RotateRight(x, b, rep);
+      return __ RotateRight(x, V<Word32>::Cast(b), rep);
     } else if (matcher_.MatchWordSub(low->right(), &a, &b, rep) &&
                matcher_.MatchIntegralWordConstant(a, rep, &k) &&
                b == high->right() && k == rep.bit_width()) {
@@ -1732,10 +1734,9 @@ class MachineOptimizationReducer : public Next {
           if (k == l) {
             return x;
           } else if (k > l) {
-            return __ ShiftRightArithmeticShiftOutZeros(
-                x, __ Word32Constant(k - l), rep);
+            return __ ShiftRightArithmeticShiftOutZeros(x, k - l, rep);
           } else if (k < l) {
-            return __ ShiftLeft(x, __ Word32Constant(l - k), rep);
+            return __ ShiftLeft(x, l - k, rep);
           }
         }
         // (x >>> K) << K => x & ~(2^K - 1)
@@ -2029,9 +2030,11 @@ class MachineOptimizationReducer : public Next {
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
 
-          DCHECK_IMPLIES(
-              __ data()->pipeline_kind() != TurboshaftPipelineKind::kCSA,
-              broker != nullptr);
+          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          USE(pkind);
+          DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
+                             pkind != TurboshaftPipelineKind::kTSABuiltin,
+                         broker != nullptr);
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
@@ -2302,11 +2305,7 @@ class MachineOptimizationReducer : public Next {
                 matcher_.MatchHeapConstant(left, &o1) &&
                 matcher_.MatchHeapConstant(right, &o2)) {
               UnparkedScopeIfNeeded unparked(broker);
-              // We might see holes as a constant, if there are any hole checks.
-              // These have to be checked for explicitly, because of hole
-              // unmapping.
-              if (!IsAnyHole(*o1) && !IsAnyHole(*o2) && IsString(*o1) &&
-                  IsString(*o2)) {
+              if (IsString(*o1) && IsString(*o2)) {
                 // If handles refer to the same object, we can eliminate the
                 // check.
                 if (o1.address() == o2.address()) return __ Word32Constant(1);

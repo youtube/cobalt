@@ -38,7 +38,6 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF16;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -111,10 +110,12 @@ RenderFrameHostAndroid::GetJavaObject() {
                                   ->GetBrowserContext()
                                   ->IsOffTheRecord();
     const GlobalRenderFrameHostId rfh_id = render_frame_host_->GetGlobalId();
+    // TODO(crbug.com/379869738) Remove GetUnsafeValue.
     ScopedJavaLocalRef<jobject> local_ref = Java_RenderFrameHostImpl_create(
         env, reinterpret_cast<intptr_t>(this),
         render_frame_host_->delegate()->GetJavaRenderFrameHostDelegate(),
-        is_incognito, rfh_id.child_id, rfh_id.frame_routing_id);
+        is_incognito, rfh_id.child_id.GetUnsafeValue(),
+        rfh_id.frame_routing_id);
     obj_ = JavaObjectWeakGlobalRef(env, local_ref);
     return local_ref;
   }
@@ -138,7 +139,7 @@ ScopedJavaLocalRef<jobject> RenderFrameHostAndroid::GetMainFrame(JNIEnv* env) {
 
 void RenderFrameHostAndroid::GetCanonicalUrlForSharing(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcallback) const {
+    const base::android::JavaRef<jobject>& jcallback) const {
   render_frame_host_->GetCanonicalUrl(base::BindOnce(
       &OnGetCanonicalUrlForSharing,
       base::android::ScopedJavaGlobalRef<jobject>(env, jcallback)));
@@ -194,7 +195,7 @@ jboolean RenderFrameHostAndroid::IsRenderFrameLive(JNIEnv* env) const {
 
 void RenderFrameHostAndroid::GetInterfaceToRendererFrame(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& interface_name,
+    const base::android::JavaRef<jstring>& interface_name,
     jlong message_pipe_raw_handle) const {
   DCHECK(render_frame_host_->IsRenderFrameLive());
   render_frame_host_->GetRemoteInterfaces()->GetInterfaceByName(
@@ -217,12 +218,12 @@ jboolean RenderFrameHostAndroid::IsProcessBlocked(JNIEnv* env) const {
 
 void RenderFrameHostAndroid::PerformGetAssertionWebAuthSecurityChecks(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& relying_party_id,
-    const base::android::JavaParamRef<jobject>& effective_origin,
+    const base::android::JavaRef<jstring>& relying_party_id,
+    const base::android::JavaRef<jobject>& effective_origin,
     jboolean is_payment_credential_get_assertion,
-    const base::android::JavaParamRef<jobject>&
+    const base::android::JavaRef<jobject>&
         remote_desktop_client_override_origin,
-    const base::android::JavaParamRef<jobject>& callback) const {
+    const base::android::JavaRef<jobject>& callback) const {
   url::Origin origin = url::Origin::FromJavaObject(env, effective_origin);
   std::optional<url::Origin> remote_desktop_client_override_origin_optional;
   if (!remote_desktop_client_override_origin.is_null()) {
@@ -247,12 +248,12 @@ void RenderFrameHostAndroid::PerformGetAssertionWebAuthSecurityChecks(
 
 void RenderFrameHostAndroid::PerformMakeCredentialWebAuthSecurityChecks(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& relying_party_id,
-    const base::android::JavaParamRef<jobject>& effective_origin,
+    const base::android::JavaRef<jstring>& relying_party_id,
+    const base::android::JavaRef<jobject>& effective_origin,
     jboolean is_payment_credential_creation,
-    const base::android::JavaParamRef<jobject>&
+    const base::android::JavaRef<jobject>&
         remote_desktop_client_override_origin,
-    const base::android::JavaParamRef<jobject>& callback) const {
+    const base::android::JavaRef<jobject>& callback) const {
   url::Origin origin = url::Origin::FromJavaObject(env, effective_origin);
   std::optional<url::Origin> remote_desktop_client_override_origin_optional;
   if (!remote_desktop_client_override_origin.is_null()) {
@@ -277,9 +278,9 @@ void RenderFrameHostAndroid::PerformMakeCredentialWebAuthSecurityChecks(
 
 void RenderFrameHostAndroid::PerformReportWebAuthSecurityChecks(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& relying_party_id,
-    const base::android::JavaParamRef<jobject>& effective_origin,
-    const base::android::JavaParamRef<jobject>& callback) const {
+    const base::android::JavaRef<jstring>& relying_party_id,
+    const base::android::JavaRef<jobject>& effective_origin,
+    const base::android::JavaRef<jobject>& callback) const {
   url::Origin origin = url::Origin::FromJavaObject(env, effective_origin);
   render_frame_host_->PerformReportWebAuthSecurityChecks(
       ConvertJavaStringToUTF8(env, relying_party_id), origin,
@@ -301,9 +302,9 @@ jint RenderFrameHostAndroid::GetLifecycleState(JNIEnv* env) const {
 
 void RenderFrameHostAndroid::ExecuteJavaScriptInIsolatedWorld(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& jscript,
+    const base::android::JavaRef<jstring>& jscript,
     jint jworldId,
-    const base::android::JavaParamRef<jobject>& jcallback) {
+    const base::android::JavaRef<jobject>& jcallback) {
   if (!jcallback) {
     render_frame_host()->ExecuteJavaScriptInIsolatedWorld(
         ConvertJavaStringToUTF16(env, jscript), base::DoNothing(), jworldId);
@@ -321,7 +322,7 @@ void RenderFrameHostAndroid::ExecuteJavaScriptInIsolatedWorld(
 
 void RenderFrameHostAndroid::InsertVisualStateCallback(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jcallback) {
+    const JavaRef<jobject>& jcallback) {
   render_frame_host()->InsertVisualStateCallback(
       base::BindOnce(&base::android::RunBooleanCallbackAndroid,
                      base::android::ScopedJavaGlobalRef<jobject>(jcallback)));

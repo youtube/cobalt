@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/peerconnection/webrtc_decoding_info_handler.h"
 #include "third_party/blink/renderer/platform/peerconnection/webrtc_encoding_info_handler.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -36,13 +37,16 @@ class MediaKeySystemAccess;
 class NavigatorBase;
 class ScriptState;
 
-class MODULES_EXPORT MediaCapabilities final : public ScriptWrappable,
-                                               public GarbageCollectedMixin {
+class MODULES_EXPORT MediaCapabilities final
+    : public ScriptWrappable,
+      public Supplement<NavigatorBase> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static const char kWebrtcDecodeSmoothIfPowerEfficientParamName[];
   static const char kWebrtcEncodeSmoothIfPowerEfficientParamName[];
+
+  static const unsigned kSupplementIndex;
 
   // Getter for navigator.mediaCapabilities
   static MediaCapabilities* mediaCapabilities(NavigatorBase&);

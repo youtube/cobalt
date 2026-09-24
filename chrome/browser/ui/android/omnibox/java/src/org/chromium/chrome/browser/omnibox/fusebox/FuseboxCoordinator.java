@@ -6,9 +6,14 @@ package org.chromium.chrome.browser.omnibox.fusebox;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.ComponentCallbacks;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 
+import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -23,6 +28,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -38,15 +44,28 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.widget.AnchoredPopupWindow;
+import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
+import org.chromium.ui.widget.RectProvider;
 import org.chromium.ui.widget.ViewRectProvider;
 import org.chromium.url.GURL;
 
-import java.util.Collections;
-import java.util.List;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /** Coordinator for the Fusebox component. */
 @NullMarked
 public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlServiceObserver {
+    @IntDef({FuseboxState.DISABLED, FuseboxState.COMPACT, FuseboxState.EXPANDED})
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE_USE)
+    public @interface FuseboxState {
+        int DISABLED = 0;
+        int COMPACT = 1;
+        int EXPANDED = 2;
+    }
+
     private final @Nullable FuseboxViewHolder mViewHolder;
     private final @Nullable LocationBarDataProvider mLocationBarDataProvider;
     private @Nullable @BrandedColorScheme Integer mLastBrandedColorScheme;
@@ -56,17 +75,18 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
     private final PropertyModel mModel;
     private final Context mContext;
     private final WindowAndroid mWindowAndroid;
-    private final FuseboxAttachmentModelList mModelList = new FuseboxAttachmentModelList();
+    private final FuseboxAttachmentModelList mModelList;
     private final ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private @Nullable FuseboxMediator mMediator;
     private @Nullable ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
     private boolean mDefaultSearchEngineIsGoogle = true;
     private TemplateUrlService mTemplateUrlService;
-    private final ObservableSupplierImpl<Boolean> mOnCompactModeChangedSupplier =
-            new ObservableSupplierImpl<>(false);
+    private final ObservableSupplierImpl<@FuseboxState Integer> mFuseboxStateSupplier =
+            new ObservableSupplierImpl<>(FuseboxState.DISABLED);
     private final ObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileObserver = this::onProfileAvailable;
     private final SnackbarManager mSnackbarManager;
+    private final @Nullable ViewportRectProvider mViewportRectProvider;
 
     public FuseboxCoordinator(
             Context context,
@@ -85,12 +105,14 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
         mSnackbarManager = snackbarManager;
+        mModelList = new FuseboxAttachmentModelList(tabModelSelectorSupplier);
 
         if (!OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
                 || parent.findViewById(R.id.fusebox_request_type) == null) {
             mViewHolder = null;
             mLocationBarDataProvider = null;
-            mModel = new PropertyModel();
+            mModel = new PropertyModel(FuseboxProperties.ALL_KEYS);
+            mViewportRectProvider = null;
             return;
         }
 
@@ -98,19 +120,30 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         templateUrlServiceSupplier.onAvailable(this::onTemplateUrlServiceAvailable);
 
         var contextButton = parent.findViewById(R.id.location_bar_attachments_add);
-        var rectProvider = new ViewRectProvider(contextButton);
+        var rectProvider = new ViewRectProvider(parent);
+        rectProvider.setInsetPx(
+                0,
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.fusebox_vertical_space_above_popup),
+                0,
+                0);
         var popupView = LayoutInflater.from(context).inflate(R.layout.fusebox_context_popup, null);
-        var popupWindow =
-                new AnchoredPopupWindow(
+        mViewportRectProvider = new ViewportRectProvider(mContext);
+
+        var popupWindowBuilder =
+                new AnchoredPopupWindow.Builder(
                         mContext,
                         contextButton.getRootView(),
                         AppCompatResources.getDrawable(context, R.drawable.menu_bg_tinted),
-                        popupView,
+                        () -> popupView,
                         rectProvider);
-        popupWindow.setOutsideTouchable(true);
-        popupWindow.setAnimateFromAnchor(true);
+        popupWindowBuilder.setOutsideTouchable(true);
+        popupWindowBuilder.setAnimateFromAnchor(true);
+        popupWindowBuilder.setPreferredHorizontalOrientation(
+                HorizontalOrientation.LAYOUT_DIRECTION);
+        popupWindowBuilder.setViewportRectProvider(mViewportRectProvider);
 
-        var popup = new FuseboxPopup(mContext, popupWindow, popupView);
+        var popup = new FuseboxPopup(mContext, popupWindowBuilder.build(), popupView);
         mViewHolder = new FuseboxViewHolder(parent, popup);
 
         var adapter = new FuseboxAttachmentRecyclerViewAdapter(mModelList);
@@ -168,7 +201,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
                         mAutocompleteRequestTypeSupplier,
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge,
-                        mOnCompactModeChangedSupplier,
+                        mFuseboxStateSupplier,
                         mSnackbarManager);
         if (mLastBrandedColorScheme != null) {
             mMediator.updateVisualsForState(mLastBrandedColorScheme);
@@ -190,6 +223,9 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         if (mComposeBoxQueryControllerBridge != null) {
             mComposeBoxQueryControllerBridge.destroy();
             mComposeBoxQueryControllerBridge = null;
+        }
+        if (mViewportRectProvider != null) {
+            mViewportRectProvider.destroy();
         }
     }
 
@@ -300,17 +336,10 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         // We only care about url bar wrapping state when compact variant is enabled. Guard against
         // entering compact mode when the variant is disabled by returning early.
         if (mMediator == null || !OmniboxFeatures.sCompactFusebox.getValue()) return;
-        mMediator.setUseCompactUi(!isWrapping);
-    }
-
-    /**
-     * @return List of attachment tokens, empty if no attachments or mediator unavailable.
-     */
-    public List<String> getAttachmentTokens() {
-        if (mMediator == null) {
-            return Collections.emptyList();
-        }
-        return mMediator.getAttachmentTokens();
+        mMediator.setUseCompactUi(
+                !isWrapping
+                        && mAutocompleteRequestTypeSupplier.get()
+                                == AutocompleteRequestType.SEARCH);
     }
 
     /**
@@ -332,7 +361,54 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
      * Registers a callback notified when the compactness of the fusebox changes. This callback will
      * only fire if the compact mode variant is enabled and the compactness state changes.
      */
-    public ObservableSupplier<Boolean> getOnCompactModeChangedSupplier() {
-        return mOnCompactModeChangedSupplier;
+    public ObservableSupplier<@FuseboxState Integer> getFuseboxStateSupplier() {
+        return mFuseboxStateSupplier;
+    }
+
+    /** Registers the listener notified whenever attachments list is changed. */
+    public void addAttachmentChangeListener(FuseboxAttachmentChangeListener listener) {
+        mModelList.addAttachmentChangeListener(listener);
+    }
+
+    /** Unregisters the listener from being notified that attachments list has been changed. */
+    public void removeAttachmentChangeListener(FuseboxAttachmentChangeListener listener) {
+        mModelList.removeAttachmentChangeListener(listener);
+    }
+
+    /** Returns the number of attachments in the Fusebox Attachments list. */
+    public int getAttachmentsCount() {
+        return mModelList.size();
+    }
+
+    /**
+     * Provider of the viewport for the fusebox popup window. This implementation treats the entire
+     * window as available, ignoring e.g. ime insets which can reduce the available height to a very
+     * small quantity using PopupWindow's default viewport rect.
+     */
+    static class ViewportRectProvider extends RectProvider implements ComponentCallbacks {
+        private final Context mContext;
+
+        public ViewportRectProvider(Context context) {
+            mContext = context;
+            mContext.registerComponentCallbacks(this);
+            updateRect();
+        }
+
+        @Override
+        public void onConfigurationChanged(@NonNull Configuration configuration) {
+            updateRect();
+        }
+
+        private void updateRect() {
+            DisplayMetrics displayMetrics = mContext.getResources().getDisplayMetrics();
+            mRect.set(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels);
+        }
+
+        @Override
+        public void onLowMemory() {}
+
+        public void destroy() {
+            mContext.unregisterComponentCallbacks(this);
+        }
     }
 }

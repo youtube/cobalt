@@ -139,16 +139,10 @@ CcFeedbackGenerator::MaybeSendFeedback(Timestamp time) {
 
     packet_result.receive_time =
         Timestamp::Micros(delivery_info.receive_time_us);
+    packet_result.arrival_time_offset =
+        time - packet_result.receive_time - one_way_delay_;
     packet_result.ecn = delivery_info.ecn;
     packets_in_flight_.pop_front();
-
-    TimeDelta rtt = one_way_delay_ + (packet_result.receive_time -
-                                      packet_result.sent_packet.send_time);
-    if (smoothed_rtt_.IsInfinite()) {
-      smoothed_rtt_ = rtt;
-    }
-    smoothed_rtt_ = (smoothed_rtt_ * 7 + rtt) / 8;  // RFC 6298, alpha = 1/8
-    feedback.smoothed_rtt = smoothed_rtt_;
     feedback.packet_feedbacks.push_back(packet_result);
   }
   if (feedback.packet_feedbacks.empty()) {

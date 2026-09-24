@@ -67,11 +67,12 @@ class DOMContentLoadedListener final
   Member<ProcessingInstruction> processing_instruction_;
 };
 
+DocumentXSLT::DocumentXSLT(Document& document) : document_(&document) {}
+
 void DocumentXSLT::ApplyXSLTransform(Document& document,
                                      ProcessingInstruction* pi) {
   DCHECK(!pi->IsLoading());
-  CHECK(RuntimeEnabledFeatures::XSLTEnabled() &&
-        RuntimeEnabledFeatures::XSLTSpecialTrialEnabled());
+  CHECK(XSLTProcessor::XSLTEnabled());
   XSLTProcessor* processor = XSLTProcessor::Create(
       document, ASSERT_NO_EXCEPTION, WebFeature::kXSLProcessingInstruction);
   processor->SetXSLStyleSheet(To<XSLStyleSheet>(pi->sheet()));
@@ -152,9 +153,11 @@ bool DocumentXSLT::HasTransformSourceDocument(Document& document) {
 
 void DocumentXSLT::SetHasTransformSource(Document& document) {
   DCHECK(!HasTransformSourceDocument(document));
-  document.SetDocumentXSLT(MakeGarbageCollected<DocumentXSLT>());
+  document.SetDocumentXSLT(MakeGarbageCollected<DocumentXSLT>(document));
 }
 
-void DocumentXSLT::Trace(Visitor* visitor) const {}
+void DocumentXSLT::Trace(Visitor* visitor) const {
+  visitor->Trace(document_);
+}
 
 }  // namespace blink

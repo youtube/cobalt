@@ -860,6 +860,18 @@ class Handlers : public HandlersBase {
     return x > y ? y : x;
   }
 
+  template <typename T>
+  static inline T PropagateArithmeticNaN(T val) {
+    if (V8_UNLIKELY(std::isnan(val))) {
+      using FloatT = std::conditional<sizeof(T) == 4, Float32, Float64>::type;
+      using UIntT = std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
+      return FloatT::FromBits(base::bit_cast<UIntT>(val))
+          .to_quiet_nan()
+          .get_scalar();
+    }
+    return val;
+  }
+
   static inline uint8_t* ReadMemoryAddress(uint8_t*& code) {
     Address res =
         base::ReadUnalignedValue<Address>(reinterpret_cast<Address>(code));
@@ -1991,7 +2003,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = ReadRegister<ctype>(reg);                                  \
+    /* Add volatile to prevent operand reordering in 'lval op rval' . */    \
+    ctype volatile rval = ReadRegister<ctype>(reg);                         \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     WriteRegister(reg, static_cast<ctype>(lval op rval));                   \
     NextOp();                                                               \
@@ -2000,7 +2013,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = ReadRegister<ctype>(reg);                                  \
+    /* Add volatile to prevent operand reordering in 'lval op rval' . */    \
+    ctype volatile rval = ReadRegister<ctype>(reg);                         \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     push<ctype>(sp, code, wasm_runtime, lval op rval);                      \
     NextOp();                                                               \
@@ -2376,20 +2390,20 @@ class Handlers : public HandlersBase {
   //////////////////////////////////////////////////////////////////////////////
   // Unary operators
 
-#define FOREACH_SIMPLE_UNOP(V)                       \
-  V(F32Abs, float, fp0, abs(val), F32)               \
-  V(F32Neg, float, fp0, -val, F32)                   \
-  V(F32Ceil, float, fp0, ceilf(val), F32)            \
-  V(F32Floor, float, fp0, floorf(val), F32)          \
-  V(F32Trunc, float, fp0, truncf(val), F32)          \
-  V(F32NearestInt, float, fp0, nearbyintf(val), F32) \
-  V(F32Sqrt, float, fp0, sqrt(val), F32)             \
-  V(F64Abs, double, fp0, abs(val), F64)              \
-  V(F64Neg, double, fp0, (-val), F64)                \
-  V(F64Ceil, double, fp0, ceil(val), F64)            \
-  V(F64Floor, double, fp0, floor(val), F64)          \
-  V(F64Trunc, double, fp0, trunc(val), F64)          \
-  V(F64NearestInt, double, fp0, nearbyint(val), F64) \
+#define FOREACH_SIMPLE_UNOP(V)                                      \
+  V(F32Abs, float, fp0, abs(val), F32)                              \
+  V(F32Neg, float, fp0, -val, F32)                                  \
+  V(F32Ceil, float, fp0, PropagateArithmeticNaN(ceilf(val)), F32)   \
+  V(F32Floor, float, fp0, PropagateArithmeticNaN(floorf(val)), F32) \
+  V(F32Trunc, float, fp0, PropagateArithmeticNaN(truncf(val)), F32) \
+  V(F32NearestInt, float, fp0, nearbyintf(val), F32)                \
+  V(F32Sqrt, float, fp0, sqrt(val), F32)                            \
+  V(F64Abs, double, fp0, abs(val), F64)                             \
+  V(F64Neg, double, fp0, (-val), F64)                               \
+  V(F64Ceil, double, fp0, PropagateArithmeticNaN(ceil(val)), F64)   \
+  V(F64Floor, double, fp0, PropagateArithmeticNaN(floor(val)), F64) \
+  V(F64Trunc, double, fp0, PropagateArithmeticNaN(trunc(val)), F64) \
+  V(F64NearestInt, double, fp0, nearbyint(val), F64)                \
   V(F64Sqrt, double, fp0, sqrt(val), F64)
 
 #define DEFINE_UNOP(name, ctype, reg, op, type)                             \
@@ -4796,16 +4810,16 @@ class Handlers : public HandlersBase {
   UNOP_CASE(F64x2Abs, f64x2, float64x2, 2, std::abs(a))
   UNOP_CASE(F64x2Neg, f64x2, float64x2, 2, -a)
   UNOP_CASE(F64x2Sqrt, f64x2, float64x2, 2, std::sqrt(a))
-  UNOP_CASE(F64x2Ceil, f64x2, float64x2, 2, ceil(a))
-  UNOP_CASE(F64x2Floor, f64x2, float64x2, 2, floor(a))
-  UNOP_CASE(F64x2Trunc, f64x2, float64x2, 2, trunc(a))
+  UNOP_CASE(F64x2Ceil, f64x2, float64x2, 2, PropagateArithmeticNaN(ceil(a)))
+  UNOP_CASE(F64x2Floor, f64x2, float64x2, 2, PropagateArithmeticNaN(floor(a)))
+  UNOP_CASE(F64x2Trunc, f64x2, float64x2, 2, PropagateArithmeticNaN(trunc(a)))
   UNOP_CASE(F64x2NearestInt, f64x2, float64x2, 2, nearbyint(a))
   UNOP_CASE(F32x4Abs, f32x4, float32x4, 4, std::abs(a))
   UNOP_CASE(F32x4Neg, f32x4, float32x4, 4, -a)
   UNOP_CASE(F32x4Sqrt, f32x4, float32x4, 4, std::sqrt(a))
-  UNOP_CASE(F32x4Ceil, f32x4, float32x4, 4, ceilf(a))
-  UNOP_CASE(F32x4Floor, f32x4, float32x4, 4, floorf(a))
-  UNOP_CASE(F32x4Trunc, f32x4, float32x4, 4, truncf(a))
+  UNOP_CASE(F32x4Ceil, f32x4, float32x4, 4, PropagateArithmeticNaN(ceilf(a)))
+  UNOP_CASE(F32x4Floor, f32x4, float32x4, 4, PropagateArithmeticNaN(floorf(a)))
+  UNOP_CASE(F32x4Trunc, f32x4, float32x4, 4, PropagateArithmeticNaN(truncf(a)))
   UNOP_CASE(F32x4NearestInt, f32x4, float32x4, 4, nearbyintf(a))
   UNOP_CASE(I64x2Neg, i64x2, int64x2, 2, base::NegateWithWraparound(a))
   UNOP_CASE(I32x4Neg, i32x4, int32x4, 4, base::NegateWithWraparound(a))
@@ -7013,7 +7027,7 @@ class Handlers : public HandlersBase {
   }
 
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
-};      // class Handlers<Compressed>
+};  // class Handlers<Compressed>
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
 
@@ -7498,7 +7512,7 @@ bool WasmBytecodeGenerator::FindSharedSlot(uint32_t stack_index,
                                            uint32_t* new_slot_index) {
   *new_slot_index = UINT_MAX;
   ValueType value_type = slots_[stack_[stack_index]].value_type;
-  if (value_type.is_reference()) return false;
+  if (value_type.is_ref()) return false;
 
   // Only consider stack entries added in the current block.
   // We don't need to consider ancestor blocks because if a block has a
@@ -8179,14 +8193,13 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type)                          \
-  case kExpr##name: {                                                     \
-    MemoryAccessImmediate imm(                                            \
-        &decoder, wasm_code_->at(pc + 1), sizeof(ctype),                  \
-        Decoder::kNoValidation);                                          \
-    len = 1 + imm.length;                                                 \
-    optional.offset = imm.offset;                                         \
-    break;                                                                \
+#define LOAD_CASE(name, ctype, mtype, rep, type)                               \
+  case kExpr##name: {                                                          \
+    MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
+                              Decoder::kNoValidation);                         \
+    len = 1 + imm.length;                                                      \
+    optional.offset = imm.offset;                                              \
+    break;                                                                     \
   }
       LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
       LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
@@ -8204,14 +8217,13 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type)                         \
-  case kExpr##name: {                                                     \
-    MemoryAccessImmediate imm(                                            \
-        &decoder, wasm_code_->at(pc + 1), sizeof(ctype),                  \
-        Decoder::kNoValidation);                                          \
-    len = 1 + imm.length;                                                 \
-    optional.offset = imm.offset;                                         \
-    break;                                                                \
+#define STORE_CASE(name, ctype, mtype, rep, type)                              \
+  case kExpr##name: {                                                          \
+    MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
+                              Decoder::kNoValidation);                         \
+    len = 1 + imm.length;                                                      \
+    optional.offset = imm.offset;                                              \
+    break;                                                                     \
   }
       STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32);
       STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32);
@@ -9797,7 +9809,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions can
       // only be cast to function types, and data objects to data types.
@@ -9821,7 +9833,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         EmitI32Const(null_succeeds);
         HeapType br_on_cast_data_target_type(
             HeapType::FromBits(br_on_cast_data.target_type_bit_fields));
-        EmitI32Const(br_on_cast_data_target_type.is_index()
+        EmitI32Const(br_on_cast_data_target_type.has_index()
                          ? br_on_cast_data_target_type.raw_bit_field()
                          : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
@@ -9853,7 +9865,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                   null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions can
       // only be cast to function types, and data objects to data types.
@@ -9879,7 +9891,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       } else {
         EMIT_INSTR_HANDLER(s2s_BranchOnCastFail);
         EmitI32Const(null_succeeds);
-        EmitI32Const(br_on_cast_data_target_type.is_index()
+        EmitI32Const(br_on_cast_data_target_type.has_index()
                          ? br_on_cast_data_target_type.raw_bit_field()
                          : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
@@ -11832,7 +11844,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           target_type, null_succeeds ? kNullable : kNonNullable);
 
       ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions
       // can only be cast to function types, and data objects to data types.
@@ -11879,7 +11891,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           instr.optional.gc_heap_type_immediate.heap_type_bit_field);
 
       ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions
       // can only be cast to function types, and data objects to data types.

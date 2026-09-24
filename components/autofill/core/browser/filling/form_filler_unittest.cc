@@ -15,6 +15,7 @@
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -63,6 +64,8 @@ using ::testing::Contains;
 using ::testing::DoAll;
 using ::testing::Each;
 using ::testing::Eq;
+using ::testing::InSequence;
+using ::testing::MockFunction;
 using ::testing::NiceMock;
 using ::testing::Not;
 using ::testing::Optional;
@@ -81,19 +84,6 @@ ACTION_TEMPLATE(SaveArgElementsTo,
   pointer->assign(span.begin(), span.end());
 }
 
-class MockAutofillClient : public TestAutofillClient {
- public:
-  MockAutofillClient() = default;
-  MockAutofillClient(const MockAutofillClient&) = delete;
-  MockAutofillClient& operator=(const MockAutofillClient&) = delete;
-  ~MockAutofillClient() override = default;
-
-  MOCK_METHOD(void,
-              DidFillForm,
-              (AutofillTriggerSource trigger_source, bool is_refill),
-              (override));
-};
-
 class MockAutofillDriver : public TestAutofillDriver {
  public:
   using TestAutofillDriver::TestAutofillDriver;
@@ -106,6 +96,8 @@ class MockAutofillDriver : public TestAutofillDriver {
               (mojom::FormActionType action_type,
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
+               const FillId& fill_id,
+               bool supports_refill,
                const url::Origin& triggered_origin,
                (const base::flat_map<FieldGlobalId, FieldType>&),
                (const Section&)),
@@ -144,7 +136,7 @@ MATCHER_P(AutofilledWithProfile, profile, "") {
 
 class FormFillerTest
     : public testing::Test,
-      public WithTestAutofillClientDriverManager<NiceMock<MockAutofillClient>,
+      public WithTestAutofillClientDriverManager<TestAutofillClient,
                                                  MockAutofillDriver> {
  public:
   void SetUp() override {
@@ -190,12 +182,17 @@ class FormFillerTest
   }
 
   FormStructure* GetFormStructure(const FormData& form) {
-    return autofill_manager().FindCachedFormById(form.global_id());
+    return test_api(autofill_manager()).FindCachedFormById(form.global_id());
   }
 
   AutofillField* GetAutofillField(const FormGlobalId& form_id,
                                   const FieldGlobalId& field_id) {
-    return autofill_manager().GetAutofillField(form_id, field_id);
+    FormStructure* form =
+        test_api(autofill_manager()).FindCachedFormById(form_id);
+    if (!form) {
+      return nullptr;
+    }
+    return form->GetFieldById(field_id);
   }
 
   // Lets `BrowserAutofillManager` fill `form` using `trigger`` and
@@ -513,15 +510,6 @@ TEST_F(FormFillerTest, UndoResetsCachedAutofillState) {
   autofill_manager().UndoAutofill(mojom::ActionPersistence::kFill, form,
                                   form.fields().front());
   EXPECT_FALSE(autofill_field->is_autofilled());
-}
-
-TEST_F(FormFillerTest, FillOrPreviewFormCallsDidFillForm) {
-  FormData form = test::CreateTestAddressFormData();
-  FormsSeen({form});
-
-  AutofillProfile profile = test::GetFullProfile();
-  EXPECT_CALL(autofill_client(), DidFillForm);
-  AutofillForm(form, form.fields().front(), &profile);
 }
 
 // Tests that for autocomplete=unrecognized fields are not filled by default,
@@ -1548,6 +1536,51 @@ TEST_F(FormFillerTest, FillFirstPhoneNumber_MultipleSectionFilledCorrectly) {
   EXPECT_EQ(std::u16string(), filled_fields[5].value());
 }
 
+// Tests that a prefilled country calling code does not prevent an Autofill.
+TEST_F(FormFillerTest, FillPhoneNumber_OverwriteCountryCallingCode) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillOverwriteCountryCallingCodes);
+
+  FormData form = test::GetFormData(
+      {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"},
+                  {.role = PHONE_HOME_WHOLE_NUMBER,
+                   .value = u"+49",
+                   .autocomplete_attribute = "tel"}}});
+  FormsSeen({form});
+
+  AutofillProfile profile = test::GetFullProfile();
+  profile.SetRawInfo(PHONE_HOME_WHOLE_NUMBER, u"16505554567");
+  std::vector<FormFieldData> filled_fields =
+      AutofillForm(form, form.fields().front(), &profile).fields();
+
+  ASSERT_EQ(2U, filled_fields.size());
+  EXPECT_EQ(filled_fields[0].value(), u"John H. Doe");
+  EXPECT_THAT(filled_fields[1], AutofilledWith(u"16505554567"));
+}
+
+// Tests that a overwriting of country calling codes is limited to *valid* ones.
+TEST_F(FormFillerTest,
+       FillPhoneNumber_DoNotOverwriteInvalidCountryCallingCode) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillOverwriteCountryCallingCodes);
+
+  FormData form = test::GetFormData(
+      {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"},
+                  {.role = PHONE_HOME_WHOLE_NUMBER,
+                   .value = u"+12",
+                   .autocomplete_attribute = "tel"}}});
+  FormsSeen({form});
+
+  AutofillProfile profile = test::GetFullProfile();
+  profile.SetRawInfo(PHONE_HOME_WHOLE_NUMBER, u"16505554567");
+  std::vector<FormFieldData> filled_fields =
+      AutofillForm(form, form.fields().front(), &profile).fields();
+
+  ASSERT_EQ(2U, filled_fields.size());
+  EXPECT_EQ(filled_fields[0].value(), u"John H. Doe");
+  EXPECT_EQ(filled_fields[1].value(), u"+12");
+}
+
 TEST_F(FormFillerTest, FillPassportEntity) {
   base::test::ScopedFeatureList feature_list(
       features::kAutofillAiWithDataSchema);
@@ -1805,9 +1838,206 @@ TEST_F(FormFillerTest, PreFilledCCFieldInAddressFormDoesNotCauseCrash) {
   // Expect that this test doesn't cause a crash.
 }
 
+// Tests that two initial fills are assigned distinct IDs.
+TEST_F(FormFillerTest, InitialFillsHaveDistinctIds) {
+  FillId fill_id1;
+  FillId fill_id2;
+  base::RunLoop run_loop;
+  {
+    InSequence s;
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(
+            DoAll(SaveArg<3>(&fill_id1), Return(std::vector<FieldGlobalId>{})));
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&fill_id2),
+                        base::test::RunOnceClosure(run_loop.QuitClosure()),
+                        Return(std::vector<FieldGlobalId>{})));
+  }
+
+  CreditCard credit_card = test::GetCreditCard();
+  FormData form1 = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+  FormData form2 = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+
+  FormsSeen({form1, form2});
+
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form1, &credit_card,
+      *GetFormStructure(form1),
+      *GetAutofillField(form1.global_id(), form1.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form2, &credit_card,
+      *GetFormStructure(form2),
+      *GetAutofillField(form2.global_id(), form2.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+
+  std::move(run_loop).Run();
+  EXPECT_FALSE(fill_id1->is_empty());
+  EXPECT_FALSE(fill_id2->is_empty());
+  EXPECT_NE(fill_id1, fill_id2);
+}
+
+// Tests that the initial fill and a refill are assigned the same IDs.
+TEST_F(FormFillerTest, FillAndRefillHaveSameFillId) {
+  FillId initial_fill_id;
+  FillId refill_fill_id;
+  MockFunction<void(std::string_view)> check;
+  base::RunLoop run_loop;
+  {
+    InSequence s;
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&initial_fill_id),
+                        Return(std::vector<FieldGlobalId>{})));
+    EXPECT_CALL(check, Call("initial fill complete"));
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&refill_fill_id),
+                        base::test::RunOnceClosure(run_loop.QuitClosure()),
+                        Return(std::vector<FieldGlobalId>{})));
+  }
+
+  CreditCard credit_card = test::GetCreditCard();
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+
+  FormFieldData cvc_field = form.fields().back();
+  test_api(form).fields().pop_back();
+  FormsSeen({form});
+
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form, &credit_card,
+      *GetFormStructure(form),
+      *GetAutofillField(form.global_id(), form.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+  check.Call("initial fill complete");
+
+  test_api(form).fields().push_back(std::move(cvc_field));
+  FormsSeen({form});
+
+  std::move(run_loop).Run();
+  EXPECT_FALSE(initial_fill_id->is_empty());
+  EXPECT_FALSE(refill_fill_id->is_empty());
+  EXPECT_EQ(initial_fill_id, refill_fill_id);
+}
+
+// Tests that a programmatic refill can be triggered within the timeout.
+// Also tests that a second refill within the timeout is a no-op.
+TEST_F(FormFillerTest, ProgrammaticRefillBeforeTimeout) {
+  FillId fill_id;
+  FillId refill_id;
+  base::RunLoop run_loop;
+  base::RunLoop run_loop2;
+  MockFunction<void(std::string_view)> check;
+  {
+    InSequence s;
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&fill_id),
+                        base::test::RunOnceClosure(run_loop.QuitClosure()),
+                        Return(std::vector<FieldGlobalId>{})));
+    EXPECT_CALL(check, Call("initial fill complete"));
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&refill_id),
+                        base::test::RunOnceClosure(run_loop2.QuitClosure()),
+                        Return(std::vector<FieldGlobalId>{})));
+    EXPECT_CALL(check, Call("refill complete"));
+    EXPECT_CALL(autofill_driver(), ApplyFormAction).Times(0);
+    EXPECT_CALL(check, Call("second refill ignored"));
+  }
+
+  CreditCard credit_card = test::GetCreditCard();
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+
+  FormsSeen({form});
+
+  // The original fill.
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form, &credit_card,
+      *GetFormStructure(form),
+      *GetAutofillField(form.global_id(), form.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+  std::move(run_loop).Run();
+  check.Call("initial fill complete");
+
+  task_environment_.FastForwardBy(kLimitBeforeProgrammaticRefill / 2);
+
+  // The first refill.
+  form_filler().MaybeScheduleProgrammaticRefill(fill_id);
+  std::move(run_loop2).Run();
+  check.Call("refill complete");
+
+  // The second refill.
+  form_filler().MaybeScheduleProgrammaticRefill(fill_id);
+  check.Call("second refill ignored");
+
+  EXPECT_FALSE(fill_id->is_empty());
+  EXPECT_EQ(fill_id, refill_id);
+}
+
+// Tests that a programmatic refill cannot be triggered outside of the timeout.
+TEST_F(FormFillerTest, NoProgrammaticRefillAfterTimeout) {
+  FillId fill_id;
+  base::RunLoop run_loop;
+  MockFunction<void(std::string_view)> check;
+  {
+    InSequence s;
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(DoAll(SaveArg<3>(&fill_id),
+                        base::test::RunOnceClosure(run_loop.QuitClosure()),
+                        Return(std::vector<FieldGlobalId>{})));
+    EXPECT_CALL(check, Call("initial fill complete"));
+    EXPECT_CALL(autofill_driver(), ApplyFormAction).Times(0);
+    EXPECT_CALL(check, Call("refill ignored"));
+  }
+
+  CreditCard credit_card = test::GetCreditCard();
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+
+  FormsSeen({form});
+
+  // The original fill.
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form, &credit_card,
+      *GetFormStructure(form),
+      *GetAutofillField(form.global_id(), form.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+  std::move(run_loop).Run();
+  check.Call("initial fill complete");
+
+  task_environment_.FastForwardBy(kLimitBeforeProgrammaticRefill +
+                                  base::Seconds(1));
+
+  // The first refill.
+  form_filler().MaybeScheduleProgrammaticRefill(fill_id);
+  check.Call("refill ignored");
+}
+
 class MockFormFiller : public TestFormFiller {
  public:
-  MockFormFiller(BrowserAutofillManager& manager) : TestFormFiller(manager) {}
+  explicit MockFormFiller(BrowserAutofillManager& manager)
+      : TestFormFiller(manager) {}
   MOCK_METHOD(void,
               ScheduleRefill,
               (const FormData& form,
@@ -1831,6 +2061,42 @@ class RefillTest : public FormFillerTest {
 
   base::test::ScopedFeatureList scoped_feature_list_;
 };
+
+TEST_F(RefillTest, FormChanged_IrrelevantFieldChanges) {
+  AutofillProfile profile = test::GetFullProfile();
+  auto change_field_css_classes = [](FormData& form) {
+    auto fields = form.ExtractFields();
+    fields.front().set_css_classes(u"field-css-classes");
+    form.set_fields(std::move(fields));
+  };
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillFixFormEquality},
+        /*disabled_features=*/{features::kAutofillFewerTrivialRefills});
+    FormData form = test::GetFormData(
+        {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"}}});
+    FormsSeen({form});
+    AutofillForm(form, form.fields().front(), &profile);
+    EXPECT_CALL(mock_form_filler(), ScheduleRefill).Times(1);
+    change_field_css_classes(form);
+    FormsSeen({form});
+  }
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillFixFormEquality,
+                              features::kAutofillFewerTrivialRefills},
+        /*disabled_features=*/{});
+    FormData form = test::GetFormData(
+        {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"}}});
+    FormsSeen({form});
+    AutofillForm(form, form.fields().front(), &profile);
+    EXPECT_CALL(mock_form_filler(), ScheduleRefill).Times(0);
+    change_field_css_classes(form);
+    FormsSeen({form});
+  }
+}
 
 TEST_F(RefillTest, SelectOptionsChanged_IrrelevantSelectField) {
   AutofillProfile profile = test::GetFullProfile();
@@ -1861,6 +2127,69 @@ TEST_F(RefillTest, SelectOptionsChanged_IrrelevantSelectField) {
     autofill_manager().OnSelectFieldOptionsDidChangeImpl(
         form, form.fields().back().global_id());
   }
+}
+
+// Test fixture for FormFiller::SuppressAutomaticRefills().
+class RefillTest_SuppressAutomaticRefills
+    : public RefillTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  bool should_suppress_automatic_refills() const { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         RefillTest_SuppressAutomaticRefills,
+                         testing::Bool());
+
+// Tests that SuppressAutomaticRefills() prevents automatic refills for the
+// given FillId.
+//
+// If `should_suppress_automatic_refills()` is false, the test calls
+// SuppressAutomaticRefills() with a random FillId. Since no such fill exists,
+// a refill is expected.
+TEST_P(RefillTest_SuppressAutomaticRefills, SuppressAutomaticRefills) {
+  MockFunction<void(std::string_view)> check;
+  {
+    InSequence s;
+    EXPECT_CALL(autofill_driver(), ApplyFormAction)
+        .WillOnce(
+            [&](mojom::FormActionType action_type,
+                mojom::ActionPersistence action_persistence,
+                base::span<const FormFieldData> data, const FillId& fill_id,
+                bool supports_refill, const url::Origin& triggered_origin,
+                const base::flat_map<FieldGlobalId, FieldType>& field_type_map,
+                const Section& section_for_clear_form_on_ios) {
+              mock_form_filler().SuppressAutomaticRefills(
+                  should_suppress_automatic_refills() ? fill_id
+                                                      : FillId::Create());
+              return std::vector<FieldGlobalId>{};
+            });
+    EXPECT_CALL(check, Call("initial fill complete"));
+    EXPECT_CALL(mock_form_filler(), ScheduleRefill)
+        .Times(should_suppress_automatic_refills() ? 0 : 1);
+  }
+
+  CreditCard credit_card = test::GetCreditCard();
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NAME_FULL, .autocomplete_attribute = "cc-name"},
+           {.role = CREDIT_CARD_NUMBER, .autocomplete_attribute = "cc-number"},
+           {.role = CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
+            .autocomplete_attribute = "cc-exp"}}});
+
+  FormFieldData cvc_field = form.fields().back();
+  test_api(form).fields().pop_back();
+  FormsSeen({form});
+
+  form_filler().FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form, &credit_card,
+      *GetFormStructure(form),
+      *GetAutofillField(form.global_id(), form.fields().front().global_id()),
+      AutofillTriggerSource::kPopup);
+  check.Call("initial fill complete");
+
+  test_api(form).fields().push_back(std::move(cvc_field));
+  FormsSeen({form});
 }
 
 // The following Refill Tests ensure that Autofill can handle the situation

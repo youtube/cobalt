@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/supports_user_data.h"
+#include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/analysis_settings.h"
 #include "components/enterprise/connectors/core/common.h"
@@ -50,6 +51,8 @@ struct SavePackageScanningData : public base::SupportsUserData::Data {
   content::SavePackageAllowedCallback callback;
 };
 
+policy::BrowserPolicyConnector* GetBrowserPolicyConnector();
+
 // Checks `item` for a SavePackageScanningData, and run it's callback with
 // `allowed` if there is one.
 void RunSavePackageScanningCallback(download::DownloadItem* item, bool allowed);
@@ -73,8 +76,7 @@ google::protobuf::RepeatedPtrField<std::string> CollectFrameUrls(
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 // Returns true if the request will use the scotty resumable upload
 // protocol for sending scans to the server.
-bool IsResumableUpload(
-    const safe_browsing::BinaryUploadService::Request& request);
+bool IsResumableUpload(const BinaryUploadRequest& request);
 #endif  // BUILDFLAG(FULL_SAFE_BROWSING)
 
 // Returns true if `result` as returned by BinaryUploadService is considered a

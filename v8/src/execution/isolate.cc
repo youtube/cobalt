@@ -602,10 +602,6 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 void Isolate::InitializeOncePerProcess() { Heap::InitializeOncePerProcess(); }
 
-Address Isolate::get_address_from_id(IsolateAddressId id) {
-  return isolate_addresses_[id];
-}
-
 char* Isolate::Iterate(RootVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
@@ -2384,14 +2380,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
-  int visited_frames = 0;
   bool ignore_next_frame = false;
-  for (StackFrameIterator iter(this, thread_local_top());;
-       iter.Advance(), visited_frames++) {
+  for (StackFrameIterator iter(this, thread_local_top());; iter.Advance()) {
     if (ignore_next_frame) {
       ignore_next_frame = false;
       continue;
     }
+    int visited_frames = iter.frame()->iteration_depth();
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::WASM_JSPI) {
       if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=
@@ -5020,7 +5015,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
 
         DirectHandle<Object> holder =
             Utils::OpenDirectHandle(*callback_info->HolderV2());
-        Handle<Object> maybe_name =
+        DirectHandle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
         DirectHandle<Name> name =
             IsSmi(*maybe_name)
@@ -5609,12 +5604,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // The initialization process does not handle memory exhaustion.
   AlwaysAllocateScope always_allocate(heap());
-
-#define ASSIGN_ELEMENT(CamelName, hacker_name)                  \
-  isolate_addresses_[IsolateAddressId::k##CamelName##Address] = \
-      reinterpret_cast<Address>(hacker_name##_address());
-  FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
-#undef ASSIGN_ELEMENT
 
   // We need to initialize code_pages_ before any on-heap code is allocated to
   // make sure we record all code allocations.
@@ -7354,7 +7343,35 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
+  if (env->IsDetached()) {
+    // Respective global_proxy_for_api object must be "attached" to the
+    // global object.
+    DCHECK(!env->global_object()->global_proxy_for_api()->IsDetachedFrom(
+        env->global_object()));
+    return;
+  }
   counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
+
+  {
+    // Create a copy of JSGlobalProxy that will be used as holder for contextual
+    // accesses to global properties in detached context that involve Api
+    // callbacks (both accessor and interceptor).
+    // This JSGlobalProxy keeps 1:1 relationship to JSGlobalObject but looses
+    // the global object identity and looses connection to respective embedder
+    // fields and Api wrappers.
+    CHECK_EQ(env->global_object()->global_proxy_for_api(),
+             env->global_object()->global_proxy());
+
+    DirectHandle<Map> map(env->global_object()->global_proxy_for_api()->map(),
+                          this);
+    DirectHandle<JSGlobalProxy> global_proxy_for_api =
+        Cast<JSGlobalProxy>(factory()->NewJSObjectFromMap(
+            map, AllocationType::kOld, {},
+            NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
+
+    env->global_object()->set_global_proxy_for_api(*global_proxy_for_api);
+    DCHECK(!global_proxy_for_api->IsDetachedFrom(env->global_object()));
+  }
 
   ReadOnlyRoots roots(this);
   DirectHandle<JSGlobalProxy> global_proxy(env->global_proxy(), this);

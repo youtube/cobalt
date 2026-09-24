@@ -24,7 +24,8 @@ class CodecTestHelper {
     assertThat(size).isEqualTo(expected.length);
     assertThat(actual.capacity()).isAtLeast(offset + size);
     for (int i = 0; i < expected.length; i++) {
-      assertWithMessage("At index: " + i).that(actual.get(offset + i)).isEqualTo(expected[i]);
+     assertWithMessage(String.format("At index: %d", i))
+         .that(actual.get(offset + i)).isEqualTo(expected[i]);
     }
   }
 

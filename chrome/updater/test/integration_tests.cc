@@ -26,6 +26,7 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -82,7 +83,6 @@
 #include <unistd.h>
 
 #include "base/environment.h"
-#include "base/strings/strcat.h"
 #include "chrome/updater/util/posix_util.h"
 #endif
 
@@ -478,6 +478,10 @@ class IntegrationTest : public ::testing::Test {
 
   void ExpectLegacyProcessLauncherSucceeds() {
     test_commands_->ExpectLegacyProcessLauncherSucceeds();
+  }
+
+  void ExpectProcessLauncherLaunchCmdLineSucceeds() {
+    test_commands_->ExpectProcessLauncherLaunchCmdLineSucceeds();
   }
 
   void ExpectLegacyAppCommandWebSucceeds(const std::string& app_id,
@@ -1497,8 +1501,7 @@ TEST_F(IntegrationTest, CheckForUpdate) {
 }
 
 #if BUILDFLAG(IS_WIN)
-// TODO(crbug.com/462797181): Disabled while mojo server is disabled.
-TEST_F(IntegrationTest, DISABLED_CheckForUpdateAndInstallAppViaMojo) {
+TEST_F(IntegrationTest, CheckForUpdateAndInstallAppViaMojo) {
   ScopedServer test_server(test_commands_);
   ExpectInstallEvent(test_server, kUpdaterAppId);
   ASSERT_NO_FATAL_FAILURE(Install());
@@ -4807,7 +4810,7 @@ INSTANTIATE_TEST_SUITE_P(IntegrationLegacyProcessLauncherTestCases,
                          IntegrationLegacyProcessLauncherTest,
                          ::testing::ValuesIn(GetRealUpdaterVersions()));
 
-TEST_P(IntegrationLegacyProcessLauncherTest, Test) {
+TEST_P(IntegrationLegacyProcessLauncherTest, LaunchCmdElevated) {
   // `ExpectLegacyProcessLauncherSucceeds` runs the process launcher once with
   // usagestats enabled, and twice without, so only a single ping is expected.
   ASSERT_NO_FATAL_FAILURE(ExpectAppCommandPing(
@@ -4815,6 +4818,10 @@ TEST_P(IntegrationLegacyProcessLauncherTest, Test) {
       1, update_client::protocol_request::kEventAppCommandComplete, {},
       GetParam().version));
   ASSERT_NO_FATAL_FAILURE(ExpectLegacyProcessLauncherSucceeds());
+}
+
+TEST_P(IntegrationLegacyProcessLauncherTest, LaunchCmdLine) {
+  ASSERT_NO_FATAL_FAILURE(ExpectProcessLauncherLaunchCmdLineSucceeds());
 }
 
 class IntegrationLegacyPolicyStatusTest

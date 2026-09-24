@@ -96,11 +96,11 @@ std::optional<PendingBackend> BackendStorageDelegate::MakePendingBackend(
   auto db_file_path =
       directory.Append(base_name).AddExtension(kDbFileExtension);
   pending_backend.sqlite_data.db_file = base::File(db_file_path, create_flags);
+  base::UmaHistogramExactLinear(
+      "PersistentCache.Sqlite.DbFile.CreateResult",
+      -pending_backend.sqlite_data.db_file.error_details(),
+      -base::File::FILE_ERROR_MAX);
   if (!pending_backend.sqlite_data.db_file.IsValid()) {
-    base::UmaHistogramExactLinear(
-        "PersistentCache.Sqlite.DbFile.CreateError",
-        -pending_backend.sqlite_data.db_file.error_details(),
-        -base::File::FILE_ERROR_MAX);
     return std::nullopt;
   }
 
@@ -108,11 +108,11 @@ std::optional<PendingBackend> BackendStorageDelegate::MakePendingBackend(
       directory.Append(base_name).AddExtension(kJournalFileExtension);
   pending_backend.sqlite_data.journal_file =
       base::File(journal_file_path, create_flags);
+  base::UmaHistogramExactLinear(
+      "PersistentCache.Sqlite.JournalFile.CreateResult",
+      -pending_backend.sqlite_data.journal_file.error_details(),
+      -base::File::FILE_ERROR_MAX);
   if (!pending_backend.sqlite_data.journal_file.IsValid()) {
-    base::UmaHistogramExactLinear(
-        "PersistentCache.Sqlite.JournalFile.CreateError",
-        -pending_backend.sqlite_data.journal_file.error_details(),
-        -base::File::FILE_ERROR_MAX);
     return std::nullopt;
   }
 
@@ -121,11 +121,11 @@ std::optional<PendingBackend> BackendStorageDelegate::MakePendingBackend(
         directory.Append(base_name).AddExtension(kWalJournalFileExtension);
     pending_backend.sqlite_data.wal_file =
         base::File(wal_file_path, create_flags);
+    base::UmaHistogramExactLinear(
+        "PersistentCache.Sqlite.WalJournalFile.CreateResult",
+        -pending_backend.sqlite_data.wal_file.error_details(),
+        -base::File::FILE_ERROR_MAX);
     if (!pending_backend.sqlite_data.wal_file.IsValid()) {
-      base::UmaHistogramExactLinear(
-          "PersistentCache.Sqlite.WalJournalFile.CreateError",
-          -pending_backend.sqlite_data.wal_file.error_details(),
-          -base::File::FILE_ERROR_MAX);
       return std::nullopt;
     }
   }
@@ -161,14 +161,20 @@ std::optional<PendingBackend> BackendStorageDelegate::ShareReadOnlyConnection(
     const base::FilePath& directory,
     const base::FilePath& base_name,
     const Backend& backend) {
-  return ShareConnection(directory, base_name, backend, /*read_write=*/false);
+  return ShareConnection(
+      directory, base_name,
+      static_cast<const SqliteBackendImpl&>(backend).file_set(),
+      /*read_write=*/false);
 }
 
 std::optional<PendingBackend> BackendStorageDelegate::ShareReadWriteConnection(
     const base::FilePath& directory,
     const base::FilePath& base_name,
     const Backend& backend) {
-  return ShareConnection(directory, base_name, backend, /*read_write=*/true);
+  return ShareConnection(
+      directory, base_name,
+      static_cast<const SqliteBackendImpl&>(backend).file_set(),
+      /*read_write=*/true);
 }
 
 base::FilePath BackendStorageDelegate::GetBaseName(const base::FilePath& file) {
@@ -217,12 +223,8 @@ int64_t BackendStorageDelegate::DeleteFiles(const base::FilePath& directory,
 std::optional<PendingBackend> BackendStorageDelegate::ShareConnection(
     const base::FilePath& directory,
     const base::FilePath& base_name,
-    const Backend& backend,
+    const SqliteVfsFileSet& file_set,
     bool read_write) {
-  const SqliteBackendImpl& sqlite_backend =
-      static_cast<const SqliteBackendImpl&>(backend);
-  const SqliteVfsFileSet& file_set = sqlite_backend.file_set();
-
   // Cannot share a single-connection backend. If it ever becomes interesting to
   // connect to a backend in one process and then move it to another process,
   // we shall introduce a way to `Unbind()` a backend to convert it back into a

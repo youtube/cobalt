@@ -20,6 +20,9 @@ source_set("password") {
     "//components/sync/service",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator",
+    "//ios/chrome/browser/authentication/ui_bundled:continuation",
+    "//ios/chrome/browser/authentication/ui_bundled/signin:constants",
+    "//ios/chrome/browser/authentication/ui_bundled/signin:signin_headers",
     "//ios/chrome/browser/credential_exchange/coordinator:import_coordinator",
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/feature_engagement/model",
@@ -107,6 +110,7 @@ source_set("ui") {
     "//ios/chrome/browser/passwords/model:password_checkup_metrics",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_categories",
+    "//ios/chrome/browser/settings/ui_bundled:settings_root_constants",
     "//ios/chrome/browser/settings/ui_bundled/cells",
     "//ios/chrome/browser/settings/ui_bundled/elements:enterprise_info_popover_view_controller",
     "//ios/chrome/browser/settings/ui_bundled/password:features",
@@ -115,6 +119,7 @@ source_set("ui") {
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/ui/elements",
+    "//ios/chrome/browser/shared/ui/image",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view",
     "//ios/chrome/browser/shared/ui/table_view:constants",
@@ -146,6 +151,7 @@ source_set("password_constants") {
   ]
   deps = [
     "//base",
+    "//ios/chrome/browser/shared/ui/image",
     "//ios/chrome/browser/shared/ui/list_model",
     "//ios/chrome/browser/shared/ui/symbols",
   ]
@@ -229,6 +235,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/ui/image",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view:test_support",
     "//ios/chrome/browser/shared/ui/table_view/cells",

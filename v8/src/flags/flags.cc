@@ -15,6 +15,7 @@
 #include <optional>
 #include <set>
 #include <sstream>
+#include <unordered_map>
 
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
@@ -51,25 +52,7 @@ static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_DEFAULTS
 
-char FlagHelpers::NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
-int FlagHelpers::FlagNamesCmp(const char* a, const char* b) {
-  int i = 0;
-  char ac, bc;
-  do {
-    ac = NormalizeChar(a[i]);
-    bc = NormalizeChar(b[i]);
-    if (ac < bc) return -1;
-    if (ac > bc) return 1;
-    i++;
-  } while (ac != '\0');
-  DCHECK_EQ(bc, '\0');
-  return 0;
-}
-
-bool FlagHelpers::EqualNames(const char* a, const char* b) {
-  return FlagNamesCmp(a, b) == 0;
-}
 
 // Checks if two flag names are equal, allowing for the second name to have a
 // suffix starting with a white space character, e.g. "max_opt < 3". This is
@@ -322,11 +305,26 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
-struct FlagLess {
-  bool operator()(const Flag* a, const Flag* b) const {
-    return FlagHelpers::FlagNamesCmp(a->name(), b->name()) < 0;
+consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
+  constexpr const char* kFlagNames[] = {
+#define FLAG_MODE_APPLY_NAME(nam) #nam,
+#define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+#undef FLAG_ALIAS
+#undef FLAG_MODE_APPLY_NAME
+  };
+
+  static_assert(arraysize(kFlagNames) == kNumFlags);
+
+  std::array<int, kNumFlags> indices{};
+  for (size_t i = 0; i < kNumFlags; ++i) {
+    indices[i] = static_cast<int>(i);
   }
-};
+  std::sort(indices.begin(), indices.end(), [](int i, int j) {
+    return FlagHelpers::FlagNamesCmp(kFlagNames[i], kFlagNames[j]) < 0;
+  });
+  return indices;
+}
 
 struct FlagNameGreater {
   bool operator()(const Flag* a, const char* b) const {
@@ -340,10 +338,11 @@ struct FlagNameGreater {
 class FlagMapByName {
  public:
   FlagMapByName() {
+    constexpr std::array<int, kNumFlags> sorted_indices =
+        GetSortedFlagIndices();
     for (size_t i = 0; i < kNumFlags; ++i) {
-      flags_[i] = &flags[i];
+      flags_[i] = &flags[sorted_indices[i]];
     }
-    std::sort(flags_.begin(), flags_.end(), FlagLess());
   }
 
   // Returns the greatest flag whose name is less than or equal to the given
@@ -1036,7 +1035,7 @@ class ImplicationProcessor {
 #define FLAG_MODE_APPLY_NAME(name) \
   auto& name = v8_flags.name;      \
   USE(name);
-#include "src/flags/flag-definitions.h"
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_APPLY_NAME
 
 #define FLAG_MODE_DEFINE_IMPLICATIONS
@@ -1047,6 +1046,18 @@ class ImplicationProcessor {
   }
 
  private:
+  void ResetFlagsImpliedBy(const Flag* implier_flag) {
+    const char* implier_flag_name = FlagName{implier_flag->name()}.name;
+    for (Flag* flag : implied_by_map_[implier_flag_name]) {
+      if (flag->IsDefault()) {
+        continue;
+      }
+      flag->Reset();
+      ResetFlagsImpliedBy(flag);
+    }
+    implied_by_map_.erase(implier_flag_name);
+  }
+
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
@@ -1055,10 +1066,11 @@ class ImplicationProcessor {
                           bool weak_implication) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
+    const bool is_conclusion_value_change = conclusion_value->value() != value;
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
-            conclusion_value->value() != value, premise_name)) {
+            is_conclusion_value_change, premise_name)) {
       return false;
     }
     if (V8_UNLIKELY(num_iterations_ >= kMaxNumIterations)) {
@@ -1069,7 +1081,15 @@ class ImplicationProcessor {
         cycle_ << FlagName{conclusion_flag->name()} << " = " << value;
       }
     }
-    *conclusion_value = value;
+    if (is_conclusion_value_change) {
+      *conclusion_value = value;
+      // Any implications by the conclusion flag are now invalid. Reset the
+      // flags previously implied by the conclusion flag. If they were also
+      // implied by some other flag, they will be reimplied in the next
+      // implication iteration.
+      ResetFlagsImpliedBy(conclusion_flag);
+      implied_by_map_[FlagName{premise_name}.name].push_back(conclusion_flag);
+    }
     return true;
   }
 
@@ -1142,6 +1162,8 @@ class ImplicationProcessor {
   // cycles in flags.
   uint32_t cycle_start_hash_;
   std::ostringstream cycle_;
+
+  std::unordered_map<std::string, std::vector<Flag*>> implied_by_map_;
 };
 
 }  // namespace

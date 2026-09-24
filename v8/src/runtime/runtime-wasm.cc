@@ -32,6 +32,7 @@
 #include "src/wasm/wasm-export-wrapper-cache.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
@@ -633,8 +634,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     }
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     wasm::Suspend suspend = import_data->suspend();
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-        cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+        cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
     cache->PublishCounterUpdates(isolate);
@@ -677,8 +678,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   // Lookup or compile a wrapper.
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+      cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
 
 #ifdef DEBUG
   // Check consistency of the dispatch table's target code pointer. The code
@@ -1109,7 +1110,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
                              : src_index + length > dst_index);
   wasm::CanonicalValueType element_type =
       src_array->map()->wasm_type_info()->element_type();
-  if (element_type.is_reference()) {
+  if (element_type.is_ref()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
     if (overlapping_ranges) {
@@ -2664,9 +2665,13 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   stack->jmpbuf()->parent = nullptr;
   stack->set_index(isolate->wasm_stacks().size());
   // TODO(thibaudm): Store the WasmCodePointer instead.
-  stack->jmpbuf()->pc = trusted_instance_data->native_module()
-                            ->continuation_wrapper()
-                            ->instruction_start();
+  IsolateForSandbox isolate_for_sandbox(isolate);
+  const wasm::CanonicalSig* sig =
+      func_ref->internal(isolate_for_sandbox)->sig();
+  wasm::StackEntryWrapperCacheKey key{sig};
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper =
+      wasm::GetWasmStackEntryWrapperCache()->GetCompiled(isolate, key);
+  stack->jmpbuf()->pc = wrapper->code()->instruction_start();
   stack->set_func_ref(*func_ref);
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));

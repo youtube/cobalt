@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">在 Chromium 中搜尋影像內容</translation>
 <translation id="3582640969619785896">Chromium 會詢問你是否要儲存密碼</translation>
 <translation id="3594315078412605236">在 Chromium 中管理付款方式</translation>
+<translation id="3600428265489994557">登入 Chromium</translation>
 <translation id="3617143087229977194">在 iOS 中開啟「預設 App」設定，然後依序輕觸「瀏覽器 App」和「Chromium」。</translation>
 <translation id="3634039384458740619">開啟 Chromium 設定</translation>
 <translation id="3639997914391704523">如果你使用 Google 帳戶登入，Chromium 可以檢查你的密碼。</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">目前登入的帳戶是 <ph name="EMAIL" />。
 
 你已在 <ph name="TIME" />使用通關密語加密資料。輸入通關密語後，你就可以將 Chromium 的資料儲存到 Google 帳戶及使用這類資料。</translation>
-<translation id="9022552996538154597">登入 Chromium</translation>
 <translation id="9031260906956926157">部分 Chromium 資料尚未儲存到 Google 帳戶，
 請稍待幾分鐘後再嘗試登出。如果現在登出，系統將刪除這類資料。</translation>
 <translation id="9050790730841755540">隨時可以使用 Chromium 開啟其他應用程式中的連結。</translation>

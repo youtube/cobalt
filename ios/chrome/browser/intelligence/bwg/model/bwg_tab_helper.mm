@@ -26,6 +26,7 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
 #import "ios/chrome/browser/location_bar/badge/model/location_bar_badge_configuration.h"
@@ -43,12 +44,14 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
 #import "mojo/public/cpp/bindings/remote.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 #import "url/gurl.h"
 
 namespace {
@@ -137,6 +140,41 @@ BwgTabHelper::~BwgTabHelper() {
     web_state_ = nullptr;
   }
   optimization_guide_decider_ = nullptr;
+}
+
+void BwgTabHelper::GeneratePageContext(
+    base::OnceCallback<void(PageContextWrapperCallbackResponse)> callback,
+    bool full_page_context) {
+  // Cancel any ongoing page context operation.
+  if (page_context_wrapper_) {
+    page_context_wrapper_ = nil;
+  }
+
+  // Create a new wrapper.
+  page_context_wrapper_ =
+      [[PageContextWrapper alloc] initWithWebState:web_state_
+                                completionCallback:std::move(callback)];
+
+  // Configure it to fetch full context.
+  [page_context_wrapper_ setShouldGetAnnotatedPageContent:full_page_context];
+  [page_context_wrapper_ setShouldGetSnapshot:full_page_context];
+
+  // If the page is still loading, wait for it to finish before extracting the
+  // page context.
+  bool should_update_context_after_page_load =
+      full_page_context && IsGeminiImmediateOverlayEnabled() &&
+      web_state_->IsLoading();
+  if (should_update_context_after_page_load) {
+    // TODO(crbug.com/466107255): Move waiting for page loading responsibility
+    // to BwgBrowserAgent.
+    base::OnceCallback<void()> pageContextPopulateCallback =
+        base::BindOnce(&BwgTabHelper::PopulatePageContextFields,
+                       weak_ptr_factory_.GetWeakPtr());
+    SetPageLoadedCallback(std::move(pageContextPopulateCallback));
+    return;
+  }
+
+  PopulatePageContextFields();
 }
 
 void BwgTabHelper::ExecuteZeroStateSuggestions(
@@ -307,7 +345,7 @@ void BwgTabHelper::SetBwgCommandsHandler(id<BWGCommands> handler) {
 }
 
 void BwgTabHelper::SetSnackbarCommandsHandler(id<SnackbarCommands> handler) {
-  CHECK(IsAskGeminiSnackbarEnabled() || IsWebPageReportedImagesSheetEnabled());
+  CHECK(IsWebPageReportedImagesSheetEnabled());
   snackbar_commands_handler_ = handler;
 }
 
@@ -321,7 +359,7 @@ void BwgTabHelper::SetLocationBarBadgeCommandsHandler(
 void BwgTabHelper::WasShown(web::WebState* web_state) {
   if (is_bwg_session_active_in_background_) {
     [bwg_commands_handler_
-        startBWGFlowWithEntryPoint:bwg::EntryPoint::TabReopen];
+        startGeminiFlowWithEntryPoint:bwg::EntryPoint::TabReopen];
     cached_snapshot_ = nil;
   }
 }
@@ -331,7 +369,7 @@ void BwgTabHelper::WasHidden(web::WebState* web_state) {
     cached_snapshot_ =
         bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
     is_bwg_session_active_in_background_ = true;
-    [bwg_commands_handler_ dismissBWGFlowWithCompletion:nil];
+    [bwg_commands_handler_ dismissGeminiFlowWithCompletion:nil];
   }
 
   UpdateWebStateSnapshotInStorage();
@@ -357,7 +395,7 @@ void BwgTabHelper::DidStartNavigation(
             current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
             base::BindOnce(
                 &BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
-                weak_ptr_factory_.GetWeakPtr()));
+                weak_ptr_factory_.GetWeakPtr(), current_url));
       }
     }
   }
@@ -417,6 +455,12 @@ void BwgTabHelper::WebStateDestroyed(web::WebState* web_state) {
 }
 
 #pragma mark - Private
+
+void BwgTabHelper::PopulatePageContextFields() {
+  if (page_context_wrapper_) {
+    [page_context_wrapper_ populatePageContextFieldsAsync];
+  }
+}
 
 void BwgTabHelper::ClearZeroStateSuggestions() {
   if (!IsZeroStateSuggestionsEnabled()) {
@@ -553,42 +597,27 @@ void BwgTabHelper::OnCanApplyContextualCueingDecision(
     return;
   }
 
-  // Otherwise, show snackbar if eligible.
-  if (IsAskGeminiSnackbarEnabled()) {
-    SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
-    action.handler = ^{
-      [bwg_commands_handler_ startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
-    };
-    action.title = [NSString stringWithFormat:@"✦ %@", @"Ask Gemini"];
-    SnackbarMessage* message =
-        [[SnackbarMessage alloc] initWithTitle:@"Ask about page?"];
-    message.action = action;
+  UIImage* badge_image =
+      [BWGUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
+  NSString* cue_label =
+      l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_CUE_LABEL);
+  LocationBarBadgeConfiguration* badge_config =
+      [[LocationBarBadgeConfiguration alloc]
+           initWithBadgeType:LocationBarBadgeType::kGeminiContextualCueChip
+          accessibilityLabel:cue_label
+                  badgeImage:badge_image];
 
-    [snackbar_commands_handler_ showSnackbarMessage:message];
-  } else {
-    UIImage* badge_image =
-        [BWGUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
-    NSString* cue_label = base::SysUTF8ToNSString(
-        latest_load_contextual_cueing_metadata_->cueing_configurations(0)
-            .cue_label());
-    LocationBarBadgeConfiguration* badge_config =
-        [[LocationBarBadgeConfiguration alloc]
-             initWithBadgeType:LocationBarBadgeType::kGeminiContextualCueChip
-            accessibilityLabel:cue_label
-                    badgeImage:badge_image];
-
-    badge_config.badgeText = cue_label;
-    badge_config.shouldHideBadgeAfterChipCollapse = true;
-    [location_bar_badge_commands_handler_ updateBadgeConfig:badge_config];
-  }
+  badge_config.badgeText = cue_label;
+  badge_config.shouldHideBadgeAfterChipCollapse = true;
+  [location_bar_badge_commands_handler_ updateBadgeConfig:badge_config];
 }
 
 void BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision(
+    const GURL& url,
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
   // The URL has changed so the metadata is obsolete.
-  if (web_state_->GetVisibleURL().GetWithoutRef() !=
-      zero_state_suggestions_->url) {
+  if (url != zero_state_suggestions_->url) {
     return;
   }
 

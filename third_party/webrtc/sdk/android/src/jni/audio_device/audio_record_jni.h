@@ -82,10 +82,9 @@ class AudioRecordJni : public AudioInput {
   // is also stored in `direct_buffer_capacity_in_bytes_`.
   // This method will be called by the WebRtcAudioRecord constructor, i.e.,
   // on the same thread that this object is created on.
-  void CacheDirectBufferAddress(
-      JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& j_caller,
-      const jni_zero::JavaParamRef<jobject>& byte_buffer);
+  void CacheDirectBufferAddress(JNIEnv* env,
+                                const jni_zero::JavaRef<jobject>& j_caller,
+                                const jni_zero::JavaRef<jobject>& byte_buffer);
 
   // Called periodically by the Java based WebRtcAudioRecord object when
   // recording has started. Each call indicates that there are `length` new
@@ -94,7 +93,7 @@ class AudioRecordJni : public AudioInput {
   // This method is called on a high-priority thread from Java. The name of
   // the thread is 'AudioRecordThread'.
   void DataIsRecorded(JNIEnv* env,
-                      const jni_zero::JavaParamRef<jobject>& j_caller,
+                      const jni_zero::JavaRef<jobject>& j_caller,
                       int length,
                       int64_t capture_timestamp_ns);
 

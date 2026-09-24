@@ -138,10 +138,7 @@ const CGFloat kFeatureRowIconSize = 20;
   if (!_readerModeTabHelper) {
     return NO;
   }
-  return base::FeatureList::IsEnabled(
-             kEnableReaderModePageEligibilityForToolsMenu)
-             ? _readerModeTabHelper->CurrentPageIsDistillable()
-             : _readerModeTabHelper->CurrentPageIsEligibleForReaderMode();
+  return _readerModeTabHelper->CurrentPageIsEligibleForReaderMode();
 }
 
 - (BOOL)isReaderModeActive {
@@ -173,7 +170,8 @@ const CGFloat kFeatureRowIconSize = 20;
       return state == web::PermissionStateAllowed;
     }
     case PageActionMenuPopupBlocker: {
-      if (!_hostContentSettingsMap) {
+      if (!IsProactiveSuggestionsFrameworkPopupBlockerEnabled() ||
+          !_hostContentSettingsMap) {
         return NO;
       }
       GURL url = _webState->GetLastCommittedURL();
@@ -312,7 +310,8 @@ const CGFloat kFeatureRowIconSize = 20;
   }
 
   // Popup blocker feature.
-  if ([self isFeatureAvailable:PageActionMenuPopupBlocker]) {
+  if (IsProactiveSuggestionsFrameworkPopupBlockerEnabled() &&
+      [self isFeatureAvailable:PageActionMenuPopupBlocker]) {
     RecordPageActionMenuFeatureRowShown(
         IOSPageActionMenuFeatureType::kPopupBlocker);
     PageActionMenuFeature* popupFeature = [[PageActionMenuFeature alloc]
@@ -522,21 +521,24 @@ std::string GetTargetLanguageCode(ChromeIOSTranslateClient* translate_client) {
   RecordPageActionMenuFeatureRowSettingsOpened(
       IOSPageActionMenuFeatureType::kTranslate);
 
-  translate::TranslateManager* translateManager =
-      translateClient->GetTranslateManager();
-  translate::LanguageState* languageState =
-      translateManager->GetLanguageState();
-  std::string sourceLanguage = languageState->source_language();
-  std::string targetLanguage = languageState->current_language();
-
-  // Create translate infobar without showing banner.
-  // Setting triggered_from_menu=false with TRANSLATE_STEP_AFTER_TRANSLATE
-  // suppresses the banner per ChromeIOSTranslateClient::CreateInfoBar logic.
-  translateClient->ShowTranslateUI(translate::TRANSLATE_STEP_AFTER_TRANSLATE,
-                                   sourceLanguage, targetLanguage,
-                                   translate::TranslateErrors::NONE, false);
-
   InfoBarIOS* translateInfobar = [self findTranslateInfobar];
+  if (!translateInfobar) {
+    translate::TranslateManager* translateManager =
+        translateClient->GetTranslateManager();
+    translate::LanguageState* languageState =
+        translateManager->GetLanguageState();
+    std::string sourceLanguage = languageState->source_language();
+    std::string targetLanguage = languageState->current_language();
+
+    // Create translate infobar without showing banner.
+    // Setting triggered_from_menu=false with TRANSLATE_STEP_AFTER_TRANSLATE
+    // suppresses the banner per ChromeIOSTranslateClient::CreateInfoBar logic.
+    translateClient->ShowTranslateUI(translate::TRANSLATE_STEP_AFTER_TRANSLATE,
+                                     sourceLanguage, targetLanguage,
+                                     translate::TranslateErrors::NONE, false);
+    translateInfobar = [self findTranslateInfobar];
+  }
+
   if (!translateInfobar) {
     return;
   }

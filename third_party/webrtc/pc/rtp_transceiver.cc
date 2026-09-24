@@ -122,6 +122,9 @@ RtpTransceiver::RtpTransceiver(const Environment& env,
       thread_(GetCurrentTaskQueueOrThread()),
       unified_plan_(false),
       media_type_(media_type),
+      network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          true,
+          context->network_thread())),
       context_(context),
       codec_lookup_helper_(codec_lookup_helper) {
   RTC_DCHECK(media_type == MediaType::AUDIO || media_type == MediaType::VIDEO);
@@ -142,6 +145,9 @@ RtpTransceiver::RtpTransceiver(
       thread_(GetCurrentTaskQueueOrThread()),
       unified_plan_(true),
       media_type_(sender->media_type()),
+      network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          true,
+          context->network_thread())),
       context_(context),
       codec_lookup_helper_(codec_lookup_helper),
       header_extensions_to_negotiate_(
@@ -152,6 +158,7 @@ RtpTransceiver::RtpTransceiver(
   RTC_DCHECK(media_type_ == MediaType::AUDIO ||
              media_type_ == MediaType::VIDEO);
   RTC_DCHECK_EQ(sender->media_type(), receiver->media_type());
+  RTC_LOG_THREAD_BLOCK_COUNT();
   sender->internal()->SetSendCodecs(
       sender->media_type() == MediaType::VIDEO
           ? codec_vendor().video_send_codecs().codecs()
@@ -214,6 +221,9 @@ RTCError RtpTransceiver::CreateChannel(
         transport_lookup) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!channel());
+  RTC_DCHECK(!mid_ || mid_.value() == mid);
+
+  mid_ = mid;
 
   std::unique_ptr<ChannelInterface> new_channel;
   if (media_type() == MediaType::AUDIO) {
@@ -302,6 +312,7 @@ void RtpTransceiver::SetChannel(
   RTC_LOG_THREAD_BLOCK_COUNT();
 
   RTC_DCHECK_EQ(media_type(), channel->media_type());
+  RTC_DCHECK(mid_ || channel->mid().empty());
   signaling_thread_safety_ = PendingTaskSafetyFlag::Create();
   channel_ = std::move(channel);
 
@@ -337,11 +348,11 @@ void RtpTransceiver::SetChannel(
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
-void RtpTransceiver::ClearChannel() {
+absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
   RTC_DCHECK_RUN_ON(thread_);
 
   if (!channel_) {
-    return;
+    return nullptr;
   }
 
   RTC_LOG_THREAD_BLOCK_COUNT();
@@ -349,17 +360,58 @@ void RtpTransceiver::ClearChannel() {
   signaling_thread_safety_->SetNotAlive();
   signaling_thread_safety_ = nullptr;
 
-  context()->network_thread()->BlockingCall([&]() {
-    channel_->SetFirstPacketReceivedCallback(nullptr);
-    channel_->SetFirstPacketSentCallback(nullptr);
-    channel_->SetPacketReceivedCallback_n(nullptr);
-    channel_->SetRtpTransport(nullptr);
-  });
+  ChannelInterface* channel = channel_.get();
+  return [channel, flag = network_thread_safety_] {
+    flag->SetNotAlive();
+    channel->SetFirstPacketReceivedCallback(nullptr);
+    channel->SetFirstPacketSentCallback(nullptr);
+    channel->SetPacketReceivedCallback_n(nullptr);
+    channel->SetRtpTransport(nullptr);
+  };
+}
 
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
-  DeleteChannel();
+absl::AnyInvocable<void() &&> RtpTransceiver::GetDeleteChannelWorkerTask() {
+  RTC_DCHECK_RUN_ON(thread_);
 
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
+  if (!channel_) {
+    return nullptr;
+  }
+
+  // Ensure that channel_ is not reachable via transceiver, but is deleted
+  // only after clearing the references in senders_ and receivers_.
+  return [this, channel = std::move(channel_), senders = senders_,
+          receivers = receivers_]() mutable {
+    RTC_DCHECK_RUN_ON(context()->worker_thread());
+    // Clear the media channel reference from senders and receivers.
+    for (const auto& sender : senders) {
+      sender->internal()->SetMediaChannel(nullptr);
+    }
+    for (const auto& receiver : receivers) {
+      receiver->internal()->SetMediaChannel(nullptr);
+    }
+    // The channel is destroyed here, on the worker thread as it needs to
+    // be.
+    channel.reset();
+    media_engine_ref_.reset();
+  };
+}
+
+void RtpTransceiver::ClearChannel() {
+  RTC_DCHECK_RUN_ON(thread_);
+  if (!channel_) {
+    return;
+  }
+
+  absl::AnyInvocable<void() &&> network_task = GetClearChannelNetworkTask();
+  if (network_task) {
+    context()->network_thread()->BlockingCall(
+        [&] { std::move(network_task)(); });
+  }
+
+  absl::AnyInvocable<void() &&> worker_task = GetDeleteChannelWorkerTask();
+  if (worker_task) {
+    context()->worker_thread()->BlockingCall([&] { std::move(worker_task)(); });
+  }
 }
 
 void RtpTransceiver::PushNewMediaChannel() {
@@ -379,27 +431,6 @@ void RtpTransceiver::PushNewMediaChannel() {
     for (const auto& receiver : receivers_) {
       receiver->internal()->SetMediaChannel(media_receive_channel);
     }
-  });
-}
-
-void RtpTransceiver::DeleteChannel() {
-  RTC_DCHECK(channel_);
-  // Ensure that channel_ is not reachable via transceiver, but is deleted
-  // only after clearing the references in senders_ and receivers_.
-  context()->worker_thread()->BlockingCall([&]() {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
-    auto channel_to_delete = std::move(channel_);
-    // Clear the media channel reference from senders and receivers.
-    for (const auto& sender : senders_) {
-      sender->internal()->SetMediaChannel(nullptr);
-    }
-    for (const auto& receiver : receivers_) {
-      receiver->internal()->SetMediaChannel(nullptr);
-    }
-    // The channel is destroyed here, on the worker thread as it needs to
-    // be.
-    channel_to_delete.reset();
-    media_engine_ref_.reset();
   });
 }
 
@@ -505,7 +536,7 @@ void RtpTransceiver::OnFirstPacketReceived() {
 // RTC_RUN_ON(context()->network_thread())
 void RtpTransceiver::OnPacketReceived(
     scoped_refptr<PendingTaskSafetyFlag> safety) {
-  if (!receptive_) {
+  if (!receptive_n_) {
     return;
   }
   if (packet_notified_after_receptive_) {
@@ -513,7 +544,8 @@ void RtpTransceiver::OnPacketReceived(
   }
   packet_notified_after_receptive_ = true;
   thread_->PostTask(SafeTask(safety, [this]() {
-    if (stopping() || stopped()) {
+    RTC_DCHECK_RUN_ON(thread_);
+    if (stopping() || stopped() || !receptive_) {
       return;
     }
     for (const auto& receiver : receivers_) {
@@ -610,17 +642,20 @@ std::optional<RtpTransceiverDirection> RtpTransceiver::fired_direction() const {
 }
 
 bool RtpTransceiver::receptive() const {
+  RTC_DCHECK_RUN_ON(thread_);
   return receptive_;
 }
 
 void RtpTransceiver::set_receptive(bool receptive) {
   RTC_DCHECK_RUN_ON(thread_);
-  bool old_receptive = receptive_.exchange(receptive);
-  if (receptive && !old_receptive) {
-    context()->network_thread()->PostTask([&]() {
-      RTC_DCHECK_RUN_ON(context()->network_thread());
-      packet_notified_after_receptive_ = false;
-    });
+  if (receptive != receptive_) {
+    receptive_ = receptive;
+    context()->network_thread()->PostTask(
+        SafeTask(network_thread_safety_, [this, receptive = receptive]() {
+          RTC_DCHECK_RUN_ON(context()->network_thread());
+          receptive_n_ = receptive;
+          packet_notified_after_receptive_ = false;
+        }));
   }
 }
 
@@ -632,6 +667,10 @@ void RtpTransceiver::StopSendingAndReceiving() {
   //
   RTC_DCHECK_RUN_ON(thread_);
 
+  // Although there is one explicit blocking call to the worker thread below,
+  // the Stop() operations can hide additional blocking calls.
+  RTC_LOG_THREAD_BLOCK_COUNT();
+
   // 4. Send an RTCP BYE for each RTP stream that was being sent by sender, as
   // specified in [RFC3550].
   for (const auto& sender : senders_)
@@ -642,7 +681,8 @@ void RtpTransceiver::StopSendingAndReceiving() {
     receiver->internal()->Stop();
 
   context()->worker_thread()->BlockingCall([&]() {
-    // 5 Stop receiving media with receiver.
+    RTC_DCHECK_RUN_ON(context()->worker_thread());
+    // 5. Stop receiving media with receiver.
     for (const auto& receiver : receivers_)
       receiver->internal()->SetMediaChannel(nullptr);
   });
@@ -665,14 +705,12 @@ RTCError RtpTransceiver::StopStandard() {
   // transceiver.
   //
   // 3. If connection.[[IsClosed]] is true, throw an InvalidStateError.
-  if (is_pc_closed_) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_STATE,
-                         "PeerConnection is closed.");
-  }
-
+  //    (Note: Checking for IsClosed() is implemented by the user agent).
+  //
   // 4. If transceiver.[[Stopping]] is true, abort these steps.
-  if (stopping_)
+  if (stopping_) {
     return RTCError::OK();
+  }
 
   // 5. Stop sending and receiving given transceiver, and update the
   // negotiation-needed flag for connection.
@@ -704,6 +742,7 @@ void RtpTransceiver::StopTransceiverProcedure() {
 
   // 3. Set transceiver.[[Receptive]] to false.
   receptive_ = false;
+
   // 4. Set transceiver.[[CurrentDirection]] to null.
   current_direction_ = std::nullopt;
 }
@@ -913,28 +952,24 @@ void RtpTransceiver::OnNegotiationUpdate(
   RTC_DCHECK(content);
   if (sdp_type == SdpType::kAnswer || sdp_type == SdpType::kPrAnswer) {
     negotiated_header_extensions_ = content->rtp_header_extensions();
-    if (!env_.field_trials().IsDisabled(
+    if (env_.field_trials().IsEnabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       header_extensions_to_negotiate_ = GetNegotiatedHeaderExtensions();
     }
   } else if (sdp_type == SdpType::kOffer) {
-    if (!env_.field_trials().IsDisabled(
+    if (env_.field_trials().IsEnabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       header_extensions_for_rollback_ = header_extensions_to_negotiate_;
       header_extensions_to_negotiate_ =
           GetOfferedAndImplementedHeaderExtensions(content);
     }
   } else if (sdp_type == SdpType::kRollback) {
-    if (!env_.field_trials().IsDisabled(
+    if (env_.field_trials().IsEnabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       RTC_CHECK(!header_extensions_for_rollback_.empty());
       header_extensions_to_negotiate_ = header_extensions_for_rollback_;
     }
   }
-}
-
-void RtpTransceiver::SetPeerConnectionClosed() {
-  is_pc_closed_ = true;
 }
 
 }  // namespace webrtc

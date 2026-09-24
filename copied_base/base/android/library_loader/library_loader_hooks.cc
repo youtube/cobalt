@@ -101,3 +101,5 @@ void InitAtExitManager() {
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(LibraryLoader)

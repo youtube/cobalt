@@ -79,13 +79,7 @@ class NodeRanges {
     DCHECK_NOT_NULL(map);
     auto it = map->find(node);
     if (it == map->end()) {
-      if (IsConstantNode(node->opcode())) {
-        return GetConstantRange(node);
-      }
-      if (SameRangeAsFirstInput(node->opcode())) {
-        return Get(block, node->input_node(0));
-      }
-      return Range::All();
+      return node->GetStaticRange();
     }
     return it->second;
   }
@@ -142,9 +136,6 @@ class NodeRanges {
   }
 
   void NarrowUpdate(BasicBlock* block, ValueNode* node, Range narrowed_range) {
-    if (IsConstantNode(node->opcode())) {
-      return;
-    }
     auto* map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
     auto it = map->find(node);
@@ -190,37 +181,6 @@ class NodeRanges {
   ZoneVector<LessEqualConstraint::List> less_equals_;
 
   Zone* zone() const { return graph_->zone(); }
-
-  static bool SameRangeAsFirstInput(Opcode opcode) {
-    switch (opcode) {
-      case Opcode::kIdentity:
-      case Opcode::kReturnedValue:
-      case Opcode::kInt32ToNumber:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  Range GetConstantRange(ValueNode* node) {
-    // TODO(victorgomes): Support other constant nodes.
-    switch (node->opcode()) {
-      case Opcode::kInt32Constant:
-        return Range(node->Cast<Int32Constant>()->value());
-      case Opcode::kUint32Constant:
-        return Range(node->Cast<Uint32Constant>()->value());
-      case Opcode::kSmiConstant:
-        return Range(node->Cast<SmiConstant>()->value().value());
-      case Opcode::kFloat64Constant: {
-        double value = node->Cast<Float64Constant>()->value().get_scalar();
-        if (!IsSafeInteger(value)) return Range::All();
-        int64_t int_value = static_cast<int64_t>(value);
-        return Range{int_value, int_value};
-      }
-      default:
-        return Range::All();
-    }
-  }
 };
 
 class RangeProcessor {
@@ -355,8 +315,8 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32ShiftRightLogical* node, const ProcessingState&) {
-    UnionUpdateInt32(node, Range::ShiftRightLogical(Get(node->input_node(0)),
-                                                    Get(node->input_node(1))));
+    UnionUpdateUint32(node, Range::ShiftRightLogical(Get(node->input_node(0)),
+                                                     Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
 
@@ -366,6 +326,15 @@ class RangeProcessor {
                   NodeT::kProperties.value_representation() ==
                       ValueRepresentation::kInt32) {
       UnionUpdate(node, Range::Int32());
+    }
+    if constexpr (NodeT::kProperties.can_throw()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+        BasicBlock* exception_handler =
+            node->exception_handler_info()->catch_block();
+        DCHECK(exception_handler->is_exception_handler_block());
+        ranges_.Join(exception_handler, current_block_);
+      }
     }
     return ProcessResult::kContinue;
   }
@@ -459,6 +428,14 @@ class RangeProcessor {
     DCHECK_NOT_NULL(current_block_);
     ranges_.UnionUpdate(current_block_, node,
                         range.IsInt32() ? range : Range::Int32());
+  }
+
+  void UnionUpdateUint32(ValueNode* node, Range range) {
+    // WARNING: This entails that the current range analysis cannot be used to
+    // identify truncation, since we always intersect Int32 operations range.
+    DCHECK_NOT_NULL(current_block_);
+    ranges_.UnionUpdate(current_block_, node,
+                        Range::Intersect(Range::Uint32(), range));
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {

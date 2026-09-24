@@ -159,6 +159,8 @@
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
+#include "src/strings/string-hasher-inl.h"
+
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
 #include <unistd.h>
@@ -5607,28 +5609,6 @@ bool String::IsOneByte() const {
   return Utils::OpenDirectHandle(this)->IsOneByteRepresentation();
 }
 
-// Helpers for ContainsOnlyOneByteHelper
-template <size_t size>
-struct OneByteMask;
-template <>
-struct OneByteMask<4> {
-  static const uint32_t value = 0xFF00FF00;
-};
-template <>
-struct OneByteMask<8> {
-  static const uint64_t value = 0xFF00'FF00'FF00'FF00;
-};
-static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
-static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
-static inline bool Unaligned(const uint16_t* chars) {
-  return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
-}
-
-static inline const uint16_t* Align(const uint16_t* chars) {
-  return reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(chars) &
-                                     ~kAlignmentMask);
-}
-
 class ContainsOnlyOneByteHelper {
  public:
   ContainsOnlyOneByteHelper() : is_one_byte_(true) {}
@@ -5645,35 +5625,7 @@ class ContainsOnlyOneByteHelper {
     // Nothing to do.
   }
   void VisitTwoByteString(const uint16_t* chars, int length) {
-    // Accumulated bits.
-    uintptr_t acc = 0;
-    // Align to uintptr_t.
-    const uint16_t* end = chars + length;
-    while (Unaligned(chars) && chars != end) {
-      acc |= *chars++;
-    }
-    // Read word aligned in blocks,
-    // checking the return value at the end of each block.
-    const uint16_t* aligned_end = Align(end);
-    const int increment = sizeof(uintptr_t) / sizeof(uint16_t);
-    const int inner_loops = 16;
-    while (chars + inner_loops * increment < aligned_end) {
-      for (int i = 0; i < inner_loops; i++) {
-        acc |= *reinterpret_cast<const uintptr_t*>(chars);
-        chars += increment;
-      }
-      // Check for early return.
-      if ((acc & kOneByteMask) != 0) {
-        is_one_byte_ = false;
-        return;
-      }
-    }
-    // Read the rest.
-    while (chars != end) {
-      acc |= *chars++;
-    }
-    // Check result.
-    if ((acc & kOneByteMask) != 0) is_one_byte_ = false;
+    is_one_byte_ = internal::detail::IsOnly8Bit(chars, length);
   }
 
  private:
@@ -9074,8 +9026,8 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 }
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
+  size_t bytes_to_copy = std::min(byte_length, ByteLength());
   auto self = Utils::OpenDirectHandle(this);
-  size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
     const char* source;
@@ -9559,12 +9511,15 @@ void BigInt::ToWordsArray(int* sign_bit, int* word_count,
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
     int64_t change_in_bytes) {
-  // Try to check for unreasonably large or small values from the embedder.
-  static constexpr int64_t kMaxReasonableBytes = int64_t(1) << 60;
-  static constexpr int64_t kMinReasonableBytes = -kMaxReasonableBytes;
-  static_assert(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
-  CHECK(kMinReasonableBytes <= change_in_bytes &&
-        change_in_bytes < kMaxReasonableBytes);
+  // Try to check for unreasonably large or small values from the embedder;
+  if (i::v8_flags.external_memory_max_reasonable_size > 0) {
+    const int64_t kMaxReasonableBytes =
+        static_cast<int64_t>(i::v8_flags.external_memory_max_reasonable_size) *
+        internal::GB;
+    const int64_t kMinReasonableBytes = -kMaxReasonableBytes;
+    CHECK_LE(kMinReasonableBytes, change_in_bytes);
+    CHECK_LT(change_in_bytes, kMaxReasonableBytes);
+  }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   const uint64_t amount =
@@ -12154,11 +12109,8 @@ void InvokeAccessorGetterCallback(
 
   v8::AccessorNameGetterCallback getter;
   {
-    Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
-    // Currently we don't call InterceptorInfo callbacks via CallApiGetter.
-    DCHECK(IsAccessorInfo(Tagged<Object>(arg)));
-    Tagged<AccessorInfo> accessor_info =
-        Cast<AccessorInfo>(Tagged<Object>(arg));
+    DirectHandle<AccessorInfo> accessor_info =
+        PropertyCallbackArguments::GetAccessorInfo(info);
     getter = reinterpret_cast<v8::AccessorNameGetterCallback>(
         accessor_info->getter(i_isolate));
 
@@ -12166,8 +12118,7 @@ void InvokeAccessorGetterCallback(
       i::DirectHandle<Object> receiver_check_unsupported;
 
       if (!i_isolate->debug()->PerformSideEffectCheckForAccessor(
-              direct_handle(accessor_info, i_isolate),
-              receiver_check_unsupported, ACCESSOR_GETTER)) {
+              accessor_info, receiver_check_unsupported, ACCESSOR_GETTER)) {
         return;
       }
     }

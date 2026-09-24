@@ -312,7 +312,7 @@ HRESULT VideoCaptureDS::ConnectDVCamera() {
       RTC_LOG(LS_INFO) << "Failed to get input pin from DV decoder";
       return -1;
     }
-    _outputDvPin = GetOutputPin(_dvFilter, GUID_NULL);
+    _outputDvPin = GetOutputPin(_dvFilter, PIN_CATEGORY_CAPTURE);
     if (_outputDvPin == NULL) {
       RTC_LOG(LS_INFO) << "Failed to get output pin from DV decoder";
       return -1;

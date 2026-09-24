@@ -1218,14 +1218,17 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 
 void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
                                                    Label* dest) {
-#if V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Quick check for Read-only and small Smi values.
+  // This optimization requires contiguous compressed RO space to ensure RO
+  // space is at the beginning of the cage; otherwise, objects from other spaces
+  // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <=
                 V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
   JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
-#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
@@ -3864,19 +3867,15 @@ void MacroAssembler::PushStackHandler() {
   Push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Push(ExternalReferenceAsOperand(handler_address));
+  Push(AsMemOperand(IsolateFieldId::kHandler));
 
   // Set this new handler as the current one.
-  movq(ExternalReferenceAsOperand(handler_address), rsp);
+  movq(AsMemOperand(IsolateFieldId::kHandler), rsp);
 }
 
 void MacroAssembler::PopStackHandler() {
   static_assert(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Pop(ExternalReferenceAsOperand(handler_address));
+  Pop(AsMemOperand(IsolateFieldId::kHandler));
   addq(rsp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
@@ -4615,11 +4614,10 @@ void MacroAssembler::EnterExitFrame(int extra_slots,
   Push(Immediate(0));  // Saved entry sp, patched below.
 
   DCHECK(!AreAliased(rbp, kContextRegister, c_function));
-  using ER = ExternalReference;
-  Store(ER::Create(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
-  Store(ER::Create(IsolateAddressId::kContextAddress, isolate()),
-        kContextRegister);
-  Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), c_function);
+
+  movq(AsMemOperand(IsolateFieldId::kCEntryFP), rbp);
+  movq(AsMemOperand(IsolateFieldId::kContext), kContextRegister);
+  movq(AsMemOperand(IsolateFieldId::kCFunction), c_function);
 
 #ifdef V8_TARGET_OS_WIN
   // Note this is only correct under the assumption that the caller hasn't
@@ -4643,19 +4641,13 @@ void MacroAssembler::LeaveExitFrame() {
   leave();
 
   // Restore the current context from top and clear it in debug mode.
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  Operand context_operand = ExternalReferenceAsOperand(context_address);
-  movq(rsi, context_operand);
+  movq(rsi, AsMemOperand(IsolateFieldId::kContext));
 #ifdef DEBUG
-  Move(context_operand, Context::kNoContext);
+  Move(AsMemOperand(IsolateFieldId::kContext), Context::kNoContext);
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  Operand c_entry_fp_operand = ExternalReferenceAsOperand(c_entry_fp_address);
-  Move(c_entry_fp_operand, 0);
+  Move(AsMemOperand(IsolateFieldId::kCEntryFP), 0);
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {

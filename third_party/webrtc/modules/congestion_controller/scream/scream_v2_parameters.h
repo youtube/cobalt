@@ -28,6 +28,10 @@ struct ScreamV2Parameters {
   FieldTrialParameter<double> l4s_avg_g_up;
   FieldTrialParameter<double> l4s_avg_g_down;
 
+  // Exponentially Weighted Moving Average (EWMA) factor for smoothed rtt.
+  FieldTrialParameter<double> smoothed_rtt_avg_g_up;
+  FieldTrialParameter<double> smoothed_l4s_avg_g_down;
+
   // Maximum Segment Size (MSS)
   // Size of the largest data segment that a sender is able to transmit. I.e
   // largest possible IP packet.
@@ -107,6 +111,9 @@ struct ScreamV2Parameters {
 
   // Duration padding is used when periodic padding start.
   FieldTrialParameter<TimeDelta> periodic_padding_duration;
+
+  // Factor multiplied by the current target rate to decide the pacing rate.
+  FieldTrialParameter<double> pacing_factor;
 };
 
 }  // namespace webrtc

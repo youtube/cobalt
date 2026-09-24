@@ -19,6 +19,9 @@
 
 #if !defined(BORINGSSL_NO_CXX)
 
+// Work around consumers including our headers under extern "C".
+extern "C++" {
+
 #include <stdlib.h>
 
 #include <algorithm>
@@ -34,8 +37,6 @@
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
 #include <ranges>
 #endif
-
-extern "C++" {
 
 BSSL_NAMESPACE_BEGIN
 inline constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();

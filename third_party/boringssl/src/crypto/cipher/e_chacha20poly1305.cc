@@ -311,6 +311,9 @@ static const EVP_AEAD aead_chacha20_poly1305 = {
     nullptr /* open */,
     aead_chacha20_poly1305_seal_scatter,
     aead_chacha20_poly1305_open_gather,
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     nullptr,  // tag_len
 };
@@ -328,6 +331,9 @@ static const EVP_AEAD aead_xchacha20_poly1305 = {
     nullptr /* open */,
     aead_xchacha20_poly1305_seal_scatter,
     aead_xchacha20_poly1305_open_gather,
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     nullptr,  // tag_len
 };

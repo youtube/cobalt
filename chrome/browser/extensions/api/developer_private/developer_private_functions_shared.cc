@@ -5,9 +5,11 @@
 #include "chrome/browser/extensions/api/developer_private/developer_private_functions_shared.h"
 
 #include "base/barrier_closure.h"
+#include "base/debug/crash_logging.h"
 #include "base/files/file_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -1641,6 +1643,10 @@ void DeveloperPrivateRemoveMultipleExtensionsFunction::OnDialogAccepted() {
     ExtensionRegistrar::Get(profile_)->UninstallExtension(
         extension_id, UNINSTALL_REASON_USER_INITIATED, nullptr);
   }
+  // TODO(crbug.com/463124104): Crash keys for `response_callback_` crashes.
+  SCOPED_CRASH_KEY_BOOL("ext", "EF_DP_dialog_did_respond", did_respond());
+  SCOPED_CRASH_KEY_BOOL("ext", "EF_DP_dialog_resp_cb_null",
+                        response_callback_is_null());
   Respond(NoArguments());
 }
 
@@ -1678,10 +1684,12 @@ void DeveloperPrivatePackDirectoryFunction::OnPackSuccess(
 }
 
 void DeveloperPrivatePackDirectoryFunction::OnPackFailure(
-    const std::string& error,
+    const std::u16string& error,
     ExtensionCreator::ErrorType error_type) {
+  // TODO(crbug.com/41317803): Continue removing std::string errors and
+  // replacing with std::u16string.
   developer::PackDirectoryResponse response;
-  response.message = error;
+  response.message = base::UTF16ToUTF8(error);
   if (error_type == ExtensionCreator::kCRXExists) {
     response.item_path = item_path_str_;
     response.pem_path = key_path_str_;

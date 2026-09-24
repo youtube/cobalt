@@ -382,6 +382,17 @@ const char kOmniboxFocusResultedInNavigation[] =
            !_omniboxAutocompleteController.hasSuggestions));
 }
 
+- (void)removePreEditText {
+  if (self.textInput.isPreEditing) {
+    [self.textInput setText:@""];
+    [self setUserText:u""];
+    [self onTextChanged];
+    // Ensure the pre-edit state is exited after the text is cleared, preventing
+    // stale text from influencing height changes (crbug.com/466997176).
+    [self.textInput exitPreEditState];
+  }
+}
+
 #pragma mark - Autocomplete events
 
 - (void)setAdditionalText:(const std::u16string&)text {

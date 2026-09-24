@@ -32,6 +32,8 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kActorBypassTOUValidationForGuestView,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kActorLoginPermissionsUseStrongAffiliations,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicActionUseOptimizationGuide, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicExternalProtocolActionResultCode,
@@ -125,5 +127,10 @@ const base::FeatureParam<
         &kGlicTabScreenshotPaintPreviewBackend, "screenshot_iframe_redaction",
         page_content_annotations::ScreenshotIframeRedactionScope::kCrossSite,
         &kScreenshotIframeRedactionOptions};
+
+BASE_FEATURE(kActorBindCreatedTabToTask, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kActorRestartObservationDelayControllerOnNavigate,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace actor

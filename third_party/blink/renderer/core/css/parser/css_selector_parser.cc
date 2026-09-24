@@ -19,7 +19,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_save_point.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
-#include "third_party/blink/renderer/core/css/parser/route_parser.h"
+#include "third_party/blink/renderer/core/css/parser/navigation_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -1819,16 +1819,56 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
       return true;
     }
     case CSSSelector::kPseudoLang: {
-      // FIXME: CSS Selectors Level 4 allows :lang(*-foo)
-      const CSSParserToken& ident = stream.Peek();
-      if (ident.GetType() != kIdentToken) {
+      if (!RuntimeEnabledFeatures::CSSLangExtendedRangesEnabled()) {
+        const CSSParserToken& ident = stream.Peek();
+        if (ident.GetType() != kIdentToken) {
+          return false;
+        }
+        selector.SetArgumentList(std::make_unique<Vector<AtomicString>>(
+            Vector<AtomicString>{ident.Value().ToAtomicString()}));
+        stream.ConsumeIncludingWhitespace();
+        if (!stream.AtEnd()) {
+          return false;
+        }
+        output_.push_back(std::move(selector));
+        return true;
+      }
+
+      // Per CSS Selectors 4, each language range must be an ident or string.
+      // Validation against the BCP47 grammar will happen at match time.
+      Vector<AtomicString> langs;
+
+      while (!stream.AtEnd()) {
+        const CSSParserToken& lang_token = stream.Peek();
+
+        if (lang_token.GetType() == kIdentToken) {
+          langs.push_back(lang_token.Value().ToAtomicString());
+          stream.ConsumeIncludingWhitespace();
+        } else if (lang_token.GetType() == kStringToken) {
+          langs.push_back(lang_token.Value().ToAtomicString());
+          stream.ConsumeIncludingWhitespace();
+        } else {
+          return false;
+        }
+
+        if (!stream.AtEnd()) {
+          if (stream.Peek().GetType() != kCommaToken) {
+            return false;
+          }
+          stream.ConsumeIncludingWhitespace();
+          if (stream.AtEnd()) {
+            // Trailing comma.
+            return false;
+          }
+        }
+      }
+
+      if (langs.empty()) {
         return false;
       }
-      selector.SetArgument(ident.Value().ToAtomicString());
-      stream.ConsumeIncludingWhitespace();
-      if (!stream.AtEnd()) {
-        return false;
-      }
+
+      selector.SetArgumentList(
+          std::make_unique<Vector<AtomicString>>(std::move(langs)));
       output_.push_back(std::move(selector));
       return true;
     }
@@ -1909,13 +1949,14 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
       output_.push_back(std::move(selector));
       return true;
     }
-    case CSSSelector::kPseudoRouteMatch:
+    case CSSSelector::kPseudoLinkTo:
       if (!RuntimeEnabledFeatures::RouteMatchingEnabled()) {
         return false;
       }
-      if (RouteLocation* route_location =
-              RouteParser::ParseLocation(stream, *context_->GetDocument())) {
-        selector.SetRouteLocation(route_location);
+      if (NavigationLocation* navigation_location =
+              NavigationParser::ParseLocation(stream,
+                                              *context_->GetDocument())) {
+        selector.SetNavigationLocation(navigation_location);
         output_.push_back(std::move(selector));
         return true;
       }

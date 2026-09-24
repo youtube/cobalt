@@ -49,6 +49,12 @@ BASE_FEATURE(kAutofillActorRewriteCreditCardTriggerField,
 // saving to Autocomplete.
 BASE_FEATURE(kAutofillActorSuppressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Kill switch: If enabled, NameFieldParser will parse 'Last name, First name'
+// sequence.
+// TODO(crbug.com/329016404): Remove after M146 branch point (2026-02-09).
+BASE_FEATURE(kAutofillAddressParseSurnameNameSequence,
+  base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
 // after the user typed a certain number of characters that match some data
@@ -644,6 +650,12 @@ BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_DISABLED_BY_DEFAULT);
 // TODO(crbug.com/445863287): Cleanup when launched.
 BASE_FEATURE(kAutofillFixRewriterRules, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the rationalization engine will fix misclassifications where
+// a field is detected as a COUNTRY when it should be a STATE or vice versa.
+// TODO(crbug.com/444180493): Cleanup when launched.
+BASE_FEATURE(kAutofillFixStateCountryMisclassification,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, Greek regexes are used for parsing in branded builds.
 BASE_FEATURE(kAutofillGreekRegexes, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -752,6 +764,17 @@ BASE_FEATURE_PARAM(int,
 // TODO(crbug.com/409962888): Remove once launched.
 BASE_FEATURE(kAutofillNewSuggestionGeneration,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, cache form updates will happen in place instead of creating a
+// new form and moving it back to the cache, which reduces the number of members
+// that are copied.
+BASE_FEATURE(kAutofillOptimizeCacheUpdates, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, prefilled country calling codes like "+49" do not prevent
+// autofilling.
+// TODO(crbug.com/453076638): Cleanup after M146 (after Feb 10, 2026).
+BASE_FEATURE(kAutofillOverwriteCountryCallingCodes,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables detection of language from Translate.
 // TODO(crbug.com/40158074): Cleanup when launched.
@@ -948,6 +971,10 @@ BASE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary,
 // experiments.
 BASE_FEATURE(kFieldClassificationModelCaching,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, Autofill will retrieve one-time passwords from Gmail.
+// TODO(crbug.com/452607505): Clean up when launched.
+BASE_FEATURE(kGmailOtpRetrievalService, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, a HaTS survey is shown after the successful first time creation
 // flow.

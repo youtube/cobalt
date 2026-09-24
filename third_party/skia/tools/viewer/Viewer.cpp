@@ -220,7 +220,6 @@ static DEFINE_string2(backend, b, "sw", "Backend to use. Allowed values are " BA
 
 static DEFINE_int(msaa, 1, "Number of subpixel samples. 0 for no HW antialiasing.");
 static DEFINE_bool(dmsaa, false, "Use internal MSAA to render to non-MSAA surfaces?");
-static DEFINE_int(msaa_tile_size, 0, "Tile size of MSAA rendering.");
 
 static DEFINE_string(bisect, "", "Path to a .skp or .svg file to bisect.");
 
@@ -326,10 +325,12 @@ static const char* get_path_renderer_strategy_string(
             return "GPU Compute AA (16xMSAA)";
         case Strategy::kComputeMSAA8:
             return "GPU Compute AA (8xMSAA)";
-        case Strategy::kRasterAA:
+        case Strategy::kRasterAtlas:
             return "CPU Raster Atlas";
         case Strategy::kTessellation:
             return "Tessellation";
+        case Strategy::kTessellationAndSmallAtlas:
+            return "Tessellation w/ Small Path Atlas";
     }
 
     SkUNREACHABLE;
@@ -341,7 +342,7 @@ static std::optional<skgpu::graphite::PathRendererStrategy> get_path_renderer_st
     if (0 == strcmp(str, "default")) {
         return {};
     } else if (0 == strcmp(str, "raster")) {
-        return Strategy::kRasterAA;
+        return Strategy::kRasterAtlas;
 #ifdef SK_ENABLE_VELLO_SHADERS
     } else if (0 == strcmp(str, "compute-analytic")) {
         return Strategy::kComputeAnalyticAA;
@@ -352,6 +353,8 @@ static std::optional<skgpu::graphite::PathRendererStrategy> get_path_renderer_st
 #endif
     } else if (0 == strcmp(str, "tessellation")) {
         return Strategy::kTessellation;
+    } else if (0 == strcmp(str, "tessellation+atlas")) {
+        return Strategy::kTessellationAndSmallAtlas;
     } else {
         SkDebugf("Unknown path renderer strategy type, %s, defaulting to default.", str);
         return {};
@@ -668,11 +671,8 @@ Viewer::Viewer(int argc, char** argv, void* platformData)
     CommonFlags::SetTestOptions(&gto.fTestOptions);
     gto.fPriv.fPathRendererStrategy = get_path_renderer_strategy_type(FLAGS_pathstrategy[0]);
     if (FLAGS_msaa <= 0) {
-        gto.fTestOptions.fContextOptions.fInternalMultisampleCount = 1;
-    }
-    if (FLAGS_msaa_tile_size > 0) {
-        gto.fTestOptions.fContextOptions.fInternalMSAATileSize = {FLAGS_msaa_tile_size,
-                                                                  FLAGS_msaa_tile_size};
+        gto.fTestOptions.fContextOptions.fInternalMultisampleCount =
+                skgpu::graphite::SampleCount::k1;
     }
     paramsBuilder.graphiteTestOptions(gto);
 #endif
@@ -2503,11 +2503,13 @@ void Viewer::drawImGui() {
                                 PathRendererStrategy::kComputeAnalyticAA,
                                 PathRendererStrategy::kComputeMSAA16,
                                 PathRendererStrategy::kComputeMSAA8,
-                                PathRendererStrategy::kRasterAA,
+                                PathRendererStrategy::kRasterAtlas,
                                 PathRendererStrategy::kTessellation,
+                                PathRendererStrategy::kTessellationAndSmallAtlas,
                         };
                         for (size_t i = 0; i < std::size(strategies); ++i) {
-                            if (gctx->priv().supportsPathRendererStrategy(strategies[i])) {
+                            if (skgpu::graphite::RendererProvider::IsSupported(
+                                        strategies[i], gctx->priv().caps())) {
                                 prsButton(strategies[i]);
                             }
                         }

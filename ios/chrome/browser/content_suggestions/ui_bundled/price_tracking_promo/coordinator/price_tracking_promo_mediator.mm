@@ -175,13 +175,6 @@ void LogOptInFlowHistogram(PriceTrackingPromoOptInFlow opt_in_flow) {
   return _priceTrackingPromoItem;
 }
 
-// TODO(crbug.com/371870438) merge disableModule &&
-// removePriceTrackingPromo. They are the same (the price tracking
-// promo can only be displayed once).
-- (void)removePriceTrackingPromo {
-  [self disableModule];
-}
-
 - (void)enablePriceTrackingSettingsAndShowSnackbar {
   [self enablePriceTrackingNotificationsSettings];
   [self.dispatcher showSnackbarMessage:[self snackbarMessage]];
@@ -333,7 +326,7 @@ void LogOptInFlowHistogram(PriceTrackingPromoOptInFlow opt_in_flow) {
   // will be displayed but with the fallback image.
   if (most_recent_subscription_product_image_url.is_empty()) {
     _priceTrackingPromoItem = [[PriceTrackingPromoItem alloc] init];
-    _priceTrackingPromoItem.commandHandler = self;
+    _priceTrackingPromoItem.priceTrackingPromoHandler = self;
     _priceTrackingPromoItem.priceTrackingPromoFaviconConsumerSource = self;
     [self onNewSubscriptionAvailable];
   } else {
@@ -384,7 +377,7 @@ void LogOptInFlowHistogram(PriceTrackingPromoOptInFlow opt_in_flow) {
                   productUrl:(const GURL&)productUrl {
   self->_priceTrackingPromoItem = [[PriceTrackingPromoItem alloc] init];
   self->_priceTrackingPromoItem.priceTrackingPromoFaviconConsumerSource = self;
-  self->_priceTrackingPromoItem.commandHandler = self;
+  self->_priceTrackingPromoItem.priceTrackingPromoHandler = self;
   NSData* data = [NSData dataWithBytes:imageData.data()
                                 length:imageData.size()];
   if (data) {

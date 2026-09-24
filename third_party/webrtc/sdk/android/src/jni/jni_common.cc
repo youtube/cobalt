@@ -37,7 +37,7 @@ static jni_zero::ScopedJavaLocalRef<jobject> JNI_JniCommon_AllocateByteBuffer(
 
 static void JNI_JniCommon_FreeByteBuffer(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& byte_buffer) {
+    const jni_zero::JavaRef<jobject>& byte_buffer) {
   void* data = jni->GetDirectBufferAddress(byte_buffer.obj());
   ::operator delete(data);
 }

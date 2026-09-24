@@ -61,7 +61,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.AppSeedFreshness" units="minutes"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -762,7 +762,8 @@ chromium-metrics-reviews@google.com.
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
-    The UI thread run time of the VariationsSeedStore::StoreSeedData function.
+    The run time of the VariationsSeedStore::StoreSeedData function until the
+    callback is called with the result. Changed in M145.
   </summary>
 </histogram>
 
@@ -802,7 +803,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.VariationsStateEncryptionStatus"
-    enum="VariationsStateEncryptionStatus" expires_after="2026-04-05">
+    enum="VariationsStateEncryptionStatus" expires_after="2026-06-07">
   <owner>svenzheng@google.com</owner>
   <owner>vivianz@google.com</owner>
   <summary>
@@ -811,7 +812,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.WebViewDownloadJobInterval" units="minutes"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -822,7 +823,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.WebViewDownloadJobQueueTime" units="minutes"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>

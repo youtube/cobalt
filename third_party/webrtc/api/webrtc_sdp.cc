@@ -1320,12 +1320,12 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
         // Since a=ssrc msid signaling is used in Plan B SDP semantics, and
         // multiple stream ids are not supported for Plan B, we are only adding
         // a line for the first media stream id here.
-        const std::string& track_stream_id = track.first_stream_id();
         // We use a special msid-id value of "-" to represent no streams,
         // for Unified Plan compatibility. Plan B will always have a
         // track_stream_id.
-        const std::string& stream_id =
-            track_stream_id.empty() ? kNoStreamMsid : track_stream_id;
+        absl::string_view stream_id = track.first_stream_id().empty()
+                                          ? absl::string_view(kNoStreamMsid)
+                                          : track.first_stream_id();
         InitAttrLine(kAttributeSsrc, &os);
         os << kSdpDelimiterColon << ssrc << kSdpDelimiterSpace
            << kSsrcAttributeMsid << kSdpDelimiterColon << stream_id
@@ -2940,10 +2940,11 @@ std::unique_ptr<MediaContentDescription> ParseContentDescription(
 }
 
 bool HasDuplicateMsidLines(SessionDescription* desc) {
-  std::set<std::pair<std::string, std::string>> seen_msids;
+  std::set<std::pair<absl::string_view, absl::string_view>> seen_msids;
   for (const ContentInfo& content : desc->contents()) {
     for (const StreamParams& stream : content.media_description()->streams()) {
-      auto msid = std::pair(stream.first_stream_id(), stream.id);
+      auto msid = std::pair<absl::string_view, absl::string_view>(
+          stream.first_stream_id(), stream.id);
       if (seen_msids.find(msid) != seen_msids.end()) {
         return true;
       }

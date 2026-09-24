@@ -41,6 +41,7 @@
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 namespace {
@@ -195,6 +196,7 @@ void WebRtcSessionDescriptionFactory::CreateOffer(
     CreateSessionDescriptionObserver* observer,
     const PeerConnectionInterface::RTCOfferAnswerOptions& options,
     const MediaSessionOptions& session_options) {
+  RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread_);
   std::string error = "CreateOffer";
   if (certificate_request_state_ == CERTIFICATE_FAILED) {
@@ -225,6 +227,7 @@ void WebRtcSessionDescriptionFactory::CreateOffer(
 void WebRtcSessionDescriptionFactory::CreateAnswer(
     CreateSessionDescriptionObserver* observer,
     const MediaSessionOptions& session_options) {
+  RTC_LOG_THREAD_BLOCK_COUNT();
   std::string error = "CreateAnswer";
   if (certificate_request_state_ == CERTIFICATE_FAILED) {
     error += kFailedDueToIdentityFailed;

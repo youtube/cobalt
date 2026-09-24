@@ -1,3 +1,4 @@
+#include "test/run_loop.h"
 /*
  *  Copyright 2012 The WebRTC project authors. All Rights Reserved.
  *
@@ -1893,6 +1894,8 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
  protected:
   void OverrideLoggingLevelForTest(LoggingSeverity new_severity);
 
+  test::RunLoop& run_loop() { return run_loop_; }
+
   SdpSemantics sdp_semantics_;
   const Environment env_;
 
@@ -1903,7 +1906,8 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
   class ScopedSetLoggingLevel;
   std::unique_ptr<ScopedSetLoggingLevel> overridden_logging_level_;
 
-  AutoThread main_thread_;  // Used as the signal thread by most tests.
+  // Used as the signal thread by most tests.
+  test::RunLoop run_loop_;
   // `ss_` is used by `network_thread_` so it must be destroyed later.
   std::unique_ptr<VirtualSocketServer> ss_;
   std::unique_ptr<FirewallSocketServer> fss_;

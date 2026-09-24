@@ -31,6 +31,7 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/dtls/dtls_stun_piggyback_controller.h"
@@ -301,6 +302,8 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
 
   const int component_;
   DtlsTransportState dtls_state_ = DtlsTransportState::kNew;
+  Timestamp connecting_state_timestamp_ = Timestamp::Micros(0);
+
   // Underlying ice_transport.
   const scoped_refptr<IceTransportInterface> ice_transport_;
   std::unique_ptr<SSLStreamAdapter> dtls_;  // The DTLS stream

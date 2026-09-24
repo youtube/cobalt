@@ -2277,7 +2277,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                     {}, {}, {}, FROM_HERE);
   auto& map = GetTreeResult()->GetBlockingDetailsMap();
   // Only WebSocket should be reported.
-  EXPECT_EQ(static_cast<int>(map.size()), 1);
+  EXPECT_EQ(map.size(), 1u);
   EXPECT_TRUE(
       map.contains(blink::scheduler::WebSchedulerTrackedFeature::kWebSocket));
   // Both socketA and socketB's JavaScript locations should be reported.
@@ -2342,7 +2342,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                     {}, {}, {}, FROM_HERE);
   auto& map = GetTreeResult()->GetBlockingDetailsMap();
   // Only WebSocket should be reported.
-  EXPECT_EQ(static_cast<int>(map.size()), 1);
+  EXPECT_EQ(map.size(), 1u);
   EXPECT_TRUE(
       map.contains(blink::scheduler::WebSchedulerTrackedFeature::kWebSocket));
   // Only socketB's JavaScript locations should be reported.
@@ -2397,7 +2397,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                     {}, {}, {}, FROM_HERE);
   auto& map = GetTreeResult()->GetBlockingDetailsMap();
   // Only WebSocket should be reported.
-  EXPECT_EQ(static_cast<int>(map.size()), 1);
+  EXPECT_EQ(map.size(), 1u);
   EXPECT_TRUE(
       map.contains(blink::scheduler::WebSchedulerTrackedFeature::kWebSocket));
   // Both socketA and socketB's JavaScript locations should be reported.
@@ -2459,7 +2459,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                     {}, {}, {}, FROM_HERE);
   auto& map = GetTreeResult()->GetBlockingDetailsMap();
   // Only WebSocket should be reported.
-  EXPECT_EQ(static_cast<int>(map.size()), 1);
+  EXPECT_EQ(map.size(), 1u);
   EXPECT_TRUE(
       map.contains(blink::scheduler::WebSchedulerTrackedFeature::kWebSocket));
   // Only socketB's JavaScript locations should be reported.
@@ -2512,7 +2512,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
        blink::scheduler::WebSchedulerTrackedFeature::kWebSocketSticky},
       {}, {}, {}, FROM_HERE);
   auto& map = GetTreeResult()->GetBlockingDetailsMap();
-  EXPECT_EQ(static_cast<int>(map.size()), 3);
+  EXPECT_EQ(map.size(), 3u);
   EXPECT_TRUE(
       map.contains(blink::scheduler::WebSchedulerTrackedFeature::kWebSocket));
   EXPECT_TRUE(map.contains(

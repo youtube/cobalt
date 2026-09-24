@@ -9,6 +9,8 @@
 
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 
+enum class ComposeboxInputPlateControls : unsigned int;
+
 // Consumer for the composebox composebox.
 @protocol ComposeboxInputPlateConsumer
 
@@ -19,11 +21,8 @@
 - (void)updateState:(ComposeboxInputItemState)state
     forItemWithIdentifier:(const base::UnguessableToken&)identifier;
 
-// Updates the mic and lens button visibility.
-- (void)hideLensAndMicButton:(BOOL)hidden;
-
-// Updates the send button visibility.
-- (void)hideSendButton:(BOOL)hidden;
+// Sets whether to show the shortcuts (Lens and microphone actions).
+- (void)updateVisibleControls:(ComposeboxInputPlateControls)controls;
 
 // Sets whether AI mode is enabled.
 - (void)setAIModeEnabled:(BOOL)enabled;
@@ -57,6 +56,18 @@
 
 // Sets whether the create image actions are disabled.
 - (void)disableCreateImageActions:(BOOL)disabled;
+
+// Sets whether the camera actions are hidden.
+- (void)hideCameraActions:(BOOL)hidden;
+
+// Sets whether the camera actions are disabled.
+- (void)disableCameraActions:(BOOL)disabled;
+
+// Sets whether the gallery actions are hidden.
+- (void)hideGalleryActions:(BOOL)hidden;
+
+// Sets whether the gallery actions are disabled.
+- (void)disableGalleryActions:(BOOL)disabled;
 
 @end
 

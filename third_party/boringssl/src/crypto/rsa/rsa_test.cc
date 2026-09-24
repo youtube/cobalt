@@ -707,21 +707,6 @@ TEST(RSATest, RoundKeyLengths) {
   EXPECT_EQ(1152u, BN_num_bits(rsa->n));
 }
 
-TEST(RSATest, BlindingDisabled) {
-  bssl::UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
-  ASSERT_TRUE(rsa);
-
-  rsa->flags |= RSA_FLAG_NO_BLINDING;
-
-  std::vector<uint8_t> sig(RSA_size(rsa.get()));
-  static const uint8_t kZeros[32] = {0};
-  unsigned sig_len;
-  ASSERT_TRUE(RSA_sign(NID_sha256, kZeros, sizeof(kZeros), sig.data(), &sig_len,
-                       rsa.get()));
-  EXPECT_TRUE(RSA_verify(NID_sha256, kZeros, sizeof(kZeros), sig.data(),
-                         sig_len, rsa.get()));
-}
-
 TEST(RSATest, CheckKey) {
   static const char kN[] =
       "b5a5651bc2e15ce31d789f0984053a2ea0cf8f964a78068c45acfdf078c57fd62d5a287c"
@@ -1425,48 +1410,6 @@ TEST(RSATest, Threads) {
     thread.join();
   }
 }
-
-// This test might be excessively slow on slower CPUs or platforms that do not
-// expect server workloads. It is disabled by default and re-enabled on some
-// platforms when running tests standalone via all_tests.go.
-//
-// Additionally, even when running disabled tests standalone, limit this to
-// x86_64. On other platforms, this test hits resource limits or is too slow. We
-// also disable on FreeBSD. See https://crbug.com/boringssl/603.
-#if defined(OPENSSL_TSAN) || \
-    (defined(OPENSSL_X86_64) && !defined(OPENSSL_FREEBSD))
-TEST(RSATest, DISABLED_BlindingCacheConcurrency) {
-  bssl::UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
-  ASSERT_TRUE(rsa);
-
-#if defined(OPENSSL_TSAN)
-  constexpr size_t kSignaturesPerThread = 10;
-  constexpr size_t kNumThreads = 10;
-#else
-  constexpr size_t kSignaturesPerThread = 100;
-  constexpr size_t kNumThreads = 2048;
-#endif
-
-  const uint8_t kDummyHash[32] = {0};
-  auto worker = [&] {
-    std::vector<uint8_t> sig(RSA_size(rsa.get()));
-    for (size_t i = 0; i < kSignaturesPerThread; i++) {
-      unsigned sig_len = sig.size();
-      EXPECT_TRUE(RSA_sign(NID_sha256, kDummyHash, sizeof(kDummyHash),
-                           sig.data(), &sig_len, rsa.get()));
-    }
-  };
-
-  std::vector<std::thread> threads;
-  threads.reserve(kNumThreads);
-  for (size_t i = 0; i < kNumThreads; i++) {
-    threads.emplace_back(worker);
-  }
-  for (auto &thread : threads) {
-    thread.join();
-  }
-}
-#endif  // TSAN || (X86_64 && !FREEBSD)
 
 #endif  // THREADS
 

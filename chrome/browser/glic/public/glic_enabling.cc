@@ -15,6 +15,8 @@
 #include "chrome/browser/glic/host/auth_controller.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
+#include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -27,11 +29,13 @@
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/variations/service/variations_service.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "base/system/sys_info.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"  // nogncheck
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"  // nogncheck
 #include "chromeos/constants/chromeos_features.h"
@@ -95,10 +99,36 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
 
     // Not having a primary account is considered ineligible, as is kUnknown
     // for the required account capability.
-    if (primary_account.IsEmpty() ||
-        primary_account.capabilities.can_use_model_execution_features() !=
-            signin::Tribool::kTrue) {
+    if (primary_account.IsEmpty()) {
       result.primary_account_not_capable = true;
+    }
+
+    // Check account capabilities.
+    signin::Tribool capability_value =
+        base::FeatureList::IsEnabled(
+            switches::kGlicEligibilitySeparateAccountCapability)
+            ? primary_account.capabilities.can_use_gemini_in_chrome()
+            : primary_account.capabilities.can_use_model_execution_features();
+    result.primary_account_not_capable =
+        (capability_value != signin::Tribool::kTrue);
+
+    // If the feature is overridden by a field trial, and the user's eligibility
+    // is known and different for the two capabilities, add them to a synthetic
+    // trial.
+    base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
+        switches::kGlicEligibilitySeparateAccountCapability);
+    if (field_trial &&
+        (primary_account.capabilities.can_use_gemini_in_chrome() !=
+         signin::Tribool::kUnknown) &&
+        (primary_account.capabilities.can_use_model_execution_features() !=
+         signin::Tribool::kUnknown) &&
+        (primary_account.capabilities.can_use_gemini_in_chrome() !=
+         primary_account.capabilities.can_use_model_execution_features())) {
+      g_browser_process->GetFeatures()
+          ->glic_synthetic_trial_manager()
+          ->SetSyntheticExperimentState(
+              kGlicEligibilitySeparateAccountCapabilitySyntheticTrialName,
+              field_trial->GetGroupNameWithoutActivation());
     }
   }
 
@@ -147,8 +177,17 @@ bool GlicEnabling::IsEnabledByFlags() {
   bool is_enabled = base::FeatureList::IsEnabled(features::kGlic) &&
                     features::HasTabSearchToolbarButton();
 #if BUILDFLAG(IS_CHROMEOS)
-  is_enabled = is_enabled && base::FeatureList::IsEnabled(
-                                 chromeos::features::kFeatureManagementGlic);
+  constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(8);
+
+  // TODO(b:468055370): Remove the bypassing once the glic is fully launched.
+  const bool bypass_cbx_requirement =
+      base::FeatureList::IsEnabled(
+          chromeos::features::kGlicEnableFor8GbDevices) &&
+      base::SysInfo::AmountOfPhysicalMemory() >= kMinimumMemoryThreshold;
+
+  is_enabled = is_enabled && (bypass_cbx_requirement ||
+                              base::FeatureList::IsEnabled(
+                                  chromeos::features::kFeatureManagementGlic));
 #endif  // BUILDFLAG(IS_CHROMEOS)
   return is_enabled;
 }
@@ -286,6 +325,11 @@ bool GlicEnabling::IsShareImageEnabledForProfile(Profile* profile) {
       !base::FeatureList::IsEnabled(features::kGlicShareImage)) {
     return false;
   }
+
+  if (base::FeatureList::IsEnabled(features::kGlicShareImageEnterprise)) {
+    return true;
+  }
+
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
   if (!identity_manager) {
     return false;

@@ -747,6 +747,7 @@ if (rtc_include_tests) {
       ":payload_type_picker",
       "../api:rtc_error",
       "../media:codec",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 

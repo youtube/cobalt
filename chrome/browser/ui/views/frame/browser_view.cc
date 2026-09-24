@@ -12,6 +12,7 @@
 #include <set>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/byte_count.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -136,6 +137,7 @@
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 #include "chrome/browser/ui/views/frame/contents_rounded_corner.h"
 #include "chrome/browser/ui/views/frame/contents_separator.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
 #include "chrome/browser/ui/views/frame/main_background_region_view.h"
@@ -146,7 +148,6 @@
 #include "chrome/browser/ui/views/frame/scrim_view.h"
 #include "chrome/browser/ui/views/frame/shadow_overlay_view.h"
 #include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/top_container_loading_bar.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/frame/top_controls_slide_controller.h"
@@ -162,6 +163,7 @@
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
@@ -307,7 +309,6 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/accessibility/view_accessibility_utils.h"
 #include "ui/views/animation/compositor_animation_runner.h"
-#include "ui/views/background.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/textfield/textfield.h"
@@ -973,16 +974,14 @@ BrowserView::BrowserView(Browser* browser)
   // Tabstrip comes basically last because it should be before toolbar in the
   // focus order but also needs to paint on top of everything.
   tab_strip_region_view_ =
-      AddChildView(std::make_unique<TabStripRegionView>(this));
+      AddChildView(std::make_unique<HorizontalTabStripRegionView>(this));
   tab_strip_region_insertion_index_ = GetIndexOf(tab_strip_region_view_.get());
 
   if (tabs::IsVerticalTabsFeatureEnabled()) {
+    // TODO(466091787): just use BWI.
     auto vertical_tab_strip_container =
         std::make_unique<VerticalTabStripRegionView>(
-            browser_->GetFeatures()
-                .tab_strip_service_feature()
-                ->GetTabStripService(),
-            browser_->GetFeatures().vertical_tab_strip_state_controller(),
+            tabs::VerticalTabStripStateController::From(browser_),
             browser_->GetActions()->root_action_item(), browser_);
 
     vertical_tab_strip_container_ =
@@ -1027,11 +1026,9 @@ BrowserView::BrowserView(Browser* browser)
         browser_->get_vertical_tabs_initial_uncollapsed_width();
     if (restored_state_collapsed.has_value() &&
         restored_state_uncollapsed_width.has_value()) {
-      browser_->GetFeatures()
-          .vertical_tab_strip_state_controller()
-          ->SetCollapsed(restored_state_collapsed.value());
-      browser_->GetFeatures()
-          .vertical_tab_strip_state_controller()
+      tabs::VerticalTabStripStateController::From(browser)->SetCollapsed(
+          restored_state_collapsed.value());
+      tabs::VerticalTabStripStateController::From(browser_)
           ->SetUncollapsedWidth(restored_state_uncollapsed_width.value());
     }
   }
@@ -1044,8 +1041,7 @@ BrowserView::BrowserView(Browser* browser)
 
   if (tabs::IsVerticalTabsFeatureEnabled()) {
     vertical_tab_subscription_ =
-        browser_->browser_window_features()
-            ->vertical_tab_strip_state_controller()
+        tabs::VerticalTabStripStateController::From(browser_)
             ->RegisterOnStateChanged(base::BindRepeating(
                 &BrowserView::OnVerticalTabStripStateChanged,
                 base::Unretained(this)));
@@ -1304,6 +1300,20 @@ bool BrowserView::ShouldDrawTabStrip() const {
   return tab_strip_region_view_->tab_strip() != nullptr;
 }
 
+bool BrowserView::ShouldDrawVerticalTabStrip() const {
+  return ShouldDrawTabStrip() && tabs::IsVerticalTabsFeatureEnabled() &&
+         tabs::VerticalTabStripStateController::From(browser_)
+             ->ShouldDisplayVerticalTabs();
+}
+
+bool BrowserView::IsVerticalTabStripCollapsed() const {
+  if (auto* const controller =
+          tabs::VerticalTabStripStateController::From(browser_)) {
+    return controller->IsCollapsed();
+  }
+  return false;
+}
+
 bool BrowserView::GetIncognito() const {
   return browser_->GetProfile()->IsIncognitoProfile();
 }
@@ -1531,8 +1541,7 @@ bool BrowserView::IsOnCurrentWorkspace() const {
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-  return chromeos::DesksHelper::Get(native_win)
-      ->BelongsToActiveDesk(native_win);
+  return chromeos::DesksHelper::Get()->BelongsToActiveDesk(native_win);
 #elif BUILDFLAG(IS_WIN)
   std::optional<bool> on_current_workspace =
       native_win->GetHost()->on_current_workspace();
@@ -2203,11 +2212,21 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
     return;
   }
 #endif
+  LocationBarView* location_bar = GetLocationBarView();
+
+  // Focusing the omnibox by a user action (e.g. ctrl-l) in immersive mode
+  // should reveal topchrome.  Make sure the omnibox is focusable.
+  if (overlay_view_tracker_ && is_user_initiated) {
+    overlay_view_tracker_.view()->SetVisible(true);
+    toolbar_->SetVisible(true);
+    location_bar->omnibox_view()->SetFocusBehavior(
+        views::View::FocusBehavior::ALWAYS);
+  }
+
   if (!IsLocationBarVisible()) {
     return;
   }
 
-  LocationBarView* location_bar = GetLocationBarView();
   location_bar->FocusLocation(is_user_initiated);
   if (!location_bar->omnibox_view()->HasFocus()) {
     // If none of location bar got focus, then clear focus.
@@ -4120,10 +4139,7 @@ void BrowserView::ReparentTabStripAndWebAppViewsToTopContainer(
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
-  // Only reparent and set background if the tab_strip_region_view_ is parented
-  // to browser_view.
-  top_container()->SetBackground(
-      views::CreateSolidBackground(ui::kColorFrameActive));
+  // Only reparent if the tab_strip_region_view_ is parented to browser_view.
   top_container()->AddChildViewAt(tab_strip_region_view_.get(), 0);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -4501,9 +4517,10 @@ void BrowserView::OnWidgetMove() {
   BookmarkBubbleView::Hide();
 
   // Close the omnibox popup, if any.
-  LocationBarView* location_bar_view = GetLocationBarView();
-  if (location_bar_view) {
-    location_bar_view->GetOmniboxView()->CloseOmniboxPopup();
+  if (auto* popup_closer =
+          browser()->browser_window_features()->omnibox_popup_closer()) {
+    popup_closer->CloseWithReason(
+        omnibox::PopupCloseReason::kBrowserWidgetMoved);
   }
 }
 
@@ -4579,8 +4596,7 @@ void BrowserView::UpdateTabSearchBubbleHost() {
   }
 
   if (tabs::IsVerticalTabsFeatureEnabled() &&
-      browser_->GetFeatures()
-          .vertical_tab_strip_state_controller()
+      tabs::VerticalTabStripStateController::From(browser_)
           ->ShouldDisplayVerticalTabs()) {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         vertical_tab_strip_container_->GetTopContainer()->GetTabSearchButton(),
@@ -4934,6 +4950,10 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
     result = views::CloseRequestResult::kCannotClose;
   }
 
+  // Layout must be suppressed during teardown. Normally, this is automatic
+  // when the layout manager is destroyed in the destructor, but it also needs
+  // to happen when the tabstrip model is being torn down.
+  base::AutoReset<bool> suppress_layout(&suppress_layout_for_teardown_, true);
   browser_->OnWindowClosing();
   return result;
 }
@@ -5004,9 +5024,7 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
   // might be a popup window without a TabStrip.
   if (ShouldDrawTabStrip()) {
     if (tabs::IsVerticalTabsFeatureEnabled() &&
-        browser()
-            ->browser_window_features()
-            ->vertical_tab_strip_state_controller()
+        tabs::VerticalTabStripStateController::From(browser_)
             ->ShouldDisplayVerticalTabs()) {
       // See if the mouse pointer is within the bounds of the
       // VerticalTabStripRegionView.
@@ -5017,7 +5035,7 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
       return HTCLIENT;
     } else {
       // See if the mouse pointer is within the bounds of the
-      // TabStripRegionView.
+      // HorizontalTabStripRegionView.
       gfx::Point test_point(point);
       if (ConvertedHitTest(parent(), tab_strip_region_view_, &test_point)) {
         if (tab_strip_region_view_->IsPositionInWindowCaption(test_point)) {
@@ -5097,7 +5115,8 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
 }
 
 gfx::Size BrowserView::GetMinimumSize() const {
-  return GetBrowserViewLayout()->GetMinimumSize(this);
+  auto* const layout = GetBrowserViewLayout();
+  return layout ? layout->GetMinimumSize(this) : gfx::Size();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -5105,7 +5124,8 @@ gfx::Size BrowserView::GetMinimumSize() const {
 
 void BrowserView::Layout(PassKey) {
   TRACE_EVENT0("ui", "BrowserView::Layout");
-  if (!initialized_ || in_process_fullscreen_) {
+  if (!initialized_ || in_process_fullscreen_ ||
+      suppress_layout_for_teardown_) {
     return;
   }
 
@@ -5201,8 +5221,7 @@ void BrowserView::AddedToWidget() {
   // TODO(pbos): Investigate whether the side panels should be creatable when
   // the ToolbarView does not create a button for them. This specifically seems
   // to hit web apps. See https://crbug.com/1267781.
-  auto* side_panel_coordinator =
-      browser_->GetFeatures().side_panel_coordinator();
+  auto* const side_panel_coordinator = SidePanelCoordinator::From(browser_);
   contents_height_side_panel_->AddObserver(side_panel_coordinator);
   toolbar_height_side_panel_->AddObserver(side_panel_coordinator);
 
@@ -5329,6 +5348,10 @@ void BrowserView::AddedToWidget() {
             ->AddVisibleChangedCallback(base::BindRepeating(
                 &BrowserView::UpdateAccessibleNameForAllTabs,
                 weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  if (tabs::IsVerticalTabsFeatureEnabled()) {
+    vertical_tab_strip_container_->CreateTabStripController(this);
   }
 
   initialized_ = true;
@@ -6212,7 +6235,6 @@ void BrowserView::OnImmersiveFullscreenExited() {
   if (AppUsesWindowControlsOverlay()) {
     UpdateWindowControlsOverlayEnabled();
   }
-  top_container()->SetBackground(nullptr);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   ReparentTopContainerForEndOfImmersive();

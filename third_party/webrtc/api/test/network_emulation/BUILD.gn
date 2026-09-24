@@ -121,3 +121,30 @@ rtc_library("network_queue_unittests") {
     "../../units:timestamp",
   ]
 }
+
+rtc_library("token_bucket_network_behavior_config") {
+  visibility = [ "*" ]
+  sources = [ "token_bucket_network_behavior_config.h" ]
+  deps = [
+    "../../units:data_rate",
+    "../../units:data_size",
+  ]
+}
+
+rtc_library("token_bucket_network_behavior_builder") {
+  visibility = [ "*" ]
+  sources = [
+    "token_bucket_network_behavior_builder.cc",
+    "token_bucket_network_behavior_builder.h",
+  ]
+  deps = [
+    ":network_queue",
+    ":token_bucket_network_behavior_config",
+    "../..:function_view",
+    "../..:network_emulation_manager_api",
+    "../../../test/network:token_bucket_network_behavior",
+    "../../units:data_rate",
+    "../../units:data_size",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}

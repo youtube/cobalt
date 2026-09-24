@@ -381,7 +381,7 @@ TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
   EXPECT_LT(callee_available_bwe.kbps(), 300);
 
   EXPECT_LT(GetAverageRoundTripTime(GetStatsAndProcess(s, caller)),
-            TimeDelta::Millis(200));
+            TimeDelta::Millis(250));
 
   if (params.caller_supports_rfc8888 && params.callee_supports_rfc8888) {
     EXPECT_GT(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);

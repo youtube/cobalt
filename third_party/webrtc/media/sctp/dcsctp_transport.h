@@ -63,7 +63,7 @@ class DcSctpTransport : public SctpTransportInternal,
   // SctpTransportInternal
   void SetOnConnectedCallback(std::function<void()> callback) override;
   void SetDataChannelSink(DataChannelSink* sink) override;
-  void SetDtlsTransport(DtlsTransportInternal* transport) override;
+  DtlsTransportInternal* dtls_transport() const override;
   bool Start(const SctpOptions& options) override;
   bool OpenStream(int sid, PriorityValue priority) override;
   bool ResetStream(int sid) override;
@@ -77,7 +77,6 @@ class DcSctpTransport : public SctpTransportInternal,
   size_t buffered_amount(int sid) const override;
   size_t buffered_amount_low_threshold(int sid) const override;
   void SetBufferedAmountLowThreshold(int sid, size_t bytes) override;
-  void set_debug_name_for_testing(const char* debug_name) override;
 
   static std::vector<uint8_t> GenerateConnectionToken(const Environment& env);
 
@@ -114,15 +113,15 @@ class DcSctpTransport : public SctpTransportInternal,
                             DtlsTransportState);
   void MaybeConnectSocket();
 
-  Thread* network_thread_;
-  DtlsTransportInternal* transport_;
-  Environment env_;
+  Thread* const network_thread_;
+  DtlsTransportInternal* const transport_;
+  const Environment env_;
   Random random_;
 
-  std::unique_ptr<dcsctp::DcSctpSocketFactory> socket_factory_;
+  const std::unique_ptr<dcsctp::DcSctpSocketFactory> socket_factory_;
   dcsctp::TaskQueueTimeoutFactory task_queue_timeout_factory_;
   std::unique_ptr<dcsctp::DcSctpSocketInterface> socket_;
-  std::string debug_name_ = "DcSctpTransport";
+  const std::string debug_name_;
   CopyOnWriteBuffer receive_buffer_;
 
   // Used to keep track of the state of data channels.

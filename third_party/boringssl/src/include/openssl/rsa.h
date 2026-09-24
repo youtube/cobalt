@@ -657,9 +657,7 @@ OPENSSL_EXPORT void *RSA_get_ex_data(const RSA *rsa, int idx);
 // API, like a platform key store.
 #define RSA_FLAG_OPAQUE 1
 
-// RSA_FLAG_NO_BLINDING disables blinding of private operations, which is a
-// dangerous thing to do. This flag is set internally as part of self-tests but
-// is otherwise impossible to set externally.
+// RSA_FLAG_NO_BLINDING does nothing.
 #define RSA_FLAG_NO_BLINDING 8
 
 // RSA_FLAG_EXT_PKEY is deprecated and ignored.

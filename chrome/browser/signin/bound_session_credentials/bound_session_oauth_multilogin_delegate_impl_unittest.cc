@@ -4,6 +4,7 @@
 
 #include "chrome/browser/signin/bound_session_credentials/bound_session_oauth_multilogin_delegate_impl.h"
 
+#include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/protobuf_matchers.h"
@@ -579,6 +580,8 @@ TEST_F(BoundSessionOAuthMultiLoginDelegateImplTest,
       /*domain=*/".google.com", /*path=*/"/");
   expected_params_1.set_refresh_url(
       "https://accounts.google.com/RotateBoundCookies");
+  expected_params_1.set_session_origin(
+      bound_session_credentials::SessionOrigin::SESSION_ORIGIN_OAML);
   EXPECT_CALL(
       mock_bound_session_cookie_refresh_service(),
       RegisterNewBoundSession(BoundSessionParamsEquals(expected_params_1)));
@@ -592,6 +595,8 @@ TEST_F(BoundSessionOAuthMultiLoginDelegateImplTest,
       /*domain=*/".google.com", /*path=*/"/");
   expected_params_2.set_refresh_url(
       "https://accounts.google.com/RotateBoundDifferentCookies");
+  expected_params_2.set_session_origin(
+      bound_session_credentials::SessionOrigin::SESSION_ORIGIN_OAML);
   EXPECT_CALL(
       mock_bound_session_cookie_refresh_service(),
       RegisterNewBoundSession(BoundSessionParamsEquals(expected_params_2)));

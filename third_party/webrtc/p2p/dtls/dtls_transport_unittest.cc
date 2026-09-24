@@ -58,6 +58,7 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/thread.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -1572,6 +1573,24 @@ TEST_F(DtlsTransportInternalImplTest, TestRetransmissionSchedule) {
     fake_clock_.AdvanceTime(TimeDelta::Millis(1));
     EXPECT_EQ(++expected_hellos, client1_.received_dtls_client_hellos());
   }
+}
+
+TEST_F(DtlsTransportInternalImplTest, DtlsConnectionTimeMetric) {
+  metrics::Reset();
+  PrepareDtls(KT_DEFAULT);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsClientRoleConnectionTime"),
+      0);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsServerRoleConnectionTime"),
+      0);
+  ASSERT_TRUE(Connect());
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsClientRoleConnectionTime"),
+      1);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsServerRoleConnectionTime"),
+      1);
 }
 
 // The following events can occur in many different orders:

@@ -792,7 +792,7 @@ class FileTransferConnectorFilesAppBrowserTestBase {
       const std::string& expected_destination,
       enterprise_connectors::ScanRequestUploadResult result,
       const base::FilePath& path,
-      std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
+      std::unique_ptr<enterprise_connectors::BinaryUploadRequest> request,
       enterprise_connectors::test::FakeFilesRequestHandler::
           FakeFileRequestCallback callback) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -808,7 +808,7 @@ class FileTransferConnectorFilesAppBrowserTestBase {
     // Simulate a response.
     base::OnceClosure response =
         base::BindOnce(std::move(callback), path,
-                       enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+                       enterprise_connectors::ScanRequestUploadResult::kSuccess,
                        ConnectorStatusCallback(path));
     if (save_response_for_later_) {
       // We save the responses for later such that we can check the scanning

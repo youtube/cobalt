@@ -69,6 +69,49 @@ struct AccountInfo : public CoreAccountInfo {
   AccountInfo& operator=(const AccountInfo& other);
   AccountInfo& operator=(AccountInfo&& other) noexcept;
 
+  // Returns an account ID.
+  //
+  // The account ID is always known but `GetAccountId()`
+  // may return an empty object in the following scenarios:
+  // 1. `AccountInfo` itself is empty.
+  // 2. `AccountInfo` is still being initialized inside of the signin component.
+  //
+  // TODO(crbug.com/458409080): eliminate case 1 by replacing empty
+  // `AccountInfo`s with `std::optional<AccountInfo>`.
+  // TODO(crbug.com/40268200): eliminate case 2 when migration to Gaia ID
+  // completes and we always can create `CoreAccountId` from `GaiaId`.
+  const CoreAccountId& GetAccountId() const;
+
+  // Returns Gaia ID of the account.
+  //
+  // The Gaia ID is always known but `GetGaiaId()` may return an empty object in
+  // the following scenarios:
+  // 1. `AccountInfo` itself is empty.
+  // 2. The account is under migration and its Gaia ID isn't known yet (ChromeOS
+  // only).
+  //
+  // TODO(crbug.com/458409080): eliminate case 1 by replacing empty
+  // `AccountInfo`s with `std::optional<AccountInfo>`.
+  // TODO(crbug.com/40268200): eliminate case 2 when migration to Gaia ID
+  // completes and all accounts have populated Gaia ID.
+  const GaiaId& GetGaiaId() const;
+
+  // Returns email address of the account.
+  //
+  // Displaying the email in display fields (e.g. Android View) can be
+  // restricted. Please verify displayability using
+  // `CanHaveEmailAddressDisplayed()`.
+  //
+  // The email is always known but `GetEmail()` may return an empty string if
+  // `AccountInfo` itself is empty.
+  //
+  // TODO(crbug.com/458409080): eliminate the empty string case by replacing
+  // empty `AccountInfo`s with `std::optional<AccountInfo>`.
+  std::string_view GetEmail() const;
+
+  // Returns whether the account is under advanced protection.
+  bool IsUnderAdvancedProtection() const;
+
   // Returns the full name of the account.
   // Returns std::nullopt if the value is unknown yet.
   std::optional<std::string_view> GetFullName() const;
@@ -162,8 +205,6 @@ struct AccountInfo : public CoreAccountInfo {
   std::string full_name;
   // Deprecated: Use GetGivenName() instead.
   std::string given_name;
-  // Deprecated: Use GetHostedDomain() instead.
-  std::string hosted_domain;
   // Deprecated: Use GetAvatarUrl() instead.
   std::string picture_url;
 
@@ -186,6 +227,8 @@ struct AccountInfo : public CoreAccountInfo {
 
  private:
   friend class Builder;
+
+  std::string hosted_domain;
 };
 
 // Builder class for constructing AccountInfo objects.
@@ -215,6 +258,7 @@ class AccountInfo::Builder {
   AccountInfo Build();
 
   // Setters for CoreAccountInfo members.
+  Builder& SetEmail(std::string_view email);
   Builder& SetAccountId(const CoreAccountId& account_id);
   Builder& SetIsUnderAdvancedProtection(bool is_under_advanced_protection);
 

@@ -90,7 +90,8 @@ SharedWorker* SharedWorker::Create(
     const V8UnionSharedWorkerOptionsOrString* name_or_options,
     ExceptionState& exception_state) {
   String compliant_url = TrustedTypesCheckForScriptURL(
-      url, context, "SharedWorker", "create", exception_state);
+      url, context, trusted_types_names::kSharedWorker,
+      trusted_types_names::kCreate, exception_state);
   if (exception_state.HadException()) {
     return 0;
   }
@@ -144,8 +145,8 @@ SharedWorker* SharedWorker::CreateImpl(
   worker->port_->SetIsSharedWorkerPort(true);
   if (!window->GetSecurityOrigin()->CanAccessSharedWorkers()) {
     exception_state.ThrowSecurityError(
-        "Access to shared workers is denied to origin '" +
-        window->GetSecurityOrigin()->ToString() + "'.");
+        StrCat({"Access to shared workers is denied to origin '",
+                window->GetSecurityOrigin()->ToString(), "'."}));
     return nullptr;
   } else if (window->GetSecurityOrigin()->IsLocal()) {
     UseCounter::Count(window, WebFeature::kFileAccessedSharedWorker);

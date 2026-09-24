@@ -87,7 +87,8 @@ class ContextualSearchboxHandler
   void AddTabContext(int32_t tab_id,
                      bool delay_upload,
                      AddTabContextCallback) override;
-  void DeleteContext(const base::UnguessableToken& file_token) override;
+  void DeleteContext(const base::UnguessableToken& file_token,
+                     bool from_automatic_chip) override;
   void ClearFiles() override;
   void SubmitQuery(const std::string& query_text,
                    uint8_t mouse_button,
@@ -149,7 +150,15 @@ class ContextualSearchboxHandler
 
   std::vector<base::UnguessableToken> GetUploadedContextTokens();
 
+ protected:
+  // Helper function that uploads the cached tab context if it exists.
+  void UploadSnapshotTabContextIfPresent();
+
  private:
+  // Helper to get the correct number of tab suggestions. Virtual so it
+  // can be overridden for specific implementations.
+  virtual int GetContextMenuMaxTabSuggestions();
+
   void OnAddTabContextTokenCreated(int32_t tab_id,
                                    bool delay_upload,
                                    AddTabContextCallback callback,
@@ -170,9 +179,6 @@ class ContextualSearchboxHandler
   void UploadTabContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
-
-  // Helper function that uploads the cached tab context if it exists.
-  void UploadSnapshotTabContextIfPresent();
 
   void OpenUrl(GURL url, const WindowOpenDisposition disposition);
 

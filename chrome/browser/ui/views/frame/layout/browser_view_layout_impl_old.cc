@@ -13,10 +13,11 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
@@ -202,7 +203,7 @@ BrowserViewLayoutImplOld::CalculateContentsContainerLayout(
   gfx::Rect contents_container_bounds = available_bounds;
   int vertical_tab_offset = 0;
   if (delegate().ShouldDrawVerticalTabStrip()) {
-    vertical_tab_offset = kMinVerticalTabStripWidth;
+    vertical_tab_offset = views().vertical_tab_strip_container->width();
     contents_container_bounds.set_width(available_bounds.width() -
                                         vertical_tab_offset);
   }
@@ -386,10 +387,12 @@ void BrowserViewLayoutImplOld::LayoutVerticalTabStrip(
     gfx::Rect& available_bounds) {
   if (views().vertical_tab_strip_container &&
       views().vertical_tab_strip_container->GetVisible()) {
-    views().vertical_tab_strip_container->SetBounds(
-        available_bounds.x(), available_bounds.y(), kMinVerticalTabStripWidth,
-        available_bounds.height());
-    available_bounds.set_x(available_bounds.x() + kMinVerticalTabStripWidth);
+    const int width =
+        views().vertical_tab_strip_container->GetPreferredSize().width();
+    views().vertical_tab_strip_container->SetBounds(available_bounds.x(),
+                                                    available_bounds.y(), width,
+                                                    available_bounds.height());
+    available_bounds.set_x(available_bounds.x() + width);
   }
 }
 
@@ -447,7 +450,7 @@ void BrowserViewLayoutImplOld::LayoutToolbar(gfx::Rect& available_bounds) {
         delegate().GetBoundsForToolbarInVerticalTabBrowserView());
     toolbar_bounds.set_x(available_bounds.x());
     toolbar_bounds.set_width(toolbar_bounds.width() -
-                             kMinVerticalTabStripWidth);
+                             views().vertical_tab_strip_container->width());
     views().toolbar->SetBoundsRect(toolbar_bounds);
   } else {
     int height =
@@ -685,12 +688,6 @@ int BrowserViewLayoutImplOld::GetMinWebContentsWidth() const {
                  .right_aligned_side_panel_separator->GetPreferredSize()
                  .width()
            : 0);
-
-  // When in split view, the minimum width of the contents is higher.
-  if (views().multi_contents_view) {
-    min_width =
-        std::max(min_width, 2 * views().multi_contents_view->GetMinViewWidth());
-  }
   DCHECK_GE(min_width, 0);
   return min_width;
 }

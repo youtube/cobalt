@@ -11,6 +11,12 @@
 #import "components/feature_engagement/public/feature_list.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/prefs/pref_service.h"
+#import "ios/chrome/browser/contextual_panel/model/active_contextual_panel_tab_helper_observation_forwarder.h"
+#import "ios/chrome/browser/contextual_panel/model/contextual_panel_item_configuration.h"
+#import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper.h"
+#import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper_observer_bridge.h"
+#import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
+#import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
@@ -24,8 +30,12 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
@@ -35,7 +45,9 @@ const int kStartExpandTransitionTimeInSeconds = 2;
 const int kStartCollapseTransitionTimeInSeconds = 5;
 }  // anonymous namespace
 
-@interface LocationBarBadgeMediator () <CRWWebStateObserver,
+@interface LocationBarBadgeMediator () <ContextualPanelTabHelperObserving,
+                                        CRWWebStateObserver,
+                                        InfobarBadgeTabHelperObserving,
                                         WebStateListObserving>
 @end
 
@@ -59,6 +71,20 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   raw_ptr<PrefService> _prefService;
   // Gemini service
   raw_ptr<BwgService> _geminiService;
+  // Bridge for the InfobarBadgeTabHelper observation.
+  std::unique_ptr<InfobarBadgeTabHelperObserverBridge>
+      _infobarBadgeObserverBridge;
+  std::unique_ptr<base::ScopedObservation<InfobarBadgeTabHelper,
+                                          InfobarBadgeTabHelperObserverBridge>>
+      _infobarBadgeObservation;
+  // Whether there currently are any Infobar badges being shown.
+  BOOL _infobarBadgesCurrentlyShown;
+  // Bridge for the ContextualPanelTabHelper observation.
+  std::unique_ptr<ContextualPanelTabHelperObserverBridge>
+      _contextualPanelObserverBridge;
+  // Forwarder to always be observing the active ContextualPanelTabHelper.
+  std::unique_ptr<ActiveContextualPanelTabHelperObservationForwarder>
+      _activeContextualPanelObservationForwarder;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
@@ -75,6 +101,27 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
     if (_activeWebState) {
       _activeWebState->AddObserver(_webStateObserver.get());
     }
+    if (IsLocationBarBadgeMigrationEnabled()) {
+      // Setup InfobarBadgeTabHelper observation.
+      _infobarBadgeObserverBridge =
+          std::make_unique<InfobarBadgeTabHelperObserverBridge>(self);
+      _infobarBadgeObservation = std::make_unique<base::ScopedObservation<
+          InfobarBadgeTabHelper, InfobarBadgeTabHelperObserverBridge>>(
+          _infobarBadgeObserverBridge.get());
+
+      if (_activeWebState) {
+        _infobarBadgeObservation->Observe(
+            InfobarBadgeTabHelper::GetOrCreateForWebState(_activeWebState));
+      }
+
+      // Set up active ContextualPanelTabHelper observation.
+      _contextualPanelObserverBridge =
+          std::make_unique<ContextualPanelTabHelperObserverBridge>(self);
+      _activeContextualPanelObservationForwarder =
+          std::make_unique<ActiveContextualPanelTabHelperObservationForwarder>(
+              webStateList, _contextualPanelObserverBridge.get());
+    }
+
     _tracker = tracker;
     _prefService = prefService;
     _geminiService = geminiService;
@@ -92,6 +139,14 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
     _webStateList = nullptr;
   }
 
+  if (IsLocationBarBadgeMigrationEnabled()) {
+    _infobarBadgeObservation->Reset();
+    _infobarBadgeObservation.reset();
+    _infobarBadgeObserverBridge.reset();
+    _activeContextualPanelObservationForwarder.reset();
+    _contextualPanelObserverBridge.reset();
+  }
+
   _promoStartTimer = nullptr;
   _promoEndTimer = nullptr;
   _tracker = nil;
@@ -105,9 +160,26 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
                        change:(const WebStateListChange&)change
                        status:(const WebStateListStatus&)status {
   DCHECK_EQ(_webStateList, webStateList);
-  if (status.active_web_state_change()) {
-    [self updateActiveWebState:status.new_active_web_state];
+  // Return early if the active web state is the same as before the change.
+  if (!status.active_web_state_change()) {
+    return;
   }
+
+  if (IsLocationBarBadgeMigrationEnabled()) {
+    // De-register observer bridge for the old WebState's InfobarBadgeTabHelper.
+    _infobarBadgeObservation->Reset();
+  }
+
+  // Return early if no new webstates are active.
+  if (!status.new_active_web_state) {
+    if (_activeWebState) {
+      _activeWebState->RemoveObserver(_webStateObserver.get());
+      _activeWebState = nil;
+    }
+    return;
+  }
+
+  [self updateActiveWebState:status.new_active_web_state];
 }
 
 #pragma mark - CRWWebStateObserver
@@ -121,6 +193,63 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   DCHECK_EQ(_activeWebState, webState);
   _activeWebState->RemoveObserver(_webStateObserver.get());
   _activeWebState = nullptr;
+}
+
+#pragma mark - InfobarBadgeTabHelperObserving
+
+- (void)infobarBadgesUpdated:(InfobarBadgeTabHelper*)tabHelper {
+  // Return early if the notification doesn't come from the currently active
+  // webstate's tab helper.
+  raw_ptr<web::WebState> active_web_state = _webStateList->GetActiveWebState();
+  if (!active_web_state || active_web_state->IsBeingDestroyed()) {
+    return;
+  }
+  if (tabHelper !=
+      InfobarBadgeTabHelper::GetOrCreateForWebState(active_web_state)) {
+    return;
+  }
+
+  size_t badgesCount = tabHelper->GetInfobarBadgesCount();
+
+  BOOL infobarBadgesCurrentlyShown = badgesCount > 0;
+
+  // Disable contextual panel separator when Proactive Suggestions Framework is
+  // enabled to prevent conflicts.
+  if (IsProactiveSuggestionsFrameworkEnabled()) {
+    infobarBadgesCurrentlyShown = NO;
+  }
+
+  if (_infobarBadgesCurrentlyShown == infobarBadgesCurrentlyShown) {
+    return;
+  }
+  _infobarBadgesCurrentlyShown = infobarBadgesCurrentlyShown;
+
+  if (_infobarBadgesCurrentlyShown) {
+    [self dismissIPHAnimated:YES];
+  }
+
+  [self.consumer setInfobarBadgesCurrentlyShown:_infobarBadgesCurrentlyShown];
+}
+
+#pragma mark - ContextualPanelTabHelperObserving
+
+- (void)contextualPanel:(ContextualPanelTabHelper*)tabHelper
+             hasNewData:
+                 (std::vector<base::WeakPtr<ContextualPanelItemConfiguration>>)
+                     item_configurations {
+  // TODO(crbug.com/467506403): Implement activeTabHasNewData.
+}
+
+- (void)contextualPanelTabHelperDestroyed:(ContextualPanelTabHelper*)tabHelper {
+  // TODO(crbug.com/467506403): Implement activeTabHasNewData.
+}
+
+- (void)contextualPanelOpened:(ContextualPanelTabHelper*)tabHelper {
+  [self.consumer transitionToContextualPanelOpenedState:YES];
+}
+
+- (void)contextualPanelClosed:(ContextualPanelTabHelper*)tabHelper {
+  [self.consumer transitionToContextualPanelOpenedState:NO];
 }
 
 #pragma mark - LocationBarBadgeCommands
@@ -158,6 +287,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 #pragma mark - LocationBarBadgeMutator
 
 - (void)dismissIPHAnimated:(BOOL)animated {
+  [_entrypointHelpHandler dismissContextualPanelEntrypointIPH:animated];
   [self.consumer highlightBadge:NO];
 }
 
@@ -171,11 +301,12 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
         BwgTabHelper* BWGTabHelper =
             BwgTabHelper::FromWebState(_activeWebState);
         if (BWGTabHelper) {
-          BWGTabHelper->SetContextualCueLabel(badgeConfig.badgeText);
+          BWGTabHelper->SetContextualCueLabel(
+              l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT));
         }
       }
       [self.BWGCommandHandler
-          startBWGFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
+          startGeminiFlowWithEntryPoint:bwg::EntryPoint::OmniboxChip];
       _tracker->NotifyEvent(
           feature_engagement::events::kIOSGeminiContextualCueChipUsed);
       break;
@@ -192,7 +323,9 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 - (void)handleBadgeContainerCollapse:(LocationBarBadgeType)badgeType {
   switch (badgeType) {
     case LocationBarBadgeType::kGeminiContextualCueChip:
-      _tracker->Dismissed(feature_engagement::kIPHiOSGeminiContextualCueChip);
+      if (!IsAskGeminiChipIgnoreCriteria()) {
+        _tracker->Dismissed(feature_engagement::kIPHiOSGeminiContextualCueChip);
+      }
       break;
     default:
       break;
@@ -238,6 +371,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 
 // Changes the UI to the default badge state.
 - (void)cleanupAndTransitionToDefaultBadgeState {
+  [self dismissIPHAnimated:YES];
   [self.consumer collapseBadgeContainer];
   [self.delegate enableFullscreen];
 }
@@ -253,16 +387,20 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 
 // Update `_activeWebState` to ensure the active WebState is observed.
 - (void)updateActiveWebState:(web::WebState*)webState {
-  if (_activeWebState == webState) {
-    return;
-  }
   if (_activeWebState) {
     _activeWebState->RemoveObserver(_webStateObserver.get());
   }
+
   _activeWebState = webState;
-  if (_activeWebState) {
-    _activeWebState->AddObserver(_webStateObserver.get());
+  _activeWebState->AddObserver(_webStateObserver.get());
+
+  if (!IsLocationBarBadgeMigrationEnabled()) {
+    return;
   }
+
+  // Register observer bridge for the new WebState's InfobarBadgeTabHelper.
+  _infobarBadgeObservation->Observe(
+      InfobarBadgeTabHelper::GetOrCreateForWebState(_activeWebState));
 }
 
 // Checks FET (Feature Engagement Tracker) criteria for a given `badgeType`. By
@@ -300,7 +438,9 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 - (BOOL)shouldShowGeminiContextualChip {
   BOOL isPageEligible =
       _geminiService->IsBwgAvailableForWebState(_activeWebState);
-  BOOL isUserConsented = _prefService->GetBoolean(prefs::kIOSBwgConsent);
+  // TODO(crbug.com/465766925): Remove when feature is enabled by default.
+  BOOL isConsentEligible = IsAskGeminiChipAllowNonconsentedUsersEnabled() ||
+                           _prefService->GetBoolean(prefs::kIOSBwgConsent);
 
   // Checks if an eligible amount of time has passed since the last chip
   // display.
@@ -315,9 +455,38 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
     return YES;
   }
 
-  return isPageEligible && isUserConsented && eligibleTimeWindow &&
+  return isPageEligible && isConsentEligible && eligibleTimeWindow &&
          _tracker->ShouldTriggerHelpUI(
              feature_engagement::kIPHiOSGeminiContextualCueChip);
+}
+
+#pragma mark - Private ContextualPanelEntrypoint
+
+// Updates the entrypoint state whenever the active tab changes or new data is
+// provided.
+- (void)activeTabHasNewData:(ContextualPanelItemConfiguration*)config {
+  // TODO(crbug.com/467506403): Implement activeTabHasNewData.
+}
+
+// Whether to show the Contextual Panel Entrypoint IPH given a `config`.
+- (BOOL)canShowEntrypointIPHWithConfig:
+    (ContextualPanelItemConfiguration*)config {
+  return [self canShowLoudEntrypointMoment] && config &&
+         config->CanShowEntrypointIPH() &&
+         _tracker->WouldTriggerHelpUI(*config->iph_feature);
+}
+
+// Whether to show a loud contextual panel entrypoint moment.
+- (BOOL)canShowLoudEntrypointMoment {
+  ContextualPanelTabHelper* contextualPanelTabHelper =
+      ContextualPanelTabHelper::FromWebState(
+          _webStateList->GetActiveWebState());
+
+  return !_infobarBadgesCurrentlyShown &&
+         !contextualPanelTabHelper->IsContextualPanelCurrentlyOpened() &&
+         !contextualPanelTabHelper->WasLoudMomentEntrypointShown() &&
+         !contextualPanelTabHelper->WasLoudMomentEntrypointCanceled() &&
+         [self.delegate canShowLargeContextualPanelEntrypoint:self];
 }
 
 @end

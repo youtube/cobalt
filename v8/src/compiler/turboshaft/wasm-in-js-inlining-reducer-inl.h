@@ -208,7 +208,7 @@ class WasmInJsInliningInterface {
       ValueType type = decoder->local_type(index);
       V<Any> op;
       if (!type.is_defaultable()) {
-        DCHECK(type.is_reference());
+        DCHECK(type.is_ref());
         op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);
@@ -1344,7 +1344,8 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module);
 
-  GraphBuilder builder(__ data()->isolate(), Asm().phase_zone(), Asm(), sig,
+  constexpr bool kInliningIntoJs = true;
+  GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
                        inlined_function_data);
   return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
                                           js_context, arguments, frame_state,

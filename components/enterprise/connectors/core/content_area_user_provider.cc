@@ -59,16 +59,15 @@ bool IncludeContentAreaAccountEmail(
 }
 
 std::optional<size_t> GetUserIndex(const GURL& url) {
-  const re2::RE2 kUserPathRegex{"/u/(\\d+)/"};
-
   int account_id = 0;
-  if (re2::RE2::PartialMatch(url.path(), kUserPathRegex, &account_id)) {
-    return account_id;
-  }
-
   std::string account_id_str;
   if (net::GetValueForKeyInQuery(url, "authuser", &account_id_str) &&
       base::StringToInt(account_id_str, &account_id)) {
+    return account_id;
+  }
+
+  const re2::RE2 kUserPathRegex{"/u/(\\d+)/"};
+  if (re2::RE2::PartialMatch(url.path(), kUserPathRegex, &account_id)) {
     return account_id;
   }
 
@@ -118,6 +117,28 @@ std::string GetActiveFrameUser(signin::IdentityManager* im,
   }
 
   return GetEmailFromUrl(im, frame_url);
+}
+
+std::string GetDefaultActiveUser(signin::IdentityManager* im, const GURL& url) {
+  if (!im || !IncludeContentAreaAccountEmail(url, GoogleDomains())) {
+    return "";
+  }
+
+  auto accounts = im->GetAccountsInCookieJar();
+  if (accounts.GetAllAccounts().size() >= 1) {
+    return accounts.GetAllAccounts()[0].email;
+  }
+  return "";
+}
+
+std::string GetNavigationActiveContentAreaUser(signin::IdentityManager* im,
+                                               const GURL& tab_url) {
+  std::string email = GetActiveContentAreaUser(im, tab_url);
+  if (!email.empty()) {
+    return email;
+  }
+
+  return GetDefaultActiveUser(im, tab_url);
 }
 
 bool CanRetrieveActiveUser(const GURL& tab_url) {

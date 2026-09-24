@@ -12,10 +12,12 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
+
 namespace webrtc {
 
 RidDescription::RidDescription() = default;
-RidDescription::RidDescription(const std::string& rid, RidDirection direction)
+RidDescription::RidDescription(absl::string_view rid, RidDirection direction)
     : rid{rid}, direction{direction} {}
 RidDescription::RidDescription(const RidDescription& other) = default;
 RidDescription::~RidDescription() = default;

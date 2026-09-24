@@ -50,6 +50,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/well-known-imports.h"
 
 #if V8_ENABLE_DRUMBRAKE
@@ -60,6 +61,10 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
+#if defined(V8_OS_IOS)
+#include "src/heap/code-range.h"
+#include "src/init/isolate-group.h"
+#endif  // V8_OS_IOS
 #define TRACE_HEAP(...)                                       \
   do {                                                        \
     if (v8_flags.trace_wasm_native_heap) PrintF(__VA_ARGS__); \
@@ -582,20 +587,27 @@ void WasmCode::DecrementRefCount(base::Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
   WasmEngine::DeadCodeMap dead_code;
-  std::vector<WasmCode*> dead_wrappers;
+  std::vector<WasmCode*> dead_import_wrappers;
+  std::vector<WasmCode*> dead_stack_wrappers;
   for (WasmCode* code : code_vec) {
     if (!code->DecRef()) continue;  // Remaining references.
     NativeModule* native_module = code->native_module();
     if (native_module != nullptr) {
       dead_code[native_module].push_back(code);
+    } else if (code->kind() == kWasmStackEntryWrapper) {
+      dead_stack_wrappers.push_back(code);
     } else {
-      dead_wrappers.push_back(code);
+      dead_import_wrappers.push_back(code);
     }
   }
 
-  if (dead_code.empty() && dead_wrappers.empty()) return;
+  if (dead_code.empty() && dead_import_wrappers.empty() &&
+      dead_stack_wrappers.empty()) {
+    return;
+  }
 
-  GetWasmEngine()->FreeDeadCode(dead_code, dead_wrappers);
+  GetWasmEngine()->FreeDeadCode(dead_code, dead_import_wrappers,
+                                dead_stack_wrappers);
 }
 
 SourcePosition WasmCode::GetSourcePositionBefore(int code_offset) {
@@ -2149,11 +2161,42 @@ NativeModule::~NativeModule() {
   FreeCodePointerTableHandles();
 }
 
+namespace {
+v8::PageAllocator* GetPageAllocator() {
+#ifdef V8_OS_IOS
+  // On iOS, MAP_JIT can only be used once per process, and the CodeRange
+  // already uses it. Therefore, Wasm code must be allocated from the
+  // CodeRange's page allocator instead of the platform page allocator.
+  if (internal::IsolateGroup* isolate_group =
+          internal::IsolateGroup::current()) {
+    if (internal::CodeRange* code_range = isolate_group->GetCodeRange()) {
+      if (base::BoundedPageAllocator* allocator =
+              code_range->page_allocator()) {
+        return allocator;
+      }
+    }
+  }
+  // On iOS, the CodeRange must be initialized and provide a valid page
+  // allocator. Falling through to GetPlatformPageAllocator() would fail
+  // because MAP_JIT can only be called once per process.
+  UNREACHABLE();
+#else
+  return GetPlatformPageAllocator();
+#endif  // V8_OS_IOS
+}
+}  // namespace
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2),
+#ifdef V8_OS_IOS
+      // On iOS, the CodeRange is not yet initialized when WasmCodeManager is
+      // constructed, so we cannot query it for a hint address.
+      next_code_space_hint_(kNullAddress)
+#else
       next_code_space_hint_(reinterpret_cast<Address>(
-          GetPlatformPageAllocator()->GetRandomMmapAddr())) {
+          GetPlatformPageAllocator()->GetRandomMmapAddr()))
+#endif  // V8_OS_IOS
+{
   // Check that --wasm-max-code-space-size-mb is not set bigger than the default
   // value. Otherwise we run into DCHECKs or other crashes later.
   CHECK_GE(kDefaultMaxWasmCodeSpaceSizeMb,
@@ -2198,7 +2241,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 
   TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  bool success = GetPlatformPageAllocator()->RecommitPages(
+  bool success = GetPageAllocator()->RecommitPages(
       reinterpret_cast<void*>(region.begin()), region.size(),
       PageAllocator::kReadWriteExecute);
 
@@ -2212,7 +2255,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 }
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
-  PageAllocator* allocator = GetPlatformPageAllocator();
+  PageAllocator* allocator = GetPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
   [[maybe_unused]] size_t old_committed =
@@ -2220,22 +2263,30 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   DCHECK_LE(region.size(), old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
+#if defined(V8_OS_IOS)
+  // iOS devices do not support toggling the page permissions after a MAP_JIT
+  // call. See https://developer.apple.com/forums/thread/672804
+  // Use DiscardSystemPages instead, which uses madvise() to release
+  // physical memory without changing page permissions.
+  allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
+                                region.size());
+#else
 #if BUILDFLAG(IS_COBALT)
   // no_decommit_pooled_pages to address crash at b/527944046.
-  bool success = allocator->DiscardSystemPages(
+  const bool success = allocator->DiscardSystemPages(
       reinterpret_cast<void*>(region.begin()), region.size());
 #else
-  bool success = allocator->DecommitPages(
+  const bool success = allocator->DecommitPages(
       reinterpret_cast<void*>(region.begin()), region.size());
-#endif
-
+#endif  // BUILDFLAG(IS_COBALT)
   if (V8_UNLIKELY(!success)) {
-    // Decommit/Discard can fail in near-OOM situations.
+    // Decommit can fail in near-OOM situations.
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
                                 {.detail = oom_detail.PrintToArray().data()});
   }
+#endif  // defined(V8_OS_IOS)
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
@@ -2246,7 +2297,7 @@ void WasmCodeManager::AssignRange(base::AddressRegion region,
 }
 
 VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  v8::PageAllocator* page_allocator = GetPageAllocator();
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
@@ -2297,7 +2348,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
     UNREACHABLE();
 #endif
   } else {
-    CHECK(SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+    CHECK(SetPermissions(GetPageAllocator(), mem.address(), mem.size(),
                          PageAllocator::kReadWriteExecute));
   }
   page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
@@ -2864,7 +2915,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 504);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 496);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2978,7 +3029,9 @@ NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
 WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   NativeModule* candidate = LookupNativeModule(pc);
   if (candidate) return candidate->Lookup(pc);
-  return GetWasmImportWrapperCache()->Lookup(pc);
+  WasmCode* import_wrapper = GetWasmImportWrapperCache()->Lookup(pc);
+  if (import_wrapper) return import_wrapper;
+  return GetWasmStackEntryWrapperCache()->Lookup(pc);
 }
 
 WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {

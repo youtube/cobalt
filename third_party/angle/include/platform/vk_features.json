@@ -701,14 +701,6 @@
             "issue": "http://anglebug.com/42264071"
         },
         {
-            "name": "force_fragment_shader_precision_highp_to_mediump",
-            "category": "Workarounds",
-            "description": [
-                "Forces highp precision in fragment shader to mediump."
-            ],
-            "issue": "https://issuetracker.google.com/184850002"
-        },
-        {
             "name": "prefer_submit_at_FBO_boundary",
             "category": "Workarounds",
             "description": [
@@ -969,6 +961,14 @@
             "category": "Workarounds",
             "description": [
                 "Use the Front Face dynamic state from VK_EXT_extended_dynamic_state"
+            ],
+            "issue": "http://anglebug.com/42264446"
+        },
+        {
+            "name": "use_primitive_topology_dynamic_state",
+            "category": "Workarounds",
+            "description": [
+                "Use the Primitive Topology dynamic state from VK_EXT_extended_dynamic_state"
             ],
             "issue": "http://anglebug.com/42264446"
         },
@@ -2144,6 +2144,22 @@
                 "so this we have to disable our optimization that drops the clears on invalidate."
             ],
             "issue": "https://issuetracker.google.com/462484277"
+        },
+        {
+            "name": "supports_tile_memory_heap",
+            "category": "Features",
+            "description": [
+                "VkDevice supports VK_QCOM_tile_memory_heap extension."
+            ],
+            "issue": "https://issuetracker.google.com/447633563"
+        },
+        {
+            "name": "simulate_tile_memory_for_testing",
+            "category": "Features",
+            "description": [
+                "Simulate VK_QCOM_tile_memory_heap for images on GPUs that do not support VK_QCOM_tile_memory_heap extension for testing purpose."
+            ],
+            "issue": "https://issuetracker.google.com/447633563"
         }
     ]
 }

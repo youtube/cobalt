@@ -316,7 +316,7 @@ int32_t DeviceInfoDS::CreateCapabilityMap(const char* deviceUniqueIdUTF8)
       deviceUniqueIdUTF8, productId, kVideoCaptureProductIdLength);
   if (!captureDevice)
     return -1;
-  IPin* outputCapturePin = GetOutputPin(captureDevice, GUID_NULL);
+  IPin* outputCapturePin = GetOutputPin(captureDevice, PIN_CATEGORY_CAPTURE);
   if (!outputCapturePin) {
     RTC_LOG(LS_INFO) << "Failed to get capture device output pin";
     RELEASE_AND_CLEAR(captureDevice);

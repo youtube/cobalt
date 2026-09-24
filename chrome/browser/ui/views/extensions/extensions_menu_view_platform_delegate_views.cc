@@ -45,41 +45,6 @@ namespace {
 using PermissionsManager = extensions::PermissionsManager;
 using SitePermissionsHelper = extensions::SitePermissionsHelper;
 
-// Returns the state for the main page in the menu.
-enum class MainPageState {
-  // Site is restricted to all extensions.
-  kRestrictedSite,
-  // Site is restricted all non-enterprise extensions by policy.
-  kPolicyBlockedSite,
-  // User blocked all extensions access to the site.
-  kUserBlockedSite,
-  // User can customize each extension's access to the site.
-  kUserCustomizedSite,
-};
-
-MainPageState GetMainPageState(Profile& profile,
-                               const ToolbarActionsModel& toolbar_model,
-                               content::WebContents& web_contents) {
-  const GURL& url = web_contents.GetLastCommittedURL();
-  if (toolbar_model.IsRestrictedUrl(url)) {
-    return MainPageState::kRestrictedSite;
-  }
-
-  if (toolbar_model.IsPolicyBlockedHost(url)) {
-    return MainPageState::kPolicyBlockedSite;
-  }
-
-  PermissionsManager::UserSiteSetting site_setting =
-      PermissionsManager::Get(&profile)->GetUserSiteSetting(
-          web_contents.GetPrimaryMainFrame()->GetLastCommittedOrigin());
-  if (site_setting ==
-      PermissionsManager::UserSiteSetting::kBlockAllExtensions) {
-    return MainPageState::kUserBlockedSite;
-  }
-
-  return MainPageState::kUserCustomizedSite;
-}
-
 // Returns the extension for `extension_id`.
 const extensions::Extension* GetExtension(
     Browser* browser,
@@ -280,7 +245,8 @@ void ExtensionsMenuViewPlatformDelegateViews::
 
   // ... of that extension.
   if (site_permissions_page->extension_id() == extension_id) {
-    site_permissions_page->UpdateShowRequestsToggle(can_show_requests);
+    site_permissions_page->UpdateShowRequestsToggle(
+        menu_model_->GetExtensionShowRequestsToggleState(extension_id));
   }
 }
 
@@ -353,7 +319,8 @@ void ExtensionsMenuViewPlatformDelegateViews::OnToolbarPinnedActionsChanged() {
   }
 }
 
-void ExtensionsMenuViewPlatformDelegateViews::OnPermissionsSettingsChanged() {
+void ExtensionsMenuViewPlatformDelegateViews::
+    OnUserPermissionsSettingsChanged() {
   CHECK(current_page_);
 
   if (GetSitePermissionsPage(current_page_.view())) {
@@ -487,88 +454,42 @@ void ExtensionsMenuViewPlatformDelegateViews::UpdateMainPage(
     ExtensionsMenuMainPageView* main_page,
     content::WebContents* web_contents) {
   CHECK(web_contents);
-  auto has_enterprise_extensions = [&]() {
-    return std::any_of(
-        toolbar_model_->action_ids().begin(),
-        toolbar_model_->action_ids().end(),
-        [this](const ToolbarActionsModel::ActionId extension_id) {
-          auto* extension = GetExtension(browser_, extension_id);
-          return extensions::ExtensionSystem::Get(browser_->profile())
-              ->management_policy()
-              ->HasEnterpriseForcedAccess(*extension);
-        });
-  };
-  auto reload_required = [web_contents]() {
-    return extensions::TabHelper::FromWebContents(web_contents)
-        ->IsReloadRequired();
-  };
 
-  std::u16string current_site =
-      extensions::ui_util::GetFormattedHostForDisplay(*web_contents);
-  int site_settings_label_id;
-  bool is_site_settings_toggle_visible = false;
-  bool is_site_settings_toggle_on = false;
-  bool is_site_settings_tooltip_visible = false;
-  bool is_reload_required = false;
-  bool can_have_requests = false;
+  // Update site settings.
+  ExtensionsMenuViewModel::SiteSettingsState site_settings_state =
+      menu_model_->GetSiteSettingsState();
+  main_page->UpdateSiteSettings(site_settings_state);
 
-  MainPageState state =
-      GetMainPageState(*browser_->profile(), *toolbar_model_, *web_contents);
-  switch (state) {
-    case MainPageState::kRestrictedSite:
-      site_settings_label_id =
-          IDS_EXTENSIONS_MENU_SITE_SETTINGS_NOT_ALLOWED_LABEL;
-      is_site_settings_toggle_visible = false;
-      is_site_settings_toggle_on = false;
+  // Update the optional section.
+  ExtensionsMenuViewModel::OptionalSection optional_section =
+      menu_model_->GetOptionalSection();
+  switch (optional_section) {
+    case ExtensionsMenuViewModel::OptionalSection::kReloadPage:
+      main_page->ShowReloadSection();
       break;
-    case MainPageState::kPolicyBlockedSite:
-      site_settings_label_id =
-          IDS_EXTENSIONS_MENU_SITE_SETTINGS_NOT_ALLOWED_LABEL;
-      is_site_settings_toggle_visible = false;
-      is_site_settings_toggle_on = false;
-      is_site_settings_tooltip_visible = has_enterprise_extensions();
-      break;
-    case MainPageState::kUserBlockedSite:
-      site_settings_label_id = IDS_EXTENSIONS_MENU_SITE_SETTINGS_LABEL;
-      is_site_settings_toggle_visible = true;
-      is_site_settings_toggle_on = false;
-      is_site_settings_tooltip_visible = has_enterprise_extensions();
-      is_reload_required = reload_required();
-      break;
-    case MainPageState::kUserCustomizedSite:
-      site_settings_label_id = IDS_EXTENSIONS_MENU_SITE_SETTINGS_LABEL;
-      is_site_settings_toggle_visible = true;
-      is_site_settings_toggle_on = true;
-      is_reload_required = reload_required();
-      can_have_requests = true;
-      break;
-  }
+    case ExtensionsMenuViewModel::OptionalSection::kHostAccessRequests: {
+      int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+      auto* permissions_manager = PermissionsManager::Get(browser_->profile());
+      int index = 0;
+      std::vector<std::string> extension_ids =
+          SortExtensionsByName(*toolbar_model_);
 
-  main_page->UpdateSiteSettings(
-      current_site, site_settings_label_id, is_site_settings_tooltip_visible,
-      is_site_settings_toggle_visible, is_site_settings_toggle_on);
-
-  if (is_reload_required) {
-    main_page->ShowReloadSection();
-  } else if (can_have_requests) {
-    int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
-    auto* permissions_manager = PermissionsManager::Get(browser_->profile());
-    int index = 0;
-    std::vector<std::string> extension_ids =
-        SortExtensionsByName(*toolbar_model_);
-
-    for (const auto& extension_id : extension_ids) {
-      if (permissions_manager->HasActiveHostAccessRequest(tab_id,
-                                                          extension_id)) {
-        AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
-                                             web_contents);
-        ++index;
-      } else {
-        // Otherwise remove its entry, if existent.
-        main_page->RemoveExtensionRequestingAccess(extension_id);
+      for (const auto& extension_id : extension_ids) {
+        if (permissions_manager->HasActiveHostAccessRequest(tab_id,
+                                                            extension_id)) {
+          AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
+                                               web_contents);
+          ++index;
+        } else {
+          // Otherwise remove its entry, if existent.
+          main_page->RemoveExtensionRequestingAccess(extension_id);
+        }
       }
+      main_page->MaybeShowRequestsSection();
+      break;
     }
-    main_page->MaybeShowRequestsSection();
+    case ExtensionsMenuViewModel::OptionalSection::kNone:
+      break;
   }
 
   // Update menu items.
@@ -581,7 +502,7 @@ void ExtensionsMenuViewPlatformDelegateViews::UpdateMainPage(
     CHECK(extension);
 
     ExtensionsMenuViewModel::MenuItemInfo menu_item_info =
-        menu_model_->GetMenuItemInfo(menu_item->view_model());
+        menu_model_->GetMenuItemInfo(menu_item->view_model()->GetId());
     menu_item->Update(menu_item_info);
   }
 }
@@ -591,34 +512,24 @@ void ExtensionsMenuViewPlatformDelegateViews::UpdateSitePermissionsPage(
     content::WebContents* web_contents) {
   CHECK(web_contents);
 
-  auto* permissions_manager = PermissionsManager::Get(browser_->profile());
-  SitePermissionsHelper permissions_helper(browser_->profile());
-
   extensions::ExtensionId extension_id = site_permissions_page->extension_id();
-  const extensions::Extension* extension = GetExtension(browser_, extension_id);
-  const GURL& url = web_contents->GetLastCommittedURL();
-  const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
-      DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
   ToolbarActionViewModel* view_model =
       extensions_container_->GetActionForId(extension_id);
+  const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
+      DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
 
   std::u16string extension_name = view_model->GetActionName();
   ui::ImageModel extension_icon =
       view_model->GetIcon(web_contents, gfx::Size(icon_size, icon_size));
-  std::u16string current_site =
-      extensions::ui_util::GetFormattedHostForDisplay(*web_contents);
-  PermissionsManager::UserSiteAccess user_site_access =
-      permissions_manager->GetUserSiteAccess(*extension, url);
-  bool is_show_requests_toggle_on =
-      permissions_helper.ShowAccessRequestsInToolbar(extension_id);
-  bool is_on_site_enabled = permissions_manager->CanUserSelectSiteAccess(
-      *extension, url, PermissionsManager::UserSiteAccess::kOnSite);
-  bool is_on_all_sites_enabled = permissions_manager->CanUserSelectSiteAccess(
-      *extension, url, PermissionsManager::UserSiteAccess::kOnAllSites);
+  ExtensionsMenuViewModel::ExtensionSiteAccessOptionsState
+      extension_site_access_options =
+          menu_model_->GetExtensionSiteAccessOptionsState(extension_id);
+  site_permissions_page->Update(extension_name, extension_icon,
+                                extension_site_access_options);
 
-  site_permissions_page->Update(extension_name, extension_icon, current_site,
-                                user_site_access, is_show_requests_toggle_on,
-                                is_on_site_enabled, is_on_all_sites_enabled);
+  ExtensionsMenuViewModel::ControlState show_requests_toggle =
+      menu_model_->GetExtensionShowRequestsToggleState(extension_id);
+  site_permissions_page->UpdateShowRequestsToggle(show_requests_toggle);
 }
 
 ExtensionsMenuMainPageView*
@@ -661,9 +572,8 @@ void ExtensionsMenuViewPlatformDelegateViews::InsertMenuItemMainPage(
           extension_id, browser_,
           std::make_unique<ExtensionActionPlatformDelegateViews>(
               browser_, extensions_container_));
-
   ExtensionsMenuViewModel::MenuItemInfo menu_item =
-      menu_model_->GetMenuItemInfo(model.get());
+      menu_model_->GetMenuItemInfo(extension_id);
 
   main_page->CreateAndInsertMenuItem(std::move(model), extension_id, menu_item,
                                      index);

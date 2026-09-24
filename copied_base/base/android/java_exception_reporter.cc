@@ -99,3 +99,5 @@ void JNI_JavaExceptionReporter_ReportJavaStackTrace(
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(JavaExceptionReporter)

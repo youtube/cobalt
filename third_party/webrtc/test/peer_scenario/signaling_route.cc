@@ -59,6 +59,7 @@ void StartIceSignalingForRoute(PeerScenarioClient* caller,
 }
 
 void StartSdpNegotiation(
+    bool send_sdp_using_network,
     PeerScenarioClient* caller,
     PeerScenarioClient* callee,
     CrossTrafficRoute* send_route,
@@ -74,25 +75,38 @@ void StartSdpNegotiation(
       modify_offer(offer.get());
       RTC_CHECK(offer->ToString(&sdp_offer));
     }
-    send_route->NetworkDelayedAction(kSdpPacketSize, [=] {
+    auto action = [=] {
       callee->SetSdpOfferAndGetAnswer(
           sdp_offer, std::move(callee_remote_description_set),
           [=](std::string answer) {
-            ret_route->NetworkDelayedAction(kSdpPacketSize, [=] {
+            auto set_answer_action = [=] {
               caller->SetSdpAnswer(std::move(answer),
                                    std::move(exchange_finished));
-            });
+            };
+            if (send_sdp_using_network) {
+              ret_route->NetworkDelayedAction(kSdpPacketSize,
+                                              set_answer_action);
+            } else {
+              set_answer_action();
+            }
           });
-    });
+    };
+    if (send_sdp_using_network) {
+      send_route->NetworkDelayedAction(kSdpPacketSize, action);
+    } else {
+      action();
+    }
   });
 }
 }  // namespace
 
-SignalingRoute::SignalingRoute(PeerScenarioClient* caller,
+SignalingRoute::SignalingRoute(bool send_sdp_via_network,
+                               PeerScenarioClient* caller,
                                PeerScenarioClient* callee,
                                CrossTrafficRoute* send_route,
                                CrossTrafficRoute* ret_route)
-    : caller_(caller),
+    : send_sdp_via_network_(false),
+      caller_(caller),
       callee_(callee),
       send_route_(send_route),
       ret_route_(ret_route) {}
@@ -108,9 +122,9 @@ void SignalingRoute::NegotiateSdp(
     std::function<void()> callee_remote_description_set,
     std::function<void(const SessionDescriptionInterface& answer)>
         exchange_finished) {
-  StartSdpNegotiation(caller_, callee_, send_route_, ret_route_, munge_offer,
-                      modify_offer, callee_remote_description_set,
-                      exchange_finished);
+  StartSdpNegotiation(send_sdp_via_network_, caller_, callee_, send_route_,
+                      ret_route_, munge_offer, modify_offer,
+                      callee_remote_description_set, exchange_finished);
 }
 
 void SignalingRoute::NegotiateSdp(

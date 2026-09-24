@@ -76,7 +76,6 @@ char kLSanDefaultSuppressions[] =
     // https://code.google.com/p/webrtc/issues/detail?id=2528
     "leak:webrtc::FakeVideoMediaChannel::~FakeVideoMediaChannel\n"
     "leak:DtmfSenderTest_InsertEmptyTonesToCancelPreviousTask_Test::TestBody\n"
-    "leak:sigslot::_signal_base2*::~_signal_base2\n"
     "leak:testing::internal::CmpHelperEQ\n"
     "leak:webrtc::AudioDeviceLinuxALSA::InitMicrophone\n"
     "leak:webrtc::AudioDeviceLinuxALSA::InitSpeaker\n"

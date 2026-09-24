@@ -14,7 +14,7 @@ namespace internal {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
-class FixedLengthLoopState;
+class SpecialLoopState;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
@@ -100,34 +100,30 @@ struct NodeInfo final {
 struct EatsAtLeastInfo final {
   EatsAtLeastInfo() : EatsAtLeastInfo(0) {}
   explicit EatsAtLeastInfo(uint8_t eats)
-      : eats_at_least_from_possibly_start(eats),
-        eats_at_least_from_not_start(eats) {}
+      : from_possibly_start(eats), from_not_start(eats) {}
   void SetMin(const EatsAtLeastInfo& other) {
-    if (other.eats_at_least_from_possibly_start <
-        eats_at_least_from_possibly_start) {
-      eats_at_least_from_possibly_start =
-          other.eats_at_least_from_possibly_start;
+    if (other.from_possibly_start < from_possibly_start) {
+      from_possibly_start = other.from_possibly_start;
     }
-    if (other.eats_at_least_from_not_start < eats_at_least_from_not_start) {
-      eats_at_least_from_not_start = other.eats_at_least_from_not_start;
+    if (other.from_not_start < from_not_start) {
+      from_not_start = other.from_not_start;
     }
   }
 
   bool IsZero() const {
-    return eats_at_least_from_possibly_start == 0 &&
-           eats_at_least_from_not_start == 0;
+    return from_possibly_start == 0 && from_not_start == 0;
   }
 
   // Any successful match starting from the current node will consume at least
   // this many characters. This does not necessarily mean that there is a
   // possible match with exactly this many characters, but we generally try to
   // get this number as high as possible to allow for early exit on failure.
-  uint8_t eats_at_least_from_possibly_start;
+  uint8_t from_possibly_start;
 
-  // Like eats_at_least_from_possibly_start, but with the additional assumption
+  // Like from_possibly_start, but with the additional assumption
   // that start-of-string assertions (^) can't match. This value is greater than
-  // or equal to eats_at_least_from_possibly_start.
-  uint8_t eats_at_least_from_not_start;
+  // or equal to from_possibly_start.
+  uint8_t from_not_start;
 };
 
 class EmitResult final {
@@ -347,7 +343,7 @@ class ActionNode : public SeqRegExpNode {
   enum ActionType {
     SET_REGISTER_FOR_LOOP,
     INCREMENT_REGISTER,
-    CLEAR_POSITION,
+    STORE_POSITION,
     RESTORE_POSITION,
     BEGIN_POSITIVE_SUBMATCH,
     BEGIN_NEGATIVE_SUBMATCH,
@@ -359,7 +355,7 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* SetRegisterForLoop(int reg, int val,
                                         RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* ClearPosition(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
   static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
@@ -411,7 +407,7 @@ class ActionNode : public SeqRegExpNode {
   }
 
   bool IsSimpleAction() const {
-    return action_type() == CLEAR_POSITION ||
+    return action_type() == STORE_POSITION ||
            action_type() == RESTORE_POSITION ||
            action_type() == INCREMENT_REGISTER ||
            action_type() == SET_REGISTER_FOR_LOOP ||
@@ -729,13 +725,14 @@ class ChoiceNode : public RegExpNode {
   void SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
-  int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
+  int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace,
+                                    SpecialLoopState* search_loop_state);
   // Returns nullptr on failure.
   // TODO(jgruber): Consider wrapping the return value in EmitResult.
   V8_WARN_UNUSED_RESULT Trace* EmitFixedLengthLoop(
       RegExpCompiler* compiler, Trace* trace,
       AlternativeGenerationList* alt_gens, PreloadState* preloads,
-      FixedLengthLoopState* fixed_length_loop_state, int text_length,
+      SpecialLoopState* fixed_length_loop_state, int text_length,
       RegExpFlags flags);
   V8_WARN_UNUSED_RESULT EmitResult
   EmitChoices(RegExpCompiler* compiler, AlternativeGenerationList* alt_gens,

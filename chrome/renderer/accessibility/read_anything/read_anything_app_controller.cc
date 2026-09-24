@@ -453,7 +453,6 @@ ReadAnythingAppController::ReadAnythingAppController(
   }
 
   model_observer_.Observe(&model_);
-
   self_ = this;
 }
 
@@ -548,6 +547,11 @@ void ReadAnythingAppController::OnStringAttributeChanged(
     ax::mojom::StringAttribute attr,
     const std::string& old_value,
     const std::string& new_value) {
+  // Return early when the images flag is disabled to avoid potential crashes.
+  if (!features::IsReadAnythingImagesViaAlgorithmEnabled()) {
+    return;
+  }
+
   ui::AXNode* rm_node = model_.GetAXNode(node->id());
   if (!rm_node) {
     return;
@@ -555,8 +559,7 @@ void ReadAnythingAppController::OnStringAttributeChanged(
   // When the src for an image changes (e.g if an image was lazy loaded and
   // previously had a placeholder image), request the updated image. The info
   // will be returned via OnImageDataDownloaded.
-  if (features::IsReadAnythingImagesViaAlgorithmEnabled() &&
-      attr == ax::mojom::StringAttribute::kUrl &&
+  if (attr == ax::mojom::StringAttribute::kUrl &&
       rm_node->GetRole() == ax::mojom::Role::kImage) {
     RequestImageData(node->id());
   }
@@ -1143,10 +1146,14 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("isGoogleDocs", &ReadAnythingAppController::IsGoogleDocs)
       .SetProperty("isReadAloudEnabled",
                    &ReadAnythingAppController::IsReadAloudEnabled)
+      .SetProperty("isImmersiveEnabled",
+                   &ReadAnythingAppController::IsImmersiveEnabled)
       .SetProperty("isTsTextSegmentationEnabled",
                    &ReadAnythingAppController::IsTsTextSegmentationEnabled)
       .SetProperty("isReadabilityEnabled",
                    &ReadAnythingAppController::IsReadabilityEnabled)
+      .SetProperty("isLineFocusEnabled",
+                   &ReadAnythingAppController::IsLineFocusEnabled)
       .SetProperty("isChromeOsAsh", &ReadAnythingAppController::IsChromeOsAsh)
       .SetProperty("baseLanguageForSpeech",
                    &ReadAnythingAppController::GetLanguageCodeForSpeech)
@@ -1626,6 +1633,10 @@ bool ReadAnythingAppController::IsReadAloudEnabled() const {
   return features::IsReadAnythingReadAloudEnabled();
 }
 
+bool ReadAnythingAppController::IsImmersiveEnabled() const {
+  return features::IsImmersiveReadAnythingEnabled();
+}
+
 bool ReadAnythingAppController::IsTsTextSegmentationEnabled() const {
   return features::IsReadAnythingReadAloudTSTextSegmentationEnabled();
 }
@@ -1634,6 +1645,10 @@ bool ReadAnythingAppController::IsTsTextSegmentationEnabled() const {
 // distillation methods such as Readability.js is enabled.
 bool ReadAnythingAppController::IsReadabilityEnabled() const {
   return features::IsReadAnythingWithReadabilityEnabled();
+}
+
+bool ReadAnythingAppController::IsLineFocusEnabled() const {
+  return features::IsReadAnythingLineFocusEnabled();
 }
 
 bool ReadAnythingAppController::IsChromeOsAsh() const {
@@ -1715,7 +1730,8 @@ v8::Local<v8::Value> ReadAnythingAppController::GetImageBitmap(
     // Create an array buffer with the image bytes.
     v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, size);
     // Copy the memory in.
-    UNSAFE_TODO(memcpy(buffer->GetBackingStore()->Data(), pixmap.addr(), size));
+    pixmap.readPixels(pixmap.info(), buffer->GetBackingStore()->Data(),
+                      pixmap.rowBytes());
     // Create a clamped array so we can create an ImageData object on the
     // javascript side.
     v8::Local<v8::Uint8ClampedArray> array =
@@ -2113,6 +2129,7 @@ void ReadAnythingAppController::OnReadingModeHidden(bool tab_active) {
   if (read_aloud_model_.speech_playing() && tab_active) {
     read_aloud_model_.LogSpeechStop(
         ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
+    ReadingModeWillClose();
   }
   RecordEstimatedWordsSeen();
   RecordEstimatedWordsHeard();
@@ -2123,9 +2140,18 @@ void ReadAnythingAppController::OnTabWillDetach() {
   if (read_aloud_model_.speech_playing()) {
     read_aloud_model_.LogSpeechStop(
         ReadAloudAppModel::ReadAloudStopSource::kCloseTabOrWindow);
+    ReadingModeWillClose();
   }
   RecordEstimatedWordsSeen();
   RecordEstimatedWordsHeard();
+}
+
+void ReadAnythingAppController::ReadingModeWillClose() {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
+    return;
+  }
+
+  ExecuteJavaScript("chrome.readingMode.readingModeWillClose();");
 }
 
 void ReadAnythingAppController::OnTabMuteStateChange(bool muted) {

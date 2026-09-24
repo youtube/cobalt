@@ -3951,7 +3951,9 @@ JSNativeContextSpecialization::
         simplified()->NumberEqual(),
         graph()->NewNode(
             simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
+            jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
+                keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
+                                     : TypedArrayAccessMode::kRead))),
         jsgraph()->ZeroConstant());
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,

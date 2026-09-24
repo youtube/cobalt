@@ -96,6 +96,9 @@ export class ContextMenuEntrypointElement extends
         reflect: true,
         type: Boolean,
       },
+      pdfUploadEnabled_: {
+        type: Boolean,
+      },
     };
   }
 
@@ -120,6 +123,8 @@ export class ContextMenuEntrypointElement extends
       loadTimeData.getBoolean('composeboxShowDeepSearchButton');
   protected accessor showCreateImage_: boolean =
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
+  protected accessor pdfUploadEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxShowPdfUpload');
   protected maxFileCount_: number =
       loadTimeData.getInteger('composeboxFileMaxCount');
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
@@ -131,8 +136,12 @@ export class ContextMenuEntrypointElement extends
   openMenuForMultiSelection() {
     if (this.enableMultiTabSelection_ &&
         this.searchboxLayoutMode !== TALL_BOTTOM_CONTEXT_LAYOUT_MODE) {
-      this.showMenuAtEntrypoint_();
+      this.updateComplete.then(this.showMenuAtEntrypoint_.bind(this));
     }
+  }
+
+  closeMenu() {
+    this.$.menu.close();
   }
 
   // Checks if the image upload item in the context menu should be disabled.
@@ -172,11 +181,12 @@ export class ContextMenuEntrypointElement extends
     return noNewContextAllowed || isTabInContext;
   }
 
-  protected onEntrypointClick_() {
+  protected onEntrypointClick_(e: Event) {
+    e.stopPropagation();
+
     const metricName =
         'ContextualSearch.ContextMenuEntry.Clicked.' + this.metricsSource_;
     chrome.metricsPrivate.recordBoolean(metricName, true);
-
     if (this.entrypointName === 'Omnibox') {
       const entrypoint =
           this.shadowRoot.querySelector<HTMLElement>('#entrypoint');

@@ -1237,15 +1237,6 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 
 如果是 <ph name="PRODUCT_NAME" />，裝置必須使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 註冊，這項政策才會生效。
 如果是 <ph name="PRODUCT_OS_NAME" />，這項政策會一律生效。</translation>
-<translation id="1878535132109943599">如果將這項政策設為啟用，<ph name="LOCAL_NETWORK_ACCESS" />要求只會在 <ph name="CHROME_DEVTOOLS_NAME" />中顯示<ph name="LOCAL_NETWORK_ACCESS" />檢查失敗的警告。如果將這項政策設為停用或未設定，系統會使用預設處理方式處理<ph name="LOCAL_NETWORK_ACCESS" />要求。
-
-如要瞭解<ph name="LOCAL_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/local-network-access/。
-
-這項企業政策只是臨時措施，將於 M146 版之後移除。
-
-長期來看，使用 <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> 政策將網址模式加入許可清單，就能自動授予<ph name="LOCAL_NETWORK_ACCESS" />權限。
-
-請注意，如果啟用 <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> 政策，該政策的優先順序會高於本政策。</translation>
 <translation id="187961648719201562">刪除現有的本機檔案 (自 137 版起支援)</translation>
 <translation id="1883274744253492031">啟用複合型內容自動升級</translation>
 <translation id="1885782360784839335">允許顯示完整分頁宣傳內容</translation>
@@ -3065,6 +3056,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="3169872426103732947">顯示預設網址，允許使用者切換到完整網址</translation>
 <translation id="3171369832001535378">裝置網路主機名稱範本</translation>
 <translation id="3173844121395372156">這項政策已淘汰，因此系統不再支援，請改用「<ph name="NATIVE_MESSAGING_ALLOWLIST_POLICY_NAME" />」政策。</translation>
+<translation id="3175063338945713984">儲存空間配額 API 會根據功能啟動程序傳回值。</translation>
 <translation id="3177537290334203187">在決定網站是否可以向網路端點發出要求時使用預設行為。</translation>
 <translation id="3177802893484440532">需要為本機信任錨點執行線上 OCSP/CRL 檢查</translation>
 <translation id="3179533009079100620">顯示設定檔選擇畫面</translation>
@@ -3204,6 +3196,7 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 
 如果停用 <ph name="NTPCARDSVISIBLE" />，Outlook 資訊卡就不會顯示。如果同時啟用 <ph name="NTPCARDSVISIBLE" /> 和這項政策，而且有可顯示的資料，就會顯示 Outlook 資訊卡。如果未設定 <ph name="NTPCARDSVISIBLE" />，但啟用了這項政策、使用者在「自訂 Chrome」中也啟用 Outlook 資訊卡，而且有可顯示的資料，就會顯示這張資訊卡。</translation>
 <translation id="3261592499545947104">憑證過期之前提早觸發更新程序的秒數</translation>
+<translation id="326182244921429468">儲存空間配額 API 會傳回動態值。</translation>
 <translation id="3262080895269946462">允許將第三方內容中的 WebSQL 預設為停用。</translation>
 <translation id="326341982850521928">啟用色彩校正</translation>
 <translation id="3263892501786842604">允許在「新分頁」頁面的搜尋框中顯示 <ph name="GOOGLE_LENS_PRODUCT_NAME" />按鈕 (如果支援)。</translation>
@@ -4344,6 +4337,11 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 
 
 擴充功能可用性仍會受其他政策控制。</translation>
+<translation id="4112585124048467596">如果設定這項政策，所有的指定資料類型都會從同步處理作業中排除 (包含 <ph name="CHROME_SYNC_NAME" />和漫遊設定檔的同步處理作業)。這有助於縮減漫遊設定檔的大小，或限制上傳到 <ph name="CHROME_SYNC_NAME" />伺服器的資料類型。
+
+      這項政策目前的資料類型為：「apps」、「autofill」、「bookmarks」、「extensions」、「preferences」、「passwords」、「payments」、「productComparison」、「readingList」、「tabs」、「themes」、「typedUrls」和「wifiConfigurations」。這些名稱有大小寫之分！
+
+      注意：動態政策重新整理功能僅適用於 <ph name="PRODUCT_NAME" /> 123 以上版本。停用「autofill」也會一併停用「payments」。「typedUrls」是指所有的瀏覽記錄。</translation>
 <translation id="4115501011761259824">為所有受影響的使用者啟用 First-Party Sets 功能</translation>
 <translation id="4120401094617902941">系統取樣和收集執行階段計數器的頻率。下限值是 1 天。
 
@@ -6226,6 +6224,34 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 
 如果將這項政策設為停用，系統就無法刪除瀏覽記錄和下載記錄。即使關閉這項政策，瀏覽及下載記錄也不一定會保留。使用者或許可以直接編輯或刪除歷史記錄資料庫檔案，而瀏覽器本身也可能隨時清除或封存部分或所有歷史記錄項目。</translation>
 <translation id="5322649594584715998">以標準充電速度將電池完全充飽。這個模式會停用自動調節充電和限制充電功能。</translation>
+<translation id="5322726025747768984">透過這項政策設定規則，根據目的地網址和其他條件選取瀏覽器使用的 Proxy。這項政策的效力高於其他方式的 Proxy 設定，包括透過 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 擴充功能 API，以及使用者手動設定。
+
+如果未設定這項政策，其他 Proxy 政策或使用者設定都不會受到影響。
+
+瀏覽器必須決定要使用的 Proxy 時，會依序評估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的項目，直到有一個項目符合下列所有條件為止：
+  * 符合 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的至少一個網址模式。
+  * 與 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的網址模式均不相符。
+  * 如果指定了 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />，而且不是空白清單，則須符合該清單項目表示的所有條件。
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 的值會做為這類相符項目的 Proxy。如果找不到相符項目，就會回頭使用 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策指定的 Proxy 設定。
+
+如要瞭解 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 和 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 支援的網址模式，請參閱 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 欄位項目會對應到 PAC 檔案的字串值，例如：
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+或者，也可以直接用類似網址的 Proxy 指定碼來指定 Proxy，例如：
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+清單中第一個可連線的項目會做為 Proxy。系統會忽略清單中的無效項目。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 欄位內含條件清單；必須符合所有條件，才能使用覆寫規則決定要使用的 Proxy。如果未設定，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 有一個主機符合條件，系統就會使用該項目。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 條件會檢查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> 能否解析為 IP 位址。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值為「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」，就會判定符合條件。如果值改設為 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，則解析失敗時，系統會判定符合條件。</translation>
 <translation id="5323200200131319468">在登入畫面上啟用互動朗讀功能</translation>
 <translation id="5323271643727095577">針對 beforeunload 事件呼叫 event.preventDefault() 時，不要顯示取消對話方塊。如果 beforeunload event.returnValue 是 beforeunload 事件的空白字串，顯示取消對話方塊。</translation>
 <translation id="5324430722441910403">網站搜尋設定</translation>
@@ -10502,6 +10528,7 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
       如果未設定這項政策，系統會將 <ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> 政策套用至所有網站 (如果已設定)，否則會套用使用者的個人設定。
 
       如要進一步瞭解有效的網址模式，請參閱 https://chromeenterprise.google/policies/url-patterns。不過，從 M85 版開始，這項政策已停止支援主機中帶有「*」和「[*.]」萬用字元的模式。</translation>
+<translation id="8251975082850036657">儲存空間配額 API 會傳回靜態值。</translation>
 <translation id="82530263956734297">要從封鎖清單中排除的擴充功能 ID</translation>
 <translation id="8254749125469750814">不要驗證能否透過雲端服務安裝擴充功能。</translation>
 <translation id="8256006033157034334">這項政策已淘汰，因此系統不再支援，請改用 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />。</translation>
@@ -11581,6 +11608,7 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
       這項政策只適用於 Family Link 使用者。</translation>
 <translation id="8947415621777543415">回報裝置位置</translation>
 <translation id="8948062138228904066">驗證伺服器許可清單</translation>
+<translation id="8951145747995737852">控管儲存空間配額 API 是否傳回靜態值</translation>
 <translation id="8951350807133946005">設定磁碟快取目錄</translation>
 <translation id="8952611478149810182">為了改善與其他瀏覽器的相容性及提升開發人員體驗，我們正著手變更 Chromium 中在已停用的表單控制項上傳送事件的行為。
 
@@ -11673,13 +11701,6 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
        這項政策將自 <ph name="PRODUCT_NAME" /> 第 84 版起失效。</translation>
 <translation id="9010080992450148617">加入進階保護計畫的使用者可以將下載內容傳送至 Google 進行深度掃描</translation>
 <translation id="9012101302849557459">延長 Chrome 應用程式可在 <ph name="MS_WIN_NAME" />、<ph name="MAC_OS_NAME" /> 和 <ph name="LINUX_OS_NAME" /> 上執行的時間。</translation>
-<translation id="9012332684658600011">如果將這項政策設為啟用，只要 <ph name="CHROME_DEVTOOLS_NAME" />因<ph name="LOCAL_NETWORK_ACCESS" />檢查失敗而應該顯示警告，系統就會改為封鎖主要要求。
-
-如果將這項政策設為停用或未設定，系統會使用預設處理方式處理<ph name="LOCAL_NETWORK_ACCESS" />要求。
-
-如要瞭解<ph name="LOCAL_NETWORK_ACCESS" />限制，請前往 https://wicg.github.io/local-network-access/。
-
-<ph name="LOCAL_NETWORK_ACCESS" />已預設啟用，因此這項政策已淘汰。未來的版本將移除這項政策。</translation>
 <translation id="9013875414788074110">在登入時，<ph name="PRODUCT_OS_NAME" />可以透過伺服器進行線上驗證，或使用快取密碼進行離線驗證。
 
       當這項政策的值設為 -1 時，使用者可以無限期執行離線驗證。如果將這項政策設為任何其他值，使用者在上一次線上驗證後，必須於這個值指定的時限再次進行線上驗證。
@@ -11963,6 +11984,10 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
 <translation id="966425658642788645">套用預設行為</translation>
 <translation id="971677226939413180">使用者無法選擇「以圖片形式列印」選項。</translation>
 <translation id="974349541138387272">指定所需 DNS-over-HTTPS 解析器的 URI 範本</translation>
+<translation id="975005959611437646">設為啟用後，儲存空間配額 API 會傳回靜態值，該值等於用量 + min(10 GiB，磁碟空間四捨五入至最接近的 1 GiB)。
+如果設為停用，無論用量為何，儲存空間配額 API 通常都會傳回與裝置可用總空間成比例的動態值。
+如未設定，儲存空間配額 API 會採用預設的 Chrome 行為。
+這項設定不會影響具備無限儲存空間權限的網站，也不會影響強制執行的配額限制。</translation>
 <translation id="976415389478739655">要求使用者裝置必須連上受管理的網路，才能加入<ph name="CLASS_TOOLS_NAME" />課程</translation>
 <translation id="978619365985286086">課程管理工具設定</translation>
 <translation id="978658824596356870">24 小時制</translation>

@@ -24,6 +24,33 @@
 namespace mojo {
 
 template <>
+struct StructTraits<viz::mojom::MetadataOverrideDataView,
+                    viz::TransferableResource::MetadataOverride> {
+  static const std::optional<bool>& is_overlay_candidate(
+      const viz::TransferableResource::MetadataOverride& input) {
+    return input.is_overlay_candidate;
+  }
+
+  static const std::optional<gfx::ColorSpace>& color_space(
+      const viz::TransferableResource::MetadataOverride& input) {
+    return input.color_space;
+  }
+
+  static const std::optional<GrSurfaceOrigin>& origin(
+      const viz::TransferableResource::MetadataOverride& input) {
+    return input.origin;
+  }
+
+  static const std::optional<SkAlphaType>& alpha_type(
+      const viz::TransferableResource::MetadataOverride& input) {
+    return input.alpha_type;
+  }
+
+  static bool Read(viz::mojom::MetadataOverrideDataView data,
+                   viz::TransferableResource::MetadataOverride* out);
+};
+
+template <>
 struct EnumTraits<viz::mojom::SynchronizationType,
                   viz::TransferableResource::SynchronizationType> {
   static viz::mojom::SynchronizationType ToMojom(
@@ -50,18 +77,9 @@ struct StructTraits<viz::mojom::TransferableResourceDataView,
     return resource.id;
   }
 
-  static viz::SharedImageFormat format(
+  static gpu::ExportedSharedImage shared_image(
       const viz::TransferableResource& resource) {
-    return resource.format;
-  }
-
-  static gfx::Size size(const viz::TransferableResource& resource) {
-    return resource.size;
-  }
-
-  static gpu::Mailbox memory_buffer_id(
-      const viz::TransferableResource& resource) {
-    return resource.memory_buffer_id();
+    return resource.shared_image()->Export();
   }
 
   static const gpu::SyncToken& sync_token(
@@ -69,21 +87,9 @@ struct StructTraits<viz::mojom::TransferableResourceDataView,
     return resource.sync_token();
   }
 
-  static uint32_t texture_target(const viz::TransferableResource& resource) {
-    return resource.texture_target();
-  }
-
   static viz::TransferableResource::SynchronizationType synchronization_type(
       const viz::TransferableResource& resource) {
     return resource.synchronization_type;
-  }
-
-  static bool is_software(const viz::TransferableResource& resource) {
-    return resource.is_software;
-  }
-
-  static bool is_overlay_candidate(const viz::TransferableResource& resource) {
-    return resource.is_overlay_candidate;
   }
 
   static bool is_low_latency_rendering(
@@ -104,11 +110,6 @@ struct StructTraits<viz::mojom::TransferableResourceDataView,
   }
 #endif
 
-  static const gfx::ColorSpace& color_space(
-      const viz::TransferableResource& resource) {
-    return resource.color_space;
-  }
-
   static const gfx::HDRMetadata& hdr_metadata(
       const viz::TransferableResource& resource) {
     return resource.hdr_metadata;
@@ -125,17 +126,14 @@ struct StructTraits<viz::mojom::TransferableResourceDataView,
   }
 #endif
 
-  static GrSurfaceOrigin origin(const viz::TransferableResource& resource) {
-    return resource.origin;
-  }
-
-  static SkAlphaType alpha_type(const viz::TransferableResource& resource) {
-    return resource.alpha_type;
-  }
-
   static viz::TransferableResource::ResourceSource resource_source(
       const viz::TransferableResource& resource) {
     return resource.resource_source;
+  }
+
+  static viz::TransferableResource::MetadataOverride metadata_override(
+      const viz::TransferableResource& resource) {
+    return resource.metadata_override();
   }
 
   static bool Read(viz::mojom::TransferableResourceDataView data,

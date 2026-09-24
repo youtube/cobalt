@@ -36,7 +36,6 @@ rtc_library("media_constraints") {
   ]
   deps = [
     "../api:audio_options_api",
-    "../api:libjingle_peerconnection_api",
     "../api:peer_connection_interface",
     "../rtc_base:stringutils",
   ]
@@ -47,7 +46,6 @@ rtc_library("sdk_tests") {
   sources = [ "media_constraints_unittest.cc" ]
   deps = [
     ":media_constraints",
-    "../api:libjingle_peerconnection_api",
     "../api:peer_connection_interface",
     "../test:test_support",
   ]
@@ -481,7 +479,6 @@ if (is_ios || is_mac) {
           ":native_video",
           ":videoframebuffer_objc",
           ":videosource_objc",
-          "../api:libjingle_peerconnection_api",
           "../api/video:video_frame",
           "../api/video:video_rtp_headers",
           "../common_video",
@@ -585,7 +582,6 @@ if (is_ios || is_mac) {
         ":mediasource_objc",
         ":native_video",
         ":videoframebuffer_objc",
-        "../api:libjingle_peerconnection_api",
         "../api:media_stream_interface",
         "../api/video:video_frame",
         "../api/video:video_rtp_headers",
@@ -912,7 +908,6 @@ if (is_ios || is_mac) {
         ":base_objc",
         ":native_api",
         ":videoframebuffer_objc",
-        "../api:libjingle_peerconnection_api",
         "../api:media_stream_interface",
       ]
     }
@@ -1239,7 +1234,6 @@ if (is_ios || is_mac) {
             ":videotoolbox_objc",
             "../api:array_view",
             "../api:jsep",
-            "../api:libjingle_peerconnection_api",
             "../api:rtc_error_matchers",
             "../api:scoped_refptr",
             "../api/audio:audio_device",
@@ -1669,10 +1663,10 @@ if (is_ios || is_mac) {
         ":base_objc",
         ":native_video",
         ":videoframebuffer_objc",
-        "../api:libjingle_peerconnection_api",
         "../api:make_ref_counted",
         "../api:media_stream_interface",
         "../api:scoped_refptr",
+        "../api:video_track_source_proxy_factory",
         "../api/environment",
         "../api/video:video_frame",
         "../api/video:video_rtp_headers",

@@ -199,6 +199,10 @@ void MtlCaps::initCaps(const id<MTLDevice> device) {
                 }
             }
         }
+    } else {
+        // All supported Intel Macs are of an old enough Intel generation that we can just assume
+        // MSAA should be avoided instead of checking its generation. (>gen 11 FIXME?)
+        fAvoidMSAA = true;
     }
 }
 
@@ -820,7 +824,7 @@ TextureInfo MtlCaps::getDefaultAttachmentTextureInfo(AttachmentDesc desc,
     }
 
     MtlTextureInfo info;
-    info.fSampleCount = (uint8_t) desc.fSampleCount;
+    info.fSampleCount = desc.fSampleCount;
     info.fMipmapped = Mipmapped::kNo;
     info.fFormat = TextureFormatToMTLPixelFormat(desc.fFormat);
     info.fUsage = MTLTextureUsageRenderTarget;
@@ -845,7 +849,7 @@ TextureInfo MtlCaps::getDefaultSampledTextureInfo(SkColorType colorType,
     }
 
     MtlTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFormat = format;
     info.fUsage = usage;
@@ -858,7 +862,7 @@ TextureInfo MtlCaps::getDefaultSampledTextureInfo(SkColorType colorType,
 TextureInfo MtlCaps::getTextureInfoForSampledCopy(const TextureInfo& textureInfo,
                                                   Mipmapped mipmapped) const {
     MtlTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFormat = TextureInfoPriv::Get<MtlTextureInfo>(textureInfo).fFormat;
     info.fUsage = MTLTextureUsageShaderRead;
@@ -902,7 +906,7 @@ TextureInfo MtlCaps::getDefaultCompressedTextureInfo(SkTextureCompressionType co
     }
 
     MtlTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFormat = format;
     info.fUsage = usage;
@@ -925,7 +929,7 @@ TextureInfo MtlCaps::getDefaultStorageTextureInfo(SkColorType colorType) const {
     }
 
     MtlTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = Mipmapped::kNo;
     info.fFormat = format;
     info.fUsage = MTLTextureUsageShaderWrite | MTLTextureUsageShaderRead;

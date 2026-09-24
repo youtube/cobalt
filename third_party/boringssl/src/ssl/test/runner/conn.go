@@ -1278,7 +1278,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 		if c.config.Bugs.TrailingDataWithFinished && msgType == typeFinished {
 			// Add a 0 to the record. Note unused bytes in |data| may be owned by the
 			// caller, so we force a new allocation.
-			data = append(data[:len(data):len(data)], 0)
+			data = append(slices.Clip(data), 0)
 		}
 	}
 

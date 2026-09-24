@@ -93,8 +93,7 @@ class NativePixmapFrameResource : public FrameResource {
   // gfx::GpuMemoryBufferHandle.
   gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferHandle() const override;
   // Always returns nullptr.
-  std::unique_ptr<VideoFrame::ScopedMapping> MapGMBOrSharedImage()
-      const override;
+  scoped_refptr<gpu::ClientSharedImage> GetSharedImage() const override;
   const VideoFrameLayout& layout() const override;
   VideoPixelFormat format() const override;
   int stride(size_t plane) const override;
@@ -109,9 +108,8 @@ class NativePixmapFrameResource : public FrameResource {
   const base::UnguessableToken& tracking_token() const override;
   gfx::ColorSpace ColorSpace() const override;
   void set_color_space(const gfx::ColorSpace& color_space) override;
-  const std::optional<gfx::HDRMetadata>& hdr_metadata() const override;
-  void set_hdr_metadata(
-      const std::optional<gfx::HDRMetadata>& hdr_metadata) override;
+  const gfx::HDRMetadata& hdr_metadata() const override;
+  void set_hdr_metadata(const gfx::HDRMetadata& hdr_metadata) override;
   base::TimeDelta timestamp() const override;
   void set_timestamp(base::TimeDelta timestamp) override;
   void AddDestructionObserver(base::OnceClosure callback) override;
@@ -130,7 +128,7 @@ class NativePixmapFrameResource : public FrameResource {
 
   // CreateMappableVideoFrame() is used to create a VideoFrame from the
   // underlying NativePixmap. The DMABuf FDs are duplicated and a VideoFrame
-  // with storage type STORAGE_GPU_MEMORY_BUFFER is created.
+  // with storage type STORAGE_MAPPABLE_SHARED_IMAGE is created.
   scoped_refptr<VideoFrame> CreateMappableVideoFrame(
       gpu::SharedImageInterface* sii) const;
 
@@ -143,7 +141,7 @@ class NativePixmapFrameResource : public FrameResource {
   // |buffer_usage_| affects how a buffer can be used. It is only set if it was
   // provided by the caller of Create(), or if the NativePixmap was allocated by
   // MiniGBM. If this not set, then a CreateVideoFrame() should not be used to
-  // create a STORAGE_GPU_MEMORY_BUFFER VideoFrame.
+  // create a STORAGE_MAPPABLE_SHARED_IMAGE VideoFrame.
   const std::optional<gfx::BufferUsage> buffer_usage_;
 
   // VideoFrameLayout (includes format, coded_size, and strides). Per-plane
@@ -165,7 +163,7 @@ class NativePixmapFrameResource : public FrameResource {
   base::TimeDelta timestamp_;
 
   gfx::ColorSpace color_space_;
-  std::optional<gfx::HDRMetadata> hdr_metadata_;
+  gfx::HDRMetadata hdr_metadata_;
 
   // Callbacks are added by AddDestructionObserver(). It is unclear whether
   // guarding |done_callbacks_| is necessary. VideoFrame has a similar lock,

@@ -12,6 +12,7 @@
 #include <utility>
 #include <variant>
 
+#include "base/containers/to_vector.h"
 #include "base/hash/hash.h"
 #include "base/i18n/time_formatting.h"
 #include "base/memory/raw_ptr.h"
@@ -147,7 +148,6 @@ std::unique_ptr<AutofillTestingPrefService> PrefServiceForTesting() {
   registry->RegisterBooleanPref(
       RandomizedEncoder::kUrlKeyedAnonymizedDataCollectionEnabled, false);
   registry->RegisterBooleanPref(::prefs::kMixedFormsWarningsEnabled, true);
-  registry->RegisterStringPref(prefs::kAutofillStatesDataDir, "");
   prefs::RegisterProfilePrefs(registry);
   return pref_service;
 }
@@ -1373,12 +1373,9 @@ std::vector<FormSignature> GetEncodedSignatures(const FormStructure& form) {
 }
 
 std::vector<FormSignature> GetEncodedSignatures(
-    const std::vector<raw_ptr<FormStructure, VectorExperimental>>& forms) {
-  std::vector<FormSignature> all_signatures;
-  for (const FormStructure* form : forms) {
-    all_signatures.push_back(form->form_signature());
-  }
-  return all_signatures;
+    const std::vector<raw_ref<FormStructure>>& forms) {
+  return base::ToVector(
+      forms, [](const auto& form) { return form->form_signature(); });
 }
 
 std::vector<FormSignature> GetEncodedAlternativeSignatures(
@@ -1387,12 +1384,10 @@ std::vector<FormSignature> GetEncodedAlternativeSignatures(
 }
 
 std::vector<FormSignature> GetEncodedAlternativeSignatures(
-    const std::vector<raw_ptr<FormStructure, VectorExperimental>>& forms) {
-  std::vector<FormSignature> all_signatures;
-  for (const FormStructure* form : forms) {
-    all_signatures.push_back(form->alternative_form_signature());
-  }
-  return all_signatures;
+    const std::vector<raw_ref<FormStructure>>& forms) {
+  return base::ToVector(forms, [](const auto& form) {
+    return form->alternative_form_signature();
+  });
 }
 
 FieldPrediction CreateFieldPrediction(FieldType type,
@@ -1437,10 +1432,8 @@ void AddFieldPredictionsToForm(
     const FormFieldData& field_data,
     const std::vector<FieldType>& field_types,
     AutofillQueryResponse_FormSuggestion* form_suggestion) {
-  std::vector<FieldPrediction> field_predictions;
-  field_predictions.reserve(field_types.size());
-  std::ranges::transform(
-      field_types, std::back_inserter(field_predictions),
+  std::vector<FieldPrediction> field_predictions = base::ToVector(
+      field_types,
       [](FieldType field_type) { return CreateFieldPrediction(field_type); });
   return AddFieldPredictionsToForm(field_data, field_predictions,
                                    form_suggestion);

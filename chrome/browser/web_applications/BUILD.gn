@@ -160,6 +160,8 @@ source_set("web_applications") {
     "isolated_web_apps/policy/isolated_web_app_policy_manager.h",
     "isolated_web_apps/remove_isolated_web_app_data.cc",
     "isolated_web_apps/remove_isolated_web_app_data.h",
+    "isolated_web_apps/runtime_init.cc",
+    "isolated_web_apps/runtime_init.h",
     "isolated_web_apps/signed_web_bundle_metadata.cc",
     "isolated_web_apps/signed_web_bundle_metadata.h",
     "isolated_web_apps/update/isolated_web_app_update_apply_task.cc",
@@ -551,7 +553,6 @@ source_set("web_applications") {
     "//components/webapps/isolated_web_apps",
     "//components/webapps/isolated_web_apps:iwa_client",
     "//components/webapps/services/web_app_origin_association:lib",
-    "//components/webapps/services/web_app_origin_association:service",
     "//content/browser/background_fetch:background_fetch_proto",
     "//content/public/browser",
     "//mojo/core/embedder",
@@ -659,6 +660,7 @@ source_set("web_applications") {
 
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/web_applications/isolated_web_apps/key_distribution",
     "//chrome/browser/web_applications/mojom:mojom_web_apps_enum",
     "//chrome/browser/web_applications/proto",
     "//chrome/browser/web_applications/proto:proto_extras",
@@ -666,7 +668,7 @@ source_set("web_applications") {
     "//chrome/browser/web_applications/ui_manager",
     "//components/permissions",
     "//components/services/app_service",
-    "//components/webapps/isolated_web_apps/proto",
+    "//components/webapps/isolated_web_apps/public",
   ]
 }
 
@@ -706,6 +708,8 @@ source_set("web_applications_test_support") {
   sources = [
     "isolated_web_apps/test/bundle_versions_storage.cc",
     "isolated_web_apps/test/bundle_versions_storage.h",
+    "isolated_web_apps/test/fake_chrome_iwa_runtime_data_provider.cc",
+    "isolated_web_apps/test/fake_chrome_iwa_runtime_data_provider.h",
     "isolated_web_apps/test/integrity_block_data_matcher.h",
     "isolated_web_apps/test/isolated_web_app_builder.cc",
     "isolated_web_apps/test/isolated_web_app_builder.h",
@@ -772,8 +776,8 @@ source_set("web_applications_test_support") {
   ]
 
   public_deps = [
+    "//chrome/browser/web_applications/isolated_web_apps/key_distribution/proto",
     "//components/webapps/common:mojo_bindings",
-    "//components/webapps/isolated_web_apps/proto",
   ]
 
   deps = [
@@ -944,6 +948,7 @@ source_set("web_applications_unit_tests") {
     "web_app_icon_manager_unittest.cc",
     "web_app_install_finalizer_unittest.cc",
     "web_app_install_utils_unittest.cc",
+    "web_app_logging_unittest.cc",
     "web_app_management_type_unittest.cc",
     "web_app_pref_guardrails_unittest.cc",
     "web_app_proto_utils_unittest.cc",
@@ -1312,10 +1317,10 @@ source_set("app_service_browser_tests") {
     "//chrome/browser/apps/app_service:app_registry_cache_waiter",
     "//chrome/browser/apps/link_capturing:test_support",
     "//chrome/browser/notifications",
+    "//chrome/browser/web_applications/isolated_web_apps/key_distribution",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
     "//components/webapps/browser",
-    "//components/webapps/isolated_web_apps:key_distribution",
     "//components/webapps/isolated_web_apps/test_support",
   ]
 

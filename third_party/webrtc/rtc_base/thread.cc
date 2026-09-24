@@ -26,6 +26,7 @@
 #include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"  // IWYU pragma: keep
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_server.h"
 
@@ -299,17 +300,20 @@ Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
 }
 
 Thread::ScopedCountBlockingCalls::ScopedCountBlockingCalls(
-    absl::AnyInvocable<void(uint32_t, uint32_t) &&> callback)
+    absl::AnyInvocable<void(uint32_t, uint32_t, TimeDelta) &&> callback)
     : thread_(Thread::Current()),
       base_blocking_call_count_(thread_ ? thread_->GetBlockingCallCount() : 0u),
       base_could_be_blocking_call_count_(
           thread_ ? thread_->GetCouldBeBlockingCallCount() : 0u),
-      result_callback_(std::move(callback)) {}
+      result_callback_(std::move(callback)),
+      start_time_ns_(TimeNanos()) {}
 
 Thread::ScopedCountBlockingCalls::~ScopedCountBlockingCalls() {
   if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_) {
+    int64_t duration_us = (TimeNanos() - start_time_ns_) / 1000;
     std::move(result_callback_)(GetBlockingCallCount(),
-                                GetCouldBeBlockingCallCount());
+                                GetCouldBeBlockingCallCount(),
+                                TimeDelta::Micros(duration_us));
   }
 }
 

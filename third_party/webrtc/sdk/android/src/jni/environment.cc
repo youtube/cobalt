@@ -27,9 +27,8 @@ void JNI_Environment_Free(JNIEnv* /*env*/, jlong webrtcEnv) {
   delete reinterpret_cast<Environment*>(webrtcEnv);
 }
 
-jlong JNI_Environment_Create(
-    JNIEnv* env,
-    const jni_zero::JavaParamRef<jstring>& fieldTrials) {
+jlong JNI_Environment_Create(JNIEnv* env,
+                             const jni_zero::JavaRef<jstring>& fieldTrials) {
   std::unique_ptr<FieldTrialsView> field_trials;
   if (!IsNull(env, fieldTrials)) {
     field_trials =

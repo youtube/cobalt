@@ -5,7 +5,6 @@
 #include "components/enterprise/connectors/core/cloud_content_scanning/connector_upload_request.h"
 
 #include "base/files/file_path.h"
-#include "base/memory/scoped_refptr.h"
 #include "base/task/thread_pool.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -20,16 +19,19 @@ ConnectorUploadRequest::ConnectorUploadRequest(
     const GURL& base_url,
     const std::string& metadata,
     const std::string& data,
+    ConnectorUploadRequest::DataSource data_source,
     const std::string& histogram_suffix,
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
-    Callback callback)
+    Callback callback,
+    scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
     : base_url_(base_url),
       metadata_(metadata),
-      data_source_(STRING),
+      data_source_(data_source),
       data_(data),
       data_size_(data.size()),
       histogram_suffix_(histogram_suffix),
       callback_(std::move(callback)),
+      ui_task_runner_(ui_task_runner),
       url_loader_factory_(url_loader_factory),
       traffic_annotation_(traffic_annotation) {}
 
@@ -42,7 +44,8 @@ ConnectorUploadRequest::ConnectorUploadRequest(
     bool is_obfuscated,
     const std::string& histogram_suffix,
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
-    Callback callback)
+    Callback callback,
+    scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
     : base_url_(base_url),
       metadata_(metadata),
       data_source_(FILE),
@@ -51,6 +54,7 @@ ConnectorUploadRequest::ConnectorUploadRequest(
       is_obfuscated_(is_obfuscated),
       histogram_suffix_(histogram_suffix),
       callback_(std::move(callback)),
+      ui_task_runner_(ui_task_runner),
       url_loader_factory_(url_loader_factory),
       traffic_annotation_(traffic_annotation) {}
 
@@ -61,7 +65,8 @@ ConnectorUploadRequest::ConnectorUploadRequest(
     base::ReadOnlySharedMemoryRegion page_region,
     const std::string& histogram_suffix,
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
-    Callback callback)
+    Callback callback,
+    scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
     : base_url_(base_url),
       metadata_(metadata),
       data_source_(PAGE),
@@ -69,6 +74,7 @@ ConnectorUploadRequest::ConnectorUploadRequest(
       data_size_(page_region_.GetSize()),
       histogram_suffix_(histogram_suffix),
       callback_(std::move(callback)),
+      ui_task_runner_(ui_task_runner),
       url_loader_factory_(url_loader_factory),
       traffic_annotation_(traffic_annotation) {}
 
@@ -93,4 +99,9 @@ ConnectorUploadRequest::~ConnectorUploadRequest() {
 void ConnectorUploadRequest::set_access_token(const std::string& access_token) {
   access_token_ = access_token;
 }
+
+void ConnectorUploadRequest::AssertCalledOnUIThread() {
+  DCHECK(ui_task_runner_ && ui_task_runner_->RunsTasksInCurrentSequence());
+}
+
 }  // namespace enterprise_connectors

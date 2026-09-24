@@ -8,13 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <atomic>
 #include <cstdint>
 #include <ctime>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
-#include <tuple>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "api/candidate.h"
@@ -25,6 +27,7 @@
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/make_ref_counted.h"
+#include "api/numerics/samples_stats_counter.h"
 #include "api/scoped_refptr.h"
 #include "api/test/create_network_emulation_manager.h"
 #include "api/test/network_emulation_manager.h"
@@ -67,6 +70,16 @@ ABSL_FLAG(int32_t,
 ABSL_FLAG(int32_t, long_running_run_time_minutes, 7, "");
 ABSL_FLAG(bool, long_running_send_data, false, "");
 
+ABSL_FLAG(int32_t, bench_iterations, 0, "");
+ABSL_FLAG(std::vector<std::string>,
+          bench_pct_loss,
+          std::vector<std::string>({"0", "5", "10", "25"}),
+          "Packet loss in percent");
+ABSL_FLAG(std::vector<std::string>,
+          bench_server_candidates,
+          std::vector<std::string>({"1", "2"}),
+          "Server candidates");
+
 namespace webrtc {
 namespace {
 constexpr int kDefaultTimeout = 30000;
@@ -75,13 +88,139 @@ using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Not;
 
-class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
-                                   /* 0 client_piggyback= */ bool,
-                                   /* 1 server_piggyback= */ bool,
-                                   SSLProtocolVersion,
-                                   /* 3 client_dtls_is_ice_controlling= */ bool,
-                                   /* 4 client_pqc= */ bool,
-                                   /* 5 server_pqc= */ bool>> {
+std::set<int> ToIntSet(const std::vector<std::string>& args) {
+  std::set<int> out;
+  for (const auto& arg : args) {
+    out.insert(std::stoi(arg));
+  }
+  return out;
+}
+
+struct EndpointConfig {
+  SSLProtocolVersion max_protocol_version;
+  IceRole ice_role;
+  SSLRole ssl_role;
+  bool dtls_in_stun = false;
+  bool pqc = false;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const EndpointConfig& config) {
+    sink.Append("[ dtls: ");
+    sink.Append(config.ssl_role == SSL_SERVER ? "server/" : "client/");
+    switch (config.max_protocol_version) {
+      case SSL_PROTOCOL_DTLS_10:
+        sink.Append("1.0");
+        break;
+      case SSL_PROTOCOL_DTLS_12:
+        sink.Append("1.2");
+        break;
+      case SSL_PROTOCOL_DTLS_13:
+        sink.Append("1.3");
+        break;
+      default:
+        sink.Append("<unknown>");
+        break;
+    }
+    absl::Format(&sink, " ice: ");
+    sink.Append(config.ice_role == ICEROLE_CONTROLLED ? "controlled"
+                                                      : "controlling");
+    absl::Format(&sink, " pqc: %u dtls_in_stun: %u ", config.pqc,
+                 config.dtls_in_stun);
+    sink.Append(" ]");
+  }
+};
+
+struct TestConfig {
+  int pct_loss = -1;
+  int client_interface_count = -1;
+  int server_interface_count = -1;
+
+  bool client_ice_controller;
+  SSLProtocolVersion protocol_version;
+  EndpointConfig client_config;
+  EndpointConfig server_config;
+
+  TestConfig& fix() {
+    if (client_ice_controller) {
+      client_config.ice_role = ICEROLE_CONTROLLING;
+      server_config.ice_role = ICEROLE_CONTROLLED;
+    } else {
+      client_config.ice_role = ICEROLE_CONTROLLED;
+      server_config.ice_role = ICEROLE_CONTROLLING;
+    }
+    client_config.ssl_role = SSL_CLIENT;
+    server_config.ssl_role = SSL_SERVER;
+    client_config.max_protocol_version = protocol_version;
+    server_config.max_protocol_version = protocol_version;
+    return *this;
+  }
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const TestConfig& config) {
+    if (config.pct_loss >= 0) {
+      absl::Format(&sink, "loss: %u ", config.pct_loss);
+    }
+    if (config.server_interface_count >= 0) {
+      absl::Format(&sink, "server_interface_count: %u ",
+                   config.server_interface_count);
+    }
+    sink.Append("[ client: ");
+    AbslStringify(sink, config.client_config);
+    sink.Append("[ server: ");
+    AbslStringify(sink, config.server_config);
+    sink.Append("]");
+  }
+
+  static constexpr EndpointConfig kEndpointVariants[] = {
+      {
+          .dtls_in_stun = false,
+          .pqc = false,
+      },
+      {
+          .dtls_in_stun = true,
+          .pqc = false,
+      },
+      {
+          .dtls_in_stun = false,
+          .pqc = true,
+      },
+      {
+          .dtls_in_stun = true,
+          .pqc = true,
+      },
+  };
+
+  static std::vector<TestConfig> Variants() {
+    std::vector<TestConfig> out;
+    for (auto cc : kEndpointVariants) {
+      for (auto sc : kEndpointVariants) {
+        for (auto cic : {true, false}) {
+          for (auto p : {SSL_PROTOCOL_DTLS_12, SSL_PROTOCOL_DTLS_13}) {
+            auto config = TestConfig{.client_ice_controller = cic,
+                                     .protocol_version = p,
+                                     .client_config = cc,
+                                     .server_config = sc}
+                              .fix();
+            if (config.client_config.max_protocol_version ==
+                    SSL_PROTOCOL_DTLS_12 &&
+                config.client_config.pqc) {
+              continue;
+            }
+            if (config.server_config.max_protocol_version ==
+                    SSL_PROTOCOL_DTLS_12 &&
+                config.server_config.pqc) {
+              continue;
+            }
+            out.push_back(config);
+          }
+        }
+      }
+    }
+    return out;
+  }
+};
+
+class DtlsIceIntegrationTest : public ::testing::TestWithParam<TestConfig> {
  public:
   void CandidateC2S(IceTransportInternal*, const Candidate& c) {
     server_thread()->PostTask(
@@ -94,12 +233,14 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
 
  private:
   struct Endpoint {
-    explicit Endpoint(bool dtls_in_stun, bool pqc_)
-        : env(CreateEnvironment(CreateTestFieldTrialsPtr(
-              dtls_in_stun ? "WebRTC-IceHandshakeDtls/Enabled/" : ""))),
-          dtls_stun_piggyback(dtls_in_stun),
-          pqc(pqc_) {}
+    explicit Endpoint(bool client_, const EndpointConfig& config_)
+        : client(client_),
+          config(config_),
+          env(CreateEnvironment(CreateTestFieldTrialsPtr(
+              config.dtls_in_stun ? "WebRTC-IceHandshakeDtls/Enabled/" : ""))) {
+    }
 
+    bool client;
     EmulatedNetworkManagerInterface* emulated_network_manager = nullptr;
     std::unique_ptr<NetworkManager> network_manager;
     std::unique_ptr<BasicPacketSocketFactory> packet_socket_factory;
@@ -115,21 +256,33 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
     bool store_but_dont_set_remote_fingerprint = false;
     std::unique_ptr<SSLFingerprint> remote_fingerprint;
 
+    scoped_refptr<RTCCertificate> local_certificate;
+    scoped_refptr<RTCCertificate> remote_certificate;
+
+    EndpointConfig config;
     Environment env;
-    bool dtls_stun_piggyback;
-    bool pqc;
+
+    void Restart(DtlsIceIntegrationTest& test) {
+      dtls.reset();
+      ice_transport = nullptr;
+      allocator.reset();
+      packet_socket_factory.reset();
+
+      packet_socket_factory = std::make_unique<BasicPacketSocketFactory>(
+          emulated_network_manager->socket_factory());
+      allocator = std::make_unique<BasicPortAllocator>(
+          env, network_manager.get(), packet_socket_factory.get());
+      test.SetupIceAndDtls(*this);
+      allocator->Initialize();
+    }
   };
 
  protected:
   DtlsIceIntegrationTest()
       : ss_(std::make_unique<VirtualSocketServer>()),
         socket_factory_(std::make_unique<BasicPacketSocketFactory>(ss_.get())),
-        client_(std::get<0>(GetParam()),
-                std::get<2>(GetParam()) == SSL_PROTOCOL_DTLS_13 &&
-                    std::get<4>(GetParam())),
-        server_(std::get<1>(GetParam()),
-                std::get<2>(GetParam()) == SSL_PROTOCOL_DTLS_13 &&
-                    std::get<5>(GetParam())),
+        client_(/* client= */ true, GetParam().client_config),
+        server_(/* client= */ false, GetParam().server_config),
         client_ice_parameters_("c_ufrag",
                                "c_icepwd_something_something",
                                false),
@@ -137,7 +290,9 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
                                "s_icepwd_something_something",
                                false) {}
 
-  void ConfigureEmulatedNetwork() {
+  void ConfigureEmulatedNetwork(int pct_loss = 50,
+                                int client_interface_count = 1,
+                                int server_interface_count = 1) {
     network_emulation_manager_ =
         CreateNetworkEmulationManager({.time_mode = TimeMode::kSimulated});
 
@@ -145,17 +300,15 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
     networkBehavior.link_capacity = DataRate::KilobitsPerSec(220);
     networkBehavior.queue_delay_ms = 100;
     networkBehavior.queue_length_packets = 30;
-    networkBehavior.loss_percent = 50;
+    networkBehavior.loss_percent = pct_loss;
 
     auto pair = network_emulation_manager_->CreateEndpointPairWithTwoWayRoutes(
-        networkBehavior);
-
+        networkBehavior, client_interface_count, server_interface_count);
     client_.emulated_network_manager = pair.first;
     server_.emulated_network_manager = pair.second;
   }
 
   void SetupEndpoint(Endpoint& ep,
-                     bool client,
                      const scoped_refptr<RTCCertificate> client_certificate,
                      const scoped_refptr<RTCCertificate> server_certificate) {
     thread(ep)->BlockingCall([&]() {
@@ -174,60 +327,58 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
         ep.allocator = std::make_unique<BasicPortAllocator>(
             ep.env, ep.network_manager.get(), ep.packet_socket_factory.get());
       }
-      ep.allocator->set_flags(ep.allocator->flags() |
-                              PORTALLOCATOR_DISABLE_TCP);
-      ep.ice_transport = make_ref_counted<FakeIceTransport>(
-          std::make_unique<P2PTransportChannel>(
-              ep.env, client ? "client_transport" : "server_transport", 0,
-              ep.allocator.get()));
-      CryptoOptions crypto_options;
-      if (ep.pqc) {
-        FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
-        crypto_options.ephemeral_key_exchange_cipher_groups.Update(
-            &field_trials);
-      }
-      ep.dtls = std::make_unique<DtlsTransportInternalImpl>(
-          ep.env, ep.ice_transport, crypto_options, std::get<2>(GetParam()));
-
-      // Enable(or disable) the dtls_in_stun parameter before
-      // DTLS is negotiated.
-      IceConfig config;
-      config.continual_gathering_policy = GATHER_CONTINUALLY;
-      config.dtls_handshake_in_stun = ep.dtls_stun_piggyback;
-      ep.ice()->SetIceConfig(config);
-
-      // Setup ICE.
-      ep.ice()->SetIceParameters(client ? client_ice_parameters_
-                                        : server_ice_parameters_);
-      ep.ice()->SetRemoteIceParameters(client ? server_ice_parameters_
-                                              : client_ice_parameters_);
-      if (client) {
-        ep.ice()->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLED
-                                                     : ICEROLE_CONTROLLING);
-      } else {
-        ep.ice()->SetIceRole(std::get<3>(GetParam()) ? ICEROLE_CONTROLLING
-                                                     : ICEROLE_CONTROLLED);
-      }
-      if (client) {
-        ep.ice()->SubscribeCandidateGathered(
-            [this](IceTransportInternal* transport,
-                   const Candidate& candidate) {
-              CandidateC2S(transport, candidate);
-            });
-      } else {
-        ep.ice()->SubscribeCandidateGathered(
-            [this](IceTransportInternal* transport,
-                   const Candidate& candidate) {
-              CandidateS2C(transport, candidate);
-            });
-      }
-
-      // Setup DTLS.
-      ep.dtls->SetDtlsRole(client ? SSL_SERVER : SSL_CLIENT);
-      SetLocalCertificate(ep, client ? client_certificate : server_certificate);
-      SetRemoteFingerprintFromCert(
-          ep, client ? server_certificate : client_certificate);
+      ep.local_certificate =
+          ep.client ? client_certificate : server_certificate;
+      ep.remote_certificate =
+          ep.client ? server_certificate : client_certificate;
+      SetupIceAndDtls(ep);
     });
+  }
+
+  void SetupIceAndDtls(Endpoint& ep) {
+    ep.allocator->set_flags(ep.allocator->flags() | PORTALLOCATOR_DISABLE_TCP);
+    ep.ice_transport = make_ref_counted<FakeIceTransport>(
+        std::make_unique<P2PTransportChannel>(
+            ep.env, ep.client ? "client_transport" : "server_transport", 0,
+            ep.allocator.get()));
+    CryptoOptions crypto_options;
+    if (ep.config.pqc) {
+      FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
+      crypto_options.ephemeral_key_exchange_cipher_groups.Update(&field_trials);
+    }
+    ep.dtls = std::make_unique<DtlsTransportInternalImpl>(
+        ep.env, ep.ice_transport, crypto_options,
+        ep.config.max_protocol_version);
+
+    // Enable(or disable) the dtls_in_stun parameter before
+    // DTLS is negotiated.
+    IceConfig config;
+    config.continual_gathering_policy = GATHER_CONTINUALLY;
+    config.dtls_handshake_in_stun = ep.config.dtls_in_stun;
+    ep.ice()->SetIceConfig(config);
+
+    // Setup ICE.
+    ep.ice()->SetIceParameters(ep.client ? client_ice_parameters_
+                                         : server_ice_parameters_);
+    ep.ice()->SetRemoteIceParameters(ep.client ? server_ice_parameters_
+                                               : client_ice_parameters_);
+    ep.ice()->SetIceRole(ep.config.ice_role);
+    if (ep.client) {
+      ep.ice()->SubscribeCandidateGathered(
+          [this](IceTransportInternal* transport, const Candidate& candidate) {
+            CandidateC2S(transport, candidate);
+          });
+    } else {
+      ep.ice()->SubscribeCandidateGathered(
+          [this](IceTransportInternal* transport, const Candidate& candidate) {
+            CandidateS2C(transport, candidate);
+          });
+    }
+
+    // Setup DTLS.
+    ep.dtls->SetDtlsRole(ep.config.ssl_role);
+    SetLocalCertificate(ep, ep.local_certificate);
+    SetRemoteFingerprintFromCert(ep, ep.remote_certificate);
   }
 
   void Prepare() {
@@ -241,13 +392,11 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
     }
 
     client_thread()->BlockingCall([&]() {
-      SetupEndpoint(client_, /* client= */ true, client_certificate,
-                    server_certificate);
+      SetupEndpoint(client_, client_certificate, server_certificate);
     });
 
     server_thread()->BlockingCall([&]() {
-      SetupEndpoint(server_, /* client= */ false, client_certificate,
-                    server_certificate);
+      SetupEndpoint(server_, client_certificate, server_certificate);
     });
 
     // Setup the network.
@@ -260,17 +409,21 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
   }
 
   void TearDown() override {
-    client_thread()->BlockingCall([&]() {
-      client_.dtls.reset();
-      client_.ice_transport = nullptr;
-      client_.allocator.reset();
-    });
+    if (client_thread() != nullptr) {
+      client_thread()->BlockingCall([&]() {
+        client_.dtls.reset();
+        client_.ice_transport = nullptr;
+        client_.allocator.reset();
+      });
+    }
 
-    server_thread()->BlockingCall([&]() {
-      server_.dtls.reset();
-      server_.ice_transport = nullptr;
-      server_.allocator.reset();
-    });
+    if (server_thread() != nullptr) {
+      server_thread()->BlockingCall([&]() {
+        server_.dtls.reset();
+        server_.ice_transport = nullptr;
+        server_.allocator.reset();
+      });
+    }
   }
 
   ~DtlsIceIntegrationTest() override = default;
@@ -377,30 +530,24 @@ TEST_P(DtlsIceIntegrationTest, SmokeTest) {
           IsTrue(), wait_until_settings()),
       IsRtcOk());
   EXPECT_EQ(client_.dtls->IsDtlsPiggybackSupportedByPeer(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_.dtls->IsDtlsPiggybackSupportedByPeer(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(client_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
 
-  if (!(client_.pqc || server_.pqc) && client_.dtls_stun_piggyback &&
-      server_.dtls_stun_piggyback) {
-    EXPECT_EQ(client_.dtls->GetStunDataCount(), 2);
-    EXPECT_EQ(server_.dtls->GetStunDataCount(), 1);
+  if (!(client_.config.pqc || server_.config.pqc) &&
+      client_.config.dtls_in_stun && server_.config.dtls_in_stun) {
+    EXPECT_EQ(client_.dtls->GetStunDataCount(), 1);
+    EXPECT_EQ(server_.dtls->GetStunDataCount(), 2);
   } else {
     // TODO(webrtc:404763475)
   }
 
-  if ((client_.pqc || server_.pqc) &&
-      !(client_.dtls_stun_piggyback && server_.dtls_stun_piggyback)) {
-    // TODO(webrtc:404763475) : The retransmissions is due to early
-    // client hello and the code only saves 1 packet.
-  } else {
-    EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
-    EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
-  }
+  EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
+  EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
 
   // Validate that we can add new Connections (that become writable).
   network_manager_->AddInterface(SocketAddress("192.168.2.1", 0));
@@ -435,21 +582,15 @@ TEST_P(DtlsIceIntegrationTest, ClientLateCertificate) {
       IsRtcOk());
 
   EXPECT_EQ(client_.dtls->IsDtlsPiggybackSupportedByPeer(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
 
   EXPECT_EQ(client_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
 
-  if ((client_.pqc || server_.pqc) &&
-      !(client_.dtls_stun_piggyback && server_.dtls_stun_piggyback)) {
-    // TODO(webrtc:404763475) : The retransmissions is due to early
-    // client hello and the code only saves 1 packet.
-  } else {
-    EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
-    EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
-  }
+  EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
+  EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
 }
 
 TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
@@ -477,11 +618,11 @@ TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
   EXPECT_EQ(client_thread()->BlockingCall([&]() {
     return client_.dtls->IsDtlsPiggybackSupportedByPeer();
   }),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_thread()->BlockingCall([&]() {
     return server_.dtls->IsDtlsPiggybackSupportedByPeer();
   }),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
 }
 
 TEST_P(DtlsIceIntegrationTest, LongRunningTestWithPacketLoss) {
@@ -610,46 +751,194 @@ TEST_P(DtlsIceIntegrationTest, AlmostFullSTUN_BINDING) {
           IsTrue(), wait_until_settings()),
       IsRtcOk());
   EXPECT_EQ(client_.dtls->IsDtlsPiggybackSupportedByPeer(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_.dtls->IsDtlsPiggybackSupportedByPeer(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(client_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
   EXPECT_EQ(server_.dtls->WasDtlsCompletedByPiggybacking(),
-            client_.dtls_stun_piggyback && server_.dtls_stun_piggyback);
+            client_.config.dtls_in_stun && server_.config.dtls_in_stun);
 
-  if (!(client_.pqc || server_.pqc) && client_.dtls_stun_piggyback &&
-      server_.dtls_stun_piggyback) {
-    EXPECT_EQ(client_.dtls->GetStunDataCount(), 2);
-    EXPECT_EQ(server_.dtls->GetStunDataCount(), 1);
+  if (!(client_.config.pqc || server_.config.pqc) &&
+      client_.config.dtls_in_stun && server_.config.dtls_in_stun) {
+    EXPECT_EQ(client_.dtls->GetStunDataCount(), 1);
+    EXPECT_EQ(server_.dtls->GetStunDataCount(), 2);
   } else {
     // TODO(webrtc:404763475)
   }
 
-  if ((client_.pqc || server_.pqc) &&
-      !(client_.dtls_stun_piggyback && server_.dtls_stun_piggyback)) {
-    // TODO(webrtc:404763475) : The retransmissions is due to early
-    // client hello and the code only saves 1 packet.
-  } else {
-    EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
-    EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
-  }
+  EXPECT_EQ(client_.dtls->GetRetransmissionCount(), 0);
+  EXPECT_EQ(server_.dtls->GetRetransmissionCount(), 0);
 }
 
 // Test cases are parametrized by
 // * client-piggybacking-enabled,
 // * server-piggybacking-enabled,
 // * maximum DTLS version to use.
+INSTANTIATE_TEST_SUITE_P(DtlsStunPiggybackingIntegrationTest,
+                         DtlsIceIntegrationTest,
+                         ::testing::ValuesIn(TestConfig::Variants()));
+
+struct DtlsIceIntegrationBenchmark : public DtlsIceIntegrationTest {
+  static std::vector<TestConfig> Variants() {
+    std::vector<TestConfig> out;
+    for (auto loss : {0, 5, 10, 15, 25, 50}) {
+      for (auto sif : {1, 2}) {
+        for (auto cc : TestConfig::kEndpointVariants) {
+          for (auto sc : TestConfig::kEndpointVariants) {
+            for (auto cic : {true}) {
+              for (auto p : {SSL_PROTOCOL_DTLS_12, SSL_PROTOCOL_DTLS_13}) {
+                auto config = TestConfig{.pct_loss = loss,
+                                         .client_interface_count = 1,
+                                         .server_interface_count = sif,
+                                         .client_ice_controller = cic,
+                                         .protocol_version = p,
+                                         .client_config = cc,
+                                         .server_config = sc}
+                                  .fix();
+                if (config.client_config.max_protocol_version ==
+                        SSL_PROTOCOL_DTLS_12 &&
+                    config.client_config.pqc) {
+                  continue;
+                }
+                if (config.server_config.max_protocol_version ==
+                        SSL_PROTOCOL_DTLS_12 &&
+                    config.server_config.pqc) {
+                  continue;
+                }
+                if (config.client_config.pqc !=
+                    config.client_config.dtls_in_stun) {
+                  continue;
+                }
+                if (config.server_config.pqc !=
+                    config.server_config.dtls_in_stun) {
+                  continue;
+                }
+                if (config.client_config.pqc != config.server_config.pqc) {
+                  continue;
+                }
+                out.push_back(config);
+              }
+            }
+          }
+        }
+      }
+    }
+    return out;
+  }
+};
+
 INSTANTIATE_TEST_SUITE_P(
-    DtlsStunPiggybackingIntegrationTest,
-    DtlsIceIntegrationTest,
-    ::testing::Combine(testing::Bool(),
-                       testing::Bool(),
-                       testing::Values(SSL_PROTOCOL_DTLS_12,
-                                       SSL_PROTOCOL_DTLS_13),
-                       testing::Bool(),
-                       testing::Bool(),
-                       testing::Bool()));
+    DtlsIceIntegrationBenchmark,
+    DtlsIceIntegrationBenchmark,
+    ::testing::ValuesIn(DtlsIceIntegrationBenchmark::Variants()));
+
+TEST_P(DtlsIceIntegrationBenchmark, Benchmark) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "Needs boringssl.";
+  }
+
+  const int iter = absl::GetFlag(FLAGS_bench_iterations);
+  if (iter == 0) {
+    GTEST_SKIP() << "SKIP " << GetParam()
+                 << " - filtered by cmd line argument.";
+  }
+
+  auto pct_loss_filter = ToIntSet(absl::GetFlag(FLAGS_bench_pct_loss));
+  if (!pct_loss_filter.empty() &&
+      !pct_loss_filter.contains(GetParam().pct_loss)) {
+    GTEST_SKIP() << "SKIP " << GetParam()
+                 << " - filtered by cmd line argument.";
+  }
+
+  auto server_candidates_filter =
+      ToIntSet(absl::GetFlag(FLAGS_bench_server_candidates));
+  if (!server_candidates_filter.empty() &&
+      !server_candidates_filter.contains(GetParam().server_interface_count)) {
+    GTEST_SKIP() << "SKIP " << GetParam()
+                 << " - filtered by cmd line argument.";
+  }
+
+  RTC_LOG(LS_INFO) << GetParam() << " START";
+
+  ConfigureEmulatedNetwork(GetParam().pct_loss,
+                           GetParam().client_interface_count,
+                           GetParam().server_interface_count);
+  Prepare();
+
+  SamplesStatsCounter stats(iter);
+  for (int i = 0; i < iter; i++) {
+    int client_sent = 0;
+    std::atomic<int> client_recv = 0;
+    int server_sent = 0;
+    std::atomic<int> server_recv = 0;
+    void* id = this;
+
+    client_thread()->BlockingCall([&]() {
+      return client_.dtls->RegisterReceivedPacketCallback(
+          id, [&](auto, auto) { client_recv++; });
+    });
+    server_thread()->BlockingCall([&]() {
+      return server_.dtls->RegisterReceivedPacketCallback(
+          id, [&](auto, auto) { server_recv++; });
+    });
+
+    client_thread()->PostTask([&]() { client_.ice()->MaybeStartGathering(); });
+    server_thread()->PostTask([&]() { server_.ice()->MaybeStartGathering(); });
+
+    auto start = network_emulation_manager_->time_controller()
+                     ->GetClock()
+                     ->CurrentTime();
+
+    while (client_recv == 0 || server_recv == 0) {
+      int delay = 50;
+      network_emulation_manager_->time_controller()->AdvanceTime(
+          TimeDelta::Millis(delay));
+
+      // Send data
+      {
+        int flags = 0;
+        AsyncSocketPacketOptions options;
+        std::string a_string(50, 'a');
+
+        if (client_.dtls->writable()) {
+          client_thread()->BlockingCall([&]() {
+            if (client_.dtls->SendPacket(a_string.c_str(), a_string.length(),
+                                         options, flags) > 0) {
+              client_sent++;
+            }
+          });
+        }
+        if (server_.dtls->writable()) {
+          server_thread()->BlockingCall([&]() {
+            if (server_.dtls->SendPacket(a_string.c_str(), a_string.length(),
+                                         options, flags) > 0) {
+              server_sent++;
+            }
+          });
+        }
+      }
+    }
+    auto end = network_emulation_manager_->time_controller()
+                   ->GetClock()
+                   ->CurrentTime();
+    stats.AddSample(SamplesStatsCounter::StatsSample{
+        .value = static_cast<double>((end - start).ms()),
+        .time = end,
+    });
+    client_thread()->BlockingCall(
+        [&]() { return client_.dtls->DeregisterReceivedPacketCallback(id); });
+    server_thread()->BlockingCall(
+        [&]() { return server_.dtls->DeregisterReceivedPacketCallback(id); });
+    client_thread()->BlockingCall([&]() { client_.Restart(*this); });
+    server_thread()->BlockingCall([&]() { server_.Restart(*this); });
+  }
+  RTC_LOG(LS_INFO) << GetParam() << " RESULT:"
+                   << " p10: " << stats.GetPercentile(0.10)
+                   << " p50: " << stats.GetPercentile(0.50)
+                   << " avg: " << stats.GetAverage()
+                   << " p95: " << stats.GetPercentile(0.95);
+}
 
 }  // namespace
 }  // namespace webrtc

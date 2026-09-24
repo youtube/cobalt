@@ -71,6 +71,9 @@ class BrowserViewLayoutImpl : public BrowserViewLayout {
                              const gfx::Rect& bounds_,
                              std::optional<bool> visibility_ = std::nullopt);
 
+    // Hides `child` if it is not already present in this layout.
+    void HideViewIfNotPresent(views::View* child);
+
     // Searches the tree for `descendant` and returns its layout, otherwise,
     // returns null if not found.
     const ProposedLayout* GetLayoutFor(const views::View* descendant) const;
@@ -89,6 +92,10 @@ class BrowserViewLayoutImpl : public BrowserViewLayout {
     // stack dump is triggered (this will be a CHECK() in the future).
     void ApplyLayout(views::View* root,
                      SetViewVisibility set_view_visibility) &&;
+
+    // Returns a string representation of this layout; `depth` is used for
+    // nesting children and should not be specified.
+    std::string ToString(int depth = 0) const;
   };
 
   // Shorthand for validating both `child` and `parent` and checking that one is

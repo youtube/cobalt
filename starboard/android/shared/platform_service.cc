@@ -223,3 +223,5 @@ void JNI_CobaltService_NativeSendToClient(
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(CobaltService)

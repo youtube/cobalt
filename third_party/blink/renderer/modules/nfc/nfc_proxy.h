@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 
 namespace blink {
@@ -28,8 +29,8 @@ using NFCClientType = device::mojom::blink::NFCClient;
 // This is a proxy class used by NDEFReader(s) to connect
 // to implementation of device::mojom::blink::NFC interface.
 class MODULES_EXPORT NFCProxy final : public GarbageCollected<NFCProxy>,
-                                      public NFCClientType,
-                                      public GarbageCollectedMixin {
+                                      public Supplement<LocalDOMWindow>,
+                                      public NFCClientType {
  public:
   static const unsigned kSupplementIndex;
   static NFCProxy* From(LocalDOMWindow&);
@@ -80,8 +81,6 @@ class MODULES_EXPORT NFCProxy final : public GarbageCollected<NFCProxy>,
 
   // This could only happen when the embedder does not implement NFC interface.
   void OnMojoConnectionError();
-
-  Member<LocalDOMWindow> local_dom_window_;
 
   // Identifies watch requests tied to a given Mojo connection of NFC interface,
   // i.e. |nfc_|. Incremented each time a watch request is made.

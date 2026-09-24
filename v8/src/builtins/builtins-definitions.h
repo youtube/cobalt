@@ -120,6 +120,21 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LOAD_IC_HANDLER_LIST(V) \
   LOAD_IC_HANDLER_LIST(V, GENERATE_BUILTIN_LOAD_IC_DEFINITION)
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_STRICTEQUAL_HANDLER_HELPER(V, TYPE) \
+  V(StrictEqual_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+
+#define GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER(V)     \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Any)                \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Symbol)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Number)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Receiver)           \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, String)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, InternalizedString) \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, SignedSmall)        \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, None)
+#endif
+
 /* Tiering related builtins
  *
  * These builtins are used for tiering. Some special conventions apply. They,
@@ -569,6 +584,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* https://tc39.es/proposal-arraybuffer-transfer/ */                         \
   CPP(ArrayBufferPrototypeTransfer, kDontAdaptArgumentsSentinel)               \
   CPP(ArrayBufferPrototypeTransferToFixedLength, kDontAdaptArgumentsSentinel)  \
+  /* https://tc39.es/proposal-immutable-arraybuffer/ */                        \
+  CPP(ArrayBufferPrototypeTransferToImmutable, kDontAdaptArgumentsSentinel)    \
+  CPP(ArrayBufferPrototypeSliceToImmutable, JSParameterCount(2))               \
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, NeedsContext::kYes, kClosure, kReceiver)             \
@@ -965,7 +983,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \
-  TFC(StrictEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
+  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+                                                                               \
+  /* Typed StirctEqual baseline stubs */                                       \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER, TFC)           \
+  IF_SPARKPLUG_PLUS(TFC, StrictEqualAndTryPatchCode, CompareAndTryPatchCode)   \
+                                                                               \
   TFC(LessThan_Baseline, Compare_Baseline)                                     \
   TFC(GreaterThan_Baseline, Compare_Baseline)                                  \
   TFC(LessThanOrEqual_Baseline, Compare_Baseline)                              \
@@ -1144,6 +1167,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw, kDontAdaptArgumentsSentinel)                                  \
+  IF_TSA(TFC_TSA, IGNORE_BUILTIN, ToString, ToString)                          \
                                                                                \
   /* Symbol */                                                                 \
   /* ES #sec-symbol-constructor */                                             \
@@ -1542,8 +1566,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(SetProperty, NeedsContext::kYes, kReceiver, kKey, kValue)                \
   TFS(CreateDataProperty, NeedsContext::kYes, kReceiver, kKey, kValue)         \
   TFS(GetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)           \
-  ASM(MemCopyUint8Uint8, CCall)                                                \
-  ASM(MemMove, CCall)                                                          \
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
   TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \
@@ -2141,14 +2163,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeBaseName, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.calendar */                            \
   CPP(LocalePrototypeCalendar, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.calendars */                           \
-  CPP(LocalePrototypeCalendars, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.caseFirst */                           \
   CPP(LocalePrototypeCaseFirst, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.collation */                           \
   CPP(LocalePrototypeCollation, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.collations */                          \
-  CPP(LocalePrototypeCollations, JSParameterCount(0))                          \
   /* ecma402 #sec-Intl.Locale.prototype.firstDayOfWeek */                      \
   CPP(LocalePrototypeFirstDayOfWeek, JSParameterCount(0))                      \
   /* ecma402 #sec-Intl.Locale.prototype.getCalendars */                        \
@@ -2167,8 +2185,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeGetWeekInfo, kDontAdaptArgumentsSentinel)                 \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                           \
   CPP(LocalePrototypeHourCycle, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.hourCycles */                          \
-  CPP(LocalePrototypeHourCycles, JSParameterCount(0))                          \
   /* ecma402 #sec-Intl.Locale.prototype.language */                            \
   CPP(LocalePrototypeLanguage, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.maximize */                            \
@@ -2179,22 +2195,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeNumeric, JSParameterCount(0))                             \
   /* ecma402 #sec-Intl.Locale.prototype.numberingSystem */                     \
   CPP(LocalePrototypeNumberingSystem, JSParameterCount(0))                     \
-  /* ecma402 #sec-Intl.Locale.prototype.numberingSystems */                    \
-  CPP(LocalePrototypeNumberingSystems, JSParameterCount(0))                    \
   /* ecma402 #sec-Intl.Locale.prototype.region */                              \
   CPP(LocalePrototypeRegion, JSParameterCount(0))                              \
   /* ecma402 #sec-Intl.Locale.prototype.script */                              \
   CPP(LocalePrototypeScript, JSParameterCount(0))                              \
-  /* ecma402 #sec-Intl.Locale.prototype.textInfo */                            \
-  CPP(LocalePrototypeTextInfo, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.timezones */                           \
-  CPP(LocalePrototypeTimeZones, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.toString */                            \
   CPP(LocalePrototypeToString, kDontAdaptArgumentsSentinel)                    \
   /* ecma402 #sec-Intl.Locale.prototype.variants */                            \
   CPP(LocalePrototypeVariants, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.weekInfo */                            \
-  CPP(LocalePrototypeWeekInfo, JSParameterCount(0))                            \
   /* ecma402 #sec-intl.numberformat */                                         \
   CPP(NumberFormatConstructor, kDontAdaptArgumentsSentinel)                    \
   /* ecma402 #sec-number-format-functions */                                   \

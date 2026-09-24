@@ -27,6 +27,7 @@ import org.chromium.components.browser_ui.settings.ChromeImageViewPreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.settings.TextMessagePreference;
+import org.chromium.components.browser_ui.settings.search.BaseSearchIndexProvider;
 import org.chromium.components.browser_ui.site_settings.BaseSiteSettingsFragment;
 import org.chromium.components.browser_ui.site_settings.ForwardingManagedPreferenceDelegate;
 import org.chromium.components.browser_ui.site_settings.RwsCookieInfo;
@@ -198,7 +199,8 @@ public class PageInfoCookiesSettings extends BaseSiteSettingsFragment {
     }
 
     private void initCookieInUse() {
-        mCookieInUse.setIcon(SettingsUtils.getTintedIcon(getContext(), R.drawable.gm_database_24));
+        mCookieInUse.setIcon(
+                SettingsUtils.getTintedIcon(getContext(), R.drawable.ic_database_fill_24dp));
         mCookieInUse.setImageView(
                 R.drawable.ic_delete_white_24dp, R.string.page_info_cookies_clear, null);
         // Disabling enables passthrough of clicks to the main preference.
@@ -431,4 +433,9 @@ public class PageInfoCookiesSettings extends BaseSiteSettingsFragment {
 
         return true;
     }
+
+    // TODO(crbug.com/444470792): Determine what pieces of logic are dynamic and need handling.
+    public static final BaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
+            new BaseSearchIndexProvider(
+                    PageInfoCookiesSettings.class.getName(), R.xml.page_info_cookie_preference);
 }

@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
@@ -19,6 +20,7 @@ namespace actor {
 struct ActionResultWithLatencyInfo;
 class ActorKeyedService;
 class ActorTaskDelegate;
+class ActorTask;
 }  // namespace actor
 
 namespace glic {
@@ -54,6 +56,7 @@ class GlicActorTaskManager {
       const std::optional<int32_t>& initiator_tab_id,
       const std::optional<int32_t>& initiator_window_id,
       glic::mojom::WebClientHandler::CreateActorTabCallback callback);
+  void MaybeShowDeactivationToastUi();
 
   void CancelTask();
   bool IsActuating() const;
@@ -69,14 +72,21 @@ class GlicActorTaskManager {
       actor::mojom::ActionResultCode result_code,
       std::optional<size_t> index_of_failed_action,
       std::vector<actor::ActionResultWithLatencyInfo> action_results);
+  void ReloadTab(actor::ActorTask& task, base::OnceClosure callback);
   void CreateActorTabFinished(
       glic::mojom::WebClientHandler::CreateActorTabCallback callback,
       tabs::TabInterface* new_tab);
+  void ReloadObserverDone(tabs::TabHandle tab_handle,
+                          base::OnceClosure callback,
+                          actor::ObservationDelayController::Result result);
+  void ResetTaskState();
 
   raw_ptr<Profile> profile_;
   raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
 
   actor::TaskId current_task_id_;
+  bool attempted_reload_ = false;
+  std::unique_ptr<actor::ObservationDelayController> reload_observer_;
 
   base::WeakPtrFactory<GlicActorTaskManager> weak_ptr_factory_{this};
 };

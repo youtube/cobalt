@@ -10,7 +10,6 @@
 
 #include "video/corruption_detection/evaluation/utils.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -30,10 +29,10 @@ namespace {
 
 constexpr char kFrameHeader[] = "FRAME\n";
 
-// Reading 30 bytes from the Y4M header should be enough to get the resolution
+// Reading 40 bytes from the Y4M header should be enough to get the resolution
 // and framerate. The header starts with: `YUV4MPEG2 W<WIDTH> H<HEIGTH>
-// Fn<NUMERATOR>:Fd<DENOMINATOR>`.
-constexpr int kHeaderBytesToRead = 30;
+// F<NUMERATOR>:<DENOMINATOR>`.
+constexpr int kHeaderBytesToRead = 40;
 
 }  // namespace
 
@@ -92,7 +91,7 @@ Y4mMetadata ReadMetadataFromY4mHeader(absl::string_view clip_path) {
   int fps_denominator;
   int width;
   int height;
-  RTC_CHECK_EQ(sscanf(header, "YUV4MPEG2 W%u H%u F%i:%i", &width, &height,
+  RTC_CHECK_EQ(sscanf(header, "YUV4MPEG2 W%u H%u F%u:%u", &width, &height,
                       &fps_numerator, &fps_denominator),
                4);
   RTC_CHECK_NE(fps_denominator, 0);

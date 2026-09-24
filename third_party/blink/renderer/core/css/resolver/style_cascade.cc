@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/css/kleene_value.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
+#include "third_party/blink/renderer/core/css/navigation_query.h"
 #include "third_party/blink/renderer/core/css/parser/css_if_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_fast_paths.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_local_context.h"
@@ -56,7 +57,6 @@
 #include "third_party/blink/renderer/core/css/resolver/style_builder.h"
 #include "third_party/blink/renderer/core/css/resolver/style_builder_converter.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
-#include "third_party/blink/renderer/core/css/route_query.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_rule_function_declarations.h"
 #include "third_party/blink/renderer/core/css/try_value_flips.h"
@@ -657,8 +657,10 @@ void StyleCascade::ApplyViewportUnitAffecting(CascadeResolver& resolver) {
   }
   PaintLayerScrollableArea::StyleBasedScrollbarData some_scroll_properties{
       state_.StyleBuilder().OverflowX(), state_.StyleBuilder().OverflowY(),
-      state_.StyleBuilder().ScrollbarGutter(),
-      state_.StyleBuilder().ScrollbarWidth()};
+      static_cast<ScrollbarGutter>(state_.StyleBuilder().ScrollbarGutter()),
+      state_.StyleBuilder().ScrollbarWidth(),
+      // WritingMode is resolved early in `ApplyCascadeAffecting`.
+      state_.StyleBuilder().GetWritingMode()};
 
   LayoutView* view = state_.GetDocument().GetLayoutView();
   DCHECK(view);
@@ -2238,9 +2240,10 @@ void StyleCascade::FlattenFunctionBody(
         FlattenFunctionBody(*container_rule, function_tree_scope, result,
                             locals);
       }
-    } else if (auto* route_rule = DynamicTo<StyleRuleRoute>(child.Get())) {
+    } else if (auto* navigation_rule =
+                   DynamicTo<StyleRuleNavigation>(child.Get())) {
       // TODO(crbug.com/431374376): Implement
-      (void)route_rule;
+      (void)navigation_rule;
       NOTREACHED() << "Not yet implemented.";
     }
   }
@@ -2714,10 +2717,11 @@ bool StyleCascade::EvalIfCondition(CSSParserTokenStream& stream,
         : evaluate_style_func_(evaluate_style_func),
           resolver_state_(resolver_state) {}
 
-    KleeneValue EvaluateRouteQueryExpNode(
-        const RouteQueryExpNode& node) override {
-      // Evaluate route() function
-      bool result = node.GetRouteTest().Matches(resolver_state_.GetDocument());
+    KleeneValue EvaluateNavigationExpNode(
+        const NavigationExpNode& node) override {
+      // Evaluate navigation() function
+      bool result =
+          node.NavigationTest().Matches(resolver_state_.GetDocument());
       return result ? KleeneValue::kTrue : KleeneValue::kFalse;
     }
 

@@ -61,6 +61,16 @@ class ContextualSearchContextController {
     // Does nothing if `enable_multi_context_input_flow` is false or if
     // `enable_viewport_images` is false.
     bool use_separate_request_ids_for_multi_context_viewport_images = true;
+    // Whether to offer ZPS for the first document attachment, when multiple
+    // attachments are available (true), or the only attachment if exactly one
+    // attachment is available (false).
+    bool prioritize_suggestions_for_the_first_attached_document = false;
+    // Whether or not to support the context_id migration on the server, for
+    // the multi-context input flow.
+    bool enable_context_id_migration = false;
+    // Whether or not to attach the page title and url directly to the suggest
+    // request params.
+    bool attach_page_title_and_url_to_suggest_requests = false;
   };
 
   // Observer interface for the Page Handler to get updates on file upload
@@ -142,6 +152,12 @@ class ContextualSearchContextController {
     // The input source of the query text.
     lens::QueryPayload::QueryTextSource query_text_source =
         lens::QueryPayload::QUERY_TEXT_SOURCE_UNSPECIFIED;
+
+    // Whether deep search is selected.
+    bool deep_search_selected = false;
+
+    // Whether create images is selected.
+    bool create_images_selected = false;
   };
 
   virtual ~ContextualSearchContextController() = default;

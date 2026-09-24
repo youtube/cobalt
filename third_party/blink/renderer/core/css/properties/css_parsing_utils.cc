@@ -81,6 +81,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_save_point.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
+#include "third_party/blink/renderer/core/css/parser/css_property_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_variable_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_color_function_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
@@ -6690,7 +6691,7 @@ bool ConsumeGridTrackRepeatFunction(
         //
         // [1] https://github.com/w3c/csswg-drafts/issues/10915
         if (is_auto_repeat &&
-            RuntimeEnabledFeatures::CSSMasonryLayoutEnabled()) {
+            RuntimeEnabledFeatures::CSSGridLanesLayoutEnabled()) {
           all_tracks_are_intrinsic_repeat_or_fixed_sized =
               IsGridTrackFixedOrIntrinsicSized(*track_size);
         } else {
@@ -9503,6 +9504,22 @@ CSSValue* ConsumeProgressType(CSSParserTokenStream& stream,
 
   return MakeGarbageCollected<cssvalue::CSSProgressValue>(*progress,
                                                           easing_function);
+}
+
+CSSValue* ConsumeNameScope(CSSParserTokenStream& stream,
+                           const CSSParserContext& context,
+                           const CSSParserLocalContext&) {
+  if (CSSValue* value =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
+    return value;
+  }
+  if (CSSValue* value =
+          css_parsing_utils::ConsumeScopedKeywordValue<CSSValueID::kAll>(
+              stream)) {
+    return value;
+  }
+  return css_parsing_utils::ConsumeCommaSeparatedList(
+      css_parsing_utils::ConsumeDashedIdent, stream, context);
 }
 
 bool ContainsSafeAreaInsetBottom(CSSParserTokenStream& stream) {

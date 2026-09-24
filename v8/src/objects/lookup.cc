@@ -918,6 +918,11 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
   }
 }
 
+Tagged<JSObject> LookupIterator::GetHolderForApi() const {
+  DCHECK(state_ == INTERCEPTOR || state_ == ACCESSOR || state_ == ACCESS_CHECK);
+  return i::GetHolderForApi(Cast<JSObject>(*holder_));
+}
+
 bool LookupIterator::HolderIsReceiver() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
@@ -1652,7 +1657,7 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   uint16_t charcode;
   {
-    SharedStringAccessGuardIfNeeded access_guard(local_isolate);
+    SharedStringAccessGuardIfNeeded access_guard(local_isolate, string);
     charcode = string->Get(static_cast<int>(index), access_guard);
   }
 

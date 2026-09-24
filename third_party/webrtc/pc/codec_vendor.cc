@@ -170,7 +170,7 @@ const RTCErrorOr<std::vector<const Codec*>> GetAssociatedCodecsForRed(
 // already exist in `offered_codecs` and ensure the payload types don't
 // collide.
 RTCError MergeCodecs(const CodecList& reference_codecs,
-                     const std::string& mid,
+                     absl::string_view mid,
                      CodecList& offered_codecs,
                      PayloadTypeSuggester& pt_suggester) {
   // TODO: bugs.webrtc.org/360058654 - This method makes blocking calls to
@@ -238,8 +238,12 @@ RTCError MergeCodecs(const CodecList& reference_codecs,
       }
       if (associated_codecs.value().empty()) {
         // No parameter. Just blindly add the codec.
-        RTC_LOG(LS_WARNING)
-            << "RED codec with no associated codecs found: " << red_codec;
+        // This is known to be used with video, but not with audio.
+        if (red_codec.type == Codec::Type::kAudio) {
+          RTC_LOG(LS_WARNING)
+              << "RED audio codec with no associated codecs found: "
+              << red_codec;
+        }
         RTCErrorOr<PayloadType> suggestion =
             pt_suggester.SuggestPayloadType(mid, red_codec);
         if (!suggestion.ok()) {
@@ -595,7 +599,7 @@ RTCError AssignCodecIdsAndLinkRed(PayloadTypeSuggester* pt_suggester,
 
 // Exposed for testing
 RTCError MergeCodecsForTesting(const CodecList& reference_codecs,
-                               const std::string& mid,
+                               absl::string_view mid,
                                CodecList& offered_codecs,
                                PayloadTypeSuggester& pt_suggester) {
   return MergeCodecs(reference_codecs, mid, offered_codecs, pt_suggester);

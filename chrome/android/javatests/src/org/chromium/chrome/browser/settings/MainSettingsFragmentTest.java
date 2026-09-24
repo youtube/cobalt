@@ -787,7 +787,6 @@ public class MainSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_TOOLBAR)
     public void testAndroidAddressBarFlagOn() {
         startSettings();
         // This setting should only appear for certain devices, even if the flag is enabled. Since
@@ -815,7 +814,6 @@ public class MainSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_TOOLBAR)
     public void testAndroidAddressBar_newLabel() {
         Assume.assumeThat(supportAddressBarSettings(), is(true));
         testNewPreferenceLabel(
@@ -827,7 +825,6 @@ public class MainSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_TOOLBAR)
     public void testAndroidAddressBar_cleanUpBadPrefValue() {
         ChromeSharedPreferences.getInstance()
                 .writeInt(ChromePreferenceKeys.ADDRESS_BAR_SETTINGS_CLICKED, 1);
@@ -845,16 +842,6 @@ public class MainSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_TOOLBAR)
-    public void testAndroidAddressBarFlagOff() {
-        startSettings();
-        Assert.assertNull(
-                "Address Bar should not be shown when flag is off, regardless of device",
-                mMainSettings.findPreference(MainSettings.PREF_ADDRESS_BAR));
-    }
-
-    @Test
-    @SmallTest
     @EnableFeatures(ChromeFeatureList.DEFAULT_BROWSER_PROMO_ANDROID2)
     public void testDefaultBrowserPromoCard() throws InterruptedException {
         when(mTestTracker.shouldTriggerHelpUi(any())).thenReturn(true);
@@ -866,7 +853,6 @@ public class MainSettingsFragmentTest {
         Preference preference = mMainSettings.findPreference(MainSettings.PREF_SETTINGS_PROMO_CARD);
         Assert.assertNotNull(
                 "Settings promo preference exist when feature flag is enabled", preference);
-        Assert.assertTrue("Settings promo card is not showing", preference.isVisible());
     }
 
     @Test

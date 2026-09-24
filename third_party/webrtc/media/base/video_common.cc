@@ -11,11 +11,9 @@
 #include "media/base/video_common.h"
 
 #include <cstdint>
-#include <numeric>
 #include <string>
 
 #include "api/array_view.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
@@ -78,18 +76,6 @@ std::string VideoFormat::ToString() const {
   sb << fourcc_name << width << "x" << height << "x"
      << IntervalToFpsFloat(interval);
   return sb.str();
-}
-
-int GreatestCommonDivisor(int a, int b) {
-  RTC_DCHECK_GE(a, 0);
-  RTC_DCHECK_GT(b, 0);
-  return std::gcd(a, b);
-}
-
-int LeastCommonMultiple(int a, int b) {
-  RTC_DCHECK_GT(a, 0);
-  RTC_DCHECK_GT(b, 0);
-  return std::lcm(a, b);
 }
 
 }  // namespace webrtc

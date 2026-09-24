@@ -114,6 +114,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   std::optional<DataRate> starting_rate_;
 
   bool first_packet_sent_ = false;
+  bool first_transport_feedback_received_ = false;
 
   std::optional<NetworkStateEstimate> estimate_;
 
@@ -126,7 +127,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   std::optional<uint8_t> last_estimated_fraction_loss_ = 0;
   TimeDelta last_estimated_round_trip_time_ = TimeDelta::PlusInfinity();
 
-  double pacing_factor_;
+  std::optional<double> pacing_factor_;
   TimeDelta pacing_time_window_;
   DataRate min_total_allocated_bitrate_;
   DataRate max_padding_rate_;

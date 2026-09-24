@@ -46,7 +46,7 @@ NSString* const kPrimaryActionAccessibilityIdentifier =
 NSString* const kTitleAccessibilityIdentifier = @"TitleAccessibilityIdentifier";
 
 // Helpers copied from IncognitoView.mm
-// TODO(crbug.com/442531250): Merge the common utils between
+// TODO(crbug.com/467901302): Merge the common utils between
 // `YoutubeIncognitoSheet` and `IncognitoView`.
 UIFont* BodyFont() {
   return [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
@@ -319,13 +319,13 @@ NSAttributedString* FormatHTMLListForUILabel(NSString* listString) {
   chromeIconView.translatesAutoresizingMaskIntoConstraints = NO;
   chromeIconView.layer.cornerRadius = kTitleContainerCornerRadius;
   chromeIconView.backgroundColor = [UIColor whiteColor];
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   UIImage* chromeLogo = MakeSymbolMulticolor(
       CustomSymbolWithPointSize(kMulticolorChromeballSymbol, kChromeLogoSize));
 #else
   UIImage* chromeLogo =
       CustomSymbolWithPointSize(kChromeProductSymbol, kChromeLogoSize);
-#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#endif  // BUILDFLAG(IOS_USE_BRANDED_ASSETS)
 
   UIImageView* chromeLogoView = [[UIImageView alloc] initWithImage:chromeLogo];
   chromeLogoView.translatesAutoresizingMaskIntoConstraints = NO;

@@ -169,6 +169,7 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "components/soda/soda_installer_impl_chromeos.h"
 #else
 #include "ui/message_center/message_center.h"
@@ -195,12 +196,11 @@ void OnLocalStatePrefsLoaded();
 #include "chrome/browser/resource_coordinator/tab_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/usb/usb_system_tray_icon.h"
-#include "chrome/browser/web_applications/isolated_web_apps/chrome_iwa_client.h"
+#include "chrome/browser/web_applications/isolated_web_apps/runtime_init.h"
 #include "chrome/browser/webapps/webapps_client_desktop.h"
 #include "components/gcm_driver/gcm_client_factory.h"
 #include "components/gcm_driver/gcm_desktop_utils.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
-#include "components/webapps/isolated_web_apps/identity/iwa_identity_validator.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
@@ -214,7 +214,6 @@ void OnLocalStatePrefsLoaded();
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/apps/platform_apps/chrome_apps_browser_api_provider.h"
-#include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "chrome/browser/ui/apps/chrome_app_window_client.h"
 #include "chrome/common/extensions/chrome_extensions_client.h"
 #include "components/storage_monitor/storage_monitor.h"
@@ -302,13 +301,20 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
       active_primary_accounts_metrics_recorder_(
           std::make_unique<signin::ActivePrimaryAccountsMetricsRecorder>(
               *local_state_)),
-      platform_part_(std::make_unique<BrowserProcessPlatformPart>()) {
+      platform_part_(std::make_unique<BrowserProcessPlatformPart>()),
+      network_time_tracker_(startup_data->chrome_feature_list_creator()
+                                ->TakeNetworkTimeTracker()) {
   CHECK(!g_browser_process);
   g_browser_process = this;
 
   DCHECK(browser_policy_connector_);
   DCHECK(local_state_);
   DCHECK(startup_data);
+
+  // The network time tracker is created (so that other early objects can
+  // subscribe to it) but it is not yet initialized.
+  CHECK(network_time_tracker_);
+
   // Most work should be done in Init().
 }
 
@@ -322,6 +328,9 @@ const ui::UnownedUserDataHost& BrowserProcessImpl::GetUnownedUserDataHost()
 }
 
 void BrowserProcessImpl::Init() {
+  features_ = GlobalFeatures::CreateGlobalFeatures();
+  features_->PreBrowserProcessInit();
+
 #if BUILDFLAG(IS_CHROMEOS)
   // Forces creation of |metrics_services_manager_client_| if necessary
   // (typically this call is a no-op as MetricsServicesManager has already been
@@ -416,8 +425,7 @@ void BrowserProcessImpl::Init() {
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-  web_app::IwaIdentityValidator::CreateSingleton();
-  web_app::ChromeIwaClient::CreateSingleton();
+  web_app::InitializeIsolatedWebAppRuntime();
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -468,8 +476,7 @@ void BrowserProcessImpl::Init() {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  features_ = GlobalFeatures::CreateGlobalFeatures();
-  features_->Init();
+  features_->PostBrowserProcessInit();
 
   // `Unretained` is safe as CallbackListSubscription does not outlive `this`.
   on_locale_changed_callback_subscription_ =
@@ -521,13 +528,14 @@ void BrowserProcessImpl::StartTearDown() {
   tearing_down_ = true;
   DCHECK(IsShuttingDown());
 
-  features_->Shutdown();
+  features_->PostMainMessageLoopRun();
   metrics_services_manager_client_ = nullptr;
   metrics_services_manager_.reset();
   intranet_redirect_detector_.reset();
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-  if (safe_browsing_service_.get())
+  if (safe_browsing_service_.get()) {
     safe_browsing_service()->ShutDown();
+  }
 #endif
   network_time_tracker_.reset();
 
@@ -537,8 +545,9 @@ void BrowserProcessImpl::StartTearDown() {
   // observer and KeyServices observer need to be removed before profiles.
   auto* cloud_management_controller =
       browser_policy_connector_->chrome_browser_cloud_management_controller();
-  if (cloud_management_controller)
+  if (cloud_management_controller) {
     cloud_management_controller->ShutDown();
+  }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
   // |hid_system_tray_icon_| and |usb_system_tray_icon_| must be destroyed
@@ -589,10 +598,13 @@ void BrowserProcessImpl::StartTearDown() {
         ->StopObservingPrefChanges();
   }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(IS_CHROMEOS)
   // The `media_file_system_registry_` cannot be reset until the
   // `profile_manager_` has been.
   media_file_system_registry_.reset();
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   // Remove the global instance of the Storage Monitor now. Otherwise the
   // FILE thread would be gone when we try to release it in the dtor and
   // Valgrind would report a leak on almost every single browser_test.
@@ -601,8 +613,9 @@ void BrowserProcessImpl::StartTearDown() {
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
-  if (message_center::MessageCenter::Get())
+  if (message_center::MessageCenter::Get()) {
     message_center::MessageCenter::Shutdown();
+  }
 #endif  // BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
 
   // The policy providers managed by |browser_policy_connector_| need to shut
@@ -612,14 +625,16 @@ void BrowserProcessImpl::StartTearDown() {
   browser_policy_connector_->Shutdown();
 
   // The |gcm_driver_| must shut down while the IO thread is still alive.
-  if (gcm_driver_)
+  if (gcm_driver_) {
     gcm_driver_->Shutdown();
+  }
 
   platform_part()->StartTearDown();
 
   // Cancel any uploads to release the system url request context references.
-  if (webrtc_log_uploader_)
+  if (webrtc_log_uploader_) {
     webrtc_log_uploader_->Shutdown();
+  }
 
   sessions::SessionIdGenerator::GetInstance()->Shutdown();
 
@@ -646,6 +661,13 @@ void BrowserProcessImpl::PostDestroyThreads() {
 
   // Must outlive the worker threads.
   webrtc_log_uploader_.reset();
+
+  // ResourceCoordinatorParts owns TabLifecycleUnitSource, which depends on a
+  // Global Feature (GlobalBrowserCollection). Thus, we need to make sure
+  // ResourceCoordinatorParts is destroyed before GlobalFeatures is completely
+  // shut down.
+  resource_coordinator_parts_.reset();
+  features_->PostDestroyThreads();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -663,8 +685,8 @@ namespace {
 // tasks on the set of threads used to persist profile data and local state.
 // This is done to ensure that the data has been persisted to disk before
 // continuing.
-class RundownTaskCounter :
-    public base::RefCountedThreadSafe<RundownTaskCounter> {
+class RundownTaskCounter
+    : public base::RefCountedThreadSafe<RundownTaskCounter> {
  public:
   RundownTaskCounter();
 
@@ -708,8 +730,9 @@ base::OnceClosure RundownTaskCounter::GetRundownClosure() {
 }
 
 void RundownTaskCounter::Decrement() {
-  if (!count_.Decrement())
+  if (!count_.Decrement()) {
     waitable_event_.Signal();
+  }
 }
 
 void RundownTaskCounter::TimedWait(base::TimeDelta timeout) {
@@ -756,8 +779,9 @@ void BrowserProcessImpl::EndSession() {
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
     ExitTypeService* exit_type_service =
         ExitTypeService::GetInstanceForProfile(profile);
-    if (exit_type_service)
+    if (exit_type_service) {
       exit_type_service->SetCurrentSessionExitType(ExitType::kForcedShutdown);
+    }
 #endif
     if (profile->GetPrefs()) {
       profile->GetPrefs()->CommitPendingWrite(
@@ -883,8 +907,9 @@ network::NetworkQualityTracker* BrowserProcessImpl::network_quality_tracker() {
 
 ProfileManager* BrowserProcessImpl::profile_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!created_profile_manager_)
+  if (!created_profile_manager_) {
     CreateProfileManager();
+  }
   return profile_manager_.get();
 }
 
@@ -925,8 +950,9 @@ NotificationUIManager* BrowserProcessImpl::notification_ui_manager() {
 }
 
 NotificationPlatformBridge* BrowserProcessImpl::notification_platform_bridge() {
-  if (!created_notification_bridge_)
+  if (!created_notification_bridge_) {
     CreateNotificationPlatformBridge();
+  }
   return notification_bridge_.get();
 }
 
@@ -942,15 +968,17 @@ policy::PolicyService* BrowserProcessImpl::policy_service() {
 
 IconManager* BrowserProcessImpl::icon_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!created_icon_manager_)
+  if (!created_icon_manager_) {
     CreateIconManager();
+  }
   return icon_manager_.get();
 }
 
 GpuModeManager* BrowserProcessImpl::gpu_mode_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!gpu_mode_manager_)
+  if (!gpu_mode_manager_) {
     gpu_mode_manager_ = std::make_unique<GpuModeManager>();
+  }
   return gpu_mode_manager_.get();
 }
 
@@ -991,8 +1019,9 @@ void BrowserProcessImpl::CreateDevToolsAutoOpener() {
 #if !BUILDFLAG(IS_ANDROID)
   // StartupBrowserCreator::LaunchBrowser can be run multiple times when browser
   // is started with several profiles or existing browser process is reused.
-  if (!devtools_auto_opener_)
+  if (!devtools_auto_opener_) {
     devtools_auto_opener_ = std::make_unique<DevToolsAutoOpener>();
+  }
 #endif
 }
 
@@ -1014,11 +1043,12 @@ printing::PrintJobManager* BrowserProcessImpl::print_job_manager() {
 }
 
 printing::PrintPreviewDialogController*
-    BrowserProcessImpl::print_preview_dialog_controller() {
+BrowserProcessImpl::print_preview_dialog_controller() {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!print_preview_dialog_controller_.get())
+  if (!print_preview_dialog_controller_.get()) {
     CreatePrintPreviewDialogController();
+  }
   return print_preview_dialog_controller_.get();
 #else
   NOTIMPLEMENTED();
@@ -1027,11 +1057,12 @@ printing::PrintPreviewDialogController*
 }
 
 printing::BackgroundPrintingManager*
-    BrowserProcessImpl::background_printing_manager() {
+BrowserProcessImpl::background_printing_manager() {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!background_printing_manager_)
+  if (!background_printing_manager_) {
     CreateBackgroundPrintingManager();
+  }
   return background_printing_manager_.get();
 #else
   NOTIMPLEMENTED();
@@ -1042,8 +1073,9 @@ printing::BackgroundPrintingManager*
 #if !BUILDFLAG(IS_ANDROID)
 IntranetRedirectDetector* BrowserProcessImpl::intranet_redirect_detector() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!intranet_redirect_detector_)
+  if (!intranet_redirect_detector_) {
     intranet_redirect_detector_ = std::make_unique<IntranetRedirectDetector>();
+  }
 
   return intranet_redirect_detector_.get();
 }
@@ -1078,32 +1110,32 @@ DownloadStatusUpdater* BrowserProcessImpl::download_status_updater() {
   return download_status_updater_.get();
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 MediaFileSystemRegistry* BrowserProcessImpl::media_file_system_registry() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (!media_file_system_registry_)
+  if (!media_file_system_registry_) {
     media_file_system_registry_ = std::make_unique<MediaFileSystemRegistry>();
+  }
   return media_file_system_registry_.get();
-#else
-  return NULL;
-#endif
 }
+#endif
 
 WebRtcLogUploader* BrowserProcessImpl::webrtc_log_uploader() {
-  if (!webrtc_log_uploader_)
+  if (!webrtc_log_uploader_) {
     webrtc_log_uploader_ = std::make_unique<WebRtcLogUploader>();
+  }
   return webrtc_log_uploader_.get();
 }
 
 network_time::NetworkTimeTracker* BrowserProcessImpl::network_time_tracker() {
-  CreateNetworkTimeTracker();
   return network_time_tracker_.get();
 }
 
 #if !BUILDFLAG(IS_ANDROID)
 gcm::GCMDriver* BrowserProcessImpl::gcm_driver() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!gcm_driver_)
+  if (!gcm_driver_) {
     CreateGCMDriver();
+  }
   return gcm_driver_.get();
 }
 #endif
@@ -1170,8 +1202,7 @@ BuildState* BrowserProcessImpl::GetBuildState() {
 
 // static
 void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterBooleanPref(prefs::kDefaultBrowserSettingEnabled,
-                                false);
+  registry->RegisterBooleanPref(prefs::kDefaultBrowserSettingEnabled, false);
 
   registry->RegisterBooleanPref(prefs::kAllowCrossOriginAuthPrompt, false);
 
@@ -1183,8 +1214,7 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
                                std::string());
 #if BUILDFLAG(IS_CHROMEOS)
   registry->RegisterStringPref(prefs::kOwnerLocale, std::string());
-  registry->RegisterStringPref(prefs::kHardwareKeyboardLayout,
-                               std::string());
+  registry->RegisterStringPref(prefs::kHardwareKeyboardLayout, std::string());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
@@ -1216,8 +1246,9 @@ DownloadRequestLimiter* BrowserProcessImpl::download_request_limiter() {
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 BackgroundModeManager* BrowserProcessImpl::background_mode_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!background_mode_manager_)
+  if (!background_mode_manager_) {
     CreateBackgroundModeManager();
+  }
   return background_mode_manager_.get();
 }
 
@@ -1229,8 +1260,9 @@ void BrowserProcessImpl::set_background_mode_manager_for_test(
 
 StatusTray* BrowserProcessImpl::status_tray() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!status_tray_)
+  if (!status_tray_) {
     CreateStatusTray();
+  }
   return status_tray_.get();
 }
 
@@ -1238,8 +1270,9 @@ StatusTray* BrowserProcessImpl::status_tray() {
 safe_browsing::SafeBrowsingService*
 BrowserProcessImpl::safe_browsing_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!created_safe_browsing_service_)
+  if (!created_safe_browsing_service_) {
     CreateSafeBrowsingService();
+  }
   return safe_browsing_service_.get();
 }
 #endif
@@ -1247,8 +1280,9 @@ BrowserProcessImpl::safe_browsing_service() {
 subresource_filter::RulesetService*
 BrowserProcessImpl::subresource_filter_ruleset_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!created_subresource_filter_ruleset_service_)
+  if (!created_subresource_filter_ruleset_service_) {
     CreateSubresourceFilterRulesetService();
+  }
   return subresource_filter_ruleset_service_.get();
 }
 
@@ -1265,11 +1299,13 @@ void BrowserProcessImpl::StartAutoupdateTimer() {
 
 component_updater::ComponentUpdateService*
 BrowserProcessImpl::component_updater() {
-  if (component_updater_)
+  if (component_updater_) {
     return component_updater_.get();
+  }
 
-  if (!BrowserThread::CurrentlyOn(BrowserThread::UI))
+  if (!BrowserThread::CurrentlyOn(BrowserThread::UI)) {
     return nullptr;
+  }
 
   std::unique_ptr<component_updater::UpdateScheduler> scheduler =
       std::make_unique<component_updater::TimerUpdateScheduler>();
@@ -1286,10 +1322,11 @@ BrowserProcessImpl::component_updater() {
 }
 
 void BrowserProcessImpl::OnKeepAliveStateChanged(bool is_keeping_alive) {
-  if (is_keeping_alive)
+  if (is_keeping_alive) {
     Pin();
-  else
+  } else {
     Unpin();
+  }
 }
 
 void BrowserProcessImpl::CreateNetworkQualityObserver() {
@@ -1338,8 +1375,9 @@ void BrowserProcessImpl::PreCreateThreads() {
 
   // Create SystemNetworkContextManager without a NetworkService if it has not
   // been requested yet.
-  if (!SystemNetworkContextManager::HasInstance())
+  if (!SystemNetworkContextManager::HasInstance()) {
     SystemNetworkContextManager::CreateInstance(local_state());
+  }
 }
 
 void BrowserProcessImpl::PreMainMessageLoopRun() {
@@ -1457,7 +1495,7 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
 
   platform_part_->PreMainMessageLoopRun();
 
-  CreateNetworkTimeTracker();
+  InitializeNetworkTimeTracker();
 
   CreateNetworkQualityObserver();
 
@@ -1578,8 +1616,9 @@ void BrowserProcessImpl::CreateSafeBrowsingService() {
   // use the interface in components/safe_browsing, and remove this cast.
   safe_browsing_service_ = static_cast<safe_browsing::SafeBrowsingService*>(
       safe_browsing::SafeBrowsingServiceInterface::CreateSafeBrowsingService());
-  if (safe_browsing_service_)
+  if (safe_browsing_service_) {
     safe_browsing_service_->Initialize();
+  }
 }
 #endif
 
@@ -1628,15 +1667,11 @@ void BrowserProcessImpl::CreateGCMDriver() {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-void BrowserProcessImpl::CreateNetworkTimeTracker() {
-  if (network_time_tracker_) {
-    return;
-  }
-  network_time_tracker_ = std::make_unique<network_time::NetworkTimeTracker>(
-      base::WrapUnique(new base::DefaultClock()),
-      base::WrapUnique(new base::DefaultTickClock()), local_state(),
-      system_network_context_manager()->GetSharedURLLoaderFactory(),
-      std::nullopt);
+void BrowserProcessImpl::InitializeNetworkTimeTracker() {
+  CHECK(!network_time_tracker_->is_initialized());
+  network_time_tracker_->Initialize(
+      local_state(),
+      system_network_context_manager()->GetSharedURLLoaderFactory());
 }
 
 void BrowserProcessImpl::ApplyDefaultBrowserPolicy() {
@@ -1679,8 +1714,9 @@ void BrowserProcessImpl::Unpin() {
   // the browser's lifetime to the BrowserProcess. Any KeepAlives registered and
   // unregistered prior to setting the quit closure are ignored. Only once the
   // quit closure is set should unpinning start process shutdown.
-  if (!quit_closure_)
+  if (!quit_closure_) {
     return;
+  }
 #endif
 
   DCHECK(!shutting_down_);
@@ -1742,10 +1778,11 @@ void BrowserProcessImpl::RestartBackgroundInstance() {
   for (const auto& it : switches) {
     const auto& switch_name = it.first;
     const auto& switch_value = it.second;
-    if (switch_value.empty())
+    if (switch_value.empty()) {
       new_cl->AppendSwitch(switch_name);
-    else
+    } else {
       new_cl->AppendSwitchNative(switch_name, switch_value);
+    }
   }
 
   // Switches to add when auto-restarting Chrome.
@@ -1754,8 +1791,9 @@ void BrowserProcessImpl::RestartBackgroundInstance() {
 
   // Ensure that our desired switches are set on the new process.
   for (const char* switch_to_add : kSwitchesToAddOnAutorestart) {
-    if (!new_cl->HasSwitch(switch_to_add))
+    if (!new_cl->HasSwitch(switch_to_add)) {
       new_cl->AppendSwitch(switch_to_add);
+    }
   }
 
 #if BUILDFLAG(IS_WIN)

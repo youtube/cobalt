@@ -863,8 +863,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                                        BufferUsageType bufferUsageType);
     angle::Result initImageAllocation(vk::ImageHelper *imageHelper,
                                       bool hasProtectedContent,
-                                      const vk::MemoryProperties &memoryProperties,
-                                      VkMemoryPropertyFlags flags,
+                                      VkMemoryPropertyFlags memoryPropertyFlags,
                                       vk::MemoryAllocationType allocationType);
 
     angle::Result releaseBufferAllocation(vk::BufferHelper *bufferHelper);
@@ -954,6 +953,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         // - In VK_EXT_extended_dynamic_state
         DIRTY_BIT_DYNAMIC_CULL_MODE,
         DIRTY_BIT_DYNAMIC_FRONT_FACE,
+        DIRTY_BIT_DYNAMIC_PRIMITIVE_TOPOLOGY,
         DIRTY_BIT_DYNAMIC_DEPTH_TEST_ENABLE,
         DIRTY_BIT_DYNAMIC_DEPTH_WRITE_ENABLE,
         DIRTY_BIT_DYNAMIC_DEPTH_COMPARE_OP,
@@ -1039,6 +1039,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     static_assert(DIRTY_BIT_DYNAMIC_CULL_MODE > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_DYNAMIC_FRONT_FACE > DIRTY_BIT_RENDER_PASS,
+                  "Render pass using dirty bit must be handled after the render pass dirty bit");
+    static_assert(DIRTY_BIT_DYNAMIC_PRIMITIVE_TOPOLOGY > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_DYNAMIC_DEPTH_TEST_ENABLE > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
@@ -1159,6 +1161,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                         float nearPlane,
                         float farPlane);
     void updateFrontFace();
+    void updateTopology(gl::PrimitiveMode mode);
     void updateDepthRange(float nearPlane, float farPlane);
     void updateMissingAttachments();
     void updateSampleMaskWithRasterizationSamples(const uint32_t rasterizationSamples);
@@ -1274,6 +1277,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                                                      DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsDynamicFrontFace(DirtyBits::Iterator *dirtyBitsIterator,
                                                       DirtyBits dirtyBitMask);
+    angle::Result handleDirtyGraphicsDynamicPrimitiveTopology(
+        DirtyBits::Iterator *dirtyBitsIterator,
+        DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsDynamicDepthTestEnable(DirtyBits::Iterator *dirtyBitsIterator,
                                                             DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsDynamicDepthWriteEnable(DirtyBits::Iterator *dirtyBitsIterator,

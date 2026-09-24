@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SEARCHBOX_OMNIBOX_COMPOSEBOX_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_SEARCHBOX_OMNIBOX_COMPOSEBOX_HANDLER_H_
 
-#include "chrome/browser/ui/webui/searchbox/composebox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 
 class Profile;
 
@@ -25,6 +25,9 @@ class OmniboxComposeboxHandler : public ComposeboxHandler {
       content::WebContents* web_contents);
 
   ~OmniboxComposeboxHandler() override;
+
+  // composebox::mojom::PageHandler:
+  void HandleFileUpload(bool is_image) override;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_SEARCHBOX_OMNIBOX_COMPOSEBOX_HANDLER_H_

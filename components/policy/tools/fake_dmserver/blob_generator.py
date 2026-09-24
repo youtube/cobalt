@@ -13,21 +13,10 @@ import argparse
 import base64
 import json
 import logging
+import os
 import sys
 
-# The ebuild installs these to /usr/local/share/policy-test-tool
-POLICY_TEST_TOOL_PATH = "/usr/local/share/policy-test-tool"
-sys.path.insert(0, POLICY_TEST_TOOL_PATH)
-
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-
-try:
-  import chrome_device_policy_pb2
-  import chrome_settings_pb2
-  import policy_common_definitions_pb2
-except ImportError as e:
-  logging.critical(f"Failed to import Chrome policy protobuf modules: {e}")
-  sys.exit(1)
 
 
 def generate_device_policy_schema(manual_map_path):
@@ -139,6 +128,43 @@ def apply_device_policies(policies, settings, schema):
                        f"'{proto_path}': {e}") from e
 
 
+def apply_extension_install_policies(policies, policy_blobs):
+  """Applies extension install policies to the policy_blobs JSON array."""
+  dm = device_management_backend_pb2
+  for key, value in policies.items():
+    policy = dm.ExtensionInstallPolicy()
+    parts = key.split("@")
+    if len(parts) != 2:
+      raise ValueError(f"Invalid extension: {key}. Should be id@version.")
+    if "action" not in value or "reasons" not in value:
+      raise ValueError("Action and reasons are required.")
+    policy.extension_id = parts[0]
+    policy.extension_version = parts[1]
+    if value["action"] == "unspecified":
+      policy.action = dm.ExtensionInstallPolicy.ACTION_UNSPECIFIED
+    elif value["action"] == "allow":
+      policy.action = dm.ExtensionInstallPolicy.ACTION_ALLOW
+    elif value["action"] == "block":
+      policy.action = dm.ExtensionInstallPolicy.ACTION_BLOCK
+    else:
+      raise ValueError(f"Invalid action: {value['action']}.")
+    for reason in value["reasons"]:
+      if reason == "unspecified":
+        policy.reasons.append(dm.ExtensionInstallPolicy.REASON_UNSPECIFIED)
+      elif reason == "blocked_category":
+        policy.reasons.append(dm.ExtensionInstallPolicy.REASON_BLOCKED_CATEGORY)
+      elif reason == "risk_score":
+        policy.reasons.append(dm.ExtensionInstallPolicy.REASON_RISK_SCORE)
+      else:
+        raise ValueError(f"Invalid reason: {reason}.")
+    encoded_policy = base64.b64encode(
+        policy.SerializeToString()).decode("utf-8")
+    policy_blobs.append({
+        "policy_type": f"google/chrome/machine-level-extension-install/{key}",
+        "value": encoded_policy
+    })
+
+
 def main():
   """Main script execution."""
 
@@ -169,7 +195,53 @@ please refer to the README.md in this directory.""",
       help="Path to the manual_device_policy_proto_map.yaml file.",
   )
 
+  parser.add_argument("--build-path",
+                      required=False,
+                      help="Path to the build directory.")
+
   args = parser.parse_args()
+
+  if args.build_path:
+    # Running from a Chromium checkout. Import protobufs from the build path.
+    #
+    # For chrome_device_policy_pb2, policy_common_definitions_pb2, and
+    # device_management_backend_pb2:
+    sys.path.insert(
+        0, os.path.join(args.build_path, "pyproto/components/policy/proto"))
+    # For chrome_settings_pb2:
+    sys.path.insert(
+        0, os.path.join(args.build_path, "pyproto/chrome/browser/privacy"))
+    # For device_management_backend_pb2 dependencies:
+    sys.path.insert(
+        0,
+        os.path.join(args.build_path,
+                     "pyproto/third_party/private_membership/src"))
+    sys.path.insert(
+        0,
+        os.path.join(args.build_path,
+                     "pyproto/third_party/shell-encryption/src"))
+  else:
+    # Running from ChromeOS. The ebuild installs these to
+    # /usr/local/share/policy-test-tool
+    POLICY_TEST_TOOL_PATH = "/usr/local/share/policy-test-tool"
+    sys.path.insert(0, POLICY_TEST_TOOL_PATH)
+
+  try:
+    import chrome_device_policy_pb2
+    import chrome_settings_pb2
+    global policy_common_definitions_pb2
+    import policy_common_definitions_pb2
+    if args.build_path:
+      # Only used for the desktop (Chromium checkout) config.
+      global device_management_backend_pb2
+      import device_management_backend_pb2
+  except ImportError as e:
+    logging.error(f"Failed to import Chrome policy protobuf modules: {e}")
+    if args.build_path:
+      logging.error(
+          f"Make sure you build `chrome` in {args.build_path} before running "
+          "this tool.")
+    sys.exit(1)
 
   try:
     with open(args.input_policies, "r", encoding="utf-8") as f:
@@ -213,6 +285,26 @@ please refer to the README.md in this directory.""",
           "policy_type": "google/chromeos/user",
           "value": encoded_policy
       })
+      policy_blob["policies"].append({
+          "policy_type": "google/chrome/user",
+          "value": encoded_policy
+      })
+
+    if "machine-level-user" in simple_policies:
+      browser_settings = chrome_settings_pb2.ChromeSettingsProto()
+      apply_user_policies(simple_policies["machine-level-user"],
+                          browser_settings)
+      encoded_policy = base64.b64encode(
+          browser_settings.SerializeToString()).decode("utf-8")
+      policy_blob["policies"].append({
+          "policy_type": "google/chrome/machine-level-user",
+          "value": encoded_policy
+      })
+
+    if "machine-level-extension-install" in simple_policies:
+      apply_extension_install_policies(
+          simple_policies["machine-level-extension-install"],
+          policy_blob["policies"])
 
     if "device" in simple_policies:
       device_settings = chrome_device_policy_pb2.ChromeDeviceSettingsProto()

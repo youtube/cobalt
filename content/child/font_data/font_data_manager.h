@@ -6,7 +6,6 @@
 #define CONTENT_CHILD_FONT_DATA_FONT_DATA_MANAGER_H_
 
 #include <list>
-#include <map>
 #include <memory>
 #include <string>
 
@@ -51,6 +50,8 @@ class CONTENT_EXPORT FontDataManager : public SkFontMgr {
   FontDataManager(const FontDataManager&) = delete;
   FontDataManager& operator=(const FontDataManager&) = delete;
   ~FontDataManager() override;
+
+  static void CreateAndInitialize();
 
   // SkFontMgr:
   int onCountFamilies() const override;

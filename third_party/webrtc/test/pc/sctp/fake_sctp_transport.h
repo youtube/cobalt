@@ -33,9 +33,14 @@
 // local/remote ports.
 class FakeSctpTransport : public webrtc::SctpTransportInternal {
  public:
+  explicit FakeSctpTransport(webrtc::DtlsTransportInternal* transport)
+      : dtls_transport_(transport) {}
+
   void SetOnConnectedCallback(std::function<void()> callback) override {}
   void SetDataChannelSink(webrtc::DataChannelSink* sink) override {}
-  void SetDtlsTransport(webrtc::DtlsTransportInternal* transport) override {}
+  webrtc::DtlsTransportInternal* dtls_transport() const override {
+    return dtls_transport_;
+  }
   bool Start(const webrtc::SctpOptions& options) override {
     local_port_.emplace(options.local_port);
     remote_port_.emplace(options.remote_port);
@@ -52,7 +57,6 @@ class FakeSctpTransport : public webrtc::SctpTransportInternal {
     return webrtc::RTCError::OK();
   }
   bool ReadyToSendData() override { return true; }
-  void set_debug_name_for_testing(const char* debug_name) override {}
 
   int max_message_size() const override { return max_message_size_; }
   std::optional<int> max_outbound_streams() const override {
@@ -74,6 +78,7 @@ class FakeSctpTransport : public webrtc::SctpTransportInternal {
   }
 
  private:
+  webrtc::DtlsTransportInternal* dtls_transport_ = nullptr;
   std::optional<int> local_port_;
   std::optional<int> remote_port_;
   int max_message_size_;
@@ -83,8 +88,8 @@ class FakeSctpTransportFactory : public webrtc::SctpTransportFactoryInterface {
  public:
   std::unique_ptr<webrtc::SctpTransportInternal> CreateSctpTransport(
       const webrtc::Environment& env,
-      webrtc::DtlsTransportInternal*) override {
-    last_fake_sctp_transport_ = new FakeSctpTransport();
+      webrtc::DtlsTransportInternal* transport) override {
+    last_fake_sctp_transport_ = new FakeSctpTransport(transport);
     return std::unique_ptr<webrtc::SctpTransportInternal>(
         last_fake_sctp_transport_);
   }

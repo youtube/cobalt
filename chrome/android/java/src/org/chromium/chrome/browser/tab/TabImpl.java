@@ -42,7 +42,7 @@ import org.chromium.base.UserDataHost;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.Initializer;
@@ -167,11 +167,14 @@ class TabImpl implements Tab {
     /** Whether the tab is archived. */
     private final boolean mIsArchived;
 
+    // TODO(crbug.com/466371728): For debugging only. Remove after the bug is fixed.
+    private boolean mInitializedWithWindowAndroid;
+
     /** The Profile associated with this tab. */
     private final Profile mProfile;
 
     /** The tab model this tab is currently attached to. */
-    private @Nullable ObservableSupplier<@Nullable Tab> mCurrentTabSupplier;
+    private @Nullable NullableObservableSupplier<Tab> mCurrentTabSupplier;
 
     /** Whether or not this tab is a part of multi selection. */
     private @Nullable SelectionStateSupplier mSelectionStateSupplier;
@@ -1014,8 +1017,13 @@ class TabImpl implements Tab {
 
     @Override
     public boolean loadIfNeeded(@TabLoadIfNeededCaller int caller) {
-        if (getActivity() == null) {
-            Log.e(TAG, "Tab couldn't be loaded because Context was null.");
+        if (getActivity(/* withLogs= */ true) == null) {
+            Log.e(
+                    TAG,
+                    "Tab couldn't be loaded because Context was null. mIsArchived: "
+                            + mIsArchived
+                            + ", mInitializedWithWindowAndroid: "
+                            + mInitializedWithWindowAndroid);
             return false;
         }
 
@@ -1315,15 +1323,42 @@ class TabImpl implements Tab {
      * WARNING: This method is deprecated. Consider other ways such as passing the dependencies to
      * the constructor, rather than accessing ChromeActivity from Tab and using getters.
      *
+     * @param withLogs Whether to log the activity state.
+     * @return {@link ChromeActivity} that currently contains this {@link Tab} in its {@link
+     *     TabModel}.
+     */
+    @Deprecated
+    @Nullable ChromeActivity getActivity(boolean withLogs) {
+        if (getWindowAndroid() == null) {
+            if (withLogs) {
+                Log.e(TAG, "WindowAndroid is null when requesting activity.");
+            }
+            return null;
+        }
+        Activity activity = ContextUtils.activityFromContext(getWindowAndroid().getContext().get());
+        if (activity instanceof ChromeActivity chromeActivity) {
+            return chromeActivity;
+        }
+        if (withLogs) {
+            if (activity == null) {
+                Log.e(TAG, "Activity is null when requesting activity.");
+            } else {
+                Log.e(TAG, "Activity is not a ChromeActivity when requesting activity.");
+            }
+        }
+        return null;
+    }
+
+    /**
+     * WARNING: This method is deprecated. Consider other ways such as passing the dependencies to
+     * the constructor, rather than accessing ChromeActivity from Tab and using getters.
+     *
      * @return {@link ChromeActivity} that currently contains this {@link Tab} in its {@link
      *     TabModel}.
      */
     @Deprecated
     @Nullable ChromeActivity getActivity() {
-        if (getWindowAndroid() == null) return null;
-        Activity activity = ContextUtils.activityFromContext(getWindowAndroid().getContext().get());
-        if (activity instanceof ChromeActivity) return (ChromeActivity) activity;
-        return null;
+        return getActivity(/* withLogs= */ false);
     }
 
     /**
@@ -1437,8 +1472,9 @@ class TabImpl implements Tab {
             // models are not associated with BrowserWindowInterface so this shouldn't be an issue
             // for now. In future we should reconsider whether these tab models should even hold a
             // TabImpl vs some kind of light weight tab representation.
+            mInitializedWithWindowAndroid = mWindowAndroid != null;
             if (ChromeFeatureList.sLoadAllTabsAtStartup.isEnabled()
-                    && mWindowAndroid != null
+                    && mInitializedWithWindowAndroid
                     && !mIsArchived) {
                 if (mWebContentsState != null) {
                     assert webContents == null;
@@ -2858,7 +2894,7 @@ class TabImpl implements Tab {
 
     @Override
     public void onAddedToTabModel(
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             SelectionStateSupplier selectionStateSupplier) {
         // Tabs should not be attached to multiple tab models.
         assert mCurrentTabSupplier == null;
@@ -2868,7 +2904,7 @@ class TabImpl implements Tab {
     }
 
     @Override
-    public void onRemovedFromTabModel(ObservableSupplier<@Nullable Tab> currentTabSupplier) {
+    public void onRemovedFromTabModel(NullableObservableSupplier<Tab> currentTabSupplier) {
         // Usually mCurrentTabSupplier should equal currentTabSupplier when it's removed from the
         // TabModel. However, during reparenting it appears there are situations where the tab is
         // not removed from the original TabModel before being added to the new TabModel. In these

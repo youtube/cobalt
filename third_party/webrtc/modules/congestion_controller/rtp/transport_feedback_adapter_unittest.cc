@@ -667,30 +667,6 @@ TEST(TransportFeedbackAdapterCongestionFeedbackTest,
   ASSERT_THAT(adapted_feedback->packet_feedbacks, SizeIs(2));
 }
 
-TEST(TransportFeedbackAdapterTest, SmoothedRttIsInfiniteForTransportFeedback) {
-  // Smoothed RTT is not implemented for transport sequence number feedback.
-  TransportFeedbackAdapter adapter;
-  const Timestamp kFirstSendTime = Timestamp::Seconds(1234);
-
-  const PacketTemplate packet = {.transport_sequence_number = 1,
-                                 .rtp_sequence_number = 101,
-                                 .send_timestamp = kFirstSendTime,
-                                 .receive_timestamp = Timestamp::Millis(200)};
-  adapter.AddPacket(CreatePacketToSend(packet), packet.pacing_info,
-                    /*overhead=*/0u, packet.send_timestamp);
-
-  adapter.ProcessSentPacket(SentPacketInfo(packet.transport_sequence_number,
-                                           packet.send_timestamp.ms()));
-  rtcp::TransportFeedback rtcp_feedback =
-      BuildRtcpTransportFeedbackPacket(MakeArrayView(&packet, 1));
-  std::optional<TransportPacketsFeedback> adapted_feedback =
-      adapter.ProcessTransportFeedback(
-          rtcp_feedback,
-          /*feedback_receive_time=*/packet.send_timestamp +
-              TimeDelta::Millis(10));
-  EXPECT_TRUE(adapted_feedback->smoothed_rtt.IsInfinite());
-}
-
 TEST(TransportFeedbackAdapterCongestionFeedbackTest,
      CalculateSmoothedRttForConstantOneWayDelay) {
   TransportFeedbackAdapter adapter;
@@ -741,57 +717,7 @@ TEST(TransportFeedbackAdapterCongestionFeedbackTest,
             rtcp_feedback,
             /*feedback_receive_time=*/packets[i + 1].send_timestamp +
                 kExpectedRtt);
-    EXPECT_EQ(adapted_feedback->smoothed_rtt, kExpectedRtt);
   }
-}
-
-TEST(TransportFeedbackAdapterCongestionFeedbackTest,
-     SmoothedRttIncreaseIfOneWayDelayIncrease) {
-  TransportFeedbackAdapter adapter;
-  const Timestamp kFirstSendTime = Timestamp::Seconds(1234);
-
-  const PacketTemplate packets[] = {
-      {
-          .transport_sequence_number = 1,
-          .rtp_sequence_number = 101,
-          .send_timestamp = kFirstSendTime,
-          .receive_timestamp = Timestamp::Millis(200),
-      },
-      {
-          .transport_sequence_number = 2,
-          .rtp_sequence_number = 102,
-          .send_timestamp = kFirstSendTime + TimeDelta::Millis(10),
-          .receive_timestamp = Timestamp::Millis(210),
-      },
-  };
-
-  for (const PacketTemplate& packet : packets) {
-    adapter.AddPacket(CreatePacketToSend(packet), packet.pacing_info,
-                      /*overhead=*/0u, packet.send_timestamp);
-
-    adapter.ProcessSentPacket(SentPacketInfo(packet.transport_sequence_number,
-                                             packet.send_timestamp.ms()));
-  }
-
-  const TimeDelta kExpectedBaseRtt = TimeDelta::Millis(20);
-  rtcp::CongestionControlFeedback first_rtcp_feedback =
-      BuildRtcpCongestionControlFeedbackPacket(MakeArrayView(&packets[0], 1));
-  std::optional<TransportPacketsFeedback> first_adapted_feedback =
-      adapter.ProcessCongestionControlFeedback(
-          first_rtcp_feedback,
-          /*feedback_receive_time=*/packets[0].send_timestamp +
-              kExpectedBaseRtt);
-  EXPECT_EQ(first_adapted_feedback->smoothed_rtt, kExpectedBaseRtt);
-
-  rtcp::CongestionControlFeedback rtcp_feedback =
-      BuildRtcpCongestionControlFeedbackPacket(MakeArrayView(&packets[1], 1));
-  std::optional<TransportPacketsFeedback> adapted_feedback =
-      adapter.ProcessCongestionControlFeedback(
-          rtcp_feedback,
-          /*feedback_receive_time=*/packets[1].send_timestamp +
-              kExpectedBaseRtt + TimeDelta::Millis(10));
-  EXPECT_GT(adapted_feedback->smoothed_rtt,
-            first_adapted_feedback->smoothed_rtt);
 }
 
 TEST(TransportFeedbackAdapterCongestionFeedbackTest,

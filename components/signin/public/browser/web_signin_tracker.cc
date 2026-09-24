@@ -53,6 +53,7 @@ void WebSigninTracker::OnAccountsInCookieUpdated(
        accounts_in_cookie_jar_info.GetValidSignedInAccounts()) {
     if (MatchesRequestedAccount(account.id, account.email)) {
       FinishWithResult(Result::kSuccess);
+      return;
     }
   }
 }

@@ -198,7 +198,8 @@ bool ProcessPaintImage(
   // Gainmap and HDR tone-mapped images require shader tone mapping during
   // raster deserialization. Bypass in-process direct raster and fall back to
   // standard serialization.
-  if (paint_image.HasGainmapInfo() || paint_image.GetHDRMetadata().has_value() ||
+  if (paint_image.HasGainmapInfo() ||
+      !paint_image.GetHDRMetadata().IsEmpty() ||
       cc::ToneMapUtil::UseGlobalToneMapFilter(paint_image.color_space())) {
     return false;
   }

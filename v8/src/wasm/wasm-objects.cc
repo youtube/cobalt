@@ -192,7 +192,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     uint32_t initial, bool has_maximum, uint64_t maximum,
     DirectHandle<Object> initial_value, wasm::AddressType address_type,
     DirectHandle<WasmDispatchTable>* out_dispatch_table) {
-  CHECK(type.is_object_reference());
+  CHECK(type.is_ref());
 
   DCHECK_LE(initial, wasm::max_table_size());
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
@@ -509,7 +509,7 @@ void WasmTableObject::Fill(Isolate* isolate,
 
 bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
                              wasm::CanonicalValueType table_type) {
-  DCHECK(table_type.is_object_reference());
+  DCHECK(table_type.is_ref());
   DCHECK(!table_type.is_shared());  // This code will need updating.
   // When in-sandbox data is corrupted, we can't trust the statically
   // checked types; to prevent sandbox escapes, we have to verify actual
@@ -576,7 +576,7 @@ void WasmTableObject::UpdateDispatchTable(
     implicit_arg = new_import_data;
   }
 
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>> maybe_wrapper =
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> maybe_wrapper =
       target_instance_data->dispatch_table_for_imports()->MaybeGetWrapperHandle(
           func->func_index);
   if (maybe_wrapper) {
@@ -637,7 +637,7 @@ void WasmTableObject::UpdateDispatchTable(
       table->trusted_dispatch_table(isolate), isolate);
   SBXCHECK(FunctionSigMatchesTable(sig->index(), dispatch_table->table_type()));
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
       function_data->offheap_data()->wrapper_handle();
 
   DirectHandle<WasmImportData> import_data(
@@ -692,8 +692,8 @@ void WasmTableObject::UpdateDispatchTable(
   auto kind = wasm::ImportCallKind::kWasmToCapi;
   int param_count = static_cast<int>(sig->parameter_count());
 
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, kind, param_count, wasm::kNoSuspend, sig);
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+      cache->GetCompiled(isolate, {kind, sig, param_count, wasm::kNoSuspend});
 
   Tagged<WasmImportData> implicit_arg =
       TrustedCast<WasmImportData>(func_data->internal()->implicit_arg());
@@ -1453,7 +1453,7 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_is_mutable(is_mutable);
   }
 
-  if (type.is_reference()) {
+  if (type.is_ref()) {
     DCHECK(maybe_untagged_buffer.is_null());
     DirectHandle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
@@ -1521,7 +1521,7 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
 
 void ImportedFunctionEntry::SetWasmToWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
     wasm::Suspend suspend, const wasm::CanonicalSig* sig) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
@@ -2182,7 +2182,7 @@ void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
 
 uint8_t* WasmTrustedInstanceData::GetGlobalStorage(
     const wasm::WasmGlobal& global) {
-  DCHECK(!global.type.is_reference());
+  DCHECK(!global.type.is_ref());
   if (global.mutability && global.imported) {
     return reinterpret_cast<uint8_t*>(
         imported_mutable_globals()->get_sandboxed_pointer(global.index));
@@ -2194,7 +2194,7 @@ std::pair<Tagged<FixedArray>, uint32_t>
 WasmTrustedInstanceData::GetGlobalBufferAndIndex(
     const wasm::WasmGlobal& global) {
   DisallowGarbageCollection no_gc;
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   if (global.mutability && global.imported) {
     Tagged<FixedArray> buffer =
         Cast<FixedArray>(imported_mutable_globals_buffers()->get(global.index));
@@ -2208,7 +2208,7 @@ WasmTrustedInstanceData::GetGlobalBufferAndIndex(
 wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
     Isolate* isolate, const wasm::WasmGlobal& global) {
   DisallowGarbageCollection no_gc;
-  if (global.type.is_reference()) {
+  if (global.type.is_ref()) {
     Tagged<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) = GetGlobalBufferAndIndex(global);
@@ -2387,7 +2387,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
 
 void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
                                  WriteBarrierMode mode) {
-  DCHECK(map()->wasm_type_info()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_ref());
   TaggedField<Object>::store(*this, element_offset(index), *value);
   CONDITIONAL_WRITE_BARRIER(*this, element_offset(index), *value, mode);
 }
@@ -2444,7 +2444,7 @@ WasmCodePointer WasmDispatchTableData::WrapperCodePointerForDebugging(
 }
 #endif
 
-std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
 WasmDispatchTableData::MaybeGetWrapperHandle(int index) const {
   auto it = wrappers_.find(index);
   if (it == wrappers_.end()) {
@@ -2454,7 +2454,7 @@ WasmDispatchTableData::MaybeGetWrapperHandle(int index) const {
 }
 
 void WasmDispatchTableData::Add(
-    int index, std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
+    int index, std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
   auto [wrapper_cache, was_inserted] =
       wrappers_.emplace(index, std::move(wrapper_handle));
   USE(was_inserted);
@@ -2546,15 +2546,14 @@ void WasmDispatchTableForImports::SetForNonWrapper(
 }
 
 template <AnyWasmDispatchTable DispatchTable>
-void SetForWrapper(
-    Tagged<DispatchTable> dispatch_table, int index,
-    Tagged<WasmImportData> implicit_arg,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-    wasm::CanonicalTypeIndex sig_id,
+void SetForWrapper(Tagged<DispatchTable> dispatch_table, int index,
+                   Tagged<WasmImportData> implicit_arg,
+                   std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
+                   wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-    uint32_t function_index,
+                   uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
+                   WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
   SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
            !wrapper_handle->code()->is_dying());
@@ -2593,7 +2592,7 @@ void SetForWrapper(
 
 void WasmDispatchTable::SetForWrapper(
     int index, Tagged<WasmImportData> implicit_arg,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
     wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
@@ -2609,7 +2608,7 @@ void WasmDispatchTable::SetForWrapper(
 
 void WasmDispatchTableForImports::SetForWrapper(
     int index, Tagged<WasmImportData> implicit_arg,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
     wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
@@ -2655,12 +2654,12 @@ void WasmDispatchTableForImports::Clear(
                                                   new_or_existing);
 }
 
-std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
 WasmDispatchTable::MaybeGetWrapperHandle(int index) {
   return offheap_data()->MaybeGetWrapperHandle(index);
 }
 
-std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
 WasmDispatchTableForImports::MaybeGetWrapperHandle(int index) {
   return offheap_data()->MaybeGetWrapperHandle(index);
 }
@@ -3363,8 +3362,8 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   }
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->Get(isolate, kind, expected_arity, suspend, canonical_sig);
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+      cache->Get(isolate, {kind, canonical_sig, expected_arity, suspend});
 
   bool should_clear_call_origin = wrapper_handle->has_code();
 

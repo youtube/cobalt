@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "media/base/codec.h"
 
 namespace webrtc {
@@ -46,7 +47,7 @@ enum class RidDirection { kSend, kReceive };
 // See: https://w3c.github.io/webrtc-svc/ for more details.
 struct RidDescription final {
   RidDescription();
-  RidDescription(const std::string& rid, RidDirection direction);
+  RidDescription(absl::string_view rid, RidDirection direction);
   RidDescription(const RidDescription& other);
   ~RidDescription();
   RidDescription& operator=(const RidDescription& other);

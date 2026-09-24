@@ -1,6 +1,7 @@
 # This is supposed to be a complete list of top-level directories,
 # excepting only api/ itself.
 include_rules = [
+  "-agents",
   "-audio",
   "-base",
   "-build",

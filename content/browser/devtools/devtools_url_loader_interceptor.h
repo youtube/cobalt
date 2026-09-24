@@ -39,6 +39,7 @@ class HttpResponseHeaders;
 namespace network {
 namespace mojom {
 class URLLoaderFactoryOverride;
+class TrustedURLLoaderHeaderClient;
 }
 }  // namespace network
 
@@ -215,7 +216,9 @@ class DevToolsURLLoaderInterceptor {
       const base::UnguessableToken& frame_token,
       bool is_navigation,
       bool is_download,
-      network::mojom::URLLoaderFactoryOverride* intercepting_factory);
+      network::mojom::URLLoaderFactoryOverride* intercepting_factory,
+      mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+          header_client);
 
  private:
   friend class InterceptionJob;
@@ -251,9 +254,24 @@ class DevToolsURLLoaderInterceptor {
     return nullptr;
   }
 
-  void RemoveJob(const std::string& id) { jobs_.erase(id); }
-  void AddJob(const std::string& id, InterceptionJob* job) {
+  InterceptionJob* FindJobByRequestId(int32_t request_id) {
+    auto it = network_request_id_to_interception_id_.find(request_id);
+    if (it == network_request_id_to_interception_id_.end()) {
+      return nullptr;
+    }
+
+    auto job_it = jobs_.find(it->second);
+    CHECK(job_it != jobs_.end());
+    return job_it->second;
+  }
+
+  void RemoveJob(int32_t request_id, const std::string& id) {
+    network_request_id_to_interception_id_.erase(request_id);
+    jobs_.erase(id);
+  }
+  void AddJob(int32_t request_id, const std::string& id, InterceptionJob* job) {
     jobs_.emplace(id, job);
+    network_request_id_to_interception_id_.emplace(request_id, id);
   }
 
   const RequestInterceptedCallback request_intercepted_callback_;
@@ -261,6 +279,7 @@ class DevToolsURLLoaderInterceptor {
   std::vector<Pattern> patterns_;
   bool handle_auth_ = false;
   std::map<std::string, raw_ptr<InterceptionJob, CtnExperimental>> jobs_;
+  std::map<int32_t, std::string> network_request_id_to_interception_id_;
 
   base::WeakPtrFactory<DevToolsURLLoaderInterceptor> weak_factory_;
 };

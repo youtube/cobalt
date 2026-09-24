@@ -32,7 +32,7 @@ enum class ContextualSearchSource {
   kLens,
 };
 
-// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/histograms.xml:ContextualSearchSource)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/histograms.xml:ContextualSearchSource,//tools/metrics/actions/actions.xml)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -81,7 +81,7 @@ class ContextualSearchMetricsRecorder {
   // session state metrics. Virtual for testing.
   virtual void NotifySessionStateChanged(SessionState session_state);
 
-  void OnFileUploadStatusChanged(
+  virtual void OnFileUploadStatusChanged(
       lens::MimeType file_mime_type,
       FileUploadStatus file_upload_status,
       const std::optional<FileUploadErrorType>& error_type);

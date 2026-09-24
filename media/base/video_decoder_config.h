@@ -152,9 +152,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void set_hdr_metadata(const gfx::HDRMetadata& hdr_metadata) {
     hdr_metadata_ = hdr_metadata;
   }
-  const std::optional<gfx::HDRMetadata>& hdr_metadata() const {
-    return hdr_metadata_;
-  }
+  const gfx::HDRMetadata& hdr_metadata() const { return hdr_metadata_; }
 
   // Codec level.
   void set_level(VideoCodecLevel level) { level_ = level; }
@@ -194,7 +192,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   EncryptionScheme encryption_scheme_ = EncryptionScheme::kUnencrypted;
 
   VideoColorSpace color_space_info_;
-  std::optional<gfx::HDRMetadata> hdr_metadata_;
+  gfx::HDRMetadata hdr_metadata_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Full mime string for the video decoder config.

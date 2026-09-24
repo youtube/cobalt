@@ -280,9 +280,11 @@ private:
                                              std::string_view returnFieldName,
                                              std::string_view outFieldName,
                                              const FunctionCall& call);
-    std::string assemblePartialSampleCall(std::string_view intrinsicName,
-                                          const Expression& sampler,
-                                          const Expression& coords);
+    // Returns the beginning of the expression and the closing parentheses string to append once
+    // any additional arguments are added.
+    std::pair<std::string, const char*> assemblePartialSampleCall(std::string_view intrinsicName,
+                                                                  const Expression& sampler,
+                                                                  const Expression& coords);
     std::string assembleInversePolyfill(const FunctionCall& call);
     std::string assembleComponentwiseMatrixBinary(const Type& leftType,
                                                   const Type& rightType,
@@ -2578,6 +2580,7 @@ bool WGSLCodeGenerator::binaryOpNeedsComponentwiseMatrixPolyfill(const Type& lef
                                                                  Operator op) {
     switch (op.kind()) {
         case OperatorKind::SLASH:
+        case OperatorKind::SLASHEQ:
             // WGSL does not natively support componentwise matrix-op-matrix for division.
             if (left.isMatrix() && right.isMatrix()) {
                 return true;
@@ -2585,7 +2588,9 @@ bool WGSLCodeGenerator::binaryOpNeedsComponentwiseMatrixPolyfill(const Type& lef
             [[fallthrough]];
 
         case OperatorKind::PLUS:
+        case OperatorKind::PLUSEQ:
         case OperatorKind::MINUS:
+        case OperatorKind::MINUSEQ:
             // WGSL does not natively support componentwise matrix-op-scalar or scalar-op-matrix for
             // addition, subtraction or division.
             return (left.isMatrix() && right.isScalar()) ||
@@ -2702,6 +2707,9 @@ std::string WGSLCodeGenerator::assembleBinaryExpression(const Expression& left,
     }
 
     // Handle assignment-expressions.
+    const bool compMatrixOp =
+            this->binaryOpNeedsComponentwiseMatrixPolyfill(left.type(), right.type(), op);
+
     if (op.isAssignment()) {
         std::unique_ptr<LValue> lvalue = this->makeLValue(left);
         if (!lvalue) {
@@ -2718,7 +2726,7 @@ std::string WGSLCodeGenerator::assembleBinaryExpression(const Expression& left,
             std::string lhs = lvalue->load();
             std::string rhs = this->assembleExpression(right, op.getBinaryPrecedence());
 
-            if (this->binaryOpNeedsComponentwiseMatrixPolyfill(left.type(), right.type(), op)) {
+            if (compMatrixOp) {
                 if (is_nontrivial_expression(right)) {
                     rhs = this->writeScratchLet(rhs);
                 }
@@ -2762,7 +2770,7 @@ std::string WGSLCodeGenerator::assembleBinaryExpression(const Expression& left,
     std::string lhs = this->assembleExpression(left, precedence);
     std::string rhs = this->assembleExpression(right, precedence);
 
-    if (this->binaryOpNeedsComponentwiseMatrixPolyfill(left.type(), right.type(), op)) {
+    if (compMatrixOp) {
         if (bothSidesConstant || is_nontrivial_expression(left)) {
             lhs = this->writeScratchLet(lhs);
         }
@@ -2875,13 +2883,7 @@ std::string WGSLCodeGenerator::assembleSimpleIntrinsic(std::string_view intrinsi
     }
     expr.push_back(')');
 
-    if (call.type().isVoid()) {
-        this->write(expr);
-        this->writeLine(";");
-        return std::string();
-    } else {
-        return this->writeScratchLet(expr);
-    }
+    return expr;
 }
 
 std::string WGSLCodeGenerator::assembleVectorizedIntrinsic(std::string_view intrinsicName,
@@ -2915,7 +2917,7 @@ std::string WGSLCodeGenerator::assembleVectorizedIntrinsic(std::string_view intr
     }
     expr.push_back(')');
 
-    return this->writeScratchLet(expr);
+    return expr;
 }
 
 std::string WGSLCodeGenerator::assembleUnaryOpIntrinsic(Operator op,
@@ -3006,20 +3008,28 @@ std::string WGSLCodeGenerator::assembleOutAssignedIntrinsic(std::string_view int
     return expr;
 }
 
-std::string WGSLCodeGenerator::assemblePartialSampleCall(std::string_view functionName,
-                                                         const Expression& sampler,
-                                                         const Expression& coords) {
+std::pair<std::string, const char*> WGSLCodeGenerator::assemblePartialSampleCall(
+        std::string_view functionName,
+        const Expression& sampler,
+        const Expression& coords) {
     // This function returns `functionName(inSampler_texture, inSampler_sampler, coords` without a
     // terminating comma or close-parenthesis. This allows the caller to add more arguments as
     // needed.
-    SkASSERT(sampler.type().typeKind() == Type::TypeKind::kSampler);
     std::string expr = std::string(functionName) + '(';
-    expr += this->assembleExpression(sampler, Precedence::kSequence);
-    expr += kTextureSuffix;
-    expr += ", ";
-    expr += this->assembleExpression(sampler, Precedence::kSequence);
-    expr += kSamplerSuffix;
-    expr += ", ";
+    if (sampler.type().typeKind() == Type::TypeKind::kSampler) {
+        // Split combined texture+sampler into two args with suffixes.
+        expr += this->assembleExpression(sampler, Precedence::kSequence);
+        expr += kTextureSuffix;
+        expr += ", ";
+        expr += this->assembleExpression(sampler, Precedence::kSequence);
+        expr += kSamplerSuffix;
+        expr += ", ";
+    } else {
+        SkASSERT(sampler.type().typeKind() == Type::TypeKind::kTexture);
+        // Pass through the texture expression without any extra suffix
+        expr += this->assembleExpression(sampler, Precedence::kSequence);
+        expr += ", ";
+    }
 
     // Compute the sample coordinates, dividing out the Z if a vec3 was provided.
     SkASSERT(coords.type().isVector());
@@ -3033,7 +3043,7 @@ std::string WGSLCodeGenerator::assemblePartialSampleCall(std::string_view functi
         expr += this->assembleExpression(coords, Precedence::kSequence);
     }
 
-    return expr;
+    return {expr, ")"};
 }
 
 std::string WGSLCodeGenerator::assembleComponentwiseMatrixBinary(const Type& leftType,
@@ -3103,14 +3113,13 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                 // select(-N, N, (I * Nref) < 0)
                 std::string N = this->writeNontrivialScratchLet(*arguments[0],
                                                                 Precedence::kAssignment);
-                return this->writeScratchLet(
-                        "select(-" + N + ", " + N + ", " +
-                        this->assembleBinaryExpression(*arguments[1],
-                                                       OperatorKind::STAR,
-                                                       *arguments[2],
-                                                       arguments[1]->type(),
-                                                       Precedence::kRelational) +
-                        " < 0)");
+                return "select(-" + N + ", " + N + ", " +
+                       this->assembleBinaryExpression(*arguments[1],
+                                                      OperatorKind::STAR,
+                                                      *arguments[2],
+                                                      arguments[1]->type(),
+                                                      Precedence::kRelational) +
+                       " < 0)";
             }
             return this->assembleSimpleIntrinsic("faceForward", call);
         }
@@ -3143,12 +3152,11 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                             ? this->writeScratchLet(*arguments[0], Precedence::kPostfix)
                             : this->writeNontrivialScratchLet(*arguments[0], Precedence::kPostfix);
             std::string arg1 = this->writeNontrivialScratchLet(*arguments[1], Precedence::kPostfix);
-            return this->writeScratchLet(
-                    this->assembleComponentwiseMatrixBinary(arguments[0]->type(),
-                                                            arguments[1]->type(),
-                                                            arg0,
-                                                            arg1,
-                                                            OperatorKind::STAR));
+            return this->assembleComponentwiseMatrixBinary(arguments[0]->type(),
+                                                           arguments[1]->type(),
+                                                           arg0,
+                                                           arg1,
+                                                           OperatorKind::STAR);
         }
         case k_mix_IntrinsicKind: {
             const char* name = arguments[2]->type().componentType().isBoolean() ? "select" : "mix";
@@ -3163,8 +3171,7 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                             : this->writeNontrivialScratchLet(*arguments[0], Precedence::kAdditive);
             std::string arg1 = this->writeNontrivialScratchLet(*arguments[1],
                                                                Precedence::kAdditive);
-            return this->writeScratchLet(arg0 + " - " + arg1 + " * floor(" +
-                                         arg0 + " / " + arg1 + ")");
+            return "(" + arg0 + " - " + arg1 + " * floor(" + arg0 + " / " + arg1 + "))";
         }
 
         case k_modf_IntrinsicKind:
@@ -3206,9 +3213,9 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                 std::string N = all_arguments_constant(arguments)
                       ? this->writeScratchLet(*arguments[1], Precedence::kMultiplicative)
                       : this->writeNontrivialScratchLet(*arguments[1], Precedence::kMultiplicative);
-                return this->writeScratchLet(String::printf("%s - 2 * %s * %s * %s",
-                                                            I.c_str(), N.c_str(),
-                                                            I.c_str(), N.c_str()));
+                return String::printf("(%s - 2 * %s * %s * %s)",
+                                      I.c_str(), N.c_str(),
+                                      I.c_str(), N.c_str());
             }
             return this->assembleSimpleIntrinsic("reflect", call);
 
@@ -3224,13 +3231,12 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                 std::string Eta = all_arguments_constant(arguments)
                       ? this->writeScratchLet(*arguments[2], Precedence::kSequence)
                       : this->writeNontrivialScratchLet(*arguments[2], Precedence::kSequence);
-                return this->writeScratchLet(
-                        String::printf("refract(vec2<%s>(%s, 0), vec2<%s>(%s, 0), %s).x",
-                                       to_wgsl_type(fContext, arguments[0]->type()).c_str(),
-                                       I.c_str(),
-                                       to_wgsl_type(fContext, arguments[1]->type()).c_str(),
-                                       N.c_str(),
-                                       Eta.c_str()));
+                return String::printf("refract(vec2<%s>(%s, 0), vec2<%s>(%s, 0), %s).x",
+                                      to_wgsl_type(fContext, arguments[0]->type()).c_str(),
+                                      I.c_str(),
+                                      to_wgsl_type(fContext, arguments[1]->type()).c_str(),
+                                      N.c_str(),
+                                      Eta.c_str());
             }
             return this->assembleSimpleIntrinsic("refract", call);
 
@@ -3238,12 +3244,13 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
             // Determine if a bias argument was passed in.
             SkASSERT(arguments.size() == 2 || arguments.size() == 3);
             bool callIncludesBias = (arguments.size() == 3);
-
+            std::string expr;
+            const char* close;
             if (fProgram.fConfig->fSettings.fSharpenTextures || callIncludesBias) {
                 // We need to supply a bias argument; this is a separate intrinsic in WGSL.
-                std::string expr = this->assemblePartialSampleCall("textureSampleBias",
-                                                                   *arguments[0],
-                                                                   *arguments[1]);
+                std::tie(expr, close) = this->assemblePartialSampleCall("textureSampleBias",
+                                                                        *arguments[0],
+                                                                        *arguments[1]);
                 expr += ", ";
                 if (callIncludesBias) {
                     expr += this->assembleExpression(*arguments[2], Precedence::kAdditive) +
@@ -3252,28 +3259,32 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
                 expr += skstd::to_string(fProgram.fConfig->fSettings.fSharpenTextures
                                                  ? kSharpenTexturesBias
                                                  : 0.0f);
-                return expr + ')';
+            } else {
+                // No bias is necessary, so we can call `textureSample` directly.
+                std::tie(expr, close) = this->assemblePartialSampleCall("textureSample",
+                                                                        *arguments[0],
+                                                                        *arguments[1]);
+
             }
 
-            // No bias is necessary, so we can call `textureSample` directly.
-            return this->assemblePartialSampleCall("textureSample",
-                                                   *arguments[0],
-                                                   *arguments[1]) + ')';
+            return expr + close;
         }
         case k_sampleLod_IntrinsicKind: {
-            std::string expr = this->assemblePartialSampleCall("textureSampleLevel",
-                                                               *arguments[0],
-                                                               *arguments[1]);
+            auto [expr, close] = this->assemblePartialSampleCall("textureSampleLevel",
+                                                                 *arguments[0],
+                                                                 *arguments[1]);
             expr += ", " + this->assembleExpression(*arguments[2], Precedence::kSequence);
-            return expr + ')';
+
+            return expr + close;
         }
         case k_sampleGrad_IntrinsicKind: {
-            std::string expr = this->assemblePartialSampleCall("textureSampleGrad",
-                                                               *arguments[0],
-                                                               *arguments[1]);
+            auto [expr, close] = this->assemblePartialSampleCall("textureSampleGrad",
+                                                                 *arguments[0],
+                                                                 *arguments[1]);
+
             expr += ", " + this->assembleExpression(*arguments[2], Precedence::kSequence);
             expr += ", " + this->assembleExpression(*arguments[3], Precedence::kSequence);
-            return expr + ')';
+            return expr + close;
         }
         case k_textureHeight_IntrinsicKind:
             return this->assembleSimpleIntrinsic("textureDimensions", call) + ".y";
@@ -3281,9 +3292,11 @@ std::string WGSLCodeGenerator::assembleIntrinsicCall(const FunctionCall& call,
         case k_textureRead_IntrinsicKind: {
             // We need to inject an extra argument for the mip-level. We don't plan on using mipmaps
             // in our storage textures, so we can just pass zero.
-            std::string tex = this->assembleExpression(*arguments[0], Precedence::kSequence);
-            std::string pos = this->writeScratchLet(*arguments[1], Precedence::kSequence);
-            return std::string("textureLoad(") + tex + ", " + pos + ", 0)";
+            auto [expr, close] = this->assemblePartialSampleCall("textureLoad",
+                                                                 *arguments[0],
+                                                                 *arguments[1]);
+            expr += ", 0";
+            return expr + close;
         }
         case k_textureWidth_IntrinsicKind:
             return this->assembleSimpleIntrinsic("textureDimensions", call) + ".x";
@@ -3450,9 +3463,28 @@ std::string WGSLCodeGenerator::assembleFunctionCall(const FunctionCall& call,
     const FunctionDeclaration& func = call.function();
     std::string result;
 
+    // Helper for wrapping user and intrinsic function calls that might have side effects.
+    auto emitCall = [&](const std::string& expr, bool forceLet=false) {
+        if (call.type().isVoid() || parentPrecedence >= Precedence::kStatement) {
+            // If this is true, the assembled expression won't be used directly by the caller, so we
+            // need to write it out as its own statement to preserve any side effects.
+            SkASSERT(parentPrecedence >= Precedence::kSequence);
+            this->write(expr);
+            this->writeLine(";");
+            return std::string(); // Will be unused
+        } else if (forceLet) {
+            // The function call is used by the caller, but we need to write the actual call *now*
+            // before additional statements.
+            return this->writeScratchLet(expr);
+        } else {
+            // Can inline the call's expression into the caller's expression
+            return expr;
+        }
+    };
+
     // Many intrinsics need to be rewritten in WGSL.
     if (func.isIntrinsic()) {
-        return this->assembleIntrinsicCall(call, func.intrinsicKind(), parentPrecedence);
+        return emitCall(this->assembleIntrinsicCall(call, func.intrinsicKind(), parentPrecedence));
     }
 
     // We implement function out-parameters by declaring them as pointers. SkSL follows GLSL's
@@ -3477,6 +3509,7 @@ std::string WGSLCodeGenerator::assembleFunctionCall(const FunctionCall& call,
     writeback.reserve_exact(args.size());
     substituteArgument.reserve_exact(args.size());
 
+    bool needsWriteback = false;
     for (int index = 0; index < args.size(); ++index) {
         if (params[index]->modifierFlags() & ModifierFlag::kOut) {
             std::unique_ptr<LValue> lvalue = this->makeLValue(*args[index]);
@@ -3489,6 +3522,7 @@ std::string WGSLCodeGenerator::assembleFunctionCall(const FunctionCall& call,
                 substituteArgument.push_back(this->writeScratchVar(args[index]->type()));
             }
             writeback.push_back(std::move(lvalue));
+            needsWriteback = true;
         } else {
             substituteArgument.push_back(std::string());
             writeback.push_back(nullptr);
@@ -3538,21 +3572,15 @@ std::string WGSLCodeGenerator::assembleFunctionCall(const FunctionCall& call,
     }
     expr += ')';
 
-    if (call.type().isVoid()) {
-        // Making function calls that result in `void` is only valid in on the left side of a
-        // comma-sequence, or in a top-level statement. Emit the function call as a top-level
-        // statement and return an empty string, as the result will not be used.
-        SkASSERT(parentPrecedence >= Precedence::kSequence);
-        this->write(expr);
-        this->writeLine(";");
-    } else {
-        result = this->writeScratchLet(expr);
-    }
+    // If we have to write substitutions after the function call, we have to force the function call
+    // into a scratch let so that variable can be returned as the expression.
+    result = emitCall(expr, /*forceLet=*/needsWriteback);
 
-    // Write the substitute arguments back into their lvalues.
-    for (int index = 0; index < args.size(); ++index) {
-        if (!substituteArgument[index].empty()) {
-            this->writeLine(writeback[index]->store(substituteArgument[index]));
+    if (needsWriteback) {
+        for (int index = 0; index < args.size(); ++index) {
+            if (!substituteArgument[index].empty()) {
+                this->writeLine(writeback[index]->store(substituteArgument[index]));
+            }
         }
     }
 

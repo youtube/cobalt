@@ -11,6 +11,7 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkSpan.h"
+#include "include/gpu/graphite/GraphiteTypes.h"
 #include "include/private/base/SkAPI.h"
 #include "include/private/base/SkMath.h"
 
@@ -45,11 +46,12 @@ struct SK_API ContextOptions {
 
     /**
      * Specifies the number of samples Graphite should use when performing internal draws with MSAA
-     * (hardware capabilities permitting).
+     * (hardware capabilities permitting). This represents the maximum that will be used; if a
+     * a specific format supports only lower values, those may be used instead.
      *
      * If <= 1, Graphite will disable internal code paths that use multisampling.
      */
-    uint8_t fInternalMultisampleCount = 4;
+    SampleCount fInternalMultisampleCount = SampleCount::k4;
 
     /**
      * If set, this specifies the max width/height of MSAA textures that Graphite should use for

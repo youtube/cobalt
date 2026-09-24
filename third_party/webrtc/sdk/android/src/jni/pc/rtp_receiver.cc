@@ -111,7 +111,7 @@ static jni_zero::ScopedJavaLocalRef<jstring> JNI_RtpReceiver_GetId(
 static jlong JNI_RtpReceiver_SetObserver(
     JNIEnv* jni,
     jlong j_rtp_receiver_pointer,
-    const jni_zero::JavaParamRef<jobject>& j_observer) {
+    const jni_zero::JavaRef<jobject>& j_observer) {
   RtpReceiverObserverJni* rtpReceiverObserver =
       new RtpReceiverObserverJni(jni, j_observer);
   reinterpret_cast<RtpReceiverInterface*>(j_rtp_receiver_pointer)

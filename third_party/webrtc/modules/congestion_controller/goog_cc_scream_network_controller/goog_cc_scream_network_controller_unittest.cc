@@ -18,7 +18,6 @@
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
-#include "api/units/time_delta.h"
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
 #include "test/create_test_environment.h"
 #include "test/gtest.h"
@@ -60,7 +59,6 @@ TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAfterCe) {
   // Send a feedback with ECN CE.
   TransportPacketsFeedback feedback;
   feedback.feedback_time = env.clock().CurrentTime();
-  feedback.smoothed_rtt = TimeDelta::Millis(10);
   PacketResult packet_result;
   packet_result.sent_packet.send_time = env.clock().CurrentTime();
   packet_result.sent_packet.sequence_number = 1;
@@ -84,7 +82,6 @@ TEST(GoogCcScreamNetworkControllerTest, CreateWithGoogCcWithEct1) {
   // Send a feedback with ECN CE.
   TransportPacketsFeedback feedback;
   feedback.feedback_time = env.clock().CurrentTime();
-  feedback.smoothed_rtt = TimeDelta::Millis(10);
   PacketResult packet_result;
   packet_result.sent_packet.send_time = env.clock().CurrentTime();
   packet_result.sent_packet.sequence_number = 1;

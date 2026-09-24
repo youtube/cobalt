@@ -16,16 +16,18 @@
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
+#include "components/web_modal/web_contents_modal_dialog_host.h"
+#include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/snapshot/snapshot.h"
+#include "ui/views/widget/widget_observer.h"
 
+class SkRegion;
 namespace tabs {
 class TabInterface;
-}
-
-#include "ui/views/widget/widget_observer.h"
+}  // namespace tabs
 
 namespace glic {
 
@@ -33,9 +35,11 @@ class GlicView;
 class GlicInstanceMetrics;
 
 // Implementation of GlicUiEmbedder for side panel UIs.
-class GlicSidePanelUi : public GlicUiEmbedder,
-                        public Host::EmbedderDelegate,
-                        public LocalHotkeyManager::Panel {
+class GlicSidePanelUi
+    : public GlicUiEmbedder,
+      public Host::EmbedderDelegate,
+      public LocalHotkeyManager::Panel,
+      public web_modal::WebContentsModalDialogManagerDelegate {
  public:
   GlicSidePanelUi(Profile* profile,
                   base::WeakPtr<tabs::TabInterface> tab,
@@ -60,6 +64,7 @@ class GlicSidePanelUi : public GlicUiEmbedder,
               base::OnceClosure callback) override;
   void SetDraggableAreas(
       const std::vector<gfx::Rect>& draggable_areas) override;
+  void SetDraggableRegion(const SkRegion& draggable_region) override;
   void EnableDragResize(bool enabled) override;
   void Attach() override;
   void Detach() override;
@@ -83,6 +88,10 @@ class GlicSidePanelUi : public GlicUiEmbedder,
   bool ActivateBrowser() override;
   void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
   base::WeakPtr<views::View> GetView() override;
+
+  // web_modal::WebContentsModalDialogManagerDelegate:
+  web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost(
+      content::WebContents* web_contents) override;
 
  private:
   void OnBrowserWindowActivated(BrowserWindowInterface* bwi);

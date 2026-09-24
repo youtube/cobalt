@@ -191,7 +191,9 @@ class ExceptionHandlerInfo;
   V(SetPrototypeHas)                \
   V(StringSlice)
 
-#define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
+#define TURBOLEV_NON_VALUE_NODE_LIST(V) \
+  V(TransitionAndStoreArrayElement)     \
+  V(TurbofanStaticAssert)
 
 #define CONVERSION_NODE_LIST(V)        \
   V(ChangeInt32ToFloat64)              \
@@ -408,7 +410,7 @@ class ExceptionHandlerInfo;
   V(CheckCacheIndicesNotCleared)              \
   V(CheckJSDataViewBounds)                    \
   V(CheckTypedArrayBounds)                    \
-  V(CheckTypedArrayNotDetached)               \
+  V(CheckTypedArrayValid)                     \
   V(CheckMaps)                                \
   V(CheckMapsWithMigrationAndDeopt)           \
   V(CheckMapsWithMigration)                   \
@@ -459,7 +461,6 @@ class ExceptionHandlerInfo;
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
   V(ReduceInterruptBudgetForReturn)           \
-  V(DeoptIfHole)                              \
   V(ThrowReferenceErrorIfHole)                \
   V(ThrowSuperNotCalledIfHole)                \
   V(ThrowSuperAlreadyCalledIfNotHole)         \
@@ -712,6 +713,10 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
   switch (opcode) {
     case Opcode::kInitialValue:
     case Opcode::kCallRuntime:
+    // TODO(victorgomes): Should we have a list of builtins that could
+    // return the hole?
+    case Opcode::kCallBuiltin:
+    case Opcode::kGeneratorRestoreRegister:
     case Opcode::kRootConstant:
     case Opcode::kLoadContextSlot:
     case Opcode::kLoadContextSlotNoCells:
@@ -3413,6 +3418,8 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
 
   explicit Identity(uint64_t bitfield) : Base(bitfield) {}
 
+  Range range() const { return input_node(0)->GetStaticRange(); }
+
   void VerifyInputs() const {
     // Identity is valid for all input types.
   }
@@ -4166,6 +4173,7 @@ class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
   static constexpr OpProperties kProperties = OpProperties::IntPtr();
 
   intptr_t value() const { return value_; }
+  Range range() const { return Range(value_); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
 
@@ -4419,6 +4427,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
     NodeType type() { return NodeType::k##node_type; }                 \
     __VA_ARGS__                                                        \
                                                                        \
+    Range range() const { return input_node(0)->GetStaticRange(); }    \
     int MaxCallStackArgs() const { return 0; }                         \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
@@ -4446,6 +4455,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
       return ConversionModeBitField::decode(bitfield());               \
     }                                                                  \
                                                                        \
+    Range range() const { return input_node(0)->GetStaticRange(); }    \
     int MaxCallStackArgs() const { return 0; }                         \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
@@ -5407,6 +5417,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
   Tagged<Smi> value() const { return value_; }
   NodeType type() const { return NodeType::kSmi; }
+  Range range() const { return Range(value_.value()); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
     return value_ != Smi::FromInt(0);
@@ -7499,16 +7510,25 @@ class LoadDataViewDataPointer
   auto options() const { return std::tuple{}; }
 };
 
-class CheckTypedArrayNotDetached
-    : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
+class CheckTypedArrayValid : public FixedInputNodeT<1, CheckTypedArrayValid> {
  public:
-  explicit CheckTypedArrayNotDetached(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckTypedArrayValid(uint64_t bitfield, TypedArrayAccessMode mode)
+      : Base(bitfield | AccessModeField::encode(mode)) {}
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::CanRead();
   DECLARE_UNOP(Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{access_mode()}; }
+
+  TypedArrayAccessMode access_mode() const {
+    return AccessModeField::decode(bitfield());
+  }
+
+ private:
+  using AccessModeField = NextBitField<TypedArrayAccessMode, 1>;
 };
 
 class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
@@ -7626,6 +7646,17 @@ class Throw : public FixedInputNodeT<1, Throw> {
   using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
 
   using HasInputBitField = FunctionBitField::Next<bool, 1>;
+};
+
+class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
+ public:
+  explicit TurbofanStaticAssert(uint64_t bitfield) : Base(bitfield) {}
+
+  DECLARE_INPUTS(Check)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class MajorGCForCompilerTesting
@@ -7968,7 +7999,7 @@ class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
 };
 
 class TransitionAndStoreArrayElement
-    : public FixedInputValueNodeT<3, TransitionAndStoreArrayElement> {
+    : public FixedInputNodeT<3, TransitionAndStoreArrayElement> {
  public:
   explicit TransitionAndStoreArrayElement(uint64_t bitfield,
                                           const compiler::MapRef& fast_map,
@@ -9484,6 +9515,8 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   DECLARE_INPUTS(String)
   DECLARE_INPUT_TYPES(Tagged)
 
+  Range range() const { return Range(0, String::kMaxLength); }
+
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10245,6 +10278,7 @@ class ReturnedValue : public ValueNodeT<ReturnedValue> {
   explicit ReturnedValue(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::DeferredCall();
+  Range range() const { return input_node(0)->GetStaticRange(); }
   void VerifyInputs() const {
     // It doesn't make sense if the input is already tagged. Otherwise it can be
     // anything.
@@ -10545,17 +10579,6 @@ class ReduceInterruptBudgetForReturn
 
  private:
   const int amount_;
-};
-
-class DeoptIfHole : public FixedInputNodeT<1, DeoptIfHole> {
- public:
-  explicit DeoptIfHole(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  DECLARE_UNOP(Tagged)
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class ThrowReferenceErrorIfHole

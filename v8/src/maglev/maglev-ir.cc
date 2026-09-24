@@ -622,10 +622,13 @@ Tribool ValueNode::IsTheHole() const {
     return ToTribool(cst->index() == RootIndex::kTheHoleValue);
   }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
-    return ToTribool(load->load_type() == LoadType::kUnknown);
+    if (load->load_type() != LoadType::kUnknown) {
+      return Tribool::kFalse;
+    }
+    return Tribool::kMaybe;
   }
   if (const Phi* phi = TryCast<Phi>()) {
-    if (!phi->is_loop_phi() || !phi->is_unmerged_loop_phi()) {
+    if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
       bool can_be_the_hole = false;
       for (ConstInput input : phi->inputs()) {
         if (input.node()->IsTheHole() != Tribool::kFalse) {
@@ -5878,19 +5881,6 @@ void Float64ToString::GenerateCode(MaglevAssembler* masm,
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
-void DeoptIfHole::SetValueLocationConstraints() {
-  // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
-  // support constant inputs (which UseAny allows). Constants should have been
-  // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
-  DCHECK(!IsConstantNode(ValueInput().node()->opcode()));
-  UseAny(ValueInput());
-}
-void DeoptIfHole::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  __ EmitEagerDeoptIf(__ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-                      DeoptimizeReason::kHole, this);
-}
-
 int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
 void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
@@ -7129,17 +7119,17 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
   __ bind(*done);
 }
 
-void CheckTypedArrayNotDetached::SetValueLocationConstraints() {
+void CheckTypedArrayValid::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   set_temporaries_needed(1);
 }
 
-void CheckTypedArrayNotDetached::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
+void CheckTypedArrayValid::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(ValueInput());
   Register scratch = temps.Acquire();
-  __ DeoptIfBufferDetached(object, scratch, this);
+  __ DeoptIfBufferNotValid(object, scratch, access_mode(), this);
 }
 
 void GetContinuationPreservedEmbedderData::SetValueLocationConstraints() {

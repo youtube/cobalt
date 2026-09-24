@@ -61,6 +61,7 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
     TabIterator(base::PassKey<TabCollection>,
                 const tabs::TabCollection* root,
                 bool is_end = false);
+    explicit TabIterator(TabInterface* tab);
     TabIterator(const TabIterator& iterator);
     ~TabIterator();
 
@@ -122,7 +123,9 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   // - UNPINNED:  A container for unpinned tabs.
   // - GROUP:     A container to grouped tabs.
   // - SPLIT:     A container for split tabs.
+  // LINT.IfChange(TYPE)
   enum class Type { TABSTRIP, PINNED, UNPINNED, GROUP, SPLIT };
+  // LINT.ThenChange(chrome/browser/ui/views/tabs/vertical/tab_collection_node.h:TYPE)
 
   ~TabCollection() override;
   TabCollection(const TabCollection&) = delete;
@@ -223,6 +226,7 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   // should not try to call this internally and set its parent.
   void OnReparented(TabCollection* new_parent);
 
+  const ChildrenVector& GetChildren() const { return impl_->GetChildren(); }
   const ChildrenVector& GetChildren(
       base::PassKey<tabs_api::MojoTreeBuilder> pass_key) const {
     return GetChildren();
@@ -288,8 +292,6 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   base::PassKey<TabCollection> GetPassKey() const {
     return base::PassKey<TabCollection>();
   }
-
-  const ChildrenVector& GetChildren() const { return impl_->GetChildren(); }
 
   // Total number of tabs in the collection.
   size_t recursive_tab_count_ = 0;

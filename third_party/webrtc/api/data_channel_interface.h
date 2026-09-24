@@ -196,8 +196,8 @@ class RTC_EXPORT DataChannelInterface : public RefCountInterface {
   // Sends `data` to the remote peer. If the data can't be sent at the SCTP
   // level (due to congestion control), it's buffered at the data channel level,
   // up to a maximum of MaxSendQueueSize().
-  // Returns false if the data channel is not in open state or if the send
-  // buffer is full.
+  // Returns false if the data channel is not in open state or if the message is
+  // not sent due to other errors (e.g. full buffer, oversized message)
   // TODO(webrtc:13289): Return an RTCError with information about the failure.
   // TODO(tommi): Remove this method once downstream implementations don't refer
   // to it.

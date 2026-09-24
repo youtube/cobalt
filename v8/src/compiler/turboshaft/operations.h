@@ -352,11 +352,14 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
 // MachineLoweringPhase.
-#define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
-  V(Allocate)                              \
-  V(MajorGCForCompilerTesting)             \
-  V(DecodeExternalPointer)                 \
-  V(JSStackCheck)
+#define TURBOSHAFT_OTHER_OPERATION_LIST(V)                                     \
+  V(Allocate)                                                                  \
+  V(MajorGCForCompilerTesting)                                                 \
+  V(DecodeExternalPointer)                                                     \
+  V(JSStackCheck)                                                              \
+  /* TODO(mliedtke): Align DecodeExternalPointer to only emit it when building \
+   * with sandbox support and rename it to LoadExternalPointer. */             \
+  IF_SANDBOX(V, LoadTrustedPointerField)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -2538,7 +2541,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind assumption);
 
 struct SelectOp : FixedArityOperationT<3, SelectOp> {
-  enum class Implementation : uint8_t { kBranch, kCMove };
+  enum class Implementation : uint8_t { kAny, kForceBranch, kForceCMove };
 
   RegisterRepresentation rep;
   BranchHint hint;
@@ -2559,15 +2562,32 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
       : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK_IMPLIES(implem == Implementation::kCMove,
-                   (rep == RegisterRepresentation::Word32() &&
-                    SupportedOperations::word32_select()) ||
-                       (rep == RegisterRepresentation::Word64() &&
-                        SupportedOperations::word64_select()) ||
-                       (rep == RegisterRepresentation::Float32() &&
-                        SupportedOperations::float32_select()) ||
-                       (rep == RegisterRepresentation::Float64() &&
-                        SupportedOperations::float64_select()));
+#ifdef DEBUG
+    if (implem == Implementation::kForceCMove) {
+      switch (rep.value()) {
+        case RegisterRepresentation::Enum::kWord32:
+          DCHECK(SupportedOperations::word32_select());
+          break;
+        case RegisterRepresentation::Enum::kWord64:
+          DCHECK(SupportedOperations::word64_select());
+          break;
+        case RegisterRepresentation::Enum::kFloat32:
+          DCHECK(SupportedOperations::float32_select());
+          break;
+        case RegisterRepresentation::Enum::kFloat64:
+          DCHECK(SupportedOperations::float64_select());
+          break;
+
+        case RegisterRepresentation::Enum::kCompressed:
+        case RegisterRepresentation::Enum::kTagged:
+          FATAL("CMove for Tagged/Compressed values isn't implemented yet");
+
+        case RegisterRepresentation::Enum::kSimd128:
+        case RegisterRepresentation::Enum::kSimd256:
+          FATAL("CMove for Simd register not supported");
+      }
+    }
+#endif
   }
 
   V<Word32> cond() const { return input<Word32>(0); }
@@ -3135,6 +3155,36 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
       (kind.load_eliminable << 2) | (kind.is_immutable << 3) |
       (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
 }
+
+#if V8_ENABLE_SANDBOX
+struct LoadTrustedPointerFieldOp
+    : FixedArityOperationT<2, LoadTrustedPointerFieldOp> {
+  const bool is_immutable;
+  IndirectPointerTag tag;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanReadMemory().CanDependOnChecks();
+
+  explicit LoadTrustedPointerFieldOp(V<WordPtr> table, V<Word32> handle,
+                                     bool is_immutable, IndirectPointerTag tag)
+      : Base(table, handle), is_immutable(is_immutable), tag(tag) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  V<WordPtr> table() const { return input<WordPtr>(0); }
+  V<Word32> handle() const { return input<Word32>(1); }
+
+  auto options() const { return std::tuple{is_immutable, tag}; }
+};
+#endif
 
 struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   enum class BinOp : uint8_t {
@@ -4116,7 +4166,7 @@ struct MajorGCForCompilerTestingOp
     return MaybeRepVector<>();
   }
 
-  explicit MajorGCForCompilerTestingOp() : Base() {}
+  MajorGCForCompilerTestingOp() : Base() {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5012,7 +5062,11 @@ struct ConvertUntaggedToJSPrimitiveOp
     return InputsRepFactory::SingleRep(input_rep);
   }
 
-  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  template <IsUntagged T>
+  V<T> input() const {
+    DCHECK_EQ(V<T>::rep, input_rep);
+    return Base::input<T>(0);
+  }
 
   ConvertUntaggedToJSPrimitiveOp(V<Untagged> input, JSPrimitiveKind kind,
                                  RegisterRepresentation input_rep,
@@ -7137,7 +7191,7 @@ struct NullOp : FixedArityOperationT<0, NullOp> {
   }
 
   void Validate(const Graph& graph) const {
-    DCHECK(type.is_object_reference() && type.is_nullable());
+    DCHECK(type.is_ref() && type.is_nullable());
   }
 
   auto options() const { return std::tuple{type}; }
@@ -7263,6 +7317,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
                               OptionalV<Map> rtt, WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
+
+  void Validate(const Graph& graph) const { DCHECK(config.is_valid()); }
 };
 
 struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
@@ -7309,6 +7365,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
+
+  void Validate(const Graph& graph) const { DCHECK(config.is_valid()); }
 };
 
 // Annotate a value with a wasm type.
@@ -7336,7 +7394,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
     // In theory, the operation could be used for non-reference types as well.
     // This would require updating inputs_rep and outputs_rep to be based on
     // the wasm type.
-    DCHECK(type.is_object_reference());
+    DCHECK(type.is_ref());
   }
 
   auto options() const { return std::tuple(type); }
@@ -7604,7 +7662,7 @@ struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
     DCHECK_LT(field_index, type->field_count());
     DCHECK(type->field(field_index) == wasm::kWasmI32 ||
            type->field(field_index) == wasm::kWasmI64 ||
-           (type->field(field_index).is_reference() &&
+           (type->field(field_index).is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
@@ -7759,7 +7817,7 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
-           (element_type.is_reference() &&
+           (element_type.is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
@@ -8843,6 +8901,7 @@ struct Simd128LoadTransformOp
 // among the input lanes according to `shuffle`.
 struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   enum class Kind : uint8_t {
+    kI8x1,
     kI8x2,
     kI8x4,
     kI8x8,
@@ -8871,6 +8930,9 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
     switch (kind) {
       default:
         UNREACHABLE();
+      case Kind::kI8x1:
+        count = 1;
+        break;
       case Kind::kI8x2:
         count = 2;
         break;

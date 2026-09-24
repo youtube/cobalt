@@ -56,7 +56,6 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/payments/autofill_error_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
-#include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #include "components/autofill/core/browser/ui/payments/bubble_show_options.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_authentication_selection_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
@@ -81,6 +80,7 @@
 #include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller_impl.h"
+#include "chrome/browser/keyboard_accessory/android/payment_method_accessory_controller.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_impl.h"
 #include "chrome/browser/ui/android/autofill/autofill_cvc_save_message_delegate.h"
@@ -91,11 +91,11 @@
 #include "chrome/browser/ui/android/autofill/card_expiration_date_fix_flow_view_android.h"
 #include "chrome/browser/ui/android/autofill/card_name_fix_flow_view_android.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/autofill/autofill_message_controller_impl.h"
+#include "chrome/browser/ui/autofill/autofill_message_model.h"
 #include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/android_bnpl_ui_delegate.h"
 #include "chrome/browser/ui/autofill/payments/android_payments_window_manager.h"
-#include "chrome/browser/ui/autofill/payments/autofill_message_controller.h"
-#include "chrome/browser/ui/autofill/payments/autofill_message_model.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_controller_android.h"
 #include "components/autofill/core/browser/payments/android_bnpl_strategy.h"
 #include "components/autofill/core/browser/payments/autofill_save_iban_ui_info.h"
@@ -481,6 +481,18 @@ void ChromePaymentsAutofillClient::OnCardDataAvailable(
                ? AutofillSnackbarType::kVirtualCard
                : AutofillSnackbarType::kCardInfoRetrieval;
   }
+
+  // Credit card manual filling sheet should always be created on the Java side.
+  // This happens after the first time `PaymentMethodAccessoryControllerImpl`
+  // pushes data to the Java keyboard accessory. Before that, credit card manual
+  // filling sheet doesn't exist on the java side. The data is pushed
+  // asynchronously in `ManualFillingViewAndroid::OnItemsAvailable`. Manually
+  // refresh credit card suggestions before the snackbar is shown so that the
+  // credit card manual filling sheet can be opened from the snackbar.
+  // TODO(crbug.com/430575808): Consider adding a synchronous version of the
+  // `RefreshSuggestions` so that the race condition is removed completely.
+  PaymentMethodAccessoryController::GetOrCreate(web_contents())
+      ->RefreshSuggestions();
 
   client_->GetAutofillSnackbarController()->ShowPaymentsSnackbar(
       type, options.filled_card,
@@ -1212,7 +1224,7 @@ AutofillMessageController&
 ChromePaymentsAutofillClient::GetAutofillMessageController() {
   if (!autofill_message_controller_) {
     autofill_message_controller_ =
-        std::make_unique<AutofillMessageController>(web_contents());
+        std::make_unique<AutofillMessageControllerImpl>(web_contents());
   }
 
   return *autofill_message_controller_;

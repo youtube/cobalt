@@ -125,6 +125,8 @@ class MockFrameSinkManagerClient : public mojom::FrameSinkManagerClient {
       std::unique_ptr<CopyOutputResult> copy_output_result) override {}
   void OnVizTouchStateAvailable(
       base::ReadOnlySharedMemoryRegion region) override {}
+  void OnViewTransitionResourcesCaptured(
+      const blink::ViewTransitionToken& transition_token) override {}
 };
 
 class CompositorFrameSinkSupportTestBase : public testing::Test {
@@ -2060,8 +2062,8 @@ TEST_P(CompositorFrameSinkSupportTest,
       SurfaceAnimationManager::CreateWithSave(
           CompositorFrameTransitionDirective::CreateSave(
               transition_token, maybe_cross_frame_sink,
-              /*sequence_id=*/1, {}, {}),
-          surface, sii, &id_tracker, base::DoNothing());
+              /*sequence_id=*/1, {}, {}, false),
+          surface, sii, &id_tracker, base::DoNothing(), base::DoNothing());
   ASSERT_TRUE(animation_manager);
 
   EXPECT_FALSE(HasAnimationManagerForToken(transition_token));
@@ -2070,7 +2072,8 @@ TEST_P(CompositorFrameSinkSupportTest,
   EXPECT_TRUE(HasAnimationManagerForToken(transition_token));
 
   auto release_directive = CompositorFrameTransitionDirective::CreateRelease(
-      transition_token, maybe_cross_frame_sink, /*sequence_id=*/2);
+      transition_token, maybe_cross_frame_sink, /*sequence_id=*/2,
+      /*delay_layer_tree_view_deletion=*/false);
   ProcessCompositorFrameTransitionDirective(support_.get(), release_directive,
                                             surface);
   EXPECT_FALSE(HasAnimationManagerForToken(transition_token));
@@ -2120,7 +2123,7 @@ TEST_P(CompositorFrameSinkSupportTest, ViewTransitionBlitRequestTextureQuad) {
       CompositorFrameTransitionDirective::CreateSave(
           transition_token,
           /*maybe_cross_frame_sink=*/false,
-          /*sequence_id=*/1, {shared_element}, {}));
+          /*sequence_id=*/1, {shared_element}, {}, false));
 
   // Submit the frame.
   auto result = support_->MaybeSubmitCompositorFrame(

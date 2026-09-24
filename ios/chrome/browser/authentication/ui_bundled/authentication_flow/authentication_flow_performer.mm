@@ -329,21 +329,14 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 
 #pragma mark - Private
 
-- (void)updateUserPolicyNotificationStatusIfNeeded:(PrefService*)prefService {
-  prefService->SetBoolean(policy::policy_prefs::kUserPolicyNotificationWasShown,
-                          true);
-}
-
 // Called when `_managedConfirmationAlertCoordinator` is finished.
 // `accepted` is YES when the user confirmed or NO if the user canceled.
 - (void)managedConfirmationAlertAccepted:(BOOL)accepted {
   CHECK(_managedConfirmationAlertCoordinator);
   CHECK(!_managedConfirmationScreenCoordinator);
-  Browser* browser = _managedConfirmationAlertCoordinator.browser;
   [_managedConfirmationAlertCoordinator stop];
   _managedConfirmationAlertCoordinator = nil;
   [self managedConfirmationDidAccept:accepted
-                             browser:browser
                 browsingDataSeparate:
                     AreSeparateProfilesForManagedAccountsEnabled()];
 }
@@ -364,7 +357,6 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
 // current profile. If AreSeparateProfilesForManagedAccountsEnabled() is true,
 // this involves converting the current profile into a work profile.
 - (void)managedConfirmationDidAccept:(BOOL)accepted
-                             browser:(Browser*)browser
                 browsingDataSeparate:(BOOL)browsingDataSeparate {
   if (!accepted) {
     base::RecordAction(
@@ -378,17 +370,7 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
   base::RecordAction(
       base::UserMetricsAction("Signin_AuthenticationFlowPerformer_"
                               "ManagedConfirmationDialog_Confirmed"));
-  // TODO(crbug.com/40225944): Nullify the browser object in the
-  // AlertCoordinator when the coordinator is stopped to avoid using the
-  // browser object at that moment, in which case the browser object may have
-  // been deleted before the callback block is called. This is to avoid
-  // potential bad memory accesses.
-  if (browser) {
-    PrefService* prefService = browser->GetProfile()->GetPrefs();
-    // TODO(crbug.com/40225352): Remove this line once we determined that the
-    // notification isn't needed anymore.
-    [self updateUserPolicyNotificationStatusIfNeeded:prefService];
-  }
+
   [_delegate didAcceptManagedConfirmationWithBrowsingDataSeparate:
                  browsingDataSeparate];
 }
@@ -451,11 +433,9 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
                      browsingDataSeparate:(BOOL)browsingDataSeparate {
   CHECK(!_managedConfirmationAlertCoordinator);
   CHECK_EQ(_managedConfirmationScreenCoordinator, coordinator);
-  Browser* browser = _managedConfirmationScreenCoordinator.browser;
   [_managedConfirmationScreenCoordinator stop];
   _managedConfirmationScreenCoordinator = nil;
   [self managedConfirmationDidAccept:accepted
-                             browser:browser
                 browsingDataSeparate:browsingDataSeparate];
 }
 

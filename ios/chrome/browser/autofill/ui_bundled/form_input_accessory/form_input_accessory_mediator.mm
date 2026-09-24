@@ -249,10 +249,6 @@ bool IsStateless() {
 
     NSNotificationCenter* defaultCenter = [NSNotificationCenter defaultCenter];
     [defaultCenter addObserver:self
-                      selector:@selector(applicationDidEnterBackground:)
-                          name:UIApplicationDidEnterBackgroundNotification
-                        object:nil];
-    [defaultCenter addObserver:self
                       selector:@selector(keyboardWillShow:)
                           name:UIKeyboardWillShowNotification
                         object:nil];
@@ -370,6 +366,25 @@ bool IsStateless() {
                        : self.currentProvider.mainFillingProduct;
 }
 
+- (void)reloadFirstResponderInputViews {
+  if (!_webState || !_webState->IsVisible()) {
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          kFormInputAccessorySkipInputViewReloadInBackground) &&
+      UIApplication.sharedApplication.applicationState !=
+          UIApplicationStateActive) {
+    return;
+  }
+
+  // Ensure the object is valid and still in a window.
+  UIView* responder = base::apple::ObjCCast<UIView>(GetFirstResponder());
+  if (responder && responder.window) {
+    [responder reloadInputViews];
+  }
+}
+
 #pragma mark - KeyboardNotification
 
 - (void)keyboardWillShow:(NSNotification*)notification {
@@ -483,7 +498,7 @@ bool IsStateless() {
   if (!InputTriggersKeyboard(_lastSeenParams.field_type,
                              /*default_value=*/false) &&
       InputTriggersKeyboard(params.field_type, /*default_value=*/true)) {
-    [GetFirstResponder() reloadInputViews];
+    [self reloadFirstResponderInputViews];
   }
   _lastSeenParams = params;
   _hasLastSeenParams = YES;
@@ -773,11 +788,6 @@ bool IsStateless() {
       }
     }
   }
-}
-
-// Handle applicationDidEnterBackground NSNotification.
-- (void)applicationDidEnterBackground:(NSNotification*)notification {
-  [self.handler resetFormInputView];
 }
 
 // Logs information about what type of suggestion the user selected.

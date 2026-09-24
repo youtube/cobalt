@@ -43,7 +43,6 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/fake_clock.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/socket_address.h"
@@ -53,6 +52,7 @@
 #include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
@@ -302,7 +302,10 @@ TEST_P(DataChannelIntegrationTest,
       WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
       IsRtcOk());
 
-  for (int message_size = 1; message_size < 100000; message_size *= 2) {
+  // Expect that all sizes under kSctpSendBufferSize(256 * 1024) to be sent
+  // without any issue.
+  for (int message_size = 1; message_size <= kSctpSendBufferSize;
+       message_size *= 2) {
     std::string data(message_size, 'a');
     caller()->data_channel()->Send(DataBuffer(data));
     EXPECT_THAT(
@@ -337,6 +340,44 @@ TEST_P(DataChannelIntegrationTest,
   EXPECT_THAT(WaitUntil([&] { return callee()->data_observer()->state(); },
                         Eq(DataChannelInterface::kClosed)),
               IsRtcOk());
+}
+
+// This test sets up a call between two parties with an SCTP
+// data channel only, and sends a message exceeding the default size limit
+// kSctpSendBufferSize(256 * 1024). We expect the Send method returns
+// false and the channel closes.
+TEST_P(DataChannelIntegrationTest,
+       EndToEndCallWithSctpDataChannelOversizedMessage) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  // Expect that data channel created on caller side will show up for callee as
+  // well.
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  // Caller data channel should already exist (it created one). Callee data
+  // channel may not exist yet, since negotiation happens in-band, not in SDP.
+  ASSERT_NE(nullptr, caller()->data_channel());
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  // By default, SDP would set kSctpSendBufferSize as the size limit for the
+  // transport. Expect that a longer message will not be sent and cause the
+  // channel to be closed by error.
+  std::string data(kSctpSendBufferSize + 1, 'a');
+  EXPECT_FALSE(caller()->data_channel()->Send(DataBuffer(data)));
+  EXPECT_EQ(caller()->data_channel()->state(), DataChannelInterface::kClosed);
+  RTCError last_error = caller()->data_channel()->error();
+  EXPECT_FALSE(last_error.ok());
+  EXPECT_FALSE(std::string(last_error.message()).empty());
+  EXPECT_EQ(RTCErrorType::NETWORK_ERROR, last_error.type());
 }
 
 // This test sets up a call between two parties with an SCTP
@@ -548,8 +589,10 @@ TEST_P(DataChannelIntegrationTest, EndToEndCallWithSctpDataChannelHarmfulMtu) {
     // Wait a very short time for the message to be delivered.
     // Note: Waiting only 10 ms is too short for Windows bots; they will
     // flakily fail at a random frame.
-    WAIT(callee()->data_observer()->received_message_count() > message_count,
-         100);
+    callee()->data_observer()->set_on_message_callback(
+        [&](const DataBuffer&) { run_loop().Quit(); });
+    run_loop().RunFor(TimeDelta::Millis(100));
+    callee()->data_observer()->set_on_message_callback(nullptr);
     if (callee()->data_observer()->received_message_count() == message_count) {
       ASSERT_EQ(kMessageSizeThatIsNotDelivered, message_size);
       failure_seen = true;
@@ -1024,7 +1067,7 @@ TEST_P(DataChannelIntegrationTest, ClosingConnectionStopsPacketFlow) {
   ClosePeerConnections();
   // Pump messages for a second, and ensure no new packets end up sent.
   uint32_t sent_packets_a = virtual_socket_server()->sent_packets();
-  WAIT(false, 1000);
+  run_loop().RunFor(TimeDelta::Seconds(1));
   uint32_t sent_packets_b = virtual_socket_server()->sent_packets();
   EXPECT_EQ(sent_packets_a, sent_packets_b);
 }
@@ -1268,7 +1311,7 @@ TEST_P(DataChannelIntegrationTest, QueuedPacketsGetDroppedInUnreliableMode) {
   }
   // Nothing should be delivered during outage.
   // We do a short wait to verify that delivery count is still 1.
-  WAIT(false, 10);
+  run_loop().RunFor(TimeDelta::Millis(10));
   EXPECT_EQ(1u, callee()->data_observer()->received_message_count());
   // Reverse the network outage.
   virtual_socket_server()->set_drop_probability(0.0);
@@ -1314,7 +1357,7 @@ TEST_P(DataChannelIntegrationTest,
   // Nothing should be delivered during outage.
   // We do a short wait to verify that delivery count is still 1,
   // and to make sure max packet lifetime (which is in ms) is exceeded.
-  WAIT(false, 10);
+  run_loop().RunFor(TimeDelta::Millis(10));
   EXPECT_EQ(1u, callee()->data_observer()->received_message_count());
   // Reverse the network outage.
   virtual_socket_server()->set_drop_probability(0.0);
@@ -1372,7 +1415,7 @@ TEST_P(DataChannelIntegrationTest,
   }
   // Nothing should be delivered during outage.
   // We do a short wait to verify that delivery count is still 1.
-  WAIT(false, 10);
+  run_loop().RunFor(TimeDelta::Millis(10));
   EXPECT_EQ(1u, callee()->data_observer()->received_message_count());
   // Reverse the network outage.
   virtual_socket_server()->set_drop_probability(0.0);

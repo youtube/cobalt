@@ -20,6 +20,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -32,26 +33,72 @@ import (
 	"time"
 )
 
-type record struct {
-	Description  string
-	NumCalls     int
-	Microseconds int
-	BytesPerCall int
+var (
+	cpuTime = flag.Bool("cpu_time", false, "use CPU time, not wall time, for benchmark evaluation")
+)
+
+type googlebenchmark struct {
+	Name     string  `json:"name"`
+	RealTime float64 `json:"real_time"`
+	CPUTime  float64 `json:"cpu_time"`
+	TimeUnit string  `json:"time_unit"`
 }
 
-type benchmarks []record
+type googlebenchmarks struct {
+	Benchmarks []googlebenchmark `json:"benchmarks"`
+}
+
+type record struct {
+	name         string
+	timePerCall  float64 // time.Duration but unrounded.
+	bytesPerCall int
+}
 
 type benchmarkGroup []record
 
 type groupedBenchmarks map[string]benchmarkGroup
 
-var removeRE = regexp.MustCompile(` \(\d+ bytes?\)`)
+var removeRE = regexp.MustCompile(`/InputSize:(\d+)$`)
 
-func (b benchmarks) group() groupedBenchmarks {
+func (b googlebenchmarks) group() groupedBenchmarks {
 	g := groupedBenchmarks{}
-	for _, r := range b {
-		desc := removeRE.ReplaceAllString(r.Description, "")
-		g[desc] = append(g[desc], r)
+	for _, b := range b.Benchmarks {
+		match := removeRE.FindStringSubmatchIndex(b.Name)
+		if match == nil {
+			log.Printf("Skipping unsized benchmark: %v.", b.Name)
+			continue
+		}
+		name := b.Name[:match[0]]
+		var bytes int
+		_, err := fmt.Sscanf(b.Name[match[2]:match[3]], "%d", &bytes)
+		if err != nil {
+			log.Printf("Could not get input size for benchmark: %v.", b.Name)
+			continue
+		}
+		var unit time.Duration
+		switch b.TimeUnit {
+		case "ns":
+			unit = time.Nanosecond
+		case "us":
+			unit = time.Microsecond
+		case "ms":
+			unit = time.Millisecond
+		default:
+			log.Printf("Skipping benchmark with unsupported time unit %q: %v.", b.TimeUnit, b.Name)
+			continue
+		}
+		var count float64
+		if *cpuTime {
+			count = b.CPUTime
+		} else {
+			count = b.RealTime
+		}
+		r := record{
+			name:         b.Name,
+			timePerCall:  count * float64(unit),
+			bytesPerCall: bytes,
+		}
+		g[name] = append(g[name], r)
 	}
 	return g
 }
@@ -70,8 +117,8 @@ func (r regression) String() string {
 		return r.err.Error()
 	}
 	return fmt.Sprintf("%v + n * %v/KiB (n=%v, r=%v)",
-		time.Duration(float64(time.Second)*r.constant+0.5),
-		time.Duration(float64(time.Second)*r.perKiB+0.5),
+		time.Duration(r.constant+0.5),
+		time.Duration(r.perKiB+0.5),
 		r.dataPoints,
 		r.coefficient)
 }
@@ -86,8 +133,8 @@ func (g benchmarkGroup) regress() regression {
 	}
 	var sx, sxx, sxy, sy, syy float64
 	for _, r := range g {
-		x := float64(r.BytesPerCall)
-		y := float64(r.Microseconds) / float64(r.NumCalls) * 1e-6
+		x := float64(r.bytesPerCall)
+		y := r.timePerCall
 		sx += x
 		sxx += x * x
 		sxy += x * y
@@ -135,18 +182,20 @@ func (r regressions) String() string {
 }
 
 func main() {
+	flag.Parse()
 	j := json.NewDecoder(os.Stdin)
-	var b benchmarks
+	var g googlebenchmarks
 	for {
-		var bnew benchmarks
-		err := j.Decode(&bnew)
+		var gnew googlebenchmarks
+		err := j.Decode(&gnew)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			log.Panicf("failed decoding: %v", err)
 		}
-		b = append(b, bnew...)
+		gnew.Benchmarks = append(g.Benchmarks, gnew.Benchmarks...)
+		g = gnew
 	}
-	fmt.Printf("%v\n", b.group().regress())
+	fmt.Printf("%v\n", g.group().regress())
 }

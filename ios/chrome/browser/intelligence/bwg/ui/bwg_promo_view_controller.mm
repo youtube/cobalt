@@ -4,7 +4,7 @@
 
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller.h"
 
-#import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
@@ -58,7 +58,7 @@ const CGFloat kSpacingScrollViewAndButtons = 24.0;
 const CGFloat kSpacingTitleAndSummary = 10.0;
 
 // Constants for gradient Gemini logo.
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
 const CGFloat kGeminiLogoFontScale = 2.0;
 #endif
 const CGFloat kFontCapHeightMultiplier = 1.1;
@@ -216,7 +216,7 @@ const CGFloat kBaselineAdjustment = 10.0;
   NSString* mainTitleString =
       l10n_util::GetNSString(IDS_IOS_BWG_PROMO_MAIN_TITLE);
 
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   NSString* gradientSubstring =
       l10n_util::GetNSString(IDS_IOS_BWG_PROMO_GRADIENT_TEXT);
   UIImage* geminiIcon = CustomSymbolWithPointSize(

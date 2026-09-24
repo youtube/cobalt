@@ -78,7 +78,6 @@
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
 #include "rtc_base/firewall_socket_server.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/random.h"
@@ -106,7 +105,6 @@ using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Gt;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::IsTrue;
 using ::testing::MockFunction;
 using ::testing::NiceMock;
@@ -3295,7 +3293,8 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioPlayout) {
               IsRtcOk());
 
   // Pump messages for a second.
-  WAIT(false, 1000);
+  run_loop().RunFor(TimeDelta::Seconds(1));
+
   // Since audio playout is disabled, the caller shouldn't have received
   // anything (at the playout level, at least).
   EXPECT_EQ(0, caller()->audio_frames_received());
@@ -3365,7 +3364,7 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioRecording) {
               IsRtcOk());
 
   // Pump messages for a second.
-  WAIT(false, 1000);
+  run_loop().RunFor(TimeDelta::Seconds(1));
   // Since caller has disabled audio recording, the callee shouldn't have
   // received anything.
   EXPECT_EQ(0, callee()->audio_frames_received());

@@ -14,6 +14,7 @@
 
 #include "sandbox/policy/linux/sandbox_linux.h"
 
+#include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "sandbox/linux/suid/client/setuid_sandbox_client.h"  // nogncheck

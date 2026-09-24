@@ -28,7 +28,7 @@ namespace jni {
 
 static jlong JNI_CallSessionFileRotatingLogSink_AddSink(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jstring>& j_dirPath,
+    const jni_zero::JavaRef<jstring>& j_dirPath,
     jint j_maxFileSize,
     jint j_severity) {
   std::string dir_path = JavaToStdString(jni, j_dirPath);
@@ -56,7 +56,7 @@ static void JNI_CallSessionFileRotatingLogSink_DeleteSink(JNIEnv* jni,
 static jni_zero::ScopedJavaLocalRef<jbyteArray>
 JNI_CallSessionFileRotatingLogSink_GetLogData(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jstring>& j_dirPath) {
+    const jni_zero::JavaRef<jstring>& j_dirPath) {
   std::string dir_path = JavaToStdString(jni, j_dirPath);
   CallSessionFileRotatingStreamReader file_reader(dir_path);
   size_t log_size = file_reader.GetSize();

@@ -12,15 +12,6 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-group("api") {
-  visibility = [ "*" ]
-  deps = []
-
-  if (!build_with_mozilla) {
-    deps += [ ":libjingle_peerconnection_api" ]
-  }
-}
-
 rtc_source_set("call_api") {
   visibility = [ "*" ]
   sources = [ "call/audio_sink.h" ]
@@ -245,6 +236,12 @@ rtc_source_set("ice_transport_interface") {
   ]
 }
 
+rtc_library("rtp_transport_factory") {
+  visibility = [ "*" ]
+
+  sources = [ "rtp_transport_factory.h" ]
+}
+
 rtc_library("dtls_transport_interface") {
   visibility = [ "*" ]
 
@@ -428,6 +425,7 @@ rtc_library("peer_connection_interface") {
     ":rtp_receiver_interface",
     ":rtp_sender_interface",
     ":rtp_transceiver_interface",
+    ":rtp_transport_factory",
     ":scoped_refptr",
     ":sctp_transport_interface",
     ":set_local_description_observer_interface",
@@ -546,22 +544,23 @@ rtc_library("video_track_source_proxy_factory") {
 }
 
 rtc_library("libjingle_peerconnection_api") {
+  # This target is visible externally for backwards compatibility,
+  # but should not be depended on by webrtc source.
   visibility = [ "*" ]
   cflags = []
   sources = [
     # Should be removed, users of these .h files should depend directly
     # on the associated targets.
-    "data_channel_interface.h",  # Used in Chrome
-    "dtmf_sender_interface.h",  # Used in Chrome
-    "jsep.h",  #  Used in Chrome
+    "data_channel_interface.h",  # Used downstream
+    "jsep.h",  #  Used downstream
     "legacy_stats_types.h",  # Used downstream
-    "peer_connection_interface.h",  # Used in Chrome
-    "rtp_receiver_interface.h",  # Used in Chrome
-    "rtp_sender_interface.h",  # Used in Chrome
-    "rtp_transceiver_interface.h",  # Used in Chrome
-    "sctp_transport_interface.h",  # Used in Chrome
+    "peer_connection_interface.h",  # Used downstream
+    "rtp_receiver_interface.h",  # Used downstream
+    "rtp_sender_interface.h",  # Used downstream
+    "rtp_transceiver_interface.h",  # Used downstream
+    "sctp_transport_interface.h",  # Used downstream
     "set_local_description_observer_interface.h",  # Used downstream
-    "set_remote_description_observer_interface.h",  # Used in Chrome
+    "set_remote_description_observer_interface.h",  # Used downstream
     "uma_metrics.h",  # Used downstream
     "video_track_source_proxy_factory.h",  # Used downstream
   ]
@@ -597,6 +596,7 @@ rtc_library("libjingle_peerconnection_api") {
     ":rtp_sender_interface",
     ":rtp_transceiver_direction",
     ":rtp_transceiver_interface",
+    ":rtp_transport_factory",
     ":scoped_refptr",
     ":sctp_transport_interface",
     ":sequence_checker",
@@ -900,7 +900,6 @@ rtc_source_set("peer_connection_quality_test_fixture_api") {
     ":fec_controller_api",
     ":frame_generator_api",
     ":function_view",
-    ":libjingle_peerconnection_api",
     ":media_stream_interface",
     ":network_state_predictor_api",
     ":packet_socket_factory",
@@ -973,7 +972,6 @@ if (rtc_include_tests) {
       deps = [
         ":fec_controller_api",
         ":field_trials",
-        ":libjingle_peerconnection_api",
         ":network_state_predictor_api",
         ":rtp_parameters",
         ":simulated_network_api",
@@ -1472,7 +1470,6 @@ if (rtc_include_tests) {
 
     deps = [
       ":data_channel_interface",
-      ":libjingle_peerconnection_api",
       ":priority",
       ":rtc_error",
       ":scoped_refptr",
@@ -1489,7 +1486,6 @@ if (rtc_include_tests) {
 
     deps = [
       ":dtmf_sender_interface",
-      ":libjingle_peerconnection_api",
       ":make_ref_counted",
       ":scoped_refptr",
       "../rtc_base:refcount",
@@ -1631,7 +1627,6 @@ if (rtc_include_tests) {
       ":dtls_transport_interface",
       ":jsep",
       ":libjingle_logging_api",
-      ":libjingle_peerconnection_api",
       ":make_ref_counted",
       ":media_stream_interface",
       ":peer_connection_interface",
@@ -1663,7 +1658,6 @@ if (rtc_include_tests) {
 
     deps = [
       ":audio_options_api",
-      ":libjingle_peerconnection_api",
       ":media_stream_interface",
       ":peer_connection_interface",
       ":rtc_error",
@@ -1730,7 +1724,6 @@ if (rtc_include_tests) {
       ":dtls_transport_interface",
       ":dtmf_sender_interface",
       ":frame_transformer_interface",
-      ":libjingle_peerconnection_api",
       ":make_ref_counted",
       ":media_stream_interface",
       ":rtc_error",
@@ -1933,7 +1926,6 @@ if (rtc_include_tests) {
       ":field_trials_view",
       ":function_view",
       ":jsep",
-      ":libjingle_peerconnection_api",
       ":peer_connection_interface",
       ":rtc_error",
       ":rtc_event_log_output_file",
@@ -2117,7 +2109,6 @@ rtc_library("ice_server_parsing") {
     "ice_server_parsing.h",
   ]
   deps = [
-    ":libjingle_peerconnection_api",
     ":peer_connection_interface",
     ":rtc_error",
     "../p2p:port_allocator",

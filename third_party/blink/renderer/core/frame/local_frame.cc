@@ -42,6 +42,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -121,7 +122,6 @@
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_checker.h"
-#include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_backend_impl.h"
 #include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_controller.h"
 #include "third_party/blink/renderer/core/editing/surrounding_text.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
@@ -402,6 +402,8 @@ const char* DocumentReadyStateToString(
 
 }  // namespace
 
+template class CORE_TEMPLATE_EXPORT Supplement<LocalFrame>;
+
 // static
 LocalFrame* LocalFrame::FromFrameToken(const LocalFrameToken& frame_token) {
   LocalFramesByTokenMap& local_frames_map = GetLocalFramesMap();
@@ -532,12 +534,8 @@ void LocalFrame::Trace(Visitor* visitor) const {
   visitor->Trace(browser_interface_broker_proxy_);
   visitor->Trace(frame_visibility_observers_);
   visitor->Trace(window_controls_overlay_changed_delegate_);
-  visitor->Trace(image_downloader_impl_);
-  visitor->Trace(remote_object_gateway_factory_impl_);
-  visitor->Trace(remote_object_gateway_impl_);
-  visitor->Trace(text_suggestion_backend_impl_);
   Frame::Trace(visitor);
-  visitor->Trace(dev_tools_frontend_impl_);
+  Supplementable::Trace(visitor);
 }
 
 bool LocalFrame::IsLocalRoot() const {
@@ -818,12 +816,7 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
 
   probe::FrameDetachedFromParent(this, type);
 
-  image_downloader_impl_ = nullptr;
-  remote_object_gateway_factory_impl_ = nullptr;
-  remote_object_gateway_impl_ = nullptr;
-  text_suggestion_backend_impl_ = nullptr;
-  dev_tools_frontend_impl_ = nullptr;
-
+  std::fill(supplements_.begin(), supplements_.end(), nullptr);
   frame_scheduler_.reset();
   mojo_handler_->DidDetachFrame();
   WeakIdentifierMap<LocalFrame>::NotifyObjectDestroyed(this);

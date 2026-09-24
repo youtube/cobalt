@@ -37,6 +37,8 @@ extern const base::FeatureParam<double> kMinEmbeddingSimilarityScore;
 extern const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity;
 // Minimum score, computed using multiple signals, to consider a tab relevant.
 extern const base::FeatureParam<double> kMinMultiSignalScore;
+// Minimum score required for a tab to be considered visible.
+extern const base::FeatureParam<double> kContentVisibilityThreshold;
 
 // The sample rate for logging contextual tasks context quality.
 extern const base::FeatureParam<double>
@@ -56,10 +58,12 @@ extern const base::FeatureParam<bool> kTaskScopedSidePanel;
 extern bool GetIsContextualTasksNextboxContextMenuEnabled();
 
 // The file types that can be attached to a Nextbox as images.
-extern const base::FeatureParam<std::string> kContextualTasksNextboxImageFileTypes;
+extern const base::FeatureParam<std::string>
+    kContextualTasksNextboxImageFileTypes;
 
 // The file types that can be attached to a Nextbox as attachments.
-extern const base::FeatureParam<std::string> kContextualTasksNextboxAttachmentFileTypes;
+extern const base::FeatureParam<std::string>
+    kContextualTasksNextboxAttachmentFileTypes;
 
 // The maximum size of a file that can be attached to a Nextbox.
 extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize;
@@ -69,6 +73,12 @@ extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileCount;
 
 // The user agent suffix to use for requests from the contextual tasks UI.
 extern const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix;
+
+// Returns if voice search is allowed in expanded composebox.
+extern bool GetIsExpandedComposeboxVoiceSearchEnabled();
+
+// Returns if voice search is allowed in base steady composebox.
+extern bool GetIsSteadyComposeboxVoiceSearchEnabled();
 
 // Returns the base URL for the AI page.
 extern std::string GetContextualTasksAiPageUrl();
@@ -82,6 +92,11 @@ extern bool GetIsContextualTasksSuggestionsEnabled();
 // Returns whether Lens is enabled in contextual tasks. When this is enabled,
 // Lens entry points will open results in the contextual tasks panels.
 extern bool GetEnableLensInContextualTasks();
+
+// Returns whether we should force the gsc=2 param to be added. This is used as
+// a temporary workaround since the server is not yet ready to adapt the side
+// panel UI unless the gsc=2 param is set.
+extern bool ShouldForceGscInTabMode();
 
 // Returns the user agent suffix to use for requests.
 extern std::string GetContextualTasksUserAgentSuffix();

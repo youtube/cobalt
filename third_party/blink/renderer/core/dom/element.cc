@@ -1580,6 +1580,17 @@ PopoverData* Element::GetPopoverData() const {
   return nullptr;
 }
 
+ContentData* Element::GetAltContentData() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetAltContentData();
+  }
+  return nullptr;
+}
+
+void Element::SetAltContentData(ContentData* content_data) {
+  EnsureElementRareData().SetAltContentData(content_data);
+}
+
 InvokerData& Element::EnsureInvokerData() {
   return EnsureElementRareData().EnsureInvokerData();
 }
@@ -3473,7 +3484,7 @@ const AttrNameToTrustedType& Element::GetCheckedAttributeTypes() const {
   return attribute_map;
 }
 
-const std::tuple<SpecificTrustedType, const char*, const AtomicString>
+const std::tuple<SpecificTrustedType, const AtomicString, const AtomicString>
 Element::GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
                                         const char* legacy_sink_name) const {
   // https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-data-for-attribute
@@ -3492,7 +3503,8 @@ Element::GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
          namespaceURI() == svg_names::kNamespaceURI ||
          namespaceURI() == mathml_names::kNamespaceURI) &&
         IsTrustedTypesEventHandlerAttribute(q_name)) {
-      return {SpecificTrustedType::kScript, "Element", q_name.LocalName()};
+      return {SpecificTrustedType::kScript, trusted_types_names::kElement,
+              q_name.LocalName()};
     }
 
     // Step 3: Find the row in the following table [...]
@@ -3501,7 +3513,8 @@ Element::GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
     // attribute separately.
     if (!q_name.NamespaceURI().empty() &&
         !q_name.Matches(xlink_names::kHrefAttr)) {
-      return {SpecificTrustedType::kNone, "Element", q_name.LocalName()};
+      return {SpecificTrustedType::kNone, trusted_types_names::kElement,
+              q_name.LocalName()};
     }
     const AttrNameToTrustedType* attribute_types = &GetCheckedAttributeTypes();
     AttrNameToTrustedType::const_iterator iter =
@@ -3509,7 +3522,8 @@ Element::GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
 
     // Step 4: Return data. [data might be null.]
     if (iter == attribute_types->end()) {
-      return {SpecificTrustedType::kNone, "Element", q_name.LocalName()};
+      return {SpecificTrustedType::kNone, trusted_types_names::kElement,
+              q_name.LocalName()};
     }
     return {iter->value.first, iter->value.second, q_name.LocalName()};
   } else {
@@ -3521,20 +3535,23 @@ Element::GetTrustedTypeDataForAttribute(const QualifiedName& q_name,
     AtomicString property_name(legacy_sink_name);
     if (!q_name.NamespaceURI().IsNull() &&
         !SVGAnimatedHref::IsKnownAttribute(q_name)) {
-      return {SpecificTrustedType::kNone, "Element", property_name};
+      return {SpecificTrustedType::kNone, trusted_types_names::kElement,
+              property_name};
     }
     const AttrNameToTrustedType* attribute_types = &GetCheckedAttributeTypes();
     AttrNameToTrustedType::const_iterator iter =
         attribute_types->find(q_name.LocalName());
     if (iter != attribute_types->end()) {
-      return {iter->value.first, "Element", property_name};
+      return {iter->value.first, trusted_types_names::kElement, property_name};
     }
 
     if (IsTrustedTypesEventHandlerAttribute(q_name)) {
-      return {SpecificTrustedType::kScript, "Element", property_name};
+      return {SpecificTrustedType::kScript, trusted_types_names::kElement,
+              property_name};
     }
 
-    return {SpecificTrustedType::kNone, "Element", property_name};
+    return {SpecificTrustedType::kNone, trusted_types_names::kElement,
+            property_name};
   }
 }
 
@@ -4392,8 +4409,6 @@ void Element::AttachLayoutTree(AttachContext& context) {
     context.counters_context.EnterObject(*layout_object);
   }
 
-  AttachOverscrollPseudoElements(children_context);
-
   AttachColumnPseudoElements(children_context);
   AttachPrecedingPseudoElements(children_context);
 
@@ -4835,21 +4850,8 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     return;
   }
 
-  StyleRecalcContext child_recalc_context = local_style_recalc_context;
-  // If we're in StyleEngine::UpdateStyleAndLayoutTreeForOutOfFlow, then
-  // anchor_evaluator may be non-nullptr to allow evaluation of anchor() and
-  // anchor-size() queries, and the try sets may be non-nullptr if we're
-  // attempting some position option [1]. These are only supposed to apply to
-  // the interleaving root itself (i.e. the out-of-flow element being laid out),
-  // and not to descendants.
-  //
-  // [1] https://drafts.csswg.org/css-anchor-position-1/#fallback
-  child_recalc_context.anchor_evaluator = nullptr;
-  child_recalc_context.try_set = nullptr;
-  child_recalc_context.try_tactics_set = nullptr;
-
-  child_recalc_context.has_content_visibility_auto_locked_ancestor |=
-      display_lock_style_scope.IsLockedContentVisibilityAuto();
+  const StyleRecalcContext child_recalc_context =
+      StyleRecalcContext::FromParentContext(local_style_recalc_context, *this);
 
   if (ContainerQueryData* cq_data = GetContainerQueryData()) {
     // If we skipped the subtree during style recalc, retrieve the
@@ -4863,10 +4865,6 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   }
 
   if (const ComputedStyle* style = GetComputedStyle()) {
-    child_recalc_context
-        .has_scroller_ancestor_with_scroll_marker_group_property |=
-        (style->IsScrollContainer() || IsDocumentElement()) &&
-        !style->ScrollMarkerGroupNone();
     if (style->CanMatchSizeContainerQueries(*this)) {
       // IsSuppressed() means we are at the root of a container subtree called
       // from UpdateStyleAndLayoutTreeForSizeContainer(). If so, we can not skip
@@ -4878,12 +4876,6 @@ void Element::RecalcStyle(const StyleRecalcChange change,
           return;
         }
       }
-    }
-    if (style->IsContainerForSizeContainerQueries()) {
-      child_recalc_context.size_container = this;
-    }
-    if (style->IsContainerForAnchoredContainerQueries()) {
-      child_recalc_context.has_anchored_container = true;
     }
   }
 
@@ -4959,10 +4951,6 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   }
 
   if (child_change.TraverseChildren(*this)) {
-    if (!child_recalc_context.has_animating_ancestor &&
-        GetElementAnimations()) {
-      child_recalc_context.has_animating_ancestor = true;
-    }
     if (ShadowRoot* root = GetShadowRoot()) {
       root->RecalcDescendantStyles(child_change, child_recalc_context, *this);
       if (child_change.RecalcDescendants()) {
@@ -5715,20 +5703,7 @@ void Element::AttachOverscrollPseudoElements(AttachContext& context) {
     CHECK(pseudo_element);
     pseudo_element->AttachLayoutTree(context);
     CHECK(pseudo_element->GetLayoutObject());
-    context.previous_in_flow = nullptr;
-    context.parent = pseudo_element->GetLayoutObject();
-    context.next_sibling = nullptr;
-    context.next_sibling_valid = true;
   }
-  PseudoElement* pseudo_element =
-      GetPseudoElement(kPseudoIdOverscrollClientArea);
-  CHECK(pseudo_element);
-  pseudo_element->AttachLayoutTree(context);
-  CHECK(pseudo_element->GetLayoutObject());
-  context.previous_in_flow = nullptr;
-  context.parent = pseudo_element->GetLayoutObject();
-  context.next_sibling = nullptr;
-  context.next_sibling_valid = true;
 }
 
 void Element::AttachTransitionPseudoElements(AttachContext& context) {
@@ -7133,8 +7108,7 @@ bool Element::AttachDeclarativeShadowRoot(
   shadow_root.SetAvailableToElementInternals(true);
   // 10.8.NEW. Process shadowrootadoptedstylesheets attribute.
   if (RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled()) {
-    shadow_root.ProcessAdoptedStylesheetAttribute(
-        adopted_stylesheets);
+    shadow_root.ProcessAdoptedStylesheetAttribute(adopted_stylesheets);
   }
   return true;
 }
@@ -8768,6 +8742,8 @@ void Element::SetInnerHTMLInternal(
     const String& html,
     ParseDeclarativeShadowRoots parse_declarative_shadows,
     ForceHtml force_html,
+    std::variant<std::monostate, SetHTMLOptions*, SetHTMLUnsafeOptions*>
+        options,
     ExceptionState& exception_state) {
   if (html.empty() && !HasNonInBodyInsertionMode()) {
     setTextContent(html);
@@ -8782,7 +8758,25 @@ void Element::SetInnerHTMLInternal(
     }
     if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
             html, this, kAllowScriptingContent, parse_declarative_shadows,
-            force_html, registry, exception_state)) {
+            force_html,
+            std::holds_alternative<std::monostate>(options)
+                ? ForceInertTemplate::kDontForce
+                : ForceInertTemplate::kForce,
+            registry, exception_state)) {
+      if (std::holds_alternative<SetHTMLOptions*>(options)) {
+        CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
+        SanitizerAPI::SanitizeSafeInternal(this, fragment,
+                                           std::get<SetHTMLOptions*>(options),
+                                           exception_state);
+      } else if (std::holds_alternative<SetHTMLUnsafeOptions*>(options)) {
+        CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
+        SanitizerAPI::SanitizeUnsafeInternal(
+            this, fragment, std::get<SetHTMLUnsafeOptions*>(options),
+            exception_state);
+      } else {
+        CHECK(std::holds_alternative<std::monostate>(options));
+        // No options; nothing to do.
+      }
       ContainerNode* container = this;
       bool swap_dom_parts{false};
       if (template_element) {
@@ -8807,7 +8801,8 @@ void Element::SetInnerHTMLInternal(
 void Element::SetInnerHTMLWithoutTrustedTypes(const String& html,
                                               ExceptionState& exception_state) {
   SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kDontParse,
-                       ForceHtml::kDontForce, exception_state);
+                       ForceHtml::kDontForce, std::monostate{},
+                       exception_state);
 }
 
 void Element::setInnerHTML(
@@ -8815,7 +8810,8 @@ void Element::setInnerHTML(
     ExceptionState& exception_state) {
   probe::BreakableLocation(GetExecutionContext(), "Element.setInnerHTML");
   String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), "Element", "innerHTML", exception_state);
+      html, GetExecutionContext(), trusted_types_names::kElement,
+      trusted_types_names::kInnerHTML, exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -8847,6 +8843,7 @@ void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
   DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
       html, parent, kAllowScriptingContent,
       ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
+      ForceInertTemplate::kDontForce,
       RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
           ? customElementRegistry()
           : GetDocument().customElementRegistry(),
@@ -8880,7 +8877,8 @@ void Element::setOuterHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
   String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), "Element", "outerHTML", exception_state);
+      html, GetExecutionContext(), trusted_types_names::kElement,
+      trusted_types_names::kOuterHTML, exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -9110,6 +9108,7 @@ void Element::InsertAdjacentHTMLWithoutTrustedTypes(
   DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
       markup, context_element, kAllowScriptingContent,
       ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
+      ForceInertTemplate::kDontForce,
       RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
           ? customElementRegistry()
           : GetDocument().customElementRegistry(),
@@ -9123,9 +9122,9 @@ void Element::InsertAdjacentHTMLWithoutTrustedTypes(
 void Element::insertAdjacentHTML(const String& where,
                                  const V8UnionStringOrTrustedHTML* html,
                                  ExceptionState& exception_state) {
-  String compliant_html =
-      TrustedTypesCheckForHTML(html, GetExecutionContext(), "Element",
-                               "insertAdjacentHTML", exception_state);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, GetExecutionContext(), trusted_types_names::kElement,
+      trusted_types_names::kInsertAdjacentHTML, exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -9896,13 +9895,7 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
 
   PseudoElement* pseudo_element =
       PseudoElement::Create(this, pseudo_id, pseudo_argument);
-  if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
-    if (!pseudo_element) {
-      // TODO(crbug.com/405117185): Replace with DCHECK(pseudo_element) once we
-      // properly track per-scope view transition names.
-      return nullptr;
-    }
-  }
+  DCHECK(pseudo_element);
   EnsureElementRareData().SetPseudoElement(pseudo_id, pseudo_element,
                                            pseudo_argument);
   pseudo_element->InsertedInto(*this);
@@ -12074,8 +12067,6 @@ void Element::UpdateOverscrollPseudoElements(
   const ScopedCSSNameList* overscroll_area =
       GetComputedStyle()->OverscrollArea();
   data = &EnsureElementRareData();
-  UpdatePseudoElement(kPseudoIdOverscrollClientArea, style_recalc_change,
-                      style_recalc_context);
   for (const ScopedCSSName* name : overscroll_area->GetNames()) {
     UpdatePseudoElement(kPseudoIdOverscrollAreaParent, style_recalc_change,
                         style_recalc_context, name->GetName());
@@ -12886,7 +12877,6 @@ Element* Element::ImplicitAnchorElement() const {
       case kPseudoIdScrollButtonInlineEnd:
       case kPseudoIdScrollButtonBlockEnd:
       case kPseudoIdOverscrollAreaParent:
-      case kPseudoIdOverscrollClientArea:
         if (RuntimeEnabledFeatures::
                 OriginatingElementIsImplicitAnchorEnabled()) {
           return parentElement();
@@ -12991,19 +12981,20 @@ void Element::SetHTMLUnsafeWithoutTrustedTypes(
     ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
   SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, exception_state);
+                       ForceHtml::kForce, std::monostate{}, exception_state);
 }
 
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
   String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), "Element", "setHTMLUnsafe", exception_state);
+      html, GetExecutionContext(), trusted_types_names::kElement,
+      trusted_types_names::kSetHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return;
   }
   SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, exception_state);
+                       ForceHtml::kForce, std::monostate{}, exception_state);
 }
 
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
@@ -13011,13 +13002,13 @@ void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
   String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), "Element", "setHTMLUnsafe", exception_state);
+      html, GetExecutionContext(), trusted_types_names::kElement,
+      trusted_types_names::kSetHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return;
   }
   SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, exception_state);
-  SanitizerAPI::SanitizeUnsafeInternal(this, options, exception_state);
+                       ForceHtml::kForce, options, exception_state);
 }
 
 void Element::setHTML(const String& html,
@@ -13025,8 +13016,7 @@ void Element::setHTML(const String& html,
                       ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
   SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, exception_state);
-  SanitizerAPI::SanitizeSafeInternal(this, options, exception_state);
+                       ForceHtml::kForce, options, exception_state);
 }
 
 void Element::SetNamedTriggers(NamedAnimationTriggerMap&& named_triggers) {

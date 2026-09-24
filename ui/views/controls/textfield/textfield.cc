@@ -73,6 +73,7 @@
 #include "ui/views/drag_utils.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/painter.h"
+#include "ui/views/property_effects.h"
 #include "ui/views/style/platform_style.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/style/typography_provider.h"
@@ -2995,14 +2996,31 @@ bool Textfield::Copy() {
 }
 
 bool Textfield::Paste() {
-  if (!GetReadOnly() && model_->Paste()) {
-    if (controller_) {
-      controller_->OnAfterPaste();
-    }
-    UpdateAccessibleTextSelection();
-    return true;
+  if (GetReadOnly()) {
+    return false;
   }
-  return false;
+
+  bool pasted = false;
+  std::u16string text;
+  // Allow the controller to intercept paste and provide text; if not provided,
+  // fall back to the model's default clipboard handling.
+  if (controller_ && controller_->OnBeforePaste(this, &text)) {
+    pasted = model_->Paste(std::move(text));
+  } else {
+    pasted = model_->Paste();
+  }
+
+  if (!pasted) {
+    return false;
+  }
+
+  if (controller_) {
+    controller_->OnAfterPaste();
+  }
+
+  UpdateAccessibleTextSelection();
+
+  return true;
 }
 
 void Textfield::UpdateContextMenu() {

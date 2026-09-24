@@ -164,8 +164,8 @@
 #include "chrome/browser/fast_checkout/fast_checkout_client_impl.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
-#include "chrome/browser/ui/android/autofill/autofill_accessibility_utils.h"
 #include "chrome/browser/ui/android/autofill/save_update_address_profile_flow_manager.h"
+#include "chrome/browser/ui/autofill/autofill_message_controller_impl.h"
 #include "chrome/browser/ui/autofill/autofill_snackbar_type.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_controller_android.h"
 #include "components/autofill/core/browser/payments/autofill_save_card_infobar_delegate_mobile.h"
@@ -908,13 +908,6 @@ base::span<const Suggestion> ChromeAutofillClient::GetAutofillSuggestions()
                                 : base::span<const Suggestion>();
 }
 
-std::optional<AutofillClient::PopupScreenLocation>
-ChromeAutofillClient::GetPopupScreenLocation() const {
-  return suggestion_controller_
-             ? suggestion_controller_->GetPopupScreenLocation()
-             : std::make_optional<AutofillClient::PopupScreenLocation>();
-}
-
 std::optional<AutofillClient::SuggestionUiSessionId>
 ChromeAutofillClient::GetSessionIdForCurrentAutofillSuggestions() const {
   return suggestion_controller_ ? suggestion_controller_->GetUiSessionId()
@@ -1096,17 +1089,6 @@ bool ChromeAutofillClient::IsPasswordManagerEnabled() const {
              password_manager::PasswordManagerSetting::kOfferToSavePasswords);
 }
 
-void ChromeAutofillClient::DidFillForm(AutofillTriggerSource trigger_source,
-                                       bool is_refill) {
-#if BUILDFLAG(IS_ANDROID)
-  if (trigger_source == AutofillTriggerSource::kTouchToFillCreditCard &&
-      !is_refill) {
-    autofill::AutofillAccessibilityHelper::GetInstance()->AnnounceTextForA11y(
-        l10n_util::GetStringUTF16(IDS_AUTOFILL_A11Y_ANNOUNCE_FILLED_FORM));
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-}
-
 bool ChromeAutofillClient::IsContextSecure() const {
   SecurityStateTabHelper* helper =
       SecurityStateTabHelper::FromWebContents(web_contents());
@@ -1155,6 +1137,16 @@ ChromeAutofillClient::GetAutofillSnackbarController() {
 
   return autofill_snackbar_controller_impl_.get();
 }
+
+AutofillMessageController*
+ChromeAutofillClient::GetAutofillMessageController() {
+  if (!autofill_message_controller_) {
+    autofill_message_controller_ =
+        std::make_unique<AutofillMessageControllerImpl>(web_contents());
+  }
+
+  return autofill_message_controller_.get();
+}
 #endif
 
 FormInteractionsFlowId
@@ -1171,7 +1163,8 @@ ChromeAutofillClient::GetCurrentFormInteractionsFlowId() {
 
 std::unique_ptr<device_reauth::DeviceAuthenticator>
 ChromeAutofillClient::GetDeviceAuthenticator() {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
   device_reauth::DeviceAuthParams params(
       base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill);
 

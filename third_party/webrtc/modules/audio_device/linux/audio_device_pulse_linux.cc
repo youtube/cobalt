@@ -2256,7 +2256,7 @@ bool AudioDeviceLinuxPulse::RecThreadProcess() {
         break;
       }
 
-      // Drop lock for sigslot dispatch, which could take a while.
+      // Drop lock for recorded audio handling, which could take a while.
       PaUnLock();
       // Read data and provide it to VoiceEngine
       if (ReadRecordedData(sampleData, sampleDataSize) == -1) {

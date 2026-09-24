@@ -4,6 +4,10 @@
 
 #include "components/services/storage/dom_storage/leveldb/local_storage_leveldb.h"
 
+#include "base/check.h"
+#include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/string_view_util.h"
 #include "base/types/expected_macros.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
@@ -242,6 +246,8 @@ StatusOr<DomStorageDatabase::Metadata> LocalStorageLevelDB::ReadAllMetadata() {
 
   // Create a vector of `MapMetadata` to return using the map's values.
   std::vector<DomStorageDatabase::MapMetadata> results;
+  results.reserve(storage_key_metadata_map.size());
+
   for (std::pair<const blink::StorageKey, DomStorageDatabase::MapMetadata>&
            storage_key_metadata : storage_key_metadata_map) {
     results.emplace_back(std::move(storage_key_metadata.second));
@@ -279,29 +285,83 @@ DbStatus LocalStorageLevelDB::PutMetadata(Metadata metadata) {
 
 DbStatus LocalStorageLevelDB::DeleteStorageKeysFromSession(
     std::string session_id,
-    std::vector<blink::StorageKey> storage_keys,
-    absl::flat_hash_set<int64_t> excluded_cloned_map_ids) {
-  // Local storage uses a single global session without clones.
+    std::vector<blink::StorageKey> metadata_to_delete,
+    std::vector<MapLocator> maps_to_delete) {
+  // Local storage uses a single global session without clones.  To avoid
+  // orphaned maps, each deleted storage key must also delete its map.
   CHECK_EQ(session_id, kLocalStorageSessionId);
-  CHECK_EQ(excluded_cloned_map_ids.size(), 0u);
+  CHECK_EQ(maps_to_delete.size(), metadata_to_delete.size());
 
   std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
       leveldb_->CreateBatchOperation();
 
-  for (const blink::StorageKey& storage_key : storage_keys) {
-    // Erase all map key/value pairs.
-    DbStatus status = batch->DeletePrefixed(GetMapPrefix(storage_key));
-    if (!status.ok()) {
-      return status;
-    }
-
+  for (const blink::StorageKey& storage_key : metadata_to_delete) {
     // Erase the "METAACCESS:" entry.
     batch->Delete(CreateAccessMetaDataKey(storage_key));
 
     // Erase the "META:" entry.
     batch->Delete(CreateWriteMetaDataKey(storage_key));
   }
+
+  // Erase all map key/value pairs.
+  for (const MapLocator& map : maps_to_delete) {
+    // A valid `map` must be in `storage_keys` and `kLocalStorageSessionId`.
+    CHECK_EQ(map.session_id(), kLocalStorageSessionId);
+    DCHECK(base::Contains(metadata_to_delete, map.storage_key()));
+
+    DbStatus status = batch->DeletePrefixed(GetMapPrefix(map.storage_key()));
+    if (!status.ok()) {
+      return status;
+    }
+  }
   return batch->Commit();
+}
+
+DbStatus LocalStorageLevelDB::DeleteSessions(
+    std::vector<std::string> session_ids,
+    std::vector<MapLocator> maps_to_delete) {
+  // Not implemented.  Since local storage uses a single global session, callers
+  // should delete the entire database instead of the session.
+  NOTREACHED();
+}
+
+DbStatus LocalStorageLevelDB::PurgeOrigins(std::set<url::Origin> origins) {
+  ASSIGN_OR_RETURN(Metadata all_metadata, ReadAllMetadata());
+
+  std::vector<blink::StorageKey> metadata_to_delete;
+  std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
+
+  for (const DomStorageDatabase::MapMetadata& metadata :
+       all_metadata.map_metadata) {
+    // Ideally we would be recording last_accessed instead, but there is no
+    // historical data on that. Instead, we will use last_modified as a sanity
+    // check against other data as we try to understand how many 'old' storage
+    // buckets are still in use. This is split into two buckets for greater
+    // resolution on near and far term ages.
+    if (metadata.last_modified && *metadata.last_modified < base::Time::Now()) {
+      const int days_since_last_modified =
+          (base::Time::Now() - *metadata.last_modified).InDays();
+      base::UmaHistogramCustomCounts("LocalStorage.DaysSinceLastModified",
+                                     days_since_last_modified, 1,
+                                     kStaleBucketCutoffInDays, 100);
+    }
+
+    const blink::StorageKey& storage_key = metadata.map_locator.storage_key();
+
+    for (const auto& origin : origins) {
+      if (storage_key.origin() == origin ||
+          (storage_key.IsThirdPartyContext() &&
+           storage_key.top_level_site().IsSameSiteWith(origin))) {
+        metadata_to_delete.push_back(storage_key);
+        maps_to_delete.emplace_back(kLocalStorageSessionId, storage_key);
+        break;
+      }
+    }
+  }
+
+  return DeleteStorageKeysFromSession(kLocalStorageSessionId,
+                                      std::move(metadata_to_delete),
+                                      std::move(maps_to_delete));
 }
 
 DbStatus LocalStorageLevelDB::RewriteDB() {

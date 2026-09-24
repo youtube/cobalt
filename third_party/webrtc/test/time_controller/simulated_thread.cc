@@ -26,7 +26,7 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
-#include "test/time_controller/simulated_time_controller.h"
+#include "test/time_controller/simulated_time_controller_impl.h"
 
 namespace webrtc {
 namespace {

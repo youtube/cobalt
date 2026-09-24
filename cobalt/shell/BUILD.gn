@@ -97,6 +97,7 @@ group("cobalt_shell_lib_deps") {
     "//content/public/app",
     "//content/public/browser",
     "//content/public/gpu",
+    "//device/bluetooth",
     "//media",
     "//media/mojo:buildflags",
     "//net",

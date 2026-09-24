@@ -77,6 +77,7 @@ export declare interface AdditionalContextPart {
   annotatedPageData?: AnnotatedPageData;
   pdf?: PdfDocumentData;
   tabContext?: TabContextResult;
+  region?: CapturedRegion;
 }
 
 /**
@@ -716,8 +717,10 @@ export declare interface GlicBrowserHost {
    * is already pinned. Return value is true if all tabs were pinned, but if
    * a false value does not mean that no tabs were pinned. The updated set of
    * pinned tabs will asynchronously be available via getPinnedTabs.
+   *
+   * @param options Options for pinning tabs.
    */
-  pinTabs?(tabIds: string[]): Promise<boolean>;
+  pinTabs?(tabIds: string[], options?: PinTabsOptions): Promise<boolean>;
 
   /**
    * Attempts to unpin the given tabs. Can fail if the any of the tabs cannot be
@@ -726,12 +729,12 @@ export declare interface GlicBrowserHost {
    * updated set of pinned tabs will asynchronously be available via
    * getPinnedTabs.
    */
-  unpinTabs?(tabIds: string[]): Promise<boolean>;
+  unpinTabs?(tabIds: string[], options?: UnpinTabsOptions): Promise<boolean>;
 
   /**
    * Unpins all currently pinned tabs.
    */
-  unpinAllTabs?(): void;
+  unpinAllTabs?(options?: UnpinTabsOptions): void;
 
   /**
    * Gets TabData for the current set of pinned tabs. The focused tab may also
@@ -1357,6 +1360,20 @@ export declare interface GetPinCandidatesOptions {
   maxCandidates: number;
   /** A query string. */
   query?: string;
+}
+
+/**
+ * Options for pinning tabs.
+ */
+export declare interface PinTabsOptions {
+  pinTrigger?: PinTrigger;
+}
+
+/**
+ * Options for unpinning tabs.
+ */
+export declare interface UnpinTabsOptions {
+  unpinTrigger?: UnpinTrigger;
 }
 
 /** Information about a web page being rendered in a tab. */
@@ -2321,6 +2338,38 @@ export enum ScrollToErrorReason {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Describes what triggered the pin.
+export enum PinTrigger {
+  // The pin occurred for unknown reasons. Specifies 'web client' to align with
+  // `GlicPinTrigger` enum (which disambiguates from unknown triggers
+  // originating elsewhere).
+  WEB_CLIENT_UNKNOWN = 0,
+  // The pin was triggered by the toggle UI for pin candidates.
+  CANDIDATES_TOGGLE = 1,
+  // The pin was triggered by the inline '@' mention feature.
+  AT_MENTION = 2,
+  // The pin was triggered as part of actor/actuation behavior.
+  ACTUATION = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Describes what triggered the unpin.
+export enum UnpinTrigger {
+  // The unpin occurred for unknown reasons. Specifies 'web client' to align
+  // with `GlicUnpinTrigger` enum (which disambiguates from unknown triggers
+  // originating elsewhere).
+  WEB_CLIENT_UNKNOWN = 0,
+  // The unpin was triggered by the toggle UI for pin candidates.
+  CANDIDATES_TOGGLE = 1,
+  // The unpin was triggered by a chip.
+  CHIP = 2,
+  // The unpin was triggered as part of actor/actuation behavior.
+  ACTUATION = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 // Reason for failure when switching a conversation.
 export enum SwitchConversationErrorReason {
   UNKNOWN = 0,
@@ -2446,6 +2495,12 @@ export enum HostCapability {
   GET_MODEL_QUALITY_CLIENT_ID = 2,
   // Glic is in multi-instance mode.
   MULTI_INSTANCE = 3,
+  // Enables the experimental "Trust First" (Arm 1 - "Start Chat") onboarding
+  // UI flow, bypassing the standard FRE flow.
+  TRUST_FIRST_ONBOARDING_ARM1 = 4,
+  // Enables the experimental "Trust First" (Arm 2 - "Welcome Screen")
+  // onboarding UI flow, bypassing the standard FRE flow.
+  TRUST_FIRST_ONBOARDING_ARM2 = 5,
 }
 
 ///////////////////////////////////////////////

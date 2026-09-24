@@ -22,6 +22,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/media_stream_interface.h"
@@ -75,12 +76,21 @@ class PeerScenario {
   SignalingRoute ConnectSignaling(PeerScenarioClient* caller,
                                   PeerScenarioClient* callee,
                                   std::vector<EmulatedNetworkNode*> send_link,
+                                  std::vector<EmulatedNetworkNode*> ret_link) {
+    return ConnectSignaling(true, caller, callee, std::move(send_link),
+                            std::move(ret_link));
+  }
+  SignalingRoute ConnectSignaling(bool send_sdp_via_network,
+                                  PeerScenarioClient* caller,
+                                  PeerScenarioClient* callee,
+                                  std::vector<EmulatedNetworkNode*> send_link,
                                   std::vector<EmulatedNetworkNode*> ret_link);
 
   // Connects two clients over given links. This will also start ICE signaling
-  // and SDP negotiation with default behavior. For customized behavior,
-  // ConnectSignaling should be used to allow more detailed control, for
-  // instance to allow different signaling and media routes.
+  // and SDP negotiation. SDP negotiation will not be done via the network
+  // links. For customized behavior, ConnectSignaling should be used to allow
+  // more detailed control, for instance to allow different signaling and media
+  // routes.
   void SimpleConnection(PeerScenarioClient* caller,
                         PeerScenarioClient* callee,
                         std::vector<EmulatedNetworkNode*> send_link,

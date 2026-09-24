@@ -74,6 +74,10 @@ static constexpr GLbitfield kWriteAfterAccessImageMemoryBarriers =
 static constexpr GLbitfield kWriteAfterAccessMemoryBarriers =
     kWriteAfterAccessImageMemoryBarriers | GL_SHADER_STORAGE_BARRIER_BIT;
 
+// The number of minimum commands in the command buffer to prefer submit at FBO boundary or
+// immediately submit when the device is idle after calling to flush.
+static constexpr size_t kMinCommandCountToSubmit = 1024;
+
 // For shader uniforms such as gl_DepthRange and the viewport size.
 struct GraphicsDriverUniforms
 {
@@ -179,6 +183,24 @@ constexpr gl::ShaderMap<vk::ImageAccess> kShaderWriteImageAccess = {
     {gl::ShaderType::Geometry, vk::ImageAccess::PreFragmentShadersWrite},
     {gl::ShaderType::Fragment, vk::ImageAccess::FragmentShaderWrite},
     {gl::ShaderType::Compute, vk::ImageAccess::ComputeShaderWrite}};
+
+constexpr angle::PackedEnumMap<gl::PrimitiveMode, gl::PrimitiveMode> kPrimitiveTopologyClass = {{
+    {gl::PrimitiveMode::Points, gl::PrimitiveMode::Points},
+    {gl::PrimitiveMode::Lines, gl::PrimitiveMode::Lines},
+    {gl::PrimitiveMode::LineLoop, gl::PrimitiveMode::Lines},
+    {gl::PrimitiveMode::LineStrip, gl::PrimitiveMode::Lines},
+    {gl::PrimitiveMode::Triangles, gl::PrimitiveMode::Triangles},
+    {gl::PrimitiveMode::TriangleStrip, gl::PrimitiveMode::Triangles},
+    {gl::PrimitiveMode::TriangleFan, gl::PrimitiveMode::Triangles},
+    {gl::PrimitiveMode::LinesAdjacency, gl::PrimitiveMode::Lines},
+    {gl::PrimitiveMode::LineStripAdjacency, gl::PrimitiveMode::Lines},
+    {gl::PrimitiveMode::TrianglesAdjacency, gl::PrimitiveMode::Triangles},
+    {gl::PrimitiveMode::TriangleStripAdjacency, gl::PrimitiveMode::Triangles},
+    {gl::PrimitiveMode::Patches, gl::PrimitiveMode::Patches},
+    // Use Unused1 as a placeholder for "uninitialized".  Using that instead of InvalidEnum allows a
+    // look up in this table and avoid special-casing it.
+    {gl::PrimitiveMode::Unused1, gl::PrimitiveMode::InvalidEnum},
+}};
 
 constexpr VkBufferUsageFlags kVertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 constexpr size_t kDynamicVertexDataSize         = 16 * 1024;
@@ -585,6 +607,7 @@ void OnImageBufferWrite(vk::Context *context,
     vk::BufferHelper &buffer = bufferVk->getBuffer();
     VkAccessFlags accessFlags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
     commandBufferHelper->bufferWrite(context, accessFlags, stages, &buffer);
+    bufferVk->onDataChanged();
 }
 
 constexpr angle::PackedEnumMap<RenderPassClosureReason, const char *> kRenderPassClosureReason = {{
@@ -827,7 +850,7 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
       mCurrentGraphicsPipeline(nullptr),
       mCurrentGraphicsPipelineShaders(nullptr),
       mCurrentComputePipeline(nullptr),
-      mCurrentDrawMode(gl::PrimitiveMode::InvalidEnum),
+      mCurrentDrawMode(gl::PrimitiveMode::Unused1),
       mCurrentWindowSurface(nullptr),
       mCurrentRotationDrawFramebuffer(SurfaceRotation::Identity),
       mCurrentRotationReadFramebuffer(SurfaceRotation::Identity),
@@ -925,6 +948,10 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
     if (mRenderer->getFeatures().useFrontFaceDynamicState.enabled)
     {
         mDynamicStateDirtyBits.set(DIRTY_BIT_DYNAMIC_FRONT_FACE);
+    }
+    if (mRenderer->getFeatures().usePrimitiveTopologyDynamicState.enabled)
+    {
+        mDynamicStateDirtyBits.set(DIRTY_BIT_DYNAMIC_PRIMITIVE_TOPOLOGY);
     }
     if (mRenderer->getFeatures().useDepthTestEnableDynamicState.enabled)
     {
@@ -1039,6 +1066,8 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
         &ContextVk::handleDirtyGraphicsDynamicCullMode;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_FRONT_FACE] =
         &ContextVk::handleDirtyGraphicsDynamicFrontFace;
+    mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_PRIMITIVE_TOPOLOGY] =
+        &ContextVk::handleDirtyGraphicsDynamicPrimitiveTopology;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_DEPTH_TEST_ENABLE] =
         &ContextVk::handleDirtyGraphicsDynamicDepthTestEnable;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_DEPTH_WRITE_ENABLE] =
@@ -1496,7 +1525,7 @@ angle::Result ContextVk::flushImpl(const gl::Context *context)
     uint32_t currentRPCommandCount =
         mRenderPassCommands->getCommandBuffer().getRenderPassWriteCommandCount() +
         mCommandsPendingSubmissionCount;
-    if (currentRPCommandCount >= mRenderer->getMinCommandCountToSubmit())
+    if (currentRPCommandCount >= kMinCommandCountToSubmit)
     {
         if (!mRenderer->isInFlightCommandsEmpty())
         {
@@ -1578,9 +1607,7 @@ angle::Result ContextVk::setupDraw(const gl::Context *context,
     // Set any dirty bits that depend on draw call parameters or other objects.
     if (mode != mCurrentDrawMode)
     {
-        invalidateCurrentGraphicsPipeline();
-        mCurrentDrawMode = mode;
-        mGraphicsPipelineDesc->updateTopology(&mGraphicsPipelineTransition, mCurrentDrawMode);
+        updateTopology(mode);
     }
 
     // Submit pending commands if the number of write-commands in the current render pass reaches a
@@ -3220,6 +3247,14 @@ angle::Result ContextVk::handleDirtyGraphicsDynamicFrontFace(DirtyBits::Iterator
     const gl::RasterizerState &rasterState = mState.getRasterizerState();
     mRenderPassCommandBuffer->setFrontFace(
         gl_vk::GetFrontFace(rasterState.frontFace, isYFlipEnabledForDrawFBO()));
+    return angle::Result::Continue;
+}
+
+angle::Result ContextVk::handleDirtyGraphicsDynamicPrimitiveTopology(
+    DirtyBits::Iterator *dirtyBitsIterator,
+    DirtyBits dirtyBitMask)
+{
+    mRenderPassCommandBuffer->setPrimitiveTopology(gl_vk::GetPrimitiveTopology(mCurrentDrawMode));
     return angle::Result::Continue;
 }
 
@@ -5153,6 +5188,39 @@ void ContextVk::updateFrontFace()
     }
 }
 
+ANGLE_INLINE void ContextVk::updateTopology(gl::PrimitiveMode mode)
+{
+    ASSERT(mode != mCurrentDrawMode);
+
+    gl::PrimitiveMode pipelineTopology  = mode;
+    const gl::PrimitiveMode currentMode = mCurrentDrawMode;
+    mCurrentDrawMode                    = mode;
+
+    // When VK_EXT_extended_dynamic_state is enabled, all that's needed in the graphics pipeline
+    // desc is the topology "class", and the exact topology is specified dynamically.
+    //
+    // Note: VK_EXT_extended_dynamic_state3's dynamicPrimitiveTopologyUnrestricted property
+    // indicates that the dynamically set primitive topology doesn't need to match even the topology
+    // class used to create the pipeline.  That property seems to only be set on Nvidia.
+    if (getFeatures().usePrimitiveTopologyDynamicState.enabled)
+    {
+        // Update the exact mode dynamically
+        mGraphicsDirtyBits.set(DIRTY_BIT_DYNAMIC_PRIMITIVE_TOPOLOGY);
+
+        // Only update the pipeline desc if the primitive class has changed
+        pipelineTopology = kPrimitiveTopologyClass[mode];
+        const bool isTopologyClassChanged =
+            pipelineTopology != kPrimitiveTopologyClass[currentMode];
+        if (!isTopologyClassChanged)
+        {
+            return;
+        }
+    }
+
+    invalidateCurrentGraphicsPipeline();
+    mGraphicsPipelineDesc->updateTopology(&mGraphicsPipelineTransition, pipelineTopology);
+}
+
 void ContextVk::updateDepthRange(float nearPlane, float farPlane)
 {
     // GLES2.0 Section 2.12.1: Each of n and f are clamped to lie within [0, 1], as are all
@@ -5845,7 +5913,7 @@ angle::Result ContextVk::syncState(const gl::Context *context,
 
                 // To reduce CPU overhead if submission at FBO boundary is preferred, the deferred
                 // flush is triggered after the currently accumulated command count for the render
-                // pass command buffer hits a threshold (Renderer::getMinCommandCountToSubmit()).
+                // pass command buffer hits a threshold kMinCommandCountToSubmit).
                 uint32_t currentRPCommandCount =
                     mRenderPassCommands->getCommandBuffer().getRenderPassWriteCommandCount() +
                     mCommandsPendingSubmissionCount;
@@ -5861,7 +5929,7 @@ angle::Result ContextVk::syncState(const gl::Context *context,
 
                 bool shouldSubmitAtFBOBoundary =
                     getFeatures().preferSubmitAtFBOBoundary.enabled &&
-                    (currentRPCommandCount >= mRenderer->getMinCommandCountToSubmit() ||
+                    (currentRPCommandCount >= kMinCommandCountToSubmit ||
                      allowExceptionForSubmitAtBoundary);
 
                 if ((shouldSubmitAtFBOBoundary || mState.getDrawFramebuffer()->isDefault()) &&
@@ -7347,7 +7415,6 @@ angle::Result ContextVk::initBufferAllocation(vk::BufferHelper *bufferHelper,
 
 angle::Result ContextVk::initImageAllocation(vk::ImageHelper *imageHelper,
                                              bool hasProtectedContent,
-                                             const vk::MemoryProperties &memoryProperties,
                                              VkMemoryPropertyFlags flags,
                                              vk::MemoryAllocationType allocationType)
 {
@@ -7366,9 +7433,9 @@ angle::Result ContextVk::initImageAllocation(vk::ImageHelper *imageHelper,
     bool allocateDedicatedMemory =
         mRenderer->getImageMemorySuballocator().needsDedicatedMemory(memoryRequirements.size);
 
-    VkResult result = imageHelper->initMemory(this, memoryProperties, flags, oomExcludedFlags,
-                                              &memoryRequirements, allocateDedicatedMemory,
-                                              allocationType, &outputFlags, &outputSize);
+    VkResult result =
+        imageHelper->initMemory(this, flags, oomExcludedFlags, &memoryRequirements,
+                                allocateDedicatedMemory, allocationType, &outputFlags, &outputSize);
     if (ANGLE_LIKELY(result == VK_SUCCESS))
     {
         if (mRenderer->getFeatures().allocateNonZeroMemory.enabled)
@@ -7395,9 +7462,9 @@ angle::Result ContextVk::initImageAllocation(vk::ImageHelper *imageHelper,
         if (anyGarbageCleaned)
         {
             someGarbageCleaned = true;
-            result = imageHelper->initMemory(this, memoryProperties, flags, oomExcludedFlags,
-                                             &memoryRequirements, allocateDedicatedMemory,
-                                             allocationType, &outputFlags, &outputSize);
+            result = imageHelper->initMemory(this, flags, oomExcludedFlags, &memoryRequirements,
+                                             allocateDedicatedMemory, allocationType, &outputFlags,
+                                             &outputSize);
         }
     } while (result != VK_SUCCESS && anyGarbageCleaned);
 
@@ -7413,9 +7480,9 @@ angle::Result ContextVk::initImageAllocation(vk::ImageHelper *imageHelper,
     {
         ANGLE_TRY(finishImpl(RenderPassClosureReason::OutOfMemory));
         INFO() << "Context flushed due to out-of-memory error.";
-        result = imageHelper->initMemory(this, memoryProperties, flags, oomExcludedFlags,
-                                         &memoryRequirements, allocateDedicatedMemory,
-                                         allocationType, &outputFlags, &outputSize);
+        result = imageHelper->initMemory(this, flags, oomExcludedFlags, &memoryRequirements,
+                                         allocateDedicatedMemory, allocationType, &outputFlags,
+                                         &outputSize);
     }
 
     // If no fallback has worked so far, we should record the failed allocation information in case
@@ -7438,9 +7505,9 @@ angle::Result ContextVk::initImageAllocation(vk::ImageHelper *imageHelper,
     if (result != VK_SUCCESS)
     {
         oomExcludedFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        result           = imageHelper->initMemory(this, memoryProperties, flags, oomExcludedFlags,
-                                                   &memoryRequirements, allocateDedicatedMemory,
-                                                   allocationType, &outputFlags, &outputSize);
+        result = imageHelper->initMemory(this, flags, oomExcludedFlags, &memoryRequirements,
+                                         allocateDedicatedMemory, allocationType, &outputFlags,
+                                         &outputSize);
         INFO()
             << "Allocation failed. Removed the DEVICE_LOCAL bit requirement | Allocation result: "
             << ((result == VK_SUCCESS) ? "SUCCESS" : "FAIL");
@@ -8275,8 +8342,8 @@ angle::Result ContextVk::flushCommandsAndEndRenderPassWithoutSubmit(RenderPassCl
     mCommandsPendingSubmissionCount +=
         mRenderPassCommands->getCommandBuffer().getRenderPassWriteCommandCount();
 
-    ANGLE_TRY(mCommandState.flushRenderPassCommands(this, getProtectionType(), *renderPass,
-                                                    framebufferOverride, &mRenderPassCommands));
+    ANGLE_TRY(mCommandState.flushRenderPassCommands(this, *renderPass, framebufferOverride,
+                                                    &mRenderPassCommands));
 
     // We just flushed outSideRenderPassCommands above, and any future use of
     // outsideRenderPassCommands must have a queueSerial bigger than renderPassCommands. To ensure
@@ -8560,8 +8627,7 @@ angle::Result ContextVk::flushOutsideRenderPassCommands()
     {
         mIsAnyHostVisibleBufferWritten = true;
     }
-    ANGLE_TRY(mCommandState.flushOutsideRPCommands(this, getProtectionType(),
-                                                   &mOutsideRenderPassCommands));
+    ANGLE_TRY(mCommandState.flushOutsideRPCommands(this, &mOutsideRenderPassCommands));
 
     // Make sure appropriate dirty bits are set, in case another thread makes a submission before
     // the next dispatch call.

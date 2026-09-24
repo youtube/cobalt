@@ -127,7 +127,7 @@ TEST(SimulatedTimeControllerTest, DelayTaskRunOnTime) {
   EXPECT_TRUE(delay_task_executed);
 }
 
-TEST(SimulatedTimeControllerTest, ThreadYeildsOnSynchronousCall) {
+TEST(SimulatedTimeControllerTest, ThreadYieldsOnSynchronousCall) {
   GlobalSimulatedTimeController sim(kStartTime);
   auto main_thread = sim.GetMainThread();
   auto t2 = sim.CreateThread("thread", nullptr);

@@ -368,8 +368,9 @@ class NetworkEmulationManager {
 
   // Create a pair of EmulatedNetworkManagerInterfaces connected to each other.
   std::pair<EmulatedNetworkManagerInterface*, EmulatedNetworkManagerInterface*>
-  CreateEndpointPairWithTwoWayRoutes(
-      const BuiltInNetworkBehaviorConfig& config);
+  CreateEndpointPairWithTwoWayRoutes(const BuiltInNetworkBehaviorConfig& config,
+                                     int alice_interface_count = 1,
+                                     int bob_interface_count = 1);
 };
 
 }  // namespace webrtc

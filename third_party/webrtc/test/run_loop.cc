@@ -9,8 +9,11 @@
  */
 #include "test/run_loop.h"
 
+#include "absl/functional/any_invocable.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
@@ -19,11 +22,16 @@
 namespace webrtc {
 namespace test {
 
-RunLoop::RunLoop() {
+RunLoop::RunLoop() : weak_factory_(this) {
   worker_thread_.WrapCurrent();
 }
 
 RunLoop::~RunLoop() {
+  if (run_for_flag_) {
+    // If RunFor is called then it must be stopped before the RunLoop is
+    // destroyed.
+    run_for_flag_->SetNotAlive();
+  }
   worker_thread_.UnwrapCurrent();
 }
 
@@ -36,7 +44,27 @@ void RunLoop::Run() {
 }
 
 void RunLoop::Quit() {
+  if (run_for_flag_) {
+    run_for_flag_->SetNotAlive();
+    run_for_flag_ = nullptr;
+  }
   socket_server_.FailNextWait();
+}
+
+absl::AnyInvocable<void()> RunLoop::QuitClosure() {
+  return [loop = weak_factory_.GetWeakPtr()] {
+    if (loop) {
+      loop->Quit();
+    }
+  };
+}
+
+void RunLoop::RunFor(TimeDelta max_wait_duration) {
+  RTC_CHECK(run_for_flag_ == nullptr) << "RunFor already called";
+  run_for_flag_ = PendingTaskSafetyFlag::Create();
+  worker_thread_.PostDelayedHighPrecisionTask(
+      SafeTask(run_for_flag_, QuitClosure()), max_wait_duration);
+  Run();
 }
 
 void RunLoop::Flush() {

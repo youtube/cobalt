@@ -112,6 +112,7 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   const std::string content_name("my_mid");
   auto transceiver = make_ref_counted<RtpTransceiver>(
       env(), MediaType::AUDIO, context(), codec_lookup_helper());
+  transceiver->set_mid(content_name);
   auto channel1 = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel1, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*channel1, mid()).WillRepeatedly(ReturnRef(content_name));
@@ -146,6 +147,7 @@ TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
   const std::string content_name("my_mid");
   auto transceiver = make_ref_counted<RtpTransceiver>(
       env(), MediaType::VIDEO, context(), codec_lookup_helper());
+  transceiver->set_mid(content_name);
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::VIDEO));
   EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
@@ -693,6 +695,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        NoNegotiatedHdrExtsWithChannelWithoutNegotiation) {
   const std::string content_name("my_mid");
+  transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
@@ -715,7 +718,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 
 TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
   const std::string content_name("my_mid");
-
+  transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
@@ -748,7 +751,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        ReturnsNegotiatedHdrExtsOnPrAnswer) {
   const std::string content_name("my_mid");
-
+  transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
@@ -781,6 +784,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
 TEST_F(RtpTransceiverTestForHeaderExtensions,
        AnswerCanUseOtherHdrExtensionsThanPrAnswer) {
   const std::string content_name("my_mid");
+  transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));

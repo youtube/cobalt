@@ -4,7 +4,7 @@
 
 #include "base/feature_list.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views_test.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/test/browser_test.h"
@@ -56,10 +56,6 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
 
 IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
                        ClosePopupOnInactiveAreaClick) {
-  if (!base::FeatureList::IsEnabled(
-          features::kCloseOmniboxPopupOnInactiveAreaClick)) {
-    return;
-  }
   auto* const browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ui::test::EventGenerator event_generator(
       views::GetRootWindow(browser_view->GetWidget()),

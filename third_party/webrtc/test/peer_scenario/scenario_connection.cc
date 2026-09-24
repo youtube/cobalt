@@ -27,7 +27,6 @@
 #include "api/test/network_emulation_manager.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "api/transport/enums.h"
-#include "call/payload_type_picker.h"
 #include "call/rtp_demuxer.h"
 #include "call/rtp_packet_sink_interface.h"
 #include "media/base/rtp_utils.h"
@@ -101,7 +100,6 @@ class ScenarioIceConnectionImpl : public ScenarioIceConnection,
   BasicPacketSocketFactory packet_socket_factory_;
   std::unique_ptr<BasicPortAllocator> port_allocator_
       RTC_GUARDED_BY(network_thread_);
-  PayloadTypePicker payload_type_picker_;
   std::unique_ptr<JsepTransportController> jsep_controller_;
   RtpTransportInternal* rtp_transport_ RTC_GUARDED_BY(network_thread_) =
       nullptr;
@@ -148,7 +146,6 @@ ScenarioIceConnectionImpl::ScenarioIceConnectionImpl(
                                       port_allocator_.get(),
                                       /*async_resolver_factory*/ nullptr,
                                       /*lna_permission_factory*/ nullptr,
-                                      payload_type_picker_,
                                       CreateJsepConfig())) {
   jsep_controller_->SetLocalCertificate(certificate_);
   SendTask(network_thread_, [this] {

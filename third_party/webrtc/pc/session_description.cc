@@ -10,7 +10,6 @@
 
 #include "pc/session_description.h"
 
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -21,6 +20,7 @@
 #include "absl/strings/string_view.h"
 #include "p2p/base/transport_info.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/strings/str_join.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
@@ -96,9 +96,7 @@ std::string ContentGroup::ToString() const {
   StringBuilder acc;
   acc << semantics_ << "(";
   if (!content_names_.empty()) {
-    for (const auto& name : content_names_) {
-      acc << name << " ";
-    }
+    acc << StrJoin(content_names_, " ");
   }
   acc << ")";
   return acc.Release();

@@ -263,6 +263,9 @@ static const EVP_AEAD aead_aes_128_eax = {
     nullptr,  // open
     aead_aes_eax_seal_scatter,
     aead_aes_eax_open_gather,
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     nullptr,  // tag_len
 };
@@ -280,6 +283,9 @@ static const EVP_AEAD aead_aes_256_eax = {
     nullptr,  // open
     aead_aes_eax_seal_scatter,
     aead_aes_eax_open_gather,
+    nullptr,  // openv
+    nullptr,  // sealv
+    nullptr,  // openv_detached
     nullptr,  // get_iv
     nullptr,  // tag_len
 };

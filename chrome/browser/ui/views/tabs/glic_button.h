@@ -112,6 +112,7 @@ class GlicButton : public TabStripNudgeButton,
  private:
   // views::LabelButton:
   void SetText(std::u16string_view text) override;
+  void NotifyClick(const ui::Event& event) override;
 
   // Creates the model for the context menu.
   std::unique_ptr<ui::SimpleMenuModel> CreateMenuModel();
@@ -154,6 +155,8 @@ class GlicButton : public TabStripNudgeButton,
   // Used to update the tooltip text when the showing states of the Glic
   // window/FRE change.
   void UpdateTooltipText();
+
+  void OnLabelVisibilityChanged();
 
   // Callback subscription for listening to changes to the Glic window
   // activation changes.

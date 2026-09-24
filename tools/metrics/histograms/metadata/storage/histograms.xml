@@ -166,7 +166,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccessHeader.ActivateStorageAccessLoadOutcome"
-    enum="ActivateStorageAccessLoadOutcome" expires_after="2026-01-04">
+    enum="ActivateStorageAccessLoadOutcome" expires_after="2027-01-04">
   <owner>sledoux@chromium.org</owner>
   <owner>cfredric@chromium.org</owner>
   <summary>
@@ -298,6 +298,46 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="IndexedDB.BackendDuration.{Operation}.{IndexedDBBackingStoreType}"
+    units="ms" expires_after="2026-10-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Logs the duration of the synchronous work performed in the backend (browser
+    process) for the operation {Operation} on an {IndexedDBBackingStoreType}
+    backing store. Logged once for each successful operation that calls into the
+    backing store (i.e., is non-trivial).
+  </summary>
+  <token key="Operation">
+    <variant name="AdvanceCursor"/>
+    <variant name="ChangeDatabaseVersion"/>
+    <variant name="ClearObjectStore"/>
+    <variant name="ContinueCursor"/>
+    <variant name="CountRecords"/>
+    <variant name="CreateDatabase"/>
+    <variant name="CreateIndex"/>
+    <variant name="CreateObjectStore"/>
+    <variant name="DeleteDatabase"/>
+    <variant name="DeleteIndex"/>
+    <variant name="DeleteObjectStore"/>
+    <variant name="DeleteRecordRange"/>
+    <variant name="GetAllRecords"/>
+    <variant name="GetDatabaseInfo"/>
+    <variant name="GetKeyGeneratorCurrentNumber"/>
+    <variant name="GetRecord"/>
+    <variant name="OpenCursor"/>
+    <variant name="OpenDatabase"/>
+    <variant name="PrefetchCursor"/>
+    <variant name="PutRecord"/>
+    <variant name="RenameIndex"/>
+    <variant name="RenameObjectStore"/>
+    <variant name="SetIndexKeys"/>
+  </token>
+</histogram>
+
 <histogram name="IndexedDB.BackingStore.ReadBlob.{IndexedDBBackingStoreType}"
     enum="NetErrorCodes" expires_after="2026-10-01">
   <owner>leimy@chromium.org</owner>
@@ -417,7 +457,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.Create{Mode}Transaction.NumTransactionsInConnection"
-    units="transactions" expires_after="2026-03-30">
+    units="transactions" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -431,7 +471,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.Create{Mode}Transaction.NumTransactionsInDatabase"
-    units="transactions" expires_after="2026-03-30">
+    units="transactions" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -445,7 +485,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.FilePathLengthOverflow.{Engine}" units="characters"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -494,21 +534,6 @@ chromium-metrics-reviews@google.com.
     PartitionedLockManager when GetUnacquirableLocks() takes over 2ms to
     complete. This is intended to facilitate tracking down performance issues.
     See crbug.com/384476946
-  </summary>
-</histogram>
-
-<histogram
-    name="IndexedDB.IDBFactory.GetDatabaseInfo.Duration.{IndexedDBBackingStoreType}"
-    units="ms" expires_after="2026-10-01">
-  <owner>leimy@chromium.org</owner>
-  <owner>evanstade@microsoft.com</owner>
-  <owner>abhishek.shanthkumar@microsoft.com</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Logs the duration of the synchronous work performed in the backend (browser
-    process) to serve IDBFactory::GetDatabaseInfo() requests. Logged once for
-    each successful request that calls into the backing store (i.e., is
-    non-trivial).
   </summary>
 </histogram>
 
@@ -639,7 +664,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.NumConnections.OnCreateAbove10k" units="connections"
-    expires_after="2026-03-30">
+    expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -651,7 +676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.NumPendingConnections.OnCreateAbove10k"
-    units="connections" expires_after="2026-03-30">
+    units="connections" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -665,7 +690,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="IndexedDB.NumTransactionsInIDBDatabaseOnTransactionCreated.10kTransactions"
-    units="transactions" expires_after="2026-03-30">
+    units="transactions" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -758,7 +783,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}CommitPending"
-    enum="Boolean" expires_after="2026-03-30">
+    enum="Boolean" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -770,7 +795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}IsAborted"
-    enum="IDBTransactionMode" expires_after="2026-03-30">
+    enum="IDBTransactionMode" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -782,7 +807,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}IsConnected"
-    enum="Boolean" expires_after="2026-03-30">
+    enum="Boolean" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -795,7 +820,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}Mode"
-    enum="IDBTransactionMode" expires_after="2026-03-30">
+    enum="IDBTransactionMode" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -808,7 +833,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="IndexedDB.TransactionTimeout.{TransactionCount}NumTransactionsInConnection"
-    units="transactions" expires_after="2026-03-30">
+    units="transactions" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -822,7 +847,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="IndexedDB.TransactionTimeout.{TransactionCount}NumTransactionsInDB"
-    units="transactions" expires_after="2026-03-30">
+    units="transactions" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -835,7 +860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.TransactionTimeout.{TransactionCount}TaskRunQueued"
-    enum="Boolean" expires_after="2026-03-30">
+    enum="Boolean" expires_after="2026-05-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -870,29 +895,6 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Tracks the success rate of deleting an unused leveldb table backup file.
-  </summary>
-</histogram>
-
-<histogram name="LevelDBEnv.LockFileInUseByThisProcess" enum="Boolean"
-    expires_after="2025-12-14">
-  <owner>estade@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    When there is a failure to acquire a lock on a LevelDB LOCK file due to
-    FILE_IN_USE, this histogram logs true if the lock was already held by the
-    same Chromium process, false otherwise. This is only logged for IndexedDB
-    LevelDB instances.
-  </summary>
-</histogram>
-
-<histogram name="LevelDBEnv.LockFileSuccessAttempts" units="count"
-    expires_after="2025-03-30">
-  <owner>estade@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    When a LevelDB LOCK file is successfully locked, this is the count of
-    attempts that were required. This is intended to inform how long LevelDB
-    should keep retrying. This is only logged for IndexedDB LevelDB instances.
   </summary>
 </histogram>
 
@@ -999,7 +1001,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoSizeInKB" units="KB"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1009,7 +1011,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrime" units="ms"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1325,7 +1327,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.FileSystemAccess.ObserverUsageQuotaExceeded"
-    enum="Boolean" expires_after="2026-02-12">
+    enum="Boolean" expires_after="2026-06-07">
   <owner>mych@chromium.org</owner>
   <owner>src/content/browser/file_system_access/OWNERS</owner>
   <summary>

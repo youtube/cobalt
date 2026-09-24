@@ -1052,6 +1052,21 @@ void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
+void CodeAssembler::UnalignedStoreNoWriteBarrier(MachineRepresentation rep,
+                                                 TNode<BytecodeArray> base,
+                                                 TNode<IntPtrT> offset,
+                                                 Node* value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  if (UnalignedStoreSupported(rep)) {
+    raw_assembler()->Store(
+        rep, base, offset, value,
+        CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+  } else {
+    Node* base_raw = BitcastTaggedToWord(base);
+    raw_assembler()->UnalignedStore(rep, base_raw, offset, value);
+  }
+}
+
 void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
                                               Node* base, Node* value) {
   raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
@@ -1368,6 +1383,7 @@ void CodeAssembler::TailCallRuntimeImpl(
   raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
+// LINT.IfChange
 Node* CodeAssembler::CallStubN(StubCallMode call_mode,
                                const CallInterfaceDescriptor& descriptor,
                                int input_count, Node* const* inputs) {
@@ -1394,6 +1410,7 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   CallEpilogue();
   return return_value;
 }
+// LINT.ThenChange(/src/codegen/turboshaft-builtins-assembler-inl.h)
 
 void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                                      TNode<Code> target, TNode<Object> context,
@@ -1436,6 +1453,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
   return CallStubN(call_mode, descriptor, inputs.size(), inputs.data());
 }
 
+// LINT.IfChange
 Node* CodeAssembler::CallJSStubImpl(
     const CallInterfaceDescriptor& descriptor, TNode<Object> target,
     TNode<Object> context, TNode<Object> function,
@@ -1467,6 +1485,7 @@ Node* CodeAssembler::CallJSStubImpl(
   return CallStubN(StubCallMode::kCallCodeObject, descriptor, inputs.size(),
                    inputs.data());
 }
+// LINT.ThenChange(/src/codegen/turboshaft-builtins-assembler-inl.h)
 
 void CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     const CallInterfaceDescriptor& descriptor, Node* target, Node* context,

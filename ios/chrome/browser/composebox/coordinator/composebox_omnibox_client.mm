@@ -19,10 +19,9 @@
 #import "components/omnibox/browser/omnibox_log.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/search_engines/template_url_service.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_classifier_factory.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_provider_client_impl.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
-#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
 #import "ios/chrome/browser/autocomplete/model/omnibox_shortcuts_helper.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/model/bookmarks_utils.h"
@@ -156,11 +155,15 @@ GURL ComposeboxOmniboxClient::GetNavigationEntryURL() const {
 
 metrics::OmniboxEventProto::PageClassification
 ComposeboxOmniboxClient::GetPageClassification(bool is_prefetch) const {
-  if ([delegate_ composeboxMode] == ComposeboxMode::kAIM &&
-      base::FeatureList::IsEnabled(
-          omnibox::kComposeboxUsesChromeComposeClient)) {
+  BOOL is_in_ai_mode =
+      ([delegate_ composeboxMode] == ComposeboxMode::kAIM) ||
+      ([delegate_ composeboxMode] == ComposeboxMode::kImageGeneration);
+
+  if (is_in_ai_mode && base::FeatureList::IsEnabled(
+                           omnibox::kComposeboxUsesChromeComposeClient)) {
     return metrics::OmniboxEventProto::NTP_COMPOSEBOX;
   }
+
   return location_bar_->GetLocationBarModel()->GetPageClassification(
       is_prefetch);
 }
@@ -193,7 +196,7 @@ void ComposeboxOmniboxClient::ProcessExtensionMatch(
 
 void ComposeboxOmniboxClient::OnFocusChanged(OmniboxFocusState state,
                                              OmniboxFocusChangeReason reason) {
-  // TODO(crbug.com/40534385): OnFocusChanged is not the correct place to be
+  // TODO(crbug.com/467566659): OnFocusChanged is not the correct place to be
   // canceling prerenders, but this is the closest match to the original
   // location of this code, which was in OmniboxViewIOS::OnDidEndEditing().  The
   // goal of this code is to cancel prerenders when the omnibox loses focus.
@@ -273,6 +276,19 @@ void ComposeboxOmniboxClient::OnTextChanged(
        userInputInProgress:user_input_in_progress];
 }
 
+void ComposeboxOmniboxClient::OnThumbnailOnlyAccept() {
+  UrlLoadParams params = CreateOmniboxUrlLoadParams(
+      GURL(),
+      /*post_content=*/nullptr, WindowOpenDisposition::CURRENT_TAB,
+      ui::PAGE_TRANSITION_GENERATED,
+      /*destination_url_entered_without_scheme=*/false,
+      profile_->IsOffTheRecord());
+  [delegate_ omniboxDidAcceptText:u""
+                   destinationURL:GURL()
+                    URLLoadParams:params
+                     isSearchType:NO];
+}
+
 void ComposeboxOmniboxClient::OnURLOpenedFromOmnibox(OmniboxLog* log) {
   // If a search was done, donate the Search In Chrome intent to the OS for
   // future Siri suggestions.
@@ -314,10 +330,10 @@ void ComposeboxOmniboxClient::OnAutocompleteAccept(
     const std::u16string& text,
     const AutocompleteMatch& match,
     const AutocompleteMatch& alternative_nav_match) {
-  AutocompleteService* autocomplete_service =
-      AutocompleteServiceFactory::GetForProfile(profile_);
+  AutocompleteBrowserAgent* autocomplete_browser_agent =
+      AutocompleteBrowserAgent::FromBrowser(browser_);
   OmniboxShortcutsHelper* shortcuts_helper =
-      autocomplete_service->GetOmniboxShortcutsHelper(
+      autocomplete_browser_agent->GetOmniboxShortcutsHelper(
           OmniboxPresentationContext::kComposebox);
   if (shortcuts_helper) {
     shortcuts_helper->OnAutocompleteAccept(text, match,
@@ -336,4 +352,8 @@ void ComposeboxOmniboxClient::OnAutocompleteAccept(
 
 base::WeakPtr<OmniboxClient> ComposeboxOmniboxClient::AsWeakPtr() {
   return weak_factory_.GetWeakPtr();
+}
+
+omnibox::ChromeAimToolsAndModels ComposeboxOmniboxClient::AimToolMode() const {
+  return [delegate_ composeboxToolMode];
 }

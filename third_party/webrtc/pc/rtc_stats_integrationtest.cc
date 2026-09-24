@@ -79,7 +79,7 @@ class RTCStatsIntegrationTest : public ::testing::Test {
 
   void StartCall() { StartCall(""); }
   void StartCall(const char* field_trial_string) {
-    // Create PeerConnections and "connect" sigslots
+    // Create PeerConnections
     PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     PeerConnectionInterface::IceServer ice_server;

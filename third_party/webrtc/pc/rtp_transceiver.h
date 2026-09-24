@@ -13,7 +13,6 @@
 
 #include <stddef.h>
 
-#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -166,6 +165,18 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // Clear the association between the transceiver and the channel.
   void ClearChannel();
 
+  // Returns a task that clears the channel's network related state.
+  // The task must be executed on the network thread.
+  // This is used by SdpOfferAnswerHandler::DestroyMediaChannels to batch
+  // network thread operations.
+  absl::AnyInvocable<void() &&> GetClearChannelNetworkTask();
+
+  // Returns a task that deletes the channel.
+  // The task must be executed on the worker thread.
+  // This is used by SdpOfferAnswerHandler::DestroyMediaChannels to batch
+  // worker thread operations.
+  absl::AnyInvocable<void() &&> GetDeleteChannelWorkerTask();
+
   // Adds an RtpSender of the appropriate type to be owned by this transceiver.
   // Must not be null.
   void AddSender(
@@ -258,10 +269,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
     return has_ever_been_used_to_send_;
   }
 
-  // Informs the transceiver that its owning
-  // PeerConnection is closed.
-  void SetPeerConnectionClosed();
-
   // Executes the "stop the RTCRtpTransceiver" procedure from
   // the webrtc-pc specification, described under the stop() method.
   void StopTransceiverProcedure();
@@ -321,9 +328,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // Tell the senders and receivers about possibly-new media channels
   // in a newly created `channel_`.
   void PushNewMediaChannel();
-  // Delete `channel_`, and ensure that references to its media channels
-  // are updated before deleting it.
-  void DeleteChannel();
 
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
@@ -340,6 +344,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   const MediaType media_type_;
   scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_
       RTC_GUARDED_BY(thread_);
+  scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
       senders_;
   std::vector<scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>>
@@ -347,7 +352,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   bool stopped_ RTC_GUARDED_BY(thread_) = false;
   bool stopping_ RTC_GUARDED_BY(thread_) = false;
-  bool is_pc_closed_ = false;
   RtpTransceiverDirection direction_ = RtpTransceiverDirection::kInactive;
   std::optional<RtpTransceiverDirection> current_direction_;
   std::optional<RtpTransceiverDirection> fired_direction_;
@@ -356,7 +360,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   bool created_by_addtrack_ = false;
   bool reused_for_addtrack_ = false;
   bool has_ever_been_used_to_send_ = false;
-  std::atomic<bool> receptive_ = false;
+  bool receptive_ RTC_GUARDED_BY(thread_) = false;
+  bool receptive_n_ RTC_GUARDED_BY(context()->network_thread()) = false;
   bool packet_notified_after_receptive_
       RTC_GUARDED_BY(context()->network_thread()) = false;
 

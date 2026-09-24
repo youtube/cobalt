@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"math/bits"
 	"os"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -372,9 +373,11 @@ func (issuer *X509ChainBuilder) Issue(subject X509Info) *X509ChainBuilder {
 }
 
 func (b *X509ChainBuilder) ToCredential() Credential {
+	chain := slices.Clone(b.chain)
+	slices.Reverse(chain)
 	return Credential{
-		Certificate:     b.chain,
-		ChainPath:       writeTempCertFile(b.chain),
+		Certificate:     chain,
+		ChainPath:       writeTempCertFile(chain),
 		PrivateKey:      b.privateKey,
 		KeyPath:         writeTempKeyFile(b.privateKey),
 		RootCertificate: b.rootCert,

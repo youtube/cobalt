@@ -21,7 +21,6 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-
 namespace webrtc {
 namespace {
 
@@ -29,6 +28,8 @@ using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Lt;
 using ::testing::Optional;
+
+constexpr double kPacingFactor = 1.1;
 
 TEST(ScreamControllerTest, CanConstruct) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
@@ -53,7 +54,7 @@ TEST(ScreamControllerTest, OnNetworkAvailabilityUpdatesTargetRateAndPacerRate) {
   EXPECT_EQ(update.target_rate->target_rate, config.constraints.starting_rate);
   ASSERT_TRUE(update.pacer_config);
   EXPECT_EQ(update.pacer_config->data_window,
-            *config.constraints.starting_rate * 1.5 *
+            *config.constraints.starting_rate * kPacingFactor *
                 PacerConfig::kDefaultTimeInterval);
 }
 
@@ -77,7 +78,7 @@ TEST(ScreamControllerTest,
   EXPECT_GT(update.target_rate->target_rate, DataRate::KilobitsPerSec(100));
   ASSERT_TRUE(update.pacer_config);
   EXPECT_EQ(update.pacer_config->data_window,
-            update.target_rate->target_rate * 1.5 *
+            update.target_rate->target_rate * kPacingFactor *
                 PacerConfig::kDefaultTimeInterval);
 }
 
@@ -117,7 +118,7 @@ TEST(ScreamControllerTest,
             route_change.constraints.starting_rate);
   ASSERT_TRUE(update.pacer_config);
   EXPECT_EQ(update.pacer_config->data_window,
-            *route_change.constraints.starting_rate * 1.5 *
+            *route_change.constraints.starting_rate * kPacingFactor *
                 PacerConfig::kDefaultTimeInterval);
 }
 
@@ -183,7 +184,6 @@ TEST(ScreamControllerTest, PacingWindowReducedIfCeCongestedStreamsConfigured) {
   EXPECT_THAT(update.pacer_config,
               Optional(Field(&PacerConfig::time_window,
                              Lt(PacerConfig::kDefaultTimeInterval))));
-  EXPECT_GT(send_rate, DataRate::KilobitsPerSec(500));
 }
 
 TEST(ScreamControllerTest,
@@ -259,12 +259,11 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
     }
   }
   EXPECT_TRUE(padding_set);
-  // Target rate should reach pacing rate factor * max needed rate.
-  EXPECT_GE(target_rate, 1.5 * (*streams_config.max_total_allocated_bitrate));
+  // Target rate should reach max needed rate.
+  EXPECT_GE(target_rate, (*streams_config.max_total_allocated_bitrate));
   // But not much more, since seen data in flight should limit the target rate
   // increase.
-  EXPECT_LE(target_rate,
-            1.5 * 1.5 * (*streams_config.max_total_allocated_bitrate));
+  EXPECT_LE(target_rate, 1.5 * (*streams_config.max_total_allocated_bitrate));
 }
 
 TEST(ScreamControllerTest, PeriodicallyAllowPadding) {

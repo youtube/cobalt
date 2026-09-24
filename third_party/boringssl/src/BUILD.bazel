@@ -18,6 +18,8 @@ load(
     "bcm_internal_headers",
     "bcm_sources",
     "bcm_sources_asm",
+    "bench_internal_headers",
+    "bench_sources",
     "bssl_internal_headers",
     "bssl_sources",
     "crypto_headers",
@@ -89,7 +91,10 @@ bssl_cc_library(
     copts = ["-DBORINGSSL_IMPLEMENTATION"],
     internal_hdrs = ssl_internal_headers,
     visibility = ["//visibility:public"],
-    deps = [":crypto_internal"],
+    # ssl_headers depend on :crypto's exported headers.
+    deps = [":crypto"],
+    # ssl_sources also depend on :crypto's internal headers.
+    implementation_deps = [":crypto_internal"],
 )
 
 bssl_cc_library(
@@ -150,6 +155,16 @@ bssl_cc_binary(
     deps = [
         ":crypto_internal",
         ":ssl_internal",
+    ],
+)
+
+bssl_cc_binary(
+    name = "bssl_bench",
+    srcs = bench_sources + bench_internal_headers,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":crypto_internal",
+        "@google_benchmark//:benchmark",
     ],
 )
 

@@ -4,11 +4,14 @@
 
 #include "media/gpu/chromeos/oop_video_decoder.h"
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "chromeos/components/cdm_factory_daemon/cdm_context_for_oopvd_impl.h"
 #include "media/base/format_utils.h"
@@ -23,6 +26,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "mojo/public/cpp/bindings/shared_remote.h"
 
 #if BUILDFLAG(USE_VAAPI)
 #include "media/gpu/vaapi/vaapi_wrapper.h"
@@ -98,7 +102,7 @@ scoped_refptr<FrameResource> CreateDecodedFrameResource(
     base::TimeDelta timestamp,
     const VideoFrameMetadata& metadata,
     const gfx::ColorSpace& color_space,
-    const std::optional<gfx::HDRMetadata>& hdr_metadata) {
+    const gfx::HDRMetadata& hdr_metadata) {
   // The VideoFrame mojo traits already perform an extensive validation of the
   // frame. No additional validations need to take place.
 
@@ -368,6 +372,43 @@ class OOPVideoDecoderSupportedConfigsManager {
 
 }  // namespace
 
+class OOPVideoFrameHandleReleaser
+    : public base::RefCountedThreadSafe<OOPVideoFrameHandleReleaser> {
+ public:
+  OOPVideoFrameHandleReleaser(
+      mojo::PendingRemote<mojom::VideoFrameHandleReleaser>
+          video_frame_handle_releaser_remote,
+      base::OnceClosure disconnect_handler,
+      scoped_refptr<base::SequencedTaskRunner> bind_task_runner) {
+    video_frame_handle_releaser_remote_ =
+        mojo::SharedRemote<mojom::VideoFrameHandleReleaser>(
+            std::move(video_frame_handle_releaser_remote), bind_task_runner);
+    video_frame_handle_releaser_remote_.set_disconnect_handler(
+        std::move(disconnect_handler), bind_task_runner);
+  }
+
+  OOPVideoFrameHandleReleaser(const OOPVideoFrameHandleReleaser&) = delete;
+  OOPVideoFrameHandleReleaser& operator=(const OOPVideoFrameHandleReleaser&) =
+      delete;
+
+  void ReleaseVideoFrame(const base::UnguessableToken& release_token) {
+    video_frame_handle_releaser_remote_->ReleaseVideoFrame(
+        release_token, /*release_sync_token=*/{});
+  }
+
+  void ResetDisconnectHandle() {
+    video_frame_handle_releaser_remote_.set_disconnect_handler(
+        base::DoNothing(), base::SequencedTaskRunner::GetCurrentDefault());
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<OOPVideoFrameHandleReleaser>;
+  ~OOPVideoFrameHandleReleaser() = default;
+
+  mojo::SharedRemote<mojom::VideoFrameHandleReleaser>
+      video_frame_handle_releaser_remote_;
+};
+
 // static
 std::unique_ptr<VideoDecoderMixin> OOPVideoDecoder::Create(
     mojo::PendingRemote<mojom::VideoDecoder> pending_remote_decoder,
@@ -438,14 +479,21 @@ OOPVideoDecoder::OOPVideoDecoder(
       &remote_consumer_handle);
   CHECK(mojo_decoder_buffer_writer_);
 
-  DCHECK(!video_frame_handle_releaser_remote_.is_bound());
+  DCHECK(!video_frame_handle_releaser_);
+
+  // Create |video_frame_handle_releaser| interface receiver.
+  mojo::PendingRemote<mojom::VideoFrameHandleReleaser>
+      video_frame_handle_releaser_pending_remote;
   mojo::PendingReceiver<mojom::VideoFrameHandleReleaser>
       video_frame_handle_releaser_receiver =
-          video_frame_handle_releaser_remote_.BindNewPipeAndPassReceiver();
-
-  // base::Unretained() is safe because `this` owns the `mojo::Remote`.
-  video_frame_handle_releaser_remote_.set_disconnect_handler(
-      base::BindOnce(&OOPVideoDecoder::Stop, base::Unretained(this)));
+          video_frame_handle_releaser_pending_remote
+              .InitWithNewPipeAndPassReceiver();
+  video_frame_handle_releaser_ =
+      base::MakeRefCounted<OOPVideoFrameHandleReleaser>(
+          std::move(video_frame_handle_releaser_pending_remote),
+          base::BindOnce(&OOPVideoDecoder::Stop,
+                         weak_this_factory_.GetWeakPtr()),
+          decoder_task_runner_);
 
   DCHECK(!media_log_receiver_.is_bound());
 
@@ -798,7 +846,12 @@ void OOPVideoDecoder::Stop() {
   media_log_receiver_.reset();
   remote_decoder_.reset();
   mojo_decoder_buffer_writer_.reset();
-  video_frame_handle_releaser_remote_.reset();
+  if (video_frame_handle_releaser_) {
+    // If there are unreleased `VideoFrame`s, releaser is to kept alive in the
+    // callback arguments.
+    video_frame_handle_releaser_->ResetDisconnectHandle();
+    video_frame_handle_releaser_.reset();
+  }
   fake_timestamp_to_real_timestamp_cache_.Clear();
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -831,17 +884,6 @@ void OOPVideoDecoder::Stop() {
         FROM_HERE, base::BindOnce(&OOPVideoDecoder::CallResetCallback,
                                   weak_this_factory_.GetWeakPtr()));
   }
-}
-
-void OOPVideoDecoder::ReleaseVideoFrame(
-    const base::UnguessableToken& release_token) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  CHECK(!has_error_);
-  CHECK(video_frame_handle_releaser_remote_.is_bound());
-
-  video_frame_handle_releaser_remote_->ReleaseVideoFrame(
-      release_token, /*release_sync_token=*/{});
 }
 
 void OOPVideoDecoder::ApplyResolutionChange() {
@@ -1074,9 +1116,9 @@ void OOPVideoDecoder::OnVideoFrameDecoded(
   scoped_refptr<FrameResource> wrapped_frame;
   if (extract_shared_image) {
     frame->set_timestamp(real_timestamp);
-    frame->AddDestructionObserver(base::BindPostTaskToCurrentDefault(
-        base::BindOnce(&OOPVideoDecoder::ReleaseVideoFrame,
-                       weak_this_factory_.GetWeakPtr(), *release_token)));
+    frame->AddDestructionObserver(
+        base::BindOnce(&OOPVideoFrameHandleReleaser::ReleaseVideoFrame,
+                       video_frame_handle_releaser_, *release_token));
     wrapped_frame = VideoFrameResource::Create(std::move(frame));
   } else {
     // What follows is all the logic necessary to recycle buffers safely.
@@ -1103,7 +1145,7 @@ void OOPVideoDecoder::OnVideoFrameDecoded(
     const gfx::Rect visible_rect = frame->visible_rect();
     const gfx::Size natural_size = frame->natural_size();
     const gfx::ColorSpace color_space = frame->ColorSpace();
-    const std::optional<gfx::HDRMetadata> hdr_metadata = frame->hdr_metadata();
+    const gfx::HDRMetadata& hdr_metadata = frame->hdr_metadata();
     const VideoFrameMetadata metadata = metadata_to_propagate;
     const base::UnguessableToken received_tracking_token =
         *frame->metadata().tracking_token;
@@ -1176,12 +1218,9 @@ void OOPVideoDecoder::OnVideoFrameDecoded(
     wrapped_frame->set_hdr_metadata(hdr_metadata);
     wrapped_frame->set_metadata(metadata);
 
-    // The destruction observer will be called after the client releases the
-    // video frame. base::BindPostTaskToCurrentDefault() is used to make sure
-    // that the WeakPtr is dereferenced on the correct sequence.
-    wrapped_frame->AddDestructionObserver(base::BindPostTaskToCurrentDefault(
-        base::BindOnce(&OOPVideoDecoder::ReleaseVideoFrame,
-                       weak_this_factory_.GetWeakPtr(), *release_token)));
+    wrapped_frame->AddDestructionObserver(
+        base::BindOnce(&OOPVideoFrameHandleReleaser::ReleaseVideoFrame,
+                       video_frame_handle_releaser_, *release_token));
   }
 
   can_read_without_stalling_ = can_read_without_stalling;

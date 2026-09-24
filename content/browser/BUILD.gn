@@ -104,6 +104,7 @@ source_set("browser") {
     "//build:branding_buildflags",
     "//build:chromecast_buildflags",
     "//build/config/compiler:compiler_buildflags",
+    "//build/util:chromium_git_revision",
     "//cc",
     "//cc/animation",
     "//cc/mojo_embedder",
@@ -3027,7 +3028,6 @@ source_set("browser") {
         "media/captured_surface_controller.h",
       ]
       public_deps += [ "//ui/base/cursor" ]
-      deps += [ "//third_party/webrtc_overrides:webrtc_component" ]
     }
     if (use_aura) {
       sources += [

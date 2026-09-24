@@ -6,10 +6,13 @@ include_rules = [
 ]
 
 specific_include_rules = {
-  "checks.h": [
+  "checks\.h": [
     "+absl/strings/has_absl_stringify.h",
   ],
-  "protobuf_utils.h": [
+  "string_builder\.h": [
+    "+absl/strings/has_absl_stringify.h",
+  ],
+  "protobuf_utils\.h": [
     "+third_party/protobuf",
   ],
   "gunit\.h": [

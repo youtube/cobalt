@@ -696,16 +696,13 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
       [](Tagged<T> xs, int i) { return Cast<Object>(xs->get(i)); });
 }
 
-void PrintDictionaryElements(std::ostream& os,
-                             Tagged<FixedArrayBase> elements) {
-  // Print some internal fields
-  Tagged<NumberDictionary> dict = Cast<NumberDictionary>(elements);
+void PrintNumberDictionaryFlags(std::ostream& os,
+                                Tagged<NumberDictionary> dict) {
   if (dict->requires_slow_elements()) {
-    os << "\n   - requires_slow_elements";
+    os << "\n - requires_slow_elements";
   } else {
-    os << "\n   - max_number_key: " << dict->max_number_key();
+    os << "\n - max_number_key: " << dict->max_number_key();
   }
-  PrintDictionaryContents(os, dict);
 }
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
@@ -731,7 +728,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
     PrintFixedArrayElements(os, arguments_store);
   } else {
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    PrintDictionaryElements(os, arguments_store);
+    PrintDictionaryContents(os, Cast<NumberDictionary>(arguments_store));
   }
 }
 
@@ -758,7 +755,7 @@ void JSObject::PrintElements(std::ostream& os) {
   // look at what elements() is, as opposed to what it should be according to
   // the map(), as much as possible.
 
-  if (IsFixedArray(elements())) {
+  if (IsFixedArrayExact(elements())) {
     PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
   } else if (IsFixedDoubleArray(elements())) {
     DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
@@ -784,10 +781,12 @@ void JSObject::PrintElements(std::ostream& os) {
         UNREACHABLE();
     }
   } else if (IsNumberDictionary(elements())) {
-    PrintDictionaryElements(os, elements());
+    PrintDictionaryContents(os, Cast<NumberDictionary>(elements()));
   } else if (IsSloppyArgumentsElements(elements())) {
     PrintSloppyArgumentElements(os, map()->elements_kind(),
                                 Cast<SloppyArgumentsElements>(elements()));
+  } else {
+    os << "   Unexpected elements backing store\n";
   }
   os << "\n }\n";
 }
@@ -1561,6 +1560,7 @@ void RegisteredSymbolTable::RegisteredSymbolTablePrint(std::ostream& os) {
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
   PrintHashTableHeader(os, this, "NumberDictionary");
+  PrintNumberDictionaryFlags(os, this);
   PrintDictionaryContentsFull(os, this);
 }
 
@@ -2299,12 +2299,14 @@ void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
 void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
   JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
   os << "\n - remaining: " << remaining();
+  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
   JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
+  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2315,6 +2317,15 @@ void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
   os << "\n - innerIterator.object" << Brief(innerIterator_object());
   os << "\n - innerIterator.next" << Brief(innerIterator_next());
   os << "\n - innerAlive" << innerAlive();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorConcatHelper");
+  os << "\n - iterables: " << Brief(iterables()) << " {";
+  PrintFixedArrayElements(os, iterables());
+  os << "\n - current: " << current();
+  os << "\n - innerAlive: " << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2607,7 +2618,8 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalObject");
-  os << "\n - global proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy_for_api: " << Brief(global_proxy_for_api());
   JSObjectPrintBody(os, *this);
 }
 
@@ -3178,7 +3190,7 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference()) {
+  if (type().is_ref()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());
@@ -4709,6 +4721,11 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_OnlyCode(
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
+}
+
+V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTraceConcise() {
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->PrintStack(stdout, i::Isolate::PrintStackMode::kPrintStackConcise);
 }
 
 namespace _v8_internal_debugonly {

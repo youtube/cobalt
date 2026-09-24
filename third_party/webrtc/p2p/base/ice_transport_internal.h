@@ -328,6 +328,11 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
           callback);
 
+  void SubscribeCandidateGathered(
+      void* tag,
+      absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
+          callback);
+
   void SetCandidateErrorCallback(
       absl::AnyInvocable<void(IceTransportInternal*,
                               const IceCandidateErrorEvent&)> callback) {
@@ -355,12 +360,19 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   }
   void SubscribeRoleConflict(
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
+  void SubscribeRoleConflict(
+      void* tag,
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Emitted whenever the new standards-compliant transport state changed.
   void NotifyIceTransportStateChanged(IceTransportInternal* transport) {
     ice_transport_state_changed_callbacks_.Send(transport);
   }
   void SubscribeIceTransportStateChanged(
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
+
+  void SubscribeIceTransportStateChanged(
+      void* tag,
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Invoked when remote dictionary has been updated,

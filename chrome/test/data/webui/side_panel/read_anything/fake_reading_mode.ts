@@ -64,6 +64,12 @@ export class FakeReadingMode {
   isReadAloudEnabled: boolean = true;
   imagesFeatureEnabled: boolean = false;
 
+  // Whether the Immersive Read Anything feature flag is enabled.
+  isImmersiveEnabled: boolean = false;
+
+  // Whether the line focus feature flag is enabled.
+  isLineFocusEnabled: boolean = false;
+
   // Returns true if the webpage corresponds to a Google Doc.
   isGoogleDocs: boolean = false;
 

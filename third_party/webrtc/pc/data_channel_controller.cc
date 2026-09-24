@@ -20,16 +20,17 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/data_channel_transport_interface.h"
-#include "media/sctp/sctp_transport_internal.h"
 #include "pc/data_channel_utils.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/sctp_data_channel.h"
@@ -368,7 +369,7 @@ RTCError DataChannelController::ReserveOrAllocateSid(
 
 // RTC_RUN_ON(network_thread())
 RTCErrorOr<scoped_refptr<SctpDataChannel>>
-DataChannelController::CreateDataChannel(const std::string& label,
+DataChannelController::CreateDataChannel(absl::string_view label,
                                          InternalDataChannelInit& config) {
   std::optional<StreamId> sid = std::nullopt;
   if (config.id != -1) {
@@ -403,7 +404,7 @@ DataChannelController::CreateDataChannel(const std::string& label,
 
 RTCErrorOr<scoped_refptr<DataChannelInterface>>
 DataChannelController::InternalCreateDataChannelWithProxy(
-    const std::string& label,
+    absl::string_view label,
     const InternalDataChannelInit& config) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!pc_->IsClosed());

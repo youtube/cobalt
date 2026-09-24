@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include <string_view>
 #include <unordered_map>
 
 #if BUILDFLAG(IS_COBALT)
@@ -112,7 +113,7 @@ bool ReadProcMaps(std::string* proc_maps) {
 
 #if BUILDFLAG(IS_COBALT)
 
-bool ParseProcMaps(const std::string& input,
+bool ParseProcMaps(std::string_view input,
                    std::vector<MappedMemoryRegion>* regions_out) {
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;
@@ -304,7 +305,7 @@ std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
 
 #else  // !BUILDFLAG(IS_COBALT)
 
-bool ParseProcMaps(const std::string& input,
+bool ParseProcMaps(std::string_view input,
                    std::vector<MappedMemoryRegion>* regions_out) {
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;

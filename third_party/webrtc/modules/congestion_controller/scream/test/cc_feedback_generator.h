@@ -77,8 +77,6 @@ class CcFeedbackGenerator {
 
   Timestamp last_feedback_time_ = Timestamp::MinusInfinity();
 
-  TimeDelta smoothed_rtt_ = TimeDelta::PlusInfinity();
-
   Timestamp last_send_budget_update = Timestamp::MinusInfinity();
   DataSize send_budget_;
 };

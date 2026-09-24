@@ -7,6 +7,7 @@
 
 #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/view.h"
 
 namespace web_app {
@@ -20,7 +21,10 @@ class WebAppUpdateIdentityView : public views::View {
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kNameLabelId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kIconLabelId);
 
-  explicit WebAppUpdateIdentityView(const WebAppIdentity& identity);
+  // If `url_migration_only` is set, changes the style of the display url to be
+  // more prominent.
+  WebAppUpdateIdentityView(const WebAppIdentity& identity,
+                           bool url_migration_only);
 
   WebAppUpdateIdentityView(const WebAppUpdateIdentityView&) = delete;
   WebAppUpdateIdentityView& operator=(const WebAppUpdateIdentityView&) = delete;

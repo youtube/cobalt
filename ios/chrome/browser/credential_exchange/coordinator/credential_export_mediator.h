@@ -10,31 +10,35 @@
 
 #import <vector>
 
-#import "components/password_manager/core/browser/ui/affiliated_group.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_consumer.h"
+#import "ios/chrome/browser/credential_exchange/ui/credential_export_favicon_provider.h"
+#import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller_presentation_delegate.h"
 
 namespace password_manager {
-class SavedPasswordsPresenter;
+class AffiliatedGroup;
 }  // namespace password_manager
 
 namespace webauthn {
 class PasskeyModel;
 }  // namespace webauthn
 
+class FaviconLoader;
+
 // Protocol for the Mediator to request UI actions from the Coordinator.
 @protocol CredentialExportMediatorDelegate <NSObject>
 
-// Asks the delegate to fetch security domain secrets. This is only called if
+// Asks the delegate to fetch trusted vault keys. This is only called if
 // passkeys are detected in the export list.
-- (void)fetchSecurityDomainSecretsWithCompletion:
+- (void)fetchTrustedVaultKeysWithCompletion:
     (void (^)(NSArray<NSData*>*))completion;
 
 @end
 
 // Mediator for the credential exchange export flow.
 @interface CredentialExportMediator
-    : NSObject <CredentialExportViewControllerPresentationDelegate>
+    : NSObject <CredentialExportViewControllerPresentationDelegate,
+                CredentialExportFaviconProvider>
 
 // The consumer that receives updates about the credentials.
 @property(nonatomic, weak) id<CredentialExportConsumer> consumer;
@@ -43,9 +47,10 @@ class PasskeyModel;
 @property(nonatomic, weak) id<CredentialExportMediatorDelegate> delegate;
 
 - (instancetype)initWithWindow:(UIWindow*)window
-       savedPasswordsPresenter:
-           (password_manager::SavedPasswordsPresenter*)savedPasswordsPresenter
+              affiliatedGroups:(std::vector<password_manager::AffiliatedGroup>)
+                                   affiliatedGroups
                   passkeyModel:(webauthn::PasskeyModel*)passkeyModel
+                 faviconLoader:(FaviconLoader*)faviconLoader
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

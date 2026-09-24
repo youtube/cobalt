@@ -24,10 +24,10 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -39,13 +39,14 @@ class ScriptState;
 
 class MODULES_EXPORT OnScreenKeyboard final
     : public EventTarget,
-      public on_screen_keyboard::mojom::blink::OnScreenKeyboardClient,
-      public GarbageCollectedMixin {
+      public Supplement<LocalDOMWindow>,
+      public on_screen_keyboard::mojom::blink::OnScreenKeyboardClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   // This will be used again in a future milestone.
   // static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   // For window.onScreenKeyboard
   static OnScreenKeyboard* onScreenKeyboard(LocalDOMWindow&);
@@ -100,8 +101,6 @@ class MODULES_EXPORT OnScreenKeyboard final
   void DidUpdateSuggestions(ScriptPromiseResolver<IDLUndefined>*);
 
   void EnsureReceiverIsBound();
-
-  Member<LocalDOMWindow> local_dom_window_;
 
   String data_;
 

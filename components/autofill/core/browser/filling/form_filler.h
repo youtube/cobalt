@@ -36,7 +36,8 @@ enum class RefillTriggerReason {
   kFormChanged = 0,
   kSelectOptionsChanged = 1,
   kExpirationDateFormatted = 2,
-  kMaxValue = kExpirationDateFormatted
+  kProgrammaticRefill = 3,
+  kMaxValue = kProgrammaticRefill
 };
 
 using VerifiedProfile = std::map<FieldType, std::u16string>;
@@ -121,7 +122,9 @@ class FormFiller {
   // Resets states that FormFiller holds and maintains.
   void Reset();
 
-  base::TimeDelta get_limit_before_refill() { return limit_before_refill_; }
+  base::TimeDelta limit_before_automatic_refill() const {
+    return limit_before_automatic_refill_;
+  }
 
   // Given a `form`, returns a map from each field's id to the skip reason for
   // that field. See additional comments in GetFieldFillingSkipReason.
@@ -166,12 +169,23 @@ class FormFiller {
       AutofillTriggerSource trigger_source,
       std::optional<RefillTriggerReason> refill_trigger_reason = std::nullopt);
 
-  // May or may not trigger a refill operation on `form`. `field` and
-  // `old_value` are only needed when `refill_trigger_reason` is
+  // Prevents any automatic refill of the operation `fill_id`. A renderer may
+  // call this when a JavaScript observes the `autofill` event and may therefore
+  // programmatically trigger a refill.
+  void SuppressAutomaticRefills(const FillId& fill_id);
+
+  // May or may not trigger a refill of `fill_id`. Programmatic refills (unlike
+  // automatic refills) are initiated by JavaScript.
+  void MaybeScheduleProgrammaticRefill(const FillId& fill_id);
+
+  // May or may not trigger a refill operation on `form`. Automatic refills
+  // (unlike programmatic refills) are caused by dynamic changes in the DOM.
+  //
+  // `field` and `old_value` are only needed when `refill_trigger_reason` is
   // `RefillTriggerReason::kExpirationDateFormatted`, and in that case `field`
   // is the one that was reformatted and `old_value` is the value `field` had
   // before the reformatting.
-  void MaybeTriggerRefill(
+  void MaybeScheduleAutomaticRefill(
       const FormData& form,
       const FormStructure& form_structure,
       RefillTriggerReason refill_trigger_reason,
@@ -196,6 +210,7 @@ class FormFiller {
                         std::unique_ptr<RefillContext> context);
 
   RefillContext* GetRefillContext(FormGlobalId form_id);
+  RefillContext* GetRefillContext(const FillId& fill_id);
 
   // Schedules a call of TriggerRefill. Virtual for testing.
   virtual void ScheduleRefill(const FormData& form,
@@ -263,7 +278,9 @@ class FormFiller {
   // The maximum amount of time between a change in the form and the original
   // fill that triggers a refill. This value is only changed in browser tests,
   // where time cannot be mocked, to avoid flakiness.
-  base::TimeDelta limit_before_refill_ = kLimitBeforeRefill;
+  base::TimeDelta limit_before_automatic_refill_ = kLimitBeforeAutomaticRefill;
+  base::TimeDelta limit_before_programmatic_refill_ =
+      kLimitBeforeProgrammaticRefill;
 
   const raw_ref<BrowserAutofillManager> manager_;
 

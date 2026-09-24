@@ -34,3 +34,5 @@ bool GetShmemTempDir(bool executable, base::FilePath* path) {
 }
 
 }  // namespace base
+
+DEFINE_JNI(FileUtils)

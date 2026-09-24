@@ -874,6 +874,7 @@
 <translation id="397105322502079400">တွက်ချက်နေ...</translation>
 <translation id="397726367135689299">ဘက်ထရီ အားသွင်းခြင်းသည် စိတ်ချရမှုမရှိနိုင်ပါ။</translation>
 <translation id="3977512764614765090">ဘက်ထရီသည် <ph name="PERCENTAGE" />% ရှိပြီး အားသွင်းနေပါသည်။</translation>
+<translation id="3978162107953847778">သင့်ကြည့်ရှုမှုမှတ်တမ်းနှင့် Google Drive ကဲ့သို့သော နေရာများမှ လင့်ခ်များ ထည့်ပါ။ အီမိုဂျီ၊ ပုံပါဝင်သောဖိုင် စသည်တို့လည်း ထည့်နိုင်သည်။ <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">အသံထွက်မည့် ကိရိယာ ပြောင်းမလား။</translation>
 <translation id="3984536049089846927">နောက်စာမျက်နှာ</translation>
 <translation id="3986082989454912832">ဖြေဆိုရန်</translation>
@@ -1600,6 +1601,7 @@
 <translation id="6260038345397266744"><ph name="TITLE" />။ <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: ဖွင့်ပေးနေ...</translation>
 <translation id="6274202259872570803">ဖန်သားပြင် ထုတ်လွှင့်ခြင်း</translation>
+<translation id="6274422179279280249">လင့်ခ်၊ အီမိုဂျီ စသည်တို့ ထည့်ပါ။ Google AI ဖြင့် စာရေးခြင်းအကူအညီလည်း ရယူနိုင်သည်။ <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">စာမျက်နှာ အရင်းအမြစ်အား ကြည့်ရန်</translation>
 <translation id="6285871695023807425">Calendar တွင် ထည့်ရန်</translation>
 <translation id="6288235558961782912">မိဘခွင့်ပြုချက်ဖြင့် <ph name="USER_EMAIL_ADDRESS" /> ကို နောက်ပိုင်းတွင် ပြန်ထည့်နိုင်သည်။</translation>
@@ -2190,6 +2192,7 @@
 <translation id="8237964652943995219">လာမည့်မျက်နှာပြင်- <ph name="DESK_NAME" />။ မျက်နှာပြင် <ph name="DESK_COUNT" /> ခုအနက် <ph name="DESK_INDEX" />။</translation>
 <translation id="8238817965863339552">သင့် <ph name="PRODUCT_NAME" /> သုံးနည်းလေ့လာရန် လမ်းညွှန်အကျဉ်းချုပ်ကို ကြည့်ပါ။ အဆင့် ၅ ဆင့်ဖြင့် စတင်ပြီးလုပ်ဆောင်နိုင်သည်။</translation>
 <translation id="8239034820133090126">ညာဘက်မျက်နှာပြင်ကို ဖွင့်ရန်</translation>
+<translation id="8241650983304689286">တဘ်ကို မျက်နှာပြင်ခွဲ၍ ပြသခြင်းအသစ်သို့ ထည့်ရန်</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />၊ လိုင်းဆွဲအား <ph name="SIGNAL_STRENGTH" />၊ ဖုန်းဘက်ထရီ <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Drive အကြောင်းအရာအားလုံး ပြပါ</translation>
 <translation id="8257510091797044096">သင့်စက်ကို စနစ်ထည့်သွင်းရန်</translation>

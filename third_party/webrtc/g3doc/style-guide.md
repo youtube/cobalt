@@ -169,9 +169,7 @@ The following string building tools are NOT recommended:
 [totw-3]: https://abseil.io/tips/3
 [std-strcat]: https://en.cppreference.com/w/cpp/string/byte/strcat.html
 
-### sigslot
-
-SIGSLOT IS DEPRECATED.
+### Callbacks
 
 Prefer `webrtc::CallbackList`, and manage thread safety yourself.
 

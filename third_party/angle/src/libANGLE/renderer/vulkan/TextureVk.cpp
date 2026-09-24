@@ -38,14 +38,11 @@ namespace rx
 {
 namespace
 {
-constexpr VkImageUsageFlags kTransferImageFlags =
-    VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
 constexpr VkImageUsageFlags kColorAttachmentImageFlags =
     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
 constexpr VkImageUsageFlags kDrawStagingImageFlags =
-    kTransferImageFlags | kColorAttachmentImageFlags;
+    vk::kImageUsageTransferBits | kColorAttachmentImageFlags;
 
 constexpr VkFormatFeatureFlags kBlitFeatureFlags =
     VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
@@ -505,8 +502,8 @@ GLint GetFormatSupportedCompressionRates(vk::Renderer *renderer,
                 renderer,
                 vk::GetVkFormatFromFormatID(renderer, format.getActualRenderableImageFormatID()),
                 VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                vk::kImageUsageTransferBits | VK_IMAGE_USAGE_SAMPLED_BIT |
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                 0, &compressionInfo, &compressionProp,
                 vk::ImageHelper::FormatSupportCheck::OnlyQuerySuccess))
         {
@@ -1855,10 +1852,10 @@ angle::Result TextureVk::copySubImageImplWithTransfer(ContextVk *contextVk,
         stagingImage = std::make_unique<vk::RefCounted<vk::ImageHelper>>();
 
         ANGLE_TRY(stagingImage->get().init2DStaging(
-            contextVk, mState.hasProtectedContent(), renderer->getMemoryProperties(),
+            contextVk, mState.hasProtectedContent(),
             gl::Extents(sourceBox.width, sourceBox.height, 1), dstFormat.getIntendedFormatID(),
-            dstFormat.getActualImageFormatID(getRequiredFormatSupport()), kTransferImageFlags,
-            layerCount));
+            dstFormat.getActualImageFormatID(getRequiredFormatSupport()),
+            vk::kImageUsageTransferBits, layerCount));
 
         resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0, layerCount,
                                        VK_IMAGE_ASPECT_COLOR_BIT, &stagingImage->get());
@@ -1907,7 +1904,6 @@ angle::Result TextureVk::copySubImageImplWithDraw(ContextVk *contextVk,
                                                   const vk::ImageView *srcView,
                                                   SurfaceRotation srcFramebufferRotation)
 {
-    vk::Renderer *renderer = contextVk->getRenderer();
     UtilsVk &utilsVk       = contextVk->getUtils();
 
     // Potentially make adjustments for pre-rotation.
@@ -2016,7 +2012,7 @@ angle::Result TextureVk::copySubImageImplWithDraw(ContextVk *contextVk,
         stagingImage = std::make_unique<vk::RefCounted<vk::ImageHelper>>();
 
         ANGLE_TRY(stagingImage->get().init2DStaging(
-            contextVk, mState.hasProtectedContent(), renderer->getMemoryProperties(),
+            contextVk, mState.hasProtectedContent(),
             gl::Extents(sourceBox.width, sourceBox.height, 1), dstFormat.getIntendedFormatID(),
             dstFormat.getActualImageFormatID(getRequiredFormatSupport()), kDrawStagingImageFlags,
             layerCount));
@@ -2414,7 +2410,7 @@ void TextureVk::initImageUsageFlags(ContextVk *contextVk,
 {
     ASSERT(actualFormatID != angle::FormatID::NONE);
 
-    mImageUsageFlags = kTransferImageFlags | VK_IMAGE_USAGE_SAMPLED_BIT;
+    mImageUsageFlags = vk::kImageUsageTransferBits | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     // If the image has depth/stencil support, add those as possible usage.
     vk::Renderer *renderer = contextVk->getRenderer();
@@ -2900,7 +2896,9 @@ angle::Result TextureVk::maybeUpdateBaseMaxLevels(ContextVk *contextVk,
     }
 
     gl::LevelIndex newBaseLevel = gl::LevelIndex(mState.getEffectiveBaseLevel());
-    gl::LevelIndex newMaxLevel  = gl::LevelIndex(mState.getEffectiveMaxLevel());
+    // In edge case where base level > max level, clamp up to base level.
+    gl::LevelIndex newMaxLevel =
+        std::max(gl::LevelIndex(mState.getEffectiveMaxLevel()), newBaseLevel);
     ASSERT(newBaseLevel <= newMaxLevel);
 
     if (!mImage->valid())
@@ -2961,10 +2959,9 @@ angle::Result TextureVk::copyAndStageImageData(ContextVk *contextVk,
     const uint32_t layerCount = srcImage->getLayerCount();
 
     ANGLE_TRY(stagingImage->get().initStaging(
-        contextVk, mState.hasProtectedContent(), renderer->getMemoryProperties(),
-        srcImage->getType(), srcImage->getExtents(), srcImage->getIntendedFormatID(),
-        srcImage->getActualFormatID(), srcImage->getSamples(), kTransferImageFlags, levelCount,
-        layerCount));
+        contextVk, mState.hasProtectedContent(), srcImage->getType(), srcImage->getExtents(),
+        srcImage->getIntendedFormatID(), srcImage->getActualFormatID(), srcImage->getSamples(),
+        vk::kImageUsageTransferBits, levelCount, layerCount));
 
     // Copy the src image wholly into the staging image
     const VkImageAspectFlags aspectFlags = srcImage->getAspectFlags();
@@ -3275,8 +3272,8 @@ angle::Result TextureVk::getAttachmentRenderTarget(const gl::Context *context,
 
             // Create the implicit multisampled image.
             ANGLE_TRY(multisampledImage.initImplicitMultisampledRenderToTexture(
-                contextVk, mState.hasProtectedContent(), renderer->getMemoryProperties(),
-                mState.getType(), samples, *mImage, extents, useRobustInit));
+                contextVk, mState.hasProtectedContent(), mState.getType(), samples, *mImage,
+                extents, useRobustInit));
         }
     }
 
@@ -3295,8 +3292,7 @@ angle::Result TextureVk::getAttachmentRenderTarget(const gl::Context *context,
 
         // Initialize implicit RGB image and image view
         ANGLE_TRY(mRgbDrawImageForYuvResolve->initRgbDrawImageForYuvResolve(
-            contextVk, renderer->getMemoryProperties(), *mImage,
-            contextVk->isRobustResourceInitEnabled()));
+            contextVk, *mImage, contextVk->isRobustResourceInitEnabled()));
         mRgbDrawImageViewsForYuvResolve->init(renderer);
     }
 
@@ -4219,8 +4215,7 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
         flags |= VK_MEMORY_PROPERTY_PROTECTED_BIT;
     }
 
-    ANGLE_TRY(contextVk->initImageAllocation(mImage, mState.hasProtectedContent(),
-                                             renderer->getMemoryProperties(), flags,
+    ANGLE_TRY(contextVk->initImageAllocation(mImage, mState.hasProtectedContent(), flags,
                                              vk::MemoryAllocationType::TextureImage));
 
     const uint32_t viewLevelCount =
@@ -4228,7 +4223,8 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
     ANGLE_TRY(initImageViews(contextVk, viewLevelCount));
 
     mCurrentBaseLevel = gl::LevelIndex(mState.getBaseLevel());
-    mCurrentMaxLevel  = gl::LevelIndex(mState.getMaxLevel());
+    // In edge case where base level > max level, clamp up to base level.
+    mCurrentMaxLevel = std::max(gl::LevelIndex(mState.getMaxLevel()), mCurrentBaseLevel);
 
     return angle::Result::Continue;
 }

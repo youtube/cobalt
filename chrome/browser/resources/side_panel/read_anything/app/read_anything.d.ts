@@ -74,6 +74,9 @@ declare namespace chrome {
     let contentFinishedStopSource: number;
     let unexpectedUpdateContentStopSource: number;
 
+    // Whether the Immersive Read Anything feature flag is enabled.
+    let isImmersiveEnabled: boolean;
+
     // Whether the Read Aloud feature flag is enabled.
     let isReadAloudEnabled: boolean;
 
@@ -85,6 +88,9 @@ declare namespace chrome {
 
     // Whether the phrase highlighting feature flag is enabled.
     let isPhraseHighlightingEnabled: boolean;
+
+    // Whether the line focus feature flag is enabled.
+    let isLineFocusEnabled: boolean;
 
     // Indicates if this page is a Google doc.
     let isGoogleDocs: boolean;
@@ -211,6 +217,9 @@ declare namespace chrome {
 
     // Called when the font is changed via the webui toolbar.
     function onFontChange(font: string): void;
+
+    // Called when reading mode is closed.
+    function readingModeWillClose(): void;
 
     // Called when the speech rate is changed via the webui toolbar.
     function onSpeechRateChange(rate: number): void;

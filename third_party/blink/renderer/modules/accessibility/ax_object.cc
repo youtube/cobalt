@@ -50,6 +50,7 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
+#include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/slot_assignment_engine.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
@@ -2458,12 +2459,14 @@ void AXObject::SerializeComputedDetailsRelation(
   }
 
   // Add aria-details for the element anchored to this object.
-  if (AXObject* positioned_obj = GetPositionedObjectForAnchor(node_data)) {
-    node_data->AddIntListAttribute(
-        ax::mojom::blink::IntListAttribute::kDetailsIds,
-        {static_cast<int32_t>(positioned_obj->AXObjectID())});
-    node_data->SetDetailsFrom(ax::mojom::blink::DetailsFrom::kCssAnchor);
-    return;
+  if (!RuntimeEnabledFeatures::NoAriaDetailsForAnchorPosEnabled()) {
+    if (AXObject* positioned_obj = GetPositionedObjectForAnchor(node_data)) {
+      node_data->AddIntListAttribute(
+          ax::mojom::blink::IntListAttribute::kDetailsIds,
+          {static_cast<int32_t>(positioned_obj->AXObjectID())});
+      node_data->SetDetailsFrom(ax::mojom::blink::DetailsFrom::kCssAnchor);
+      return;
+    }
   }
 
   // Add aria-details for a scroll marker pseudo-element.
@@ -2627,6 +2630,7 @@ AXObject* AXObject::GetInterestForTargetPopover() const {
 }
 
 AXObject* AXObject::GetPositionedObjectForAnchor(ui::AXNodeData* data) const {
+  CHECK(!RuntimeEnabledFeatures::NoAriaDetailsForAnchorPosEnabled());
   AXObject* positioned_obj = AXObjectCache().GetPositionedObjectForAnchor(this);
   if (!positioned_obj) {
     return nullptr;
@@ -2900,10 +2904,16 @@ ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
           element->GetExecutionContext()) &&
       (role_ == ax::mojom::blink::Role::kGenericContainer ||
        role_ == ax::mojom::blink::Role::kUnknown)) {
-    // GetFocusgroupOwnerOfItem both checks if the input is a focusgroup item
-    // and returns the focusgroup owner if so.
+    // Avoid calling GetFocusgroupOwnerOfItem here to prevent
+    // unnecessary style recalcs, and state-associated CHECKS.
+    // Calling IsKeyboardFocusableSlow is safe here because we are passing the
+    // update behavior for accessibility.
+    bool is_item =
+        element->IsKeyboardFocusableSlow(
+            Element::UpdateBehavior::kNoneForAccessibility) &&
+        element->GetFocusgroupData().behavior != FocusgroupBehavior::kOptOut;
     Element* focusgroup_owner =
-        FocusgroupControllerUtils::GetFocusgroupOwnerOfItem(element);
+        is_item ? focusgroup::FindFocusgroupOwner(element) : nullptr;
     if (focusgroup_owner) {
       AXObject* focusgroup_owner_axobj = AXObjectCache().Get(focusgroup_owner);
       if (focusgroup_owner_axobj) {
@@ -6621,7 +6631,12 @@ bool AXObject::ShouldDestroyWhenDetachingFromParent() const {
   }
 
   // Image map children are entirely dependent on the parent image.
-  if (ParentObject() && IsA<HTMLImageElement>(ParentObject()->GetNode())) {
+  // Use ParentObjectIfPresent() because during detachment the parent may
+  // already be detached, and we should not destroy the child in that case
+  // since the parent's destruction will handle cleanup.
+  AXObject* parent = ParentObjectIfPresent();
+  if (parent && !parent->IsDetached() &&
+      IsA<HTMLImageElement>(parent->GetNode())) {
     return true;
   }
 

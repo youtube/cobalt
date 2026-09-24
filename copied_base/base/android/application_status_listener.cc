@@ -125,3 +125,5 @@ bool ApplicationStatusListener::HasVisibleActivities() {
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(ApplicationStatus)

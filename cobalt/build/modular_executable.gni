@@ -51,6 +51,7 @@ _failing_android_targets = [
   "pdf_ink_reader_fuzzer",
   "pdf_unittests",
   "pdfium_xfa_lpm_unittest",
+  "shell_encryption_unittests",
   "single_file_tar_reader_fuzzer",
   "sync_full_proto_unittests",
   "sync_integration_tests",

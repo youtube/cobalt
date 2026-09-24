@@ -193,7 +193,11 @@ GpuFeatureStatus GetWebGL2FeatureStatus(
 
 GpuFeatureStatus GetWebGPUFeatureStatus(
     const std::set<int>& blocklisted_features,
+    const GpuPreferences& gpu_preferences,
     bool use_swift_shader) {
+  if (!gpu_preferences.enable_webgpu) {
+    return kGpuFeatureStatusDisabled;
+  }
   if (use_swift_shader)
     return kGpuFeatureStatusSoftware;
   if (blocklisted_features.count(GPU_FEATURE_TYPE_ACCELERATED_WEBGPU))
@@ -422,6 +426,20 @@ void RecordGpuHistogram(uint32_t vendor_id, uint32_t device_id) {
   }
 }
 
+// Only record Intel NPU.
+void RecordNpuHistogram(uint32_t vendor_id, uint32_t device_id) {
+  switch (vendor_id) {
+    case 0x8086:
+      base::SparseHistogram::FactoryGet(
+          "NPU.Intel.DeviceId", base::HistogramBase::kUmaTargetedHistogramFlag)
+          ->Add(device_id);
+      break;
+    default:
+      // Do nothing if vendor is not recognized.
+      break;
+  }
+}
+
 #if BUILDFLAG(IS_WIN)
 uint32_t GetSystemCommitLimitMb() {
   PERFORMANCE_INFORMATION perf_info = {sizeof(perf_info)};
@@ -439,6 +457,27 @@ uint32_t GetSystemCommitLimitMb() {
 GPUInfo* g_gpu_info_cache = nullptr;
 GpuFeatureInfo* g_gpu_feature_info_cache = nullptr;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+void SetKeysForCrashLoggingForNpu(const GPUInfo& gpu_info) {
+  if (gpu_info.npus.empty()) {
+    return;
+  }
+
+  // For now, only log the first NPU device.
+  const GPUInfo::GPUDevice& npu = gpu_info.npus[0];
+  if (npu.vendor_id) {
+    crash_keys::npu_vendor_id.Set(base::StringPrintf("0x%04x", npu.vendor_id));
+  }
+  if (npu.device_id) {
+    crash_keys::npu_device_id.Set(base::StringPrintf("0x%04x", npu.device_id));
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  crash_keys::npu_count.Set(base::StringPrintf("%d", gpu_info.npus.size()));
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  crash_keys::npu_driver_version.Set(npu.driver_version);
+}
 
 }  // namespace
 
@@ -590,7 +629,8 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_WEBGL2] =
       GetWebGL2FeatureStatus(blocklisted_features, use_software_gl);
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_WEBGPU] =
-      GetWebGPUFeatureStatus(blocklisted_features, use_software_gl);
+      GetWebGPUFeatureStatus(blocklisted_features, gpu_preferences,
+                             use_software_gl);
 
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_WEBGPU_ON_VK_VIA_GL_INTEROP] =
       GetWebGPUOnVulkanViaGLInterop(blocklisted_features, gpu_preferences,
@@ -689,7 +729,10 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
 }
 
 void SetKeysForCrashLogging(const GPUInfo& gpu_info) {
+  SetKeysForCrashLoggingForNpu(gpu_info);
+
   const GPUInfo::GPUDevice& active_gpu = gpu_info.active_gpu();
+
   // Don't record vendor/device ids on Android when running with GL.
   constexpr bool record_zero_ids = !BUILDFLAG(IS_ANDROID);
   if (record_zero_ids || active_gpu.vendor_id) {
@@ -1073,6 +1116,12 @@ void RecordDiscreteGpuHistograms(const GPUInfo& gpu_info) {
     RecordGpuHistogram(gpu.vendor_id, gpu.device_id);
 }
 
+void RecordNpuHistograms(const GPUInfo& gpu_info) {
+  for (const auto& npu : gpu_info.npus) {
+    RecordNpuHistogram(npu.vendor_id, npu.device_id);
+  }
+}
+
 #if BUILDFLAG(IS_WIN)
 std::string DirectMLFeatureLevelToString(uint32_t directml_feature_level) {
   if (directml_feature_level == 0) {
@@ -1090,6 +1139,14 @@ std::string D3DFeatureLevelToString(uint32_t d3d_feature_level) {
     return base::StringPrintf("D3D %d.%d", (d3d_feature_level >> 12) & 0xF,
                               (d3d_feature_level >> 8) & 0xF);
   }
+}
+
+std::string D3DFeatureLevelToNumberString(uint32_t d3d_feature_level) {
+  if (d3d_feature_level == 0) {
+    return "0.0";
+  }
+  return base::StringPrintf("%d.%d", (d3d_feature_level >> 12) & 0xF,
+                            (d3d_feature_level >> 8) & 0xF);
 }
 
 std::string VulkanVersionToString(uint32_t vulkan_version) {

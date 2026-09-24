@@ -1627,10 +1627,14 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // Check that the self indirect pointer is consistent, i.e. points back to
   // this object.
-  InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(*this);
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, shared);
+  IndirectPointerTag tag;
+  if (IsPublished(isolate)) {
+    InstanceType instance_type = map()->instance_type();
+    bool shared = HeapLayout::InAnySharedSpace(*this);
+    tag = IndirectPointerTagFromInstanceType(instance_type, shared);
+  } else {
+    tag = kUnpublishedIndirectPointerTag;
+  }
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
   IndirectPointerSlot slot =
@@ -1924,6 +1928,10 @@ void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
   CHECK_GE(Object::NumberValue(counter()), 0);
+}
+
+void JSIteratorConcatHelper::JSIteratorConcatHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorConcatHelperVerify(*this, isolate);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {

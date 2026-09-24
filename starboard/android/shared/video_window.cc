@@ -227,3 +227,5 @@ void VideoSurfaceHolder::ResetVideoSurface() {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(VideoSurfaceView)

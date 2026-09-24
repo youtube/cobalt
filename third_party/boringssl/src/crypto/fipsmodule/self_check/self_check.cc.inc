@@ -68,14 +68,6 @@ int BORINGSSL_check_test(const void *expected, const void *actual,
   return 1;
 }
 
-// MSVC wants to put a NUL byte at the end of non-char arrays and so cannot
-// compile the real logic.
-#if defined(_MSC_VER)
-
-int BORINGSSL_self_test(void) { return 0; }
-
-#else
-
 static int set_bignum(BIGNUM **out, const uint8_t *in, size_t len) {
   *out = BN_bin2bn(in, len, nullptr);
   return *out != nullptr;
@@ -300,9 +292,6 @@ static int boringssl_self_test_rsa(void) {
     fprintf(CRYPTO_get_stderr(), "RSA key construction failed\n");
     goto err;
   }
-  // Disable blinding for the power-on tests because it's not needed and
-  // triggers an entropy draw.
-  rsa_key->flags |= RSA_FLAG_NO_BLINDING;
 
   // RSA Sign KAT
 
@@ -1060,5 +1049,3 @@ int BORINGSSL_self_test_all(void) {
 #if defined(BORINGSSL_FIPS)
 int boringssl_self_test_startup(void) { return boringssl_self_test_fast(); }
 #endif
-
-#endif  // !_MSC_VER

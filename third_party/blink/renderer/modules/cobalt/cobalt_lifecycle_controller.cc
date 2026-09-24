@@ -27,9 +27,14 @@ namespace blink {
 //     "CobaltLifecycleController";
 
 // static
+const unsigned CobaltLifecycleController::kSupplementIndex =
+    static_cast<unsigned>(
+        LocalDOMWindow::Supplements::kCobaltLifecycleController);
+
+// static
 CobaltLifecycleController* CobaltLifecycleController::From(
     LocalDOMWindow& window) {
-  return window.GetCobaltLifecycleController();
+  return Supplement<LocalDOMWindow>::From<CobaltLifecycleController>(window);
 }
 
 // static
@@ -41,11 +46,12 @@ void CobaltLifecycleController::BindReceiver(
     return;
   }
   LocalDOMWindow& window = *frame->DomWindow();
-  CobaltLifecycleController* controller = window.GetCobaltLifecycleController();
+  auto* controller =
+      Supplement<LocalDOMWindow>::From<CobaltLifecycleController>(window);
   if (!controller) {
     controller = MakeGarbageCollected<CobaltLifecycleController>(
         window, mojo::NullReceiver());
-    window.SetCobaltLifecycleController(controller);
+    Supplement<LocalDOMWindow>::ProvideTo(window, controller);
   }
   controller->BindMojoReceiver(std::move(receiver));
 }
@@ -71,7 +77,7 @@ CobaltLifecycleController::CobaltLifecycleController(
     : ExecutionContextLifecycleStateObserver(&window),
       PageVisibilityObserver(window.GetFrame()->GetPage()),
       FocusChangedObserver(window.GetFrame()->GetPage()),
-      local_dom_window_(window),
+      Supplement<LocalDOMWindow>(window),
       receiver_(this, &window),
       remote_observer_(&window) {
   UpdateStateIfNeeded();
@@ -210,7 +216,7 @@ void CobaltLifecycleController::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleStateObserver::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);
   FocusChangedObserver::Trace(visitor);
-  visitor->Trace(local_dom_window_);
+  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 }  // namespace blink

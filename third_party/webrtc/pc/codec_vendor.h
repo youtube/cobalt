@@ -11,11 +11,11 @@
 #ifndef PC_CODEC_VENDOR_H_
 #define PC_CODEC_VENDOR_H_
 
-#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
 #include "api/rtp_transceiver_direction.h"
@@ -136,7 +136,7 @@ class CodecLookupHelper {
 // A helper function to merge codecs numbered in one PT numberspace
 // into a list numbered in another PT numberspace. Exposed for testing.
 RTCError MergeCodecsForTesting(const CodecList& reference_codecs,
-                               const std::string& mid,
+                               absl::string_view mid,
                                CodecList& offered_codecs,
                                PayloadTypeSuggester& pt_suggester);
 

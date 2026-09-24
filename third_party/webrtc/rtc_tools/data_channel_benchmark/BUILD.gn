@@ -50,7 +50,6 @@ rtc_executable("data_channel_benchmark") {
     "../../api:field_trials",
     "../../api:field_trials_view",
     "../../api:jsep",
-    "../../api:libjingle_peerconnection_api",
     "../../api:peer_connection_interface",
     "../../api:rtc_error",
     "../../api:scoped_refptr",

@@ -59,3 +59,5 @@ void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(CobaltTextToSpeechHelper)
