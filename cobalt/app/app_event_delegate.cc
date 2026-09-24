@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,29 @@
 namespace cobalt {
 
 namespace {
+
+// Helper to detect when a platform launcher (e.g. Samsung Tizen
+// cobalt_launcher) dispatches kSbEventTypeStart instead of kSbEventTypePreload
+// during boot preload with "launch=preload" in the deep link or command-line
+// arguments.
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  if (!event || event->type == kSbEventTypePreload || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  if (data->link && std::string_view(data->link).find("launch=preload") !=
+                        std::string_view::npos) {
+    return true;
+  }
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    if (data->argument_values[i] &&
+        std::string_view(data->argument_values[i]).find("launch=preload") !=
+            std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -161,11 +185,20 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
   if (application_state_ == ApplicationState::kInitial) {
     switch (event->type) {
       case kSbEventTypeStart:
-      case kSbEventTypePreload:
+      case kSbEventTypePreload: {
+        // Route kSbEventTypeStart with launch=preload into kConcealed preload
+        // mode so the shell initializes hidden.
+        SbEvent preload_event;
+        if (HasPreloadLaunchParam(event)) {
+          awaiting_first_reveal_from_rewritten_start_ = true;
+          preload_event = {kSbEventTypePreload, event->timestamp, event->data};
+          event = &preload_event;
+        }
         runner_->OnStart(event);
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
         return;
+      }
       default:
         // Robustly handle events received before the application has started or
         // preloaded. This ensures that any early events are preceded by a
@@ -222,6 +255,14 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      // If the start event was rewritten into a preload, the launcher still
+      // considers the app started, so the first user launch arrives only as
+      // kSbEventTypeLink (no kSbEventTypeReveal/Focus). Bring the app to
+      // kStarted. After the first reveal, the launcher sends regular lifecycle
+      // events, so this only applies once.
+      if (awaiting_first_reveal_from_rewritten_start_) {
+        TransitionToLifeCycleState(ApplicationState::kStarted);
+      }
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:
@@ -436,6 +477,9 @@ void AppEventDelegate::SetApplicationState(ApplicationState state) {
     return;
   }
   application_state_ = state;
+  if (state == ApplicationState::kStarted) {
+    awaiting_first_reveal_from_rewritten_start_ = false;
+  }
   SetApplicationStateAnnotation(state);
 }
 
