@@ -52,23 +52,12 @@ struct SbAudioSinkPrivate {
         ConsumeFramesFunc consume_frames_func,
         ErrorFunc error_func,
         void* context) = 0;
-
-    // Deprecated. Do not use it.
-    // Legacy destruction path for sink types that need to unregister a sink
-    // before deleting it. New implementations should do their cleanup in the
-    // sink's destructor instead.
-    virtual void Destroy(SbAudioSink audio_sink) { delete audio_sink; }
   };
 
   virtual ~SbAudioSinkPrivate() {}
 
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void SetVolume(double volume) = 0;
-
-  // Deprecated. Do not use it.
-  // When non-null, SbAudioSinkDestroy() calls GetType()->Destroy() instead of
-  // deleting the sink directly. New implementations should not override it.
-  virtual Type* GetType() { return nullptr; }
 };
 
 namespace starboard {
