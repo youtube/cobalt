@@ -1546,12 +1546,9 @@ void StorageHandler::ClearSharedStorageEntries(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
-<<<<<<< HEAD
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // FIXME: this should remember the state and restore it
   // once the StorageRunTimeManager or the storage partition is available.
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {
