@@ -46,6 +46,8 @@ const TestCase kTestCases[] = {
     // --- Invalid Inputs ---
     {"not_an_ip", false},
     {"256.256.256.256", false},
+    {"localhost", false}, // Sanitize localhost
+    {"127.0.0.1", false}, // Loopback is kLocal, not kPrivate
     {"", false},
 };
 

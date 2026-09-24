@@ -76,10 +76,15 @@ bool IsIPInLocalNetwork(const std::string& target_ip_str) {
 }
 
 bool IsIPInPrivateRange(const std::string& raw_ip_str) {
+  std::string ip_to_check = raw_ip_str;
+  if (ip_to_check == "localhost") {
+    ip_to_check = "127.0.0.1";
+  }
+
   net::IPAddress address;
 
   // Parse the string into an IPAddress object
-  if (!net::ParseURLHostnameToAddress(raw_ip_str, &address)) {
+  if (!net::ParseURLHostnameToAddress(ip_to_check, &address)) {
     LOG(ERROR) << "Received IP address is not valid: " << raw_ip_str;
     return false;
   }
