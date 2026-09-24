@@ -86,7 +86,7 @@ public class ContentViewRenderView extends FrameLayout {
                     height,
                     holder.getSurface(),
                     mSurfaceBridge.getSurfaceControl(),
-                    null);
+                    /* hostInputToken= */ null);
             if (mWebContents != null) {
               ContentViewRenderViewJni.get()
                   .onPhysicalBackingSizeChanged(

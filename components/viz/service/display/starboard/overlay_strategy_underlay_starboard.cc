@@ -11,7 +11,6 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
-#include "build/build_config.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
@@ -166,9 +165,8 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
       underlay_rect.Contains(render_pass->output_rect);
   if (is_single_plane_mode_ != single_plane_mode) {
     is_single_plane_mode_ = single_plane_mode;
-    LOG(INFO) << (single_plane_mode ? "Single-plane video passthrough activated"
-                                    : "Single-plane video passthrough "
-                                      "deactivated");
+    LOG(INFO) << "Single-plane video passthrough "
+              << (single_plane_mode ? "activated" : "deactivated");
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
