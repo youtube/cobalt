@@ -1,5 +1,7 @@
+/.github/                                   @youtube/cobalt-build
+
 # Set owners for the CODEOWNERS file itself.
-/.github/CODEOWNERS @youtube/cobalt-starboard-owners
+/.github/CODEOWNERS                         @youtube/cobalt-starboard-owners
 
 /cobalt/media                               @youtube/cobalt-media
 /media/                                     @youtube/cobalt-media
