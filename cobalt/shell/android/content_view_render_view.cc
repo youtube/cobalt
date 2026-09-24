@@ -126,11 +126,6 @@ void ContentViewRenderView::UpdateLayerTreeHost() {
   // Compositor related classes.
 }
 
-void ContentViewRenderView::DidSwapFrame(int pending_frames) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  cobalt::Java_ContentViewRenderView_didSwapFrame(env, java_obj_);
-}
-
 void ContentViewRenderView::InitCompositor() {
   if (!compositor_) {
     compositor_.reset(content::Compositor::Create(this, root_window_));

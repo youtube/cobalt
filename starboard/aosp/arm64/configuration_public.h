@@ -12,23 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdint.h>
-#include <unwind.h>
+// The Starboard configuration for AOSP ARM64 Evergreen. Other devices will
+// have specific Starboard implementations, even if they ultimately are running
+// some version of Android.
 
-extern "C" {
+// Other source files should never include this header directly, but should
+// include the generic "starboard/configuration.h" instead.
 
-_Unwind_Reason_Code _Unwind_Backtrace(_Unwind_Trace_Fn /*trace*/,
-                                      void* /*trace_argument*/) {
-  return _URC_END_OF_STACK;
-}
+#ifndef STARBOARD_AOSP_ARM64_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_AOSP_ARM64_CONFIGURATION_PUBLIC_H_
 
-_Unwind_VRS_Result _Unwind_VRS_Get(
-    struct _Unwind_Context* /*context*/,
-    _Unwind_VRS_RegClass /*regclass*/,
-    uint32_t /*regno*/,
-    _Unwind_VRS_DataRepresentation /*representation*/,
-    void* /*valuep*/) {
-  return _UVRSR_FAILED;
-}
+#include "starboard/aosp/shared/configuration_public.h"
 
-}  // extern "C"
+#endif  // STARBOARD_AOSP_ARM64_CONFIGURATION_PUBLIC_H_

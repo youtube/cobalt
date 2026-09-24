@@ -738,7 +738,9 @@ void SbAudioSinkImpl::PlatformInitialize() {
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_LOG(FATAL) << "Android application does not call PlatformTearDown().";
+  SB_DCHECK_EQ(audio_track_audio_sink_type_.get(), GetPrimaryType());
+  SetPrimaryType(nullptr);
+  audio_track_audio_sink_type_.reset();
 }
 
 }  // namespace starboard
