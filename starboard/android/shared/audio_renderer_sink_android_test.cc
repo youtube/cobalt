@@ -110,6 +110,7 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
     if (audio_sink == last_created_sink_) {
       last_sink_destroyed_ = true;
     }
+    ++destroy_count_;
     delete audio_sink;
   }
 
@@ -118,6 +119,7 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
   bool flush_succeeds_ = true;
   bool last_sink_destroyed_ = false;
   int create_count_ = 0;
+  int destroy_count_ = 0;
 };
 
 class DummyRenderCallback : public AudioRendererSink::RenderCallback {
@@ -255,6 +257,38 @@ TEST_F(AudioRendererSinkAndroidTest, FlushFailureFallsBackToFullReset) {
                        &dummy_callback_);
   EXPECT_TRUE(renderer_sink->HasStarted());
   EXPECT_EQ(fake_sink_type_->create_count_, 2);
+}
+
+TEST_F(AudioRendererSinkAndroidTest,
+       FormatChangeDuringFlushedStateRecreatesSink) {
+  auto renderer_sink = CreateSink(/*allow_flush_during_seek=*/true);
+
+  // 1. Initial Start with 2 channels, 48000Hz
+  renderer_sink->Start(kInitialMediaStartTimeUs, kChannels,
+                       kSamplingFrequencyHz, kSampleType, frame_buffers_,
+                       kFramesPerChannel, &dummy_callback_);
+  EXPECT_TRUE(renderer_sink->HasStarted());
+  EXPECT_EQ(fake_sink_type_->create_count_, 1);
+
+  // 2. Seek flushes the sink
+  renderer_sink->Reset();
+  EXPECT_FALSE(fake_sink_type_->last_sink_destroyed_);
+  EXPECT_EQ(fake_sink_type_->destroy_count_, 0);
+  EXPECT_FALSE(renderer_sink->HasStarted());
+
+  // 3. Audio format changes (e.g. 6 channels / 5.1 surround instead of stereo)
+  constexpr int kNewChannels = 6;
+  std::vector<uint8_t> new_buffer(
+      kFramesPerChannel * sizeof(int16_t) * kNewChannels, 0);
+  void* new_frame_buffers[1] = {new_buffer.data()};
+  renderer_sink->Start(kSeekMediaStartTimeUs, kNewChannels,
+                       kSamplingFrequencyHz, kSampleType, new_frame_buffers,
+                       kFramesPerChannel, &dummy_callback_);
+  // Destroys old flushed sink and re-creates sink with new configuration
+  EXPECT_EQ(fake_sink_type_->destroy_count_, 1);
+  EXPECT_EQ(fake_sink_type_->create_count_, 2);
+  EXPECT_FALSE(fake_sink_type_->last_sink_destroyed_);
+  EXPECT_TRUE(renderer_sink->HasStarted());
 }
 
 }  // namespace
