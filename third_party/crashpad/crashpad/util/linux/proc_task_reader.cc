@@ -23,7 +23,12 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "build/build_config.h"
 #include "util/file/directory_reader.h"
+
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#include "base/types/cxx23_to_underlying.h"
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 
 namespace crashpad {
 
@@ -50,8 +55,13 @@ bool ReadThreadIDs(pid_t pid, std::vector<pid_t>* tids) {
 
     local_tids.push_back(tid);
   }
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  DCHECK_EQ(base::to_underlying(result),
+            base::to_underlying(DirectoryReader::Result::kNoMoreFiles));
+#else
   DCHECK_EQ(std::to_underlying(result),
             std::to_underlying(DirectoryReader::Result::kNoMoreFiles));
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   DCHECK(!local_tids.empty());
 
   tids->swap(local_tids);
