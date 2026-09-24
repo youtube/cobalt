@@ -11,9 +11,40 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/containers/span.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Random access to the stream being parsed, which may be held in several
+// non-contiguous segments. Offsets are relative to the front of the stream.
+class MEDIA_EXPORT WebMSegmentedBuffer {
+ public:
+  // Returns the `size` bytes at `offset` contiguously, or an empty span on
+  // allocation failure. The bytes must be available. The span is only valid
+  // until the next call to this method.
+  virtual base::span<const uint8_t> LinearizeData(int offset,
+                                                  int size) const = 0;
+
+  // Returns the run of bytes that is contiguous at `offset`, without copying.
+  virtual base::span<const uint8_t> GetContiguousData(int offset) const = 0;
+
+  // Replaces `*segments` with the contiguous runs making up the `size` bytes
+  // at `offset`, without copying. Returns false if they are not all available.
+  virtual bool GetSegmentedData(
+      std::vector<base::span<const uint8_t>>* segments,
+      int offset,
+      int size) const = 0;
+
+ protected:
+  virtual ~WebMSegmentedBuffer() = default;
+};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Interface for receiving WebM parser events.
 //
@@ -39,6 +70,12 @@ class MEDIA_EXPORT WebMParserClient {
   virtual bool OnUInt(int id, int64_t val);
   virtual bool OnFloat(int id, double val);
   virtual bool OnBinary(int id, const uint8_t* data, int size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual bool OnBinary(int id,
+                        const WebMSegmentedBuffer& buf,
+                        int offset,
+                        int size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Note that |str| is not necessarily a valid WebM string-value; various EBML
   // "s" or "8" string elements are specified as either ASCII-printable (0x20 -
@@ -77,6 +114,10 @@ class MEDIA_EXPORT WebMListParser {
   // Returns 0 if more data is needed.
   // Returning > 0 indicates success & the number of bytes parsed.
   int Parse(const uint8_t* buf, int size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Same as above, for the `size` bytes at `offset` in `buf`.
+  int Parse(const WebMSegmentedBuffer& buf, int offset, int size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns true if the entire list has been parsed.
   bool IsParsingComplete() const;
@@ -116,6 +157,16 @@ class MEDIA_EXPORT WebMListParser {
                        int64_t element_size,
                        const uint8_t* data,
                        int size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Same as above, with the element contents given as the `size` bytes at
+  // `offset` in `buf`.
+  int ParseListElement(int header_size,
+                       int id,
+                       int64_t element_size,
+                       const WebMSegmentedBuffer& buf,
+                       int offset,
+                       int size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Called when starting to parse a new list.
   //
@@ -170,6 +221,16 @@ int MEDIA_EXPORT WebMParseElementHeader(const uint8_t* buf,
                                         int size,
                                         int* id,
                                         int64_t* element_size);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Same as above, for the `size` bytes at `offset` in `buf`. The header is read
+// in place unless it straddles a segment boundary.
+int MEDIA_EXPORT WebMParseElementHeader(const WebMSegmentedBuffer& buf,
+                                        int offset,
+                                        int size,
+                                        int* id,
+                                        int64_t* element_size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
 
