@@ -19,5 +19,14 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 void SbAudioSinkDestroy(SbAudioSink audio_sink) {
+  if (audio_sink == kSbAudioSinkInvalid) {
+    return;
+  }
+  // TODO: b/565505891 - Remove this legacy path once all sink types clean up in
+  // their destructors.
+  if (SbAudioSinkPrivate::Type* type = audio_sink->GetType()) {
+    type->Destroy(audio_sink);
+    return;
+  }
   delete audio_sink;
 }
