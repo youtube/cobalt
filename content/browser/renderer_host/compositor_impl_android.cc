@@ -84,6 +84,7 @@
 #include "ui/android/window_android.h"
 #include "ui/display/display.h"
 #include "ui/display/display_transform.h"
+#include "base/android/build_info.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gl/android/scoped_java_surface_control.h"
 #include "ui/display/screen.h"
@@ -331,14 +332,27 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
   window_ = std::move(window);
   // Register first, SetVisible() might create a LayerTreeFrameSink.
 #if BUILDFLAG(IS_COBALT)
-  if (can_be_used_with_surface_control && host_input_token &&
-      features::IsAndroidSurfaceControlEnabled() &&
-      gfx::SurfaceControl::SupportsSurfacelessControl()) {
-    surface_handle_ = tracker->AddSurfaceForNativeWidget(
-        gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
-            host_input_token, /*release_on_destroy=*/false)));
-    SetVisible(true);
-    return surface_handle_;
+  if (can_be_used_with_surface_control &&
+      features::IsAndroidSurfaceControlEnabled()) {
+    if (host_input_token && gfx::SurfaceControl::SupportsSurfacelessControl()) {
+      // Android 12+ (API 31+): Uses ScopedJavaSurfaceControl
+      // (CobaltWindowSurfaceControl).
+      surface_handle_ = tracker->AddSurfaceForNativeWidget(
+          gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
+              host_input_token, /*release_on_destroy=*/false)));
+      SetVisible(true);
+      return surface_handle_;
+    } else if (base::android::BuildInfo::GetInstance()->sdk_int() ==
+               base::android::SDK_VERSION_R) {
+      // Android 11 (API 30, pre-BLAST BufferQueueLayer architecture):
+      // Uses ASurfaceControl_createFromWindow(ANativeWindow*).
+      surface_handle_ = tracker->AddSurfaceForNativeWidget(
+          gpu::SurfaceRecord(std::move(scoped_surface),
+                             /*can_be_used_with_surface_control=*/true,
+                             /*host_input_token=*/nullptr));
+      SetVisible(true);
+      return surface_handle_;
+    }
   }
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),

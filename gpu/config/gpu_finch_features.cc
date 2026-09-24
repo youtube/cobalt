@@ -766,9 +766,9 @@ bool IsAndroidSurfaceControlEnabled() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Starboard media renders video via VideoSurfaceView underlay rather than
   // AImageReader, and uses SurfaceControl (GLSurfaceEGLSurfaceControl +
-  // VizBufferQueue) on Android 12+ (API 31+, where Window.getRootSurfaceControl
-  // is available) when SinglePlaneVideoPassthrough is enabled.
-  if (build_info->sdk_int() >= base::android::SDK_VERSION_S &&
+  // VizBufferQueue) on Android 11+ (API 30+) when SinglePlaneVideoPassthrough
+  // is enabled.
+  if (build_info->sdk_int() >= base::android::SDK_VERSION_R &&
       base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough)) {
     return true;
   }
