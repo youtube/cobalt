@@ -11,7 +11,6 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/hash/hash.h"
-#include "build/build_config.h"
 
 namespace base::trace_event {
 
@@ -25,15 +24,9 @@ bool operator==(const StackFrame& lhs, const StackFrame& rhs) {
 
 Backtrace::Backtrace() = default;
 
-<<<<<<< HEAD
 Backtrace::Backtrace(const Backtrace&) = default;
 
 Backtrace::~Backtrace() = default;
-=======
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-Backtrace::Backtrace(const Backtrace& other) = default;
-#endif
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 bool operator==(const Backtrace& lhs, const Backtrace& rhs) {
   return std::ranges::equal(base::span(lhs.frames).first(lhs.frame_count),
