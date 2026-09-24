@@ -76,6 +76,8 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
+  // Without an external allocator, data is stored in `data_`, a
+  // base::HeapArray backed by PartitionAlloc, and memcpy writes into it.
   memcpy(writable_data(), data, size);
 }
 
