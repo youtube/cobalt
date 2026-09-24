@@ -44,6 +44,15 @@ void AudioErrorCallback(AAudioStream* /*stream*/,
   sink->OnAudioError(error);
 }
 
+struct AAudioStreamBuilderDeleter {
+  void operator()(AAudioStreamBuilder* builder) const {
+    if (!builder) {
+      return;
+    }
+    AAudio::StreamBuilder_Delete(builder);
+  }
+};
+
 }  // namespace
 
 void AaudioAudioSink::AAudioStreamDeleter::operator()(
@@ -81,40 +90,44 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
     return nullptr;
   }
 
-  AAudioStreamBuilder* builder = nullptr;
-  aaudio_result_t result = AAudio::CreateStreamBuilder(&builder);
-  if (result != AAUDIO_OK || !builder) {
+  AAudioStreamBuilder* raw_builder = nullptr;
+  if (aaudio_result_t result = AAudio::CreateStreamBuilder(&raw_builder);
+      result != AAUDIO_OK || !raw_builder) {
     SB_LOG(ERROR) << "Failed to create AAudioStreamBuilder: "
                   << AAudio::ConvertResultToText(result);
     return nullptr;
   }
+  std::unique_ptr<AAudioStreamBuilder, AAudioStreamBuilderDeleter> builder(
+      raw_builder);
 
-  AAudio::StreamBuilder_SetDirection(builder, AAUDIO_DIRECTION_OUTPUT);
-  AAudio::StreamBuilder_SetSampleRate(builder, sampling_frequency_hz);
-  AAudio::StreamBuilder_SetChannelCount(builder, channels);
-  AAudio::StreamBuilder_SetFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
-  AAudio::StreamBuilder_SetSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
-  AAudio::StreamBuilder_SetPerformanceMode(builder,
+  AAudio::StreamBuilder_SetDirection(builder.get(), AAUDIO_DIRECTION_OUTPUT);
+  AAudio::StreamBuilder_SetSampleRate(builder.get(), sampling_frequency_hz);
+  AAudio::StreamBuilder_SetChannelCount(builder.get(), channels);
+  AAudio::StreamBuilder_SetFormat(builder.get(), AAUDIO_FORMAT_PCM_FLOAT);
+  AAudio::StreamBuilder_SetSharingMode(builder.get(),
+                                       AAUDIO_SHARING_MODE_SHARED);
+  AAudio::StreamBuilder_SetPerformanceMode(builder.get(),
                                            AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   AAudio::StreamBuilder_SetUsage(
-      builder, is_web_audio ? AAUDIO_USAGE_GAME : AAUDIO_USAGE_MEDIA);
-  AAudio::StreamBuilder_SetContentType(builder, AAUDIO_CONTENT_TYPE_MUSIC);
+      builder.get(), is_web_audio ? AAUDIO_USAGE_GAME : AAUDIO_USAGE_MEDIA);
+  AAudio::StreamBuilder_SetContentType(builder.get(),
+                                       AAUDIO_CONTENT_TYPE_MUSIC);
 
-  std::unique_ptr<AaudioAudioSink> sink = std::make_unique<AaudioAudioSink>(
+  auto sink = std::make_unique<AaudioAudioSink>(
       PassKey<AaudioAudioSink>(), channels, frame_buffers, frames_per_channel,
       callbacks, context);
 
-  AAudio::StreamBuilder_SetDataCallback(builder, AudioDataCallback, sink.get());
+  AAudio::StreamBuilder_SetDataCallback(builder.get(), AudioDataCallback,
+                                        sink.get());
   if (AAudio::StreamBuilder_SetErrorCallback) {
-    AAudio::StreamBuilder_SetErrorCallback(builder, AudioErrorCallback,
+    AAudio::StreamBuilder_SetErrorCallback(builder.get(), AudioErrorCallback,
                                            sink.get());
   }
 
   AAudioStream* raw_stream = nullptr;
-  result = AAudio::StreamBuilder_OpenStream(builder, &raw_stream);
-  AAudio::StreamBuilder_Delete(builder);
-
-  if (result != AAUDIO_OK || !raw_stream) {
+  if (aaudio_result_t result =
+          AAudio::StreamBuilder_OpenStream(builder.get(), &raw_stream);
+      result != AAUDIO_OK || !raw_stream) {
     SB_LOG(ERROR) << "Failed to open AAudioStream: "
                   << AAudio::ConvertResultToText(result);
     return nullptr;
@@ -127,8 +140,8 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
     AAudio::Stream_SetBufferSizeInFrames(raw_stream, burst_frames * 2);
   }
 
-  result = AAudio::Stream_RequestStart(raw_stream);
-  if (result != AAUDIO_OK) {
+  if (aaudio_result_t result = AAudio::Stream_RequestStart(raw_stream);
+      result != AAUDIO_OK) {
     SB_LOG(ERROR) << "Failed to start AAudioStream: "
                   << AAudio::ConvertResultToText(result);
     return nullptr;
