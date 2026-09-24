@@ -50,6 +50,6 @@
     "MediaSessionBrowserTest.*",
     "MediaTest.*",
     "WebRtcGetUserMediaBrowserTest.*",
-    "CustomMimeTypeBrowserTest.*"
+    "CustomMimeTypeBrowserTest.EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer"
   ]
 }

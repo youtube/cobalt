@@ -37,20 +37,20 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
+namespace {
+
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-namespace media {
-
-namespace {
-
 // BlockAddID for HDR10+ (ITU-T T.35) dynamic metadata carried in a WebM
-// BlockAdditional element. WebMClusterParser prepends this as an 8-byte
-// big-endian prefix to DecoderBufferSideData::alpha_data, mirroring the
-// ffmpeg demuxer's behavior. See webm_cluster_parser.cc and the
-// SbPlayerSampleSideData contract in starboard/player.h.
+// BlockAdditional element. SbPlayerBridge treats alpha_data as an opaque blob,
+// so nothing here validates this framing; the tests build a realistically
+// shaped payload only so the fixtures read like real data. Production layout
+// is owned by webm_cluster_parser.cc.
 constexpr uint64_t kHdr10PlusBlockAddId = 4;
 
 // A no-op SbPlayerBridge::Host. These tests drive WriteBuffers() directly and
@@ -104,9 +104,20 @@ scoped_refptr<DecoderBuffer> MakeVideoBuffer(
   return buffer;
 }
 
+// Builds a buffer whose side data exists but carries no BlockAdditional.
+// |spatial_layers| is chosen because SbPlayerBridge never reads it, so the only
+// thing that changes relative to MakeVideoBuffer() is that side_data() becomes
+// non-null.
+scoped_refptr<DecoderBuffer> MakeVideoBufferWithUnrelatedSideData(
+    base::span<const uint8_t> payload) {
+  scoped_refptr<DecoderBuffer> buffer = DecoderBuffer::CopyFrom(payload);
+  buffer->WritableSideData().spatial_layers = {1u, 2u, 3u};
+  return buffer;
+}
+
 class SbPlayerBridgeSideDataTest : public testing::Test {
  protected:
-  SbPlayerBridgeSideDataTest() {
+  void SetUp() override {
     // SbPlayerBridge's constructor calls CreatePlayer() synchronously, so the
     // Create() action must be installed before the bridge is built.
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
@@ -152,7 +163,7 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
 #endif  // BUILDFLAG(IS_ANDROID)
     );
 
-    CHECK(bridge_->IsValid());
+    ASSERT_TRUE(bridge_->IsValid());
   }
 
   ~SbPlayerBridgeSideDataTest() override = default;
@@ -197,9 +208,28 @@ TEST_F(SbPlayerBridgeSideDataTest, OmitsSideDataWhenBlockAdditionalAbsent) {
   EXPECT_EQ(captured_samples_[0].side_data_count, 0);
 }
 
-// WriteBuffersInternal() indexes into a batch-wide side data vector, so a
-// mixed batch guards against the side data of one sample being attributed to
-// another, and against pointer invalidation if that vector is ever resized.
+// The write path guards on two conditions: side data must exist *and* carry a
+// non-empty alpha_data. DecoderBufferSideData also carries spatial_layers,
+// secure_handle and discard_padding, so side data with no BlockAdditional is
+// routine in production. Dropping the emptiness check would tag every such
+// buffer with a zero-length side data entry.
+TEST_F(SbPlayerBridgeSideDataTest, OmitsSideDataWhenAlphaDataEmpty) {
+  constexpr uint8_t kPayload[] = {0x01, 0x02, 0x03, 0x04};
+  bridge_->WriteBuffers(DemuxerStream::VIDEO,
+                        {MakeVideoBufferWithUnrelatedSideData(kPayload)});
+
+  ASSERT_EQ(captured_samples_.size(), 1u);
+  EXPECT_FALSE(captured_samples_[0].has_side_data_pointer);
+  EXPECT_EQ(captured_samples_[0].side_data_count, 0);
+}
+
+// WriteBuffersInternal() pushes a side data entry for every buffer and then
+// takes the address of element |i|, so the batch-wide vector must not
+// reallocate mid-loop; only its up-front reserve() prevents that. A batch with
+// a gap in the middle therefore guards two distinct regressions: losing the
+// reserve() (earlier samples left pointing at freed memory), and switching to
+// "append only when side data exists" (which desynchronizes index |i| from the
+// buffer index and reads out of bounds).
 TEST_F(SbPlayerBridgeSideDataTest, AttributesSideDataToCorrectSampleInBatch) {
   constexpr uint8_t kFirstMetadata[] = {0xaa, 0xbb};
   constexpr uint8_t kThirdMetadata[] = {0xcc, 0xdd, 0xee};
