@@ -411,7 +411,16 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
         *surface_state.surface, image_color_space, surface_state.hdr_metadata);
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Child surfaces are recreated after single-plane mode (see
+  // CommitPendingTransaction()), so re-apply a previously set frame rate on
+  // new surfaces. A non-default |frame_rate_| implies SetFrameRate() was
+  // called, which only happens when SupportsSetFrameRate().
+  if (frame_rate_update_pending_ ||
+      (uninitialized && frame_rate_ != gfx::SurfaceControlFrameRate()))
+#else
   if (frame_rate_update_pending_)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     pending_transaction_->SetFrameRate(*surface_state.surface, frame_rate_);
 
   return true;

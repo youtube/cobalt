@@ -73,9 +73,20 @@ void OverlayStrategyUnderlayStarboard::Propose(
     }
   }
 
-  if (overlay_iter != quad_list.end()) {
-    candidates->emplace_back(overlay_iter, candidate, this);
+  if (overlay_iter == quad_list.end()) {
+    // No video hole this frame, so Attempt() won't be called. Reset the state
+    // here so the logs stay accurate when the video stops.
+    if (is_using_overlay_) {
+      is_using_overlay_ = false;
+      LOG(INFO) << "Overlay deactivated";
+    }
+    if (is_single_plane_mode_) {
+      is_single_plane_mode_ = false;
+      LOG(INFO) << "Single-plane video passthrough deactivated";
+    }
+    return;
   }
+  candidates->emplace_back(overlay_iter, candidate, this);
 }
 
 bool OverlayStrategyUnderlayStarboard::Attempt(
@@ -140,7 +151,12 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     if (is_underlay) {
       content_rect.Subtract(quad_rect);
 #if BUILDFLAG(IS_ANDROID)
+      // The video view is placed at the unclipped rect and the UI plane masks
+      // the area outside clip_rect, so only the clipped part counts as covered.
       underlay_rect = quad_rect;
+      if (quad->shared_quad_state->clip_rect) {
+        underlay_rect.Intersect(*quad->shared_quad_state->clip_rect);
+      }
 #endif  // BUILDFLAG(IS_ANDROID)
     } else {
       content_rect.Union(quad_rect);

@@ -64,7 +64,7 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
 // buffers during fullscreen Starboard underlay video playback when the UI fades
 // out.
 BASE_FEATURE(kCobaltSinglePlaneVideoPassthrough,
-             "SinglePlaneVideoPassthrough",
+             "CobaltSinglePlaneVideoPassthrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
