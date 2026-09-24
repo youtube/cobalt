@@ -142,7 +142,7 @@ class NetworkFetcherCobalt : public NetworkFetcher {
         base::BindOnce(
             [](NetworkFetcherCobalt* fetcher,
                DownloadToStringCompleteCallback download_to_string_complete_callback,
-               std::unique_ptr<std::string> response_body) {
+               std::optional<std::string> response_body) {
               if (response_body) {
                 *fetcher->dst_str_ = std::move(*response_body);
               } else {
