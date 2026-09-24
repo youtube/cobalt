@@ -5,12 +5,11 @@
 #include "third_party/blink/renderer/core/layout/inline/offset_mapping_builder.h"
 
 #include <utility>
-
 #include "base/containers/adapters.h"
 #include "build/build_config.h"
-#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 
 namespace blink {
 
