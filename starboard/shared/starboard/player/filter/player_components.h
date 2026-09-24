@@ -79,17 +79,6 @@ class PlayerComponents {
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const AudioStreamInfo& audio_stream_info,
-                         const VideoStreamInfo& video_stream_info,
-                         SbPlayer player,
-                         SbPlayerOutputMode output_mode,
-                         int max_video_input_size,
-                         const ExperimentalFeatures& experimental_features,
-                         void* surface_view,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid,
                          const std::string& max_video_resolution = "");
       CreationParameters(const CreationParameters& that) = default;
