@@ -308,7 +308,7 @@ TEST(DecoderBufferTest, IsEncrypted) {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-class DecoderBufferNullAllocatorTest : public testing::Test {
+class DecoderBufferWithoutExternalAllocatorTest : public testing::Test {
  public:
   void SetUp() override {
     DecoderBuffer::Allocator::Set(nullptr);
@@ -323,7 +323,8 @@ class DecoderBufferNullAllocatorTest : public testing::Test {
       DecoderBuffer::Allocator::Get();
 };
 
-TEST_F(DecoderBufferNullAllocatorTest, AllocatesHeapArrayAndFallbackHandle) {
+TEST_F(DecoderBufferWithoutExternalAllocatorTest,
+       AllocatesHeapArrayAndFallbackHandle) {
   auto buffer = base::MakeRefCounted<DecoderBuffer>(200);
   EXPECT_EQ(buffer->size(), 200u);
   EXPECT_NE(buffer->data(), nullptr);
@@ -336,7 +337,7 @@ TEST_F(DecoderBufferNullAllocatorTest, AllocatesHeapArrayAndFallbackHandle) {
   EXPECT_EQ(memcmp(buffer->data(), test_data, sizeof(test_data)), 0);
 }
 
-TEST_F(DecoderBufferNullAllocatorTest, CopyFrom) {
+TEST_F(DecoderBufferWithoutExternalAllocatorTest, CopyFrom) {
   uint8_t test_data[100];
   memset(test_data, 0x42, sizeof(test_data));
 
@@ -347,7 +348,7 @@ TEST_F(DecoderBufferNullAllocatorTest, CopyFrom) {
             reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer->data()));
 }
 
-TEST_F(DecoderBufferNullAllocatorTest, FromArray) {
+TEST_F(DecoderBufferWithoutExternalAllocatorTest, FromArray) {
   auto heap_array = base::HeapArray<uint8_t>::Uninit(50);
   memset(heap_array.data(), 0x33, 50);
 
