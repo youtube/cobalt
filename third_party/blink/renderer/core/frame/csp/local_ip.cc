@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "net/base/ip_address.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
@@ -36,7 +37,7 @@ std::optional<net::IPAddress> ExtractIPv4From6to4(const net::IPAddress& addr) {
 
 // Queries host IP address and matches against netmask of target ip to determine.
 bool IsIPInLocalNetwork(const std::string& target_ip_str) {
-    if (target_ip_str == "localhost") {
+    if (WTF::EqualIgnoringASCIICase(StringView(target_ip_str.c_str()), "localhost")) {
         return true;
     }
     struct ifaddrs* ifaddr;
@@ -76,15 +77,14 @@ bool IsIPInLocalNetwork(const std::string& target_ip_str) {
 }
 
 bool IsIPInPrivateRange(const std::string& raw_ip_str) {
-  std::string ip_to_check = raw_ip_str;
-  if (ip_to_check == "localhost") {
-    ip_to_check = "127.0.0.1";
+  if (WTF::EqualIgnoringASCIICase(StringView(raw_ip_str.c_str()), "localhost")) {
+    return false;
   }
 
   net::IPAddress address;
 
   // Parse the string into an IPAddress object
-  if (!net::ParseURLHostnameToAddress(ip_to_check, &address)) {
+  if (!net::ParseURLHostnameToAddress(raw_ip_str, &address)) {
     LOG(ERROR) << "Received IP address is not valid: " << raw_ip_str;
     return false;
   }
