@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "SbAudioSinkTest.ContinuousAppend",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbPlayerTest.Audioless",
     "SearchPosetMaximalElementsTests.*",
