@@ -64,13 +64,21 @@ std::optional<size_t> ReadAndHashBuffer(base::span<uint8_t> buffer,
 }
 
 #if defined(IN_MEMORY_UPDATES)
-int ReadAndHashBufferFromString(uint8_t* buffer,
-                                int length,
-                                std::string::const_iterator* it,
-                                crypto::hash::Hasher& hash) {
+// Reads up to `buffer.size()` bytes from `crx_str`, starting at `*it`, into
+// `buffer`, updates `hash` with the bytes read and advances `*it` past them.
+// Returns the number of bytes read, which is less than `buffer.size()` only if
+// the end of `crx_str` was reached. Never reads past the end of `crx_str`.
+size_t ReadAndHashBufferFromString(base::span<uint8_t> buffer,
+                                   const std::string& crx_str,
+                                   std::string::const_iterator* it,
+                                   crypto::hash::Hasher& hash) {
   static_assert(sizeof(char) == sizeof(uint8_t), "Unsupported char size.");
-  memcpy(buffer, &(**it), length);
-  hash.Update(base::span(buffer, base::checked_cast<size_t>(length)));
+  const auto remaining = base::as_byte_span(crx_str).subspan(
+      base::checked_cast<size_t>(*it - crx_str.begin()));
+  const size_t length = std::min(buffer.size(), remaining.size());
+  auto read = buffer.first(length);
+  read.copy_from(remaining.first(length));
+  hash.Update(read);
 
   // TODO(b/158043520): consider wrapping the CRX string in a type that keeps
   // track of how much of the string has already been copied so that the string
@@ -93,13 +101,17 @@ uint32_t ReadAndHashLittleEndianUInt32(base::File* file,
 }
 
 #if defined(IN_MEMORY_UPDATES)
-// Returns the read uint32.
+// Returns UINT32_MAX in the case of an unexpected end of string, else returns
+// the read uint32.
 uint32_t ReadAndHashLittleEndianUInt32FromString(
+    const std::string& crx_str,
     std::string::const_iterator* it,
     crypto::hash::Hasher& hash) {
-  uint8_t buffer[4] = {};
-  ReadAndHashBufferFromString(buffer, sizeof(buffer), it, hash);
-  return buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0];
+  std::array<uint8_t, 4> buffer;
+  if (ReadAndHashBufferFromString(buffer, crx_str, it, hash) != buffer.size()) {
+    return UINT32_MAX;
+  }
+  return base::U32FromLittleEndian(buffer);
 }
 #endif
 
@@ -132,18 +144,12 @@ bool ReadHashAndVerifyArchiveFromString(const std::string& crx_str,
                                         std::string::const_iterator* it,
                                         crypto::hash::Hasher& hash,
                                         const VerifierCollection& verifiers) {
-  int remaining_bytes = crx_str.end() - *it;
-
-  uint8_t buffer[1 << 12] = {};
-  while (remaining_bytes > 0) {
-    size_t len = remaining_bytes >= std::size(buffer) ? std::size(buffer)
-                                                      : remaining_bytes;
-
-    ReadAndHashBufferFromString(buffer, len, it, hash);
-    remaining_bytes -= len;
-
+  std::array<uint8_t, 1 << 12> buffer;
+  size_t len;
+  while ((len = ReadAndHashBufferFromString(buffer, crx_str, it, hash)) > 0) {
+    auto to_verify = base::span<const uint8_t>(buffer).first(len);
     for (auto& verifier : verifiers) {
-      verifier->VerifyUpdate(base::span(buffer, len));
+      verifier->VerifyUpdate(to_verify);
     }
   }
 
@@ -298,17 +304,28 @@ VerifierResult VerifyCrx3FromString(
     bool accept_publisher_test_key) {
   // Parse [header-size] and [header].
   const uint32_t header_size =
-      ReadAndHashLittleEndianUInt32FromString(it, hash);
-  if (header_size == INT_MAX)
+      ReadAndHashLittleEndianUInt32FromString(crx_str, it, hash);
+  // A value of UINT32_MAX signals an unexpected end of string. Sizes that do
+  // not fit in an int are rejected, matching the file-based path.
+  if (header_size >= static_cast<uint32_t>(INT_MAX)) {
     return VerifierResult::ERROR_HEADER_INVALID;
+  }
+  // Reject headers that claim to be larger than the rest of the CRX before
+  // allocating memory for them.
+  const size_t remaining_size = base::checked_cast<size_t>(crx_str.end() - *it);
+  if (header_size > remaining_size) {
+    return VerifierResult::ERROR_HEADER_INVALID;
+  }
   std::vector<uint8_t> header_bytes(header_size);
-  // Assuming kMaxHeaderSize can fit in an int, the following cast is safe.
-  if (ReadAndHashBufferFromString(header_bytes.data(), header_size, it, hash) !=
-      static_cast<int>(header_size))
+  if (ReadAndHashBufferFromString(header_bytes, crx_str, it, hash) !=
+      header_size) {
     return VerifierResult::ERROR_HEADER_INVALID;
+  }
   CrxFileHeader header;
-  if (!header.ParseFromArray(header_bytes.data(), header_size))
+  if (!header.ParseFromArray(header_bytes.data(),
+                             base::checked_cast<int>(header_size))) {
     return VerifierResult::ERROR_HEADER_INVALID;
+  }
 
   // Parse [verified_contents].
   if (header.has_verified_contents() && compressed_verified_contents) {
@@ -505,7 +522,7 @@ VerifierResult Verify(
 
   // Version number.
   const uint32_t version =
-      ReadAndHashLittleEndianUInt32FromString(&it, file_hash);
+      ReadAndHashLittleEndianUInt32FromString(crx_str, &it, file_hash);
   VerifierResult result;
   if (version == 3) {
     bool require_publisher_key =
