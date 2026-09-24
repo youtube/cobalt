@@ -143,7 +143,8 @@ def verify_chromium_commit(sha):
     if modified_files == 'DEPS':
       lib.log(
           f'Verification passed: Tree {current_tree} matches Chromium '
-          f'{upstream_sha} with one change to DEPS to remove ANGLE from recursedeps'
+          f'{upstream_sha} with one change to DEPS to remove ANGLE from '
+          f'recursedeps'
       )
       return True
 
