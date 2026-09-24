@@ -98,3 +98,5 @@ static void JNI_CommandLine_Init(
   JNI_CommandLine_AppendJavaStringArrayToCommandLine(env, init_command_line,
                                                      true);
 }
+
+DEFINE_JNI(CommandLine)

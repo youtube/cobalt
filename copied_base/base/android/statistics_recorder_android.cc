@@ -24,5 +24,7 @@ static ScopedJavaLocalRef<jstring> JNI_StatisticsRecorderAndroid_ToJson(
                static_cast<JSONVerbosityLevel>(verbosityLevel)));
 }
 
+DEFINE_JNI(StatisticsRecorderAndroid)
+
 }  // namespace android
 }  // namespace base

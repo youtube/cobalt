@@ -42,3 +42,5 @@ static void JNI_LibraryPrefetcher_PeriodicallyCollectResidency(JNIEnv* env) {
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(LibraryPrefetcher)
