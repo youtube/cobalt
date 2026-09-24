@@ -498,6 +498,10 @@ TEST_P(SoftwareVideoEncoderTest, PerFrameQpEncoding) {
   EXPECT_EQ(outputs_count, total_frames_count);
 }
 
+// All parametrizations of this test are done within #ifdefs that are not true
+// when USE_STARBOARD_MEDIA is set. Disable the test to avoid failing
+// GoogleTestVerification.
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST_P(LargeTimestampOverflowTest, LargeTimestampOverflow) {
   VideoEncoder::Options options = CreateDefaultOptions();
   options.frame_size = gfx::Size(320, 200);
@@ -526,6 +530,7 @@ TEST_P(LargeTimestampOverflowTest, LargeTimestampOverflow) {
   encoder_->Flush(ValidateStatusThenQuitCB());
   RunUntilQuit();
 }
+#endif
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
 TEST_P(SoftwareVideoEncoderTest, EncodeAndDecode) {
