@@ -546,11 +546,7 @@ void ExecutionContext::Trace(Visitor* visitor) const {
   visitor->Trace(runtime_feature_state_override_context_);
   MojoBindingContext::Trace(visitor);
   ConsoleLogger::Trace(visitor);
-<<<<<<< HEAD
   Supplementable<ExecutionContext>::Trace(visitor);
-=======
-  Supplementable<ExecutionContext, 35>::Trace(visitor);
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool ExecutionContext::IsSameAgentCluster(

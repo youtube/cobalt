@@ -2691,11 +2691,7 @@ bool LocalFrameView::RunCompositingInputsLifecyclePhase(
       // and then painted during this lifecycle.
       if (LocalDOMWindow* window = frame_view.GetFrame().DomWindow()) {
         if (HighlightRegistry* highlight_registry =
-<<<<<<< HEAD
                 window->Supplementable<LocalDOMWindow>::RequireSupplement<
-=======
-                window->Supplementable<LocalDOMWindow, 51>::RequireSupplement<
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                     HighlightRegistry>()) {
           highlight_registry->ValidateHighlightMarkers();
         }
