@@ -49,7 +49,6 @@
     "EncryptedMediaTest.*",
     "MediaSessionBrowserTest.*",
     "MediaTest.*",
-    "WebRtcGetUserMediaBrowserTest.*",
-    "CustomMimeTypeBrowserTest.EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer"
+    "WebRtcGetUserMediaBrowserTest.*"
   ]
 }
