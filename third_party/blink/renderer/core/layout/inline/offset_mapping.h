@@ -7,10 +7,6 @@
 
 #include <optional>
 
-#include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/check_op.h"
-#endif
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/editing/forward.h"

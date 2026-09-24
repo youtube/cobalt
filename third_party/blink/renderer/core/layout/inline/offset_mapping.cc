@@ -8,6 +8,9 @@
 #include <functional>
 
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/check_op.h"
+#endif
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
