@@ -173,13 +173,6 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
     // test client directly so single-process `StarboardRendererWrapper` finds
     // `VideoGeometrySetterService`.
     if (!content::GetContentClientForTesting()->gpu()) {
-      struct ContentClientLayoutHelper {
-        virtual ~ContentClientLayoutHelper() = default;
-        raw_ptr<content::ContentBrowserClient, DanglingUntriaged> browser_;
-        raw_ptr<content::ContentGpuClient> gpu_;
-        raw_ptr<content::ContentRendererClient> renderer_;
-        raw_ptr<content::ContentUtilityClient> utility_;
-      };
       auto* helper = reinterpret_cast<ContentClientLayoutHelper*>(
           content::GetContentClientForTesting());
       CHECK_EQ(helper->browser_.get(),
@@ -209,13 +202,6 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
     ::media::SetSbPlayerInterfaceForTesting(nullptr);
     ::media::SetSbMediaInterfaceForTesting(nullptr);
     if (content::GetContentClientForTesting()->gpu() == gpu_client_.get()) {
-      struct ContentClientLayoutHelper {
-        virtual ~ContentClientLayoutHelper() = default;
-        raw_ptr<content::ContentBrowserClient, DanglingUntriaged> browser_;
-        raw_ptr<content::ContentGpuClient> gpu_;
-        raw_ptr<content::ContentRendererClient> renderer_;
-        raw_ptr<content::ContentUtilityClient> utility_;
-      };
       reinterpret_cast<ContentClientLayoutHelper*>(
           content::GetContentClientForTesting())
           ->gpu_ = nullptr;
@@ -228,6 +214,15 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   TestSbMediaInterface test_media_interface_;
   testing::NiceMock<::media::MockSbPlayerInterface> mock_player_interface_;
   std::unique_ptr<content::ShellContentGpuTestClient> gpu_client_;
+
+ private:
+  struct ContentClientLayoutHelper {
+    virtual ~ContentClientLayoutHelper() = default;
+    raw_ptr<content::ContentBrowserClient, DanglingUntriaged> browser_;
+    raw_ptr<content::ContentGpuClient> gpu_;
+    raw_ptr<content::ContentRendererClient> renderer_;
+    raw_ptr<content::ContentUtilityClient> utility_;
+  };
 };
 
 // Cobalt forwards the MIME string to Starboard verbatim rather than
@@ -507,6 +502,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   std::string written_video_mime;
   SbPlayerDecoderStatusFunc saved_decoder_status_func = nullptr;
   void* saved_context = nullptr;
+  std::unique_ptr<::media::MockSbPlayer> mock_player;
   base::Lock lock;
 
   EXPECT_CALL(mock_player_interface_,
@@ -519,10 +515,11 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
               SbPlayerStatusFunc player_status_func,
               SbPlayerErrorFunc /*player_error_func*/, void* context,
               SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
-            auto player =
-                reinterpret_cast<SbPlayer>(new ::media::MockSbPlayer());
+            SbPlayer player = kSbPlayerInvalid;
             {
               base::AutoLock auto_lock(lock);
+              mock_player = std::make_unique<::media::MockSbPlayer>();
+              player = reinterpret_cast<SbPlayer>(mock_player.get());
               saved_decoder_status_func = decoder_status_func;
               saved_context = context;
               if (creation_param && creation_param->video_stream_info.mime) {
@@ -537,6 +534,12 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
             }
             return player;
           }));
+
+  EXPECT_CALL(mock_player_interface_, Destroy(testing::_))
+      .WillRepeatedly(testing::Invoke([&](SbPlayer /*player*/) {
+        base::AutoLock auto_lock(lock);
+        mock_player.reset();
+      }));
 
   EXPECT_CALL(mock_player_interface_, Seek(testing::_, testing::_, testing::_))
       .WillRepeatedly(testing::Invoke(
