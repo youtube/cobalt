@@ -2537,11 +2537,7 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   UniversalGlobalScope::Trace(visitor);
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-<<<<<<< HEAD
-  Supplementable<LocalDOMWindow>::Trace(visitor);
-=======
-  Supplementable<LocalDOMWindow, 51>::Trace(visitor);
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+Supplementable<LocalDOMWindow>::Trace(visitor);
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {
