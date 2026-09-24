@@ -12,18 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
+#include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -43,7 +48,7 @@ namespace {
 // tests. This class is owned by the CustomMimeTypeBrowserTest fixture and
 // its lifetime is tied to it. It is thread-safe and can be accessed from
 // any thread.
-class TestSbMediaInterface : public media::SbMediaInterface {
+class TestSbMediaInterface : public ::media::SbMediaInterface {
  public:
   TestSbMediaInterface() = default;
   ~TestSbMediaInterface() override = default;
@@ -71,7 +76,7 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   void ClearIntercepted() {
     base::AutoLock lock(lock_);
     intercepted_mimes_.clear();
-    intercepted_change_type_mimes_.clear();
+    intercepted_change_types_.clear();
   }
 
   std::vector<std::string> GetInterceptedMimes() const {
@@ -79,11 +84,12 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     return intercepted_mimes_;
   }
 
-  // Returns the MIME types passed as |new_mime| to CanChangeType(), i.e. the
-  // targets of SourceBuffer.changeType() calls.
-  std::vector<std::string> GetInterceptedChangeTypeMimes() const {
+  // Returns the (current_mime, new_mime) pairs passed to CanChangeType() by
+  // ChunkDemuxer::CanChangeType().
+  std::vector<std::pair<std::string, std::string>> GetInterceptedChangeTypes()
+      const {
     base::AutoLock lock(lock_);
-    return intercepted_change_type_mimes_;
+    return intercepted_change_types_;
   }
 
   SbMediaSupportType CanPlayMimeAndKeySystem(
@@ -99,11 +105,11 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     return support_type_;
   }
 
-  bool CanChangeType(const char* /*current_mime*/,
+  bool CanChangeType(const char* current_mime,
                      const char* new_mime) const override {
     base::AutoLock lock(lock_);
-    if (new_mime) {
-      intercepted_change_type_mimes_.push_back(new_mime);
+    if (current_mime && new_mime) {
+      intercepted_change_types_.emplace_back(current_mime, new_mime);
     }
     return can_change_type_;
   }
@@ -141,7 +147,8 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   bool can_change_type_ = true;
   std::string unsupported_mime_;
   mutable std::vector<std::string> intercepted_mimes_;
-  mutable std::vector<std::string> intercepted_change_type_mimes_;
+  mutable std::vector<std::pair<std::string, std::string>>
+      intercepted_change_types_;
 };
 
 }  // namespace
@@ -152,18 +159,39 @@ class TestSbMediaInterface : public media::SbMediaInterface {
 // case execution. It is thread-affine to the browser main thread.
 class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
  public:
-  CustomMimeTypeBrowserTest() = default;
+  CustomMimeTypeBrowserTest()
+      : gpu_client_(std::make_unique<content::ShellContentGpuTestClient>()) {}
   ~CustomMimeTypeBrowserTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kSingleProcess);
+
+    // When `--single-process` is appended inside `SetUpCommandLine()` on
+    // Android/Starboard, `ContentMainRunnerImpl::Initialize()` has already run
+    // earlier, leaving `GetContentClient()->gpu()` as nullptr. Attach our GPU
+    // test client directly so single-process `StarboardRendererWrapper` finds
+    // `VideoGeometrySetterService`.
+    if (!content::GetContentClientForTesting()->gpu()) {
+      struct ContentClientLayoutHelper {
+        virtual ~ContentClientLayoutHelper() = default;
+        raw_ptr<content::ContentBrowserClient, DanglingUntriaged> browser_;
+        raw_ptr<content::ContentGpuClient> gpu_;
+        raw_ptr<content::ContentRendererClient> renderer_;
+        raw_ptr<content::ContentUtilityClient> utility_;
+      };
+      auto* helper = reinterpret_cast<ContentClientLayoutHelper*>(
+          content::GetContentClientForTesting());
+      CHECK_EQ(helper->browser_.get(),
+               content::GetContentClientForTesting()->browser());
+      helper->gpu_ = gpu_client_.get();
+    }
   }
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
-    media::SetSbMediaInterfaceForTesting(&test_media_interface_);
-    media::SetSbPlayerInterfaceForTesting(&mock_player_interface_);
+    ::media::SetSbMediaInterfaceForTesting(&test_media_interface_);
+    ::media::SetSbPlayerInterfaceForTesting(&mock_player_interface_);
 
     embedded_test_server()->ServeFilesFromSourceDirectory("media/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -178,14 +206,28 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
       (void)NavigateToURL(shell()->web_contents(), GURL("about:blank"));
       content::RunAllTasksUntilIdle();
     }
-    media::SetSbPlayerInterfaceForTesting(nullptr);
-    media::SetSbMediaInterfaceForTesting(nullptr);
+    ::media::SetSbPlayerInterfaceForTesting(nullptr);
+    ::media::SetSbMediaInterfaceForTesting(nullptr);
+    if (content::GetContentClientForTesting()->gpu() == gpu_client_.get()) {
+      struct ContentClientLayoutHelper {
+        virtual ~ContentClientLayoutHelper() = default;
+        raw_ptr<content::ContentBrowserClient, DanglingUntriaged> browser_;
+        raw_ptr<content::ContentGpuClient> gpu_;
+        raw_ptr<content::ContentRendererClient> renderer_;
+        raw_ptr<content::ContentUtilityClient> utility_;
+      };
+      reinterpret_cast<ContentClientLayoutHelper*>(
+          content::GetContentClientForTesting())
+          ->gpu_ = nullptr;
+    }
+    gpu_client_.reset();
     content::ContentBrowserTest::TearDownOnMainThread();
   }
 
  protected:
   TestSbMediaInterface test_media_interface_;
-  testing::NiceMock<media::MockSbPlayerInterface> mock_player_interface_;
+  testing::NiceMock<::media::MockSbPlayerInterface> mock_player_interface_;
+  std::unique_ptr<content::ShellContentGpuTestClient> gpu_client_;
 };
 
 // Cobalt forwards the MIME string to Starboard verbatim rather than
@@ -234,23 +276,29 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
     EXPECT_TRUE(
         base::Contains(test_media_interface_.GetInterceptedMimes(), mime));
   }
-}
 
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       MediaSourceIsTypeSupported_NotSupportedReturnsFalse) {
+  // Verify the remaining SbMediaSupportType arms in MediaSource.isTypeSupported
+  // (support_type != kSbMediaSupportTypeNotSupported): Maybe -> true,
+  // NotSupported -> false. Uses a valid H.264 codec so upstream Chromium would
+  // return true if it stripped width/height instead of consulting Starboard.
+  const char kProbeMime[] =
+      "video/mp4; codecs=\"avc1.64002a\"; width=99999; height=99999;";
+  std::string probe_query =
+      base::StringPrintf("MediaSource.isTypeSupported('%s');", kProbeMime);
+
+  test_media_interface_.ClearIntercepted();
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeMaybe);
+  EXPECT_TRUE(
+      content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
+  EXPECT_TRUE(
+      base::Contains(test_media_interface_.GetInterceptedMimes(), kProbeMime));
+
+  test_media_interface_.ClearIntercepted();
   test_media_interface_.SetSupportType(kSbMediaSupportTypeNotSupported);
-
-  const char kUnsupportedMime[] =
-      "video/mp4; codecs=\"unsupported.codec\"; width=99999; height=99999;";
-
-  std::string js_query = base::StringPrintf(
-      "MediaSource.isTypeSupported('%s');", kUnsupportedMime);
   EXPECT_FALSE(
-      content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
+      content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
+  EXPECT_TRUE(
+      base::Contains(test_media_interface_.GetInterceptedMimes(), kProbeMime));
 }
 
 // canPlayType() is implemented once, on HTMLMediaElement, and inherited
@@ -323,16 +371,18 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 
   // addSourceBuffer also passes the raw MIME through to ChunkDemuxer::AddId().
-  // That path doesn't have an SbMediaInterface intercept point, so retention
-  // there is verified at SbPlayerCreate() by
-  // EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer.
+  // Retention there is verified via current_mime in
+  // SourceBufferChangeType_ForwardsRawCustomAttributes and at SbPlayerCreate()
+  // in EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer.
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        SourceBufferChangeType_ForwardsRawCustomAttributes) {
   test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
-  const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
+  const char kInitialMime[] =
+      "video/mp4; codecs=\"avc1.4d401f\"; width=1920; height=1080; "
+      "tunnelmode=true";
   const char kChangedMime[] =
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; "
       "framerate=60; bitrate=10000000; eotf=smpte2084";
@@ -358,10 +408,13 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
   EXPECT_TRUE(base::Contains(intercepted, kChangedMime));
 
-  // changeType() must also forward the unmodified MIME string to the Starboard
-  // codec transition check, via ChunkDemuxer::CanChangeType().
+  // changeType() must forward both the initial MIME (stored in
+  // SourceBufferState by addSourceBuffer() -> ChunkDemuxer::AddId()) and the
+  // target MIME to the Starboard codec transition check via
+  // ChunkDemuxer::CanChangeType().
   EXPECT_TRUE(base::Contains(
-      test_media_interface_.GetInterceptedChangeTypeMimes(), kChangedMime));
+      test_media_interface_.GetInterceptedChangeTypes(),
+      std::make_pair(std::string(kInitialMime), std::string(kChangedMime))));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -412,7 +465,8 @@ IN_PROC_BROWSER_TEST_F(
   test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
   test_media_interface_.SetCanChangeType(false);
 
-  const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
+  const char kInitialMime[] =
+      "video/mp4; codecs=\"avc1.4d401f\"; width=1920; height=1080";
   const char kChangedMime[] =
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; tunnelmode=true";
 
@@ -436,9 +490,11 @@ IN_PROC_BROWSER_TEST_F(
 
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
 
-  // The raw MIME must still reach the codec transition check unmodified.
+  // Both the current and target raw MIMEs must still reach the codec transition
+  // check unmodified.
   EXPECT_TRUE(base::Contains(
-      test_media_interface_.GetInterceptedChangeTypeMimes(), kChangedMime));
+      test_media_interface_.GetInterceptedChangeTypes(),
+      std::make_pair(std::string(kInitialMime), std::string(kChangedMime))));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -448,6 +504,9 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   base::RunLoop run_loop;
   base::RepeatingClosure quit_closure = run_loop.QuitClosure();
   std::string created_video_mime;
+  std::string written_video_mime;
+  SbPlayerDecoderStatusFunc saved_decoder_status_func = nullptr;
+  void* saved_context = nullptr;
   base::Lock lock;
 
   EXPECT_CALL(mock_player_interface_,
@@ -456,32 +515,61 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       .WillRepeatedly(testing::Invoke(
           [&](SbWindow /*window*/, const SbPlayerCreationParam* creation_param,
               SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-              SbPlayerDecoderStatusFunc /*decoder_status_func*/,
+              SbPlayerDecoderStatusFunc decoder_status_func,
               SbPlayerStatusFunc player_status_func,
               SbPlayerErrorFunc /*player_error_func*/, void* context,
               SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
-            auto player = reinterpret_cast<SbPlayer>(new media::MockSbPlayer());
+            auto player =
+                reinterpret_cast<SbPlayer>(new ::media::MockSbPlayer());
             {
               base::AutoLock auto_lock(lock);
+              saved_decoder_status_func = decoder_status_func;
+              saved_context = context;
               if (creation_param && creation_param->video_stream_info.mime) {
                 created_video_mime = creation_param->video_stream_info.mime;
               }
             }
             if (player_status_func) {
-              base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-                  FROM_HERE,
-                  base::BindOnce(
-                      [](SbPlayerStatusFunc status_func, SbPlayer player,
-                         void* context, base::RepeatingClosure quit_closure) {
-                        status_func(player, context, kSbPlayerStateInitialized,
-                                    SB_PLAYER_INITIAL_TICKET);
-                        quit_closure.Run();
-                      },
-                      player_status_func, player, context, quit_closure));
+              player_status_func(player, context, kSbPlayerStateInitialized,
+                                 SB_PLAYER_INITIAL_TICKET);
             } else {
               quit_closure.Run();
             }
             return player;
+          }));
+
+  EXPECT_CALL(mock_player_interface_, Seek(testing::_, testing::_, testing::_))
+      .WillRepeatedly(testing::Invoke(
+          [&](SbPlayer player, base::TimeDelta /*seek_to_time*/, int ticket) {
+            SbPlayerDecoderStatusFunc decoder_status_func = nullptr;
+            void* context = nullptr;
+            {
+              base::AutoLock auto_lock(lock);
+              decoder_status_func = saved_decoder_status_func;
+              context = saved_context;
+            }
+            if (decoder_status_func) {
+              decoder_status_func(player, context, kSbMediaTypeVideo,
+                                  kSbPlayerDecoderStateNeedsData, ticket);
+            }
+          }));
+
+  EXPECT_CALL(
+      mock_player_interface_,
+      WriteSamples(testing::_, kSbMediaTypeVideo, testing::_, testing::_))
+      .WillRepeatedly(
+          testing::Invoke([&](SbPlayer /*player*/, SbMediaType /*sample_type*/,
+                              const SbPlayerSampleInfo* sample_infos,
+                              int number_of_sample_infos) {
+            {
+              base::AutoLock auto_lock(lock);
+              if (sample_infos && number_of_sample_infos > 0 &&
+                  sample_infos[0].video_sample_info.stream_info.mime) {
+                written_video_mime =
+                    sample_infos[0].video_sample_info.stream_info.mime;
+              }
+            }
+            quit_closure.Run();
           }));
 
   const char kCustomMime[] =
@@ -516,6 +604,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   {
     base::AutoLock auto_lock(lock);
     EXPECT_EQ(created_video_mime, kCustomMime);
+    EXPECT_EQ(written_video_mime, kCustomMime);
   }
   testing::Mock::VerifyAndClearExpectations(&mock_player_interface_);
   mock_player_interface_.SetupDefaultExpectations();
