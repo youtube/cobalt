@@ -940,7 +940,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         base::Unretained(host)));
   }
 
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](RenderFrameHostImpl* host,
@@ -952,23 +952,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                 std::move(receiver));
           },
           base::Unretained(host)));
-=======
-#if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](RenderFrameHostImpl* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetBrowserContext(), &host->document_associated_data(),
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateBinderMapWithContext(
@@ -1435,7 +1419,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
         },
         base::Unretained(host)));
   }
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](DedicatedWorkerHost* host,
@@ -1447,23 +1431,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                 std::move(receiver));
           },
           base::Unretained(host)));
-=======
-#if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](DedicatedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateBinderMapWithContext(
@@ -1573,7 +1541,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         },
         base::Unretained(host)));
   }
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](SharedWorkerHost* host,
@@ -1585,23 +1553,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
                 std::move(receiver));
           },
           base::Unretained(host)));
-=======
-#if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](SharedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(base::BindRepeating(
@@ -1775,7 +1727,7 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
         },
         base::Unretained(host)));
   }
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](ServiceWorkerHost* host,
@@ -1789,26 +1741,7 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
             }
           },
           base::Unretained(host)));
-=======
-#if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](ServiceWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              if (auto* process_host = static_cast<RenderProcessHostImpl*>(
-                      RenderProcessHost::FromID(host->worker_process_id()))) {
-                GetContentClient()->browser()->BindLanguageDetectionDriver(
-                    process_host->GetBrowserContext(), host,
-                    std::move(receiver));
-              }
-            },
-            base::Unretained(host)));
-  }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // RenderProcessHost binders
   map->Add<media::mojom::VideoDecodePerfHistory>(BindServiceWorkerReceiver(
