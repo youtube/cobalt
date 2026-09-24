@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_plugin.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_container.h"
@@ -1409,5 +1410,39 @@ TEST_F(ElementTest, ScrollIntoViewNearestUseCounted) {
   EXPECT_TRUE(
       GetDocument().IsUseCounted(WebFeature::kScrollIntoViewContainerNearest));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ElementTest, RecalcStyleSkipsPseudoElementsWhenNoPseudosOrStyles) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      .with-before::before { content: "before"; }
+    </style>
+    <div id="plain">Plain text</div>
+    <div id="styled" class="with-before">Styled text</div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* plain = GetElementById("plain");
+  Element* styled = GetElementById("styled");
+  ASSERT_TRUE(plain);
+  ASSERT_TRUE(styled);
+
+  // Plain element has neither PseudoElements nor pseudo-element styles.
+  EXPECT_FALSE(plain->GetComputedStyle()->HasAnyPseudoElementStyles());
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdBefore));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdAfter));
+
+  // Styled element generates ::before during RecalcStyle.
+  EXPECT_TRUE(styled->GetComputedStyle()->HasAnyPseudoElementStyles());
+  EXPECT_NE(nullptr, styled->GetPseudoElement(kPseudoIdBefore));
+
+  // Removing the class still cleans up the existing ::before pseudo-element
+  // because GetElementRareData()->HasPseudoElements() is true on entry.
+  styled->removeAttribute(html_names::kClassAttr);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(styled->GetComputedStyle()->HasAnyPseudoElementStyles());
+  EXPECT_EQ(nullptr, styled->GetPseudoElement(kPseudoIdBefore));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
