@@ -1,0 +1,83 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow is triggered by analyze.yml
+name: Perfetto CI [android]
+on:
+  workflow_call:
+env:
+  # /tmp/cache contains {ccache, bazelcache} and generally any other cache
+  # that should be persisted across jobs, but only updated from the main
+  # branch. This is populated by the "Restore cache" step below.
+  PERFETTO_CACHE_DIR: /tmp/cache
+  PERFETTO_ARTIFACTS_ROOT: /tmp/artifacts
+  PYTHONUNBUFFERED: 1
+jobs:
+  android:
+    runs-on: self-hosted
+    timeout-minutes: 45
+    env:
+      PERFETTO_CI_BUILD_CACHE_KEY: build-cache-android
+      PERFETTO_TEST_GN_ARGS: 'is_debug=false target_os=\"android\" target_cpu=\"arm\" cc_wrapper=\"ccache\"'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install-build-deps
+        with:
+          install-flags: --android
+
+      - name: Restore cache
+        uses: ./.github/actions/cache-on-google-cloud-storage/restore
+        with:
+          directory: ${{ env.PERFETTO_CACHE_DIR }}
+          cache_key: ${{ env.PERFETTO_CI_BUILD_CACHE_KEY }}
+
+      - name: Setup ccache
+        uses: ./.github/actions/setup-ccache
+
+      - name: Start emulator in the background
+        shell: bash
+        run: tools/run_android_emulator --pid /tmp/emulator.pid -v &
+
+      - name: Run GN
+        shell: bash
+        run: tools/gn gen out/dist --args="${{ env.PERFETTO_TEST_GN_ARGS }}" --check
+
+      - name: Build
+        shell: bash
+        run: tools/ninja -C out/dist
+
+      - name: Print ccache stats
+        shell: bash
+        run: ccache --show-stats
+
+      - name: perfetto_unittests
+        shell: bash
+        run: tools/run_android_test -n out/dist perfetto_unittests --gtest_shuffle
+
+      - name: perfetto_integrationtests
+        shell: bash
+        run: tools/run_android_test -n -x out/dist perfetto_integrationtests
+
+      - name: Stop emulator
+        if: ${{ always() }}
+        shell: bash
+        run: test -f /tmp/emulator.pid && kill -9 $(cat /tmp/emulator.pid); true
+
+      - name: Update cache (if on main)
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/actions/cache-on-google-cloud-storage/save
+        with:
+          directory: ${{ env.PERFETTO_CACHE_DIR }}
+          cache_key: ${{ env.PERFETTO_CI_BUILD_CACHE_KEY }}
