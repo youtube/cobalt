@@ -1644,7 +1644,6 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "'script-src' contains an invalid source: ''wrong''. It will be "
           "ignored.",
       },
-<<<<<<< HEAD
       {
           mojom::CSPDirectiveName::ScriptSrc,
           "'trusted-types-eval'",
@@ -1661,7 +1660,12 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
             csp->allow_trusted_types_eval = true;
-=======
+            return csp;
+          }),
+          "The source list for the Content Security Policy directive "
+          "'script-src' contains an invalid source: ''wrong''. It will be "
+          "ignored.",
+      },
 #if BUILDFLAG(IS_COBALT)
       {
           mojom::CSPDirectiveName::ScriptSrc,
@@ -1669,15 +1673,12 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
             csp->cobalt_insecure_local_network = true;
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             return csp;
           }),
           "The source list for the Content Security Policy directive "
           "'script-src' contains an invalid source: ''wrong''. It will be "
           "ignored.",
       },
-<<<<<<< HEAD
-=======
       {
           mojom::CSPDirectiveName::ScriptSrc,
           "'wrong' 'cobalt_insecure_private_range'",
@@ -1691,7 +1692,6 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "ignored.",
       },
 #endif
->>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   };
 
   for (auto& test : cases) {
