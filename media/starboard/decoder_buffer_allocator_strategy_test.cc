@@ -16,6 +16,9 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 // clang-format on
 
+#include <memory>
+
+#include "base/functional/bind.h"
 #include "media/base/demuxer_stream.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
@@ -165,10 +168,6 @@ TEST(DecoderBufferAllocatorStrategyTest,
   // default strategy.
   auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
-
-  // The fallback strategies
-  // (ExternalMetadataReuseAllocatorBase/EmbeddedMetadataReuseAllocatorBase) do
-  // not produce annotated pointers.
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
 
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
