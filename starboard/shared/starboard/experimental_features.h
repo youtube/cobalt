@@ -165,10 +165,22 @@ const void* GetExperimentalFeaturesConfigurationApi();
 
 // Modes for Media.NdkAudioMode.
 enum class NdkAudioMode {
-  kDisabled = 0,
+  kDisabled = 0,  // Must stay 0: matches the experiment "unset" sentinel.
   kPullSink = 1,
   kAudioTrack = 2,
 };
+
+inline const char* ToString(NdkAudioMode mode) {
+  switch (mode) {
+    case NdkAudioMode::kDisabled:
+      return "disabled";
+    case NdkAudioMode::kPullSink:
+      return "pull_sink";
+    case NdkAudioMode::kAudioTrack:
+      return "audio_track";
+  }
+  return "unknown";
+}
 
 // -----------------------------------------------------------------------------
 // Experimental Feature Key Constants
@@ -226,8 +238,7 @@ inline constexpr ExperimentalFeatureKey<bool>
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
 // Selects which NDK audio mode to use. The int value maps to `NdkAudioMode`.
-// Feature bug: b/561166288
-// Experiment bug: b/565474970
+// TODO: b/565474970 - Remove this flag once the experiment is complete.
 inline constexpr ExperimentalFeatureKey<int> kMediaNdkAudioMode(
     "Media.NdkAudioMode");
 

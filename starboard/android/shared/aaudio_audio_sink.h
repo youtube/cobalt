@@ -43,9 +43,8 @@ namespace starboard {
 // Threading model:
 // - Control methods (SetVolume, SetPlaybackRate, SetStartTime, Flush, etc.)
 //   are called on the Cobalt player worker thread.
-// - Real-time audio data requests execute on the dedicated AAudio OS callback
-//   thread. Atomic primitives are used to synchronize state without blocking
-//   the audio thread.
+// - OnAudioData() runs on the AAudio callback thread and never blocks (atomics
+//   and try-locked |flush_mutex_|).
 class AaudioAudioSink final : public AudioSinkAndroid {
  public:
   struct Callbacks {

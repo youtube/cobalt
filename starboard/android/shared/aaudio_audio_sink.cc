@@ -108,10 +108,12 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
                                        AAUDIO_SHARING_MODE_SHARED);
   AAudio::StreamBuilder_SetPerformanceMode(builder.get(),
                                            AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-  AAudio::StreamBuilder_SetUsage(
-      builder.get(), is_web_audio ? AAUDIO_USAGE_GAME : AAUDIO_USAGE_MEDIA);
-  AAudio::StreamBuilder_SetContentType(builder.get(),
-                                       AAUDIO_CONTENT_TYPE_MUSIC);
+  AAudio::StreamBuilder_SetUsage(builder.get(), is_web_audio
+                                                    ? AAUDIO_USAGE_NOTIFICATION
+                                                    : AAUDIO_USAGE_MEDIA);
+  AAudio::StreamBuilder_SetContentType(
+      builder.get(),
+      is_web_audio ? AAUDIO_CONTENT_TYPE_MUSIC : AAUDIO_CONTENT_TYPE_MOVIE);
 
   auto sink = std::make_unique<AaudioAudioSink>(
       PassKey<AaudioAudioSink>(), channels, frame_buffers, frames_per_channel,
@@ -119,10 +121,8 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
 
   AAudio::StreamBuilder_SetDataCallback(builder.get(), AudioDataCallback,
                                         sink.get());
-  if (AAudio::StreamBuilder_SetErrorCallback) {
-    AAudio::StreamBuilder_SetErrorCallback(builder.get(), AudioErrorCallback,
-                                           sink.get());
-  }
+  AAudio::StreamBuilder_SetErrorCallback(builder.get(), AudioErrorCallback,
+                                         sink.get());
 
   AAudioStream* raw_stream = nullptr;
   if (aaudio_result_t result =
@@ -132,15 +132,14 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
                   << AAudio::ConvertResultToText(result);
     return nullptr;
   }
+  std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream(raw_stream);
 
-  sink->stream_.reset(raw_stream);
-
-  int32_t burst_frames = AAudio::Stream_GetFramesPerBurst(raw_stream);
+  int32_t burst_frames = AAudio::Stream_GetFramesPerBurst(stream.get());
   if (burst_frames > 0) {
-    AAudio::Stream_SetBufferSizeInFrames(raw_stream, burst_frames * 2);
+    AAudio::Stream_SetBufferSizeInFrames(stream.get(), burst_frames * 2);
   }
 
-  if (aaudio_result_t result = AAudio::Stream_RequestStart(raw_stream);
+  if (aaudio_result_t result = AAudio::Stream_RequestStart(stream.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "Failed to start AAudioStream: "
                   << AAudio::ConvertResultToText(result);
@@ -151,6 +150,7 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
                << ", rate=" << sampling_frequency_hz
                << ", buffer_size=" << frames_per_channel
                << ", burst=" << burst_frames;
+  sink->stream_ = std::move(stream);
   return sink;
 }
 
@@ -173,8 +173,8 @@ AaudioAudioSink::AaudioAudioSink(PassKey<AaudioAudioSink>,
 AaudioAudioSink::~AaudioAudioSink() {
   quit_.store(true, std::memory_order_release);
   if (stream_) {
-    // Calling Stream_Close blocks until the AAudio callback thread has fully
-    // terminated.
+    // Blocks until the AAudio callback thread exits. Must run before other
+    // members are destroyed.
     stream_.reset();
   }
 }
@@ -206,6 +206,8 @@ bool AaudioAudioSink::Flush() {
 
 void AaudioAudioSink::SetStartTime(int64_t /*start_time_us*/) {}
 
+// TODO: b/561166288 - Add unit tests for OnAudioData() (ring buffer
+// wrap-around, underrun padding, volume, pause, and discard after Flush()).
 aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
                                                            int32_t num_frames) {
   if (quit_.load(std::memory_order_acquire)) {
@@ -277,10 +279,17 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
                 silence_samples * sizeof(float));
   }
 
+  // TODO: b/561166288 - Frames are reported as consumed when copied, not when
+  // presented, so media time leads actual output by the output latency. Report
+  // presented frames via Stream_GetTimestamp(), like AudioTrackAudioSink.
   callbacks_.consume_frames(frames_to_copy, CurrentMonotonicTime(), context_);
   return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
 
+// TODO: b/561166288 - When the output device changes (e.g. speaker to
+// Bluetooth), AAudio may reroute without AAUDIO_ERROR_DISCONNECTED, so this is
+// never called and media time isn't resynced to the new latency. Detect it and
+// flush, like AudioTrackAudioSink does on AudioDeviceChange::kResetAndContinue.
 void AaudioAudioSink::OnAudioError(aaudio_result_t error) {
   SB_LOG(WARNING) << "AAudio pull stream error: "
                   << AAudio::ConvertResultToText(error);
