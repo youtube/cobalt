@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <string>
-#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
@@ -53,6 +53,14 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     support_type_ = type;
   }
 
+  // Forces CanPlayMimeAndKeySystem() to report kSbMediaSupportTypeNotSupported
+  // for this one MIME, overriding SetSupportType(). Needed when a single test
+  // has to get one MIME accepted and another rejected.
+  void SetUnsupportedMime(std::string mime) {
+    base::AutoLock lock(lock_);
+    unsupported_mime_ = std::move(mime);
+  }
+
   // Controls the verdict returned by CanChangeType(), which gates
   // SourceBuffer.changeType() via ChunkDemuxer::CanChangeType().
   void SetCanChangeType(bool can_change_type) {
@@ -63,18 +71,12 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   void ClearIntercepted() {
     base::AutoLock lock(lock_);
     intercepted_mimes_.clear();
-    intercepted_key_systems_.clear();
     intercepted_change_type_mimes_.clear();
   }
 
   std::vector<std::string> GetInterceptedMimes() const {
     base::AutoLock lock(lock_);
     return intercepted_mimes_;
-  }
-
-  std::vector<std::string> GetInterceptedKeySystems() const {
-    base::AutoLock lock(lock_);
-    return intercepted_key_systems_;
   }
 
   // Returns the MIME types passed as |new_mime| to CanChangeType(), i.e. the
@@ -86,16 +88,13 @@ class TestSbMediaInterface : public media::SbMediaInterface {
 
   SbMediaSupportType CanPlayMimeAndKeySystem(
       const char* mime,
-      const char* key_system) const override {
+      const char* /*key_system*/) const override {
     base::AutoLock lock(lock_);
     if (mime) {
       intercepted_mimes_.push_back(mime);
-      if (base::Contains(std::string_view(mime), "unsupported")) {
+      if (!unsupported_mime_.empty() && unsupported_mime_ == mime) {
         return kSbMediaSupportTypeNotSupported;
       }
-    }
-    if (key_system) {
-      intercepted_key_systems_.push_back(key_system);
     }
     return support_type_;
   }
@@ -140,8 +139,8 @@ class TestSbMediaInterface : public media::SbMediaInterface {
   mutable base::Lock lock_;
   SbMediaSupportType support_type_ = kSbMediaSupportTypeNotSupported;
   bool can_change_type_ = true;
+  std::string unsupported_mime_;
   mutable std::vector<std::string> intercepted_mimes_;
-  mutable std::vector<std::string> intercepted_key_systems_;
   mutable std::vector<std::string> intercepted_change_type_mimes_;
 };
 
@@ -189,21 +188,52 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   testing::NiceMock<media::MockSbPlayerInterface> mock_player_interface_;
 };
 
+// Cobalt forwards the MIME string to Starboard verbatim rather than
+// normalizing it the way upstream Chromium does. Each entry below is a distinct
+// slice of the custom parameter vocabulary; they share one test because they
+// all exercise the same passthrough, and a browser launch each would buy no
+// additional coverage.
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        MediaSourceIsTypeSupported_ForwardsRawCustomAttributes) {
   test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
 
-  const char kCustomMime[] =
+  const char* const kCustomMimes[] = {
+      // Resolution plus playback flags.
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-      "tunnelmode=true; hdr=hdr10plus";
+      "tunnelmode=true; hdr=hdr10plus",
+      // High framerate and bitrate.
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "framerate=60; bitrate=25000000;",
+      // Colorimetry and HDR.
+      "video/mp4; codecs=\"vp9\"; width=3840; height=2160; hdr=hdr10plus; "
+      "eotf=smpte2084; color_primaries=bt2020; matrix=bt2020nc;",
+      // Decoder and buffering flags.
+      "video/mp4; codecs=\"avc1.64002a\"; tunnelmode=true; "
+      "softwaredecoder=false; disablecache=true; "
+      "disabledynamicprerollframecount=true; enableflushduringseek=true;",
+      // Audio-specific attributes.
+      "audio/mp4; codecs=\"mp4a.40.2\"; channels=6; bitrate=384000;",
+      // Everything at once.
+      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
+      "framerate=60; bitrate=20000000; hdr=hdr10plus; eotf=smpte2084; "
+      "color_primaries=bt2020; matrix=bt2020nc; tunnelmode=true; "
+      "softwaredecoder=false; disablecache=true; "
+      "disabledynamicprerollframecount=true; enableflushduringseek=true; "
+      "encryptionscheme=cenc;",
+  };
 
-  std::string js_query =
-      base::StringPrintf("MediaSource.isTypeSupported('%s');", kCustomMime);
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+  for (const char* mime : kCustomMimes) {
+    SCOPED_TRACE(mime);
+    test_media_interface_.ClearIntercepted();
 
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
+    std::string js_query =
+        base::StringPrintf("MediaSource.isTypeSupported('%s');", mime);
+    EXPECT_TRUE(
+        content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+    EXPECT_TRUE(
+        base::Contains(test_media_interface_.GetInterceptedMimes(), mime));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -223,165 +253,46 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
 }
 
+// canPlayType() is implemented once, on HTMLMediaElement, and inherited
+// unchanged by both <video> and <audio>, so a single test covers both element
+// types. All three SbMediaSupportType values are exercised here because the
+// enum-to-string mapping is hand-written and easy to transpose.
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       MediaSourceIsTypeSupported_HighFramerateAndBitrate) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kCustomMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-      "framerate=60; bitrate=25000000;";
-
-  std::string js_query =
-      base::StringPrintf("MediaSource.isTypeSupported('%s');", kCustomMime);
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       MediaSourceIsTypeSupported_ColorimetryAndHdrAttributes) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kCustomMime[] =
-      "video/mp4; codecs=\"vp9\"; width=3840; height=2160; hdr=hdr10plus; "
-      "eotf=smpte2084; color_primaries=bt2020; matrix=bt2020nc;";
-
-  std::string js_query =
-      base::StringPrintf("MediaSource.isTypeSupported('%s');", kCustomMime);
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       MediaSourceIsTypeSupported_PlaybackAndDecoderFlags) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kCustomMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; tunnelmode=true; "
-      "softwaredecoder=false; disablecache=true; "
-      "disabledynamicprerollframecount=true; enableflushduringseek=true;";
-
-  std::string js_query =
-      base::StringPrintf("MediaSource.isTypeSupported('%s');", kCustomMime);
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       MediaSourceIsTypeSupported_AllCustomParametersCombined) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kCustomMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-      "framerate=60; bitrate=20000000; hdr=hdr10plus; eotf=smpte2084; "
-      "color_primaries=bt2020; matrix=bt2020nc; tunnelmode=true; "
-      "softwaredecoder=false; disablecache=true; "
-      "disabledynamicprerollframecount=true; enableflushduringseek=true; "
-      "encryptionscheme=cenc;";
-
-  std::string js_query =
-      base::StringPrintf("MediaSource.isTypeSupported('%s');", kCustomMime);
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       CanPlayType_ForwardsRawCustomAttributesMaybe) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeMaybe);
-
-  const char kCustomMime[] =
+                       CanPlayType_MapsSupportTypeAndForwardsRawMime) {
+  const char kVideoMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
       "tunnelmode=true;";
-
-  std::string js_query = base::StringPrintf(
-      "document.createElement('video').canPlayType('%s');", kCustomMime);
-  EXPECT_EQ("maybe",
-            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       CanPlayType_ForwardsRawCustomAttributesProbably) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kCustomMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
-      "tunnelmode=true;";
-
-  std::string js_query = base::StringPrintf(
-      "document.createElement('video').canPlayType('%s');", kCustomMime);
-  EXPECT_EQ("probably",
-            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       CanPlayType_NotSupportedReturnsEmptyString) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeNotSupported);
-
-  const char kUnsupportedMime[] =
-      "video/mp4; codecs=\"avc1.64002a\"; width=99999; height=99999;";
-
-  std::string js_query = base::StringPrintf(
-      "document.createElement('video').canPlayType('%s');", kUnsupportedMime);
-  EXPECT_EQ("",
-            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       AudioCanPlayType_ForwardsRawCustomAttributes) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kAudioCustomMime[] =
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=6; bitrate=384000;";
-
-  std::string js_query = base::StringPrintf(
-      "document.createElement('audio').canPlayType('%s');", kAudioCustomMime);
-  EXPECT_EQ("probably",
-            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
-
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kAudioCustomMime));
-}
-
-IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
-                       AudioCanPlayType_PassthroughAndResetAttributes) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
-  const char kAudioCustomMime[] =
+  const char kAudioMime[] =
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=8; bitrate=768000; "
       "audiopassthrough=true; enableresetaudiodecoder=true;";
 
-  std::string js_query = base::StringPrintf(
-      "document.createElement('audio').canPlayType('%s');", kAudioCustomMime);
-  EXPECT_EQ("probably",
-            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
+  const struct {
+    SbMediaSupportType support_type;
+    const char* element;
+    const char* mime;
+    const char* expected;
+  } kCases[] = {
+      {kSbMediaSupportTypeProbably, "video", kVideoMime, "probably"},
+      {kSbMediaSupportTypeMaybe, "video", kVideoMime, "maybe"},
+      {kSbMediaSupportTypeNotSupported, "video", kVideoMime, ""},
+      {kSbMediaSupportTypeProbably, "audio", kAudioMime, "probably"},
+  };
 
-  std::vector<std::string> intercepted =
-      test_media_interface_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kAudioCustomMime));
+  for (const auto& test_case : kCases) {
+    SCOPED_TRACE(test_case.mime);
+    test_media_interface_.ClearIntercepted();
+    test_media_interface_.SetSupportType(test_case.support_type);
+
+    std::string js_query =
+        base::StringPrintf("document.createElement('%s').canPlayType('%s');",
+                           test_case.element, test_case.mime);
+    EXPECT_EQ(
+        test_case.expected,
+        content::EvalJs(shell()->web_contents(), js_query).ExtractString());
+
+    EXPECT_TRUE(base::Contains(test_media_interface_.GetInterceptedMimes(),
+                               test_case.mime));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -412,8 +323,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
 
   // addSourceBuffer also passes the raw MIME through to ChunkDemuxer::AddId().
-  // Tht path doesnt have a SbMediaInterface intercept point so retention there
-  // is verified at SbPlayerCreate() by
+  // That path doesn't have an SbMediaInterface intercept point, so retention
+  // there is verified at SbPlayerCreate() by
   // EndToEnd_MediaSourceAppendBuffer_ForwardsToSbPlayer.
 }
 
@@ -456,12 +367,15 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     CustomMimeTypeBrowserTest,
     SourceBufferChangeType_NotSupportedThrowsNotSupportedError) {
-  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
-
   const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
   const char kUnsupportedMime[] =
       "video/webm; codecs=\"vp9\"; width=7680; height=4320; "
       "unsupported_flag=true";
+
+  // addSourceBuffer() must succeed while changeType() is rejected, so the
+  // rejection is scoped to a single MIME rather than a global support type.
+  test_media_interface_.SetSupportType(kSbMediaSupportTypeProbably);
+  test_media_interface_.SetUnsupportedMime(kUnsupportedMime);
 
   std::string script = base::StringPrintf(
       R"(
