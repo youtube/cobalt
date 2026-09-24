@@ -45,8 +45,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
 
   // List of toggleable default switches.
   static const std::vector<const char*> kCobaltToggleSwitches{
-      // Enable Blink to work in overlay video mode
-      ::switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       ::switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU
@@ -83,7 +81,7 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan,MemoryCacheStrongReference"},
+      {::switches::kDisableFeatures, "Vulkan"},
       {::switches::kEnableFeatures,
        "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
