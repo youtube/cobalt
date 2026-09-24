@@ -643,6 +643,40 @@ void MediaCodecVideoDecoder::ResetForTeardown() {
   ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
+bool MediaCodecVideoDecoder::CanChangeStream() const {
+  // In tunnel mode MediaCodec renders the frames itself, so the renderer
+  // cannot tell when the outgoing stream has been fully displayed.
+  if (tunnel_mode_audio_session_id_ || !media_decoder_) {
+    return false;
+  }
+  // Without any input there is nothing to drain, and |media_decoder_|'s
+  // decoder thread isn't running so it would never report the end of the
+  // stream.  WriteInputBuffers() reconfigures the codec for the new stream on
+  // its own in this case.
+  return input_buffer_written_ > 0;
+}
+
+void MediaCodecVideoDecoder::PrepareStreamChange() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!media_decoder_) {
+    return;
+  }
+  // Drain the codec.  This is written to |media_decoder_| directly, as this
+  // decoder itself hasn't reached the end of its stream.
+  media_decoder_->WriteEndOfStream();
+}
+
+void MediaCodecVideoDecoder::CommitStreamChange() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  // The codec is configured for the outgoing stream and has to be recreated,
+  // so it cannot be flushed and reused here.  The codec of the incoming stream
+  // is created by the next WriteInputBuffers(), which also picks up its color
+  // metadata.
+  ResetInternal(/*skip_flush=*/true);
+}
+
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);

@@ -105,6 +105,22 @@ class VideoDecoder {
   // positive.
   virtual void ResetForTeardown() { Reset(); }
 
+  // Returns true if the decoder can switch to a new stream in the middle of a
+  // playback, without being Reset().  When this returns false, which is the
+  // default, the renderer never starts a stream change and the functions below
+  // are never called.
+  virtual bool CanChangeStream() const { return false; }
+
+  // Starts a stream change.  The decoder stops receiving input for the
+  // outgoing stream, emits its remaining frames, and finishes with an end of
+  // stream frame.  That frame is consumed by the renderer and doesn't indicate
+  // that the playback has ended.
+  virtual void PrepareStreamChange() {}
+
+  // Called once every frame of the outgoing stream has left the renderer.  The
+  // decoder completes the switch and starts accepting input again.
+  virtual void CommitStreamChange() {}
+
   // This function can only be called when the current SbPlayerOutputMode is
   // |kSbPlayerOutputModeDecodeToTexture|.  It has to return valid value after
   // the |decoder_status_cb| is called with a valid frame for the first time

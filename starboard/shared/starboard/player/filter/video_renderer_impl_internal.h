@@ -86,6 +86,14 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void OnSeekTimeout();
   void WritePendingInputs();
 
+  // Returns true if |input_buffers| starts a stream the decoder has to switch
+  // to, in which case the switch is started.
+  bool TryToStartStreamChange(const InputBuffers& input_buffers);
+  // Polls the progress of an ongoing stream change, and finishes it once all
+  // frames of the outgoing stream have left the renderer.
+  void CheckStreamChange();
+  void FinishStreamChange();
+
   MediaTimeProvider* const media_time_provider_;
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
@@ -119,6 +127,18 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   bool is_vsp_adjustment_enabled_ = false;
   InputBuffers pending_input_buffers_;
   bool pending_end_of_stream_ = false;
+
+  // A stream change is in progress: the decoder is draining the outgoing
+  // stream, and samples of the incoming one are held in
+  // |stream_change_input_buffers_| until the switch completes.  Read on the
+  // decoder thread inside OnDecoderStatus().
+  std::atomic_bool changing_stream_{false};
+  // Set when the decoder has emitted the end of stream frame that terminates
+  // the outgoing stream.  That frame is consumed here and never reported as
+  // the end of the playback.
+  std::atomic_bool stream_change_drained_{false};
+  InputBuffers stream_change_input_buffers_;
+  std::optional<SbMediaColorMetadata> color_metadata_;
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
   std::atomic<int32_t> number_of_frames_{0};
