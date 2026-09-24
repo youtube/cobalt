@@ -26,8 +26,8 @@ _COBALT_SUBMODULE_DIRS = [
 # These hashes correspond to 145.7595 and 145.7613 in the chromium/main branch.
 # See b/565697787 for more context.
 _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP = (
-  '38f4bd69219cb5db170704cdb0221dc3ea6eb039',
-  'a829ba1ad70c664608ac2dd4005e0dee339edbe4',
+    '38f4bd69219cb5db170704cdb0221dc3ea6eb039',
+    'a829ba1ad70c664608ac2dd4005e0dee339edbe4',
 )
 
 
@@ -37,7 +37,8 @@ def remove_angle_from_recursedeps():
   See b/565697787 for more information.
   """
   lib.run(['sed', '-i', r"/'src\/third_party\/angle',/s/^/\#/", 'DEPS'])
-  lib.run(['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
+  lib.run(
+      ['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
 
 
 def get_submodule_root_dirs():
@@ -137,10 +138,13 @@ def verify_chromium_commit(sha):
     return True
 
   if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
-    modified_files = lib.get_out(['git', 'diff', '--name-only', sha, 'HEAD']).strip()
+    modified_files = lib.get_out(['git', 'diff', '--name-only', sha,
+                                  'HEAD']).strip()
     if modified_files == 'DEPS':
-      lib.log(f'Verification passed: Tree {current_tree} matches Chromium '
-              f'{upstream_sha} with one change to DEPS to remove ANGLE from recursedeps')
+      lib.log(
+          f'Verification passed: Tree {current_tree} matches Chromium '
+          f'{upstream_sha} with one change to DEPS to remove ANGLE from recursedeps'
+      )
       return True
 
   diff_output = lib.get_out(['git', 'diff', '--name-status', sha,
