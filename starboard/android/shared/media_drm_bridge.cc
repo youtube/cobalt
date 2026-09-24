@@ -339,3 +339,5 @@ starboard::DrmKeyStatusInfo FromJniType<starboard::DrmKeyStatusInfo>(
   return starboard::DrmKeyStatusInfo{std::move(key_id_bytes), status};
 }
 }  // namespace jni_zero
+
+DEFINE_JNI(MediaDrmBridge)

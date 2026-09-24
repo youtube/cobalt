@@ -156,3 +156,5 @@ jboolean JNI_MainActivity_NativeSendKeyEvent(JNIEnv* /*env*/,
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(MainActivity)

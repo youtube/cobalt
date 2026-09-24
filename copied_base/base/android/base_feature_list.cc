@@ -45,3 +45,5 @@ static jboolean JNI_BaseFeatureList_IsEnabled(
 }
 
 }  // namespace base::android
+
+DEFINE_JNI(BaseFeatureList)

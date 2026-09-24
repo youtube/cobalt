@@ -53,3 +53,5 @@ static void JNI_SysUtils_LogPageFaultCountToTracing(JNIEnv* env) {
 }  // namespace android
 
 }  // namespace base
+
+DEFINE_JNI(SysUtils)

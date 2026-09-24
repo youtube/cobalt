@@ -58,8 +58,8 @@ DEFINE_JNI_LIFECYCLE_HANDLER(HandleStopEvent, kSbEventTypeStop)
 
 void JNI_AppEventBridge_HandleStartEvent(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobjectArray>& j_args,
-    const base::android::JavaParamRef<jstring>& jlink,
+    const base::android::JavaRef<jobjectArray>& j_args,
+    const base::android::JavaRef<jstring>& jlink,
     jlong timestamp) {
   SbEvent event;
   event.type = kSbEventTypeStart;
@@ -102,3 +102,5 @@ void JNI_AppEventBridge_HandleOsNetworkEvent(JNIEnv* env, jboolean online) {
                             : kSbEventTypeOsNetworkDisconnected,
                      starboard::CurrentMonotonicTime());
 }
+
+DEFINE_JNI(AppEventBridge)

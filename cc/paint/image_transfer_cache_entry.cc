@@ -51,7 +51,7 @@ struct InProcessImageTransferCachePayload {
 
   sk_sp<SkImage> gainmap_image;
   std::optional<SkGainmapInfo> gainmap_info;
-  std::optional<gfx::HDRMetadata> hdr_metadata;
+  gfx::HDRMetadata hdr_metadata;
   sk_sp<SkColorSpace> target_color_space;
   bool needs_mips = false;
 

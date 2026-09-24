@@ -49,6 +49,7 @@
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
 #include "cobalt/media/audio/audio_input_constants.h"
 #include "media/audio/android/starboard_audio_input_stream.h"
 #pragma clang diagnostic push

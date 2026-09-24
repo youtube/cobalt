@@ -507,7 +507,10 @@ void OverlayProcessorOzone::InsertPrimaryPlane(
 }
 
 bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
-#if BUILDFLAG(IS_CASTOS)
+#if BUILDFLAG(IS_CASTOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt reports supports_surfaceless from SkiaOutputDeviceGL, which never
+  // sets renderer_allocates_images, so SkiaRenderer cannot back a primary
+  // plane overlay.
   return false;
 #else
   return true;

@@ -83,3 +83,5 @@ void JNI_PlatformError_SendResponse(JNIEnv* env,
     delete send_response_callback;
   }
 }
+
+DEFINE_JNI(PlatformError)

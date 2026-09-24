@@ -20,3 +20,5 @@ jlong JNI_CpuFeatures_GetCpuFeatures(JNIEnv*) {
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(CpuFeatures)

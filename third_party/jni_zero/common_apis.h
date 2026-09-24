@@ -83,17 +83,10 @@ template <typename V
 #else   // BUILDFLAG(IS_COBALT)
 template <typename V>
   requires(!internal::IsJavaRef<V>)
-<<<<<<< HEAD
+#endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject>
 CollectionAdd(JNIEnv* env, const JavaRef<jobject>& collection, const V& value) {
   return CollectionAdd(env, collection, ToJniType(env, value));
-=======
-#endif  // BUILDFLAG(IS_COBALT)
-inline ScopedJavaLocalRef<jobject> ListAdd(JNIEnv* env,
-                                           const JavaRef<jobject>& list,
-                                           const V& value) {
-  return ListAdd(env, list, ToJniType(env, value));
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionRemove(

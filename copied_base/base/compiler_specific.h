@@ -414,49 +414,97 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST
 #endif
 
-// Annotates code indicating that it should be permanently exempted from
-// `-Wunsafe-buffer-usage`. For temporary cases such as migrating callers to
-// safer patterns, use `UNSAFE_TODO()` instead; see documentation there.
-//
-// All calls to functions annotated with `UNSAFE_BUFFER_USAGE` must be marked
-// with one of these two macros; they can also be used around pointer
-// arithmetic, pointer subscripting, and the like.
-//
-// ** USE OF THIS MACRO SHOULD BE VERY RARE.** Using this macro indicates that
-// the compiler cannot verify that the code avoids OOB, and manual review is
-// required. Even with manual review, it's easy for assumptions to change and
-// security bugs to creep in over time. Prefer safer patterns instead.
-//
-// Usage should wrap the minimum necessary code, and *must* include a
-// `// SAFETY: ...` comment that explains how the code guarantees safety or
-// meets the requirements of called `UNSAFE_BUFFER_USAGE` functions. Guarantees
-// must be manually verifiable by the Chrome security team using only local
-// invariants; contact security@chromium.org to schedule such a review. Valid
-// invariants include:
-// - Runtime conditions or `CHECK()`s nearby
-// - Invariants guaranteed by types in the surrounding code
-// - Invariants guaranteed by function calls in the surrounding code
-// - Caller requirements, if the containing function is itself annotated with
-//   `UNSAFE_BUFFER_USAGE`; this is less safe and should be a last resort
+// Annotates a pointer or reference parameter or return value for a member
+// function as having lifetime intertwined with the instance on which the
+// function is called. For function parameters, the function is assumed to store
+// the reference into the return value, so if the referred-to object is later
+// destroyed, the returned value is also considered to be dangling. For
+// constructor parameters, the constructor is assumed to store the reference
+// into the object, so if the referred-to object is later destroyed, the object
+// is considered to be dangling. For return values, the value is assumed to
+// point into the called-on object, so if that object is destroyed, the returned
+// value is also considered to be dangling. Useful to diagnose some cases of
+// lifetime errors.
 //
 // See also:
-//   https://chromium.googlesource.com/chromium/src/+/main/docs/unsafe_buffers.md
-//   https://clang.llvm.org/docs/SafeBuffers.html
-//   https://clang.llvm.org/docs/DiagnosticsReference.html#wunsafe-buffer-usage
+//   https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
 //
 // Usage:
 // ```
-//   // The following call will not trigger a compiler warning even if `Func()`
-//   // is annotated `UNSAFE_BUFFER_USAGE`.
-//   return UNSAFE_BUFFERS(Func(input, end));
+//   struct S {
+//      S(int* p LIFETIME_BOUND);
+//      int* Get() LIFETIME_BOUND;
+//      std::string_view GetSubstring(
+//          const std::string& s LIFETIME_BOUND) const;
+//   };
+//   S Func1() {
+//     int i = 0;
+//     // The following return will not compile; diagnosed as returning address
+//     // of a stack object.
+//     return S(&i);
+//   }
+//   int* Func2(int* p) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary.
+//     return S(p).Get();
+//   }
+//   std::string_view Func3(const S& s) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary object.
+//     return s.GetSubstring(NumberToString(3));
+//   }
 // ```
+#if __has_cpp_attribute(clang::lifetimebound)
+#define LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#define LIFETIME_BOUND
+#endif
+
+// UNSAFE_BUFFERS() wraps code that violates the -Wunsafe-buffer-usage warning,
+// such as:
+// - pointer arithmetic,
+// - pointer subscripting, and
+// - calls to functions annotated with UNSAFE_BUFFER_USAGE.
 //
-// Test for `__clang__` directly, as there's no `__has_pragma` or similar (see
-// https://github.com/llvm/llvm-project/issues/51887).
+// This indicates code whose bounds correctness cannot be ensured
+// systematically, and thus requires manual review.
+//
+// ** USE OF THIS MACRO SHOULD BE VERY RARE.** This should only be used when
+// strictly necessary. Prefer to use `base::span` instead of pointers, or other
+// safer coding patterns (like std containers) that avoid the opportunity for
+// out-of-bounds bugs to creep into the code. Any use of UNSAFE_BUFFERS() can
+// lead to a critical security bug if any assumptions are wrong, or ever become
+// wrong in the future.
+//
+// The macro should be used to wrap the minimum necessary code, to make it clear
+// what is unsafe, and prevent accidentally opting extra things out of the
+// warning.
+//
+// All usage of UNSAFE_BUFFERS() *must* come with a `// SAFETY: ...` comment
+// that explains how we have guaranteed that the pointer usage can never go
+// out-of-bounds, or that the requirements of the UNSAFE_BUFFER_USAGE function
+// are met. The safety comment should allow the chrome security team to check
+// that all requirements have been met, using only local invariants. Contact
+// security@chromium.org to schedule such a review.
+//
+// Examples of local invariants include:
+// - Runtime conditions or CHECKs near the UNSAFE_BUFFERS macros
+// - Invariants guaranteed by types in the surrounding code
+// - Invariants guaranteed by function calls in the surrounding code
+// - Caller requirements, if the containing function is itself marked with
+//   UNSAFE_BUFFER_USAGE
+//
+// The last case should be an option of last resort. It is less safe and will
+// require the caller also use the UNSAFE_BUFFERS() macro. Prefer directly
+// capturing such invariants in types like `base::span`.
+//
+// Safety explanations may not rely on invariants that are not fully
+// encapsulated close to the UNSAFE_BUFFERS() usage. Instead, use safer coding
+// patterns or stronger invariants.
 #if defined(__clang__)
-// Disabling `clang-format` allows each `_Pragma` to be on its own line, as
-// recommended by https://gcc.gnu.org/onlinedocs/cpp/Pragmas.html.
 // clang-format off
+// Formatting is off so that we can put each _Pragma on its own line, as
+// recommended by the gcc docs.
 #define UNSAFE_BUFFERS(...)                  \
   _Pragma("clang unsafe_buffer_usage begin") \
   __VA_ARGS__                                \
@@ -464,6 +512,70 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 // clang-format on
 #else
 #define UNSAFE_BUFFERS(...) __VA_ARGS__
+#endif
+
+// Line-level suppression of unsafe buffers warnings. This gives finer-grained
+// control over opting out portions of code from buffer safety checks than the
+// file-level pragma. It is used to indicate code that should be re-written for
+// safety and makes such sections easy-to-find (contrast this with the
+// UNSAFE_BUFFERS macro that indicates code that is expected to remain present
+// and has been manually evaluated for safety). Use of this macro can increase
+// the number of non-exempt files, and hence prevent new unsafe code from
+// being written in them.
+#define UNSAFE_TODO(...) UNSAFE_BUFFERS(__VA_ARGS__)
+
+// Annotates a function restricting its availability based on compile-time
+// information in the evaluated context. Useful to convert runtime errors to
+// compile-time errors if functions' arguments are always known at compile time.
+//
+// SFINAE and `requires` clauses can restrict function availability based on the
+// unevaluated context (type information and syntactic correctness). This
+// provides a similar capability based on the evaluated context (variable
+// values). If the condition fails, or cannot be determined at compile time, the
+// function is excluded from the overload set.
+//
+// Some use cases could be satisfied without this by marking the function
+// `consteval` and breaking compile when the condition fails (e.g. via
+// `CHECK()`/`assert()`). However, `ENABLE_IF_ATTR()` is generally superior:
+//   - Not all desired functions can be made `consteval`; e.g. most
+//     constructors.
+//   - The error message in the macro case is clearer and more actionable.
+//   - `ENABLE_IF_ATTR()` interacts better with template metaprogramming.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#enable-if
+//   https://github.com/chromium/subspace/issues/266
+//
+// Usage:
+// ```
+//   void NotConsteval(int a) {
+//     assert(a > 0);
+//   }
+//   consteval void WithoutEnableIf(int a) {
+//     assert(a > 0);
+//   }
+//   void WithEnableIf(int a) ENABLE_IF_ATTR(a > 0, "arg must be positive") {}
+//   void Func(int i) {
+//     // Compiles; assertion fails at runtime.
+//     NotConsteval(-1);
+//
+//     // Will not compile; diagnosed as not a constant expression.
+//     WithoutEnableIf(-1);
+//
+//     // Will not compile; diagnosed as no matching function call with
+//     // "note: candidate disabled: arg must be positive".
+//     WithEnableIf(-1);
+//
+//     // Will not compile (same reason). Marking `Func()` as
+//     // `ENABLE_IF_ATTR(i > 0, ...)` will not help; the compiler's analysis is
+//     // not sufficiently sophisticated to propagate this constraint.
+//     WithEnableIf(i);
+//   }
+// ```
+#if HAS_ATTRIBUTE(enable_if)
+#define ENABLE_IF_ATTR(cond, msg) __attribute__((enable_if(cond, msg)))
+#else
+#define ENABLE_IF_ATTR(cond, msg)
 #endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_

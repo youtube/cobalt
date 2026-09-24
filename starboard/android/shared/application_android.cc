@@ -166,3 +166,6 @@ int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(CobaltSystemConfigChangeReceiver)
+DEFINE_JNI(HTMLMediaElementExtension)

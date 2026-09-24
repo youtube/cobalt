@@ -109,7 +109,9 @@ bool WillCreateURLLoaderFactoryParams::Run(
     bool is_navigation,
     bool is_download,
     network::URLLoaderFactoryBuilder& factory_builder,
-    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+    mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+        header_client) {
   return false;
 }
 

@@ -2534,64 +2534,9 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(crash_report_storage_);
   visitor->Trace(closewatcher_stack_);
   visitor->Trace(soft_navigation_heuristics_);
-<<<<<<< HEAD
-=======
-  visitor->Trace(global_fetch_impl_);
-  visitor->Trace(global_cache_storage_impl_);
-  visitor->Trace(global_cookie_store_impl_);
-  visitor->Trace(global_performance_impl_);
-  visitor->Trace(cached_permission_status_);
-  visitor->Trace(container_timing_);
-  visitor->Trace(fullscreen_);
-  visitor->Trace(highlight_registry_);
-  visitor->Trace(image_element_timing_);
-  visitor->Trace(layout_worklet_);
-  visitor->Trace(resize_observer_controller_);
-  visitor->Trace(shared_worker_client_holder_);
-  visitor->Trace(text_element_timing_);
-  visitor->Trace(app_banner_controller_);
-  visitor->Trace(audio_renderer_sink_cache_window_observer_);
-  visitor->Trace(css_animation_worklet_);
-  visitor->Trace(credential_manager_proxy_);
-  visitor->Trace(dom_window_digital_goods_);
-  visitor->Trace(dom_window_launch_queue_);
-  visitor->Trace(dom_window_storage_);
-  visitor->Trace(dom_window_storage_controller_);
-  visitor->Trace(device_motion_controller_);
-  visitor->Trace(device_orientation_absolute_controller_);
-  visitor->Trace(device_orientation_controller_);
-  visitor->Trace(document_picture_in_picture_);
-  visitor->Trace(font_access_);
-  visitor->Trace(global_storage_access_handle_);
-  visitor->Trace(installation_service_impl_);
-  visitor->Trace(installed_app_controller_);
-  visitor->Trace(manifest_manager_);
-  visitor->Trace(nfcproxy_);
-  visitor->Trace(paint_worklet_);
-  visitor->Trace(peer_connection_tracker_);
-  visitor->Trace(presentation_controller_);
-  visitor->Trace(push_messaging_client_);
-  visitor->Trace(screen_orientation_controller_);
-  visitor->Trace(sensor_provider_proxy_);
-  visitor->Trace(shared_storage_window_supplement_);
-  visitor->Trace(speech_recognition_controller_);
-  visitor->Trace(speech_synthesis_);
-  visitor->Trace(third_party_script_detector_);
-  visitor->Trace(user_media_client_);
-  visitor->Trace(web_launch_service_impl_);
-  visitor->Trace(window_screen_details_);
-  visitor->Trace(window_shared_storage_impl_);
-#if BUILDFLAG(IS_COBALT)
-  visitor->Trace(cobalt_lifecycle_controller_);
-  visitor->Trace(h5vcc_);
-#if BUILDFLAG(IS_IOS_TVOS)
-  visitor->Trace(on_screen_keyboard_);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-#endif
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-  Supplementable<LocalDOMWindow, 48>::Trace(visitor);
+  Supplementable<LocalDOMWindow, 51>::Trace(visitor);
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {

@@ -36,22 +36,16 @@ void LogMessageFailedUpgradeFromVersion(int version) {
 
 bool WriteFakeIndexFile(disk_cache::BackendFileOperations* file_operations,
                         const base::FilePath& file_name) {
-<<<<<<< HEAD
-  std::unique_ptr<disk_cache::CacheFile> file = file_operations->OpenFile(
-      file_name, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-  if (!file->IsValid()) {
-=======
 #if BUILDFLAG(IS_STARBOARD)
   // Overwrites existing fake index files in case they were not deleted in
   // previous cache startup. We can consider upstream this change.
-  base::File file = file_operations->OpenFile(
+  std::unique_ptr<disk_cache::CacheFile> file = file_operations->OpenFile(
       file_name, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
 #else
-  base::File file = file_operations->OpenFile(
+  std::unique_ptr<disk_cache::CacheFile> file = file_operations->OpenFile(
       file_name, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
 #endif
-  if (!file.IsValid())
->>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (!file->IsValid()) {
     return false;
   }
 

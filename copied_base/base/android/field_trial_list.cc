@@ -85,6 +85,8 @@ static ScopedJavaLocalRef<jstring> JNI_FieldTrialList_GetVariationParameter(
 // friend the JNI function and is, in turn, friended by
 // FieldTrialListIncludingLowAnonymity which allows for the private
 // GetActiveFieldTrialGroups() to be reached.
+static void JNI_FieldTrialList_LogActiveTrials(JNIEnv* env);
+
 class AndroidFieldTrialListLogActiveTrialsFriendHelper {
  private:
   friend void ::JNI_FieldTrialList_LogActiveTrials(JNIEnv* env);
@@ -124,3 +126,5 @@ static jboolean JNI_FieldTrialList_CreateFieldTrial(
              ConvertJavaStringToUTF8(env, jtrial_name),
              ConvertJavaStringToUTF8(env, jgroup_name)) != nullptr;
 }
+
+DEFINE_JNI(FieldTrialList)
