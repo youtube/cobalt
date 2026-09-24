@@ -103,7 +103,6 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     // For Starboard builds, if the incoming ExternalMemory object wraps a Starboard
     // media pool handle, adopt the raw handle inline into allocator_data_ and
     // destroy the transient ExternalMemory wrapper struct immediately. This avoids
@@ -121,9 +120,6 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
         return std::nullopt;
       }()),
       external_memory_(allocator_data_ ? nullptr : std::move(external_memory)) {}
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    : external_memory_(std::move(external_memory)) {}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {
