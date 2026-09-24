@@ -141,11 +141,9 @@ def verify_chromium_commit(sha):
     modified_files = lib.get_out(['git', 'diff', '--name-only', sha,
                                   'HEAD']).strip()
     if modified_files == 'DEPS':
-      lib.log(
-          f'Verification passed: Tree {current_tree} matches Chromium '
-          f'{upstream_sha} with one change to DEPS to remove ANGLE from '
-          f'recursedeps'
-      )
+      lib.log(f'Verification passed: Tree {current_tree} matches Chromium '
+              f'{upstream_sha} with one change to DEPS to remove ANGLE from '
+              f'recursedeps')
       return True
 
   diff_output = lib.get_out(['git', 'diff', '--name-status', sha,
