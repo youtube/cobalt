@@ -15,7 +15,6 @@
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
-#include "build/build_config.h"
 #include "cc/base/math_util.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/overlay_plane_data.h"
@@ -140,12 +139,14 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
     SwapCompletionCallback completion_callback,
     PresentationCallback present_callback) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Only reachable with SinglePlaneVideoPassthrough: Cobalt uses this
+  // presenter only when features::IsAndroidSurfaceControlEnabled().
   if (!surface_lost_ && !pending_transaction_) {
     // When the primary output surface plane is removed (e.g., single-plane
     // video underlay passthrough) and zero SurfaceControl overlay planes are
     // scheduled this frame, ScheduleOverlayPlane() is not called. Initialize
-    // pending_transaction_ here so the cleanup loop below detaches the buffer
-    // and hides ChromeChildSurface.
+    // pending_transaction_ here so the cleanup code below detaches the buffer
+    // and removes ChromeChildSurface.
     pending_transaction_.emplace();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -192,6 +193,21 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
       surface_state.visibility = false;
     }
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (pending_surfaces_count_ == 0 && !surface_list_.empty()) {
+    // No planes at all this frame (single-plane video underlay passthrough).
+    // SurfaceFlinger keeps the last buffer of a hidden layer cached in its
+    // composition state, so also detach and drop the child surfaces to let it
+    // destroy the layers and release that buffer. ScheduleOverlayPlane()
+    // recreates a child surface when planes come back. Surfaces still
+    // referenced by pending ResourceRefs stay alive until their ack.
+    for (auto& surface_state : surface_list_) {
+      pending_transaction_->SetParent(*surface_state.surface, nullptr);
+    }
+    surface_list_.clear();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(khushalsagar): Consider using the SetDamageRect API for partial
   // invalidations. Note that the damage rect set should be in the space in
