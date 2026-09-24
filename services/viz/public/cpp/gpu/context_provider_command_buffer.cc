@@ -152,6 +152,9 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
       /*shared_command_buffer=*/nullptr, stream_priority_, attributes_,
       active_url_, command_buffer_metrics::ContextTypeToString(context_type_));
   if (bind_result_ != gpu::ContextResult::kSuccess) {
+#if BUILDFLAG(IS_COBALT)
+    command_buffer_.reset();
+#endif
     DLOG(ERROR) << "GpuChannelHost failed to create command buffer.";
     command_buffer_metrics::UmaRecordContextInitFailed(context_type_);
     return bind_result_;
