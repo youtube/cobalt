@@ -21,6 +21,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+<<<<<<< HEAD
 TEST(PosixTimeTest, TimeMatchesGettimeofday) {
   time_t other_time_s = 0;
   time_t time_s = time(&other_time_s);  // Seconds since Unix epoch.
@@ -28,6 +29,18 @@ TEST(PosixTimeTest, TimeMatchesGettimeofday) {
   gettimeofday(&tv, NULL);  // Microseconds since Unix epoch.
 
   EXPECT_EQ(time_s, other_time_s);
+=======
+// kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
+// the current time is expected to fall.
+const int64_t kReasonableMinTimeUsec =
+    1'735'689'600'000'000LL;  // 2025-01-01 00:00:00 UTC
+
+// kReasonableMaxTimeUsec represents a time very far in the future and before
+// which the current time is expected to fall. Note that this also implicitly
+// tests that the code handles timestamps past the Unix Epoch wraparound on
+// 03:14:08 UTC on 19 January 2038.
+const time_t kReasonableMaxTimeUsec = std::numeric_limits<time_t>::max();
+>>>>>>> d3e1f4b3efb (starboard: Fix conversion warnings and unused function (#6511))
 
   int64_t time_us = static_cast<int64_t>(time_s) * 1'000'000;
   int64_t gettimeofday_us =
