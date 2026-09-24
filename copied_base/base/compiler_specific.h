@@ -414,49 +414,51 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST
 #endif
 
-// Annotates code indicating that it should be permanently exempted from
-// `-Wunsafe-buffer-usage`. For temporary cases such as migrating callers to
-// safer patterns, use `UNSAFE_TODO()` instead; see documentation there.
+// UNSAFE_BUFFERS() wraps code that violates the -Wunsafe-buffer-usage warning,
+// such as:
+// - pointer arithmetic,
+// - pointer subscripting, and
+// - calls to functions annotated with UNSAFE_BUFFER_USAGE.
 //
-// All calls to functions annotated with `UNSAFE_BUFFER_USAGE` must be marked
-// with one of these two macros; they can also be used around pointer
-// arithmetic, pointer subscripting, and the like.
+// This indicates code whose bounds correctness cannot be ensured
+// systematically, and thus requires manual review.
 //
-// ** USE OF THIS MACRO SHOULD BE VERY RARE.** Using this macro indicates that
-// the compiler cannot verify that the code avoids OOB, and manual review is
-// required. Even with manual review, it's easy for assumptions to change and
-// security bugs to creep in over time. Prefer safer patterns instead.
+// ** USE OF THIS MACRO SHOULD BE VERY RARE.** This should only be used when
+// strictly necessary. Prefer to use `base::span` instead of pointers, or other
+// safer coding patterns (like std containers) that avoid the opportunity for
+// out-of-bounds bugs to creep into the code. Any use of UNSAFE_BUFFERS() can
+// lead to a critical security bug if any assumptions are wrong, or ever become
+// wrong in the future.
 //
-// Usage should wrap the minimum necessary code, and *must* include a
-// `// SAFETY: ...` comment that explains how the code guarantees safety or
-// meets the requirements of called `UNSAFE_BUFFER_USAGE` functions. Guarantees
-// must be manually verifiable by the Chrome security team using only local
-// invariants; contact security@chromium.org to schedule such a review. Valid
-// invariants include:
-// - Runtime conditions or `CHECK()`s nearby
+// The macro should be used to wrap the minimum necessary code, to make it clear
+// what is unsafe, and prevent accidentally opting extra things out of the
+// warning.
+//
+// All usage of UNSAFE_BUFFERS() *must* come with a `// SAFETY: ...` comment
+// that explains how we have guaranteed that the pointer usage can never go
+// out-of-bounds, or that the requirements of the UNSAFE_BUFFER_USAGE function
+// are met. The safety comment should allow the chrome security team to check
+// that all requirements have been met, using only local invariants. Contact
+// security@chromium.org to schedule such a review.
+//
+// Examples of local invariants include:
+// - Runtime conditions or CHECKs near the UNSAFE_BUFFERS macros
 // - Invariants guaranteed by types in the surrounding code
 // - Invariants guaranteed by function calls in the surrounding code
-// - Caller requirements, if the containing function is itself annotated with
-//   `UNSAFE_BUFFER_USAGE`; this is less safe and should be a last resort
+// - Caller requirements, if the containing function is itself marked with
+//   UNSAFE_BUFFER_USAGE
 //
-// See also:
-//   https://chromium.googlesource.com/chromium/src/+/main/docs/unsafe_buffers.md
-//   https://clang.llvm.org/docs/SafeBuffers.html
-//   https://clang.llvm.org/docs/DiagnosticsReference.html#wunsafe-buffer-usage
+// The last case should be an option of last resort. It is less safe and will
+// require the caller also use the UNSAFE_BUFFERS() macro. Prefer directly
+// capturing such invariants in types like `base::span`.
 //
-// Usage:
-// ```
-//   // The following call will not trigger a compiler warning even if `Func()`
-//   // is annotated `UNSAFE_BUFFER_USAGE`.
-//   return UNSAFE_BUFFERS(Func(input, end));
-// ```
-//
-// Test for `__clang__` directly, as there's no `__has_pragma` or similar (see
-// https://github.com/llvm/llvm-project/issues/51887).
+// Safety explanations may not rely on invariants that are not fully
+// encapsulated close to the UNSAFE_BUFFERS() usage. Instead, use safer coding
+// patterns or stronger invariants.
 #if defined(__clang__)
-// Disabling `clang-format` allows each `_Pragma` to be on its own line, as
-// recommended by https://gcc.gnu.org/onlinedocs/cpp/Pragmas.html.
 // clang-format off
+// Formatting is off so that we can put each _Pragma on its own line, as
+// recommended by the gcc docs.
 #define UNSAFE_BUFFERS(...)                  \
   _Pragma("clang unsafe_buffer_usage begin") \
   __VA_ARGS__                                \
@@ -465,5 +467,15 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #else
 #define UNSAFE_BUFFERS(...) __VA_ARGS__
 #endif
+
+// Line-level suppression of unsafe buffers warnings. This gives finer-grained
+// control over opting out portions of code from buffer safety checks than the
+// file-level pragma. It is used to indicate code that should be re-written for
+// safety and makes such sections easy-to-find (contrast this with the
+// UNSAFE_BUFFERS macro that indicates code that is expected to remain present
+// and has been manually evaluated for safety). Use of this macro can increase
+// the number of non-exempt files, and hence prevent new unsafe code from
+// being written in them.
+#define UNSAFE_TODO(...) UNSAFE_BUFFERS(__VA_ARGS__)
 
 #endif  // BASE_COMPILER_SPECIFIC_H_
