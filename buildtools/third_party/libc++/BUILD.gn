@@ -675,11 +675,15 @@ target(libcxx_target_type, "libc++") {
     }
   }
 
+<<<<<<< HEAD
   # Disabling -Wexit-time-destructors, as libc++ uses `static string` objects
   # for locale code.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+=======
+  if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
+>>>>>>> cc259374cb8 (build: Use default_toolchain over cobalt_toolchain (#12900))
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     #
     # TODO: b/558305425 - remove the define below and exclude atomic.cpp from
