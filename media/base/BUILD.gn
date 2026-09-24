@@ -517,10 +517,7 @@ source_set("base") {
       "starboard/starboard_rendering_mode.h",
     ]
 
-    deps += [
-      "//starboard:starboard_group",
-      "//starboard/common",
-    ]
+    deps += [ "//starboard:starboard_group" ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
   } else if (is_castos) {
@@ -753,7 +750,7 @@ source_set("unit_tests") {
     sources += [
       "starboard/experimental_features_unittest.cc",
       "starboard/ipc_param_traits_unittest.cc",
-      "starboard/starboard_renderer_config_unittest.cc"
+      "starboard/starboard_renderer_config_unittest.cc",
     ]
   }
 }
