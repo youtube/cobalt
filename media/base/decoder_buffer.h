@@ -30,7 +30,6 @@
 #include "media/base/demuxer_stream.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
-#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
@@ -50,14 +49,8 @@ class MEDIA_EXPORT DecoderBuffer
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   class Allocator {
    public:
-    // The class technically allocates opaque handles from the underlying memory
-    // pool.  While these handles can sometimes be used as a pointer directly,
-    // they may also be opaque handles that cannot be dereferenced, and can only
-    // be written to using |Write|.
-    // TODO(b/369245553): Currently only the surface functions below are using
-    // Handle, and all the underlying Allocators are still using void* to avoid
-    // massive changes.  Once this feature is proven to be working, we should
-    // consider refactoring the underlying allocators.
+    // TODO(b/369245553): The whole handle concept will be removed in a
+    // follow-up PR.
     typedef intptr_t Handle;
 
     // This has to be 0 to be compatible with existing code checking for
@@ -71,7 +64,6 @@ class MEDIA_EXPORT DecoderBuffer
     // app on allocation failure.
     virtual Handle Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, Handle handle, size_t size) = 0;
-    virtual void Write(Handle handle, const void* data, size_t size) = 0;
 
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
@@ -235,13 +227,9 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (allocator_data_) {
-      // The function is used by unit tests and Chromium media stack, so we keep
-      // it but CHECK() when the handle is annotated (e.g. cannot be converted
-      // to a pointer).
-#if !defined(OFFICIAL_BUILD)
-      using starboard::experimental::IsPointerAnnotated;
-      CHECK(!IsPointerAnnotated(allocator_data_->handle));
-#endif  // !defined(OFFICIAL_BUILD)
+      // TODO(b/369245553): The whole handle concept will be removed in a
+      // follow-up PR.
+      DCHECK_NE(allocator_data_->handle, Allocator::kInvalidHandle);
       return reinterpret_cast<const uint8_t*>(allocator_data_->handle);
     }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -267,13 +255,9 @@ class MEDIA_EXPORT DecoderBuffer
   uint8_t* writable_data() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (allocator_data_) {
-      // The function is used by unit tests and Chromium media stack, so we keep
-      // it but CHECK() when the handle is annotated (e.g. cannot be converted
-      // to a pointer).
-#if !defined(OFFICIAL_BUILD)
-      using starboard::experimental::IsPointerAnnotated;
-      CHECK(!IsPointerAnnotated(allocator_data_->handle));
-#endif  // !defined(OFFICIAL_BUILD)
+      // TODO(b/369245553): The whole handle concept will be removed in a
+      // follow-up PR.
+      DCHECK_NE(allocator_data_->handle, Allocator::kInvalidHandle);
       return reinterpret_cast<uint8_t*>(allocator_data_->handle);
     }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -426,8 +410,14 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   struct AllocatorData {
-    AllocatorData(DemuxerStream::Type type, Allocator::Handle handle, size_t size)
-        : stream_type_(type), handle(handle), size(size) {}
+    AllocatorData(DemuxerStream::Type type,
+                  Allocator::Handle handle,
+                  size_t size)
+        : stream_type_(type), handle(handle), size(size) {
+      // TODO(b/369245553): The whole handle concept will be removed in a
+      // follow-up PR.
+      DCHECK_NE(handle, Allocator::kInvalidHandle);
+    }
 
     DemuxerStream::Type stream_type_ = DemuxerStream::UNKNOWN;
     Allocator::Handle handle = Allocator::kInvalidHandle;
