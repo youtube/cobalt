@@ -1117,14 +1117,19 @@ void SkiaRenderer::FinishDrawingFrame() {
       // delegating to the system compositor, and don't need the buffers
       // anymore. On Mac the primary plane buffers are marked as purgeable so
       // the OS can decide if they should be destroyed or not.
-#if BUILDFLAG(IS_WIN) || \
-    (BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA))
+#if BUILDFLAG(IS_WIN)
+      buffer_queue_->DestroyBuffers();
+#elif BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
       // TODO(b/561683073): Add a cooldown/debounce timer (e.g., ~5s of
       // continuous single-plane mode) before calling DestroyBuffers() so that
       // brief 1-2s pauses between Closed Captions (CC) dialogue lines do not
       // repeatedly free and re-allocate/zero-fill the 3 UI AHardwareBuffers.
       buffer_queue_->DestroyBuffers();
-      render_pass_backings_.erase(current_frame()->root_render_pass->id);
+      if (render_pass_backings_.erase(
+              current_frame()->root_render_pass->id)) {
+        skia_output_surface_->RemoveRenderPassResource(
+            {current_frame()->root_render_pass->id});
+      }
 #elif BUILDFLAG(IS_APPLE)
       buffer_queue_->SetBuffersPurgeable();
 #endif

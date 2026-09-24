@@ -23,8 +23,6 @@
 #include <string>
 
 #include "base/android/build_info.h"
-#include "gpu/config/gpu_finch_features.h"
-#include "media/media_buildflags.h"
 #endif
 
 #if BUILDFLAG(IS_POSIX)
@@ -36,14 +34,6 @@ namespace viz {
 
 #if BUILDFLAG(IS_ANDROID)
 bool PreferRGB565ResourcesForDisplay() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // When Android SurfaceControl is enabled (e.g. video layer passthrough), we
-  // should not prefer RGB565 since ShouldEnableAndroidSurfaceControl() disables
-  // SurfaceControl when this returns true.
-  if (features::IsAndroidSurfaceControlEnabled()) {
-    return false;
-  }
-#endif
   return base::SysInfo::AmountOfPhysicalMemoryMB() <= 512;
 }
 #endif

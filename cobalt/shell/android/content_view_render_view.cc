@@ -17,8 +17,10 @@
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ContentViewRenderView_jni.h"
 #include "content/public/browser/android/compositor.h"
 #include "content/public/browser/web_contents.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
+#include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -46,6 +48,16 @@ static jlong JNI_ContentViewRenderView_Init(
   ContentViewRenderView* content_view_render_view =
       new ContentViewRenderView(env, obj, root_window);
   return reinterpret_cast<intptr_t>(content_view_render_view);
+}
+
+// static
+// Must match the Android 12+ (API 31+) condition in
+// CompositorImpl::SetSurface() under which the Java-created window
+// SurfaceControl is used.
+static jboolean JNI_ContentViewRenderView_ShouldUseWindowSurfaceControl(
+    JNIEnv* env) {
+  return features::IsAndroidSurfaceControlEnabled() &&
+         gfx::SurfaceControl::SupportsSurfacelessControl();
 }
 
 void ContentViewRenderView::Destroy(JNIEnv* env,
@@ -92,6 +104,7 @@ void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
   compositor_->PreserveChildSurfaceControls();
 
   compositor_->SetSurface(nullptr, false, nullptr);
+  compositor_->SetWindowSurfaceControl(nullptr);
   current_surface_format_ = 0;
 }
 
@@ -102,7 +115,10 @@ void ContentViewRenderView::SurfaceChanged(
     jint width,
     jint height,
     const JavaParamRef<jobject>& surface,
+    const JavaParamRef<jobject>& surface_control,
     const JavaParamRef<jobject>& host_input_token) {
+  // Must be set before SetSurface(), which consumes it on Android 12+.
+  compositor_->SetWindowSurfaceControl(surface_control);
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
     compositor_->SetSurface(

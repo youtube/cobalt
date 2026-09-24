@@ -366,12 +366,8 @@ void DirectRenderer::DrawFrame(
       needs_full_frame_redraw = true;
     }
 #else
-    // The entire surface has to be redrawn if reshape is requested, unless the
-    // primary output surface plane was removed by overlay processing.
-    if (current_frame()->output_surface_plane ||
-        !output_surface_->capabilities().renderer_allocates_images) {
-      needs_full_frame_redraw = true;
-    }
+    // The entire surface has to be redrawn if reshape is requested.
+    needs_full_frame_redraw = true;
 #endif
   }
 
@@ -390,16 +386,25 @@ void DirectRenderer::DrawFrame(
     DrawRenderPassAndExecuteCopyRequests(pass.get());
   }
 
+  bool skip_root_for_removed_plane = false;
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
   const bool output_surface_plane_removed =
       !current_frame()->output_surface_plane &&
-      output_surface_->capabilities().renderer_allocates_images &&
-      root_render_pass->copy_requests.empty();
-  if (output_surface_plane_removed) {
-    next_frame_needs_full_frame_redraw_ = true;
+      output_surface_->capabilities().renderer_allocates_images;
+  // The primary plane buffers are released while the plane is removed, so the
+  // root render pass must be fully redrawn on the frame the plane returns.
+  // BufferQueue recreates its buffers lazily, so no Reshape() is needed.
+  if (output_surface_plane_removed_last_frame_ &&
+      !output_surface_plane_removed) {
+    needs_full_frame_redraw = true;
   }
+  output_surface_plane_removed_last_frame_ = output_surface_plane_removed;
+  skip_root_for_removed_plane =
+      output_surface_plane_removed && root_render_pass->copy_requests.empty();
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool skip_drawing_root_render_pass =
-      output_surface_plane_removed ||
+      skip_root_for_removed_plane ||
       (current_frame()->root_damage_rect.IsEmpty() && use_partial_swap_ &&
        !needs_full_frame_redraw);
 

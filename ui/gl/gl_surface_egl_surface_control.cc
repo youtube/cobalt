@@ -15,6 +15,7 @@
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "cc/base/math_util.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/overlay_plane_data.h"
@@ -138,6 +139,7 @@ void GLSurfaceEGLSurfaceControl::Present(
 void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
     SwapCompletionCallback completion_callback,
     PresentationCallback present_callback) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!surface_lost_ && !pending_transaction_) {
     // When the primary output surface plane is removed (e.g., single-plane
     // video underlay passthrough) and zero SurfaceControl overlay planes are
@@ -146,7 +148,12 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
     // and hides ChromeChildSurface.
     pending_transaction_.emplace();
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+  // The transaction is initialized on the first ScheduleOverlayPlane call. If
+  // we don't have a transaction at this point, it means the scheduling the
+  // overlay plane failed. Simply report a swap failure to lose the context and
+  // recreate the surface.
   if (!pending_transaction_ || surface_lost_) {
     LOG(ERROR) << "CommitPendingTransaction failed because surface is lost";
 

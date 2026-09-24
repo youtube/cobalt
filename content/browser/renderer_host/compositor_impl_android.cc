@@ -69,7 +69,6 @@
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/common/swap_buffers_complete_params.h"
 #include "gpu/command_buffer/common/swap_buffers_flags.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/client/command_buffer_proxy_impl.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "gpu/ipc/common/gpu_surface_tracker.h"
@@ -84,12 +83,16 @@
 #include "ui/android/window_android.h"
 #include "ui/display/display.h"
 #include "ui/display/display_transform.h"
-#include "base/android/build_info.h"
-#include "ui/gfx/android/android_surface_control_compat.h"
-#include "ui/gl/android/scoped_java_surface_control.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/ca_layer_params.h"
 #include "ui/gfx/swap_result.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/android/build_info.h"
+#include "gpu/config/gpu_finch_features.h"
+#include "ui/gfx/android/android_surface_control_compat.h"
+#include "ui/gl/android/scoped_java_surface_control.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace content {
 
@@ -332,14 +335,27 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
   window_ = std::move(window);
   // Register first, SetVisible() might create a LayerTreeFrameSink.
 #if BUILDFLAG(IS_COBALT)
+  // Cobalt renders the UI into the Activity window's own surface (taken with
+  // Window.takeSurface()), not into a SurfaceView. The display compositor's
+  // SurfaceControl layers need a parent layer in that window:
+  // - Android 12+: the window surface is BLAST-backed, i.e. its buffer queue
+  //   lives in the app process, so SurfaceFlinger can't resolve a parent layer
+  //   from the ANativeWindow and ASurfaceControl_createFromWindow() doesn't
+  //   work. Java instead creates a child SurfaceControl of the window's root
+  //   SurfaceControl (CobaltWindowSurfaceControl) and passes it in through
+  //   SetWindowSurfaceControl().
+  // - Android 11: the window surface is still a SurfaceFlinger-side
+  //   BufferQueueLayer, so ASurfaceControl_createFromWindow() works, and the
+  //   Java API above (API 31+) isn't available anyway.
   if (can_be_used_with_surface_control &&
       features::IsAndroidSurfaceControlEnabled()) {
-    if (host_input_token && gfx::SurfaceControl::SupportsSurfacelessControl()) {
+    if (window_surface_control_ &&
+        gfx::SurfaceControl::SupportsSurfacelessControl()) {
       // Android 12+ (API 31+): Uses ScopedJavaSurfaceControl
       // (CobaltWindowSurfaceControl).
       surface_handle_ = tracker->AddSurfaceForNativeWidget(
           gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
-              host_input_token, /*release_on_destroy=*/false)));
+              window_surface_control_, /*release_on_destroy=*/false)));
       SetVisible(true);
       return surface_handle_;
     } else if (base::android::BuildInfo::GetInstance()->sdk_int() ==
@@ -349,15 +365,19 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
       surface_handle_ = tracker->AddSurfaceForNativeWidget(
           gpu::SurfaceRecord(std::move(scoped_surface),
                              /*can_be_used_with_surface_control=*/true,
-                             /*host_input_token=*/nullptr));
+                             host_input_token));
       SetVisible(true);
       return surface_handle_;
     }
   }
+  // Neither path applies (feature off, or no usable parent layer), so fall
+  // back to plain EGL on the window surface. Unlike upstream, the caller's
+  // |can_be_used_with_surface_control| isn't passed through: upstream's
+  // createFromWindow() path would fail on a BLAST-backed window surface.
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),
                          /*can_be_used_with_surface_control=*/false,
-                         /*host_input_token=*/nullptr));
+                         host_input_token));
 #else
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),
@@ -366,6 +386,13 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
   SetVisible(true);
   return surface_handle_;
 }
+
+#if BUILDFLAG(IS_COBALT)
+void CompositorImpl::SetWindowSurfaceControl(
+    const base::android::JavaRef<jobject>& surface_control) {
+  window_surface_control_.Reset(surface_control);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void CompositorImpl::SetBackgroundColor(int color) {
   DCHECK(host_);

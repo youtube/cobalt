@@ -17,7 +17,6 @@
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
-#include "media/base/media_switches.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -98,6 +97,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
   QuadList& quad_list = render_pass->quad_list;
   bool found_underlay = false;
   gfx::Rect content_rect;
+#if BUILDFLAG(IS_ANDROID)
+  gfx::Rect underlay_rect;
+#endif  // BUILDFLAG(IS_ANDROID)
   OverlayCandidateFactory::OverlayContext context;
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
@@ -138,6 +140,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 
     if (is_underlay) {
       content_rect.Subtract(quad_rect);
+#if BUILDFLAG(IS_ANDROID)
+      underlay_rect = quad_rect;
+#endif  // BUILDFLAG(IS_ANDROID)
     } else {
       content_rect.Union(quad_rect);
     }
@@ -149,10 +154,16 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
   }
 
 #if BUILDFLAG(IS_ANDROID)
+  // Drop the UI plane only when nothing visible is left above the video and
+  // the video hole covers the whole output. Black solid-color quads below the
+  // video are skipped above, so without the coverage check a non-fullscreen
+  // video on a black background would lose its black surroundings.
   const bool single_plane_mode =
       features::IsAndroidSurfaceControlEnabled() &&
-      base::FeatureList::IsEnabled(media::kSinglePlaneVideoPassthrough) &&
-      found_underlay && content_rect.IsEmpty();
+      base::FeatureList::IsEnabled(
+          features::kCobaltSinglePlaneVideoPassthrough) &&
+      found_underlay && content_rect.IsEmpty() &&
+      underlay_rect.Contains(render_pass->output_rect);
   if (is_single_plane_mode_ != single_plane_mode) {
     is_single_plane_mode_ = single_plane_mode;
     LOG(INFO) << (single_plane_mode ? "Single-plane video passthrough activated"

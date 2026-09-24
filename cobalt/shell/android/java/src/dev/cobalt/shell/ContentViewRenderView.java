@@ -74,8 +74,9 @@ public class ContentViewRenderView extends FrameLayout {
           @Override
           public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             assert mNativeContentViewRenderView != 0;
-            // TODO: b/511379756 - Pass InputTransferToken instead of null for Android 15+
-            // "Transfer Input to Viz" optimization, similar to upstream ContentViewRenderView.
+            // TODO: b/511379756 - Pass InputTransferToken instead of null as hostInputToken for
+            // Android 15+ "Transfer Input to Viz" optimization, similar to upstream
+            // ContentViewRenderView. The window SurfaceControl is passed separately.
             ContentViewRenderViewJni.get()
                 .surfaceChanged(
                     mNativeContentViewRenderView,
@@ -84,7 +85,8 @@ public class ContentViewRenderView extends FrameLayout {
                     width,
                     height,
                     holder.getSurface(),
-                    mSurfaceBridge.getSurfaceControl());
+                    mSurfaceBridge.getSurfaceControl(),
+                    null);
             if (mWebContents != null) {
               ContentViewRenderViewJni.get()
                   .onPhysicalBackingSizeChanged(
@@ -229,6 +231,12 @@ public class ContentViewRenderView extends FrameLayout {
         return;
       }
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        return;
+      }
+      // Only create the SurfaceControl if native will use it (see
+      // CompositorImpl::SetSurface()); otherwise it would leave an unused, empty
+      // layer attached to the window.
+      if (!ContentViewRenderViewJni.get().shouldUseWindowSurfaceControl()) {
         return;
       }
 
@@ -463,9 +471,12 @@ public class ContentViewRenderView extends FrameLayout {
         int width,
         int height,
         Surface surface,
+        Object surfaceControl,
         Object hostInputToken);
 
     void setOverlayVideoMode(
         long nativeContentViewRenderView, ContentViewRenderView caller, boolean enabled);
+
+    boolean shouldUseWindowSurfaceControl();
   }
 }
