@@ -4818,7 +4818,7 @@ hooks = [
 # ctx: https://crbug.com/1201994
 recursedeps = [
   # ANGLE manages DEPS that it also owns the build files for, such as dEQP.
-  'src/third_party/angle',
+#  'src/third_party/angle',
   # Dawn manages DEPS for its copy of the WebGPU CTS as well as GLFW for which
   # it has build files.
   'src/third_party/dawn',
