@@ -19,7 +19,6 @@ namespace base {
 
 #if BUILDFLAG(IS_COBALT)
 #define UNSAFE_BUFFER_USAGE
-#define LIFETIME_BOUND
 #endif
 
 // HeapArray<T> is a replacement for std::unique_ptr<T[]> that keeps track
@@ -249,7 +248,6 @@ class TRIVIAL_ABI GSL_OWNER HeapArray {
 
 #if BUILDFLAG(IS_COBALT)
 #undef UNSAFE_BUFFER_USAGE
-#undef LIFETIME_BOUND
 #endif
 
 }  // namespace base
