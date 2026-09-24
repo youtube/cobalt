@@ -33,7 +33,13 @@ namespace {
 
 // The global set of workarounds.
 GlWorkarounds g_workarounds;
+#if BUILDFLAG(IS_STARBOARD)
+// Starboard does not have ANGLE support, so the passthrough GL command
+// decoder won't work cleanly (see b/516807166).
+bool g_is_angle_enabled = false;
+#else
 bool g_is_angle_enabled = true;
+#endif
 
 int GetIntegerv(unsigned int name) {
   int value = 0;
