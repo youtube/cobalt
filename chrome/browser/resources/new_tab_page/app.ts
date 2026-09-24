@@ -21,7 +21,7 @@ import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contex
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
-import {assert} from 'chrome://resources/js/assert.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import type {ClickInfo} from 'chrome://resources/js/browser_command.mojom-webui.js';
 import {Command} from 'chrome://resources/js/browser_command.mojom-webui.js';
 import {BrowserCommandProxy} from 'chrome://resources/js/browser_command/browser_command_proxy.js';
@@ -398,8 +398,11 @@ export class AppElement extends AppElementBase {
   protected accessor composeboxInputFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =
-      this.ntpNextFeaturesEnabled_ ? GlifAnimationState.SPINNER_ONLY :
-                                     GlifAnimationState.INELIGIBLE;
+      this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_ ?
+      GlifAnimationState.SPINNER_ONLY :
+      GlifAnimationState.INELIGIBLE;
+  protected enableModalComposebox_: boolean =
+      loadTimeData.getBoolean('enableModalComposebox');
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -721,6 +724,14 @@ export class AppElement extends AppElementBase {
       this.onPromoAndModulesLoadedChange_();
     }
 
+    if (changedPrivateProperties.has('showComposebox_') &&
+        this.showComposebox_ && this.enableModalComposebox_) {
+      const composeboxDialog =
+          this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
+      assert(composeboxDialog);
+      composeboxDialog.showModal();
+    }
+
     if (changedPrivateProperties.has('oneGoogleBarLoaded_') ||
         changedPrivateProperties.has('theme_') ||
         changedPrivateProperties.has('showComposebox_')) {
@@ -857,6 +868,13 @@ export class AppElement extends AppElementBase {
   }
 
   protected closeComposebox_(e: CustomEvent) {
+    if (this.enableModalComposebox_) {
+      const composeboxDialog =
+          this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
+      assert(composeboxDialog);
+      composeboxDialog.close();
+    }
+
     const composeboxText = e.detail.composeboxText;
 
     if (composeboxText && composeboxText.trim()) {
@@ -911,8 +929,9 @@ export class AppElement extends AppElementBase {
         return !this.showBackgroundImage_;
       case NtpWallpaperSearchButtonHideCondition.THEME_SET:
         return this.colorSourceIsBaseline && !this.showBackgroundImage_;
+      default:
+        return false;
     }
-    return false;
   }
 
   protected onWallpaperSearchClick_() {
@@ -1211,6 +1230,8 @@ export class AppElement extends AppElementBase {
       case CustomizeDialogPage.WALLPAPER_SEARCH:
         section = CustomizeChromeSection.kWallpaperSearch;
         break;
+      default:
+        break;
     }
     this.customizeButtonsHandler_.setCustomizeChromeSidePanelVisible(
         visible, section, SidePanelOpenTrigger.kNewTabPage);
@@ -1285,6 +1306,8 @@ export class AppElement extends AppElementBase {
         case $$(this, '#modules'):
           recordClick(NtpElement.MODULE);
           return;
+        default:
+          break;
       }
     }
 
@@ -1299,6 +1322,8 @@ export class AppElement extends AppElementBase {
           case $$(customizeButtonsElement, '#wallpaperSearchButton'):
             recordClick(NtpElement.WALLPAPER_SEARCH_BUTTON);
             return;
+          default:
+            break;
         }
       }
     }
@@ -1322,6 +1347,8 @@ export class AppElement extends AppElementBase {
       case 'composebox-input-focus-changed':
         this.composeboxInputFocused_ = e.detail.value;
         break;
+      default:
+        assertNotReached();
     }
   }
 
@@ -1342,10 +1369,22 @@ export class AppElement extends AppElementBase {
     // UPDATED => STARTED (or FINISHED if cr_context_menu_entrypoint sets it)
     // To avoid going back (or continuing) GlifAnimationState.STARTED, we stop
     // updating the field when the current state is STARTED or FINISHED.
+    // There are a few cases to consider:
+    // - IsActionChipsVisible_ is false (and remains so): no event from the
+    //   action chips element, and thus the animation state remains INELIGIBLE.
+    // - IsActionChipsVisible_ is false and later becomes true: the change
+    //   triggers the rendering of the action chips element, and this in turn
+    //   causes an event with ActionChipsRetrievalState.REQUESTED to be fired.
+    //   After some time, an event with ActionChipsRetrievalState.UPDATED will
+    //   fire, and this starts the animation.
+    // - IsActionChipsVisible_ is true from the beginning: Same as above.
     if ([GlifAnimationState.STARTED, GlifAnimationState.FINISHED].every(
-            s => s !== this.contextMenuGlifAnimationState_) &&
-        state === ActionChipsRetrievalState.UPDATED) {
-      this.contextMenuGlifAnimationState_ = GlifAnimationState.STARTED;
+            s => s !== this.contextMenuGlifAnimationState_)) {
+      if (state === ActionChipsRetrievalState.REQUESTED) {
+        this.contextMenuGlifAnimationState_ = GlifAnimationState.SPINNER_ONLY;
+      } else if (state === ActionChipsRetrievalState.UPDATED) {
+        this.contextMenuGlifAnimationState_ = GlifAnimationState.STARTED;
+      }
     }
   }
 }

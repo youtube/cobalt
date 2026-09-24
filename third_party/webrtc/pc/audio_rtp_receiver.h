@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/frame_transformer_interface.h"
@@ -51,14 +52,14 @@ class AudioRtpReceiver : public ObserverInterface,
   // a call to either `SetupUnsignaledMediaChannel` or `SetupMediaChannel`
   // will be made, which will internally start the source on the worker thread.
   AudioRtpReceiver(Thread* worker_thread,
-                   std::string receiver_id,
+                   absl::string_view receiver_id,
                    std::vector<std::string> stream_ids,
                    bool is_unified_plan,
                    VoiceMediaReceiveChannelInterface* voice_channel = nullptr);
   // TODO(https://crbug.com/webrtc/9480): Remove this when streams() is removed.
   AudioRtpReceiver(
       Thread* worker_thread,
-      const std::string& receiver_id,
+      absl::string_view receiver_id,
       const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
       bool is_unified_plan,
       VoiceMediaReceiveChannelInterface* media_channel = nullptr);

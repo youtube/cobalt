@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "absl/base/macros.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/time_utils.h"
 
@@ -213,12 +212,6 @@ struct RTC_EXPORT VideoFormat : VideoFormatPod {
   // Get a string presentation in the form of "fourcc width x height x fps"
   std::string ToString() const;
 };
-
-// Returns the largest positive integer that divides both `a` and `b`.
-ABSL_DEPRECATE_AND_INLINE() int GreatestCommonDivisor(int a, int b);
-
-// Returns the smallest positive integer that is divisible by both `a` and `b`.
-ABSL_DEPRECATE_AND_INLINE() int LeastCommonMultiple(int a, int b);
 
 }  //  namespace webrtc
 

@@ -14,6 +14,7 @@
 
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/strcat.h"
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -107,6 +108,7 @@
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/favicon_base/favicon_url_parser.h"
+#include "components/history/core/browser/features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/performance_manager/public/features.h"
@@ -192,6 +194,10 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/ui/webui/settings/glic_handler.h"
+#endif
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/ui/webui/batch_upload_promo/batch_upload_promo_handler.h"
 #endif
 
 namespace settings {
@@ -447,6 +453,10 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   plural_string_handler->AddLocalizedString(
       "safetyHubNotificationPermissionsSecondaryLabel",
       IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_SECONDARY_LABEL);
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  plural_string_handler->AddLocalizedString(
+      "batchUploadPromoLabel", IDS_BATCH_UPLOAD_PROMO_SUBTITLE_ITEMS_WITH_LINK);
+#endif
   web_ui->AddMessageHandler(std::move(plural_string_handler));
 
   // Add the metrics handler to write uma stats.
@@ -611,7 +621,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(browsing_data::features::kDbdRevampDesktop));
   html_source->AddBoolean(
       "enableBrowsingHistoryActorIntegrationM1",
-      browsing_data::features::IsBrowsingHistoryActorIntegrationM1Enabled());
+      history::IsBrowsingHistoryActorIntegrationM1Enabled());
 
   html_source->AddBoolean(
       "enableSupportForHomeAndWork",
@@ -621,6 +631,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "replaceSyncPromosWithSignInPromos",
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos));
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  html_source->AddBoolean("unoPhase2FollowUp", base::FeatureList::IsEnabled(
+                                                   syncer::kUnoPhase2FollowUp));
+#endif
 
   TryShowHatsSurveyWithTimeout();
 }
@@ -682,7 +697,9 @@ void SettingsUI::BindInterface(
   theme_color_picker_handler_factory_receiver_.Bind(
       std::move(pending_receiver));
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void SettingsUI::BindInterface(
     mojo::PendingReceiver<batch_upload_promo::mojom::PageHandlerFactory>
         pending_receiver) {
@@ -691,7 +708,7 @@ void SettingsUI::BindInterface(
   }
   batch_upload_promo_factory_receiver_.Bind(std::move(pending_receiver));
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void SettingsUI::BindInterface(
     mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
@@ -734,7 +751,9 @@ void SettingsUI::CreateThemeColorPickerHandler(
           Profile::FromWebUI(web_ui())),
       web_ui()->GetWebContents());
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void SettingsUI::CreateBatchUploadPromoHandler(
     mojo::PendingRemote<batch_upload_promo::mojom::Page> pending_page,
     mojo::PendingReceiver<batch_upload_promo::mojom::PageHandler>
@@ -743,7 +762,7 @@ void SettingsUI::CreateBatchUploadPromoHandler(
       std::move(pending_page_handler), std::move(pending_page),
       Profile::FromWebUI(web_ui()), web_ui()->GetWebContents());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void SettingsUI::CreateHelpBubbleHandler(
     mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,

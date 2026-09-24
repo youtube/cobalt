@@ -49,8 +49,9 @@ NetworkControlUpdate ScreamNetworkController::CreateFirstUpdate(Timestamp now) {
   RTC_DCHECK(network_available_);
   RTC_DCHECK(!first_update_created_);
   first_update_created_ = true;
-  NetworkControlUpdate update = CreateUpdate(
-      now, target_rate_constraints_.starting_rate.value_or(kDefaultStartRate));
+  scream_->SetFirstTargetRate(
+      target_rate_constraints_.starting_rate.value_or(kDefaultStartRate));
+  NetworkControlUpdate update = CreateUpdate(now);
 
   if (allow_initial_bwe_before_media_) {
     // Creating a probe packet allows padding packets to be sent. So this is
@@ -121,7 +122,7 @@ NetworkControlUpdate ScreamNetworkController::OnSentPacket(SentPacket msg) {
   if (msg.data_in_flight > scream_->max_data_in_flight()) {
     RTC_LOG(LS_VERBOSE) << " Send window full:" << msg.data_in_flight << " > "
                         << scream_->max_data_in_flight();
-    return CreateUpdate(msg.send_time, scream_->target_rate());
+    return CreateUpdate(msg.send_time);
   }
   return NetworkControlUpdate();
 }
@@ -171,18 +172,16 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkStateEstimate(
 NetworkControlUpdate ScreamNetworkController::OnTransportPacketsFeedback(
     TransportPacketsFeedback msg) {
   scream_->OnTransportPacketsFeedback(msg);
-  return CreateUpdate(msg.feedback_time, scream_->target_rate());
+  return CreateUpdate(msg.feedback_time);
 }
 
-NetworkControlUpdate ScreamNetworkController::CreateUpdate(
-    Timestamp now,
-    DataRate target_rate) {
+NetworkControlUpdate ScreamNetworkController::CreateUpdate(Timestamp now) {
   NetworkControlUpdate update;
-  if (target_rate != reported_target_rate_) {
-    reported_target_rate_ = target_rate;
+  if (scream_->target_rate() != reported_target_rate_) {
+    reported_target_rate_ = scream_->target_rate();
     TargetTransferRate target_rate_msg;
     target_rate_msg.at_time = now;
-    target_rate_msg.target_rate = target_rate;
+    target_rate_msg.target_rate = scream_->target_rate();
     target_rate_msg.network_estimate.at_time = now;
     target_rate_msg.network_estimate.round_trip_time = scream_->rtt();
     // TODO: bugs.webrtc.org/447037083 - bwe_period must currently be set but
@@ -190,19 +189,15 @@ NetworkControlUpdate ScreamNetworkController::CreateUpdate(
     target_rate_msg.network_estimate.bwe_period = TimeDelta::Millis(25);
     update.target_rate = target_rate_msg;
   }
-  update.pacer_config = MaybeCreatePacerConfig(target_rate);
-  // TODO: bugs.webrtc.org/447037083 - How do we ensure packets are resent
-  // eventually if all feedback packets are lost or all data in flight is lost?
+  update.pacer_config = MaybeCreatePacerConfig();
   update.congestion_window = scream_->max_data_in_flight();
   return update;
 }
 
-std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig(
-    DataRate target_rate) {
-  constexpr double kPacingRateFactor = 1.5;
+std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig() {
   // Time window used for calculating pacing window if target rate is
   // constrained by CE markings.
-  constexpr TimeDelta kReducedPacingWindow = TimeDelta::Millis(10);
+  constexpr TimeDelta kReducedPacingWindow = TimeDelta::Millis(20);
   // Threshold used for guessing if target rate is constrained due to CE
   // marking.
   constexpr double kL4sAlphaThreshold = 0.01;
@@ -212,13 +207,14 @@ std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig(
 
   DataRate padding_rate = DataRate::Zero();
   TimeDelta pacing_window = current_pacing_window_;
+  DataRate target_rate = scream_->target_rate();
 
   Timestamp now = env_.clock().CurrentTime();
-  if (target_rate < max_needed_rate * kPacingRateFactor &&
+  if (target_rate < max_needed_rate &&
       target_rate < target_rate_constraints_.max_data_rate.value_or(
                         DataRate::PlusInfinity())) {
     // Periodically allow padding to be used to reach a target rate close to
-    // kPacingRateFactor*max_needed_rate.
+    // `max_needed_rate`.
     if (params_.periodic_padding_interval->IsFinite() &&
         (now - last_padding_interval_started_ >
          params_.periodic_padding_interval.Get())) {
@@ -231,14 +227,14 @@ std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig(
   }
 
   if (current_pacing_window_ == default_pacing_window_ &&
-      target_rate < max_needed_rate &&
+      scream_->target_rate() < max_needed_rate &&
       scream_->l4s_alpha() > kL4sAlphaThreshold) {
     // Do stricter pacing if target rate is lower than what is needed and it
     // seems like L4S is enabled. Note that once stricter pacing is enabled,
     // it is not stopped.
     pacing_window = std::min(default_pacing_window_, kReducedPacingWindow);
   }
-  DataRate pacing_rate = target_rate * kPacingRateFactor;
+  DataRate pacing_rate = scream_->pacing_rate();
   if (padding_rate != reported_padding_rate_ ||
       pacing_rate != reported_pacing_rate_ ||
       current_pacing_window_ != pacing_window) {

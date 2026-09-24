@@ -177,19 +177,15 @@ base::Value::Dict LoadTriggerFormAndFieldLogs(
                                  FormRendererId(params.form_renderer_id)};
 
   base::Value::Dict trigger_form_logs;
-  if (FormStructure* form = manager.FindCachedFormById(form_global_id)) {
+  if (const FormStructure* form = manager.FindCachedFormById(form_global_id)) {
     trigger_form_logs.Set("triggerFormSignature", form->FormSignatureAsStr());
 
     if (params.form_control_type) {
       FieldGlobalId field_global_id = {
           frame_token, FieldRendererId(params.field_renderer_id)};
-      auto field =
-          std::ranges::find_if(*form, [&field_global_id](const auto& field) {
-            return field->global_id() == field_global_id;
-          });
-      if (field != form->end()) {
+      if (const AutofillField* field = form->GetFieldById(field_global_id)) {
         trigger_form_logs.Set("triggerFieldSignature",
-                              (*field)->FieldSignatureAsStr());
+                              field->FieldSignatureAsStr());
       }
     }
   }

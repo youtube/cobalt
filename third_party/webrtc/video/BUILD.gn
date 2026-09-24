@@ -720,7 +720,6 @@ if (rtc_include_tests) {
       ]
       deps = [
         ":video_quality_test",
-        "../api:libjingle_peerconnection_api",
         "../api:simulated_network_api",
         "../api:video_quality_test_fixture_api",
         "../api/transport:bitrate_settings",
@@ -762,7 +761,6 @@ if (rtc_include_tests) {
 
       deps = [
         ":video_quality_test",
-        "../api:libjingle_peerconnection_api",
         "../api:simulated_network_api",
         "../api:video_quality_test_fixture_api",
         "../api/transport:bitrate_settings",
@@ -786,7 +784,6 @@ if (rtc_include_tests) {
       sources = [ "sv_loopback.cc" ]
       deps = [
         ":video_quality_test",
-        "../api:libjingle_peerconnection_api",
         "../api:simulated_network_api",
         "../api:video_quality_test_fixture_api",
         "../api/transport:bitrate_settings",

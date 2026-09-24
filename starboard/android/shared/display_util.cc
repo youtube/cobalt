@@ -51,3 +51,5 @@ void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(DisplayUtil)

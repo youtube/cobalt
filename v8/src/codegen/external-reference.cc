@@ -215,10 +215,6 @@ constexpr struct alignas(16) {
 
 // Implementation of ExternalReference
 
-bool ExternalReference::IsIsolateFieldId() const {
-  return (raw_ > 0 && raw_ <= static_cast<Address>(kNumIsolateFieldIds));
-}
-
 Address ExternalReference::address() const {
   // If this CHECK triggers, then an ExternalReference gets created with an
   // IsolateFieldId where the root register is not available, and therefore
@@ -230,8 +226,7 @@ Address ExternalReference::address() const {
 
 int32_t ExternalReference::offset_from_root_register() const {
   CHECK(IsIsolateFieldId());
-  return static_cast<int32_t>(
-      IsolateData::GetOffset(static_cast<IsolateFieldId>(raw_)));
+  return IsolateData::GetOffset(GetIsolateFieldId());
 }
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -282,10 +277,6 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 
 ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
-}
-
-ExternalReference ExternalReference::jslimit_address() {
-  return ExternalReference(IsolateFieldId::kJsLimitAddress);
 }
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
@@ -406,9 +397,9 @@ ExternalReference ExternalReference::Create(StatsCounter* counter) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateAddressId id,
+ExternalReference ExternalReference::Create(IsolateFieldId id,
                                             Isolate* isolate) {
-  return ExternalReference(isolate->get_address_from_id(id));
+  return ExternalReference(isolate->isolate_data()->GetAddress(id));
 }
 
 // static
@@ -1232,15 +1223,13 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
-  base::MemCopy(dest, src, n);
-  return dest;
+  return memcpy(dest, src, n);
 }
 
 FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
 
 void* libc_memmove(void* dest, const void* src, size_t n) {
-  base::MemMove(dest, src, n);
-  return dest;
+  return memmove(dest, src, n);
 }
 
 FUNCTION_REFERENCE(libc_memmove_function, libc_memmove)
@@ -1602,13 +1591,6 @@ ExternalReference::search_string_raw<const base::uc16, const uint8_t>();
 template ExternalReference
 ExternalReference::search_string_raw<const base::uc16, const base::uc16>();
 
-ExternalReference ExternalReference::FromRawAddress(Address address) {
-  if (address <= static_cast<Address>(kNumIsolateFieldIds)) {
-    return ExternalReference(static_cast<IsolateFieldId>(address));
-  }
-  return ExternalReference(address);
-}
-
 ExternalReference ExternalReference::cpu_features() {
   DCHECK(CpuFeatures::initialized_);
   return ExternalReference(&CpuFeatures::supported_);
@@ -1931,15 +1913,15 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(CamelName, name)        \
-  case IsolateFieldId::k##CamelName: \
-    return #name;
-    EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
-#undef CASE
-#define CASE(camel, size, name)  \
-  case IsolateFieldId::k##camel: \
-    return #name;
+#define CASE(CamelName, Size, hacker_name) \
+  case IsolateFieldId::k##CamelName:       \
+    return #hacker_name;
     ISOLATE_DATA_FIELDS(CASE)
+#undef CASE
+#define CASE(CamelName, hacker_name, ...) \
+  case IsolateFieldId::k##CamelName:      \
+    return #hacker_name;
+    ISOLATE_DATA_SUBFIELDS(CASE)
 #undef CASE
     default:
       return "unknown";
@@ -1950,9 +1932,7 @@ static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   os << reinterpret_cast<const void*>(reference.raw());
   if (reference.IsIsolateFieldId()) {
-    os << " <"
-       << GetNameOfIsolateFieldId(static_cast<IsolateFieldId>(reference.raw()))
-       << ">";
+    os << " <" << GetNameOfIsolateFieldId(reference.GetIsolateFieldId()) << ">";
   } else {
     const Runtime::Function* fn =
         Runtime::FunctionForEntry(reference.address());

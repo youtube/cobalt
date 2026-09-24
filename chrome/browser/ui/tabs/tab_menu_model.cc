@@ -16,10 +16,13 @@
 #include "chrome/browser/commerce/product_specifications/product_specifications_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/existing_comparison_table_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/existing_window_sub_menu_model.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
 #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
@@ -28,6 +31,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/user_education/user_education_service.h"
@@ -59,6 +63,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kAddANoteTabMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kSplitTabsMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kArrangeSplitTabsMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kSwapSplitTabsMenuItem);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kAddNewTabAdjacentMenuItem);
 
 TabMenuModel::TabMenuModel(ui::SimpleMenuModel::Delegate* delegate,
                            TabMenuModelDelegate* tab_menu_model_delegate,
@@ -117,7 +122,7 @@ void TabMenuModel::BuildForWebApp(TabStripModel* tab_strip, int index) {
 void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   std::vector<int> indices;
   if (tab_strip->IsTabSelected(index)) {
-    const ui::ListSelectionModel::SelectedIndices& sel =
+    const ui::ListSelectionModel::SelectedIndices sel =
         tab_strip->selection_model().selected_indices();
     indices = std::vector<int>(sel.begin(), sel.end());
   } else {
@@ -126,9 +131,21 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
 
   int num_tabs = indices.size();
 
-  AddItemWithStringId(TabStripModel::CommandNewTabToRight,
-                      base::i18n::IsRTL() ? IDS_TAB_CXMENU_NEWTABTOLEFT
-                                          : IDS_TAB_CXMENU_NEWTABTORIGHT);
+  bool showing_vertical_tabs =
+      tabs::IsVerticalTabsFeatureEnabled() &&
+      tabs::VerticalTabStripStateController::From(
+          tab_strip->delegate()->GetBrowserWindowInterface())
+          ->ShouldDisplayVerticalTabs();
+
+  if (showing_vertical_tabs) {
+    AddItemWithStringId(TabStripModel::CommandNewTabToRight,
+                        IDS_TAB_CXMENU_NEWTABBELOW);
+  } else {
+    AddItemWithStringId(TabStripModel::CommandNewTabToRight,
+                        base::i18n::IsRTL() ? IDS_TAB_CXMENU_NEWTABTOLEFT
+                                            : IDS_TAB_CXMENU_NEWTABTORIGHT);
+  }
+  SetElementIdentifierAt(GetItemCount() - 1, kAddNewTabAdjacentMenuItem);
 
   // Reading list is moved lower when Split View is enabled.
   if (tab_strip->delegate()->SupportsReadLater() &&
@@ -356,9 +373,15 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   AddItemWithStringId(TabStripModel::CommandCloseOtherTabs,
                       IDS_TAB_CXMENU_CLOSEOTHERTABS);
   {
-    AddItemWithStringId(TabStripModel::CommandCloseTabsToRight,
-                        base::i18n::IsRTL() ? IDS_TAB_CXMENU_CLOSETABSTOLEFT
-                                            : IDS_TAB_CXMENU_CLOSETABSTORIGHT);
+    if (showing_vertical_tabs) {
+      AddItemWithStringId(TabStripModel::CommandCloseTabsToRight,
+                          IDS_TAB_CXMENU_CLOSETABSBELOW);
+    } else {
+      AddItemWithStringId(TabStripModel::CommandCloseTabsToRight,
+                          base::i18n::IsRTL()
+                              ? IDS_TAB_CXMENU_CLOSETABSTOLEFT
+                              : IDS_TAB_CXMENU_CLOSETABSTORIGHT);
+    }
     SetEnabledAt(GetItemCount() - 1,
                  tab_strip->IsContextMenuCommandEnabled(
                      index, TabStripModel::CommandCloseTabsToRight));

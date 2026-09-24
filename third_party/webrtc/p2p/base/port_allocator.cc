@@ -342,4 +342,10 @@ void PortAllocatorSession::SubscribePortReady(
   port_ready_callbacks_.AddReceiver(std::move(callback));
 }
 
+void PortAllocatorSession::SubscribePortReady(
+    void* tag,
+    absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback) {
+  port_ready_callbacks_.AddReceiver(tag, std::move(callback));
+}
+
 }  // namespace webrtc

@@ -11,10 +11,73 @@
 
 namespace webnn::test {
 
+FakeGpuHostForTesting::FakeGpuHostForTesting() : receiver_(this) {}
+
+FakeGpuHostForTesting::~FakeGpuHostForTesting() = default;
+
+void FakeGpuHostForTesting::Bind(
+    mojo::PendingReceiver<viz::mojom::GpuHost> receiver) {
+  receiver_.Bind(std::move(receiver));
+}
+
+void FakeGpuHostForTesting::DidInitialize(
+    const gpu::GPUInfo& gpu_info,
+    const gpu::GpuFeatureInfo& gpu_feature_info,
+    const std::optional<gpu::GPUInfo>& gpu_info_for_hardware_gpu,
+    const std::optional<gpu::GpuFeatureInfo>& gpu_feature_info_for_hardware_gpu,
+    const gfx::GpuExtraInfo& gpu_extra_info) {}
+
+void FakeGpuHostForTesting::DidFailInitialize() {}
+
+void FakeGpuHostForTesting::DidCreateContextSuccessfully() {}
+
+void FakeGpuHostForTesting::DidCreateOffscreenContext(const GURL& url) {}
+
+void FakeGpuHostForTesting::DidDestroyOffscreenContext(const GURL& url) {}
+
+void FakeGpuHostForTesting::DidDestroyChannel(int32_t client_id) {}
+
+void FakeGpuHostForTesting::DidDestroyAllChannels() {}
+
+void FakeGpuHostForTesting::DidLoseContext(gpu::error::ContextLostReason reason,
+                                           const GURL& active_url) {}
+
+void FakeGpuHostForTesting::DisableGpuCompositing() {}
+
+void FakeGpuHostForTesting::DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) {}
+
+void FakeGpuHostForTesting::GetIsolationKey(
+    int32_t client_id,
+    const blink::WebGPUExecutionContextToken& token,
+    GetIsolationKeyCallback cb) {}
+
+void FakeGpuHostForTesting::StoreBlobToDisk(
+    const gpu::GpuDiskCacheHandle& handle,
+    const std::string& key,
+    const std::string& shader) {}
+
+void FakeGpuHostForTesting::ClearGrShaderDiskCache() {}
+
+#if BUILDFLAG(IS_WIN)
+void FakeGpuHostForTesting::DidUpdateOverlayInfo(
+    const gpu::OverlayInfo& overlay_info) {}
+
+void FakeGpuHostForTesting::DidUpdateDXGIInfo(
+    gfx::mojom::DXGIInfoPtr dxgi_info) {}
+
+void FakeGpuHostForTesting::EnsureWebNNExecutionProvidersReady(
+    EnsureWebNNExecutionProvidersReadyCallback callback) {
+  // Initializes the execution providers used by the WebNN ORT backend.
+  webnn::EnsureExecutionProvidersReady(std::move(callback));
+}
+#endif
+
 WebNNTestEnvironment::WebNNTestEnvironment(
     WebNNContextProviderImpl::WebNNStatus status,
     WebNNContextProviderImpl::LoseAllContextsCallback
-        lose_all_contexts_callback) {
+        lose_all_contexts_callback,
+    std::unique_ptr<base::test::TaskEnvironment> task_environment)
+    : task_environment_(std::move(task_environment)) {
   gpu::GpuFeatureInfo gpu_feature_info;
   gpu::GPUInfo gpu_info;
 
@@ -48,14 +111,13 @@ WebNNTestEnvironment::WebNNTestEnvironment(
   constexpr int32_t kFakeClientIdForTesting = 0;
 
   mojo::PendingRemote<viz::mojom::GpuHost> gpu_host_proxy;
-  std::ignore = gpu_host_proxy.InitWithNewPipeAndPassReceiver();
+  fake_gpu_host_.Bind(gpu_host_proxy.InitWithNewPipeAndPassReceiver());
   context_provider_ = WebNNContextProviderImpl::Create(
       /*shared_context_state=*/nullptr, std::move(gpu_feature_info),
-      std::move(gpu_info), /*shared_image_manager=*/nullptr,
-      std::move(lose_all_contexts_callback),
-      base::SingleThreadTaskRunner::GetCurrentDefault(),
-      g_webnn_scheduler.get(), kFakeClientIdForTesting,
-      mojo::SharedRemote(std::move(gpu_host_proxy)));
+      std::move(gpu_info),
+      /*shared_image_manager=*/nullptr, std::move(lose_all_contexts_callback),
+      task_environment_->GetMainThreadTaskRunner(), g_webnn_scheduler.get(),
+      kFakeClientIdForTesting, mojo::SharedRemote(std::move(gpu_host_proxy)));
 }
 
 void WebNNTestEnvironment::BindWebNNContextProvider(

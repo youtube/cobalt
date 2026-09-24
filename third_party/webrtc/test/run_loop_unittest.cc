@@ -10,8 +10,11 @@
 
 #include "test/run_loop.h"
 
+#include "api/environment/environment.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -55,6 +58,43 @@ TEST(RunLoopTest, PostAndQuit) {
   });
   loop.Run();
   EXPECT_TRUE(ran);
+}
+
+TEST(RunLoopTest, RunForWaitsForMaxWaitDurationIfNoQuit) {
+  Environment env = CreateTestEnvironment();
+  test::RunLoop loop;
+  Timestamp start = env.clock().CurrentTime();
+  loop.RunFor(TimeDelta::Millis(20));
+  EXPECT_GE(env.clock().CurrentTime() - start, TimeDelta::Millis(19));
+}
+
+TEST(RunLoopTest, RunForQuitsEarlyIfQuitCalled) {
+  Environment env = CreateTestEnvironment();
+  test::RunLoop loop;
+  Timestamp start = env.clock().CurrentTime();
+  loop.task_queue()->PostDelayedHighPrecisionTask(loop.QuitClosure(),
+                                                  TimeDelta::Millis(10));
+  loop.RunFor(TimeDelta::Millis(20));
+  EXPECT_LE(env.clock().CurrentTime() - start, TimeDelta::Millis(11));
+}
+
+TEST(RunLoopTest, RunForQuitsEarlyAndCancelsQuitCalls) {
+  Environment env = CreateTestEnvironment();
+  test::RunLoop loop;
+  Timestamp start = env.clock().CurrentTime();
+  loop.task_queue()->PostDelayedHighPrecisionTask(loop.QuitClosure(),
+                                                  TimeDelta::Millis(10));
+  loop.RunFor(TimeDelta::Millis(20));
+  EXPECT_LE(env.clock().CurrentTime() - start, TimeDelta::Millis(11));
+
+  Timestamp seconds_task_start = env.clock().CurrentTime();
+  loop.task_queue()->PostDelayedHighPrecisionTask(loop.QuitClosure(),
+                                                  TimeDelta::Millis(100));
+  loop.Run();
+  // If the old `RunFor` causes the loop to quit then this will be much shorter
+  // than 100ms.
+  EXPECT_GE(env.clock().CurrentTime() - seconds_task_start,
+            TimeDelta::Millis(99));
 }
 
 }  // namespace webrtc

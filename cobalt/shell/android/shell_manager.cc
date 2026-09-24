@@ -31,7 +31,6 @@
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
-using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -62,14 +61,13 @@ void RemoveShellView(const JavaRef<jobject>& shell_view) {
                                 shell_view);
 }
 
-static void JNI_ShellManager_Init(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj) {
+static void JNI_ShellManager_Init(JNIEnv* env, const JavaRef<jobject>& obj) {
   g_global_state.Get().j_shell_manager.Reset(obj);
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaParamRef<jstring>& jurl,
-                                  const JavaParamRef<jstring>& jdeeplink_url) {
+                                  const JavaRef<jstring>& jurl,
+                                  const JavaRef<jstring>& jdeeplink_url) {
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   std::string deeplink_url =
       base::android::ConvertJavaStringToUTF8(env, jdeeplink_url);
@@ -106,7 +104,7 @@ void DestroyShellManager() {
 base::android::ScopedJavaLocalRef<jstring>
 JNI_ShellManager_AppendMigrationStatus(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& jurl) {
+    const base::android::JavaRef<jstring>& jurl) {
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   const std::string status_param = cobalt::migrate_storage_record::
       MigrationManager::GetMigrationStatusUrlParameter();
@@ -128,3 +126,5 @@ JNI_ShellManager_AppendMigrationStatus(
 }
 
 }  // namespace content
+
+DEFINE_JNI(ShellManager)

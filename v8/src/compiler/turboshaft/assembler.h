@@ -401,6 +401,12 @@ class LabelBase {
   using const_or_values_t = std::tuple<maybe_const_or_v_t<Ts>...>;
   using recorded_values_t = std::tuple<base::SmallVector<V<Ts>, 2>...>;
 
+  enum Likelyness {
+    kUnknown,
+    kLikely,
+    kUnlikely,
+  };
+
   Block* block() { return data_.block; }
 
   bool has_incoming_jump() const { return has_incoming_jump_; }
@@ -422,6 +428,9 @@ class LabelBase {
     has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
+    // We give the block likelyness a preference here.
+    if (data_.likelyness == Likelyness::kLikely) hint = BranchHint::kTrue;
+    if (data_.likelyness == Likelyness::kUnlikely) hint = BranchHint::kFalse;
     if (assembler.GotoIf(condition, data_.block, hint) &
         ConditionalGotoStatus::kGotoDestination) {
       RecordValues(current_block, data_, values);
@@ -435,6 +444,9 @@ class LabelBase {
     has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
+    // We give the block likelyness a preference here.
+    if (data_.likelyness == Likelyness::kLikely) hint = BranchHint::kFalse;
+    if (data_.likelyness == Likelyness::kUnlikely) hint = BranchHint::kTrue;
     if (assembler.GotoIfNot(condition, data_.block, hint) &
         ConditionalGotoStatus::kGotoDestination) {
       RecordValues(current_block, data_, values);
@@ -467,15 +479,18 @@ class LabelBase {
     Block* block;
     base::SmallVector<Block*, 4> predecessors;
     recorded_values_t recorded_values;
+    Likelyness likelyness;
     SourceLocation def_location;
 
-    explicit BlockData(Block* block, SourceLocation def_location)
-        : block(block), def_location(def_location) {}
+    explicit BlockData(Block* block, Likelyness likelyness,
+                       SourceLocation def_location)
+        : block(block), likelyness(likelyness), def_location(def_location) {}
 #ifdef DEBUG
     BlockData(BlockData&& other) V8_NOEXCEPT
         : block(other.block),
           predecessors(std::move(other.predecessors)),
           recorded_values(std::move(other.recorded_values)),
+          likelyness(other.likelyness),
           def_location(std::move(other.def_location)) {
       other.block = nullptr;
     }
@@ -486,6 +501,7 @@ class LabelBase {
       other.block = nullptr;
       predecessors = std::move(other.predecessors);
       recorded_values = std::move(other.recorded_values);
+      likelyness = other.likelyness;
       def_location = std::move(other.def_location);
       return *this;
     }
@@ -514,8 +530,9 @@ class LabelBase {
 #endif  // DEBUG
   };
 
-  explicit LabelBase(Block* block, SourceLocation def_location)
-      : data_(block, def_location) {
+  explicit LabelBase(Block* block, Likelyness likelyness,
+                     SourceLocation def_location)
+      : data_(block, likelyness, def_location) {
     DCHECK_NOT_NULL(data_.block);
   }
 
@@ -596,10 +613,11 @@ class Label : public LabelBase<false, Ts...> {
   Label& operator=(const Label&) = delete;
 
  public:
+  using Likelyness = super::Likelyness;
   template <typename Reducer>
-  explicit Label(Reducer* reducer,
+  explicit Label(Reducer* reducer, Likelyness likelyness = Likelyness::kUnknown,
                  SourceLocation l = SourceLocation::CurrentIfDebug())
-      : super(reducer->Asm().NewBlock(), l) {}
+      : super(reducer->Asm().NewBlock(), likelyness, l) {}
 
   Label(Label&& other) V8_NOEXCEPT : super(std::move(other)) {}
 };
@@ -618,8 +636,10 @@ class LoopLabel : public LabelBase<true, Ts...> {
   template <typename Reducer>
   explicit LoopLabel(Reducer* reducer, SourceLocation def_location =
                                            SourceLocation::CurrentIfDebug())
-      : super(reducer->Asm().NewBlock(), def_location),
-        loop_header_data_{reducer->Asm().NewLoopHeader(), def_location} {}
+      : super(reducer->Asm().NewBlock(), super::Likelyness::kUnknown,
+              def_location),
+        loop_header_data_{reducer->Asm().NewLoopHeader(),
+                          super::Likelyness::kUnknown, def_location} {}
 
   LoopLabel(LoopLabel&& other) V8_NOEXCEPT
       : super(std::move(other)),
@@ -838,6 +858,43 @@ class Uninitialized {
   }
 
   std::optional<V<T>> object_;
+};
+
+namespace detail {
+template <typename T>
+struct MemoryRepresentationFor {
+  static_assert(is_subtype_v<T, HeapObject>);
+  static constexpr MemoryRepresentation value =
+      MemoryRepresentation::TaggedPointer();
+};
+template <>
+struct MemoryRepresentationFor<Smi> {
+  static constexpr MemoryRepresentation value =
+      MemoryRepresentation::TaggedSigned();
+};
+template <typename... Ts>
+struct MemoryRepresentationFor<Union<Ts...>> {
+  static constexpr MemoryRepresentation value =
+      (std::is_same_v<Ts, Smi> || ...) ? MemoryRepresentation::AnyTagged()
+                                       : MemoryRepresentation::TaggedPointer();
+};
+}  // namespace detail
+
+template <typename C, typename F>
+struct HeapObjectField;
+
+template <typename C, typename F>
+struct HeapObjectField<C, TaggedMember<F>> {
+  using class_type = C;
+  using field_type = F;
+  static constexpr MemoryRepresentation rep =
+      detail::MemoryRepresentationFor<F>::value;
+
+  size_t offset;
+  const char* name;
+
+  constexpr HeapObjectField(size_t offset, const char* name)
+      : offset(offset), name(name) {}
 };
 
 // FrameStateForCall is mostly just a wrapper around V<FrameState>, but when
@@ -1694,9 +1751,9 @@ class AssemblerOpInterface : public Next {
   DECL_SINGLE_REP_BINOP_V(Float64Power, FloatBinop, Power, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Atan2, FloatBinop, Atan2, Float64)
 
-  V<Word> Shift(V<Word> left, V<Word32> right, ShiftOp::Kind kind,
+  V<Word> Shift(V<Word> left, ConstOrV<Word32> right, ShiftOp::Kind kind,
                 WordRepresentation rep) {
-    return ReduceIfReachableShift(left, right, kind, rep);
+    return ReduceIfReachableShift(left, resolve(right), kind, rep);
   }
 
 #define DECL_SINGLE_REP_SHIFT_V(name, kind, tag)                        \
@@ -1704,68 +1761,74 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableShift(resolve(left), resolve(right),        \
                                   ShiftOp::Kind::k##kind, V<tag>::rep); \
   }
+#define DECL_MULTI_REP_SHIFT_V(name)                                           \
+  V<Word> name(V<Word> left, ConstOrV<Word32> right, WordRepresentation rep) { \
+    return ReduceIfReachableShift(left, resolve(right),                        \
+                                  ShiftOp::Kind::k##name, rep);                \
+  }
 
-  DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
-                       WordRepresentation, ShiftRightArithmeticShiftOutZeros)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmeticShiftOutZeros)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
-                       ShiftRightArithmetic)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmetic)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmetic, ShiftRightArithmetic,
                           Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmetic, ShiftRightArithmetic,
                           Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmetic, ShiftRightArithmetic,
                           WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
-                       ShiftRightLogical)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightLogical)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightLogical, ShiftRightLogical, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightLogical, ShiftRightLogical, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightLogical, ShiftRightLogical, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
+  DECL_MULTI_REP_SHIFT_V(ShiftLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftLeft, ShiftLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftLeft, ShiftLeft, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftLeft, ShiftLeft, WordPtr)
-  DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
+  DECL_MULTI_REP_SHIFT_V(RotateRight)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateRight, RotateRight, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateRight, RotateRight, Word64)
-  DECL_MULTI_REP_BINOP(RotateLeft, Shift, WordRepresentation, RotateLeft)
+  DECL_MULTI_REP_SHIFT_V(RotateLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateLeft, RotateLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateLeft, RotateLeft, Word64)
 
-  V<Word> ShiftRightLogical(V<Word> left, uint32_t right,
-                            WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightLogical(left, this->Word32Constant(right), rep);
-  }
-  V<Word> ShiftRightArithmetic(V<Word> left, uint32_t right,
-                               WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
-  }
-  V<Word> ShiftLeft(V<Word> left, uint32_t right, WordRepresentation rep) {
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftLeft(left, this->Word32Constant(right), rep);
-  }
+#undef DECL_SINGLE_REP_SHIFT_V
+#undef DECL_MULTI_REP_SHIFT_V
 
   V<Word32> Equal(V<Any> left, V<Any> right, RegisterRepresentation rep) {
     return Comparison(left, right, ComparisonOp::Kind::kEqual, rep);
   }
 
-  V<Word32> TaggedEqual(V<Object> left, V<Object> right) {
+  V<Word32> TaggedEqual(V<MaybeObject> left, V<MaybeObject> right) {
     return Equal(left, right, RegisterRepresentation::Tagged());
   }
 
-  V<Word32> SmiEqual(ConstOrV<Smi> a, ConstOrV<Smi> b) {
-    return __ WordPtrEqual(__ BitcastSmiToWordPtr(resolve(a)),
-                           __ BitcastSmiToWordPtr(resolve(b)));
+  V<Word32> SmiEqual(ConstOrV<Smi> left, ConstOrV<Smi> right) {
+    return TaggedEqual(resolve(left), resolve(right));
   }
+
+#define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)            \
+  V<Word32> SmiOpName(ConstOrV<Smi> left, ConstOrV<Smi> right) {           \
+    V<WordPtr> l = BitcastTaggedToWordPtrForTagAndSmiBits(resolve(left));  \
+    V<WordPtr> r = BitcastTaggedToWordPtrForTagAndSmiBits(resolve(right)); \
+    if constexpr (kTaggedSize == kInt64Size) {                             \
+      return IntPtrOpName(l, r);                                           \
+    } else {                                                               \
+      static_assert(kTaggedSize == kInt32Size);                            \
+      static_assert(v8::internal::SmiValuesAre31Bits());                   \
+      return Int32OpName(TruncateWordPtrToWord32(l),                       \
+                         TruncateWordPtrToWord32(r));                      \
+    }                                                                      \
+  }
+
+  SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan, Int32LessThan)
+  SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual,
+                    Int32LessThanOrEqual)
+#undef SMI_COMPARISON_OP
 
   V<Word32> RootEqual(V<Object> input, RootIndex root, Isolate* isolate) {
     return __ TaggedEqual(
@@ -2030,8 +2093,8 @@ class AssemblerOpInterface : public Next {
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
 #undef DECL_TAGGED_BITCAST
-  V<Object> BitcastWordPtrToTagged(V<WordPtr> input) {
-    return TaggedBitcast(input, V<WordPtr>::rep, V<Object>::rep,
+  V<Object> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
+    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<Object>::rep,
                          TaggedBitcastOp::Kind::kAny);
   }
 
@@ -2337,10 +2400,10 @@ class AssemblerOpInterface : public Next {
         return Float64Constant(value);
     }
   }
-  OpIndex NumberConstant(i::Float64 value) {
+  V<Number> NumberConstant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kNumber, value);
   }
-  OpIndex NumberConstant(double value) {
+  V<Number> NumberConstant(double value) {
     // Passing the NaN Hole as input is allowed, but there is no guarantee that
     // it will remain a hole (it will remain NaN though).
     if (std::isnan(value)) {
@@ -2523,12 +2586,12 @@ class AssemblerOpInterface : public Next {
       return V<Word32>::Cast(resolve(input));
     }
   }
-  V<WordPtr> ChangeInt32ToIntPtr(V<Word32> input) {
+  V<WordPtr> ChangeInt32ToIntPtr(ConstOrV<Word32> input) {
     if constexpr (Is64()) {
       return ChangeInt32ToInt64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(input);
+      return V<WordPtr>::Cast(resolve(input));
     }
   }
   V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
@@ -2577,6 +2640,8 @@ class AssemblerOpInterface : public Next {
           WordPtrBitwiseAnd(V<WordPtr>::Cast(object), kSmiTagMask), kSmiTag);
     }
   }
+
+  V<Word32> IsNotSmi(V<Object> object) { return Word32Equal(IsSmi(object), 0); }
 
 #define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
   DECL_CHANGE_V(                                                             \
@@ -2841,30 +2906,25 @@ class AssemblerOpInterface : public Next {
     static_assert(COMPRESS_POINTERS_BOOL);
     V<Word32> handle =
         Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
-    V<Word32> table_index =
-        Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
-    V<Word64> table_offset = __ ChangeUint32ToUint64(
-        Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
     V<WordPtr> table =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kTrustedPointerTableBasePointerOffset);
-    V<WordPtr> decoded_ptr =
-        Load(table, table_offset, LoadOp::Kind::RawAligned(),
-             MemoryRepresentation::UintPtr());
-
-    // Untag the pointer and remove the marking bit in one operation.
-    decoded_ptr =
-        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
-
-    // Bitcast to tagged to this gets scanned by the GC properly.
-    return BitcastWordPtrToTagged(decoded_ptr);
+    return LoadTrustedPointerField(table, handle, kind.is_immutable, tag);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
 #endif  // V8_ENABLE_SANDBOX
   }
+
+#if V8_ENABLE_SANDBOX
+  V<Object> LoadTrustedPointerField(V<WordPtr> table, V<Word32> handle,
+                                    bool is_immutable, IndirectPointerTag tag) {
+    return ReduceIfReachableLoadTrustedPointerField(table, handle, is_immutable,
+                                                    tag);
+  }
+#endif
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointerField(V<HeapObject> base, LoadOp::Kind kind,
@@ -2939,6 +2999,43 @@ class AssemblerOpInterface : public Next {
     return DecodeWord32(word32, BitField::kShift, BitField::kMask);
   }
 
+  V<Word32> IsSetWord32(V<Word32> word32, uint32_t mask) {
+    return Word32Equal(Word32Equal(Word32BitwiseAnd(word32, mask), 0), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetWord32(V<Word32> word) {
+    return IsSetWord32(word, BitField::kMask);
+  }
+
+  V<Word32> IsNotSetWord32(V<Word32> word32, uint32_t mask) {
+    return Word32Equal(Word32BitwiseAnd(word32, mask), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsNotSetWord32(V<Word32> word) {
+    return IsNotSetWord32(word, BitField::kMask);
+  }
+
+  V<Word32> IsSetWordPtr(V<WordPtr> word, uintptr_t mask) {
+    return Word32Equal(WordPtrEqual(WordPtrBitwiseAnd(word, mask), 0), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetWordPtr(V<WordPtr> word) {
+    return IsSetWordPtr(word, BitField::kMask);
+  }
+
+  V<Word32> IsSetSmi(V<Smi> smi, int untagged_mask) {
+    uintptr_t mask = base::bit_cast<uintptr_t>(Smi::FromInt(untagged_mask));
+    return IsSetWordPtr(BitcastTaggedToWordPtrForTagAndSmiBits(smi), mask);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetSmi(V<Smi> smi) {
+    return IsSetSmi(smi, BitField::kMask);
+  }
+
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
@@ -2999,6 +3096,12 @@ class AssemblerOpInterface : public Next {
     return LoadFieldImpl<T>(object, field);
   }
 
+  template <typename Obj, typename Field>
+  V<typename Field::field_type> LoadField(V<Obj> object, const Field& field) {
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase);
+    return Load(object, kind, field.rep, static_cast<int32_t>(field.offset));
+  }
+
   template <typename Rep>
   V<Rep> LoadFieldImpl(OpIndex object, const compiler::FieldAccess& access) {
     MachineType machine_type = access.machine_type;
@@ -3057,7 +3160,7 @@ class AssemblerOpInterface : public Next {
 
   V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
-                       Word32Constant(instance_type));
+                       instance_type);
   }
 
   V<Float64> LoadHeapNumberValue(V<HeapNumber> heap_number) {
@@ -3232,16 +3335,17 @@ class AssemblerOpInterface : public Next {
   V<Word32> IsStringMap(V<HeapObject> obj) {
     return __ Uint32LessThanOrEqual(
         __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(obj)),
-        __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound));
+        InstanceTypeChecker::kStringMapUpperBound);
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  V<Word32> ArrayBufferIsDetached(V<JSArrayBufferView> object) {
+  V<Word32> ArrayBufferNotValid(V<JSArrayBufferView> object,
+                                TypedArrayAccessMode mode) {
     V<HeapObject> buffer = __ template LoadField<HeapObject>(
         object, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
     V<Word32> bitfield = __ template LoadField<Word32>(
         buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::WasDetachedBit::kMask);
+    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::NotValidMask(mode));
   }
 
   template <typename T = HeapObject>
@@ -3363,12 +3467,14 @@ class AssemblerOpInterface : public Next {
                   implem);
   }
 
+  // Using Word32Select/Word64Select/Float64Select/Float64Select lowers to a
+  // CMove if possible and a Branch otherwise.
 #define DEF_SELECT(Rep)                                                  \
   V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,         \
                      ConstOrV<Rep> vfalse) {                             \
     return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
                        RegisterRepresentation::Rep(), BranchHint::kNone, \
-                       SelectOp::Implementation::kCMove);                \
+                       SelectOp::Implementation::kAny);                  \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
@@ -3377,13 +3483,29 @@ class AssemblerOpInterface : public Next {
   DEF_SELECT(Float64)
 #undef DEF_SELECT
 
+  // CMove always lowers to a conditional move and crashes if the target
+  // architecture doesn't support it.
+#define DEF_CMOVE(Rep, rep)                                              \
+  V<Rep> Rep##CMove(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,          \
+                    ConstOrV<Rep> vfalse) {                              \
+    DCHECK(SupportedOperations::rep##_select());                         \
+    return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
+                       RegisterRepresentation::Rep(), BranchHint::kNone, \
+                       SelectOp::Implementation::kForceCMove);           \
+  }
+  DEF_CMOVE(Word32, word32)
+  DEF_CMOVE(Word64, word64)
+  DEF_CMOVE(Float32, float32)
+  DEF_CMOVE(Float64, float64)
+#undef DEF_CMOVE
+
   template <typename T, typename U>
   V<std::common_type_t<T, U>> Conditional(ConstOrV<Word32> cond, V<T> vtrue,
                                           V<U> vfalse,
                                           BranchHint hint = BranchHint::kNone) {
     return Select(resolve(cond), vtrue, vfalse,
                   V<std::common_type_t<T, U>>::rep, hint,
-                  SelectOp::Implementation::kBranch);
+                  SelectOp::Implementation::kForceBranch);
   }
   void Switch(V<Word32> input, base::Vector<SwitchOp::Case> cases,
               Block* default_case,
@@ -4792,6 +4914,13 @@ class AssemblerOpInterface : public Next {
         table, key,
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  template <RootIndex index>
+  decltype(auto) LoadRootWasm() {
+    return LoadRootHelper<index>(Asm(), __ data()->isolate());
+  }
+#endif
 
   V<Object> LoadRoot(RootIndex root_index) {
     Isolate* isolate = __ data() -> isolate();

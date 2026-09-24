@@ -139,8 +139,8 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
       const blink::WebAudioLatencyHint& latency_hint,
       std::optional<float> context_sample_rate,
       media::AudioRendererSink::RenderCallback* callback) override;
-  bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
-                           base::span<const char> audio_file_data) override;
+  std::unique_ptr<blink::WebAudioBus> DecodeAudioFileData(
+      base::span<const char> audio_file_data) override;
   scoped_refptr<media::AudioCapturerSource> NewAudioCapturerSource(
       blink::WebLocalFrame* web_frame,
       const media::AudioSourceParameters& params) override;
@@ -259,8 +259,6 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   void SetPrivateMemoryFootprint(
       uint64_t private_memory_footprint_bytes) override;
   bool IsUserLevelMemoryPressureSignalEnabled() override;
-  std::pair<base::TimeDelta, base::TimeDelta>
-  InertAndMinimumIntervalOfUserLevelMemoryPressureSignal() override;
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnV8HeapLastResortGC() override;
 

@@ -10,6 +10,7 @@
 #include "ash/accessibility/mouse_keys/mouse_keys_controller.h"
 #include "ash/accessibility/switch_access/point_scan_controller.h"
 #include "ash/constants/ash_constants.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/keyboard/keyboard_util.h"
 #include "ash/public/cpp/accessibility_event_rewriter_delegate.h"
 #include "ash/shell.h"
@@ -18,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/prefs/pref_service.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/events/ash/event_rewriter_ash.h"
 #include "ui/events/devices/device_data_manager.h"
@@ -66,6 +68,16 @@ void MaybeLogEventDispatchError(
   }
 }
 #endif
+
+void DumpWithoutCrashingHelper(const std::string& message) {
+  std::ostringstream errorStream;
+  errorStream << message;
+  LOG(ERROR) << errorStream.str();
+  static auto* const crash_key = base::debug::AllocateCrashKeyString(
+      "chromevox_mv3_key_events", base::debug::CrashKeySize::Size1024);
+  base::debug::SetCrashKeyString(crash_key, errorStream.str());
+  base::debug::DumpWithoutCrashing();
+}
 
 }  // namespace
 
@@ -120,7 +132,14 @@ void AccessibilityEventRewriter::ProcessPendingSpokenFeedbackEvent(
   CHECK(Shell::Get()->accessibility_controller()->spoken_feedback().enabled());
   CHECK(::features::IsAccessibilityManifestV3EnabledForChromeVox());
   CHECK(chromevox_mv3_key_handling_enabled_);
-  CHECK(!pending_key_events_.empty());
+  if (pending_key_events_.empty()) {
+    // The queue can be empty in edge cases where ChromeVox is toggled off and
+    // back on in quick succession.
+    DumpWithoutCrashingHelper(
+        "Couldn't process pending key event because "
+        "the queue is empty");
+    return;
+  }
 
   const auto& pending_event_info = pending_key_events_.front();
   CHECK_EQ(id, pending_event_info.id);
@@ -184,18 +203,18 @@ void AccessibilityEventRewriter::SetSpokenFeedbackMv3KeyHandlingEnabled(
 
   if (enabled) {
     // Ensure we are starting with a clean state.
-    CHECK_EQ(0u, next_pending_event_id_);
     CHECK(pending_key_events_.empty());
   } else {
     // Post a task to propagate all pending events. We can't immediately
     // propagate them here because there is a chance that the front-most event
     // is still in-use; this happens if ChromeVox is disabled with the keyboard
-    // accelerator.
+    // accelerator. We use a cancelable callback to prevent repeatedly clearing
+    // the event queue.
+    send_all_pending_events_callback_.Reset(base::BindOnce(
+        &AccessibilityEventRewriter::SendAllPendingSpokenFeedbackEvents,
+        GetWeakPtr()));
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &AccessibilityEventRewriter::SendAllPendingSpokenFeedbackEvents,
-            GetWeakPtr()));
+        FROM_HERE, send_all_pending_events_callback_.callback());
   }
   chromevox_mv3_key_handling_enabled_ = enabled;
 }
@@ -206,8 +225,17 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
   // Save continuation for |OnUnhandledSpokenFeedbackEvent()|.
   chromevox_continuation_ = continuation;
 
-  if (!Shell::Get()->accessibility_controller()->spoken_feedback().enabled() ||
-      !event.IsKeyEvent()) {
+  if (!event.IsKeyEvent()) {
+    return false;
+  }
+
+  if (Shell::Get()->accessibility_controller()->GetActiveUserPrefs() &&
+      !Shell::Get()
+           ->accessibility_controller()
+           ->GetActiveUserPrefs()
+           ->GetBoolean(prefs::kAccessibilitySpokenFeedbackEnabled)) {
+    // Check the ChromeVox enabled pref directly, as it's possible for
+    // spoken_feedback().enabled() to return a stale result.
     return false;
   }
 
@@ -246,16 +274,9 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
   if (::features::IsAccessibilityManifestV3EnabledForChromeVox() &&
       chromevox_mv3_key_handling_enabled_) {
     if (pending_key_events_.size() >= kMaxPendingEvents) {
-      std::ostringstream errorStream;
-      errorStream
-          << "AccessibilityEventRewriter: dropping key event due to full "
-             "queue"
-          << rewritten_key_event->ToString();
-      LOG(ERROR) << errorStream.str();
-      static auto* const crash_key = base::debug::AllocateCrashKeyString(
-          "chromevox_mv3_key_events", base::debug::CrashKeySize::Size1024);
-      base::debug::SetCrashKeyString(crash_key, errorStream.str());
-      base::debug::DumpWithoutCrashing();
+      DumpWithoutCrashingHelper(std::string(
+          "AccessibilityEventRewriter: dropping key event due to full queue: " +
+          rewritten_key_event->ToString()));
       return true;
     }
 
@@ -486,8 +507,6 @@ void AccessibilityEventRewriter::SendAllPendingSpokenFeedbackEvents() {
                     pending_event_info.event.get());
     pending_key_events_.pop();
   }
-
-  next_pending_event_id_ = 0;
 }
 
 }  // namespace ash

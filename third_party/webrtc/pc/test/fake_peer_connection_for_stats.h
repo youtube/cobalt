@@ -23,12 +23,14 @@
 #include "api/audio/audio_device.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
+#include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
@@ -327,13 +329,15 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
         std::move(voice_media_receive_channel), mid, kDefaultSrtpRequired,
         CryptoOptions(), context_->ssrc_generator(), transport_name);
     auto transceiver =
-        GetOrCreateFirstTransceiverOfType(webrtc::MediaType::AUDIO)->internal();
+        GetOrCreateFirstTransceiverOfType(webrtc::MediaType::AUDIO, mid)
+            ->internal();
     if (transceiver->channel()) {
       // This transceiver already has a channel, create a new one.
       transceiver =
-          CreateTransceiverOfType(webrtc::MediaType::AUDIO)->internal();
+          CreateTransceiverOfType(webrtc::MediaType::AUDIO, mid)->internal();
     }
     RTC_DCHECK(!transceiver->channel());
+    RTC_DCHECK(transceiver->mid());
     transceiver->SetChannel(std::move(voice_channel),
                             [](const std::string&) { return nullptr; });
     voice_media_send_channel_ptr->SetStats(initial_stats);
@@ -359,13 +363,15 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
         std::move(video_media_receive_channel), mid, kDefaultSrtpRequired,
         CryptoOptions(), context_->ssrc_generator(), transport_name);
     auto transceiver =
-        GetOrCreateFirstTransceiverOfType(webrtc::MediaType::VIDEO)->internal();
+        GetOrCreateFirstTransceiverOfType(webrtc::MediaType::VIDEO, mid)
+            ->internal();
     if (transceiver->channel()) {
       // This transceiver already has a channel, create a new one.
       transceiver =
-          CreateTransceiverOfType(webrtc::MediaType::VIDEO)->internal();
+          CreateTransceiverOfType(webrtc::MediaType::VIDEO, mid)->internal();
     }
     RTC_DCHECK(!transceiver->channel());
+    RTC_DCHECK(transceiver->mid());
     transceiver->SetChannel(std::move(video_channel),
                             [](const std::string&) { return nullptr; });
     video_media_send_channel_ptr->SetStats(initial_stats);
@@ -533,23 +539,32 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
   }
 
   scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-  GetOrCreateFirstTransceiverOfType(MediaType media_type) {
+  GetOrCreateFirstTransceiverOfType(MediaType media_type,
+                                    absl::string_view mid = "") {
     for (auto transceiver : transceivers_) {
       if (transceiver->internal()->media_type() == media_type) {
+        // This is the first transceiver of this type - make sure it has the
+        // requested mid set.
+        if (!mid.empty() && !transceiver->internal()->mid()) {
+          transceiver->internal()->set_mid(std::string(mid));
+        }
         return transceiver;
       }
     }
-    return CreateTransceiverOfType(media_type);
+    return CreateTransceiverOfType(media_type, mid);
   }
 
   scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-  CreateTransceiverOfType(MediaType media_type) {
+  CreateTransceiverOfType(MediaType media_type, absl::string_view mid = "") {
     auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
         signaling_thread_,
         make_ref_counted<RtpTransceiver>(env_, media_type, context_.get(),
                                          &codec_lookup_helper_));
     transceiver->internal()->set_current_direction(
         RtpTransceiverDirection::kSendRecv);
+    if (!mid.empty()) {
+      transceiver->internal()->set_mid(std::string(mid));
+    }
     transceivers_.push_back(transceiver);
     return transceiver;
   }

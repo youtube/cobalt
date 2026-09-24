@@ -392,7 +392,7 @@ std::vector<std::string> JavaToStdVectorStrings(
   if (!list.is_null()) {
     for (const jni_zero::JavaRef<jobject>& str : Iterable(jni, list)) {
       converted_list.push_back(
-          JavaToStdString(jni, jni_zero::JavaParamRef<jstring>::CreateLeaky(
+          JavaToStdString(jni, jni_zero::JavaRef<jstring>::CreateLeaky(
                                    jni, static_cast<jstring>(str.obj()))));
     }
   }

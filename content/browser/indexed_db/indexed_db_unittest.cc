@@ -334,12 +334,6 @@ class IndexedDBTest : public testing::Test,
     bucket_info = InitBucket(kInvertedSessionOnlySubdomainThirdPartyStorageKey);
     kInvertedSessionOnlySubdomainThirdPartyBucketLocator =
         bucket_info.ToBucketLocator();
-
-    std::vector<storage::mojom::StoragePolicyUpdatePtr> policy_updates;
-    policy_updates.emplace_back(storage::mojom::StoragePolicyUpdate::New(
-        url::Origin::Create(GURL("http://subdomain.session-only.com")),
-        /*should_purge_on_shutdown=*/true));
-    context_->ApplyPolicyUpdates(std::move(policy_updates));
   }
 
   IndexedDBTest(const IndexedDBTest&) = delete;
@@ -1431,6 +1425,12 @@ TEST_P(IndexedDBTest, DISABLED_DatabaseOperationSequencing) {
 }
 
 TEST_P(IndexedDBTest, ClearSessionOnlyDatabases) {
+  std::vector<storage::mojom::StoragePolicyUpdatePtr> policy_updates;
+  policy_updates.emplace_back(storage::mojom::StoragePolicyUpdate::New(
+      url::Origin::Create(GURL("http://subdomain.session-only.com")),
+      /*should_purge_on_shutdown=*/true));
+  context_->ApplyPolicyUpdates(std::move(policy_updates));
+
   base::FilePath normal_path_first_party;
   base::FilePath session_only_path_first_party;
   base::FilePath session_only_subdomain_path_first_party;
@@ -1559,6 +1559,24 @@ TEST_P(IndexedDBTest, SetForceKeepSessionState) {
   EXPECT_TRUE(base::DirectoryExists(session_only_path_first_party));
   EXPECT_TRUE(base::DirectoryExists(normal_path_third_party));
   EXPECT_TRUE(base::DirectoryExists(session_only_path_third_party));
+}
+
+TEST_P(IndexedDBTest, Bug464999826) {
+  quota_manager_->HoldBackResults();
+
+  base::FilePath db_directory =
+      GetFilePathForTesting(kNormalFirstPartyBucketLocator);
+  ASSERT_TRUE(base::CreateDirectory(db_directory));
+  context()->ForceInitializeFromFilesForTesting(base::DoNothing());
+
+  scoped_refptr<base::SequencedTaskRunner> idb_task_runner =
+      context_->idb_task_runner();
+  IndexedDBContextImpl::Shutdown(std::move(context_));
+  base::RunLoop destruction_loop;
+  idb_task_runner->PostTask(FROM_HERE, destruction_loop.QuitClosure());
+  destruction_loop.Run();
+
+  quota_manager_->ReleaseResults();
 }
 
 // Verifies that the IDB connection is force closed and the directory is deleted
@@ -2104,6 +2122,93 @@ TEST_P(IndexedDBTest, ConnectionCloseDuringUpgrade) {
   EXPECT_TRUE(GetBucketContext(bucket_locator.id)->IsClosing());
 }
 
+// Verifies that opening an existing database that is not currently open in the
+// backing store works as expected.
+TEST_P(IndexedDBTest, OpenExistingDatabase) {
+  const blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
+  BucketLocator bucket_locator = BucketLocator();
+  bucket_locator.storage_key = storage_key;
+
+  // Bind the IDBFactory.
+  mojo::Remote<blink::mojom::IDBFactory> factory_remote;
+  mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
+      checker_remote;
+  BindFactory(std::move(checker_remote),
+              factory_remote.BindNewPipeAndPassReceiver(),
+              ToBucketInfo(bucket_locator));
+
+  // Create a database with a valid version so that it gets persisted.
+  {
+    base::HistogramTester histogram_tester;
+    MockMojoFactoryClient client;
+    MockMojoDatabaseCallbacks database_callbacks;
+    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
+    base::RunLoop upgrade_run_loop;
+    EXPECT_CALL(client, MockedUpgradeNeeded)
+        .WillOnce(testing::DoAll(
+            MoveArgPointee<0>(&pending_database),
+            ::base::test::RunClosure(upgrade_run_loop.QuitClosure())));
+    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
+    factory_remote->Open(client.CreateInterfacePtrAndBind(),
+                         database_callbacks.CreateInterfacePtrAndBind(), u"db",
+                         /*version=*/1,
+                         transaction_remote.BindNewEndpointAndPassReceiver(),
+                         /*transaction_id=*/1, /*priority=*/0);
+    upgrade_run_loop.Run();
+
+    // Commit the versionchange transaction, lest it be aborted and rolled back
+    // and the database deleted.
+    mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection(
+        std::move(pending_database));
+    transaction_remote->Commit(0);
+
+    base::RunLoop success_run_loop;
+    EXPECT_CALL(client, MockedOpenSuccess)
+        .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
+    success_run_loop.Run();
+
+    histogram_tester.ExpectUniqueSample(
+        "IndexedDB.BackingStore.CreateIfMissing.OnDisk",
+        0 /*Status::Type::kOk*/, 1);
+    histogram_tester.ExpectUniqueSample(
+        "IndexedDB.BackingStore.CreateOrOpenDatabase.OnDisk",
+        0 /*Status::Type::kOk*/, 1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.CreateDatabase.OnDisk", 1);
+  }
+
+  // Fast forward by the grace period so that the backing store gets closed.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  VerifyBucketContext(bucket_locator.id, /*expected_context_exists=*/true,
+                      /*expected_backing_store_exists=*/false);
+
+  // Open the database again, which should require reopening the backing store.
+  {
+    base::HistogramTester histogram_tester;
+    MockMojoFactoryClient client;
+    MockMojoDatabaseCallbacks database_callbacks;
+    base::RunLoop run_loop;
+    EXPECT_CALL(client, MockedOpenSuccess)
+        .WillOnce(::base::test::RunClosure(run_loop.QuitClosure()));
+    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
+    factory_remote->Open(client.CreateInterfacePtrAndBind(),
+                         database_callbacks.CreateInterfacePtrAndBind(), u"db",
+                         /*version=*/1,
+                         transaction_remote.BindNewEndpointAndPassReceiver(),
+                         /*transaction_id=*/2, /*priority=*/0);
+    run_loop.Run();
+
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackingStore.CreateIfMissing.OnDisk", 1);
+    histogram_tester.ExpectUniqueSample(
+        "IndexedDB.BackingStore.CreateOrOpenDatabase.OnDisk",
+        0 /*Status::Type::kOk*/, 1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.OpenDatabase.OnDisk", 1);
+  }
+}
+
 TEST_P(IndexedDBTest, DeleteDatabase) {
   const blink::StorageKey storage_key =
       blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
@@ -2215,13 +2320,6 @@ TEST_P(IndexedDBTest, DeleteDatabase_Cold) {
     EXPECT_CALL(client, MockedOpenSuccess)
         .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
     success_run_loop.Run();
-
-    histogram_tester.ExpectUniqueSample(
-        "IndexedDB.BackingStore.CreateIfMissing.OnDisk",
-        0 /*Status::Type::kOk*/, 1);
-    histogram_tester.ExpectUniqueSample(
-        "IndexedDB.BackingStore.CreateOrOpenDatabase.OnDisk",
-        0 /*Status::Type::kOk*/, 1);
   }
 
   // Fast forward by the grace period so that the backing store gets closed.
@@ -2252,6 +2350,8 @@ TEST_P(IndexedDBTest, DeleteDatabase_Cold) {
     histogram_tester.ExpectUniqueSample(
         "IndexedDB.BackingStore.DeleteDatabase.OnDisk", 0 /*Status::Type::kOk*/,
         1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.DeleteDatabase.OnDisk", 1);
   }
 }
 
@@ -2329,6 +2429,8 @@ TEST_P(IndexedDBTest, DeleteDatabase_DuplicateRequests) {
   histogram_tester.ExpectUniqueSample(
       "IndexedDB.BackingStore.DeleteDatabase.OnDisk", 0 /*Status::Type::kOk*/,
       1);
+  histogram_tester.ExpectTotalCount(
+      "IndexedDB.BackendDuration.DeleteDatabase.OnDisk", 1);
 }
 
 TEST_P(IndexedDBTest, GetDatabaseNames_NoFactory) {
@@ -2357,7 +2459,7 @@ TEST_P(IndexedDBTest, GetDatabaseNames_NoFactory) {
     // The duration histogram should not be recorded since this was a trivial
     // request (the backing store was not involved).
     histogram_tester.ExpectTotalCount(
-        "IndexedDB.IDBFactory.GetDatabaseInfo.Duration.OnDisk", 0);
+        "IndexedDB.BackendDuration.GetDatabaseInfo.OnDisk", 0);
   }
 
   // Now create a database and thus the backing store.
@@ -2393,7 +2495,7 @@ TEST_P(IndexedDBTest, GetDatabaseNames_NoFactory) {
         "IndexedDB.BackingStore.GetDatabaseNamesAndVersions.OnDisk",
         0 /*Status::Type::kOk*/, 1);
     histogram_tester.ExpectTotalCount(
-        "IndexedDB.IDBFactory.GetDatabaseInfo.Duration.OnDisk", 1);
+        "IndexedDB.BackendDuration.GetDatabaseInfo.OnDisk", 1);
   }
 }
 
@@ -2507,6 +2609,10 @@ TEST_P(IndexedDBTest, TransactionHistograms) {
     histogram_tester.ExpectUniqueSample(
         "IndexedDB.BackingStore.CommitPhaseTwo.OnDisk", 0 /*Status::Type::kOk*/,
         1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.ChangeDatabaseVersion.OnDisk", 1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.CreateObjectStore.OnDisk", 1);
   }
 
   // Create a transaction and commit it without issuing any request.
@@ -2574,6 +2680,8 @@ TEST_P(IndexedDBTest, TransactionHistograms) {
     histogram_tester.ExpectUniqueSample(
         "IndexedDB.BackingStore.CommitPhaseTwo.OnDisk", 0 /*Status::Type::kOk*/,
         1);
+    histogram_tester.ExpectTotalCount(
+        "IndexedDB.BackendDuration.PutRecord.OnDisk", 1);
   }
 }
 

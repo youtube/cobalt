@@ -207,12 +207,8 @@ void LayoutBlockFlow::AddChild(LayoutObject* new_child,
   // children as blocks.
   // So, if our children are currently inline and a block child has to be
   // inserted, we move all our inline children into anonymous block boxes.
-  const bool child_is_inline_level =
-      new_child->IsInline() ||
-      (LayoutObject::RequiresAnonymousTableWrappers(new_child) &&
-       LayoutTable::ShouldCreateInlineAnonymous(*this));
-  bool child_is_block_level =
-      !child_is_inline_level && !new_child->IsFloatingOrOutOfFlowPositioned();
+  const bool child_is_block_level =
+      !new_child->IsInline() && !new_child->IsFloatingOrOutOfFlowPositioned();
 
   if (ChildrenInline()) {
     if (child_is_block_level) {
@@ -280,7 +276,6 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
     LayoutBox::RemoveChild(old_child);
     return;
   }
-  const bool is_inner_editor_child = IsAnonymous() && IsInnerEditorChild(*this);
 
   // If this child is a block, and if our previous and next siblings are both
   // anonymous blocks with inline content, then we can go ahead and fold the
@@ -290,14 +285,12 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
   // into the anonymous block.
   LayoutObject* prev = old_child->PreviousSibling();
   LayoutObject* next = old_child->NextSibling();
-  bool merged_anonymous_blocks = false;
   if (prev && next && !old_child->IsInline()) {
     auto* prev_block_flow = DynamicTo<LayoutBlockFlow>(prev);
     auto* next_block_flow = DynamicTo<LayoutBlockFlow>(next);
     if (prev_block_flow && next_block_flow &&
         prev_block_flow->MergeSiblingContiguousAnonymousBlock(
             next_block_flow)) {
-      merged_anonymous_blocks = true;
       next = nullptr;
     } else if (prev_block_flow && IsMergeableAnonymousBlock(prev_block_flow)) {
       // The previous sibling is anonymous. Scan the next siblings and reparent
@@ -323,6 +316,7 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
 
   LayoutBlock::RemoveChild(old_child);
 
+  const bool is_inner_editor_child = IsAnonymous() && IsInnerEditorChild(*this);
   if (is_inner_editor_child && !BeingDestroyed()) {
     if (old_child->IsBR() && FirstChild()) {
       // We removed a LayoutBR from `this`. If this still contains LayoutTexts,
@@ -334,22 +328,20 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
                           /* full_remove_insert */ true);
       }
     }
-    if (!FirstChild() && Parent()) {
-      Parent()->RemoveChild(this);
+    if (!FirstChild()) {
       Destroy();
     }
     return;
   }
 
-  LayoutObject* child = prev ? prev : next;
-  auto* child_block_flow = DynamicTo<LayoutBlockFlow>(child);
-  if (child_block_flow && !child_block_flow->PreviousSibling() &&
-      !child_block_flow->NextSibling()) {
+  if (FirstChild() == LastChild()) {
     // If the removal has knocked us down to containing only a single anonymous
-    // box we can go ahead and pull the content right back up into our
-    // box.
-    if (merged_anonymous_blocks || IsMergeableAnonymousBlock(child_block_flow))
-      CollapseAnonymousBlockChild(child_block_flow);
+    // box we can go ahead and pull the content right back up into our box.
+    if (auto* child_block_flow = DynamicTo<LayoutBlockFlow>(FirstChild())) {
+      if (IsMergeableAnonymousBlock(child_block_flow)) {
+        CollapseAnonymousBlockChild(child_block_flow);
+      }
+    }
   }
 
   if (FirstChild() && !BeingDestroyed() &&
@@ -359,18 +351,6 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
     // inline without the need for anonymous blocks, then do that.
     MakeChildrenInlineIfPossible();
   }
-}
-
-void LayoutBlockFlow::MoveAllChildrenIncludingFloatsTo(
-    LayoutBlock* to_block,
-    bool full_remove_insert) {
-  NOT_DESTROYED();
-  auto* to_block_flow = To<LayoutBlockFlow>(to_block);
-
-  DCHECK(full_remove_insert ||
-         to_block_flow->ChildrenInline() == ChildrenInline());
-
-  MoveAllChildrenTo(to_block_flow, full_remove_insert);
 }
 
 void LayoutBlockFlow::ChildBecameFloatingOrOutOfFlow(LayoutBox* child) {
@@ -456,9 +436,7 @@ bool LayoutBlockFlow::MergeSiblingContiguousAnonymousBlock(
   bool full_remove_insert = sibling_that_may_be_deleted->HasLayer() ||
                             HasLayer() ||
                             sibling_that_may_be_deleted->IsInsideMulticol();
-  sibling_that_may_be_deleted->MoveAllChildrenIncludingFloatsTo(
-      this, full_remove_insert);
-  // Delete the now-empty block's lines and nuke it.
+  sibling_that_may_be_deleted->MoveAllChildrenTo(this, full_remove_insert);
   sibling_that_may_be_deleted->Destroy();
   return true;
 }

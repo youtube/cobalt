@@ -38,7 +38,7 @@ import java.util.Set;
 /** This is a base class for the Touch to Fill View classes. */
 @NullMarked
 public abstract class TouchToFillViewBase implements BottomSheetContent {
-    private static final int MAX_FULLY_VISIBLE_CREDENTIAL_COUNT = 3;
+    public static final int MAX_FULLY_VISIBLE_SUGGESTION_COUNT = 3;
 
     private final BottomSheetController mBottomSheetController;
     private final RelativeLayout mContentView;
@@ -76,14 +76,6 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
                     if (newState == BottomSheetController.SheetState.FULL) {
                         // The list of items should be scrollable in full state.
                         assumeNonNull(mSheetItemListView).suppressLayout(false);
-                        // The child view heights may change while an animation is running.
-                        // The target screen height will not be updated based on the new
-                        // child view heights. Request expansion again to fix this.
-                        if (mBottomSheetController.getCurrentOffset()
-                                != getMaximumSheetHeightPx()) {
-                            mBottomSheetController.updateSheetHeight(
-                                    BottomSheetController.SheetState.FULL);
-                        }
                     } else if (newState == BottomSheetController.SheetState.HALF
                             && mScrollListener.isScrolledToTop()) {
                         // The list of items should not be scrollable when the sheet transitions
@@ -290,7 +282,7 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
                 // If we want to show only the initial items, the footer should remain hidden.
                 return totalHeight + getConclusiveMarginHeightPx();
             }
-            if (showOnlyInitialItems && visibleItems > MAX_FULLY_VISIBLE_CREDENTIAL_COUNT) {
+            if (showOnlyInitialItems && visibleItems > MAX_FULLY_VISIBLE_SUGGESTION_COUNT) {
                 // If the current item is the last to be shown, skip remaining elements and margins.
                 totalHeight += getHeightWithMarginsPx(child, true);
                 return totalHeight;
@@ -328,6 +320,15 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
                         View.MeasureSpec.makeMeasureSpec(
                                 getInsetDisplayWidthPx(), MeasureSpec.AT_MOST),
                         MeasureSpec.UNSPECIFIED);
+    }
+
+    protected void removeObserver(BottomSheetObserver observer) {
+        mBottomSheetController.removeObserver(observer);
+    }
+
+    protected boolean isFullyExtended() {
+        return mBottomSheetController.getCurrentOffset()
+                == Math.min(getMaximumSheetHeightPx(), mBottomSheetController.getContainerHeight());
     }
 
     private @Px int getInsetDisplayWidthPx() {
@@ -404,7 +405,7 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     public void updateScreenHeight() {
         remeasure();
-        mBottomSheetController.updateSheetHeight();
+        mBottomSheetController.expandSheet();
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)

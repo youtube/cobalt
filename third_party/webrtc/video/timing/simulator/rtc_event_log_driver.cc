@@ -30,7 +30,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "test/time_controller/simulated_time_controller.h"
+#include "test/time_controller/simulated_time_task_queue_controller.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -40,16 +40,15 @@ RtcEventLogDriver::RtcEventLogDriver(
     absl::string_view field_trials_string,
     RtcEventLogDriver::StreamInterfaceFactory stream_factory)
     : config_(config),
-      time_controller_(
-          std::make_unique<GlobalSimulatedTimeController>(Timestamp::Zero())),
+      time_controller_(Timestamp::Zero()),
       env_(CreateEnvironment(
           std::make_unique<webrtc::FieldTrials>(field_trials_string),
-          time_controller_->GetClock(),
-          time_controller_->GetTaskQueueFactory())),
+          time_controller_.GetClock(),
+          time_controller_.GetTaskQueueFactory())),
       parsed_log_(*parsed_log),
       stream_factory_(std::move(stream_factory)),
       prev_log_timestamp_(std::nullopt),
-      simulator_queue_(time_controller_->GetTaskQueueFactory()->CreateTaskQueue(
+      simulator_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
           "simulator_queue",
           TaskQueueFactory::Priority::NORMAL)),
       packet_simulator_(env_) {
@@ -84,7 +83,7 @@ void RtcEventLogDriver::Simulate() {
 
   // Attempt to get straggling frames out by advancing time a little bit after
   // the last logged event.
-  time_controller_->AdvanceTime(kShutdownAdvanceTimeSlack);
+  time_controller_.AdvanceTime(kShutdownAdvanceTimeSlack);
 
   // Tear down on the queue.
   bool done = false;
@@ -96,14 +95,15 @@ void RtcEventLogDriver::Simulate() {
     streams_.clear();
     done = true;
   });
-  time_controller_->Wait([&done]() { return done; });
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+  RTC_DCHECK(done);
 }
 
 void RtcEventLogDriver::AdvanceTime(Timestamp log_timestamp) {
   if (!prev_log_timestamp_) {
     // For the first event, set the clock in absolute terms.
     prev_log_timestamp_ = log_timestamp;
-    time_controller_->AdvanceTime(log_timestamp - env_.clock().CurrentTime());
+    time_controller_.AdvanceTime(log_timestamp - env_.clock().CurrentTime());
     RTC_DCHECK_EQ(env_.clock().CurrentTime(), log_timestamp);
     return;
   }
@@ -115,7 +115,7 @@ void RtcEventLogDriver::AdvanceTime(Timestamp log_timestamp) {
         << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
     return;
   }
-  time_controller_->AdvanceTime(duration);
+  time_controller_.AdvanceTime(duration);
 }
 
 void RtcEventLogDriver::HandleEvent(Timestamp log_timestamp,

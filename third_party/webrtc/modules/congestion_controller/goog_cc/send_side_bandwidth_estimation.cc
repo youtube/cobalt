@@ -446,18 +446,19 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     }
   }
   UpdateMinHistory(at_time);
-  if (last_loss_packet_report_.IsInfinite()) {
-    // No feedback received.
-    // TODO(srte): This is likely redundant in most cases.
-    ApplyTargetLimits(at_time);
-    return;
-  }
 
   if (LossBasedBandwidthEstimatorV2ReadyForUse()) {
     LossBasedBweV2::Result result =
         loss_based_bandwidth_estimator_v2_->GetLossBasedResult();
     loss_based_state_ = result.state;
     UpdateTargetBitrate(result.bandwidth_estimate, at_time);
+    return;
+  }
+
+  if (last_loss_packet_report_.IsInfinite()) {
+    // No feedback received.
+    // TODO(srte): This is likely redundant in most cases.
+    ApplyTargetLimits(at_time);
     return;
   }
 

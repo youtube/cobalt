@@ -3315,7 +3315,6 @@ Capabilities GLES2DecoderImpl::GetCapabilities() {
       feature_info_->feature_flags().chromium_image_ycbcr_p010;
   caps.render_buffer_format_bgra8888 =
       feature_info_->feature_flags().ext_render_buffer_format_bgra8888;
-  caps.gpu_rasterization = false;
   caps.chromium_gpu_fence = feature_info_->feature_flags().chromium_gpu_fence;
   caps.mesa_framebuffer_flip_y =
       feature_info_->feature_flags().mesa_framebuffer_flip_y;
@@ -11368,8 +11367,7 @@ error::Error GLES2DecoderImpl::HandleReadPixels(uint32_t immediate_data_size,
         copy_binder = std::make_unique<ScopedFramebufferCopyBinder>(this);
       }
       if (y < 0) {
-        UNSAFE_TODO(pixels += static_cast<uint32_t>(-y)) * padded_row_size;
-        ;
+        UNSAFE_TODO(pixels += static_cast<uint32_t>(-y) * padded_row_size);
       }
       if (x < 0) {
         uint32_t group_size = GLES2Util::ComputeImageGroupSize(format, type);

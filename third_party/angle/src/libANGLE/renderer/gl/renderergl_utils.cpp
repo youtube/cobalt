@@ -280,68 +280,65 @@ uint32_t GetDeviceID(const FunctionsGL *functions)
     return 0;
 }
 
-ShShaderOutput GetShaderOutputType(const FunctionsGL *functions)
+ShShaderOutput GetShaderOutputType(const angle::FeaturesGL &features, const FunctionsGL *functions)
 {
     ASSERT(functions);
 
     if (functions->standard == STANDARD_GL_DESKTOP)
     {
         // GLSL outputs
-        if (functions->isAtLeastGL(gl::Version(4, 5)))
+        if (!features.emitMaxGlsl400ForTesting.enabled)
         {
-            return SH_GLSL_450_CORE_OUTPUT;
+            if (functions->isAtLeastGL(gl::Version(4, 5)))
+            {
+                return SH_GLSL_450_CORE_OUTPUT;
+            }
+            if (functions->isAtLeastGL(gl::Version(4, 4)))
+            {
+                return SH_GLSL_440_CORE_OUTPUT;
+            }
+            if (functions->isAtLeastGL(gl::Version(4, 3)))
+            {
+                return SH_GLSL_430_CORE_OUTPUT;
+            }
+            if (functions->isAtLeastGL(gl::Version(4, 2)))
+            {
+                return SH_GLSL_420_CORE_OUTPUT;
+            }
+            if (functions->isAtLeastGL(gl::Version(4, 1)))
+            {
+                return SH_GLSL_410_CORE_OUTPUT;
+            }
         }
-        else if (functions->isAtLeastGL(gl::Version(4, 4)))
-        {
-            return SH_GLSL_440_CORE_OUTPUT;
-        }
-        else if (functions->isAtLeastGL(gl::Version(4, 3)))
-        {
-            return SH_GLSL_430_CORE_OUTPUT;
-        }
-        else if (functions->isAtLeastGL(gl::Version(4, 2)))
-        {
-            return SH_GLSL_420_CORE_OUTPUT;
-        }
-        else if (functions->isAtLeastGL(gl::Version(4, 1)))
-        {
-            return SH_GLSL_410_CORE_OUTPUT;
-        }
-        else if (functions->isAtLeastGL(gl::Version(4, 0)))
+        if (functions->isAtLeastGL(gl::Version(4, 0)))
         {
             return SH_GLSL_400_CORE_OUTPUT;
         }
-        else if (functions->isAtLeastGL(gl::Version(3, 3)))
+        if (functions->isAtLeastGL(gl::Version(3, 3)))
         {
             return SH_GLSL_330_CORE_OUTPUT;
         }
-        else if (functions->isAtLeastGL(gl::Version(3, 2)))
+        if (functions->isAtLeastGL(gl::Version(3, 2)))
         {
             return SH_GLSL_150_CORE_OUTPUT;
         }
-        else if (functions->isAtLeastGL(gl::Version(3, 1)))
+        if (functions->isAtLeastGL(gl::Version(3, 1)))
         {
             return SH_GLSL_140_OUTPUT;
         }
-        else if (functions->isAtLeastGL(gl::Version(3, 0)))
+        if (functions->isAtLeastGL(gl::Version(3, 0)))
         {
             return SH_GLSL_130_OUTPUT;
         }
-        else
-        {
-            return SH_GLSL_COMPATIBILITY_OUTPUT;
-        }
+        return SH_GLSL_COMPATIBILITY_OUTPUT;
     }
-    else if (functions->standard == STANDARD_GL_ES)
+    if (functions->standard == STANDARD_GL_ES)
     {
         // ESSL outputs
         return SH_ESSL_OUTPUT;
     }
-    else
-    {
-        UNREACHABLE();
-        return ShShaderOutput(0);
-    }
+    UNREACHABLE();
+    return ShShaderOutput(0);
 }
 
 namespace nativegl_gl
@@ -2698,7 +2695,7 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
 
     // BGRA formats do not appear to be accepted by the qualcomm driver despite the extension being
     // exposed.
-    ANGLE_FEATURE_CONDITION(features, bgraTexImageFormatsBroken, IsQualcomm(vendor));
+    ANGLE_FEATURE_CONDITION(features, bgraTexImageFormatsBroken, !isMesa && isQualcomm);
 
     // https://github.com/flutter/flutter/issues/47164
     // https://github.com/flutter/flutter/issues/47804

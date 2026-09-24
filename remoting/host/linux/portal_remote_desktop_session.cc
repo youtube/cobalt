@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "remoting/base/logging.h"
@@ -45,6 +46,13 @@ PortalRemoteDesktopSession::PortalRemoteDesktopSession() {
 
 PortalRemoteDesktopSession::~PortalRemoteDesktopSession() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+void PortalRemoteDesktopSession::SetCreateVirtualMonitor(
+    bool create_virtual_monitor) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK_EQ(initialization_state_, InitializationState::kNotInitialized);
+  create_virtual_monitor_ = create_virtual_monitor;
 }
 
 void PortalRemoteDesktopSession::Init(InitCallback callback) {
@@ -206,7 +214,7 @@ void PortalRemoteDesktopSession::OnSelectDevicesResponse(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   capture_stream_manager_.Init(
-      connection_, portal_session_->session_handle(),
+      create_virtual_monitor_, connection_, portal_session_->session_handle(),
       base::BindOnce(&PortalRemoteDesktopSession::OnCaptureStreamInitResult,
                      weak_ptr_factory_.GetWeakPtr()));
 }

@@ -18,6 +18,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/test_renderer_host.h"
+#include "crypto/sha2.h"
 #include "services/network/test/test_network_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -35,12 +36,9 @@ namespace content::webid {
 // Mock DnsRequest for testing
 class MockDnsRequest : public DnsRequest {
  public:
-  explicit MockDnsRequest(network::mojom::NetworkContext* network_context)
+  explicit MockDnsRequest()
       : DnsRequest(base::BindRepeating(
-            [](network::mojom::NetworkContext* network_context) {
-              return network_context;
-            },
-            network_context)) {}
+            []() -> EmailVerifierNetworkRequestManager* { return nullptr; })) {}
   ~MockDnsRequest() override = default;
 
   MOCK_METHOD(void,
@@ -74,14 +72,12 @@ class EmailVerificationRequestTest : public RenderViewHostTestHarness {
   EmailVerificationRequestTest() = default;
 
  protected:
-  network::TestNetworkContext mock_network_context_;
   const url::Origin kRpOrigin =
       url::Origin::Create(GURL("https://rp.example.com"));
 };
 
 TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
-  auto mock_dns_request_ptr =
-      std::make_unique<NiceMock<MockDnsRequest>>(&mock_network_context_);
+  auto mock_dns_request_ptr = std::make_unique<NiceMock<MockDnsRequest>>();
   NiceMock<MockDnsRequest>* mock_dns_request_ = mock_dns_request_ptr.get();
   auto mock_network_manager_ptr =
       std::make_unique<NiceMock<MockEmailVerifierNetworkRequestManager>>();
@@ -112,6 +108,7 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
                   callback) {
             EmailVerifierNetworkRequestManager::WellKnown well_known;
             well_known.issuance_endpoint = kIssuanceEndpoint;
+            well_known.signing_alg_values_supported.push_back("RS256");
             std::move(callback).Run(FetchStatus{ParseStatus::kSuccess},
                                     well_known);
           }));
@@ -178,22 +175,39 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
 
   base::test::TestFuture<std::optional<std::string>> future;
   std::string nonce = kNonce;
+  base::Time before = base::Time::Now();
   email_verification_request_.Send(kEmail, nonce, future.GetCallback());
   std::optional<std::string> token = future.Get();
-  EXPECT_TRUE(token.has_value());
+  base::Time after = base::Time::Now();
+  ASSERT_TRUE(token.has_value());
 
   auto sd_jwt_kb = sdjwt::SdJwtKb::Parse(*token);
-  EXPECT_TRUE(sd_jwt_kb);
+  ASSERT_TRUE(sd_jwt_kb);
 
   auto kb_jwt_json = sdjwt::Jwt::Parse(sd_jwt_kb->kb_jwt.Serialize().value());
-  EXPECT_TRUE(kb_jwt_json);
+  ASSERT_TRUE(kb_jwt_json);
   auto kb_jwt = sdjwt::Jwt::From(*kb_jwt_json);
-  EXPECT_TRUE(kb_jwt);
+  ASSERT_TRUE(kb_jwt);
   auto kb_payload = sdjwt::Payload::From(*base::JSONReader::ReadDict(
       kb_jwt->payload.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
-  EXPECT_TRUE(kb_payload);
-  EXPECT_EQ(kb_payload->aud, main_rfh()->GetLastCommittedOrigin().Serialize());
-  EXPECT_EQ(kb_payload->nonce, kNonce);
+  ASSERT_TRUE(kb_payload);
+  ASSERT_EQ(kb_payload->aud, main_rfh()->GetLastCommittedOrigin().Serialize());
+  ASSERT_EQ(kb_payload->nonce, kNonce);
+  ASSERT_TRUE(kb_payload->iat);
+  base::Time iat_time = kb_payload->iat.value();
+  // The `iat` is seconds since the epoch, so there is a loss of precision.
+  // We check that `iat` is between `before` and `after`, allowing for a
+  // tolerance of 1 second for the loss of precision.
+  EXPECT_GE(iat_time, before - base::Seconds(1));
+  EXPECT_LE(iat_time, after + base::Seconds(1));
+
+  std::string sd_jwt_sha256 =
+      crypto::SHA256HashString(sd_jwt_kb->sd_jwt.Serialize());
+  std::string sd_hash_expected;
+  base::Base64UrlEncode(sd_jwt_sha256,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &sd_hash_expected);
+  ASSERT_EQ(kb_payload->sd_hash.value(), sd_hash_expected);
 }
 
 TEST(EmailVerificationRequestStaticTest, ValidEmail) {

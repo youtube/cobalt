@@ -43,7 +43,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -186,12 +189,13 @@ ui::ImageModel GetAvatarImageWithDottedRing(
 }
 
 class PrivateBaseStateProvider : public StateProvider,
-                                 public BrowserListObserver {
+                                 public BrowserCollectionObserver {
  public:
   explicit PrivateBaseStateProvider(Profile* profile,
                                     StateObserver* state_observer)
       : StateProvider(profile, state_observer) {
-    scoped_browser_list_observation_.Observe(BrowserList::GetInstance());
+    browser_collection_observer_.Observe(
+        GlobalBrowserCollection::GetInstance());
   }
   ~PrivateBaseStateProvider() override = default;
 
@@ -202,13 +206,17 @@ class PrivateBaseStateProvider : public StateProvider,
     return true;
   }
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) final { RequestUpdate(); }
-  void OnBrowserRemoved(Browser* browser) final { RequestUpdate(); }
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) final {
+    RequestUpdate();
+  }
+  void OnBrowserClosed(BrowserWindowInterface* browser) final {
+    RequestUpdate();
+  }
 
  private:
-  base::ScopedObservation<BrowserList, BrowserListObserver>
-      scoped_browser_list_observation_{this};
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observer_{this};
 };
 
 class GuestStateProvider : public PrivateBaseStateProvider {
@@ -227,7 +235,7 @@ class GuestStateProvider : public PrivateBaseStateProvider {
     // crbug.com/1178520.
     const int guest_window_count = 1;
 #else
-    const int guest_window_count = BrowserList::GetGuestBrowserCount();
+    const int guest_window_count = chrome::GetGuestBrowserCount();
 #endif
     return l10n_util::GetPluralStringFUTF16(IDS_AVATAR_BUTTON_GUEST,
                                             guest_window_count);
@@ -269,7 +277,8 @@ class IncognitoStateProvider : public PrivateBaseStateProvider {
   std::u16string GetText() const override {
     return l10n_util::GetPluralStringFUTF16(
         IDS_AVATAR_BUTTON_INCOGNITO,
-        BrowserList::GetOffTheRecordBrowsersActiveForProfile(&profile()));
+        static_cast<int>(
+            chrome::GetOffTheRecordBrowsersActiveForProfile(&profile())));
   }
 
   std::optional<SkColor> GetHighlightColor(
@@ -815,9 +824,6 @@ class HistorySyncOptinCoordinator
       public signin::IdentityManager::Observer,
       public syncer::SyncServiceObserver {
  public:
-  static constexpr signin_metrics::AccessPoint kHistoryOptinAccessPoint =
-      signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup;
-
   static HistorySyncOptinCoordinator& GetOrCreateForProfile(Profile& profile) {
     HistorySyncOptinCoordinator* coordinator =
         static_cast<HistorySyncOptinCoordinator*>(
@@ -842,16 +848,9 @@ class HistorySyncOptinCoordinator
 
   void PromoUsed() {
     CHECK(before_promo_used_elapsed_timer_.has_value());
-    // TODO(crbug.com/440006977): Extend/Duplicate the below histogram to
-    // support the different promos.
-    if (promo_type_.value() ==
-            signin::ProfileMenuAvatarButtonPromoInfo::Type::kHistorySyncPromo ||
-        promo_type_.value() ==
-            signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo) {
-      base::UmaHistogramMediumTimes(
-          "Signin.SyncOptIn.IdentityPill.DurationBeforeClick",
-          before_promo_used_elapsed_timer_->Elapsed());
-    }
+    base::UmaHistogramMediumTimes("Signin.AvatarPillPromo.DurationBeforeClick",
+                                  before_promo_used_elapsed_timer_->Elapsed());
+
     CHECK(promo_type_.has_value());
     sync_promo_identity_pill_manager_.RecordPromoUsed(promo_type_.value());
     Collapse();
@@ -1028,17 +1027,12 @@ class HistorySyncOptinCoordinator
     }
     before_promo_used_elapsed_timer_.emplace();
     has_been_shown_since_startup_ = true;
+
     CHECK(promo_type_.has_value());
     sync_promo_identity_pill_manager_.RecordPromoShown(promo_type_.value());
-    // TODO(crbug.com/447048341): Extend/Duplicate the below histogram to
-    // support the different promos.
-    if (promo_type_.value() ==
-            signin::ProfileMenuAvatarButtonPromoInfo::Type::kHistorySyncPromo ||
-        promo_type_.value() ==
-            signin::ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo) {
-      base::UmaHistogramEnumeration("Signin.SyncOptIn.IdentityPill.Shown",
-                                    kHistoryOptinAccessPoint);
-    }
+    base::UmaHistogramEnumeration("Signin.AvatarPillPromo.Shown",
+                                  promo_type_.value());
+
     collapse_timer_.Start(FROM_HERE,
                           g_history_sync_optin_duration_for_testing.value_or(
                               kHistorySyncOptinDuration),
@@ -1142,8 +1136,7 @@ class HistorySyncOptinStateProvider : public StateProvider {
  private:
   void OnButtonClick(bool is_source_accelerator) {
     browser_->GetFeatures().profile_menu_coordinator()->Show(
-        is_source_accelerator,
-        HistorySyncOptinCoordinator::kHistoryOptinAccessPoint);
+        is_source_accelerator, /*from_avatar_promo=*/true);
     coordinator_->PromoUsed();
   }
 
@@ -1718,7 +1711,7 @@ class SigninPendingStateProvider : public StateProvider,
 class ManagementStateProvider : public StateProvider,
                                 public ProfileAttributesStorage::Observer,
                                 public policy::ManagementService::Observer,
-                                public BrowserListObserver {
+                                public BrowserCollectionObserver {
  public:
   explicit ManagementStateProvider(
       Profile* profile,
@@ -1726,13 +1719,13 @@ class ManagementStateProvider : public StateProvider,
       const AvatarToolbarButton* avatar_toolbar_button)
       : StateProvider(profile, state_observer),
         avatar_toolbar_button_(*avatar_toolbar_button) {
-    BrowserList::AddObserver(this);
+    browser_collection_observer_.Observe(
+        GlobalBrowserCollection::GetInstance());
     profile_observation_.Observe(&GetProfileAttributesStorage());
     management_observation_.Observe(
         policy::ManagementServiceFactory::GetForProfile(profile));
   }
-
-  ~ManagementStateProvider() override { BrowserList::RemoveObserver(this); }
+  ~ManagementStateProvider() override = default;
 
   // StateProvider:
   bool IsActive() const override {
@@ -1759,8 +1752,8 @@ class ManagementStateProvider : public StateProvider,
   }
 
  private:
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser*) override {
+  // BrowserCollectionObserver:
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
     // This is required so that the enterprise text is shown when a profile is
     // opened.
     RequestUpdate();
@@ -1776,6 +1769,9 @@ class ManagementStateProvider : public StateProvider,
   void OnEnterpriseLabelUpdated() override { RequestUpdate(); }
 
   const raw_ref<const AvatarToolbarButton> avatar_toolbar_button_;
+
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observer_{this};
 
   base::ScopedObservation<ProfileAttributesStorage,
                           ProfileAttributesStorage::Observer>

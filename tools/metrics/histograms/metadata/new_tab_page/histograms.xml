@@ -340,7 +340,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Composeplate.Impression" enum="BooleanVisible"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -536,6 +536,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="NewTabPage.Customization.Theme.ThemeCollection.DailyRefresh.TurnOff"
+    units="NTPCollectionId" expires_after="2026-06-01">
+  <owner>hanxi@chromium.org</owner>
+  <owner>yyanting@google.com</owner>
+  <owner>clank-start@google.com</owner>
+  <summary>
+    Records the number of times daily refresh is toggled off for a set of theme
+    collection categories. This metric is logged when the single theme
+    collection bottom sheet is closed. This metric is logged on Android only.
+  </summary>
+</histogram>
+
+<histogram
+    name="NewTabPage.Customization.Theme.ThemeCollection.DailyRefresh.TurnOn"
+    units="NTPCollectionId" expires_after="2026-06-01">
+  <owner>hanxi@chromium.org</owner>
+  <owner>yyanting@google.com</owner>
+  <owner>clank-start@google.com</owner>
+  <summary>
+    Records the number of times daily refresh is toggled on for a set of theme
+    collection categories. This metric is logged when the single theme
+    collection bottom sheet is closed. This metric is logged on Android only.
+  </summary>
+</histogram>
+
 <histogram name="NewTabPage.Customization.Theme.Type"
     enum="NtpBackgroundImageType" expires_after="2026-05-10">
   <owner>hanxi@chromium.org</owner>
@@ -696,7 +722,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Drive.FileClick" units="index"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>rtatum@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -744,7 +770,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.FakeSearchBox.ComposeplateButton.Impression2"
-    enum="BooleanVisible" expires_after="2026-04-05">
+    enum="BooleanVisible" expires_after="2026-06-07">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -755,7 +781,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.FakeSearchBox.Impression2" enum="BooleanVisible"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -767,7 +793,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.Click" enum="FooterElement"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>temao@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -783,7 +809,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.CustomizeChromeOpened"
-    enum="FooterCustomizeChromeEntryPoint" expires_after="2026-03-29">
+    enum="FooterCustomizeChromeEntryPoint" expires_after="2026-05-31">
   <owner>temao@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -808,7 +834,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.ShownTime" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -819,7 +845,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.ToggledVisibility{FooterToggleSource}"
-    enum="BooleanVisible" expires_after="2026-04-05">
+    enum="BooleanVisible" expires_after="2026-06-07">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -836,7 +862,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.VisibleOnLoad" enum="BooleanVisible"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -846,7 +872,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.WebUI.LoadCompletedTime" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -858,7 +884,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.WebUI.LoadDocumentTime" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>pauladedeji@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1004,6 +1030,26 @@ chromium-metrics-reviews@google.com.
     includes the padding above the topmost text element but excludes the padding
     below the bottommost one. Emitted when the omnibox was focused for any
     reason, including autofocus.
+  </summary>
+</histogram>
+
+<histogram
+    name="NewTabPage.Incognito.OmniboxAutofocus.OnFocus.ZeroSuggestSuppressed"
+    enum="Boolean" expires_after="2026-05-01">
+  <owner>kalinino@google.com</owner>
+  <owner>polonium@google.com</owner>
+  <summary>
+    Records when a Zero-Prefix Suggestions (ZPS) request is suppressed on the
+    Incognito New Tab Page due to the Omnibox autofocus being activated.
+
+    This is a boolean histogram that only records `true` values. A `true` value
+    is recorded when a ZPS request is suppressed. Such requests occur on initial
+    focus or when the user deletes all typed text.
+
+    Note that recording is debounced by 100ms. This prevents logging of
+    transient states, as a single user action can trigger suggestion updates
+    multiple times in a short period. Debouncing ensures that only the final,
+    settled state is logged.
   </summary>
 </histogram>
 
@@ -1188,7 +1234,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.LogoShown{NewTabPageLogoShownFromCache}"
-    enum="NewTabPageLogoShown" expires_after="2026-04-05">
+    enum="NewTabPageLogoShown" expires_after="2026-06-07">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1350,7 +1396,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Module.Click" enum="ModuleTypeOnStartAndNTP"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -1776,7 +1822,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.MostVisited.NumberOfCustomTilesOnFirstNtp"
-    units="units" expires_after="2026-03-29">
+    units="units" expires_after="2026-05-31">
   <owner>fredmello@chromium.org</owner>
   <owner>huangs@chromium.org</owner>
   <summary>
@@ -1889,7 +1935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.NumberOfTiles" units="units"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1962,7 +2008,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.OutlookCalendar.RequestResult"
-    enum="OutlookCalendarRequestResult" expires_after="2026-04-05">
+    enum="OutlookCalendarRequestResult" expires_after="2026-06-07">
   <owner>jennserrano@google.com</owner>
   <owner>rtatum@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1975,7 +2021,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.OutlookCalendar.ResponseResult" units="count"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>jennserrano@google.com</owner>
   <owner>rtatum@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2260,7 +2306,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.TabResumption.ResultStatus"
-    enum="NtpTabResumeResultStatus" expires_after="2026-04-05">
+    enum="NtpTabResumeResultStatus" expires_after="2026-06-07">
   <owner>mfacey@google.com</owner>
   <owner>romanarora@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2305,7 +2351,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.TabResumption.URLVisitAggregateDataTypeDisplayed"
-    enum="NtpURLVisitAggregateTypes" expires_after="2026-04-05">
+    enum="NtpURLVisitAggregateTypes" expires_after="2026-06-07">
   <owner>mfacey@google.com</owner>
   <owner>romanarora@google.com</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2460,7 +2506,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.VoiceActions" enum="NewTabPageVoiceAction"
-    expires_after="2025-08-24">
+    expires_after="2026-04-26">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>

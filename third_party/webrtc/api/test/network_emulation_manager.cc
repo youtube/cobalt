@@ -14,9 +14,11 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/test/network_emulation/leaky_bucket_network_queue.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation/network_queue.h"
 #include "api/test/simulated_network.h"
 #include "api/units/data_rate.h"
@@ -169,19 +171,32 @@ NetworkEmulationManager::SimulatedNetworkNode::Builder::Build(
 
 std::pair<EmulatedNetworkManagerInterface*, EmulatedNetworkManagerInterface*>
 NetworkEmulationManager::CreateEndpointPairWithTwoWayRoutes(
-    const BuiltInNetworkBehaviorConfig& config) {
+    const BuiltInNetworkBehaviorConfig& config,
+    int alice_interface_count,
+    int bob_interface_count) {
   auto* alice_node = CreateEmulatedNode(config);
   auto* bob_node = CreateEmulatedNode(config);
 
-  auto* alice_endpoint = CreateEndpoint(EmulatedEndpointConfig());
-  auto* bob_endpoint = CreateEndpoint(EmulatedEndpointConfig());
+  std::vector<EmulatedEndpoint*> alice_endpoints;
+  for (int i = 0; i < alice_interface_count; i++) {
+    alice_endpoints.push_back(CreateEndpoint(EmulatedEndpointConfig()));
+  }
 
-  CreateRoute(alice_endpoint, {alice_node}, bob_endpoint);
-  CreateRoute(bob_endpoint, {bob_node}, alice_endpoint);
+  std::vector<EmulatedEndpoint*> bob_endpoints;
+  for (int i = 0; i < bob_interface_count; i++) {
+    bob_endpoints.push_back(CreateEndpoint(EmulatedEndpointConfig()));
+  }
+
+  for (auto alice_endpoint : alice_endpoints) {
+    for (auto bob_endpoint : bob_endpoints) {
+      CreateRoute(alice_endpoint, {alice_node}, bob_endpoint);
+      CreateRoute(bob_endpoint, {bob_node}, alice_endpoint);
+    }
+  }
 
   return {
-      CreateEmulatedNetworkManagerInterface({alice_endpoint}),
-      CreateEmulatedNetworkManagerInterface({bob_endpoint}),
+      CreateEmulatedNetworkManagerInterface(alice_endpoints),
+      CreateEmulatedNetworkManagerInterface(bob_endpoints),
   };
 }
 }  // namespace webrtc

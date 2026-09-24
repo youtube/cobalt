@@ -101,6 +101,19 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:OsScreenAction) -->
 
+<variants name="OTPCountPermissionAction">
+  <variant name="Deny" summary="deny"/>
+  <variant name="Dismiss" summary="dismiss"/>
+  <variant name="Grant" summary="permanent grant"/>
+  <variant name="Ignore" summary="ignore"/>
+</variants>
+
+<variants name="OTPSupportedPermissionType">
+  <variant name="AudioCapture"/>
+  <variant name="Geolocation"/>
+  <variant name="VideoCapture"/>
+</variants>
+
 <variants name="PermissionRequestGesture">
   <variant name=".Gesture" summary="With user gesture"/>
   <variant name=".NoGesture" summary="Without user gesture"/>
@@ -418,7 +431,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.ComputeEmbeddingsDuration" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -432,7 +445,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.ComputeEmbeddingsStatus"
-    enum="ComputeEmbeddingsStatus" expires_after="2026-04-05">
+    enum="ComputeEmbeddingsStatus" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -445,7 +458,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.EmbedderMetadataValid" enum="BooleanValid"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -457,7 +470,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.FinishedPassageEmbeddingsTaskOutdated"
-    enum="BooleanSuccess" expires_after="2026-04-05">
+    enum="BooleanSuccess" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -471,7 +484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.LanguageDetectionStatus"
-    enum="LanguageDetectionStatus" expires_after="2026-04-05">
+    enum="LanguageDetectionStatus" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -483,7 +496,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.PassageEmbeddingsComputationTimeout"
-    enum="Boolean" expires_after="2026-04-05">
+    enum="Boolean" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -496,7 +509,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AIv4.TryCancelPreviousEmbeddingsModelExecution"
-    enum="BooleanSuccess" expires_after="2026-04-05">
+    enum="BooleanSuccess" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -531,18 +544,6 @@ chromium-metrics-reviews@google.com.
     <variant name="Mic"/>
     <variant name="Notification"/>
   </token>
-</histogram>
-
-<histogram name="Permissions.API.CreatedPermissionStatusObjects" units="units"
-    expires_after="2026-01-13">
-  <owner>andypaicu@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records the number of PermissionStatus handles that have been created by a
-    document (via the &quot;navigator.permissions&quot; API). Recorded at the
-    destruction of said document. Only recorded if the document has created at
-    least one PermissionStatus handle.
-  </summary>
 </histogram>
 
 <histogram name="Permissions.AutoBlocker.EmbargoPromptSuppression"
@@ -612,6 +613,18 @@ chromium-metrics-reviews@google.com.
     subpage after having seen the notification permission prompt. This action is
     processed as the deny action, hence this histogram is used to track the
     close action.
+  </summary>
+</histogram>
+
+<histogram name="Permissions.ClapperLoud.PageInfo.Reset" enum="Boolean"
+    expires_after="2026-05-03">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the reset action whenever the user clicks the Reset permission
+    button in the PageInfo Permissions subpage after having seen the
+    notification permission prompt. The permission request is resolved as
+    Dismissed.
   </summary>
 </histogram>
 
@@ -763,7 +776,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Engagement.Accepted{PermissionRequestTypes}"
-    units="%" expires_after="2026-04-05">
+    units="%" expires_after="2026-06-07">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -958,26 +971,7 @@ chromium-metrics-reviews@google.com.
     correctly for clients &gt;= M116 (and should be ignored for previous major
     versions)
   </summary>
-  <token key="PermissionType">
-    <variant name="AudioCapture"/>
-    <variant name="Geolocation"/>
-    <variant name="VideoCapture"/>
-  </token>
-</histogram>
-
-<histogram name="Permissions.OneTimePermission.{PermissionType}.GrantOTPCount"
-    units="count" expires_after="2026-01-15">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records the number of times a one-time permission was granted for a site
-    before a permanent grant was issued.
-  </summary>
-  <token key="PermissionType">
-    <variant name="AudioCapture"/>
-    <variant name="Geolocation"/>
-    <variant name="VideoCapture"/>
-  </token>
+  <token key="PermissionType" variants="OTPSupportedPermissionType"/>
 </histogram>
 
 <histogram name="Permissions.OneTimePermission.{PermissionType}.OneTimeGrant"
@@ -985,15 +979,23 @@ chromium-metrics-reviews@google.com.
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
-    Records the number of times a one-time Geolocation permission has been
-    granted for a site. Each count represents an additional one-time grant for
-    the same site.
+    Records the number of times a one-time permission has been granted for a
+    site. Each count represents an additional one-time grant for the same site.
   </summary>
-  <token key="PermissionType">
-    <variant name="AudioCapture"/>
-    <variant name="Geolocation"/>
-    <variant name="VideoCapture"/>
-  </token>
+  <token key="PermissionType" variants="OTPSupportedPermissionType"/>
+</histogram>
+
+<histogram
+    name="Permissions.OneTimePermission.{PermissionType}.{OTPCountPermissionAction}OTPCount"
+    units="count" expires_after="2026-04-15">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the number of times a one-time permission was granted for a site
+    before a {OTPCountPermissionAction} action was taken.
+  </summary>
+  <token key="PermissionType" variants="OTPSupportedPermissionType"/>
+  <token key="OTPCountPermissionAction" variants="OTPCountPermissionAction"/>
 </histogram>
 
 <histogram
@@ -1092,7 +1094,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.PredictionService.MSBB" enum="BooleanEnabled"
-    expires_after="2026-03-29">
+    expires_after="2026-05-31">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1131,7 +1133,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.PredictionService.TFLiteLibAvailable"
-    enum="BooleanAvailable" expires_after="2026-03-29">
+    enum="BooleanAvailable" expires_after="2026-05-31">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1904,21 +1906,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Permissions.Query.QueryResponseTime" units="ms"
-    expires_after="2026-01-11">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Measure the response time of permissions.query as seen by Blink. This
-    histogram is introduced to get a baseline for the performance in Clank and
-    will be used to measure a future implementation of the API in WebView to
-    compare the performance.
-
-    The histogram is emitted when Blink receives a callback from the browser
-    process for the HasService call made as part of permissions.query.
-  </summary>
-</histogram>
-
 <histogram name="Permissions.Query.TopLevelStorageAccess" enum="BooleanEnabled"
     expires_after="2026-03-08">
   <owner>selya@google.com</owner>
@@ -1944,7 +1931,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.QuietNotificationPrompts.{RegularProfileFiltered}IsEnabledInPrefs"
-    enum="BooleanEnabled" expires_after="2026-01-13">
+    enum="BooleanEnabled" expires_after="2027-01-13">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -1971,7 +1958,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.QuietPrompt.Preignore.PageReloadInfoBar"
-    enum="BooleanShown" expires_after="2026-03-29">
+    enum="BooleanShown" expires_after="2026-05-31">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -2165,7 +2152,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.WebHid.ChooserClosed" enum="WebHidChooserClosed"
-    expires_after="2026-01-13">
+    expires_after="never">
+<!-- expires-never: Used to monitor user interaction with the WebHID API. -->
+
   <owner>mattreynolds@chromium.org</owner>
   <owner>deviceapi-team@google.com</owner>
   <summary>
@@ -2253,7 +2242,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.{PredictionModel}.SnapshotTaken"
-    enum="BooleanSuccess" expires_after="2026-04-05">
+    enum="BooleanSuccess" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -2266,7 +2255,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.{PredictionModel}.SnapshotTakenDuration"
-    units="ms" expires_after="2026-04-05">
+    units="ms" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -2295,7 +2284,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.{PredictionModel}.{PermissionType}.RenderedTextSize"
-    units="characters" expires_after="2026-04-05">
+    units="characters" expires_after="2026-06-07">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>

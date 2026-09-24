@@ -22,6 +22,7 @@
 #include "net/extras/shared_dictionary/shared_dictionary_info.h"
 #include "net/extras/sqlite/sqlite_persistent_shared_dictionary_store.h"
 #include "net/shared_dictionary/shared_dictionary_isolation_key.h"
+#include "services/network/shared_dictionary/shared_dictionary_manager.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
 #include "services/network/shared_dictionary/shared_dictionary_writer_on_disk.h"
 #include "url/gurl.h"
@@ -76,7 +77,8 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage,
       base::WeakPtr<SharedDictionaryManagerOnDisk> manager,
       const net::SharedDictionaryIsolationKey& isolation_key,
       base::ScopedClosureRunner on_deleted_closure_runner,
-      scoped_refptr<SharedDictionaryCache> dictionary_cache);
+      scoped_refptr<SharedDictionaryCache> dictionary_cache,
+      SharedDictionaryStorageEvictionReason previous_eviction_reason);
 
   SharedDictionaryStorageOnDisk(const SharedDictionaryStorageOnDisk&) = delete;
   SharedDictionaryStorageOnDisk& operator=(
@@ -124,6 +126,10 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage,
   friend class SharedDictionaryManagerTest;
   friend class SharedDictionaryManagerOnDiskTest;
 
+  scoped_refptr<net::SharedDictionary> GetDictionarySyncInternal(
+      const GURL& url,
+      mojom::RequestDestination destination);
+
   void OnDatabaseRead(
       net::SQLitePersistentSharedDictionaryStore::DictionaryListOrError result);
   void OnDictionaryWritten(
@@ -164,6 +170,9 @@ class SharedDictionaryStorageOnDisk : public SharedDictionaryStorage,
   bool is_metadata_ready_ = false;
 
   std::vector<base::OnceClosure> pending_get_dictionary_tasks_;
+
+  SharedDictionaryStorageEvictionReason previous_eviction_reason_ =
+      SharedDictionaryStorageEvictionReason::kNotEvicted;
 
   base::WeakPtrFactory<SharedDictionaryStorageOnDisk> weak_factory_{this};
 };

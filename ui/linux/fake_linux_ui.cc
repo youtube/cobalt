@@ -88,6 +88,10 @@ bool FakeLinuxUi::PrimaryPasteEnabled() const {
   return true;
 }
 
+int FakeLinuxUi::GetWindowDragThresholdPx() const {
+  return kDefaultWindowDragThreshold;
+}
+
 std::vector<std::string> FakeLinuxUi::GetCmdLineFlagsForCopy() const {
   return {};
 }
@@ -143,8 +147,8 @@ ui::TextEditCommand FakeLinuxUi::GetTextEditCommandForEvent(
 }
 
 #if BUILDFLAG(ENABLE_PRINTING)
-printing::PrintDialogLinuxInterface* FakeLinuxUi::CreatePrintDialog(
-    printing::PrintingContextLinux* context) {
+std::unique_ptr<printing::PrintDialogLinuxInterface>
+FakeLinuxUi::CreatePrintDialog(printing::PrintingContextLinux* context) {
   return nullptr;
 }
 

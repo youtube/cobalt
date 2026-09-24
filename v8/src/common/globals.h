@@ -355,6 +355,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_UNDEFINED_DOUBLE_BOOL false
 #endif
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL true
+#else
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL false
+#endif
+
 #define V8_STACK_ALLOCATED CPPGC_STACK_ALLOCATED
 
 // Superclass for classes only using static method functions.
@@ -872,6 +878,13 @@ enum class CallApiCallbackMode {
 // This constant is used to indicate that feedback is embedded in the bytecode
 // itself.
 constexpr int kFeedbackIsEmbedded = -1;
+
+// This constant is used as an sentinel value for embedded feedback in
+// byteocode, indicating an uninitialized state.
+constexpr int kUninitializedEmbeddedFeedback = 0;
+
+// The bytecode operand index for embedded feedback.
+constexpr int kEmbeddedFeedbackOperandIndex = 1;
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -1635,6 +1648,8 @@ static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
 #define USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL false
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
+
+enum class TypedArrayAccessMode { kRead, kWrite };
 
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,
@@ -2591,6 +2606,24 @@ enum class CachedTieringDecision : int32_t {
 #define V8_ENABLE_SPARKPLUG_PLUS
 #endif
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V) \
+  V(None)                              \
+  V(SignedSmall)                       \
+  V(Number)                            \
+  V(InternalizedString)                \
+  V(String)                            \
+  V(Symbol)                            \
+  V(Receiver)                          \
+  V(Any)
+#else
+#define IF_SPARKPLUG_PLUS(V, ...)
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V)
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 enum class SpeculationMode {
   kAllowSpeculation = 0,
   kDisallowBoundsCheckSpeculation = 1,
@@ -2642,29 +2675,6 @@ enum class AliasingKind {
   kCombine,
   // SIMD128 Registers are independent of every other size (e.g Riscv)
   kIndependent
-};
-
-#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                            \
-  C(Handler, handler)                                               \
-  C(CEntryFP, c_entry_fp)                                           \
-  C(CFunction, c_function)                                          \
-  C(Context, context)                                               \
-  C(Exception, exception)                                           \
-  C(TopmostScriptHavingContext, topmost_script_having_context)      \
-  C(PendingHandlerContext, pending_handler_context)                 \
-  C(PendingHandlerEntrypoint, pending_handler_entrypoint)           \
-  C(PendingHandlerConstantPool, pending_handler_constant_pool)      \
-  C(PendingHandlerFP, pending_handler_fp)                           \
-  C(PendingHandlerSP, pending_handler_sp)                           \
-  C(NumFramesAbovePendingHandler, num_frames_above_pending_handler) \
-  C(IsOnCentralStackFlag, is_on_central_stack_flag)                 \
-  C(JSEntrySP, js_entry_sp)
-
-enum IsolateAddressId {
-#define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
-  FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
-#undef DECLARE_ENUM
-      kIsolateAddressCount
 };
 
 // The reason for a WebAssembly trap.

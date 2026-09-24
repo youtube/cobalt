@@ -27,14 +27,12 @@ class MockObserver : public PipScreenCaptureCoordinatorImpl::Observer {
   MockObserver() = default;
   ~MockObserver() override = default;
 
-  MOCK_METHOD(void,
-              OnPipWindowIdChanged,
-              (std::optional<NativeWindowId>),
-              (override));
   MOCK_METHOD(
       void,
-      OnCapturesChanged,
-      (const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&),
+      OnStateChanged,
+      (std::optional<NativeWindowId>,
+       const GlobalRenderFrameHostId&,
+       const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&),
       (override));
 };
 
@@ -43,31 +41,32 @@ class MockProxyObserver : public PipScreenCaptureCoordinatorProxy::Observer {
   MockProxyObserver() = default;
   ~MockProxyObserver() override = default;
 
-  MOCK_METHOD(void,
-              OnPipWindowIdChanged,
-              (const std::optional<NativeWindowId>&),
-              (override));
   MOCK_METHOD(
       void,
-      OnCapturesChanged,
-      (const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&),
+      OnStateChanged,
+      ((const std::optional<NativeWindowId>&),
+       (const GlobalRenderFrameHostId&),
+       (const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&)),
       (override));
 };
 
 void CallOnPipShownAndWaitUntilDone(
     content::BrowserTaskEnvironment& task_environment,
     PipScreenCaptureCoordinatorImpl* coordinator,
-    NativeWindowId window_id) {
+    NativeWindowId window_id,
+    const GlobalRenderFrameHostId& owner_id) {
   base::RunLoop run_loop;
   task_environment.GetMainThreadTaskRunner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](PipScreenCaptureCoordinatorImpl* coordinator,
-             NativeWindowId window_id, base::OnceClosure quit_closure) {
-            coordinator->OnPipShown(window_id);
+             NativeWindowId window_id, const GlobalRenderFrameHostId& owner_id,
+             base::OnceClosure quit_closure) {
+            coordinator->OnPipShown(window_id, owner_id);
             std::move(quit_closure).Run();
           },
-          base::Unretained(coordinator), window_id, run_loop.QuitClosure()));
+          base::Unretained(coordinator), window_id, owner_id,
+          run_loop.QuitClosure()));
   run_loop.Run();
 }
 
@@ -76,8 +75,10 @@ void CallOnPipClosedAndWaitForObserver(
     PipScreenCaptureCoordinatorImpl* coordinator,
     MockProxyObserver& observer) {
   base::RunLoop run_loop;
-  EXPECT_CALL(observer, OnPipWindowIdChanged(std::optional<NativeWindowId>()))
-      .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+  EXPECT_CALL(observer, OnStateChanged(std::optional<NativeWindowId>(), _, _))
+      .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+        run_loop.Quit();
+      });
   task_environment.GetMainThreadTaskRunner()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](PipScreenCaptureCoordinatorImpl* coordinator) {
@@ -91,16 +92,22 @@ void CallOnPipShownAndWaitForObserver(
     content::BrowserTaskEnvironment& task_environment,
     PipScreenCaptureCoordinatorImpl* coordinator,
     MockProxyObserver& observer,
-    const std::optional<NativeWindowId>& new_pip_window_id) {
+    const std::optional<NativeWindowId>& new_pip_window_id,
+    const GlobalRenderFrameHostId& new_pip_owner_id) {
   base::RunLoop run_loop;
-  EXPECT_CALL(observer, OnPipWindowIdChanged(new_pip_window_id))
-      .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+  EXPECT_CALL(observer, OnStateChanged(new_pip_window_id, new_pip_owner_id, _))
+      .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+        run_loop.Quit();
+      });
   task_environment.GetMainThreadTaskRunner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](PipScreenCaptureCoordinatorImpl* coordinator,
-             NativeWindowId window_id) { coordinator->OnPipShown(window_id); },
-          base::Unretained(coordinator), *new_pip_window_id));
+             NativeWindowId window_id,
+             const GlobalRenderFrameHostId& owner_id) {
+            coordinator->OnPipShown(window_id, owner_id);
+          },
+          base::Unretained(coordinator), *new_pip_window_id, new_pip_owner_id));
   run_loop.Run();
 }
 
@@ -121,15 +128,21 @@ class PipScreenCaptureCoordinatorImplTest : public testing::Test {
   raw_ptr<PipScreenCaptureCoordinatorImpl> coordinator_;
 };
 
-TEST_F(PipScreenCaptureCoordinatorImplTest, PipWindowId) {
+TEST_F(PipScreenCaptureCoordinatorImplTest, PipStateAccessors) {
   EXPECT_EQ(coordinator_->PipWindowId(), std::nullopt);
+  EXPECT_EQ(coordinator_->GetPipOwnerRenderFrameHostId(),
+            GlobalRenderFrameHostId());
 
   const NativeWindowId pip_window_id = 123;
-  coordinator_->OnPipShown(pip_window_id);
+  const GlobalRenderFrameHostId pip_owner_id(1, 1);
+  coordinator_->OnPipShown(pip_window_id, pip_owner_id);
   EXPECT_EQ(coordinator_->PipWindowId(), pip_window_id);
+  EXPECT_EQ(coordinator_->GetPipOwnerRenderFrameHostId(), pip_owner_id);
 
   coordinator_->OnPipClosed();
   EXPECT_EQ(coordinator_->PipWindowId(), std::nullopt);
+  EXPECT_EQ(coordinator_->GetPipOwnerRenderFrameHostId(),
+            GlobalRenderFrameHostId());
 }
 
 TEST_F(PipScreenCaptureCoordinatorImplTest, OnPipShownNotifiesObservers) {
@@ -137,15 +150,16 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, OnPipShownNotifiesObservers) {
   coordinator_->AddObserver(&observer);
 
   const NativeWindowId pip_window_id = 123;
-  EXPECT_CALL(observer,
-              OnPipWindowIdChanged(std::make_optional(pip_window_id)));
-  coordinator_->OnPipShown(pip_window_id);
+  const GlobalRenderFrameHostId pip_owner_id(1, 1);
+  EXPECT_CALL(observer, OnStateChanged(std::make_optional(pip_window_id),
+                                       pip_owner_id, _));
+  coordinator_->OnPipShown(pip_window_id, pip_owner_id);
 
   EXPECT_EQ(coordinator_->PipWindowId(), pip_window_id);
 
   // Calling again with the same ID should not notify.
-  EXPECT_CALL(observer, OnPipWindowIdChanged(_)).Times(0);
-  coordinator_->OnPipShown(pip_window_id);
+  EXPECT_CALL(observer, OnStateChanged(_, _, _)).Times(0);
+  coordinator_->OnPipShown(pip_window_id, pip_owner_id);
 
   coordinator_->RemoveObserver(&observer);
 }
@@ -155,12 +169,14 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, OnPipClosedNotifiesObservers) {
   coordinator_->AddObserver(&observer);
 
   const NativeWindowId pip_window_id = 123;
-  EXPECT_CALL(observer,
-              OnPipWindowIdChanged(std::make_optional(pip_window_id)));
-  coordinator_->OnPipShown(pip_window_id);
+  const GlobalRenderFrameHostId pip_owner_id(1, 1);
+  EXPECT_CALL(observer, OnStateChanged(std::make_optional(pip_window_id),
+                                       pip_owner_id, _));
+  coordinator_->OnPipShown(pip_window_id, pip_owner_id);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, OnPipWindowIdChanged(testing::Eq(std::nullopt)));
+  EXPECT_CALL(observer, OnStateChanged(testing::Eq(std::nullopt),
+                                       GlobalRenderFrameHostId(), _));
   coordinator_->OnPipClosed();
 
   coordinator_->RemoveObserver(&observer);
@@ -174,21 +190,23 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, AddAndRemoveObserver) {
   coordinator_->AddObserver(&observer2);
 
   const NativeWindowId pip_window_id = 123;
-  EXPECT_CALL(observer1,
-              OnPipWindowIdChanged(std::make_optional(pip_window_id)));
-  EXPECT_CALL(observer2,
-              OnPipWindowIdChanged(std::make_optional(pip_window_id)));
-  coordinator_->OnPipShown(pip_window_id);
+  const GlobalRenderFrameHostId pip_owner_id(1, 1);
+  EXPECT_CALL(observer1, OnStateChanged(std::make_optional(pip_window_id),
+                                        pip_owner_id, _));
+  EXPECT_CALL(observer2, OnStateChanged(std::make_optional(pip_window_id),
+                                        pip_owner_id, _));
+  coordinator_->OnPipShown(pip_window_id, pip_owner_id);
   testing::Mock::VerifyAndClearExpectations(&observer1);
   testing::Mock::VerifyAndClearExpectations(&observer2);
 
   coordinator_->RemoveObserver(&observer1);
 
   const NativeWindowId new_pip_window_id = 456;
-  EXPECT_CALL(observer1, OnPipWindowIdChanged(_)).Times(0);
-  EXPECT_CALL(observer2,
-              OnPipWindowIdChanged(std::make_optional(new_pip_window_id)));
-  coordinator_->OnPipShown(new_pip_window_id);
+  const GlobalRenderFrameHostId new_pip_owner_id(2, 2);
+  EXPECT_CALL(observer1, OnStateChanged(_, _, _)).Times(0);
+  EXPECT_CALL(observer2, OnStateChanged(std::make_optional(new_pip_window_id),
+                                        new_pip_owner_id, _));
+  coordinator_->OnPipShown(new_pip_window_id, new_pip_owner_id);
 
   coordinator_->RemoveObserver(&observer2);
 }
@@ -196,8 +214,9 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, AddAndRemoveObserver) {
 TEST_F(PipScreenCaptureCoordinatorImplTest, CreateProxy) {
   // The proxy should start with the current ID.
   const NativeWindowId pip_window_id = 123;
-  CallOnPipShownAndWaitUntilDone(task_environment_, coordinator_,
-                                 pip_window_id);
+  const GlobalRenderFrameHostId pip_owner_id(1, 1);
+  CallOnPipShownAndWaitUntilDone(task_environment_, coordinator_, pip_window_id,
+                                 pip_owner_id);
   auto proxy = coordinator_->CreateProxy();
   ASSERT_TRUE(proxy);
 
@@ -205,16 +224,20 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, CreateProxy) {
   MockProxyObserver observer;
   proxy->AddObserver(&observer);
   EXPECT_EQ(proxy->PipWindowId(), pip_window_id);
+  EXPECT_EQ(proxy->GetPipOwnerRenderFrameHostId(), pip_owner_id);
 
   // The proxy should be updated when the ID changes.
   const std::optional<NativeWindowId> new_pip_window_id = 456;
+  const GlobalRenderFrameHostId new_pip_owner_id(2, 2);
   CallOnPipShownAndWaitForObserver(task_environment_, coordinator_, observer,
-                                   new_pip_window_id);
+                                   new_pip_window_id, new_pip_owner_id);
   EXPECT_EQ(proxy->PipWindowId(), new_pip_window_id);
+  EXPECT_EQ(proxy->GetPipOwnerRenderFrameHostId(), new_pip_owner_id);
 
   // The proxy should be updated when the pip window is closed.
   CallOnPipClosedAndWaitForObserver(task_environment_, coordinator_, observer);
   EXPECT_EQ(proxy->PipWindowId(), std::nullopt);
+  EXPECT_EQ(proxy->GetPipOwnerRenderFrameHostId(), GlobalRenderFrameHostId());
 
   proxy->RemoveObserver(&observer);
 }
@@ -233,8 +256,9 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, AddCaptureNotifiesObservers) {
           .render_frame_host_id = render_frame_host_id,
           .desktop_media_id = desktop_media_id};
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::ElementsAre(
-                            testing::Eq(std::ref(expected_capture_info)))));
+  EXPECT_CALL(observer, OnStateChanged(_, _,
+                                       testing::ElementsAre(testing::Eq(
+                                           std::ref(expected_capture_info)))));
   coordinator_->AddCapture(expected_capture_info);
 
   coordinator_->RemoveObserver(&observer);
@@ -254,11 +278,11 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, RemoveCaptureNotifiesObservers) {
           .render_frame_host_id = render_frame_host_id,
           .desktop_media_id = desktop_media_id};
 
-  EXPECT_CALL(observer, OnCapturesChanged(_)).Times(1);
+  EXPECT_CALL(observer, OnStateChanged(_, _, _)).Times(1);
   coordinator_->AddCapture(expected_capture_info);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::IsEmpty()));
+  EXPECT_CALL(observer, OnStateChanged(_, _, testing::IsEmpty()));
   coordinator_->RemoveCapture(session_id);
 
   coordinator_->RemoveObserver(&observer);
@@ -288,23 +312,28 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, AddAndRemoveCapture) {
           .render_frame_host_id = render_frame_host_id2,
           .desktop_media_id = desktop_media_id2};
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::ElementsAre(
-                            testing::Eq(std::ref(expected_capture_info1)))));
+  EXPECT_CALL(observer, OnStateChanged(_, _,
+                                       testing::ElementsAre(testing::Eq(
+                                           std::ref(expected_capture_info1)))));
   coordinator_->AddCapture(expected_capture_info1);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::UnorderedElementsAre(
-                            testing::Eq(std::ref(expected_capture_info1)),
-                            testing::Eq(std::ref(expected_capture_info2)))));
+  EXPECT_CALL(
+      observer,
+      OnStateChanged(_, _,
+                     testing::UnorderedElementsAre(
+                         testing::Eq(std::ref(expected_capture_info1)),
+                         testing::Eq(std::ref(expected_capture_info2)))));
   coordinator_->AddCapture(expected_capture_info2);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::ElementsAre(
-                            testing::Eq(std::ref(expected_capture_info2)))));
+  EXPECT_CALL(observer, OnStateChanged(_, _,
+                                       testing::ElementsAre(testing::Eq(
+                                           std::ref(expected_capture_info2)))));
   coordinator_->RemoveCapture(session_id1);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, OnCapturesChanged(testing::IsEmpty()));
+  EXPECT_CALL(observer, OnStateChanged(_, _, testing::IsEmpty()));
   coordinator_->RemoveCapture(session_id2);
 
   coordinator_->RemoveObserver(&observer);
@@ -339,36 +368,51 @@ TEST_F(PipScreenCaptureCoordinatorImplTest, AddAndRemoveCaptureNotifiesProxy) {
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(observer, OnCapturesChanged(testing::ElementsAre(
-                              testing::Eq(std::ref(expected_capture_info1)))))
-        .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+    EXPECT_CALL(observer,
+                OnStateChanged(_, _,
+                               testing::ElementsAre(testing::Eq(
+                                   std::ref(expected_capture_info1)))))
+        .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+          run_loop.Quit();
+        });
     PipScreenCaptureCoordinatorImpl::AddCapture(expected_capture_info1);
     run_loop.Run();
   }
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(observer, OnCapturesChanged(testing::UnorderedElementsAre(
-                              testing::Eq(std::ref(expected_capture_info1)),
-                              testing::Eq(std::ref(expected_capture_info2)))))
-        .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+    EXPECT_CALL(
+        observer,
+        OnStateChanged(_, _,
+                       testing::UnorderedElementsAre(
+                           testing::Eq(std::ref(expected_capture_info1)),
+                           testing::Eq(std::ref(expected_capture_info2)))))
+        .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+          run_loop.Quit();
+        });
     PipScreenCaptureCoordinatorImpl::AddCapture(expected_capture_info2);
     run_loop.Run();
   }
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(observer, OnCapturesChanged(testing::ElementsAre(
-                              testing::Eq(std::ref(expected_capture_info2)))))
-        .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+    EXPECT_CALL(observer,
+                OnStateChanged(_, _,
+                               testing::ElementsAre(testing::Eq(
+                                   std::ref(expected_capture_info2)))))
+        .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+          run_loop.Quit();
+        });
     PipScreenCaptureCoordinatorImpl::RemoveCapture(session_id1);
     run_loop.Run();
   }
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(observer, OnCapturesChanged(testing::IsEmpty()))
-        .WillOnce([&run_loop](const auto&) { run_loop.Quit(); });
+    EXPECT_CALL(observer, OnStateChanged(_, _, testing::IsEmpty()))
+        .WillOnce([&run_loop](const auto&, const auto&, const auto&) {
+          run_loop.Quit();
+        });
     PipScreenCaptureCoordinatorImpl::RemoveCapture(session_id2);
     run_loop.Run();
   }

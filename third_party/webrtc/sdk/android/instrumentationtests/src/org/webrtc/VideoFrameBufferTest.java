@@ -323,16 +323,18 @@ public class VideoFrameBufferTest {
    */
   public static void assertAlmostEqualI420Buffers(
       VideoFrame.I420Buffer bufferA, VideoFrame.I420Buffer bufferB) {
+
     final int diff = maxDiff(bufferA, bufferB);
-  assertWithMessage("Pixel difference too high: " + diff + "."
-      + "\nBuffer A: " + i420BufferToString(bufferA)
-      + "Buffer B: " + i420BufferToString(bufferB))
-  .that(diff).isAtMost(4);
+    assertWithMessage(String.format(
+        "Pixel difference too high: %d.\nBuffer A: %sBuffer B: %s",
+        diff, i420BufferToString(bufferA), i420BufferToString(bufferB)))
+        .that(diff).isAtMost(4);
+
     final double psnr = calculatePsnr(bufferA, bufferB);
-  assertWithMessage("PSNR too low: " + psnr + "."
-      + "\nBuffer A: " + i420BufferToString(bufferA)
-      + "Buffer B: " + i420BufferToString(bufferB))
-  .that(psnr).isAtLeast(50.0);
+    assertWithMessage(String.format(
+        "PSNR too low: %.2f.\nBuffer A: %sBuffer B: %s",
+        psnr, i420BufferToString(bufferA), i420BufferToString(bufferB)))
+        .that(psnr).isAtLeast(50.0);
   }
 
   /** Returns a flattened list of pixel differences for two ByteBuffer planes. */

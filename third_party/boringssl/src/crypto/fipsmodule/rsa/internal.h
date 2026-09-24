@@ -27,8 +27,6 @@ extern "C" {
 #endif
 
 
-typedef struct bn_blinding_st BN_BLINDING;
-
 // TODO(davidben): This is inside BCM because |RSA| is inside BCM, but BCM never
 // uses this. Split the RSA type in two.
 enum rsa_pss_params_t {
@@ -78,17 +76,6 @@ struct rsa_st {
   // iqmp_mont is q^-1 mod p in Montgomery form, using |mont_p|.
   BIGNUM *iqmp_mont;
 
-  // num_blindings contains the size of the |blindings| and |blindings_inuse|
-  // arrays. This member and the |blindings_inuse| array are protected by
-  // |lock|.
-  size_t num_blindings;
-  // blindings is an array of BN_BLINDING structures that can be reserved by a
-  // thread by locking |lock| and changing the corresponding element in
-  // |blindings_inuse| from 0 to 1.
-  BN_BLINDING **blindings;
-  unsigned char *blindings_inuse;
-  uint64_t blinding_fork_generation;
-
   // pss_params is the RSA-PSS parameters associated with the key. This is not
   // used by the low-level RSA implementation, just the EVP layer.
   rsa_pss_params_t pss_params;
@@ -110,15 +97,6 @@ int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
                          int padding);
 int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
                                   size_t len);
-
-
-BN_BLINDING *BN_BLINDING_new(void);
-void BN_BLINDING_free(BN_BLINDING *b);
-void BN_BLINDING_invalidate(BN_BLINDING *b);
-int BN_BLINDING_convert(BIGNUM *n, BN_BLINDING *b, const BIGNUM *e,
-                        const BN_MONT_CTX *mont_ctx, BN_CTX *ctx);
-int BN_BLINDING_invert(BIGNUM *n, const BN_BLINDING *b, BN_MONT_CTX *mont_ctx,
-                       BN_CTX *ctx);
 
 
 int PKCS1_MGF1(uint8_t *out, size_t len, const uint8_t *seed, size_t seed_len,

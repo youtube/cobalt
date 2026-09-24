@@ -37,12 +37,19 @@ class AudioBuffer {
   static const int kSplitBandSize = 160;
   // TODO(tommi): Remove this (`AudioBuffer::kMaxSampleRate`) constant.
   static const int kMaxSampleRate = kMaxSampleRateHz;
+
   AudioBuffer(size_t input_rate,
               size_t input_num_channels,
               size_t buffer_rate,
               size_t buffer_num_channels,
               size_t output_rate,
               size_t output_num_channels);
+
+  AudioBuffer(size_t input_rate,
+              size_t input_num_channels,
+              size_t buffer_rate,
+              size_t buffer_num_channels,
+              size_t output_rate);
 
   virtual ~AudioBuffer();
 

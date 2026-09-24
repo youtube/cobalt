@@ -182,6 +182,44 @@ class StubBlockEncoder : public BlockLayoutEncoder
     {}
 };
 
+// The unit of mCurrentOffset in PackedSPIRVBlockEncoder is byte, instead of 4-byte as used by
+// Std140BlockEncoder. The data type that the PackedSPIRVBlockEncoder processes can be half float,
+// which is 2 bytes, and the VK_KHR_relaxed_block_layout allows 2 byte alignment, therefore changing
+// mCurrentOffset unit from 4-byte to byte to allow more fine-grained offsets.
+class PackedSPIRVBlockEncoder : public BlockLayoutEncoder
+{
+  public:
+    PackedSPIRVBlockEncoder();
+
+    BlockMemberInfo encodeType(GLenum type,
+                               const std::vector<unsigned int> &arraySizes,
+                               bool isRowMajorMatrix) override;
+
+    BlockMemberInfo encodeArrayOfPreEncodedStructs(
+        size_t size,
+        const std::vector<unsigned int> &arraySizes) override;
+
+    size_t getCurrentOffset() const override;
+
+    void enterAggregateType(const ShaderVariable &structVar) override;
+    void exitAggregateType(const ShaderVariable &structVar) override;
+
+  protected:
+    void getBlockLayoutInfo(GLenum type,
+                            const std::vector<unsigned int> &arraySizes,
+                            bool isRowMajorMatrix,
+                            int *arrayStrideOut,
+                            int *matrixStrideOut) override;
+    void advanceOffset(GLenum type,
+                       const std::vector<unsigned int> &arraySizes,
+                       bool isRowMajorMatrix,
+                       int arrayStride,
+                       int matrixStride) override;
+
+    virtual size_t getBaseAlignment(const ShaderVariable &variable) const;
+    virtual size_t getTypeBaseAlignment(GLenum type, bool isRowMajorMatrix) const;
+};
+
 // Block layout according to the std140 block layout
 // See "Standard Uniform Block Layout" in Section 2.11.6 of the OpenGL ES 3.0 specification
 

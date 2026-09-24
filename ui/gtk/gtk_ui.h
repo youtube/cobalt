@@ -53,10 +53,6 @@ class GtkUi : public ui::LinuxUiAndTheme {
 
   ~GtkUi() override;
 
-  // Static delegate getter, used by different objects (created by GtkUi), e.g:
-  // Dialogs, IME Context, when platform-specific functionality is required.
-  static GtkUiPlatform* GetPlatform();
-
   // Setters used by SettingsProvider:
   void SetWindowButtonOrdering(
       const std::vector<views::FrameButton>& leading_buttons,
@@ -72,7 +68,7 @@ class GtkUi : public ui::LinuxUiAndTheme {
                                    float scale) const override;
   base::flat_map<std::string, std::string> GetKeyboardLayoutMap() override;
 #if BUILDFLAG(ENABLE_PRINTING)
-  printing::PrintDialogLinuxInterface* CreatePrintDialog(
+  std::unique_ptr<printing::PrintDialogLinuxInterface> CreatePrintDialog(
       printing::PrintingContextLinux* context) override;
   gfx::Size GetPdfPaperSize(printing::PrintingContextLinux* context) override;
 #endif
@@ -94,6 +90,7 @@ class GtkUi : public ui::LinuxUiAndTheme {
   WindowFrameAction GetWindowFrameAction(
       WindowFrameActionSource source) override;
   bool PrimaryPasteEnabled() const override;
+  int GetWindowDragThresholdPx() const override;
   std::vector<std::string> GetCmdLineFlagsForCopy() const override;
 
   // ui::LinuxUiTheme:

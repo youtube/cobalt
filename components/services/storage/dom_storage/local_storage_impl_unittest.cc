@@ -126,9 +126,7 @@ class LocalStorageImplTest : public testing::Test {
   LocalStorageImplTest& operator=(const LocalStorageImplTest&) = delete;
 
   ~LocalStorageImplTest() override {
-    if (storage_)
-      ShutDownStorage();
-
+    ShutDownStorage();
     EXPECT_TRUE(temp_path_.Delete());
   }
 
@@ -141,23 +139,39 @@ class LocalStorageImplTest : public testing::Test {
 
   void InitializeStorage(const base::FilePath& path) {
     DCHECK(!storage_);
-    storage_ = std::make_unique<LocalStorageImpl>(
-        path, base::SingleThreadTaskRunner::GetCurrentDefault(),
-        base::NullCallback(),
-        /*receiver=*/mojo::NullReceiver());
+    storage_ =
+        std::make_unique<LocalStorageImpl>(path, base::NullCallback(),
+                                           /*receiver=*/mojo::NullReceiver());
   }
 
+  // Resets `storage_` and waits for database shutdown tasks to finish.
   void ShutDownStorage() {
-    DCHECK(storage_);
-    base::RunLoop loop;
-    storage_->ShutDown(loop.QuitClosure());
-    loop.Run();
+    if (!storage_) {
+      return;
+    }
+
+    scoped_refptr<base::SequencedTaskRunner> db_task_runner;
+    // If the database was never opened, no need to wait for it to close.
+    if (storage_->GetDatabaseForTesting()) {
+      base::RunLoop loop;
+      context()->GetDatabaseForTesting()->PostTaskWithThisObject(
+          base::BindLambdaForTesting(
+              [&](DomStorageDatabase* dom_storage_database) {
+                db_task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+                loop.Quit();
+              }));
+      loop.Run();
+    }
     storage_.reset();
+    if (db_task_runner) {
+      base::RunLoop flush_db;
+      db_task_runner->PostTask(FROM_HERE, flush_db.QuitClosure());
+      flush_db.Run();
+    }
   }
 
   void ResetStorage(const base::FilePath& path) {
-    if (storage_)
-      ShutDownStorage();
+    ShutDownStorage();
     InitializeStorage(path);
   }
 
@@ -170,7 +184,7 @@ class LocalStorageImplTest : public testing::Test {
   void SetDatabaseEntry(std::string_view key, std::string_view value) {
     WaitForDatabaseOpen();
     base::RunLoop loop;
-    context()->GetDatabaseForTesting().PostTaskWithThisObject(
+    context()->GetDatabaseForTesting()->PostTaskWithThisObject(
         base::BindLambdaForTesting(
             [&](DomStorageDatabase* dom_storage_database) {
               DomStorageDatabaseLevelDB* db =
@@ -186,7 +200,7 @@ class LocalStorageImplTest : public testing::Test {
   void ClearDatabase() {
     WaitForDatabaseOpen();
     base::RunLoop loop;
-    context()->GetDatabaseForTesting().PostTaskWithThisObject(
+    context()->GetDatabaseForTesting()->PostTaskWithThisObject(
         base::BindLambdaForTesting(
             [&](DomStorageDatabase* dom_storage_database) {
               DomStorageDatabaseLevelDB* db =
@@ -204,7 +218,7 @@ class LocalStorageImplTest : public testing::Test {
     std::vector<DomStorageDatabase::KeyValuePair> entries;
     WaitForDatabaseOpen();
     base::RunLoop loop;
-    context()->GetDatabaseForTesting().PostTaskWithThisObject(
+    context()->GetDatabaseForTesting()->PostTaskWithThisObject(
         base::BindLambdaForTesting(
             [&](DomStorageDatabase* dom_storage_database) {
               DomStorageDatabaseLevelDB& db =
@@ -1018,7 +1032,7 @@ TEST_F(LocalStorageImplTest, CorruptionOnDisk) {
                                  FILE_PATH_LITERAL("MANIFEST*"));
   for (base::FilePath name = file_enum.Next(); !name.empty();
        name = file_enum.Next()) {
-    base::DeleteFile(name);
+    EXPECT_TRUE(base::DeleteFile(name));
   }
 
   // Make sure data is gone.
@@ -1082,7 +1096,7 @@ TEST_F(LocalStorageImplTest, RecreateOnCommitFailure) {
   destruction_loop.emplace();
 
   bool first_database_destroyed = false;
-  context()->GetDatabaseForTesting().PostTaskWithThisObject(
+  context()->GetDatabaseForTesting()->PostTaskWithThisObject(
       base::BindLambdaForTesting([&](DomStorageDatabase* db) {
         db->MakeAllCommitsFailForTesting();
         db->SetDestructionCallbackForTesting(base::BindLambdaForTesting([&] {
@@ -1197,7 +1211,7 @@ TEST_F(LocalStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
 
   // Ensure that all commits fail on the database, and that we observe its
   // destruction.
-  context()->GetDatabaseForTesting().PostTaskWithThisObject(
+  context()->GetDatabaseForTesting()->PostTaskWithThisObject(
       base::BindLambdaForTesting([&](DomStorageDatabase* db) {
         db->MakeAllCommitsFailForTesting();
         db->SetDestructionCallbackForTesting(
@@ -1240,7 +1254,7 @@ TEST_F(LocalStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
   open_loop->Run();
   EXPECT_EQ(2u, num_database_open_requests);
   EXPECT_EQ(1u, num_databases_destroyed);
-  context()->GetDatabaseForTesting().PostTaskWithThisObject(base::BindOnce(
+  context()->GetDatabaseForTesting()->PostTaskWithThisObject(base::BindOnce(
       [](DomStorageDatabase* db) { db->MakeAllCommitsFailForTesting(); }));
 
   // Reconnect a area to the database, and repeatedly write data to it again.

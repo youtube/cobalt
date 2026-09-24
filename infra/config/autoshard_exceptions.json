@@ -1,6 +1,6 @@
 {
     "chromium.android": {
-        "android-10-x86-rel": {
+        "android-10-x86-nofieldtrial-rel": {
             "webview_trichrome_cts_tests full_mode": {
                 "shards": 3,
                 "try_builder": "android-x86-rel"
@@ -190,7 +190,7 @@
                 "try_builder": "linux_chromium_asan_rel_ng"
             },
             "sync_integration_tests": {
-                "shards": 13,
+                "shards": 12,
                 "try_builder": "linux_chromium_asan_rel_ng"
             },
             "unit_tests": {

@@ -22,27 +22,32 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
 namespace blink {
 
 AudioRendererSinkCache* AudioRendererSinkCache::instance_ = nullptr;
 
-class AudioRendererSinkCacheWindowObserver final
-    : public GarbageCollected<AudioRendererSinkCacheWindowObserver>,
+class AudioRendererSinkCache::WindowObserver final
+    : public GarbageCollected<AudioRendererSinkCache::WindowObserver>,
+      public Supplement<LocalDOMWindow>,
       public ExecutionContextLifecycleObserver {
  public:
-  explicit AudioRendererSinkCacheWindowObserver(LocalDOMWindow& window)
-      : ExecutionContextLifecycleObserver(&window) {}
+  static constexpr auto kSupplementIndex =
+      LocalDOMWindow::Supplements::kAudioRendererSinkCache;
 
-  AudioRendererSinkCacheWindowObserver(
-      const AudioRendererSinkCacheWindowObserver&) = delete;
-  AudioRendererSinkCacheWindowObserver& operator=(
-      const AudioRendererSinkCacheWindowObserver&) = delete;
+  explicit WindowObserver(LocalDOMWindow& window)
+      : Supplement<LocalDOMWindow>(window),
+        ExecutionContextLifecycleObserver(&window) {}
 
-  ~AudioRendererSinkCacheWindowObserver() override = default;
+  WindowObserver(const WindowObserver&) = delete;
+  WindowObserver& operator=(const WindowObserver&) = delete;
+
+  ~WindowObserver() override = default;
 
   void Trace(Visitor* visitor) const final {
+    Supplement<LocalDOMWindow>::Trace(visitor);
     ExecutionContextLifecycleObserver::Trace(visitor);
   }
 
@@ -71,11 +76,10 @@ struct AudioRendererSinkCache::CacheEntry {
 
 // static
 void AudioRendererSinkCache::InstallWindowObserver(LocalDOMWindow& window) {
-  if (window.GetAudioRendererSinkCacheWindowObserver()) {
+  if (Supplement<LocalDOMWindow>::From<WindowObserver>(window))
     return;
-  }
-  window.SetAudioRendererSinkCacheWindowObserver(
-      MakeGarbageCollected<AudioRendererSinkCacheWindowObserver>(window));
+  Supplement<LocalDOMWindow>::ProvideTo(
+      window, MakeGarbageCollected<WindowObserver>(window));
 }
 
 AudioRendererSinkCache::AudioRendererSinkCache(

@@ -18,10 +18,18 @@
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/platform_thread.h"  // IWYU pragma: keep
+#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
+
+#if defined(WEBRTC_WIN)
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 namespace webrtc {
 // This file contains a default implementation of
@@ -56,10 +64,17 @@ class RTC_EXPORT AsyncDnsResolver : public AsyncDnsResolverInterface {
   const AsyncDnsResolverResult& result() const override;
 
  private:
-  class State;
+  class StateImpl;
+  using State = FinalRefCountedObject<StateImpl>;
   scoped_refptr<State> state_;  // To check for the target task queue going away
   AsyncDnsResolverResultImpl result_;
   absl::AnyInvocable<void() &&> callback_;
+#if defined(WEBRTC_WIN)
+  OVERLAPPED ol_ = {};
+  HANDLE cancel_ = nullptr;
+  PADDRINFOEXW addr_info_ = nullptr;
+  PlatformThread worker_;
+#endif
   ScopedTaskSafety safety_;  // To check for client going away. Must be last.
 };
 

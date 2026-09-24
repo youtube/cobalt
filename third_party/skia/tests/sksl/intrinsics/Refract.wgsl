@@ -13,13 +13,11 @@ struct _GlobalUniforms {
 @binding(0) @group(0) var<uniform> _globalUniforms: _GlobalUniforms;
 fn _skslMain(_skParam0: vec2<f32>) -> vec4<f32> {
   {
-    let _skTemp0 = 2.0;
-    let _skTemp1 = refract(vec2<f32>(6e+26, 0), vec2<f32>(2.0, 0), _skTemp0).x;
-    var result: vec4<f32> = vec4<f32>(_skTemp1);
-    let _skTemp2 = refract(vec2<f32>(_globalUniforms.a, 0), vec2<f32>(_globalUniforms.b, 0), _globalUniforms.c).x;
-    result.x = _skTemp2;
-    let _skTemp3 = refract(_globalUniforms.d, _globalUniforms.e, _globalUniforms.c);
-    result = _skTemp3;
+    let _skTemp0 = 65504.0;
+    let _skTemp1 = _skTemp0 * 2.0;
+    var result: vec4<f32> = vec4<f32>(refract(vec2<f32>(_skTemp1, 0), vec2<f32>(2.0, 0), 2.0).x);
+    result.x = refract(vec2<f32>(_globalUniforms.a, 0), vec2<f32>(_globalUniforms.b, 0), _globalUniforms.c).x;
+    result = refract(_globalUniforms.d, _globalUniforms.e, _globalUniforms.c);
     result = vec4<f32>((vec2<f32>(0.5, -0.8660254)), result.zw);
     result = vec4<f32>((vec3<f32>(0.5, 0.0, -0.8660254)), result.w);
     result = vec4<f32>(0.5, 0.0, 0.0, -0.8660254);

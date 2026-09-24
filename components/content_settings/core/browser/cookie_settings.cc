@@ -30,7 +30,6 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
-#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/tpcd/metadata/browser/manager.h"
 #include "extensions/buildflags/buildflags.h"
@@ -185,30 +184,10 @@ void CookieSettings::SetCookieSettingForUserBypass(
       constraints);
 }
 
-bool CookieSettings::IsStoragePartitioningBypassEnabled(
-    const GURL& first_party_url) const {
-  SettingInfo info;
-  ContentSetting setting = host_content_settings_map_->GetContentSetting(
-      GURL(), first_party_url, ContentSettingsType::COOKIES, &info);
-  // Check for explicit 3PC exception.
-  if (IsAllowed(setting) && (!info.primary_pattern.MatchesAllHosts() ||
-                             !info.secondary_pattern.MatchesAllHosts())) {
-    return true;
-  }
-  return false;
-}
-
 void CookieSettings::ResetCookieSetting(const GURL& primary_url) {
   host_content_settings_map_->SetNarrowestContentSetting(
       primary_url, GURL(), ContentSettingsType::COOKIES,
       CONTENT_SETTING_DEFAULT);
-}
-
-bool CookieSettings::AreThirdPartyCookiesLimited() const {
-  // Checks whether we are in the limited state via Mode B.
-  return tracking_protection_settings_ &&
-         tracking_protection_settings_->IsTrackingProtection3pcdEnabled() &&
-         !tracking_protection_settings_->AreAllThirdPartyCookiesBlocked();
 }
 
 // TODO(crbug.com/40247160): Update to take in CookieSettingOverrides.
@@ -390,7 +369,9 @@ bool CookieSettings::ShouldBlockThirdPartyCookiesInternal() const {
 }
 
 bool CookieSettings::MitigationsEnabledFor3pcdInternal() const {
-  return AreThirdPartyCookiesLimited() ||
+  return (tracking_protection_settings_ &&
+          tracking_protection_settings_->IsTrackingProtection3pcdEnabled() &&
+          !tracking_protection_settings_->AreAllThirdPartyCookiesBlocked()) ||
          net::cookie_util::IsForceThirdPartyCookieBlockingEnabled();
 }
 

@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
@@ -26,15 +27,23 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
 class BrowserWindowInterface;
+class GoogleServiceAuthError;
 
 namespace content {
+struct OpenURLParams;
 class BrowserContext;
 class WebContentsObserver;
 }  // namespace content
+
+namespace signin {
+class AccessTokenFetcher;
+struct AccessTokenInfo;
+}  // namespace signin
 
 namespace contextual_tasks {
 class ContextualTasksContextController;
@@ -114,6 +123,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
   BrowserWindowInterface* GetBrowser() override;
   content::WebContents* GetWebUIWebContents() override;
 
+  // Get the URL of the page currently embedded in this WebUI.
+  const GURL& GetInnerFrameUrl() const;
+
   void CloseSidePanel();
 
   void BindInterface(
@@ -144,9 +156,15 @@ class ContextualTasksUI : public TaskInfoDelegate,
 
   static constexpr std::string_view GetWebUIName() { return "ContextualTasks"; }
 
+  static base::RefCountedMemory* GetFaviconResourceBytes(
+      ui::ResourceScaleFactor scale_factor);
+
   // Notify the UI that the WebContents has moved to or from the side panel or
   // tab.
   void OnSidePanelStateChanged();
+
+  // Called to disable active tab context suggestion on compose box.
+  void DisableActiveTabContextSuggestion();
 
   // Called when the active tab has been changed, either a new page is loaded or
   // a title change. This is only called when the of this class is rendered in
@@ -162,11 +180,18 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // guest. The WebUI is responsible for taking the 'message' (a serialized
   // lens.ClientToAimMessage protobuf) and using the <webview> postMessage API
   // to send it to the guest content.
-  void PostMessageToWebview(const lens::ClientToAimMessage& message);
+  virtual void PostMessageToWebview(const lens::ClientToAimMessage& message);
 
   mojo::Remote<contextual_tasks::mojom::Page>& page() { return page_; }
 
+  // Transfers an existing navigation to the page embedded in this WebUI. This
+  // API will only accept navigations to the AI or search results pages.
+  void TransferNavigationToEmbeddedPage(content::OpenURLParams params);
+
  private:
+  void RequestOAuthToken();
+  void OnOAuthTokenReceived(GoogleServiceAuthError error,
+                            signin::AccessTokenInfo access_token_info);
   // A an observer specifically to watch for the creation of the hosted remote
   // page. This is attached to the WebContents for the WebUI and notifies the
   // WebUI when an inner WebContents is created. The expectation is that there
@@ -190,6 +215,14 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // the embedded remote page.
   void OnInnerWebContentsCreated(content::WebContents* inner_contents);
 
+  // The OAuth token fetcher is used to fetch the OAuth token for the signed in
+  // user. This is used to authenticate the user when making requests in the
+  // embedded page.
+  std::unique_ptr<signin::AccessTokenFetcher> oauth_token_fetcher_;
+
+  // A timer used to refresh the OAuth token before it expires.
+  base::OneShotTimer token_refresh_timer_;
+
   std::unique_ptr<ContextualTasksComposeboxHandler> composebox_handler_;
   raw_ptr<contextual_tasks::ContextualTasksUiService> ui_service_;
 
@@ -211,6 +244,10 @@ class ContextualTasksUI : public TaskInfoDelegate,
   std::unique_ptr<InnerFrameCreationObvserver>
       inner_web_contents_creation_observer_;
   std::unique_ptr<FrameNavObserver> nav_observer_;
+
+  // A handle to the embedded page for this WebUI. This is the WebContents that
+  // contains the AI thread (and sometimes the search results page).
+  base::WeakPtr<content::WebContents> embedded_web_contents_;
 
   // The ID of the task (concept that owns one or more threads) associated with
   // this WebUI, if it exists. This is a cached value tied to the most recent
@@ -236,6 +273,8 @@ class ContextualTasksUI : public TaskInfoDelegate,
 
   std::unique_ptr<ContextualTasksInternalsPageHandler>
       contextual_tasks_internals_page_handler_;
+
+  bool is_last_shown_in_tab_ = true;
 
   base::WeakPtrFactory<ContextualTasksUI> weak_ptr_factory_{this};
 

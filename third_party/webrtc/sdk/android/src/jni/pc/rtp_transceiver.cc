@@ -157,7 +157,7 @@ ScopedJavaLocalRef<jobject> JNI_RtpTransceiver_CurrentDirection(
 ScopedJavaLocalRef<jobject> JNI_RtpTransceiver_SetCodecPreferences(
     JNIEnv* jni,
     jlong j_rtp_transceiver_pointer,
-    const jni_zero::JavaParamRef<jobject>& j_codecs) {
+    const jni_zero::JavaRef<jobject>& j_codecs) {
   std::vector<RtpCodecCapability> codecs;
   if (j_codecs) {
     codecs = JavaListToNativeVector<RtpCodecCapability, jobject>(
@@ -187,7 +187,7 @@ void JNI_RtpTransceiver_StopStandard(JNIEnv* jni,
 jboolean JNI_RtpTransceiver_SetDirection(
     JNIEnv* jni,
     jlong j_rtp_transceiver_pointer,
-    const jni_zero::JavaParamRef<jobject>& j_rtp_transceiver_direction) {
+    const jni_zero::JavaRef<jobject>& j_rtp_transceiver_direction) {
   if (IsNull(jni, j_rtp_transceiver_direction)) {
     return false;
   }

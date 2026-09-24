@@ -34,8 +34,8 @@ component("webnn_service") {
 
   sources = [
     "error.h",
-    "scoped_sequence.cc",
-    "scoped_sequence.h",
+    "scoped_gpu_sequence.cc",
+    "scoped_gpu_sequence.h",
     "sequence_deleter.cc",
     "sequence_deleter.h",
     "webnn_constant_operand.cc",
@@ -231,12 +231,20 @@ source_set("webnn_test_support") {
   deps = [
     ":webnn_service",
     "//base",
+    "//base/test:test_support",
     "//gpu/command_buffer/service",
     "//gpu/config",
     "//mojo/public/cpp/bindings",
     "//services/viz/privileged/mojom/gl",
     "//services/webnn/public/mojom",
   ]
+
+  if (is_win) {
+    deps += [
+      "//services/webnn/host",
+      "//ui/gfx/mojom",
+    ]
+  }
 }
 
 source_set("tests") {

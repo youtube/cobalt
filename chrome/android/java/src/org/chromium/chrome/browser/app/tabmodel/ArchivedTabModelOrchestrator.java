@@ -301,11 +301,6 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         } else {
             rescueArchivedTabs(orchestrator);
         }
-
-        // If the flag is turned off, clear all {@link SavedTabGroup}s of possible archived status.
-        if (!ChromeFeatureList.sAndroidTabDeclutterArchiveTabGroups.isEnabled()) {
-            rescueArchivedTabGroups();
-        }
     }
 
     /** Unregisters an orchestrator when it's destroyed. */
@@ -402,7 +397,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
                 new TabbedModeTabPersistencePolicy(
                         TabMetadataFileManager.getMetadataFileName(
                                 ARCHIVED_TAB_SELECTOR_UNIQUE_TAG),
-                        /* otherMetadataFileName= */ null,
+                        /* otherWindowTag= */ null,
                         /* mergeTabsOnStartup= */ false,
                         /* tabMergingEnabled= */ false) {
 
@@ -487,19 +482,10 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         if (!mTabArchiveSettings.getArchiveEnabled()) return;
         pauseSaveTabList(orchestrator);
 
-        int archiveTimeHours = mTabArchiveSettings.getArchiveTimeDeltaHours();
-        if (ChromeFeatureList.sAndroidTabDeclutterArchiveAllButActiveTab.isEnabled()) {
-            mTabArchiveSettings.setArchiveTimeDeltaHours(0);
-        }
-
         mTabArchiver.addObserver(
                 new TabArchiver.Observer() {
                     @Override
                     public void onDeclutterPassCompleted() {
-                        if (ChromeFeatureList.sAndroidTabDeclutterArchiveAllButActiveTab
-                                .isEnabled()) {
-                            mTabArchiveSettings.setArchiveTimeDeltaHours(archiveTimeHours);
-                        }
                         resumeSaveTabList(orchestrator);
                         mTabArchiver.removeObserver(this);
                     }
@@ -530,7 +516,6 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
     private void rescueArchivedTabsImpl(TabbedModeTabModelOrchestrator orchestrator) {
         assertNativeReady();
-        assert ChromeFeatureList.sAndroidTabDeclutterRescueKillSwitch.isEnabled();
         pauseSaveTabList(orchestrator);
         mTabArchiver.rescueArchivedTabs(
                 assertNonNull(orchestrator.getTabModelSelector())

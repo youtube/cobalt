@@ -184,6 +184,17 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.node();                  \
   } while (false)
 
+// Can be used for extracting a BasicBlock* from std::optional<BasicBlock*>.
+#define GET_BLOCK_OR_ABORT(variable, result) \
+  do {                                       \
+    auto res = (result);                     \
+    if (!res) {                              \
+      return ReduceResult::DoneWithAbort();  \
+    }                                        \
+    variable = *res;                         \
+    DCHECK_NOT_NULL(variable);               \
+  } while (false)
+
 template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
@@ -278,8 +289,8 @@ class MaglevReducer {
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
   template <typename ControlNodeT, typename... Args>
-  void AddNewControlNode(std::initializer_list<ValueNode*> inputs,
-                         Args&&... args);
+  ReduceResult AddNewControlNode(std::initializer_list<ValueNode*> inputs,
+                                 Args&&... args);
 
   void AddInitializedNodeToGraph(Node* node);
 
@@ -306,6 +317,7 @@ class MaglevReducer {
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
+  std::optional<intptr_t> TryGetIntPtrConstant(ValueNode* value);
   std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);
   std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,
@@ -322,7 +334,7 @@ class MaglevReducer {
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
 
-  ValueNode* BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildSmiUntag(ValueNode* node);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -337,7 +349,7 @@ class MaglevReducer {
   // node.
   //
   // Deopts if the value is not exactly representable as an Int32.
-  ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
   // This does not emit any conversion.
   ValueNode* TryGetInt32(ValueNode* value);
@@ -354,8 +366,8 @@ class MaglevReducer {
   // oddballs.
   //
   // Deopts if the ToNumber is non-trivial.
-  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
-                                          NodeType allowed_input_type);
+  ReduceResult GetTruncatedInt32ForToNumber(ValueNode* value,
+                                            NodeType allowed_input_type);
 
   ReduceResult GetFloat64OrHoleyFloat64Impl(ValueNode* value,
                                             UseRepresentation use_rep,
@@ -382,7 +394,7 @@ class MaglevReducer {
   ReduceResult GetHoleyFloat64ForToNumber(ValueNode* value,
                                           NodeType allowed_input_type);
 
-  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
   BasicBlock* current_block() const { return current_block_; }
   void set_current_block(BasicBlock* block) {
@@ -535,6 +547,20 @@ class MaglevReducer {
                                                    int32_t cst_right);
   bool TryFoldInt32CompareOperation(Operation op, int32_t left, int32_t right);
 
+  std::optional<bool> TryFoldUint32CompareOperation(Operation op,
+                                                    ValueNode* left,
+                                                    ValueNode* right);
+  bool TryFoldUint32CompareOperation(Operation op, uint32_t left,
+                                     uint32_t right);
+
+  std::optional<bool> TryFoldFloat64CompareOperation(Operation op,
+                                                     ValueNode* left,
+                                                     ValueNode* right);
+  std::optional<bool> TryFoldFloat64CompareOperation(Operation op,
+                                                     ValueNode* left,
+                                                     double cst_right);
+  bool TryFoldFloat64CompareOperation(Operation op, double left, double right);
+
   MaybeReduceResult TryFoldShiftedInt53Add(ValueNode* left, ValueNode* right);
 
   template <Operation kOperation>
@@ -551,6 +577,14 @@ class MaglevReducer {
 
   MaybeReduceResult TryFoldFloat64Min(ValueNode* left, ValueNode* right);
   MaybeReduceResult TryFoldFloat64Max(ValueNode* left, ValueNode* right);
+
+  MaybeReduceResult TryFoldFloat64Ieee754Unary(
+      Float64Ieee754Unary::Ieee754Function ieee_function, ValueNode* input);
+  MaybeReduceResult TryFoldFloat64Ieee754Binary(
+      Float64Ieee754Binary::Ieee754Function ieee_function, ValueNode* left,
+      ValueNode* right);
+  MaybeReduceResult TryFoldInt32CountLeadingZeros(ValueNode* input);
+  MaybeReduceResult TryFoldFloat64CountLeadingZeros(ValueNode* input);
 
   MaybeReduceResult TryFoldLogicalNot(ValueNode* input);
 

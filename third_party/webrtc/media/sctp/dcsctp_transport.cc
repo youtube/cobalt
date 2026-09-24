@@ -132,6 +132,14 @@ bool IsEmptyPPID(dcsctp::PPID ppid) {
   return webrtc_ppid == WebrtcPPID::kStringEmpty ||
          webrtc_ppid == WebrtcPPID::kBinaryEmpty;
 }
+
+std::string GetDebugName() {
+  static std::atomic<int> instance_count = 0;
+  StringBuilder sb;
+  sb << "DcSctpTransport" << instance_count++;
+  return sb.Release();
+}
+
 }  // namespace
 
 DcSctpTransport::DcSctpTransport(const Environment& env,
@@ -157,12 +165,9 @@ DcSctpTransport::DcSctpTransport(
           [this]() { return TimeMillis(); },
           [this](dcsctp::TimeoutID timeout_id) {
             socket_->HandleTimeout(timeout_id);
-          }) {
+          }),
+      debug_name_(GetDebugName()) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  static std::atomic<int> instance_count = 0;
-  StringBuilder sb;
-  sb << debug_name_ << instance_count++;
-  debug_name_ = sb.Release();
   ConnectTransportSignals();
 }
 
@@ -185,12 +190,8 @@ void DcSctpTransport::SetDataChannelSink(DataChannelSink* sink) {
   }
 }
 
-void DcSctpTransport::SetDtlsTransport(DtlsTransportInternal* transport) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  DisconnectTransportSignals();
-  transport_ = transport;
-  ConnectTransportSignals();
-  MaybeConnectSocket();
+DtlsTransportInternal* DcSctpTransport::dtls_transport() const {
+  return transport_;
 }
 
 bool DcSctpTransport::Start(const SctpOptions& options) {
@@ -434,10 +435,6 @@ void DcSctpTransport::SetBufferedAmountLowThreshold(int sid, size_t bytes) {
   if (!socket_)
     return;
   socket_->SetBufferedAmountLowThreshold(dcsctp::StreamID(sid), bytes);
-}
-
-void DcSctpTransport::set_debug_name_for_testing(const char* debug_name) {
-  debug_name_ = debug_name;
 }
 
 SendPacketStatus DcSctpTransport::SendPacketWithStatus(

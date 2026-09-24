@@ -191,6 +191,7 @@ class LegacyStatsCollector : public LegacyStatsCollectorInterface {
   SessionStats ExtractSessionInfo_n(
       const std::vector<scoped_refptr<
           RtpTransceiverProxyWithInternal<RtpTransceiver>>>& transceivers,
+      const std::map<RtpTransceiver*, std::string>& mids,
       std::optional<std::string> sctp_transport_name,
       std::optional<std::string> sctp_mid);
   void ExtractSessionInfo_s(SessionStats& session_stats);

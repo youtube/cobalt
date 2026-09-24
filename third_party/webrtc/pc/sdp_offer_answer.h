@@ -39,6 +39,7 @@
 #include "api/set_remote_description_observer_interface.h"
 #include "api/uma_metrics.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "call/payload_type.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
@@ -53,6 +54,7 @@
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_transceiver.h"
 #include "pc/rtp_transmission_manager.h"
+#include "pc/sdp_payload_type_suggester.h"
 #include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
 #include "pc/stream_collection.h"
@@ -190,6 +192,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   void DisableSdpMungingChecksForTesting() {
     disable_sdp_munging_checks_ = true;
   }
+  PayloadTypeSuggester* pt_suggester() { return &pt_suggester_; }
 
  private:
   class RemoteDescriptionOperation;
@@ -701,6 +704,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Whether the username fragment or the password of the SDP was munged.
   bool has_sdp_munged_ufrag_ = false;
+
+  SdpPayloadTypeSuggester pt_suggester_;
 
   WeakPtrFactory<SdpOfferAnswerHandler> weak_ptr_factory_
       RTC_GUARDED_BY(signaling_thread());

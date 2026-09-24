@@ -293,7 +293,7 @@ public class ContentSettingsResources {
 
             case ContentSettingsType.COOKIES:
                 return new ResourceItem(
-                        R.drawable.gm_database_24,
+                        R.drawable.ic_database_fill_24dp,
                         R.string.site_data_page_title,
                         ContentSetting.ALLOW,
                         ContentSetting.BLOCK,
@@ -332,7 +332,7 @@ public class ContentSettingsResources {
 
             case ContentSettingsType.GEOLOCATION, ContentSettingsType.GEOLOCATION_WITH_OPTIONS:
                 return new ResourceItem(
-                        R.drawable.gm_filled_location_on_24,
+                        R.drawable.ic_location_on_fill_24dp,
                         R.string.website_settings_device_location,
                         ContentSetting.ASK,
                         ContentSetting.BLOCK,
@@ -489,11 +489,11 @@ public class ContentSettingsResources {
                         R.string.website_settings_popups_redirects_allow,
                         R.string.website_settings_popups_redirects_block);
 
-                // PROTECTED_MEDIA_IDENTIFIER uses 3-state preference so some values are not used.
-                // If 3-state becomes more common we should update localMaps to support it better.
+            // PROTECTED_MEDIA_IDENTIFIER uses 3-state preference so some values are not used.
+            // If 3-state becomes more common we should update localMaps to support it better.
             case ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER:
                 return new ResourceItem(
-                        R.drawable.permission_protected_media,
+                        R.drawable.ic_sync_saved_locally_24dp,
                         R.string.protected_content,
                         ContentSetting.ASK,
                         ContentSetting.BLOCK,
@@ -584,7 +584,7 @@ public class ContentSettingsResources {
 
             case ContentSettingsType.SOUND:
                 return new ResourceItem(
-                                R.drawable.ic_volume_up_grey600_24dp,
+                                R.drawable.ic_volume_up_fill_24dp,
                                 R.string.sound_permission_title,
                                 ContentSetting.ALLOW,
                                 ContentSetting.BLOCK,

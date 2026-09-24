@@ -239,151 +239,8 @@ void rsa_invalidate_key(RSA *rsa) {
   rsa->dmq1_fixed = nullptr;
   BN_free(rsa->iqmp_mont);
   rsa->iqmp_mont = nullptr;
-
-  for (size_t i = 0; i < rsa->num_blindings; i++) {
-    BN_BLINDING_free(rsa->blindings[i]);
-  }
-  OPENSSL_free(rsa->blindings);
-  rsa->blindings = nullptr;
-  rsa->num_blindings = 0;
-  OPENSSL_free(rsa->blindings_inuse);
-  rsa->blindings_inuse = nullptr;
-  rsa->blinding_fork_generation = 0;
 }
 
-// MAX_BLINDINGS_PER_RSA defines the maximum number of cached BN_BLINDINGs per
-// RSA*. Then this limit is exceeded, BN_BLINDING objects will be created and
-// destroyed as needed.
-#if defined(OPENSSL_TSAN)
-// Smaller under TSAN so that the edge case can be hit with fewer threads.
-#define MAX_BLINDINGS_PER_RSA 2
-#else
-#define MAX_BLINDINGS_PER_RSA 1024
-#endif
-
-// rsa_blinding_get returns a BN_BLINDING to use with |rsa|. It does this by
-// allocating one of the cached BN_BLINDING objects in |rsa->blindings|. If
-// none are free, the cache will be extended by a extra element and the new
-// BN_BLINDING is returned.
-//
-// On success, the index of the assigned BN_BLINDING is written to
-// |*index_used| and must be passed to |rsa_blinding_release| when finished.
-static BN_BLINDING *rsa_blinding_get(RSA *rsa, size_t *index_used,
-                                     BN_CTX *ctx) {
-  assert(ctx != nullptr);
-  assert(rsa->mont_n != nullptr);
-
-  BN_BLINDING *ret = nullptr;
-  const uint64_t fork_generation = CRYPTO_get_fork_generation();
-  CRYPTO_MUTEX_lock_write(&rsa->lock);
-
-  // Wipe the blinding cache on |fork|.
-  if (rsa->blinding_fork_generation != fork_generation) {
-    for (size_t i = 0; i < rsa->num_blindings; i++) {
-      // The inuse flag must be zero unless we were forked from a
-      // multi-threaded process, in which case calling back into BoringSSL is
-      // forbidden.
-      assert(rsa->blindings_inuse[i] == 0);
-      BN_BLINDING_invalidate(rsa->blindings[i]);
-    }
-    rsa->blinding_fork_generation = fork_generation;
-  }
-
-  uint8_t *const free_inuse_flag = reinterpret_cast<uint8_t *>(
-      OPENSSL_memchr(rsa->blindings_inuse, 0, rsa->num_blindings));
-  size_t new_num_blindings;
-  BN_BLINDING **new_blindings;
-  uint8_t *new_blindings_inuse;
-  if (free_inuse_flag != nullptr) {
-    *free_inuse_flag = 1;
-    *index_used = free_inuse_flag - rsa->blindings_inuse;
-    ret = rsa->blindings[*index_used];
-    goto out;
-  }
-
-  if (rsa->num_blindings >= MAX_BLINDINGS_PER_RSA) {
-    // No |BN_BLINDING| is free and nor can the cache be extended. This index
-    // value is magic and indicates to |rsa_blinding_release| that a
-    // |BN_BLINDING| was not inserted into the array.
-    *index_used = MAX_BLINDINGS_PER_RSA;
-    ret = BN_BLINDING_new();
-    goto out;
-  }
-
-  // Double the length of the cache.
-  static_assert(MAX_BLINDINGS_PER_RSA < UINT_MAX / 2,
-                "MAX_BLINDINGS_PER_RSA too large");
-  new_num_blindings = rsa->num_blindings * 2;
-  if (new_num_blindings == 0) {
-    new_num_blindings = 1;
-  }
-  if (new_num_blindings > MAX_BLINDINGS_PER_RSA) {
-    new_num_blindings = MAX_BLINDINGS_PER_RSA;
-  }
-  assert(new_num_blindings > rsa->num_blindings);
-
-  new_blindings = reinterpret_cast<BN_BLINDING **>(
-      OPENSSL_calloc(new_num_blindings, sizeof(BN_BLINDING *)));
-  new_blindings_inuse =
-      reinterpret_cast<uint8_t *>(OPENSSL_malloc(new_num_blindings));
-  if (new_blindings == nullptr || new_blindings_inuse == nullptr) {
-    goto err;
-  }
-
-  OPENSSL_memcpy(new_blindings, rsa->blindings,
-                 sizeof(BN_BLINDING *) * rsa->num_blindings);
-  OPENSSL_memcpy(new_blindings_inuse, rsa->blindings_inuse, rsa->num_blindings);
-
-  for (size_t i = rsa->num_blindings; i < new_num_blindings; i++) {
-    new_blindings[i] = BN_BLINDING_new();
-    if (new_blindings[i] == nullptr) {
-      for (size_t j = rsa->num_blindings; j < i; j++) {
-        BN_BLINDING_free(new_blindings[j]);
-      }
-      goto err;
-    }
-  }
-  memset(&new_blindings_inuse[rsa->num_blindings], 0,
-         new_num_blindings - rsa->num_blindings);
-
-  new_blindings_inuse[rsa->num_blindings] = 1;
-  *index_used = rsa->num_blindings;
-  assert(*index_used != MAX_BLINDINGS_PER_RSA);
-  ret = new_blindings[rsa->num_blindings];
-
-  OPENSSL_free(rsa->blindings);
-  rsa->blindings = new_blindings;
-  OPENSSL_free(rsa->blindings_inuse);
-  rsa->blindings_inuse = new_blindings_inuse;
-  rsa->num_blindings = new_num_blindings;
-
-  goto out;
-
-err:
-  OPENSSL_free(new_blindings_inuse);
-  OPENSSL_free(new_blindings);
-
-out:
-  CRYPTO_MUTEX_unlock_write(&rsa->lock);
-  return ret;
-}
-
-// rsa_blinding_release marks the cached BN_BLINDING at the given index as free
-// for other threads to use.
-static void rsa_blinding_release(RSA *rsa, BN_BLINDING *blinding,
-                                 size_t blinding_index) {
-  if (blinding_index == MAX_BLINDINGS_PER_RSA) {
-    // This blinding wasn't cached.
-    BN_BLINDING_free(blinding);
-    return;
-  }
-
-  CRYPTO_MUTEX_lock_write(&rsa->lock);
-  rsa->blindings_inuse[blinding_index] = 0;
-  CRYPTO_MUTEX_unlock_write(&rsa->lock);
-}
-
-// signing
 int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
                          size_t max_out, const uint8_t *in, size_t in_len,
                          int padding) {
@@ -545,20 +402,17 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   if (ctx == nullptr) {
     return 0;
   }
-  size_t blinding_index = 0;
-  BN_BLINDING *blinding = nullptr;
-  int ret = 0, do_blinding;
   bssl::BN_CTXScope scope(ctx.get());
   BIGNUM *f = BN_CTX_get(ctx.get());
   BIGNUM *result = BN_CTX_get(ctx.get());
   if (f == nullptr || result == nullptr) {
-    goto err;
+    return 0;
   }
 
   // The caller should have ensured this.
   assert(len == BN_num_bytes(rsa->n));
   if (BN_bin2bn(in, len, f) == nullptr) {
-    goto err;
+    return 0;
   }
 
   // The input to the RSA private transform may be secret, but padding is
@@ -566,39 +420,21 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   if (constant_time_declassify_int(BN_ucmp(f, rsa->n) >= 0)) {
     // Usually the padding functions would catch this.
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
-    goto err;
+    return 0;
   }
 
   if (!freeze_private_key(rsa, ctx.get())) {
     OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
-    goto err;
+    return 0;
   }
 
-  do_blinding =
-      (rsa->flags & (RSA_FLAG_NO_BLINDING | RSA_FLAG_NO_PUBLIC_EXPONENT)) == 0;
-
-  if (rsa->e == nullptr && do_blinding) {
-    // We cannot do blinding or verification without |e|, and continuing without
-    // those countermeasures is dangerous. However, the Java/Android RSA API
-    // requires support for keys where only |d| and |n| (and not |e|) are known.
-    // The callers that require that bad behavior must set
-    // |RSA_FLAG_NO_BLINDING| or use |RSA_new_private_key_no_e|.
-    //
-    // TODO(davidben): Update this comment when Conscrypt is updated to use
-    // |RSA_new_private_key_no_e|.
+  if (rsa->e == nullptr && (rsa->flags & RSA_FLAG_NO_PUBLIC_EXPONENT) == 0) {
+    // Unless the private key was specifically created with an API like
+    // |RSA_new_private_key_no_e|, don't allow RSA keys to be missing the public
+    // exponent, which disables some fault attack mitigations. (It should not be
+    // possible to construct such an |RSA| object in the public API.)
     OPENSSL_PUT_ERROR(RSA, RSA_R_NO_PUBLIC_EXPONENT);
-    goto err;
-  }
-
-  if (do_blinding) {
-    blinding = rsa_blinding_get(rsa, &blinding_index, ctx.get());
-    if (blinding == nullptr) {
-      OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
-      goto err;
-    }
-    if (!BN_BLINDING_convert(f, blinding, rsa->e, rsa->mont_n, ctx.get())) {
-      goto err;
-    }
+    return 0;
   }
 
   if (rsa->p != nullptr && rsa->q != nullptr && rsa->e != nullptr &&
@@ -610,11 +446,11 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
       bn_less_than_montgomery_R(rsa->q, rsa->mont_p) &&
       bn_less_than_montgomery_R(rsa->p, rsa->mont_q)) {
     if (!rsa_mod_exp_crt(result, f, rsa, ctx.get())) {
-      goto err;
+      return 0;
     }
   } else if (!BN_mod_exp_mont_consttime(result, f, rsa->d_fixed, rsa->n,
                                         ctx.get(), rsa->mont_n)) {
-    goto err;
+    return 0;
   }
 
   // Verify the result to protect against fault attacks as described in the
@@ -634,13 +470,8 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
                          rsa->mont_n) ||
         !constant_time_declassify_int(BN_equal_consttime(vrfy, f))) {
       OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
-      goto err;
+      return 0;
     }
-  }
-
-  if (do_blinding &&
-      !BN_BLINDING_invert(result, blinding, rsa->mont_n, ctx.get())) {
-    goto err;
   }
 
   // The computation should have left |result| as a maximally-wide number, so
@@ -652,17 +483,10 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
   bn_assert_fits_in_bytes(result, len);
   if (!BN_bn2bin_padded(out, len, result)) {
     OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
-    goto err;
+    return 0;
   }
 
-  ret = 1;
-
-err:
-  if (blinding != nullptr) {
-    rsa_blinding_release(rsa, blinding, blinding_index);
-  }
-
-  return ret;
+  return 1;
 }
 
 // mod_montgomery sets |r| to |I| mod |p|. |I| must already be fully reduced

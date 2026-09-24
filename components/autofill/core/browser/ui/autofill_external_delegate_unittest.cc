@@ -167,6 +167,8 @@ class MockAutofillDriver : public TestAutofillDriver {
               (mojom::FormActionType action_type,
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
+               const FillId& fill_id,
+               bool supports_refill,
                const url::Origin& triggered_origin,
                (const base::flat_map<FieldGlobalId, FieldType>&),
                (const Section&)),
@@ -402,9 +404,12 @@ class AutofillExternalDelegateTest : public testing::Test,
 
   // Returns the triggering `AutofillField`. This is the only field in the form
   // created in `IssueOnQuery()`.
-  AutofillField* get_triggering_autofill_field() {
-    return autofill_manager().GetAutofillField(
-        queried_form().global_id(), queried_form().fields()[0].global_id());
+  AutofillField& get_triggering_autofill_field() {
+    FormStructure& form =
+        CHECK_DEREF(test_api(autofill_manager())
+                        .FindCachedFormById(queried_form().global_id()));
+    return CHECK_DEREF(
+        form.GetFieldById(queried_form().fields()[0].global_id()));
   }
 
   Matcher<const FormData&> HasQueriedFormId() {
@@ -2085,7 +2090,7 @@ TEST_F(AutofillExternalDelegateTest,
       Suggestion::AutofillProfilePayload(Suggestion::Guid(profile.guid())));
   suggestion.field_by_field_filling_type_used = NAME_FULL;
   // Simulate that the user has typed the first 3 characters of their full name.
-  get_triggering_autofill_field()->set_value(
+  get_triggering_autofill_field().set_value(
       dummy_autofill_on_typing_string.substr(0, 3));
   base::HistogramTester histogram_tester;
 

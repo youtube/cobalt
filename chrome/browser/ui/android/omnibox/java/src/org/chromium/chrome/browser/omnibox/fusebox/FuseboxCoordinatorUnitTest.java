@@ -21,7 +21,10 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.view.LayoutInflater;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -32,10 +35,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.android.controller.ActivityController;
+import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -45,6 +50,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.ViewportRectProvider;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteControllerJni;
@@ -296,49 +302,6 @@ public class FuseboxCoordinatorUnitTest {
     }
 
     @Test
-    public void getAttachmentTokens_returnsEmptyListWhenMediatorNotSet() {
-        List<String> tokens = mCoordinator.getAttachmentTokens();
-        assertNotNull(tokens);
-        assertTrue(tokens.isEmpty());
-    }
-
-    @Test
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
-    public void getAttachmentTokens_returnsEmptyListWhenMediatorHasNoAttachments() {
-        doReturn(/* nativeInstance= */ 1L)
-                .when(mComposeboxController)
-                .init(any(Profile.class), any(ComposeBoxQueryControllerBridge.class));
-        mProfileSupplier.set(mProfile);
-        ShadowLooper.idleMainLooper();
-
-        List<String> tokens = mCoordinator.getAttachmentTokens();
-        assertNotNull(tokens);
-        assertTrue(tokens.isEmpty());
-    }
-
-    @Test
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
-    public void getAttachmentTokens_returnsTokensWhenMediatorHasAttachments() {
-        doReturn(/* nativeInstance= */ 1L)
-                .when(mComposeboxController)
-                .init(any(Profile.class), any(ComposeBoxQueryControllerBridge.class));
-        mProfileSupplier.set(mProfile);
-        ShadowLooper.idleMainLooper();
-
-        // Mock mediator with attachment tokens.
-        var mockMediator = mock(FuseboxMediator.class);
-        var testTokens = java.util.Arrays.asList("token1", "token2");
-        doReturn(testTokens).when(mockMediator).getAttachmentTokens();
-        mCoordinator.setMediatorForTesting(mockMediator);
-
-        var tokens = mCoordinator.getAttachmentTokens();
-        assertNotNull(tokens);
-        assertEquals(2, tokens.size());
-        assertEquals("token1", tokens.get(0));
-        assertEquals("token2", tokens.get(1));
-    }
-
-    @Test
     @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
     public void createImageButtonVisibility_isCreateImagesEligible() {
         doReturn(/* nativeInstance= */ 1L)
@@ -406,5 +369,34 @@ public class FuseboxCoordinatorUnitTest {
                 mCoordinator
                         .getModelForTesting()
                         .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
+    }
+
+    @Test
+    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
+    public void testWrappingChange() {
+        OmniboxFeatures.sCompactFusebox.setForTesting(true);
+        mCoordinator.onFuseboxTextWrappingChanged(true);
+        verify(mMediator).setUseCompactUi(false);
+
+        mCoordinator.onFuseboxTextWrappingChanged(false);
+        verify(mMediator).setUseCompactUi(true);
+
+        mCoordinator.onFuseboxTextWrappingChanged(true);
+        Mockito.clearInvocations(mMediator);
+
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        mCoordinator.onFuseboxTextWrappingChanged(false);
+        verify(mMediator).setUseCompactUi(false);
+    }
+
+    @Test
+    @Config(qualifiers = "sw400dp")
+    public void viewportRectProvider() {
+        Context context = mActivityController.get();
+        ViewportRectProvider viewportRectProvider = new ViewportRectProvider(context);
+        viewportRectProvider.onConfigurationChanged(new Configuration());
+        int width = context.getResources().getDisplayMetrics().widthPixels;
+        int height = context.getResources().getDisplayMetrics().heightPixels;
+        assertEquals(new Rect(0, 0, width, height), viewportRectProvider.getRect());
     }
 }

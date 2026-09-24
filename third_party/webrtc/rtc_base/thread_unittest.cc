@@ -223,7 +223,7 @@ TEST(ThreadTest, CountBlockingCalls) {
   RTC_LOG_THREAD_BLOCK_COUNT();
 #if RTC_DCHECK_IS_ON
   Thread::ScopedCountBlockingCalls blocked_calls(
-      [&](uint32_t actual_block, uint32_t could_block) {
+      [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
         EXPECT_EQ(1u, actual_block);
         EXPECT_EQ(1u, could_block);
       });
@@ -262,7 +262,7 @@ TEST(ThreadTest, CountBlockingCallsOneCallback) {
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
-        [&](uint32_t actual_block, uint32_t could_block) {
+        [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
           was_called_back = true;
         });
     current.BlockingCall([]() {});
@@ -275,7 +275,7 @@ TEST(ThreadTest, CountBlockingCallsSkipCallback) {
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
-        [&](uint32_t actual_block, uint32_t could_block) {
+        [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
           was_called_back = true;
         });
     // Changed `blocked_calls` to not issue the callback if there are 1 or

@@ -33,6 +33,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/common/switches.h"
+#include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -379,7 +380,10 @@ void HTMLAnchorElementBase::SetURL(const KURL& url) {
 DOMOrigin* HTMLAnchorElementBase::GetDOMOrigin(LocalDOMWindow*) const {
   // No access check is necessary, as anchor elements are not accessible
   // cross-origin.
-  return DOMOrigin::Create(SecurityOrigin::Create(Url()));
+  if (FastHasAttribute(html_names::kHrefAttr)) {
+    return DOMOrigin::Create(SecurityOrigin::Create(Url()));
+  }
+  return nullptr;
 }
 
 String HTMLAnchorElementBase::Input() const {

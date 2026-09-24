@@ -74,12 +74,10 @@ gpu::ContextResult TestInProcessContextProvider::BindToCurrentSequence() {
 
     caps_ = gles2_context_->GetCapabilities();
   } else {
-    const bool is_gpu_raster = type_ == TestContextType::kGpuRaster;
-
     raster_context_ = std::make_unique<gpu::RasterInProcessContext>();
     auto result = raster_context_->Initialize(
-        holder->task_executor(), /*enable_gpu_rasterization=*/is_gpu_raster,
-        holder->gpu_service()->gr_shader_cache(), use_shader_cache_shm_count_);
+        holder->task_executor(), holder->gpu_service()->gr_shader_cache(),
+        use_shader_cache_shm_count_);
 
 // TODO(sherryzy): Investigate why this ContextResult check fails
 // specifically in single-process-test mode.
@@ -90,7 +88,6 @@ gpu::ContextResult TestInProcessContextProvider::BindToCurrentSequence() {
 #endif  // BUILDFLAG(IS_STARBOARD)
 
     caps_ = raster_context_->GetCapabilities();
-    CHECK_EQ(caps_.gpu_rasterization, is_gpu_raster);
   }
 
   cache_controller_ = std::make_unique<ContextCacheController>(

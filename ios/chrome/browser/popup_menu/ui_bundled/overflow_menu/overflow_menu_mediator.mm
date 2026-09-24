@@ -898,12 +898,12 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 - (OverflowMenuAction*)openAskBWGAction {
   __weak __typeof(self) weakSelf = self;
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   BOOL isBrandedIcon = YES;
-  NSString* symbolName = kGeminiBrandedLogoImage;
+  NSString* symbolName = kGeminiBrandedLogoSymbol;
 #else
   BOOL isBrandedIcon = NO;
-  NSString* symbolName = kGeminiNonBrandedLogoImage;
+  NSString* symbolName = kGeminiNonBrandedLogoSymbol;
 #endif
   return
       [self createOverflowMenuActionWithName:l10n_util::GetNSString(
@@ -1711,15 +1711,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     return NO;
   }
 
-  // If `kEnableReaderModePageEligibilityForToolsMenu` is enabled then not only
-  // the page needs to support Reader mode, but it needs to be probably
-  // distillable according to the heuristic.
-  if (base::FeatureList::IsEnabled(
-          kEnableReaderModePageEligibilityForToolsMenu)) {
-    return helper->CurrentPageIsDistillable();
-  } else {
-    return helper->CurrentPageIsEligibleForReaderMode();
-  }
+  return helper->CurrentPageIsEligibleForReaderMode();
 }
 
 // Whether Reader mode is active.
@@ -2566,7 +2558,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Starts ask BWG.
 - (void)startAskBWG {
   [self dismissMenu];
-  [self.BWGHandler startBWGFlowWithEntryPoint:bwg::EntryPoint::OverflowMenu];
+  [self.BWGHandler startGeminiFlowWithEntryPoint:bwg::EntryPoint::OverflowMenu];
 }
 
 - (void)startCollapseToolbars {

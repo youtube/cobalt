@@ -434,7 +434,9 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
           new_tree.nodes_affected_by_safe_area_bottom() &&
       old_tree.sticky_position_data() == new_tree.sticky_position_data() &&
       old_tree.anchor_position_scroll_data() ==
-          new_tree.anchor_position_scroll_data()) {
+          new_tree.anchor_position_scroll_data() &&
+      old_tree.drawn_elastic_overscroll() ==
+          new_tree.drawn_elastic_overscroll()) {
     return nullptr;
   }
 
@@ -451,6 +453,7 @@ viz::mojom::TransformTreeUpdatePtr ComputeTransformTreePropertiesUpdate(
       SerializeStickyPositionData(new_tree.sticky_position_data());
   wire->anchor_position_scroll_data =
       SerializeAnchorPositionScrollData(new_tree.anchor_position_scroll_data());
+  wire->drawn_elastic_overscroll = new_tree.drawn_elastic_overscroll();
   return wire;
 }
 
@@ -527,10 +530,12 @@ viz::mojom::TileResourcePtr SerializeTileResource(
 viz::mojom::TilePtr SerializeTile(
     const Tile& tile,
     viz::ClientResourceProvider& resource_provider,
-    gpu::SharedImageInterface* shared_image_interface) {
+    gpu::SharedImageInterface* shared_image_interface,
+    bool update_damage) {
   auto wire = viz::mojom::Tile::New();
   wire->column_index = tile.tiling_i_index();
   wire->row_index = tile.tiling_j_index();
+  wire->update_damage = update_damage;
 
   switch (tile.draw_info().mode()) {
     case TileDrawInfo::OOM_MODE:
@@ -565,7 +570,8 @@ viz::mojom::TilingPtr SerializeTiling(
     PictureLayerImpl& layer,
     const PictureLayerTiling* tiling,
     float scale_key,
-    base::span<const std::pair<TileIndex, const Tile*>> tile_updates,
+    base::span<const std::pair<PictureLayerImpl::TileUpdateIndex, const Tile*>>
+        tile_updates,
     viz::ClientResourceProvider& resource_provider,
     gpu::SharedImageInterface* shared_image_interface) {
   // Handle the case where the tiling no longer exists (deleted).
@@ -584,7 +590,8 @@ viz::mojom::TilingPtr SerializeTiling(
     if (tile && !tile->deleted()) {
       // Serialize a live tile with content.
       if (auto wire_tile =
-              SerializeTile(*tile, resource_provider, shared_image_interface)) {
+              SerializeTile(*tile, resource_provider, shared_image_interface,
+                            index.update_damage)) {
         wire_tiles.push_back(std::move(wire_tile));
       }
     } else {
@@ -596,6 +603,10 @@ viz::mojom::TilingPtr SerializeTiling(
       auto deleted_tile = viz::mojom::Tile::New();
       deleted_tile->column_index = index.i;
       deleted_tile->row_index = index.j;
+      // |index.update_damage| could be set to true from earlier
+      // NotifyTileStateChanged() in the same frame.
+      // Do not track damage rect if the tile is to be deleted.
+      deleted_tile->update_damage = false;
       deleted_tile->contents = viz::mojom::TileContents::NewMissingReason(
           mojom::MissingTileReason::kTileDeleted);
       wire_tiles.push_back(std::move(deleted_tile));
@@ -636,7 +647,8 @@ void SerializePictureLayerTileUpdates(
 
     // Create a unified vector of tile updates, marking missing tiles with
     // nullptr.
-    std::vector<std::pair<TileIndex, const Tile*>> tile_updates;
+    std::vector<std::pair<PictureLayerImpl::TileUpdateIndex, const Tile*>>
+        tile_updates;
     tile_updates.reserve(tile_indices.size());
     for (const auto& index : tile_indices) {
       const Tile* tile = tiling ? tiling->TileAt(index) : nullptr;
@@ -700,6 +712,7 @@ void SerializeTextureLayerExtra(
   extra->uv_top_left = layer.uv_top_left();
   extra->uv_bottom_right = layer.uv_bottom_right();
 
+  extra->update_transferable_resource = layer.needs_set_resource_push();
   if (layer.needs_set_resource_push()) {
     if (layer.resource_id() != viz::kInvalidResourceId) {
       std::vector<viz::ResourceId> ids(1, layer.resource_id());
@@ -742,7 +755,7 @@ void SerializeNinePatchThumbScrollbarLayerExtra(
                                    extra->scrollbar_base_extra);
 
   extra->thumb_thickness = layer.thumb_thickness();
-  extra->thumb_length = layer.thumb_length();
+  extra->minimum_thumb_length = layer.minimum_thumb_length();
   extra->track_start = layer.track_start();
   extra->track_length = layer.track_length();
   extra->image_bounds = layer.image_bounds();
@@ -762,7 +775,7 @@ void SerializePaintedScrollbarLayerExtra(
   extra->jump_on_track_click = layer.jump_on_track_click();
   extra->supports_drag_snap_back = layer.supports_drag_snap_back();
   extra->thumb_thickness = layer.thumb_thickness();
-  extra->thumb_length = layer.thumb_length();
+  extra->minimum_thumb_length = layer.minimum_thumb_length();
   extra->back_button_rect = layer.back_button_rect();
   extra->forward_button_rect = layer.forward_button_rect();
   extra->track_rect = layer.track_rect();
@@ -1331,6 +1344,9 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   update->max_page_scale_factor = tree.max_page_scale_factor();
   update->external_page_scale_factor = tree.external_page_scale_factor();
   update->frame_has_damage = frame_has_damage;
+  if (frame_has_damage) {
+    update->damage_reasons_bit_mask = host_impl_->LastFrameHasDamageData();
+  }
   update->device_viewport = tree.GetDeviceViewport();
   update->device_scale_factor = tree.device_scale_factor();
   update->painted_device_scale_factor = tree.painted_device_scale_factor();
@@ -1353,6 +1369,7 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
       property_ids.overscroll_elasticity_transform;
   update->page_scale_transform = property_ids.page_scale_transform;
   update->display_transform_hint = tree.display_transform_hint();
+  update->is_handling_interaction = host_impl_->IsHandlingInteraction();
   update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->browser_controls_params = tree.browser_controls_params();
   update->browser_controls_offset_tag_modifications =
@@ -1492,15 +1509,17 @@ void VizLayerContext::UpdateDisplayTile(
     return;
   }
   // Create a one-element update list for the given tile.
-  TileIndex index(tile.tiling_i_index(), tile.tiling_j_index());
+  PictureLayerImpl::TileUpdateIndex index(tile.tiling_i_index(),
+                                          tile.tiling_j_index(), update_damage);
   const Tile* tile_ptr = &tile;
-  std::pair<TileIndex, const Tile*> tile_updates[] = {{index, tile_ptr}};
+  std::pair<PictureLayerImpl::TileUpdateIndex, const Tile*> tile_updates[] = {
+      {index, tile_ptr}};
 
   // Serialize the tile and send it to the display service.
   if (auto tiling = SerializeTiling(
           layer, tile.tiling(), tile.contents_scale_key(), tile_updates,
           resource_provider, shared_image_interface)) {
-    service_->UpdateDisplayTiling(std::move(tiling), update_damage);
+    service_->UpdateDisplayTiling(std::move(tiling));
   }
 }
 

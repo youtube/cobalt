@@ -268,6 +268,9 @@ class RTC_EXPORT PortAllocatorSession {
   // This function has to be non-inlined due to usage in Chrome.
   void SubscribePortReady(
       absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback);
+  void SubscribePortReady(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback);
   void NotifyPortReady(PortAllocatorSession* session, PortInterface* port) {
     port_ready_callbacks_.Send(session, port);
   }
@@ -281,6 +284,12 @@ class RTC_EXPORT PortAllocatorSession {
                               const std::vector<PortInterface*>&)> callback) {
     ports_pruned_callbacks_.AddReceiver(std::move(callback));
   }
+  void SubscribePortsPruned(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<PortInterface*>&)> callback) {
+    ports_pruned_callbacks_.AddReceiver(tag, std::move(callback));
+  }
   void NotifyPortsPruned(PortAllocatorSession* session,
                          const std::vector<PortInterface*>& ports) {
     ports_pruned_callbacks_.Send(session, ports);
@@ -291,6 +300,12 @@ class RTC_EXPORT PortAllocatorSession {
                               const std::vector<Candidate>&)> callback) {
     candidates_ready_callbacks_.AddReceiver(std::move(callback));
   }
+  void SubscribeCandidatesReady(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_ready_callbacks_.AddReceiver(tag, std::move(callback));
+  }
   void NotifyCandidatesReady(PortAllocatorSession* session,
                              const std::vector<Candidate>& candidates) {
     candidates_ready_callbacks_.Send(session, candidates);
@@ -300,6 +315,12 @@ class RTC_EXPORT PortAllocatorSession {
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const IceCandidateErrorEvent&)> callback) {
     candidate_error_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeCandidateError(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const IceCandidateErrorEvent&)> callback) {
+    candidate_error_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyCandidateError(PortAllocatorSession* session,
                             const IceCandidateErrorEvent& event) {
@@ -312,6 +333,12 @@ class RTC_EXPORT PortAllocatorSession {
                               const std::vector<Candidate>&)> callback) {
     candidates_removed_callbacks_.AddReceiver(std::move(callback));
   }
+  void SubscribeCandidatesRemoved(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_removed_callbacks_.AddReceiver(tag, std::move(callback));
+  }
   void NotifyCandidatesRemoved(PortAllocatorSession* session,
                                const std::vector<Candidate>& candidates) {
     candidates_removed_callbacks_.Send(session, candidates);
@@ -319,6 +346,11 @@ class RTC_EXPORT PortAllocatorSession {
   void SubscribeCandidatesAllocationDone(
       absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
     candidates_allocation_done_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeCandidatesAllocationDone(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
+    candidates_allocation_done_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyCandidatesAllocationDone(PortAllocatorSession* session) {
     candidates_allocation_done_callbacks_.Send(session);
@@ -328,6 +360,12 @@ class RTC_EXPORT PortAllocatorSession {
       absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
           callback) {
     ice_regathering_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeIceRegathering(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
+          callback) {
+    ice_regathering_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyIceRegathering(PortAllocatorSession* session,
                             IceRegatheringReason reason) {

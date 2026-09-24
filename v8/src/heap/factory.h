@@ -93,7 +93,7 @@ class ArrayType;
 class StructType;
 class ContType;
 struct WasmElemSegment;
-class WasmImportWrapperHandle;
+class WasmWrapperHandle;
 class WasmValue;
 enum class OnResume : int;
 enum Suspend : int;
@@ -153,7 +153,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // NewFixedArray as a fallback.
   V8_WARN_UNUSED_RESULT
   MaybeHandle<FixedArray> TryNewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
@@ -689,7 +689,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
-      ElementsKind elements_kind, int length, int capacity,
+      ElementsKind elements_kind, uint32_t length, uint32_t capacity,
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
       AllocationType allocation = AllocationType::kYoung);
@@ -784,7 +784,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
   DirectHandle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();

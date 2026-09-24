@@ -60,18 +60,24 @@ enum class FecMechanism {
 };
 
 // Used in RtcpFeedback struct.
+// Also used as an UMA key.
 enum class RtcpFeedbackType {
+  NONE,
   CCM,
   LNTF,  // "goog-lntf"
   NACK,
   REMB,  // "goog-remb"
   TRANSPORT_CC,
   CCFB,  // RFC8888
+  MAX = CCFB
 };
 
 template <typename Sink>
 void AbslStringify(Sink& sink, RtcpFeedbackType type) {
   switch (type) {
+    case RtcpFeedbackType::NONE:
+      sink.Append("NONE");
+      break;
     case RtcpFeedbackType::CCM:
       sink.Append("CCM");
       break;

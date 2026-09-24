@@ -1154,6 +1154,8 @@ component("ash") {
     "quick_insert/views/quick_insert_emoji_item_view.h",
     "quick_insert/views/quick_insert_feature_tour.cc",
     "quick_insert/views/quick_insert_feature_tour.h",
+    "quick_insert/views/quick_insert_feature_tour_dialog_view.cc",
+    "quick_insert/views/quick_insert_feature_tour_dialog_view.h",
     "quick_insert/views/quick_insert_focus_indicator.cc",
     "quick_insert/views/quick_insert_focus_indicator.h",
     "quick_insert/views/quick_insert_gif_view.cc",
@@ -3306,6 +3308,7 @@ component("ash") {
     "//ui/base/mojom:ui_base_types",
     "//ui/events",
     "//ui/gfx",
+    "//ui/gfx:animation_scale",
     "//ui/gfx/geometry",
     "//ui/gfx/geometry/mojom",
     "//ui/lottie",
@@ -3494,7 +3497,6 @@ component("ash") {
     "//components/vector_icons",
     "//components/viz/client",
     "//components/viz/host",
-    "//components/webapps/isolated_web_apps:key_distribution",
     "//dbus",
     "//device/bluetooth",
     "//extensions/common:common_constants",
@@ -4707,7 +4709,7 @@ test("ash_unittests") {
 
     # TODO(crbug.com/417407946): Remove this dependency once the usage indicator
     # code for screen capture is moved to `c/b/`.
-    "//components/webapps/isolated_web_apps:key_distribution",
+
     "//device/bluetooth",
     "//device/bluetooth:mocks",
     "//device/udev_linux:test_support",

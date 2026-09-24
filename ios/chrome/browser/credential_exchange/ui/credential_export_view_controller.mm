@@ -9,12 +9,16 @@
 #import "components/password_manager/core/browser/ui/affiliated_group.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_constants.h"
+#import "ios/chrome/browser/credential_exchange/ui/credential_export_favicon_provider.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller_presentation_delegate.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_group_identifier.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_view_controller_items.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/content_configuration/favicon_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
+#import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -35,6 +39,9 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
 
   // Toolbar button to toggle selecting or deselecting all credential items.
   UIBarButtonItem* _toggleAllButton;
+
+  // Toolbar button to export selected passwords to CSV.
+  UIBarButtonItem* _exportButton;
 }
 
 - (instancetype)init {
@@ -50,6 +57,7 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
 
   self.navigationItem.rightBarButtonItem = [self createContinueButton];
   _toggleAllButton = [self createToggleAllButton];
+  _exportButton = [self createExportMenuButton];
 
   self.tableView.allowsMultipleSelectionDuringEditing = YES;
   self.tableView.editing = YES;
@@ -60,7 +68,7 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
       initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
                            target:nil
                            action:nil];
-  self.toolbarItems = @[ _toggleAllButton, flexibleSpace ];
+  self.toolbarItems = @[ _toggleAllButton, flexibleSpace, _exportButton ];
 
   [self configureDataSource];
 }
@@ -101,6 +109,10 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
   } else {
     [self selectAllItems];
   }
+}
+
+- (void)didTapExportCSV {
+  // TODO(crbug.com/40284755): Implement export selected passwords to csv.
 }
 
 #pragma mark - CredentialExportConsumer
@@ -194,24 +206,30 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
 }
 
 // TODO(crbug.com/454566693): Add EGTest.
-// Updates the title, "Continue" button state, and "Select All" button text
-// based on the current number of selected items.
+// Updates the title and button states based on the selected items.
 - (void)updateUIForSelection {
   CHECK_GT(_affiliatedGroups.size(), 0U);
 
-  NSUInteger selectedCount = self.tableView.indexPathsForSelectedRows.count;
+  NSArray<NSIndexPath*>* selectedPaths =
+      self.tableView.indexPathsForSelectedRows;
   NSUInteger totalCount = _affiliatedGroups.size();
 
-  self.navigationItem.rightBarButtonItem.enabled = (selectedCount > 0);
+  self.navigationItem.rightBarButtonItem.enabled = (selectedPaths.count > 0);
 
-  if (selectedCount == 0) {
+  BOOL hasExportablePassword =
+      [self hasExportablePasswordInIndexPaths:selectedPaths];
+
+  _exportButton.menu = [self createExportMenuEnabled:hasExportablePassword];
+  _exportButton.enabled = YES;
+
+  if (selectedPaths.count == 0) {
     self.title = l10n_util::GetNSString(IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS);
   } else {
     self.title = l10n_util::GetPluralNSStringF(
-        IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_COUNT, selectedCount);
+        IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_COUNT, selectedPaths.count);
   }
 
-  if (selectedCount == totalCount) {
+  if (selectedPaths.count == totalCount) {
     _toggleAllButton.title = l10n_util::GetNSString(
         IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_DESELECT_ALL_BUTTON);
   } else {
@@ -274,6 +292,42 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
   return button;
 }
 
+// Creates the menu button for the toolbar.
+- (UIBarButtonItem*)createExportMenuButton {
+  UIImage* icon =
+      DefaultSymbolTemplateWithPointSize(kMenuSymbol, kSymbolActionPointSize);
+
+  UIBarButtonItem* button =
+      [[UIBarButtonItem alloc] initWithImage:icon
+                                        menu:[self createExportMenuEnabled:NO]];
+
+  button.accessibilityIdentifier =
+      kCredentialExportFileButtonAccessibilityIdentifier;
+  button.enabled = YES;
+  return button;
+}
+
+// Creates a menu containing the "Download to CSV" action.
+- (UIMenu*)createExportMenuEnabled:(BOOL)enabled {
+  __weak __typeof(self) weakSelf = self;
+
+  UIAction* exportAction = [UIAction
+      actionWithTitle:l10n_util::GetNSString(
+                          IDS_IOS_EXPORT_PASSWORDS_DOWNLOAD_CSV)
+                image:DefaultSymbolWithPointSize(kArrowDownToLineSymbol,
+                                                 kSymbolActionPointSize)
+           identifier:nil
+              handler:^(UIAction* action) {
+                [weakSelf didTapExportCSV];
+              }];
+
+  if (!enabled) {
+    exportAction.attributes = UIMenuElementAttributesDisabled;
+  }
+
+  return [UIMenu menuWithTitle:@"" children:@[ exportAction ]];
+}
+
 // Helper to generate the specific subtitle text for each cell.
 - (NSString*)detailTextForGroup:
     (const password_manager::AffiliatedGroup&)group {
@@ -291,7 +345,6 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
                                  base::NumberToString16(credentials.size()));
 }
 
-// Helper method to encapsulate cell configuration logic.
 - (UITableViewCell*)cellForTableView:(UITableView*)tableView
                          atIndexPath:(NSIndexPath*)indexPath
                       itemIdentifier:(CredentialGroupIdentifier*)identifier {
@@ -301,21 +354,89 @@ NSString* const kCredentialSectionIdentifier = @"CredentialSection";
 
   const password_manager::AffiliatedGroup& group = identifier.affiliatedGroup;
 
+  [self configureCell:cell withGroup:group identifier:identifier];
+
+  return cell;
+}
+
+// Helper to configure the cell.
+- (void)configureCell:(UITableViewCell*)cell
+            withGroup:(const password_manager::AffiliatedGroup&)group
+           identifier:(CredentialGroupIdentifier*)identifier {
   TableViewCellContentConfiguration* contentConfig =
       [[TableViewCellContentConfiguration alloc] init];
+
   contentConfig.title = base::SysUTF8ToNSString(group.GetDisplayName());
   contentConfig.subtitle = [self detailTextForGroup:group];
+
   contentConfig.titleNumberOfLines = 2;
   contentConfig.titleLineBreakMode = NSLineBreakByTruncatingTail;
   contentConfig.subtitleNumberOfLines = 1;
+  contentConfig.subtitleLineBreakMode = NSLineBreakByTruncatingTail;
+
+  [self loadFaviconForContentConfiguration:contentConfig identifier:identifier];
 
   cell.contentConfiguration = contentConfig;
   cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
   cell.accessibilityTraits |= UIAccessibilityTraitButton;
+}
 
-  // TODO(crbug.com/461479302): Load favicon.
+// Helper to load favicon and update configuration.
+- (void)loadFaviconForContentConfiguration:
+            (TableViewCellContentConfiguration*)contentConfig
+                                identifier:
+                                    (CredentialGroupIdentifier*)identifier {
+  FaviconContentConfiguration* faviconConfiguration =
+      [[FaviconContentConfiguration alloc] init];
+  contentConfig.leadingConfiguration = faviconConfiguration;
 
-  return cell;
+  if (!self.faviconProvider) {
+    return;
+  }
+
+  GURL URL = identifier.affiliatedGroup.GetFallbackIconURL();
+
+  __weak __typeof(self) weakSelf = self;
+  [self.faviconProvider
+      fetchFaviconForURL:URL
+              completion:^(FaviconAttributes* attributes, BOOL cached) {
+                if (cached) {
+                  FaviconContentConfiguration* newFaviconConfig =
+                      [[FaviconContentConfiguration alloc] init];
+                  newFaviconConfig.faviconAttributes = attributes;
+                  contentConfig.leadingConfiguration = newFaviconConfig;
+                } else if (attributes.faviconImage) {
+                  [weakSelf reconfigureItem:identifier];
+                }
+              }];
+}
+
+// Refreshes the cell content for the specific item.
+- (void)reconfigureItem:(CredentialGroupIdentifier*)item {
+  NSDiffableDataSourceSnapshot* snapshot = [_dataSource snapshot];
+  [snapshot reconfigureItemsWithIdentifiers:@[ item ]];
+  [_dataSource applySnapshot:snapshot animatingDifferences:NO completion:nil];
+}
+
+// Returns YES if any of the selected paths contain an exportable password.
+- (BOOL)hasExportablePasswordInIndexPaths:(NSArray<NSIndexPath*>*)indexPaths {
+  for (NSIndexPath* path in indexPaths) {
+    CredentialGroupIdentifier* item =
+        [_dataSource itemIdentifierForIndexPath:path];
+    if (!item) {
+      continue;
+    }
+
+    const password_manager::AffiliatedGroup group = item.affiliatedGroup;
+
+    for (const password_manager::CredentialUIEntry& entry :
+         group.GetCredentials()) {
+      if (entry.passkey_credential_id.empty() && !entry.password.empty()) {
+        return YES;
+      }
+    }
+  }
+  return NO;
 }
 
 @end

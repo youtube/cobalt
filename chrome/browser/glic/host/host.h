@@ -15,6 +15,7 @@
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
+#include "chrome/browser/glic/host/host_metrics.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
@@ -23,8 +24,9 @@
 
 namespace actor {
 class ActorTaskDelegate;
-}
+}  // namespace actor
 
+class SkRegion;
 class Profile;
 namespace content {
 class WebContents;
@@ -55,6 +57,7 @@ class Host : public GlicSharingManagerProvider {
     // Sets the areas of the view from which it should be draggable.
     virtual void SetDraggableAreas(
         const std::vector<gfx::Rect>& draggable_areas) = 0;
+    virtual void SetDraggableRegion(const SkRegion& draggable_region) = 0;
     // Allows the user to manually resize the widget by dragging. If the widget
     // hasn't been created yet, apply this setting when it is created. No effect
     // if the widget doesn't exist or the feature flag is disabled.
@@ -235,8 +238,14 @@ class Host : public GlicSharingManagerProvider {
   // Returns the WebUI web contents. May be null.
   content::WebContents* webui_contents() const;
 
+  // Returns the WebClient web contents. May be null.
+  content::WebContents* web_client_contents() const;
+
   // Returns whether `contents` is the glic WebUI web contents.
   bool IsGlicWebUi(content::WebContents* contents) const;
+
+  // Returns the guest main frame. May be null and may change over time.
+  content::RenderFrameHost* GetGuestMainFrame() const;
 
   // Returns the list of page handlers for glic WebUI pages.
   std::vector<GlicPageHandler*> GetPageHandlersForTesting();
@@ -332,6 +341,8 @@ class Host : public GlicSharingManagerProvider {
   // Sets the areas of the view from which it should be draggable.
   void SetPanelDraggableAreas(GlicPageHandler* page_handler,
                               const std::vector<gfx::Rect>& draggable_areas);
+  void SetPanelDraggableRegion(const SkRegion& draggable_region);
+
   // Sets the minimum widget size that the widget will allow the user to resize
   // to.
   void SetMinimumWidgetSize(GlicPageHandler* page_handler,
@@ -441,6 +452,11 @@ class Host : public GlicSharingManagerProvider {
 
   // The current view in the primary page handler.
   mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
+
+  base::WeakPtr<content::WebContents> web_client_contents_;
+
+  HostMetrics metrics_;
+
   base::WeakPtrFactory<Host> weak_ptr_factory_{this};
 };
 
@@ -454,6 +470,7 @@ class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
               base::OnceClosure callback) override;
   void SetDraggableAreas(
       const std::vector<gfx::Rect>& draggable_areas) override {}
+  void SetDraggableRegion(const SkRegion& region) override {}
   void EnableDragResize(bool enabled) override {}
   void Attach() override {}
   void Detach() override {}
@@ -483,7 +500,7 @@ class HostManager {
   void Shutdown();
 
   // Called when a `GlicPageHandler` is created.
-  Host* WebUIPageHandlerAdded(GlicPageHandler* page_handler);
+  void WebUIPageHandlerAdded(GlicPageHandler* page_handler, Host* host);
   // Called when a `GlicPageHandler` is about to be destroyed.
   void WebUIPageHandlerRemoved(GlicPageHandler* page_handler);
 
@@ -498,6 +515,10 @@ class HostManager {
 
   // Get pointers to all Hosts, including those for chrome://glic in a tab.
   std::vector<Host*> GetAllHosts();
+
+  // Returns the host for the given web contents, creating one if necessary
+  // (e.g. if the web contents is a tab).
+  Host* GetOrCreateHostForTab(content::WebContents* web_contents);
 
   Host* FindHostForTabForTesting(tabs::TabInterface& tab);
 

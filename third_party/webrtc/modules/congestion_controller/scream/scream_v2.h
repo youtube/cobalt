@@ -39,12 +39,14 @@ class ScreamV2 {
   ~ScreamV2() = default;
 
   void SetTargetBitrateConstraints(DataRate min, DataRate max);
+  void SetFirstTargetRate(DataRate target_rate) { target_rate_ = target_rate; }
 
   void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
-  // Returns true if data in fligth is larger than max_data_in_flight()
-  bool OnSentPacket(const SentPacket& msg);
 
   DataRate target_rate() const { return target_rate_; }
+  DataRate pacing_rate() const {
+    return target_rate_ * params_.pacing_factor.Get();
+  }
   TimeDelta rtt() const { return delay_based_congestion_control_.rtt(); }
 
   // Returns current data in flight if send window is full.

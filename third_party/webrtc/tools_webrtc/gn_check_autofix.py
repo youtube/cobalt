@@ -162,6 +162,72 @@ def rebase(base_path, dependency_path, dependency):
     return rebased + ':' + dependency
 
 
+def _update_deps(new_lines, current_deps_lines_content, block_type):
+    """Helper to finalize and append a processed deps block to new_lines."""
+    absolute_deps = []
+    for dep_line in current_deps_lines_content:
+        absolute_deps.extend(re.findall(r'"(//[^"]*)"', dep_line))
+
+    if block_type == 'deps_set':
+        new_lines.append('deps = [\n')
+    elif block_type == 'deps_add':
+        new_lines.append('deps += [\n')
+
+    for dep in absolute_deps:
+        new_lines.append('"' + dep + '",\n')
+    new_lines.append(']\n')
+
+
+def remove_all_dependencies(filename):
+    """
+    Removes non-absolute dependencies from all targets in a BUILD.gn file.
+    It preserves `deps = [...]` and `deps += [...]` blocks if they contain
+    absolute dependencies (starting with '//'), otherwise it removes them
+    or replaces with `deps = []`.
+    """
+    if not os.path.exists(filename):
+        print('Error: File "{}" not found.'.format(filename), file=sys.stderr)
+        return 1
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+
+    new_lines = []  # New file content.
+    block_type = None  # None, 'deps_set' or 'deps_add'
+    bracket_level = 0
+    current_deps_lines_content = []  # Stores content of deps block
+
+    for line in lines:
+        stripped_line = line.split('#', 1)[0].strip()
+
+        if block_type is None:  # Not in a deps block.
+            if stripped_line.startswith('deps = ['):
+                block_type = 'deps_set'
+            elif stripped_line.startswith('deps += ['):
+                block_type = 'deps_add'
+            else:  # Not a deps line, just append it.
+                new_lines.append(line)
+
+        if block_type is not None:  # Inside a deps block.
+            current_deps_lines_content.append(line)
+            bracket_level += stripped_line.count('[')
+            bracket_level -= stripped_line.count(']')
+            if bracket_level < 0:
+                print('Error: Unbalanced [] found in "{}'.format(filename),
+                      file=sys.stderr)
+                return 1
+
+            if bracket_level == 0:  # End of a deps block
+                _update_deps(new_lines, current_deps_lines_content, block_type)
+                block_type = None
+                current_deps_lines_content = []
+
+    with open(filename, 'w') as file:
+        file.writelines(new_lines)
+    Run(['gn', 'format', filename])
+    print('Removed all dependencies from {}.'.format(filename))
+    return 0
+
+
 def main():
     helptext = """
 This tool tries to fix (some) errors reported by `gn gen --check`.
@@ -174,10 +240,23 @@ useful to check for different configurations."""
     parser = argparse.ArgumentParser(
         description=helptext,
         formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        '-r',
+        '--remove-all-dependencies',
+        dest='remove_deps_file_paths',
+        nargs='+',
+        metavar='FILE_PATH',
+        help='Remove all dependencies from the specified BUILD.gn files.')
     parser.add_argument('-C',
                         dest='local_build_dir',
                         help='Path lo a local build dir, e.g. out/Default')
     (flags, argv_to_forward) = parser.parse_known_args(sys.argv[1:])
+
+    if flags.remove_deps_file_paths:
+        for filename in flags.remove_deps_file_paths:
+            if remove_all_dependencies(filename) != 0:
+                return 1
+        return 0
 
     deleted_sources = set()
     errors_by_file = defaultdict(lambda: defaultdict(set))

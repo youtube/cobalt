@@ -18,6 +18,7 @@
 #endif
 
 #include "base/check.h"
+#include "base/notreached.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkImageInfo.h"

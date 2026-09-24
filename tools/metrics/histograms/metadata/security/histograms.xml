@@ -150,6 +150,29 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Security.EnhancedBundle.IsEnhancedSelected"
+    enum="BooleanEnabled" expires_after="2026-04-01">
+  <owner>awado@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <summary>
+    Whether the enhanced-security settings bundle is selected. Recorded for all
+    uma log at upload time by the BundleSettingsMetricsProvider for the main
+    profile only.
+  </summary>
+</histogram>
+
+<histogram
+    name="Security.EnhancedBundle.SafeBrowsingSetting.WasModifiedFromDefault"
+    enum="Boolean" expires_after="2026-04-01">
+  <owner>awado@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <summary>
+    Records whether the user has changed the safe browsing setting from the
+    default for the enhanced-security bundle. Recorded for all uma logs at
+    upload time by the BundleSettingsMetricsProvider for the main profile only.
+  </summary>
+</histogram>
+
 <histogram name="Security.GwpAsan.Activated.{Allocator}.{Process}"
     enum="Boolean" expires_after="2026-04-19">
   <owner>mpdenton@chromium.org</owner>
@@ -441,7 +464,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.MerchantTrustEngagement.{Event}"
-    units="EngagementScore" expires_after="2026-04-05">
+    units="EngagementScore" expires_after="2026-06-07">
   <owner>tommasin@chromium.org</owner>
   <owner>privacy-on-the-web@google.com</owner>
   <summary>
@@ -456,7 +479,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.MerchantTrustInteraction.{SiteFamiliarity}"
-    enum="MerchantTrustInteraction" expires_after="2026-04-05">
+    enum="MerchantTrustInteraction" expires_after="2026-06-07">
   <owner>tommasin@chromium.org</owner>
   <owner>privacy-on-the-web@google.com</owner>
   <summary>
@@ -835,6 +858,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Security.StandardBundle.SafeBrowsingSetting.WasModifiedFromDefault"
+    enum="Boolean" expires_after="2026-04-01">
+  <owner>awado@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <summary>
+    Records whether the user has changed the safe browsing setting from the
+    default for the standard bundle. Recorded for all uma logs at upload time by
+    the BundleSettingsMetricsProvider for the main profile only.
+  </summary>
+</histogram>
+
 <histogram name="Security.TimeOnPage2{SafetyTip}" units="ms"
     expires_after="2025-01-26">
   <owner>cthomp@chromium.org</owner>
@@ -897,7 +932,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsolatableSandboxedIframes" units="processes"
-    expires_after="2026-04-05">
+    expires_after="2026-06-07">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -916,7 +951,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsolatableSandboxedIframes.UniqueOrigins"
-    units="processes" expires_after="2026-04-05">
+    units="processes" expires_after="2026-06-07">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>

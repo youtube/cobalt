@@ -42,9 +42,7 @@ class VerticalTabStripRegionViewTest : public InProcessBrowserTest {
   }
 
   tabs::VerticalTabStripStateController* controller() {
-    return browser()
-        ->browser_window_features()
-        ->vertical_tab_strip_state_controller();
+    return tabs::VerticalTabStripStateController::From(browser());
   }
 
  protected:
@@ -93,6 +91,38 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeAreaBounds) {
   // Verify resize area width.
   EXPECT_EQ(VerticalTabStripRegionView::kResizeAreaWidth,
             region_view()->resize_area_for_testing()->bounds().width());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewMinWidth) {
+  region_view()->SetBounds(0, 0, 200, 600);
+  // Verify the initial bounds of the region view.
+  EXPECT_EQ(200, region_view()->bounds().width());
+
+  // Shrink the area a small amount and expect the preferred width to adjust.
+  region_view()->OnResize(-10, false);
+  EXPECT_EQ(200 - 10, region_view()->GetPreferredSize().width());
+
+  // Shrink the area beyond the min width and the preferred width will be the
+  // minimum width.
+  region_view()->OnResize(-200, false);
+  EXPECT_EQ(VerticalTabStripRegionView::kExpandedMinWidth,
+            region_view()->GetPreferredSize().width());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewMaxWidth) {
+  region_view()->SetBounds(0, 0, 200, 600);
+  // Verify the initial bounds of the region view.
+  EXPECT_EQ(200, region_view()->bounds().width());
+
+  // Grow the area a small amount and expect the preferred width to adjust.
+  region_view()->OnResize(10, false);
+  EXPECT_EQ(200 + 10, region_view()->GetPreferredSize().width());
+
+  // Grow the area beyond the max width and the preferred width will be the
+  // maximum width.
+  region_view()->OnResize(1000, false);
+  EXPECT_EQ(VerticalTabStripRegionView::kExpandedMaxWidth,
+            region_view()->GetPreferredSize().width());
 }
 
 // Verify that the pinned tabs container will never be larger than the unpinned
@@ -149,8 +179,7 @@ class VerticalTabStripRegionViewWithSplitTabTest
   VerticalTabStripRegionViewWithSplitTabTest() = default;
 
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        {tabs::kVerticalTabs, features::kSideBySide}, {});
+    scoped_feature_list_.InitWithFeatures({tabs::kVerticalTabs}, {});
     InProcessBrowserTest::SetUp();
   }
 };
@@ -191,10 +220,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewWithSplitTabTest,
   auto parent_view = std::make_unique<views::View>();
   parent_view->SetBounds(0, 0, 200, 600);
   RootTabCollectionNode root_node(
-      browser()
-          ->GetFeatures()
-          .tab_strip_service_feature()
-          ->GetTabStripService(),
+      browser()->tab_strip_model(),
       base::BindRepeating<TabCollectionNode::CustomAddChildView>(
           &views::View::AddChildView, base::Unretained(parent_view.get())));
 

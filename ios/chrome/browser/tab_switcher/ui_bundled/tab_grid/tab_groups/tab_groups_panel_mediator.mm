@@ -351,6 +351,17 @@ NSString* CreationText(base::Time creation_date) {
   NOTREACHED() << "Should not be called in Tab Groups.";
 }
 
+- (void)pageActionMenuEntrypointTapped:(id)sender {
+  NOTREACHED() << "Should not be called in Tab Groups.";
+}
+- (void)createNewTabGroupButtonTapped:(id)sender {
+  NOTREACHED() << "Should not be called in Tab Groups.";
+}
+
+- (void)deleteBrowsingDataButtonTapped:(id)sender {
+  NOTREACHED() << "Should not be called in Tab Groups.";
+}
+
 #pragma mark TabGroupsPanelItemDataSource
 
 - (TabGroupsPanelItemData*)dataForItem:(TabGroupsPanelItem*)item {

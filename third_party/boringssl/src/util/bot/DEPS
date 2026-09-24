@@ -36,7 +36,9 @@ vars = {
   # wait a few hours for the new package to be built.
   'android_ndk_version': 'version:3@r29.chromium.1',
   # infra/3pp/tools/bazel_bootstrap/linux-amd64
-  # Keep this in sync with .bazelversion.
+  # Keep this in sync with .bazelversion and util/bazel-example/.bazelversion.
+  # After updating Bazel, bazelisk mod deps --lockfile_mode=refresh from the
+  # root and util/bazel-example
   'bazel_version': 'version:3@7.6.2.chromium.1',
   # infra/3pp/tools/cmake/linux-amd64
   'cmake_version': 'version:3@3.31.9.chromium.8',

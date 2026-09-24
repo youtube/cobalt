@@ -27,6 +27,7 @@
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
@@ -252,15 +253,6 @@ class NtpPromoUiTest
       default:
         NOTREACHED();
     }
-  }
-
-  auto WaitForAndScrollToElement(
-      const ui::ElementIdentifier& ntp_id,
-      const WebContentsInteractionTestUtil::DeepQuery& query) {
-    auto steps = Steps(WaitForElementToRender(ntp_id, query),
-                       ScrollIntoView(ntp_id, query));
-    AddDescriptionPrefix(steps, __func__);
-    return steps;
   }
 
   auto GetPromoIconPath() const { return GetFirstPromoPath() + kPromoIconId; }

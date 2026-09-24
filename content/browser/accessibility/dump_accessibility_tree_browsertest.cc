@@ -63,8 +63,6 @@ void DumpAccessibilityTreeTest::SetUpCommandLine(
   // Enable aria-actions.
   command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                   "AriaActions");
-  // Enable CSSInert, used by AccessibilityCSSInteractivityInert.
-  command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures, "CSSInert");
   // Enable custom elements to have a default role of "none", removing them
   // from the accessibility tree.
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
@@ -4809,6 +4807,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest, CarouselNoTabs) {
   RunCSSTest(FILE_PATH_LITERAL("carousel-no-tabs.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,
+                       CarouselWithColumnTabs) {
+  RunCSSTest(FILE_PATH_LITERAL("carousel-with-column-tabs.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithCarouselTest,

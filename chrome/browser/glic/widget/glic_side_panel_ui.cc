@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 
 #include "base/notimplemented.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
@@ -24,8 +25,10 @@
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/skia/include/core/SkRegion.h"
 #include "ui/views/view.h"
 
 namespace glic {
@@ -67,6 +70,15 @@ GlicSidePanelUi::GlicSidePanelUi(Profile* profile,
   }
 
   glic_side_panel_coordinator->SetContentsView(CreateView(profile_));
+
+  // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
+  // enterprise users) via constrained_window APIs.
+  web_modal::WebContentsModalDialogManager::CreateForWebContents(
+      delegate_->host().webui_contents());
+  web_modal::WebContentsModalDialogManager::FromWebContents(
+      delegate_->host().webui_contents())
+      ->SetDelegate(this);
+
   panel_state_.kind = mojom::PanelStateKind::kAttached;
 }
 
@@ -83,6 +95,15 @@ std::unique_ptr<views::View> GlicSidePanelUi::CreateView(Profile* profile) {
 GlicSidePanelUi::~GlicSidePanelUi() {
   if (glic_view_) {
     glic_view_->SetWebContents(nullptr);
+  }
+  auto* webui_contents = delegate_->host().webui_contents();
+  if (!webui_contents) {
+    return;
+  }
+  auto* dialog_manager =
+      web_modal::WebContentsModalDialogManager::FromWebContents(webui_contents);
+  if (dialog_manager) {
+    dialog_manager->SetDelegate(nullptr);
   }
 }
 
@@ -115,6 +136,10 @@ void GlicSidePanelUi::Resize(const gfx::Size& size,
 
 void GlicSidePanelUi::SetDraggableAreas(
     const std::vector<gfx::Rect>& draggable_areas) {
+  NOTIMPLEMENTED();
+}
+
+void GlicSidePanelUi::SetDraggableRegion(const SkRegion& draggable_region) {
   NOTIMPLEMENTED();
 }
 
@@ -168,6 +193,8 @@ void GlicSidePanelUi::SidePanelStateChanged(
   // by side panel coordinator when replacing glic with another entry.
   if (state != GlicSidePanelCoordinator::State::kShown && tab_) {
     instance_metrics_->OnSidePanelClosed(tab_.get());
+    panel_state_.kind = mojom::PanelStateKind::kHidden;
+    delegate_->NotifyPanelStateChanged();
     // NOTE: `this` will be destroyed after this call.
     delegate_->WillCloseFor(tab_.get());
   }
@@ -223,8 +250,6 @@ void GlicSidePanelUi::Close() {
   if (!glic_side_panel_coordinator || !IsShowing()) {
     return;
   }
-  panel_state_.kind = mojom::PanelStateKind::kHidden;
-  delegate_->NotifyPanelStateChanged();
   // NOTE: `this` will be destroyed after this call.
   glic_side_panel_coordinator->Close();
 }
@@ -267,6 +292,14 @@ base::WeakPtr<views::View> GlicSidePanelUi::GetView() {
   return glic_view_;
 }
 
+// web_modal::WebContentsModalDialogManagerDelegate
+web_modal::WebContentsModalDialogHost*
+GlicSidePanelUi::GetWebContentsModalDialogHost(
+    content::WebContents* web_contents) {
+  return tab_->GetBrowserWindowInterface()
+      ->GetWebContentsModalDialogHostForWindow();
+}
+
 void GlicSidePanelUi::OnBrowserWindowActivated(BrowserWindowInterface* bwi) {
   delegate_->OnEmbedderWindowActivationChanged(true);
 }
@@ -276,10 +309,7 @@ void GlicSidePanelUi::OnBrowserWindowDeactivated(BrowserWindowInterface* bwi) {
 }
 
 GlicSidePanelCoordinator* GlicSidePanelUi::GetGlicSidePanelCoordinator() const {
-  if (!tab_ || !tab_->GetTabFeatures()) {
-    return nullptr;
-  }
-  return tab_->GetTabFeatures()->glic_side_panel_coordinator();
+  return GlicSidePanelCoordinator::GetForTab(tab_.get());
 }
 
 std::string GlicSidePanelUi::DescribeForTesting() {

@@ -23,7 +23,6 @@ blink_core_sources_style = [
   "content_data.cc",
   "content_data.h",
   "coord_box_offset_path_operation.h",
-  "counter_directives.cc",
   "counter_directives.h",
   "cursor_data.h",
   "cursor_list.h",
@@ -112,6 +111,7 @@ blink_core_sources_style = [
   "style_mask_source_image.h",
   "style_name.h",
   "style_name_or_keyword.h",
+  "style_name_scope.h",
   "style_non_inherited_variables.h",
   "style_offset_rotation.h",
   "style_overflow_clip_margin.h",
@@ -146,6 +146,7 @@ blink_core_sources_style = [
   "text_box_edge.h",
   "text_overflow_data.h",
   "text_size_adjust.h",
+  "style_trigger_scope.h",
   "offset_path_operation.h",
   "unzoomed_length.h",
 ]

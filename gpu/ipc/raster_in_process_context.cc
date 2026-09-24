@@ -43,13 +43,11 @@ RasterInProcessContext::~RasterInProcessContext() {
 
 ContextResult RasterInProcessContext::Initialize(
     CommandBufferTaskExecutor* task_executor,
-    bool enable_gpu_rasterization,
     gpu::raster::GrShaderCache* gr_shader_cache,
     GpuProcessShmCount* use_shader_cache_shm_count) {
   constexpr bool lose_context_when_out_of_memory = false;
   auto attribs = mojom::ContextCreationAttribs::NewRaster(
       mojom::RasterCreationAttribs::New(
-          /*enable_gpu_rasterization=*/enable_gpu_rasterization,
           /*lose_context_when_out_of_memory=*/lose_context_when_out_of_memory));
 
   command_buffer_ =

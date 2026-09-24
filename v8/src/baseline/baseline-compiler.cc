@@ -423,6 +423,9 @@ uint32_t BaselineCompiler::Flag8(int operand_index) {
 uint32_t BaselineCompiler::Flag16(int operand_index) {
   return iterator().GetFlag16Operand(operand_index);
 }
+uint32_t BaselineCompiler::EmbeddedFeedback(int operand_index) {
+  return iterator().GetEmbeddedFeedback(operand_index);
+}
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
   return iterator().GetRegisterCountOperand(operand_index);
 }
@@ -1690,9 +1693,33 @@ void BaselineCompiler::VisitTestEqualStrict() {
   auto feedback_value_offset =
       iterator().GetEmbeddedFeedbackOffset(/*operand_index=*/1);
 
-  CallBuiltin<Builtin::kStrictEqual_Baseline>(RegisterOperand(0),
-                                              kInterpreterAccumulatorRegister,
-                                              feedback_value_offset);
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  if (v8_flags.sparkplug_plus) {
+#define TYPED_STRICTEQUAL_CASE(type)                         \
+  case CompareOperationFeedback::Type::k##type:              \
+    CallBuiltin<Builtin::kStrictEqual_##type##_Baseline>(    \
+        RegisterOperand(0), kInterpreterAccumulatorRegister, \
+        feedback_value_offset);                              \
+    break;
+    switch (static_cast<CompareOperationFeedback::Type>(EmbeddedFeedback(1))) {
+      TYPED_STRICTEQUAL_STUB_LIST(TYPED_STRICTEQUAL_CASE)
+      default:
+        CallBuiltin<Builtin::kStrictEqual_Generic_Baseline>(
+            RegisterOperand(0), kInterpreterAccumulatorRegister,
+            feedback_value_offset);
+        break;
+    }
+#undef TYPED_STRICTEQUAL_CASE
+  } else {
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
+    CallBuiltin<Builtin::kStrictEqual_Generic_Baseline>(
+        RegisterOperand(0), kInterpreterAccumulatorRegister,
+        feedback_value_offset);
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  }
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 }
 
 void BaselineCompiler::VisitTestLessThan() {

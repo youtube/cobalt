@@ -77,9 +77,8 @@ class AudioTrackJni : public AudioOutput {
   // `byte_buffer` in `direct_buffer_address_`. The size of the buffer
   // is also stored in `direct_buffer_capacity_in_bytes_`.
   // Called on the same thread as the creating thread.
-  void CacheDirectBufferAddress(
-      JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& byte_buffer);
+  void CacheDirectBufferAddress(JNIEnv* env,
+                                const jni_zero::JavaRef<jobject>& byte_buffer);
   // Called periodically by the Java based WebRtcAudioTrack object when
   // playout has started. Each call indicates that `length` new bytes should
   // be written to the memory area `direct_buffer_address_` for playout.

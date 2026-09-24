@@ -769,18 +769,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kV8BreakIteratorInternalFirst:
     case Builtin::kV8BreakIteratorInternalNext:
       return JSBuiltinStateFlag::kCoreJSLazy;
-
-    // --harmony_remove_intl_locale_info_getters
-    case Builtin::kLocalePrototypeCalendars:
-    case Builtin::kLocalePrototypeCollations:
-    case Builtin::kLocalePrototypeHourCycles:
-    case Builtin::kLocalePrototypeNumberingSystems:
-    case Builtin::kLocalePrototypeTextInfo:
-    case Builtin::kLocalePrototypeTimeZones:
-    case Builtin::kLocalePrototypeWeekInfo:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          !v8_flags.harmony_remove_intl_locale_info_getters);
-
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_TEMPORAL_SUPPORT
@@ -890,12 +878,22 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kUint8ArrayPrototypeSetFromHex:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
 
+    // --js-iterator-sequencing:
+    case Builtin::kIteratorConcat:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
+
     // --js-upsert
     case Builtin::kMapPrototypeGetOrInsert:
     case Builtin::kMapPrototypeGetOrInsertComputed:
     case Builtin::kWeakMapPrototypeGetOrInsert:
     case Builtin::kWeakMapPrototypeGetOrInsertComputed:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
+
+    // --js-immutable-arraybuffer
+    case Builtin::kArrayBufferPrototypeGetImmutable:
+    case Builtin::kArrayBufferPrototypeTransferToImmutable:
+    case Builtin::kArrayBufferPrototypeSliceToImmutable:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
 
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants

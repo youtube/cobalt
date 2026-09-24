@@ -15,13 +15,14 @@
 #include "base/component_export.h"
 #include "base/containers/span.h"
 #include "crypto/sha2.h"
-#include "device/fido/cable/cable_discovery_data.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/json_request.h"
 #include "device/fido/large_blob.h"
 #include "device/fido/pin.h"
 #include "device/fido/prf_input.h"
-#include "device/fido/public_key_credential_descriptor.h"
+#include "device/fido/public/cable_discovery_data.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/public_key_credential_descriptor.h"
+#include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 
 namespace cbor {
 class Value;
@@ -66,7 +67,7 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) CtapGetAssertionOptions {
 
   // The set of hints passed by the relying party.
   // https://w3c.github.io/webauthn/#enum-hints.
-  std::vector<FidoTransportProtocol> hints;
+  std::vector<blink::mojom::Hint> hints;
 };
 
 // Object that encapsulates request parameters for AuthenticatorGetAssertion as

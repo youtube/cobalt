@@ -168,8 +168,9 @@ void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
     int64_t actual_rtp_diff = unwrapped_ts90khz - *prev_unwrapped_timestamp_;
     int64_t rtp_jump = actual_rtp_diff - expected_rtp_diff;
     if (std::abs(rtp_jump) > config_.hard_reset_rtp_timestamp_jump_threshold) {
-      RTC_LOG(LS_WARNING) << "Large jump in RTP timestamp detected. "
-                             "Difference between actual and expected change: "
+      RTC_LOG(LS_WARNING) << "Large jump in RTP timestamp detected at "
+                          << unwrapped_ts90khz
+                          << ". Difference between actual and expected change: "
                           << rtp_jump << " ticks. Resetting filter.";
       Reset(now);
     }

@@ -80,7 +80,8 @@ DedicatedWorker* DedicatedWorker::Create(
   }
 
   String compliant_url = TrustedTypesCheckForScriptURL(
-      url, context, "Worker", "constructor", exception_state);
+      url, context, trusted_types_names::kWorker,
+      trusted_types_names::kConstructor, exception_state);
   if (exception_state.HadException()) {
     return nullptr;
   }
@@ -269,6 +270,7 @@ void DedicatedWorker::Start() {
     // The same as in OnScriptLoadStartFailed, reset factory_client_ and return.
     // This leaves the worker in a state the same as if script loading failed.
     factory_client_.reset();
+    context_proxy_->DidFailToFetchScript();
     return;
   }
 

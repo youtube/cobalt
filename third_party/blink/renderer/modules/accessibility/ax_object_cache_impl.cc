@@ -1275,6 +1275,7 @@ AXObject* AXObjectCacheImpl::Get(AbstractInlineTextBox* inline_text_box) const {
 }
 
 AXObject* AXObjectCacheImpl::GetPositionedObjectForAnchor(const AXObject* obj) {
+  CHECK(!RuntimeEnabledFeatures::NoAriaDetailsForAnchorPosEnabled());
   return relation_cache_->GetPositionedObjectForAnchor(obj);
 }
 
@@ -1421,7 +1422,6 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
   switch (To<PseudoElement>(node).GetPseudoId()) {
     case kPseudoIdBackdrop:
     case kPseudoIdOverscrollAreaParent:
-    case kPseudoIdOverscrollClientArea:
     case kPseudoIdViewTransition:
     case kPseudoIdViewTransitionGroup:
     case kPseudoIdViewTransitionGroupChildren:

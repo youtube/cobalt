@@ -19,13 +19,16 @@
 
 #include <openssl/aead.h>
 #include <openssl/aes.h>
+#include <openssl/span.h>
 
 #include "../../internal.h"
 #include "../aes/internal.h"
 
-#if defined(__cplusplus)
+#include <algorithm>
+#include <functional>
+#include <optional>
+
 extern "C" {
-#endif
 
 
 // EVP_CIPH_MODE_MASK contains the bits of |flags| that represent the mode.
@@ -47,6 +50,13 @@ struct evp_aead_st {
                              size_t tag_len, enum evp_aead_direction_t dir);
   void (*cleanup)(EVP_AEAD_CTX *);
 
+  // AEADs need to provide one of the following sets of methods:
+  //
+  // - openv + sealv: variable tag lenght AEAD.
+  // - openv_detached + sealv: fixed tag length AEAD.
+  // - open + seal_scatter: legacy variable tag length AEAD.
+  // - open_gather + seal_scatter: legacy fixed tag length AEAD.
+
   int (*open)(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
               size_t max_out_len, const uint8_t *nonce, size_t nonce_len,
               const uint8_t *in, size_t in_len, const uint8_t *ad,
@@ -63,10 +73,25 @@ struct evp_aead_st {
                      size_t in_len, const uint8_t *in_tag, size_t in_tag_len,
                      const uint8_t *ad, size_t ad_len);
 
+  int (*openv)(const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
+               size_t *out_total_bytes, const uint8_t *nonce, size_t nonce_len,
+               bssl::Span<const CRYPTO_IVEC> aadvecs);
+
+  int (*sealv)(const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
+               uint8_t *out_tag, size_t *out_tag_len, size_t max_out_tag_len,
+               const uint8_t *nonce, size_t nonce_len,
+               bssl::Span<const CRYPTO_IVEC> aadvecs);
+
+  int (*openv_detached)(const EVP_AEAD_CTX *ctx,
+                        bssl::Span<const CRYPTO_IOVEC> iovecs,
+                        const uint8_t *nonce, size_t nonce_len,
+                        const uint8_t *in_tag, size_t in_tag_len,
+                        bssl::Span<const CRYPTO_IVEC> aadvecs);
+
   int (*get_iv)(const EVP_AEAD_CTX *ctx, const uint8_t **out_iv,
                 size_t *out_len);
 
-  size_t (*tag_len)(const EVP_AEAD_CTX *ctx, size_t in_Len,
+  size_t (*tag_len)(const EVP_AEAD_CTX *ctx, size_t in_len,
                     size_t extra_in_len);
 };
 
@@ -130,8 +155,117 @@ struct evp_cipher_st {
   int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr);
 };
 
-#if defined(__cplusplus)
 }  // extern C
-#endif
+
+BSSL_NAMESPACE_BEGIN
+
+// CopySpan copies an entire span of bytes from |from| to |to|.
+//
+// The spans need to have the same length.
+inline void CopySpan(Span<const uint8_t> from, Span<uint8_t> to) {
+  BSSL_CHECK(from.size() == to.size());
+  std::copy(from.begin(), from.end(), to.begin());
+}
+
+// CopyToPrefix copies a span of bytes from |from| into |to|. It aborts
+// if there is not enough space.
+//
+// TODO(crbug.com/404286922): Can we simplify this in a C++20 world (e.g.
+// std::ranges::copy)? Must preserve range checking on the destination span.
+inline void CopyToPrefix(Span<const uint8_t> from, Span<uint8_t> to) {
+  CopySpan(from, to.first(from.size()));
+}
+
+// Generic CRYPTO_IOVEC/CRYPTO_IVEC helpers.
+namespace iovec {
+
+// IsValid returns whether the given |CRYPTO_IVEC| or |CRYPTO_IOVEC| is
+// valid for use with public APIs, i.e. does not contain more than |SIZE_MAX|
+// bytes and not more than |CRYPTO_IOVEC_MAX| chunks. Note that the `EVP_AEAD`
+// methods need to accept an arbitrary number of chunks.
+template <typename IVec>
+inline bool IsValid(Span<IVec> ivecs) {
+  if (ivecs.size() > CRYPTO_IOVEC_MAX) {
+    return false;
+  }
+  size_t allowed = SIZE_MAX;
+  for (const IVec &ivec : ivecs) {
+    size_t len = ivec.len;
+    if (len > allowed) {
+      return false;
+    }
+    allowed -= len;
+  }
+  return true;
+}
+
+// Length returns the total length in bytes of a given |CRYPTO_IVEC| or
+// |CRYPTO_IOVEC|.
+template <typename IVec>
+inline size_t TotalLength(Span<IVec> ivecs) {
+  size_t total = 0;
+  for (const IVec &ivec : ivecs) {
+    total += ivec.len;
+  }
+  return total;
+}
+
+// GetAndRemoveSuffix takes |suffix_buf.size()| final bytes from the given
+// |CRYPTO_IVEC| or |CRYPTO_IOVEC| (mutating said iovec to no longer contain
+// those bytes) and returns them.
+//
+// If the byte range is contained in a single chunk of |ivecs|, it will just
+// return that span pointing into |ivecs|; otherwise, it will copy the bytes
+// into |out| and return that.
+//
+// If |ivecs| is too short, returns |nullopt|.
+template <typename IVec, typename ReadFromT = const uint8_t *,
+          ReadFromT IVec::*ReadFrom = &IVec::in>
+inline std::optional<Span<const uint8_t>> GetAndRemoveSuffix(
+    Span<uint8_t> suffix_buf, Span<IVec> ivecs) {
+  // Get the trivial case out.
+  if (suffix_buf.empty()) {
+    return suffix_buf;
+  }
+  // Strip trailing zero length chunks.
+  while (!ivecs.empty() && ivecs.back().len == 0) {
+    ivecs = ivecs.first(ivecs.size() - 1);
+  }
+  if (ivecs.empty()) {
+    return std::nullopt;
+  }
+  // Is the requested chunk entirely contained? If so, just return it.
+  if (ivecs.back().len >= suffix_buf.size()) {
+    ivecs.back().len -= suffix_buf.size();
+    return Span(ivecs.back().*ReadFrom + ivecs.back().len, suffix_buf.size());
+  }
+  // Otherwise, collect it into the buffer while trimming |ivecs|.
+  Span<uint8_t> remaining = suffix_buf;
+  while (!ivecs.empty()) {
+    Span<const uint8_t> src(ivecs.back().*ReadFrom, ivecs.back().len);
+    if (src.size() >= remaining.size()) {
+      CopySpan(src.last(remaining.size()), remaining);
+      ivecs.back().len -= remaining.size();
+      return suffix_buf;
+    }
+    CopySpan(src, remaining.last(src.size()));
+    remaining = remaining.first(remaining.size() - src.size());
+    ivecs.back().len = 0;
+    ivecs = ivecs.first(ivecs.size() - 1);
+  }
+  return std::nullopt;
+}
+
+// GetAndRemoveOutSuffix is like |GetAndRemoveSuffix| but takes from a
+// |CRYPTO_IOVEC|'s |out| member instead.
+inline std::optional<Span<const uint8_t>> GetAndRemoveOutSuffix(
+    Span<uint8_t> out, Span<CRYPTO_IOVEC> iovecs) {
+  return GetAndRemoveSuffix<CRYPTO_IOVEC, /*ReadFromT=*/uint8_t *,
+                            /*ReadFrom=*/&CRYPTO_IOVEC::out>(out, iovecs);
+}
+
+}  // namespace iovec
+
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_CIPHER_INTERNAL_H

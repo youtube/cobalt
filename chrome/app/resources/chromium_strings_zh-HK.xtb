@@ -44,6 +44,7 @@
 <translation id="1497802159252041924">安裝錯誤：<ph name="INSTALL_ERROR" /></translation>
 <translation id="1518627427551567882">此為受保護頁面</translation>
 <translation id="1524282610922162960">分享 Chromium 分頁</translation>
+<translation id="154404805518949443">登入 Chromium</translation>
 <translation id="1547469039832541117">結束所選工作。</translation>
 <translation id="1553461853655228091">Chromium 需要取得權限，才能存取相機以建立您身處環境的 3D 地圖</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Chromium 不再支援此擴充程式，因此建議你移除。}other{Chromium 不再支援這些擴充程式，因此建議你移除。}}</translation>
@@ -231,6 +232,7 @@
 <translation id="3530103706039034513"><ph name="EXISTING_USER" />已登入。如要分開保存你的瀏覽資料，請在 Chromium 中登入你的個人檔案 (<ph name="USER_EMAIL_ADDRESS" />)。</translation>
 <translation id="3561853857681580870">如要分享螢幕內容，請前往「系統設定」允許 Chromium 螢幕錄影。</translation>
 <translation id="3597003331831379823">無法按更高權限執行設定。<ph name="METAINSTALLER_ERROR" /></translation>
+<translation id="3600428265489994557">登入 Chromium</translation>
 <translation id="3639635944603682591">此使用者的瀏覽資料將從裝置上刪除。如要復原資料，請以「<ph name="USER_EMAIL" />」身分登入 Chromium。</translation>
 <translation id="364817392622123556">{COUNT,plural, =0{Chromium 有可用的更新，重新啟動後即可套用。}=1{Chromium 有可用的更新，重新啟動後即可套用。您的無痕式視窗不會重新開啟。}other{Chromium 有可用的更新，重新啟動後即可套用。您的 # 個無痕式視窗不會重新開啟。}}</translation>
 <translation id="3651803019964686660">如要將號碼從 <ph name="ORIGIN" /> 傳送至 Android 手機，請在這兩部裝置上登入 Chromium。</translation>
@@ -392,7 +394,6 @@
 <translation id="5605834417512968703">選取任何要使用「圖片搜尋」尋找的內容，或按下 Esc 鍵退出「圖片搜尋」</translation>
 <translation id="5618818588972826921">選取任何要使用「圖片搜尋」尋找的文字或圖片，或按下 Esc 鍵退出「圖片搜尋」</translation>
 <translation id="5623402015214259806">{0,plural, =0{有可用的 Chromium 更新}=1{有可用的 Chromium 更新}other{Chromium 更新已發佈 # 天}}</translation>
-<translation id="5633450273457573375">使用<ph name="BEGIN_LINK" />密碼短語<ph name="END_LINK" />加密 Google 帳戶中的所有 Chromium 資料。地址和儲存在「Google 錢包」中的任何資料不會以密碼短語加密。Chromium 上的瀏覽記錄將不會同步。</translation>
 <translation id="5643865575100044307">在 Chromium 關閉後一律刪除裝置上的網站資料</translation>
 <translation id="5653831366781983928">請立即重新啟動 Chromium</translation>
 <translation id="5690427481109656848">Google LLC</translation>
@@ -500,6 +501,7 @@
 這表示您可能無法使用部分功能。請指定另一個設定檔目錄，或使用較新版本的 Chromium。</translation>
 <translation id="6729124504294600478">如要取得個人化和其他功能，請將 Chromium 加入「網絡和應用程式活動記錄」以及連結的 Google 服務</translation>
 <translation id="6734291798041940871">已為您電腦上的所有使用者安裝 Chromium。</translation>
+<translation id="6742093177587589736">如要在你的所有裝置上取用書籤及其他設定，請登入 Chromium。登入後，此書籤就會儲存至 Google 帳戶。</translation>
 <translation id="6751374565094704799">使用 Chromium 的 V8 引擎加快網站速度，但 Chromium 防攻擊的能力會略為下降。此設定已開啟。</translation>
 <translation id="6754665438209053659">{count,plural, =1{部分 Chromium 資料尚未儲存至 Google 帳戶，請等待幾分鐘後再嘗試登出。如果你現在登出，系統將刪除有關資料 (1 個項目)。}other{部分 Chromium 資料尚未儲存至 Google 帳戶，請等待幾分鐘後再嘗試登出。如果你現在登出，系統將刪除有關資料 ({count} 個項目)。}}</translation>
 <translation id="67706546131546258">此檔案可能不安全，因此 Chromium 建議掃瞄檔案。</translation>
@@ -651,6 +653,7 @@ Chromium 無法復原您的設定。</translation>
 <translation id="8493179195440786826">Chromium 版本過舊</translation>
 <translation id="850264194101621529">感謝你選用 Chromium 作為預設瀏覽器！</translation>
 <translation id="8522801943730206384">儲存密碼時，Chromium 可檢查你的密碼</translation>
+<translation id="8548787790260785208">如果 Chromium 發現你的密碼在公開資料外洩事件中外洩，就會向你發出警告</translation>
 <translation id="8555465886620020932">服務錯誤：<ph name="SERVICE_ERROR" />。</translation>
 <translation id="8556420416730706394">你可以固定「圖片搜尋」方便存取；㩒一下側面板頂部嘅「固定」按鈕</translation>
 <translation id="856656450041460113">搜尋語言清單</translation>
@@ -683,7 +686,6 @@ Chromium 無法復原您的設定。</translation>
 <translation id="897581876605952338">Chromium Enterprise 標誌</translation>
 <translation id="8988036198400390003">管理 Chromium 設定檔</translation>
 <translation id="9019929317751753759">為鞏固 Chromium 的安全性，我們已將未列在 <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> 中的擴充功能停用，因為它們可能在您不知情的情況下加入瀏覽器。</translation>
-<translation id="9022552996538154597">登入 Chromium</translation>
 <translation id="904366664621834601">此封存檔案包含可能隱藏惡意軟件的其他檔案，因此 Chromium 已禁止下載</translation>
 <translation id="9062666675513499497">在登入其他 Google 服務時登入 Chromium</translation>
 <translation id="9078733879136747090">Chromium 已自動關閉</translation>

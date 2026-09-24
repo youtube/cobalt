@@ -172,3 +172,5 @@ void TaskRunnerAndroid::SetUiThreadTaskRunnerCallback(
 }
 
 }  // namespace base
+
+DEFINE_JNI(TaskRunnerImpl)

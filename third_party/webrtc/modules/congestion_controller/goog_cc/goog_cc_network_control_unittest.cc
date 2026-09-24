@@ -75,6 +75,7 @@ constexpr uint32_t kInitialBitrateKbps = 60;
 constexpr DataRate kInitialBitrate =
     DataRate::KilobitsPerSec(kInitialBitrateKbps);
 constexpr float kDefaultPacingRate = 2.5f;
+constexpr float kDefaultPacingRateSendSideBwe = 1.1f;
 
 CallClient* CreateVideoSendingClient(
     Scenario* s,
@@ -292,7 +293,68 @@ TEST(GoogCcNetworkControllerTest,
             kInitialBitrate * 5);
 }
 
-TEST(GoogCcNetworkControllerTest, ReactsToChangedNetworkConditions) {
+TEST(GoogCcNetworkControllerTest, ChangeDefaultPacingFactorAfterFirstFeedback) {
+  NetworkControllerTestFixture fixture;
+  std::unique_ptr<NetworkControllerInterface> controller =
+      fixture.CreateController();
+
+  NetworkControlUpdate update = controller->OnNetworkAvailability(
+      {.at_time = Timestamp::Millis(123456), .network_available = true});
+  update =
+      controller->OnProcessInterval({.at_time = Timestamp::Millis(123456)});
+  ASSERT_EQ(update.pacer_config->data_rate(),
+            kInitialBitrate * kDefaultPacingRate);
+
+  TransportPacketsFeedback feedback;
+  feedback.feedback_time = Timestamp::Millis(123457);
+  feedback.packet_feedbacks.push_back(CreatePacketResult(
+      feedback.feedback_time, feedback.feedback_time, 100, PacedPacketInfo()));
+  update = controller->OnTransportPacketsFeedback(feedback);
+  ASSERT_TRUE(update.pacer_config.has_value());
+  EXPECT_GE(update.pacer_config->data_rate(),
+            kInitialBitrate * kDefaultPacingRateSendSideBwe);
+  EXPECT_LT(update.pacer_config->data_rate(),
+            (kInitialBitrate + DataRate::KilobitsPerSec(5)) *
+                kDefaultPacingRateSendSideBwe);
+}
+
+TEST(GoogCcNetworkControllerTest, RespectsConfiguredPacingFactor) {
+  NetworkControllerTestFixture fixture;
+  std::unique_ptr<NetworkControllerInterface> controller =
+      fixture.CreateController();
+
+  NetworkControlUpdate update = controller->OnNetworkAvailability(
+      {.at_time = Timestamp::Millis(123456), .network_available = true});
+  update =
+      controller->OnProcessInterval({.at_time = Timestamp::Millis(123456)});
+  ASSERT_EQ(update.pacer_config->data_rate(),
+            kInitialBitrate * kDefaultPacingRate);
+
+  std::optional<PacerConfig> last_pacer_config;
+  StreamsConfig streams_config;
+  streams_config.pacing_factor = 10;
+
+  update = controller->OnStreamsConfig(streams_config);
+  if (update.pacer_config.has_value()) {
+    last_pacer_config = update.pacer_config;
+  }
+
+  TransportPacketsFeedback feedback;
+  feedback.feedback_time = Timestamp::Millis(123457);
+  feedback.packet_feedbacks.push_back(CreatePacketResult(
+      feedback.feedback_time, feedback.feedback_time, 100, PacedPacketInfo()));
+  update = controller->OnTransportPacketsFeedback(feedback);
+  if (update.pacer_config.has_value()) {
+    last_pacer_config = update.pacer_config;
+  }
+
+  ASSERT_TRUE(last_pacer_config.has_value());
+  EXPECT_GE(last_pacer_config->data_rate(), kInitialBitrate * 10);
+  EXPECT_LT(last_pacer_config->data_rate(),
+            (kInitialBitrate + DataRate::KilobitsPerSec(5)) * 10);
+}
+
+TEST(GoogCcNetworkControllerTest, ReactsToChangedNetworkConditionsFromRemote) {
   NetworkControllerTestFixture fixture;
   std::unique_ptr<NetworkControllerInterface> controller =
       fixture.CreateController();

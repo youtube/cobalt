@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/audio/audio_processing.h"
+#include "api/field_trials_view.h"
 #include "modules/audio_processing/agc2/clipping_predictor.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "rtc_base/gtest_prod_util.h"
@@ -56,6 +57,7 @@ class InputVolumeController final {
     // and above the range, the targets `target_range_min_dbfs` and
     // `target_range_max_dbfs` are used, respectively.
     int target_range_max_dbfs = -30;
+    int target_range_experimental_max_dbfs = -12;
     int target_range_min_dbfs = -50;
     // Number of wait frames between the recommended input volume updates.
     int update_input_volume_wait_frames = 100;
@@ -70,7 +72,9 @@ class InputVolumeController final {
   // Ctor. `num_capture_channels` specifies the number of channels for the audio
   // passed to `AnalyzePreProcess()` and `Process()`. Clamps
   // `config.startup_min_level` in the [12, 255] range.
-  InputVolumeController(int num_capture_channels, const Config& config);
+  InputVolumeController(int num_capture_channels,
+                        const Config& config,
+                        const FieldTrialsView& field_trials);
 
   ~InputVolumeController();
   InputVolumeController(const InputVolumeController&) = delete;

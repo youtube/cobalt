@@ -93,8 +93,8 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfContentCaptureFrame(
 
 static jlong JNI_OnscreenContentProvider_Init(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
-    const base::android::JavaParamRef<jobject>& jweb_contents) {
+    const base::android::JavaRef<jobject>& obj,
+    const base::android::JavaRef<jobject>& jweb_contents) {
   auto* web_contents = content::WebContents::FromJavaWebContents(jweb_contents);
   DCHECK(web_contents);
   auto* provider = new content_capture::OnscreenContentProviderAndroid(
@@ -104,7 +104,7 @@ static jlong JNI_OnscreenContentProvider_Init(
 
 OnscreenContentProviderAndroid::OnscreenContentProviderAndroid(
     JNIEnv* env,
-    const jni_zero::JavaParamRef<jobject>& jobject,
+    const jni_zero::JavaRef<jobject>& jobject,
     content::WebContents* web_contents)
     : java_ref_(jobject) {
   AttachToWebContents(web_contents);
@@ -230,6 +230,17 @@ void OnscreenContentProviderAndroid::DidUpdateFavicon(
   Java_OnscreenContentProvider_didUpdateFavicon(env, java_ref_, jdata);
 }
 
+void OnscreenContentProviderAndroid::DidUpdateSensitivityScore(
+    const GURL& url,
+    float sensitivity_score) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(java_ref_.obj());
+
+  Java_OnscreenContentProvider_didUpdateSensitivityScore(
+      env, java_ref_, ConvertUTF8ToJavaString(env, url.spec()),
+      static_cast<jfloat>(sensitivity_score));
+}
+
 bool OnscreenContentProviderAndroid::ShouldCapture(const GURL& url) {
   JNIEnv* env = AttachCurrentThread();
   return Java_OnscreenContentProvider_shouldCapture(
@@ -242,7 +253,7 @@ ScopedJavaLocalRef<jobject> OnscreenContentProviderAndroid::GetJavaObject() {
 
 void OnscreenContentProviderAndroid::OnWebContentsChanged(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jweb_contents) {
+    const base::android::JavaRef<jobject>& jweb_contents) {
   if (auto* web_contents =
           content::WebContents::FromJavaWebContents(jweb_contents)) {
     AttachToWebContents(web_contents);

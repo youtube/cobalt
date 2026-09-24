@@ -14,6 +14,7 @@
 #include <variant>
 
 #include "base/base_export.h"
+#include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/memory_pressure_level.h"
 #include "base/memory/scoped_refptr.h"
@@ -72,7 +73,8 @@ enum class MemoryPressureListenerTag {
   kUrgentPageDiscardingPolicy = 41,
   kTabLoader = 42,
   kBackgroundTabLoadingPolicy = 43,
-  kThumbnailCache = 44,
+  // Deprecated.
+  // kThumbnailCache = 44,
   kUserspaceSwapPolicy = 45,
   kWorkingSetTrimmerPolicyChromeOS = 46,
   kLruRendererCache = 47,
@@ -88,6 +90,7 @@ enum class MemoryPressureListenerTag {
   kMemoryCache = 57,
   kResource = 58,
   kResourceFetcher = 59,
+  kGlicProfileManager = 60,
 };
 
 // To start listening, derive from MemoryPressureListener, and use
@@ -141,9 +144,12 @@ class BASE_EXPORT MemoryPressureListener : public CheckedObserver {
       MemoryPressureLevel memory_pressure_level);
   // Invokes `SimulatePressureNotification` asynchronously on the main thread,
   // ensuring that any pending registration tasks have completed by the time it
-  // runs.
+  // runs, then posts back `on_notification_sent_callback` to the calling
+  // sequence, allowing tests to ensure that the notification was received by
+  // the MemoryPressureListener under test.
   static void SimulatePressureNotificationAsync(
-      MemoryPressureLevel memory_pressure_level);
+      MemoryPressureLevel memory_pressure_level,
+      OnceClosure on_notification_sent_callback);
 
   virtual void OnMemoryPressure(MemoryPressureLevel memory_pressure_level) = 0;
 };

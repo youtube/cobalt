@@ -45,6 +45,7 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
+#include "api/rtp_transport_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
@@ -58,6 +59,7 @@
 #include "api/transport/enums.h"
 #include "api/turn_customizer.h"
 #include "call/call.h"
+#include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/media_engine.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -248,8 +250,6 @@ class PeerConnection : public PeerConnectionInternal,
 
   scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
       const std::string& mid) override;
-  scoped_refptr<DtlsTransport> LookupDtlsTransportByMidInternal(
-      const std::string& mid);
 
   scoped_refptr<SctpTransportInterface> GetSctpTransport() const override;
 
@@ -277,6 +277,11 @@ class PeerConnection : public PeerConnectionInternal,
   bool initial_offerer() const override {
     RTC_DCHECK_RUN_ON(signaling_thread());
     return sdp_handler_->initial_offerer();
+  }
+
+  PayloadTypeSuggester* pt_suggester() const {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    return sdp_handler_->pt_suggester();
   }
 
   std::vector<scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>>
@@ -678,6 +683,7 @@ class PeerConnection : public PeerConnectionInternal,
                                // `jsep_transport_controller_` and used on the
                                // network thread.
   const std::unique_ptr<DtlsTransportFactory> dtls_transport_factory_;
+  const std::unique_ptr<RtpTransportFactory> rtp_transport_factory_;
   const std::unique_ptr<SSLCertificateVerifier> tls_cert_verifier_
       RTC_GUARDED_BY(network_thread());
 

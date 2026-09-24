@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/time/time.h"
@@ -112,11 +113,7 @@ SessionImpl::AddContextResult SessionImpl::AddContextImpl(
     SetInputCallback callback) {
   if (callback) {
     callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-        std::move(callback),
-        base::unexpected(
-            OptimizationGuideModelExecutionError::FromModelExecutionError(
-                OptimizationGuideModelExecutionError::ModelExecutionError::
-                    kCancelled)));
+        std::move(callback), base::unexpected(OnDeviceError::kCancelled));
   }
   context_ = std::move(request);
   context_start_time_ = base::TimeTicks::Now();
@@ -189,10 +186,7 @@ void SessionImpl::ExecuteModelWithResponseConstraint(
   if (!ShouldUseOnDeviceModel()) {
     DestroyOnDeviceState();
     std::move(callback).Run(OptimizationGuideModelStreamingExecutionResult(
-        base::unexpected(
-            OptimizationGuideModelExecutionError::FromModelExecutionError(
-                OptimizationGuideModelExecutionError::ModelExecutionError::
-                    kGenericFailure)),
+        base::unexpected(OnDeviceError::kGenericFailure),
         /*provided_by_on_device=*/true));
     return;
   }

@@ -211,6 +211,7 @@
 <translation id="1764070164487214210">Putanja</translation>
 <translation id="1767766085187034454">Google prevodilac</translation>
 <translation id="1771016937398045251">Meni Alatke</translation>
+<translation id="1772468122139624049">Ponovno učitavanje kartica nije uspelo</translation>
 <translation id="1779354709911146450">Greška potvrde identiteta</translation>
 <translation id="1780152987505130652">Zatvori grupu</translation>
 <translation id="178400879184240105">Vaše lozinke su jedinstvene</translation>
@@ -344,7 +345,7 @@
 <translation id="2245007488813216650">Prevodi se…</translation>
 <translation id="2249119578464404734">U vrhu ekrana dodirnite ikonu Pretraga</translation>
 <translation id="2251686759395008410">Meni → Istorija</translation>
-<translation id="2252378061043785266">Nikada ne prikazuj ovaj sajt</translation>
+<translation id="2252378061043785266">Nikad ne prikazuj ovaj sajt</translation>
 <translation id="2252749852083403809">Čuva se na Disku za <ph name="USER_EMAIL" />.</translation>
 <translation id="2256933947031277845">Organizacija vam dozvoljava da se prijavite samo pomoću određenih naloga.</translation>
 <translation id="2257567812274161158">Sinhronizacija ne radi.</translation>
@@ -906,6 +907,7 @@
 <translation id="4525629404718770519">Prikaži preglede linkova</translation>
 <translation id="452750746583162491">Pregledajte sinhronizovane podatke</translation>
 <translation id="4532845899244822526">Izaberite folder</translation>
+<translation id="454217142158335225">Zatvorene stavke možete ponovo da otvorite u odeljcima Nedavne kartice ili Grupe kartica. Prikačene kartice se neće zatvoriti.</translation>
 <translation id="4547181496285029457">Vratite se na nedavnu karticu</translation>
 <translation id="4552042254369397518">Kopira se…</translation>
 <translation id="4564893319561643483">Sakrijte „<ph name="TITLE" />“</translation>
@@ -1006,6 +1008,7 @@
 <translation id="4877597489778380935">Podseti me kasnije</translation>
 <translation id="4881695831933465202">Otvori</translation>
 <translation id="4883766694719903356">Mreža kartica bez arhiviranja</translation>
+<translation id="4884937942297374058">Poboljšana zaštita je isključena</translation>
 <translation id="488785315393301722">Prikaži detalje</translation>
 <translation id="4889521386764567563">Aktuelni profil</translation>
 <translation id="4893713555726946316">Sakrij opciju Pronađi na stranici</translation>
@@ -1592,6 +1595,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="693761253105515415">Podesite šifru</translation>
 <translation id="6945221475159498467">Izaberi</translation>
 <translation id="6950522403736391608">Skriveno</translation>
+<translation id="6962809930976936328">Steknite uvid pomoću Gemini-ja</translation>
 <translation id="6964300328304469089">Trenutno je izabrano <ph name="NAME" />, <ph name="EMAIL" />. Odaberite nalog.</translation>
 <translation id="6964760285928603117">Ukloni iz grupe</translation>
 <translation id="6965382102122355670">Potvrdi</translation>
@@ -1839,6 +1843,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="7887174313503389866">Krenite u obilazak ključnih kontrola privatnosti i bezbednosti. Više opcija potražite u pojedinačnim podešavanjima.</translation>
 <translation id="7887198238286927132">Radi zaštite privatnosti Chrome neće automatski popunjavati ovo polje.</translation>
 <translation id="7887552845761062935">Dvaput dodirnite i zadržite da biste otvorili još opcija</translation>
+<translation id="7888562068293422208">Želite da zatvorite sve?</translation>
 <translation id="7889910613639381518">Lak i bezbedan pristup pomoću vidžeta Google menadžer lozinki.</translation>
 <translation id="7899199123054742721">Označi sve kao nepročitano</translation>
 <translation id="7911190106180361398">Organizacija ne dozvoljava da sinhronizujete sve.</translation>
@@ -1907,6 +1912,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="8114753159095730575">Preuzimanje datoteke nije dostupno. Opcije su navedene u dnu ekrana.</translation>
 <translation id="8123502380991596210">Sakrij opciju Šta je novo</translation>
 <translation id="8123953306357309250">Želite da otkažete sinhronizaciju? Možete da uključite sinhronizaciju u podešavanjima u bilo kom trenutku.</translation>
+<translation id="8130712116203026166">Daj mi rezime u jednom redu i korisne uvide izvan ove stranice. Koristi sažet, opušten ton. Ograniči na 100 reči.</translation>
 <translation id="81313319706244542">2. Dodirnite Lozinke</translation>
 <translation id="8131740175452115882">Potvrdi</translation>
 <translation id="8132598642024322408">Cena je <ph name="PRICE" />, a bila je <ph name="PREVIOUS_PRICE" />.</translation>
@@ -2034,6 +2040,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="860043288473659153">Ime vlasnika kartice</translation>
 <translation id="8601611099293226919">Pretraživanje ekrana pomoću Google objektiva</translation>
 <translation id="8605219856220328675">Zatvori karticu.</translation>
+<translation id="8609384513243082612">Otvorite novu karticu</translation>
 <translation id="8609743333007776886">Dodaj ${url} u obeleživače</translation>
 <translation id="8611922158252451755">Svako sa linkom može da menja sve kartice, pa pazite šta delite. Link ističe za 48 sati.</translation>
 <translation id="8614671330774943747">Prelazak na Prebacivač kartica</translation>

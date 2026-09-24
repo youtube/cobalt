@@ -23,6 +23,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_external_install_options.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
+#include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -55,7 +56,7 @@ bool HasManagedGuestSessionInPolicy() {
 std::vector<web_package::SignedWebBundleId> FilterAllowlistedIwas(
     std::vector<web_package::SignedWebBundleId> iwa_ids) {
   std::erase_if(iwa_ids, [](const auto& id) {
-    return !IwaKeyDistributionInfoProvider::GetInstance()
+    return !ChromeIwaRuntimeDataProvider::GetInstance()
                 .IsManagedInstallPermitted(id.id());
   });
   return iwa_ids;

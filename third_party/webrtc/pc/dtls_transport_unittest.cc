@@ -12,7 +12,6 @@
 
 #include <memory>
 #include <optional>
-#include <utility>
 #include <vector>
 
 #include "api/dtls_transport_interface.h"
@@ -21,6 +20,7 @@
 #include "api/scoped_refptr.h"
 #include "api/test/rtc_error_matchers.h"
 #include "p2p/base/p2p_constants.h"
+#include "p2p/dtls/dtls_transport_internal.h"
 #include "p2p/dtls/fake_dtls_transport.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/rtc_certificate.h"
@@ -62,20 +62,32 @@ class TestDtlsTransportObserver : public DtlsTransportObserverInterface {
 class DtlsTransportTest : public ::testing::Test {
  public:
   DtlsTransport* transport() { return transport_.get(); }
-  DtlsTransportObserverInterface* observer() { return &observer_; }
+
+  void TearDown() override {
+    if (transport_ && internal_transport_) {
+      internal_transport_->UnsubscribeDtlsTransportState(transport_.get());
+      transport_->Clear(internal_transport_.get());
+    }
+  }
 
   void CreateTransport(FakeSSLCertificate* certificate = nullptr) {
-    auto cricket_transport = std::make_unique<FakeDtlsTransport>(
+    internal_transport_ = std::make_unique<FakeDtlsTransport>(
         "audio", ICE_CANDIDATE_COMPONENT_RTP);
     if (certificate) {
-      cricket_transport->SetRemoteSSLCertificate(certificate);
+      internal_transport_->SetRemoteSSLCertificate(certificate);
     }
-    cricket_transport->SetSslCipherSuite(kNonsenseCipherSuite);
-    transport_ = make_ref_counted<DtlsTransport>(std::move(cricket_transport));
+    internal_transport_->SetSslCipherSuite(kNonsenseCipherSuite);
+    transport_ =
+        make_ref_counted<DtlsTransport>(internal_transport_.get(), &observer_);
+    internal_transport_->SubscribeDtlsTransportState(
+        transport_.get(),
+        [this](DtlsTransportInternal* transport, DtlsTransportState state) {
+          transport_->OnInternalDtlsState(transport);
+        });
   }
 
   void CompleteDtlsHandshake() {
-    auto fake_dtls1 = static_cast<FakeDtlsTransport*>(transport_->internal());
+    auto fake_dtls1 = internal_transport_.get();
     auto fake_dtls2 = std::make_unique<FakeDtlsTransport>(
         "audio", ICE_CANDIDATE_COMPONENT_RTP);
     auto cert1 =
@@ -89,25 +101,21 @@ class DtlsTransportTest : public ::testing::Test {
 
   AutoThread main_thread_;
   scoped_refptr<DtlsTransport> transport_;
+  std::unique_ptr<FakeDtlsTransport> internal_transport_;
   TestDtlsTransportObserver observer_;
 };
 
 TEST_F(DtlsTransportTest, CreateClearDelete) {
-  auto cricket_transport =
+  auto transport =
       std::make_unique<FakeDtlsTransport>("audio", ICE_CANDIDATE_COMPONENT_RTP);
-  auto webrtc_transport =
-      make_ref_counted<DtlsTransport>(std::move(cricket_transport));
-  ASSERT_TRUE(webrtc_transport->internal());
-  ASSERT_EQ(DtlsTransportState::kNew, webrtc_transport->Information().state());
-  webrtc_transport->Clear();
-  ASSERT_FALSE(webrtc_transport->internal());
-  ASSERT_EQ(DtlsTransportState::kClosed,
-            webrtc_transport->Information().state());
+  auto dtls_transport = make_ref_counted<DtlsTransport>(transport.get());
+  ASSERT_EQ(DtlsTransportState::kNew, dtls_transport->Information().state());
+  dtls_transport->Clear(transport.get());
+  ASSERT_EQ(DtlsTransportState::kClosed, dtls_transport->Information().state());
 }
 
 TEST_F(DtlsTransportTest, EventsObservedWhenConnecting) {
   CreateTransport();
-  transport()->RegisterObserver(observer());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state_change_called_; },
                         ::testing::IsTrue()),
@@ -122,12 +130,11 @@ TEST_F(DtlsTransportTest, EventsObservedWhenConnecting) {
 
 TEST_F(DtlsTransportTest, CloseWhenClearing) {
   CreateTransport();
-  transport()->RegisterObserver(observer());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kConnected)),
               IsRtcOk());
-  transport()->Clear();
+  transport()->Clear(internal_transport_.get());
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kClosed)),
               IsRtcOk());
@@ -136,7 +143,6 @@ TEST_F(DtlsTransportTest, CloseWhenClearing) {
 TEST_F(DtlsTransportTest, RoleAppearsOnConnect) {
   FakeSSLCertificate fake_certificate("fake data");
   CreateTransport(&fake_certificate);
-  transport()->RegisterObserver(observer());
   EXPECT_FALSE(transport()->Information().role());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
@@ -150,7 +156,6 @@ TEST_F(DtlsTransportTest, RoleAppearsOnConnect) {
 TEST_F(DtlsTransportTest, CertificateAppearsOnConnect) {
   FakeSSLCertificate fake_certificate("fake data");
   CreateTransport(&fake_certificate);
-  transport()->RegisterObserver(observer());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kConnected)),
@@ -161,13 +166,12 @@ TEST_F(DtlsTransportTest, CertificateAppearsOnConnect) {
 TEST_F(DtlsTransportTest, CertificateDisappearsOnClose) {
   FakeSSLCertificate fake_certificate("fake data");
   CreateTransport(&fake_certificate);
-  transport()->RegisterObserver(observer());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kConnected)),
               IsRtcOk());
   EXPECT_TRUE(observer_.info_.remote_ssl_certificates() != nullptr);
-  transport()->Clear();
+  transport()->Clear(internal_transport_.get());
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kClosed)),
               IsRtcOk());
@@ -176,14 +180,13 @@ TEST_F(DtlsTransportTest, CertificateDisappearsOnClose) {
 
 TEST_F(DtlsTransportTest, CipherSuiteVisibleWhenConnected) {
   CreateTransport();
-  transport()->RegisterObserver(observer());
   CompleteDtlsHandshake();
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kConnected)),
               IsRtcOk());
   ASSERT_TRUE(observer_.info_.ssl_cipher_suite());
   EXPECT_EQ(kNonsenseCipherSuite, *observer_.info_.ssl_cipher_suite());
-  transport()->Clear();
+  transport()->Clear(internal_transport_.get());
   ASSERT_THAT(WaitUntil([&] { return observer_.state(); },
                         ::testing::Eq(DtlsTransportState::kClosed)),
               IsRtcOk());

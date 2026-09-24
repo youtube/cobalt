@@ -88,11 +88,8 @@ void ReplaceSharedElementWithRenderPass(
       /*mask_resource_id=*/kInvalidResourceId,
       /*mask_uv_rect=*/gfx::RectF(),
       /*mask_texture_size=*/gfx::Size(),
-      /*filters_scale=*/gfx::Vector2dF(1.0f, 1.0f),
-      /*filters_origin=*/gfx::PointF(),
       /*tex_coord_rect=*/tex_coord_rect,
-      /*force_anti_aliasing_off=*/false,
-      /*backdrop_filter_quality*/ 1.f);
+      /*force_anti_aliasing_off=*/false);
 }
 
 // This function swaps a SharedElementDrawQuad with a TextureDrawQuad.
@@ -135,10 +132,13 @@ SurfaceAnimationManager::CreateWithSave(
     Surface* surface,
     gpu::SharedImageInterface* shared_image_interface,
     ReservedResourceIdTracker* id_tracker,
-    SaveDirectiveCompleteCallback sequence_id_finished_callback) {
+    SaveDirectiveCompleteCallback sequence_id_finished_callback,
+    ViewTransitionResourcesCapturedCallback
+        view_transition_resources_captured_callback) {
   return base::WrapUnique(new SurfaceAnimationManager(
       directive, surface, shared_image_interface, id_tracker,
-      std::move(sequence_id_finished_callback)));
+      std::move(sequence_id_finished_callback),
+      std::move(view_transition_resources_captured_callback)));
 }
 
 SurfaceAnimationManager::SurfaceAnimationManager(
@@ -146,9 +146,13 @@ SurfaceAnimationManager::SurfaceAnimationManager(
     Surface* surface,
     gpu::SharedImageInterface* shared_image_interface,
     ReservedResourceIdTracker* id_tracker,
-    SaveDirectiveCompleteCallback sequence_id_finished_callback)
+    SaveDirectiveCompleteCallback sequence_id_finished_callback,
+    ViewTransitionResourcesCapturedCallback
+        view_transition_resources_captured_callback)
     : transferable_resource_tracker_(id_tracker),
-      saved_frame_(directive, shared_image_interface),
+      saved_frame_(directive,
+                   shared_image_interface,
+                   std::move(view_transition_resources_captured_callback)),
       surface_id_(surface->surface_id()) {
   DCHECK(directive.type() == CompositorFrameTransitionDirective::Type::kSave);
 

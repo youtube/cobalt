@@ -17,6 +17,14 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(TSA_MACRO(__VA_ARGS__))
+#else
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
+#endif
+
 #define TORQUE_BUILTIN_LIST_TFC(V)                                            \
   BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
                            IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -55,7 +63,6 @@ namespace internal {
   V(CallWithSpread)                                  \
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
-  V(CCall)                                           \
   V(CEntryDummy)                                     \
   V(CEntry1ArgvOnStack)                              \
   V(CloneObjectBaseline)                             \
@@ -64,6 +71,7 @@ namespace internal {
   V(CompareNoContext)                                \
   V(StringEqual)                                     \
   V(Compare_Baseline)                                \
+  IF_SPARKPLUG_PLUS(V, CompareAndTryPatchCode)       \
   V(Compare_WithFeedback)                            \
   V(Compare_WithEmbeddedFeedback)                    \
   V(Compare_WithEmbeddedFeedbackOffset)              \
@@ -154,6 +162,7 @@ namespace internal {
   IF_WASM(V, WasmAllocateShared)                     \
   IF_WASM(V, WasmFXResume)                           \
   IF_WASM(V, WasmFXSuspend)                          \
+  IF_WASM(V, WasmFXReturn)                           \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -163,6 +172,7 @@ namespace internal {
   V(WasmHandleStackOverflow)                         \
   V(WriteBarrier)                                    \
   V(IndirectPointerWriteBarrier)                     \
+  IF_TSA(V, IGNORE_BUILTIN, ToString)                \
   IF_TSAN(V, TSANLoad)                               \
   IF_TSAN(V, TSANStore)                              \
   BUILTIN_LIST_TFS(V)                                \
@@ -833,17 +843,6 @@ class V8_EXPORT_PRIVATE JSEntryDescriptor
   static constexpr auto registers();
 };
 
-// Dummy descriptor that marks builtins with C calling convention.
-// TODO(jgruber): Define real descriptors for C calling conventions.
-class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
- public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kInvalidEntrypointTag)
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS()
-  DEFINE_PARAMETER_TYPES()
-  DECLARE_DESCRIPTOR(CCallDescriptor)
-};
-
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
 class CEntryDummyDescriptor
@@ -914,9 +913,11 @@ class WasmFXResumeDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kTargetStack, kArgBuffer)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),
-                                    MachineType::IntPtr())
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kTargetStack, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),  // Return: result buffer.
+      MachineType::IntPtr(),  // Param 0: target stack.
+      MachineType::IntPtr())  // Param 1: arg buffer.
   DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
 
   static constexpr int kMaxRegisterParams = 2;
@@ -938,6 +939,20 @@ class WasmFXSuspendDescriptor final
   static constexpr int kMaxRegisterParams = 3;
   static constexpr inline auto registers();
 };
+
+class WasmFXReturnDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXReturnDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr())
+  DECLARE_DESCRIPTOR(WasmFXReturnDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+};
+
 #endif
 
 class NewHeapNumberDescriptor
@@ -1018,10 +1033,6 @@ class NoContextDescriptor
 
   static constexpr auto registers();
 };
-
-#if V8_ENABLE_WEBASSEMBLY
-using WasmFXReturnDescriptor = NoContextDescriptor;
-#endif
 
 // LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
@@ -2899,6 +2910,23 @@ class Compare_BaselineDescriptor
   static constexpr inline auto registers();
 };
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+class CompareAndTryPatchCodeDescriptor
+    : public StaticCallInterfaceDescriptor<CompareAndTryPatchCodeDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kCurrentFeedback, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::Int32(),      // kCurrentFeedback
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(CompareAndTryPatchCodeDescriptor)
+
+  static constexpr inline auto registers();
+};
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 class Compare_WithEmbeddedFeedbackOffsetDescriptor
     : public StaticCallInterfaceDescriptor<
           Compare_WithEmbeddedFeedbackOffsetDescriptor> {
@@ -2986,6 +3014,19 @@ class CheckTurboshaftFloat64TypeDescriptor
                                     MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+class ToStringDescriptor
+    : public StaticCallInterfaceDescriptor<ToStringDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kO)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::AnyTagged())
+  DECLARE_DEFAULT_DESCRIPTOR(ToStringDescriptor)
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 #define DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Name, Type)                    \
   class DebugPrint##Name##Descriptor                                         \

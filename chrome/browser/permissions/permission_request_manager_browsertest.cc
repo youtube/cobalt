@@ -38,6 +38,7 @@
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
+#include "components/permissions/prediction_service/prediction_service_messages.pb.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
 #include "components/permissions/test/mock_permission_request.h"
@@ -495,21 +496,10 @@ IN_PROC_BROWSER_TEST_F(PermissionRequestManagerBrowserTest, MultipleTabs) {
   EXPECT_EQ(2, bubble_factory_1->show_count());
 }
 
-class SplitViewPermissionRequestManagerBrowserTest
-    : public PermissionRequestManagerBrowserTest {
- public:
-  SplitViewPermissionRequestManagerBrowserTest() {
-    scoped_feature_list_.InitWithFeatures({features::kSideBySide}, {});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
 // Prompts are only shown for active tabs and (on Desktop) hidden on tab
 // switching
-IN_PROC_BROWSER_TEST_F(SplitViewPermissionRequestManagerBrowserTest,
-                       MultipleTabs) {
+IN_PROC_BROWSER_TEST_F(PermissionRequestManagerBrowserTest,
+                       MultipleTabsInSplitView) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(

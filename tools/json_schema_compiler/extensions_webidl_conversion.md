@@ -45,6 +45,8 @@ partial interface Browser {
 }
 ```
 
+Note: "Stub" manifest key schema files which just define manifest key types are an exception to this rule and do not need a top level `interface` or `Browser` definition. See the ManifestKeys Dictionary section below for more details.
+
 ### Dictionaries
 Dictionaries are moved outside the main interface to the top level of the file. Their internal structure remains the same. Descriptive comments above them should be moved along with them.
 
@@ -95,6 +97,45 @@ callback StopPropagationCallback = undefined();
 dictionary AutomationEvent {
   // Function description.
   required StopPropagationCallback stopPropagation;
+};
+```
+
+### ManifestKeys Dictionary
+The ManifestKeys dictionary in the old schemas is a special case and needs to be handled slightly differently from other dictionaries when being converted. Like other dictionaries it is also moved to the top level of the file, but it becomes a `partial dictionary` and the name is changed to `ExtensionManifest`.
+e.g.
+```
+dictionary ManifestKeys {
+  // Description of a manifest key.
+  SomeCustomType? foobar_key;
+};
+```
+Would become:
+```
+partial dictionary ExtensionManifest {
+  // Description of a manifest key.
+  SomeCustomType foobar_key;
+};
+```
+
+If the file is a "stub" schema used for just defining manifest keys (i.e. with no functions or events defined), then the `partial ExtensionManifest dictionary` also needs a `[Namespace=...]` extended attribute added to it with the namespace name from the original IDL file. Any existing extended attributes and comments that were on the original IDL namespace node also need to be moved above the `partial ExtensionManifest dictionary`.
+e.g.
+```
+// `fooHandlers` manifest key definition.
+[generate_error_messages] namespace fooHandlers {
+
+  dictionary ManifestKeys {
+    // Important manifest key.
+    SomeCustomType? foo_key;
+  };
+};
+```
+Would become:
+```
+// `fooHandlers` manifest key definition.
+[generate_error_messages, Namespace=fooHandlers]
+partial dictionary ExtensionManifest {
+  // Important manifest key.
+  SomeCustomType foo_key;
 };
 ```
 
@@ -205,6 +246,48 @@ interface OnFooEvent : ExtensionEvent {
 ```
 // Fired when something interesting happens.
 static attribute OnFooEvent onFoo;
+```
+
+### Properties
+Instead of using `interface Properties { ... }` to define constant properties exposed on the API, these are now just defined on the main API interface definition. Additionally, instead of using Operation definitions with an extended attribute for the value, they are defined as actual `consts` specifying the type and value.
+
+String values have to be handled a little bit differently, as WebIDL doesn't allow using string literals when specifying the value of a const. Instead we set the value as `= 0` and use a `[StringValue="Foo"]` extended attribute to specify the actual string literal.
+
+For example:
+```
+// Old .idl file
+interface Properties {
+  // The maximum allowed number.
+  [value=100] static long MAX_NUMBER_ALLOWED();
+
+  // An important string key.
+  [value="_importantKey"] static DOMString KEY_STRING();
+}
+```
+Would become:
+```
+// New .webidl file
+interface FooAPI {
+  // The maximum allowed number.
+  const long MAX_NUMBER_ALLOWED = 100;
+
+  // An important string key.
+  [StringValue="_importantKey"] const DOMString KEY_STRING = 0;
+}
+```
+
+### Copyright Notice
+Since the updated schema files are heavily modified from the previous files and not just renames, the year for the copyright notice at the top of the file should be updated to the current year.
+```
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+```
+Would become:
+```
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 ```
 
 ## Canonical Examples

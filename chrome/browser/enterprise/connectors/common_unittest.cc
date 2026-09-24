@@ -5,6 +5,7 @@
 #include "chrome/browser/enterprise/connectors/common.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -154,9 +155,8 @@ TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest, BlockLargeFile) {
     })",
                                  bool_setting());
   test::SetAnalysisConnector(profile()->GetPrefs(), FILE_ATTACHED, pref);
-  EXPECT_EQ(allowed(),
-            ResultShouldAllowDataUse(settings(),
-                                     ScanRequestUploadResult::FILE_TOO_LARGE));
+  EXPECT_EQ(allowed(), ResultShouldAllowDataUse(
+                           settings(), ScanRequestUploadResult::kFileTooLarge));
 }
 
 TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest,
@@ -171,7 +171,7 @@ TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest,
   test::SetAnalysisConnector(profile()->GetPrefs(), FILE_ATTACHED, pref);
   EXPECT_EQ(allowed(),
             ResultShouldAllowDataUse(settings(),
-                                     ScanRequestUploadResult::FILE_ENCRYPTED));
+                                     ScanRequestUploadResult::kFileEncrypted));
 }
 
 TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest, BlockUploadFailure) {
@@ -186,7 +186,7 @@ TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest, BlockUploadFailure) {
   test::SetAnalysisConnector(profile()->GetPrefs(), FILE_ATTACHED, pref);
   EXPECT_EQ(allowed(),
             ResultShouldAllowDataUse(settings(),
-                                     ScanRequestUploadResult::UPLOAD_FAILURE));
+                                     ScanRequestUploadResult::kUploadFailure));
 }
 
 class ContentAnalysisResponseCustomMessageTest
@@ -224,7 +224,7 @@ TEST_P(ContentAnalysisResponseCustomMessageTest, ValidUrlCustomMessage) {
   ContentAnalysisResponse response =
       CreateContentAnalysisResponse(triggered_rules(), kTestUrl);
   RequestHandlerResult result = CalculateRequestHandlerResult(
-      settings(), ScanRequestUploadResult::SUCCESS, response);
+      settings(), ScanRequestUploadResult::kSuccess, response);
   std::u16string custom_message =
       GetCustomRuleString(result.custom_rule_message);
   std::vector<std::pair<gfx::Range, GURL>> custom_ranges =
@@ -252,7 +252,7 @@ TEST_P(ContentAnalysisResponseCustomMessageTest, InvalidUrlCustomMessage) {
   ContentAnalysisResponse response =
       CreateContentAnalysisResponse(triggered_rules(), kTestInvalidUrl);
   RequestHandlerResult result = CalculateRequestHandlerResult(
-      settings(), ScanRequestUploadResult::SUCCESS, response);
+      settings(), ScanRequestUploadResult::kSuccess, response);
   std::u16string custom_message =
       GetCustomRuleString(result.custom_rule_message);
   std::vector<std::pair<gfx::Range, GURL>> custom_ranges =

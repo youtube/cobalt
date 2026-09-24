@@ -73,9 +73,8 @@ void DataChannelObserverJni::OnMessage(const DataBuffer& buffer) {
   Java_Observer_onMessage(env, j_observer_global_, j_buffer);
 }
 
-DataChannelInterface* ExtractNativeDC(
-    JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc) {
+DataChannelInterface* ExtractNativeDC(JNIEnv* jni,
+                                      const jni_zero::JavaRef<jobject>& j_dc) {
   return reinterpret_cast<DataChannelInterface*>(
       Java_DataChannel_getNativeDataChannel(jni, j_dc));
 }
@@ -106,8 +105,8 @@ ScopedJavaLocalRef<jobject> WrapNativeDataChannel(
 
 static jlong JNI_DataChannel_RegisterObserver(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc,
-    const jni_zero::JavaParamRef<jobject>& j_observer) {
+    const jni_zero::JavaRef<jobject>& j_dc,
+    const jni_zero::JavaRef<jobject>& j_observer) {
   auto observer = std::make_unique<DataChannelObserverJni>(jni, j_observer);
   ExtractNativeDC(jni, j_dc)->RegisterObserver(observer.get());
   return jlongFromPointer(observer.release());
@@ -115,7 +114,7 @@ static jlong JNI_DataChannel_RegisterObserver(
 
 static void JNI_DataChannel_UnregisterObserver(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc,
+    const jni_zero::JavaRef<jobject>& j_dc,
     jlong native_observer) {
   ExtractNativeDC(jni, j_dc)->UnregisterObserver();
   delete reinterpret_cast<DataChannelObserverJni*>(native_observer);
@@ -123,12 +122,12 @@ static void JNI_DataChannel_UnregisterObserver(
 
 static jni_zero::ScopedJavaLocalRef<jstring> JNI_DataChannel_Label(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc) {
+    const jni_zero::JavaRef<jobject>& j_dc) {
   return NativeToJavaString(jni, ExtractNativeDC(jni, j_dc)->label());
 }
 
 static jint JNI_DataChannel_Id(JNIEnv* jni,
-                               const jni_zero::JavaParamRef<jobject>& j_dc) {
+                               const jni_zero::JavaRef<jobject>& j_dc) {
   int id = ExtractNativeDC(jni, j_dc)->id();
   RTC_CHECK_LE(id, std::numeric_limits<int32_t>::max())
       << "id overflowed jint!";
@@ -137,13 +136,13 @@ static jint JNI_DataChannel_Id(JNIEnv* jni,
 
 static jni_zero::ScopedJavaLocalRef<jobject> JNI_DataChannel_State(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc) {
+    const jni_zero::JavaRef<jobject>& j_dc) {
   return Java_State_fromNativeIndex(jni, ExtractNativeDC(jni, j_dc)->state());
 }
 
 static jlong JNI_DataChannel_BufferedAmount(
     JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc) {
+    const jni_zero::JavaRef<jobject>& j_dc) {
   uint64_t buffered_amount = ExtractNativeDC(jni, j_dc)->buffered_amount();
   RTC_CHECK_LE(buffered_amount, std::numeric_limits<int64_t>::max())
       << "buffered_amount overflowed jlong!";
@@ -151,15 +150,14 @@ static jlong JNI_DataChannel_BufferedAmount(
 }
 
 static void JNI_DataChannel_Close(JNIEnv* jni,
-                                  const jni_zero::JavaParamRef<jobject>& j_dc) {
+                                  const jni_zero::JavaRef<jobject>& j_dc) {
   ExtractNativeDC(jni, j_dc)->Close();
 }
 
-static jboolean JNI_DataChannel_Send(
-    JNIEnv* jni,
-    const jni_zero::JavaParamRef<jobject>& j_dc,
-    const jni_zero::JavaParamRef<jbyteArray>& data,
-    jboolean binary) {
+static jboolean JNI_DataChannel_Send(JNIEnv* jni,
+                                     const jni_zero::JavaRef<jobject>& j_dc,
+                                     const jni_zero::JavaRef<jbyteArray>& data,
+                                     jboolean binary) {
   std::vector<int8_t> buffer = JavaToNativeByteArray(jni, data);
   bool ret = ExtractNativeDC(jni, j_dc)->Send(
       DataBuffer(CopyOnWriteBuffer(buffer.data(), buffer.size()), binary));

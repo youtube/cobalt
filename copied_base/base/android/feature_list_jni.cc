@@ -14,3 +14,5 @@ static jboolean JNI_FeatureList_IsInitialized(JNIEnv* env) {
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(FeatureList)

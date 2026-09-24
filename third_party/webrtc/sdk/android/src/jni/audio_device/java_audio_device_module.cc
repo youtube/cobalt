@@ -29,10 +29,10 @@ namespace jni {
 
 static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
     JNIEnv* env,
-    const jni_zero::JavaParamRef<jobject>& j_context,
-    const jni_zero::JavaParamRef<jobject>& j_audio_manager,
-    const jni_zero::JavaParamRef<jobject>& j_webrtc_audio_record,
-    const jni_zero::JavaParamRef<jobject>& j_webrtc_audio_track,
+    const jni_zero::JavaRef<jobject>& j_context,
+    const jni_zero::JavaRef<jobject>& j_audio_manager,
+    const jni_zero::JavaRef<jobject>& j_webrtc_audio_record,
+    const jni_zero::JavaRef<jobject>& j_webrtc_audio_track,
     jlong webrtcEnvRef,
     int input_sample_rate,
     int output_sample_rate,

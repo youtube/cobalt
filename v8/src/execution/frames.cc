@@ -44,6 +44,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #if V8_ENABLE_DRUMBRAKE
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -181,6 +182,7 @@ void StackFrameIterator::Advance() {
   // handler and the value of any callee-saved register if needed.
   StackFrame::State state;
   StackFrame::Type type;
+  state.iteration_depth = frame_->iteration_depth() + 1;
 #if V8_ENABLE_WEBASSEMBLY
   if (((frame_->type() == StackFrame::WASM_JSPI &&
         Memory<Address>(frame_->fp() +
@@ -3683,7 +3685,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       DCHECK_LE(current_index, param_count);
       for (size_t i = 0; i < current_index; i++) {
         wasm::ValueType type = sig.GetParam(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3709,7 +3711,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       // When converting return values, all results are already in the array.
       for (size_t i = 0; i < return_count; i++) {
         wasm::ValueType type = sig.GetReturn(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3777,6 +3779,11 @@ void WasmJspiFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot result_array_slot(
       &Memory<Address>(fp() + WasmJspiFrameConstants::kResultArrayOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
+}
+
+wasm::WasmCode* WasmStackEntryFrame::wasm_code() {
+  return wasm::GetWasmStackEntryWrapperCache()->Lookup(
+      maybe_unauthenticated_pc());
 }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -3928,7 +3935,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
       num_int_params++;
     } else if (param == wasm::kWasmI64) {
       num_int_params += kSystemPointerSize == 8 ? 1 : 2;
-    } else if (param.is_reference()) {
+    } else if (param.is_ref()) {
       num_ref_params++;
     }
   }

@@ -445,8 +445,7 @@ DirectHandle<PropertyArray> Factory::NewPropertyArray(
 }
 
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(
-    int length, AllocationType allocation_type) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation_type) {
   if (length == 0) return empty_fixed_array();
 
   int size = FixedArray::SizeFor(length);
@@ -1747,7 +1746,7 @@ Factory::NewWasmDispatchTableForImports(int length, bool shared) {
   // an entry in a std::unordered_map<int, std::shared_ptr<...>>, the map
   // is probably about half full.
   constexpr size_t kPerEntrySize =
-      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmImportWrapperHandle>) +
+      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmWrapperHandle>) +
       2 * sizeof(void*);
   size_t estimated_offheap_size = length * kPerEntrySize;
   DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
@@ -1898,7 +1897,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
@@ -2147,7 +2146,7 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
     DirectHandle<Map> map, wasm::CanonicalValueType element_type) {
-  DCHECK(element_type.is_reference());
+  DCHECK(element_type.is_ref());
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.
@@ -3307,8 +3306,8 @@ DirectHandle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
   return object;
 }
 
-Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
-                                    int capacity,
+Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, uint32_t length,
+                                    uint32_t capacity,
                                     ArrayStorageAllocationMode mode,
                                     AllocationType allocation) {
   DCHECK(capacity >= length);

@@ -36,9 +36,7 @@ class SctpTransportInternal {
   virtual void SetOnConnectedCallback(std::function<void()> callback) = 0;
   virtual void SetDataChannelSink(DataChannelSink* sink) = 0;
 
-  // Changes what underlying DTLS transport is uses. Used when switching which
-  // bundled transport the SctpTransport uses.
-  virtual void SetDtlsTransport(DtlsTransportInternal* transport) = 0;
+  virtual DtlsTransportInternal* dtls_transport() const = 0;
 
   // When Start is called, connects as soon as possible; this can be called
   // before DTLS completes, in which case the connection will begin when DTLS
@@ -100,9 +98,6 @@ class SctpTransportInternal {
   virtual size_t buffered_amount(int sid) const = 0;
   virtual size_t buffered_amount_low_threshold(int sid) const = 0;
   virtual void SetBufferedAmountLowThreshold(int sid, size_t bytes) = 0;
-
-  // Helper for debugging.
-  virtual void set_debug_name_for_testing(const char* debug_name) = 0;
 };
 
 }  //  namespace webrtc

@@ -90,6 +90,16 @@
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
 			<key>Title</key>
+			<string>Show Catalog Items</string>
+			<key>Key</key>
+			<string>ShowCatalogItems</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
 			<string>Enable Pseudo-RTL</string>
 			<key>Key</key>
 			<string>EnablePseudoRTL</string>
@@ -629,6 +639,36 @@
 				<string>10 Seconds</string>
 				<string>30 Seconds</string>
 			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Disable Composebox AIM eligibility</string>
+			<key>Key</key>
+			<string>ForceDisableAIMEligibility</string>
+			<key>DefaultValue</key>
+			<false/>
+            </dict>
+        <dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Disable Composebox Create Images eligibility</string>
+			<key>Key</key>
+			<string>ForceDisableCreateImagesEligibility</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Disable Composebox Pdf Upload eligibility</string>
+			<key>Key</key>
+			<string>ForceDisablePdfUploadEligibility</string>
+			<key>DefaultValue</key>
+			<false/>
 		</dict>
 		<dict>
 			<key>Type</key>

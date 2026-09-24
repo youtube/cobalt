@@ -882,6 +882,7 @@ rtc_library("async_dns_resolver") {
     ":platform_thread",
     ":refcount",
     ":socket_address",
+    ":stringutils",
     "../api:async_dns_resolver",
     "../api:make_ref_counted",
     "../api:refcountedbase",
@@ -1955,18 +1956,6 @@ if (rtc_include_tests) {
         "//third_party/google_benchmark",
       ]
     }
-  }
-
-  rtc_library("sigslot_unittest") {
-    testonly = true
-    sources = [ "sigslot_unittest.cc" ]
-    deps = [
-      ":gunit_helpers",
-      ":rtc_base_tests_utils",
-      "../test:test_support",
-      "synchronization:mutex",
-      "third_party/sigslot",
-    ]
   }
 
   rtc_library("untyped_function_unittest") {

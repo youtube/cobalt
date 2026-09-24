@@ -726,14 +726,17 @@ TextureInfo VulkanCaps::getDefaultAttachmentTextureInfo(AttachmentDesc desc,
     }
 
     VulkanTextureInfo info;
-    info.fSampleCount = (uint8_t) desc.fSampleCount;
+    info.fSampleCount = desc.fSampleCount;
     info.fMipmapped = Mipmapped::kNo;
     info.fFlags = createFlags;
     info.fFormat = TextureFormatToVkFormat(desc.fFormat);
     info.fImageTiling = VK_IMAGE_TILING_OPTIMAL;
     info.fImageUsageFlags = usageFlags;
     info.fSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    info.fAspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    info.fAspectMask = isDepthStencil
+            ? ((TextureFormatHasDepth(desc.fFormat)   ? VK_IMAGE_ASPECT_DEPTH_BIT   : 0) |
+               (TextureFormatHasStencil(desc.fFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0))
+            : VK_IMAGE_ASPECT_COLOR_BIT;
 
     return TextureInfos::MakeVulkan(info);
 }
@@ -753,7 +756,7 @@ TextureInfo VulkanCaps::getDefaultSampledTextureInfo(SkColorType ct,
     }
 
     VulkanTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFlags = (isProtected == Protected::kYes) ? VK_IMAGE_CREATE_PROTECTED_BIT : 0;
     info.fFormat = format;
@@ -787,7 +790,7 @@ TextureInfo VulkanCaps::getDefaultSampledTextureInfo(SkColorType ct,
 TextureInfo VulkanCaps::getTextureInfoForSampledCopy(const TextureInfo& textureInfo,
                                                      Mipmapped mipmapped) const {
     VulkanTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFormat = TextureInfoPriv::Get<VulkanTextureInfo>(textureInfo).fFormat;
     info.fFlags = (textureInfo.isProtected() == Protected::kYes) ?
@@ -831,7 +834,7 @@ TextureInfo VulkanCaps::getDefaultCompressedTextureInfo(SkTextureCompressionType
     }
 
     VulkanTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = mipmapped;
     info.fFlags = (isProtected == Protected::kYes) ? VK_IMAGE_CREATE_PROTECTED_BIT : 0;
     info.fFormat = format;
@@ -857,7 +860,7 @@ TextureInfo VulkanCaps::getDefaultStorageTextureInfo(SkColorType colorType) cons
     }
 
     VulkanTextureInfo info;
-    info.fSampleCount = 1;
+    info.fSampleCount = SampleCount::k1;
     info.fMipmapped = Mipmapped::kNo;
     info.fFlags = 0;
     info.fFormat = format;
@@ -1997,7 +2000,6 @@ bool VulkanCaps::isTexturable(const VulkanTextureInfo& vkInfo) const {
 }
 
 bool VulkanCaps::isRenderable(const VulkanTextureInfo& vkInfo) const {
-    SkASSERT(IsValidSampleCount(vkInfo.fSampleCount));
     const FormatInfo& info = this->getFormatInfo(vkInfo.fFormat);
     // All renderable vulkan textures within graphite must also support input attachment usage
     return info.isRenderable(vkInfo.fImageTiling, (SampleCount) vkInfo.fSampleCount) &&
@@ -2022,7 +2024,7 @@ bool VulkanCaps::supportsWritePixels(const TextureInfo& texInfo) const {
         return false;
     }
 
-    if (vkInfo.fSampleCount > 1) {
+    if (vkInfo.fSampleCount > SampleCount::k1) {
         return false;
     }
 
@@ -2049,7 +2051,7 @@ bool VulkanCaps::supportsReadPixels(const TextureInfo& texInfo) const {
         return false;
     }
 
-    if (vkInfo.fSampleCount > 1) {
+    if (vkInfo.fSampleCount > SampleCount::k1) {
         return false;
     }
 

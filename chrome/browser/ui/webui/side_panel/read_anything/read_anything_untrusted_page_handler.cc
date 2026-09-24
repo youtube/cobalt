@@ -27,8 +27,8 @@
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/read_anything/read_anything.mojom-forward.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
@@ -267,10 +267,22 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
     extension_wrapper_->ActivateSpeechEngine(profile_);
   }
 #endif
-  side_panel_controller_ = ReadAnythingSidePanelControllerGlue::FromWebContents(
-                               web_ui_->GetWebContents())
-                               ->controller();
-  side_panel_controller_->AddPageHandlerAsObserver(weak_factory_.GetWeakPtr());
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    read_anything_controller_ =
+        ReadAnythingControllerGlue::FromWebContents(web_ui_->GetWebContents())
+            ->controller();
+    CHECK(read_anything_controller_);
+    read_anything_controller_->AddObserver(this);
+    tab_ = read_anything_controller_->tab();
+  } else {
+    side_panel_controller_ =
+        ReadAnythingSidePanelControllerGlue::FromWebContents(
+            web_ui_->GetWebContents())
+            ->controller();
+    side_panel_controller_->AddPageHandlerAsObserver(
+        weak_factory_.GetWeakPtr());
+    tab_ = side_panel_controller_->tab();
+  }
 
   PrefService* prefs = profile_->GetPrefs();
   double speech_rate =
@@ -327,8 +339,7 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   // This causes AXTreeSerializer to reset and send accessibility events of
   // the AXTree when it is re-serialized.
   main_observer_ = std::make_unique<ReadAnythingWebContentsObserver>(
-      weak_factory_.GetSafeRef(), side_panel_controller_->tab()->GetContents(),
-      kReadAnythingAXMode);
+      weak_factory_.GetSafeRef(), tab_->GetContents(), kReadAnythingAXMode);
   SetUpPdfObserver();
   OnActiveAXTreeIDChanged();
 
@@ -353,6 +364,9 @@ ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
   pdf_observer_.reset();
   LogTextStyle();
 
+  if (read_anything_controller_) {
+    read_anything_controller_->RemoveObserver(this);
+  }
   if (side_panel_controller_) {
     // If |this| is destroyed before the |ReadAnythingSidePanelController|, then
     // remove |this| from the observer lists. In the cases where the coordinator
@@ -878,7 +892,7 @@ void ReadAnythingUntrustedPageHandler::SetDefaultLanguageCode(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// ReadAnythingSidePanelController::Observer:
+// ReadAnythingLifecycleObserver:
 ///////////////////////////////////////////////////////////////////////////////
 
 void ReadAnythingUntrustedPageHandler::Activate(
@@ -890,12 +904,13 @@ void ReadAnythingUntrustedPageHandler::Activate(
   }
   if (features::IsReadAnythingReadAloudEnabled() && !active &&
       !tab_will_detach_) {
-    page_->OnReadingModeHidden(side_panel_controller_->tab()->IsActivated());
+    page_->OnReadingModeHidden(tab_->IsActivated());
   }
 }
 
-void ReadAnythingUntrustedPageHandler::OnSidePanelControllerDestroyed() {
+void ReadAnythingUntrustedPageHandler::OnDestroyed() {
   side_panel_controller_ = nullptr;
+  read_anything_controller_ = nullptr;
 }
 
 void ReadAnythingUntrustedPageHandler::OnTabWillDetach() {

@@ -592,16 +592,21 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
     size_t* max_evacuated_bytes) {
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
-  const int kTargetFragmentationPercentForReduceMemory = 20;
-  const size_t kMaxEvacuatedBytesForReduceMemory = 12 * MB;
-  const int kTargetFragmentationPercentForOptimizeMemory = 20;
-  const size_t kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
+  const int kTargetFragmentationPercentForReduceMemory =
+      v8_flags.compaction_target_fragmentation_percent_for_reduce_memory;
+  const size_t kMaxEvacuatedBytesForReduceMemory =
+      v8_flags.compaction_max_evacuated_bytes_mb_for_reduce_memory * MB;
+  const int kTargetFragmentationPercentForOptimizeMemory =
+      v8_flags.compaction_target_fragmentation_percent_for_optimize_memory;
+  const size_t kMaxEvacuatedBytesForOptimizeMemory =
+      v8_flags.compaction_max_evacuated_bytes_mb_for_optimize_memory * MB;
 
   // For regular mode (which is latency critical) we define less aggressive
   // defaults to start and switch to a trace-based (using compaction speed)
   // approach as soon as we have enough samples.
   const int kTargetFragmentationPercent = 70;
-  const size_t kMaxEvacuatedBytes = 4 * MB;
+  const size_t kMaxEvacuatedBytes =
+      v8_flags.compaction_max_evacuated_bytes_mb * MB;
   // Time to take for a single area (=payload of page). Used as soon as there
   // exist enough compaction speed samples.
   const float kTargetMsPerArea = .5;
@@ -2748,9 +2753,7 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
 
     if (isolate_->OwnsStringTables()) {
       TRACE_GC1_WITH_FLOW(isolate_->heap()->tracer(),
-                          GCTracer::Scope::MC_CLEAR_STRING_TABLE,
-                          delegate->IsJoiningThread() ? ThreadKind::kMain
-                                                      : ThreadKind::kBackground,
+                          GCTracer::Scope::MC_CLEAR_STRING_TABLE, delegate,
                           trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       // Prune the string table removing all strings only pointed to by the
       // string table.  Cannot use string_table() here because the string
@@ -2992,9 +2995,7 @@ class MarkCompactCollector::ClearTrivialWeakRefJobItem final
 
     TRACE_GC1_WITH_FLOW(heap->tracer(),
                         GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
-                        delegate->IsJoiningThread() ? ThreadKind::kMain
-                                                    : ThreadKind::kBackground,
-                        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+                        delegate, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     collector_->ClearTrivialWeakReferences();
     collector_->ClearTrustedWeakReferences();
   }
@@ -3023,9 +3024,7 @@ class MarkCompactCollector::FilterNonTrivialWeakRefJobItem final
 
     TRACE_GC1_WITH_FLOW(
         heap->tracer(),
-        GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL,
-        delegate->IsJoiningThread() ? ThreadKind::kMain
-                                    : ThreadKind::kBackground,
+        GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL, delegate,
         trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     collector_->FilterNonTrivialWeakReferences();
   }
@@ -3443,7 +3442,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Replace the bytecode with an uncompiled data object.
   Tagged<BytecodeArray> bytecode_array =
-      shared_info->GetBytecodeArray(heap_->isolate());
+      shared_info->GetBytecodeArrayForGC(heap_->isolate());
 
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!HeapLayout::InWritableSharedSpace(shared_info));
@@ -3572,7 +3571,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   if (!bytecode_already_decompiled) {
     // Check if the bytecode is still live.
     Tagged<BytecodeArray> bytecode =
-        flushing_candidate->GetBytecodeArray(isolate);
+        flushing_candidate->GetBytecodeArrayForGC(isolate);
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, non_atomic_marking_state_,
                                             bytecode)) {
       return true;
@@ -3602,7 +3601,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
   bool is_bytecode_live = false;
   if (!bytecode_already_decompiled) {
     Tagged<BytecodeArray> bytecode =
-        flushing_candidate->GetBytecodeArray(heap_->isolate());
+        flushing_candidate->GetBytecodeArrayForGC(heap_->isolate());
     is_bytecode_live = MarkingHelper::IsMarkedOrAlwaysLive(
         heap_, non_atomic_marking_state_, bytecode);
   }

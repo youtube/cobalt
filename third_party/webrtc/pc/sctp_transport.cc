@@ -43,14 +43,14 @@ SctpTransport::SctpTransport(std::unique_ptr<SctpTransportInternal> internal,
       internal_sctp_transport_(std::move(internal)),
       dtls_transport_(dtls_transport) {
   RTC_DCHECK(internal_sctp_transport_.get());
+  RTC_DCHECK(internal_sctp_transport_->dtls_transport());
   RTC_DCHECK(dtls_transport_.get());
 
-  dtls_transport_->internal()->SubscribeDtlsTransportState(
-      [this](DtlsTransportInternal* transport, DtlsTransportState state) {
+  internal_sctp_transport_->dtls_transport()->SubscribeDtlsTransportState(
+      this, [this](DtlsTransportInternal* transport, DtlsTransportState state) {
         OnDtlsStateChange(transport, state);
       });
 
-  internal_sctp_transport_->SetDtlsTransport(dtls_transport->internal());
   internal_sctp_transport_->SetOnConnectedCallback(
       [this]() { OnAssociationChangeCommunicationUp(); });
 }
@@ -143,9 +143,10 @@ scoped_refptr<DtlsTransportInterface> SctpTransport::dtls_transport() const {
 // Internal functions
 void SctpTransport::Clear() {
   RTC_DCHECK_RUN_ON(owner_thread_);
-  RTC_DCHECK(internal());
   // Note that we delete internal_sctp_transport_, but
   // only drop the reference to dtls_transport_.
+  internal_sctp_transport_->dtls_transport()->UnsubscribeDtlsTransportState(
+      this);
   dtls_transport_ = nullptr;
   internal_sctp_transport_ = nullptr;
   UpdateInformation(SctpTransportState::kClosed);
@@ -200,7 +201,6 @@ void SctpTransport::OnAssociationChangeCommunicationUp() {
 void SctpTransport::OnDtlsStateChange(DtlsTransportInternal* transport,
                                       DtlsTransportState state) {
   RTC_DCHECK_RUN_ON(owner_thread_);
-  RTC_CHECK(transport == dtls_transport_->internal());
   if (state == DtlsTransportState::kClosed ||
       state == DtlsTransportState::kFailed) {
     UpdateInformation(SctpTransportState::kClosed);

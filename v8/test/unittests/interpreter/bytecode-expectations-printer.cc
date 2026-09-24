@@ -200,6 +200,13 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         *stream << "0x" << std::hex
                 << bytecode_iterator.GetFlag16Operand(op_index) << std::dec;
         break;
+      case OperandType::kEmbeddedFeedback: {
+        // Ignore embedded feedback bytes in bytecode expectation test.
+        DCHECK(Bytecodes::IsEmbeddedFeedbackBytecode(bytecode));
+        DCHECK_EQ(op_index, kEmbeddedFeedbackOperandIndex);
+        *stream << "EmbeddedFeedback(";
+        break;
+      }
       case OperandType::kConstantPoolIndex: {
         *stream << 'U' << size_tag << '(';
         *stream << bytecode_iterator.GetConstantPoolIndexOperand(op_index);

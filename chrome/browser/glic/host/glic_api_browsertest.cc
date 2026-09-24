@@ -51,10 +51,13 @@
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
+#include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
 #include "chrome/browser/glic/test_support/glic_api_test.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
@@ -166,6 +169,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiTestWithWebActuationSettingDisabled",
       "GlicApiTestWithWebActuationSettingEnabled",
       "GlicApiTestWithGeminiActOnWebPolicy",
+      "GlicApiTestWithWebContentsWarming",
   };
 }
 
@@ -174,6 +178,8 @@ struct TestParams {
   bool multi_instance = false;
   // This is only used by one fixture.
   bool enable_scroll_to_pdf = false;
+  bool trust_first_onboarding_arm1 = false;
+  bool trust_first_onboarding_arm2 = false;
 };
 
 class WithTestParams : public testing::WithParamInterface<TestParams> {
@@ -194,6 +200,12 @@ class WithTestParams : public testing::WithParamInterface<TestParams> {
     }
     if (info.param.multi_instance) {
       result.push_back("MultiInst");
+    }
+    if (info.param.trust_first_onboarding_arm1) {
+      result.push_back("TrustFirstOnboardingArm1");
+    }
+    if (info.param.trust_first_onboarding_arm2) {
+      result.push_back("TrustFirstOnboardingArm2");
     }
     if (result.empty()) {
       return "Default";
@@ -405,8 +417,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
     // This will temporarily disable preloading to ensure that we don't load
     // the web client before we've initialized the embedded test server and
     // can set the correct URL.
-    GlicProfileManager::ForceMemoryPressureForTesting(
-        base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    GlicProfileManager::SetPrewarmingEnabledForTesting(false);
     GlicProfileManager::ForceConnectionTypeForTesting(
         network::mojom::ConnectionType::CONNECTION_ETHERNET);
   }
@@ -415,11 +426,9 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
     return Do([this] { GetService()->TryPreload(); });
   }
 
-  auto ResetMemoryPressure() {
-    return Do([]() {
-      GlicProfileManager::ForceMemoryPressureForTesting(
-          base::MEMORY_PRESSURE_LEVEL_NONE);
-    });
+  auto ResetPreloading() {
+    return Do(
+        []() { GlicProfileManager::SetPrewarmingEnabledForTesting(true); });
   }
 
   void SetUpOnMainThread() override {
@@ -432,7 +441,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
                     NavigateWebContents(kFirstTab, page_url()));
 
     // Preload the web client.
-    RunTestSequence(WaitForShow(kGlicButtonElementId), ResetMemoryPressure(),
+    RunTestSequence(WaitForShow(kGlicButtonElementId), ResetPreloading(),
                     ObserveState(glic::test::internal::kWebUiState, GetHost()),
                     CreateAndWarmGlic(),
                     WaitForState(glic::test::internal::kWebUiState,
@@ -442,7 +451,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
 
   void TearDown() override {
     GlicApiTestWithOneTab::TearDown();
-    GlicProfileManager::ForceMemoryPressureForTesting(std::nullopt);
+    GlicProfileManager::SetPrewarmingEnabledForTesting(true);
     GlicProfileManager::ForceConnectionTypeForTesting(std::nullopt);
   }
 
@@ -576,6 +585,28 @@ class GlicApiTestWithGeminiActOnWebPolicy : public GlicApiTestWithOneTab {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class GlicApiTestWithWebContentsWarming : public GlicApiTest {
+ public:
+  GlicApiTestWithWebContentsWarming() {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicWebContentsWarming, {}},
+         {features::kGlicWarming,
+          {{features::kGlicWarmingDelayMs.name, "0"},
+           {features::kGlicWarmingJitterMs.name, "0"}}}},
+        {});
+  }
+
+  void SetUpOnMainThread() override {
+    GlicApiTest::SetUpOnMainThread();
+    // Clear any warming that was done before the guest URL was set to
+    // the test client.
+    GetService()->web_contents_warming_pool().Shutdown();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 // Note: Test names must match test function names in api_test.ts.
 
 // TODO(harringtond): Many of these tests are minimal, and could be improved
@@ -584,6 +615,51 @@ class GlicApiTestWithGeminiActOnWebPolicy : public GlicApiTestWithOneTab {
 // Just verify the test harness works.
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testDoNothing) {
   ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithWebContentsWarming,
+                       testWebClientReadyOnFullLoad) {
+  // Opening the glic window will trigger the bootstrap, which should transition
+  // the WebUI state to kReady.
+  NavigateTabAndOpenGlic();
+  ExecuteJsTest();
+  WaitForWebUiState(mojom::WebUiState::kReady);
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithWebContentsWarming,
+                       testWebClientReadyOnPreload) {
+  auto container = GetService()->web_contents_warming_pool().TakeContainer();
+  ASSERT_TRUE(container);
+  auto* web_contents = container->web_contents();
+
+  // Wait for the WebUI to initialize and reach the kReady state.
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
+
+  // We can't use ExecuteJsTest because it relies on the host being attached.
+  // Instead, we check the state directly in the WebUI.
+  constexpr char kCheckReadyScript[] = R"js(
+    (async () => {
+      const controller = window.appRouter.glicController;
+      return new Promise((resolve, reject) => {
+        // Poll for state change.
+        const interval = setInterval(() => {
+          if (controller.state === 8 /* kReady */) {
+            clearInterval(interval);
+            resolve(true);
+          } else if (controller.state === 5 /* kError */ ||
+                     controller.state === 6 /* kOffline */ ||
+                     controller.state === 7 /* kUnavailable */ ||
+                     controller.state === 10 /* kSignIn */ ||
+                     controller.state === 11 /* kGuestError */ ||
+                     controller.state === 12 /* kDisabledByAdmin */) {
+            clearInterval(interval);
+            reject(new Error('WebUI entered error state: ' + controller.state));
+          }
+        }, 10);
+      });
+    })()
+  )js";
+  EXPECT_EQ(true, content::EvalJs(web_contents, kCheckReadyScript));
 }
 
 // Confirms that JS assertion errors captured by try-catch blocks will still
@@ -956,10 +1032,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCreateTabByClickingOnLink) {
   ASSERT_TRUE(guest_frame);
   ExecuteJsTest();
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return InProcessBrowserTest::browser()->tab_strip_model()->GetTabCount() ==
-           2;
+    return InProcessBrowserTest::browser()->tab_strip_model()->count() == 2;
   })) << "Timed out waiting for tab count to increase. Tab count = "
-      << InProcessBrowserTest::browser()->tab_strip_model()->GetTabCount();
+      << InProcessBrowserTest::browser()->tab_strip_model()->count();
   // The guest frame shouldn't change.
   ASSERT_EQ(guest_frame, FindGlicGuestMainFrame());
 
@@ -2169,6 +2244,60 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testResizeWindowWithinBounds) {
             glic_widget->WidgetToVisibleBounds(final_widget_bounds).size());
 }
 
+IN_PROC_BROWSER_TEST_P(GlicApiTest, testDaisyChainRecursiveAndInput) {
+  if (!GetParam().multi_instance) {
+    GTEST_SKIP() << "Only supported with multi-instance.";
+  }
+  RunTestSequence(InstrumentTab(kFirstTab),
+                  NavigateWebContents(kFirstTab, page_url()),
+                  OpenGlicWindow(GlicWindowMode::kDetached,
+                                 GlicInstrumentMode::kHostAndContents));
+
+  // 1. Trigger "createTab" from the first tab's Glic panel.
+  ExecuteJsTest({.params = base::Value("createTab")});
+
+  // 2. Verify new tab opened and switch to it.
+  auto* tab_strip = browser()->tab_strip_model();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return tab_strip->count() == 2; }));
+  tab_strip->ActivateTabAt(1);
+
+  // 3. Wait for Glic to open in the new (second) tab.
+  TrackGlicInstanceWithTabIndex(1);
+  WaitForAndInstrumentGlic(GlicInstrumentMode::kHostAndContents);
+
+  // 4. Verify no action yet.
+  histogram_tester->ExpectTotalCount(
+      "Glic.Instance.FirstActionInDaisyChainPanel", 0);
+
+  // 5. Trigger "createTab" (recursive) from the second tab's panel.
+  ExecuteJsTest({.params = base::Value("createTab")});
+
+  // 6. Verify third tab opened.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return tab_strip->count() == 3; }));
+  tab_strip->ActivateTabAt(2);
+
+  // 7. Verify recursive metric for the second tab (which was daisy chained).
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return histogram_tester->GetBucketCount(
+               "Glic.Instance.FirstActionInDaisyChainPanel",
+               DaisyChainFirstAction::kRecursiveDaisyChain) == 1;
+  }));
+
+  // 8. Open Glic in the new (third) tab.
+  TrackGlicInstanceWithTabIndex(2);
+  WaitForAndInstrumentGlic(GlicInstrumentMode::kHostAndContents);
+
+  // 9. Trigger "inputSubmitted" in the third tab's panel.
+  ExecuteJsTest({.params = base::Value("inputSubmitted")});
+
+  // 10. Verify inputSubmitted metric for the third tab.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return histogram_tester->GetBucketCount(
+               "Glic.Instance.FirstActionInDaisyChainPanel",
+               DaisyChainFirstAction::kInputSubmitted) == 1;
+  }));
+}
+
 class GlicApiTestSystemSettingsTest : public GlicApiTestWithOneTab {
  public:
   GlicApiTestSystemSettingsTest() {
@@ -2661,7 +2790,10 @@ void UpdatePrimaryAccountToBeManaged(Profile* profile) {
       identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   AccountInfo account_info =
       identity_manager->FindExtendedAccountInfo(core_account_info);
-  account_info.hosted_domain = gaia::ExtractDomainName(account_info.email);
+  account_info =
+      AccountInfo::Builder(account_info)
+          .SetHostedDomain(gaia::ExtractDomainName(account_info.email))
+          .Build();
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 }
 
@@ -2991,22 +3123,38 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelWillOpenBeforeClientReady) {
 class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
  public:
   GlicGetHostCapabilityApiTest() {
-    const bool enable_features = GetParam().enable_scroll_to_pdf;
-    if (enable_features) {
-      // TODO(b/444002499) - add features::kGlicMultiInstance when test support
-      //  enabled.
-      std::vector<base::test::FeatureRefAndParams> enabled_features = {
-          {features::kGlicScrollTo, {{"glic-scroll-to-pdf", "true"}}},
-          {features::kGlicPanelResetSizeAndLocationOnOpen, {}}};
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          enabled_features,
-          /*disabled_features=*/{});
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (GetParam().enable_scroll_to_pdf) {
+      enabled_features.push_back(
+          {features::kGlicScrollTo, {{"glic-scroll-to-pdf", "true"}}});
+      enabled_features.push_back(
+          {features::kGlicPanelResetSizeAndLocationOnOpen, {}});
     } else {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          /*enabled_features=*/{},
-          /*disabled_features=*/{});
+      disabled_features.push_back(features::kGlicScrollTo);
+      disabled_features.push_back(
+          features::kGlicPanelResetSizeAndLocationOnOpen);
     }
+
+    CHECK(!(GetParam().trust_first_onboarding_arm1 &&
+            GetParam().trust_first_onboarding_arm2));
+    if (GetParam().trust_first_onboarding_arm1) {
+      enabled_features.push_back(
+          {features::kGlicTrustFirstOnboarding,
+           {{features::kGlicTrustFirstOnboardingArmParam.name, "1"}}});
+    } else if (GetParam().trust_first_onboarding_arm2) {
+      enabled_features.push_back(
+          {features::kGlicTrustFirstOnboarding,
+           {{features::kGlicTrustFirstOnboardingArmParam.name, "2"}}});
+    } else {
+      disabled_features.push_back(features::kGlicTrustFirstOnboarding);
+    }
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
   }
+
   ~GlicGetHostCapabilityApiTest() override = default;
 
  private:
@@ -3014,21 +3162,22 @@ class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
 };
 
 IN_PROC_BROWSER_TEST_P(GlicGetHostCapabilityApiTest, testGetHostCapabilities) {
-  const bool enable_features = GetParam().enable_scroll_to_pdf;
-  if (enable_features) {
+  base::Value::List expected_capabilities;
+  if (GetParam().enable_scroll_to_pdf) {
 #if BUILDFLAG(ENABLE_PDF)
-    // The host is only capable of scrolling on PDF document if the feature flag
-    // is enabled, and on PDF-enabled platforms.
-    ExecuteJsTest({
-        .params = base::Value(base::Value::List().Append(
-            base::to_underlying(mojom::HostCapability::kScrollToPdf))),
-    });
-#else
-    ExecuteJsTest();
+    expected_capabilities.Append(
+        base::to_underlying(mojom::HostCapability::kScrollToPdf));
 #endif
-  } else {
-    ExecuteJsTest();
   }
+  if (GetParam().trust_first_onboarding_arm1) {
+    expected_capabilities.Append(
+        base::to_underlying(mojom::HostCapability::kTrustFirstOnboardingArm1));
+  }
+  if (GetParam().trust_first_onboarding_arm2) {
+    expected_capabilities.Append(
+        base::to_underlying(mojom::HostCapability::kTrustFirstOnboardingArm2));
+  }
+  ExecuteJsTest({.params = base::Value(std::move(expected_capabilities))});
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPageMetadata) {
@@ -3179,6 +3328,12 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testAdditionalContext) {
     parts.push_back(
         mojom::AdditionalContextPart::NewTabContext(std::move(tab_context)));
   }
+
+  {
+    auto region = mojom::CapturedRegion::NewRect(gfx::Rect(10, 20, 30, 40));
+    parts.push_back(mojom::AdditionalContextPart::NewRegion(std::move(region)));
+  }
+
   context->parts = std::move(parts);
 
   GetService()->SendAdditionalContext(tabs::TabHandle(GetTabId(web_contents)),
@@ -3247,7 +3402,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithGeminiActOnWebPolicy,
 INSTANTIATE_TEST_SUITE_P(
     ,
     GlicGetHostCapabilityApiTest,
-    testing::Values(TestParams{}, TestParams{.enable_scroll_to_pdf = true}),
+    testing::Values(TestParams{},
+                    TestParams{.enable_scroll_to_pdf = true},
+                    TestParams{.trust_first_onboarding_arm1 = true},
+                    TestParams{.trust_first_onboarding_arm2 = true}),
     &WithTestParams::PrintTestVariant);
 
 auto DefaultTestParamSet() {
@@ -3334,6 +3492,10 @@ INSTANTIATE_TEST_SUITE_P(,
                          GlicApiTestWithGeminiActOnWebPolicy,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
+INSTANTIATE_TEST_SUITE_P(,
+                         GlicApiTestWithWebContentsWarming,
+                         DefaultTestParamSet(),
+                         WithTestParams::PrintTestVariant);
 
 }  // namespace
 }  // namespace glic

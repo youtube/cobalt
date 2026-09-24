@@ -10,6 +10,8 @@ static_library("safe_browsing") {
   sources = [
     "chrome_controller_client.cc",
     "chrome_controller_client.h",
+    "metrics/bundled_settings_metrics_provider.cc",
+    "metrics/bundled_settings_metrics_provider.h",
     "url_checker_delegate_impl.cc",
     "url_checker_delegate_impl.h",
   ]
@@ -508,7 +510,10 @@ static_library("safe_browsing") {
         ]
       }
       if (!is_android) {
-        deps += [ "//chrome/browser/ui:browser_list" ]
+        deps += [
+          "//chrome/browser/ui:browser_list",
+          "//chrome/browser/user_education",
+        ]
       }
     } else if (safe_browsing_mode == 2) {
       sources += [
@@ -641,6 +646,7 @@ source_set("unit_tests") {
     "advanced_protection_status_manager_factory_unittest.cc",
     "advanced_protection_status_manager_unittest.cc",
     "application_advanced_protection_status_detector_unittest.cc",
+    "metrics/bundled_settings_metrics_provider_unittest.cc",
   ]
 
   deps = [
@@ -700,6 +706,7 @@ source_set("test_support") {
       "//components/safe_browsing/content/browser:safe_browsing_service",
       "//components/safe_browsing/core/browser/db:database_manager",
       "//components/safe_browsing/core/browser/db:test_database_manager",
+      "//components/safe_browsing/core/browser/db:v4_protocol_config",
       "//components/safe_browsing/core/browser/db:v4_protocol_manager_util",
       "//components/safe_browsing/core/common/proto:crx_info_proto",
       "//content/public/browser",

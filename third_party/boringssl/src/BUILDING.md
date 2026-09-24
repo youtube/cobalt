@@ -206,6 +206,30 @@ from within `ssl/test/runner`.
 Both sets of tests may also be run with `ninja -C build run_tests`, but CMake
 3.2 or later is required to avoid Ninja's output buffering.
 
+# Running Benchmarks
+
+To invoke the benchmarks, execute the `bssl_bench` binary.
+You have the option to enumerate all of the benchmarks first by passing in
+`--benchmark_list_tests`.
+To run specific benchmarks, you may pass in `--benchmark_filter=$regex` where
+`$regex` is an [ECMAScript regular expression].
+
+You can specify a set of input sizes in bytes for relevant cipher suites
+with the repeatable flag `-i` or `--input-size`.
+You can let the benchmark run with a set of various thread counts with the
+repeatable flag `-t` or `--threads`.
+For more benchmark configuration options, you may read the manual by passing in
+`--help` flag on launch.
+For more information on `--benchmark_*` flags, we refer you to the
+[benchmark user guide].
+
+There are also [additional tools] at your disposal to interpret the benchmark
+results.
+
+[ECMAScript regular expression]: https://cppreference.com/w/cpp/regex/ecmascript.html
+[benchmark user guide]: https://google.github.io/benchmark/user_guide.html
+[additional tools]: https://google.github.io/benchmark/tools.html
+
 # Pre-generated Files
 
 If modifying perlasm files, or `util/pregenerate/build.json`, you will need to

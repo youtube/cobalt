@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #ifndef PARTITION_ALLOC_PARTITION_ROOT_H_
 #define PARTITION_ALLOC_PARTITION_ROOT_H_
 
@@ -218,6 +213,7 @@ struct PartitionOptions {
 #endif
 
   EnableToggle free_with_size = kDisabled;
+  EnableToggle strict_free_size_check = kEnabled;
 };
 
 constexpr PartitionOptions::PartitionOptions() = default;
@@ -307,6 +303,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 #endif
 
     bool enable_free_with_size = false;
+    bool enable_strict_free_size_check = true;
   };
 
   Settings settings;
@@ -343,10 +340,8 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   std::atomic<size_t> max_size_of_committed_pages{0};
   std::atomic<size_t> total_size_of_super_pages{0};
   std::atomic<size_t> total_size_of_direct_mapped_pages{0};
-  size_t total_size_of_allocated_bytes
-      PA_GUARDED_BY(internal::PartitionRootLock(this)) = 0;
-  size_t max_size_of_allocated_bytes
-      PA_GUARDED_BY(internal::PartitionRootLock(this)) = 0;
+  std::atomic<size_t> total_size_of_allocated_bytes{0};
+  std::atomic<size_t> max_size_of_allocated_bytes{0};
   // Atomic, because system calls can be made without the lock held.
   std::atomic<uint64_t> syscall_count{};
   std::atomic<uint64_t> syscall_total_time_ns{};
@@ -459,12 +454,10 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
       uintptr_t address);
 
   PA_ALWAYS_INLINE void DecreaseTotalSizeOfAllocatedBytes(uintptr_t slot_start,
-                                                          size_t len)
-      PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
+                                                          size_t len);
   PA_ALWAYS_INLINE void IncreaseTotalSizeOfAllocatedBytes(uintptr_t addr,
                                                           size_t len,
-                                                          size_t raw_size)
-      PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
+                                                          size_t raw_size);
   PA_ALWAYS_INLINE void IncreaseCommittedPages(size_t len);
   PA_ALWAYS_INLINE void DecreaseCommittedPages(size_t len);
   PA_ALWAYS_INLINE void DecommitSystemPagesForData(
@@ -753,13 +746,13 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   size_t get_total_size_of_allocated_bytes() const {
     // Since this is only used for bookkeeping, we don't care if the value is
     // stale, so no need to get a lock here.
-    return PA_TS_UNCHECKED_READ(total_size_of_allocated_bytes);
+    return total_size_of_allocated_bytes.load(std::memory_order_relaxed);
   }
 
   size_t get_max_size_of_allocated_bytes() const {
     // Since this is only used for bookkeeping, we don't care if the value is
     // stale, so no need to get a lock here.
-    return PA_TS_UNCHECKED_READ(max_size_of_allocated_bytes);
+    return max_size_of_allocated_bytes.load(std::memory_order_relaxed);
   }
 
   internal::pool_handle ChoosePool() const { return settings.pool_handle; }
@@ -940,7 +933,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   PA_NO_SANITIZE("undefined")
   PA_ALWAYS_INLINE const Bucket& bucket_at(size_t i) const {
     PA_DCHECK(i <= BucketIndexLookup::kNumBuckets);
-    return buckets[i];
+    return PA_UNSAFE_TODO(buckets[i]);
   }
 
   // Returns whether a |bucket| from |this| root is direct-mapped. This function
@@ -1144,8 +1137,8 @@ PartitionAllocGetDirectMapSlotStartAndSizeInBRPPool(uintptr_t address) {
   // to where direct map metadata, and thus direct map start, are located.
   auto* first_page_metadata = PartitionPageMetadata::FromAddr(
       reservation_start + PartitionPageSize(), metadata_offset);
-  auto* page_metadata =
-      first_page_metadata + first_page_metadata->slot_span_metadata_offset;
+  auto* page_metadata = PA_UNSAFE_TODO(
+      first_page_metadata + first_page_metadata->slot_span_metadata_offset);
   PA_DCHECK(page_metadata->is_valid);
   PA_DCHECK(!page_metadata->slot_span_metadata_offset);
   auto* slot_span = &page_metadata->slot_span_metadata;
@@ -1312,9 +1305,6 @@ PA_ALWAYS_INLINE internal::UntaggedSlotStart PartitionRoot::AllocFromBucket(
   }
 
   slot_start.Check(this);
-
-  IncreaseTotalSizeOfAllocatedBytes(
-      slot_start.value(), slot_span->GetSlotSizeForBookkeeping(), raw_size);
 
   *slot_size = slot_span->bucket->slot_size;
   return slot_start;
@@ -1574,8 +1564,8 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeNoHooksImmediateInternal(
     // Verify the cookie after the allocated region.
     // If this assert fires, you probably corrupted memory.
     const size_t usable_size = GetSlotUsableSize(size_details, slot_span);
-    internal::PartitionCookieCheckValue(slot_start.ToObject() + usable_size,
-                                        usable_size);
+    internal::PartitionCookieCheckValue(
+        PA_UNSAFE_TODO(slot_start.ToObject() + usable_size), usable_size);
   }
 #endif  // PA_BUILDFLAG(USE_PARTITION_COOKIE)
 
@@ -1682,7 +1672,7 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeAfterBRPQuarantine(
   if (!hook) [[likely]] {
     unsigned char* object = slot_start.Tag().ToObject();
     for (size_t i = 0; i < root->GetSlotUsableSize(slot_span); ++i) {
-      PA_DCHECK(object[i] == internal::kQuarantinedByte);
+      PA_UNSAFE_TODO(PA_DCHECK(object[i] == internal::kQuarantinedByte));
     }
   }
   internal::DebugMemset(slot_start.Tag().ToObject(), internal::kFreedByte,
@@ -1716,9 +1706,6 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeAfterBRPQuarantine(
 PA_ALWAYS_INLINE void PartitionRoot::FreeInSlotSpan(
     internal::UntaggedSlotStart slot_start,
     SlotSpanMetadata* slot_span) {
-  DecreaseTotalSizeOfAllocatedBytes(slot_start.value(),
-                                    slot_span->GetSlotSizeForBookkeeping());
-
   return slot_span->Free(slot_start.value(), this);
 }
 
@@ -1781,6 +1768,9 @@ PA_ALWAYS_INLINE void PartitionRoot::RawFree(internal::SlotStart slot_start,
       slot_span->bucket->get_slots_per_span() > 1) {
     internal::SecureMemset(ptr, 0, GetSlotUsableSize(slot_span));
   }
+
+  DecreaseTotalSizeOfAllocatedBytes(slot_start.value(),
+                                    slot_span->GetSlotSizeForBookkeeping());
 
   ::partition_alloc::internal::ScopedGuard guard{
       internal::PartitionRootLock(this)};
@@ -1871,6 +1861,8 @@ PA_ALWAYS_INLINE void PartitionRoot::RawFreeLocked(
   // may not expect that, but we never call this function on direct-mapped
   // allocations.
   PA_DCHECK(!IsDirectMappedBucket(slot_span->bucket));
+  DecreaseTotalSizeOfAllocatedBytes(slot_start.value(),
+                                    slot_span->GetSlotSizeForBookkeeping());
   FreeInSlotSpan(slot_start, slot_span);
 }
 
@@ -1910,9 +1902,20 @@ PA_ALWAYS_INLINE void PartitionRoot::IncreaseTotalSizeOfAllocatedBytes(
     uintptr_t addr,
     size_t len,
     size_t raw_size) {
-  total_size_of_allocated_bytes += len;
-  max_size_of_allocated_bytes =
-      std::max(max_size_of_allocated_bytes, total_size_of_allocated_bytes);
+  // |total_size_of_allocated_bytes| is only for debugging/stats, so relaxed
+  // memory order is sufficient.
+  size_t previous_total_size_of_allocated_bytes =
+      total_size_of_allocated_bytes.fetch_add(len, std::memory_order_relaxed);
+  size_t new_total_size_of_allocated_bytes =
+      previous_total_size_of_allocated_bytes + len;
+
+  size_t expected, desired;
+  do {
+    expected = max_size_of_allocated_bytes.load(std::memory_order_relaxed);
+    desired = std::max(expected, new_total_size_of_allocated_bytes);
+  } while (!max_size_of_allocated_bytes.compare_exchange_weak(
+      expected, desired, std::memory_order_relaxed, std::memory_order_relaxed));
+
 #if PA_BUILDFLAG(RECORD_ALLOC_INFO)
   partition_alloc::internal::RecordAllocOrFree(addr | 0x01, raw_size);
 #endif  // PA_BUILDFLAG(RECORD_ALLOC_INFO)
@@ -1923,8 +1926,11 @@ PA_ALWAYS_INLINE void PartitionRoot::DecreaseTotalSizeOfAllocatedBytes(
     size_t len) {
   // An underflow here means we've miscounted |total_size_of_allocated_bytes|
   // somewhere.
-  PA_DCHECK(total_size_of_allocated_bytes >= len);
-  total_size_of_allocated_bytes -= len;
+  // |total_size_of_allocated_bytes| is only for debugging/stats, so relaxed
+  // memory order is sufficient.
+  size_t previous_total_size_of_allocated_bytes =
+      total_size_of_allocated_bytes.fetch_sub(len, std::memory_order_relaxed);
+  PA_DCHECK(previous_total_size_of_allocated_bytes >= len);
 #if PA_BUILDFLAG(RECORD_ALLOC_INFO)
   partition_alloc::internal::RecordAllocOrFree(addr | 0x00, len);
 #endif  // PA_BUILDFLAG(RECORD_ALLOC_INFO)
@@ -2158,10 +2164,20 @@ PartitionRoot::SizeToBucketSizeDetails(size_t requested_size,
     // determined without using `slot_span`.
     auto bucket_index =
         SizeToBucketIndex(raw_size, this->GetBucketDistribution());
-    PA_DCHECK(bucket_index ==
-              static_cast<uint16_t>(slot_span->bucket - this->buckets));
     auto slot_size = BucketIndexLookup::GetBucketSize(bucket_index);
-    PA_DCHECK(slot_size == slot_span->bucket->slot_size);
+    if (settings.enable_strict_free_size_check) {
+      // TODO(crbug.com/410190984): Remove this prefetch & CHECKS once the
+      // PA_CHECK of the given size against the slot span metadata is replaced
+      // with a PA_DCHECK.
+      PA_PREFETCH(slot_span);
+      PA_CHECK(bucket_index ==
+               static_cast<uint16_t>(slot_span->bucket - this->buckets));
+      PA_CHECK(slot_size == slot_span->bucket->slot_size);
+    } else {
+      PA_DCHECK(bucket_index ==
+                static_cast<uint16_t>(slot_span->bucket - this->buckets));
+      PA_DCHECK(slot_size == slot_span->bucket->slot_size);
+    }
     return internal::BucketSizeDetails{
         .bucket_index = bucket_index,
         .slot_size = slot_size,
@@ -2307,14 +2323,14 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternalNoHooks(
       PA_DCHECK(!slot_span->bucket->is_direct_mapped());
 #endif
     } else {
-      slot_start =
-          RawAlloc<flags>(buckets + bucket_index, raw_size, slot_span_alignment,
-                          &usable_size, &slot_size, &is_already_zeroed);
+      slot_start = RawAlloc<flags>(PA_UNSAFE_TODO(buckets + bucket_index),
+                                   raw_size, slot_span_alignment, &usable_size,
+                                   &slot_size, &is_already_zeroed);
     }
   } else {
-    slot_start =
-        RawAlloc<flags>(buckets + bucket_index, raw_size, slot_span_alignment,
-                        &usable_size, &slot_size, &is_already_zeroed);
+    slot_start = RawAlloc<flags>(PA_UNSAFE_TODO(buckets + bucket_index),
+                                 raw_size, slot_span_alignment, &usable_size,
+                                 &slot_size, &is_already_zeroed);
   }
 
   if (!slot_start.value()) [[unlikely]] {
@@ -2369,8 +2385,8 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternalNoHooks(
   // Add the cookie after the allocation.
 #if PA_BUILDFLAG(USE_PARTITION_COOKIE)
   if (settings.use_cookie) {
-    internal::PartitionCookieWriteValue(static_cast<unsigned char*>(object) +
-                                        usable_size);
+    internal::PartitionCookieWriteValue(
+        PA_UNSAFE_TODO(static_cast<unsigned char*>(object) + usable_size));
   }
 #endif  // PA_BUILDFLAG(USE_PARTITION_COOKIE)
 
@@ -2384,7 +2400,7 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternalNoHooks(
     internal::DebugMemset(object, internal::kUninitializedByte, usable_size);
 #endif
   } else if (!is_already_zeroed) {
-    memset(object, 0, usable_size);
+    PA_UNSAFE_TODO(memset(object, 0, usable_size));
   }
 
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
@@ -2411,10 +2427,20 @@ PA_ALWAYS_INLINE internal::UntaggedSlotStart PartitionRoot::RawAlloc(
     size_t* usable_size,
     size_t* slot_size,
     bool* is_already_zeroed) {
-  ::partition_alloc::internal::ScopedGuard guard{
-      internal::PartitionRootLock(this)};
-  return AllocFromBucket<flags>(bucket, raw_size, slot_span_alignment,
-                                usable_size, slot_size, is_already_zeroed);
+  internal::UntaggedSlotStart slot_start;
+  {
+    ::partition_alloc::internal::ScopedGuard guard{
+        internal::PartitionRootLock(this)};
+    slot_start =
+        AllocFromBucket<flags>(bucket, raw_size, slot_span_alignment,
+                               usable_size, slot_size, is_already_zeroed);
+  }
+
+  if (slot_start.value()) [[likely]] {
+    IncreaseTotalSizeOfAllocatedBytes(slot_start.value(), *slot_size, raw_size);
+  }
+
+  return slot_start;
 }
 
 template <AllocFlags flags>
@@ -2605,7 +2631,7 @@ void* PartitionRoot::ReallocInline(void* ptr,
     internal::PartitionExcessiveAllocationSize(new_size);
   }
 
-  memcpy(ret, ptr, std::min(old_usable_size, new_size));
+  PA_UNSAFE_TODO(memcpy(ret, ptr, std::min(old_usable_size, new_size)));
   FreeInUnknownRoot<free_flags>(
       ptr);  // Implicitly protects the old ptr on MTE systems.
   return ret;

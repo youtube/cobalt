@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -143,7 +144,38 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   ASSERT_TRUE(tab);
   auto* controller = ReadAnythingController::From(tab);
   ASSERT_TRUE(controller);
+}
 
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       GetOrCreateWebUIWrapper_SetsState) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kUndefined);
+
+  // The wrapper is moved to the caller, so we must keep it alive.
+  std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
+      controller->GetOrCreateWebUIWrapper(
+          ReadAnythingController::PresentationState::kInSidePanel);
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInSidePanel);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       TransferWebUiOwnership_ResetsState) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+
+  auto wrapper = controller->GetOrCreateWebUIWrapper(
+      ReadAnythingController::PresentationState::kInSidePanel);
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInSidePanel);
+
+  controller->TransferWebUiOwnership(std::move(wrapper));
   EXPECT_EQ(controller->GetPresentationState(),
             ReadAnythingController::PresentationState::kInactive);
 }
@@ -171,7 +203,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   ASSERT_TRUE(controller);
 
   std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
-      controller->GetOrCreateWebUIWrapper();
+      controller->GetOrCreateWebUIWrapper(
+          ReadAnythingController::PresentationState::kInactive);
   EXPECT_TRUE(wrapper);
   EXPECT_TRUE(wrapper->web_contents());
   EXPECT_TRUE(wrapper->web_contents()->GetWebUI());
@@ -186,7 +219,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 
   // Create the WebUI contents and get a pointer to it.
   std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
-      controller->GetOrCreateWebUIWrapper();
+      controller->GetOrCreateWebUIWrapper(
+          ReadAnythingController::PresentationState::kInactive);
   content::WebContents* controller_web_contents = wrapper->web_contents();
   ASSERT_TRUE(controller_web_contents);
 
@@ -330,7 +364,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 
   // Ensure the WebUI is now owned by the controller.
   std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
-      controller->GetOrCreateWebUIWrapper();
+      controller->GetOrCreateWebUIWrapper(
+          ReadAnythingController::PresentationState::kInactive);
   ASSERT_TRUE(wrapper->web_contents());
   // Return the wrapper to the controller so it can be passed to the side panel.
   controller->SetWebUIWrapperForTest(std::move(wrapper));
@@ -353,4 +388,45 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   ASSERT_TRUE(web_contents2);
 
   EXPECT_EQ(web_contents1, web_contents2);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       WebContentsObserverPrimaryPageChangedCrossNavigation) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+
+  ASSERT_EQ(controller->GetNavCounterForTesting(), 1);
+
+  GURL url("about:blank");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  ASSERT_EQ(controller->GetNavCounterForTesting(), 2);
+
+  GURL url2("https://www.example.com");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url2));
+
+  ASSERT_EQ(controller->GetNavCounterForTesting(), 3);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    ReadAnythingControllerBrowserTest,
+    WebContentsObserverPrimaryPageChangedFragmentNavigation) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+
+  GURL url("about:blank");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  ASSERT_EQ(controller->GetNavCounterForTesting(), 2);
+
+  GURL same_doc_url("about:blank#same");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), same_doc_url));
+
+  ASSERT_EQ(controller->GetNavCounterForTesting(), 2);
 }

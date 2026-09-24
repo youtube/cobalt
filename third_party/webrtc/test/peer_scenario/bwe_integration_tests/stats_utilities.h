@@ -54,6 +54,8 @@ int64_t GetPacketsSent(const scoped_refptr<const RTCStatsReport>& report,
 
 int64_t GetPacketsReceived(const scoped_refptr<const RTCStatsReport>& report);
 
+int64_t GetPacketsLost(const scoped_refptr<const RTCStatsReport>& report);
+
 }  // namespace test
 }  // namespace webrtc
 

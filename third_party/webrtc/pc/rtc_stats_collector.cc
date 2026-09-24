@@ -2171,32 +2171,29 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
 
   auto transceivers = pc_->GetTransceiversInternal();
 
+  for (const auto& transceiver_proxy : transceivers) {
+    RtpTransceiver* transceiver = transceiver_proxy->internal();
+    transceiver_stats_infos_.push_back(
+        {.transceiver = scoped_refptr<RtpTransceiver>(transceiver),
+         .media_type = transceiver->media_type(),
+         .mid = transceiver->mid(),
+         .current_direction = transceiver->current_direction()});
+  }
+
   // TODO(tommi): See if we can avoid synchronously blocking the signaling
   // thread while we do this (or avoid the BlockingCall at all).
   network_thread_->BlockingCall([&] {
     Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
-    for (const auto& transceiver_proxy : transceivers) {
-      RtpTransceiver* transceiver = transceiver_proxy->internal();
-      MediaType media_type = transceiver->media_type();
-
-      // Prepare stats entry. The TrackMediaInfoMap will be filled in after the
-      // stats have been fetched on the worker thread.
-      transceiver_stats_infos_.emplace_back();
-      RtpTransceiverStatsInfo& stats = transceiver_stats_infos_.back();
-      stats.transceiver = transceiver;
-      stats.media_type = media_type;
-
-      ChannelInterface* channel = transceiver->channel();
+    for (auto& stats : transceiver_stats_infos_) {
+      ChannelInterface* channel = stats.transceiver->channel();
       if (!channel) {
-        // The remaining fields require a BaseChannel.
         continue;
       }
 
-      stats.mid = channel->mid();
       stats.transport_name = std::string(channel->transport_name());
 
-      if (media_type == MediaType::AUDIO) {
+      if (stats.media_type == MediaType::AUDIO) {
         auto voice_send_channel = channel->voice_media_send_channel();
         RTC_DCHECK(voice_send_stats.find(voice_send_channel) ==
                    voice_send_stats.end());
@@ -2208,7 +2205,7 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
                    voice_receive_stats.end());
         voice_receive_stats.insert(
             std::make_pair(voice_receive_channel, VoiceMediaReceiveInfo()));
-      } else if (media_type == MediaType::VIDEO) {
+      } else if (stats.media_type == MediaType::VIDEO) {
         auto video_send_channel = channel->video_media_send_channel();
         RTC_DCHECK(video_send_stats.find(video_send_channel) ==
                    video_send_stats.end());
@@ -2224,9 +2221,6 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
       }
     }
   });
-  for (auto& stats : transceiver_stats_infos_) {
-    stats.current_direction = stats.transceiver->current_direction();
-  }
 
   // We jump to the worker thread and call GetStats() on each media channel as
   // well as GetCallStats(). At the same time we construct the

@@ -135,6 +135,11 @@ class RTC_EXPORT RtpSenderInterface : public RefCountInterface,
   void SetFrameTransformer(scoped_refptr<FrameTransformerInterface>
                            /* frame_transformer */) override {}
 
+  // TODO(crbug.com/1354101): make pure virtual again after Chrome roll.
+  virtual RTCError GenerateKeyFrame(const std::vector<std::string>& rids) {
+    return RTCError::OK();
+  }
+
  protected:
   ~RtpSenderInterface() override = default;
 };

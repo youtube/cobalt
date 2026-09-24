@@ -49,6 +49,8 @@ component("network_service") {
     "devtools_durable_msg_accounting_delegate.h",
     "devtools_durable_msg_collector.cc",
     "devtools_durable_msg_collector.h",
+    "devtools_durable_msg_collector_manager.cc",
+    "devtools_durable_msg_collector_manager.h",
     "disk_cache/mojo_backend_file_operations.cc",
     "disk_cache/mojo_backend_file_operations.h",
     "disk_cache/mojo_backend_file_operations_factory.cc",
@@ -59,6 +61,8 @@ component("network_service") {
     "enterprise/encryption/encrypted_backend_file_operations.h",
     "enterprise/encryption/encrypted_backend_file_operations_factory.cc",
     "enterprise/encryption/encrypted_backend_file_operations_factory.h",
+    "enterprise/encryption/encrypted_cache_file.cc",
+    "enterprise/encryption/encrypted_cache_file.h",
     "enterprise/encryption/os_crypt_cache_encryption_delegate.cc",
     "enterprise/encryption/os_crypt_cache_encryption_delegate.h",
     "file_opener_for_upload.cc",
@@ -178,6 +182,7 @@ component("network_service") {
     "shared_dictionary/shared_dictionary_data_pipe_writer.h",
     "shared_dictionary/shared_dictionary_disk_cache.cc",
     "shared_dictionary/shared_dictionary_disk_cache.h",
+    "shared_dictionary/shared_dictionary_document_request_metadata_result.h",
     "shared_dictionary/shared_dictionary_in_memory.cc",
     "shared_dictionary/shared_dictionary_in_memory.h",
     "shared_dictionary/shared_dictionary_manager.cc",
@@ -194,6 +199,7 @@ component("network_service") {
     "shared_dictionary/shared_dictionary_storage_in_memory.h",
     "shared_dictionary/shared_dictionary_storage_on_disk.cc",
     "shared_dictionary/shared_dictionary_storage_on_disk.h",
+    "shared_dictionary/shared_dictionary_storage_result.h",
     "shared_dictionary/shared_dictionary_writer.h",
     "shared_dictionary/shared_dictionary_writer_in_memory.cc",
     "shared_dictionary/shared_dictionary_writer_in_memory.h",
@@ -375,14 +381,6 @@ component("network_service") {
   ]
 
   if (enable_privacy_sandbox_apis) {
-    deps += [
-      "//components/ip_protection/common:ip_protection_core_host_remote",
-      "//components/ip_protection/common:ip_protection_core_impl",
-      "//components/ip_protection/common:ip_protection_core_impl_mojo",
-      "//components/ip_protection/common:ip_protection_proxy_delegate",
-      "//components/ip_protection/common:ip_protection_telemetry_uma",
-      "//components/ip_protection/common:masked_domain_list_manager",
-    ]
     deps += [ "//services/network/trust_tokens" ]
   }
 
@@ -465,6 +463,7 @@ source_set("tests") {
     "cors/preflight_result_unittest.cc",
     "data_pipe_element_reader_unittest.cc",
     "data_remover_util_unittest.cc",
+    "devtools_durable_msg_collector_manager_unittest.cc",
     "devtools_durable_msg_collector_unittest.cc",
     "dns_config_change_manager_unittest.cc",
     "enterprise/encryption/os_crypt_cache_encryption_delegate_unittest.cc",

@@ -591,7 +591,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       frame_->GetTaskRunner(TaskType::kInternalMedia));
 
   main_thread_mem_dumper_ = std::make_unique<media::MemoryDumpProviderProxy>(
-      "WebMediaPlayer_MainThread", main_task_runner_,
+      media::MemoryDumpProviderProxy::Name("WebMediaPlayer_MainThread"),
+      main_task_runner_,
       blink::BindRepeating(&WebMediaPlayerImpl::OnMainThreadMemoryDump,
                            weak_this_, media_player_id_));
 
@@ -1504,7 +1505,7 @@ bool WebMediaPlayerImpl::DidLoadingProgress() {
 
 void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
                                const gfx::Rect& rect,
-                               cc::PaintFlags& flags) {
+                               const cc::PaintFlags& flags) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   TRACE_EVENT0("media", "WebMediaPlayerImpl:paint");
 
@@ -1519,10 +1520,6 @@ void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
   paint_params.transformation =
       pipeline_metadata_.video_decoder_config.video_transformation();
 
-  // This class should only be used with raster context providers that
-  // support OOP-R.
-  CHECK(!raster_context_provider_ ||
-        raster_context_provider_->ContextCapabilities().gpu_rasterization);
   video_renderer_.Paint(video_frame, canvas, flags, paint_params,
                         raster_context_provider_.get());
 }
@@ -3329,7 +3326,8 @@ void WebMediaPlayerImpl::MakeDemuxerThreadDumper(media::Demuxer* demuxer) {
   // posts a media thread task that deletes `media_thread_mem_dumper_` and
   // waits for it to finish.
   media_thread_mem_dumper_ = std::make_unique<media::MemoryDumpProviderProxy>(
-      "WebMediaPlayer_MediaThread", media_task_runner_,
+      media::MemoryDumpProviderProxy::Name("WebMediaPlayer_MediaThread"),
+      media_task_runner_,
       ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
           &WebMediaPlayerImpl::OnMediaThreadMemoryDump, media_player_id_,
           CrossThreadUnretained(demuxer))));

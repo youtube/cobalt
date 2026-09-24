@@ -34,7 +34,7 @@
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/image/image_names.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
@@ -221,11 +221,11 @@ class SigninPromoViewMediatorTest : public PlatformTest {
     OCMExpect([signin_promo_view_ setPromoViewStyle:style]);
     OCMExpect([signin_promo_view_ stopSignInSpinner]);
     if (style == SigninPromoViewStyleCompact) {
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
       UIImage* logo = [UIImage imageNamed:kChromeSigninPromoLogoImage];
 #else
       UIImage* logo = [UIImage imageNamed:kChromiumSigninPromoLogoImage];
-#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+#endif  // BUILDFLAG(IOS_USE_BRANDED_ASSETS)
       OCMExpect([signin_promo_view_ setNonProfileImage:logo]);
     }
     [configurator configureSigninPromoView:signin_promo_view_ withStyle:style];

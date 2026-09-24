@@ -128,7 +128,7 @@ GainController2::GainController2(
   if (config.input_volume_controller.enabled) {
     // Create controller.
     input_volume_controller_ = std::make_unique<InputVolumeController>(
-        num_channels, input_volume_controller_config);
+        num_channels, input_volume_controller_config, env.field_trials());
     // TODO(bugs.webrtc.org/7494): Call `Initialize` in ctor and remove method.
     input_volume_controller_->Initialize();
   }

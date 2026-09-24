@@ -18,6 +18,7 @@
 #include <string>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
@@ -131,7 +132,7 @@ class SctpDataChannel : public DataChannelInterface {
  public:
   static scoped_refptr<SctpDataChannel> Create(
       WeakPtr<SctpDataChannelControllerInterface> controller,
-      const std::string& label,
+      absl::string_view label,
       bool connected_to_transport,
       const InternalDataChannelInit& config,
       Thread* signaling_thread,
@@ -228,7 +229,7 @@ class SctpDataChannel : public DataChannelInterface {
  protected:
   SctpDataChannel(const InternalDataChannelInit& config,
                   WeakPtr<SctpDataChannelControllerInterface> controller,
-                  const std::string& label,
+                  absl::string_view label,
                   bool connected_to_transport,
                   Thread* signaling_thread,
                   Thread* network_thread);

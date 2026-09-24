@@ -21,6 +21,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
+#include <openssl/span.h>
 
 #include "../../internal.h"
 #include "../service_indicator/internal.h"
@@ -203,16 +204,6 @@ int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
   return EVP_CipherInit_ex(ctx, cipher, impl, key, iv, 0);
 }
 
-// CopyToPrefix copies a span of bytes from |from| into |to|. It aborts if there
-// is not enough space.
-//
-// TODO(crbug.com/404286922): Can we simplify this in a C++20 world (e.g.
-// std::ranges::copy)? Must preserve range checking on the destination span.
-static void CopyToPrefix(bssl::Span<const uint8_t> from,
-                         bssl::Span<uint8_t> to) {
-  OPENSSL_memcpy(to.first(from.size()).data(), from.data(), from.size());
-}
-
 // block_remainder returns the number of bytes to remove from |len| to get a
 // multiple of |ctx|'s block size.
 static size_t block_remainder(const EVP_CIPHER_CTX *ctx, size_t len) {
@@ -285,12 +276,13 @@ static int EVP_EncryptUpdate_ex_internal(EVP_CIPHER_CTX *ctx, uint8_t *out,
   bssl::Span<uint8_t> out_span(out, max_out_len);
   if (buf_len != 0) {
     if (block_size - buf_len > in_span.size()) {
-      CopyToPrefix(in_span, bssl::Span(ctx->buf).subspan(buf_len));
+      bssl::CopyToPrefix(in_span, bssl::Span(ctx->buf).subspan(buf_len));
       ctx->buf_len += in_span.size();
       return 1;
     } else {
       size_t j = block_size - buf_len;
-      CopyToPrefix(in_span.first(j), bssl::Span(ctx->buf).subspan(buf_len));
+      bssl::CopyToPrefix(in_span.first(j),
+                         bssl::Span(ctx->buf).subspan(buf_len));
       if (out_span.size() < block_size) {
         OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
         return 0;
@@ -319,7 +311,7 @@ static int EVP_EncryptUpdate_ex_internal(EVP_CIPHER_CTX *ctx, uint8_t *out,
   }
 
   assert(in_span.size() < block_size);
-  CopyToPrefix(in_span, ctx->buf);
+  bssl::CopyToPrefix(in_span, ctx->buf);
   ctx->buf_len = in_span.size();
 
   *out_len = max_out_len - out_span.size();
@@ -452,7 +444,7 @@ static int EVP_DecryptUpdate_ex_internal(EVP_CIPHER_CTX *ctx, uint8_t *out,
       OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
       return 0;
     }
-    CopyToPrefix(bssl::Span(ctx->final).first(block_size), out_span);
+    bssl::CopyToPrefix(bssl::Span(ctx->final).first(block_size), out_span);
     ctx->final_used = 0;
     out_span = out_span.subspan(block_size);
   }
@@ -571,7 +563,7 @@ static int EVP_DecryptFinal_ex2_internal(EVP_CIPHER_CTX *ctx,
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
     return 0;
   }
-  CopyToPrefix(bssl::Span(ctx->final).first(payload), out_span);
+  bssl::CopyToPrefix(bssl::Span(ctx->final).first(payload), out_span);
   out_span = out_span.subspan(payload);
 
   *out_len = max_out_len - out_span.size();

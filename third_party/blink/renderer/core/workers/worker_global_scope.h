@@ -49,7 +49,6 @@
 #include "third_party/blink/renderer/core/workers/custom_event_message.h"
 #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
 #include "third_party/blink/renderer/core/workers/worker_settings.h"
-#include "third_party/blink/renderer/platform/forward_declared_member.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/code_cache_host.h"
@@ -77,27 +76,27 @@ class WorkerLocation;
 struct WorkerMainScriptLoadParameters;
 class WorkerNavigator;
 class WorkerThread;
-class WorkerPerformance;
-class FontFaceSetWorker;
-
-template <typename T>
-class GlobalFetchImpl;
-template <typename T>
-class GlobalCacheStorageImpl;
-template <typename T>
-class GlobalCookieStoreImpl;
-template <typename T, typename P>
-class GlobalPerformanceImpl;
 
 class CORE_EXPORT WorkerGlobalScope
     : public WorkerOrWorkletGlobalScope,
       public WindowOrWorkerGlobalScope,
       public UniversalGlobalScope,
       public ActiveScriptWrappable<WorkerGlobalScope>,
+      public Supplementable<WorkerGlobalScope, 7>,
       public DOMOriginUtils {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  enum class Supplements {
+    kWorkerGlobalScopeCrypto = 0,
+    kFontFaceSetWorker = 1,
+    kGlobalIndexedDBImpl = 2,
+    kGlobalCacheStorageImpl = 3,
+    kGlobalPerformanceImpl = 4,
+    kGlobalCookieStoreImpl = 5,
+    kGlobalFetchImpl = 6
+  };
+
   ~WorkerGlobalScope() override;
 
   // DOMOriginUtils overrides:
@@ -285,55 +284,6 @@ class CORE_EXPORT WorkerGlobalScope
     return top_level_frame_security_origin_.get();
   }
 
-  ForwardDeclaredMember<GlobalFetchImpl<WorkerGlobalScope>> GetGlobalFetchImpl()
-      const {
-    return global_fetch_impl_;
-  }
-  void SetGlobalFetchImpl(
-      ForwardDeclaredMember<GlobalFetchImpl<WorkerGlobalScope>>
-          global_fetch_impl) {
-    global_fetch_impl_ = global_fetch_impl;
-  }
-
-  ForwardDeclaredMember<GlobalCacheStorageImpl<WorkerGlobalScope>>
-  GetGlobalCacheStorageImpl() const {
-    return global_cache_storage_impl_;
-  }
-  void SetGlobalCacheStorageImpl(
-      ForwardDeclaredMember<GlobalCacheStorageImpl<WorkerGlobalScope>>
-          global_cache_storage_impl) {
-    global_cache_storage_impl_ = global_cache_storage_impl;
-  }
-
-  ForwardDeclaredMember<GlobalCookieStoreImpl<WorkerGlobalScope>>
-  GetGlobalCookieStoreImpl() const {
-    return global_cookie_store_impl_;
-  }
-  void SetGlobalCookieStoreImpl(
-      ForwardDeclaredMember<GlobalCookieStoreImpl<WorkerGlobalScope>>
-          global_cookie_store_impl) {
-    global_cookie_store_impl_ = global_cookie_store_impl;
-  }
-
-  ForwardDeclaredMember<
-      GlobalPerformanceImpl<WorkerGlobalScope, WorkerPerformance>>
-  GetGlobalPerformanceImpl() const {
-    return global_performance_impl_;
-  }
-  void SetGlobalPerformanceImpl(
-      ForwardDeclaredMember<
-          GlobalPerformanceImpl<WorkerGlobalScope, WorkerPerformance>>
-          global_performance_impl) {
-    global_performance_impl_ = global_performance_impl;
-  }
-
-  FontFaceSetWorker* GetFontFaceSetWorker() const {
-    return font_face_set_worker_;
-  }
-  void SetFontFaceSetWorker(FontFaceSetWorker* font_face_set_worker) {
-    font_face_set_worker_ = font_face_set_worker;
-  }
-
  protected:
   WorkerGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                     WorkerThread*,
@@ -456,17 +406,6 @@ class CORE_EXPORT WorkerGlobalScope
   // can be used, for instance, to check if the top level frame has an opaque
   // origin.
   scoped_refptr<const SecurityOrigin> top_level_frame_security_origin_;
-
-  ForwardDeclaredMember<GlobalFetchImpl<WorkerGlobalScope>> global_fetch_impl_;
-  ForwardDeclaredMember<GlobalCacheStorageImpl<WorkerGlobalScope>>
-      global_cache_storage_impl_;
-  ForwardDeclaredMember<GlobalCookieStoreImpl<WorkerGlobalScope>>
-      global_cookie_store_impl_;
-  ForwardDeclaredMember<
-      GlobalPerformanceImpl<WorkerGlobalScope, WorkerPerformance>>
-      global_performance_impl_;
-
-  Member<FontFaceSetWorker> font_face_set_worker_;
 };
 
 template <>

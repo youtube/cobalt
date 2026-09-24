@@ -324,6 +324,10 @@ class MaglevGraphBuilder {
   static SpeculationMode GetSpeculationMode(
       compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source);
 
+#ifdef DEBUG
+  bool MayNeedContextPhis() const;
+#endif
+
  private:
   class DeoptFrameScopeBase;
 
@@ -342,13 +346,13 @@ class MaglevGraphBuilder {
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
     template <typename ControlNodeT, typename... Args>
-    void GotoIfTrue(Label* true_target,
-                    std::initializer_list<ValueNode*> control_inputs,
-                    Args&&... args);
+    ReduceResult GotoIfTrue(Label* true_target,
+                            std::initializer_list<ValueNode*> control_inputs,
+                            Args&&... args);
     template <typename ControlNodeT, typename... Args>
-    void GotoIfFalse(Label* false_target,
-                     std::initializer_list<ValueNode*> control_inputs,
-                     Args&&... args);
+    ReduceResult GotoIfFalse(Label* false_target,
+                             std::initializer_list<ValueNode*> control_inputs,
+                             Args&&... args);
     void GotoOrTrim(Label* label);
     void Goto(Label* label);
     void ReducePredecessorCount(Label* label, unsigned num = 1);
@@ -660,11 +664,11 @@ class MaglevGraphBuilder {
   // oddballs.
   //
   // Deopts if the ToNumber is non-trivial.
-  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
-                                          NodeType allowed_input_type);
+  ReduceResult GetTruncatedInt32ForToNumber(ValueNode* value,
+                                            NodeType allowed_input_type);
 
-  ValueNode* GetTruncatedInt32ForToNumber(interpreter::Register reg,
-                                          NodeType allowed_input_type) {
+  ReduceResult GetTruncatedInt32ForToNumber(interpreter::Register reg,
+                                            NodeType allowed_input_type) {
     return GetTruncatedInt32ForToNumber(current_interpreter_frame_.get(reg),
                                         allowed_input_type);
   }
@@ -696,12 +700,12 @@ class MaglevGraphBuilder {
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
-  ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ValueNode* value, bool can_be_heap_number = false);
   ReduceResult GetInt32(ReduceResult value_result,
                         bool can_be_heap_number = false);
 
-  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
-  void EnsureInt32(interpreter::Register reg);
+  ReduceResult EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult EnsureInt32(interpreter::Register reg);
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
   std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
@@ -739,7 +743,7 @@ class MaglevGraphBuilder {
                        record_use_repr_hint);
   }
 
-  ValueNode* GetAccumulatorTruncatedInt32ForToNumber(
+  ReduceResult GetAccumulatorTruncatedInt32ForToNumber(
       NodeType allowed_input_type) {
     return GetTruncatedInt32ForToNumber(
         interpreter::Register::virtual_accumulator(), allowed_input_type);
@@ -863,8 +867,14 @@ class MaglevGraphBuilder {
                      BasicBlockRef& refs_to_block);
   void StartFallthroughBlock(int next_block_offset, BasicBlock* predecessor);
   template <typename ControlNodeT, typename... Args>
-  BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
-                          Args&&... args);
+  std::optional<BasicBlock*> FinishBlock(
+      std::initializer_list<ValueNode*> control_inputs, Args&&... args);
+
+  // This version can be used when the control node doesn't have inputs, or the
+  // input conversion will always succeed, and thus we cannot bail out.
+  template <typename ControlNodeT, typename... Args>
+  BasicBlock* FinishBlockNoAbort(
+      std::initializer_list<ValueNode*> control_inputs, Args&&... args);
 
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
@@ -1025,10 +1035,10 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
 
-  ReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
-                             ValueNode* new_target,
-                             compiler::SharedFunctionInfoRef shared,
-                             CallArguments& args);
+  MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
+                                  ValueNode* new_target,
+                                  compiler::SharedFunctionInfoRef shared,
+                                  CallArguments& args);
   MaybeReduceResult TryReduceBuiltin(
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
@@ -1185,7 +1195,7 @@ class MaglevGraphBuilder {
       ValueNode* this_function, ValueNode* new_target,
       std::pair<interpreter::Register, interpreter::Register> result);
 
-  ValueNode* BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildSmiUntag(ValueNode* node);
   ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
@@ -1239,7 +1249,7 @@ class MaglevGraphBuilder {
   template <bool flip = false>
   ReduceResult BuildToBoolean(ValueNode* node);
   ReduceResult BuildLogicalNot(ValueNode* value);
-  ValueNode* BuildTestUndetectable(ValueNode* value);
+  ReduceResult BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
   enum class TrackObjectMode { kLoad, kStore };
@@ -1650,7 +1660,8 @@ class MaglevGraphBuilder {
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
-  void MergeIntoInlinedReturnFrameState(BasicBlock* block);
+  void MergeIntoInlinedReturnFrameStateForReturn(BasicBlock* block);
+  void MergeIntoInlinedReturnFrameStateForSuspendGenerator(BasicBlock* block);
 
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
@@ -1666,6 +1677,8 @@ class MaglevGraphBuilder {
     kDefault,
     kAlwaysTrue,
     kAlwaysFalse,
+    // Bailed out before evaluating the condition
+    kAbort
   };
 
   static inline BranchType NegateBranchType(BranchType jump_type) {
@@ -1774,6 +1787,7 @@ class MaglevGraphBuilder {
     BranchResult FromBool(bool value) const;
     BranchResult AlwaysTrue() const { return FromBool(true); }
     BranchResult AlwaysFalse() const { return FromBool(false); }
+    static BranchResult Abort() { return BranchResult::kAbort; }
 
     template <typename NodeT, typename... Args>
     BranchResult Build(std::initializer_list<ValueNode*> inputs,
@@ -1839,16 +1853,12 @@ class MaglevGraphBuilder {
                                           BasicBlockRef* true_target,
                                           BasicBlockRef* false_target);
 
-  template <typename FCond, typename FTrue, typename FFalse>
-  ValueNode* Select(FCond cond, FTrue if_true, FFalse if_false);
+  ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
+  ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
 
-  ValueNode* BuildInt32Max(ValueNode* a, ValueNode* b);
-  ValueNode* BuildInt32Min(ValueNode* a, ValueNode* b);
-
-  ReduceResult SelectReduction(
-      base::FunctionRef<BranchResult(BranchBuilder&)> cond,
-      base::FunctionRef<ReduceResult()> if_true,
-      base::FunctionRef<ReduceResult()> if_false);
+  ReduceResult Select(base::FunctionRef<BranchResult(BranchBuilder&)> cond,
+                      base::FunctionRef<ReduceResult()> if_true,
+                      base::FunctionRef<ReduceResult()> if_false);
 
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
 

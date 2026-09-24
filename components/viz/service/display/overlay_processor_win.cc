@@ -190,7 +190,7 @@ void OverlayProcessorWin::ProcessForOverlays(
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
     SurfaceDamageRectList surface_damage_rect_list_in_root_space,
-    std::optional<OverlayCandidate>& primary_plane,
+    const PrimaryPlaneParams& primary_plane_params,
     CandidateList* candidates,
     gfx::Rect* root_damage_rect,
     std::vector<gfx::Rect>* content_bounds) {
@@ -204,6 +204,7 @@ void OverlayProcessorWin::ProcessForOverlays(
       render_pass_filters, render_pass_backdrop_filters,
       surface_damage_rect_list_in_root_space, candidates, root_damage_rect);
 
+  std::optional<OverlayCandidate> primary_plane;
   if (status != DelegationStatus::kFullDelegation) {
     // Fall back to promoting overlays from the output surface plane.
     ProcessOverlaysFromOutputSurfacePlane(
@@ -211,7 +212,7 @@ void OverlayProcessorWin::ProcessForOverlays(
         render_pass_filters, render_pass_backdrop_filters,
         surface_damage_rect_list_in_root_space, candidates, root_damage_rect);
 
-    CHECK(primary_plane);
+    primary_plane = CreatePrimaryPlane(primary_plane_params);
     primary_plane->is_opaque =
         !render_passes->back()->has_transparent_background;
     primary_plane->layer_id = gfx::OverlayLayerId::MakeVizInternalRenderPass(
@@ -689,14 +690,25 @@ void OverlayProcessorWin::TryPromoteFullScreenVideo(
 
   // The ideal rect is `target_rect` scaled to fit and centered inside the full
   // screen render pass output rect.
-  const gfx::RectF ideal_full_screen_rect = ContainedAndCenteredRect(
+  gfx::RectF ideal_full_screen_rect = ContainedAndCenteredRect(
       target_rect, gfx::SizeF(root_pass_output_rect.size()));
 
   // Allow up to a pixel of wiggle room for checking the clip rect and
-  // centeredness of the video. This is in case the video renderer doesn't
-  // supply a perfectly placed video quad and assumes that up to a pixel
-  // of adjustment is forgivable.
+  // centeredness of the video. This is in case the browser doesn't embed--or
+  // the video renderer doesn't supply--a perfectly placed video quad. We
+  // therefore assume that up to a pixel of adjustment is forgivable.
   constexpr float kTightTolerance = 1.0f;
+
+  if (ideal_full_screen_rect.ApproximatelyEqual(
+          gfx::RectF(root_pass_output_rect), kTightTolerance,
+          kTightTolerance)) {
+    // Snap the "ideal" rect to the monitor rect if we are close enough.
+    //
+    // One of cases that `kTightTolerance` addresses is with non-integer device
+    // scale factors, which can result in a root frame size that is one rounded
+    // up to be one pixel larger than the monitor size.
+    ideal_full_screen_rect = gfx::RectF(root_pass_output_rect);
+  }
 
   const bool candidate_is_not_clipped =
       !frontmost_candidate_it->clip_rect ||

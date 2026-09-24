@@ -19,7 +19,8 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
-using jni_zero::JavaParamRef;
+template <typename T>
+using JavaParamRef = jni_zero::JavaRef<T>;
 using jni_zero::JavaRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;

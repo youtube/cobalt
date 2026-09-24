@@ -60,6 +60,7 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -115,11 +116,7 @@ import java.util.List;
 /** Tests for {@link StripLayoutHelperManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE, qualifiers = "sw600dp")
-@DisableFeatures({
-    ChromeFeatureList.TAB_STRIP_INCOGNITO_MIGRATION,
-    ChromeFeatureList.DATA_SHARING,
-    ChromeFeatureList.TAB_STRIP_MOUSE_CLOSE_RESIZE_DELAY
-})
+@DisableFeatures({ChromeFeatureList.TAB_STRIP_INCOGNITO_MIGRATION, ChromeFeatureList.DATA_SHARING})
 public class StripLayoutHelperManagerTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private TabStripSceneLayer.Natives mTabStripSceneMock;
@@ -157,6 +154,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private ServiceStatus mServiceStatus;
     @Mock private Tracker mTracker;
     @Mock private ResourceManager mResourceManager;
+    @Mock private BackPressManager mBackPressManager;
     @Captor private ArgumentCaptor<List<Rect>> mSystemExclusionRectCaptor;
 
     private StripLayoutHelperManager mStripLayoutHelperManager;
@@ -243,7 +241,8 @@ public class StripLayoutHelperManagerTest {
                         mDataSharingTabManager,
                         mBottomSheetController,
                         () -> mShareDelegate,
-                        /* xrSpaceModeObservableSupplier= */ null);
+                        /* xrSpaceModeObservableSupplier= */ null,
+                        mBackPressManager);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
         mStripLayoutHelperManager.setIsTabStripHiddenByHeightTransition(false);
     }
@@ -790,6 +789,8 @@ public class StripLayoutHelperManagerTest {
 
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
+    // TODO(crbug.com/430058918): Reenable or add new test.
+    @DisableFeatures(ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2)
     public void testTabStripHeightTransition_Hide() {
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
 
@@ -854,6 +855,8 @@ public class StripLayoutHelperManagerTest {
 
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
+    // TODO(crbug.com/430058918): Reenable or add new test.
+    @DisableFeatures(ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2)
     public void testTabStripHeightTransition_Show() {
         doTestTabStripHeightTransition_Show(mToolbarPrimaryColor);
     }
@@ -1487,6 +1490,8 @@ public class StripLayoutHelperManagerTest {
 
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
+    // TODO(crbug.com/430058918): Reenable or add new test.
+    @DisableFeatures(ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2)
     public void testVisibilityConstraintAndOffsetOverride() {
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
         doReturn(false).when(mBrowserControlStateProvider).isVisibilityForced();

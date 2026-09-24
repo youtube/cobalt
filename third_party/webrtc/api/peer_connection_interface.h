@@ -111,6 +111,7 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
+#include "api/rtp_transport_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
 #include "api/set_local_description_observer_interface.h"
@@ -1397,6 +1398,7 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   std::unique_ptr<AsyncDnsResolverFactoryInterface> async_dns_resolver_factory;
   std::unique_ptr<IceTransportFactory> ice_transport_factory;
   std::unique_ptr<DtlsTransportFactory> dtls_transport_factory;
+  std::unique_ptr<RtpTransportFactory> rtp_transport_factory;
   std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<SSLCertificateVerifier> tls_cert_verifier;
   std::unique_ptr<VideoBitrateAllocatorFactory> video_bitrate_allocator_factory;

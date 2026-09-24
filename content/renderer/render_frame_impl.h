@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -30,6 +29,7 @@
 #include "base/observer_list.h"
 #include "base/process/process_handle.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/sequence_bound.h"
 #include "base/timer/timer.h"
 #include "base/types/optional_ref.h"
 #include "base/unguessable_token.h"

@@ -23,7 +23,8 @@ namespace test {
 // ad SDP negotiation.
 class SignalingRoute {
  public:
-  SignalingRoute(PeerScenarioClient* caller,
+  SignalingRoute(bool send_sdp_via_network,
+                 PeerScenarioClient* caller,
                  PeerScenarioClient* callee,
                  CrossTrafficRoute* send_route,
                  CrossTrafficRoute* ret_route);
@@ -40,7 +41,6 @@ class SignalingRoute {
   // modify transceivers created from the offer.  The `exchange_finished`
   // callback is called with the answer produced after SDP negotations has
   // completed.
-  // TODO(srte): Handle lossy links.
   void NegotiateSdp(
       std::function<void(SessionDescriptionInterface* offer)> munge_offer,
       std::function<void(SessionDescriptionInterface* offer)> modify_offer,
@@ -64,10 +64,12 @@ class SignalingRoute {
       std::function<void(const SessionDescriptionInterface& answer)>
           exchange_finished);
   SignalingRoute reverse() {
-    return SignalingRoute(callee_, caller_, ret_route_, send_route_);
+    return SignalingRoute(send_sdp_via_network_, callee_, caller_, ret_route_,
+                          send_route_);
   }
 
  private:
+  const bool send_sdp_via_network_ = true;
   PeerScenarioClient* const caller_;
   PeerScenarioClient* const callee_;
   CrossTrafficRoute* const send_route_;

@@ -71,7 +71,6 @@
       "crypto/fipsmodule/mlkem/mlkem.cc.inc",
       "crypto/fipsmodule/rand/ctrdrbg.cc.inc",
       "crypto/fipsmodule/rand/rand.cc.inc",
-      "crypto/fipsmodule/rsa/blinding.cc.inc",
       "crypto/fipsmodule/rsa/padding.cc.inc",
       "crypto/fipsmodule/rsa/rsa.cc.inc",
       "crypto/fipsmodule/rsa/rsa_impl.cc.inc",
@@ -219,6 +218,35 @@
       "gen/bcm/x86_64-mont5-win.asm"
     ]
   },
+  "bench": {
+    "srcs": [
+      "bench/aead.cc",
+      "bench/aes.cc",
+      "bench/base64.cc",
+      "bench/curve25519.cc",
+      "bench/ecdh.cc",
+      "bench/ecdsa.cc",
+      "bench/hash.cc",
+      "bench/hash_to_curve.cc",
+      "bench/hrss.cc",
+      "bench/main.cc",
+      "bench/mldsa.cc",
+      "bench/mlkem.cc",
+      "bench/rand.cc",
+      "bench/rsa.cc",
+      "bench/rsakeygen.cc",
+      "bench/scrypt.cc",
+      "bench/selftest.cc",
+      "bench/siphash.cc",
+      "bench/slhdsa.cc",
+      "bench/spake2.cc",
+      "bench/trust_token.cc",
+      "bench/x509.cc"
+    ],
+    "internal_hdrs": [
+      "bench/internal.h"
+    ]
+  },
   "bssl": {
     "srcs": [
       "tool/args.cc",
@@ -235,7 +263,6 @@
       "tool/rand.cc",
       "tool/server.cc",
       "tool/sign.cc",
-      "tool/speed.cc",
       "tool/tool.cc",
       "tool/transport_common.cc"
     ],

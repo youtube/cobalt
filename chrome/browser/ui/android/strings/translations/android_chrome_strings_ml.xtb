@@ -87,6 +87,7 @@
 <translation id="1336996151357442890"><ph name="SITE_NAME" /> എന്നതിന്റെ വരിക്കാരല്ലാതായി. നിങ്ങൾ അടുത്ത തവണ സന്ദർശിക്കുമ്പോൾ ഇത് വീണ്ടും ചോദിക്കും.</translation>
 <translation id="1340839264183302272">ഗ്രൂപ്പ് വിടുക</translation>
 <translation id="1342886103232377846">അപഹരിക്കപ്പെട്ട പാസ്‌വേഡുകൾക്കായി പരിശോധിക്കാൻ, Google Password Manager-ലേക്ക് പോകൂ</translation>
+<translation id="1343830902827845050">Chrome-ൽ സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="1344653310988386453">ഹൈലൈറ്റിലേക്കുള്ള ലിങ്ക് ഉൾപ്പെടുത്തുക</translation>
 <translation id="1347468774581902829">ആക്റ്റിവിറ്റി മാനേജ് ചെയ്യുക</translation>
 <translation id="1355088659320425659">ചരിത്രവും ടാബുകളും</translation>
@@ -525,7 +526,6 @@
 <translation id="3268048651973962414">തിരയൽ ഫലങ്ങൾ കാണാൻ മുകളിലേക്ക് വലിച്ചിടുക</translation>
 <translation id="3269093882174072735">ചിത്രം ലോഡ് ചെയ്യുക</translation>
 <translation id="3280562213547448728">ശബ്ദ തിരയൽ</translation>
-<translation id="3282568296779691940">Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="3285065882678541460">{TAB_COUNT,plural, =1{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_ONE" /> ടാബ്}other{<ph name="TAB_GROUPS_PART" />, <ph name="TAB_COUNT_MANY" /> ടാബുകൾ}}</translation>
 <translation id="3286508210927575634">{PASSWORDS_COUNT,plural, =1{ഒരു പാസ്‌വേഡ് ഈ ഉപകരണത്തിൽ മാത്രമേ സംരക്ഷിച്ചിട്ടുള്ളൂ. മറ്റ് ഉപകരണങ്ങളിൽ ഉപയോഗിക്കാൻ, അത് നിങ്ങളുടെ Google Account-ൽ സംരക്ഷിക്കുക.}other{# പാസ്‌വേഡുകൾ ഈ ഉപകരണത്തിൽ മാത്രമേ സംരക്ഷിച്ചിട്ടുള്ളൂ. മറ്റ് ഉപകരണങ്ങളിൽ ഉപയോഗിക്കാൻ, അവ നിങ്ങളുടെ Google Account-ൽ സംരക്ഷിക്കുക.}}</translation>
 <translation id="3293181007446299124">നിങ്ങളുടെ ബ്രൗസിംഗ് ചരിത്രം നിങ്ങളുടെ ഉപകരണത്തിൽ സ്വകാര്യമായി സൂക്ഷിക്കുകയും നിങ്ങളുടെ ഐഡന്റിറ്റി സംരക്ഷിക്കാനായി റിപ്പോർട്ടുകൾ വൈകി അയയ്ക്കുകയും ചെയ്യുന്നു.</translation>
@@ -719,6 +719,7 @@
 <translation id="414128724510021958">ഡിഫോൾട്ടായി അഭ്യർത്ഥിച്ച ഡെസ്‌ക്‌ടോപ്പ് സൈറ്റുകൾ</translation>
 <translation id="4162867837470729563">മുഴുവൻ ഉയരത്തിൽ തുറന്ന പങ്കിടൽ ഓപ്ഷനുകളുടെ ലിസ്റ്റ്.</translation>
 <translation id="4170011742729630528">സേവനം ലഭ്യമല്ല; പിന്നീട് വീണ്ടും ശ്രമിക്കുക.</translation>
+<translation id="4170577491341606575">നിങ്ങളുടെ ഡാറ്റ ലഭ്യമാക്കുന്നു\u2026</translation>
 <translation id="4177222230309051052">നിങ്ങളുടെ എല്ലാ ബുക്ക്‌മാർക്കുകളും നേടുക</translation>
 <translation id="4177501066905053472">പരസ്യ വിഷയങ്ങൾ</translation>
 <translation id="417865198503699526">ക്രമീകരണം തിരയുക</translation>
@@ -818,7 +819,7 @@
 <translation id="4577115723294378384">അ മുതൽ റ വരെയുള്ള ക്രമം</translation>
 <translation id="4578289292431526768">തുടങ്ങാം</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{# മിനിറ്റ് മുമ്പ്}other{# മിനിറ്റ് മുമ്പ്}}</translation>
-<translation id="4585751637295612750">നിങ്ങളുടെ ചോദ്യത്തിലേക്ക് ഇത് ചേർക്കാൻ, പുതിയൊരു ടാബ് തുറക്കുക</translation>
+<translation id="4585751637295612750">നിങ്ങളുടെ ചോദ്യത്തിലേക്ക് ഒരു ടാബ് ചേർക്കാൻ, പുതിയൊരു ടാബ് തുറക്കുക</translation>
 <translation id="4587589328781138893">സൈറ്റുകള്‍</translation>
 <translation id="4594952190837476234">ഈ ഓഫ്‌ലൈൻ പേജ് <ph name="CREATION_TIME" /> -ന് സൃഷ്‌ടിച്ചതാണ്, അതിനാൽ ഓൺലൈൻ പതിപ്പിൽ നിന്ന് വ്യത്യസ്തമായിരിക്കാം.</translation>
 <translation id="4595237294768457124">പുതിയ ടാബ് പേജ് തുറക്കുക</translation>
@@ -911,6 +912,7 @@
 <translation id="4905823827770127520">പേജിലേക്ക് ലിങ്ക് ഉൾപ്പെടുത്തുക</translation>
 <translation id="4908869848243824489">Google-ന്റെ Discover</translation>
 <translation id="4910889077668685004">പേയ്‌മെന്റ് ആപ്പുകൾ</translation>
+<translation id="4911042367886397055">തിരികെ സ്വാഗതം, <ph name="USER_NAME" />!</translation>
 <translation id="4912413785358399818">ടാബ് നീക്കുക</translation>
 <translation id="4913169188695071480">പുതുക്കിയെടുക്കുന്നത് നിർത്തുക</translation>
 <translation id="4921224083091001889">പാസ്‌വേഡുകളും മറ്റും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ലഭിക്കാൻ <ph name="EMAIL" /> എന്നയാളായി Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക</translation>
@@ -1457,6 +1459,7 @@
 <translation id="7115358764509798967">സിസ്‌റ്റം ഡിഫോൾട്ട്</translation>
 <translation id="7117485132243600300">നിങ്ങൾ പിന്തുടരുന്ന ഉള്ളടക്കവും നിർദ്ദേശിച്ച വിഷയങ്ങളും തിരയലുകളും മാനേജ് ചെയ്യുക</translation>
 <translation id="7119984597597798764"><ph name="INSTANCE_TITLE" /> അടയ്‌ക്കുക</translation>
+<translation id="7121179479711575744">Chrome-ൽ സൈൻ ഇൻ ചെയ്യുക</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 സൈറ്റിന്റെ അനുമതികൾ അവലോകനം ചെയ്തു}other{# സൈറ്റുകളുടെ അനുമതികൾ അവലോകനം ചെയ്തു}}</translation>
 <translation id="7138678301420049075">മറ്റുള്ളവ</translation>
 <translation id="7140829094791862589">നേരിട്ടുള്ള ക്രമം പ്രകാരമടുക്കൂ</translation>
@@ -1941,6 +1944,7 @@
 <translation id="9104217018994036254">ടാബ് പങ്കിടാനാകുന്ന ഉപകരണങ്ങളുടെ ലിസ്‌റ്റ്.</translation>
 <translation id="9106148373857059373">ബുക്ക്‌മാർക്ക് സംരക്ഷിക്കൽ ഫ്ലോ അടച്ചു</translation>
 <translation id="9108808586816295166">എപ്പോഴും സുരക്ഷിത DNS ലഭ്യമായേക്കില്ല</translation>
+<translation id="9112483451228487295">ബ്രൗസിംഗ് ഡാറ്റ വേഗം ഇല്ലാതാക്കൂ</translation>
 <translation id="9124978074365039456">ക്യാമറയും ഫോട്ടോ ഗാലറിയും ഉപയോഗിച്ച് ഷോപ്പ് ചെയ്യുക, വിവർത്തനം ചെയ്യുക, നിങ്ങൾ കാണുന്നത് തിരിച്ചറിയുക</translation>
 <translation id="9130135798965366513">തുടരാൻ, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> നിങ്ങളുടെ <ph name="FIELDS_STRING" /> ഈ സൈറ്റുമായി പങ്കിടും. ഈ സൈറ്റിന്റെ <ph name="BEGIN_LINK1" />സ്വകാര്യതാ നയവും<ph name="END_LINK1" /> <ph name="BEGIN_LINK2" />സേവന നിബന്ധനകളും<ph name="END_LINK2" /> കാണുക.</translation>
 <translation id="9131209053278896908">ബ്ലോക്ക് ചെയ്ത സൈറ്റുകൾ ഇവിടെ ദൃശ്യമാകും</translation>

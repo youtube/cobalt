@@ -5573,7 +5573,7 @@ TEST_P(Texture2DTestES3, ChangeTexSizeWithTexStorage)
 
 // Regression test for http://crbug.com/949985 to make sure dirty bits are propagated up from
 // TextureImpl and the texture is synced before being used in a draw call.
-TEST_P(Texture2DTestES3, TextureImplPropogatesDirtyBits)
+TEST_P(Texture2DTestES3, TextureImplPropagatesDirtyBits)
 {
     ANGLE_SKIP_TEST_IF(IsIntel() && IsOpenGL());
     // Flaky hangs on Win10 AMD RX 550 GL. http://anglebug.com/42262039
@@ -16692,10 +16692,6 @@ TEST_P(TextureBufferTestES31, TexBufferDrawTwice)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_texture_buffer"));
 
-    // TODO(http://anglebug.com/42264369): Claims to support GL_OES_texture_buffer, but fails
-    // compilation of shader because "extension 'GL_OES_texture_buffer' is not supported".
-    ANGLE_SKIP_TEST_IF(IsQualcomm() && IsOpenGLES());
-
     const std::array<GLColor, 1> kTexData = {GLColor::red};
 
     GLBuffer buffer;
@@ -16983,10 +16979,6 @@ TEST_P(TextureBufferTestES31, UseAsUBOThenUpdateThenAsTextureBuffer)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_texture_buffer"));
 
-    // Claims to support GL_OES_texture_buffer, but fails compilation of shader because "extension
-    // 'GL_OES_texture_buffer' is not supported".  http://anglebug.com/42264369
-    ANGLE_SKIP_TEST_IF(IsQualcomm() && IsOpenGLES());
-
     const std::array<GLColor, 4> kInitialData = {GLColor::red, GLColor::red, GLColor::red,
                                                  GLColor::red};
     const std::array<GLColor, 4> kUpdateData  = {GLColor::blue, GLColor::blue, GLColor::blue,
@@ -17053,9 +17045,6 @@ TEST_P(TextureBufferTestES31, MapTextureBufferInvalidateThenWrite)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_texture_buffer"));
 
-    // TODO(http://anglebug.com/42264369): Claims to support GL_OES_texture_buffer, but fails
-    // compilation of shader because "extension 'GL_OES_texture_buffer' is not supported".
-    ANGLE_SKIP_TEST_IF(IsQualcomm() && IsOpenGLES());
     // TODO(http://anglebug.com/42264910): The OpenGL backend doesn't correctly handle texture
     // buffers being invalidated when mapped.
     ANGLE_SKIP_TEST_IF(IsOpenGL());

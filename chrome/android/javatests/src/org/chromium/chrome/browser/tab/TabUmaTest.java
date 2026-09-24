@@ -23,7 +23,6 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.TabbedModeTabDelegateFactory;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -66,14 +65,14 @@ public class TabUmaTest {
 
     private TabbedModeTabDelegateFactory createTabDelegateFactory() {
         BrowserControlsVisibilityDelegate visibilityDelegate =
-                new BrowserControlsVisibilityDelegate(BrowserControlsState.BOTH) {};
+                new BrowserControlsVisibilityDelegate();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         RootUiCoordinator rootUiCoordinator = cta.getRootUiCoordinatorForTesting();
         return new TabbedModeTabDelegateFactory(
                 mActivityTestRule.getActivity(),
                 visibilityDelegate,
                 new ObservableSupplierImpl<>(),
-                null,
+                /* ephemeralTabCoordinatorSupplier= */ null,
                 CallbackUtils.emptyRunnable(),
                 rootUiCoordinator.getBottomSheetController(),
                 /* chromeActivityNativeDelegate= */ cta,
@@ -89,16 +88,17 @@ public class TabUmaTest {
                 cta.getLifecycleDispatcher(),
                 cta.getWindowAndroid(),
                 rootUiCoordinator.getToolbarManager()::getToolbar,
-                null,
-                null,
+                /* homeSurfaceTracker= */ null,
+                /* tabContentManagerSupplier= */ null,
                 rootUiCoordinator.getToolbarManager().getTabStripHeightSupplier(),
                 new OneshotSupplierImpl<>(),
                 new ObservableSupplierImpl<>(),
                 new ObservableSupplierImpl<>(),
                 cta.getStartupMetricsTracker(),
-                null,
-                null,
-                null);
+                /* exclusiveAccessManager= */ null,
+                /* backPressManager= */ null,
+                /* multiInstanceManager= */ null,
+                /* recentlyClosedEntriesManager= */ null);
     }
 
     private Tab createLazilyLoadedTab(boolean show) throws ExecutionException {

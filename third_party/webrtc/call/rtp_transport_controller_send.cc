@@ -271,6 +271,9 @@ void RtpTransportControllerSend::SetAllocatedSendBitrateLimits(
 }
 void RtpTransportControllerSend::SetPacingFactor(float pacing_factor) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
+  // TODO: bugs.webrtc.org/447037083 - Remove or update usage of SetPacingFactor
+  // if RFC 8888 is enabled. With RFC 8888 feedback, this method is not
+  // invoked. Goog CC sets a sensible pacing factor by itself.
   streams_config_.pacing_factor = pacing_factor;
   UpdateStreamsConfig();
 }
@@ -648,9 +651,10 @@ void RtpTransportControllerSend::SetPreferredRtcpCcAckType(
       /*set_transport_seq=*/rfc_8888_feedback_negotiated_,
       sending_packets_as_ect1_);
   // TODO: bugs.webrtc.org/447037083 - Remove method
-  // IncludeOverheadInPacedSender once once support for RFC8888 is per default
-  // enabled. SetPreferredRtcpCcAckType is only called if field trial
-  // "WebRTC-RFC8888CongestionControlFeedback" is enabled.
+  // IncludeOverheadInPacedSender once once support for
+  // RFC8888 is per default enabled. Also remove or update and SetPacingFactor
+  // since it is not used with RFC 8888. SetPreferredRtcpCcAckType is only
+  // called if field trial "WebRTC-RFC8888CongestionControlFeedback" is enabled.
   pacer_.SetIncludeOverhead();
 }
 

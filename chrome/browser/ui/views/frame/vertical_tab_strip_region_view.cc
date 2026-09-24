@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 
+#include <algorithm>
+
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ui/browser_actions.h"
@@ -15,10 +17,13 @@
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_feature.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/views/background.h"
@@ -39,7 +44,6 @@ constexpr int kRegionVerticalPadding = 5;
 }  // namespace
 
 VerticalTabStripRegionView::VerticalTabStripRegionView(
-    tabs_api::TabStripService* service_register,
     tabs::VerticalTabStripStateController* state_controller,
     actions::ActionItem* root_action_item,
     BrowserWindowInterface* browser)
@@ -83,7 +87,7 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
   SetProperty(views::kElementIdentifierKey, kVerticalTabStripRegionElementId);
 
   root_node_ = std::make_unique<RootTabCollectionNode>(
-      service_register,
+      browser->GetTabStripModel(),
       base::BindRepeating(&VerticalTabStripRegionView::SetTabStripView,
                           base::Unretained(this)));
 }
@@ -99,8 +103,39 @@ void VerticalTabStripRegionView::Layout(PassKey) {
                                         kResizeAreaWidth, bounds().height()));
 }
 
+gfx::Size VerticalTabStripRegionView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  // TODO(https://crbug.com/439961053): Preferred size when not collapsed should
+  // be based on user preference, but hard-code for now.
+  constexpr int kNonCollapsedSize = 240;
+
+  gfx::Size preferred_size =
+      AccessiblePaneView::CalculatePreferredSize(available_size);
+  if (!state_controller_->IsCollapsed()) {
+    preferred_size.set_width(
+        std::max(preferred_size.width(), kNonCollapsedSize));
+  }
+  return preferred_size;
+}
+
 void VerticalTabStripRegionView::OnResize(int resize_amount,
-                                          bool done_resizing) {}
+                                          bool done_resizing) {
+  if (!starting_width_on_resize_.has_value()) {
+    starting_width_on_resize_ = width();
+  }
+  int proposed_width = starting_width_on_resize_.value() + resize_amount;
+  if (done_resizing) {
+    starting_width_on_resize_ = std::nullopt;
+  }
+
+  // Clamp the proposed width to the min/max expanded widths.
+  proposed_width =
+      std::clamp(proposed_width, kExpandedMinWidth, kExpandedMaxWidth);
+
+  if (width() != proposed_width) {
+    SetPreferredSize(gfx::Size(proposed_width, 0));
+  }
+}
 
 bool VerticalTabStripRegionView::IsPositionInWindowCaption(
     const gfx::Point& point) {
@@ -109,6 +144,33 @@ bool VerticalTabStripRegionView::IsPositionInWindowCaption(
   }
 
   return false;
+}
+
+void VerticalTabStripRegionView::CreateTabStripController(
+    BrowserView* browser_view) {
+  std::unique_ptr<TabMenuModelFactory> tab_menu_model_factory;
+  if (browser_view && browser_view->browser()->app_controller()) {
+    tab_menu_model_factory =
+        browser_view->browser()->app_controller()->GetTabMenuModelFactory();
+  }
+
+  tab_strip_controller_ = std::make_unique<VerticalTabStripController>(
+      browser_view->browser()->GetTabStripModel(), browser_view,
+      std::move(tab_menu_model_factory));
+
+  if (root_node_) {
+    root_node_->SetController(tab_strip_controller_.get());
+  }
+}
+
+void VerticalTabStripRegionView::SetToolbarHeightForLayout(
+    const int toolbar_height) {
+  top_button_container_->SetToolbarHeightForLayout(toolbar_height);
+}
+
+void VerticalTabStripRegionView::SetExclusionWidthForLayout(
+    const int exclusion_width) {
+  top_button_container_->SetExclusionWidthForLayout(exclusion_width);
 }
 
 views::View* VerticalTabStripRegionView::SetTabStripView(

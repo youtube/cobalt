@@ -206,14 +206,14 @@ double AAudioWrapper::EstimateLatencyMillis() const {
     // For input streams. Best guess we can do is to use the current burst size
     // as delay estimate.
     latency_millis = static_cast<double>(frames_per_burst()) / sample_rate() *
-                     webrtc::kNumMillisecsPerSec;
+                     kNumMillisecsPerSec;
   } else {
     int64_t existing_frame_index;
-    int64_t existing_frame_presentation_time;
+    int64_t existing_frame_presentation_time_ns;
     // Get the time at which a particular frame was presented to audio hardware.
     aaudio_result_t result = AAudioStream_getTimestamp(
         stream_, CLOCK_MONOTONIC, &existing_frame_index,
-        &existing_frame_presentation_time);
+        &existing_frame_presentation_time_ns);
     // Results are only valid when the stream is in AAUDIO_STREAM_STATE_STARTED.
     if (result == AAUDIO_OK) {
       // Get write index for next audio frame.
@@ -221,17 +221,20 @@ double AAudioWrapper::EstimateLatencyMillis() const {
       // Number of frames between next frame and the existing frame.
       int64_t frame_index_delta = next_frame_index - existing_frame_index;
       // Assume the next frame will be written now.
-      int64_t next_frame_write_time = webrtc::TimeNanos();
+      timespec ts = {};
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      int64_t next_frame_write_time_ns =
+          int64_t{ts.tv_sec} * kNumNanosecsPerSec + int64_t{ts.tv_nsec};
       // Calculate time when next frame will be presented to the hardware taking
       // sample rate into account.
-      int64_t frame_time_delta =
-          (frame_index_delta * webrtc::kNumNanosecsPerSec) / sample_rate();
-      int64_t next_frame_presentation_time =
-          existing_frame_presentation_time + frame_time_delta;
+      int64_t frame_time_delta_ns =
+          (frame_index_delta * kNumNanosecsPerSec) / sample_rate();
+      int64_t next_frame_presentation_time_ns =
+          existing_frame_presentation_time_ns + frame_time_delta_ns;
       // Derive a latency estimate given results above.
-      latency_millis = static_cast<double>(next_frame_presentation_time -
-                                           next_frame_write_time) /
-                       webrtc::kNumNanosecsPerMillisec;
+      latency_millis = static_cast<double>(next_frame_presentation_time_ns -
+                                           next_frame_write_time_ns) /
+                       kNumNanosecsPerMillisec;
     }
   }
   return latency_millis;

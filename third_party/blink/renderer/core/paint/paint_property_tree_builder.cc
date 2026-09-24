@@ -352,6 +352,10 @@ class FragmentPaintPropertyTreeBuilder {
           oof_context) const {
     context_.current = oof_context;
 
+    if (RuntimeEnabledFeatures::FragmentedOofInCbEnabled()) {
+      return;
+    }
+
     // If we're not block-fragmented, simply setting a new context is all we
     // have to do.
     if (!oof_context.is_in_block_fragmentation)
@@ -2411,10 +2415,23 @@ void FragmentPaintPropertyTreeBuilder::UpdateClipPathClip() {
                                     ->GetClipPathPaintImageGenerator()
                                     ->GetAnimationBoundingRect(object_);
 
-        // GetAnimationBoundingRect always returns a value for now.
-        CHECK(paint_clip_path_rect_);
+        // A null return indicates that neither the cull rect or the animation
+        // keyframes can be used to limit the mask image size. Additionally,
+        // fallback in the case of clip-path: none and perspective transform, as
+        // cull rects are set to infinite in that case as well.
+        bool has_any_perspective =
+            object_.StyleRef().HasPerspective() ||
+            object_.StyleRef().Transform().HasPerspective() ||
+            context_.current.transform->Unalias().Matrix().HasPerspective();
 
-        if (!precise_clip_path_rect_) {
+        if (!paint_clip_path_rect_ ||
+            (has_any_perspective &&
+             gfx::ToEnclosingRect(*paint_clip_path_rect_) ==
+                 InfiniteIntRect())) {
+          paint_clip_path_rect_ = std::nullopt;
+          needs_mask_based_clip_path_ = false;
+          ClipPathClipper::FallbackClipPathAnimationDueToAbsentBounds(object_);
+        } else if (!precise_clip_path_rect_) {
           // In the case where clip-path: none, it is okay for the precise clip
           // path to equal the expanded rect, since we need to assign it a value
           precise_clip_path_rect_ = paint_clip_path_rect_;
@@ -2556,8 +2573,32 @@ void FragmentPaintPropertyTreeBuilder::UpdateLocalBorderBoxContext() {
   if (object_.HasLayer() || properties_ || IsLinkHighlighted(object_) ||
       object_.CanContainFixedPositionObjects() ||
       object_.CanContainAbsolutePositionObjects()) {
-    new_transform = context_.current.transform;
-    new_clip = context_.current.clip;
+    // The ::view-transition pseudo is a child of the scoped element; however,
+    // it and its children must be able to paint outside any overflow clip
+    // imposed by the scoped element. Otherwise, the border and box-shadow on
+    // the scoped element disappear. The ::view-transition pseudo must also
+    // escape any scroll translation if the scoped element is a scroll
+    // container.
+    // See https://github.com/w3c/csswg-drafts/issues/12324.
+    const ClipPaintPropertyNodeOrAlias* transition_clip = nullptr;
+    const TransformPaintPropertyNodeOrAlias* transition_transform = nullptr;
+    if (object_.GetNode() &&
+        IsTransitionPseudoElement(object_.GetNode()->GetPseudoId())) {
+      Element& scope =
+          To<PseudoElement>(object_.GetNode())->UltimateOriginatingElement();
+      auto* scope_properties =
+          scope.GetLayoutObject()->FirstFragment().PaintProperties();
+      if (scope_properties && scope_properties->OverflowClip()) {
+        transition_clip = context_.current.clip->Parent();
+      }
+      if (scope_properties && scope_properties->ScrollTranslation()) {
+        transition_transform = scope_properties->ScrollTranslation()->Parent();
+      }
+    }
+
+    new_transform = transition_transform ? transition_transform
+                                         : context_.current.transform;
+    new_clip = transition_clip ? transition_clip : context_.current.clip;
     new_effect = context_.current_effect;
     fragment_data_.SetLocalBorderBoxProperties(
         PropertyTreeStateOrAlias(*new_transform, *new_clip, *new_effect));
@@ -3061,7 +3102,8 @@ void FragmentPaintPropertyTreeBuilder::UpdateScrollNode() {
   PaintLayerScrollableArea* scrollable_area = box.GetScrollableArea();
   ScrollPaintPropertyNode::State state;
 
-  PhysicalRect clip_rect = box.OverflowClipRect(context_.current.paint_offset);
+  PhysicalRect clip_rect =
+      box.OverflowClipRectForScrollNode(context_.current.paint_offset);
   state.container_rect = ToPixelSnappedRect(clip_rect);
   state.contents_size =
       scrollable_area->PixelSnappedContentsSize(clip_rect.offset);
@@ -3969,7 +4011,7 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
   // to determine whether we need to initialize paint properties for this
   // object.
   const bool is_in_fragment_container =
-      pre_paint_info_ &&
+      !RuntimeEnabledFeatures::FragmentedOofInCbEnabled() && pre_paint_info_ &&
       pre_paint_info_->fragmentainer_is_oof_containing_block &&
       IsA<LayoutBox>(object_) &&
       (To<LayoutBox>(object_).PhysicalFragmentCount() > 1);

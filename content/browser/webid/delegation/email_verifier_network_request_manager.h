@@ -35,6 +35,7 @@ class CONTENT_EXPORT EmailVerifierNetworkRequestManager
     ~WellKnown();
     WellKnown(const WellKnown&);
     GURL issuance_endpoint;
+    std::vector<std::string> signing_alg_values_supported;
   };
 
   struct CONTENT_EXPORT TokenResult {
@@ -74,6 +75,9 @@ class CONTENT_EXPORT EmailVerifierNetworkRequestManager
   virtual void SendTokenRequest(const GURL& token_url,
                                 const std::string& url_encoded_post_data,
                                 TokenRequestCallback callback);
+
+  virtual void DownloadAndParseUncredentialedUrl(const GURL& url,
+                                                 ParseJsonCallback callback);
 
  private:
   // NetworkRequestManager.

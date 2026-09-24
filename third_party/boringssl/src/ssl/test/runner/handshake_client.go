@@ -225,7 +225,7 @@ func (c *Conn) clientHandshake() error {
 			appendToHello = typeClientKeyExchange
 		}
 		if appendToHello != 0 {
-			c.writeRecord(recordTypeHandshake, append(helloBytes[:len(helloBytes):len(helloBytes)], appendToHello))
+			c.writeRecord(recordTypeHandshake, append(slices.Clip(helloBytes), appendToHello))
 		} else {
 			c.writeRecord(recordTypeHandshake, helloBytes)
 		}

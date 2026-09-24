@@ -2201,8 +2201,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
 
 void CodeStubAssembler::SetSupportsDynamicParameterCount(
     TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle) {
-  TNode<Uint16T> dynamic_parameter_count;
-  dynamic_parameter_count =
+  TNode<Uint16T> dynamic_parameter_count =
       LoadParameterCountFromJSDispatchTable(dispatch_handle);
   SetDynamicJSParameterCount(dynamic_parameter_count);
 }
@@ -4594,6 +4593,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
   return CAST(var_result.value());
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
     uint32_t length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
@@ -4614,6 +4614,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<BoolT> CodeStubAssembler::IsZeroOrContext(TNode<Object> object) {
   return Select<BoolT>(
@@ -4626,6 +4627,7 @@ TNode<BoolT> CodeStubAssembler::IsEmptyDependentCode(TNode<Object> object) {
   return TaggedEqual(object, EmptyWeakArrayListConstant());
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     uint32_t length, AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
@@ -4646,6 +4648,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
                                                       TNode<Uint32T> length,
@@ -8613,6 +8616,23 @@ TNode<BoolT> CodeStubAssembler::IsInternalizedStringInstanceType(
       Int32Constant(kStringTag | kInternalizedTag));
 }
 
+TNode<BoolT> CodeStubAssembler::IsInternalizedStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsInRange(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kInternalizedString
+          .first,
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kInternalizedString
+          .second);
+#else
+  return IsInternalizedStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsInternalizedString(TNode<HeapObject> object) {
+  return IsInternalizedStringMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsSharedStringInstanceType(
     TNode<Int32T> instance_type) {
   TNode<BoolT> is_shared = Word32Equal(
@@ -9412,6 +9432,7 @@ TNode<String> CodeStubAssembler::LoadDoubleStringCacheEntryValue(
   return CAST(maybe_value);
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
   TVARIABLE(String, result);
@@ -9444,6 +9465,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
   BIND(&done);
   return result.value();
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<String> CodeStubAssembler::SmiToString(TNode<Smi> smi_input,
                                              Label* bailout) {
@@ -12548,6 +12570,7 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   return CAST(result);
 }
 
+// LINT.IfChange
 TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
   TVARIABLE(BoolT, var_result);
   Label return_false(this), return_true(this), return_generic(this);
@@ -12644,6 +12667,7 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
                             (*var_holder).value(), name, receiver,
                             SmiConstant(OnNonExistent::kReturnUndefined));
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 void CodeStubAssembler::TryLookupElement(
     TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
@@ -12800,8 +12824,8 @@ void CodeStubAssembler::TryLookupElement(
   BIND(&if_rab_gsab_typedarray);
   {
     TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
-    TNode<UintPtrT> length =
-        LoadVariableLengthJSTypedArrayLength(CAST(object), buffer, if_absent);
+    TNode<UintPtrT> length = LoadVariableLengthJSTypedArrayLength(
+        CAST(object), buffer, TypedArrayAccessMode::kRead, if_absent);
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
@@ -13316,7 +13340,8 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
   Label end(this);
 
   TNode<Int32T> previous_feedback =
-      Load<Uint16T>(bytecode_array, feedback_offset);
+      UnalignedLoad<Uint16T>(bytecode_array, feedback_offset);
+
   TNode<Int32T> combined_feedback = Word32Or(previous_feedback, feedback);
 
   GotoIf(Word32Equal(previous_feedback, combined_feedback), &end);
@@ -13326,8 +13351,8 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
     ExitSandbox();
 #endif
 
-    StoreNoWriteBarrier(MachineRepresentation::kWord16, bytecode_array,
-                        feedback_offset, combined_feedback);
+    UnalignedStoreNoWriteBarrier(MachineRepresentation::kWord16, bytecode_array,
+                                 feedback_offset, combined_feedback);
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     EnterSandbox();
@@ -14082,9 +14107,8 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
     TNode<Context> context, TVariable<Object>* maybe_converted_value) {
   Label done(this), update_value_and_bailout(this, Label::kDeferred);
 
-  bool is_rab_gsab = false;
-  if (IsRabGsabTypedArrayElementsKind(elements_kind)) {
-    is_rab_gsab = true;
+  bool is_rab_gsab = IsRabGsabTypedArrayElementsKind(elements_kind);
+  if (is_rab_gsab) {
     // For the rest of the function, use the corresponding non-RAB/GSAB
     // ElementsKind.
     elements_kind = GetCorrespondingNonRabGsabElementsKind(elements_kind);
@@ -14101,20 +14125,11 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
   // Check if buffer has been detached. (For RAB / GSAB this is part of loading
   // the length, so no additional check is needed.)
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
-  if (!is_rab_gsab) {
-    GotoIf(IsDetachedBuffer(buffer), &update_value_and_bailout);
-  }
-
-  // Bounds check.
-  TNode<UintPtrT> length;
-  if (is_rab_gsab) {
-    length = LoadVariableLengthJSTypedArrayLength(
-        typed_array, buffer,
-        StoreModeIgnoresTypeArrayOOB(store_mode) ? &done
-                                                 : &update_value_and_bailout);
-  } else {
-    length = LoadJSTypedArrayLength(typed_array);
-  }
+  Label* failed = StoreModeIgnoresTypeArrayOOB(store_mode)
+                      ? &done
+                      : &update_value_and_bailout;
+  TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
+      typed_array, buffer, TypedArrayAccessMode::kWrite, is_rab_gsab, failed);
 
   if (StoreModeIgnoresTypeArrayOOB(store_mode)) {
     // Skip the store if we write beyond the length or
@@ -14129,7 +14144,7 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
   StoreElement(data_ptr, elements_kind, key, converted_value);
   Goto(&done);
 
-  if (!is_rab_gsab || !StoreModeIgnoresTypeArrayOOB(store_mode)) {
+  if (!StoreModeIgnoresTypeArrayOOB(store_mode)) {
     BIND(&update_value_and_bailout);
     // We already prepared the incoming value for storing into a typed array.
     // This might involve calling ToNumber in some cases. We shouldn't call
@@ -14908,6 +14923,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
       -kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
 }
 
+// LINT.IfChange
 void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
                                                            TNode<Number> left,
                                                            TNode<Number> right,
@@ -15003,6 +15019,7 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
     }
   }
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 void CodeStubAssembler::GotoIfNumberGreaterThanOrEqual(TNode<Number> left,
                                                        TNode<Number> right,
@@ -15605,6 +15622,26 @@ TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
       CompareOperationFeedback::kString);
   return feedback;
 }
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+void CodeStubAssembler::GenerateStrictEqualAndTryPatchCode(
+    TNode<Object> lhs, TNode<Object> rhs, TNode<Int32T> current_type_feedback,
+    TNode<UintPtrT> feedback_offset) {
+  // Get compare result and try patch to typed stubs
+  TVARIABLE(Smi, var_type_feedback);
+
+  TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
+  TNode<Int32T> combined_type_feedback =
+      Word32Or(SmiToInt32(var_type_feedback.value()), current_type_feedback);
+
+  // Update embedded feedback in the runtime function to avoid
+  // repeatedly entering/exiting hardware sandbox.
+  auto bytecode_array = LoadBytecodeArrayFromBaseline();
+  TailCallRuntime(Runtime::kMaybePatchBinaryBaselineCode, NoContextConstant(),
+                  SmiFromInt32(combined_type_feedback), result, bytecode_array,
+                  ChangeUintPtrToTagged(feedback_offset));
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
                                            Label* if_notequal,
@@ -17662,23 +17699,6 @@ TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
   return Construct(context, constructor, len);
 }
 
-void CodeStubAssembler::ThrowIfArrayBufferIsDetached(
-    TNode<Context> context, TNode<JSArrayBuffer> array_buffer,
-    const char* method_name) {
-  Label if_detached(this, Label::kDeferred), if_not_detached(this);
-  Branch(IsDetachedBuffer(array_buffer), &if_detached, &if_not_detached);
-  BIND(&if_detached);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
-  BIND(&if_not_detached);
-}
-
-void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
-    TNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
-    const char* method_name) {
-  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array_buffer_view);
-  ThrowIfArrayBufferIsDetached(context, buffer, method_name);
-}
-
 TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferByteLength(
     TNode<JSArrayBuffer> array_buffer) {
   return LoadBoundedSizeFromObject(array_buffer,
@@ -17736,8 +17756,8 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
   return WordShr(byte_length, element_shift);
 }
 
-TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
-    TNode<JSTypedArray> typed_array, Label* detached) {
+TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
+    TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail) {
   TVARIABLE(UintPtrT, result);
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
 
@@ -17746,30 +17766,48 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
          &fixed_length);
   BIND(&variable_length);
   {
-    result =
-        LoadVariableLengthJSTypedArrayLength(typed_array, buffer, detached);
+    result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, true,
+                                               fail);
     Goto(&end);
   }
 
   BIND(&fixed_length);
   {
-    Label not_detached(this);
-    Branch(IsDetachedBuffer(buffer), detached, &not_detached);
-    BIND(&not_detached);
-    result = LoadJSTypedArrayLength(typed_array);
+    result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, false,
+                                               fail);
     Goto(&end);
   }
   BIND(&end);
   return result.value();
 }
 
+TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
+    TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
+    TypedArrayAccessMode mode, bool is_resizable, Label* fail) {
+  CSA_DCHECK(this,
+             TaggedEqual(LoadJSArrayBufferViewBuffer(typed_array), buffer));
+  if (is_resizable) {
+    CSA_DCHECK(this, IsVariableLengthJSArrayBufferView(typed_array));
+    return LoadVariableLengthJSTypedArrayLength(typed_array, buffer, mode,
+                                                fail);
+  } else {
+    CSA_DCHECK(this,
+               Word32BinaryNot(IsVariableLengthJSArrayBufferView(typed_array)));
+    GotoIf(IsDetachedBuffer(buffer), fail);
+    if (mode == TypedArrayAccessMode::kWrite) {
+      GotoIf(IsImmutableArrayBuffer(buffer), fail);
+    }
+    return LoadJSTypedArrayLength(typed_array);
+  }
+}
+
 // ES #sec-integerindexedobjectlength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
     TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-    Label* detached_or_out_of_bounds) {
+    TypedArrayAccessMode mode, Label* fail) {
   // byte_length already takes array's offset into account.
-  TNode<UintPtrT> byte_length = LoadVariableLengthJSArrayBufferViewByteLength(
-      array, buffer, detached_or_out_of_bounds);
+  TNode<UintPtrT> byte_length =
+      LoadVariableLengthJSArrayBufferViewByteLength(array, buffer, mode, fail);
   TNode<Uint8T> element_shift =
       ElementsKindToElementByteShift(LoadElementsKind(array));
   return WordShr(byte_length, element_shift);
@@ -17778,7 +17816,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
 TNode<UintPtrT>
 CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
     TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
-    Label* detached_or_out_of_bounds) {
+    TypedArrayAccessMode mode, Label* fail) {
   Label is_gsab(this), is_rab(this), end(this);
   TVARIABLE(UintPtrT, result);
   TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
@@ -17808,7 +17846,10 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
 
   BIND(&is_rab);
   {
-    GotoIf(IsDetachedBuffer(buffer), detached_or_out_of_bounds);
+    GotoIf(IsDetachedBuffer(buffer), fail);
+    if (mode == TypedArrayAccessMode::kWrite) {
+      GotoIf(IsImmutableArrayBuffer(buffer), fail);
+    }
 
     TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
 
@@ -17821,7 +17862,7 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       // The backing RAB might have been shrunk so that the start of the
       // TypedArray is already out of bounds.
       GotoIfNot(UintPtrLessThanOrEqual(array_byte_offset, buffer_byte_length),
-                detached_or_out_of_bounds);
+                fail);
       result = UintPtrSub(buffer_byte_length, array_byte_offset);
       Goto(&end);
     }
@@ -17835,7 +17876,7 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       GotoIfNot(UintPtrGreaterThanOrEqual(
                     buffer_byte_length,
                     UintPtrAdd(array_byte_offset, array_byte_length)),
-                detached_or_out_of_bounds);
+                fail);
       result = array_byte_length;
       Goto(&end);
     }
@@ -17847,12 +17888,20 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
 void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
     TNode<JSArrayBufferView> array_buffer_view, Label* detached_or_oob,
     Label* not_detached_nor_oob) {
+  return IsJSArrayBufferViewValid(array_buffer_view,
+                                  TypedArrayAccessMode::kRead,
+                                  not_detached_nor_oob, detached_or_oob);
+}
+
+void CodeStubAssembler::IsJSArrayBufferViewValid(
+    TNode<JSArrayBufferView> array_buffer_view, TypedArrayAccessMode mode,
+    Label* valid, Label* fail) {
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array_buffer_view);
 
-  GotoIf(IsDetachedBuffer(buffer), detached_or_oob);
-  GotoIfNot(IsVariableLengthJSArrayBufferView(array_buffer_view),
-            not_detached_nor_oob);
-  GotoIf(IsSharedArrayBuffer(buffer), not_detached_nor_oob);
+  Label maybe_valid(this);
+  GotoIfNot(IsVariableLengthJSArrayBufferView(array_buffer_view), &maybe_valid);
+  // SAB cannot be detached or immutable. Nothing left to check.
+  GotoIf(IsSharedArrayBuffer(buffer), valid);
 
   {
     TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
@@ -17868,7 +17917,7 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
       // The backing RAB might have been shrunk so that the start of the
       // TypedArray is already out of bounds.
       Branch(UintPtrLessThanOrEqual(array_byte_offset, buffer_byte_length),
-             not_detached_nor_oob, detached_or_oob);
+             &maybe_valid, fail);
     }
 
     BIND(&not_length_tracking);
@@ -17880,9 +17929,16 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
       Branch(UintPtrGreaterThanOrEqual(
                  buffer_byte_length,
                  UintPtrAdd(array_byte_offset, array_byte_length)),
-             not_detached_nor_oob, detached_or_oob);
+             &maybe_valid, fail);
     }
   }
+
+  BIND(&maybe_valid);
+  GotoIf(IsDetachedBuffer(buffer), fail);
+  if (mode == TypedArrayAccessMode::kWrite) {
+    GotoIf(IsImmutableArrayBuffer(buffer), fail);
+  }
+  Goto(valid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
@@ -17911,8 +17967,8 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
 void CodeStubAssembler::CheckJSTypedArrayIndex(
     TNode<JSTypedArray> typed_array, TNode<UintPtrT> index,
     Label* detached_or_out_of_bounds) {
-  TNode<UintPtrT> len = LoadJSTypedArrayLengthAndCheckDetached(
-      typed_array, detached_or_out_of_bounds);
+  TNode<UintPtrT> len = LoadJSTypedArrayLengthAndValidate(
+      typed_array, TypedArrayAccessMode::kRead, detached_or_out_of_bounds);
 
   GotoIf(UintPtrGreaterThanOrEqual(index, len), detached_or_out_of_bounds);
 }
@@ -17924,8 +17980,8 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   Label miss(this), end(this);
   TVARIABLE(UintPtrT, result);
 
-  TNode<UintPtrT> length =
-      LoadVariableLengthJSTypedArrayLength(array, buffer, &miss);
+  TNode<UintPtrT> length = LoadVariableLengthJSTypedArrayLength(
+      array, buffer, TypedArrayAccessMode::kRead, &miss);
   TNode<Uint8T> element_shift =
       ElementsKindToElementByteShift(LoadElementsKind(array));
   // Conversion to signed is OK since length < JSArrayBuffer::kMaxByteLength.

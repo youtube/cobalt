@@ -15,9 +15,9 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
@@ -94,7 +94,7 @@ class DataChannelController : public SctpDataChannelControllerInterface,
   // Creates channel and adds it to the collection of DataChannels that will
   // be offered in a SessionDescription, and wraps it in a proxy object.
   RTCErrorOr<scoped_refptr<DataChannelInterface>>
-  InternalCreateDataChannelWithProxy(const std::string& label,
+  InternalCreateDataChannelWithProxy(absl::string_view label,
                                      const InternalDataChannelInit& config);
   void AllocateSctpSids(SSLRole role);
 
@@ -117,7 +117,7 @@ class DataChannelController : public SctpDataChannelControllerInterface,
 
   // Creates a new SctpDataChannel object on the network thread.
   RTCErrorOr<scoped_refptr<SctpDataChannel>> CreateDataChannel(
-      const std::string& label,
+      absl::string_view label,
       InternalDataChannelInit& config) RTC_RUN_ON(network_thread());
 
   // Parses and handles open messages.  Returns true if the message is an open

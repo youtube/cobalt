@@ -152,10 +152,6 @@ class TabStripActionContainer : public views::View,
   void ShowGlicActorNudge(const std::u16string nudge_text);
 #endif
 
-  // UI controls for updating buttons based on the floaty view state:
-  void HighlightGlicActorTaskIcon();
-  void UnhighlightGlicActorTaskIcon();
-
   void UpdateButtonBorders(gfx::Insets button_insets);
 
   void DidBecomeActive(BrowserWindowInterface* browser);
@@ -275,8 +271,8 @@ class TabStripActionContainer : public views::View,
 
   std::unique_ptr<TabStripNudgeAnimationSession> animation_session_;
 
-  // Border insets as passed down from the TabStripRegionView, used to update
-  // button view borders.
+  // Border insets as passed down from the HorizontalTabStripRegionView, used to
+  // update button view borders.
   gfx::Insets border_insets_;
 };
 

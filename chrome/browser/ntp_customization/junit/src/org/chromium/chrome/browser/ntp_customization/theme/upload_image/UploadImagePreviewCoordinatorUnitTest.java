@@ -17,6 +17,7 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.view.View;
 
 import org.junit.After;
@@ -57,6 +58,8 @@ public class UploadImagePreviewCoordinatorUnitTest {
     private NtpCustomizationConfigManager mConfigManager;
     private Activity mActivity;
     private Bitmap mBitmap;
+    private Matrix mPortraitMatrix;
+    private Matrix mLandscapeMatrix;
 
     @Before
     public void setUp() {
@@ -226,8 +229,17 @@ public class UploadImagePreviewCoordinatorUnitTest {
 
     private void setupCropImageView() {
         mUploadImagePreviewCoordinator.setCropImageViewForTesting(mCropImageView);
-        when(mCropImageView.getPortraitMatrix()).thenReturn(new Matrix());
-        when(mCropImageView.getLandscapeMatrix()).thenReturn(new Matrix());
+        mPortraitMatrix = new Matrix();
+        mPortraitMatrix.setTranslate(100f, 200f); // Translate X=100, Y=200
+
+        mLandscapeMatrix = new Matrix();
+        mLandscapeMatrix.setScale(2.5f, 3.5f);
+
+        when(mCropImageView.getPortraitMatrix()).thenReturn(mPortraitMatrix);
+        when(mCropImageView.getLandscapeMatrix()).thenReturn(mLandscapeMatrix);
+
+        when(mCropImageView.getPortraitWindowSize()).thenReturn(new Point(1080, 1920));
+        when(mCropImageView.getLandscapeWindowSize()).thenReturn(new Point(2000, 1080));
     }
 
     private void setupCropImageView_pinchToResize() {
@@ -248,10 +260,30 @@ public class UploadImagePreviewCoordinatorUnitTest {
 
     @Test
     public void testClickSaveButton() {
+        setupCropImageView();
+
         mSaveButton.performClick();
 
-        // Allow background tasks (like file saving) to complete.
+        // Allows background tasks (like file saving) to complete.
         BaseRobolectricTestRule.runAllBackgroundAndUi();
+
+        BackgroundImageInfo savedInfo = NtpCustomizationUtils.readNtpBackgroundImageInfo();
+
+        // Verifies the portrait image information
+        Point portraitSize = savedInfo.getPortraitWindowSize();
+        assertEquals("Portrait width should match", 1080, portraitSize.x);
+        assertEquals("Portrait height should match", 1920, portraitSize.y);
+        assertEquals(
+                "Portrait matrix should be saved", mPortraitMatrix, savedInfo.getPortraitMatrix());
+
+        // Verifies the landscape image information
+        Point landscapeSize = savedInfo.getLandscapeWindowSize();
+        assertEquals("Landscape width should match", 2000, landscapeSize.x);
+        assertEquals("Landscape height should match", 1080, landscapeSize.y);
+        assertEquals(
+                "Landscape matrix should be saved.",
+                mLandscapeMatrix,
+                savedInfo.getLandscapeMatrix());
 
         assertEquals(
                 "Background type should be updated to IMAGE_FROM_DISK.",
@@ -259,16 +291,7 @@ public class UploadImagePreviewCoordinatorUnitTest {
                 mConfigManager.getBackgroundImageType());
         assertTrue(
                 "The background image file should have been saved.",
-                NtpCustomizationUtils.getBackgroundImageFile().exists());
-        assertNotNull(
-                "The matrices should have been saved.",
-                NtpCustomizationUtils.readNtpBackgroundImageMatrices());
-        assertNotNull(
-                "The portrait matrix should have been saved.",
-                NtpCustomizationUtils.readNtpBackgroundImageMatrices().portraitMatrix);
-        assertNotNull(
-                "The landscape matrix should have been saved.",
-                NtpCustomizationUtils.readNtpBackgroundImageMatrices().landscapeMatrix);
+                NtpCustomizationUtils.createBackgroundImageFile().exists());
 
         // Verify the on clicked callback was invoked.
         verify(mOnClickedCallback).onResult(eq(true));
@@ -285,10 +308,10 @@ public class UploadImagePreviewCoordinatorUnitTest {
         verify(mOnClickedCallback).onResult(eq(false));
         assertFalse(
                 "The background image file should not have been saved.",
-                NtpCustomizationUtils.getBackgroundImageFile().exists());
+                NtpCustomizationUtils.createBackgroundImageFile().exists());
         assertNull(
                 "The matrices should not have been saved.",
-                NtpCustomizationUtils.readNtpBackgroundImageMatrices());
+                NtpCustomizationUtils.readNtpBackgroundImageInfo());
 
         // Verify the dialog was dismissed.
         assertFalse("Dialog should be dismissed after clicking cancel.", mDialog.isShowing());

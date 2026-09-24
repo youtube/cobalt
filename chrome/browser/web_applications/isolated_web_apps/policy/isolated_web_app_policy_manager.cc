@@ -37,18 +37,20 @@
 #include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/install/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_external_install_options.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_installer.h"
-#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_manager.h"
+#include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
-#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
 #include "net/base/backoff_entry.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -150,6 +152,11 @@ GetOnInstallTaskCompletedCallbackForTesting() {
   return *kCallback;
 }
 
+base::RepeatingClosure& GetPolicyFullyProcessedEventForTesting() {
+  static base::NoDestructor<base::RepeatingClosure> kCallback;
+  return *kCallback;
+}
+
 bool IsOnDemandComponentUpdateFeatureEnabled() {
   return base::FeatureList::IsEnabled(kIwaPolicyManagerOnDemandComponentUpdate);
 }
@@ -164,7 +171,7 @@ void OnComponentDataReady(PrefService* prefs, base::OnceClosure callback) {
     return;
   }
 
-  IwaKeyDistributionInfoProvider::GetInstance()
+  ChromeIwaRuntimeDataProvider::GetInstance()
       .OnBestEffortRuntimeDataReady()
       .Post(FROM_HERE, std::move(callback));
 }
@@ -187,7 +194,14 @@ void IsolatedWebAppPolicyManager::SetOnInstallTaskCompletedCallbackForTesting(
     base::RepeatingCallback<void(web_package::SignedWebBundleId,
                                  IwaInstaller::Result)> callback) {
   CHECK_IS_TEST();
-  GetOnInstallTaskCompletedCallbackForTesting() = callback;
+  GetOnInstallTaskCompletedCallbackForTesting() = std::move(callback);
+}
+
+// static
+void IsolatedWebAppPolicyManager::SetOnPolicyFullyProcessedCallbackForTesting(
+    base::RepeatingClosure callback) {
+  CHECK_IS_TEST();
+  GetPolicyFullyProcessedEventForTesting() = std::move(callback);
 }
 
 // static
@@ -242,8 +256,7 @@ void IsolatedWebAppPolicyManager::Start(base::OnceClosure on_started_callback) {
           .Set("start_time",
                base::TimeFormatFriendlyDateAndTime(base::Time::Now()))
           .Set("info", "IsolatedWebAppPolicyManager::Start()");
-  IwaKeyDistributionInfoProvider::GetInstance().WriteComponentMetadata(
-      debug_log);
+  ChromeIwaRuntimeDataProvider::GetInstance().WriteDebugMetadata(debug_log);
   process_logs_.AppendCompletedStep(std::move(debug_log));
 
   OnComponentDataReady(profile_->GetPrefs(),
@@ -301,8 +314,11 @@ void IsolatedWebAppPolicyManager::ProcessPolicy() {
 }
 
 void IsolatedWebAppPolicyManager::ConfigureObserversOnSessionStart() {
-  key_distribution_info_observation_.Observe(
-      &IwaKeyDistributionInfoProvider::GetInstance());
+  runtime_data_changed_subscription_ =
+      ChromeIwaRuntimeDataProvider::GetInstance().OnRuntimeDataChanged(
+          base::BindRepeating(
+              &IsolatedWebAppPolicyManager::OnRuntimeDataChanged,
+              weak_ptr_factory_.GetWeakPtr()));
 
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
@@ -331,32 +347,52 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
   MaybeRecordFirstPolicyProcessingDelay(profile_);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  IwaKeyDistributionInfoProvider::GetInstance().WriteComponentMetadata(
-      debug_info);
+  ChromeIwaRuntimeDataProvider::GetInstance().WriteDebugMetadata(debug_info);
 
   CHECK(provider_);
   CHECK(install_tasks_.empty());
 
   std::vector<IsolatedWebAppExternalInstallOptions> apps_in_policy =
       GetIwaInstallForceList(*profile_);
-  base::flat_map<web_package::SignedWebBundleId,
-                 std::reference_wrapper<const WebApp>>
-      installed_iwas = GetInstalledIwas(lock.registrar());
+  debug_info.Set("apps_in_policy",
+                 base::ToValueList(apps_in_policy, [](const auto& options) {
+                   return base::ToString(options.web_bundle_id());
+                 }));
+
+  // Apps in blocklist behave like they are just not in the policy.
+  //  1. Installation is not requested.
+  //  2. The policy install source is removed if previously was there.
+  std::erase_if(
+      apps_in_policy,
+      [](const IsolatedWebAppExternalInstallOptions& install_options) {
+        return ChromeIwaRuntimeDataProvider::GetInstance().IsBundleBlocklisted(
+            install_options.web_bundle_id().id());
+      });
+
+  base::flat_map<web_package::SignedWebBundleId, const WebApp*> installed_iwas;
+  for (const auto& iwa :
+       lock.registrar().GetApps(WebAppFilter::IsIsolatedApp())) {
+    installed_iwas[IwaOrigin::Create(iwa.scope())->web_bundle_id()] = &iwa;
+  }
+  debug_info.Set(
+      "installed_iwas",
+      base::ToValueList(installed_iwas, [](const auto& installed_iwa) {
+        const auto& [web_bundle_id, _] = installed_iwa;
+        return base::ToString(web_bundle_id);
+      }));
 
   AppActions app_actions;
   size_t number_of_install_tasks = 0;
   for (const IsolatedWebAppExternalInstallOptions& install_options :
        apps_in_policy) {
-    std::reference_wrapper<const WebApp>* maybe_installed_app =
-        base::FindOrNull(installed_iwas, install_options.web_bundle_id());
-    if (!maybe_installed_app) {
+    const auto* installed_iwa =
+        base::FindPtrOrNull(installed_iwas, install_options.web_bundle_id());
+    if (!installed_iwa) {
       app_actions.emplace(install_options.web_bundle_id(),
                           AppActionInstall(install_options));
       ++number_of_install_tasks;
       continue;
     }
-    const WebApp& installed_app = maybe_installed_app->get();
-
     static_assert(std::ranges::is_sorted(
         std::vector{WebAppManagement::Type::kIwaShimlessRma,
                     // Add further higher priority IWA sources here and make
@@ -367,7 +403,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
                     // that the `case` statements below are sorted
                     // appropriately...
                     WebAppManagement::Type::kIwaUserInstalled}));
-    switch (installed_app.GetHighestPrioritySource()) {
+    switch (installed_iwa->GetHighestPrioritySource()) {
       case WebAppManagement::kSystem:
       case WebAppManagement::kKiosk:
       case WebAppManagement::kPolicy:
@@ -389,7 +425,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
         break;
 
       case WebAppManagement::kIwaUserInstalled:
-        if (!IwaKeyDistributionInfoProvider::GetInstance()
+        if (!ChromeIwaRuntimeDataProvider::GetInstance()
                  .IsManagedInstallPermitted(
                      install_options.web_bundle_id().id())) {
           DLOG(WARNING) << "The IWA " << install_options.web_bundle_id()
@@ -398,7 +434,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
         }
 
         // Dev mode cannot co-exist with other install sources.
-        if (installed_app.isolation_data()->location().dev_mode()) {
+        if (installed_iwa->isolation_data()->location().dev_mode()) {
           app_actions.emplace(install_options.web_bundle_id(),
                               AppActionRemoveInstallSource(
                                   WebAppManagement::kIwaUserInstalled));
@@ -415,8 +451,8 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
     }
   }
 
-  for (const auto& [web_bundle_id, iwa] : installed_iwas) {
-    if (iwa.get().GetSources().Has(WebAppManagement::kIwaPolicy) &&
+  for (const auto& [web_bundle_id, installed_iwa] : installed_iwas) {
+    if (installed_iwa->GetSources().Has(WebAppManagement::kIwaPolicy) &&
         !base::Contains(apps_in_policy, web_bundle_id,
                         &IsolatedWebAppExternalInstallOptions::web_bundle_id)) {
       app_actions.emplace(web_bundle_id, AppActionRemoveInstallSource(
@@ -424,16 +460,6 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
     }
   }
 
-  debug_info.Set("apps_in_policy",
-                 base::ToValueList(apps_in_policy, [](const auto& options) {
-                   return base::ToString(options.web_bundle_id());
-                 }));
-  debug_info.Set(
-      "installed_iwas",
-      base::ToValueList(installed_iwas, [](const auto& installed_iwa) {
-        const auto& [web_bundle_id, _] = installed_iwa;
-        return base::ToString(web_bundle_id);
-      }));
   debug_info.Set(
       "app_actions", base::ToValueList(app_actions, [](const auto& entry) {
         const auto& [web_bundle_id, app_action] = entry;
@@ -591,6 +617,11 @@ void IsolatedWebAppPolicyManager::OnPolicyProcessed() {
   if (reprocess_policy_needed_) {
     reprocess_policy_needed_ = false;
     ProcessPolicy();
+    return;
+  }
+  if (auto& policy_fully_processed_callback =
+          GetPolicyFullyProcessedEventForTesting()) {
+    policy_fully_processed_callback.Run();
   }
 }
 
@@ -605,8 +636,7 @@ void IsolatedWebAppPolicyManager::OnPolicyChanged() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void IsolatedWebAppPolicyManager::OnComponentUpdateSuccess(
-    bool is_preloaded) {
+void IsolatedWebAppPolicyManager::OnRuntimeDataChanged() {
   // We don't need to check `is_preloaded` here or route the processing through
   // `OnComponentDataReady()` as the observer (this func) for the component data
   // provider is only attached after the initial download check was completed.

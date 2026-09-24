@@ -46,6 +46,7 @@ class BundleManager {
  public:
   explicit BundleManager(PeerConnectionInterface::BundlePolicy bundle_policy)
       : bundle_policy_(bundle_policy) {}
+
   const std::vector<std::unique_ptr<ContentGroup>>& bundle_groups() const {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     return bundle_groups_;
@@ -67,6 +68,13 @@ class BundleManager {
   void Rollback();
   // Commit current bundle groups.
   void Commit();
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const BundleManager& bundle) {
+    for (auto& group : bundle.bundle_groups()) {
+      sink.Append(group->ToString());
+    }
+  }
 
  private:
   // Recalculate established_bundle_groups_by_mid_ from bundle_groups_.

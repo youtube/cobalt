@@ -23,6 +23,7 @@
 #include "components/zucchini/zucchini.h"
 
 #if defined(IN_MEMORY_UPDATES)
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #endif
 

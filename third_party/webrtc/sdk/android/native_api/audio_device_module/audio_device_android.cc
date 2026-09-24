@@ -46,7 +46,7 @@ void GetDefaultAudioParameters(JNIEnv* env,
                                AudioParameters* input_parameters,
                                AudioParameters* output_parameters) {
   const auto j_context =
-      jni_zero::JavaParamRef<jobject>::CreateLeaky(env, application_context);
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, application_context);
   const jni_zero::ScopedJavaLocalRef<jobject> j_audio_manager =
       jni::GetAudioManager(env, j_context);
   const int input_sample_rate = jni::GetDefaultSampleRate(env, j_audio_manager);
@@ -88,7 +88,7 @@ CreateJavaInputAndAAudioOutputAudioDeviceModule(JNIEnv* env,
   RTC_DLOG(LS_INFO) << __FUNCTION__;
   // Get default audio input/output parameters.
   const auto j_context =
-      jni_zero::JavaParamRef<jobject>::CreateLeaky(env, application_context);
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, application_context);
   const jni_zero::ScopedJavaLocalRef<jobject> j_audio_manager =
       jni::GetAudioManager(env, j_context);
   AudioParameters input_parameters;
@@ -118,7 +118,7 @@ scoped_refptr<AudioDeviceModule> CreateJavaAudioDeviceModule(
   RTC_DLOG(LS_INFO) << __FUNCTION__;
   // Get default audio input/output parameters.
   const auto j_context =
-      jni_zero::JavaParamRef<jobject>::CreateLeaky(env, application_context);
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, application_context);
   const jni_zero::ScopedJavaLocalRef<jobject> j_audio_manager =
       jni::GetAudioManager(env, j_context);
   AudioParameters input_parameters;
@@ -175,7 +175,7 @@ CreateJavaInputAndOpenSLESOutputAudioDeviceModule(JNIEnv* env,
   RTC_DLOG(LS_INFO) << __FUNCTION__;
   // Get default audio input/output parameters.
   const auto j_context =
-      jni_zero::JavaParamRef<jobject>::CreateLeaky(env, application_context);
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, application_context);
   const jni_zero::ScopedJavaLocalRef<jobject> j_audio_manager =
       jni::GetAudioManager(env, j_context);
   AudioParameters input_parameters;

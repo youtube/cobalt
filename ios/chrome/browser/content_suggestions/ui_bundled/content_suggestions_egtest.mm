@@ -17,14 +17,13 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_constants.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/public/magic_stack_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/new_tab_page_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/public/set_up_list_constants.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_constants.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_helper.h"
-#import "ios/chrome/browser/ntp/model/features.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -193,10 +192,8 @@ void TapMagicStackEditButton() {
 
   // Check the page has been correctly opened.
   [ChromeEarlGrey selectTabAtIndex:1];
+  [ChromeEarlGrey waitForWebStateVisibleURL:pageURL];
   [ChromeEarlGrey waitForWebStateContainingText:kPageLoadedString];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(
-                                          pageURL.GetContent())]
-      assertWithMatcher:grey_notNil()];
 }
 
 // Tests the "Open in New Incognito Tab" action of the Most Visited context
@@ -214,10 +211,8 @@ void TapMagicStackEditButton() {
   [ChromeEarlGrey waitForIncognitoTabCount:1];
 
   // Check that the tab has been opened in foreground.
+  [ChromeEarlGrey waitForWebStateVisibleURL:pageURL];
   [ChromeEarlGrey waitForWebStateContainingText:kPageLoadedString];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(
-                                          pageURL.GetContent())]
-      assertWithMatcher:grey_notNil()];
 
   GREYAssertTrue([ChromeEarlGrey isIncognitoMode],
                  @"Test did not switch to incognito");

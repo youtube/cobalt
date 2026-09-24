@@ -422,10 +422,9 @@ DawnResourceProvider::~DawnResourceProvider() = default;
 
 DawnResourceProvider::BlitWithDrawEncoder DawnResourceProvider::findOrCreateBlitWithDrawEncoder(
         const RenderPassDesc& renderPassDesc, SampleCount srcSampleCount) {
-    // Currently Dawn only supports one sample count > 1. So we can optimize the pipeline key by
-    // specifying whether the source has MSAA or not.
-    SkASSERT(srcSampleCount == SampleCount::k1 ||
-             srcSampleCount == this->dawnSharedContext()->dawnCaps()->defaultMSAASamplesCount());
+    // Currently Dawn only supports k1 and k4. So we can optimize the pipeline key by specifying
+    // whether the source has MSAA or not.
+    SkASSERT(srcSampleCount == SampleCount::k1 || srcSampleCount == SampleCount::k4);
     const bool srcIsMSAA = srcSampleCount > SampleCount::k1;
     const uint32_t pipelineKey = this->dawnSharedContext()->dawnCaps()->getRenderPassDescKeyForPipeline(
             renderPassDesc, srcIsMSAA);
@@ -538,7 +537,7 @@ sk_sp<DawnTexture> DawnResourceProvider::findOrCreateDiscardableMSAALoadTexture(
 
     // Derive the load texture's info from MSAA texture's info.
     DawnTextureInfo dawnMsaaLoadTextureInfo = TextureInfoPriv::Get<DawnTextureInfo>(msaaInfo);
-    dawnMsaaLoadTextureInfo.fSampleCount = 1;
+    dawnMsaaLoadTextureInfo.fSampleCount = SampleCount::k1;
     dawnMsaaLoadTextureInfo.fUsage |= wgpu::TextureUsage::TextureBinding;
 
 #if !defined(__EMSCRIPTEN__)

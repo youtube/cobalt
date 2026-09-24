@@ -29,6 +29,7 @@
 #include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"  // IWYU pragma: keep
 #include "rtc_base/checks.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -46,15 +47,20 @@
 #if RTC_DCHECK_IS_ON
 // Counts how many `Thread::BlockingCall` are made from within a scope and logs
 // the number of blocking calls at the end of the scope.
-#define RTC_LOG_THREAD_BLOCK_COUNT()                                        \
-  webrtc::Thread::ScopedCountBlockingCalls blocked_call_count_printer(      \
-      [func = __func__](uint32_t actual_block, uint32_t could_block) {      \
-        auto total = actual_block + could_block;                            \
-        if (total) {                                                        \
-          RTC_LOG(LS_WARNING) << "Blocking " << func << ": total=" << total \
-                              << " (actual=" << actual_block                \
-                              << ", could=" << could_block << ")";          \
-        }                                                                   \
+// The reported duration is the time from entering the block-counting scope
+// until exiting it. This includes time spent executing the calling thread,
+// executing the called thread, and waiting.
+#define RTC_LOG_THREAD_BLOCK_COUNT()                                      \
+  webrtc::Thread::ScopedCountBlockingCalls blocked_call_count_printer(    \
+      [func = __func__](uint32_t actual_block, uint32_t could_block,      \
+                        webrtc::TimeDelta duration) {                     \
+        auto total = actual_block + could_block;                          \
+        if (total) {                                                      \
+          RTC_LOG(LS_WARNING)                                             \
+              << "Blocking " << func << ": total=" << total               \
+              << " (actual=" << actual_block << ", could=" << could_block \
+              << ", duration=" << duration.us() << "us)";                 \
+        }                                                                 \
       })
 
 // Adds an RTC_DCHECK_LE that checks that the number of blocking calls are
@@ -223,7 +229,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   class ScopedCountBlockingCalls {
    public:
     ScopedCountBlockingCalls(
-        absl::AnyInvocable<void(uint32_t, uint32_t) &&> callback);
+        absl::AnyInvocable<void(uint32_t, uint32_t, TimeDelta) &&> callback);
     ScopedCountBlockingCalls(const ScopedCountBlockingCalls&) = delete;
     ScopedCountBlockingCalls& operator=(const ScopedCountBlockingCalls&) =
         delete;
@@ -246,7 +252,8 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     // tame log spam.
     // By default we always issue the callback, regardless of callback count.
     uint32_t min_blocking_calls_for_callback_ = 0;
-    absl::AnyInvocable<void(uint32_t, uint32_t) &&> result_callback_;
+    absl::AnyInvocable<void(uint32_t, uint32_t, TimeDelta) &&> result_callback_;
+    const int64_t start_time_ns_ = 0;
   };
 
   uint32_t GetBlockingCallCount() const;

@@ -88,11 +88,13 @@ PeerScenarioClient* PeerScenario::CreateClient(
 }
 
 SignalingRoute PeerScenario::ConnectSignaling(
+    bool send_sdp_via_network,
     PeerScenarioClient* caller,
     PeerScenarioClient* callee,
     std::vector<EmulatedNetworkNode*> send_link,
     std::vector<EmulatedNetworkNode*> ret_link) {
-  return SignalingRoute(caller, callee, net_.CreateCrossTrafficRoute(send_link),
+  return SignalingRoute(send_sdp_via_network, caller, callee,
+                        net_.CreateCrossTrafficRoute(send_link),
                         net_.CreateCrossTrafficRoute(ret_link));
 }
 
@@ -103,7 +105,8 @@ void PeerScenario::SimpleConnection(
     std::vector<EmulatedNetworkNode*> ret_link) {
   net()->CreateRoute(caller->endpoint(), send_link, callee->endpoint());
   net()->CreateRoute(callee->endpoint(), ret_link, caller->endpoint());
-  auto signaling = ConnectSignaling(caller, callee, send_link, ret_link);
+  auto signaling = ConnectSignaling(/*send_sdp_via_network=*/false, caller,
+                                    callee, send_link, ret_link);
   signaling.StartIceSignaling();
   std::atomic<bool> done(false);
   signaling.NegotiateSdp(

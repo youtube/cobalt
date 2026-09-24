@@ -53,6 +53,9 @@ namespace {
 // Increasing this factor will result in lower delays in cases of bitrate
 // overshoots from the encoder.
 constexpr float kDefaultPaceMultiplier = 2.5f;
+// If send side bandwidth estimation is used, this pacing multiplier is used per
+// default.
+constexpr float kDefaultPaceMultiplierWithSendSideBwe = 1.1f;
 
 // If the probe result is far below the current throughput estimate
 // it's unlikely that the probe is accurate, so we don't want to drop too far.
@@ -127,8 +130,7 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
       last_loss_based_target_rate_(*config.constraints.starting_rate),
       last_pushback_target_rate_(last_loss_based_target_rate_),
       last_loss_base_state_(LossBasedState::kDelayBasedEstimate),
-      pacing_factor_(config.stream_based_config.pacing_factor.value_or(
-          kDefaultPaceMultiplier)),
+      pacing_factor_(config.stream_based_config.pacing_factor),
       pacing_time_window_(config.default_pacing_time_window),
       min_total_allocated_bitrate_(
           config.stream_based_config.min_total_allocated_bitrate.value_or(
@@ -305,7 +307,7 @@ NetworkControlUpdate GoogCcNetworkController::OnStreamsConfig(
 
   bool pacing_changed = false;
   if (msg.pacing_factor && *msg.pacing_factor != pacing_factor_) {
-    pacing_factor_ = *msg.pacing_factor;
+    pacing_factor_ = msg.pacing_factor;
     pacing_changed = true;
   }
   if (msg.min_total_allocated_bitrate &&
@@ -410,6 +412,10 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     // TODO(bugs.webrtc.org/10125): Design a better mechanism to safe-guard
     // against building very large network queues.
     return NetworkControlUpdate();
+  }
+  if (!first_transport_feedback_received_) {
+    // Send side BWE is used.
+    first_transport_feedback_received_ = true;
   }
 
   if (congestion_window_pushback_controller_) {
@@ -652,8 +658,9 @@ PacerConfig GoogCcNetworkController::GetPacingRates(Timestamp at_time) const {
   // because we don't want to build queues in the pacer when pushback occurs.
   DataRate pacing_rate =
       std::max(min_total_allocated_bitrate_, last_loss_based_target_rate_) *
-      pacing_factor_;
-
+      pacing_factor_.value_or(first_transport_feedback_received_
+                                  ? kDefaultPaceMultiplierWithSendSideBwe
+                                  : kDefaultPaceMultiplier);
   if (limit_pacingfactor_by_upper_link_capacity_estimate_ && estimate_ &&
       estimate_->link_capacity_upper.IsFinite() &&
       pacing_rate > estimate_->link_capacity_upper) {

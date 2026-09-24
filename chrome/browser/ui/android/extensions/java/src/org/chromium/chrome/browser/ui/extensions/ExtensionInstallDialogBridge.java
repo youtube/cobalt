@@ -23,6 +23,7 @@ import com.google.android.material.textfield.TextInputLayout;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
@@ -88,7 +89,10 @@ public class ExtensionInstallDialogBridge implements ModalDialogProperties.Contr
      */
     @CalledByNative
     public void buildDialog(
-            String title, Bitmap iconBitmap, String acceptButtonLabel, String cancelButtonLabel) {
+            @JniType("std::u16string") final String title,
+            @JniType("SkBitmap") final Bitmap iconBitmap,
+            @JniType("std::u16string") final String acceptButtonLabel,
+            @JniType("std::u16string") final String cancelButtonLabel) {
         Drawable iconDrawable = new BitmapDrawable(mContext.getResources(), iconBitmap);
         mPropertyModelBuilder
                 .with(ModalDialogProperties.TITLE, title)
@@ -112,7 +116,11 @@ public class ExtensionInstallDialogBridge implements ModalDialogProperties.Contr
      */
     @CalledByNative
     public void withPermissions(
-            String permissionsHeading, String[] permissionsText, String[] permissionsDetails) {
+            @JniType("std::u16string") final String permissionsHeading,
+            @JniType("std::vector<std::u16string>") final String[] permissionsText,
+            @JniType("std::vector<std::u16string>") final String[] permissionsDetails,
+            @JniType("std::u16string") final String permissionsShowDetails,
+            @JniType("std::u16string") final String permissionsHideDetails) {
         View contentView = getContentView();
         LinearLayout scrollViewContainer = contentView.findViewById(R.id.scroll_view_container);
 
@@ -120,22 +128,52 @@ public class ExtensionInstallDialogBridge implements ModalDialogProperties.Contr
                 scrollViewContainer.findViewById(R.id.permissions_container);
         permissionsContainer.setVisibility(View.VISIBLE);
 
+        // Add the permissions heading.
         TextView permissionsHeadingView =
                 permissionsContainer.findViewById(R.id.permissions_heading);
         permissionsHeadingView.setText(permissionsHeading);
 
+        // Add a row for each permission.
         LayoutInflater inflater = LayoutInflater.from(mContext);
-        for (String permissionText : permissionsText) {
-            TextViewWithLeading permissionTextView =
-                    (TextViewWithLeading)
-                            inflater.inflate(
-                                    R.layout.modal_dialog_paragraph_view,
-                                    permissionsContainer,
-                                    false);
-            permissionTextView.setText(permissionText);
-            permissionsContainer.addView(permissionTextView);
-            // TODO(crbug.com/424010795): Add permissionsDetails as a collapsible view, if
-            // existent.
+        for (int i = 0; i < permissionsText.length; i++) {
+            // Inflate the custom layout for the permission row.
+            View permissionRow =
+                    inflater.inflate(
+                            R.layout.extension_install_dialog_permission_item,
+                            permissionsContainer,
+                            false);
+
+            // Add the permission's main text.
+            TextViewWithLeading mainText = permissionRow.findViewById(R.id.permission_item_text);
+            mainText.setText(permissionsText[i]);
+
+            // Add toggle to open the permission's details, if existent.
+            TextViewWithLeading toggle = permissionRow.findViewById(R.id.permission_item_toggle);
+            TextViewWithLeading details = permissionRow.findViewById(R.id.permission_item_details);
+            if (permissionsDetails[i].isEmpty()) {
+                toggle.setVisibility(View.GONE);
+                details.setVisibility(View.GONE);
+            } else {
+                toggle.setText(permissionsShowDetails);
+                details.setText(permissionsDetails[i]);
+
+                toggle.setVisibility(View.VISIBLE);
+                details.setVisibility(View.GONE);
+
+                toggle.setOnClickListener(
+                        v -> {
+                            if (details.getVisibility() == View.VISIBLE) {
+                                details.setVisibility(View.GONE);
+                                toggle.setText(permissionsShowDetails);
+                            } else {
+                                details.setVisibility(View.VISIBLE);
+                                toggle.setText(permissionsHideDetails);
+                            }
+                        });
+            }
+
+            // Add the permission's row to the main container.
+            permissionsContainer.addView(permissionRow);
         }
     }
 
@@ -147,7 +185,8 @@ public class ExtensionInstallDialogBridge implements ModalDialogProperties.Contr
      */
     @CalledByNative
     public void withJustification(
-            String justificationHeading, String justificationPlaceholderText) {
+            @JniType("std::u16string") final String justificationHeading,
+            @JniType("std::u16string") final String justificationPlaceholderText) {
         View contentView = getContentView();
         LinearLayout scrollViewContainer = contentView.findViewById(R.id.scroll_view_container);
 

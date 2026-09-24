@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/frame_encryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/dtmf_sender_interface.h"
@@ -237,11 +238,14 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   // null, it must be valid at least until this sender becomes stopped.
   RtpSenderBase(const Environment& env,
                 Thread* worker_thread,
-                const std::string& id,
-                SetStreamsObserver* set_streams_observer);
+                absl::string_view id,
+                SetStreamsObserver* set_streams_observer,
+                MediaSendChannelInterface* media_channel);
   // TODO(bugs.webrtc.org/8694): Since SSRC == 0 is technically valid, figure
   // out some other way to test if we have a valid SSRC.
-  bool can_send_track() const { return track_ && ssrc_; }
+  bool can_send_track() const RTC_RUN_ON(signaling_thread_) {
+    return track_ && ssrc_;
+  }
 
   virtual std::string track_kind() const = 0;
 
@@ -252,10 +256,10 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
 
   // Template method pattern to allow subclasses to add custom behavior for
   // when tracks are attached, detached, and for adding tracks to statistics.
-  virtual void AttachTrack() {}
-  virtual void DetachTrack() {}
-  virtual void AddTrackToStats() {}
-  virtual void RemoveTrackFromStats() {}
+  virtual void AttachTrack() RTC_RUN_ON(signaling_thread_) {}
+  virtual void DetachTrack() RTC_RUN_ON(signaling_thread_) {}
+  virtual void AddTrackToStats() RTC_RUN_ON(signaling_thread_) {}
+  virtual void RemoveTrackFromStats() RTC_RUN_ON(signaling_thread_) {}
 
   const Environment env_;
   TaskQueueBase* const signaling_thread_;
@@ -275,10 +279,14 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   // a guard or lock. Internally there are also several Invoke()s that we could
   // remove since the upstream code may already be performing several operations
   // on the worker thread.
+  // Add RTC_GUARDED_BY(worker_thread_).
   MediaSendChannelInterface* media_channel_ = nullptr;
+  // Apply RTC_GUARDED_BY(signaling_thread_) when not accessed from worker.
   scoped_refptr<MediaStreamTrackInterface> track_;
 
   scoped_refptr<DtlsTransportInterface> dtls_transport_;
+  // Apply RTC_GUARDED_BY(worker_thread_) when no longer accessed from unknown
+  // threads. Alternatively make const.
   scoped_refptr<FrameEncryptorInterface> frame_encryptor_;
   // `last_transaction_id_` is used to verify that `SetParameters` is receiving
   // the parameters object that was last returned from `GetParameters`.
@@ -288,15 +296,14 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   mutable std::optional<std::string> last_transaction_id_;
   std::vector<std::string> disabled_rids_;
 
-  SetStreamsObserver* set_streams_observer_ = nullptr;
+  SetStreamsObserver* const set_streams_observer_ = nullptr;
   RtpSenderObserverInterface* observer_ = nullptr;
   bool sent_first_packet_ = false;
 
   scoped_refptr<FrameTransformerInterface> frame_transformer_;
+  // Guard with RTC_GUARDED_BY(worker_thread_) after refactoring.
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
       encoder_selector_;
-
-  virtual RTCError GenerateKeyFrame(const std::vector<std::string>& rids) = 0;
 };
 
 // LocalAudioSinkAdapter receives data callback as a sink to the local
@@ -351,9 +358,10 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
   static scoped_refptr<AudioRtpSender> Create(
       const Environment& env,
       Thread* worker_thread,
-      const std::string& id,
+      absl::string_view id,
       LegacyStatsCollectorInterface* stats,
-      SetStreamsObserver* set_streams_observer);
+      SetStreamsObserver* set_streams_observer,
+      MediaSendChannelInterface* media_channel);
   virtual ~AudioRtpSender();
 
   // DtmfSenderProvider implementation.
@@ -376,36 +384,39 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
  protected:
   AudioRtpSender(const Environment& env,
                  Thread* worker_thread,
-                 const std::string& id,
+                 absl::string_view id,
                  LegacyStatsCollectorInterface* legacy_stats,
-                 SetStreamsObserver* set_streams_observer);
+                 SetStreamsObserver* set_streams_observer,
+                 MediaSendChannelInterface* media_channel);
 
   void SetSend() override;
   void ClearSend() override;
 
   // Hooks to allow custom logic when tracks are attached and detached.
-  void AttachTrack() override;
-  void DetachTrack() override;
-  void AddTrackToStats() override;
-  void RemoveTrackFromStats() override;
+  void AttachTrack() RTC_RUN_ON(signaling_thread_) override;
+  void DetachTrack() RTC_RUN_ON(signaling_thread_) override;
+  void AddTrackToStats() RTC_RUN_ON(signaling_thread_) override;
+  void RemoveTrackFromStats() RTC_RUN_ON(signaling_thread_) override;
 
  private:
-  VoiceMediaSendChannelInterface* voice_media_channel() {
+  VoiceMediaSendChannelInterface* voice_media_channel()
+      RTC_RUN_ON(worker_thread_) {
     return media_channel_->AsVoiceSendChannel();
   }
-  scoped_refptr<AudioTrackInterface> audio_track() const {
+  scoped_refptr<AudioTrackInterface> audio_track() const
+      RTC_RUN_ON(signaling_thread_) {
     return scoped_refptr<AudioTrackInterface>(
         static_cast<AudioTrackInterface*>(track_.get()));
   }
 
-  LegacyStatsCollectorInterface* legacy_stats_ = nullptr;
-  scoped_refptr<DtmfSender> dtmf_sender_;
-  scoped_refptr<DtmfSenderInterface> dtmf_sender_proxy_;
+  LegacyStatsCollectorInterface* const legacy_stats_ = nullptr;
+  const scoped_refptr<DtmfSender> dtmf_sender_;
+  const scoped_refptr<DtmfSenderInterface> dtmf_sender_proxy_;
   bool cached_track_enabled_ = false;
 
   // Used to pass the data callback from the `track_` to the other end of
   // webrtc::AudioSource.
-  std::unique_ptr<LocalAudioSinkAdapter> sink_adapter_;
+  const std::unique_ptr<LocalAudioSinkAdapter> sink_adapter_;
 };
 
 class VideoRtpSender : public RtpSenderBase {
@@ -418,8 +429,9 @@ class VideoRtpSender : public RtpSenderBase {
   static scoped_refptr<VideoRtpSender> Create(
       const Environment& env,
       Thread* worker_thread,
-      const std::string& id,
-      SetStreamsObserver* set_streams_observer);
+      absl::string_view id,
+      SetStreamsObserver* set_streams_observer,
+      MediaSendChannelInterface* media_channel);
   virtual ~VideoRtpSender();
 
   // ObserverInterface implementation
@@ -438,20 +450,23 @@ class VideoRtpSender : public RtpSenderBase {
  protected:
   VideoRtpSender(const Environment& env,
                  Thread* worker_thread,
-                 const std::string& id,
-                 SetStreamsObserver* set_streams_observer);
+                 absl::string_view id,
+                 SetStreamsObserver* set_streams_observer,
+                 MediaSendChannelInterface* media_channel);
 
   void SetSend() override;
   void ClearSend() override;
 
   // Hook to allow custom logic when tracks are attached.
-  void AttachTrack() override;
+  void AttachTrack() RTC_RUN_ON(signaling_thread_) override;
 
  private:
-  VideoMediaSendChannelInterface* video_media_channel() {
+  VideoMediaSendChannelInterface* video_media_channel()
+      RTC_RUN_ON(worker_thread_) {
     return media_channel_->AsVideoSendChannel();
   }
-  scoped_refptr<VideoTrackInterface> video_track() const {
+  scoped_refptr<VideoTrackInterface> video_track() const
+      RTC_RUN_ON(signaling_thread_) {
     return scoped_refptr<VideoTrackInterface>(
         static_cast<VideoTrackInterface*>(track_.get()));
   }

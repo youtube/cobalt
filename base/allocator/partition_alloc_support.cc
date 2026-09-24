@@ -1170,6 +1170,9 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
   const bool enable_free_with_size =
       base::FeatureList::IsEnabled(base::features::kPartitionAllocFreeWithSize);
 
+  const bool enable_strict_free_size_check =
+      base::features::kPartitionAllocStrictFreeSizeCheck.Get();
+
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
   // ShouldEnableMemoryTagging() checks kKillPartitionAllocMemoryTagging but
   // check here too to wrap the GetMemoryTaggingModeForCurrentThread() call.
@@ -1251,6 +1254,14 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       }
 #endif  // BUILDFLAG(IS_ANDROID)
     }
+
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
+    if (base::FeatureList::IsEnabled(
+            base::features::kPartitionAllocLockTuneSpin)) {
+      partition_alloc::internal::SpinningMutex::SetSpinCount(
+          base::features::kPartitionAllocLockSpinCount.Get());
+    }
+#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
   }
 #endif  // PA_BUILDFLAG(HAS_MEMORY_TAGGING)
 
@@ -1263,7 +1274,8 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       scheduler_loop_quarantine_thread_local_config,
       scheduler_loop_quarantine_for_advanced_memory_safety_checks_config,
       allocator_shim::EventuallyZeroFreedMemory(eventually_zero_freed_memory),
-      allocator_shim::EnableFreeWithSize(enable_free_with_size));
+      allocator_shim::EnableFreeWithSize(enable_free_with_size),
+      allocator_shim::EnableStrictFreeSizeCheck(enable_strict_free_size_check));
 
 #if BUILDFLAG(IS_COBALT)
   LOG(INFO) << "PartitionAlloc: main root re-creation "

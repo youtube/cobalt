@@ -37,6 +37,7 @@
         'dummy_audio_file_devices_no_protobuf':
         'dummy_audio_file_devices_no_protobuf_android_arm',
         'rtti_no_sctp': 'rtti_no_sctp_android_arm',
+        'cxx23': 'use_cxx23_android_arm',
       },
       'Android32 Builder arm': 'android_pure_release_bot_arm',
       'Android32 Builder x86': 'android_release_bot_x86',
@@ -63,6 +64,7 @@
         'libstdcpp': 'libstdcpp_x64',
         'no_lld': 'no_lld_x64',
         'no_psnr': 'no_psnr_x64',
+        'cxx23': 'use_cxx23_x64',
       },
       'Linux Asan': 'asan_lsan_clang_release_bot_x64',
       'Linux MSan': 'msan_clang_release_bot_x64',
@@ -93,6 +95,7 @@
         'dummy_audio_file_devices_no_protobuf':
         'dummy_audio_file_devices_no_protobuf_x86',
         'rtti_no_sctp': 'rtti_no_sctp_no_unicode_win_x86',
+        'cxx23': 'use_cxx23_x86',
       },
       'Win32 Debug (Clang)': 'win_clang_debug_bot_x86',
       'Win32 Release (Clang)': 'win_clang_release_bot_x86',
@@ -149,6 +152,7 @@
         'rtti_no_sctp': 'rtti_no_sctp_android_arm',
         'disable_trace_events': 'disable_trace_events_android_arm',
         'perfetto': 'perfetto_android_arm',
+        'cxx23': 'use_cxx23_android_arm',
       },
       'android_arm_rel': 'android_release_bot_arm',
       'android_compile_arm64_dbg': 'android_debug_static_bot_arm64',
@@ -194,6 +198,7 @@
         'libstdcpp': 'libstdcpp_x64',
         'no_lld': 'no_lld_x64',
         'no_psnr': 'no_psnr_x64',
+        'cxx23': 'use_cxx23_x64',
       },
       'linux_msan': 'msan_clang_release_bot_x64',
       'linux_rel': 'release_bot_x64',
@@ -230,6 +235,7 @@
         'rtti_no_sctp': 'rtti_no_sctp_no_unicode_win_x86',
         'disable_trace_events': 'disable_trace_events_x86',
         'perfetto': 'perfetto_x86',
+        'cxx23': 'use_cxx23_x86',
       },
     }
   },
@@ -438,6 +444,22 @@
     ['ubsan', 'clang', 'openh264', 'pure_release_bot', 'x64', 'h265'],
     'ubsan_vptr_clang_release_bot_x64':
     ['ubsan_vptr', 'clang', 'openh264', 'pure_release_bot', 'x64', 'h265'],
+    'use_cxx23_android_arm': [
+      'android',
+      'arm',
+      'debug_bot',
+      'use_cxx23_flag',
+    ],
+    'use_cxx23_x64': [
+      'debug_bot',
+      'use_cxx23_flag',
+      'x64',
+    ],
+    'use_cxx23_x86': [
+      'debug_bot',
+      'use_cxx23_flag',
+      'x86',
+    ],
     'win_asan_clang_release_bot_x64': [
       'asan',
       'clang',
@@ -640,6 +662,9 @@
     },
     'ubsan_vptr': {
       'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=true',
+    },
+    'use_cxx23_flag': {
+      'gn_args': 'use_cxx23=true',
     },
     'win_undef_unicode': {
       'gn_args': 'rtc_win_undef_unicode=true',

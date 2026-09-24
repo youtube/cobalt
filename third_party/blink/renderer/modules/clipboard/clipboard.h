@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard_change_event_controller.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard_item.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -18,10 +19,11 @@ class Navigator;
 class ScriptState;
 class ClipboardReadOptions;
 
-class Clipboard : public EventTarget, public GarbageCollectedMixin {
+class Clipboard : public EventTarget, public Supplement<Navigator> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static const unsigned kSupplementIndex;
   static Clipboard* clipboard(Navigator&);
   explicit Clipboard(Navigator&);
 
@@ -64,7 +66,6 @@ class Clipboard : public EventTarget, public GarbageCollectedMixin {
                             const RegisteredEventListener&) override;
 
  private:
-  Member<Navigator> navigator_;
   Member<ClipboardChangeEventController> clipboard_change_event_controller_;
 };
 

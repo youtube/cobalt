@@ -87,12 +87,6 @@ const char kAutofillDisableSilentProfileUpdatesDescription[] =
     "When enabled, Autofill will not apply silent updates to address profiles. "
     "For testing purposes.";
 
-const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsName[] =
-    "Enable allowlist for showing category benefits for BMO cards";
-const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsDescription[] =
-    "When enabled, card category benefits offered by BMO will be shown in "
-    "Autofill suggestions on the allowlisted merchant websites.";
-
 const char kAutofillEnableCardBenefitsForAmericanExpressName[] =
     "Enable showing American Express card benefits";
 const char kAutofillEnableCardBenefitsForAmericanExpressDescription[] =
@@ -170,6 +164,12 @@ const char kAutofillEnableSupportForNameAndEmailName[] =
 const char kAutofillEnableSupportForNameAndEmailDescription[] =
     "When enabled, a name and email profile with data comming from the account "
     "will be created for autofilling.";
+
+const char kAutofillEnableWalletBrandingName[] =
+    "Update Google Pay branding to Wallet where applicable";
+const char kAutofillEnableWalletBrandingDescription[] =
+    "When enabled, certain strings and logos referencing Google Account, "
+    "Google Payments, and Google Pay will instead reference Google Wallet.";
 
 const char kAutofillIsolatedWorldForJavascriptIOSName[] =
     "Isolated content world for Autofill";
@@ -299,6 +299,9 @@ const char kChromeStartupParametersAsyncDescription[] =
     "When enabled the async version of the chrome startup method is used. This "
     "method is used to parse the startup parameters.";
 
+const char kCloseOtherTabsName[] = "CloseOtherTabs";
+const char kCloseOtherTabsDescription[] = "Enables the CloseOtherTabs feature.";
+
 const char kCollaborationMessagingName[] = "Collaboration Messaging";
 const char kCollaborationMessagingDescription[] =
     "Enables the messaging framework within the collaboration feature, "
@@ -309,6 +312,12 @@ const char kComposeboxAIMNudgeName[] = "ComposeboxAIMNudge";
 const char kComposeboxAIMNudgeDescription[] =
     "Enables the AIM nudge button in the composebox, tapping on the button "
     "enables AIM. This is conditionned by AIM availability.";
+
+const char kComposeboxAttachmentsTypedStateName[] =
+    "Enable contextual suggestions for typed state";
+const char kComposeboxAttachmentsTypedStateDescription[] =
+    "Enables showing suggestions for multiple composebox attachments in a "
+    "typed state.";
 
 const char kComposeboxAutoattachTabName[] =
     "Automatically attach current tab within the composebox";
@@ -325,6 +334,17 @@ const char kComposeboxDevToolsName[] = "Enable Composebox Dev Tools";
 const char kComposeboxDevToolsDescription[] =
     "Enables development tools for the composebox, allowing simulation of "
     "delays and failures.";
+
+const char kComposeboxFetchContextualSuggestionsForImageName[] =
+    "Enable Composebox Fetch Contextual Suggestions For image attachment";
+const char kComposeboxFetchContextualSuggestionsForImageDescription[] =
+    "Enables showing suggestions for image attachment.";
+
+const char kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName[] =
+    "Enable Composebox Fetch Contextual Suggestions For multiple attachments";
+const char
+    kComposeboxFetchContextualSuggestionsForMultipleAttachmentsDescription[] =
+        "Enables showing suggestions for multiple attachments";
 
 const char kComposeboxForceTopName[] = "ComposeboxForceTop";
 const char kComposeboxForceTopDescription[] =
@@ -444,6 +464,10 @@ const char kDefaultBrowserPromoPropensityModelName[] =
 const char kDefaultBrowserPromoPropensityModelDescription[] =
     "When enabled, a propensity model will help make the determination of "
     "whether to show a default browser promo";
+
+const char kDefaultBrowserPromoRefreshName[] = "Default Browser Promo Refresh";
+const char kDefaultBrowserPromoRefreshDescription[] =
+    "When enabled, the default browser promo will be updated.";
 
 const char kDetectMainThreadFreezeName[] = "Detect freeze in the main thread.";
 const char kDetectMainThreadFreezeDescription[] =
@@ -613,11 +637,6 @@ const char kFeedSwipeInProductHelpName[] = "Enable Feed Swipe IPH";
 const char kFeedSwipeInProductHelpDescription[] =
     "Presents an in-product help on the NTP to promote swiping on the Feed";
 
-const char kFeedbackIncludeGWSVariationsName[] =
-    "Include GWS variations in feedback";
-const char kFeedbackIncludeGWSVariationsDescription[] =
-    "Includes GWS variations in Chrome feedback reports.";
-
 const char kFeedbackIncludeVariationsName[] = "Feedback include variations";
 const char kFeedbackIncludeVariationsDescription[] =
     "In Chrome feedback report, include commandline variations.";
@@ -648,6 +667,11 @@ const char kFullscreenTransitionSpeedName[] =
 const char kFullscreenTransitionSpeedDescription[] =
     "When enabled, the speed of the fullscreen' transition is "
     "increased-decreased.";
+
+const char kGeminiCopresenceName[] = "Gemini Copresence";
+const char kGeminiCopresenceDescription[] =
+    "Enables the Gemini Copresence feature, which provides a persistent Gemini "
+    "overlay.";
 
 const char kGeminiCrossTabName[] = "Gemini Cross Tab";
 const char kGeminiCrossTabDescription[] =
@@ -773,16 +797,6 @@ const char kIOSKeyboardAccessoryTwoBubbleName[] =
 const char kIOSKeyboardAccessoryTwoBubbleDescription[] =
     "When enabled, the two-bubble design is used for the Keyboard Accessory "
     "view.";
-
-const char kIOSManageAccountStorageName[] = "Allow managing Account storage.";
-const char kIOSManageAccountStorageDescription[] =
-    "Add entry points to manage Google One account storage.";
-
-const char kIOSMiniMapUniversalLinkName[] =
-    "Open Maps Universal links in native view.";
-const char kIOSMiniMapUniversalLinkDescription[] =
-    "When enabled, maps universal links on Google Page are opened in "
-    "native views (under conditions).";
 
 const char kIOSOmniboxAimServerEligibilityEnName[] =
     "AIM Server Eligibility EN locales";
@@ -1019,6 +1033,11 @@ const char kLensSingleTapTextSelectionDisabledName[] =
 const char kLensSingleTapTextSelectionDisabledDescription[] =
     "When disabled, single taps do not trigger text selections.";
 
+const char kLensStreamServiceWebChannelTransportEnabledName[] =
+    "Lens stream service web channel transport";
+const char kLensStreamServiceWebChannelTransportEnabledDescription[] =
+    "When enabled, uses web channel transport for the stream service.";
+
 const char kLensTranslateToggleModeEnabledName[] =
     "Lens translate toggle mode enabled";
 const char kLensTranslateToggleModeEnabledDescription[] =
@@ -1129,10 +1148,6 @@ const char kNativeFindInPageDescription[] =
     "When enabled, the JavaScript implementation of the Find in Page feature "
     "is replaced with a native implementation which also enables searching "
     "text in PDF files. Available for iOS 16 or later.";
-
-const char kNewShareExtensionName[] = "New Share Extension for iOS";
-const char kNewShareExtensionDescription[] =
-    "Update the share extension UI and add new share entries";
 
 const char kNewTabPageFieldTrialName[] =
     "New tab page features that target new users";
@@ -1287,17 +1302,6 @@ const char kOmniboxUIMaxAutocompleteMatchesDescription[] =
     "Changes the maximum number of autocomplete matches displayed in the "
     "Omnibox UI.";
 
-const char kOmniboxZeroSuggestInMemoryCachingName[] =
-    "Omnibox Zero Prefix Suggestion in-memory caching";
-const char kOmniboxZeroSuggestInMemoryCachingDescription[] =
-    "Enables in-memory caching of zero prefix suggestions.";
-
-const char kOmniboxZeroSuggestPrefetchingName[] =
-    "Omnibox Zero Prefix Suggestion Prefetching on NTP";
-const char kOmniboxZeroSuggestPrefetchingDescription[] =
-    "Enables prefetching of the zero prefix suggestions for eligible users "
-    "on the New Tab page.";
-
 const char kOmniboxZeroSuggestPrefetchingOnSRPName[] =
     "Omnibox Zero Prefix Suggestion Prefetching on SRP";
 const char kOmniboxZeroSuggestPrefetchingOnSRPDescription[] =
@@ -1350,6 +1354,13 @@ const char kPasswordFormClientsideClassifierName[] =
 const char kPasswordFormClientsideClassifierDescription[] =
     "Enable usage of new password form classifier on the client.";
 
+const char kPasswordRemovalFromDeleteBrowsingDataName[] =
+    "Removal of Passwords from Quick Delete Browsing Data";
+const char kPasswordRemovalFromDeleteBrowsingDataDescription[] =
+    "Disables the deletion of passwords via the quick delete bottom sheet. "
+    "Enables a new navigational view towards the appropriate pages to delete "
+    "passwords or manage other Google data (Search History and My Activities).";
+
 const char kPasswordReuseDetectionName[] =
     "PhishGuard password reuse detection";
 const char kPasswordReuseDetectionDescription[] =
@@ -1394,6 +1405,10 @@ const char kProactiveSuggestionsFrameworkDescription[] =
     "Translate, Price History, etc.) into a unified badge system with "
     "centralized settings access through the AI Hub Page Tools.";
 
+const char kProactiveSuggestionsFrameworkPopupBlockerName[] = "Popup Blocker";
+const char kProactiveSuggestionsFrameworkPopupBlockerDescription[] =
+    "Enables the popup blocker feature row in the Page Action Menu.";
+
 const char kProvisionalNotificationAlertName[] =
     "Provisional notifiation alert on iOS";
 const char kProvisionalNotificationAlertDescription[] =
@@ -1404,6 +1419,10 @@ const char kRcapsDynamicProfileCountryName[] = "Dynamic Profile Country";
 const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
+
+const char kReaderModeBadgeSupportName[] = "Enable Reader Mode Badge Support";
+const char kReaderModeBadgeSupportDescription[] =
+    "Enable Reader Mode Badge Support.";
 
 const char kReaderModeName[] = "Enables Reader Mode";
 const char kReaderModeDescription[] =
@@ -1418,12 +1437,6 @@ const char kReaderModeOptimizationGuideEligibilityName[] =
 const char kReaderModeOptimizationGuideEligibilityDescription[] =
     "Enables the optimization guide eligibility check for Reader Mode.";
 
-const char kReaderModePageEligibilityHeuristicName[] =
-    "Enables Reader Mode page eligibility heuristic";
-const char kReaderModePageEligibilityHeuristicDescription[] =
-    "Enables Reader Mode heuristic to hide/show the tools menu entrypoint "
-    "depending on page eligibility.";
-
 const char kReaderModeReadabilityDistillerName[] =
     "Enables Readability distiller for Reader Mode";
 const char kReaderModeReadabilityDistillerDescription[] =
@@ -1433,6 +1446,10 @@ const char kReaderModeReadabilityHeuristicName[] =
     "Enables Readability heuristic for Reader Mode";
 const char kReaderModeReadabilityHeuristicDescription[] =
     "Enables Readability heuristic for Reader Mode UI.";
+
+const char kReaderModeSupportNewFontsName[] = "Reader Mode support new fonts";
+const char kReaderModeSupportNewFontsDescription[] =
+    "Enables new accessible font options in Reader Mode.";
 
 const char kReaderModeTranslationName[] = "Enables Reader Mode Translation";
 const char kReaderModeTranslationDescription[] =
@@ -1521,10 +1538,6 @@ const char kSendTabToSelfIOSPushNotificationsDescription[] =
     "Feature to allow users to send tabs to their iOS device through a system "
     "push notitification.";
 
-const char kSetUpListShortenedDurationName[] = "Set Up List Shortened Duration";
-const char kSetUpListShortenedDurationDescription[] =
-    "Reduces the Set Up List duration in the NTP to the selected parameter.";
-
 const char kSharedHighlightingIOSName[] = "Enable Shared Highlighting features";
 const char kSharedHighlightingIOSDescription[] =
     "Adds a Link to Text option in the Edit Menu which generates URLs with a "
@@ -1548,11 +1561,6 @@ const char kShowTabGroupInGridOnStartName[] = "Show tab group in grid on start";
 const char kShowTabGroupInGridOnStartDescription[] =
     "Show tab group in grid on start if the last activation is within a "
     "specific time interval";
-
-const char kSignInButtonNoAvatarName[] =
-    "Display sign-in button without avatar";
-const char kSignInButtonNoAvatarDescription[] =
-    "When enabled, the sign-in button is shown without an avatar on the NTP.";
 
 const char kSkipDefaultBrowserPromoInFirstRunName[] =
     "Skip the FRE Default Browser Promo in EEA";

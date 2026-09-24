@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/collaboration/messaging/messaging_backend_service_factory.h"
 #include "chrome/browser/data_sharing/data_sharing_service_factory.h"
@@ -69,7 +70,8 @@ class SharedTabGroupInteractiveUiTest
   void SetUp() override {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {data_sharing::features::kDataSharingFeature, {}},
-    };
+        {features::kTabGroupMenuImprovements, {}},
+        {features::kTabGroupMenuMoreEntryPoints, {}}};
 
     std::vector<base::test::FeatureRef> disabled_features = {};
 
@@ -312,6 +314,7 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
                   FinishTabstripAnimations(), HoverTabGroupHeader(group_id),
                   ClickMouse(ui_controls::RIGHT),
                   WaitForShow(kTabGroupEditorBubbleId),
+                  EnsurePresent(kTabGroupEditorBubbleCloseGroupButtonId),
                   PressButton(kTabGroupEditorBubbleCloseGroupButtonId),
                   WaitForHide(kTabGroupEditorBubbleCloseGroupButtonId),
                   FinishTabstripAnimations());
@@ -325,13 +328,6 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
 // opened from the bookmarks bar.
 IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
                        RecordMetricOnSharedGroupOpeningFromBookmarksBar) {
-  // TODO(crbug.com/455937970): Add new metric for opening shared groups from
-  // the tab group submenu from the bookmarks bar. Then, re-enable this test
-  // using the new metric when the feature flag tab-group-menu-improvements is
-  // on.
-  if (base::FeatureList::IsEnabled(features::kTabGroupMenuImprovements)) {
-    GTEST_SKIP();
-  }
   ::base::HistogramTester histogram_tester;
 
   TabGroupId group_id = CreateNewTabGroup();
@@ -344,12 +340,14 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
   RunTestSequence(FinishTabstripAnimations(), ShowBookmarksBar(),
                   EnsurePresent(kSavedTabGroupButtonElementId),
                   PressButton(kSavedTabGroupButtonElementId),
+                  WaitForShow(STGTabsMenuModel::kOpenGroup),
+                  SelectMenuItem(STGTabsMenuModel::kOpenGroup),
                   WaitForShow(kTabGroupHeaderElementId));
 
   histogram_tester.ExpectUniqueSample(
       kRecallHistogram,
       saved_tab_groups::metrics::SharedTabGroupRecallTypeDesktop::
-          kOpenedFromBookmarksBar,
+          kOpenedFromSubmenuFromBookmarksBar,
       1);
 }
 
@@ -357,12 +355,6 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
 // opened from the everything menu.
 IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
                        RecordMetricOnSharedGroupOpeningFromEverythingMenu) {
-  // TODO(crbug.com/455937970): Add new metric for opening shared groups from
-  // the tab group submenu from the everything menu. Then, enable this
-  // test using the new metric when the feature flag is turned on.
-  if (base::FeatureList::IsEnabled(features::kTabGroupMenuImprovements)) {
-    GTEST_SKIP();
-  }
 
   ::base::HistogramTester histogram_tester;
 
@@ -373,17 +365,20 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
   // Close the tab group.
   browser()->tab_strip_model()->CloseAllTabsInGroup(group_id);
 
-  RunTestSequence(
-      FinishTabstripAnimations(), ShowBookmarksBar(),
-      PressButton(kSavedTabGroupOverflowButtonElementId),
-      SelectMenuItem(STGEverythingMenu::kTabGroup), FinishTabstripAnimations(),
-      // Close the everything menu to prevent flakes on mac.
-      HoverTabAt(0), ClickMouse(), WaitForHide(STGEverythingMenu::kTabGroup));
+  RunTestSequence(FinishTabstripAnimations(), ShowBookmarksBar(),
+                  PressButton(kSavedTabGroupOverflowButtonElementId),
+                  SelectMenuItem(STGEverythingMenu::kTabGroup),
+                  WaitForShow(STGTabsMenuModel::kOpenGroup),
+                  SelectMenuItem(STGTabsMenuModel::kOpenGroup),
+                  WaitForShow(kTabGroupHeaderElementId),
+                  // Close the everything menu to prevent flakes on mac.
+                  HoverTabAt(0), ClickMouse(),
+                  WaitForHide(STGEverythingMenu::kTabGroup));
 
   histogram_tester.ExpectUniqueSample(
       kRecallHistogram,
       saved_tab_groups::metrics::SharedTabGroupRecallTypeDesktop::
-          kOpenedFromEverythingMenu,
+          kOpenedFromSubmenuFromEverythingMenu,
       1);
 }
 
@@ -406,7 +401,7 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
                   SelectMenuItem(AppMenuModel::kTabGroupsMenuItem),
                   SelectMenuItem(STGEverythingMenu::kTabGroup),
                   SelectMenuItem(STGTabsMenuModel::kOpenGroup),
-                  FinishTabstripAnimations(),
+                  WaitForShow(kTabGroupHeaderElementId),
                   // Close the app menu to prevent flakes on mac.
                   HoverTabAt(0), ClickMouse(),
                   WaitForHide(AppMenuModel::kTabGroupsMenuItem));
@@ -414,7 +409,7 @@ IN_PROC_BROWSER_TEST_P(SharedTabGroupInteractiveUiTest,
   histogram_tester.ExpectUniqueSample(
       kRecallHistogram,
       saved_tab_groups::metrics::SharedTabGroupRecallTypeDesktop::
-          kOpenedFromSubmenu,
+          kOpenedFromSubmenuFromAppMenu,
       1);
 }
 

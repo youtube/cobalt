@@ -102,7 +102,6 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoDir:
     case CSSSelector::kPseudoNot:
     case CSSSelector::kPseudoOverscrollAreaParent:
-    case CSSSelector::kPseudoOverscrollClientArea:
     case CSSSelector::kPseudoPlaceholder:
     case CSSSelector::kPseudoDetailsContent:
     case CSSSelector::kPseudoPermissionIcon:
@@ -187,7 +186,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoInterestSource:
     case CSSSelector::kPseudoInterestTarget:
     case CSSSelector::kPseudoHasSlotted:
-    case CSSSelector::kPseudoRouteMatch:
+    case CSSSelector::kPseudoLinkTo:
       return true;
     case CSSSelector::kPseudoUnknown:
     case CSSSelector::kPseudoLeftPage:
@@ -1698,7 +1697,7 @@ RuleInvalidationDataVisitor<VisitorType>::InvalidationSetForSimpleSelector(
       case CSSSelector::kPseudoInterestSource:
       case CSSSelector::kPseudoInterestTarget:
       case CSSSelector::kPseudoHasSlotted:
-      case CSSSelector::kPseudoRouteMatch:
+      case CSSSelector::kPseudoLinkTo:
         return EnsurePseudoInvalidationSet(selector.GetPseudoType(), type,
                                            position, in_nth_child);
       case CSSSelector::kPseudoFirstOfType:

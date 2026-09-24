@@ -11,7 +11,6 @@
 #include "pc/legacy_stats_collector.h"
 
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -885,17 +884,24 @@ LegacyStatsCollector::ExtractSessionAndDataInfo() {
   TRACE_EVENT0("webrtc", "LegacyStatsCollector::ExtractSessionAndDataInfo");
   RTC_DCHECK_RUN_ON(pc_->signaling_thread());
 
-  SessionStats stats;
   StatsCollection::Container data_report_collection;
   auto transceivers = pc_->GetTransceiversInternal();
-  pc_->network_thread()->BlockingCall(
+  std::map<RtpTransceiver*, std::string> mids;
+  for (const auto& transceiver : transceivers) {
+    if (transceiver->mid()) {
+      mids[transceiver->internal()] = *transceiver->mid();
+    }
+  }
+
+  SessionStats stats = pc_->network_thread()->BlockingCall(
       [&, sctp_transport_name = pc_->sctp_transport_name(),
        sctp_mid = pc_->sctp_mid()]() mutable {
-        stats = ExtractSessionInfo_n(
-            transceivers, std::move(sctp_transport_name), std::move(sctp_mid));
         StatsCollection data_reports;
         ExtractDataInfo_n(&data_reports);
         data_report_collection = data_reports.DetachCollection();
+        return ExtractSessionInfo_n(transceivers, mids,
+                                    std::move(sctp_transport_name),
+                                    std::move(sctp_mid));
       });
 
   reports_.MergeCollection(std::move(data_report_collection));
@@ -908,6 +914,7 @@ LegacyStatsCollector::ExtractSessionAndDataInfo() {
 LegacyStatsCollector::SessionStats LegacyStatsCollector::ExtractSessionInfo_n(
     const std::vector<scoped_refptr<
         RtpTransceiverProxyWithInternal<RtpTransceiver>>>& transceivers,
+    const std::map<RtpTransceiver*, std::string>& mids,
     std::optional<std::string> sctp_transport_name,
     std::optional<std::string> sctp_mid) {
   TRACE_EVENT0("webrtc", "LegacyStatsCollector::ExtractSessionInfo_n");
@@ -918,8 +925,11 @@ LegacyStatsCollector::SessionStats LegacyStatsCollector::ExtractSessionInfo_n(
   for (auto& transceiver : transceivers) {
     ChannelInterface* channel = transceiver->internal()->channel();
     if (channel) {
-      stats.transport_names_by_mid[channel->mid()] =
-          std::string(channel->transport_name());
+      auto it = mids.find(transceiver->internal());
+      if (it != mids.end()) {
+        stats.transport_names_by_mid[it->second] =
+            std::string(channel->transport_name());
+      }
     }
   }
 
@@ -1227,7 +1237,9 @@ void LegacyStatsCollector::ExtractMediaInfo(
       }
       std::unique_ptr<ChannelStatsGatherer> gatherer =
           CreateChannelStatsGatherer(channel);
-      gatherer->mid = channel->mid();
+      if (transceiver->mid()) {
+        gatherer->mid = *transceiver->mid();
+      }
       gatherer->transport_name = transport_names_by_mid.at(gatherer->mid);
 
       for (const auto& sender : transceiver->internal()->senders()) {
@@ -1254,8 +1266,6 @@ void LegacyStatsCollector::ExtractMediaInfo(
       if (!channel)
         continue;
       ChannelStatsGatherer* gatherer = gatherers[i++].get();
-      RTC_DCHECK_EQ(gatherer->mid, channel->mid());
-
       for (const auto& receiver : transceiver->internal()->receivers()) {
         gatherer->receiver_track_id_by_ssrc.insert(std::make_pair(
             receiver->internal()->ssrc().value_or(0), receiver->track()->id()));

@@ -1325,6 +1325,10 @@ inline constexpr char kPinSplitTabButton[] = "browser.pin_split_tab_button";
 inline constexpr char kPinContextualTaskButton[] =
     "browser.pin_contextual_task_button";
 
+// An integer pref that tracks how many times the next panel has been opened.
+inline constexpr char kContextualTasksNextPanelOpenCount[] =
+    "contextual_tasks.next_panel_open_count";
+
 // A boolean pref set to true if links/tabs can be dragged to create split tabs.
 inline constexpr char kSplitViewDragAndDropEnabled[] =
     "browser.split_view_drag_and_drop_enabled";
@@ -3587,10 +3591,6 @@ inline constexpr char kCryptAuthInstanceId[] = "cryptauth.instance_id";
 inline constexpr char kCryptAuthInstanceIdToken[] =
     "cryptauth.instance_id_token";
 
-// Boolean that indicates whether elevation is needed to recover Chrome upgrade.
-inline constexpr char kRecoveryComponentNeedsElevation[] =
-    "recovery_component.needs_elevation";
-
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // Policy that indicates how to handle animated images.
 inline constexpr char kAnimationPolicy[] = "settings.a11y.animation_policy";
@@ -4318,11 +4318,6 @@ inline constexpr char kSharedWorkerBlobURLFixEnabled[] =
 // top-level, cross-site and swaps BrowsingContextGroup is allowed or not.
 inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
     "profile.content_settings.clear_window_name_for_new_browsing_context_group";
-
-// Boolean indicating whether Local Network Access restrictions should be forced
-// on regardless of defaults.
-inline constexpr char kManagedLocalNetworkAccessRestrictionsEnabled[] =
-    "managed_local_network_access_restrictions_enabled";
 
 // Boolean indicating whether Local Network Access restrictions should be
 // temporarily opted out of.

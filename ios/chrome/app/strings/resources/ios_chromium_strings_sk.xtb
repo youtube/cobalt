@@ -117,6 +117,7 @@ Pred prepnutím účtov skúste počkať niekoľko minút. Ak ich prepnete teraz
 <translation id="3581385059720151202">Vyhľadanie vizuálnych prvkov v prehliadači Chromium</translation>
 <translation id="3582640969619785896">Chromium vám ponúkne uloženie hesla</translation>
 <translation id="3594315078412605236">Správa spôsobov platby v prehliadači Chromium</translation>
+<translation id="3600428265489994557">Prihláste sa do prehliadača Chromium</translation>
 <translation id="3617143087229977194">V zariadení so systémom iOS otvorte nastavenia predvolených aplikácií, klepnite na položku Aplikácia prehliadača a vyberte Chromium.</translation>
 <translation id="3634039384458740619">Otvoriť Nastavenia prehliadača Chromium</translation>
 <translation id="3639997914391704523">Keď sa prihlásite účtom Google, Chromium môže skontrolovať vaše heslá.</translation>
@@ -351,7 +352,6 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje pr
 <translation id="900560297598578021">Prihlásili ste sa ako <ph name="EMAIL" />.
 
 Vaše údaje boli <ph name="TIME" /> zašifrované pomocou prístupovej frázy. Zadajte ju, keď chcete používať a ukladať údaje prehliadača Chromium vo svojom účte Google.</translation>
-<translation id="9022552996538154597">Prihlásiť sa do prehliadača Chromium</translation>
 <translation id="9031260906956926157">Niektoré údaje prehliadača Chromium zatiaľ neboli vo vašom účte Google uložené.
 Pred odhlásením skúste počkať niekoľko minút. Ak sa odhlásite teraz, tieto údaje budú odstránené.</translation>
 <translation id="9050790730841755540">Chromium môžete kedykoľvek použiť klepnutím na odkazy v iných aplikáciách.</translation>

@@ -293,7 +293,6 @@ void JsepTransportCollection::CommitTransports() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   stable_mid_to_transport_ = mid_to_transport_;
   DestroyUnusedTransports();
-  absl::c_for_each(transports_, [](auto& t) { t->CommitPayloadTypes(); });
   RTC_HISTOGRAM_COUNTS_LINEAR("WebRTC.PeerConnection.RtpTransportCount",
                               transports_.size(), 1, 49, 50);
   RTC_DCHECK(IsConsistent());

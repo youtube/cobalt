@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -31,10 +32,11 @@ DOMException* AuthenticatorStatusToDOMException(
 
 class MODULES_EXPORT AuthenticationCredentialsContainer final
     : public CredentialsContainer,
-      public GarbageCollectedMixin {
+      public Supplement<Navigator> {
  public:
+  static const unsigned kSupplementIndex;
   static CredentialsContainer* credentials(Navigator&);
-  AuthenticationCredentialsContainer() = default;
+  explicit AuthenticationCredentialsContainer(Navigator&);
 
   // CredentialsContainer:
   ScriptPromise<IDLNullable<Credential>> get(ScriptState*,

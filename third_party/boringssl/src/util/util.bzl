@@ -132,6 +132,7 @@ def bssl_cc_library(
         asm_srcs = [],
         copts = [],
         deps = [],
+        implementation_deps = [],
         hdrs = [],
         includes = [],
         internal_hdrs = [],
@@ -159,6 +160,7 @@ def bssl_cc_library(
         includes = includes,
         linkopts = linkopts,
         deps = deps,
+        implementation_deps = implementation_deps,
         testonly = testonly,
         alwayslink = alwayslink,
         **linkstatic_kwargs(linkstatic)
@@ -168,8 +170,13 @@ def bssl_cc_library(
         cc_library(
             name = name,
             hdrs = hdrs,
-            includes = includes,
+            # Depend on the internal target via implementation_deps to avoid
+            # re-exporting internal_hdrs.
             implementation_deps = [":" + name_internal],
+            # Although picked up transitively, re-specify deps and includes, so
+            # that targets depending on the public target also pick them up.
+            deps = deps,
+            includes = includes,
             visibility = visibility,
         )
 

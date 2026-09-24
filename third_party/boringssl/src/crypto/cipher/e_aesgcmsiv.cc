@@ -509,6 +509,9 @@ const EVP_AEAD aead_aes_128_gcm_siv_asm = {
     nullptr /* open */,
     aead_aes_gcm_siv_asm_seal_scatter,
     aead_aes_gcm_siv_asm_open_gather,
+    nullptr /* openv */,
+    nullptr /* sealv */,
+    nullptr /* openv_detached */,
     nullptr /* get_iv */,
     nullptr /* tag_len */,
 };
@@ -526,6 +529,9 @@ const EVP_AEAD aead_aes_256_gcm_siv_asm = {
     nullptr /* open */,
     aead_aes_gcm_siv_asm_seal_scatter,
     aead_aes_gcm_siv_asm_open_gather,
+    nullptr /* openv */,
+    nullptr /* sealv */,
+    nullptr /* openv_detached */,
     nullptr /* get_iv */,
     nullptr /* tag_len */,
 };
@@ -875,6 +881,9 @@ const EVP_AEAD aead_aes_128_gcm_siv = {
     nullptr /* open */,
     aead_aes_gcm_siv_seal_scatter,
     aead_aes_gcm_siv_open_gather,
+    nullptr /* openv */,
+    nullptr /* sealv */,
+    nullptr /* openv_detached */,
     nullptr /* get_iv */,
     nullptr /* tag_len */,
 };
@@ -892,6 +901,9 @@ const EVP_AEAD aead_aes_256_gcm_siv = {
     nullptr /* open */,
     aead_aes_gcm_siv_seal_scatter,
     aead_aes_gcm_siv_open_gather,
+    nullptr /* openv */,
+    nullptr /* sealv */,
+    nullptr /* openv_detached */,
     nullptr /* get_iv */,
     nullptr /* tag_len */,
 };

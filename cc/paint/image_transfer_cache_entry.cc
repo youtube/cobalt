@@ -51,7 +51,7 @@ struct InProcessImageTransferCachePayload {
 
   sk_sp<SkImage> gainmap_image;
   std::optional<SkGainmapInfo> gainmap_info;
-  std::optional<gfx::HDRMetadata> hdr_metadata;
+  gfx::HDRMetadata hdr_metadata;
   sk_sp<SkColorSpace> target_color_space;
   bool needs_mips = false;
 
@@ -571,7 +571,7 @@ ClientImageTransferCacheEntry::Image::Image(
 ClientImageTransferCacheEntry::ClientImageTransferCacheEntry(
     const Image& image,
     bool needs_mips,
-    const std::optional<gfx::HDRMetadata>& hdr_metadata,
+    const gfx::HDRMetadata& hdr_metadata,
     sk_sp<SkColorSpace> target_color_space)
     : needs_mips_(needs_mips),
       target_color_space_(target_color_space),
@@ -677,9 +677,9 @@ bool ClientImageTransferCacheEntry::Serialize(base::span<uint8_t> data) const {
   bool has_gainmap = gainmap_image_.has_value();
   writer.Write(has_gainmap);
   writer.Write(needs_mips_);
-  writer.Write(hdr_metadata_.has_value());
-  if (hdr_metadata_.has_value()) {
-    writer.Write(hdr_metadata_.value());
+  writer.Write(!hdr_metadata_.IsEmpty());
+  if (!hdr_metadata_.IsEmpty()) {
+    writer.Write(hdr_metadata_);
   }
   writer.Write(target_color_space_.get());
   WriteImage(writer, image_);
@@ -700,8 +700,8 @@ void ClientImageTransferCacheEntry::ComputeSize() {
   safe_size += PaintOpWriter::SerializedSize<bool>();  // has_gainmap
   safe_size += PaintOpWriter::SerializedSize<bool>();  // needs_mips
   safe_size += PaintOpWriter::SerializedSize<bool>();  // has_hdr_metadata
-  if (hdr_metadata_.has_value()) {
-    safe_size += PaintOpWriter::SerializedSize(hdr_metadata_.value());
+  if (!hdr_metadata_.IsEmpty()) {
+    safe_size += PaintOpWriter::SerializedSize(hdr_metadata_);
   }
   safe_size += PaintOpWriter::SerializedSize(target_color_space_.get());
   safe_size += SafeSizeForImage(image_);

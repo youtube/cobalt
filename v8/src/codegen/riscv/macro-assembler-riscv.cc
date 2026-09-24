@@ -748,14 +748,17 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
 
 void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
                                                    Label* dest) {
-#if V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Quick check for Read-only and small Smi values.
+  // This optimization requires contiguous compressed RO space to ensure RO
+  // space is at the beginning of the cage; otherwise, objects from other spaces
+  // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <=
                 V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
   JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
-#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
 // Clobbers object, address, value, and ra, if (ra_status == kRAHasBeenSaved)
@@ -1947,59 +1950,61 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
   }
   UseScratchRegisterScope temps(this);
   temps.Include(t4, t6);
-  Register x0 = temps.Acquire();
-  Register x1 = temps.Acquire();
-  DCHECK(!AreAliased(rs, rd, x0, x1, scratch));
+  Register tmp0 = temps.Acquire();
+  Register tmp1 = temps.Acquire();
+  DCHECK(!AreAliased(rs, rd, tmp0, tmp1, scratch));
   BlockPoolsScope block_pools(this);
   if (operand_size == 4) {
     DCHECK((rd != t6) && (rs != t6));
     if (scratch == no_reg) {
-      ReverseBytesHelper<8>(rd, rs, x0, x1);
+      ReverseBytesHelper<8>(rd, rs, tmp0, tmp1);
       Sra64(rd, rd, 32);
     } else {
-      // Uint32_t x1 = 0x00FF00FF;
-      // x0 = (x0 << 16 | x0 >> 16);
-      // x0 = (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8));
-      Register x2 = scratch;
-      li(x1, 0x00FF00FF);
-      Sll32(x0, rs, 16);
+      // Uint32_t tmp1 = 0x00FF00FF;
+      // tmp0 = (tmp0 << 16 | tmp0 >> 16);
+      // tmp0 = (((tmp0 & tmp1) << 8)  | ((tmp0 & (tmp1 << 8)) >> 8));
+      Register tmp2 = scratch;
+      li(tmp1, 0x00FF00FF);
+      Sll32(tmp0, rs, 16);
       Srl32(rd, rs, 16);
-      Or(x0, rd, x0);    // x0 <- x0 << 16 | x0 >> 16
-      And(x2, x0, x1);   // x2 <- x0 & 0x00FF00FF
-      Sll32(x2, x2, 8);  // x2 <- (x0 & x1) << 8
-      Sll32(x1, x1, 8);  // x1 <- 0xFF00FF00
-      And(rd, x0, x1);   // x0 & 0xFF00FF00
+      Or(tmp0, rd, tmp0);     // tmp0 <- tmp0 << 16 | tmp0 >> 16
+      And(tmp2, tmp0, tmp1);  // tmp2 <- tmp0 & 0x00FF00FF
+      Sll32(tmp2, tmp2, 8);   // tmp2 <- (tmp0 & tmp1) << 8
+      Sll32(tmp1, tmp1, 8);   // tmp1 <- 0xFF00FF00
+      And(rd, tmp0, tmp1);    // tmp0 & 0xFF00FF00
       Srl32(rd, rd, 8);
-      Or(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+      // (((tmp0 & tmp1) << 8)  | ((tmp0 & (tmp1 << 8)) >> 8))
+      Or(rd, rd, tmp2);
     }
   } else {
     DCHECK((rd != t6) && (rs != t6));
     if (scratch == no_reg) {
-      ReverseBytesHelper<8>(rd, rs, x0, x1);
+      ReverseBytesHelper<8>(rd, rs, tmp0, tmp1);
     } else {
-      // uinx24_t x1 = 0x0000FFFF0000FFFFl;
-      // uinx24_t x1 = 0x00FF00FF00FF00FFl;
-      // x0 = (x0 << 32 | x0 >> 32);
-      // x0 = (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
-      // x0 = (x0 & x1) << 8  | (x0 & (x1 << 8)) >> 8;
-      Register x2 = scratch;
-      li(x1, 0x0000FFFF0000FFFFl);
-      SllWord(x0, rs, 32);
+      // uinx24_t tmp1 = 0x0000FFFF0000FFFFl;
+      // uinx24_t tmp1 = 0x00FF00FF00FF00FFl;
+      // tmp0 = (tmp0 << 32 | tmp0 >> 32);
+      // tmp0 = (tmp0 & tmp1) << 16 | (tmp0 & (tmp1 << 16)) >> 16;
+      // tmp0 = (tmp0 & tmp1) << 8  | (tmp0 & (tmp1 << 8)) >> 8;
+      Register tmp2 = scratch;
+      li(tmp1, 0x0000FFFF0000FFFFl);
+      SllWord(tmp0, rs, 32);
       SrlWord(rd, rs, 32);
-      Or(x0, rd, x0);       // x0 <- x0 << 32 | x0 >> 32
-      And(x2, x0, x1);      // x2 <- x0 & 0x0000FFFF0000FFFF
-      SllWord(x2, x2, 16);  // x2 <- (x0 & 0x0000FFFF0000FFFF) << 16
-      SllWord(x1, x1, 16);  // x1 <- 0xFFFF0000FFFF0000
-      And(rd, x0, x1);      // rd <- x0 & 0xFFFF0000FFFF0000
-      SrlWord(rd, rd, 16);  // rd <- x0 & (x1 << 16)) >> 16
-      Or(x0, rd, x2);       // (x0 & x1) << 16 | (x0 & (x1 << 16)) >> 16;
-      li(x1, 0x00FF00FF00FF00FFl);
-      And(x2, x0, x1);     // x2 <- x0 & 0x00FF00FF00FF00FF
-      SllWord(x2, x2, 8);  // x2 <- (x0 & x1) << 8
-      SllWord(x1, x1, 8);  // x1 <- 0xFF00FF00FF00FF00
-      And(rd, x0, x1);
-      SrlWord(rd, rd, 8);  // rd <- (x0 & (x1 << 8)) >> 8
-      Or(rd, rd, x2);      // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
+      Or(tmp0, rd, tmp0);       // tmp0 <- tmp0 << 32 | tmp0 >> 32
+      And(tmp2, tmp0, tmp1);    // tmp2 <- tmp0 & 0x0000FFFF0000FFFF
+      SllWord(tmp2, tmp2, 16);  // tmp2 <- (tmp0 & 0x0000FFFF0000FFFF) << 16
+      SllWord(tmp1, tmp1, 16);  // tmp1 <- 0xFFFF0000FFFF0000
+      And(rd, tmp0, tmp1);      // rd <- tmp0 & 0xFFFF0000FFFF0000
+      SrlWord(rd, rd, 16);      // rd <- tmp0 & (tmp1 << 16)) >> 16
+      Or(tmp0, rd, tmp2);  // (tmp0 & tmp1) << 16 | (tmp0 & (tmp1 << 16)) >> 16;
+      li(tmp1, 0x00FF00FF00FF00FFl);
+      And(tmp2, tmp0, tmp1);   // tmp2 <- tmp0 & 0x00FF00FF00FF00FF
+      SllWord(tmp2, tmp2, 8);  // tmp2 <- (tmp0 & tmp1) << 8
+      SllWord(tmp1, tmp1, 8);  // tmp1 <- 0xFF00FF00FF00FF00
+      And(rd, tmp0, tmp1);
+      SrlWord(rd, rd, 8);  // rd <- (tmp0 & (tmp1 << 8)) >> 8
+      // (((tmp0 & tmp1) << 8)  | ((tmp0 & (tmp1 << 8)) >> 8))
+      Or(rd, rd, tmp2);
     }
   }
 }
@@ -5594,15 +5599,12 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   UseScratchRegisterScope temps(this);
-  Register handler_address = temps.Acquire();
-  li(handler_address,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   Register handler = temps.Acquire();
-  LoadWord(handler, MemOperand(handler_address));
+  LoadWord(handler, AsMemOperand(IsolateFieldId::kHandler));
   push(handler);
 
   // Set this new handler as the current one.
-  StoreWord(sp, MemOperand(handler_address));
+  StoreWord(sp, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::PopStackHandler() {
@@ -5611,11 +5613,7 @@ void MacroAssembler::PopStackHandler() {
   AddWord(sp, sp,
           Operand(static_cast<intptr_t>(StackHandlerConstants::kSize -
                                         kSystemPointerSize)));
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  StoreWord(a1, MemOperand(scratch));
+  StoreWord(a1, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
@@ -6776,8 +6774,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
 
-  using ER = ExternalReference;
-
   // Save registers and reserve room for saved entry sp.
   AddWord(sp, sp,
           -2 * kSystemPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
@@ -6794,11 +6790,8 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  StoreWord(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  StoreWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  StoreWord(fp, AsMemOperand(IsolateFieldId::kCEntryFP));
+  StoreWord(cp, AsMemOperand(IsolateFieldId::kContext));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
 
@@ -6821,21 +6814,17 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
 void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
   BlockPoolsScope block_pools(this);
-  using ER = ExternalReference;
   // Clear top frame.
   // Restore current context from top and clear it in debug mode.
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  LoadWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  LoadWord(cp, AsMemOperand(IsolateFieldId::kContext));
 
   if (v8_flags.debug_code) {
     li(scratch, Operand(Context::kNoContext));
-    StoreWord(scratch, ExternalReferenceAsOperand(context_address, no_reg));
+    StoreWord(scratch, AsMemOperand(IsolateFieldId::kContext));
   }
 
   // Clear the top frame.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  StoreWord(zero_reg, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  StoreWord(zero_reg, AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Pop the arguments, restore registers, and return.
   Mv(sp, fp);  // Respect ABI stack constraint.

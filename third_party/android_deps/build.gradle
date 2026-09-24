@@ -14,9 +14,6 @@ dependencies {
 
     compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
 
-    // Needed by androidx.room, but by default it selects a lower version that
-    // does not exist in CIPD.
-    compile 'org.jetbrains.kotlinx:atomicfu-jvm:0.23.2'
     // Needed by androidx and by doubledown targets.
     // Note: These have version overrides set in ChromiumDepGraph.groovy.
     compile "org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.8.1"

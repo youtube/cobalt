@@ -27,8 +27,8 @@ namespace jni {
 jlong JNI_VideoEncoderFallback_Create(
     JNIEnv* jni,
     jlong j_webrtc_env_ref,
-    const jni_zero::JavaParamRef<jobject>& j_fallback_encoder,
-    const jni_zero::JavaParamRef<jobject>& j_primary_encoder) {
+    const jni_zero::JavaRef<jobject>& j_fallback_encoder,
+    const jni_zero::JavaRef<jobject>& j_primary_encoder) {
   std::unique_ptr<VideoEncoder> fallback_encoder =
       JavaToNativeVideoEncoder(jni, j_fallback_encoder, j_webrtc_env_ref);
   std::unique_ptr<VideoEncoder> primary_encoder =

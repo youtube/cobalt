@@ -79,6 +79,7 @@
 #include "remoting/host/config_file_watcher.h"
 #include "remoting/host/config_watcher.h"
 #include "remoting/host/corp_host_status_logger.h"
+#include "remoting/host/corp_signaling_connector.h"
 #include "remoting/host/crash_process.h"
 #include "remoting/host/create_desktop_interaction_strategy_factory.h"
 #include "remoting/host/desktop_environment.h"
@@ -117,6 +118,7 @@
 #include "remoting/protocol/session_config.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/transport_context.h"
+#include "remoting/signaling/corp_signal_strategy.h"
 #include "remoting/signaling/ftl_host_device_id_provider.h"
 #include "remoting/signaling/ftl_signal_strategy.h"
 #include "remoting/signaling/signal_strategy.h"
@@ -501,10 +503,14 @@ class HostProcess : public ConfigWatcher::Delegate,
   // Must outlive |signal_strategy_| and |heartbeat_sender_|.
   std::unique_ptr<ZombieHostDetector> zombie_host_detector_;
 
-  // Signal strategies must outlive |ftl_signaling_connector_|.
+  // |signal_strategy_| must outlive |ftl_signaling_connector_|.
   std::unique_ptr<SignalStrategy> signal_strategy_;
-
   std::unique_ptr<FtlSignalingConnector> ftl_signaling_connector_;
+
+  // |corp_signal_strategy_| must outlive |corp_signaling_connector_|.
+  std::unique_ptr<SignalStrategy> corp_signal_strategy_;
+  std::unique_ptr<CorpSignalingConnector> corp_signaling_connector_;
+
   std::unique_ptr<HeartbeatSender> heartbeat_sender_;
   std::unique_ptr<FtlHostChangeNotificationListener>
       ftl_host_change_notification_listener_;
@@ -1732,6 +1738,7 @@ std::optional<ErrorCode> HostProcess::OnSessionPoliciesReceived(
 void HostProcess::InitializeSignaling() {
   DCHECK(!host_id_.empty());  // ApplyConfig() should already have been run.
   DCHECK(!signal_strategy_);
+  DCHECK(!corp_signal_strategy_);
   DCHECK(!oauth_token_getter_);
   DCHECK(!ftl_signaling_connector_);
   DCHECK(!heartbeat_sender_);
@@ -1747,6 +1754,25 @@ void HostProcess::InitializeSignaling() {
 
   zombie_host_detector_ = std::make_unique<ZombieHostDetector>(base::BindOnce(
       &HostProcess::OnZombieStateDetected, base::Unretained(this)));
+
+#if BUILDFLAG(IS_LINUX)
+  // TODO: joedow - Remove Linux scope after this codepath has been stabilized.
+  const base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (is_corp_host_ && cmd_line->HasSwitch(kEnableCorpMessaging)) {
+    // TODO: joedow - Add a config value for username rather than extracting
+    // username from the email address.
+    std::string username(
+        base::SplitStringOnce(*host_owner_emails_.begin(), '@')->first);
+    // TODO: joedow - For now, just create a Corp messaging channel and let it
+    // run. We'll hook it into JingleSession in a later CL.
+    corp_signal_strategy_ = std::make_unique<CorpSignalStrategy>(
+        context_->url_loader_factory(),
+        context_->create_client_cert_store_callback(), username, key_pair_);
+    corp_signaling_connector_ =
+        std::make_unique<CorpSignalingConnector>(corp_signal_strategy_.get());
+    corp_signaling_connector_->Start();
+  }
+#endif
 
   auto ftl_signal_strategy = std::make_unique<FtlSignalStrategy>(
       std::make_unique<OAuthTokenGetterProxy>(
@@ -1885,6 +1911,11 @@ void HostProcess::StartHost() {
           std::move(ice_config_fetcher), protocol::TransportRole::SERVER);
   std::unique_ptr<protocol::SessionManager> session_manager(
       new protocol::JingleSessionManager(signal_strategy_.get()));
+  std::unique_ptr<protocol::SessionManager> corp_session_manager;
+  if (corp_signal_strategy_) {
+    corp_session_manager = std::make_unique<protocol::JingleSessionManager>(
+        corp_signal_strategy_.get());
+  }
 
   std::unique_ptr<protocol::CandidateSessionConfig> protocol_config =
       protocol::CandidateSessionConfig::CreateDefault();
@@ -1922,8 +1953,9 @@ void HostProcess::StartHost() {
 
   host_ = std::make_unique<ChromotingHost>(
       desktop_environment_factory_.get(), std::move(session_manager),
-      transport_context, context_->audio_task_runner(),
-      context_->video_encode_task_runner(), desktop_environment_options_,
+      std::move(corp_session_manager), transport_context,
+      context_->audio_task_runner(), context_->video_encode_task_runner(),
+      desktop_environment_options_,
       base::BindRepeating(&HostProcess::OnSessionPoliciesReceived,
                           base::Unretained(this)),
       &local_session_policies_provider_);
@@ -2079,6 +2111,8 @@ void HostProcess::OnHostOfflineReasonAck(bool success) {
   ftl_signaling_connector_.reset();
   ftl_echo_message_listener_.reset();
   signal_strategy_.reset();
+  corp_signal_strategy_.reset();
+  corp_signaling_connector_.reset();
   zombie_host_detector_.reset();
 
   if (state_ == HOST_GOING_OFFLINE_TO_RESTART) {

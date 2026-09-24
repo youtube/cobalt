@@ -331,3 +331,5 @@ static void JNI_TraceEvent_FinishAsync(JNIEnv* env,
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(TraceEvent)

@@ -17,7 +17,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/signin/services/android/jni_headers/WebSigninBridge_jni.h"
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 
 namespace {
 void ForwardOnSigninCompletedToJava(
@@ -44,7 +44,7 @@ static jlong JNI_WebSigninBridge_CreateWithCoreAccountId(
     JNIEnv* env,
     Profile* profile,
     CoreAccountId& account_id,
-    const JavaParamRef<jobject>& j_listener) {
+    const JavaRef<jobject>& j_listener) {
   CHECK(j_listener) << "Listener should be non-null";
 
   signin::IdentityManager* identity_manager =
@@ -64,7 +64,7 @@ static jlong JNI_WebSigninBridge_CreateWithEmail(
     JNIEnv* env,
     Profile* profile,
     std::string& account_email,
-    const JavaParamRef<jobject>& j_listener) {
+    const JavaRef<jobject>& j_listener) {
   CHECK(j_listener) << "Listener should be non-null";
 
   signin::IdentityManager* identity_manager =

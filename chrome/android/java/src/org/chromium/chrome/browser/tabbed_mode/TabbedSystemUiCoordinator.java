@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tabbed_mode;
 
 import android.view.Window;
 
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -14,7 +15,6 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
-import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponentSupplier;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsVisualState;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -72,10 +72,10 @@ public class TabbedSystemUiCoordinator {
             BottomControlsStacker bottomControlsStacker,
             BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<SnackbarManager> snackbarManagerSupplier,
-            ObservableSupplier<ContextualSearchManager> contextualSearchManagerSupplier,
+            NullableObservableSupplier<ContextualSearchManager> contextualSearchManagerSupplier,
             BottomSheetController bottomSheetController,
             @Nullable OmniboxSuggestionsVisualState omniboxSuggestionsVisualState,
-            ManualFillingComponentSupplier manualFillingComponentSupplier,
+            @Nullable ManualFillingComponent manualFillingComponent,
             ObservableSupplier<Integer> overviewColorSupplier,
             InsetObserver insetObserver,
             EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper) {
@@ -93,7 +93,7 @@ public class TabbedSystemUiCoordinator {
                         contextualSearchManagerSupplier,
                         bottomSheetController,
                         omniboxSuggestionsVisualState,
-                        manualFillingComponentSupplier,
+                        manualFillingComponent,
                         overviewColorSupplier,
                         insetObserver,
                         edgeToEdgeSystemBarColorHelper);

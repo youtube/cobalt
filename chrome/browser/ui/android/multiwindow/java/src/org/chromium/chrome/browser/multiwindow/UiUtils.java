@@ -24,6 +24,8 @@ import androidx.annotation.VisibleForTesting;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -31,6 +33,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
 import org.chromium.components.favicon.LargeIconBridge;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
@@ -69,8 +72,10 @@ public class UiUtils {
         mIncognitoFavicon =
                 isIncognitoAsWindowEnabled()
                         ? mContext.getResources()
-                                .getDrawable(R.drawable.ic_incognito_24dp, mContext.getTheme())
-                        : getTintedIcon(R.drawable.incognito_simple);
+                                .getDrawable(
+                                        R.drawable.ic_incognito_circle_fill_24dp,
+                                        mContext.getTheme())
+                        : getTintedIcon(R.drawable.ic_incognito_fill_24dp);
         mGlobeFavicon = getTintedIcon(R.drawable.ic_globe_24dp);
         mIconGenerator = FaviconUtils.createRoundedRectangleIconGenerator(context);
     }
@@ -126,7 +131,12 @@ public class UiUtils {
     // IncognitoUtils function
     @Deprecated
     public static boolean isIncognitoAsWindowEnabled() {
-        return ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled();
+        // TODO(crbug.com/467768341): Clean up the desktop form factor check once the bug is fixed.
+        return ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled()
+                && ((DeviceFormFactor.isNonMultiDisplayContextOnTablet(
+                                        ContextUtils.getApplicationContext())
+                                && !DeviceInfo.isAutomotive())
+                        || DeviceInfo.isDesktop());
     }
 
     /**

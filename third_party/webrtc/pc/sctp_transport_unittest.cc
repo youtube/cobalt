@@ -47,11 +47,14 @@ namespace {
 
 class FakeCricketSctpTransport : public SctpTransportInternal {
  public:
+  explicit FakeCricketSctpTransport(DtlsTransportInternal* transport)
+      : transport_(transport) {}
+
   void SetOnConnectedCallback(std::function<void()> callback) override {
     on_connected_callback_ = std::move(callback);
   }
   void SetDataChannelSink(DataChannelSink* sink) override {}
-  void SetDtlsTransport(DtlsTransportInternal* transport) override {}
+  DtlsTransportInternal* dtls_transport() const override { return transport_; }
   bool Start(const SctpOptions& options) override { return true; }
   bool OpenStream(int sid, PriorityValue priority) override { return true; }
   bool ResetStream(int sid) override { return true; }
@@ -61,7 +64,6 @@ class FakeCricketSctpTransport : public SctpTransportInternal {
     return RTCError::OK();
   }
   bool ReadyToSendData() override { return true; }
-  void set_debug_name_for_testing(const char* debug_name) override {}
   int max_message_size() const override { return 0; }
   std::optional<int> max_outbound_streams() const override {
     return max_outbound_streams_;
@@ -84,6 +86,7 @@ class FakeCricketSctpTransport : public SctpTransportInternal {
   void set_max_inbound_streams(int streams) { max_inbound_streams_ = streams; }
 
  private:
+  DtlsTransportInternal* const transport_;
   std::optional<int> max_outbound_streams_;
   std::optional<int> max_inbound_streams_;
   std::function<void()> on_connected_callback_;
@@ -122,15 +125,26 @@ class SctpTransportTest : public ::testing::Test {
   SctpTransport* transport() { return transport_.get(); }
   SctpTransportObserverInterface* observer() { return &observer_; }
 
-  void CreateTransport() {
-    std::unique_ptr<DtlsTransportInternal> cricket_transport =
-        std::make_unique<FakeDtlsTransport>("audio",
-                                            ICE_CANDIDATE_COMPONENT_RTP);
-    dtls_transport_ =
-        make_ref_counted<DtlsTransport>(std::move(cricket_transport));
+  void TearDown() override {
+    if (dtls_transport_ && internal_transport_) {
+      internal_transport_->UnsubscribeDtlsTransportState(dtls_transport_.get());
+      dtls_transport_->Clear(internal_transport_.get());
+    }
+  }
 
-    auto cricket_sctp_transport =
-        absl::WrapUnique(new FakeCricketSctpTransport());
+  void CreateTransport() {
+    internal_transport_ = std::make_unique<FakeDtlsTransport>(
+        "audio", ICE_CANDIDATE_COMPONENT_RTP);
+    dtls_transport_ =
+        make_ref_counted<DtlsTransport>(internal_transport_.get());
+    internal_transport_->SubscribeDtlsTransportState(
+        dtls_transport_.get(),
+        [this](DtlsTransportInternal* transport, DtlsTransportState state) {
+          dtls_transport_->OnInternalDtlsState(transport);
+        });
+
+    auto cricket_sctp_transport = absl::WrapUnique(
+        new FakeCricketSctpTransport(internal_transport_.get()));
     transport_ = make_ref_counted<SctpTransport>(
         std::move(cricket_sctp_transport), dtls_transport_);
   }
@@ -150,18 +164,19 @@ class SctpTransportTest : public ::testing::Test {
   AutoThread main_thread_;
   scoped_refptr<SctpTransport> transport_;
   scoped_refptr<DtlsTransport> dtls_transport_;
+  std::unique_ptr<FakeDtlsTransport> internal_transport_;
   TestSctpTransportObserver observer_;
 };
 
 TEST(SctpTransportSimpleTest, CreateClearDelete) {
   AutoThread main_thread;
-  std::unique_ptr<DtlsTransportInternal> cricket_transport =
+  std::unique_ptr<DtlsTransportInternal> internal_transport =
       std::make_unique<FakeDtlsTransport>("audio", ICE_CANDIDATE_COMPONENT_RTP);
   scoped_refptr<DtlsTransport> dtls_transport =
-      make_ref_counted<DtlsTransport>(std::move(cricket_transport));
+      make_ref_counted<DtlsTransport>(internal_transport.get());
 
   std::unique_ptr<SctpTransportInternal> fake_cricket_sctp_transport =
-      absl::WrapUnique(new FakeCricketSctpTransport());
+      absl::WrapUnique(new FakeCricketSctpTransport(internal_transport.get()));
   scoped_refptr<SctpTransport> sctp_transport = make_ref_counted<SctpTransport>(
       std::move(fake_cricket_sctp_transport), dtls_transport);
   ASSERT_TRUE(sctp_transport->internal());
@@ -170,6 +185,7 @@ TEST(SctpTransportSimpleTest, CreateClearDelete) {
   sctp_transport->Clear();
   ASSERT_FALSE(sctp_transport->internal());
   ASSERT_EQ(SctpTransportState::kClosed, sctp_transport->Information().state());
+  dtls_transport->Clear(internal_transport.get());
 }
 
 TEST_F(SctpTransportTest, EventsObservedWhenConnecting) {
@@ -218,8 +234,7 @@ TEST_F(SctpTransportTest, CloseWhenTransportCloses) {
   ASSERT_THAT(WaitUntil([&] { return observer_.State(); },
                         ::testing::Eq(SctpTransportState::kConnected)),
               IsRtcOk());
-  static_cast<FakeDtlsTransport*>(dtls_transport_->internal())
-      ->SetDtlsState(DtlsTransportState::kClosed);
+  internal_transport_->SetDtlsState(DtlsTransportState::kClosed);
   ASSERT_THAT(WaitUntil([&] { return observer_.State(); },
                         ::testing::Eq(SctpTransportState::kClosed)),
               IsRtcOk());

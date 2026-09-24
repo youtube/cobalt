@@ -104,6 +104,9 @@ TEST_F(SafeBrowsingPrefsTest,
 }
 
 TEST_F(SafeBrowsingPrefsTest, GetSafeBrowsingExtendedReportingLevel) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      safe_browsing::kExtendedReportingRemovePrefDependency);
   // By Default, extended reporting is off.
   EXPECT_EQ(SBER_LEVEL_OFF, GetExtendedReportingLevel(prefs_));
 
@@ -206,16 +209,10 @@ TEST_F(SafeBrowsingPrefsTest,
 }
 
 TEST_F(SafeBrowsingPrefsTest, IsExtendedReportingPolicyManaged) {
-  // This test checks that manipulating SBEROptInAllowed and the management
-  // state of SBER behaves as expected. Below, we describe what should happen
-  // to the results of IsExtendedReportingPolicyManaged and
-  // IsExtendedReportingOptInAllowed.
-
-  // Confirm default state, SBER should be disabled, SBER with deprecation flag
-  // bypassed should be disabled, OptInAllowed should be enabled, and SBER is
-  // not managed.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kExtendedReportingRemovePrefDependency);
   EXPECT_FALSE(IsExtendedReportingEnabled(prefs_));
-  EXPECT_FALSE(IsExtendedReportingEnabledBypassDeprecationFlag(prefs_));
   EXPECT_TRUE(IsExtendedReportingOptInAllowed(prefs_));
   EXPECT_FALSE(IsExtendedReportingPolicyManaged(prefs_));
 
@@ -238,10 +235,25 @@ TEST_F(SafeBrowsingPrefsTest, IsExtendedReportingPolicyManaged) {
       prefs_.IsManagedPreference(prefs::kSafeBrowsingScoutReportingEnabled));
   // The value of the pref comes from the policy.
   EXPECT_TRUE(IsExtendedReportingEnabled(prefs_));
-  // The value of the pref comes from the policy and should be enabled.
-  EXPECT_TRUE(IsExtendedReportingEnabledBypassDeprecationFlag(prefs_));
   // SBER being managed doesn't change the SBEROptInAllowed pref.
   EXPECT_TRUE(IsExtendedReportingOptInAllowed(prefs_));
+}
+
+TEST_F(SafeBrowsingPrefsTest, IsSafeBrowsingPolicyManaged_ForESB) {
+  // This test checks that manipulating ESB and the management state of ESB
+  // behaves as expected.
+  EXPECT_FALSE(IsSafeBrowsingPolicyManaged(prefs_));
+
+  // Make the ESB pref managed and ensure that the pref gets the
+  // expected value.
+  prefs_.SetManagedPref(prefs::kSafeBrowsingEnhanced,
+                        std::make_unique<base::Value>(true));
+  EXPECT_TRUE(prefs_.IsManagedPreference(prefs::kSafeBrowsingEnhanced));
+  EXPECT_TRUE(IsSafeBrowsingPolicyManaged(prefs_));
+
+  // Remove the managed pref.
+  prefs_.RemoveManagedPref(prefs::kSafeBrowsingEnhanced);
+  EXPECT_FALSE(IsSafeBrowsingPolicyManaged(prefs_));
 }
 
 TEST_F(SafeBrowsingPrefsTest, VerifyIsURLAllowlistedByPolicy) {

@@ -358,8 +358,7 @@ TEST_F(MemoryCacheStrongReferenceTest, ResourceTimeout) {
 
   ASSERT_EQ(MemoryCache::Get()->strong_references_.size(), 0u);
   MemoryCache::Get()->strong_references_prune_duration_ = base::Milliseconds(1);
-  MemoryCache::Get()->SavePageResourceStrongReferences(
-      HeapVector<Member<Resource>>{resource});
+  MemoryCache::Get()->SaveStrongReference(resource);
   ASSERT_EQ(MemoryCache::Get()->strong_references_.size(), 1u);
 
   (*MemoryCache::Get()->strong_references_.begin())
@@ -409,12 +408,16 @@ TEST_F(MemoryCacheStrongReferenceTest, ChangeMemoryCacheSize) {
 
   // Change the memory limit. This will reduce the max size to zero, but not
   // clear anything yet.
-  test_memory_consumer_registry_.NotifyUpdateMemoryLimit(0);
+  test_memory_consumer_registry_.NotifyUpdateMemoryLimitAsync(
+      0, task_environment_.QuitClosure());
+  task_environment_.RunUntilQuit();
   EXPECT_EQ(MemoryCache::Get()->strong_references_max_size_, 0u);
   EXPECT_EQ(MemoryCache::Get()->strong_references_.size(), 1u);
 
   // ReleaseMemory notification. This actually calls PruneStrongReferences();
-  test_memory_consumer_registry_.NotifyReleaseMemory();
+  test_memory_consumer_registry_.NotifyReleaseMemoryAsync(
+      task_environment_.QuitClosure());
+  task_environment_.RunUntilQuit();
   EXPECT_EQ(MemoryCache::Get()->strong_references_max_size_, 0u);
   EXPECT_EQ(MemoryCache::Get()->strong_references_.size(), 0u);
 }

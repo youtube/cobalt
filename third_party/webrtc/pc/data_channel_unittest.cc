@@ -20,11 +20,11 @@
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/data_channel_transport_interface.h"
-#include "media/sctp/sctp_transport_internal.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_utils.h"
 #include "pc/test/fake_data_channel_controller.h"
@@ -519,7 +519,7 @@ TEST_F(SctpDataChannelTest, DeprecatedClosedOnTransportError) {
   DataBuffer buffer("abcd");
   controller_->set_transport_error();
 
-  EXPECT_TRUE(channel_->Send(buffer));
+  EXPECT_FALSE(channel_->Send(buffer));
 
   EXPECT_EQ(DataChannelInterface::kClosed, channel_->state());
   EXPECT_FALSE(channel_->error().ok());

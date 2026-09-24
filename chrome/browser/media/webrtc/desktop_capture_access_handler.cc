@@ -247,13 +247,22 @@ void DesktopCaptureAccessHandler::ProcessScreenCaptureAccessRequest(
       pending_request->is_allowlisted_extension ||
       IsBuiltInFeedbackUI(pending_request->request.security_origin);
 
+  if (!screen_capture_enabled) {
+    std::move(pending_request->callback)
+        .Run(blink::mojom::StreamDevicesSet(),
+             MediaStreamRequestResult::CAPTURE_NOT_ENABLED, /*ui=*/nullptr);
+    return;
+  }
+
   const bool origin_is_secure =
       network::IsUrlPotentiallyTrustworthy(
           pending_request->request.security_origin) ||
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kAllowHttpScreenCapture);
 
-  if (!screen_capture_enabled || !origin_is_secure) {
+  if (!origin_is_secure) {
+    // TODO(crbug.com/453600255): Use result INVALID_SECURITY_ORIGIN instead of
+    // INVALID_STATE once all new enum values are added.
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
              MediaStreamRequestResult::INVALID_STATE,
@@ -351,7 +360,7 @@ void DesktopCaptureAccessHandler::HandleRequest(
       blink::mojom::MediaStreamType::GUM_DESKTOP_VIDEO_CAPTURE) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::INVALID_STATE,
+             MediaStreamRequestResult::INVALID_EXTENSION_TYPE_REQUEST,
              /*ui=*/nullptr);
     return;
   }
@@ -402,9 +411,6 @@ void DesktopCaptureAccessHandler::HandleRequest(
 
   // Resolve DesktopMediaID for the specified device id.
   content::DesktopMediaID media_id;
-  // TODO(http://crbug.com/304341): Replace "main RenderFrame" IDs with the
-  // request's actual RenderFrame IDs once the desktop capture extension API
-  // implementation is fixed.
   content::WebContents* const web_contents_for_stream =
       content::WebContents::FromRenderFrameHost(
           content::RenderFrameHost::FromID(request.render_process_id,
@@ -412,23 +418,29 @@ void DesktopCaptureAccessHandler::HandleRequest(
   content::RenderFrameHost* const main_frame =
       web_contents_for_stream ? web_contents_for_stream->GetPrimaryMainFrame()
                               : nullptr;
-  if (main_frame) {
-    // This function would have already returned if this vector was empty.
-    CHECK(!request.requested_video_device_ids.empty());
-    media_id =
-        content::DesktopStreamsRegistry::GetInstance()->RequestMediaForStreamId(
-            request.requested_video_device_ids.front(),
-            main_frame->GetProcess()->GetDeprecatedID(),
-            main_frame->GetRoutingID(),
-            url::Origin::Create(request.security_origin),
-            content::kRegistryStreamTypeDesktop);
+  if (!main_frame) {
+    std::move(pending_request->callback)
+        .Run(blink::mojom::StreamDevicesSet(),
+             MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN,
+             /*ui=*/nullptr);
+    return;
   }
+
+  // This function would have already returned if this vector was empty.
+  CHECK(!request.requested_video_device_ids.empty());
+  media_id =
+      content::DesktopStreamsRegistry::GetInstance()->RequestMediaForStreamId(
+          request.requested_video_device_ids.front(),
+          main_frame->GetProcess()->GetDeprecatedID(),
+          main_frame->GetRoutingID(),
+          url::Origin::Create(request.security_origin),
+          content::kRegistryStreamTypeDesktop);
 
   // Received invalid device id.
   if (media_id.type == content::DesktopMediaID::TYPE_NONE) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::INVALID_STATE,
+             MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY,
              /*ui=*/nullptr);
     return;
   }
@@ -459,7 +471,7 @@ void DesktopCaptureAccessHandler::HandleRequest(
               media_id.web_contents_id.main_render_frame_id))) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::TAB_CAPTURE_FAILURE,
+             MediaStreamRequestResult::CAPTURED_TAB_DESTROYED,
              /*ui=*/nullptr);
     return;
   }
@@ -603,6 +615,7 @@ void DesktopCaptureAccessHandler::ProcessQueuedAccessRequest(
       pending_request.request.exclude_self_browser_surface;
   picker_params.exclude_monitor_type_surfaces =
       pending_request.request.exclude_monitor_type_surfaces;
+  picker_params.allowed_capture_level = capture_level;
   picker_params.includable_web_contents_filter = includable_web_contents_filter;
 #endif
 

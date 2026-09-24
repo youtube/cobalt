@@ -8,6 +8,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/values_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/task/thread_pool.h"
@@ -319,6 +320,15 @@ void PageHandler::GetDefaultModelPath(GetDefaultModelPathCallback callback) {
 #endif  // BUILDFLAG(USE_ON_DEVICE_MODEL_SERVICE)
 }
 
+void PageHandler::UninstallDefaultModel() {
+#if BUILDFLAG(USE_ON_DEVICE_MODEL_SERVICE)
+  optimization_guide_keyed_service_->GetGlobalState()
+      .model_broker_state()
+      .component_state_manager()
+      .ForceUninstall();
+#endif  // BUILDFLAG(USE_ON_DEVICE_MODEL_SERVICE)
+}
+
 void PageHandler::OnLogMessageAdded(
     base::Time event_time,
     optimization_guide_common::mojom::LogSource log_source,
@@ -444,6 +454,11 @@ void PageHandler::DecodeBitmap(mojo_base::BigBuffer image_buffer,
 void PageHandler::ResetModelCrashCount() {
   PrefService* prefs = g_browser_process->local_state();
   prefs->SetInteger(kOnDeviceModelCrashCount, 0);
+}
+
+void PageHandler::SendDownloadProgress(int64_t downloaded_bytes,
+                                       int64_t total_bytes) {
+  page_->OnDownloadProgressUpdate(downloaded_bytes, total_bytes);
 }
 
 }  // namespace on_device_internals

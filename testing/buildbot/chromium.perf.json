@@ -20,6 +20,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -89,6 +91,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//clank/java:resource_sizes_trichrome_google",
+        "module_scheme": "single",
         "name": "resource_sizes_trichrome_google",
         "resultdb": {
           "has_native_resultdb_integration": true
@@ -129,6 +133,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -189,6 +195,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_bundle",
         "resultdb": {
           "enable": true
@@ -284,6 +292,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -333,6 +343,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -379,6 +391,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -425,6 +439,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -472,6 +488,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -519,6 +537,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -563,6 +583,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -599,7 +621,7 @@
       {
         "args": [
           "-v",
-          "--browser=android-webview-trichrome-google-bundle",
+          "--browser=android-webview-standalone-google",
           "--upload-results",
           "--test-shard-map-filename=android-pixel4_webview-perf_map.json",
           "--ignore-benchmark-exit-code"
@@ -646,7 +668,7 @@
       {
         "args": [
           "-v",
-          "--browser=android-webview-trichrome-google-bundle",
+          "--browser=android-webview-standalone-google",
           "--upload-results",
           "--test-shard-map-filename=android-pixel4_webview-perf-pgo_map.json",
           "--ignore-benchmark-exit-code"
@@ -704,6 +726,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -751,6 +775,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -798,6 +824,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -842,6 +870,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -889,6 +919,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -936,6 +968,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -983,6 +1017,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
+        "module_scheme": "flat",
         "name": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "resultdb": {
           "enable": true
@@ -1050,6 +1086,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//clank/java:resource_sizes_trichrome_google",
+        "module_scheme": "single",
         "name": "resource_sizes_trichrome_google",
         "resultdb": {
           "has_native_resultdb_integration": true
@@ -1090,6 +1128,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:chrome_sizes",
+        "module_scheme": "single",
         "name": "chrome_sizes",
         "resultdb": {
           "has_native_resultdb_integration": true
@@ -1129,6 +1169,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1175,6 +1217,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1219,6 +1263,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1266,6 +1312,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1314,6 +1362,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1356,6 +1406,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:chrome_sizes",
+        "module_scheme": "single",
         "name": "chrome_sizes",
         "resultdb": {
           "has_native_resultdb_integration": true
@@ -1390,6 +1442,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:chrome_sizes",
+        "module_scheme": "single",
         "name": "chrome_sizes",
         "resultdb": {
           "has_native_resultdb_integration": true
@@ -1428,6 +1482,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1476,6 +1532,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1523,6 +1581,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1570,6 +1630,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1617,6 +1679,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1664,6 +1728,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1712,6 +1778,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1761,6 +1829,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1812,6 +1882,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1856,6 +1928,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1903,6 +1977,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1947,6 +2023,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -1996,6 +2074,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2041,6 +2121,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2089,6 +2171,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2133,6 +2217,8 @@
         "merge": {
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2182,6 +2268,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2229,6 +2317,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:performance_test_suite",
+        "module_scheme": "flat",
         "name": "performance_test_suite",
         "resultdb": {
           "enable": true
@@ -2271,6 +2361,8 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//chrome/test:chrome_sizes",
+        "module_scheme": "single",
         "name": "chrome_sizes",
         "resultdb": {
           "has_native_resultdb_integration": true

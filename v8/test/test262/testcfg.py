@@ -53,6 +53,7 @@ FEATURE_FLAGS = {
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'json-parse-with-source': '--harmony-json-parse-with-source',
+    'iterator-sequencing': '--js-iterator-sequencing',
     'iterator-helpers': '--harmony-iterator-helpers',
     'set-methods': '--harmony-set-methods',
     'import-attributes': '--harmony-import-attributes',
@@ -70,6 +71,7 @@ FEATURE_FLAGS = {
     'upsert': '--js-upsert',
     'Intl.Locale': '--js-intl-locale-variants',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
+    'immutable-arraybuffer': '--js-immutable-arraybuffer',
 }
 
 SKIPPED_FEATURES = set([])

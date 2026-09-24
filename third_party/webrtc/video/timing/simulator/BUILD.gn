@@ -10,8 +10,6 @@ import("../../../webrtc.gni")
 
 if (rtc_enable_protobuf) {
   rtc_library("simulator") {
-    # TODO: b/423646186 - Remove testonly when time controller is not testonly.
-    testonly = true
     sources = [
       "assembler.cc",
       "assembler.h",
@@ -36,7 +34,6 @@ if (rtc_enable_protobuf) {
       "../../../api:rtp_parameters",
       "../../../api:scoped_refptr",
       "../../../api:sequence_checker",
-      "../../../api:time_controller",
       "../../../api:transport_api",
       "../../../api/environment",
       "../../../api/environment:environment_factory",
@@ -60,7 +57,7 @@ if (rtc_enable_protobuf) {
       "../../../rtc_base:logging",
       "../../../rtc_base:macromagic",
       "../../../rtc_base:rtc_numerics",
-      "../../../test/time_controller",
+      "../../../test/time_controller:simulated_time_task_queue_controller",
       "../../../video",
       "../../../video:task_queue_frame_decode_scheduler",
       "../../../video:video_stream_buffer_controller",

@@ -414,6 +414,9 @@ class RTC_EXPORT Network {
     NotifyNetworkPreferenceChanged(this);
   }
 
+  NetworkSlice network_slice() const { return network_slice_; }
+  void set_network_slice(NetworkSlice slice) { network_slice_ = slice; }
+
   static std::pair<AdapterType, bool /* vpn */> GuessAdapterFromNetworkCost(
       int network_cost);
 
@@ -437,6 +440,7 @@ class RTC_EXPORT Network {
   bool active_ = true;
   uint16_t id_ = 0;
   NetworkPreference network_preference_ = NetworkPreference::NEUTRAL;
+  NetworkSlice network_slice_ = NetworkSlice::NO_SLICE;
   CallbackList<const Network*> type_changed_callbacks_;
   CallbackList<const Network*> network_preference_changed_callbacks_;
   friend class NetworkManager;

@@ -19,3 +19,9 @@ cc_binary(
     srcs = ["example.cc"],
     deps = ["@boringssl//:crypto"],
 )
+
+cc_binary(
+    name = "example_ssl",
+    srcs = ["example_ssl.cc"],
+    deps = ["@boringssl//:ssl"],
+)

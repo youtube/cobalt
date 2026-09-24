@@ -4,6 +4,8 @@
 
 #include <optional>
 
+#include "base/strings/strcat.h"
+#include "base/strings/to_string.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -54,6 +56,7 @@
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
 #include "components/user_education/views/help_bubble_view.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -577,6 +580,8 @@ class FirstRunParameterizedInteractiveUiTest
     // Change the country to belgium so that the search engine choice test works
     // as intended.
     command_line->AppendSwitchASCII(switches::kSearchEngineChoiceCountry, "BE");
+    command_line->AppendSwitchASCII(
+        variations::switches::kVariationsOverrideCountry, "BE");
 
     command_line->AppendSwitch(
         switches::kIgnoreNoFirstRunForSearchEngineChoiceScreen);

@@ -2327,4 +2327,193 @@ TEST_F(SdpOfferAnswerTest, NegotiatesTransportCcWhenCcfbMissingInOneSection) {
   EXPECT_TRUE(found_transport_cc);
 }
 
+TEST_F(SdpOfferAnswerTest,
+       NegotiatesTransportCcWhenCcfbMissingInOneSectionReversed) {
+  auto pc =
+      CreatePeerConnection("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0 1\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:* ack ccfb\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:1\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:96 VP8/90000\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_NE(offer, nullptr);
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_NE(answer, nullptr);
+  auto* desc = answer->description();
+  ASSERT_EQ(desc->contents().size(), 2u);
+
+  auto* audio_content = desc->GetContentByName("0");
+  ASSERT_TRUE(audio_content);
+  auto* audio_desc = audio_content->media_description();
+  EXPECT_FALSE(audio_desc->rtcp_fb_ack_ccfb());
+  bool found_transport_cc = false;
+  for (const auto& codec : audio_desc->codecs()) {
+    if (codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc))) {
+      found_transport_cc = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_transport_cc);
+
+  auto* video_content = desc->GetContentByName("1");
+  ASSERT_TRUE(video_content);
+  auto* video_desc = video_content->media_description();
+  EXPECT_FALSE(video_desc->rtcp_fb_ack_ccfb());
+  for (const auto& codec : video_desc->codecs()) {
+    EXPECT_FALSE(
+        codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc)));
+  }
+}
+
+TEST_F(SdpOfferAnswerTest, NegotiatesCcfbWhenPresentInBothSections) {
+  auto pc =
+      CreatePeerConnection("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0 1\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:* ack ccfb\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:1\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:96 VP8/90000\r\n"
+      "a=rtcp-fb:* ack ccfb\r\n"
+      "a=rtcp-fb:96 transport-cc\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_NE(offer, nullptr);
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_NE(answer, nullptr);
+  auto* desc = answer->description();
+  ASSERT_EQ(desc->contents().size(), 2u);
+
+  auto* audio_content = desc->GetContentByName("0");
+  ASSERT_TRUE(audio_content);
+  auto* audio_desc = audio_content->media_description();
+  EXPECT_TRUE(audio_desc->rtcp_fb_ack_ccfb());
+  for (const auto& codec : audio_desc->codecs()) {
+    EXPECT_FALSE(
+        codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc)));
+  }
+
+  auto* video_content = desc->GetContentByName("1");
+  ASSERT_TRUE(video_content);
+  auto* video_desc = video_content->media_description();
+  EXPECT_TRUE(video_desc->rtcp_fb_ack_ccfb());
+  for (const auto& codec : video_desc->codecs()) {
+    EXPECT_FALSE(
+        codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc)));
+  }
+}
+
+TEST_F(SdpOfferAnswerTest, NegotiatesTransportCcWhenCcfbMissingInBothSections) {
+  auto pc =
+      CreatePeerConnection("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0 1\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:1\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:96 VP8/90000\r\n"
+      "a=rtcp-fb:96 transport-cc\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_NE(offer, nullptr);
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_NE(answer, nullptr);
+  auto* desc = answer->description();
+  ASSERT_EQ(desc->contents().size(), 2u);
+
+  auto* audio_content = desc->GetContentByName("0");
+  ASSERT_TRUE(audio_content);
+  auto* audio_desc = audio_content->media_description();
+  EXPECT_FALSE(audio_desc->rtcp_fb_ack_ccfb());
+  bool found_transport_cc = false;
+  for (const auto& codec : audio_desc->codecs()) {
+    if (codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc))) {
+      found_transport_cc = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_transport_cc);
+
+  auto* video_content = desc->GetContentByName("1");
+  ASSERT_TRUE(video_content);
+  auto* video_desc = video_content->media_description();
+  EXPECT_FALSE(video_desc->rtcp_fb_ack_ccfb());
+  found_transport_cc = false;
+  for (const auto& codec : video_desc->codecs()) {
+    if (codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc))) {
+      found_transport_cc = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_transport_cc);
+}
+
 }  // namespace webrtc

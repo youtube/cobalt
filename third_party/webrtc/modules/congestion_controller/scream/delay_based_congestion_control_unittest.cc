@@ -52,9 +52,9 @@ TEST(DelayBasedCongestionControlTest,
     DataRate send_rate = DataRate::KilobitsPerSec(100);
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
-    ASSERT_EQ(feedback.smoothed_rtt, TimeDelta::Millis(58));
 
     delay_controller.OnTransportPacketsFeedback(feedback);
+    EXPECT_EQ(delay_controller.rtt(), TimeDelta::Millis(58));
     EXPECT_EQ(delay_controller.queue_delay(), TimeDelta::Millis(0));
     EXPECT_FALSE(delay_controller.IsQueueDelayDetected());
     EXPECT_FALSE(delay_controller.ShouldReduceReferenceWindow());
@@ -73,17 +73,14 @@ TEST(DelayBasedCongestionControlTest, QueueDelayIncreaseIfSendRateIsHigh) {
                          .link_capacity = DataRate::KilobitsPerSec(1000)},
   });
 
-  TimeDelta smoothed_rtt;
   for (int i = 0; i < 10; ++i) {
     // Send faster than link capacity to build a queue.
     DataRate send_rate = DataRate::KilobitsPerSec(2000);
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
     delay_controller.OnTransportPacketsFeedback(feedback);
-    smoothed_rtt = feedback.smoothed_rtt;
   }
   EXPECT_GT(delay_controller.queue_delay(), TimeDelta::Millis(50));
-  EXPECT_GT(smoothed_rtt, delay_controller.queue_delay());
   EXPECT_TRUE(delay_controller.IsQueueDelayDetected());
   EXPECT_TRUE(delay_controller.ShouldReduceReferenceWindow());
 }
@@ -133,7 +130,7 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowDecreasedOnHighDelay) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
     delay_controller.OnTransportPacketsFeedback(feedback);
-    smoothed_rtt = feedback.smoothed_rtt;
+    smoothed_rtt = delay_controller.rtt();
   }
   DataSize ref_window = send_rate * smoothed_rtt;
   DataSize updated_ref_window = delay_controller.UpdateReferenceWindow(
@@ -161,7 +158,7 @@ TEST(DelayBasedCongestionControlTest, ReferenceWindowNotLowerThanSetMin) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
     delay_controller.OnTransportPacketsFeedback(feedback);
-    smoothed_rtt = feedback.smoothed_rtt;
+    smoothed_rtt = delay_controller.rtt();
   }
   DataSize ref_window = send_rate * smoothed_rtt;
   // Despite the queue delay, the reference window will not be decreased to a
@@ -190,8 +187,8 @@ TEST(DelayBasedCongestionControlTest, ResetQueueDelay) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
             DataRate::KilobitsPerSec(150), clock);
-    last_smoothed_rtt = feedback.smoothed_rtt;
     delay_controller.OnTransportPacketsFeedback(feedback);
+    last_smoothed_rtt = delay_controller.rtt();
   }
   TimeDelta queue_delay_before_reset = delay_controller.queue_delay();
   ASSERT_GT(queue_delay_before_reset, TimeDelta::Zero());
@@ -205,7 +202,7 @@ TEST(DelayBasedCongestionControlTest, ResetQueueDelay) {
                                                   clock);
   delay_controller.OnTransportPacketsFeedback(feedback);
   // RTT is still increasing or equal to the last feedback.
-  EXPECT_GE(feedback.smoothed_rtt, last_smoothed_rtt);
+  EXPECT_GE(delay_controller.rtt(), last_smoothed_rtt);
   // But queue delay should be lower.
   EXPECT_LT(delay_controller.queue_delay(), queue_delay_before_reset);
 }

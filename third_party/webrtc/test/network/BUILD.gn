@@ -99,7 +99,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../api:create_modular_peer_connection_factory",
       "../../api:enable_media_with_defaults",
       "../../api:jsep",
-      "../../api:libjingle_peerconnection_api",
       "../../api:media_stream_interface",
       "../../api:network_emulation_manager_api",
       "../../api:peer_connection_interface",
@@ -239,6 +238,7 @@ if (rtc_include_tests) {
         deps += [
           ":feedback_generator_unittest",
           ":schedulable_network_behavior_test",
+          ":token_bucket_network_behavior_test",
         ]
       }
     }
@@ -283,6 +283,52 @@ if (rtc_include_tests) {
       "../../api/units:data_size",
       "../../api/units:time_delta",
       "../../api/units:timestamp",
+    ]
+  }
+}
+
+rtc_library("token_bucket_network_behavior") {
+  sources = [
+    "token_bucket_network_behavior.cc",
+    "token_bucket_network_behavior.h",
+  ]
+
+  deps = [
+    "../../api:function_view",
+    "../../api:network_emulation_manager_api",
+    "../../api:sequence_checker",
+    "../../api:simulated_network_api",
+    "../../api/test/network_emulation:network_queue",
+    "../../api/test/network_emulation:token_bucket_network_behavior_config",
+    "../../api/transport:ecn_marking",
+    "../../api/units:data_rate",
+    "../../api/units:data_size",
+    "../../api/units:time_delta",
+    "../../api/units:timestamp",
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
+    "../../rtc_base:macromagic",
+    "../../rtc_base:random",
+    "../../rtc_base/synchronization:mutex",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+if (rtc_include_tests) {
+  rtc_library("token_bucket_network_behavior_test") {
+    sources = [ "token_bucket_network_behavior_unittest.cc" ]
+
+    testonly = true
+    deps = [
+      ":token_bucket_network_behavior",
+      "..:test_support",
+      "../../api:create_network_emulation_manager",
+      "../../api:network_emulation_manager_api",
+      "../../api:simulated_network_api",
+      "../../api/test/network_emulation:network_queue",
+      "../../api/test/network_emulation:token_bucket_network_behavior_builder",
+      "../../api/test/network_emulation:token_bucket_network_behavior_config",
+      "../../api/units:data_rate",
+      "../../api/units:data_size",
     ]
   }
 }

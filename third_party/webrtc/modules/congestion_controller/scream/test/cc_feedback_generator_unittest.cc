@@ -16,6 +16,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "system_wrappers/include/clock.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/network/simulated_network.h"
 
@@ -23,6 +24,7 @@ namespace webrtc {
 namespace {
 
 constexpr DataSize kPacketSize = DataSize::Bytes(1000);
+using ::testing::SizeIs;
 
 TEST(CcFeedbackGeneratorTest, BasicFeedback) {
   // Link capacity of 1000Kbps means it will take 1000*8/1000 = 8ms to send one
@@ -44,11 +46,14 @@ TEST(CcFeedbackGeneratorTest, BasicFeedback) {
           /*send_rate=*/DataRate::KilobitsPerSec(500), clock);
 
   EXPECT_EQ(feedback_1.feedback_time, clock.CurrentTime());
-  EXPECT_EQ(feedback_1.smoothed_rtt, TimeDelta::Millis(58));
   EXPECT_EQ(feedback_1.data_in_flight, 3 * kPacketSize);
+  ASSERT_THAT(feedback_1.packet_feedbacks, SizeIs(1));
+  EXPECT_EQ(feedback_1.packet_feedbacks[0].arrival_time_offset,
+            TimeDelta::Zero());
   for (const PacketResult& packet : feedback_1.packet_feedbacks) {
     EXPECT_EQ((packet.receive_time - packet.sent_packet.send_time),
               TimeDelta::Millis(25 + 8));
+    EXPECT_EQ(packet.sent_packet.size, kPacketSize);
     EXPECT_EQ(packet.ecn, EcnMarking::kEct1);
   }
 

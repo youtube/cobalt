@@ -35,3 +35,5 @@ static jboolean JNI_ImportantFileWriterAndroid_WriteFileAtomically(
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(ImportantFileWriterAndroid)

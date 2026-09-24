@@ -22,6 +22,7 @@
 #include "third_party/blink/public/platform/web_audio_latency_hint.h"
 #include "third_party/blink/public/platform/web_audio_sink_descriptor.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_audio_sink_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_audiocontextlatencycategory_double.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_audiocontextrendersizecategory_unsignedlong.h"
@@ -40,6 +41,7 @@
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/scheduler/public/non_main_thread.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
@@ -1481,6 +1483,7 @@ TEST_F(AudioContextTest, SuspendingRunningContextWhileInterrupted) {
 TEST_F(AudioContextTest, RenderSizeHint) {
   blink::WebRuntimeFeatures::EnableFeatureFromString(
       "WebAudioConfigurableRenderQuantum", true);
+  V8TestingScope scope;
 
   AudioContextOptions* options = AudioContextOptions::Create();
   AudioContext* context = AudioContext::Create(GetFrame().DomWindow(), options,
@@ -1488,22 +1491,49 @@ TEST_F(AudioContextTest, RenderSizeHint) {
   EXPECT_EQ(context->renderQuantumSize(), 128u);
 
   options = AudioContextOptions::Create();
+  options->setSampleRate(44100.0);
   options->setRenderSizeHint(
       MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
           0u));
+  DummyExceptionStateForTesting exception_state_zero_hint;
+  context = AudioContext::Create(GetFrame().DomWindow(), options,
+                                 exception_state_zero_hint);
+  EXPECT_TRUE(exception_state_zero_hint.HadException());
+  EXPECT_EQ(exception_state_zero_hint.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kNotSupportedError);
+
+  options = AudioContextOptions::Create();
+  options->setSampleRate(44100.0);
+  options->setRenderSizeHint(
+      MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
+          264601u));
+  DummyExceptionStateForTesting exception_state_too_large;
+  context = AudioContext::Create(GetFrame().DomWindow(), options,
+                                 exception_state_too_large);
+  EXPECT_TRUE(exception_state_too_large.HadException());
+  EXPECT_EQ(exception_state_too_large.CodeAs<DOMExceptionCode>(),
+            DOMExceptionCode::kNotSupportedError);
+
+  options = AudioContextOptions::Create();
+  options->setSampleRate(44100.0);
+  options->setRenderSizeHint(
+      MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
+          1u));
   context = AudioContext::Create(GetFrame().DomWindow(), options,
                                  ASSERT_NO_EXCEPTION);
   EXPECT_EQ(context->renderQuantumSize(), 1u);
 
   options = AudioContextOptions::Create();
+  options->setSampleRate(44100.0);
   options->setRenderSizeHint(
       MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
           16385u));
   context = AudioContext::Create(GetFrame().DomWindow(), options,
                                  ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(context->renderQuantumSize(), 16384u);
+  EXPECT_EQ(context->renderQuantumSize(), 16385u);
 
   options = AudioContextOptions::Create();
+  options->setSampleRate(44100.0);
   options->setRenderSizeHint(
       MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
           256u));

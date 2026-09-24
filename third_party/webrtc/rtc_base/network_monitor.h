@@ -36,6 +36,16 @@ enum class NetworkPreference {
   NOT_PREFERRED = -1,
 };
 
+// Network slice is a property of a network, primarily used in 5G and beyond.
+// It allows for the creation of multiple logical networks on a shared physical
+// infrastructure, each optimized for specific use cases. This is not about
+// whether the network is 3G/4G/5G/6G, but rather a feature available within
+// some of those network generations (e.g., 5G).
+enum class NetworkSlice {
+  NO_SLICE = 0,
+  UNIFIED_COMMUNICATIONS = 1,
+};
+
 const char* NetworkPreferenceToString(NetworkPreference preference);
 
 // This interface is set onto a socket server,
@@ -92,6 +102,9 @@ class NetworkMonitorInterface {
     // cards, where attempting to use all interfaces returned from getifaddrs
     // caused the connection to be dropped.
     bool available = true;
+
+    // Is this network using network slicing.
+    NetworkSlice slice = NetworkSlice::NO_SLICE;
   };
 
   NetworkMonitorInterface();

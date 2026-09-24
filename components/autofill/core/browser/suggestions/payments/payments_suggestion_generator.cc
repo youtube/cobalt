@@ -32,7 +32,6 @@
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card_benefit.h"
-#include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_quality/autofill_data_util.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -63,7 +62,6 @@
 #include "components/grit/components_scaled_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/resource/resource_bundle.h"
 
 namespace autofill {
 
@@ -322,11 +320,8 @@ void SetSuggestionLabelsForCard(
               .payments_data_manager()
               .IsCardEligibleForBenefits(credit_card)) {
         labels.push_back({*benefit_label});
-        if (base::FeatureList::IsEnabled(
-                features::kAutofillEnableCardBenefitsIph)) {
-          suggestion.iph_metadata = Suggestion::IPHMetadata(
-              &feature_engagement::kIPHAutofillCreditCardBenefitFeature);
-        }
+        suggestion.iph_metadata = Suggestion::IPHMetadata(
+            &feature_engagement::kIPHAutofillCreditCardBenefitFeature);
       }
     }
     if (!ShouldUseNewFopDisplay()) {
@@ -1466,11 +1461,6 @@ Suggestion CreateManageCreditCardsSuggestion(bool with_gpay_logo) {
                                          with_gpay_logo);
 }
 
-Suggestion CreateManageIbansSuggestion() {
-  return CreateManagePaymentMethodsEntry(SuggestionType::kManageIban,
-                                         /*with_gpay_logo=*/false);
-}
-
 Suggestion CreateSaveAndFillSuggestion(const AutofillClient& client,
                                        bool& display_gpay_logo) {
   Suggestion save_and_fill(
@@ -1486,110 +1476,6 @@ Suggestion CreateSaveAndFillSuggestion(const AutofillClient& client,
   }
   save_and_fill.icon = Suggestion::Icon::kSaveAndFill;
   return save_and_fill;
-}
-
-std::vector<Suggestion> GetSuggestionsForIbans(const std::vector<Iban>& ibans) {
-  if (ibans.empty()) {
-    return {};
-  }
-  std::vector<Suggestion> suggestions;
-  suggestions.reserve(ibans.size() + 2);
-  for (const Iban& iban : ibans) {
-    Suggestion suggestion(SuggestionType::kIbanEntry);
-    suggestion.custom_icon =
-        ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-            ShouldUseNewFopDisplay() ? IDR_AUTOFILL_IBAN
-                                     : IDR_AUTOFILL_IBAN_OLD);
-    suggestion.icon = Suggestion::Icon::kIban;
-    if (iban.record_type() == Iban::kLocalIban) {
-      suggestion.payload = Suggestion::Guid(iban.guid());
-    } else {
-      CHECK(iban.record_type() == Iban::kServerIban);
-      suggestion.payload = Suggestion::InstrumentId(iban.instrument_id());
-    }
-
-    std::u16string iban_identifier =
-        iban.GetIdentifierStringForAutofillDisplay();
-    if constexpr (BUILDFLAG(IS_ANDROID)) {
-      // For Android keyboard accessory, the displayed value will be nickname +
-      // identifier string, if the nickname is too long to fit due to bubble
-      // width limitation, it will be truncated.
-      if (!iban.nickname().empty()) {
-        suggestion.main_text.value = iban.nickname();
-        suggestion.minor_texts.emplace_back(iban_identifier);
-      } else {
-        suggestion.main_text.value = std::move(iban_identifier);
-      }
-    } else {
-      if (iban.nickname().empty()) {
-        suggestion.main_text = Suggestion::Text(
-            iban_identifier, Suggestion::Text::IsPrimary(true));
-      } else {
-        suggestion.main_text = Suggestion::Text(
-            iban.nickname(), Suggestion::Text::IsPrimary(true));
-        suggestion.labels = {{Suggestion::Text(iban_identifier)}};
-      }
-    }
-    suggestions.push_back(suggestion);
-  }
-
-  suggestions.emplace_back(SuggestionType::kSeparator);
-  suggestions.push_back(CreateManageIbansSuggestion());
-  return suggestions;
-}
-
-// static
-std::vector<Suggestion> GetPromoCodeSuggestionsFromPromoCodeOffers(
-    const std::vector<const AutofillOfferData*>& promo_code_offers) {
-  std::vector<Suggestion> suggestions;
-  GURL footer_offer_details_url;
-  for (const AutofillOfferData* promo_code_offer : promo_code_offers) {
-    // For each promo code, create a suggestion.
-    suggestions.emplace_back(
-        base::ASCIIToUTF16(promo_code_offer->GetPromoCode()),
-        SuggestionType::kMerchantPromoCodeEntry);
-    Suggestion& suggestion = suggestions.back();
-    if (!promo_code_offer->GetDisplayStrings().value_prop_text.empty()) {
-      suggestion.labels = {{Suggestion::Text(base::ASCIIToUTF16(
-          promo_code_offer->GetDisplayStrings().value_prop_text))}};
-    }
-    suggestion.payload =
-        Suggestion::Guid(base::NumberToString(promo_code_offer->GetOfferId()));
-
-    // Every offer for a given merchant leads to the same GURL, so we grab the
-    // first offer's offer details url as the payload for the footer to set
-    // later.
-    if (footer_offer_details_url.is_empty() &&
-        !promo_code_offer->GetOfferDetailsUrl().is_empty() &&
-        promo_code_offer->GetOfferDetailsUrl().is_valid()) {
-      footer_offer_details_url = promo_code_offer->GetOfferDetailsUrl();
-    }
-  }
-
-  // Ensure that there are suggestions and that we were able to find at least
-  // one suggestion with a valid offer details url before adding the footer.
-  DCHECK(suggestions.size() > 0);
-  if (!footer_offer_details_url.is_empty()) {
-    // Add the footer separator since we will now have a footer in the offers
-    // suggestions popup.
-    suggestions.emplace_back(SuggestionType::kSeparator);
-
-    // Add the footer suggestion that navigates the user to the promo code
-    // details page in the offers suggestions popup.
-    suggestions.emplace_back(
-        l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_PROMO_CODE_SUGGESTIONS_FOOTER_TEXT),
-        SuggestionType::kSeePromoCodeDetails);
-    Suggestion& suggestion = suggestions.back();
-
-    // We set the payload for the footer as |footer_offer_details_url|, which is
-    // the offer details url of the first offer we had for this merchant. We
-    // will navigate to the url in |footer_offer_details_url| if the footer is
-    // selected in AutofillExternalDelegate::DidAcceptSuggestion().
-    suggestion.payload = std::move(footer_offer_details_url);
-    suggestion.trailing_icon = Suggestion::Icon::kGoogle;
-  }
-  return suggestions;
 }
 
 bool IsCardSuggestionAcceptable(const CreditCard& card,

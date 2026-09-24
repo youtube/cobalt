@@ -27,7 +27,8 @@ using device::mojom::blink::ScreenOrientationLockResult;
 class MODULES_EXPORT ScreenOrientationController final
     : public GarbageCollected<ScreenOrientationController>,
       public ExecutionContextLifecycleObserver,
-      public PageVisibilityObserver {
+      public PageVisibilityObserver,
+      public Supplement<LocalDOMWindow> {
  public:
   explicit ScreenOrientationController(LocalDOMWindow&);
 

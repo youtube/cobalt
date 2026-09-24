@@ -28,7 +28,7 @@ static jlong JNI_SoftwareVideoEncoderFactory_CreateFactory(JNIEnv* env) {
 jboolean JNI_SoftwareVideoEncoderFactory_IsSupported(
     JNIEnv* env,
     jlong j_factory,
-    const jni_zero::JavaParamRef<jobject>& j_info) {
+    const jni_zero::JavaRef<jobject>& j_info) {
   return VideoCodecInfoToSdpVideoFormat(env, j_info)
       .IsCodecInList(reinterpret_cast<VideoEncoderFactory*>(j_factory)
                          ->GetSupportedFormats());
@@ -38,7 +38,7 @@ jlong JNI_SoftwareVideoEncoderFactory_Create(
     JNIEnv* env,
     jlong j_factory,
     jlong j_webrtc_env_ref,
-    const jni_zero::JavaParamRef<jobject>& j_info) {
+    const jni_zero::JavaRef<jobject>& j_info) {
   return NativeToJavaPointer(
       reinterpret_cast<VideoEncoderFactory*>(j_factory)
           ->Create(*reinterpret_cast<const Environment*>(j_webrtc_env_ref),

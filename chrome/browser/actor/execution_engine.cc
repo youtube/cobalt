@@ -24,6 +24,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/id_type.h"
+#include "base/types/optional_ref.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
@@ -37,6 +38,7 @@
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
+#include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/autofill/glic/actor_form_filling_service_impl.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
@@ -49,6 +51,7 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
+#include "components/affiliations/core/browser/affiliation_service.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
@@ -76,6 +79,8 @@ namespace actor {
 
 namespace {
 
+BASE_FEATURE(kActorReloadCrashedTabBeforeAct, base::FEATURE_ENABLED_BY_DEFAULT);
+
 const RenderFrameHost* GetPrimaryMainFrame(
     content::NavigationHandle& navigation_handle) {
   return navigation_handle.GetWebContents()->GetPrimaryMainFrame();
@@ -86,11 +91,7 @@ void PostTaskForActCallback(
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
     std::vector<ActionResultWithLatencyInfo> action_results) {
-  // Using a sparse histogram instead of a linear (i.e. enumeration) histogram
-  // here because, the linear histograms are limited to 1000 values in
-  // base/metrics/histogram.cc.
-  base::UmaHistogramSparse("Actor.ExecutionEngine.Action.ResultCode",
-                           base::to_underlying(result->code));
+  RecordActionResultCode(result->code);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback), std::move(result),
@@ -109,6 +110,23 @@ bool IsSameForNewOriginNavigationGating(const url::Origin& reference_origin,
   }
 
   return reference_origin.IsSameOriginWith(navigation_url);
+}
+
+// When operating on an opaque site, we choose to use the precursor's origin
+// when judging whether a user confirmation should be triggered or not. We are
+// effictively, using `rfh.GetLastCommittedUrl()` vs
+// `rfh.GetLastCommittedOrigin()` for this "security" purpose contrary to the
+// guidance here (docs/security/origin-vs-url.md).
+//
+// This is an intentional decision since it relates to user confirmations and it
+// would be confusing to ask the user to distinguish between opaque domains.
+url::Origin OriginOrPrecursorIfOpaque(const url::Origin& origin) {
+  if (!origin.opaque()) {
+    return origin;
+  }
+
+  return url::Origin::Create(
+      origin.GetTupleOrPrecursorTupleIfOpaque().GetURL());
 }
 
 }  // namespace
@@ -158,10 +176,9 @@ std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
 
 ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::UmaHistogramCounts1000("Actor.NavigationGating.AllowListSize",
-                               allowed_navigation_origins_.size());
-  base::UmaHistogramCounts1000("Actor.NavigationGating.ConfirmedListSize",
-                               user_confirmed_blocklisted_origins_.size());
+  RecordActorNavigationGatingListSize(
+      allowed_navigation_origins_.size(),
+      user_confirmed_blocklisted_origins_.size());
 
   RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
 }
@@ -259,8 +276,7 @@ ExecutionEngine::GatingDecision ExecutionEngine::ShouldGateNavigationInternal(
   const GURL& destination_url = navigation_handle.GetURL();
   const GatingDecision decision =
       DetermineGatingDecision(source_url, destination_url);
-  base::UmaHistogramEnumeration("Actor.NavigationGating.GatingDecision",
-                                decision);
+  RecordNavigationGatingDecision(decision);
   if (decision == GatingDecision::kBlockByStaticList) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), /*may_continue=*/false));
@@ -277,7 +293,7 @@ ExecutionEngine::GatingDecision ExecutionEngine::ShouldGateNavigationInternal(
 }
 
 void ExecutionEngine::LogNavigationGating(
-    const std::optional<url::Origin>& initiator_origin,
+    base::optional_ref<const url::Origin> initiator_origin,
     const GURL& navigation_url,
     bool applied_gate) {
   UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.AppliedGate", applied_gate);
@@ -329,7 +345,7 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
 }
 
 void ExecutionEngine::CheckNavigationBlocklist(
-    const std::optional<url::Origin>& initiator_origin,
+    base::optional_ref<const url::Origin> initiator_origin,
     const GURL& navigation_url,
     bool skip_prompt,
     ExecutionEngine::NavigationDecisionCallback callback) {
@@ -361,7 +377,7 @@ void ExecutionEngine::CheckNavigationBlocklist(
 }
 
 void ExecutionEngine::OnNavigationBlocklistDecision(
-    const std::optional<url::Origin> initiator_origin,
+    base::optional_ref<const url::Origin> initiator_origin,
     const GURL navigation_url,
     bool skip_prompt,
     ExecutionEngine::NavigationDecisionCallback callback,
@@ -495,13 +511,17 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
     UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
                           permission_granted);
     if (permission_granted) {
-      allowed_navigation_origins_.insert(url::Origin(navigation_origin));
+      // See the comment on `OriginOrPrecursorIfOpaque` for why we do not store
+      // `navigation_origin` directly here and for the confirmed blocklist
+      // origins.
+      allowed_navigation_origins_.insert(
+          OriginOrPrecursorIfOpaque(navigation_origin));
       // We update both lists in the `for_blocklisted_origin` case so that we do
       // not have to double-confirm this origin when we invoke
       // ExecutionEngine::HandleNavigationToNewOrigin.
       if (for_blocklisted_origin) {
         user_confirmed_blocklisted_origins_.insert(
-            url::Origin(navigation_origin));
+            OriginOrPrecursorIfOpaque(navigation_origin));
       }
     }
     std::move(callback).Run(permission_granted);
@@ -516,7 +536,7 @@ void ExecutionEngine::UserTakeover(
     mojom::ActionResultCode takeover_response_code,
     base::OnceCallback<void(bool)> callback) {
   if (takeover_response_code == mojom::ActionResultCode::kFilePickerTriggered) {
-    base::UmaHistogramBoolean("Actor.Download.SaveAsDialogTriggered", true);
+    RecordDownloadSaveAsDialogTriggered(true);
   }
 
   CancelOngoingActions(takeover_response_code);
@@ -629,6 +649,26 @@ void ExecutionEngine::KickOffNextAction() {
   SetState(State::kStartAction);
   action_start_time_ = base::TimeTicks::Now();
 
+  // TODO(b/467984847): ActorTask::AddTab isn't the best way to track a crashed
+  // tab here. We should refactor this to be more explicit.
+  if (tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
+      tab && base::FeatureList::IsEnabled(kActorReloadCrashedTabBeforeAct)) {
+    content::WebContents* contents = tab->GetContents();
+    CHECK(contents);
+    if (contents->IsCrashed()) {
+      GetJournal().Log(
+          contents->GetLastCommittedURL(), task_->id(),
+          "ExecutionEngine::KickOffNextAction",
+          JournalDetailsBuilder().AddError("Renderer crashed").Build());
+      task_->AddTab(GetNextAction().GetTabHandle(), base::DoNothing());
+      CompleteActions(MakeResult(mojom::ActionResultCode::kRendererCrashed,
+                                 /*requires_page_stabilization=*/false,
+                                 "Renderer crashed."),
+                      next_action_index_);
+      return;
+    }
+  }
+
   if (GetNextAction().RequiresUrlCheckInCurrentTab()) {
     SafetyChecksForNextAction();
   } else {
@@ -652,9 +692,13 @@ void ExecutionEngine::SafetyChecksForNextAction() {
     return;
   }
 
-  // Asynchronously check if we can act on the tab.
+  // Asynchronously check if we can act on the tab. NOTE that the MayActOnTab
+  // check uses `GetLastCommittedURL()` from the tab. For opaque origins, this
+  // means that we'll get the precursor URL. For this reason, we used the
+  // precusor in `user_confirmed_blocklisted_origins_` to ensure the
+  // optimization blocklist check would be skipped as expected.
   ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnTab(
-      *tab, *journal_, task_->id(), allowed_navigation_origins_,
+      *tab, *journal_, task_->id(), user_confirmed_blocklisted_origins_,
       base::BindOnce(
           &ExecutionEngine::OnMayActOnTabDecision, GetWeakPtr(),
           tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()));
@@ -921,19 +965,76 @@ void ExecutionEngine::PromptToSelectCredential(
 }
 
 void ExecutionEngine::SetUserSelectedCredential(
-    const ToolDelegate::CredentialWithPermission& credential_with_permission) {
-  user_selected_credentials_[credential_with_permission.credential
-                                 .request_origin] = credential_with_permission;
+    const ToolDelegate::CredentialWithPermission& credential_with_permission,
+    base::OnceClosure affiliations_fetched) {
+  url::Origin origin = credential_with_permission.credential.request_origin;
+  user_selected_credentials_[origin] = credential_with_permission;
+
+  affiliations::AffiliationService* affiliation_service =
+      AffiliationServiceFactory::GetForProfile(profile_);
+  // Fetch strongly affiliated domains, in order to be able to reuse the
+  // permission for sites that do not have the exact same origin but are
+  // strongly affiliated.
+  if (base::FeatureList::IsEnabled(
+          actor::kActorLoginPermissionsUseStrongAffiliations) &&
+      affiliation_service) {
+    affiliation_service->GetAffiliationsAndBranding(
+        affiliations::FacetURI::FromPotentiallyInvalidSpec(
+            origin.GetURL().GetWithEmptyPath().spec()),
+        base::BindOnce(&ExecutionEngine::OnAffiliationsReceived, GetWeakPtr(),
+                       origin, std::move(affiliations_fetched)));
+  } else {
+    std::move(affiliations_fetched).Run();
+  }
+}
+
+void ExecutionEngine::OnAffiliationsReceived(
+    const url::Origin& source_origin,
+    base::OnceClosure affiliations_fetched,
+    const std::vector<affiliations::Facet>& results,
+    bool success) {
+  if (success) {
+    for (const auto& facet : results) {
+      // Iterate through results to find Web facets (format:
+      // https://<host>[:<port>]) required for actor login. Android facets are
+      // ignored.
+      if (!facet.uri.IsValidWebFacetURI()) {
+        continue;
+      }
+
+      GURL url(facet.uri.canonical_spec());
+      url::Origin affiliated_origin = url::Origin::Create(url);
+      if (!affiliated_origin.IsSameOriginWith(source_origin)) {
+        affiliated_origin_map_[affiliated_origin] = source_origin;
+      }
+    }
+  }
+  std::move(affiliations_fetched).Run();
 }
 
 const std::optional<ToolDelegate::CredentialWithPermission>
 ExecutionEngine::GetUserSelectedCredential(
     const url::Origin& request_origin) const {
+  // Try exact match first.
   auto it = user_selected_credentials_.find(request_origin);
-  if (it == user_selected_credentials_.end()) {
-    return std::nullopt;
+  if (it != user_selected_credentials_.end()) {
+    return it->second;
   }
-  return it->second;
+
+  if (base::FeatureList::IsEnabled(
+          actor::kActorLoginPermissionsUseStrongAffiliations)) {
+    // Check if the current origin is affiliated with a previously encountered
+    // one within the current task.
+    auto aff_it = affiliated_origin_map_.find(request_origin);
+    if (aff_it != affiliated_origin_map_.end()) {
+      auto original_cred_it = user_selected_credentials_.find(aff_it->second);
+      if (original_cred_it != user_selected_credentials_.end()) {
+        return original_cred_it->second;
+      }
+    }
+  }
+
+  return std::nullopt;
 }
 
 void ExecutionEngine::RequestToShowAutofillSuggestions(

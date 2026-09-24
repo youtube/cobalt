@@ -43,7 +43,7 @@
       FROM_HERE,                              \
       base::BindOnce(task, weak_factory_.GetWeakPtr(), ##__VA_ARGS__));
 
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 
 namespace chromecast {
 namespace media {
@@ -182,9 +182,9 @@ void AudioSinkAndroidAudioTrackImpl::PreventDelegateCalls() {
 
 void AudioSinkAndroidAudioTrackImpl::CacheDirectBufferAddress(
     JNIEnv* env,
-    const JavaParamRef<jobject>& pcm_byte_buffer,
-    const JavaParamRef<jobject>& rendering_delay_byte_buffer,
-    const JavaParamRef<jobject>& audio_track_timestamp_byte_buffer) {
+    const JavaRef<jobject>& pcm_byte_buffer,
+    const JavaRef<jobject>& rendering_delay_byte_buffer,
+    const JavaRef<jobject>& audio_track_timestamp_byte_buffer) {
   direct_pcm_buffer_address_ =
       static_cast<uint8_t*>(env->GetDirectBufferAddress(pcm_byte_buffer.obj()));
   direct_rendering_delay_address_ = static_cast<uint64_t*>(
@@ -288,7 +288,7 @@ int AudioSinkAndroidAudioTrackImpl::ReformatData() {
   // left samples first, then all right -> "LLLLLLLLLLLLLLLLRRRRRRRRRRRRRRRR").
   // AudioTrack needs interleaved format -> "LRLRLRLRLRLRLRLRLRLRLRLRLRLRLRLR").
   DCHECK(direct_pcm_buffer_address_);
-  DCHECK_EQ(0, static_cast<int>(pending_data_->data_size() % sizeof(float)));
+  DCHECK_EQ(0u, pending_data_->data_size() % sizeof(float));
   CHECK_LT(static_cast<int>(pending_data_->data_size()), kDirectBufferSize);
   int num_of_samples = pending_data_->data_size() / sizeof(float);
   int num_of_frames = num_of_samples / num_channels_;

@@ -111,7 +111,12 @@ struct assert_field_size {
 // Liftoff's code comments are intentionally without source location to keep
 // readability up.
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
+#define CODE_COMMENT(str)                      \
+  do {                                         \
+    if (V8_UNLIKELY(v8_flags.code_comments)) { \
+      __ RecordComment(str, SourceLocation{}); \
+    }                                          \
+  } while (false)
 #define SCOPED_CODE_COMMENT(str)                                \
   AssemblerBase::CodeComment CONCAT(scoped_comment_, __LINE__)( \
       &asm_, str, SourceLocation{})
@@ -1214,7 +1219,7 @@ class LiftoffCompiler {
         for (uint32_t local_index = num_params; local_index < __ num_locals();
              ++local_index) {
           ValueType type = decoder->local_types_[local_index];
-          if (type.is_reference()) {
+          if (type.is_ref()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
                      type.use_wasm_null() ? LiftoffRegister(wasm_null_ref_reg)
                                           : LiftoffRegister(null_ref_reg),
@@ -8000,8 +8005,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -8045,8 +8049,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -10900,7 +10903,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(env->module) << "#"
                    << compiler_options.func_index << " using Liftoff, took "
-                   << time.InMilliseconds() << " ms and "
+                   << time.InMicroseconds() << " μs and "
                    << zone.allocation_size() << " bytes; bodysize "
                    << func_body_size << " codesize " << codesize << std::endl;
   }

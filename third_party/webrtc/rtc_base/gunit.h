@@ -15,14 +15,6 @@
 #include "rtc_base/thread.h"  // IWYU pragma: keep
 #include "test/gtest.h"       // IWYU pragma: keep
 
-// Wait until "ex" is true, or "timeout" expires.
-#define WAIT(ex, timeout)                                                 \
-  for (int64_t wait_start = ::webrtc::SystemTimeMillis();                 \
-       !(ex) && ::webrtc::SystemTimeMillis() < wait_start + (timeout);) { \
-    ::webrtc::Thread::Current()->ProcessMessages(0);                      \
-    ::webrtc::Thread::Current()->SleepMs(1);                              \
-  }
-
 // Wait until "ex" is true, or "timeout" expires, using fake clock where
 // messages are processed every millisecond.
 // TODO(pthatcher): Allow tests to control how many milliseconds to advance.

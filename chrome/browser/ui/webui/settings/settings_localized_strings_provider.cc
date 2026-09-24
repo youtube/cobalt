@@ -140,7 +140,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include "device/fido/features.h"
+#include "device/fido/public/features.h"
 #include "device/fido/win/webauthn_api.h"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -590,7 +590,8 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("showSplitViewDragAndDropSetting",
                           base::FeatureList::IsEnabled(features::kSideBySide));
   html_source->AddBoolean("tabSearchIsRightAlignedAtStartup",
-                          tabs::GetTabSearchTrailingTabstrip(profile));
+                          tabs::GetTabSearchPosition(profile) ==
+                              tabs::TabSearchPosition::kTrailingTabstrip);
 
 #if BUILDFLAG(IS_LINUX)
   bool show_custom_chrome_frame = ui::OzonePlatform::GetInstance()
@@ -713,22 +714,15 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
 
 #if !BUILDFLAG(IS_CHROMEOS)
 void AddDefaultBrowserStrings(content::WebUIDataSource* html_source) {
-  html_source->AddString(
-      "defaultBrowserDefault",
-      base::FeatureList::IsEnabled(features::kUserValueDefaultBrowserStrings)
-          ? l10n_util::GetStringUTF16(
-                IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT_THANK_YOU)
-          : l10n_util::GetStringUTF16(IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT));
-  html_source->AddString(
-      "defaultBrowserMakeDefault",
-      base::FeatureList::IsEnabled(features::kUserValueDefaultBrowserStrings)
-          ? l10n_util::GetStringUTF16(
-                IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_USER_VALUE)
-          : l10n_util::GetStringUTF16(
-                IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT));
-
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"defaultBrowser", IDS_SETTINGS_DEFAULT_BROWSER},
+      {"defaultBrowserDefault", IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT},
+
+      {"defaultBrowserDefaultThankYou",
+       IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT_THANK_YOU},
+      {"defaultBrowserMakeDefault", IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT},
+      {"defaultBrowserMakeDefaultUserValue",
+       IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_USER_VALUE},
       {"defaultBrowserMakeDefaultAndPin",
        IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN},
       {"defaultBrowserMakeDefaultButton",
@@ -844,6 +838,8 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"glicClosedCaptionsToggle", IDS_SETTINGS_GLIC_CLOSED_CAPTIONING},
       {"glicClosedCaptionsToggleSublabel",
        IDS_SETTINGS_GLIC_CLOSED_CAPTIONING_SUBLABEL},
+      {"glicKeepSidepanelOpenOnNewTabsToggle",
+       IDS_SETTINGS_GLIC_KEEP_SIDEPANEL_OPEN_ON_NEW_TABS},
       {"glicLocationToggle", IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE},
       {"glicLocationToggleSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE_SUBLABEL},
@@ -956,6 +952,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
   html_source->AddBoolean(
       "showGlicDefaultTabContextSetting",
       base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting));
+  html_source->AddBoolean(
+      "showGlicKeepSidepanelOpenOnNewTabsSetting",
+      base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs));
   html_source->AddBoolean("glicWebActuationFeatureEnabled",
                           ShouldShowWebActuationToggle(profile));
   html_source->AddBoolean("isWebActuationDisabledForEnterprise",
@@ -1687,6 +1686,18 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("autofillCardBenefitsAvailable",
                           payments_data.IsCardBenefitsFeatureEnabled());
 
+  bool is_mandatory_reauth_feature_flag_enabled = false;
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  // The feature is already launched on Windows and Mac.
+  is_mandatory_reauth_feature_flag_enabled = true;
+#elif BUILDFLAG(IS_CHROMEOS)
+  is_mandatory_reauth_feature_flag_enabled = base::FeatureList::IsEnabled(
+      autofill::features::kAutofillEnablePaymentsMandatoryReauthChromeOs);
+#endif
+  html_source->AddBoolean("mandatoryReauthFeatureFlagEnabled",
+                          is_mandatory_reauth_feature_flag_enabled);
+
   html_source->AddString(
       "cardBenefitsToggleSublabel",
       l10n_util::GetStringFUTF16(
@@ -2378,8 +2389,20 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SECURITY_SAFE_BROWSING_DESCRIPTION},
       {"securitySafeBrowsingStandardTitle",
        IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_TITLE},
+      {"securitySafeBrowsingStandardSubtitle",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_SUBTITLE},
+      {"securitySafeBrowsingStandardWhatItDoesHeading",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_WHAT_IT_DOES_HEADING},
+      {"securitySafeBrowsingStandardWhatItDoesContent",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_WHAT_IT_DOES_CONTENT},
+      {"securitySafeBrowsingStandardHowItWorksHeading",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_HOW_IT_WORKS_HEADING},
+      {"securitySafeBrowsingStandardHowItWorksContent",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_HOW_IT_WORKS_CONTENT},
       {"securitySafeBrowsingEnhancedTitle",
        IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_TITLE},
+      {"securitySafeBrowsingEnhancedSubtitle",
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_SUBTITLE},
       {"securityFeatureRowStateEnhanced",
        IDS_SETTINGS_SECURITY_FEATURE_ROW_STATE_ENHANCED},
       {"securityFeatureRowStateStandard",
@@ -2391,7 +2414,19 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
       {"securityPasswordsLeakDetectionTitle",
        IDS_SETTINGS_SECURITY_PASSWORDS_LEAK_DETECTION_TITLE},
       {"securityPasswordsLeakDetectionDesc",
-       IDS_SETTINGS_SECURITY_PASSWORDS_LEAK_DETECTION_DESC}};
+       IDS_SETTINGS_SECURITY_PASSWORDS_LEAK_DETECTION_DESC},
+      {"securityHttpsFirstModeToggleLabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_TOGGLE_LABEL},
+      {"securityHttpsFirstModeToggleSublabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_TOGGLE_SUBLABEL},
+      {"securityHttpsFirstModeBalancedLabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_BALANCED_LABEL},
+      {"securityHttpsFirstModeBalancedSublabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_BALANCED_SUBLABEL},
+      {"securityHttpsFirstModeStrictLabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_STRICT_LABEL},
+      {"securityHttpsFirstModeStrictSublabel",
+       IDS_SETTINGS_SECURITY_HTTPS_FIRST_MODE_STRICT_SUBLABEL}};
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
   html_source->AddString("cookiesSettingsHelpCenterURL",

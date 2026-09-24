@@ -135,7 +135,7 @@ FullScreenPowerPointHandler::FullScreenPowerPointHandler(
 DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     const DesktopCapturer::SourceList& window_list,
     int64_t timestamp) const {
-  if (!UseHeuristicFullscreenPowerPointWindows() || window_list.empty()) {
+  if (window_list.empty()) {
     return 0;
   }
 

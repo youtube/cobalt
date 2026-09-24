@@ -41,7 +41,15 @@ pub enum ParsingErrorType {
     WrongSize { expected_size: usize, actual_size: usize },
     /// Indicates that the message contained an invalid discriminant for a
     /// non-extensible enum or union type
+    /// We don't carry the expected values because there isn't an easy way to
+    /// show them to the user
     InvalidDiscriminant { value: u32 },
+    /// Indicates that a sized array had an incorrect number of elements
+    WrongArraySize { expected: usize, actual: usize },
+    /// Indicates that a map had a duplicate key
+    DuplicateMapKey { dup: crate::ast::MojomValue },
+    /// Indicates that the key and value arrays for a map were different lengths
+    MismatchedMap { key_len: usize, value_len: usize },
 }
 
 impl ParsingError {
@@ -87,6 +95,18 @@ impl ParsingError {
 
     pub fn invalid_discriminant(offset: usize, value: u32) -> ParsingError {
         ParsingError { offset, ty: ParsingErrorType::InvalidDiscriminant { value } }
+    }
+
+    pub fn wrong_array_size(offset: usize, expected: usize, actual: usize) -> ParsingError {
+        ParsingError { offset, ty: ParsingErrorType::WrongArraySize { expected, actual } }
+    }
+
+    pub fn duplicate_map_key(offset: usize, dup: crate::ast::MojomValue) -> ParsingError {
+        ParsingError { offset, ty: ParsingErrorType::DuplicateMapKey { dup } }
+    }
+
+    pub fn mismatched_map(offset: usize, key_len: usize, value_len: usize) -> ParsingError {
+        ParsingError { offset, ty: ParsingErrorType::MismatchedMap { key_len, value_len } }
     }
 }
 
@@ -150,6 +170,16 @@ impl std::fmt::Display for ParsingError {
             }
             ParsingErrorType::InvalidDiscriminant { value } => {
                 write!(f, "Enum/Union value {value} is not a valid discriminant for its type.")
+            }
+            ParsingErrorType::WrongArraySize { expected, actual } => write!(
+                f,
+                "Expected array to have {expected} elements, but it had {actual} elements."
+            ),
+            ParsingErrorType::DuplicateMapKey { dup } => {
+                write!(f, "The following map key appeared more than once: {dup:?}")
+            }
+            ParsingErrorType::MismatchedMap { key_len, value_len } => {
+                write!(f, "Map had {key_len} keys and {value_len} values.")
             }
         }
     }

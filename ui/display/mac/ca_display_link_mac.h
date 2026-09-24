@@ -15,17 +15,17 @@
 namespace ui {
 struct ObjCState;
 
-class CADisplayLinkMac : public DisplayLinkMac {
+class DISPLAY_EXPORT CADisplayLinkMac : public DisplayLinkMac {
  public:
   // Create a CADisplayLinkMac for the specified display.
-  static scoped_refptr<DisplayLinkMac> GetForDisplayOnCurrentThread(
+  static scoped_refptr<DisplayLinkMac> GetForDisplay(
       CGDirectDisplayID display_id);
 
   // DisplayLinkMac implementation
   std::unique_ptr<VSyncCallbackMac> RegisterCallback(
       VSyncCallbackMac::Callback callback) override;
 
-  double GetRefreshRate() const override;
+  base::TimeDelta GetRefreshInterval() const override;
   void GetRefreshIntervalRange(base::TimeDelta& min_interval,
                                base::TimeDelta& max_interval,
                                base::TimeDelta& granularity) const override;

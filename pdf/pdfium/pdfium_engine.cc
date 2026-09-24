@@ -56,6 +56,7 @@
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_transform.h"
+#include "pdf/pdf_utils/text_util.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
 #include "pdf/pdfium/pdfium_api_wrappers.h"
 #include "pdf/pdfium/pdfium_document.h"
@@ -258,29 +259,13 @@ void FormatStringForOS(std::u16string* text) {
 #endif
 }
 
-// Returns true if `cur` is a character to break on.
-// For double clicks, look for work breaks.
+// Returns true if `ch` is a character to break on.
+// For double clicks, look for word breaks.
 // For triple clicks, look for line breaks.
 // The actual algorithm used in Blink is much more complicated, so do a simple
 // approximation.
-bool FindMultipleClickBoundary(bool is_double_click, uint32_t cur) {
-  if (!is_double_click) {
-    return cur == '\n';
-  }
-
-  // Deal with ASCII characters.
-  if (base::IsAsciiAlpha(cur) || base::IsAsciiDigit(cur) || cur == '_') {
-    return false;
-  }
-  if (cur < 128) {
-    return true;
-  }
-
-  if (cur == kZeroWidthSpace) {
-    return true;
-  }
-
-  return false;
+bool FindMultipleClickBoundary(bool is_double_click, uint32_t ch) {
+  return is_double_click ? IsWordBoundary(ch) : ch == '\n';
 }
 
 #if defined(PDF_ENABLE_V8)
@@ -988,6 +973,11 @@ uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
   return base::checked_cast<uint32_t>(pages_[page_index]->GetCharCount());
 }
 
+uint32_t PDFiumEngine::GetCharUnicode(const PageCharacterIndex& index) const {
+  CHECK(PageIndexInBounds(index.page_index));
+  return pages_[index.page_index]->GetCharUnicode(index.char_index);
+}
+
 PageOrientation PDFiumEngine::GetCurrentOrientation() const {
   return layout_.options().default_page_orientation();
 }
@@ -1044,7 +1034,7 @@ bool PDFiumEngine::IsSynthesizedNewline(const PageCharacterIndex& index) const {
     return false;
   }
 
-  uint32_t char_code = page->GetCharUnicode(index.char_index);
+  uint32_t char_code = GetCharUnicode(index);
   return char_code == '\r' || char_code == '\n';
 }
 
@@ -2762,18 +2752,18 @@ PDFiumEngine::GetDocumentAttachmentInfoList() const {
 }
 
 std::vector<uint8_t> PDFiumEngine::GetAttachmentData(size_t index) {
-  DCHECK_LT(index, doc_attachment_info_list_.size());
-  DCHECK(doc_attachment_info_list_[index].is_readable);
+  CHECK_LT(index, doc_attachment_info_list_.size());
+  CHECK(doc_attachment_info_list_[index].is_readable);
   unsigned long length_bytes = doc_attachment_info_list_[index].size_bytes;
-  DCHECK_NE(length_bytes, 0u);
+  CHECK_NE(length_bytes, 0u);
 
   FPDF_ATTACHMENT attachment = FPDFDoc_GetAttachment(doc(), index);
   std::vector<uint8_t> content_buf(length_bytes);
   unsigned long data_size_bytes;
   bool is_attachment_readable = FPDFAttachment_GetFile(
       attachment, content_buf.data(), length_bytes, &data_size_bytes);
-  DCHECK(is_attachment_readable);
-  DCHECK_EQ(length_bytes, data_size_bytes);
+  CHECK(is_attachment_readable);
+  CHECK_EQ(length_bytes, data_size_bytes);
 
   return content_buf;
 }
@@ -3873,7 +3863,6 @@ gfx::Rect PDFiumEngine::GetScreenRect(const gfx::Rect& rect) const {
 
 std::vector<gfx::Rect> PDFiumEngine::GetNoTextPageScreenRectsForCaret(
     PDFiumPage* page) const {
-  // TODO(crbug.com/437807125): Determine default caret offset and size.
   static constexpr float kCaretOffset = 10.0f;
   static constexpr float kCaretSize = 12.0f;
 

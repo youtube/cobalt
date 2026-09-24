@@ -46,7 +46,7 @@
 #include "url/gurl.h"
 
 using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
+using base::android::JavaRef;
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
 using bookmarks::ManagedBookmarkService;
@@ -95,11 +95,11 @@ class BookmarkBridgeTest : public testing::Test {
 
   BookmarkBridge* bookmark_bridge() { return bookmark_bridge_.get(); }
 
-  ReadingListManager* local_or_syncable_reading_list_manager() {
+  reading_list::ReadingListManager* local_or_syncable_reading_list_manager() {
     return bookmark_bridge_->GetLocalOrSyncableReadingListManagerForTesting();
   }
 
-  ReadingListManager* account_reading_list_manager() {
+  reading_list::ReadingListManager* account_reading_list_manager() {
     return bookmark_bridge_
         ->GetAccountReadingListManagerIfAvailableForTesting();
   }

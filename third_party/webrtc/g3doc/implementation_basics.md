@@ -116,12 +116,11 @@ deadlocks or unintended consequences.
 The following non-exhaustive list of synchronization primitives are
 in the (slow) process of being removed from the codebase.
 
-* sigslot. Use [webrtc::CallbackList][4] instead, or, when there's only one
-  signal consumer, a single std::function.
-  
 * AsyncInvoker.
 
 * RecursiveCriticalSection. Try to use [webrtc::Mutex][6] instead, and don't recurse.
+
+* std::atomic. See [the abseil article about the subject][7] for why.
 
 ## Enum-To-String functions
 If there is a need to convert an enum to a string representation, such as for
@@ -139,3 +138,5 @@ If the enum is not defined within a class, the "static" keyword is not needed.
 [4]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/webrtc/rtc_base/callback_list.h;drc=54b91412de3f579a2d5ccdead6e04cc2cc5ca3a1;l=162
 [5]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/webrtc/rtc_base/task_utils/pending_task_safety_flag.h;drc=86ee89f73e4f4799b3ebcc0b5c65837c9601fe6d;l=117
 [6]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/webrtc/rtc_base/synchronization/mutex.h;drc=0d3c09a8fe5f12dfbc9f1bcd5790fda8830624ec;l=40
+[7]: https://abseil.io/docs/cpp/atomic_danger
+

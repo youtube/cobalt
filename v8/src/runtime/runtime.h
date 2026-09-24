@@ -132,7 +132,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ObserveNode, 1, 1)                            \
   F(ResolvePossiblyDirectEval, 6, 1)              \
   F(VerifyType, 1, 1)                             \
-  F(CheckTurboshaftTypeOf, 2, 1)
+  F(CheckTurboshaftTypeOf, 2, 1)                  \
+  IF_SPARKPLUG_PLUS(F, MaybePatchBinaryBaselineCode, 4, 1)
 
 // TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
 // the optimization tier as an argument.
@@ -573,6 +574,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ForceFlush, 1, 1)                                                    \
   F(MajorGCForCompilerTesting, 0, 1)                                     \
   F(GetAbstractModuleSource, 0, 1)                                       \
+  F(GetBytecode, 1, 1)                                                   \
   F(GetCallable, 1, 1)                                                   \
   F(GetFeedback, 1, 1)                                                   \
   F(GetFunctionForCurrentFrame, 0, 1)                                    \
@@ -609,6 +611,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(HeapObjectVerify, 1, 1)                                              \
   F(ICsAreEnabled, 0, 1)                                                 \
   F(InLargeObjectSpace, 1, 1)                                            \
+  F(InstallBytecode, 2, 1)                                               \
   F(InYoungGeneration, 1, 1)                                             \
   F(Is64Bit, 0, 1)                                                       \
   F(IsAtomicsWaitAllowed, 0, 1)                                          \

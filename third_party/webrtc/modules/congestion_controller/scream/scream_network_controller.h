@@ -48,8 +48,8 @@ class ScreamNetworkController : public NetworkControllerInterface {
 
  private:
   NetworkControlUpdate CreateFirstUpdate(Timestamp now);
-  NetworkControlUpdate CreateUpdate(Timestamp now, DataRate target_rate);
-  std::optional<PacerConfig> MaybeCreatePacerConfig(DataRate target_rate);
+  NetworkControlUpdate CreateUpdate(Timestamp now);
+  std::optional<PacerConfig> MaybeCreatePacerConfig();
 
   Environment env_;
   const ScreamV2Parameters params_;

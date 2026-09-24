@@ -473,6 +473,10 @@ void NetworkManagerBase::MergeNetworkList(
       if (net->network_preference() != existing_net->network_preference()) {
         existing_net->set_network_preference(net->network_preference());
       }
+      if (net->network_slice() != existing_net->network_slice()) {
+        existing_net->set_network_slice(net->network_slice());
+      }
+
       RTC_DCHECK(net->active());
     }
     networks_map_[key]->set_mdns_responder_provider(this);
@@ -714,6 +718,7 @@ void BasicNetworkManager::ConvertIfAddrs(
     }
     network->set_underlying_type_for_vpn(if_info.underlying_type_for_vpn);
     network->set_network_preference(if_info.network_preference);
+    network->set_network_slice(if_info.slice);
     if (include_ignored || !network->ignored()) {
       current_networks[key] = network.get();
       networks->push_back(std::move(network));

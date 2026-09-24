@@ -560,6 +560,8 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Add account failure"/>
 </enum>
 
+<!-- LINT.IfChange(IOSFilePickerDriveDisplayed) -->
+
 <enum name="IOSFilePickerDriveDisplayed">
   <int value="0" label="The Drive element was displayed"/>
   <int value="1" label="The tab was killed"/>
@@ -567,7 +569,10 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="The tab was OTR"/>
   <int value="4" label="The user was not signed in"/>
   <int value="5" label="The feature was disabled by an enterprise policy"/>
+  <int value="6" label="The Drive service is not supported"/>
 </enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/drive/model/drive_availability.mm:FilePickerDriveDisplayed) -->
 
 <enum name="IOSFilePickerDriveFilter">
   <int value="0" label="Select Archives"/>
@@ -700,7 +705,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Discovery Card"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h:IOSGeminiFirstPromptSubmissionMethod) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFirstPromptSubmissionMethod) -->
 
 <!-- LINT.IfChange(IOSGeminiFREAction) -->
 
@@ -710,7 +715,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Link Click"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h:IOSGeminiFREAction) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFREAction) -->
 
 <enum name="IOSHomeActionType">
   <int value="0" label="Most Visited Tiles"/>
@@ -1747,11 +1752,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/common/ui/promo_style/constants.h:PromoStyleSheetAction) -->
-
-<enum name="PromoWithInstructionsAction">
-  <int value="0" label="Close"/>
-  <int value="1" label="Open Instructions"/>
-</enum>
 
 <!-- LINT.IfChange(PromoWithTrustedVaultKeyRetrievalAction) -->
 

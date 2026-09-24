@@ -131,9 +131,13 @@ TEST_F(AsyncDomStorageDatabaseTest,
   }
 
   // Delete the first and third storage keys.
+  std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
+  maps_to_delete.emplace_back(kLocalStorageSessionId, kFirstStorageKey);
+  maps_to_delete.emplace_back(kLocalStorageSessionId, kThirdStorageKey);
+
   DeleteStorageKeysFromSessionSync(*database, kLocalStorageSessionId,
                                    {kFirstStorageKey, kThirdStorageKey},
-                                   /*excluded_cloned_map_ids=*/{});
+                                   std::move(maps_to_delete));
 
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database, &read_metadata));
   EXPECT_EQ(read_metadata.next_map_id, std::nullopt);
@@ -162,20 +166,13 @@ TEST_F(AsyncDomStorageDatabaseTest, EnqueuePendingTasksWhileOpening) {
       },
   };
 
-  // Start the database open task.
-  scoped_refptr<base::SequencedTaskRunner> database_task_runner =
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::WithBaseSyncPrimitives(),
-           base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-
   // Open an in-memory LevelDB.
   base::test::TestFuture<DbStatus> open_status_future;
   std::unique_ptr<AsyncDomStorageDatabase> database =
       AsyncDomStorageDatabase::Open(
           StorageType::kLocalStorage, /*directory=*/base::FilePath(),
           "TestPendingTasks",
-          /*memory_dump_id=*/std::nullopt, database_task_runner,
-          open_status_future.GetCallback());
+          /*memory_dump_id=*/std::nullopt, open_status_future.GetCallback());
 
   // Immediately start using the database, which will enqueue pending tasks
   // while opening.

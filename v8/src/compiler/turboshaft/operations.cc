@@ -462,10 +462,12 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
 
 std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
   switch (kind) {
-    case SelectOp::Implementation::kBranch:
+    case SelectOp::Implementation::kForceBranch:
       return os << "Branch";
-    case SelectOp::Implementation::kCMove:
+    case SelectOp::Implementation::kForceCMove:
       return os << "CMove";
+    case SelectOp::Implementation::kAny:
+      return os << "Any";
   }
 }
 
@@ -1906,6 +1908,9 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   os << '[';
   switch (kind) {
+    case Kind::kI8x1:
+      os << "I8x1, ";
+      break;
     case Kind::kI8x2:
       os << "I8x2, ";
       break;

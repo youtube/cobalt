@@ -31,7 +31,7 @@ namespace webrtc {
 
 // Delegates calls to FrameTransformerInterface to transform frames, and to
 // ChannelSend to send the transformed frames using `send_frame_callback_` on
-// the `encoder_queue_`.
+// the `send_queue_`.
 // OnTransformedFrame() can be called from any thread, the delegate ensures
 // thread-safe access to the ChannelSend callback.
 class ChannelSendFrameTransformerDelegate : public TransformedFrameCallback {
@@ -47,7 +47,7 @@ class ChannelSendFrameTransformerDelegate : public TransformedFrameCallback {
   ChannelSendFrameTransformerDelegate(
       SendFrameCallback send_frame_callback,
       scoped_refptr<FrameTransformerInterface> frame_transformer,
-      TaskQueueBase* encoder_queue);
+      TaskQueueBase* send_queue);
 
   // Registers `this` as callback for `frame_transformer_`, to get the
   // transformed frames.
@@ -77,7 +77,7 @@ class ChannelSendFrameTransformerDelegate : public TransformedFrameCallback {
 
   void StartShortCircuiting() override;
 
-  // Delegates the call to ChannelSend::SendRtpAudio on the `encoder_queue_`,
+  // Delegates the call to ChannelSend::SendRtpAudio on the `send_queue_`,
   // by calling `send_audio_callback_`.
   void SendFrame(std::unique_ptr<TransformableFrameInterface> frame) const;
 
@@ -88,7 +88,7 @@ class ChannelSendFrameTransformerDelegate : public TransformedFrameCallback {
   mutable Mutex send_lock_;
   SendFrameCallback send_frame_callback_ RTC_GUARDED_BY(send_lock_);
   scoped_refptr<FrameTransformerInterface> frame_transformer_;
-  TaskQueueBase* const encoder_queue_;
+  TaskQueueBase* const send_queue_;
   bool short_circuit_ RTC_GUARDED_BY(send_lock_) = false;
 };
 

@@ -255,8 +255,7 @@ bool WgcCapturerWin::SelectSource(DesktopCapturer::SourceId id) {
   // Use `full_screen_window_detector_` to check if there is a corresponding
   // full screen window for the `selected_source_id_`.
   const DesktopCapturer::SourceId full_screen_source_id =
-      full_screen_window_detector_ &&
-              full_screen_window_detector_->UseHeuristicForWGC()
+      full_screen_window_detector_
           ? full_screen_window_detector_->FindFullScreenWindow(id)
           : 0;
 
@@ -461,12 +460,9 @@ bool WgcCapturerWin::IsSourceBeingCaptured(DesktopCapturer::SourceId id) {
 }
 
 void WgcCapturerWin::SetUpFullScreenDetectorForTest(
-    bool use_heuristic,
     DesktopCapturer::SourceId source_id,
     bool fullscreen_slide_show_started_after_capture_start) {
   if (full_screen_window_detector_) {
-    full_screen_window_detector_->SetUseHeuristicFullscreenPowerPointWindows(
-        /*use_heuristic_fullscreen_powerpoint_windows=*/true, use_heuristic);
     full_screen_window_detector_->CreateFullScreenApplicationHandlerForTest(
         source_id, fullscreen_slide_show_started_after_capture_start);
   }

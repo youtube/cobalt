@@ -302,7 +302,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
   V(js_decorators, "decorators")                     \
   V(js_source_phase_imports, "source phase imports") \
-  V(js_defer_import_eval, "defer import eval")
+  V(js_defer_import_eval, "defer import eval")       \
+  V(js_immutable_arraybuffer, "Immutable ArrayBuffer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -317,7 +318,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
+  V(js_iterator_sequencing, "iterator sequencing")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -344,13 +346,11 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_explicit_resource_management, "explicit resource management")         \
   V(js_float16array,                                                         \
     "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
-  V(js_base_64, "Uint8Array to/from base64 and hex")
+  V(js_base_64, "Uint8Array to/from base64 and hex")                         \
+  V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                  \
-  HARMONY_SHIPPING_BASE(V)                   \
-  V(harmony_remove_intl_locale_info_getters, \
-    "Remove Obsoleted Intl Locale Info getters")
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -994,8 +994,7 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
 #if V8_STATIC_ROOTS_BOOL
-DEFINE_BOOL(unmap_holes, false, "unmap the page containing the holes.")
-DEFINE_IMPLICATION(fuzzing, unmap_holes)
+DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
 #else
 DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
 #endif
@@ -1038,8 +1037,6 @@ DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
 DEFINE_BOOL(trace_protector_invalidation, false,
             "trace protector cell invalidations")
-DEFINE_BOOL(decommit_pooled_pages, true,
-            "decommit, rather than discard pooled pages")
 DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
@@ -1702,6 +1699,14 @@ DEFINE_BOOL(turboshaft_loop_unrolling, true,
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
 
+DEFINE_BOOL(turboshaft_trusted_load_elimination, false,
+            "enable Turboshaft's low level load elimination for trusted loads "
+            "(JS and Wasm)")
+// For now this is staged behind future.
+DEFINE_IMPLICATION(future, turboshaft_trusted_load_elimination)
+DEFINE_IMPLICATION(turboshaft_trusted_load_elimination,
+                   turboshaft_load_elimination)
+
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
@@ -1971,8 +1976,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     wasm_assert_types,
     "Enable additional type assertions in generated code (e.g. turbofan)")
 
-#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X ||     \
+#if V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X || \
     (V8_TARGET_ARCH_MIPS64 && V8_TARGET_BIG_ENDIAN)
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
                             "enable deopts in optimized wasm functions")
@@ -2283,7 +2287,7 @@ DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_jitless)
 DEFINE_IMPLICATION(wasm_code_coverage, wasm_opt)
 
 DEFINE_BOOL(trace_wasm_compilation_hints, false,
-            "trace compilation hints parsing and usage errors")
+            "trace compilation hints parsing and usage")
 DEFINE_BOOL(wasm_generate_compilation_hints, false,
             "enable emitting compilation-hints sections for Wasm to a file")
 // Feedback collection is guarded by the --wasm-inlining flag.
@@ -2539,6 +2543,9 @@ DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.3,
     "When external memory limits are computed as poart of the global limits,"
     "this is the upper bound for growing factor imposed on external memory.")
+DEFINE_INT(external_memory_max_reasonable_size, 32,
+           "Max external memory value (in GB) checked for a reasonable size, 0 "
+           "to disable the check.")
 DEFINE_BOOL(gc_speed_uses_counters, false,
             "Old gen GC speed is computed directly from gc tracer counters.")
 DEFINE_INT(heap_growing_percent, 0,
@@ -2553,6 +2560,18 @@ DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
+DEFINE_INT(compaction_max_evacuated_bytes_mb, 4,
+           "Max evacuated bytes during compaction")
+DEFINE_INT(compaction_max_evacuated_bytes_mb_for_reduce_memory, 12,
+           "Max evacuated bytes during compaction for reduce memory GCs")
+DEFINE_INT(compaction_max_evacuated_bytes_mb_for_optimize_memory, 6,
+           "Max evacuated bytes during compaction for GCs when "
+           "ShouldOptimizeForMemoryUsage() = true")
+DEFINE_INT(compaction_target_fragmentation_percent_for_reduce_memory, 20,
+           "Target fragmentation % during compaction for reduce memory GCs")
+DEFINE_INT(compaction_target_fragmentation_percent_for_optimize_memory, 20,
+           "Target fragmentation % during compaction for GCs when "
+           "ShouldOptimizeForMemoryUsage() = true")
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
@@ -2597,13 +2616,13 @@ DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
             "or last resort GCs")
 DEFINE_BOOL(memory_pool_release_on_malloc_failures, false,
             "discard the memory pool on malloc retries")
+DEFINE_INT(memory_pool_timeout, 8, "Release pooled pages after X seconds.")
 DEFINE_BOOL(large_page_pool, true, "Add large pages to the page pool")
-DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
-DEFINE_INT(page_pool_timeout, 8, "Release pooled pages after X seconds.")
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
+DEFINE_WEAK_IMPLICATION(future, managed_zone_memory)
 DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
 
 DEFINE_BOOL(fuzzer_gc_analysis, false,
@@ -3266,13 +3285,19 @@ DEFINE_BOOL(trace_read_only_promotion_verbose, false,
 DEFINE_WEAK_IMPLICATION(trace_read_only_promotion_verbose,
                         trace_read_only_promotion)
 
-// Testing flags test/cctest/test-{flags,api,serialization}.cc
+// Testing flags for flag-definitions-unittest.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")
 DEFINE_INT(testing_int_flag, 13, "testing_int_flag")
 DEFINE_FLOAT(testing_float_flag, 2.5, "float-flag")
 DEFINE_STRING(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
+// Testing flags for testing implicaton order in flag-definitions-unittest.cc
+DEFINE_BOOL(testing_bool_flag_A, false, "testing_bool_flag_A")
+DEFINE_BOOL(testing_bool_flag_B, true, "testing_bool_flag_B")
+DEFINE_IMPLICATION(testing_bool_flag_B, testing_bool_flag_A)
+DEFINE_BOOL(testing_bool_flag_C, false, "testing_bool_flag_C")
+DEFINE_NEG_IMPLICATION(testing_bool_flag_C, testing_bool_flag_B)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     strict_termination_checks,
@@ -3888,7 +3913,7 @@ DEFINE_BOOL_READONLY(shared_heap, false,
                      "Enables a shared heap between isolates.")
 #endif
 
-DEFINE_BOOL(proto_assign_seq_opt, false,
+DEFINE_BOOL(proto_assign_seq_opt, true,
             "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
             "by replacing it by a runtime code somewhat equivalent to "
             "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
@@ -3958,8 +3983,12 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       experimental_wasm_assume_ref_cast_succeeds)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        experimental_wasm_skip_null_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       experimental_wasm_skip_bounds_checks)
 // Enabled-by-default flags that should not be disabled.
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)

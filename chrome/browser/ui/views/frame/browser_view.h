@@ -30,11 +30,10 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/shadow_overlay_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
-#include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
 #include "chrome/common/buildflags.h"
@@ -86,7 +85,7 @@ class SidePanel;
 class TabDragDelegate;
 class TabSearchBubbleHost;
 class TabStrip;
-class TabStripViewInterface;
+class TabStripRegionView;
 class ToolbarButtonProvider;
 class ToolbarView;
 class TopContainerLoadingBar;
@@ -268,7 +267,7 @@ class BrowserView : public BrowserWindow,
 
   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
 
-  TabStripViewInterface* tab_strip_view() const {
+  TabStripRegionView* tab_strip_view() const {
     return tab_strip_region_view_.get();
   }
 
@@ -329,6 +328,12 @@ class BrowserView : public BrowserWindow,
   // Returns true if the top UI should be drawn.
   // On macOS, it is possible that the top UI is drawn but hidden.
   bool ShouldDrawTabStrip() const;
+
+  // Returns whether a vertical tabstrip should be shown.
+  bool ShouldDrawVerticalTabStrip() const;
+
+  // Returns whether the vertical tabstrip is collapsed.
+  bool IsVerticalTabStripCollapsed() const;
 
   // Returns true if the profile associated with this Browser window is
   // incognito.
@@ -1205,10 +1210,10 @@ class BrowserView : public BrowserWindow,
   raw_ptr<views::Label> web_app_window_title_ = nullptr;
 
   // The view that contains the tabstrip, new tab button, and grab handle space.
-  raw_ptr<TabStripRegionView> tab_strip_region_view_ = nullptr;
-  // The insertion index of the TabStripRegionView in the BrowserView view tree.
-  // This is used to correctly reparent the tabstrip when exiting fullscreen
-  // mode. See BrowserView::ReparentTopContainerForEndOfImmersive.
+  raw_ptr<HorizontalTabStripRegionView> tab_strip_region_view_ = nullptr;
+  // The insertion index of the HorizontalTabStripRegionView in the BrowserView
+  // view tree. This is used to correctly reparent the tabstrip when exiting
+  // fullscreen mode. See BrowserView::ReparentTopContainerForEndOfImmersive.
   std::optional<size_t> tab_strip_region_insertion_index_;
 
   // The webui based tabstrip, when applicable. see https://crbug.com/989131.
@@ -1240,7 +1245,8 @@ class BrowserView : public BrowserWindow,
   // the Titlebar.
   raw_ptr<views::Widget, DanglingUntriaged> tab_overlay_widget_ = nullptr;
 
-  // The hosting view of TabStripRegionView during immersive fullscreen.
+  // The hosting view of HorizontalTabStripRegionView during immersive
+  // fullscreen.
   raw_ptr<views::View, DanglingUntriaged> tab_overlay_view_ = nullptr;
 
 #endif
@@ -1323,6 +1329,9 @@ class BrowserView : public BrowserWindow,
 
   // True if we have already been initialized.
   bool initialized_ = false;
+
+  // True if layout should be suppressed (used during teardown).
+  bool suppress_layout_for_teardown_ = false;
 
   // True if (as of the last time it was checked) the frame type is native.
   bool using_native_frame_ = true;
@@ -1422,8 +1431,6 @@ class BrowserView : public BrowserWindow,
   base::CallbackListSubscription paint_as_active_subscription_;
 
   PrefChangeRegistrar registrar_;
-
-  ui::OmniboxPopupCloser omnibox_popup_closer_{this};
 
   base::CallbackListSubscription vertical_tab_subscription_;
 

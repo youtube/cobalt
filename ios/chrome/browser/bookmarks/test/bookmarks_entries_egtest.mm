@@ -21,6 +21,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
+#import "ios/chrome/test/earl_grey/chrome_matchers_app_interface.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/web/public/test/http_server/http_server.h"
@@ -28,14 +29,12 @@
 #import "ui/base/l10n/l10n_util.h"
 
 using chrome_test_util::BookmarksContextMenuEditButton;
-using chrome_test_util::BookmarksDeleteSwipeButton;
 using chrome_test_util::BookmarksNavigationBarBackButton;
 using chrome_test_util::BookmarksSaveEditFolderButton;
 using chrome_test_util::ButtonWithAccessibilityLabelId;
 using chrome_test_util::ContextBarCenterButtonWithLabel;
 using chrome_test_util::ContextBarLeadingButtonWithLabel;
 using chrome_test_util::ContextMenuCopyButton;
-using chrome_test_util::OmniboxText;
 using chrome_test_util::OpenLinkInIncognitoButton;
 using chrome_test_util::OpenLinkInNewTabButton;
 using chrome_test_util::OpenLinkInNewWindowButton;
@@ -93,7 +92,8 @@ id<GREYMatcher> AddBookmarkButton() {
   [BookmarkEarlGreyUI verifyContextBarInDefaultStateWithSelectEnabled:YES
                                                      newFolderEnabled:YES];
   // Delete it.
-  [[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                          swipeActionDeleteButton]]
       performAction:grey_tap()];
 
   // Wait until it's gone.
@@ -117,10 +117,6 @@ id<GREYMatcher> AddBookmarkButton() {
 }
 
 - (void)testSwipeToDeleteDisabledInEditMode {
-  // TODO(crbug.com/439984539): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
   [BookmarkEarlGrey
       setupStandardBookmarksInStorage:BookmarkStorageType::kLocalOrSyncable];
   [BookmarkEarlGreyUI openBookmarks];
@@ -132,20 +128,22 @@ id<GREYMatcher> AddBookmarkButton() {
       performAction:SwipeToShowDeleteButton()];
 
   // Verify the delete confirmation button shows up.
-  [[[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                           swipeActionDeleteButton]]
       inRoot:grey_kindOfClassName(@"UITableView")]
       assertWithMatcher:grey_notNil()];
 
-  // Change to edit mode
+  // Change to edit mode.
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kBookmarksHomeTrailingButtonIdentifier)]
       performAction:grey_tap()];
 
   // Verify the delete confirmation button is gone after entering edit mode.
-  [[[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                           swipeActionDeleteButton]]
       inRoot:grey_kindOfClassName(@"UITableView")]
-      assertWithMatcher:grey_notVisible()];
+      assertWithMatcher:grey_nil()];
 
   // Swipe action on "Second URL".  This should not bring out delete
   // confirmation button as swipe-to-delete is disabled in edit mode.
@@ -154,11 +152,12 @@ id<GREYMatcher> AddBookmarkButton() {
       performAction:SwipeToShowDeleteButton()];
 
   // Verify the delete confirmation button doesn't appear.
-  [[[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                           swipeActionDeleteButton]]
       inRoot:grey_kindOfClassName(@"UITableView")]
       assertWithMatcher:grey_nil()];
 
-  // Cancel edit mode
+  // Cancel edit mode.
   [BookmarkEarlGreyUI closeContextBarEditMode];
 
   // Swipe action on the URL.
@@ -168,7 +167,8 @@ id<GREYMatcher> AddBookmarkButton() {
 
   // Verify the delete confirmation button shows up. (swipe-to-delete is
   // re-enabled).
-  [[[EarlGrey selectElementWithMatcher:BookmarksDeleteSwipeButton()]
+  [[[EarlGrey selectElementWithMatcher:[ChromeMatchersAppInterface
+                                           swipeActionDeleteButton]]
       inRoot:grey_kindOfClassName(@"UITableView")]
       assertWithMatcher:grey_notNil()];
 }
@@ -541,9 +541,8 @@ id<GREYMatcher> AddBookmarkButton() {
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"First URL")]
       performAction:grey_tap()];
 
-  // Verify "First URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFirstUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "First URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFirstUrl()];
 
   [BookmarkEarlGreyUI openBookmarks];
 
@@ -558,9 +557,8 @@ id<GREYMatcher> AddBookmarkButton() {
   GREYAssertTrue([ChromeEarlGrey incognitoTabCount] == 0,
                  @"Incognito tab count should be 0");
 
-  // Verify "Second URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetSecondUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "Second URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetSecondUrl()];
 
   [BookmarkEarlGreyUI openBookmarks];
 
@@ -580,9 +578,8 @@ id<GREYMatcher> AddBookmarkButton() {
   GREYAssertTrue([ChromeEarlGrey isIncognitoMode],
                  @"Failed to switch to incognito mode");
 
-  // Verify "French URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFrenchUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "French URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFrenchUrl()];
 
   [BookmarkEarlGreyUI openBookmarks];
 
@@ -590,9 +587,8 @@ id<GREYMatcher> AddBookmarkButton() {
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"First URL")]
       performAction:grey_tap()];
 
-  // Verify "First URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFirstUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "First URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFirstUrl()];
 
   // Verify the current tab is an incognito tab.
   GREYAssertTrue([ChromeEarlGrey isIncognitoMode],
@@ -622,9 +618,8 @@ id<GREYMatcher> AddBookmarkButton() {
   GREYAssertTrue([ChromeEarlGrey isIncognitoMode],
                  @"Failed to staying at incognito mode");
 
-  // Verify "Second URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetSecondUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "Second URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetSecondUrl()];
 
   [BookmarkEarlGreyUI openBookmarks];
 
@@ -644,9 +639,8 @@ id<GREYMatcher> AddBookmarkButton() {
   GREYAssertFalse([ChromeEarlGrey isIncognitoMode],
                   @"Failed to switch to normal mode");
 
-  // Verify "French URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFrenchUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "French URL" is the URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFrenchUrl()];
 }
 
 - (void)testContextMenuForMixedSelection {
@@ -1228,21 +1222,18 @@ id<GREYMatcher> AddBookmarkButton() {
 // Verifies the Mobile Bookmarks's urls are open in the same order as they are
 // in folder.
 + (void)verifyOrderOfTabsWithCurrentTabIndex:(NSUInteger)tabIndex {
-  // Verify "French URL" appears in the omnibox.
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFrenchUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  // Verify "French URL" is URL of the current tab.
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFrenchUrl()];
 
-  // Switch to the next Tab and verify "Second URL" appears.
+  // Switch to the next Tab and verify "Second URL" is its URL.
   // TODO(crbug.com/40508042): see we if can add switchToNextTab to
   // chrome_test_util so that we don't need to pass tabIndex here.
   [ChromeEarlGrey selectTabAtIndex:tabIndex + 1];
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetSecondUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetSecondUrl()];
 
-  // Switch to the next Tab and verify "First URL" appears.
+  // Switch to the next Tab and verify "First URL" is its URL.
   [ChromeEarlGrey selectTabAtIndex:tabIndex + 2];
-  [[EarlGrey selectElementWithMatcher:OmniboxText(GetFirstUrl().GetContent())]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:GetFirstUrl()];
 }
 
 @end

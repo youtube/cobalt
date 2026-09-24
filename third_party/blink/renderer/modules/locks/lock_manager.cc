@@ -234,6 +234,9 @@ class LockManager::LockRequestImpl final
   Member<AbortSignal::AlgorithmHandle> abort_handle_;
 };
 
+const unsigned LockManager::kSupplementIndex =
+    static_cast<unsigned>(NavigatorBase::Supplements::kLockManager);
+
 // static
 LockManager* LockManager::locks(NavigatorBase& navigator,
                                 ExceptionState& exception_state) {
@@ -255,16 +258,17 @@ LockManager* LockManager::locks(NavigatorBase& navigator,
   (void)exception_state;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
-  LockManager* supplement = navigator.GetLockManager();
+  auto* supplement = Supplement<NavigatorBase>::From<LockManager>(navigator);
   if (!supplement) {
     supplement = MakeGarbageCollected<LockManager>(navigator);
-    navigator.SetLockManager(supplement);
+    Supplement<NavigatorBase>::ProvideTo(navigator, supplement);
   }
   return supplement;
 }
 
 LockManager::LockManager(NavigatorBase& navigator)
-    : ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
+    : Supplement<NavigatorBase>(navigator),
+      ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
       service_(navigator.GetExecutionContext()),
       observer_(navigator.GetExecutionContext()) {}
 
@@ -513,6 +517,7 @@ bool LockManager::IsPendingRequest(LockRequestImpl* request) {
 
 void LockManager::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
+  Supplement<NavigatorBase>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(pending_requests_);
   visitor->Trace(held_locks_);

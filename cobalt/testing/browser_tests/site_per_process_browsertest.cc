@@ -8387,10 +8387,7 @@ class SitePerProcessAndroidImeTest : public SitePerProcessBrowserTest {
         base::android::ConvertUTF8ToJavaString(env, text);
 
     // Simulating a native call from Java side.
-    ime_adapter()->CommitText(
-        env, base::android::JavaParamRef<jobject>(env, caller.obj()),
-        base::android::JavaParamRef<jobject>(env, jtext.obj()),
-        base::android::JavaParamRef<jstring>(env, jtext.obj()), 0);
+    ime_adapter()->CommitText(env, caller, jtext, jtext, 0);
   }
 
   std::vector<RenderFrameHostImpl*> frames_;

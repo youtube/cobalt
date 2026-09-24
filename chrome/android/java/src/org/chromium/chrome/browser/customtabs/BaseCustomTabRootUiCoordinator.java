@@ -32,7 +32,9 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.base.supplier.SupplierUtils;
+import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.IntentHandler;
@@ -228,7 +230,8 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             @NonNull AppMenuDelegate appMenuDelegate,
             @NonNull StatusBarColorProvider statusBarColorProvider,
             @NonNull
-                    ObservableSupplierImpl<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+                    SettableObservableSupplier<EphemeralTabCoordinator>
+                            ephemeralTabCoordinatorSupplier,
             @NonNull IntentRequestTracker intentRequestTracker,
             @NonNull Supplier<CustomTabToolbarCoordinator> customTabToolbarCoordinator,
             @NonNull Supplier<BrowserServicesIntentDataProvider> intentDataProvider,
@@ -535,7 +538,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                                 profile,
                                                 getToolbarManager().getMenuButtonView(),
                                                 mAppMenuCoordinator.getAppMenuHandler(),
-                                                mActivityTabProvider,
+                                                mActivityTabProvider.asObservable(),
                                                 mReadAloudControllerSupplier,
                                                 /* showAppMenuTextBubble= */ false);
                             }
@@ -753,8 +756,8 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             final var desktopWindowStateManager = getDesktopWindowStateManager();
             assert desktopWindowStateManager != null;
 
-            OneshotSupplierImpl<AppMenuCoordinator> mAppMenuSupplier = new OneshotSupplierImpl<>();
-            mAppMenuSupplier.set(mAppMenuCoordinator);
+            OneshotSupplierImpl<AppMenuCoordinator> appMenuSupplier = new OneshotSupplierImpl<>();
+            appMenuSupplier.set(mAppMenuCoordinator);
 
             mWebAppHeaderLayoutCoordinator =
                     new WebAppHeaderLayoutCoordinator(
@@ -763,7 +766,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                     org.chromium.chrome.browser.web_app_header.R.id
                                             .web_app_header_layout),
                             desktopWindowStateManager,
-                            mActivityTabProvider,
+                            mActivityTabProvider.asObservable(),
                             mWebAppThemeColorProvider.get(),
                             intentDataProvider,
                             getScrimManager(),
@@ -776,12 +779,17 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                             },
                             this::setHeaderAsOverlay,
                             mBrowserControlsManager,
-                            mAppMenuSupplier,
+                            appMenuSupplier,
                             mBrowserControlsManager.getBrowserVisibilityDelegate(),
                             mWindowAndroid,
                             () -> mCompositorViewHolderSupplier.get().requestFocus(),
                             mClientPackageName);
             mBrowserControlsManager.addObserver(mWebAppHeaderLayoutCoordinator);
+            if (intentDataProvider.getResolvedDisplayMode() == DisplayMode.MINIMAL_UI
+                    || intentDataProvider.getResolvedDisplayMode()
+                            == DisplayMode.WINDOW_CONTROLS_OVERLAY) {
+                mBrowserControlsManager.disableSyncMinHeightWithTotalHeight();
+            }
         }
         if (DesktopPopupHeaderUtils.isDesktopPopupHeaderEnabled(intentDataProvider)) {
             final var desktopWindowStateManager = getDesktopWindowStateManager();
@@ -792,7 +800,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                             mActivity.findViewById(
                                     DesktopPopupHeaderUtils.getHeaderViewStubViewId()),
                             desktopWindowStateManager,
-                            mActivityTabProvider,
+                            mActivityTabProvider.asObservable(),
                             intentDataProvider.getCustomTabMode() == INCOGNITO,
                             mActivity);
         }

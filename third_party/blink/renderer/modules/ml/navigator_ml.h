@@ -8,12 +8,15 @@
 #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
 #include "third_party/blink/renderer/modules/ml/ml.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class NavigatorML : public GarbageCollected<NavigatorML>,
-                    public GarbageCollectedMixin {
+                    public Supplement<NavigatorBase> {
  public:
+  static constexpr auto kSupplementIndex =
+      NavigatorBase::Supplements::kNavigatorML;
   static ML* ml(NavigatorBase& navigator);
   explicit NavigatorML(NavigatorBase& navigator);
 

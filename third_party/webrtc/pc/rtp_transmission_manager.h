@@ -13,7 +13,6 @@
 
 #include <stdint.h>
 
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -103,7 +102,8 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
       const std::string& id,
       scoped_refptr<MediaStreamTrackInterface> track,
       const std::vector<std::string>& stream_ids,
-      const std::vector<RtpEncodingParameters>& send_encodings);
+      const std::vector<RtpEncodingParameters>& send_encodings,
+      MediaSendChannelInterface* media_channel);
 
   // Create a new RTP receiver. Does not associate with a transceiver.
   scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>

@@ -33,12 +33,15 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
   if (msg.PacketsWithFeedback().empty()) {
     return;
   }
-  last_smoothed_rtt_ = msg.smoothed_rtt;
+
   TimeDelta one_way_delay_sum;
   TimeDelta min_one_way_delay = TimeDelta::PlusInfinity();
   int number_of_received_packets = 0;
+  TimeDelta rtt_sum = TimeDelta::Zero();
 
   for (const PacketResult& packet : msg.SortedByReceiveTime()) {
+    rtt_sum += msg.feedback_time - packet.sent_packet.send_time -
+               packet.arrival_time_offset.value_or(TimeDelta::Zero());
     TimeDelta one_way_delay =
         packet.receive_time - packet.sent_packet.send_time;
     next_base_delay_ = std::min(next_base_delay_, one_way_delay);
@@ -49,6 +52,8 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
   if (number_of_received_packets == 0) {
     return;
   }
+  UpdateSmoothedRtt(rtt_sum / number_of_received_packets);
+
   TimeDelta min_queue_delay = min_one_way_delay - min_base_delay();
   if (min_queue_delay > params_.queue_delay_drain_threshold.Get()) {
     if (min_queue_delay_above_threshold_start_.IsInfinite()) {
@@ -85,6 +90,18 @@ void DelayBasedCongestionControl::UpdateQueueDelayAverage(
           (current_qdelay - queue_delay_avg_) / params_.virtual_rtt.Get() +
       (1.0 - params_.queue_delay_dev_avg_g.Get()) * queue_delay_dev_norm_;
   RTC_DCHECK(queue_delay_dev_norm_ >= 0.0);
+}
+
+void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample) {
+  if (last_smoothed_rtt_.IsZero()) {
+    last_smoothed_rtt_ = rtt_sample;
+  } else {
+    double g = params_.smoothed_rtt_avg_g_up.Get();
+    if (rtt_sample < last_smoothed_rtt_) {
+      g = params_.smoothed_l4s_avg_g_down.Get();
+    }
+    last_smoothed_rtt_ = rtt_sample * g + last_smoothed_rtt_ * (1.0 - g);
+  }
 }
 
 void DelayBasedCongestionControl::ResetQueueDelay() {

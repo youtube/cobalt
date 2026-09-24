@@ -1037,7 +1037,7 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   // We provide a fallback for the case when the page pool timeout is disabled.
   // This is to prevent unbounded growth of the pool for the non-default
   // configuration.
-  if (V8_UNLIKELY(v8_flags.page_pool_timeout == 0) &&
+  if (V8_UNLIKELY(v8_flags.memory_pool_timeout == 0) &&
       collector == GarbageCollector::MARK_COMPACTOR) {
     if (auto* memory_pool = isolate_->isolate_group()->memory_pool()) {
       memory_pool->ReleaseImmediately(isolate_);
@@ -1426,7 +1426,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
         tracer()->AverageMarkCompactMutatorUtilization());
   }
 
-  EagerlyFreeExternalMemoryAndWasmCode();
+  FlushLiftoffCode(gc_reason);
+  CompleteArrayBufferSweeping();
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
       v8_flags.heap_snapshot_on_oom) {
@@ -2057,14 +2058,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   }
 }
 
-namespace {
-void CompleteArrayBufferSweeping(Heap* heap) {
-  auto* array_buffer_sweeper = heap->array_buffer_sweeper();
-  if (array_buffer_sweeper->sweeping_in_progress()) {
-    auto* tracer = heap->tracer();
+void Heap::CompleteArrayBufferSweeping() {
+  if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
-    switch (tracer->GetCurrentCollector()) {
+    switch (tracer()->GetCurrentCollector()) {
       case GarbageCollector::MINOR_MARK_SWEEPER:
         scope_id = GCTracer::Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS;
         break;
@@ -2075,13 +2073,12 @@ void CompleteArrayBufferSweeping(Heap* heap) {
         scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
     }
 
-    TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, ThreadKind::kMain,
-                             array_buffer_sweeper->GetTraceIdForFlowEvent(),
+    TRACE_GC_EPOCH_WITH_FLOW(tracer(), scope_id, ThreadKind::kMain,
+                             array_buffer_sweeper()->GetTraceIdForFlowEvent(),
                              TRACE_EVENT_FLAG_FLOW_IN);
-    array_buffer_sweeper->EnsureFinished();
+    array_buffer_sweeper()->EnsureFinished();
   }
 }
-}  // namespace
 
 void Heap::CompleteSweepingFull(CompleteSweepingReason reason) {
   EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap, reason);
@@ -2180,13 +2177,14 @@ void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
 
 template <typename TSlot>
 void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
-                     const TSlot src_slot, int len, WriteBarrierMode mode) {
+                     const TSlot src_slot, uint32_t len,
+                     WriteBarrierMode mode) {
   // Ensure no range overflow.
   DCHECK(dst_slot < TSlot(dst_slot + len));
   DCHECK(src_slot < src_slot + len);
 
   const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
-                                  int len) {
+                                  uint32_t len) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2211,7 +2209,8 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       }
     }
   };
-  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot,
+                                      uint32_t len) {
     MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   };
   CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
@@ -2220,14 +2219,15 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
 
 template V8_EXPORT_PRIVATE void Heap::MoveRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
-    int len, WriteBarrierMode mode);
+    uint32_t len, WriteBarrierMode mode);
 template V8_EXPORT_PRIVATE void Heap::MoveRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
-    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
+    MaybeObjectSlot src_slot, uint32_t len, WriteBarrierMode mode);
 
 template <typename TSlot>
 void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
-                     const TSlot src_slot, int len, WriteBarrierMode mode) {
+                     const TSlot src_slot, uint32_t len,
+                     WriteBarrierMode mode) {
   // Ensure ranges do not overlap.
   DCHECK(TSlot(dst_slot + len) <= src_slot || (src_slot + len) <= dst_slot);
 
@@ -2242,7 +2242,8 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       ++src;
     }
   };
-  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot,
+                                      uint32_t len) {
     MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   };
   CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
@@ -2251,10 +2252,10 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
 
 template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
-    int len, WriteBarrierMode mode);
+    uint32_t len, WriteBarrierMode mode);
 template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
-    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
+    MaybeObjectSlot src_slot, uint32_t len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
   return collection_barrier_->RequestedGC().has_value();
@@ -3535,8 +3536,10 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
 }
 
 template <typename Array>
-void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
-                          int old_capacity) {
+void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
+                          uint32_t old_capacity_raw) {
+  int new_capacity = new_capacity_raw;
+  int old_capacity = old_capacity_raw;
   DCHECK_EQ(old_capacity, object->capacity());
   DCHECK_LT(new_capacity, old_capacity);
   DCHECK_GE(new_capacity, 0);
@@ -3598,10 +3601,10 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   }
 }
 
-#define DEF_RIGHT_TRIM(T)                                     \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void     \
-  Heap::RightTrimArray<T>(Tagged<T> object, int new_capacity, \
-                          int old_capacity);
+#define DEF_RIGHT_TRIM(T)                                          \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void          \
+  Heap::RightTrimArray<T>(Tagged<T> object, uint32_t new_capacity, \
+                          uint32_t old_capacity);
 RIGHT_TRIMMABLE_ARRAY_LIST(DEF_RIGHT_TRIM)
 #undef DEF_RIGHT_TRIM
 
@@ -4250,12 +4253,14 @@ void Heap::CollectGarbageOnMemoryPressure() {
   const double kGarbageThresholdAsFractionOfTotalMemory = 0.1;
   // This constant is the maximum response time in RAIL performance model.
   const double kMaxMemoryPressurePauseMs = 100;
+  const GarbageCollectionReason gc_reason =
+      GarbageCollectionReason::kMemoryPressure;
 
   double start = MonotonicallyIncreasingTimeInMs();
-  CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
-                    GarbageCollectionReason::kMemoryPressure,
+  CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                     kGCCallbackFlagCollectAllAvailableGarbage);
-  EagerlyFreeExternalMemoryAndWasmCode();
+  FlushLiftoffCode(gc_reason);
+  CompleteArrayBufferSweeping();
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
@@ -4269,13 +4274,11 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-      CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
-                        GarbageCollectionReason::kMemoryPressure,
+      CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
-        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                GarbageCollectionReason::kMemoryPressure);
+        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint, gc_reason);
       }
     }
   }
@@ -4302,13 +4305,15 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
   }
 }
 
-void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
+void Heap::FlushLiftoffCode(GarbageCollectionReason gc_reason) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.flush_liftoff_code) {
+  const bool should_flush =
+      gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kMemoryPressure;
+  if (should_flush && v8_flags.flush_liftoff_code) {
     wasm::GetWasmEngine()->FlushLiftoffCode();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  CompleteArrayBufferSweeping(this);
 }
 
 void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
@@ -7697,7 +7702,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
                    dict.Add("epoch", tracer()->CurrentEpoch());
                  });
 
-  CompleteArrayBufferSweeping(this);
+  CompleteArrayBufferSweeping();
 
   EnsureQuarantinedPagesSweepingCompleted();
 
@@ -7777,7 +7782,7 @@ void Heap::EnsureQuarantinedPagesSweepingCompleted() {
 }
 
 void Heap::EnsureYoungSweepingCompleted() {
-  CompleteArrayBufferSweeping(this);
+  CompleteArrayBufferSweeping();
 
   EnsureQuarantinedPagesSweepingCompleted();
 

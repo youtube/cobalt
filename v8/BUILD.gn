@@ -9,7 +9,6 @@ import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
 import("//build/config/riscv.gni")
-import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("//third_party/icu/config.gni")
@@ -19,6 +18,10 @@ import("gni/v8.gni")
 
 if (is_clang) {
   import("//build/config/clang/clang.gni")
+}
+
+if (v8_enable_temporal_support) {
+  import("//build/config/rust.gni")
 }
 
 if (is_ios) {
@@ -1589,8 +1592,8 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_S390X" ]
     if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_S390X_LE_SIM" ]
-    } else if (current_os != "zos") {
-      cflags += [ "-march=z196" ]
+    } else if (!v8_target_is_simulator && current_os != "zos") {
+      cflags += [ "-march=z14" ]
     }
   }
   if (v8_current_cpu == "ppc64") {
@@ -1605,6 +1608,8 @@ config("toolchain") {
         # Work around AIX assembler popcntb bug.
         "-mno-popcntb",
       ]
+    } else if (!v8_target_is_simulator) {
+      cflags += [ "-mcpu=pwr9" ]
     }
   }
 
@@ -3116,6 +3121,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
+    "src/builtins/builtins-string-tsa-inl.h",
     "src/builtins/builtins-string-tsa.cc",
     "src/builtins/builtins-typed-array-gen.cc",
     "src/builtins/builtins-typed-array-gen.h",
@@ -3837,6 +3843,7 @@ v8_header_set("v8_internal_headers") {
     "src/execution/frames.h",
     "src/execution/futex-emulation.h",
     "src/execution/interrupts-scope.h",
+    "src/execution/isolate-data-fields.h",
     "src/execution/isolate-data.h",
     "src/execution/isolate-inl.h",
     "src/execution/isolate-utils-inl.h",
@@ -4693,10 +4700,13 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-opcodes.h",
       "src/wasm/wasm-result.h",
       "src/wasm/wasm-serialization.h",
+      "src/wasm/wasm-stack-wrapper-cache.h",
       "src/wasm/wasm-subtyping.h",
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-tracing.h",
       "src/wasm/wasm-value.h",
+      "src/wasm/wasm-wrapper-cache-inl.h",
+      "src/wasm/wasm-wrapper-cache.h",
       "src/wasm/well-known-imports.h",
       "src/wasm/wrappers-inl.h",
       "src/wasm/wrappers.h",
@@ -6181,8 +6191,10 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-opcodes.cc",
       "src/wasm/wasm-result.cc",
       "src/wasm/wasm-serialization.cc",
+      "src/wasm/wasm-stack-wrapper-cache.cc",
       "src/wasm/wasm-subtyping.cc",
       "src/wasm/wasm-tracing.cc",
+      "src/wasm/wasm-wrapper-cache.cc",
       "src/wasm/well-known-imports.cc",
     ]
     if (v8_wasm_random_fuzzers) {

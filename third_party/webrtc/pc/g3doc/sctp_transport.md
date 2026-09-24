@@ -31,8 +31,6 @@ closes, but the object itself may survive longer than the PeerConnection.
 and the DTLS transport, which is the object used to send and receive messages
 as emitted from or consumed by the sctp library.
 
-It communicates state changes and events using sigslot.
-
 See header files for details.
 
 

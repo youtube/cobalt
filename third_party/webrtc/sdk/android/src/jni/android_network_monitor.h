@@ -64,6 +64,7 @@ struct NetworkInformation {
   NetworkType type;
   NetworkType underlying_type_for_vpn;
   std::vector<IPAddress> ip_addresses;
+  NetworkSlice slice = NetworkSlice::NO_SLICE;
 
   NetworkInformation();
   NetworkInformation(const NetworkInformation&);

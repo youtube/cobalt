@@ -7,6 +7,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_list_including_low_anonymity.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -67,18 +68,16 @@ std::string EncodePref(
 
 }  // namespace
 
-StickyActivationManager::StickyActivationManager(PrefService* local_state,
-                                                 bool sticky_activation_enabled)
-    : local_state_(local_state),
-      sticky_activation_enabled_(sticky_activation_enabled) {
-  if (local_state && sticky_activation_enabled_) {
+StickyActivationManager::StickyActivationManager(PrefService* local_state)
+    : local_state_(local_state) {
+  if (local_state) {
     loaded_sticky_trials_ =
         ParsePref(local_state_->GetString(prefs::kVariationsStickyStudies));
   }
 }
 
 StickyActivationManager::~StickyActivationManager() {
-  if (monitoring_started_ && sticky_activation_enabled_) {
+  if (monitoring_started_) {
     base::FieldTrialListIncludingLowAnonymity::RemoveObserver(this);
   }
 }
@@ -93,10 +92,6 @@ void StickyActivationManager::StartMonitoring() {
   CHECK(!monitoring_started_);
   monitoring_started_ = true;
 
-  if (!sticky_activation_enabled_) {
-    return;
-  }
-
   // Clear the loaded sticky trials, since these are no longer needed. The
   // entries that were activated have been copied over to
   // `active_sticky_trials_`.
@@ -110,9 +105,6 @@ void StickyActivationManager::StartMonitoring() {
 bool StickyActivationManager::ShouldActivate(const std::string& trial_name,
                                              const std::string& group_name) {
   CHECK(!monitoring_started_);
-  if (!sticky_activation_enabled_) {
-    return false;
-  }
 
   auto it = loaded_sticky_trials_.find(trial_name);
   if (it != loaded_sticky_trials_.end() && it->second == group_name) {
@@ -130,7 +122,6 @@ void StickyActivationManager::OnFieldTrialGroupFinalized(
     const base::FieldTrial& trial,
     const std::string& group_name) {
   CHECK(monitoring_started_);
-  CHECK(sticky_activation_enabled_);
 
   // Check whether the trial is present in `active_sticky_trials_`, which is how
   // we track which trials have the STICKY_AFTER_QUERY activation type.
@@ -154,7 +145,6 @@ void StickyActivationManager::OnFieldTrialGroupFinalized(
 
 void StickyActivationManager::UpdatePref() {
   CHECK(monitoring_started_);
-  CHECK(sticky_activation_enabled_);
 
   // TODO: crbug.com/435630455 - Instead of updating the pref each time,
   // schedule an update so that we can batch multiple updates together.

@@ -29,3 +29,5 @@ jboolean JNI_Features_GetFieldTrialParamByFeatureAsBoolean(
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI(Features)

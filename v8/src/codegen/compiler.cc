@@ -1939,7 +1939,8 @@ void BackgroundCompileTask::Run(
     info.CheckFlagsForFunctionFromScript(*script_);
 
     {
-      SharedStringAccessGuardIfNeeded access_guard(isolate);
+      SharedStringAccessGuardIfNeeded access_guard(isolate,
+                                                   shared_info->Name());
       info.set_function_name(info.ast_value_factory()->GetString(
           shared_info->Name(), access_guard));
     }
@@ -4505,7 +4506,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     return;
   }
   // Discard code compiled for a discarded native context without finalization.
-  if (function->native_context()->global_object()->IsDetached(isolate)) {
+  if (function->native_context()->IsDetached()) {
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kDetachedNativeContext);
     return;

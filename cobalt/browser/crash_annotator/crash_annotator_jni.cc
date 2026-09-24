@@ -20,10 +20,12 @@
 
 void JNI_CrashAnnotatorImplFirstParty_SetAnnotation(
     JNIEnv* env,
-    const base::android::JavaParamRef<jstring>& j_name,
-    const base::android::JavaParamRef<jstring>& j_value) {
+    const base::android::JavaRef<jstring>& j_name,
+    const base::android::JavaRef<jstring>& j_value) {
   std::string name = base::android::ConvertJavaStringToUTF8(env, j_name);
   std::string value = base::android::ConvertJavaStringToUTF8(env, j_value);
   cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(name,
                                                                         value);
 }
+
+DEFINE_JNI(CrashAnnotatorImplFirstParty)

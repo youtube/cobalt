@@ -285,8 +285,6 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
   int ignored_packets = 0;
   int failed_lookups = 0;
   bool supports_ecn = true;
-  TimeDelta rtt_sum = TimeDelta::Zero();
-  int packets_recived = 0;
   std::vector<PacketResult> packet_result_vector;
   for (const rtcp::CongestionControlFeedback::PacketInfo& packet_info :
        feedback.packets()) {
@@ -305,11 +303,9 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
     PacketResult result;
     result.sent_packet = packet_feedback->sent;
     if (packet_info.arrival_time_offset.IsFinite()) {
-      ++packets_recived;
       result.receive_time = current_offset_ - packet_info.arrival_time_offset;
-      rtt_sum += feedback_receive_time - result.sent_packet.send_time -
-                 packet_info.arrival_time_offset;
       supports_ecn &= packet_info.ecn != EcnMarking::kNotEct;
+      result.arrival_time_offset = packet_info.arrival_time_offset;
     }
     result.ecn = packet_info.ecn;
     result.sent_with_ect1 = packet_feedback->sent_with_ect1;
@@ -323,14 +319,6 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
         .rtp_sequence_number = packet_feedback->rtp_sequence_number,
         .is_retransmission = packet_feedback->is_retransmission};
     packet_result_vector.push_back(result);
-  }
-  if (packets_recived > 0) {
-    if (smoothed_rtt_.IsInfinite()) {
-      smoothed_rtt_ = rtt_sum / packets_recived;
-    } else {
-      smoothed_rtt_ = (smoothed_rtt_ * 7 + rtt_sum / packets_recived) /
-                      8;  // RFC 6298, alpha = 1/8
-    }
   }
 
   if (failed_lookups > 0) {
@@ -366,7 +354,6 @@ TransportFeedbackAdapter::ToTransportFeedback(
   msg.packet_feedbacks = std::move(packet_results);
   msg.data_in_flight = in_flight_.GetOutstandingData(network_route_);
   msg.transport_supports_ecn = supports_ecn;
-  msg.smoothed_rtt = smoothed_rtt_;
 
   return msg;
 }
@@ -374,7 +361,6 @@ TransportFeedbackAdapter::ToTransportFeedback(
 void TransportFeedbackAdapter::SetNetworkRoute(
     const NetworkRoute& network_route) {
   network_route_ = network_route;
-  smoothed_rtt_ = TimeDelta::PlusInfinity();
 }
 
 DataSize TransportFeedbackAdapter::GetOutstandingData() const {

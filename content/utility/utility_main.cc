@@ -469,8 +469,6 @@ int UtilityMain(MainFunctionParams parameters) {
 
     sandbox::policy::WarmupRandomnessInfrastructure();
 
-    sandbox::policy::MaybeDelayloadDbghelp();
-
     g_utility_target_services->LowerToken();
   }
 #endif

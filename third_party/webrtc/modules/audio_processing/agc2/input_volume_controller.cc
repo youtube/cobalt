@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "api/audio/audio_processing.h"
+#include "api/field_trials_view.h"
 #include "modules/audio_processing/agc2/clipping_predictor.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
 #include "modules/audio_processing/agc2/input_volume_stats_reporter.h"
@@ -133,6 +134,18 @@ int GetSpeechLevelRmsErrorDb(float speech_level_dbfs,
   return rms_error_db;
 }
 
+int GetTargetRangeMaxDbfs(const InputVolumeController::Config& config,
+                          const FieldTrialsView& field_trials) {
+  if (field_trials.IsEnabled("WebRTC-Agc2MaxSpeechLevelExperimental")) {
+    RTC_LOG(LS_INFO) << "AGC2 input volume controller using experimental "
+                        "maximum speech level";
+    return config.target_range_experimental_max_dbfs;
+  } else {
+    RTC_LOG(LS_INFO)
+        << "AGC2 input volume controller using default maximum speech level";
+    return config.target_range_max_dbfs;
+  }
+}
 }  // namespace
 
 MonoInputVolumeController::MonoInputVolumeController(
@@ -355,8 +368,10 @@ void MonoInputVolumeController::UpdateInputVolume(int rms_error_db) {
       rms_error_db, last_recommended_input_volume_, min_input_volume_));
 }
 
-InputVolumeController::InputVolumeController(int num_capture_channels,
-                                             const Config& config)
+InputVolumeController::InputVolumeController(
+    int num_capture_channels,
+    const Config& config,
+    const FieldTrialsView& field_trials)
     : num_capture_channels_(num_capture_channels),
       min_input_volume_(config.min_input_volume),
       capture_output_used_(true),
@@ -373,7 +388,7 @@ InputVolumeController::InputVolumeController(int num_capture_channels,
       frames_since_clipped_(config.clipped_wait_frames),
       clipping_rate_log_counter_(0),
       clipping_rate_log_(0.0f),
-      target_range_max_dbfs_(config.target_range_max_dbfs),
+      target_range_max_dbfs_(GetTargetRangeMaxDbfs(config, field_trials)),
       target_range_min_dbfs_(config.target_range_min_dbfs),
       channel_controllers_(num_capture_channels) {
   RTC_LOG(LS_INFO)

@@ -227,6 +227,31 @@ void DirectRenderer::DrawFrame(
   current_frame()->device_viewport_size = device_viewport_size;
   current_frame()->display_color_spaces = display_color_spaces;
 
+  gfx::Size surface_resource_size =
+      CalculateSizeForOutputSurface(device_viewport_size);
+
+#if BUILDFLAG(IS_WIN)
+  if (output_surface_->capabilities().clear_drawn_areas_outside_viewport &&
+      device_viewport_size != surface_resource_size) {
+    // On Windows with DirectComposition, we cannot synchronize the swap chain
+    // |Present| and the DComp |Commit| calls to take effect at the same time.
+    // (Both take effect asynchronously.) Hence, presenting a frame and changing
+    // the DComp layer clip rect can happen at different times. This can lead to
+    // ugly visual artifacts while resizing the window because it can reveal
+    // areas of the surface that are outside the viewport (crbug.com/457463689).
+    // To prevent those artifacts, we clear areas outside of the viewport with a
+    // transparent color. Transparency is expensive, so we use it only while
+    // resizing.
+    // This line gives us a transparent image format and triggers the background
+    // to be cleared in |SkiaRenderer::ClearFramebuffer|.
+    root_render_pass->has_transparent_background = true;
+    // Redraw and swap the whole surface.
+    root_render_pass->output_rect = gfx::Rect(surface_resource_size);
+    current_frame()->root_damage_rect = gfx::Rect(surface_resource_size);
+    current_frame()->device_viewport_size = surface_resource_size;
+  }
+#endif
+
   output_surface_->SetNeedsMeasureNextDrawLatency();
   BeginDrawingFrame();
 
@@ -256,8 +281,6 @@ void DirectRenderer::DrawFrame(
       current_frame()->display_color_spaces.GetOutputFormat(
           current_frame()->root_render_pass->content_color_usage,
           current_frame()->root_render_pass->has_transparent_background);
-  gfx::Size surface_resource_size =
-      CalculateSizeForOutputSurface(device_viewport_size);
 #if BUILDFLAG(IS_WIN)
   bool has_primary_plane = false;
 #endif
@@ -269,27 +292,6 @@ void DirectRenderer::DrawFrame(
         output_surface_->GetDisplayTransform());
     overlay_processor_->SetViewportSize(device_viewport_size);
 
-    // Before ProcessForOverlay calls into the hardware to ask about whether the
-    // overlay setup can be handled, we need to set up the primary plane.
-    std::optional<OverlayCandidate> primary_plane;
-    if (output_surface_->capabilities().renderer_allocates_images) {
-      primary_plane = overlay_processor_->ProcessOutputSurfaceAsOverlay(
-          device_viewport_size, surface_resource_size, frame_si_format,
-          frame_color_space,
-          current_frame()->root_render_pass->has_transparent_background,
-          1.0f /*opacity*/, GetPrimaryPlaneOverlayTestingMailbox());
-
-      if (current_frame()->display_color_spaces.SupportsHDR() &&
-          current_frame()->root_render_pass->content_color_usage ==
-              gfx::ContentColorUsage::kHDR) {
-        primary_plane->hdr_metadata.extended_range.emplace();
-        // TODO(crbug.com/40263227): Track the actual brightness of the
-        // content. For now, assume that all HDR content is 1,000 nits.
-        primary_plane->hdr_metadata.extended_range->desired_headroom =
-            gfx::HdrMetadataExtendedRange::kDefaultHdrHeadroom;
-      }
-    }
-
     // Attempt to replace some or all of the quads of the root render pass with
     // overlays.
     base::ElapsedTimer overlay_processing_timer;
@@ -297,8 +299,25 @@ void DirectRenderer::DrawFrame(
         resource_provider_, render_passes_in_draw_order,
         output_surface_->color_matrix(), render_pass_filters_,
         render_pass_backdrop_filters_, std::move(surface_damage_rect_list),
-        primary_plane, &current_frame()->overlay_list,
-        &current_frame()->root_damage_rect,
+        OverlayProcessorInterface::PrimaryPlaneParams{
+            .viewport_size = device_viewport_size,
+            .resource_size_in_pixels = surface_resource_size,
+            .supports_hdr =
+                current_frame()->display_color_spaces.SupportsHDR() &&
+                render_passes_in_draw_order->back()->content_color_usage ==
+                    gfx::ContentColorUsage::kHDR,
+            .is_opaque = !render_passes_in_draw_order->back()
+                              ->has_transparent_background,
+#if BUILDFLAG(IS_OZONE)
+            .si_format = frame_si_format,
+            .color_space = frame_color_space,
+            .overlay_testing_mailbox =
+                output_surface_->capabilities().renderer_allocates_images
+                    ? GetPrimaryPlaneOverlayTestingMailbox()
+                    : gpu::Mailbox(),
+#endif
+        },
+        &current_frame()->overlay_list, &current_frame()->root_damage_rect,
         &current_frame()->root_content_bounds);
     auto overlay_processing_time = overlay_processing_timer.Elapsed();
 
@@ -401,8 +420,10 @@ void DirectRenderer::DrawFrame(
 
   // If we need to redraw the frame, the whole output should be considered
   // damaged.
-  if (needs_full_frame_redraw)
-    current_frame()->root_damage_rect = gfx::Rect(device_viewport_size);
+  if (needs_full_frame_redraw) {
+    current_frame()->root_damage_rect =
+        gfx::Rect(current_frame()->device_viewport_size);
+  }
 
   if (!skip_drawing_root_render_pass) {
     DrawRenderPassAndExecuteCopyRequests(root_render_pass);
@@ -1201,8 +1222,10 @@ gfx::Rect DirectRenderer::GetDelegatedInkTrailDamageRect() {
   return gfx::Rect();
 }
 
+#if BUILDFLAG(IS_OZONE)
 gpu::Mailbox DirectRenderer::GetPrimaryPlaneOverlayTestingMailbox() {
   NOTREACHED();
 }
+#endif
 
 }  // namespace viz

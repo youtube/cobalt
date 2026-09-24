@@ -33,6 +33,7 @@
 #include <memory>
 
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
@@ -1024,29 +1025,6 @@ void Frame::DetachFromParent() {
     }
   }
   Parent()->RemoveChild(this);
-}
-
-HeapVector<Member<Resource>> Frame::AllResourcesUnderFrame() {
-  DCHECK(base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference));
-
-  HeapVector<Member<Resource>> resources;
-  if (IsLocalFrame()) {
-    if (auto* this_local_frame = DynamicTo<LocalFrame>(this)) {
-      HeapHashSet<Member<Resource>> local_frame_resources =
-          this_local_frame->GetDocument()
-              ->Fetcher()
-              ->MoveResourceStrongReferences();
-      for (Resource* resource : local_frame_resources) {
-        resources.push_back(resource);
-      }
-    }
-  }
-
-  for (Frame* child = Tree().FirstChild(); child;
-       child = child->Tree().NextSibling()) {
-    resources.AppendVector(child->AllResourcesUnderFrame());
-  }
-  return resources;
 }
 
 void Frame::AdjustOffsetByAncestorFrames(gfx::Point* origin_point) {

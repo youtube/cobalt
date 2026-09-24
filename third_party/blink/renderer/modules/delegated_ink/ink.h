@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 class DelegatedInkTrailPresenter;
@@ -14,10 +15,11 @@ class InkPresenterParam;
 class Navigator;
 class ScriptState;
 
-class Ink : public ScriptWrappable, public GarbageCollectedMixin {
+class Ink : public ScriptWrappable, public Supplement<Navigator> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static const unsigned kSupplementIndex;
   static Ink* ink(Navigator& navigator);
 
   explicit Ink(Navigator&);
@@ -26,9 +28,6 @@ class Ink : public ScriptWrappable, public GarbageCollectedMixin {
       InkPresenterParam* presenter_param);
 
   void Trace(blink::Visitor*) const override;
-
- private:
-  Member<Navigator> navigator_;
 };
 
 }  // namespace blink

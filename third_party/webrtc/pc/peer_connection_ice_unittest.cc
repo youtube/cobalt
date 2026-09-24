@@ -271,8 +271,9 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     PeerConnection* pc = static_cast<PeerConnection*>(pc_proxy->internal());
     for (const auto& transceiver : pc->GetTransceiversInternal()) {
       if (transceiver->media_type() == MediaType::AUDIO) {
-        auto dtls_transport = pc->LookupDtlsTransportByMidInternal(
-            transceiver->internal()->channel()->mid());
+        auto dtls_transport =
+            pc->transport_controller_s()->LookupDtlsTransportByMid(
+                transceiver->internal()->channel()->mid());
         return dtls_transport->ice_transport()->internal()->GetIceRole();
       }
     }

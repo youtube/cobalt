@@ -31,8 +31,6 @@ enum class PermissionType;
 namespace content {
 class BrowserContext;
 class RenderFrameHost;
-class WebContents;
-class RenderFrameHost;
 }  // namespace content
 
 namespace permissions {
@@ -679,7 +677,7 @@ class PermissionUmaUtil {
 
   static void PermissionPromptResolved(
       const std::vector<std::unique_ptr<PermissionRequest>>& requests,
-      content::WebContents* web_contents,
+      content::BrowserContext* browser_context,
       PermissionAction permission_action,
       base::TimeDelta time_to_action,
       PermissionPromptDisposition ui_disposition,
@@ -694,7 +692,9 @@ class PermissionUmaUtil {
       std::optional<permissions::PermissionIgnoredReason> ignored_reason,
       bool did_show_prompt,
       bool did_click_manage,
-      bool did_click_learn_more);
+      bool did_click_learn_more,
+      std::optional<GeolocationAccuracy>
+          initial_geolocation_accuracy_selection);
 
   static void RecordCrowdDenyDelayedPushNotification(base::TimeDelta delay);
 
@@ -725,7 +725,7 @@ class PermissionUmaUtil {
 
   static void RecordPermissionUsage(ContentSettingsType permission_type,
                                     content::BrowserContext* browser_context,
-                                    content::WebContents* web_contents,
+                                    content::RenderFrameHost* render_frame_host,
                                     const GURL& requesting_origin);
 
   static void RecordPermissionUsageNotificationShown(
@@ -849,7 +849,6 @@ class PermissionUmaUtil {
       ElementAnchoredBubbleVariant variant,
       int screen_counter,
       const GURL& requesting_origin,
-      content::WebContents* web_contents,
       content::BrowserContext* browser_context);
 
   // Records `TimeDelta` between two consecutive indicators of the same
@@ -1003,7 +1002,6 @@ class PermissionUmaUtil {
       std::optional<PermissionPromptDispositionReason> ui_reason,
       std::optional<std::vector<ElementAnchoredBubbleVariant>> variants,
       const GURL& requesting_origin,
-      content::WebContents* web_contents,
       content::BrowserContext* browser_context,
       content::RenderFrameHost* render_frame_host,
       std::optional<PermissionUiSelector::PredictionGrantLikelihood>
@@ -1012,7 +1010,9 @@ class PermissionUmaUtil {
       std::optional<permissions::PermissionAiRelevanceModel>
           permission_ai_relevance_model,
       std::optional<bool> prediction_decision_held_back,
-      const PromptOptions& prompt_options);
+      const PromptOptions& prompt_options,
+      std::optional<GeolocationAccuracy>
+          initial_geolocation_accuracy_selection);
 
   // Records |count| total prior actions for a prompt of type |permission|
   // for a single origin using |prefix| for the metric.

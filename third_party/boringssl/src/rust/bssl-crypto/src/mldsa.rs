@@ -222,7 +222,7 @@ impl PublicKey65 {
         unsafe {
             cbb_to_vec(PUBLIC_KEY_BYTES_65, |buf| {
                 let ok = bssl_sys::MLDSA65_marshal_public_key(buf, &*self.0);
-                // `MLKEM768_marshal_public_key` only fails if it cannot
+                // `MLDSA65_marshal_public_key` only fails if it cannot
                 // allocate memory, but `cbb_to_vec` allocates a fixed
                 // amount of memory.
                 assert_eq!(ok, 1);
@@ -503,7 +503,7 @@ impl PublicKey87 {
         unsafe {
             cbb_to_vec(PUBLIC_KEY_BYTES_87, |buf| {
                 let ok = bssl_sys::MLDSA87_marshal_public_key(buf, &*self.0);
-                // `MLKEM768_marshal_public_key` only fails if it cannot
+                // `MLDSA87_marshal_public_key` only fails if it cannot
                 // allocate memory, but `cbb_to_vec` allocates a fixed
                 // amount of memory.
                 assert_eq!(ok, 1);

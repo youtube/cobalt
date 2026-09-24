@@ -183,6 +183,16 @@ static IPAddress JavaToNativeIpAddress(JNIEnv* jni,
   return IPAddress(ip6_addr);
 }
 
+static NetworkSlice convertJavaSlice(int slice) {
+  switch (slice) {
+    case 1:
+      return NetworkSlice::UNIFIED_COMMUNICATIONS;
+    case 0:
+    default:
+      return NetworkSlice::NO_SLICE;
+  }
+}
+
 static NetworkInformation GetNetworkInformationFromJava(
     JNIEnv* jni,
     const JavaRef<jobject>& j_network_info) {
@@ -200,6 +210,8 @@ static NetworkInformation GetNetworkInformationFromJava(
       Java_NetworkInformation_getIpAddresses(jni, j_network_info);
   network_info.ip_addresses = JavaToNativeVector<IPAddress>(
       jni, j_ip_addresses, &JavaToNativeIpAddress);
+  network_info.slice = convertJavaSlice(
+      Java_NetworkInformation_getSliceAsInt(jni, j_network_info));
   return network_info;
 }
 
@@ -239,6 +251,9 @@ std::string NetworkInformation::ToString() const {
      << type;
   if (type == NETWORK_VPN) {
     ss << "; underlying_type_for_vpn " << underlying_type_for_vpn;
+  }
+  if (slice != NetworkSlice::NO_SLICE) {
+    ss << "; slice=" << static_cast<int>(slice);
   }
   ss << "]";
   return ss.Release();
@@ -626,12 +641,11 @@ NetworkMonitorInterface::InterfaceInfo AndroidNetworkMonitor::GetInterfaceInfo(
           ? AdapterTypeFromNetworkType(iter->second.underlying_type_for_vpn,
                                        surface_cellular_types_)
           : ADAPTER_TYPE_UNKNOWN;
-  return {
-      .adapter_type = type,
-      .underlying_type_for_vpn = vpn_type,
-      .network_preference = GetNetworkPreference(type),
-      .available = true,
-  };
+  return {.adapter_type = type,
+          .underlying_type_for_vpn = vpn_type,
+          .network_preference = GetNetworkPreference(type),
+          .available = true,
+          .slice = iter->second.slice};
 }
 
 NetworkPreference AndroidNetworkMonitor::GetNetworkPreference(

@@ -323,7 +323,7 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   __ Smull(out, left, right);
 
   // Making sure that the 32-bit output is zero-extended.
-  __ Move(out.W(), out.W());
+  __ Mov(out.W(), out.W());
 }
 
 void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
@@ -468,7 +468,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Making sure that the 32-bit output is zero-extended (and moving it to the
   // right register if {out_alias_input} is true).
-  __ Move(out, res.W());
+  __ Mov(out, res.W());
 }
 
 void Int32DivideWithOverflow::SetValueLocationConstraints() {
@@ -536,7 +536,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ CompareAndBranch(temp, Immediate(0), ne,
                       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 
-  __ Move(out, res);
+  __ Mov(out, res);
 }
 
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {
@@ -931,18 +931,26 @@ int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(IndexInput());
   UseRegister(ByteLengthInput());
+  int element_size = compiler::ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    set_temporaries_needed(1);
+  }
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register index = ToRegister(IndexInput());
   Register byte_length = ToRegister(ByteLengthInput());
 
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register limit = byte_length;
+
   int element_size = compiler::ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
-    __ Subs(byte_length, byte_length, Immediate(element_size - 1));
+    limit = temps.Acquire();
+    __ Subs(limit, byte_length, Immediate(element_size - 1));
     __ EmitEagerDeoptIf(mi, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ Cmp(index, byte_length);
+  __ Cmp(index, limit);
   __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 

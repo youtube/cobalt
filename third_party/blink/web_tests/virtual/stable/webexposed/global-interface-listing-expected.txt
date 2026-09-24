@@ -1757,6 +1757,7 @@ interface Document : Node
     getter linkColor
     getter links
     getter onabort
+    getter onanimationcancel
     getter onanimationend
     getter onanimationiteration
     getter onanimationstart
@@ -1979,6 +1980,7 @@ interface Document : Node
     setter fullscreenEnabled
     setter linkColor
     setter onabort
+    setter onanimationcancel
     setter onanimationend
     setter onanimationiteration
     setter onanimationstart
@@ -3534,6 +3536,7 @@ interface HTMLElement : Element
     getter offsetTop
     getter offsetWidth
     getter onabort
+    getter onanimationcancel
     getter onanimationend
     getter onanimationiteration
     getter onanimationstart
@@ -3670,6 +3673,7 @@ interface HTMLElement : Element
     setter lang
     setter nonce
     setter onabort
+    setter onanimationcancel
     setter onanimationend
     setter onanimationiteration
     setter onanimationstart
@@ -5408,6 +5412,8 @@ interface LargestContentfulPaint : PerformanceEntry
     getter element
     getter id
     getter loadTime
+    getter paintTime
+    getter presentationTime
     getter renderTime
     getter size
     getter url
@@ -5521,6 +5527,7 @@ interface MathMLElement : Element
     getter dataset
     getter nonce
     getter onabort
+    getter onanimationcancel
     getter onanimationend
     getter onanimationiteration
     getter onanimationstart
@@ -5633,6 +5640,7 @@ interface MathMLElement : Element
     setter autofocus
     setter nonce
     setter onabort
+    setter onanimationcancel
     setter onanimationend
     setter onanimationiteration
     setter onanimationstart
@@ -6604,6 +6612,13 @@ interface OrientationSensor : Sensor
     getter quaternion
     method constructor
     method populateMatrix
+interface Origin
+    static method from
+    attribute @@toStringTag
+    getter opaque
+    method constructor
+    method isSameOrigin
+    method isSameSite
 interface OscillatorNode : AudioScheduledSourceNode
     attribute @@toStringTag
     getter detune
@@ -6770,6 +6785,8 @@ interface PerformanceElementTiming : PerformanceEntry
     getter loadTime
     getter naturalHeight
     getter naturalWidth
+    getter paintTime
+    getter presentationTime
     getter renderTime
     getter url
     method constructor
@@ -6795,6 +6812,8 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     attribute @@toStringTag
     getter blockingDuration
     getter firstUIEventTimestamp
+    getter paintTime
+    getter presentationTime
     getter renderStart
     getter scripts
     getter styleAndLayoutStart
@@ -6855,7 +6874,10 @@ interface PerformanceObserverEntryList
     method getEntriesByType
 interface PerformancePaintTiming : PerformanceEntry
     attribute @@toStringTag
+    getter paintTime
+    getter presentationTime
     method constructor
+    method toJSON
 interface PerformanceResourceTiming : PerformanceEntry
     attribute @@toStringTag
     getter connectEnd
@@ -7791,6 +7813,7 @@ interface SVGElement : Element
     getter dataset
     getter nonce
     getter onabort
+    getter onanimationcancel
     getter onanimationend
     getter onanimationiteration
     getter onanimationstart
@@ -7905,6 +7928,7 @@ interface SVGElement : Element
     setter autofocus
     setter nonce
     setter onabort
+    setter onanimationcancel
     setter onanimationend
     setter onanimationiteration
     setter onanimationstart
@@ -9912,6 +9936,7 @@ interface VideoFrame
     method close
     method constructor
     method copyTo
+    method metadata
 interface VideoPlaybackQuality
     attribute @@toStringTag
     getter corruptedVideoFrames
@@ -12268,6 +12293,7 @@ namespace console
     getter offscreenBuffering
     getter onabort
     getter onafterprint
+    getter onanimationcancel
     getter onanimationend
     getter onanimationiteration
     getter onanimationstart
@@ -12492,6 +12518,7 @@ namespace console
     setter offscreenBuffering
     setter onabort
     setter onafterprint
+    setter onanimationcancel
     setter onanimationend
     setter onanimationiteration
     setter onanimationstart

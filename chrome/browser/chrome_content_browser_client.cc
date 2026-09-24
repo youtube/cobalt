@@ -135,7 +135,6 @@
 #include "chrome/browser/preloading/prerender/prerender_web_contents_delegate.h"
 #include "chrome/browser/preloading/search_preload/search_preload_features.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_io_data.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -279,10 +278,10 @@
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
-#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/safe_browsing/content/browser/async_check_tracker.h"
 #include "components/safe_browsing/content/browser/browser_url_loader_throttle.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_commit_deferring_condition.h"
+#include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_service.h"
 #include "components/safe_browsing/core/browser/realtime/policy_engine.h"
 #include "components/safe_browsing/core/browser/realtime/url_lookup_service.h"
@@ -766,9 +765,6 @@ constexpr char kSecurePaymentConfirmationKeychainAccessGroup[] =
 // Whether to disable caching of the advanced-protection state in
 // ShouldEnableStrictSiteIsolation().
 bool g_disable_advanced_protection_caching_for_tests = false;
-
-BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Warm up the ServiceWorker registration for DSE.
 BASE_FEATURE(kPrewarmServiceWorkerRegistrationForDSE,
@@ -1470,10 +1466,6 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kIPv6ReachabilityOverrideEnabled, false);
   registry->RegisterDictionaryPref(
       enterprise::content::kCopyPreventionSettings);
-  registry->RegisterIntegerPref(
-      prefs::kUserAgentReduction,
-      static_cast<int>(
-          embedder_support::UserAgentReductionEnterprisePolicyState::kDefault));
   registry->RegisterBooleanPref(prefs::kOriginAgentClusterDefaultEnabled, true);
 
   registry->RegisterBooleanPref(
@@ -3244,7 +3236,7 @@ void ChromeContentBrowserClient::GuestPermissionRequestHelper(
     base::OnceCallback<void(bool)> callback,
     bool allow) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  std::map<int, int> process_map;
+  std::map<content::ChildProcessId, int> process_map;
   bool has_web_view_guest = false;
   // Record access to file system for potential display in UI.
   for (const auto& it : render_frames) {
@@ -3252,9 +3244,12 @@ void ChromeContentBrowserClient::GuestPermissionRequestHelper(
       continue;
     }
 
-    process_map.insert(std::pair<int, int>(it.child_id, it.frame_routing_id));
+    process_map.insert(std::pair<content::ChildProcessId, int>(
+        it.child_id, it.frame_routing_id));
 
-    if (extensions::WebViewRendererState::GetInstance()->IsGuest(it.child_id)) {
+    // TODO(crbug.com/379869738) Remove GetUnsafeValue.
+    if (extensions::WebViewRendererState::GetInstance()->IsGuest(
+            it.child_id.GetUnsafeValue())) {
       has_web_view_guest = true;
     }
   }
@@ -3263,7 +3258,8 @@ void ChromeContentBrowserClient::GuestPermissionRequestHelper(
     return;
   }
   DCHECK_EQ(1U, process_map.size());
-  std::map<int, int>::const_iterator it = process_map.begin();
+  std::map<content::ChildProcessId, int>::const_iterator it =
+      process_map.begin();
 
   extensions::WebViewPermissionHelper* web_view_permission_helper =
       extensions::WebViewPermissionHelper::FromRenderFrameHostId(
@@ -3622,31 +3618,6 @@ bool ChromeContentBrowserClient::IsPrivateAggregationDebugModeAllowed(
 
   return privacy_sandbox_settings->IsPrivateAggregationDebugModeAllowed(
       top_frame_origin, reporting_origin);
-}
-
-bool ChromeContentBrowserClient::IsCookieDeprecationLabelAllowed(
-    content::BrowserContext* browser_context) {
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-
-  auto* privacy_sandbox_settings =
-      PrivacySandboxSettingsFactory::GetForProfile(profile);
-  if (!privacy_sandbox_settings) {
-    return false;
-  }
-  return privacy_sandbox_settings->IsCookieDeprecationLabelAllowed();
-}
-
-bool ChromeContentBrowserClient::IsCookieDeprecationLabelAllowedForContext(
-    content::BrowserContext* browser_context,
-    const url::Origin& top_frame_origin,
-    const url::Origin& context_origin) {
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-
-  auto* privacy_sandbox_settings =
-      PrivacySandboxSettingsFactory::GetForProfile(profile);
-  DCHECK(privacy_sandbox_settings);
-  return privacy_sandbox_settings->IsCookieDeprecationLabelAllowedForContext(
-      top_frame_origin, context_origin);
 }
 
 bool ChromeContentBrowserClient::IsFullCookieAccessAllowed(
@@ -4324,12 +4295,17 @@ bool ChromeContentBrowserClient::CanCreateWindow(
   contextual_tasks::ContextualTasksUiService* contextual_tasks_ui_service =
       contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
           profile);
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
-      contextual_tasks_ui_service &&
-      contextual_tasks_ui_service->HandleNavigation(
-          target_url, /* initiated_in_page= */ true, web_contents,
-          /*is_to_new_tab=*/true)) {
-    return false;
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    content::OpenURLParams url_params(
+        target_url, referrer, disposition,
+        ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL, true);
+    if (contextual_tasks_ui_service &&
+        contextual_tasks_ui_service->HandleNavigation(
+            std::move(url_params), web_contents,
+            /*is_from_embedded_page=*/false,
+            /*is_to_new_tab=*/true)) {
+      return false;
+    }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -5039,8 +5015,7 @@ void ChromeContentBrowserClient::GetAdditionalFileSystemBackends(
 
   for (auto& part : extra_parts_) {
     part->GetAdditionalFileSystemBackends(
-        browser_context, storage_partition_path,
-        GetQuarantineConnectionCallback(), additional_backends);
+        browser_context, storage_partition_path, additional_backends);
   }
 }
 
@@ -6602,7 +6577,7 @@ void ChromeContentBrowserClient::ConfigureNetworkContextParams(
                                            cert_verifier_creation_params);
   } else {
     // Set default params.
-    network_context_params->user_agent = GetUserAgentBasedOnPolicy(context);
+    network_context_params->user_agent = GetUserAgent();
     network_context_params->accept_language = GetApplicationLocale();
   }
 }
@@ -7308,15 +7283,6 @@ std::string ChromeContentBrowserClient::GetUserAgent() {
   return embedder_support::GetUserAgent();
 }
 
-std::string ChromeContentBrowserClient::GetUserAgentBasedOnPolicy(
-    content::BrowserContext* context) {
-  const PrefService* prefs = Profile::FromBrowserContext(context)->GetPrefs();
-  embedder_support::UserAgentReductionEnterprisePolicyState
-      user_agent_reduction =
-          embedder_support::GetUserAgentReductionFromPrefs(prefs);
-  return embedder_support::GetUserAgent(user_agent_reduction);
-}
-
 blink::UserAgentMetadata ChromeContentBrowserClient::GetUserAgentMetadata() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return embedder_support::GetUserAgentMetadata();
@@ -7501,20 +7467,13 @@ void ChromeContentBrowserClient::GetMediaDeviceIDSalt(
   url::Origin top_frame_origin = rfh->GetMainFrame()->GetLastCommittedOrigin();
   content::BrowserContext* browser_context = rfh->GetBrowserContext();
 
-  // Persistent MediaDevice IDs are allowed if cookies are allowed or if the
-  // user is in the default state in 3PCD.
+  // Persistent MediaDevice IDs are allowed iff cookies are allowed.
   scoped_refptr<content_settings::CookieSettings> cookie_settings =
       CookieSettingsFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context));
-  privacy_sandbox::TrackingProtectionSettings* tracking_protection =
-      TrackingProtectionSettingsFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-  bool allowed =
-      cookie_settings->IsFullCookieAccessAllowed(
-          url, site_for_cookies, top_frame_origin,
-          net::CookieSettingOverrides(), storage_key.ToCookiePartitionKey()) ||
-      (tracking_protection->IsTrackingProtection3pcdEnabled() &&
-       !tracking_protection->AreAllThirdPartyCookiesBlocked());
+  bool allowed = cookie_settings->IsFullCookieAccessAllowed(
+      url, site_for_cookies, top_frame_origin, net::CookieSettingOverrides(),
+      storage_key.ToCookiePartitionKey());
   ChromeBrowsingDataModelDelegate::BrowsingDataAccessed(
       rfh, storage_key,
       ChromeBrowsingDataModelDelegate::StorageType::kMediaDeviceSalt, !allowed);
@@ -7729,11 +7688,6 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
 #endif
 
   Profile* profile = Profile::FromBrowserContext(browser_context);
-  if (profile->GetPrefs()->GetBoolean(
-          prefs::kManagedLocalNetworkAccessRestrictionsEnabled)) {
-    return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
-        kBlockInsteadOfWarn;
-  }
 
   if (profile->GetPrefs()->GetBoolean(
           prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut)) {
@@ -8291,38 +8245,6 @@ bool ChromeContentBrowserClient::IsThirdPartyStoragePartitioningAllowed(
          CONTENT_SETTING_ALLOW;
 }
 
-bool ChromeContentBrowserClient::
-    IsUnpartitionedStorageAccessAllowedByUserPreference(
-        content::BrowserContext* browser_context,
-        const GURL& url,
-        const net::SiteForCookies& site_for_cookies,
-        const url::Origin& top_frame_origin) {
-  content_settings::CookieSettings* cookie_settings =
-      CookieSettingsFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context))
-          .get();
-
-  if (!cookie_settings) {
-    // If there are no cookies settings then nothing is limiting storage access.
-    return true;
-  }
-
-  net::SchemefulSite top_frame_site(top_frame_origin);
-  std::optional<net::CookiePartitionKey> cookie_partition_key =
-      net::CookiePartitionKey::FromStorageKeyComponents(
-          top_frame_site,
-          net::CookiePartitionKey::BoolToAncestorChainBit(
-              !site_for_cookies.IsFirstParty(url)),
-          /*nonce=*/std::nullopt);
-
-  // Cookie settings overrides are not relevant for this check.
-  net::CookieSettingOverrides empty_overrides;
-
-  return cookie_settings->IsFullCookieAccessAllowed(
-      url, site_for_cookies, top_frame_origin, empty_overrides,
-      cookie_partition_key);
-}
-
 bool ChromeContentBrowserClient::AreDeprecatedAutomaticBeaconCredentialsAllowed(
     content::BrowserContext* browser_context,
     const GURL& destination_url,
@@ -8754,7 +8676,8 @@ void ChromeContentBrowserClient::AddExtraPartForTesting(
 bool ChromeContentBrowserClient::ShouldDispatchPagehideDuringCommit(
     content::BrowserContext* browser_context,
     const GURL& destination_url) {
-  if (!base::FeatureList::IsEnabled(kSkipPagehideInCommitForDSENavigation)) {
+  if (!base::FeatureList::IsEnabled(
+          features::kSkipPagehideInCommitForDSENavigation)) {
     return true;
   }
   auto* template_url_service = TemplateURLServiceFactory::GetForProfile(
@@ -8953,4 +8876,10 @@ ChromeContentBrowserClient::GetOverrideValueForStaticStorageQuota(
   } else {
     return std::nullopt;
   }
+}
+
+std::string ChromeContentBrowserClient::GetDnsTxtResolverUrlPrefix() {
+  static constexpr char kGoogleDnsResolverUrl[] =
+      "https://dns.google/resolve?type=txt&do=1&name=";
+  return kGoogleDnsResolverUrl;
 }
