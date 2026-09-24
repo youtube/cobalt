@@ -33,7 +33,7 @@ sequenceDiagram
   participant WebApp as Web Application
 
   Platform->>Cobalt: kSbEventTypePreload (with SbEventStartData*)
-  Note over Cobalt,WebApp: Enters CONCEALED (launch=preload, hidden, no EGLSurface)
+  Note over Cobalt,WebApp: Enters CONCEALED (launch=preload, hidden, no SbWindow or GPU resources)
   opt Optional Time Budget Expired
     Platform->>Cobalt: kSbEventTypeFreeze
     Note over Cobalt: Flushes storage, suspends execution (FROZEN)
@@ -79,14 +79,22 @@ switch (`kPreloadSwitch`) was passed, causing `RunLoop()` to call
 
 ### 2. Deferred Graphics & Splash Screen Resources
 
-While preloaded in the **Concealed** state:
--   **Graphics Deferral:** Cobalt keeps the native `SbWindow` handle unmapped /
-    hidden and defers allocating `EGLSurface` framebuffers and hardware decoder
-    resources (`SbPlayer`) until the application is revealed (`kSbEventTypeReveal`
-    or `kSbEventTypeFocus`).
--   **Splash Screen Skip:** Cobalt skips creating the splash screen
-    `WebContents` when launched via `kSbEventTypePreload`, further reducing the
-    background memory footprint.
+While preloaded in the **Concealed** state, Cobalt operates as a non-visible
+background service and performs no rendering, so it has no use for a native
+application window:
+-   **Native Window (`SbWindowCreate` & `SbWindowDestroy`) and Graphics Deferral:**
+    While in **Concealed**, Cobalt defers creating the native window
+    (`SbWindowCreate()`) and allocating `EGLSurface` and hardware media decoder
+    (`SbPlayer`) resources until the application is foregrounded
+    (`kSbEventTypeReveal` or `kSbEventTypeFocus`). Similarly, if a foregrounded
+    application is later concealed (`kSbEventTypeConceal`), Cobalt releases all
+    GPU resources and informs the platform that it no longer needs the window by
+    calling `SbWindowDestroy()`, and will request a new window via
+    `SbWindowCreate()` when revealed again. Calls to `SbWindowDestroy()` by
+    themselves are not a signal of intent to exit.
+-   **Splash Screen Skip:** Cobalt skips creating the splash screen when
+    launched via `kSbEventTypePreload`, further reducing the background memory
+    footprint.
 
 ### 3. Waking to Foreground (`kSbEventTypeFocus` & Deep Links)
 
@@ -94,8 +102,9 @@ While preloaded in the **Concealed** state:
     To bring a preloaded application to the foreground, the platform dispatches
     `kSbEventTypeFocus` (or calls `SbSystemRequestFocus()`). Cobalt
     automatically sequences the required intermediate transitions (`Unfreeze` ->
-    `Reveal` -> `Focus`) so that the window is revealed, `EGLSurface` resources
-    are created, and input focus is granted.
+    `Reveal` -> `Focus`) so that a native window is created via
+    `SbWindowCreate()`, `EGLSurface` resources are initialized, and input focus
+    is granted.
 -   **Waking with a Deep Link (`kSbEventTypeLink`):**
     If the user launches the preloaded application via a content tile, voice
     search, or remote shortcut pointing to a specific URL (see
@@ -116,8 +125,14 @@ While preloaded in the **Concealed** state:
     If the platform grants a limited time budget for background preloading, it
     can dispatch `kSbEventTypeFreeze` (or call `SbSystemRequestFreeze()`) once
     the budget expires. When `SbEventHandle(kSbEventTypeFreeze)` returns, all
-    cookies/storage are flushed to disk and background execution is suspended in
-    the **Frozen** state.
+    cookies/storage are flushed to disk and background execution can be halted
+    in the **Frozen** state. In
+    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc),
+    the convenience virtual callbacks `Application::OnSuspend()` and
+    `Application::OnResume()` are invoked right before dispatching
+    `kSbEventTypeFreeze` and `kSbEventTypeUnfreeze` to Cobalt, allowing a
+    Starboard platform to perform platform-specific actions to prepare for
+    halting or restarting program execution.
 -   **Linux Reference Signal Mappings (`starboard/shared/signal/suspend_signals.cc`):**
     On Linux reference platforms, lifecycle transitions can be triggered via
     POSIX signals:

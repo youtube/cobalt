@@ -73,6 +73,17 @@ graph TD
   Frozen -->|"Stop (Shutdown)"| Stopped
 ```
 
+Cobalt supports two levels of an application being foregrounded:
+- **Started:** The application is visible and has active input focus.
+- **Blurred:** The application is visible (or partially obscured by a system
+  overlay), but does not have input focus.
+
+Cobalt supports two levels of an application being backgrounded:
+- **Concealed:** The application is not visible (in effect operating as a
+  background service), but its program execution can continue.
+- **Frozen:** The application is not visible and its program execution can also
+  be halted.
+
 ## Platform Event and Resource Contract
 
 Platform lifecycle events (`SbEventType`), startup data (`SbEventStartData`),
@@ -138,11 +149,13 @@ the Starboard boundary and have distinct return-time contracts:
         automatically sequences any required intermediate transitions in linear
         order (`Started <-> Blurred <-> Concealed <-> Frozen -> Stopped`).
     -   **Return-Time State Contract:** When `SbEventHandle()` returns for
-        `kSbEventTypeFreeze` or `kSbEventTypeStop` (or when the
-        `EventHandledCallback` passed to `Application::Conceal(context, cb)` /
-        `Freeze(context, cb)` fires), **Cobalt has synchronously completed the
-        transition to that target state**. Only **after** `SbEventHandle()`
-        returns may the platform revoke graphics access (`Conceal`/`Freeze`) or
+        `kSbEventTypeConceal`, `kSbEventTypeFreeze`, or `kSbEventTypeStop` (or
+        when the `EventHandledCallback` passed to `Application::Conceal(context, cb)`
+        / `Freeze(context, cb)` fires), **Cobalt has synchronously completed the
+        transition to that target state** (including calling `SbWindowDestroy()`
+        and releasing all GPU resources on `Conceal`, and flushing persistent
+        storage on `Freeze`). Only **after** `SbEventHandle()` returns may the
+        platform revoke graphics access (`Conceal`/`Freeze`) or
         suspend/terminate the OS process (`Freeze`/`Stop`). Because each
         synchronous transition step waits for internal acknowledgments (up to a
         2-second timeout per step), platform lifecycle watchdogs should allow at
@@ -187,9 +200,9 @@ the Starboard boundary and have distinct return-time contracts:
 | :--- | :--- | :--- | :--- | :--- |
 | **Started** | `kSbEventTypeStart`<br>`kSbEventTypeFocus` | `SbSystemRequestFocus` | `SbWindow` visible & active; `EGLSurface` and `SbPlayer` active; receives input events (`kSbEventTypeInput`) | `visibilityState: "visible"`<br>`hasFocus(): true` |
 | **Blurred** | `kSbEventTypeBlur`<br>`kSbEventTypeReveal` | `SbSystemRequestBlur`<br>`SbSystemRequestReveal` | `SbWindow` visible; `EGLSurface` retained for fast refocus; input disabled | `visibilityState: "visible"`<br>`hasFocus(): false` |
-| **Concealed** | `kSbEventTypePreload`<br>`kSbEventTypeConceal`<br>`kSbEventTypeUnfreeze` | `SbSystemRequestConceal` | `SbWindow` kept alive in memory; `EGLSurface` destroyed (`eglDestroySurface`) and GPU resources released; background CPU/network allowed | `visibilityState: "hidden"`<br>`hasFocus(): false` |
-| **Frozen** | `kSbEventTypeFreeze` | `SbSystemRequestFreeze` | All GPU, `EGLSurface`, and `SbPlayer` decoder instances released; persistent storage flushed to disk; execution suspended | `visibilityState: "hidden"`<br>`hasFocus(): false` |
-| **Stopped** | `kSbEventTypeStop` | `SbSystemRequestStop` | `SbWindow` destroyed (`SbWindowDestroy`), all threads joined, and process exits | N/A (Terminated) |
+| **Concealed** | `kSbEventTypePreload`<br>`kSbEventTypeConceal`<br>`kSbEventTypeUnfreeze` | `SbSystemRequestConceal` | No `SbWindow`, `EGLSurface`, or GPU resources held; background CPU/network execution allowed | `visibilityState: "hidden"`<br>`hasFocus(): false` |
+| **Frozen** | `kSbEventTypeFreeze` | `SbSystemRequestFreeze` | No `SbWindow`, GPU, `EGLSurface`, or `SbPlayer` resources held; persistent storage synced to disk; program execution suspended | `visibilityState: "hidden"`<br>`hasFocus(): false` |
+| **Stopped** | `kSbEventTypeStop` | `SbSystemRequestStop` | No resources held; all threads terminated and process exited | N/A (Terminated) |
 
 ### Living Room Scenario Mapping
 
@@ -253,8 +266,9 @@ class MyPlatformApplication : public starboard::QueueApplication {
 -   **Immediate Preload (`Concealed`):** `IsPreloadImmediate()` returns `true`
     (e.g., when `HasPreloadSwitch()` returns `true` because `--preload` was
     passed on the command-line). `RunLoop()` calls `DispatchPreload()` to send
-    `kSbEventTypePreload` with `SbEventStartData`, and Cobalt appends
-    `launch=preload` to the initial application URL.
+    `kSbEventTypePreload` with `SbEventStartData`, Cobalt appends
+    `launch=preload` to the initial application URL, and `SbWindowCreate()` is
+    not called until the application is revealed.
 -   **Immediate Foreground Start (Default):** `IsPreloadImmediate()` returns
     `false` and `IsStartImmediate()` returns `true`. `RunLoop()` calls
     `DispatchStart()` to send `kSbEventTypeStart` with `SbEventStartData`.
@@ -295,6 +309,23 @@ semantics):
 
 ### 3. Foregrounding, Backgrounding, and Reference Signal Mappings
 
+-   **Window Lifetime Across Backgrounding (`SbWindowDestroy` & `SbWindowCreate`):**
+    When Cobalt backgrounds into **Concealed**, it operates as a non-visible
+    background service and performs no rendering, so it has no use for a native
+    application window. During the transition to **Concealed**, Cobalt releases
+    all GPU resources and informs the platform that it no longer needs the
+    native window by calling `SbWindowDestroy()`. When foregrounding (`Reveal`),
+    Cobalt requests a new native window by calling `SbWindowCreate()`. Calls to
+    `SbWindowDestroy()` by themselves are not a signal of intent to exit.
+-   **`starboard::Application` Freeze/Unfreeze Convenience Callbacks (`OnSuspend` & `OnResume`):**
+    For freezing and unfreezing program execution,
+    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)
+    provides convenience virtual callbacks on `starboard::Application`:
+    `Application::OnSuspend()` and `Application::OnResume()`. These are invoked
+    immediately before dispatching the `kSbEventTypeFreeze` and
+    `kSbEventTypeUnfreeze` events to Cobalt (`SbEventHandle()`), respectively,
+    and can be overridden by a Starboard platform to perform platform-specific
+    actions needed to prepare for halting or restarting program execution.
 -   **Foregrounding from Preload or Background (`Concealed` / `Frozen` -> `Started`):**
     To bring a preloaded or backgrounded application to the foreground, the
     platform dispatches `kSbEventTypeFocus` (or calls `SbSystemRequestFocus()`),
@@ -349,7 +380,7 @@ partially obscured by a system dialog/overlay, but has lost input focus
     retains its native `SbWindow` and `EGLSurface` so it can return to
     **Started** immediately without reallocating graphics surfaces. Cobalt
     initiates an asynchronous flush of Cookies and LocalStorage when entering
-    **Blurred** and waits for renderer frame blur acknowledgment.
+    **Blurred**.
 -   **Web Application Signals:** The `blur` event is dispatched on `window` /
     `document` upon entering **Blurred**, and `focus` is dispatched when
     returning to **Started**.
@@ -360,16 +391,19 @@ partially obscured by a system dialog/overlay, but has lost input focus
 ### Concealed
 
 The application is hidden in the background (`document.visibilityState ===
-"hidden"`, `document.hasFocus() === false`) and receives no input, but remains
-running with reduced resource usage.
+"hidden"`, `document.hasFocus() === false`) and receives no input, in effect
+operating as a background service that can continue executing with minimized
+resource usage.
 
--   **Platform Contract:** Cobalt destroys the `EGLSurface` (`eglDestroySurface`)
-    and releases GPU framebuffer/texture resources back to the OS while keeping
-    the native `SbWindow` handle alive in memory for fast revelation. Memory
-    reclamation is triggered to minimize background RAM footprint. Only after
-    `SbEventHandle()` returns may the platform revoke graphics access. The OS
-    may terminate the process in this state without prior notification if
-    system memory is constrained.
+-   **Platform Contract:** While in **Concealed**, Cobalt performs no rendering
+    and holds no GPU, `EGLSurface`, or native `SbWindow` resources. During the
+    transition into **Concealed**, Cobalt releases all GPU resources and calls
+    `SbWindowDestroy()`, and calls `SbWindowCreate()` when subsequently
+    foregrounded (`kSbEventTypeReveal`). Calls to `SbWindowDestroy()` by
+    themselves are not a signal of intent to exit. Memory reclamation is also
+    triggered to minimize background RAM footprint. Only after `SbEventHandle()`
+    returns may the platform revoke graphics access. To terminate the process,
+    the platform should dispatch the `kSbEventTypeStop` event.
 -   **Web Application Signals:** The `visibilitychange` event is dispatched on
     `document` (`document.visibilityState` becomes `"hidden"`). The web
     application stops media playback (`SbPlayer`) and releases heavy resources;
@@ -383,18 +417,21 @@ running with reduced resource usage.
 ### Frozen
 
 The application is hidden in the background (`document.visibilityState ===
-"hidden"`, `document.hasFocus() === false`), receives no input, and is
-suspended.
+"hidden"`, `document.hasFocus() === false`), receives no input, and its program
+execution can be halted.
 
--   **Platform Contract:** Cobalt freezes page execution, releases all GPU,
-    `EGLSurface`, and `SbPlayer` hardware media decoder resources, suspends
-    background services (including the Evergreen updater), and synchronously
-    flushes all persistent storage (Cookies and LocalStorage in
-    `kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
-    before `SbEventHandle(kSbEventTypeFreeze)` returns. Once
-    `SbEventHandle(kSbEventTypeFreeze)` returns, the platform may revoke
-    graphics access, suspend OS threads (e.g., `SIGSTOP`), or forcefully
-    terminate the process at any time without data loss.
+-   **Platform Contract:** Cobalt freezes page execution, holds no `SbWindow` or
+    GPU/`EGLSurface` resources, releases `SbPlayer` hardware media decoder
+    resources, suspends background services (including the Evergreen updater),
+    and synchronously flushes all persistent storage (Cookies and LocalStorage
+    in `kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
+    before `SbEventHandle(kSbEventTypeFreeze)` returns. In
+    `starboard/shared/starboard/application.cc`, `Application::OnSuspend()` is
+    called right before `kSbEventTypeFreeze` is dispatched to Cobalt, and
+    `Application::OnResume()` is called right before `kSbEventTypeUnfreeze` is
+    dispatched. Once `SbEventHandle(kSbEventTypeFreeze)` returns, the platform
+    may suspend OS threads (e.g., `SIGSTOP`) or forcefully terminate the process
+    at any time without data loss.
 -   **Web Application Signals:** The Page Lifecycle `freeze` event
     (`document.onfreeze`) is dispatched when entering **Frozen**, and `resume`
     (`document.onresume`) is dispatched when transitioning back to
@@ -405,6 +442,5 @@ suspended.
 
 ### Stopped
 
-The application cleanly shuts down the browser runtime, destroys the `SbWindow`
-(`SbWindowDestroy`), joins all browser and renderer threads, flushes `stdio`
-streams, and exits (`kSbEventTypeStop`, entered from **Frozen**).
+The application has shut down the browser runtime, terminated all threads, and
+exited (`kSbEventTypeStop`, entered from **Frozen**).
