@@ -55,6 +55,8 @@ constexpr uint64_t kHdr10PlusBlockAddId = 4;
 
 // A no-op SbPlayerBridge::Host. These tests drive WriteBuffers() directly and
 // never exercise the callback paths, so nothing needs to be recorded here.
+// Owned by SbPlayerBridgeSideDataTest and thread-affine to the main test
+// thread.
 class FakeSbPlayerBridgeHost : public SbPlayerBridge::Host {
  public:
   FakeSbPlayerBridgeHost() = default;
@@ -115,13 +117,22 @@ scoped_refptr<DecoderBuffer> MakeVideoBufferWithUnrelatedSideData(
   return buffer;
 }
 
+// Test fixture verifying that SbPlayerBridge forwards DecoderBuffer side data
+// (Matroska BlockAdditional / HDR10+ ITU-T T.35 metadata) to
+// SbPlayerWriteSamples(). Instantiated per test by GoogleTest and runs on the
+// main test thread.
 class SbPlayerBridgeSideDataTest : public testing::Test {
  protected:
   void SetUp() override {
+    mock_player_ = std::make_unique<MockSbPlayer>();
+
     // SbPlayerBridge's constructor calls CreatePlayer() synchronously, so the
     // Create() action must be installed before the bridge is built.
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-        .WillOnce(Return(reinterpret_cast<SbPlayer>(new MockSbPlayer())));
+        .WillOnce(Return(reinterpret_cast<SbPlayer>(mock_player_.get())));
+    EXPECT_CALL(mock_sbplayer_interface_, Destroy(_))
+        .WillRepeatedly(
+            Invoke([this](SbPlayer /*player*/) { mock_player_.reset(); }));
 
     EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(_, _, _, _))
         .WillRepeatedly(
@@ -169,6 +180,7 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
   ~SbPlayerBridgeSideDataTest() override = default;
 
   base::test::TaskEnvironment task_environment_;
+  std::unique_ptr<MockSbPlayer> mock_player_;
   NiceMock<MockSbPlayerInterface> mock_sbplayer_interface_;
   FakeSbPlayerBridgeHost host_;
   std::vector<CapturedSample> captured_samples_;
