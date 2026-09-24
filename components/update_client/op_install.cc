@@ -342,29 +342,15 @@ base::OnceClosure InstallOperation(
         callback) {
   state_tracker.Run(ComponentState::kUpdating);
 #if BUILDFLAG(IS_STARBOARD)
-<<<<<<< HEAD
   Unpack(base::BindOnce(&Install,
                         base::BindOnce(&InstallComplete,
                                        std::move(installer_result_callback),
                                        std::move(callback), event_adder,
                                        crx_operation_result),
                         std::move(install_params), installer, progress_callback,
-                        metadata, next_version, id, crx_operation_result),
+                        metadata, id, crx_operation_result),
          id, prod_id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
          base::unexpected(UnpackerError::kCrxCacheNotProvided));
-=======
-  Unpack(
-      base::BindOnce(
-          &Install,
-          base::BindOnce(&InstallComplete, std::move(installer_result_callback),
-                         std::move(callback), event_adder,
-                         crx_operation_result),
-          std::move(install_params), installer, progress_callback,
-          metadata, id,
-          crx_operation_result),
-      crx_operation_result, std::move(unzipper), pk_hash, crx_format,
-      base::unexpected(UnpackerError::kCrxCacheNotProvided));
->>>>>>> d281190f9b0 (Fix Omaha version spoofing vulnerability by parsing manifest.json (#12328))
 #else
   crx_cache->Put(
       crx_file, id, file_hash,
