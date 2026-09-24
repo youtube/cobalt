@@ -11,6 +11,7 @@
                 "app/cobalt/lib/libcobalt.lz4",
                 "app/cobalt/lib/libcobalt.zst",
                 "cobalt_shell.pak",
+                "icudtl.dat",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
@@ -24,6 +25,10 @@
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"
+                },
+                {
+                    "from_file": "icudtl.dat",
+                    "to_file": "content/icudtl.dat"
                 },
                 {
                     "from_file": "libcobalt.so",
