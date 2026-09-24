@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
+#include <array>
 #include <string_view>
 #include <unordered_map>
 
@@ -130,7 +131,7 @@ bool ParseProcMaps(std::string_view input,
 
     // Use StringViewTokenizer to avoid any heap allocations for tokens.
     base::StringViewTokenizer t(lines[i], " ");
-    std::string_view tokens[6];
+    std::array<std::string_view, 6> tokens;
     size_t token_count = 0;
     while (t.GetNext() && token_count < 6) {
       tokens[token_count++] = t.token_piece();
