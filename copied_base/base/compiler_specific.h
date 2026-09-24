@@ -414,6 +414,52 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST
 #endif
 
+// Annotates a pointer or reference parameter or return value for a member
+// function as having lifetime intertwined with the instance on which the
+// function is called. For function parameters, the function is assumed to store
+// the reference into the return value, so if the referred-to object is later
+// destroyed, the returned value is also considered to be dangling. For
+// constructor parameters, the constructor is assumed to store the reference
+// into the object, so if the referred-to object is later destroyed, the object
+// is considered to be dangling. For return values, the value is assumed to
+// point into the called-on object, so if that object is destroyed, the returned
+// value is also considered to be dangling. Useful to diagnose some cases of
+// lifetime errors.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
+//
+// Usage:
+// ```
+//   struct S {
+//      S(int* p LIFETIME_BOUND);
+//      int* Get() LIFETIME_BOUND;
+//      std::string_view GetSubstring(
+//          const std::string& s LIFETIME_BOUND) const;
+//   };
+//   S Func1() {
+//     int i = 0;
+//     // The following return will not compile; diagnosed as returning address
+//     // of a stack object.
+//     return S(&i);
+//   }
+//   int* Func2(int* p) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary.
+//     return S(p).Get();
+//   }
+//   std::string_view Func3(const S& s) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary object.
+//     return s.GetSubstring(NumberToString(3));
+//   }
+// ```
+#if __has_cpp_attribute(clang::lifetimebound)
+#define LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#define LIFETIME_BOUND
+#endif
+
 // UNSAFE_BUFFERS() wraps code that violates the -Wunsafe-buffer-usage warning,
 // such as:
 // - pointer arithmetic,
@@ -477,5 +523,59 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 // the number of non-exempt files, and hence prevent new unsafe code from
 // being written in them.
 #define UNSAFE_TODO(...) UNSAFE_BUFFERS(__VA_ARGS__)
+
+// Annotates a function restricting its availability based on compile-time
+// information in the evaluated context. Useful to convert runtime errors to
+// compile-time errors if functions' arguments are always known at compile time.
+//
+// SFINAE and `requires` clauses can restrict function availability based on the
+// unevaluated context (type information and syntactic correctness). This
+// provides a similar capability based on the evaluated context (variable
+// values). If the condition fails, or cannot be determined at compile time, the
+// function is excluded from the overload set.
+//
+// Some use cases could be satisfied without this by marking the function
+// `consteval` and breaking compile when the condition fails (e.g. via
+// `CHECK()`/`assert()`). However, `ENABLE_IF_ATTR()` is generally superior:
+//   - Not all desired functions can be made `consteval`; e.g. most
+//     constructors.
+//   - The error message in the macro case is clearer and more actionable.
+//   - `ENABLE_IF_ATTR()` interacts better with template metaprogramming.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#enable-if
+//   https://github.com/chromium/subspace/issues/266
+//
+// Usage:
+// ```
+//   void NotConsteval(int a) {
+//     assert(a > 0);
+//   }
+//   consteval void WithoutEnableIf(int a) {
+//     assert(a > 0);
+//   }
+//   void WithEnableIf(int a) ENABLE_IF_ATTR(a > 0, "arg must be positive") {}
+//   void Func(int i) {
+//     // Compiles; assertion fails at runtime.
+//     NotConsteval(-1);
+//
+//     // Will not compile; diagnosed as not a constant expression.
+//     WithoutEnableIf(-1);
+//
+//     // Will not compile; diagnosed as no matching function call with
+//     // "note: candidate disabled: arg must be positive".
+//     WithEnableIf(-1);
+//
+//     // Will not compile (same reason). Marking `Func()` as
+//     // `ENABLE_IF_ATTR(i > 0, ...)` will not help; the compiler's analysis is
+//     // not sufficiently sophisticated to propagate this constraint.
+//     WithEnableIf(i);
+//   }
+// ```
+#if HAS_ATTRIBUTE(enable_if)
+#define ENABLE_IF_ATTR(cond, msg) __attribute__((enable_if(cond, msg)))
+#else
+#define ENABLE_IF_ATTR(cond, msg)
+#endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_
