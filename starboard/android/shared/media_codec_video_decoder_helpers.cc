@@ -80,9 +80,8 @@ std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
   auto mime_type =
       MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_param);
   if (!mime_type) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`"
-                    << param_name << "` is invalid.";
+    SB_LOG(WARNING) << "Failed to parse max resolutions as `" << param_name
+                    << "` is invalid.";
     return std::nullopt;
   }
 
