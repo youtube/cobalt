@@ -5,6 +5,7 @@
 #include "media/base/stream_parser_buffer.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
@@ -46,6 +47,44 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
   return base::MakeRefCounted<StreamParserBuffer>(
       base::PassKey<StreamParserBuffer>(), data, is_key_frame, type, track_id);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
+    base::span<const base::span<const uint8_t>> parts,
+    bool is_key_frame,
+    Type type,
+    TrackId track_id) {
+  DCHECK(!parts.empty());
+
+  if (auto* media_client = GetMediaClient()) {
+    if (auto* alloc = media_client->GetMediaAllocator()) {
+      return StreamParserBuffer::FromExternalMemory(
+          alloc->CopyFrom(parts, type), is_key_frame, type, track_id);
+    }
+  }
+
+  if (parts.size() == 1) {
+    return base::MakeRefCounted<StreamParserBuffer>(
+        base::PassKey<StreamParserBuffer>(), parts[0], is_key_frame, type,
+        track_id);
+  }
+
+  // No media allocator. Stage the parts contiguously before handing them to
+  // the span constructor, which should not happen in production.
+  size_t total_size = 0;
+  for (const auto& part : parts) {
+    total_size += part.size();
+  }
+  std::vector<uint8_t> staged;
+  staged.reserve(total_size);
+  for (const auto& part : parts) {
+    staged.insert(staged.end(), part.begin(), part.end());
+  }
+  return base::MakeRefCounted<StreamParserBuffer>(
+      base::PassKey<StreamParserBuffer>(), staged, is_key_frame, type,
+      track_id);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
     std::unique_ptr<ExternalMemory> external_memory,

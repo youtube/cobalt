@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/decoder_buffer.h"
@@ -50,6 +51,11 @@ class MEDIA_EXPORT ExternalMemoryAllocator {
       DemuxerStream::Type type) {
     return CopyFrom(span);
   }
+
+  // Copies `parts`, in order, into a single allocation.
+  virtual std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> parts,
+      DemuxerStream::Type type) = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
