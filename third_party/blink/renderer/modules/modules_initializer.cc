@@ -135,8 +135,7 @@ class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
                                public Supplement<Page>,
                                public PageVisibilityObserver {
  public:
-  static constexpr auto kSupplementIndex =
-      Page::Supplements::kSuspendCaptureObserver;
+  static const char kSupplementName[];
 
   explicit SuspendCaptureObserver(Page& page)
       : Supplement<Page>(page), PageVisibilityObserver(&page) {}
@@ -170,6 +169,7 @@ class SuspendCaptureObserver : public GarbageCollected<SuspendCaptureObserver>,
   }
 };
 
+const char SuspendCaptureObserver::kSupplementName[] = "SuspendCaptureObserver";
 #endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
 
 }  // namespace

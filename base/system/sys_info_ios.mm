@@ -12,7 +12,6 @@
 #include <sys/types.h>
 
 #include "base/apple/scoped_mach_port.h"
-#include "base/byte_count.h"
 #include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/no_destructor.h"
@@ -108,14 +107,14 @@ void SysInfo::OverrideHardwareModelName(std::string name) {
 }
 
 // static
-ByteCount SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
+ByteSize SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
   SystemMemoryInfo info;
   if (!GetSystemMemoryInfo(&info)) {
-    return ByteCount(0);
+    return ByteSize(0);
   }
   // We should add inactive file-backed memory also but there is no such
   // information from iOS unfortunately.
-  return (info.free + info.speculative).AsDeprecatedByteCount();
+  return info.free + info.speculative;
 }
 
 // static

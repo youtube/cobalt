@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/clock.h"
 #include "base/time/default_clock.h"
@@ -19,6 +20,10 @@
 class RevokedPermissionsOSNotificationDisplayManager;
 class GURL;
 class Profile;
+
+namespace content {
+class BrowserContext;
+}  // namespace content
 
 namespace site_engagement {
 class SiteEngagementService;
@@ -94,7 +99,8 @@ class DisruptiveNotificationPermissionsManager {
   };
   // LINT.ThenChange(//tools/metrics/histograms/enums.xml:DisruptiveNotificationRevocationState)
 
-  explicit DisruptiveNotificationPermissionsManager(
+  DisruptiveNotificationPermissionsManager(
+      content::BrowserContext* browser_context,
       scoped_refptr<HostContentSettingsMap> hcsm,
       site_engagement::SiteEngagementService* site_engagement_service,
       RevokedPermissionsOSNotificationDisplayManager*
@@ -265,6 +271,9 @@ class DisruptiveNotificationPermissionsManager {
 
   // Report metrics for the daily run.
   void ReportDailyRunMetrics();
+
+  // Pointer to a browser context whose permissions are being updated.
+  raw_ptr<content::BrowserContext> browser_context_;
 
   scoped_refptr<HostContentSettingsMap> hcsm_;
 

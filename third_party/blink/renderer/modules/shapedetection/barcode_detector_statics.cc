@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/shapedetection/barcode_detector_statics.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -13,8 +14,7 @@
 namespace blink {
 
 // static
-const unsigned BarcodeDetectorStatics::kSupplementIndex = static_cast<unsigned>(
-    ExecutionContext::Supplements::kBarcodeDetectorStatics);
+const char BarcodeDetectorStatics::kSupplementName[] = "BarcodeDetectorStatics";
 
 // static
 BarcodeDetectorStatics* BarcodeDetectorStatics::From(

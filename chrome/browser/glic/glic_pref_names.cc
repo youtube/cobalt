@@ -4,14 +4,18 @@
 
 #include "chrome/browser/glic/glic_pref_names.h"
 
-#include "base/types/cxx23_to_underlying.h"
+#include <utility>
+
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
-#include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/common/chrome_features.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_registry_simple.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "ui/base/accelerators/command.h"
+#endif
 
 namespace glic::prefs {
 
@@ -58,13 +62,17 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterIntegerPref(
       prefs::kGlicActuationOnWeb,
-      base::to_underlying(GetGlicActuationOnWebPolicyState()));
+      std::to_underlying(GetGlicActuationOnWebPolicyState()));
+
+  registry->RegisterListPref(prefs::kGlicActuationOnWebAllowedForURLs);
+  registry->RegisterListPref(prefs::kGlicActuationOnWebBlockedForURLs);
 
   registry->RegisterBooleanPref(prefs::kGlicUserEnabledActuationOnWeb, false);
 }
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kGlicLauncherEnabled, false);
+#if !BUILDFLAG(IS_ANDROID)
   registry->RegisterStringPref(
       prefs::kGlicLauncherHotkey,
       ui::Command::AcceleratorToString(
@@ -74,6 +82,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
               LocalHotkeyManager::Hotkey::kFocusToggle)));
+#endif
   registry->RegisterBooleanPref(
       prefs::kGlicMultiInstanceEnabledBySubscriptionTier, false);
 }

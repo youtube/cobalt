@@ -156,6 +156,46 @@ TEST(ScreamControllerTest, TargetRateRampsUptoTargetConstraints) {
   EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(200));
 }
 
+TEST(ScreamControllerTest, TargetRateLimitedByRemoteBitrateReport) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.constraints.max_data_rate = DataRate::KilobitsPerSec(1000);
+  ScreamNetworkController scream_controller(config);
+
+  // Simulation with infinite capacity.
+  CcFeedbackGenerator feedback_generator({});
+
+  DataRate target_rate = DataRate::KilobitsPerSec(100);
+  for (int i = 0; i < 10; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(target_rate, clock);
+    NetworkControlUpdate update =
+        scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      target_rate = update.target_rate->target_rate;
+    }
+  }
+  EXPECT_EQ(target_rate, DataRate::KilobitsPerSec(1000));
+
+  RemoteBitrateReport msg;
+  msg.bandwidth = DataRate::KilobitsPerSec(500);
+  msg.receive_time = clock.CurrentTime();
+  NetworkControlUpdate update = scream_controller.OnRemoteBitrateReport(msg);
+
+  ASSERT_TRUE(update.target_rate.has_value());
+  EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
+
+  for (int i = 0; i < 2; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(target_rate, clock);
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
+    }
+  }
+}
+
 TEST(ScreamControllerTest, PacingWindowReducedIfCeCongestedStreamsConfigured) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
   Environment env = CreateTestEnvironment({.time = &clock});

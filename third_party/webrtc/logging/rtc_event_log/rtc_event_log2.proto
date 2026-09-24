@@ -176,6 +176,9 @@ message IncomingRtpPackets {
   optional DependencyDescriptorsWireInfo dependency_descriptor = 21;
   // TODO(terelius): Add other header extensions like playout delay?
 
+  // optional - The RTX OSN value, only set for RTX packets.
+  optional uint32 rtx_original_sequence_number = 22;
+
   // Delta encodings.
   optional bytes timestamp_ms_deltas = 101;
   optional bytes marker_deltas = 102;
@@ -195,6 +198,7 @@ message IncomingRtpPackets {
   // `audio_level` and `voice_activity` are always used in conjunction.
   optional bytes audio_level_deltas = 119;
   optional bytes voice_activity_deltas = 120;
+  optional bytes rtx_original_sequence_number_deltas = 121;
 }
 
 message OutgoingRtpPackets {
@@ -246,6 +250,9 @@ message OutgoingRtpPackets {
   // Encodes all DD information in the batch, not just the base event.
   optional DependencyDescriptorsWireInfo dependency_descriptor = 21;
 
+  // optional - The RTX OSN value, only set for RTX packets.
+  optional uint32 rtx_original_sequence_number = 22;
+
   // Delta encodings.
   optional bytes timestamp_ms_deltas = 101;
   optional bytes marker_deltas = 102;
@@ -265,6 +272,7 @@ message OutgoingRtpPackets {
   // `audio_level` and `voice_activity` are always used in conjunction.
   optional bytes audio_level_deltas = 119;
   optional bytes voice_activity_deltas = 120;
+  optional bytes rtx_original_sequence_number_deltas = 121;
 }
 
 message IncomingRtcpPackets {

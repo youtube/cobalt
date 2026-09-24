@@ -122,6 +122,9 @@ class EventLogAnalyzer {
   void CreateScreamRefWindowGraph(Plot* plot) const;
   void CreateScreamDelayEstimateGraph(Plot* plot) const;
   void CreateGoogCcSimulationGraph(Plot* plot) const;
+  void CreateScreamSimulationBitrateGraph(Plot* plot) const;
+  void CreateScreamSimulationRefWindowGraph(Plot* plot) const;
+  void CreateScreamSimulationRatiosGraph(Plot* plot) const;
   void CreateSendSideBweSimulationGraph(Plot* plot) const;
   void CreateReceiveSideBweSimulationGraph(Plot* plot) const;
 

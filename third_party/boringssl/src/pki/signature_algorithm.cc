@@ -130,6 +130,18 @@ const uint8_t kOidRsaSsaPss[] = {OBJ_ENC_rsassaPss};
 // In dotted notation: 1.2.840.113549.1.1.8
 const uint8_t kOidMgf1[] = {OBJ_ENC_mgf1};
 
+// From draft-davidben-tls-merkle-tree-certs-08:
+//
+//   id-alg-mtcProof OBJECT IDENTIFIER ::= {
+//       iso(1) identified-organization(3) dod(6) internet(1) security(5)
+//       mechanisms(5) pkix(7) algorithms(6) TBD}
+//
+// Also from said draft:
+//   For initial experimentation, early implementations of this design will use
+//   the OID 1.3.6.1.4.1.44363.47.0 instead of id-alg-mtcProof.
+const uint8_t kOidAlgMtcProofDraftDavidben08[] = {0x2b, 0x06, 0x01, 0x04, 0x01,
+                                                  0x82, 0xda, 0x4b, 0x2f, 0x00};
+
 // Returns true if the entirety of the input is a NULL value.
 [[nodiscard]] bool IsNull(der::Input input) {
   der::Parser parser(input);
@@ -387,6 +399,10 @@ std::optional<SignatureAlgorithm> ParseSignatureAlgorithm(
     return ParseRsaPss(params);
   }
 
+  if (oid == der::Input(kOidAlgMtcProofDraftDavidben08) && params.empty()) {
+    return SignatureAlgorithm::kMtcProofDraftDavidben08;
+  }
+
   // Unknown signature algorithm.
   return std::nullopt;
 }
@@ -425,6 +441,10 @@ std::optional<DigestAlgorithm> GetTlsServerEndpointDigestAlgorithm(
       return DigestAlgorithm::Sha384;
     case SignatureAlgorithm::kRsaPssSha512:
       return DigestAlgorithm::Sha512;
+
+    // This is not implemented for MTCs.
+    case SignatureAlgorithm::kMtcProofDraftDavidben08:
+      return std::nullopt;
   }
   return std::nullopt;
 }

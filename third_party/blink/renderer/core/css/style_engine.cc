@@ -69,7 +69,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_rule_usage_tracker.h"
 #include "third_party/blink/renderer/core/css/resolver/viewport_style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
-#include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
+#include "third_party/blink/renderer/core/css/style_containment_scope.h"
 #include "third_party/blink/renderer/core/css/style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_feature_values.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_palette_values.h"
@@ -3739,7 +3739,7 @@ void StyleEngine::PostInterleavedRecalcUpdate(
     const Element& interleaving_root) {
   // Update quotes only if there are any scopes marked dirty.
   if (StyleContainmentScopeTree* tree = GetStyleContainmentScopeTree()) {
-    tree->UpdateQuotes();
+    tree->UpdateItems();
   }
   GetDocument().InvalidatePendingSVGResources();
   GetDocument().UpdateScrollTargetGroupRelations();
@@ -4108,7 +4108,7 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
     }
     // Update quotes only if there are any scopes marked dirty.
     if (StyleContainmentScopeTree* tree = GetStyleContainmentScopeTree()) {
-      tree->UpdateQuotes();
+      tree->UpdateItems();
     }
     UpdateCounters();
     GetDocument().UpdateScrollTargetGroupRelations();
@@ -4925,16 +4925,46 @@ void StyleEngine::RevisitStyleSheetForInspector(
   }
 }
 
+void StyleEngine::NavigationsMayHaveChanged() {
+  DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
+  SetNeedsActiveStyleUpdate(GetDocument());
+
+  // Navigation changes may affect how navigation-param() expressions inside
+  // :link-to() pseudo selectors match. Do a PseudoStateChanged() on each link
+  // in the document, which will mark every element potentially affected by the
+  // navigation for style recalc.
+  //
+  // TODO(crbug.com/436805487): Should come up with something less brutal (spec
+  // changes should be considered, too - this is somewhat unusual).
+  //
+  // A plain lambda won't do because they cannot be invoked recursively. And I
+  // want the code to stay here in this function, at least for now, so here we
+  // go:
+  struct Marker {
+    static void MarkAllLinks(Node& root) {
+      for (Node& node : NodeTraversal::StartsAt(root)) {
+        if (node.IsLink()) {
+          // TODO(crbug.com/436805487): This is in order to implement
+          // :link-to(--route with navigation-param()), but it's a rather heavy
+          // hammer. Maybe there are better ways (spec changes should be
+          // considered, too).
+          To<Element>(node).PseudoStateChanged(CSSSelector::kPseudoLinkTo);
+        }
+        if (ShadowRoot* shadow_root = node.GetShadowRoot()) {
+          MarkAllLinks(*shadow_root);
+        }
+      }
+    }
+  };
+
+  Marker::MarkAllLinks(GetDocument());
+}
+
 double StyleEngine::GetCachedRandomBaseValue(
-    RandomValueSharing random_value_sharing,
-    const Element* element,
-    AtomicString property_name,
-    size_t property_value_index) {
-  if (random_value_sharing.IsFixed()) {
-    return random_value_sharing.GetFixed();
-  }
-  RandomCachingKey* random_caching_key = RandomCachingKey::Create(
-      random_value_sharing, element, property_name, property_value_index);
+    const RandomValueSharing& random_value_sharing,
+    const Element* element) {
+  RandomCachingKey* random_caching_key =
+      RandomCachingKey::Create(random_value_sharing, element);
   auto it = random_base_value_cache_.find(random_caching_key);
   if (it != random_base_value_cache_.end()) {
     return it->value;

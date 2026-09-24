@@ -31,6 +31,8 @@ source_set("features") {
 }
 
 source_set("legion") {
+  assert(!is_android,
+         "The target //components/legion is not supported on Android.")
   sources = [
     "attestation_handler.h",
     "attestation_handler_impl.cc",
@@ -40,8 +42,6 @@ source_set("legion") {
     "client_impl.cc",
     "client_impl.h",
     "error_code.h",
-    "google_rpc_code.cc",
-    "google_rpc_code.h",
     "legion_common.h",
     "secure_channel.h",
     "secure_channel_impl.cc",
@@ -58,10 +58,12 @@ source_set("legion") {
     ":proto",
     ":proto_extras",
     "//base",
+    "//components/legion/attestation",
     "//components/legion/crypto",
     "//components/legion/mojom",
     "//components/legion/oak_session_service",
     "//components/legion/phosphor",
+    "//components/legion/proto_utils",
     "//content/public/browser",
     "//crypto",
     "//mojo/public/cpp/system",
@@ -80,7 +82,6 @@ source_set("unit_tests") {
   sources = [
     "attestation_handler_impl_unittest.cc",
     "client_impl_unittest.cc",
-    "google_rpc_code_unittest.cc",
     "secure_channel_impl_unittest.cc",
     "secure_session_async_impl_unittest.cc",
   ]
@@ -89,9 +90,11 @@ source_set("unit_tests") {
     ":proto",
     "//base",
     "//base/test:test_support",
+    "//components/legion/attestation",
     "//components/legion/crypto:unit_tests",
     "//components/legion/mojom",
     "//components/legion/phosphor:unit_tests",
+    "//components/legion/proto_utils:unit_tests",
     "//mojo/public/cpp/system",
     "//testing/gmock",
     "//testing/gtest",

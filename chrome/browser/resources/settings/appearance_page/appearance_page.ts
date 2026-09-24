@@ -226,13 +226,6 @@ export class SettingsAppearancePageElement extends
         },
       },
 
-      showTabSearchPositionSettings_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('showTabSearchPositionSettings');
-        },
-      },
-
       showVerticalTabsEnabled_: {
         type: Boolean,
         value() {
@@ -243,13 +236,6 @@ export class SettingsAppearancePageElement extends
       showTabSearchPositionRestartButton_: {
         type: Boolean,
         value: false,
-      },
-
-      showSplitViewDragAndDropSetting_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('showSplitViewDragAndDropSetting');
-        },
       },
 
       showResetPinnedActionsButton_: {
@@ -306,13 +292,11 @@ export class SettingsAppearancePageElement extends
   declare private isForcedTheme_: boolean;
   declare private showHoverCardImagesOption_: boolean;
   declare private showResetPinnedActionsButton_: boolean;
-  declare private showSplitViewDragAndDropSetting_: boolean;
 
   // <if expr="is_linux">
   declare private showCustomChromeFrame_: boolean;
   // </if>
 
-  declare private showTabSearchPositionSettings_: boolean;
   declare private showVerticalTabsEnabled_: boolean;
   declare private showTabSearchPositionRestartButton_: boolean;
   declare private showManagedThemeDialog_: boolean;

@@ -33,6 +33,7 @@ if (rtc_include_tests) {
       ":goog_cc_scream_network_controller",
       "../../../api/environment",
       "../../../api/transport:ecn_marking",
+      "../../../api/transport:goog_cc",
       "../../../api/transport:network_control",
       "../../../api/units:data_rate",
       "../../../api/units:data_size",

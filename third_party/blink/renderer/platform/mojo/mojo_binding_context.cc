@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/platform/mojo/browser_interface_broker_proxy_impl.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
@@ -16,8 +17,7 @@ class MojoJSInterfaceBrokerWrapper final
     : public GarbageCollected<MojoJSInterfaceBrokerWrapper>,
       public Supplement<MojoBindingContext> {
  public:
-  static constexpr auto kSupplementIndex =
-      MojoBindingContext::Supplements::kMojoJSInterfaceBrokerWrapper;
+  static constexpr char kSupplementName[] = "MojoJSInterfaceBrokerWrapper";
 
   explicit MojoJSInterfaceBrokerWrapper(MojoBindingContext& context)
       : Supplement(context), impl_(&context) {}

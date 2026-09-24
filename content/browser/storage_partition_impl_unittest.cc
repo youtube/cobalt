@@ -2609,6 +2609,7 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
   base::test::TestFuture<network::mojom::LocalNetworkAccessResult> lna_result;
   observer->OnLocalNetworkAccessPermissionRequired(
       network::mojom::TransportType::kDirect,
+      network::mojom::IPAddressSpace::kLocal,
       base::BindOnce(lna_result.GetCallback()));
   EXPECT_EQ(network::mojom::LocalNetworkAccessResult::kDenied,
             lna_result.Get());
@@ -2642,6 +2643,7 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
   base::test::TestFuture<network::mojom::LocalNetworkAccessResult> lna_result;
   observer->OnLocalNetworkAccessPermissionRequired(
       network::mojom::TransportType::kDirect,
+      network::mojom::IPAddressSpace::kLocal,
       base::BindOnce(lna_result.GetCallback()));
   EXPECT_EQ(network::mojom::LocalNetworkAccessResult::kDenied,
             lna_result.Get());
@@ -2666,6 +2668,7 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
   base::test::TestFuture<network::mojom::LocalNetworkAccessResult> lna_result;
   observer->OnLocalNetworkAccessPermissionRequired(
       network::mojom::TransportType::kDirect,
+      network::mojom::IPAddressSpace::kLocal,
       base::BindOnce(lna_result.GetCallback()));
   EXPECT_EQ(network::mojom::LocalNetworkAccessResult::kDenied,
             lna_result.Get());

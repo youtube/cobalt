@@ -1023,6 +1023,9 @@ Vector<const CSSProperty*> PropertiesForTransitionAll(
       continue;
     }
     const CSSProperty& property = CSSProperty::Get(id);
+    if (!property.IsProperty()) {
+      continue;
+    }
     if (!with_discrete && !property.IsInterpolable()) {
       continue;
     }
@@ -1251,9 +1254,6 @@ void CSSAnimations::UpdateNamedTriggers(
 
   if (is_update_needed) {
     element.SetNamedTriggers(std::move(new_trigger_map));
-    if (LayoutBox* box = element.GetLayoutBox()) {
-      box->SetNeedsLayout(layout_invalidation_reason::kStyleChange);
-    }
   }
 }
 

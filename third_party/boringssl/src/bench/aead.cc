@@ -84,9 +84,12 @@ void BM_SpeedAEAD(benchmark::State &state, size_t ad_len,
     state.SetBytesProcessed(state.iterations() * input_len);
   } else {
     size_t out_len;
-    EVP_AEAD_CTX_seal(ctx.get(), out, &out_len, input_len + overhead_len,
-                      nonce.data(), nonce_len, in, input_len, ad.data(),
-                      ad_len);
+    if (!EVP_AEAD_CTX_seal(ctx.get(), out, &out_len, input_len + overhead_len,
+                           nonce.data(), nonce_len, in, input_len, ad.data(),
+                           ad_len)) {
+      state.SkipWithError("EVP_AEAD_CTX_seal failed.");
+      return;
+    }
 
     ctx.Reset();
     if (!EVP_AEAD_CTX_init_with_direction(ctx.get(), aead, key.data(), key_len,

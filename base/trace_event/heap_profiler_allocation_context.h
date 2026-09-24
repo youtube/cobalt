@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <functional>
 
 #include "base/base_export.h"
@@ -51,6 +52,8 @@ bool BASE_EXPORT operator==(const StackFrame& lhs, const StackFrame& rhs);
 
 struct BASE_EXPORT Backtrace {
   Backtrace();
+  Backtrace(const Backtrace&);
+  ~Backtrace();
 
 #if BUILDFLAG(BUILD_BASE_WITH_CPP17)
   // The copy constructor is for some reason deleted by the compiler.
@@ -61,7 +64,7 @@ struct BASE_EXPORT Backtrace {
   // (the ones further from main()) are stored. Depth of 12 is enough for most
   // pseudo traces (see above), but not for native traces, where we need more.
   enum { kMaxFrameCount = 48 };
-  StackFrame frames[kMaxFrameCount];
+  std::array<StackFrame, kMaxFrameCount> frames;
   size_t frame_count = 0;
 };
 

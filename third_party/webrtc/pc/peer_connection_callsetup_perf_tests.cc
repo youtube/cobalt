@@ -82,8 +82,8 @@ class PeerConnectionDataChannelOpenTest
       scoped_refptr<PeerConnectionTestWrapper> from_pc_wrapper,
       scoped_refptr<PeerConnectionTestWrapper> to_pc_wrapper) {
     from_pc_wrapper->SubscribeOnIceCandidateReady(
-        [to_pc = to_pc_wrapper.get()](const std::string& arg1, int arg2,
-                                      const std::string& arg3) {
+        this, [to_pc = to_pc_wrapper.get()](const std::string& arg1, int arg2,
+                                            const std::string& arg3) {
           to_pc->AddIceCandidate(arg1, arg2, arg3);
         });
   }

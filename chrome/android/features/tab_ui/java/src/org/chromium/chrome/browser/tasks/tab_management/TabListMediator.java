@@ -112,6 +112,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
 import org.chromium.chrome.tab_ui.R;
+import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.widget.list_view.ListViewTouchTracker;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
@@ -344,6 +345,7 @@ class TabListMediator implements TabListNotificationHandler {
     private final @Nullable UndoBarExplicitTrigger mUndoBarExplicitTrigger;
     private final @Nullable SnackbarManager mSnackbarManager;
     private final int mAllowedSelectionCount;
+    private final boolean mIsSingleContextMode;
 
     private int mCurrentSelectionCount;
     private int mNextTabId = Tab.INVALID_TAB_ID;
@@ -451,7 +453,8 @@ class TabListMediator implements TabListNotificationHandler {
                     if (model == null) return;
 
                     boolean selected = model.get(TabProperties.IS_SELECTED);
-                    if (!selected
+                    if (!mIsSingleContextMode
+                            && !selected
                             && mAllowedSelectionCount > 0
                             && mCurrentSelectionCount >= mAllowedSelectionCount) {
                         showLimitSnackbar();
@@ -467,12 +470,11 @@ class TabListMediator implements TabListNotificationHandler {
                     if (selected) {
                         TabUiMetricsHelper.recordSelectionEditorActionMetrics(
                                 TabListEditorActionMetricGroups.UNSELECTED);
-                        mCurrentSelectionCount -= 1;
                     } else {
                         TabUiMetricsHelper.recordSelectionEditorActionMetrics(
                                 TabListEditorActionMetricGroups.SELECTED);
-                        mCurrentSelectionCount += 1;
                     }
+                    mCurrentSelectionCount = selectionDelegate.getSelectedItems().size();
                     model.set(TabProperties.IS_SELECTED, !selected);
                     // Reset thumbnail to ensure the color of the blank tab slots is correct.
                     TabGroupModelFilter filter = getCurrentFilterChecked();
@@ -1043,7 +1045,8 @@ class TabListMediator implements TabListNotificationHandler {
             @Nullable Runnable onTabGroupCreation,
             @Nullable UndoBarExplicitTrigger undoBarExplicitTrigger,
             @Nullable SnackbarManager snackbarManager,
-            int allowedSelectionCount) {
+            int allowedSelectionCount,
+            boolean isSingleContextMode) {
         mActivity = activity;
         mModelList = modelList;
         mMode = mode;
@@ -1063,6 +1066,7 @@ class TabListMediator implements TabListNotificationHandler {
         mUndoBarExplicitTrigger = undoBarExplicitTrigger;
         mSnackbarManager = snackbarManager;
         mAllowedSelectionCount = allowedSelectionCount;
+        mIsSingleContextMode = isSingleContextMode;
 
         mTabModelObserver =
                 new TabModelObserver() {
@@ -3395,6 +3399,16 @@ class TabListMediator implements TabListNotificationHandler {
                         null,
                         Snackbar.TYPE_NOTIFICATION,
                         Snackbar.UMA_TAB_PICKER_LIMIT_REACHED);
+        TabModel tabModel = getCurrentTabModelChecked();
+        boolean isIncognito = tabModel.isIncognitoBranded();
+        snackbar.setBackgroundColor(ChromeColors.getInverseBgColor(mActivity, isIncognito));
+
+        int textAppearanceResId =
+                isIncognito
+                        ? R.style.TextAppearance_TextMedium_Primary_Baseline_Dark
+                        : R.style.TextAppearance_TextMedium_Primary_OnInverseSurface;
+        snackbar.setTextAppearance(textAppearanceResId);
+
         mSnackbarManager.showSnackbar(snackbar);
     }
 

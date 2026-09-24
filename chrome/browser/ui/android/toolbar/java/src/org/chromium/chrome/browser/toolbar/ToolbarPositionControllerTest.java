@@ -18,6 +18,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.toolbar.ToolbarPositionController.BOTTOM_OMNIBOX_EVER_USED_PREF;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -365,7 +366,7 @@ public class ToolbarPositionControllerTest {
                         mIsIncognitoNtpShowing,
                         mIsTabSwitcherShowing,
                         mIsOmniboxFocused,
-                        mIsFormFieldFocused,
+                        mIsFormFieldFocused.getObservable(),
                         mIsFindInPageShowing,
                         mKeyboardAccessoryHeightSupplier,
                         mKeyboardVisibilityDelegate,
@@ -815,12 +816,26 @@ public class ToolbarPositionControllerTest {
                         isFormFieldFocusedWithKeyboardVisible,
                         doesUserPreferTopToolbar,
                         ControlsPosition.TOP));
+
+        AddressBarPreference.setToolbarPositionAndSource(
+                ToolbarPositionAndSource.BOTTOM_LONG_PRESS);
+        assertEquals(
+                StateTransition.SNAP_TO_BOTTOM,
+                ToolbarPositionController.calculateStateTransition(
+                        true,
+                        ntpShowing,
+                        tabSwitcherShowing,
+                        true,
+                        isFindInPageShowing,
+                        isFormFieldFocusedWithKeyboardVisible,
+                        doesUserPreferTopToolbar,
+                        ControlsPosition.TOP));
     }
 
     @Test
     public void shouldShowToolbarOnTop_withNtpUrl() {
         Tab tab = mock(Tab.class);
-        doReturn(new GURL(UrlConstants.NTP_URL)).when(tab).getUrl();
+        doReturn(new GURL(getOriginalNativeNtpUrl())).when(tab).getUrl();
 
         // By default, Toolbar should be anchored on top.
         setUserToolbarAnchorPreference(/* showToolbarOnTop= */ null);
@@ -839,7 +854,7 @@ public class ToolbarPositionControllerTest {
     @Test
     public void shouldShowToolbarOnTop_withIncognitoNtpUrl() {
         Tab tab = mock(Tab.class);
-        doReturn(new GURL(UrlConstants.NTP_URL)).when(tab).getUrl();
+        doReturn(new GURL(getOriginalNativeNtpUrl())).when(tab).getUrl();
         doReturn(true).when(tab).isIncognitoBranded();
 
         // By default, Toolbar should be anchored on top.

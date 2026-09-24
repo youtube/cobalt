@@ -181,7 +181,7 @@ RtpTransportInternal* JsepTransportController::GetRtpTransport(
 }
 
 DataChannelTransportInterface* JsepTransportController::GetDataChannelTransport(
-    const std::string& mid) const {
+    absl::string_view mid) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto jsep_transport = GetJsepTransportForMid(mid);
   if (!jsep_transport) {
@@ -191,7 +191,7 @@ DataChannelTransportInterface* JsepTransportController::GetDataChannelTransport(
 }
 
 DtlsTransportInternal* JsepTransportController::GetDtlsTransport(
-    const std::string& mid) {
+    absl::string_view mid) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto jsep_transport = GetJsepTransportForMid(mid);
   if (!jsep_transport) {
@@ -201,7 +201,7 @@ DtlsTransportInternal* JsepTransportController::GetDtlsTransport(
 }
 
 scoped_refptr<DtlsTransport>
-JsepTransportController::LookupDtlsTransportByMid_n(const std::string& mid) {
+JsepTransportController::LookupDtlsTransportByMid_n(absl::string_view mid) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto jsep_transport = GetJsepTransportForMid(mid);
   if (!jsep_transport) {
@@ -211,7 +211,7 @@ JsepTransportController::LookupDtlsTransportByMid_n(const std::string& mid) {
 }
 
 scoped_refptr<DtlsTransport> JsepTransportController::LookupDtlsTransportByMid(
-    const std::string& mid) {
+    absl::string_view mid) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   return network_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(network_thread_);
@@ -220,7 +220,7 @@ scoped_refptr<DtlsTransport> JsepTransportController::LookupDtlsTransportByMid(
 }
 
 scoped_refptr<SctpTransport> JsepTransportController::GetSctpTransport(
-    const std::string& mid) const {
+    absl::string_view mid) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto jsep_transport = GetJsepTransportForMid(mid);
   if (!jsep_transport) {
@@ -244,7 +244,7 @@ void JsepTransportController::SetNeedsIceRestartFlag() {
 }
 
 bool JsepTransportController::NeedsIceRestart(
-    const std::string& transport_name) const {
+    absl::string_view transport_name) const {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   return network_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(network_thread_);
@@ -253,14 +253,14 @@ bool JsepTransportController::NeedsIceRestart(
 }
 
 bool JsepTransportController::NeedsIceRestart_n(
-    const std::string& transport_name) const {
+    absl::string_view transport_name) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   const JsepTransport* transport = GetJsepTransportByName(transport_name);
   return transport ? transport->needs_ice_restart() : false;
 }
 
 std::optional<SSLRole> JsepTransportController::GetDtlsRole(
-    const std::string& mid) const {
+    absl::string_view mid) const {
   // TODO(tommi): Remove this hop. Currently it's called from the signaling
   // thread during negotiations, potentially multiple times.
   // WebRtcSessionDescriptionFactory::InternalCreateAnswer is one example.
@@ -310,7 +310,7 @@ bool JsepTransportController::SetLocalCertificate_n(
 }
 
 scoped_refptr<RTCCertificate> JsepTransportController::GetLocalCertificate(
-    const std::string& transport_name) const {
+    absl::string_view transport_name) const {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   const JsepTransport* t = GetJsepTransportByName(transport_name);
@@ -321,7 +321,7 @@ scoped_refptr<RTCCertificate> JsepTransportController::GetLocalCertificate(
 }
 
 std::unique_ptr<SSLCertChain> JsepTransportController::GetRemoteSSLCertChain(
-    const std::string& transport_name) const {
+    absl::string_view transport_name) const {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   // Get the certificate from the RTP transport's DTLS handshake. Should be
@@ -355,7 +355,7 @@ void JsepTransportController::MaybeStartGathering_n() {
 }
 
 RTCError JsepTransportController::AddRemoteCandidates(
-    const std::string& transport_name,
+    absl::string_view transport_name,
     const Candidates& candidates) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(VerifyCandidates(candidates).ok());
@@ -428,7 +428,7 @@ RTCError JsepTransportController::RollbackTransports_n() {
 }
 
 scoped_refptr<IceTransportInterface>
-JsepTransportController::CreateIceTransport(const std::string& transport_name,
+JsepTransportController::CreateIceTransport(absl::string_view transport_name,
                                             bool rtcp) {
   int component =
       rtcp ? ICE_CANDIDATE_COMPONENT_RTCP : ICE_CANDIDATE_COMPONENT_RTP;
@@ -439,7 +439,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   init.set_lna_permission_factory(lna_permission_factory_);
   scoped_refptr<IceTransportInterface> transport =
       config_.ice_transport_factory->CreateIceTransport(
-          transport_name, component, std::move(init));
+          std::string(transport_name), component, std::move(init));
 
   // Ideally all of the below should be done as part of construction. That way
   // construction could happen on one thread and then safely be used on another
@@ -452,6 +452,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
                                         OnTransportGatheringState_n(transport);
                                       });
   internal->SubscribeCandidateGathered(
+      this,
       [this](IceTransportInternal* transport, const Candidate& candidate) {
         RTC_DCHECK_RUN_ON(network_thread_);
         OnTransportCandidateGathered_n(transport, candidate);
@@ -467,12 +468,13 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
         RTC_DCHECK_RUN_ON(network_thread_);
         OnTransportCandidatesRemoved_n(transport, candidates);
       });
-  internal->SubscribeRoleConflict([this](IceTransportInternal* transport) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    OnTransportRoleConflict_n(transport);
-  });
+  internal->SubscribeRoleConflict(this,
+                                  [this](IceTransportInternal* transport) {
+                                    RTC_DCHECK_RUN_ON(network_thread_);
+                                    OnTransportRoleConflict_n(transport);
+                                  });
   internal->SubscribeIceTransportStateChanged(
-      [this](IceTransportInternal* transport) {
+      this, [this](IceTransportInternal* transport) {
         RTC_DCHECK_RUN_ON(network_thread_);
         OnTransportStateChanged_n(transport);
       });
@@ -517,18 +519,19 @@ JsepTransportController::CreateDtlsTransport(const ContentInfo& content_info,
                                  RTC_DCHECK_RUN_ON(network_thread_);
                                  OnTransportWritableState_n(transport);
                                });
-  dtls->SubscribeReceivingState([this](PacketTransportInternal* transport) {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    OnTransportReceivingState_n(transport);
-  });
+  dtls->SubscribeReceivingState(this,
+                                [this](PacketTransportInternal* transport) {
+                                  RTC_DCHECK_RUN_ON(network_thread_);
+                                  OnTransportReceivingState_n(transport);
+                                });
   dtls->SubscribeDtlsHandshakeError(
-      [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); });
+      this, [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); });
   return dtls;
 }
 
 std::unique_ptr<RtpTransport>
 JsepTransportController::CreateUnencryptedRtpTransport(
-    const std::string& transport_name,
+    absl::string_view transport_name,
     std::unique_ptr<PacketTransportInternal> rtp_packet_transport,
     std::unique_ptr<PacketTransportInternal> rtcp_packet_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
@@ -545,7 +548,7 @@ JsepTransportController::CreateUnencryptedRtpTransport(
 
 std::unique_ptr<DtlsSrtpTransport>
 JsepTransportController::CreateDtlsSrtpTransport(
-    const std::string& transport_name,
+    absl::string_view transport_name,
     std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
     std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
@@ -567,7 +570,7 @@ JsepTransportController::CreateDtlsSrtpTransport(
 }
 
 std::unique_ptr<RtpTransport> JsepTransportController::CreateRtpTransport(
-    const std::string& transport_name,
+    absl::string_view transport_name,
     std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
     std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport) {
   std::unique_ptr<RtpTransport> rtp_transport;
@@ -1085,15 +1088,6 @@ int JsepTransportController::GetRtpAbsSendTimeHeaderExtensionId(
   return send_time_extension ? send_time_extension->id : -1;
 }
 
-const JsepTransport* JsepTransportController::GetJsepTransportForMid(
-    const std::string& mid) const {
-  return transports_.GetTransportForMid(mid);
-}
-
-JsepTransport* JsepTransportController::GetJsepTransportForMid(
-    const std::string& mid) {
-  return transports_.GetTransportForMid(mid);
-}
 const JsepTransport* JsepTransportController::GetJsepTransportForMid(
     absl::string_view mid) const {
   return transports_.GetTransportForMid(mid);

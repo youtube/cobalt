@@ -25,6 +25,7 @@
 #include <openssl/span.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "internal.h"
 
 
@@ -141,45 +142,21 @@ int EVP_AEAD_CTX_seal(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
     return 0;
   }
 
-  if (!ctx->aead->seal_scatter) {
-    CRYPTO_IOVEC iovec[1];
-    iovec[0].in = in;
-    iovec[0].out = out;
-    iovec[0].len = in_len;
-    CRYPTO_IVEC aadvec[1];
-    aadvec[0].in = ad;
-    aadvec[0].len = ad_len;
-    if (!EVP_AEAD_CTX_sealv(ctx, iovec, 1, out + in_len, out_len,
-                            max_out_len - in_len, nonce, nonce_len, aadvec,
-                            1)) {
-      *out_len = 0;
-      return 0;
-    }
-    *out_len += in_len;
-    ok = true;
-    return 1;
-  }
-
-  if (in_len + ctx->aead->overhead < in_len /* overflow */) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
+  CRYPTO_IOVEC iovec[1];
+  iovec[0].in = in;
+  iovec[0].out = out;
+  iovec[0].len = in_len;
+  CRYPTO_IVEC aadvec[1];
+  aadvec[0].in = ad;
+  aadvec[0].len = ad_len;
+  if (!EVP_AEAD_CTX_sealv(ctx, iovec, 1, out + in_len, out_len,
+                          max_out_len - in_len, nonce, nonce_len, aadvec, 1)) {
+    *out_len = 0;
     return 0;
   }
-
-  if (!check_alias(in, in_len, out, max_out_len)) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_OUTPUT_ALIASES_INPUT);
-    return 0;
-  }
-
-  size_t out_tag_len;
-  if (ctx->aead->seal_scatter(ctx, out, out + in_len, &out_tag_len,
-                              max_out_len - in_len, nonce, nonce_len, in,
-                              in_len, nullptr, 0, ad, ad_len)) {
-    *out_len = in_len + out_tag_len;
-    ok = true;
-    return 1;
-  }
-
-  return 0;
+  *out_len += in_len;
+  ok = true;
+  return 1;
 }
 
 int EVP_AEAD_CTX_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
@@ -200,50 +177,25 @@ int EVP_AEAD_CTX_seal_scatter(const EVP_AEAD_CTX *ctx, uint8_t *out,
     }
   });
 
-  if (!ctx->aead->seal_scatter) {
-    CRYPTO_IOVEC iovec[2];
-    iovec[0].in = in;
-    iovec[0].out = out;
-    iovec[0].len = in_len;
-    iovec[1].in = extra_in;
-    iovec[1].out = out_tag;
-    iovec[1].len = extra_in_len;
-    CRYPTO_IVEC aadvec[1];
-    aadvec[0].in = ad;
-    aadvec[0].len = ad_len;
-    if (!EVP_AEAD_CTX_sealv(ctx, iovec, extra_in_len ? 2 : 1,
-                            out_tag + extra_in_len, out_tag_len,
-                            max_out_tag_len - extra_in_len, nonce, nonce_len,
-                            aadvec, 1)) {
-      *out_tag_len = 0;
-      return 0;
-    }
-    *out_tag_len += extra_in_len;
-    ok = true;
-    return 1;
-  }
-
-  // |in| and |out| may alias exactly, |out_tag| may not alias.
-  if (!check_alias(in, in_len, out, in_len) ||
-      buffers_alias(out, in_len, out_tag, max_out_tag_len) ||
-      buffers_alias(in, in_len, out_tag, max_out_tag_len)) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_OUTPUT_ALIASES_INPUT);
+  CRYPTO_IOVEC iovec[2];
+  iovec[0].in = in;
+  iovec[0].out = out;
+  iovec[0].len = in_len;
+  iovec[1].in = extra_in;
+  iovec[1].out = out_tag;
+  iovec[1].len = extra_in_len;
+  CRYPTO_IVEC aadvec[1];
+  aadvec[0].in = ad;
+  aadvec[0].len = ad_len;
+  if (!EVP_AEAD_CTX_sealv(
+          ctx, iovec, extra_in_len ? 2 : 1, out_tag + extra_in_len, out_tag_len,
+          max_out_tag_len - extra_in_len, nonce, nonce_len, aadvec, 1)) {
+    *out_tag_len = 0;
     return 0;
   }
-
-  if (!ctx->aead->seal_scatter_supports_extra_in && extra_in_len) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_OPERATION);
-    return 0;
-  }
-
-  if (ctx->aead->seal_scatter(ctx, out, out_tag, out_tag_len, max_out_tag_len,
-                              nonce, nonce_len, in, in_len, extra_in,
-                              extra_in_len, ad, ad_len)) {
-    ok = true;
-    return 1;
-  }
-
-  return 0;
+  *out_tag_len += extra_in_len;
+  ok = true;
+  return 1;
 }
 
 static bool check_iovec_internal_alias(bssl::Span<const CRYPTO_IOVEC> iovecs) {
@@ -389,8 +341,8 @@ int EVP_AEAD_CTX_sealv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
     return 0;
   }
 
-  if (ctx->aead->sealv(ctx, iovecs, out_tag, out_tag_len, max_out_tag_len,
-                       nonce, nonce_len, aadvecs)) {
+  if (ctx->aead->sealv(ctx, iovecs, bssl::Span(out_tag, max_out_tag_len),
+                       out_tag_len, bssl::Span(nonce, nonce_len), aadvecs)) {
     ok = true;
     return 1;
   }
@@ -413,96 +365,56 @@ int EVP_AEAD_CTX_open(const EVP_AEAD_CTX *ctx, uint8_t *out, size_t *out_len,
     }
   });
 
-  if (!ctx->aead->open && !ctx->aead->open_gather) {
-    if (ctx->tag_len) {
-      // If the tag length is known, the caller only needs to provide enough
-      // space for in_len - tag_len.
-      if (in_len < ctx->tag_len) {
-        OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
-        return 0;
-      }
-      size_t plaintext_len = in_len - ctx->tag_len;
-      if (max_out_len < plaintext_len) {
-        OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
-        return 0;
-      }
-
-      CRYPTO_IOVEC iovec[1];
-      iovec[0].in = in;
-      iovec[0].out = out;
-      iovec[0].len = plaintext_len;
-      CRYPTO_IVEC aadvec[1];
-      aadvec[0].in = ad;
-      aadvec[0].len = ad_len;
-      if (!EVP_AEAD_CTX_openv_detached(ctx, iovec, 1, nonce, nonce_len,
-                                       in + plaintext_len, ctx->tag_len, aadvec,
-                                       1)) {
-        return 0;
-      }
-      *out_len = plaintext_len;
-      ok = true;
-      return 1;
-    } else {
-      if (max_out_len < in_len) {
-        // Variable tag length AEADs need to be able to decrypt the entire
-        // plaintext before they can split it up. So the caller has to provide
-        // sufficient max_out_len for temporary data.
-        OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
-        return 0;
-      }
-      CRYPTO_IOVEC iovec[1];
-      iovec[0].in = in;
-      iovec[0].out = out;
-      iovec[0].len = in_len;
-      CRYPTO_IVEC aadvec[1];
-      aadvec[0].in = ad;
-      aadvec[0].len = ad_len;
-      if (!EVP_AEAD_CTX_openv(ctx, iovec, 1, out_len, nonce, nonce_len, aadvec,
-                              1)) {
-        return 0;
-      }
-      ok = true;
-      return 1;
-    }
-  }
-
-  if (!check_alias(in, in_len, out, max_out_len)) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_OUTPUT_ALIASES_INPUT);
-    return 0;
-  }
-
-  if (ctx->aead->open) {
-    if (!ctx->aead->open(ctx, out, out_len, max_out_len, nonce, nonce_len, in,
-                         in_len, ad, ad_len)) {
+  if (ctx->tag_len) {
+    // If the tag length is known, the caller only needs to provide enough
+    // space for in_len - tag_len.
+    if (in_len < ctx->tag_len) {
+      OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
       return 0;
     }
-    ok = true;
-    return 1;
-  }
+    size_t plaintext_len = in_len - ctx->tag_len;
+    if (max_out_len < plaintext_len) {
+      OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
+      return 0;
+    }
 
-  // AEADs that use the default implementation of open() must set |tag_len| at
-  // initialization time.
-  assert(ctx->tag_len);
-
-  if (in_len < ctx->tag_len) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
-    return 0;
-  }
-
-  size_t plaintext_len = in_len - ctx->tag_len;
-  if (max_out_len < plaintext_len) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
-    return 0;
-  }
-
-  if (ctx->aead->open_gather(ctx, out, nonce, nonce_len, in, plaintext_len,
-                             in + plaintext_len, ctx->tag_len, ad, ad_len)) {
+    CRYPTO_IOVEC iovec[1];
+    iovec[0].in = in;
+    iovec[0].out = out;
+    iovec[0].len = plaintext_len;
+    CRYPTO_IVEC aadvec[1];
+    aadvec[0].in = ad;
+    aadvec[0].len = ad_len;
+    if (!EVP_AEAD_CTX_openv_detached(ctx, iovec, 1, nonce, nonce_len,
+                                     in + plaintext_len, ctx->tag_len, aadvec,
+                                     1)) {
+      return 0;
+    }
     *out_len = plaintext_len;
     ok = true;
     return 1;
   }
 
-  return 0;
+  if (max_out_len < in_len) {
+    // Variable tag length AEADs need to be able to decrypt the entire
+    // plaintext before they can split it up. So the caller has to provide
+    // sufficient max_out_len for temporary data.
+    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
+    return 0;
+  }
+  CRYPTO_IOVEC iovec[1];
+  iovec[0].in = in;
+  iovec[0].out = out;
+  iovec[0].len = in_len;
+  CRYPTO_IVEC aadvec[1];
+  aadvec[0].in = ad;
+  aadvec[0].len = ad_len;
+  if (!EVP_AEAD_CTX_openv(ctx, iovec, 1, out_len, nonce, nonce_len, aadvec,
+                          1)) {
+    return 0;
+  }
+  ok = true;
+  return 1;
 }
 
 int EVP_AEAD_CTX_open_gather(const EVP_AEAD_CTX *ctx, uint8_t *out,
@@ -520,39 +432,19 @@ int EVP_AEAD_CTX_open_gather(const EVP_AEAD_CTX *ctx, uint8_t *out,
     }
   });
 
-  if (!ctx->aead->open_gather) {
-    CRYPTO_IOVEC iovec[1];
-    iovec[0].in = in;
-    iovec[0].out = out;
-    iovec[0].len = in_len;
-    CRYPTO_IVEC aadvec[1];
-    aadvec[0].in = ad;
-    aadvec[0].len = ad_len;
-    if (EVP_AEAD_CTX_openv_detached(ctx, iovec, 1, nonce, nonce_len, in_tag,
-                                    in_tag_len, aadvec, 1)) {
-      ok = true;
-      return 1;
-    }
+  CRYPTO_IOVEC iovec[1];
+  iovec[0].in = in;
+  iovec[0].out = out;
+  iovec[0].len = in_len;
+  CRYPTO_IVEC aadvec[1];
+  aadvec[0].in = ad;
+  aadvec[0].len = ad_len;
+  if (!EVP_AEAD_CTX_openv_detached(ctx, iovec, 1, nonce, nonce_len, in_tag,
+                                   in_tag_len, aadvec, 1)) {
     return 0;
   }
-
-  if (!check_alias(in, in_len, out, in_len)) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_OUTPUT_ALIASES_INPUT);
-    return 0;
-  }
-
-  if (!ctx->aead->open_gather) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_CTRL_NOT_IMPLEMENTED);
-    return 0;
-  }
-
-  if (ctx->aead->open_gather(ctx, out, nonce, nonce_len, in, in_len, in_tag,
-                             in_tag_len, ad, ad_len)) {
-    ok = true;
-    return 1;
-  }
-
-  return 0;
+  ok = true;
+  return 1;
 }
 
 int EVP_AEAD_CTX_openv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
@@ -604,8 +496,9 @@ int EVP_AEAD_CTX_openv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
         return 0;
       }
 
-      if (ctx->aead->openv_detached(ctx, detached_iovecs, nonce, nonce_len,
-                                    tag->data(), tag->size(), aadvecs)) {
+      if (ctx->aead->openv_detached(ctx, detached_iovecs,
+                                    bssl::Span(nonce, nonce_len), *tag,
+                                    aadvecs)) {
         ok = true;
         *out_total_bytes =
             bssl::iovec::TotalLength(bssl::Span(detached_iovecs));
@@ -618,8 +511,8 @@ int EVP_AEAD_CTX_openv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
     return 0;
   }
 
-  if (ctx->aead->openv(ctx, iovecs, out_total_bytes, nonce, nonce_len,
-                       aadvecs)) {
+  if (ctx->aead->openv(ctx, iovecs, out_total_bytes,
+                       bssl::Span(nonce, nonce_len), aadvecs)) {
     ok = true;
     return 1;
   }
@@ -673,8 +566,8 @@ int EVP_AEAD_CTX_openv_detached(const EVP_AEAD_CTX *ctx,
     return 0;
   }
 
-  if (ctx->aead->openv_detached(ctx, iovecs, nonce, nonce_len, in_tag,
-                                in_tag_len, aadvecs)) {
+  if (ctx->aead->openv_detached(ctx, iovecs, bssl::Span(nonce, nonce_len),
+                                bssl::Span(in_tag, in_tag_len), aadvecs)) {
     ok = true;
     return 1;
   }
@@ -696,18 +589,23 @@ int EVP_AEAD_CTX_get_iv(const EVP_AEAD_CTX *ctx, const uint8_t **out_iv,
 
 int EVP_AEAD_CTX_tag_len(const EVP_AEAD_CTX *ctx, size_t *out_tag_len,
                          const size_t in_len, const size_t extra_in_len) {
-  assert(ctx->aead->seal_scatter_supports_extra_in || !extra_in_len);
-
+  size_t tag_len;
   if (ctx->aead->tag_len) {
-    *out_tag_len = ctx->aead->tag_len(ctx, in_len, extra_in_len);
-    return 1;
+    if (in_len + extra_in_len < in_len) {
+      OPENSSL_PUT_ERROR(CIPHER, ERR_R_OVERFLOW);
+      *out_tag_len = 0;
+      return 0;
+    }
+    tag_len = ctx->aead->tag_len(ctx, in_len + extra_in_len);
+  } else {
+    tag_len = ctx->tag_len;
   }
 
-  if (extra_in_len + ctx->tag_len < extra_in_len) {
+  if (extra_in_len + tag_len < extra_in_len) {
     OPENSSL_PUT_ERROR(CIPHER, ERR_R_OVERFLOW);
     *out_tag_len = 0;
     return 0;
   }
-  *out_tag_len = extra_in_len + ctx->tag_len;
+  *out_tag_len = extra_in_len + tag_len;
   return 1;
 }

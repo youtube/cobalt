@@ -272,6 +272,9 @@ void BrowserViewLayoutImpl::Layout(views::View* host) {
 
   // Do any additional adjustments required by the specific layout.
   DoPostLayoutVisualAdjustments();
+
+  // Update bubbles (like the find bar).
+  UpdateBubbles();
 }
 
 // Dialog positioning.
@@ -311,9 +314,6 @@ gfx::Point BrowserViewLayoutImpl::GetDialogPosition(
   const int dialog_y = GetDialogTop(layout);
   gfx::Rect dialog_rect(dialog_x, dialog_y, dialog_size.width(),
                         dialog_size.height());
-
-  // Convert to widget coordinates.
-  dialog_rect = views().browser_view->ConvertRectToWidget(dialog_rect);
 
   // TODO: consider whether this should change in RTL?
   return gfx::Point(dialog_rect.origin());

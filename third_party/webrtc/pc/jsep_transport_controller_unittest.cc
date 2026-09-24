@@ -2847,7 +2847,7 @@ TEST_F(JsepTransportControllerTest, CustomRtpTransportFactory) {
     explicit CustomRtpTransportFactory(const FieldTrialsView& field_trials)
         : field_trials_view_(field_trials) {}
     std::unique_ptr<RtpTransport> CreateRtpTransport(
-        const std::string& transport_name,
+        absl::string_view transport_name,
         std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
         std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport) override {
       auto transport = std::make_unique<RtpTransport>(

@@ -486,8 +486,8 @@ struct TagRange {
     // Need to perform the math with uint32_t. Otherwise, the uint16_ts would
     // be promoted to (signed) int, allowing the compiler to (wrongly) assume
     // that an underflow cannot happen as that would be undefined behavior.
-    return static_cast<uint32_t>(tag) - first <=
-           static_cast<uint32_t>(last) - first;
+    return static_cast<uint32_t>(tag) - static_cast<uint32_t>(first) <=
+           static_cast<uint32_t>(last) - static_cast<uint32_t>(first);
   }
 
   constexpr bool Contains(TagRange tag_range) const {
@@ -1022,6 +1022,14 @@ class Internals {
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
+
+#if V8_TARGET_ARCH_PPC64
+  static constexpr int kFrameCPSlotCount = 1;
+#else
+  static constexpr int kFrameCPSlotCount = 0;
+#endif
+  static const int kFrameTypeApiCallExit = 18;
+  static const int kFrameTypeApiConstructExit = 19;
 
   // Assert scopes
   static const int kDisallowGarbageCollectionAlign = alignof(uint32_t);

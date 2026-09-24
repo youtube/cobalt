@@ -89,6 +89,10 @@ BASE_DECLARE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch);
 // Enables sending a CSD ping when a page's image embedding matches a
 // target image embedding.
 BASE_DECLARE_FEATURE(kClientSideDetectionImageEmbeddingMatch);
+// Specifies whether to trigger the intelligent scan along with the image
+// embedding match.
+extern const base::FeatureParam<bool>
+    kCsdImageEmbeddingMatchWithIntelligentScan;
 
 // Killswitch for client side phishing detection. Since client side models are
 // run on a large fraction of navigations, crashes due to the model are very
@@ -126,6 +130,8 @@ BASE_DECLARE_FEATURE(kClientSideDetectionSendLlamaForcedTriggerInfo);
 // Inquire the server-side model instead of the on-device model for scam
 // detection.
 BASE_DECLARE_FEATURE(kClientSideDetectionServerModelForScamDetectionAndroid);
+extern const base::FeatureParam<int>
+    kClientSideDetectionServerModelMaxScansPerDay;
 #endif
 
 // Show a warning to the user based on the
@@ -298,6 +304,10 @@ extern const base::FeatureParam<std::string>
 // Safe Browsing-enabled users, and may show warnings.
 BASE_DECLARE_FEATURE_PARAM(bool, kMaliciousApkDownloadCheckTelemetryOnly);
 #endif
+
+// Enables one-time migration of enhanced-safe-browsing users to the enhanced
+// bundle.
+BASE_DECLARE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle);
 
 // TODO(crbug.com/449960661): Remove this flag once the MigrateAccountPrefs
 // feature is launched and the regression of users with ESB enhanced protection

@@ -186,10 +186,11 @@ Channel::MessagePtr CreateMessage(MessageType type,
                                   void** out_data,
                                   size_t capacity = 0) {
   const size_t total_size = payload_size + sizeof(Header);
-  if (capacity == 0)
+  if (capacity == 0) {
     capacity = total_size;
-  else
+  } else {
     capacity = std::max(total_size, capacity);
+  }
   auto message =
       Channel::Message::CreateMessage(capacity, total_size, num_handles);
   Header* header = reinterpret_cast<Header*>(message->mutable_payload());
@@ -285,8 +286,9 @@ bool NodeChannel::GetEventMessageData(Channel::Message& message,
                                       size_t* num_data_bytes) {
   // NOTE: Callers must guarantee that the payload in `message` must be at least
   // large enough to hold a Header.
-  if (message.payload_size() < sizeof(Header))
+  if (message.payload_size() < sizeof(Header)) {
     return false;
+  }
   *data = reinterpret_cast<Header*>(message.mutable_payload()) + 1;
   *num_data_bytes = message.payload_size() - sizeof(Header);
   return true;
@@ -295,8 +297,9 @@ bool NodeChannel::GetEventMessageData(Channel::Message& message,
 void NodeChannel::Start() {
   base::AutoLock lock(channel_lock_);
   // ShutDown() may have already been called, in which case |channel_| is null.
-  if (channel_)
+  if (channel_) {
     channel_->Start();
+  }
 }
 
 void NodeChannel::ShutDown() {
@@ -323,8 +326,9 @@ void NodeChannel::SetRemoteProcessHandle(base::Process process_handle) {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   {
     base::AutoLock lock(channel_lock_);
-    if (channel_)
+    if (channel_) {
       channel_->set_remote_process(process_handle.Duplicate());
+    }
   }
   base::AutoLock lock(remote_process_handle_lock_);
   DCHECK(!remote_process_handle_.IsValid());
@@ -405,8 +409,9 @@ void NodeChannel::BrokerClientAdded(const ports::NodeName& client_name,
                                     PlatformHandle broker_channel) {
   BrokerClientAddedData* data;
   std::vector<PlatformHandle> handles;
-  if (broker_channel.is_valid())
+  if (broker_channel.is_valid()) {
     handles.emplace_back(std::move(broker_channel));
+  }
   Channel::MessagePtr message =
       CreateMessage(MessageType::BROKER_CLIENT_ADDED,
                     sizeof(BrokerClientAddedData), handles.size(), &data);
@@ -420,8 +425,9 @@ void NodeChannel::AcceptBrokerClient(const ports::NodeName& broker_name,
                                      const uint64_t broker_capabilities) {
   AcceptBrokerClientData* data;
   std::vector<PlatformHandle> handles;
-  if (broker_channel.is_valid())
+  if (broker_channel.is_valid()) {
     handles.emplace_back(std::move(broker_channel));
+  }
   Channel::MessagePtr message =
       CreateMessage(MessageType::ACCEPT_BROKER_CLIENT,
                     sizeof(AcceptBrokerClientData), handles.size(), &data);
@@ -456,8 +462,9 @@ void NodeChannel::Introduce(const ports::NodeName& name,
                             uint64_t capabilities) {
   IntroductionData* data;
   std::vector<PlatformHandle> handles;
-  if (channel_handle.is_valid())
+  if (channel_handle.is_valid()) {
     handles.emplace_back(std::move(channel_handle));
+  }
   Channel::MessagePtr message = CreateMessage(
       MessageType::INTRODUCE, sizeof(IntroductionData), handles.size(), &data);
   message->SetHandles(std::move(handles));
@@ -520,8 +527,9 @@ void NodeChannel::RelayEventMessage(const ports::NodeName& destination,
   // outlive the broker, as we may continue existing and eventually accept a new
   // broker invitation.
   std::vector<PlatformHandleInTransit> handles = message->TakeHandles();
-  for (auto& handle : handles)
+  for (auto& handle : handles) {
     handle.TakeHandle().release();
+  }
 
   WriteChannelMessage(std::move(relay_message));
 }
@@ -535,8 +543,9 @@ void NodeChannel::EventMessageFromRelay(const ports::NodeName& source,
       CreateMessage(MessageType::EVENT_MESSAGE_FROM_RELAY, num_bytes,
                     message->num_handles(), &data);
   data->source = source;
-  if (message->payload_size())
+  if (message->payload_size()) {
     memcpy(data + 1, message->payload(), message->payload_size());
+  }
   relayed_message->SetHandles(message->TakeHandles());
   WriteChannelMessage(std::move(relayed_message));
 }
@@ -667,8 +676,9 @@ void NodeChannel::OnChannelMessage(
           DLOG(ERROR) << "Dropping invalid AcceptBrokerClient message.";
           break;
         }
-        if (handles.size() == 1)
+        if (handles.size() == 1) {
           broker_channel = std::move(handles[0]);
+        }
 
         // Attach any capabilities that the other side advertised.
         SetRemoteCapabilities(data.capabilities);
@@ -694,8 +704,9 @@ void NodeChannel::OnChannelMessage(
       if (GetMessagePayload(payload, payload_size, &data)) {
         // Don't accept an empty token.
         size_t token_size = payload_size - sizeof(data) - sizeof(Header);
-        if (token_size == 0)
+        if (token_size == 0) {
           break;
+        }
         std::string token(reinterpret_cast<const char*>(payload) +
                               sizeof(Header) + sizeof(data),
                           token_size);
@@ -725,8 +736,9 @@ void NodeChannel::OnChannelMessage(
           break;
         }
         PlatformHandle channel_handle;
-        if (handles.size() == 1)
+        if (handles.size() == 1) {
           channel_handle = std::move(handles[0]);
+        }
 
         // The node channel for this introduction will be created later, so we
         // can only pass up the capabilities we received from the broker for
@@ -750,14 +762,16 @@ void NodeChannel::OnChannelMessage(
 
         // If we don't have a handle to the remote process, we should not be
         // receiving relay requests from them because we're not the broker.
-        if (from_process == base::kNullProcessHandle)
+        if (from_process == base::kNullProcessHandle) {
           break;
+        }
       }
       RelayEventMessageData data;
       if (GetMessagePayload(payload, payload_size, &data)) {
         // Don't try to relay an empty message.
-        if (payload_size <= sizeof(Header) + sizeof(data))
+        if (payload_size <= sizeof(Header) + sizeof(data)) {
           break;
+        }
 
         Channel::HandlePolicy handle_policy;
         {
@@ -783,8 +797,9 @@ void NodeChannel::OnChannelMessage(
 #endif
 
     case MessageType::BROADCAST_EVENT: {
-      if (payload_size <= sizeof(Header))
+      if (payload_size <= sizeof(Header)) {
         break;
+      }
       const void* data = static_cast<const void*>(
           reinterpret_cast<const Header*>(payload) + 1);
       Channel::MessagePtr message =
@@ -802,19 +817,21 @@ void NodeChannel::OnChannelMessage(
     case MessageType::EVENT_MESSAGE_FROM_RELAY: {
       EventMessageFromRelayData data;
       if (GetMessagePayload(payload, payload_size, &data)) {
-        if (payload_size < (sizeof(Header) + sizeof(data)))
+        if (payload_size < (sizeof(Header) + sizeof(data))) {
           break;
+        }
 
         size_t num_bytes = payload_size - sizeof(data) - sizeof(Header);
 
         Channel::MessagePtr message =
             Channel::Message::CreateMessage(num_bytes, handles.size());
         message->SetHandles(std::move(handles));
-        if (num_bytes)
+        if (num_bytes) {
           memcpy(message->mutable_payload(),
                  static_cast<const uint8_t*>(payload) + sizeof(Header) +
                      sizeof(data),
                  num_bytes);
+        }
         delegate_->OnEventMessageFromRelay(remote_node_name_, data.source,
                                            std::move(message));
         return;
@@ -847,8 +864,9 @@ void NodeChannel::OnChannelMessage(
 
   DLOG(ERROR) << "Received invalid message type: "
               << static_cast<int>(header->type) << " closing channel.";
-  if (process_error_callback_)
+  if (process_error_callback_) {
     process_error_callback_.Run("NodeChannel received a malformed message");
+  }
   delegate_->OnChannelError(remote_node_name_, this);
 }
 
@@ -873,10 +891,11 @@ void NodeChannel::OnChannelError(Channel::Error error) {
 
 void NodeChannel::WriteChannelMessage(Channel::MessagePtr message) {
   base::AutoLock lock(channel_lock_);
-  if (!channel_)
+  if (!channel_) {
     DLOG(ERROR) << "Dropping message on closed channel.";
-  else
+  } else {
     channel_->Write(std::move(message));
+  }
 }
 
 void NodeChannel::OfferChannelUpgrade() {

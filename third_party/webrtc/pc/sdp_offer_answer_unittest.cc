@@ -1177,7 +1177,7 @@ TEST_F(SdpOfferAnswerTest, RejectsAnswerWithInvalidTransport) {
 
   auto initial_offer = pc1->CreateOfferAndSetAsLocal();
   ASSERT_EQ(initial_offer->description()->contents().size(), 1u);
-  auto mid = initial_offer->description()->contents()[0].mid();
+  std::string mid = initial_offer->description()->contents()[0].mid();
 
   EXPECT_TRUE(pc2->SetRemoteDescription(std::move(initial_offer)));
   auto initial_answer = pc2->CreateAnswerAndSetAsLocal();

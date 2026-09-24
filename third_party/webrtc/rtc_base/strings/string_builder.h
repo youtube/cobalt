@@ -90,12 +90,10 @@ class SimpleStringBuilder {
 // might be more efficient for some use cases.
 class StringBuilder {
  public:
-  StringBuilder() {}
+  StringBuilder() = default;
   explicit StringBuilder(absl::string_view s) : str_(s) {}
-
-  // TODO(tommi): Support construction from StringBuilder?
-  StringBuilder(const StringBuilder&) = delete;
-  StringBuilder& operator=(const StringBuilder&) = delete;
+  StringBuilder(const StringBuilder&) = default;
+  StringBuilder& operator=(const StringBuilder&) = default;
 
   StringBuilder& operator<<(const absl::string_view str) {
     str_.append(str.data(), str.length());

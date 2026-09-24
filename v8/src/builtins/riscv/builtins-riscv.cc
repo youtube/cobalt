@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-arguments.h"
+#include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
@@ -3139,8 +3140,7 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
   // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
   // of 8 bits each.
   __ VU.set(16, E8, m1);
-  for (auto it = reg_list.rbegin(); it != reg_list.rend(); ++it) {
-    VRegister vector_reg = *it;
+  for (VRegister vector_reg : base::Reversed(reg_list)) {
     __ vl(vector_reg, sp, 0, E8);
     __ AddWord(sp, sp, Operand(kSimd128Size));
   }
@@ -3795,8 +3795,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     __ PrepareCallCFunction(num_args, tmp);
     __ CallCFunction(fn, num_args);
   }
-  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
-    __ Pop(*it);
+  for (auto reg : base::Reversed(keep)) {
+    __ Pop(reg);
   }
 }
 
@@ -3999,16 +3999,18 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   DEFINE_PINNED(target_stack, WasmFXResumeDescriptor::GetRegisterParameter(0));
   DEFINE_PINNED(arg_buffer, WasmFXResumeDescriptor::GetRegisterParameter(1))
-  Label suspend;
+  Label return_;
   DEFINE_REG(scratch);
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, scratch,
+               target_stack, &return_, no_reg, scratch,
                {target_stack, arg_buffer});
   // kSimulatorBreakArgument is t6
   DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
-  __ bind(&suspend);
+  __ bind(&return_);
+  // Return the arg buffer.
+  __ mv(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4056,13 +4058,15 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
-  DEFINE_PINNED(active_stack, a0);
+  DEFINE_PINNED(arg_buffer, WasmFXReturnDescriptor::GetRegisterParameter(0));
+  DEFINE_PINNED(active_stack, a1);
+  DCHECK_NE(arg_buffer, active_stack);
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
-  DEFINE_PINNED(parent, a1);
+  DEFINE_PINNED(parent, a2);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   DEFINE_REG(scratch);
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, scratch, {parent});
+               no_reg, scratch, {parent, arg_buffer});
   LoadJumpBuffer(masm, parent, true, scratch);
   __ Trap();
 }
@@ -4500,7 +4504,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register argc = no_reg;
   Register func_templ = no_reg;
   Register topmost_script_having_context = no_reg;
-  Register scratch = t0;
+  Register scratch = a4;
+  Register undef = a5;
 
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
@@ -4524,67 +4529,40 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     func_templ, scratch));
+                     func_templ, scratch, undef));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiCallbackExitFrameConstants;
 
-  static_assert(FCA::kArgsLength == 6);
-  static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kTargetIndex == 4);
-  static_assert(FCA::kReturnValueIndex == 3);
-  static_assert(FCA::kContextIndex == 2);
-  static_assert(FCA::kIsolateIndex == 1);
-  static_assert(FCA::kUnusedIndex == 0);
+  static_assert(FCA::kApiArgsLength == 4);
+  static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
-  // Target state:
-  //   sp[0 * kSystemPointerSize]: kUnused   <= FCA::implicit_args_
-  //   sp[1 * kSystemPointerSize]: kIsolate
-  //   sp[2 * kSystemPointerSize]: kContext
-  //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
-  //   sp[4 * kSystemPointerSize]: kTarget
-  //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
-  // Existing state:
-  //   sp[6 * kSystemPointerSize]:            <= FCA:::values_
+  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
+  //
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...    JS arguments
+  //                           |  sp[4]: receiver        <- kReceiverIndex
+  //                           |  sp[3]: target          <- kTargetIndex
+  //                           |  sp[2]: undefined       <- kReturnValueIndex
+  //  ...    JS arguments      |  sp[1]: context         <- kContextIndex
+  //  sp[0]: receiver          |  sp[0]: isolate         <- kIsolateIndex
+  //
 
   __ StoreRootRelative(IsolateData::topmost_script_having_context_offset(),
                        topmost_script_having_context);
-  if (mode == CallApiCallbackMode::kGeneric) {
-    api_function_address = ReassignRegister(topmost_script_having_context);
-  }
-  // Reserve space on the stack.
-  static constexpr int kStackSize = FCA::kArgsLength;
-  static_assert(kStackSize % 2 == 0);
-  __ SubWord(sp, sp, Operand(kStackSize * kSystemPointerSize));
-
-  // kIsolate.
   __ li(scratch, ER::isolate_address());
-  __ StoreWord(scratch,
-               MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
-
-  // kContext
-  __ StoreWord(cp, MemOperand(sp, FCA::kContextIndex * kSystemPointerSize));
-
-  // kReturnValue
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ StoreWord(scratch,
-               MemOperand(sp, FCA::kReturnValueIndex * kSystemPointerSize));
-
-  // kTarget.
-  __ StoreWord(func_templ,
-               MemOperand(sp, FCA::kTargetIndex * kSystemPointerSize));
-
-  // kNewTarget.
-  __ StoreWord(scratch,
-               MemOperand(sp, FCA::kNewTargetIndex * kSystemPointerSize));
-
-  // kUnused.
-  __ StoreWord(scratch, MemOperand(sp, FCA::kUnusedIndex * kSystemPointerSize));
+  __ LoadRoot(undef, RootIndex::kUndefinedValue);
+  __ Push(func_templ, undef,  // kTarget, kReturnValueIndex
+          cp, scratch);       // kContextIndex, kIsolateIndex
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
+    api_function_address = ReassignRegister(topmost_script_having_context);
     __ LoadExternalPointerField(
         api_function_address,
         FieldMemOperand(func_templ, FunctionTemplateInfo::kCallbackOffset),
@@ -4596,16 +4574,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::FunctionCallbackInfo");
-    // FunctionCallbackInfo::length_.
+    // kArgcIndex
     // TODO(ishell): pass JSParameterCount(argc) to simplify things on the
     // caller end.
     __ StoreWord(argc, argc_operand);
-    // FunctionCallbackInfo::implicit_args_.
-    __ AddWord(scratch, fp, Operand(FC::kImplicitArgsArrayOffset));
-    __ StoreWord(scratch, MemOperand(fp, FC::kFCIImplicitArgsOffset));
-    // FunctionCallbackInfo::values_ (points at JS arguments on the stack).
-    __ AddWord(scratch, fp, Operand(FC::kFirstArgumentOffset));
-    __ StoreWord(scratch, MemOperand(fp, FC::kFCIValuesOffset));
   }
   __ RecordComment("v8::FunctionCallback's argument");
   __ AddWord(function_callback_info_arg, fp,
@@ -4615,7 +4587,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register no_thunk_arg = no_reg;
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kFunctionCallbackInfoArgsLength + kJSArgcReceiverSlots;
+      FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,

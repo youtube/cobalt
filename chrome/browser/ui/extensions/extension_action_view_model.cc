@@ -24,7 +24,7 @@
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/extensions/extension_action_platform_delegate.h"
+#include "chrome/browser/ui/extensions/extension_action_delegate.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/extensions/icon_with_badge_image_source.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
@@ -36,6 +36,7 @@
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/permissions/site_permissions_helper.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -51,6 +52,8 @@
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using content::WebContentsObserver;
 using extensions::ActionInfo;
@@ -137,7 +140,7 @@ ExtensionActionViewModel::HoverCardState::AdminPolicy GetHoverCardPolicyState(
 std::unique_ptr<ExtensionActionViewModel> ExtensionActionViewModel::Create(
     const extensions::ExtensionId& extension_id,
     BrowserWindowInterface* browser,
-    std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate) {
+    std::unique_ptr<ExtensionActionDelegate> delegate) {
   DCHECK(browser);
 
   Profile* profile = browser->GetProfile();
@@ -153,20 +156,7 @@ std::unique_ptr<ExtensionActionViewModel> ExtensionActionViewModel::Create(
   // WrapUnique() because the constructor is private.
   return base::WrapUnique(new ExtensionActionViewModel(
       std::move(extension), browser, extension_action, registry,
-      std::move(platform_delegate)));
-}
-
-// static
-bool ExtensionActionViewModel::AnyActionHasCurrentSiteAccess(
-    const std::vector<std::unique_ptr<ToolbarActionViewModel>>& actions,
-    content::WebContents* web_contents) {
-  for (const auto& action : actions) {
-    if (action->GetSiteInteraction(web_contents) ==
-        extensions::SitePermissionsHelper::SiteInteraction::kGranted) {
-      return true;
-    }
-  }
-  return false;
+      std::move(delegate)));
 }
 
 ExtensionActionViewModel::ExtensionActionViewModel(
@@ -174,16 +164,16 @@ ExtensionActionViewModel::ExtensionActionViewModel(
     BrowserWindowInterface* browser,
     extensions::ExtensionAction* extension_action,
     extensions::ExtensionRegistry* extension_registry,
-    std::unique_ptr<ExtensionActionPlatformDelegate> platform_delegate)
+    std::unique_ptr<ExtensionActionDelegate> delegate)
     : extension_id_(extension->id()),
       extension_(std::move(extension)),
       browser_(browser),
       profile_(browser->GetProfile()),
       extension_action_(extension_action),
-      platform_delegate_(std::move(platform_delegate)),
+      delegate_(std::move(delegate)),
       icon_factory_(extension_.get(), extension_action, this),
       extension_registry_(extension_registry) {
-  platform_delegate_->AttachToModel(this);
+  delegate_->AttachToModel(this);
   WebContentsObserver::Observe(GetCurrentWebContents());
   tab_list_observation_.Observe(TabListInterface::From(browser_));
   toolbar_model_observation_.Observe(ToolbarActionsModel::Get(profile_));
@@ -194,7 +184,7 @@ ExtensionActionViewModel::ExtensionActionViewModel(
 ExtensionActionViewModel::~ExtensionActionViewModel() {
   DCHECK(!IsShowingPopup());
   WebContentsObserver::Observe(nullptr);
-  platform_delegate_->DetachFromModel();
+  delegate_->DetachFromModel();
 }
 
 std::string ExtensionActionViewModel::GetId() const {
@@ -355,15 +345,15 @@ bool ExtensionActionViewModel::IsEnabled(
 }
 
 bool ExtensionActionViewModel::IsShowingPopup() const {
-  return platform_delegate_->IsShowingPopup();
+  return delegate_->IsShowingPopup();
 }
 
 void ExtensionActionViewModel::HidePopup() {
-  return platform_delegate_->HidePopup();
+  return delegate_->HidePopup();
 }
 
 gfx::NativeView ExtensionActionViewModel::GetPopupNativeView() {
-  return platform_delegate_->GetPopupNativeView();
+  return delegate_->GetPopupNativeView();
 }
 
 ui::MenuModel* ExtensionActionViewModel::GetContextMenu(
@@ -390,7 +380,7 @@ void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {
 
   content::WebContents* const web_contents = GetCurrentWebContents();
   if (!IsEnabled(web_contents)) {
-    platform_delegate_->ShowContextMenuAsFallback();
+    delegate_->ShowContextMenuAsFallback();
     return;
   }
 
@@ -402,7 +392,7 @@ void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {
 
   RecordInvocationSource(source);
 
-  platform_delegate_->CloseOverflowMenuIfOpen();
+  delegate_->CloseOverflowMenuIfOpen();
 
   // This method is only called to execute an action by the user, so we can
   // always grant tab permissions.
@@ -435,11 +425,11 @@ void ExtensionActionViewModel::RegisterCommand() {
     return;
   }
 
-  platform_delegate_->RegisterCommand();
+  delegate_->RegisterCommand();
 }
 
 void ExtensionActionViewModel::UnregisterCommand() {
-  platform_delegate_->UnregisterCommand();
+  delegate_->UnregisterCommand();
 }
 
 void ExtensionActionViewModel::DidFinishNavigation(
@@ -545,6 +535,13 @@ bool ExtensionActionViewModel::ExtensionIsValid() const {
   return extension_registry_->enabled_extensions().Contains(extension_->id());
 }
 
+const extensions::Extension* ExtensionActionViewModel::GetExtension() const {
+  if (!ExtensionIsValid()) {
+    return nullptr;
+  }
+  return extension_.get();
+}
+
 bool ExtensionActionViewModel::GetExtensionCommand(
     extensions::Command* command) const {
   DCHECK(command);
@@ -631,14 +628,14 @@ void ExtensionActionViewModel::TriggerPopup(PopupShowAction show_action,
   const GURL popup_url = extension_action_->GetPopupUrl(tab_id);
 
   std::unique_ptr<extensions::ExtensionViewHost> host =
-      extensions::ExtensionViewHostFactory::CreatePopupHost(popup_url,
-                                                            browser_);
+      extensions::ExtensionViewHostFactory::CreatePopupHost(
+          *extension_, popup_url, browser_);
   // Creating a host should never fail in this case, since the extension is
   // valid and has a valid popup URL.
   CHECK(host);
 
-  platform_delegate_->TriggerPopup(std::move(host), show_action, by_user,
-                                   std::move(callback));
+  delegate_->TriggerPopup(std::move(host), show_action, by_user,
+                          std::move(callback));
 }
 
 std::unique_ptr<IconWithBadgeImageSource>

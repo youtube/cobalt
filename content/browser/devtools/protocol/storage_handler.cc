@@ -935,7 +935,9 @@ StorageHandler::IndexedDBObserver* StorageHandler::GetIndexedDBObserver() {
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 SharedStorageRuntimeManager* StorageHandler::GetSharedStorageRuntimeManager() {
-  DCHECK(storage_partition_);
+  if (!storage_partition_) {
+    return nullptr;
+  }
   return static_cast<StoragePartitionImpl*>(storage_partition_)
       ->GetSharedStorageRuntimeManager();
 }
@@ -1544,7 +1546,12 @@ void StorageHandler::ClearSharedStorageEntries(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+<<<<<<< HEAD
+  // FIXME: this should remember the state and restore it
+  // once the StorageRunTimeManager or the storage partition is available.
+=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {

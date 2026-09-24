@@ -42,7 +42,6 @@
 
 namespace blink {
 
-class VideoFrameCallbackRequester;
 class ImageBitmapOptions;
 class IntersectionObserverEntry;
 class MediaCustomControlsFullscreenDetector;
@@ -52,14 +51,14 @@ class PictureInPictureInterstitial;
 class StaticBitmapImage;
 class VideoWakeLock;
 
-class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
-                                           public CanvasImageSource,
-                                           public ImageBitmapSource {
+class CORE_EXPORT HTMLVideoElement final
+    : public HTMLMediaElement,
+      public CanvasImageSource,
+      public ImageBitmapSource,
+      public Supplementable<HTMLVideoElement> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  enum class Supplements { kVideoFrameCallbackRequester = 0 };
-
   static const int kNoAlreadyUploadedFrame = -1;
 
   explicit HTMLVideoElement(Document&);
@@ -176,6 +175,8 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
     return visibility_tracker_.Get();
   }
 
+<<<<<<< HEAD
+=======
   VideoFrameCallbackRequester* GetVideoFrameCallbackRequester() const {
     return video_frame_callback_requester_;
   }
@@ -193,6 +194,7 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -305,6 +307,8 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   cc::PaintFlags::FilterQuality filter_quality_ =
       cc::PaintFlags::FilterQuality::kLow;
   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
+<<<<<<< HEAD
+=======
 
 
   Member<VideoFrameCallbackRequester> video_frame_callback_requester_;
@@ -312,6 +316,7 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink

@@ -984,7 +984,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 buildModelForStandardMenuItem(
                         R.id.ntp_customization_id,
                         R.string.menu_ntp_customization,
-                        shouldShowIconBeforeItem() ? R.drawable.bookmark_edit_active : 0));
+                        shouldShowIconBeforeItem() ? R.drawable.ic_edit_24dp : 0));
     }
 
     private MVCListAdapter.ListItem buildHelpItem() {
@@ -993,7 +993,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 buildModelForStandardMenuItem(
                         R.id.help_id,
                         R.string.menu_help,
-                        shouldShowIconBeforeItem() ? R.drawable.help_outline : 0));
+                        shouldShowIconBeforeItem() ? R.drawable.ic_help_24dp : 0));
     }
 
     private boolean shouldShowQuickDeleteItem() {

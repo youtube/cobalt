@@ -195,6 +195,20 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
   UNREACHABLE();
 }
 
+std::ostream& operator<<(std::ostream& os, PrivateSymbolKind kind) {
+  switch (kind) {
+    case PrivateSymbolKind::kPublic:
+      return os << "Public";
+    case PrivateSymbolKind::kInternal:
+      return os << "Internal";
+    case PrivateSymbolKind::kFieldName:
+      return os << "FieldName";
+    case PrivateSymbolKind::kBrand:
+      return os << "Brand";
+  }
+  return os << "Unknown(" << static_cast<int>(kind) << ")";
+}
+
 // static
 DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
                                             Isolate* isolate,
@@ -608,7 +622,7 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
     // -- S y m b o l
     DirectHandle<Symbol> symbol = Cast<Symbol>(input);
 
-    if (symbol->is_private_name()) {
+    if (symbol->is_any_private_name()) {
       return DirectHandle<String>(Cast<String>(symbol->description()), isolate);
     }
 
@@ -1236,6 +1250,42 @@ MaybeDirectHandle<Object> Object::GetLengthFromArrayLike(
   return Object::ToLength(isolate, val);
 }
 
+MaybeHandle<Object> Object::InstantiateIfLazyClosure(
+    LookupIterator* it, DirectHandle<Object> value) {
+  DirectHandle<SharedFunctionInfo> shared;
+  if (TryCast<SharedFunctionInfo>(value, &shared)) {
+    DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
+    DCHECK(holder->map()->is_prototype_map());
+    if (Tagged<PrototypeSharedClosureInfo> closure_info;
+        holder->map()->TryGetPrototypeSharedClosureInfo(&closure_info)) {
+      int current_slot = shared->feedback_slot();
+
+      DirectHandle<FeedbackCell> feedback_cell(
+          closure_info->closure_feedback_cell_array()->get(current_slot),
+          it->isolate());
+      auto val = Factory::JSFunctionBuilder{it->isolate(), shared,
+                                            DirectHandle<Context>::New(
+                                                closure_info->context(),
+                                                it->isolate())}
+                     .set_feedback_cell(feedback_cell)
+                     .set_allocation_type(AllocationType::kYoung)
+                     .Build();
+      LookupIterator it2(it->isolate(), holder, it->GetName(),
+                         LookupIterator::OWN_SKIP_INTERCEPTOR);
+      DCHECK_EQ(it2.state(), LookupIterator::DATA);
+      bool result =
+          Object::SetProperty(&it2, val, StoreOrigin::kNamed).ToChecked();
+      CHECK(result);  // This store must not throw and must not fail.
+      return val;
+    } else {
+      // If there is still and SFI stored as property at this stage,
+      // there should be a closure info for it.
+      UNREACHABLE();
+    }
+  }
+  return MaybeHandle<Object>();
+}
+
 // static
 MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
                                         bool is_global_reference) {
@@ -1285,12 +1335,24 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return GetPropertyWithAccessor(it);
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return it->isolate()->factory()->undefined_value();
-      case LookupIterator::DATA:
-        return it->GetDataValue();
+      case LookupIterator::DATA: {
+        if (!v8_flags.proto_assign_seq_lazy_func_opt) {
+          return it->GetDataValue();
+        } else {
+          DirectHandle<Object> value = it->GetDataValue();
+          MaybeHandle<Object> ret = InstantiateIfLazyClosure(it, value);
+          if (!ret.IsEmpty()) {
+            return ret;
+          }
+
+          return indirect_handle(value, it->isolate());
+        }
+      }
+
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
         return it->GetStringPropertyValue();
       case LookupIterator::NOT_FOUND:
-        if (it->IsPrivateName()) {
+        if (it->IsAnyPrivateName()) {
           auto private_symbol = Cast<Symbol>(it->name());
           DirectHandle<String> name_string(
               Cast<String>(private_symbol->description()), it->isolate());
@@ -1324,7 +1386,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
                                         bool* was_found) {
   *was_found = true;
 
-  DCHECK(!name->IsPrivate());
+  DCHECK(!name->IsAnyPrivate());
   STACK_CHECK(isolate, kNullMaybeHandle);
   DirectHandle<Name> trap_name = isolate->factory()->get_string();
   // 1. Assert: IsPropertyKey(P) is true.
@@ -1535,7 +1597,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
     PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                    Just(kDontThrow));
-    DirectHandle<JSAny> result = args.CallAccessorGetter(info, name);
+    DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
@@ -1604,7 +1666,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
     PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                    should_throw);
-    bool result = args.CallAccessorSetter(info, name, value);
+    bool result = args.CallAccessorSetter(isolate, info, name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
     if (!result) {
       // Make sure TypeError is thrown if necessary in case the callback
@@ -2646,8 +2708,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
                                     DirectHandle<Object> value) {
   Isolate* isolate = it->isolate();
   DCHECK_IMPLIES(IsJSProxy(*it->GetReceiver(), isolate),
-                 it->GetName()->IsPrivateName());
-  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsPrivateName(),
+                 it->GetName()->IsAnyPrivateName());
+  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsAnyPrivateName(),
                  it->state() == LookupIterator::DATA);
   DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(it->GetReceiver());
 
@@ -2715,8 +2777,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
 
   // Private symbols should be installed on JSProxy using
   // JSProxy::SetPrivateSymbol.
-  if (IsJSProxy(*it->GetReceiver()) && it->GetName()->IsPrivate() &&
-      !it->GetName()->IsPrivateName()) {
+  if (IsJSProxy(*it->GetReceiver()) && it->GetName()->IsPrivateInternal()) {
     RETURN_FAILURE(it->isolate(), GetShouldThrow(it->isolate(), should_throw),
                    NewTypeError(MessageTemplate::kProxyPrivate));
   }
@@ -2724,7 +2785,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
   DCHECK_NE(LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND, it->state());
 
   DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
-  DCHECK_IMPLIES(IsJSProxy(*receiver), it->GetName()->IsPrivateName());
+  DCHECK_IMPLIES(IsJSProxy(*receiver), it->GetName()->IsAnyPrivateName());
   DCHECK_IMPLIES(IsJSProxy(*receiver),
                  it->state() == LookupIterator::NOT_FOUND);
 
@@ -2933,7 +2994,7 @@ Maybe<bool> JSProxy::IsArray(DirectHandle<JSProxy> proxy) {
 
 Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
                                  DirectHandle<Name> name) {
-  DCHECK(!name->IsPrivate());
+  DCHECK(!name->IsAnyPrivate());
   STACK_CHECK(isolate, Nothing<bool>());
   // 1. (Assert)
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -3007,7 +3068,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
                                  DirectHandle<Object> value,
                                  DirectHandle<JSAny> receiver,
                                  Maybe<ShouldThrow> should_throw) {
-  DCHECK(!name->IsPrivate());
+  DCHECK(!name->IsAnyPrivate());
   Isolate* isolate = Isolate::Current();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
@@ -3055,7 +3116,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
 Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
                                              DirectHandle<Name> name,
                                              LanguageMode language_mode) {
-  DCHECK(!name->IsPrivate());
+  DCHECK(!name->IsAnyPrivate());
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
   Isolate* isolate = Isolate::Current();
@@ -3364,8 +3425,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
                                        PropertyDescriptor* desc,
                                        Maybe<ShouldThrow> should_throw) {
   STACK_CHECK(isolate, Nothing<bool>());
-  if (IsSymbol(*key) && Cast<Symbol>(key)->IsPrivate()) {
-    DCHECK(!Cast<Symbol>(key)->IsPrivateName());
+  if (IsSymbol(*key) && Cast<Symbol>(key)->IsPrivateInternal()) {
     return JSProxy::SetPrivateSymbol(isolate, proxy, Cast<Symbol>(key), desc,
                                      should_throw);
   }
@@ -3402,7 +3462,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
       IsName(*key) ? Cast<Name>(key)
                    : Cast<Name>(isolate->factory()->NumberToString(key));
   // Do not leak private property names.
-  DCHECK(!property_name->IsPrivate());
+  DCHECK(!property_name->IsAnyPrivate());
   DirectHandle<Object> trap_result_obj;
   DirectHandle<Object> args[] = {target, property_name, desc_obj};
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3535,7 +3595,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
                                               DirectHandle<JSProxy> proxy,
                                               DirectHandle<Name> name,
                                               PropertyDescriptor* desc) {
-  DCHECK(!name->IsPrivate());
+  DCHECK(!name->IsAnyPrivate());
   STACK_CHECK(isolate, Nothing<bool>());
 
   DirectHandle<String> trap_name =
@@ -3767,7 +3827,7 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       Tagged<Name> key = source->GetKey(i);
       PropertyDetails details = source->GetDetails(i);
       // Bulk attribute changes never affect private properties.
-      if (!key->IsPrivate()) {
+      if (!key->IsAnyPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
         // READ_ONLY is an invalid attribute for JS setters/getters.
         Tagged<HeapObject> heap_object;
@@ -4495,8 +4555,6 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
       return "maybe tenure";
     case kTenure:
       return "tenure";
-    case kZombie:
-      return "zombie";
     default:
       UNREACHABLE();
   }

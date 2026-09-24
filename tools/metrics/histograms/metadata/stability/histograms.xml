@@ -334,6 +334,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Stability.ChildFrameCrash.PageWillReload" enum="Boolean"
+    expires_after="2026-05-03">
+  <owner>kawasin@google.com</owner>
+  <owner>boliu@chromium.org</owner>
+  <summary>
+    Logs whether a page with a crashed subframe will be marked for reload. The
+    logic is implemented as ReloadHiddenTabsWithCrashedSubframes feature but
+    DiscardPageWithCrashedSubframePolicy logs the result with the same logic.
+    This is a supplementary metrics to understand
+    Stability.ChildFrameCrash.PageEligibleToDiscard metrics better. Logged once
+    per subframe process crash.
+  </summary>
+</histogram>
+
 <histogram name="Stability.ChildFrameCrash.ShownAfterCrashingReason"
     enum="ShownAfterCrashingReason" expires_after="2026-08-24">
   <owner>alexmos@chromium.org</owner>
@@ -347,7 +361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload"
-    enum="BooleanMarkedForReload" expires_after="2026-04-19">
+    enum="BooleanMarkedForReload" expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -357,7 +371,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload.Visibility"
-    enum="FrameVisibility" expires_after="2026-04-19">
+    enum="FrameVisibility" expires_after="2026-06-21">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -679,7 +693,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.MobileSessionShutdownType"
-    enum="MobileSessionShutdownType" expires_after="2026-04-12">
+    enum="MobileSessionShutdownType" expires_after="2026-06-14">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>

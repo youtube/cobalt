@@ -24,6 +24,7 @@
 #include "cert_errors.h"
 #include "input.h"
 #include "parsed_certificate.h"
+#include "trust_store.h"
 
 BSSL_NAMESPACE_BEGIN
 
@@ -266,7 +267,7 @@ class OPENSSL_EXPORT VerifyCertificateChainDelegate {
 // The presence of any other unrecognized extension marked as critical fails
 // validation.
 OPENSSL_EXPORT void VerifyCertificateChain(
-    const ParsedCertificateList &certs, const CertificateTrust &last_cert_trust,
+    const ParsedCertificateList &certs, const TrustAnchor &last_cert_trust,
     VerifyCertificateChainDelegate *delegate, const der::GeneralizedTime &time,
     KeyPurpose required_key_purpose,
     InitialExplicitPolicy initial_explicit_policy,

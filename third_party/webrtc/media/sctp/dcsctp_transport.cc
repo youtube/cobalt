@@ -408,15 +408,17 @@ int DcSctpTransport::max_message_size() const {
 }
 
 std::optional<int> DcSctpTransport::max_outbound_streams() const {
-  if (!socket_)
+  if (!socket_ || !socket_->GetMetrics().has_value()) {
     return std::nullopt;
-  return socket_->options().announced_maximum_outgoing_streams;
+  }
+  return socket_->GetMetrics()->negotiated_maximum_outgoing_streams;
 }
 
 std::optional<int> DcSctpTransport::max_inbound_streams() const {
-  if (!socket_)
+  if (!socket_ || !socket_->GetMetrics().has_value()) {
     return std::nullopt;
-  return socket_->options().announced_maximum_incoming_streams;
+  }
+  return socket_->GetMetrics()->negotiated_maximum_incoming_streams;
 }
 
 size_t DcSctpTransport::buffered_amount(int sid) const {
@@ -777,6 +779,7 @@ dcsctp::DcSctpOptions DcSctpTransport::CreateDcSctpOptions(
   dcsctp_options.max_init_retransmits = std::nullopt;
   dcsctp_options.per_stream_send_queue_limit =
       DataChannelInterface::MaxSendQueueSize();
+  dcsctp_options.announced_maximum_outgoing_streams = options.max_sctp_streams;
   // This is just set to avoid denial-of-service. Practically unlimited.
   dcsctp_options.max_send_buffer_size = std::numeric_limits<size_t>::max();
   dcsctp_options.enable_message_interleaving =

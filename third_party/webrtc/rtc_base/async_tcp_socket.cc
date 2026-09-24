@@ -59,13 +59,13 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(
   inbuf_.EnsureCapacity(kMinimumRecvSize);
 
   socket_->SubscribeConnectEvent(
-      [this](Socket* socket) { OnConnectEvent(socket); });
+      this, [this](Socket* socket) { OnConnectEvent(socket); });
   socket_->SubscribeReadEvent(this,
                               [this](Socket* socket) { OnReadEvent(socket); });
   socket_->SubscribeWriteEvent(
       this, [this](Socket* socket) { OnWriteEvent(socket); });
   socket_->SubscribeCloseEvent(
-      [this](Socket* socket, int error) { OnCloseEvent(socket, error); });
+      this, [this](Socket* socket, int error) { OnCloseEvent(socket, error); });
 }
 
 AsyncTCPSocketBase::~AsyncTCPSocketBase() {}

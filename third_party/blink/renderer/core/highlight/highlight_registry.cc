@@ -38,8 +38,7 @@ HighlightRegistry::HighlightRegistry(LocalDOMWindow& window)
 
 HighlightRegistry::~HighlightRegistry() = default;
 
-const unsigned HighlightRegistry::kSupplementIndex =
-    static_cast<unsigned>(LocalDOMWindow::Supplements::kHighlightRegistry);
+const char HighlightRegistry::kSupplementName[] = "HighlightRegistry";
 
 void HighlightRegistry::Trace(blink::Visitor* visitor) const {
   visitor->Trace(highlights_);
@@ -55,8 +54,12 @@ HighlightRegistry* HighlightRegistry::GetHighlightRegistry(const Node* node) {
   }
   return node->GetDocument()
       .domWindow()
+<<<<<<< HEAD
+      ->Supplementable<LocalDOMWindow>::RequireSupplement<HighlightRegistry>();
+=======
       ->Supplementable<LocalDOMWindow,
                        51>::RequireSupplement<HighlightRegistry>();
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool HighlightRegistry::IsAbstractRangePaintable(AbstractRange* abstract_range,

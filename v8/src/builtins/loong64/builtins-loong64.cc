@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_LOONG64
 
 #include "src/api/api-arguments.h"
+#include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
@@ -363,8 +364,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadStackLimit(kScratchReg,
-                    MacroAssembler::StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
   __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
 
   Register argc = kJavaScriptCallArgCountRegister;
@@ -497,7 +497,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadStackLimit(scratch1, MacroAssembler::StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(scratch1, StackLimitKind::kRealStackLimit);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
   __ sub_d(scratch1, sp, scratch1);
@@ -1020,8 +1020,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register sp_minus_frame_size = temps.Acquire();
     __ Sub_d(sp_minus_frame_size, sp, frame_size);
     Register interrupt_limit = temps.Acquire();
-    __ LoadStackLimit(interrupt_limit,
-                      MacroAssembler::StackLimitKind::kInterruptStackLimit);
+    __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
     __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
@@ -1172,7 +1171,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Do a stack check to ensure we don't go over the limit.
     __ Sub_d(a6, sp, Operand(a5));
-    __ LoadStackLimit(a2, MacroAssembler::StackLimitKind::kRealStackLimit);
+    __ LoadStackLimit(a2, StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, lo, a6, Operand(a2));
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1204,7 +1203,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  __ LoadStackLimit(a5, MacroAssembler::StackLimitKind::kInterruptStackLimit);
+  __ LoadStackLimit(a5, StackLimitKind::kInterruptStackLimit);
   __ Branch(&stack_check_interrupt, lo, sp, Operand(a5));
   __ bind(&after_stack_check_interrupt);
 
@@ -1290,7 +1289,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 #endif  // !V8_JITLESS
@@ -2066,6 +2064,35 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   }
 }
 
+#ifdef V8_ENABLE_MAGLEV
+
+void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
+                                                      bool save_new_target) {
+  // Input (a0): Stack size (Smi).
+  // This builtin can be invoked just after Maglev's prologue.
+  // All registers are available, except (possibly) new.target.
+  ASM_CODE_COMMENT(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ AssertSmi(a0);
+    if (save_new_target) {
+      if (PointerCompressionIsEnabled()) {
+        __ AssertSmiOrHeapObjectInMainCompressionCage(
+            kJavaScriptCallNewTargetRegister);
+      }
+      __ Push(kJavaScriptCallNewTargetRegister);
+    }
+    __ Push(a0);
+    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+    if (save_new_target) {
+      __ Pop(kJavaScriptCallNewTargetRegister);
+    }
+  }
+  __ Ret();
+}
+
+#endif  // V8_ENABLE_MAGLEV
+
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -2374,8 +2401,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 #if V8_STATIC_ROOTS_BOOL
     __ Branch(&push, ne, a5, RootIndex::kTheHoleValue);
 #else
-    __ slli_w(t0, a5, 0);
-    __ Branch(&push, ne, t0, Operand(t1));
+    __ Branch(&push, ne, a5, Operand(t1));
 #endif
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
@@ -2589,8 +2615,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Sub_d(t0, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(kScratchReg,
-                      MacroAssembler::StackLimitKind::kRealStackLimit);
+    __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
     __ Branch(&done, hs, t0, Operand(kScratchReg));
     {
       FrameScope scope(masm, StackFrame::MANUAL);
@@ -2697,8 +2722,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Sub_d(t0, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(kScratchReg,
-                      MacroAssembler::StackLimitKind::kRealStackLimit);
+    __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
     __ Branch(&done, hs, t0, Operand(kScratchReg));
     {
       FrameScope scope(masm, StackFrame::MANUAL);
@@ -3042,8 +3066,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     __ CallCFunction(fn, num_args);
   }
 
-  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
-    __ Pop(*it);
+  for (auto reg : base::Reversed(keep)) {
+    __ Pop(reg);
   }
 }
 
@@ -4238,6 +4262,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register func_templ = no_reg;
   Register topmost_script_having_context = no_reg;
   Register scratch = t0;
+  Register undef = t1;
 
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
@@ -4261,63 +4286,42 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       break;
   }
   DCHECK(!AreAliased(api_function_address, topmost_script_having_context, argc,
-                     func_templ, scratch));
+                     func_templ, scratch, undef));
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiCallbackExitFrameConstants;
 
-  static_assert(FCA::kArgsLength == 6);
-  static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kTargetIndex == 4);
-  static_assert(FCA::kReturnValueIndex == 3);
-  static_assert(FCA::kContextIndex == 2);
-  static_assert(FCA::kIsolateIndex == 1);
-  static_assert(FCA::kUnusedIndex == 0);
+  static_assert(FCA::kApiArgsLength == 4);
+  static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
+  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
   //
-  // Target state:
-  //   sp[0 * kSystemPointerSize]: kUnused   <= FCA::implicit_args_
-  //   sp[1 * kSystemPointerSize]: kIsolate
-  //   sp[2 * kSystemPointerSize]: kContext
-  //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
-  //   sp[4 * kSystemPointerSize]: kTarget
-  //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
-  // Existing state:
-  //   sp[6 * kSystemPointerSize]:           <= FCA:::values_
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...    JS arguments
+  //                           |  sp[4]: receiver        <- kReceiverIndex
+  //                           |  sp[3]: target          <- kTargetIndex
+  //                           |  sp[2]: undefined       <- kReturnValueIndex
+  //  ...    JS arguments      |  sp[1]: context         <- kContextIndex
+  //  sp[0]: receiver          |  sp[0]: isolate         <- kIsolateIndex
+  //
 
   __ StoreRootRelative(IsolateData::topmost_script_having_context_offset(),
                        topmost_script_having_context);
-  if (mode == CallApiCallbackMode::kGeneric) {
-    api_function_address = ReassignRegister(topmost_script_having_context);
-  }
 
-  // Reserve space on the stack.
-  __ Sub_d(sp, sp, Operand(FCA::kArgsLength * kSystemPointerSize));
-
-  // kIsolate.
   __ li(scratch, ER::isolate_address());
-  __ St_d(scratch, MemOperand(sp, FCA::kIsolateIndex * kSystemPointerSize));
-
-  // kContext.
-  __ St_d(cp, MemOperand(sp, FCA::kContextIndex * kSystemPointerSize));
-
-  // kReturnValue.
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ St_d(scratch, MemOperand(sp, FCA::kReturnValueIndex * kSystemPointerSize));
-
-  // kTarget.
-  __ St_d(func_templ, MemOperand(sp, FCA::kTargetIndex * kSystemPointerSize));
-
-  // kNewTarget.
-  __ St_d(scratch, MemOperand(sp, FCA::kNewTargetIndex * kSystemPointerSize));
-
-  // kUnused.
-  __ St_d(scratch, MemOperand(sp, FCA::kUnusedIndex * kSystemPointerSize));
+  __ LoadRoot(undef, RootIndex::kUndefinedValue);
+  __ Push(func_templ, undef,  // kTarget, kReturnValueIndex
+          cp, scratch);       // kContextIndex, kIsolateIndex
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
+    api_function_address = ReassignRegister(topmost_script_having_context);
+
     __ LoadExternalPointerField(
         api_function_address,
         FieldMemOperand(func_templ, FunctionTemplateInfo::kCallbackOffset),
@@ -4330,18 +4334,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
-    // FunctionCallbackInfo::length_.
+    // kArgcIndex
     // TODO(ishell): pass JSParameterCount(argc) to simplify things on the
     // caller end.
     __ St_d(argc, argc_operand);
-
-    // FunctionCallbackInfo::implicit_args_.
-    __ Add_d(scratch, fp, Operand(FC::kImplicitArgsArrayOffset));
-    __ St_d(scratch, MemOperand(fp, FC::kFCIImplicitArgsOffset));
-
-    // FunctionCallbackInfo::values_ (points at JS arguments on the stack).
-    __ Add_d(scratch, fp, Operand(FC::kFirstArgumentOffset));
-    __ St_d(scratch, MemOperand(fp, FC::kFCIValuesOffset));
   }
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -4357,7 +4353,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kFunctionCallbackInfoArgsLength + kJSArgcReceiverSlots;
+      FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;

@@ -82,6 +82,7 @@
 <translation id="1843347690926158494">Որոնել այս ներդիրը Google Տեսապակու միջոցով</translation>
 <translation id="1849248141818021764">Միայն ձեր անցաբառն ունեցող մարդիկ կարող են կարդալ ձեր գաղտնագրված տվյալները։ Անցաբառը չի ուղարկվում Google-ին կամ պահվում նրա կողմից։ Եթե մոռացել եք ձեր անցաբառը կամ ուզում եք փոխել այս կարգավորումը, ապա ձեզ անհրաժեշտ կլինի <ph name="BEGIN_LINK" />ջնջել Chrome-ի տվյալները ձեր հաշվում<ph name="END_LINK" />։</translation>
 <translation id="1860536484129686729">Chrome-ին այս կայքի համար անհրաժեշտ է ձեր տեսախցիկն օգտագործելու թույլտվություն</translation>
+<translation id="1867503717113754604">Մուտք գործեք Chrome ձեր Google հաշվով՝ <ph name="START_GLIC_STYLING" />Gemini-ից<ph name="END_GLIC_STYLING" /> օգտվելու համար</translation>
 <translation id="1873233029667955273">Google Chrome-ը ձեր կանխադրված դիտարկիչը չէ</translation>
 <translation id="1874309113135274312">Google Chrome Բետա (mDNS-In)</translation>
 <translation id="1877026089748256423">Chrome-ը հնացած է</translation>
@@ -119,6 +120,7 @@
 <translation id="2216543877350048334">Ձեր Google հաշիվը Chrome-ից հեռացնելու համար դուրս եկեք հաշվից</translation>
 <translation id="2236949375853147973">Իմ գործողությունները</translation>
 <translation id="22791603784558743">Փակել Gemini-ը Chrome Dev-ում</translation>
+<translation id="2284380654876659752">Երբ այցելում եք որևէ կայք, Chrome-ն ուղարկում է URL-ի քողարկված մասը <ph name="BEGIN_LINK" />Google Ապահով դիտարկմանը<ph name="END_LINK" /> գաղտնիության պաշտպանության սերվերի միջոցով, որը թաքցնում է ձեր IP հասցեն։ Եթե կայքը կասկածելի է թվում, Chrome-ը նաև ուղարկում է էջի բովանդակության ամբողջական URL-ները և հատվածները։</translation>
 <translation id="2290014774651636340">Google API-ի բանալիները չկան: Google Chrome-ի որոշ գործառույթներ կանջատվեն:</translation>
 <translation id="2290095356545025170">Իսկապե՞ս հեռացնել Google Chrome-ը:</translation>
 <translation id="2301513536169703857">Գաղտնաբառերը, էջանիշները և մյուս տվյալները ձեր բոլոր սարքերում օգտագործելու համար մուտք գործեք Chrome</translation>
@@ -172,6 +174,7 @@
 <translation id="286025080868315611">Իմացեք, թե ինչու է Chrome-ն արգելափակում որոշ ներբեռնումներ</translation>
 <translation id="2861074815332034794">Chrome-ի թարմացում (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="2871893339301912279">Դուք մուտք եք գործել Chrome:</translation>
+<translation id="2875053229394024379">Google հաշվի միջոցով Chrome մուտք գործելու դեպքում կարող եք օգտագործել ձեր Chrome պրոֆիլը Gemini-ի հետ։ <ph name="BEGIN_LINK" />Ինչպես մուտք գործել Chrome<ph name="END_LINK" /></translation>
 <translation id="2876628302275096482">Իմացեք ավելին, թե <ph name="BEGIN_LINK" />ինչպես է Chrome-ը պահպանում ձեր տվյալների գաղտնիությունը<ph name="END_LINK" /></translation>
 <translation id="2885378588091291677">Task Manager</translation>
 <translation id="2888126860611144412">Chrome-ի մասին</translation>
@@ -202,6 +205,7 @@
 <translation id="3112458742631356345">Chrome-ն արգելափակել է այս ներբեռնումը, քանի որ ֆայլը հազվադեպ է ներբեռնվում, և այն կարող է վտանգավոր լինել</translation>
 <translation id="3114643501466072395">Որպեսզի պաշտպանեք ձեր մյուս գաղտնաբառերը տվյալների արտահոսքից և խուսափեք անվտանգության հետ կապված այլ խնդիրներից, <ph name="BEGIN_LINK" />մտեք հաշիվ Chrome դիտարկիչում<ph name="END_LINK" />։</translation>
 <translation id="3119573284443908657">Chrome-ն արգելափակել է այս ներբեռնումը, քանի որ արխիվացված ֆայլը կարող է այլ ֆայլեր պարունակել, որոնք կարող են վնասագրեր լինել</translation>
+<translation id="3124332159330678621">Անհատականացրեք Chrome-ը՝ ձեր դիտարկիչին նոր տեսք հաղորդելու համար</translation>
 <translation id="3130333203120345554">Նոր որոնում</translation>
 <translation id="3135560418014806498">Ավելացնել Chrome պրոֆիլ</translation>
 <translation id="3137969841538672700">Քաշեք որոնելու համար</translation>
@@ -221,6 +225,7 @@
 <translation id="3352986031709923790">որոնման տարածքի վերևի աջ անկյուն՝ <ph name="RIGHT" />% աջից, <ph name="TOP" />% վերևից</translation>
 <translation id="3360895254066713204">Chrome Helper</translation>
 <translation id="3379938682270551431">{0,plural, =0{Chrome-ը հիմա կվերագործարկվի}=1{Chrome-ը կվերագործարկվի 1 վայրկյանից}one{Chrome-ը կվերագործարկվի # վայրկյանից}other{Chrome-ը կվերագործարկվի # վայրկյանից}}</translation>
+<translation id="3380249972812870825">Gemini-ը Chrome-ում բացելու համար սեղմեք <ph name="GLOBAL_HOTKEY" /></translation>
 <translation id="3396977131400919238">Տեղադրման ժամանակ օպերացիոն համակարգի սխալ տեղի ունեցավ: Նորից ներբեռնեք Google Chrome-ը:</translation>
 <translation id="3428747202529429621">Ապահովում է ձեր անվտանգությունը Chrome-ում և Google հավելվածներում, երբ մտել եք ձեր հաշիվ</translation>
 <translation id="3434246496373299699">Chrome-ը կարող է ստուգել ձեր գաղտնաբառերը, երբ մտնեք ձեր Google հաշիվ։</translation>
@@ -266,6 +271,7 @@
 <translation id="3885770153807205175">Լեզվի ընտրիչ</translation>
 <translation id="3889417619312448367">Ապատեղադրել Google Chrome-ը</translation>
 <translation id="3892148308691398805">Պատճենել տեքստը</translation>
+<translation id="3906096710440765802">Մուտք գործեք Chrome՝ ձեր գաղտնաբառերը, էջանիշները և մյուս տվյալները ձեր բոլոր սարքերում օգտագործելու համար</translation>
 <translation id="3941890832296813527">Տեղադրման սխալ. տեղադրման ծրագրի ֆայլի անվանումն անվավեր է կամ չի աջակցվում։</translation>
 <translation id="395904275706073188">Պաշտպանված էջերը հնարավոր չէ ընթերցել։ Փորձեք այլ էջ։</translation>
 <translation id="3968962723676998462">Chrome-ի տվյալները <ph name="ACCOUNT_EMAIL" /> հաշվում օգտագործելու և պահելու համար մուտքագրեք ձեր անցաբառը</translation>
@@ -349,6 +355,7 @@
 <translation id="4891791193823137474">Թույլ տալ Google Chrome-ին աշխատել հետնաշերտում</translation>
 <translation id="4895437082222824641">Բացել հղումը Chrome-ի նոր &amp;ներդիրում</translation>
 <translation id="4918844574251943176">Պատկերը պատճենվեց</translation>
+<translation id="4926882258455737990">Gemini-ը Chrome-ում այլ Google հաշվով օգտագործելու համար <ph name="BEGIN_LINK" />ստեղծեք նոր պրոֆիլ<ph name="END_LINK" /> և մուտք գործեք ձեզ անհրաժեշտ հաշիվ</translation>
 <translation id="492720062778050435">Chrome-ը խորհուրդ է տալիս ստուգել այս ընդլայնումը</translation>
 <translation id="4946912144186040233">Chrome-ը ավելի լավ է որոշում ձևերը և ավելի արագ ավտոմատ լրացնում դրանք։ Այս կարգավորումն անջատված է։</translation>
 <translation id="4953650215774548573">Դարձնել Google Chrome-ը կանխադրված դիտարկիչը</translation>
@@ -374,6 +381,7 @@
 Որոշ գործառույթներ մատչելի չեն լինի: Նշեք պրոֆիլի այլ գրացուցակ կամ օգտագործեք Chrome-ի նոր տարբերակը:</translation>
 <translation id="5174969993834422967">Դուք սովորաբար արգելափակում եք ծանուցումները։ Հասցեագոտու աջ անկյունում սեղմեք ծանուցման պատկերակը, որպեսզի թույլ տաք կայքին ծանուցել ձեզ։</translation>
 <translation id="5174983315706567306">Սկավառակում բավարար տարածք չկա։</translation>
+<translation id="5179933070463113976">Gemini-ը Chrome-ում օգտագործելու համար պետք է մուտք գործեք Chrome ձեր Google հաշվի միջոցով</translation>
 <translation id="5190467473654176081">Անհատականացրեք Chrome-ը՝ դրան նոր տեսք հաղորդելու համար</translation>
 <translation id="5201744974236816379">Chrome-ի թարմացում</translation>
 <translation id="521447420733633466">Եթե ձեզնից բացի որևէ այլ օգտատեր օգտվում է այս սարքից (օրինակ՝ ձեր ընկերները կամ հարազատները), ապա նրանք կարող են առանձին աշխատել և անհատականացնել Chrome-ը</translation>
@@ -395,6 +403,7 @@
 <translation id="5430073640787465221">Ձեր նախընտրանքների ֆայլը վնասված է կամ անվավեր:
 
 Google Chrome-ը չի կարողանում վերականգնել ձեր կարգավորումները:</translation>
+<translation id="5465210843490471889">Ընտրեք Chrome պրոֆիլ՝ <ph name="START_GLIC_STYLING" />Gemini-ի<ph name="END_GLIC_STYLING" /> հետ օգտագործելու համար</translation>
 <translation id="5468572406162360320">Chromе-ը Google-ին ուղարկում է ձեր փոխազդեցությունների մասին տվյալները, որպեսզի օգնի բարելավել այս գործառույթերը։ Այդ տվյալները կարող են ընթերցվել, մշակվել և մեկնաբանվել մասնագետների կողմից։</translation>
 <translation id="5510398294750420479">Ներբեռնեք Chrome-ը ձեր հեռախոսում՝ սարքի լրացուցիչ պաշտպանության համար</translation>
 <translation id="5524890928877629608">որոնման տարածքի վերևի ձախ անկյուն՝ <ph name="LEFT" />% ձախից, <ph name="TOP" />% վերևից</translation>
@@ -487,6 +496,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="6288580400488258237">Նշեք Chrome-ը որպես կանխադրված դիտարկիչ և այն ամրացրեք ձեր հավելվածների վահանակում</translation>
 <translation id="6291089322031436445">Chrome Dev հավելվածներ</translation>
 <translation id="6291549208091401781">Google Chrome-ն արդեն տեղադրված է ձեր համակարգչում բոլոր օգտատերերի համար:</translation>
+<translation id="6311220991371174222">Չհաջողվեց գործարկել Chrome-ը, քանի որ պրոֆիլը բացելիս սխալ առաջացավ: Վերագործարկեք Chrome-ը:</translation>
 <translation id="6319856120645568262">Chrome-ին անհրաժեշտ է թույլտվություն՝ ձեր շրջակայքի քարտեզը ստեղծելու և ձեր ձեռքերի շարժումները հետագծելու համար</translation>
 <translation id="6321592572353357376">«<ph name="EXTENSION_NAME" />» ընդլայնումն ուզում է, որ դուք մուտք գործեք Chrome</translation>
 <translation id="6326175484149238433">Հեռացնել Chrome-ից</translation>
@@ -615,9 +625,11 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="7655472416356262023">Հեռացնել հաշիվը Chrome-ից</translation>
 <translation id="7658239707568436148">Չեղարկել</translation>
 <translation id="7670287553302121848">Chrome հաշիվը պահանջում է վերաիսկորոշում</translation>
+<translation id="7675756456029023637">Հարցնել Chrome-ին</translation>
 <translation id="769538538642757151">Chrome-ը ձեզ կտեղեկացնի, եթե որևէ բան փոխելու անհրաժեշտություն լինի</translation>
 <translation id="769906121737764913">Փակել Gemini-ը Chrome Beta-ում</translation>
 <translation id="7716950018788545737">Առաջադրանք(ներ)ը ավարտված են։</translation>
+<translation id="7723388585204724670">Վերադառնալ կանխադրված Chrome-ին</translation>
 <translation id="77283119132245232">Տրամադրում է <ph name="BROWSER_NAME" /> դիտարկիչին համակարգի հետագծման ծառայություններ։ Եթե այս ծառայությունն անջատված է, դիտարկիչի կողմից ստեղծված արդյունավետության հետագծումները չեն ներառի համակարգային իրադարձություններ, ինչպիսիք են համատեքստի փոխանջատումը և հոսքի պատրաստությունը։</translation>
 <translation id="7736869414036750079">Ձեր կազմակերպության կանոնների համաձայն՝ դուք պետք է մուտք գործեք Chrome</translation>
 <translation id="7747138024166251722">Տեղադրիչը չկարողացավ ստեղծել ժամանակավոր գրացուցակ: Ստուգեք սկավառակում ազատ տարածքի առկայությունը և ծրագրակազմը տեղադրելու թույլտվությունը:</translation>

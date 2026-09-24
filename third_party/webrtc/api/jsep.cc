@@ -141,13 +141,13 @@ std::optional<SdpType> SdpTypeFromString(const std::string& type_str) {
   }
 }
 
-std::unique_ptr<IceCandidate> CreateIceCandidate(const std::string& sdp_mid,
+std::unique_ptr<IceCandidate> CreateIceCandidate(absl::string_view sdp_mid,
                                                  int sdp_mline_index,
                                                  const Candidate& candidate) {
   return std::make_unique<IceCandidate>(sdp_mid, sdp_mline_index, candidate);
 }
 
-IceCandidate* CreateIceCandidate(const std::string& sdp_mid,
+IceCandidate* CreateIceCandidate(absl::string_view sdp_mid,
                                  int sdp_mline_index,
                                  const std::string& sdp,
                                  SdpParseError* error) {

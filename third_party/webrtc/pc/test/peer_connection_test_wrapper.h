@@ -138,26 +138,42 @@ class PeerConnectionTestWrapper : public PeerConnectionObserver,
                           bool video);
 
   // signal callbacks
-  void SubscribeOnIceCandidateReady(
+  [[deprecated]] void SubscribeOnIceCandidateReady(
       absl::AnyInvocable<void(const std::string&, int, const std::string&)>
           callback) {
     on_ice_candidate_ready_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeOnIceCandidateReady(
+      void* tag,
+      absl::AnyInvocable<void(const std::string&, int, const std::string&)>
+          callback) {
+    on_ice_candidate_ready_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyOnIceCandidateReady(const std::string& mid,
                                  int index,
                                  const std::string& candidate) {
     on_ice_candidate_ready_callbacks_.Send(mid, index, candidate);
   }
-  void SubscribeOnSdpReady(
+  [[deprecated]] void SubscribeOnSdpReady(
       absl::AnyInvocable<void(const std::string&)> callback) {
     on_sdp_ready_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeOnSdpReady(
+      void* tag,
+      absl::AnyInvocable<void(const std::string&)> callback) {
+    on_sdp_ready_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyOnSdpReady(const std::string& sdp) {
     on_sdp_ready_callbacks_.Send(sdp);
   }
-  void SubscribeOnDataChannel(
+  [[deprecated]] void SubscribeOnDataChannel(
       absl::AnyInvocable<void(DataChannelInterface*)> callback) {
     on_data_channel_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeOnDataChannel(
+      void* tag,
+      absl::AnyInvocable<void(DataChannelInterface*)> callback) {
+    on_data_channel_callbacks_.AddReceiver(tag, std::move(callback));
   }
   void NotifyOnDataChannel(DataChannelInterface* channel) {
     on_data_channel_callbacks_.Send(channel);

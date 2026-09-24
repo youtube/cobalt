@@ -175,8 +175,9 @@ class ExceptionHandlerInfo;
   V(SmiConstant)                    \
   V(TaggedIndexConstant)            \
   V(TrustedConstant)
-// LINT.ThenChange(maglev-graph-processor.h:maglev_constant_nodes,
-//  maglev-regalloc.cc:maglev_constant_nodes)
+// clang-format off
+// LINT.ThenChange(/src/maglev/maglev-graph-processor.h:maglev_constant_nodes, /src/maglev/maglev-regalloc.cc:maglev_constant_nodes)
+// clang-format on
 
 #define INLINE_BUILTIN_NODE_LIST(V)              \
   V(BuiltinStringFromCharCode)                   \
@@ -193,7 +194,8 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
-  V(TurbofanStaticAssert)
+  V(TurbofanStaticAssert)               \
+  V(AssumeMap)
 
 #define CONVERSION_NODE_LIST(V)        \
   V(ChangeInt32ToFloat64)              \
@@ -852,8 +854,8 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
 }
 
 inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
-#if defined(V8_TARGET_ARCH_RISCV64)
-  // on RISC-V int32 are always sign-extended
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64)
+  // on RISC-V and LoongArch64, 32-bit values are always sign-extended.
   return false;
 #else
   return (repr == ValueRepresentation::kUint32 ||
@@ -3847,9 +3849,10 @@ DEF_FLOAT64_BINARY_NODE(Subtract)
 DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
 #if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM) || \
-    defined(V8_TARGET_ARCH_RISCV64)
-// On Arm/Arm64/Riscv64, floating point modulus is implemented with a call to a
-// C++ function, while on x64, it's implemented natively without call.
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64)
+// On Arm/Arm64/Riscv64/LoongArch64, floating point modulus is implemented with
+// a call to a C++ function, while on x64, it's implemented natively without
+// call.
 DEF_FLOAT64_BINARY_NODE_WITH_CALL(Modulus)
 #else
 DEF_FLOAT64_BINARY_NODE(Modulus)
@@ -4894,6 +4897,9 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
 };
 
 enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
+
+std::ostream& operator<<(std::ostream& os, CheckType check_type);
+
 class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
  public:
   explicit ToBoolean(uint64_t bitfield, CheckType check_type)
@@ -5478,7 +5484,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  compiler::HeapObjectRef object() { return object_; }
+  compiler::HeapObjectRef object() const { return object_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister) const;
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
@@ -6091,6 +6097,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return vobj::Field{i, offset, object_layout_->body_field_type};
   }
 
+  static constexpr ValueNode* kUninitializedSlotValue = nullptr;
+
  private:
   friend class NodeBase;  // For this ctor:
   explicit VirtualObject(uint64_t bitfield, compiler::OptionalMapRef map,
@@ -6112,9 +6120,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     SBXCHECK_LT(i, slot_count());
     slots_[i] = value;
   }
-
-  static ValueNode* InitialFieldValue(MaglevGraphBuilder* builder,
-                                      vobj::FieldType type);
 
   // If set, duplicates the map constant stored in slots_.
   // TODO(jgruber): Consider removing this; note removal is slightly
@@ -7648,6 +7653,42 @@ class Throw : public FixedInputNodeT<1, Throw> {
   using HasInputBitField = FunctionBitField::Next<bool, 1>;
 };
 
+// AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that
+// the input has a specific map (or set of possible maps). LateLoadElimination
+// then uses this for alias analysis: 2 objects with different maps cannot
+// alias. AssumeMaps are removed from the graph after LateLoadElimination.
+// Note that we only need to insert AssumeMap when Maglev has knowledge about
+// the map of something without inserting CheckMaps: when the graph contains a
+// CheckMap, the MachineLoweringPhase of Turboshaft will take care of inserting
+// an AssumeMap when lowering the CheckMap. So for instance, when Maglev loads a
+// property backing store, it doesn't insert a CheckMap because it knows that
+// the map is {property_array_map}, but Turboshaft needs an AssumeMap in order
+// to realize this.
+class AssumeMap : public FixedInputNodeT<1, AssumeMap> {
+ public:
+  explicit AssumeMap(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps)
+      : Base(bitfield), maps_(maps) {}
+
+  DECLARE_INPUTS(Object)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  // AssumeMap doesn't really read memory (it doesn't do anything: it's just a
+  // no-op eventually), but it's validity depends on memory not changing, so we
+  // mark it as CanRead.
+  static constexpr OpProperties kProperties = OpProperties::CanRead();
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  const compiler::ZoneRefSet<Map>& maps() { return maps_; }
+
+  auto options() const { return std::tuple{maps_}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+  const compiler::ZoneRefSet<Map> maps_;
+};
+
 class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
  public:
   explicit TurbofanStaticAssert(uint64_t bitfield) : Base(bitfield) {}
@@ -8214,6 +8255,30 @@ enum class LoadType {
 };
 constexpr int kLoadTypeBitSize =
     std::bit_width(static_cast<unsigned>(LoadType::kLastLoadType));
+
+inline std::ostream& operator<<(std::ostream& os, LoadType type) {
+  switch (type) {
+    case LoadType::kUnknown:
+      os << "Unknown";
+      break;
+    case LoadType::kSmi:
+      os << "Smi";
+      break;
+    case LoadType::kHeapNumber:
+      os << "HeapNumber";
+      break;
+    case LoadType::kNumber:
+      os << "Number";
+      break;
+    case LoadType::kInternalizedString:
+      os << "InternalizedString";
+      break;
+    case LoadType::kContext:
+      os << "Context";
+      break;
+  }
+  return os;
+}
 
 constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
   switch (type) {

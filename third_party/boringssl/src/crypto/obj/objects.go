@@ -254,7 +254,7 @@ func readObjects(numPath, objectsPath string) (*objects, error) {
 			case "!Alias":
 				// !Alias directives define an alias for an OID
 				// without emitting an object.
-				if len(nextName) != 0 {
+				if nextName != "" {
 					return nil, withLine(errors.New("!Cname directives may not modify !Alias directives."))
 				}
 				if len(args) < 3 {

@@ -15,6 +15,7 @@
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/task/sequenced_task_runner_helpers.h"
@@ -282,6 +283,7 @@ class SafeBrowsingServiceImpl : public SafeBrowsingServiceInterface,
   friend class SafeBrowsingBlockingQuietPageTest;
   friend class extensions::SafeBrowsingPrivateApiUnitTest;
   friend class SafeBrowsingServerTest;
+  friend class SafeBrowsingServiceEnhancedSecurityBundleMigrationTest;
   friend class SafeBrowsingUIManagerTest;
   friend class TestSafeBrowsingService;
   friend class TestSafeBrowsingServiceFactory;

@@ -4202,6 +4202,10 @@ void LayerTreeHostImpl::SetNeedsCommit() {
   client_->SetNeedsCommitOnImplThread();
 }
 
+base::TimeDelta LayerTreeHostImpl::CurrentFrameInterval() const {
+  return CurrentBeginFrameInterval();
+}
+
 ScrollNode* LayerTreeHostImpl::InnerViewportScrollNode() const {
   return active_tree_->InnerViewportScrollNode();
 }
@@ -6059,6 +6063,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
   data.opaque = bitmap.GetOpaque();
   data.shared_image = std::move(client_shared_image);
   data.resource_id_for_export = id;
+  data.size = upload_size;
   ui_resource_map_[uid] = std::move(data);
 
   MarkUIResourceNotEvicted(uid);
@@ -6074,6 +6079,7 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
 void LayerTreeHostImpl::CreateUIResourceFromImportedResource(
     UIResourceId uid,
     viz::ResourceId resource_id,
+    const gfx::Size& size,
     bool is_opaque) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "LayerTreeHostImpl::CreateUIResourceFromResource");
@@ -6097,6 +6103,7 @@ void LayerTreeHostImpl::CreateUIResourceFromImportedResource(
   UIResourceData data;
   data.opaque = is_opaque;
   data.resource_id_for_export = resource_id;
+  data.size = size;
   ui_resource_map_[uid] = std::move(data);
 
   MarkUIResourceNotEvicted(uid);
@@ -6205,6 +6212,14 @@ viz::ResourceId LayerTreeHostImpl::ResourceIdForUIResource(
   if (iter != ui_resource_map_.end())
     return iter->second.resource_id_for_export;
   return viz::kInvalidResourceId;
+}
+
+gfx::Size LayerTreeHostImpl::GetUIResourceSize(UIResourceId uid) const {
+  if (auto it = ui_resource_map_.find(uid); it != ui_resource_map_.end()) {
+    return it->second.size;
+  }
+
+  return gfx::Size();
 }
 
 bool LayerTreeHostImpl::IsUIResourceOpaque(UIResourceId uid) const {

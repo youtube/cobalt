@@ -67,7 +67,7 @@ struct FileInfo {
   virtual ~FileInfo();
 
   // Gets the context id for this request.
-  uint64_t GetContextId() const { return request_id.context_id(); }
+  int64_t GetContextId() const { return request_id.context_id(); }
 
   // Client-side unique identifier.
   base::UnguessableToken file_token;
@@ -106,6 +106,9 @@ struct FileInfo {
   // The request ID for this request. Updated by the context
   // controller when the file upload is started.
   lens::LensOverlayRequestId request_id;
+
+  // The raw response bodies from the upload requests.
+  std::vector<std::string> response_bodies;
 };
 
 // LINT.IfChange(SubmissionType)

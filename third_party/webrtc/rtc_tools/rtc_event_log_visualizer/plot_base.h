@@ -169,6 +169,7 @@ class Plot {
 
   // Replaces PythonPlot::Draw()
   void PrintPythonCode(
+      bool show_grid = false,
       absl::string_view figure_output_path = absl::string_view()) const;
 
   // Replaces ProtobufPlot::Draw()
@@ -206,6 +207,7 @@ class PlotCollection {
   // Replaces PythonPlotCollection::Draw()
   void PrintPythonCode(
       bool shared_xaxis,
+      bool show_grid_on_all_plots,
       absl::string_view figure_output_path = absl::string_view()) const;
 
   // Replaces ProtobufPlotCollections::Draw()

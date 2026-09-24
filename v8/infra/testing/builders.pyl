@@ -478,6 +478,20 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
+  'v8_linux64_fuzzilli_imports_rel': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {
+        'name': 'test262',
+        'variant': 'default',
+        'shards': 2,
+        'test_args': ['--exit-after-n-failures=0'],
+      },
+    ],
+  },
   'v8_linux64_fuzzilli_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1561,17 +1575,6 @@
       },
     ],
   },
-  # Used for Fuzzilli imports.
-  'V8 Linux64 - builder': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'mjsunit'},
-      {'name': 'test262', 'shards': 2},
-    ],
-  },
   'V8 Linux64 - official': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1943,6 +1946,9 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'priority': 25,
     },
     'tests': [
       {'name': 'mjsunit', 'variant': 'default'},

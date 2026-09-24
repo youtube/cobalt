@@ -63,7 +63,6 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
-#include "components/guest_view/browser/guest_view_base.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/prefs/pref_service.h"
@@ -71,7 +70,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/common/url_constants.h"
-#include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -172,8 +170,7 @@ GlicKeyedService::GlicKeyedService(
                               ? std::make_unique<GlicOcclusionNotifier>(
                                     GetSingleInstanceWindowController())
                               : nullptr),
-      actor_task_manager_(
-          std::make_unique<GlicActorTaskManager>(profile, actor_keyed_service)),
+      actor_task_manager_(std::make_unique<GlicActorTaskManager>(profile)),
       tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
       web_contents_warming_pool_(
           std::make_unique<GlicWebContentsWarmingPool>(profile)),
@@ -557,16 +554,9 @@ void GlicKeyedService::CreateActorTab(
                                       std::move(callback));
 }
 
-base::CallbackListSubscription GlicKeyedService::AddTabDataChangedCallback(
-    TabDataChangedCallback callback) {
-  return tab_data_observer_->AddTabDataChangedCallback(std::move(callback));
-}
-
 void GlicKeyedService::OnTabAddedToTask(
     actor::TaskId task_id,
-    const tabs::TabInterface::Handle& tab_handle) {
-  tab_data_observer_->ObserveTabData(tab_handle);
-}
+    const tabs::TabInterface::Handle& tab_handle) {}
 
 void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
   user_input_submitted_callback_list_.Notify();
@@ -754,6 +744,11 @@ void GlicKeyedService::SendAdditionalContext(
 void GlicKeyedService::Close(
     content::RenderFrameHost* outermost_render_frame_host) {
   window_controller().CloseInstanceWithFrame(outermost_render_frame_host);
+}
+
+void GlicKeyedService::Archive(
+    content::RenderFrameHost* outermost_render_frame_host) {
+  window_controller().ArchiveInstanceWithFrame(outermost_render_frame_host);
 }
 
 void GlicKeyedService::OnWebClientCleared() {

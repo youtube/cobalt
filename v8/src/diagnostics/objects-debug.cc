@@ -416,8 +416,8 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK(has_hash);
   CHECK_GT(hash, 0);
   CHECK(IsUndefined(description(), isolate) || IsString(description()));
-  CHECK_IMPLIES(IsPrivateName(), IsPrivate());
-  CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
+  CHECK_IMPLIES(IsAnyPrivateName(), IsAnyPrivate());
+  CHECK_IMPLIES(IsPrivateBrand(), IsAnyPrivateName());
 }
 
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
@@ -805,7 +805,9 @@ void Map::MapVerify(Isolate* isolate) {
           IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
-    CHECK(prototype_info() == Smi::zero() || IsPrototypeInfo(prototype_info()));
+    CHECK(prototype_info() == Smi::zero() ||
+          IsPrototypeInfo(prototype_info()) ||
+          IsPrototypeSharedClosureInfo(prototype_info()));
   }
 }
 
@@ -1069,7 +1071,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       // written during descriptor array construction.
       if (IsUndefined(key, isolate)) continue;
       PropertyDetails details = GetDetails(descriptor);
-      if (Cast<Name>(key)->IsPrivate()) {
+      if (Cast<Name>(key)->IsAnyPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
       Tagged<MaybeObject> value = GetValue(descriptor);
@@ -2495,6 +2497,12 @@ void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
   for (int i = 0; i < export_names()->length(); i++) {
     CHECK(IsString(export_names()->get(i)));
   }
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
+    Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::PrototypeSharedClosureInfoVerify(*this,
+                                                                  isolate);
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {

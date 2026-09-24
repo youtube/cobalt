@@ -153,7 +153,8 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
 
   // Iterate backwards and append the data.
   size_t header_offset = 0;
-  while (it-- != redundant_encodings_.begin()) {
+  while (it != redundant_encodings_.begin()) {
+    --it;
     encoded->AppendData(it->second);
 
     const uint32_t timestamp_delta =

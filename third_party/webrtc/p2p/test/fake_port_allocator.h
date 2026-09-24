@@ -139,7 +139,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
       RTC_DCHECK(port_);
       port_->SetIceTiebreaker(allocator_->ice_tiebreaker());
       port_->SubscribePortDestroyed(
-          [this](PortInterface* port) { OnPortDestroyed(port); });
+          this, [this](PortInterface* port) { OnPortDestroyed(port); });
       AddPort(port_.get());
     }
     ++port_config_count_;
@@ -189,7 +189,8 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   void AddPort(Port* port) {
     port->set_component(component());
     port->set_generation(generation());
-    port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
+    port->SubscribePortComplete(this,
+                                [this](Port* port) { OnPortComplete(port); });
     port->PrepareAddress();
     ready_ports_.push_back(port);
     NotifyPortReady(this, port);

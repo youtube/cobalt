@@ -522,6 +522,11 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
+    ArrayBufferExtension* array_buffer_extension =
+        (slot.tag_range() == kArrayBufferExtensionTag)
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  table.Get(handle, kArrayBufferExtensionTag))
+            : nullptr;
     if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
@@ -537,20 +542,20 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
                      heap->old_external_pointer_space(), handle, slot.address(),
                      ExternalPointerTable::EvacuateMarkMode::kTransferMark);
     }
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object,
-                                      MaybeObjectSize) {
-    if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
-      object->YoungMarkExtension();
-    } else {
-      object->YoungMarkExtensionPromoted();
+#else   // !V8_COMPRESS_POINTERS
+    ArrayBufferExtension* array_buffer_extension =
+        (slot.tag_range() == kArrayBufferExtensionTag)
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  slot.load(scavenger_->heap()->isolate()))
+            : nullptr;
+#endif  // !V8_COMPRESS_POINTERS
+    if (array_buffer_extension) {
+      if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+        array_buffer_extension->YoungMark();
+      } else {
+        array_buffer_extension->YoungMarkPromoted();
+      }
     }
-    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
   }
 
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
@@ -1285,9 +1290,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_IMPLIES(
       delegate->IsJoiningThread(),
       heap_->IsMainThread() ||
@@ -1348,6 +1351,7 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     }
     next_page_iterator_++;
   }
+  TRACE_GC_NOTE("Quarantined page sweeping finished");
   is_done_.store(true, std::memory_order_relaxed);
   pinned_object_per_page_.clear();
   pinned_objects_.clear();

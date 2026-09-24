@@ -15,6 +15,8 @@
 #include <optional>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "api/dtls_transport_interface.h"
 #include "api/ref_count.h"
 #include "api/scoped_refptr.h"
@@ -73,6 +75,26 @@ enum class SctpTransportState {
   kClosed,      // Closed by local or remote party.
   kNumValues
 };
+template <typename Sink>
+void AbslStringify(Sink& sink, SctpTransportState state) {
+  switch (state) {
+    case SctpTransportState::kNew:
+      sink.Append("New");
+      break;
+    case SctpTransportState::kConnecting:
+      sink.Append("Connecting");
+      break;
+    case SctpTransportState::kConnected:
+      sink.Append("Connected");
+      break;
+    case SctpTransportState::kClosed:
+      sink.Append("Closed");
+      break;
+    default:
+      absl::Format(&sink, "illegal state %d", static_cast<int>(state));
+      break;
+  }
+}
 
 // This object gives snapshot information about the changeable state of a
 // SctpTransport.
@@ -101,6 +123,13 @@ class RTC_EXPORT SctpTransportInformation {
   scoped_refptr<DtlsTransportInterface> dtls_transport_;
   std::optional<double> max_message_size_;
   std::optional<int> max_channels_;
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const SctpTransportInformation& info) {
+    absl::Format(
+        &sink, "[state %v msgsize %s channels %s]", info.state_,
+        info.max_message_size_ ? absl::StrCat(*info.max_message_size_) : "none",
+        info.max_channels_ ? absl::StrCat(*info.max_channels_) : "none");
+  }
 };
 
 class SctpTransportObserverInterface {
@@ -150,6 +179,8 @@ struct SctpOptions {
   // It must be smaller than or equal to kSctpSendBufferSize.
   int max_message_size = kSctpSendBufferSize;
 
+  // Negotiated in the SCTP handshake.
+  int max_sctp_streams = kMaxSctpStreams;
   // draft-hancke-tsvwg-snap
   std::optional<std::vector<uint8_t>> local_init;
   std::optional<std::vector<uint8_t>> remote_init;

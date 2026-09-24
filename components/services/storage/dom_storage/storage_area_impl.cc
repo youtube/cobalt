@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/containers/span.h"
-#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
@@ -21,9 +20,10 @@ namespace storage {
 
 StorageAreaImpl::Delegate::~Delegate() = default;
 
-void StorageAreaImpl::Delegate::PrepareToCommit(
-    std::vector<DomStorageDatabase::KeyValuePair>* extra_entries_to_add,
-    std::vector<DomStorageDatabase::Key>* extra_keys_to_delete) {}
+std::optional<DomStorageDatabase::MapBatchUpdate::Usage>
+StorageAreaImpl::Delegate::GetMapUsageMetadataToCommit() {
+  return std::nullopt;
+}
 
 void StorageAreaImpl::Delegate::OnMapLoaded() {}
 
@@ -51,20 +51,26 @@ StorageAreaImpl::CommitBatch::CommitBatch() = default;
 
 StorageAreaImpl::CommitBatch::~CommitBatch() = default;
 
-StorageAreaImpl::StorageAreaImpl(AsyncDomStorageDatabase* database,
-                                 const std::string& prefix,
-                                 Delegate* delegate,
-                                 const Options& options)
+StorageAreaImpl::StorageAreaImpl(
+    AsyncDomStorageDatabase* database,
+    const std::string& prefix,
+    scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator,
+    Delegate* delegate,
+    const Options& options)
     : StorageAreaImpl(database,
                       std::vector<uint8_t>(prefix.begin(), prefix.end()),
+                      map_locator,
                       delegate,
                       options) {}
 
-StorageAreaImpl::StorageAreaImpl(AsyncDomStorageDatabase* database,
-                                 std::vector<uint8_t> prefix,
-                                 Delegate* delegate,
-                                 const Options& options)
+StorageAreaImpl::StorageAreaImpl(
+    AsyncDomStorageDatabase* database,
+    std::vector<uint8_t> prefix,
+    scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator,
+    Delegate* delegate,
+    const Options& options)
     : prefix_(std::move(prefix)),
+      map_locator_(std::move(map_locator)),
       delegate_(delegate),
       database_(database),
       cache_mode_(database ? options.cache_mode : CacheMode::KEYS_AND_VALUES),
@@ -94,7 +100,7 @@ StorageAreaImpl::~StorageAreaImpl() {
 void StorageAreaImpl::InitializeAsEmpty() {
   DCHECK_EQ(map_state_, MapState::UNLOADED);
   map_state_ = MapState::LOADING_FROM_DATABASE;
-  OnMapLoaded(std::vector<DomStorageDatabase::KeyValuePair>());
+  OnMapLoaded(ValueMap());
 }
 
 void StorageAreaImpl::Bind(
@@ -114,19 +120,22 @@ void StorageAreaImpl::Bind(
 
 std::unique_ptr<StorageAreaImpl> StorageAreaImpl::ForkToNewPrefix(
     const std::string& new_prefix,
+    scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator,
     Delegate* delegate,
     const Options& options) {
   return ForkToNewPrefix(
-      std::vector<uint8_t>(new_prefix.begin(), new_prefix.end()), delegate,
-      options);
+      std::vector<uint8_t>(new_prefix.begin(), new_prefix.end()),
+      std::move(map_locator), delegate, options);
 }
 
 std::unique_ptr<StorageAreaImpl> StorageAreaImpl::ForkToNewPrefix(
     std::vector<uint8_t> new_prefix,
+    scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator,
     Delegate* delegate,
     const Options& options) {
   auto forked_area = std::make_unique<StorageAreaImpl>(
-      database_, std::move(new_prefix), delegate, options);
+      database_, std::move(new_prefix), std::move(map_locator), delegate,
+      options);
   // If the source map is empty, don't bother hitting disk.
   if (IsMapLoadedAndEmpty()) {
     forked_area->InitializeAsEmpty();
@@ -331,8 +340,6 @@ void StorageAreaImpl::Put(
       commit_batch_->changed_values[key] = value;
     else
       commit_batch_->changed_keys.insert(key);
-
-    commit_batch_->put_timestamps.push_back(base::TimeTicks::Now());
   }
 
   if (map_state_ == MapState::LOADED_KEYS_ONLY)
@@ -594,29 +601,21 @@ void StorageAreaImpl::LoadMap(base::OnceClosure completion_callback) {
     return;
   }
 
-  database_->RunDatabaseTask(
-      base::BindOnce(
-          [](const DomStorageDatabase::Key& prefix,
-             DomStorageDatabaseLevelDB& db) { return db.GetPrefixed(prefix); },
-          prefix_),
-      base::BindOnce(&StorageAreaImpl::OnMapLoaded,
-                     weak_ptr_factory_.GetWeakPtr()));
+  database_->ReadMapKeyValues(map_locator_->Clone(),
+                              base::BindOnce(&StorageAreaImpl::OnMapLoaded,
+                                             weak_ptr_factory_.GetWeakPtr()));
 }
 
-void StorageAreaImpl::OnMapLoaded(
-    StatusOr<std::vector<DomStorageDatabase::KeyValuePair>> data) {
-  DCHECK(keys_values_map_.empty());
-  DCHECK_EQ(map_state_, MapState::LOADING_FROM_DATABASE);
+void StorageAreaImpl::OnMapLoaded(StatusOr<ValueMap> map_from_database) {
+  CHECK(keys_values_map_.empty());
+  CHECK_EQ(map_state_, MapState::LOADING_FROM_DATABASE);
 
   keys_only_map_.clear();
   map_state_ = MapState::LOADED_KEYS_AND_VALUES;
 
   keys_values_map_.clear();
-  if (data.has_value()) {
-    for (DomStorageDatabase::KeyValuePair& entry : *data) {
-      keys_values_map_[base::ToVector(base::span(entry.key).subspan(
-          prefix_.size()))] = std::move(entry.value);
-    }
+  if (map_from_database.has_value()) {
+    keys_values_map_ = *std::move(map_from_database);
   } else {
     // We proceed without using a backing store, nothing will be persisted but
     // the class is functional for the lifetime of the object.
@@ -728,7 +727,7 @@ void StorageAreaImpl::CommitChanges() {
   database_->InitiateCommit();
 }
 
-std::optional<AsyncDomStorageDatabase::Commit>
+std::optional<DomStorageDatabase::MapBatchUpdate>
 StorageAreaImpl::CollectCommit() {
   if (!commit_batch_) {
     return std::nullopt;
@@ -740,32 +739,23 @@ StorageAreaImpl::CollectCommit() {
   commit_rate_limiter_.add_samples(1);
 
   // Commit all our changes in a single batch.
-  AsyncDomStorageDatabase::Commit commit;
-  commit.timestamps = std::move(commit_batch_->put_timestamps);
-  commit.prefix = prefix_;
+  DomStorageDatabase::MapBatchUpdate commit(map_locator_->Clone());
   commit.clear_all_first = commit_batch_->clear_all_first;
-  delegate_->PrepareToCommit(&commit.entries_to_add, &commit.keys_to_delete);
+  commit.map_usage = delegate_->GetMapUsageMetadataToCommit();
 
-  const bool has_changes = !commit.entries_to_add.empty() ||
-                           !commit.keys_to_delete.empty() ||
-                           !commit_batch_->changed_values.empty() ||
-                           !commit_batch_->changed_keys.empty();
   size_t data_size = 0;
   if (map_state_ == MapState::LOADED_KEYS_AND_VALUES) {
     DCHECK(commit_batch_->changed_values.empty())
         << "Map state and commit state out of sync.";
     for (const auto& key : commit_batch_->changed_keys) {
       data_size += key.size();
-      DomStorageDatabase::Key prefixed_key;
-      prefixed_key.reserve(prefix_.size() + key.size());
-      prefixed_key.insert(prefixed_key.end(), prefix_.begin(), prefix_.end());
-      prefixed_key.insert(prefixed_key.end(), key.begin(), key.end());
+
       auto it = keys_values_map_.find(key);
       if (it != keys_values_map_.end()) {
         data_size += it->second.size();
-        commit.entries_to_add.emplace_back(std::move(prefixed_key), it->second);
+        commit.entries_to_add.emplace_back(std::move(key), it->second);
       } else {
-        commit.keys_to_delete.push_back(std::move(prefixed_key));
+        commit.keys_to_delete.push_back(std::move(key));
       }
     }
   } else {
@@ -775,27 +765,16 @@ StorageAreaImpl::CollectCommit() {
     for (auto& entry : commit_batch_->changed_values) {
       const auto& key = entry.first;
       data_size += key.size();
-      DomStorageDatabase::Key prefixed_key;
-      prefixed_key.reserve(prefix_.size() + key.size());
-      prefixed_key.insert(prefixed_key.end(), prefix_.begin(), prefix_.end());
-      prefixed_key.insert(prefixed_key.end(), key.begin(), key.end());
+
       auto it = keys_only_map_.find(key);
       if (it != keys_only_map_.end()) {
         data_size += entry.second.size();
-        commit.entries_to_add.emplace_back(std::move(prefixed_key),
+        commit.entries_to_add.emplace_back(std::move(key),
                                            std::move(entry.second));
       } else {
-        commit.keys_to_delete.push_back(std::move(prefixed_key));
+        commit.keys_to_delete.push_back(std::move(key));
       }
     }
-  }
-
-  // Schedule the copy, and ignore if |clear_all_first| is specified and there
-  // are no changing keys.
-  if (commit_batch_->copy_to_prefix) {
-    DCHECK(!has_changes);
-    DCHECK(!commit_batch_->clear_all_first);
-    commit.copy_to_prefix = std::move(commit_batch_->copy_to_prefix);
   }
 
   data_rate_limiter_.add_samples(data_size);
@@ -867,11 +846,16 @@ void StorageAreaImpl::DoForkOperation(
   // will correctly delete the database?
   if (database_) {
     // All changes must be stored in the database before the copy operation.
-    if (has_changes_to_commit())
+    if (has_changes_to_commit()) {
       CommitChanges();
-    CreateCommitBatchIfNeeded();
-    commit_batch_->copy_to_prefix = forked_area->prefix_;
-    CommitChanges();
+    }
+
+    // Commit the forked map to the database, which copies the source map's
+    // key/value pairs.
+    ++commit_batches_in_flight_;
+    database_->CloneMap(/*source=*/map_locator_->Clone(),
+                        /*target=*/forked_area->map_locator_->Clone(),
+                        GetCommitCompleteCallback());
   }
 
   forked_area->OnForkStateLoaded(database_ != nullptr, keys_values_map_,

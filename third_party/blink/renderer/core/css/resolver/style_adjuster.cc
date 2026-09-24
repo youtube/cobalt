@@ -1077,9 +1077,18 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     }
   }
 
+  bool is_document_element =
+      element && element->GetDocument().documentElement() == element;
+  bool is_in_top_layer = false;
+  if (RuntimeEnabledFeatures::OverlayPropertyEnabled()) {
+    is_in_top_layer =
+        !is_document_element && builder.Overlay() == EOverlay::kAuto;
+  } else {
+    is_in_top_layer =
+        !is_document_element && (element && element->IsInTopLayer());
+  }
+
   if (builder.Display() != EDisplay::kNone) {
-    bool is_document_element =
-        element && element->GetDocument().documentElement() == element;
     // https://drafts.csswg.org/css-position-4/#top-styling
     // Elements in the top layer must be out-of-flow positioned.
     // Root elements that are in the top layer should just be left alone
@@ -1087,8 +1096,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     //
     // Similarly, overscroll-position elements must be out of flow positioned
     // with a box.
-    if ((builder.Overlay() == EOverlay::kAuto && !is_document_element) ||
-        builder.StyleType() == kPseudoIdBackdrop ||
+    if (is_in_top_layer || builder.StyleType() == kPseudoIdBackdrop ||
         builder.OverscrollPosition()) {
       if (!builder.HasOutOfFlowPosition()) {
         builder.SetPosition(EPosition::kAbsolute);
@@ -1158,6 +1166,15 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
 
     if (is_transition_scope && !is_document_element) {
       builder.SetContain(builder.Contain() | kContainsLayout);
+    } else if (builder.OverscrollArea() &&
+               !builder.OverscrollArea()->GetNames().empty()) {
+      // TODO(crbug.com/467112943): Layout containment is currently forced to
+      // ensure that the container of the overscroll areas actually contains
+      // the overscroll areas. However, requiring layout containment is
+      // overly restrictive to the child content that can be used within
+      // the scroller. We should remove this requirement while ensure they are
+      // layout children of the container element.
+      builder.SetContain(builder.Contain() | kContainsLayout);
     }
   } else {
     AdjustStyleForFirstLetter(builder, parent_style);
@@ -1176,9 +1193,8 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     }
   }
 
-  if (element == state.GetDocument().documentElement() ||
-      (element && IsA<SVGForeignObjectElement>(*element)) ||
-      builder.Overlay() == EOverlay::kAuto ||
+  if (is_document_element ||
+      (element && IsA<SVGForeignObjectElement>(*element)) || is_in_top_layer ||
       builder.StyleType() == kPseudoIdBackdrop ||
       builder.StyleType() == kPseudoIdViewTransition ||
       IsCanvasWithDrawElements(element) ||

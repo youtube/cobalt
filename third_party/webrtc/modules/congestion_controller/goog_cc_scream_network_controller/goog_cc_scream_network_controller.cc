@@ -11,49 +11,17 @@
 #include "modules/congestion_controller/goog_cc_scream_network_controller/goog_cc_scream_network_controller.h"
 
 #include <memory>
-#include <string>
-#include <string_view>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
 #include "modules/congestion_controller/scream/scream_network_controller.h"
-#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
-namespace {
-constexpr char kScreamFieldTrial[] = "WebRTC-Bwe-ScreamV2";
-}  // namespace
-
-GoogCcScreamNetworkController::Mode GoogCcScreamNetworkController::ParseMode(
-    const FieldTrialsView& field_trials) {
-  if (field_trials.IsEnabled(kScreamFieldTrial)) {
-    return Mode::kScreamAlways;
-  }
-  FieldTrialParameter<std::string> mode("mode", "");
-  ParseFieldTrial({&mode}, field_trials.Lookup(kScreamFieldTrial));
-  if (mode->empty()) {
-    return Mode::kGoogCc;
-  }
-  if (mode.Get() == "always") {
-    RTC_LOG(LS_INFO) << "ScreamV2 enabled: always";
-    return Mode::kScreamAlways;
-  }
-  if (mode.Get() == "only_after_ce") {
-    RTC_LOG(LS_INFO) << "ScreamV2 enabled: only_after_ce";
-    return Mode::kScreamAfterCe;
-  }
-  if (mode.Get() == "goog_cc_with_ect1") {
-    RTC_LOG(LS_INFO) << "ScreamV2 disabld: goog_cc_with_ect1";
-    return Mode::kGoogCcWithEct1;
-  }
-  return Mode::kGoogCc;
-}
 
 NetworkControlUpdate GoogCcScreamNetworkController::MaybeRunOnAllControllers(
     absl::AnyInvocable<NetworkControlUpdate(NetworkControllerInterface&)>
@@ -62,7 +30,6 @@ NetworkControlUpdate GoogCcScreamNetworkController::MaybeRunOnAllControllers(
     return update(*scream_);
   }
   if (mode_ == Mode::kScreamAfterCe) {
-    // Also update scream in the background.
     update(*scream_);
   }
   return update(*goog_cc_);
@@ -70,26 +37,18 @@ NetworkControlUpdate GoogCcScreamNetworkController::MaybeRunOnAllControllers(
 
 GoogCcScreamNetworkController::GoogCcScreamNetworkController(
     NetworkControllerConfig config,
-    GoogCcConfig goog_cc_config)
-    : env_(config.env), mode_(ParseMode(env_.field_trials())) {
-  if (mode_ != Mode::kGoogCc) {
+    GoogCcConfig goog_cc_config,
+    Mode mode)
+    : env_(config.env), mode_(mode) {
+  if (mode_ != Mode::kGoogCcWithEct1) {
     scream_ = std::make_unique<ScreamNetworkController>(config);
-    scream_in_use_ = mode_ == Mode::kScreamAlways;
+    scream_in_use_ = false;
   }
-  if (mode_ != Mode::kScreamAlways) {
-    goog_cc_ = std::make_unique<GoogCcNetworkController>(
-        config, std::move(goog_cc_config));
-  }
+  goog_cc_ = std::make_unique<GoogCcNetworkController>(
+      config, std::move(goog_cc_config));
 }
 
 GoogCcScreamNetworkController::~GoogCcScreamNetworkController() = default;
-
-std::string_view GoogCcScreamNetworkController::CurrentControllerType() const {
-  if (scream_in_use_) {
-    return "ScreamV2";
-  }
-  return "GoogCC";
-}
 
 NetworkControlUpdate GoogCcScreamNetworkController::OnNetworkAvailability(
     NetworkAvailability msg) {

@@ -29,7 +29,6 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.Log;
 import org.chromium.base.MathUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -51,6 +50,7 @@ import org.chromium.chrome.browser.logo.LogoView;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.NewTabPage.OnSearchBoxScrollListener;
 import org.chromium.chrome.browser.ntp.search.SearchBoxCoordinator;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties;
@@ -63,13 +63,14 @@ import org.chromium.chrome.browser.suggestions.tile.TileGroup.Delegate;
 import org.chromium.chrome.browser.tab_ui.InvalidationAwareThumbnailProvider;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.chrome.browser.ui.signin.signin_promo.NtpSigninPromoCoordinator;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.components.browser_ui.widget.displaystyle.DisplayStyleObserver;
 import org.chromium.components.browser_ui.widget.displaystyle.HorizontalDisplayStyle;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.signin.SigninFeatureMap;
@@ -151,7 +152,7 @@ public class NewTabPageLayout extends LinearLayout
     private boolean mMvtContentFits;
     private float mTransitionEndOffset;
     private boolean mIsTablet;
-    private ObservableSupplier<Integer> mTabStripHeightSupplier;
+    private Supplier<Integer> mTabStripHeightSupplier;
     private boolean mIsInNarrowWindowOnTablet;
     // This variable is only valid when the NTP surface is in tablet mode.
     private boolean mIsInMultiWindowModeOnTablet;
@@ -246,7 +247,7 @@ public class NewTabPageLayout extends LinearLayout
             Profile profile,
             WindowAndroid windowAndroid,
             boolean isTablet,
-            ObservableSupplier<Integer> tabStripHeightSupplier,
+            Supplier<Integer> tabStripHeightSupplier,
             Supplier<GURL> composeplateUrlSupplier) {
         TraceEvent.begin(TAG + ".initialize()");
         mScrollDelegate = scrollDelegate;
@@ -408,7 +409,7 @@ public class NewTabPageLayout extends LinearLayout
     public void onSearchEngineIconChanged(StatusProperties.@Nullable StatusIconResource newIcon) {
         if (mDseIconView == null) return;
         if (newIcon == null) {
-            mDseIconView.setImageResource(R.drawable.ic_search);
+            mDseIconView.setImageResource(R.drawable.ic_search_24dp);
             return;
         }
 
@@ -551,7 +552,8 @@ public class NewTabPageLayout extends LinearLayout
     private void onIncognitoButtonClicked(View view) {
         if (!IncognitoUtils.isIncognitoModeEnabled(mProfile)) return;
 
-        mManager.getNativePageHost().loadUrl(new LoadUrlParams(UrlConstants.NTP_URL), true);
+        UrlConstantResolver resolver = UrlConstantResolverFactory.getForProfile(mProfile);
+        mManager.getNativePageHost().loadUrl(new LoadUrlParams(resolver.getNtpUrl()), true);
     }
 
     private void initializeLayoutChangeListener() {
@@ -591,6 +593,9 @@ public class NewTabPageLayout extends LinearLayout
                         (logo) -> {
                             mSnapshotTileGridChanged = true;
                             mShowingNonStandardGoogleLogo = logo != null && mSearchProviderIsGoogle;
+                            NtpCustomizationConfigManager.getInstance()
+                                    .setDefaultSearchEngineLogoBitmap(
+                                            logo == null ? null : logo.image);
                         });
 
         mLogoView = findViewById(R.id.search_provider_logo);

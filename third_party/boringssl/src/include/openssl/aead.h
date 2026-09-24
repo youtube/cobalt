@@ -469,12 +469,6 @@ int EVP_AEAD_CTX_sealv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
 // and decrypts the |in| bytes to the |out| pointers of |iovec|. It returns one
 // on success and zero otherwise.
 //
-// WARNING: This is a preview API and should not be used yet. Not all AEADs
-// support it, or support may exist but be slow.
-//
-// TODO(crbug.com/383343306): remove the above note once this is implemented
-// for all ciphers.
-//
 // This function computes the same output as |EVP_AEAD_CTX_open|, but without
 // requiring the input or output to be a contiguous buffer. The individual
 // input and output pieces are logically concatenated for a single operation;
@@ -517,12 +511,6 @@ int EVP_AEAD_CTX_openv(const EVP_AEAD_CTX *ctx, const CRYPTO_IOVEC *iovec,
 // |aadvec| using |in_tag_len| bytes of authentication tag from |in_tag|. If
 // successful, it writes the plaintext of the |in| bytes to the |out| pointers
 // of |iovec|. It returns one on success and zero otherwise.
-//
-// WARNING: This is a preview API and should not be used yet. Not all AEADs
-// support it, or support may exist but be slow.
-//
-// TODO(crbug.com/383343306): remove the above note once this is implemented
-// for all ciphers.
 //
 // This function is usable with AEADs whose output can be split into a
 // ciphertext portion, with the same length as the plaintext, and a
@@ -627,6 +615,14 @@ OPENSSL_EXPORT int EVP_AEAD_CTX_get_iv(const EVP_AEAD_CTX *ctx,
 // |EVP_AEAD_CTX_seal_scatter| and writes it to |*out_tag_len|. It returns one
 // on success or zero on error. |in_len| and |extra_in_len| must equal the
 // arguments of the same names passed to |EVP_AEAD_CTX_seal_scatter|.
+//
+// To compute the exact byte length of the output written by
+// |EVP_AEAD_CTX_seal|, set |extra_in_len| to zero and add |in_len| to the
+// result.
+//
+// To compute the exact byte length of the tag written by |EVP_AEAD_CTX_sealv|,
+// set |in_len| to the sum of |len| over the entire |iovec|, and set
+// |extra_in_len| to zero.
 OPENSSL_EXPORT int EVP_AEAD_CTX_tag_len(const EVP_AEAD_CTX *ctx,
                                         size_t *out_tag_len,
                                         const size_t in_len,

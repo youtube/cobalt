@@ -351,7 +351,6 @@ scoped_refptr<MockRtpSenderInternal> CreateMockSender(
   });
   EXPECT_CALL(*sender, AttachmentId()).WillRepeatedly(Return(attachment_id));
   EXPECT_CALL(*sender, stream_ids()).WillRepeatedly(Return(local_stream_ids));
-  EXPECT_CALL(*sender, SetTransceiverAsStopped());
   return sender;
 }
 
@@ -453,8 +452,10 @@ class RTCStatsCollectorWrapper {
 
     scoped_refptr<MockRtpSenderInternal> sender =
         CreateMockSender(media_type, track, ssrc, attachment_id, {});
-    EXPECT_CALL(*sender, Stop());
-    EXPECT_CALL(*sender, SetMediaChannel(_));
+    EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+      return nullptr;
+    });
+    EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
     EXPECT_CALL(*sender, SetSendCodecs(_));
     pc_->AddSender(sender);
     return sender;
@@ -529,7 +530,9 @@ class RTCStatsCollectorWrapper {
           voice_sender_info.local_stats[0].ssrc,
           voice_sender_info.local_stats[0].ssrc + 10, local_stream_ids);
       EXPECT_CALL(*rtp_sender, SetMediaChannel(_)).WillRepeatedly(Return());
-      EXPECT_CALL(*rtp_sender, Stop());
+      EXPECT_CALL(*rtp_sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+        return nullptr;
+      });
       EXPECT_CALL(*rtp_sender, SetSendCodecs(_));
       pc_->AddSender(rtp_sender);
     }
@@ -567,7 +570,9 @@ class RTCStatsCollectorWrapper {
           video_sender_info.local_stats[0].ssrc,
           video_sender_info.local_stats[0].ssrc + 10, local_stream_ids);
       EXPECT_CALL(*rtp_sender, SetMediaChannel(_)).WillRepeatedly(Return());
-      EXPECT_CALL(*rtp_sender, Stop());
+      EXPECT_CALL(*rtp_sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+        return nullptr;
+      });
       EXPECT_CALL(*rtp_sender, SetSendCodecs(_));
       pc_->AddSender(rtp_sender);
     }
@@ -3131,8 +3136,10 @@ TEST_F(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
       "LocalVideoTrackID", MediaStreamTrackInterface::kLive, video_source);
   scoped_refptr<MockRtpSenderInternal> sender =
       CreateMockSender(MediaType::VIDEO, video_track, kSsrc, kAttachmentId, {});
-  EXPECT_CALL(*sender, Stop());
-  EXPECT_CALL(*sender, SetMediaChannel(_));
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3176,8 +3183,10 @@ TEST_F(RTCStatsCollectorTest,
       "LocalVideoTrackID", MediaStreamTrackInterface::kLive, video_source);
   scoped_refptr<MockRtpSenderInternal> sender = CreateMockSender(
       MediaType::VIDEO, video_track, kNoSsrc, kAttachmentId, {});
-  EXPECT_CALL(*sender, Stop());
-  EXPECT_CALL(*sender, SetMediaChannel(_));
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3207,8 +3216,10 @@ TEST_F(RTCStatsCollectorTest,
       /*source=*/nullptr);
   scoped_refptr<MockRtpSenderInternal> sender =
       CreateMockSender(MediaType::VIDEO, video_track, kSsrc, kAttachmentId, {});
-  EXPECT_CALL(*sender, Stop());
-  EXPECT_CALL(*sender, SetMediaChannel(_));
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3231,8 +3242,10 @@ TEST_F(RTCStatsCollectorTest,
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
   scoped_refptr<MockRtpSenderInternal> sender = CreateMockSender(
       MediaType::AUDIO, /*track=*/nullptr, kSsrc, kAttachmentId, {});
-  EXPECT_CALL(*sender, Stop());
-  EXPECT_CALL(*sender, SetMediaChannel(_));
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3604,8 +3617,10 @@ TEST_F(RTCStatsCollectorTest,
 
   scoped_refptr<MockRtpSenderInternal> sender = CreateMockSender(
       MediaType::VIDEO, /*track=*/nullptr, kSsrc, kAttachmentId, {});
-  EXPECT_CALL(*sender, Stop());
-  EXPECT_CALL(*sender, SetMediaChannel(_));
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3725,7 +3740,9 @@ TEST_F(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
       MediaType::AUDIO, "audioTrack", MediaStreamTrackInterface::kLive);
   scoped_refptr<MockRtpSenderInternal> sender =
       CreateMockSender(MediaType::AUDIO, track, 0, 49, {});
-  EXPECT_CALL(*sender, Stop());
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 
@@ -3742,7 +3759,9 @@ TEST_F(RTCStatsCollectorTest, DoNotCrashIfSsrcIsKnownButInfosAreStillMissing) {
       MediaType::AUDIO, "audioTrack", MediaStreamTrackInterface::kLive);
   scoped_refptr<MockRtpSenderInternal> sender =
       CreateMockSender(MediaType::AUDIO, track, 4711, 49, {});
-  EXPECT_CALL(*sender, Stop());
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
   EXPECT_CALL(*sender, SetSendCodecs(_));
   pc_->AddSender(sender);
 

@@ -84,6 +84,7 @@ PermissionToSchedulingFeature(PermissionType permission_name) {
     case PermissionType::LOCAL_FONTS:
     case PermissionType::DISPLAY_CAPTURE:
     case PermissionType::GEOLOCATION:
+    case PermissionType::GEOLOCATION_APPROXIMATE:
     case PermissionType::NOTIFICATIONS:
     case PermissionType::CAPTURED_SURFACE_CONTROL:
     case PermissionType::SMART_CARD:
@@ -94,6 +95,8 @@ PermissionToSchedulingFeature(PermissionType permission_name) {
     case PermissionType::AUTOMATIC_FULLSCREEN:
     case PermissionType::WEB_APP_INSTALLATION:
     case PermissionType::LOCAL_NETWORK_ACCESS:
+    case PermissionType::LOCAL_NETWORK:
+    case PermissionType::LOOPBACK_NETWORK:
       return std::nullopt;
   }
 }

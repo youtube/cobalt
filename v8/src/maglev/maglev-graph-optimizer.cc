@@ -685,6 +685,11 @@ ProcessResult MaglevGraphOptimizer::VisitDead(Dead* node,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitAssumeMap(AssumeMap*,
+                                                   const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitTurbofanStaticAssert(
     TurbofanStaticAssert*, const ProcessingState&) {
   return ProcessResult::kContinue;
@@ -1222,6 +1227,17 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
   if (node->offset() == JSFunction::kFeedbackCellOffset) {
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
+    }
+    if (auto input = node->input_node(0)->TryCast<CreateClosure>()) {
+      return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
+    }
+  }
+  if (node->offset() == JSFunction::kContextOffset) {
+    if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
+      return ReplaceWith(input->ContextInput().node());
+    }
+    if (auto input = node->input_node(0)->TryCast<CreateClosure>()) {
+      return ReplaceWith(input->ContextInput().node());
     }
   }
   if (!node->property_key().is_none()) {

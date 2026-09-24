@@ -29,10 +29,10 @@ OPENSSL_MSVC_PRAGMA(comment(lib, "Ws2_32.lib"))
 #include "internal.h"
 
 
+using namespace bssl;
+
 #if !defined(OPENSSL_WINDOWS)
-static int closesocket(int sock) {
-  return close(sock);
-}
+static int closesocket(int sock) { return close(sock); }
 #endif
 
 static int sock_free(BIO *bio) {

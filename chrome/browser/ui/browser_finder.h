@@ -204,9 +204,18 @@ size_t GetIncognitoBrowserCount();
 // the majority of other functions do not.
 size_t GetTabbedBrowserCount(Profile* profile);
 
+// Closes all browsers whose original profile matches `profile`. Uses
+// BrowserCollection::Order::kCreation to mirror the prior BrowserList
+// behavior.
+void CloseAllBrowsersWithProfile(Profile* profile);
+
 // Returns the number of off-the-record browser windows associated with
 // `profile`, excluding DevTools windows.
 size_t GetOffTheRecordBrowsersActiveForProfile(Profile* profile);
+
+// Returns true if any off-the-record browser is using `profile` or one of its
+// related profiles.
+bool IsOffTheRecordBrowserInUse(Profile* profile);
 
 // Returns the number of Guest browsers excluding DevTools windows.
 size_t GetGuestBrowserCount();

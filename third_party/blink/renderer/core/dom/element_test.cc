@@ -22,12 +22,14 @@
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
+#include "third_party/blink/renderer/core/paint/paint_property_tree_printer.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
@@ -1498,10 +1500,10 @@ TEST_F(ElementTest, OverscrollPseudoElementLayoutStructure) {
   UpdateAllLifecyclePhasesForTest();
 
   Element* scroller = GetElementById("scroller");
-  PseudoElement* overscroll_parent_foo = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--foo"));
-  PseudoElement* overscroll_parent_bar = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--bar"));
+  const OverscrollAreaParentPseudoElementsVector* overscroll_elements =
+      scroller->GetOverscrollAreaParentPseudoElements();
+  PseudoElement* overscroll_parent_foo = overscroll_elements->at(0);
+  PseudoElement* overscroll_parent_bar = overscroll_elements->at(1);
 
   ASSERT_TRUE(overscroll_parent_foo);
   ASSERT_TRUE(overscroll_parent_bar);
@@ -1529,57 +1531,53 @@ TEST_F(ElementTest, OverscrollPseudoElementLayoutStructure) {
             GetElementById("next-sibling")->GetLayoutObject());
 }
 
-TEST_F(ElementTest, ReorderOverscrollPseudoElements) {
+TEST_F(ElementTest, OverscrollPropertyTrees) {
   ScopedCSSOverscrollGesturesForTest enabled(true);
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
-      #scroller {
+      #container {
         overscroll-area: --foo, --bar;
+        overflow: auto;
       }
     </style>
-    <div id="scroller"></div>
+    <div id="container"></div>
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
+  Element* container = GetElementById("container");
+  const OverscrollAreaParentPseudoElementsVector* overscroll_elements =
+      container->GetOverscrollAreaParentPseudoElements();
+  PseudoElement* foo = overscroll_elements->at(0);
+  PseudoElement* bar = overscroll_elements->at(1);
 
-  Element* scroller = GetElementById("scroller");
-  PseudoElement* overscroll_parent_foo = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--foo"));
-  PseudoElement* overscroll_parent_bar = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--bar"));
-  ASSERT_TRUE(overscroll_parent_foo);
-  ASSERT_TRUE(overscroll_parent_bar);
+  // ::-internal-overscroll-area-parent skips the scrollers scroll translation.
+  for (auto* pseudo_element : {foo, bar}) {
+    EXPECT_EQ(pseudo_element->GetLayoutObject()
+                  ->FirstFragment()
+                  .PaintProperties()
+                  ->PaintOffsetTranslation()
+                  ->Parent(),
+              container->GetLayoutObject()
+                  ->FirstFragment()
+                  .PaintProperties()
+                  ->PaintOffsetTranslation());
+  }
 
-  // Overscroll area parents:
-  EXPECT_EQ(overscroll_parent_bar->GetLayoutObject()->Parent(),
-            scroller->GetLayoutObject());
-  EXPECT_EQ(overscroll_parent_foo->GetLayoutObject()->Parent(),
-            scroller->GetLayoutObject());
-
-  // Overscroll area order:
-  EXPECT_EQ(overscroll_parent_bar->GetLayoutObject()->PreviousSibling(),
-            overscroll_parent_foo->GetLayoutObject());
-  EXPECT_EQ(overscroll_parent_foo->GetLayoutObject()->PreviousSibling(),
-            nullptr);
-
-  // Change the order of --foo and --bar and ensure the pseudo-element
-  // structure is updated appropriately.
-  scroller->SetInlineStyleProperty(CSSPropertyID::kOverscrollArea,
-                                   AtomicString("--bar, --foo"));
-  UpdateAllLifecyclePhasesForTest();
-
-  overscroll_parent_foo = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--foo"));
-  overscroll_parent_bar = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--bar"));
-  ASSERT_TRUE(overscroll_parent_foo);
-  ASSERT_TRUE(overscroll_parent_bar);
-
-  // Overscroll area order:
-  EXPECT_EQ(overscroll_parent_bar->GetLayoutObject()->PreviousSibling(),
-            nullptr);
-  EXPECT_EQ(overscroll_parent_foo->GetLayoutObject()->PreviousSibling(),
-            overscroll_parent_bar->GetLayoutObject());
+  // Scroll chains from the element, to the overscroll-area-parents, to the
+  // root.
+  HeapVector<Member<const ScrollPaintPropertyNode>> scroll_chain(
+      {container->GetLayoutObject()
+           ->FirstFragment()
+           .PaintProperties()
+           ->Scroll(),
+       bar->GetLayoutObject()->FirstFragment().PaintProperties()->Scroll(),
+       foo->GetLayoutObject()->FirstFragment().PaintProperties()->Scroll(),
+       GetDocument().View()->GetPage()->GetVisualViewport().GetScrollNode()});
+  for (size_t i = 1; i < scroll_chain.size(); ++i) {
+    const ScrollPaintPropertyNode* child = scroll_chain[i - 1];
+    const ScrollPaintPropertyNode* parent = scroll_chain[i];
+    EXPECT_EQ(child->Parent(), parent);
+  }
 }
 
 TEST_F(ElementTest, OverscrollPseudoElementStyles) {
@@ -1605,8 +1603,8 @@ TEST_F(ElementTest, OverscrollPseudoElementStyles) {
   UpdateAllLifecyclePhasesForTest();
 
   Element* scroller = GetElementById("scroller");
-  PseudoElement* overscroll_parent_foo = scroller->GetPseudoElement(
-      kPseudoIdOverscrollAreaParent, AtomicString("--foo"));
+  PseudoElement* overscroll_parent_foo =
+      scroller->GetOverscrollAreaParentPseudoElements()->at(0);
 
   ASSERT_TRUE(overscroll_parent_foo);
 
@@ -1630,6 +1628,42 @@ TEST_F(ElementTest, OverscrollPseudoElementStyles) {
   // backface-visibility should be unchanged.
   EXPECT_EQ(EBackfaceVisibility::kVisible,
             overscroll_parent_foo->GetComputedStyle()->BackfaceVisibility());
+}
+
+// TODO(crbug.com/463729080): Enable this when the layout objects are properly
+// created.
+TEST_F(ElementTest, DISABLED_OverscrollContainerWithElement) {
+  ScopedCSSOverscrollGesturesForTest enabled(true);
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <div id="container" overscrollcontainer>
+      <div id="menu"></div>
+      <div id="content"></div>
+    </div>
+    <button id=button command="toggle-overscroll" commandfor="menu"></button>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* container = GetElementById("container");
+  ASSERT_TRUE(container);
+  PseudoElement* overscroll_area_parent =
+      container->GetPseudoElement(kPseudoIdOverscrollAreaParent);
+  Element* menu = GetElementById("menu");
+  Element* content = GetElementById("content");
+  ASSERT_TRUE(overscroll_area_parent);
+  ASSERT_TRUE(menu);
+  ASSERT_TRUE(content);
+
+  // We expect the following layout tree:
+  // container
+  //   overscroll-area-parent
+  //     menu
+  //   content
+  EXPECT_EQ(menu->GetLayoutObject()->Parent(),
+            overscroll_area_parent->GetLayoutObject());
+  EXPECT_EQ(overscroll_area_parent->GetLayoutObject(),
+            container->GetLayoutObject());
+  EXPECT_EQ(content->GetLayoutObject()->Parent(), container->GetLayoutObject());
 }
 
 TEST_F(ElementTest, GenerateScrollMarkerGroup) {

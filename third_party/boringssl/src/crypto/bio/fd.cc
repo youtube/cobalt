@@ -44,6 +44,8 @@
   #define BORINGSSL_WRITE write
 #endif
 
+using namespace bssl;
+
 BIO *BIO_new_fd(int fd, int close_flag) {
   BIO *ret = BIO_new(BIO_s_fd());
   if (ret == nullptr) {

@@ -114,7 +114,6 @@ Se queres ver máis opcións de configuración que usen datos para mellorar a t�
 <translation id="1413446866325418126">Gardar datos na túa Conta de Google</translation>
 <translation id="1414919006379339073">Pechar ventá actual</translation>
 <translation id="1416550906796893042">Versión da aplicación</translation>
-<translation id="1419753403124156396">Queres reiniciar Chrome?</translation>
 <translation id="1428770807407000502">Queres desactivar a sincronización?</translation>
 <translation id="1430915738399379752">Imprimir</translation>
 <translation id="1435593198351412143">Abrir PDF automaticamente</translation>
@@ -247,10 +246,8 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2063047797624276601">A túa organización activou Navegación segura mellorada</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{Produciuse un erro en 1 descarga}other{Produciuse un erro en # descargas}}</translation>
 <translation id="2067805253194386918">texto</translation>
-<translation id="2072027001582274150">Pestanas duplicadas ou sen usar</translation>
 <translation id="2079545284768500474">Desfacer</translation>
 <translation id="2082238445998314030">Resultado <ph name="RESULT_NUMBER" /> de <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">Para rematar a configuración da función de autocompletar, reinicia Chrome agora. As pestanas volverán abrirse automaticamente.</translation>
 <translation id="2091863218454846791">Mostrando vista compacta</translation>
 <translation id="2093731487903423814">últimos 15 minutos</translation>
 <translation id="2096577711562668473">Queres cambiar o servizo de autocompletar?</translation>
@@ -428,6 +425,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2854916915045135148">Mantén premido o botón para cambiar ao modo de incógnito</translation>
 <translation id="2860954141821109167">Asegúrate de que haxa unha aplicación de teléfono activada neste dispositivo</translation>
 <translation id="2861923151411510142">Algunhas funcións de Chrome non estarán dispoñibles</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> e 1 pestana máis}other{<ph name="URL" /> e <ph name="TAB_COUNT_MANY" /> pestanas máis}}</translation>
 <translation id="2869430948265924908">Para protexer o teu contido confidencial no coche, debes crear un bloqueo do perfil do coche.  Podes facelo cun PIN, cun código ou cun contrasinal.</translation>
 <translation id="2870560284913253234">Sitio</translation>
 <translation id="2871733351037274014">Precargar páxinas</translation>
@@ -446,6 +444,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2904414404539560095">A lista de dispositivos cos que compartir unha pestana está aberta a pantalla completa.</translation>
 <translation id="2908243544703713905">Hai dispoñibles historias que non liches</translation>
 <translation id="2909615210195135082">Plataforma de notificacións de Google</translation>
+<translation id="2912247081180973411">Pechar ventás</translation>
 <translation id="2912345083818861431">Utiliza o bloqueo de pantalla para acceder ás pestanas do modo de incógnito que estean abertas</translation>
 <translation id="2918484639460781603">Ir a Configuración</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, pestana silenciada</translation>
@@ -503,7 +502,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="3159335509547415276">Máis información acerca das contas bloqueadas</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />; ábrese nunha pestana nova</translation>
 <translation id="3166827708714933426">Atallos da ventá e da pestana</translation>
-<translation id="316694332262407393">Chrome xa se está executando aquí.</translation>
 <translation id="3167258285411721858">Podes solicitar o sitio para móbiles para o anfitrión <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, pestana do modo de incógnito fixada, silenciada e multiseleccionada</translation>
@@ -851,7 +849,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="468924408576231679">Copiar a ligazón á páxina web <ph name="PAGE_TITLE" />. Fonte: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Goza de mellor contido</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 e <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> máis}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 e <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> máis}}</translation>
-<translation id="4698061626562952596">Aquí podes revisar as pestanas inactivas</translation>
 <translation id="4698757800236023795">Activas (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Imaxes e ficheiros almacenados na memoria caché</translation>
 <translation id="4710167854527459075">Ordenar por máis recente</translation>
@@ -950,6 +947,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> pestana: <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> pestanas: <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Privacidade</translation>
 <translation id="504456571576643789">Cuestións que se deben ter en conta</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> ventá seleccionada}other{<ph name="WINDOW_COUNT_NORMAL" /> ventás seleccionadas}}</translation>
 <translation id="5056587122125565772">Crear imaxe</translation>
 <translation id="506254248375231072">Ningunha pestana</translation>
 <translation id="5075939510584558547">Gardar sen encriptación</translation>
@@ -966,7 +964,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="5123685120097942451">Pestana do modo de incógnito</translation>
 <translation id="5142281402488957685">Se queres ver historias novas, arrastra cara abaixo para actualizar o contido</translation>
 <translation id="5144385790872094440">Precargaranse algunhas das páxinas que visites. As páxinas poderán precargarse a través dos nosos servidores se están vinculadas desde unha aplicación ou un sitio de Google.</translation>
-<translation id="5145887002054615868">As pestanas duplicadas ou as que non se usen durante <ph name="DAYS_INACTIVE" /> días moveranse aquí<ph name="AUTODELETE_SECTION" />. Podes cambiar esta opción cando queiras en <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Non hai aplicacións compatibles instaladas</translation>
 <translation id="5161254044473106830">Título obrigatorio</translation>
 <translation id="5161262286013276579">Abriuse a folla de confirmación da clave de acceso</translation>
@@ -1041,6 +1038,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="5469852975082458401">Podes navegar polas páxinas cun cursor de texto. Preme F7 para desactivar esta función.</translation>
 <translation id="5471273988133666918">A pestana <ph name="TAB_TITLE" /> non se pode mover</translation>
 <translation id="548278423535722844">Abrir na aplicación de mapas</translation>
+<translation id="5494920125229734069">Seleccionar todo</translation>
 <translation id="549660026907543296">Unirte como <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Panel inferior de actividade recente</translation>
 <translation id="5526281268548144413">Non se poden pechar en varias ventás</translation>
@@ -1149,6 +1147,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="5958275228015807058">Atopa os ficheiros e as páxinas que descargaches na sección Descargas</translation>
 <translation id="5962718611393537961">Toca para contraer</translation>
 <translation id="5964869237734432770">Descricións de imaxes: non</translation>
+<translation id="5972844218283131174">Anular toda a selección</translation>
 <translation id="5975083100439434680">Afastar</translation>
 <translation id="5977976211062815271">Neste dispositivo</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 páxina na túa lista de lectura}other{# páxinas na túa lista de lectura}}</translation>
@@ -1721,12 +1720,14 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="8137562778192957619">Non terás que lembrar este contrasinal. Gardarase no xestor de contrasinais de Google.</translation>
 <translation id="8152331954420209374">Ir a Lens</translation>
 <translation id="8153206878708357851">Activar ou desactivar a navegación por cursor de texto</translation>
+<translation id="8154784523622173959">Personaliza o fondo desta páxina</translation>
 <translation id="8163820386638255770">Para usar e gardar os contrasinais na túa Conta de Google, verifica a túa identidade</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) elemento inactivo}other{(#) elementos inactivos}}</translation>
 <translation id="8186512483418048923">Quedan <ph name="FILES" /> ficheiros</translation>
 <translation id="8190358571722158785">Queda 1 día</translation>
 <translation id="8192765420340770300">Panel inferior de inicio de sesión aberto a pantalla completa</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Os teus dispositivos<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Borrar consulta de busca</translation>
 <translation id="820568752112382238">Sitios máis visitados</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Unirte ao grupo de pestanas con <ph name="OWNER_FIRST_NAME" /> e <ph name="NUMBER_OF_OTHER_MEMBERS" /> persoa máis}other{Unirte ao grupo de pestanas con <ph name="OWNER_FIRST_NAME" /> e <ph name="NUMBER_OF_OTHER_MEMBERS" /> persoas máis}}</translation>
 <translation id="8209050860603202033">Abrir imaxe</translation>

@@ -35,22 +35,6 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Unsupported request from prefetch only document"/>
 </enum>
 
-<enum name="BmpCompressionType">
-<!-- LINT.IfChange(BmpCompressionType) -->
-
-  <int value="0" label="RGB"/>
-  <int value="1" label="RLE8"/>
-  <int value="2" label="RLE4"/>
-  <int value="3" label="BITFIELDS"/>
-  <int value="4" label="JPEG"/>
-  <int value="5" label="PNG"/>
-  <int value="6" label="ALPHABITFIELDS"/>
-  <int value="7" label="HUFFMAN1D"/>
-  <int value="8" label="RLE24"/>
-<!-- LINT.ThenChange(//third_party/blink/renderer/platform/image-decoders/bmp/bmp_image_reader.h:CompressionType) -->
-
-</enum>
-
 <enum name="BooleanContentChangeMode">
   <int value="0" label="Discard Content"/>
   <int value="1" label="Retain Content"/>
@@ -4640,7 +4624,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4169" label="OBSOLETE_BlobStoreAccessAcrossTopLevelSite"/>
   <int value="4170" label="OBSOLETE_BlobStoreAccessUnknownTopLevelSite"/>
   <int value="4171" label="CrossOriginAccessBasedOnDocumentDomain"/>
-  <int value="4172" label="CookieWithTruncatingChar"/>
+  <int value="4172" label="OBSOLETE_CookieWithTruncatingChar"/>
   <int value="4173" label="VideoTrackGenerator"/>
   <int value="4174" label="MediaCapabilitiesDecodingInfoWebrtc"/>
   <int value="4175" label="MediaCapabilitiesEncodingInfoWebrtc"/>
@@ -5228,7 +5212,7 @@ Called by update_use_counter_feature_enum.py.-->
       label="StorageAccessAPI_requestStorageAccess_BeyondCookies_locks_Use"/>
   <int value="4708" label="OBSOLETE_RubyElementWithDisplayBlockAndRt"/>
   <int value="4709" label="OBSOLETE_CSSDeclarationAfterNestedRule"/>
-  <int value="4710" label="ThirdPartyCookieAdAccessBlockByExperiment"/>
+  <int value="4710" label="OBSOLETE_ThirdPartyCookieAdAccessBlockByExperiment"/>
   <int value="4711" label="ServiceWorkerStaticRouter_AddRoutes"/>
   <int value="4712"
       label="StorageAccessAPI_requestStorageAccess_BeyondCookies_caches"/>
@@ -5261,14 +5245,19 @@ Called by update_use_counter_feature_enum.py.-->
       label="StorageAccessAPI_requestStorageAccess_BeyondCookies_BroadcastChannel"/>
   <int value="4730"
       label="StorageAccessAPI_requestStorageAccess_BeyondCookies_BroadcastChannel_Use"/>
-  <int value="4731" label="ThirdPartyCookieDeprecation_AllowByExplicitSetting"/>
-  <int value="4732" label="ThirdPartyCookieDeprecation_AllowByGlobalSetting"/>
-  <int value="4733" label="ThirdPartyCookieDeprecation_AllowBy3PCDMetadata"/>
-  <int value="4734" label="ThirdPartyCookieDeprecation_AllowBy3PCD"/>
-  <int value="4735" label="ThirdPartyCookieDeprecation_AllowBy3PCDHeuristics"/>
-  <int value="4736" label="ThirdPartyCookieDeprecation_AllowByStorageAccess"/>
+  <int value="4731"
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowByExplicitSetting"/>
+  <int value="4732"
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowByGlobalSetting"/>
+  <int value="4733"
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowBy3PCDMetadata"/>
+  <int value="4734" label="OBSOLETE_ThirdPartyCookieDeprecation_AllowBy3PCD"/>
+  <int value="4735"
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowBy3PCDHeuristics"/>
+  <int value="4736"
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowByStorageAccess"/>
   <int value="4737"
-      label="ThirdPartyCookieDeprecation_AllowByTopLevelStorageAccess"/>
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowByTopLevelStorageAccess"/>
   <int value="4738" label="IframeAdAuctionHeadersAttribute"/>
   <int value="4739" label="AutoSpeculationRulesOptedOut"/>
   <int value="4740" label="OverrideFlashEmbedwithHTML"/>
@@ -5309,7 +5298,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4775" label="UserFeatureNgOptimizedImage"/>
   <int value="4776" label="CSSAtRulePageMargin"/>
   <int value="4777"
-      label="ThirdPartyCookieDeprecation_AllowByEnterprisePolicyCookieAllowedForUrls"/>
+      label="OBSOLETE_ThirdPartyCookieDeprecation_AllowByEnterprisePolicyCookieAllowedForUrls"/>
   <int value="4778" label="UserFeatureNgAfterRender"/>
   <int value="4779" label="UserFeatureNgHydration"/>
   <int value="4780" label="CapturedSurfaceControl"/>
@@ -5432,7 +5421,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4873" label="DOMClobberedNotShadowedDocumentPropertyAccessed"/>
   <int value="4874" label="DOMClobberedShadowedFormPropertyAccessed"/>
   <int value="4875" label="DOMClobberedNotShadowedFormPropertyAccessed"/>
-  <int value="4876" label="TpcdCookieReadBlockedByAdHeuristics"/>
+  <int value="4876" label="OBSOLETE_TpcdCookieReadBlockedByAdHeuristics"/>
   <int value="4877" label="UsedColorSchemeRootScrollbarsDark"/>
   <int value="4878" label="SerialPortConnected"/>
   <int value="4879" label="DevicePostureMediaFeature"/>
@@ -5693,7 +5682,7 @@ Called by update_use_counter_feature_enum.py.-->
       label="OBSOLETE_MaxInterStageShaderComponentsRequiredLimit"/>
   <int value="5112" label="ShowPickerSelect"/>
   <int value="5113" label="AudioContextPlayoutStats"/>
-  <int value="5114" label="ThirdPartyCookieBlocked"/>
+  <int value="5114" label="OBSOLETE_ThirdPartyCookieBlocked"/>
   <int value="5115"
       label="V8PerformanceResourceTiming_WorkerRouterEvaluationStart_AttributeGetter"/>
   <int value="5116"
@@ -6404,6 +6393,15 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5761" label="SVGFESpecularLightingElement"/>
   <int value="5762" label="SVGFETileElement"/>
   <int value="5763" label="SVGFETurbulenceElement"/>
+  <int value="5764" label="UnframedIwa"/>
+  <int value="5765" label="DigitalCredentialsProtocolOpenId4VpUnsigned"/>
+  <int value="5766" label="DigitalCredentialsProtocolOpenId4VpSigned"/>
+  <int value="5767" label="DigitalCredentialsProtocolOpenId4VpMultisigned"/>
+  <int value="5768" label="DigitalCredentialsProtocolOrgIsoMdoc"/>
+  <int value="5769" label="DigitalCredentialsProtocolOpenId4Vci"/>
+  <int value="5770" label="DigitalCredentialsProtocolUnknown"/>
+  <int value="5771" label="SetCookieWithEmptyName"/>
+  <int value="5772" label="SetCookieWithEmptyNameAndAmbiguousValue"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6558,6 +6556,8 @@ Called by update_permissions_policy_enum.py.-->
   <int value="141" label="DigitalCredentialsCreate"/>
   <int value="142" label="MulticastInDirectSockets"/>
   <int value="143" label="ManualText"/>
+  <int value="144" label="LocalNetwork"/>
+  <int value="145" label="LoopbackNetwork"/>
 </enum>
 
 <!-- LINT.IfChange(FedCmAccountChooserResult) -->
@@ -8204,17 +8204,25 @@ Called by update_use_counter_css.py.-->
   <int value="888" label="rule-inset"/>
   <int value="889" label="column-rule-visibility-items"/>
   <int value="890" label="row-rule-visibility-items"/>
-  <int value="891" label="column-rule-edge-start-inset"/>
-  <int value="892" label="column-rule-edge-end-inset"/>
-  <int value="893" label="column-rule-interior-start-inset"/>
-  <int value="894" label="column-rule-interior-end-inset"/>
-  <int value="895" label="row-rule-edge-start-inset"/>
-  <int value="896" label="row-rule-edge-end-inset"/>
-  <int value="897" label="row-rule-interior-start-inset"/>
-  <int value="898" label="row-rule-interior-end-inset"/>
+  <int value="891" label="column-rule-edge-inset-start"/>
+  <int value="892" label="column-rule-edge-inset-end"/>
+  <int value="893" label="column-rule-interior-inset-start"/>
+  <int value="894" label="column-rule-interior-inset-end"/>
+  <int value="895" label="row-rule-edge-inset-start"/>
+  <int value="896" label="row-rule-edge-inset-end"/>
+  <int value="897" label="row-rule-interior-inset-start"/>
+  <int value="898" label="row-rule-interior-inset-end"/>
   <int value="899" label="timeline-trigger-range"/>
   <int value="900" label="timeline-trigger-exit-range"/>
   <int value="901" label="trigger-scope"/>
+  <int value="902" label="protocol"/>
+  <int value="903" label="hostname"/>
+  <int value="904" label="port"/>
+  <int value="905" label="pathname"/>
+  <int value="906" label="search"/>
+  <int value="907" label="hash"/>
+  <int value="908" label="base-url"/>
+  <int value="909" label="pattern"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8765,6 +8773,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="414" label="TextJustify"/>
   <int value="415" label="Summarizer"/>
   <int value="416" label="TranslationApi"/>
+  <int value="417" label="DRAFT_MetaTextScale"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

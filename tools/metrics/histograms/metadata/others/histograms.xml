@@ -3041,7 +3041,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.AcceptCHFrame" enum="AcceptCHFrameRestart"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3054,7 +3054,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.CriticalCHRestart" enum="CriticalCHRestart"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3064,7 +3064,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.FetchLatency{OperationType}" units="microseconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -5255,6 +5255,7 @@ chromium-metrics-reviews@google.com.
   <owner>amistry@chromium.org</owner>
   <owner>bgeffon@chromium.org</owner>
   <owner>rockot@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time taken to fully write a channel message to the underlying
     channel.
@@ -5306,6 +5307,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-05-31">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time taken between an IPCz message serialization until it is
     deserialized on the other side of the Channel. This metric is downsampled to
@@ -5358,10 +5360,11 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.EndToEndLatencyUs.{ThreadName}" units="microseconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <owner>mthiesse@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time taken from the sender calling a mojo interface function to
     the receiver's implementation getting invoked.
@@ -6334,7 +6337,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend.OptimizationGuide.Result{ClientId}"
-    enum="PageImageServiceResult" expires_after="2026-04-19">
+    enum="PageImageServiceResult" expires_after="2026-06-21">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1456757</component>
@@ -6586,7 +6589,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Process.Sandbox.DllBlocked" enum="WinTroublesomeDllName"
-    expires_after="2026-04-13">
+    expires_after="2026-06-21">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -6711,7 +6714,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PushMessaging.PushSubscriptionChangeForNotificationPermissionChangeFired"
-    units="count" expires_after="2026-04-11">
+    units="count" expires_after="2026-06-21">
   <owner>peter@chromium.org</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>
@@ -6870,7 +6873,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Unread.Number" units="count"
-    expires_after="2026-03-29">
+    expires_after="2026-06-21">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of unread entries in reading list.</summary>
@@ -8446,7 +8449,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.ReadTraceDuration" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8456,7 +8459,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.Scenario.Trigger.{Type}"
-    enum="BackgroundTracingTriggerNameHash" expires_after="2026-04-12">
+    enum="BackgroundTracingTriggerNameHash" expires_after="2026-06-21">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8473,7 +8476,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.Scenario.{Event}"
-    enum="BackgroundTracingScenarioNameHash" expires_after="2026-04-12">
+    enum="BackgroundTracingScenarioNameHash" expires_after="2026-06-21">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8587,7 +8590,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.CrxDownloader.DownloadCompleteSuccess"
-    enum="Boolean" expires_after="2026-01-25">
+    enum="Boolean" expires_after="2026-07-25">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
@@ -8961,7 +8964,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebController.CertVerificationErrorsCacheHit"
-    enum="BooleanCacheHit" expires_after="2026-04-19">
+    enum="BooleanCacheHit" expires_after="2026-06-21">
   <owner>gambard@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>

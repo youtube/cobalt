@@ -81,6 +81,20 @@ export function isCCADisallowed(): boolean {
 }
 
 /**
+ * Returns the path relative to the root folder where files will be saved.
+ */
+export function getPathRelativeToRoot(): string {
+  return loadTimeData.getString('path_relative_to_root');
+}
+
+/**
+ * Returns whether the camera app saves files on cloud.
+ */
+export function isCloudDestination(): boolean {
+  return loadTimeData.getBoolean('cloud_destination');
+}
+
+/**
  * Returns the OS version string.
  */
 export function getOsVersion(): string {

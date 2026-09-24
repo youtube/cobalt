@@ -702,6 +702,9 @@ constexpr int kSimd128Size = 16;
 // Half of 128 bit SIMD value size.
 constexpr int kSimd128HalfSize = kSimd128Size / 2;
 
+// Quarter of 128 bit SIMD value size.
+constexpr int kSimd128QuarterSize = kSimd128Size / 4;
+
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
 
@@ -1204,6 +1207,7 @@ class RelocInfo;
 class Scope;
 class ScopeInfo;
 class Script;
+class SharedFunctionInfo;
 class SimpleNumberDictionary;
 class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
@@ -1244,6 +1248,10 @@ using JSAnyNotNumber =
     Union<BigInt, String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSCallable =
     Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
+using JSAnyOrSharedFunctionInfo =
+    Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null, Undefined,
+          JSReceiver, SharedFunctionInfo>;
+
 // Object prototypes are either JSReceivers or null -- they are not allowed to
 // be any other primitive value.
 using JSPrototype = Union<JSReceiver, Null>;

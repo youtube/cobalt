@@ -22,6 +22,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
+#include <openssl/span.h>
 
 #include "../../internal.h"
 #include "../aes/internal.h"
@@ -756,91 +757,91 @@ static int aead_aes_gcm_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
 
 static void aead_aes_gcm_cleanup(EVP_AEAD_CTX *ctx) {}
 
-static int aead_aes_gcm_seal_scatter_impl(
-    const struct aead_aes_gcm_ctx *gcm_ctx, uint8_t *out, uint8_t *out_tag,
-    size_t *out_tag_len, size_t max_out_tag_len, const uint8_t *nonce,
-    size_t nonce_len, const uint8_t *in, size_t in_len, const uint8_t *extra_in,
-    size_t extra_in_len, const uint8_t *ad, size_t ad_len, size_t tag_len) {
-  if (extra_in_len + tag_len < tag_len) {
-    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
-    return 0;
-  }
-  if (max_out_tag_len < extra_in_len + tag_len) {
+static int aead_aes_gcm_sealv_impl(const struct aead_aes_gcm_ctx *gcm_ctx,
+                                   bssl::Span<const CRYPTO_IOVEC> iovecs,
+                                   bssl::Span<uint8_t> out_tag,
+                                   size_t *out_tag_len,
+                                   bssl::Span<const uint8_t> nonce,
+                                   bssl::Span<const CRYPTO_IVEC> aadvecs,
+                                   size_t tag_len) {
+  if (out_tag.size() < tag_len) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
     return 0;
   }
-  if (nonce_len == 0) {
+
+  if (nonce.size() == 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
   }
 
   const GCM128_KEY *key = &gcm_ctx->key;
   GCM128_CONTEXT gcm;
-  CRYPTO_gcm128_init_ctx(key, &gcm, nonce, nonce_len);
+  CRYPTO_gcm128_init_ctx(key, &gcm, nonce.data(), nonce.size());
 
-  if (ad_len > 0 && !CRYPTO_gcm128_aad(key, &gcm, ad, ad_len)) {
-    return 0;
+  for (const CRYPTO_IVEC &aadvec : aadvecs) {
+    if (!CRYPTO_gcm128_aad(key, &gcm, aadvec.in, aadvec.len)) {
+      return 0;
+    }
   }
 
-  if (!CRYPTO_gcm128_encrypt(key, &gcm, in, out, in_len)) {
-    return 0;
+  for (const CRYPTO_IOVEC &iovec : iovecs) {
+    if (!CRYPTO_gcm128_encrypt(key, &gcm, iovec.in, iovec.out, iovec.len)) {
+      return 0;
+    }
   }
 
-  if (extra_in_len > 0 &&
-      !CRYPTO_gcm128_encrypt(key, &gcm, extra_in, out_tag, extra_in_len)) {
-    return 0;
-  }
-
-  CRYPTO_gcm128_tag(key, &gcm, out_tag + extra_in_len, tag_len);
-  *out_tag_len = tag_len + extra_in_len;
+  CRYPTO_gcm128_tag(key, &gcm, out_tag.data(), tag_len);
+  *out_tag_len = tag_len;
 
   return 1;
 }
 
-static int aead_aes_gcm_seal_scatter(
-    const EVP_AEAD_CTX *ctx, uint8_t *out, uint8_t *out_tag,
-    size_t *out_tag_len, size_t max_out_tag_len, const uint8_t *nonce,
-    size_t nonce_len, const uint8_t *in, size_t in_len, const uint8_t *extra_in,
-    size_t extra_in_len, const uint8_t *ad, size_t ad_len) {
+static int aead_aes_gcm_sealv(const EVP_AEAD_CTX *ctx,
+                              bssl::Span<const CRYPTO_IOVEC> iovecs,
+                              bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
+                              bssl::Span<const uint8_t> nonce,
+                              bssl::Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_gcm_ctx *gcm_ctx =
       (const struct aead_aes_gcm_ctx *)&ctx->state;
-  return aead_aes_gcm_seal_scatter_impl(
-      gcm_ctx, out, out_tag, out_tag_len, max_out_tag_len, nonce, nonce_len, in,
-      in_len, extra_in, extra_in_len, ad, ad_len, ctx->tag_len);
+  return aead_aes_gcm_sealv_impl(gcm_ctx, iovecs, out_tag, out_tag_len, nonce,
+                                 aadvecs, ctx->tag_len);
 }
 
-static int aead_aes_gcm_open_gather_impl(const struct aead_aes_gcm_ctx *gcm_ctx,
-                                         uint8_t *out, const uint8_t *nonce,
-                                         size_t nonce_len, const uint8_t *in,
-                                         size_t in_len, const uint8_t *in_tag,
-                                         size_t in_tag_len, const uint8_t *ad,
-                                         size_t ad_len, size_t tag_len) {
+static int aead_aes_gcm_openv_detached_impl(
+    const struct aead_aes_gcm_ctx *gcm_ctx,
+    bssl::Span<const CRYPTO_IOVEC> iovecs, bssl::Span<const uint8_t> nonce,
+    bssl::Span<const uint8_t> in_tag, bssl::Span<const CRYPTO_IVEC> aadvecs,
+    size_t tag_len) {
   uint8_t tag[EVP_AEAD_AES_GCM_TAG_LEN];
 
-  if (nonce_len == 0) {
+  if (nonce.size() == 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
   }
 
-  if (in_tag_len != tag_len) {
+  if (in_tag.size() != tag_len) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
     return 0;
   }
 
   const GCM128_KEY *key = &gcm_ctx->key;
   GCM128_CONTEXT gcm;
-  CRYPTO_gcm128_init_ctx(key, &gcm, nonce, nonce_len);
+  CRYPTO_gcm128_init_ctx(key, &gcm, nonce.data(), nonce.size());
 
-  if (!CRYPTO_gcm128_aad(key, &gcm, ad, ad_len)) {
-    return 0;
+  for (const CRYPTO_IVEC &aadvec : aadvecs) {
+    if (!CRYPTO_gcm128_aad(key, &gcm, aadvec.in, aadvec.len)) {
+      return 0;
+    }
   }
 
-  if (!CRYPTO_gcm128_decrypt(key, &gcm, in, out, in_len)) {
-    return 0;
+  for (const CRYPTO_IOVEC &iovec : iovecs) {
+    if (!CRYPTO_gcm128_decrypt(key, &gcm, iovec.in, iovec.out, iovec.len)) {
+      return 0;
+    }
   }
 
   CRYPTO_gcm128_tag(key, &gcm, tag, tag_len);
-  if (CRYPTO_memcmp(tag, in_tag, tag_len) != 0) {
+  if (CRYPTO_memcmp(tag, in_tag.data(), tag_len) != 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
     return 0;
   }
@@ -848,15 +849,14 @@ static int aead_aes_gcm_open_gather_impl(const struct aead_aes_gcm_ctx *gcm_ctx,
   return 1;
 }
 
-static int aead_aes_gcm_open_gather(const EVP_AEAD_CTX *ctx, uint8_t *out,
-                                    const uint8_t *nonce, size_t nonce_len,
-                                    const uint8_t *in, size_t in_len,
-                                    const uint8_t *in_tag, size_t in_tag_len,
-                                    const uint8_t *ad, size_t ad_len) {
+static int aead_aes_gcm_openv_detached(const EVP_AEAD_CTX *ctx,
+                                       bssl::Span<const CRYPTO_IOVEC> iovecs,
+                                       bssl::Span<const uint8_t> nonce,
+                                       bssl::Span<const uint8_t> in_tag,
+                                       bssl::Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_ctx *gcm_ctx = (struct aead_aes_gcm_ctx *)&ctx->state;
-  if (!aead_aes_gcm_open_gather_impl(gcm_ctx, out, nonce, nonce_len, in, in_len,
-                                     in_tag, in_tag_len, ad, ad_len,
-                                     ctx->tag_len)) {
+  if (!aead_aes_gcm_openv_detached_impl(gcm_ctx, iovecs, nonce, in_tag, aadvecs,
+                                        ctx->tag_len)) {
     return 0;
   }
 
@@ -871,12 +871,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_192_gcm) {
@@ -886,12 +885,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_192_gcm) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm) {
@@ -901,12 +899,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 static int aead_aes_gcm_init_randnonce(EVP_AEAD_CTX *ctx, const uint8_t *key,
@@ -928,19 +925,18 @@ static int aead_aes_gcm_init_randnonce(EVP_AEAD_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int aead_aes_gcm_seal_scatter_randnonce(
-    const EVP_AEAD_CTX *ctx, uint8_t *out, uint8_t *out_tag,
-    size_t *out_tag_len, size_t max_out_tag_len, const uint8_t *external_nonce,
-    size_t external_nonce_len, const uint8_t *in, size_t in_len,
-    const uint8_t *extra_in, size_t extra_in_len, const uint8_t *ad,
-    size_t ad_len) {
-  if (external_nonce_len != 0) {
+static int aead_aes_gcm_sealv_randnonce(
+    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
+    bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
+    bssl::Span<const uint8_t> external_nonce,
+    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+  if (external_nonce.size() != 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
   }
 
   uint8_t nonce[AES_GCM_NONCE_LENGTH];
-  if (max_out_tag_len < sizeof(nonce)) {
+  if (out_tag.size() < sizeof(nonce)) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
     return 0;
   }
@@ -954,43 +950,39 @@ static int aead_aes_gcm_seal_scatter_randnonce(
 
   const struct aead_aes_gcm_ctx *gcm_ctx =
       (const struct aead_aes_gcm_ctx *)&ctx->state;
-  if (!aead_aes_gcm_seal_scatter_impl(gcm_ctx, out, out_tag, out_tag_len,
-                                      max_out_tag_len - AES_GCM_NONCE_LENGTH,
-                                      nonce, sizeof(nonce), in, in_len,
-                                      extra_in, extra_in_len, ad, ad_len,
-                                      ctx->tag_len - AES_GCM_NONCE_LENGTH)) {
+  if (!aead_aes_gcm_sealv_impl(
+          gcm_ctx, iovecs, out_tag.first(out_tag.size() - AES_GCM_NONCE_LENGTH),
+          out_tag_len, nonce, aadvecs, ctx->tag_len - AES_GCM_NONCE_LENGTH)) {
     return 0;
   }
 
-  assert(*out_tag_len + sizeof(nonce) <= max_out_tag_len);
-  memcpy(out_tag + *out_tag_len, nonce, sizeof(nonce));
+  assert(*out_tag_len + sizeof(nonce) <= out_tag.size());
+  CopyToPrefix(nonce, out_tag.subspan(*out_tag_len));
   *out_tag_len += sizeof(nonce);
 
   AEAD_GCM_verify_service_indicator(ctx);
   return 1;
 }
 
-static int aead_aes_gcm_open_gather_randnonce(
-    const EVP_AEAD_CTX *ctx, uint8_t *out, const uint8_t *external_nonce,
-    size_t external_nonce_len, const uint8_t *in, size_t in_len,
-    const uint8_t *in_tag, size_t in_tag_len, const uint8_t *ad,
-    size_t ad_len) {
-  if (external_nonce_len != 0) {
+static int aead_aes_gcm_openv_detached_randnonce(
+    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
+    bssl::Span<const uint8_t> external_nonce, bssl::Span<const uint8_t> in_tag,
+    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+  if (external_nonce.size() != 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
   }
 
-  if (in_tag_len < AES_GCM_NONCE_LENGTH) {
+  if (in_tag.size() < AES_GCM_NONCE_LENGTH) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
     return 0;
   }
-  const uint8_t *nonce = in_tag + in_tag_len - AES_GCM_NONCE_LENGTH;
 
   const struct aead_aes_gcm_ctx *gcm_ctx =
       (const struct aead_aes_gcm_ctx *)&ctx->state;
-  if (!aead_aes_gcm_open_gather_impl(
-          gcm_ctx, out, nonce, AES_GCM_NONCE_LENGTH, in, in_len, in_tag,
-          in_tag_len - AES_GCM_NONCE_LENGTH, ad, ad_len,
+  if (!aead_aes_gcm_openv_detached_impl(
+          gcm_ctx, iovecs, in_tag.last(AES_GCM_NONCE_LENGTH),
+          in_tag.first(in_tag.size() - AES_GCM_NONCE_LENGTH), aadvecs,
           ctx->tag_len - AES_GCM_NONCE_LENGTH)) {
     return 0;
   }
@@ -1006,12 +998,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_randnonce) {
   out->nonce_len = 0;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN + AES_GCM_NONCE_LENGTH;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN + AES_GCM_NONCE_LENGTH;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_init_randnonce;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_seal_scatter_randnonce;
-  out->open_gather = aead_aes_gcm_open_gather_randnonce;
+  out->sealv = aead_aes_gcm_sealv_randnonce;
+  out->openv_detached = aead_aes_gcm_openv_detached_randnonce;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_randnonce) {
@@ -1021,12 +1012,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_randnonce) {
   out->nonce_len = 0;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN + AES_GCM_NONCE_LENGTH;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN + AES_GCM_NONCE_LENGTH;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_init_randnonce;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_seal_scatter_randnonce;
-  out->open_gather = aead_aes_gcm_open_gather_randnonce;
+  out->sealv = aead_aes_gcm_sealv_randnonce;
+  out->openv_detached = aead_aes_gcm_openv_detached_randnonce;
 }
 
 namespace {
@@ -1060,22 +1050,23 @@ static int aead_aes_gcm_tls12_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int aead_aes_gcm_tls12_seal_scatter(
-    const EVP_AEAD_CTX *ctx, uint8_t *out, uint8_t *out_tag,
-    size_t *out_tag_len, size_t max_out_tag_len, const uint8_t *nonce,
-    size_t nonce_len, const uint8_t *in, size_t in_len, const uint8_t *extra_in,
-    size_t extra_in_len, const uint8_t *ad, size_t ad_len) {
+static int aead_aes_gcm_tls12_sealv(const EVP_AEAD_CTX *ctx,
+                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
+                                    bssl::Span<uint8_t> out_tag,
+                                    size_t *out_tag_len,
+                                    bssl::Span<const uint8_t> nonce,
+                                    bssl::Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_tls12_ctx *gcm_ctx =
       (struct aead_aes_gcm_tls12_ctx *)&ctx->state;
 
-  if (nonce_len != AES_GCM_NONCE_LENGTH) {
+  if (nonce.size() != AES_GCM_NONCE_LENGTH) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_UNSUPPORTED_NONCE_SIZE);
     return 0;
   }
 
   // The given nonces must be strictly monotonically increasing.
   uint64_t given_counter =
-      CRYPTO_load_u64_be(nonce + nonce_len - sizeof(uint64_t));
+      CRYPTO_load_u64_be(nonce.last(sizeof(uint64_t)).data());
   if (given_counter == UINT64_MAX || given_counter < gcm_ctx->min_next_nonce) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE);
     return 0;
@@ -1083,9 +1074,7 @@ static int aead_aes_gcm_tls12_seal_scatter(
 
   gcm_ctx->min_next_nonce = given_counter + 1;
 
-  if (!aead_aes_gcm_seal_scatter(ctx, out, out_tag, out_tag_len,
-                                 max_out_tag_len, nonce, nonce_len, in, in_len,
-                                 extra_in, extra_in_len, ad, ad_len)) {
+  if (!aead_aes_gcm_sealv(ctx, iovecs, out_tag, out_tag_len, nonce, aadvecs)) {
     return 0;
   }
 
@@ -1100,12 +1089,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls12) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_tls12_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_tls12_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_tls12_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls12) {
@@ -1115,12 +1103,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls12) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_tls12_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_tls12_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_tls12_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 namespace {
@@ -1155,15 +1142,16 @@ static int aead_aes_gcm_tls13_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int aead_aes_gcm_tls13_seal_scatter(
-    const EVP_AEAD_CTX *ctx, uint8_t *out, uint8_t *out_tag,
-    size_t *out_tag_len, size_t max_out_tag_len, const uint8_t *nonce,
-    size_t nonce_len, const uint8_t *in, size_t in_len, const uint8_t *extra_in,
-    size_t extra_in_len, const uint8_t *ad, size_t ad_len) {
+static int aead_aes_gcm_tls13_sealv(const EVP_AEAD_CTX *ctx,
+                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
+                                    bssl::Span<uint8_t> out_tag,
+                                    size_t *out_tag_len,
+                                    bssl::Span<const uint8_t> nonce,
+                                    bssl::Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_tls13_ctx *gcm_ctx =
       (struct aead_aes_gcm_tls13_ctx *)&ctx->state;
 
-  if (nonce_len != AES_GCM_NONCE_LENGTH) {
+  if (nonce.size() != AES_GCM_NONCE_LENGTH) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_UNSUPPORTED_NONCE_SIZE);
     return 0;
   }
@@ -1172,7 +1160,7 @@ static int aead_aes_gcm_tls13_seal_scatter(
   // https://tools.ietf.org/html/rfc8446#section-5.3 for details of the TLS 1.3
   // nonce construction.
   uint64_t given_counter =
-      CRYPTO_load_u64_be(nonce + nonce_len - sizeof(uint64_t));
+      CRYPTO_load_u64_be(nonce.last(sizeof(uint64_t)).data());
 
   if (gcm_ctx->min_next_nonce == 0) {
     // In the first call the sequence number will be zero and therefore the
@@ -1189,9 +1177,7 @@ static int aead_aes_gcm_tls13_seal_scatter(
     gcm_ctx->min_next_nonce = given_counter + 1;
   }
 
-  if (!aead_aes_gcm_seal_scatter(ctx, out, out_tag, out_tag_len,
-                                 max_out_tag_len, nonce, nonce_len, in, in_len,
-                                 extra_in, extra_in_len, ad, ad_len)) {
+  if (!aead_aes_gcm_sealv(ctx, iovecs, out_tag, out_tag_len, nonce, aadvecs)) {
     return 0;
   }
 
@@ -1206,12 +1192,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm_tls13) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_tls13_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_tls13_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_tls13_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls13) {
@@ -1221,12 +1206,11 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls13) {
   out->nonce_len = AES_GCM_NONCE_LENGTH;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
-  out->seal_scatter_supports_extra_in = 1;
 
   out->init = aead_aes_gcm_tls13_init;
   out->cleanup = aead_aes_gcm_cleanup;
-  out->seal_scatter = aead_aes_gcm_tls13_seal_scatter;
-  out->open_gather = aead_aes_gcm_open_gather;
+  out->sealv = aead_aes_gcm_tls13_sealv;
+  out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
 int EVP_has_aes_hardware(void) {

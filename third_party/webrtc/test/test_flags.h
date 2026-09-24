@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "absl/flags/declare.h"
-#include "test/test_flags_tmp.h"  // IWYU pragma: keep
 
 ABSL_DECLARE_FLAG(std::vector<std::string>, plot);
 ABSL_DECLARE_FLAG(std::string, isolated_script_test_perf_output);

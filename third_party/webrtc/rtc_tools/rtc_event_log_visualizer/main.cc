@@ -102,6 +102,8 @@ ABSL_FLAG(bool,
           "updates all the others too. A downside is that certain "
           "operations like panning become much slower.");
 
+ABSL_FLAG(bool, show_grid, false, "Show a grid in all plots.");
+
 ABSL_FLAG(bool,
           protobuf_output,
           false,
@@ -257,8 +259,11 @@ int main(int argc, char* argv[]) {
         "simulated_neteq_expand_rate"}},
       {"l4s",
        {"incoming_bitrate", "outgoing_bitrate", "incoming_ecn_feedback",
-        "outgoing_ecn_feedback", "scream_delay_estimates",
-        "scream_ref_window"}}};
+        "outgoing_ecn_feedback"}},
+      {"scream",
+       {"scream_delay_estimates", "scream_ref_window",
+        "simulated_scream_bitrates", "simulated_scream_ref_window",
+        "simulated_scream_ratios", "network_delay_feedback", "pacer_delay"}}};
 
   if (absl::GetFlag(FLAGS_list_plots)) {
     std::cerr << "List of registered plots (for use with the --plot flag):"
@@ -447,6 +452,7 @@ int main(int argc, char* argv[]) {
     std::cout << proto_charts.SerializeAsString();
   } else {
     collection.PrintPythonCode(absl::GetFlag(FLAGS_shared_xaxis),
+                               absl::GetFlag(FLAGS_show_grid),
                                absl::GetFlag(FLAGS_figure_output_path));
   }
 

@@ -56,13 +56,15 @@ void PeerConnectionClient::InitSocketSignals() {
   RTC_DCHECK(control_socket_.get() != nullptr);
   RTC_DCHECK(hanging_get_.get() != nullptr);
   control_socket_->SubscribeCloseEvent(
+      this,
       [this](webrtc::Socket* socket, int error) { OnClose(socket, error); });
   hanging_get_->SubscribeCloseEvent(
+      this,
       [this](webrtc::Socket* socket, int error) { OnClose(socket, error); });
   control_socket_->SubscribeConnectEvent(
-      [this](webrtc::Socket* socket) { OnConnect(socket); });
+      this, [this](webrtc::Socket* socket) { OnConnect(socket); });
   hanging_get_->SubscribeConnectEvent(
-      [this](webrtc::Socket* socket) { OnHangingGetConnect(socket); });
+      this, [this](webrtc::Socket* socket) { OnHangingGetConnect(socket); });
   control_socket_->SubscribeReadEvent(
       this, [this](webrtc::Socket* socket) { OnRead(socket); });
   hanging_get_->SubscribeReadEvent(

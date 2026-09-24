@@ -237,6 +237,9 @@ class VideoChannelForTesting : public VideoChannel {
 // RTCStatsCollector so that the stats functionality can be unit tested.
 // Individual tests can configure this fake as needed to simulate scenarios
 // under which to test the stats collectors.
+//
+// TODO: bugs.webrtc.org/470300031 - At the moment this class uses transceivers
+// via the PlanB methods This needs to be fixed.
 class FakePeerConnectionForStats : public FakePeerConnectionBase {
  public:
   // TODO(steveanton): Add support for specifying separate threads to test
@@ -284,14 +287,14 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
         signaling_thread_, sender);
     GetOrCreateFirstTransceiverOfType(sender->media_type())
         ->internal()
-        ->AddSender(sender_proxy);
+        ->AddSenderPlanB(sender_proxy);
     return sender_proxy;
   }
 
   void RemoveSender(scoped_refptr<RtpSenderInterface> sender) {
     GetOrCreateFirstTransceiverOfType(sender->media_type())
         ->internal()
-        ->RemoveSender(sender.get());
+        ->RemoveSenderPlanB(sender.get());
   }
 
   scoped_refptr<RtpReceiverInterface> AddReceiver(
@@ -302,14 +305,14 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
             signaling_thread_, worker_thread_, receiver);
     GetOrCreateFirstTransceiverOfType(receiver->media_type())
         ->internal()
-        ->AddReceiver(receiver_proxy);
+        ->AddReceiverPlanB(receiver_proxy);
     return receiver_proxy;
   }
 
   void RemoveReceiver(scoped_refptr<RtpReceiverInterface> receiver) {
     GetOrCreateFirstTransceiverOfType(receiver->media_type())
         ->internal()
-        ->RemoveReceiver(receiver.get());
+        ->RemoveReceiverPlanB(receiver.get());
   }
 
   std::pair<FakeVoiceMediaSendChannelForStats*,
@@ -559,7 +562,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
     auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
         signaling_thread_,
         make_ref_counted<RtpTransceiver>(env_, media_type, context_.get(),
-                                         &codec_lookup_helper_));
+                                         &codec_lookup_helper_, nullptr));
     transceiver->internal()->set_current_direction(
         RtpTransceiverDirection::kSendRecv);
     if (!mid.empty()) {

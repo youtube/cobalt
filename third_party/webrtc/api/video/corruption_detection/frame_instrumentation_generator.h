@@ -29,6 +29,7 @@ namespace webrtc {
 // not.
 class FrameInstrumentationGenerator {
  public:
+  // TODO: bugs.webrtc.org/358039777 - Remove once downstream usage is gone.
   static std::unique_ptr<FrameInstrumentationGenerator> Create(
       VideoCodecType video_codec_type);
 

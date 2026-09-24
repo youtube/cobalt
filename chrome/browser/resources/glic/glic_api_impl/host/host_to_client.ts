@@ -199,15 +199,6 @@ export class WebClientImpl implements WebClientInterface {
         {taskId, state: clientState});
   }
 
-  notifyTabDataChanged(tabData: TabDataMojo): void {
-    const extras = new ResponseExtras();
-    this.sender.requestNoResponse(
-        'glicWebClientNotifyTabDataChanged', {
-          tabData: tabDataToClient(tabData, extras),
-        },
-        extras.transfers);
-  }
-
   requestViewChange(requestMojo: ViewChangeRequestMojo): void {
     let request: ViewChangeRequest|undefined;
     if (requestMojo.details.actuation) {
@@ -302,6 +293,11 @@ export class WebClientImpl implements WebClientInterface {
   notifyActOnWebCapabilityChanged(canActOnWeb: boolean): void {
     this.sender.requestNoResponse(
         'glicWebClientNotifyActOnWebCapabilityChanged', {canActOnWeb});
+  }
+
+  notifyOnboardingCompletedChanged(completed: boolean): void {
+    this.sender.requestNoResponse(
+        'glicWebClientOnboardingCompletedChanged', {completed});
   }
 
   async requestToShowAutofillSuggestionsDialog(

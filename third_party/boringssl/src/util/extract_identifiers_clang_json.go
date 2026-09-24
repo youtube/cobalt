@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -48,62 +49,115 @@ var (
 type node struct {
 	Kind  string
 	Loc   loc
-	Inner []*node `json:",omitempty"`
-	Decl  *node
+	Range rangeStruct `json:",omitempty"`
+	Inner []*node     `json:",omitempty"`
 
 	// Node fields that may or may not matter depending on `Kind`.
-	CompleteDefinition bool   `json:",omitempty"`
-	IsImplicit         bool   `json:",omitempty"`
-	Language           string `json:",omitempty"`
-	Name               string `json:",omitempty"`
-	PreviousDecl       string `json:",omitempty"`
-	StorageClass       string `json:",omitempty"`
-	TagUsed            string `json:",omitempty"`
+	CompleteDefinition bool        `json:",omitempty"`
+	ConstExpr          bool        `json:",omitempty"`
+	Decl               *node       `json:",omitempty"`
+	IsImplicit         bool        `json:",omitempty"`
+	Language           string      `json:",omitempty"`
+	Name               string      `json:",omitempty"`
+	PreviousDecl       string      `json:",omitempty"`
+	StorageClass       string      `json:",omitempty"`
+	TagUsed            string      `json:",omitempty"`
+	Type               *typeStruct `json:",omitempty"`
+}
+
+// typeStruct is the type information from the Clang AST dump.
+type typeStruct struct {
+	QualType          string `json:",omitempty"`
+	DesugaredQualType string `json:",omitempty"`
+}
+
+// desugaredQualType returns the canonical type after expanding typedefs.
+func (t typeStruct) desugaredQualType() string {
+	if t.DesugaredQualType != "" {
+		return t.DesugaredQualType
+	}
+	return t.QualType
+}
+
+// constTypeRE is an approximate regex for types that are const.
+// It errs on the side of returning constants as non-const.
+var constType = regexp.MustCompile(`.*\bconst\b[^\[\]()*&]*$`)
+
+// isConst returns whether the given type is likely a constant.
+func (t typeStruct) isConst() bool {
+	return constType.MatchString(t.desugaredQualType())
+}
+
+// rangeStruct is a location range from the Clang AST dump.
+type rangeStruct struct {
+	Begin *loc `json:",omitempty"`
+	End   *loc `json:",omitempty"`
 }
 
 // loc is a location from the Clang AST dump.
 type loc struct {
 	File         string `json:",omitempty"`
+	Line         uint   `json:",omitempty"`
+	Col          uint   `json:",omitempty"`
+	Offset       uint   `json:",omitempty"`
+	TokLen       uint   `json:",omitempty"`
 	SpellingLoc  *loc   `json:",omitempty"`
 	ExpansionLoc *loc   `json:",omitempty"`
 }
 
-// file finds the file path of a loc.
-func (l loc) file() string {
+// expansionLoc returns the expansion location of the given loc.
+func (l loc) expansionLoc() loc {
 	if l.ExpansionLoc != nil {
-		return l.ExpansionLoc.file()
+		return *l.ExpansionLoc
 	}
 	if l.SpellingLoc != nil {
-		return l.SpellingLoc.file()
+		return *l.SpellingLoc
 	}
-	return l.File
+	return l
+}
+
+type decompressCtx struct {
+	file string
+	line uint
 }
 
 // decompress undoes the filename field compression from
 // JSONNodeDumper::writeSourceLocation and JSONNodeDumper::writeBareSourceLocation.
-func (l *loc) decompress(lastFile *string) {
+func (l *loc) decompress(last *decompressCtx) {
 	if l == nil {
 		return
 	}
-	l.SpellingLoc.decompress(lastFile)
-	l.ExpansionLoc.decompress(lastFile)
+	l.SpellingLoc.decompress(last)
+	l.ExpansionLoc.decompress(last)
 	if l.SpellingLoc != nil || l.ExpansionLoc != nil {
 		return
 	}
 	if l.File == "" {
-		l.File = *lastFile
+		l.File = last.file
 	} else {
-		*lastFile = l.File
+		last.file = l.File
 	}
+	if l.Line == 0 {
+		l.Line = last.line
+	} else {
+		last.line = l.Line
+	}
+}
+
+// path returns the loc's file path in clean, unique form.
+func (l loc) path() string {
+	return path.Clean(l.File)
 }
 
 // decompressLocsInternal is a helper for decompressLocs.
 //
 // It keeps state in its lastFile pointer.
-func (n *node) decompressLocsInternal(lastFile *string) {
-	n.Loc.decompress(lastFile)
+func (n *node) decompressLocsInternal(last *decompressCtx) {
+	n.Loc.decompress(last)
+	n.Range.Begin.decompress(last)
+	n.Range.End.decompress(last)
 	for _, child := range n.Inner {
-		child.decompressLocsInternal(lastFile)
+		child.decompressLocsInternal(last)
 	}
 }
 
@@ -111,8 +165,7 @@ func (n *node) decompressLocsInternal(lastFile *string) {
 //
 // Should be called right after parsing.
 func (n *node) decompressLocs() {
-	var lastFile string
-	n.decompressLocsInternal(&lastFile)
+	n.decompressLocsInternal(&decompressCtx{})
 }
 
 // storage represents the storage class of a node.
@@ -125,10 +178,16 @@ const (
 )
 
 // storage finds the storage class of the node.
-func (n node) storage() (storage, error) {
+func (n node) storage(language string) (storage, error) {
 	var storage storage
 	switch n.StorageClass {
-	case "", "extern":
+	case "":
+		if n.Kind == "VarDecl" && (n.ConstExpr || (language == "C++" && n.Type.isConst())) {
+			storage = staticStorage
+		} else {
+			storage = externStorage
+		}
+	case "extern":
 		storage = externStorage
 	case "static":
 		storage = staticStorage
@@ -136,6 +195,48 @@ func (n node) storage() (storage, error) {
 		return noStorage, fmt.Errorf("no handling for storage class %q", n.StorageClass)
 	}
 	return storage, nil
+}
+
+// functionArgs returns all the function arg nodes of a node.
+func (n node) functionArgs() []*node {
+	var result []*node
+	for _, child := range n.Inner {
+		if child.Kind == "ParmVarDecl" {
+			result = append(result, child)
+		}
+	}
+	return result
+}
+
+func (n node) locationRange() (file string, line, start, end uint, ok bool) {
+	from := n.Range.Begin.expansionLoc()
+	to := n.Range.End.expansionLoc()
+	if from.path() != to.path() {
+		return "", 0, 0, 0, false
+	}
+	return from.path(), from.Line, from.Offset, to.Offset + to.TokLen, true
+}
+
+func (n node) locationRangeWithoutBody() (file string, line, start, end uint, ok bool) {
+	file, line, start, end, ok = n.locationRange()
+	if !ok {
+		return
+	}
+	// Cut bad nodes from the end.
+	for i := len(n.Inner) - 1; i >= 0; i-- {
+		child := n.Inner[i]
+		if child.Kind != "CompoundStmt" {
+			continue
+		}
+		cfile, _, cstart, cend, ok := child.locationRange()
+		if !ok {
+			continue
+		}
+		if cfile == file && cend == end {
+			end = cstart
+		}
+	}
+	return
 }
 
 // namespacing indicates how the identifier respects namespaces.
@@ -200,7 +301,7 @@ func (w *walker) updateInBoringSSL(kind string, loc loc) {
 		w.inBoringSSL = true
 		return
 	}
-	w.inBoringSSL = boringSSLPath.MatchString(loc.file())
+	w.inBoringSSL = boringSSLPath.MatchString(loc.expansionLoc().path())
 }
 
 // visit traverses a node in the AST and analyzes it for identifiers contained therein.
@@ -248,7 +349,7 @@ func (w walker) visit(n *node) (err error) {
 			return nil
 		}
 		if n.Name != "" {
-			if err := w.collectIdentifier(n.TagUsed, alwaysNamespaced, neverLinked, noStorage, n.Name); err != nil {
+			if err := w.collectIdentifier(n, n.TagUsed, alwaysNamespaced, neverLinked, noStorage); err != nil {
 				return err
 			}
 		}
@@ -258,7 +359,7 @@ func (w walker) visit(n *node) (err error) {
 			return nil
 		}
 		if n.Name != "" {
-			if err := w.collectIdentifier("enum", alwaysNamespaced, neverLinked, noStorage, n.Name); err != nil {
+			if err := w.collectIdentifier(n, "enum", alwaysNamespaced, neverLinked, noStorage); err != nil {
 				return err
 			}
 		}
@@ -266,7 +367,7 @@ func (w walker) visit(n *node) (err error) {
 		if w.record {
 			return nil
 		}
-		if err := w.collectIdentifier("enumerator", alwaysNamespaced, neverLinked, noStorage, n.Name); err != nil {
+		if err := w.collectIdentifier(n, "enumerator", alwaysNamespaced, neverLinked, noStorage); err != nil {
 			return err
 		}
 		return nil // Do not recurse.
@@ -277,11 +378,11 @@ func (w walker) visit(n *node) (err error) {
 		if n.PreviousDecl != "" {
 			return // Definition or redeclaration doesn't need to be looked at again (and may have incomplete qualifiers).
 		}
-		storage, err := n.storage()
+		storage, err := n.storage(w.language)
 		if err != nil {
 			return fmt.Errorf("could not find storage class of function: %w: %s", err, nodeCode)
 		}
-		if err := w.collectIdentifier("function", globalIfC, respectsLinkage, storage, n.Name); err != nil {
+		if err := w.collectIdentifier(n, "function", globalIfC, respectsLinkage, storage); err != nil {
 			return err
 		}
 	case "LinkageSpecDecl":
@@ -289,6 +390,9 @@ func (w walker) visit(n *node) (err error) {
 			w.language = n.Language
 		}
 	case "NamespaceDecl":
+		if w.language != "C++" {
+			return fmt.Errorf("entering namespace while in extern %q is probably unintended: %s", w.language, nodeCode)
+		}
 		if n.Name == "" {
 			w.anonNamespace = true
 		} else {
@@ -298,7 +402,7 @@ func (w walker) visit(n *node) (err error) {
 		if w.record {
 			return nil
 		}
-		if err := w.collectIdentifier("using", alwaysNamespaced, neverLinked, noStorage, n.Name); err != nil {
+		if err := w.collectIdentifier(n, "using", alwaysNamespaced, neverLinked, noStorage); err != nil {
 			return err
 		}
 	case "TypedefDecl":
@@ -309,39 +413,42 @@ func (w walker) visit(n *node) (err error) {
 			// typedef struct X X;
 			return nil
 		}
-		if err := w.collectIdentifier("typedef", alwaysNamespaced, neverLinked, noStorage, n.Name); err != nil {
+		if err := w.collectIdentifier(n, "typedef", alwaysNamespaced, neverLinked, noStorage); err != nil {
 			return err
 		}
 	case "VarDecl":
 		if n.PreviousDecl != "" {
 			return // Definition or redeclaration doesn't need to be looked at again (and may have incomplete qualifiers).
 		}
-		storage, err := n.storage()
+		storage, err := n.storage(w.language)
 		if err != nil {
 			return fmt.Errorf("could not find storage class of variable: %w: %s", err, nodeCode)
 		}
-		if err := w.collectIdentifier("var", globalIfC, respectsLinkage, storage, n.Name); err != nil {
+		if err := w.collectIdentifier(n, "var", globalIfC, respectsLinkage, storage); err != nil {
 			return err
 		}
 		return nil // Do not recurse. (Maybe should, to catch `struct ...` in variable types?)
 	// Singletons that should be skipped.
 	case
 		"AccessSpecDecl",
-		"AlignedAttr",
+		"AlwaysInlineAttr",
 		"BuiltinAttr",
 		"BuiltinType",
+		"CXX11NoReturnAttr",
 		"ConstAttr",
 		"DependentNameType",
 		"DeprecatedAttr",
 		"EnumType",
+		"FinalAttr",
 		"FormatAttr",
 		"NoThrowAttr",
-		"ParmVarDecl",
 		"RecordType",
+		"TemplateTypeParmType",
 		"UnresolvedUsingValueDecl",
 		"UnusedAttr",
+		"UsingDecl",
 		"UsingDirectiveDecl",
-		"VectorType",
+		"VisibilityAttr",
 		"WarnUnusedResultAttr":
 		if len(n.Inner) != 0 {
 			// If this ever fires, check AST to see if any of the node's children could be useful,
@@ -350,6 +457,7 @@ func (w walker) visit(n *node) (err error) {
 		}
 	// Nodes that should be skipped including possible children.
 	case
+		"AlignedAttr",
 		"CXXConstructorDecl",
 		"CXXConversionDecl",
 		"CXXDeductionGuideDecl",
@@ -358,13 +466,17 @@ func (w walker) visit(n *node) (err error) {
 		"ClassTemplatePartialSpecializationDecl",
 		"ClassTemplateSpecializationDecl",
 		"CompoundStmt",
+		"DecltypeType",
 		"FieldDecl",
 		"FriendDecl",
 		"NonTypeTemplateParmDecl",
+		"ParmVarDecl",
 		"StaticAssertDecl",
 		"TemplateArgument",
+		"TemplateTemplateParmDecl",
 		"TemplateTypeParmDecl",
-		"VarTemplateDecl":
+		"VarTemplateDecl",
+		"VarTemplateSpecializationDecl":
 		return nil // Do not recurse.
 	// Nodes that should just be recursed into.
 	case
@@ -374,13 +486,16 @@ func (w walker) visit(n *node) (err error) {
 		"ElaboratedType",
 		"FunctionProtoType",
 		"FunctionTemplateDecl",
+		"IncompleteArrayType",
 		"IndirectFieldDecl",
+		"LValueReferenceType",
 		"ParenType",
 		"PointerType",
 		"QualType",
 		"TemplateSpecializationType",
 		"TranslationUnitDecl",
-		"TypedefType":
+		"TypedefType",
+		"VectorType":
 		// Just recurse.
 	default:
 		return fmt.Errorf("no handling for node kind %q: %s", n.Kind, nodeCode)
@@ -399,12 +514,22 @@ func (w walker) visit(n *node) (err error) {
 }
 
 // collectIdentifier sends an identifier to the output.
-func (w walker) collectIdentifier(tag string, namespacing namespacing, linking linking, storage storage, name string) error {
+func (w walker) collectIdentifier(n *node, tag string, namespacing namespacing, linking linking, storage storage) error {
+	name := n.Name
 	var fqn string
 	if w.anonNamespace {
 		fqn = "<anonymous>::" + name
 	} else {
 		fqn = strings.Join(append(append([]string(nil), w.namespace...), name), "::")
+	}
+
+	// With this taken out of the way, for all intents and purposes
+	// anything in an anonymous namespace behaves as if it were static.
+	//
+	// Helps in some cases where the static keyword
+	// isn't repeated in template specializations or similar.
+	if w.anonNamespace && w.language == "C++" {
+		storage = staticStorage
 	}
 
 	var linkage string
@@ -427,7 +552,7 @@ func (w walker) collectIdentifier(tag string, namespacing namespacing, linking l
 	case alwaysGlobal:
 		identifier = name
 	case globalIfC:
-		if w.language != "C" {
+		if w.language == "C++" {
 			identifier = fqn
 		} else {
 			identifier = name
@@ -446,7 +571,25 @@ func (w walker) collectIdentifier(tag string, namespacing namespacing, linking l
 		return nil
 	}
 	w.seen[key] = declaration
-	fmt.Printf("%s\n", declaration)
+
+	// Append some debug info.
+	// This might be used later to generate symbol renaming headers,
+	// but is generally useful to humans debugging this tool's output.
+	var suffix string
+	if file, line, start, end, ok := n.locationRangeWithoutBody(); ok {
+		suffix += fmt.Sprintf(" %s:%v (%v-%v)", file, line, start, end)
+	}
+	for _, arg := range n.functionArgs() {
+		argName := arg.Name
+		if argName == "" {
+			argName = "_"
+		}
+		suffix += " " + argName
+	}
+	if suffix != "" {
+		suffix = "  //" + suffix
+	}
+	fmt.Printf("%s%s\n", declaration, suffix)
 	return nil
 }
 

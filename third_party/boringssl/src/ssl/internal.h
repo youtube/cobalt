@@ -2649,11 +2649,7 @@ struct CertCompressionAlg {
   uint16_t alg_id = 0;
 };
 
-BSSL_NAMESPACE_END
-
 DEFINE_LHASH_OF(SSL_SESSION)
-
-BSSL_NAMESPACE_BEGIN
 
 // An ssl_shutdown_t describes the shutdown state of one end of the connection,
 // whether it is alive or has been shutdown via close_notify or fatal alert.
@@ -3292,6 +3288,10 @@ struct SSL_CONFIG {
   // a valid subsequence of the supported group list.
   Array<uint16_t> supported_group_list;
 
+  // Contains flags corresponding to `supported_group_list`, which are
+  // SSL_GROUP_FLAG_* values ORed together.
+  Array<uint32_t> supported_group_list_flags;
+
   // For a client, this may contain a subsequence of the group IDs in
   // |suppported_group_list|, which gives the groups for which key shares should
   // be sent in the client's key_share extension. This is non-nullopt iff
@@ -3762,7 +3762,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   bssl::UniquePtr<bssl::SSLCipherPreferenceList> cipher_list;
 
   X509_STORE *cert_store = nullptr;
-  LHASH_OF(SSL_SESSION) *sessions = nullptr;
+  LHASH_OF(bssl::SSL_SESSION) *sessions = nullptr;
   // Most session-ids that will be cached, default is
   // SSL_SESSION_CACHE_MAX_SIZE_DEFAULT. 0 is unlimited.
   unsigned long session_cache_size = SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;
@@ -3946,8 +3946,9 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   // Defined compression algorithms for certificates.
   bssl::Vector<bssl::CertCompressionAlg> cert_compression_algs;
 
-  // Supported group values inherited by SSL structure
+  // Supported group values and flags inherited by SSL structure
   bssl::Array<uint16_t> supported_group_list;
+  bssl::Array<uint32_t> supported_group_list_flags;
 
   // channel_id_private is the client's Channel ID private key, or null if
   // Channel ID should not be offered on this connection.

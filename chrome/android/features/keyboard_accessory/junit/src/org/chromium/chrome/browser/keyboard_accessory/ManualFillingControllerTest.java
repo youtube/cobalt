@@ -110,7 +110,7 @@ import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.mock.MockWebContents;
-import org.chromium.ui.base.ApplicationViewportInsetSupplier;
+import org.chromium.ui.base.ApplicationViewportInsetTracker;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.insets.InsetObserver;
@@ -166,8 +166,8 @@ public class ManualFillingControllerTest {
     private final ManualFillingStateCache mCache = mMediator.getStateCacheForTesting();
     private final PropertyModel mModel = mMediator.getModelForTesting();
     private final UserDataHost mUserDataHost = new UserDataHost();
-    private final ApplicationViewportInsetSupplier mInsetSupplier =
-            ApplicationViewportInsetSupplier.createForTests();
+    private final ApplicationViewportInsetTracker mInsetSupplier =
+            ApplicationViewportInsetTracker.createForTests();
     private final ObservableSupplierImpl<Integer> mKeyboardInsetSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<EdgeToEdgeController> mMockEdgeToEdgeControllerSupplier =
@@ -329,7 +329,7 @@ public class ManualFillingControllerTest {
         when(mMockWindow.getActivity()).thenReturn(new WeakReference<>(mMockActivity));
         mInsetSupplier.setKeyboardInsetSupplier(mKeyboardInsetSupplier);
         mInsetSupplier.setKeyboardAccessoryInsetSupplier(mController.getBottomInsetSupplier());
-        when(mMockWindow.getApplicationBottomInsetSupplier()).thenReturn(mInsetSupplier);
+        when(mMockWindow.getApplicationBottomInsetTracker()).thenReturn(mInsetSupplier);
         when(mMockSoftKeyboardDelegate.calculateSoftKeyboardHeight(any())).thenReturn(0);
         when(mMockActivity.getTabModelSelector()).thenReturn(mMockTabModelSelector);
         when(mMockActivity.getActivityTabProvider()).thenReturn(mActivityTabProvider);
@@ -1496,6 +1496,34 @@ public class ManualFillingControllerTest {
         assertTrue(style.getMaxWidth() > 0);
         verify(mMockKeyboardAccessory).setHasStickyLastItem(false);
         verify(mMockKeyboardAccessory).setAnimateSuggestionsFromTop(true);
+    }
+
+    @Test
+    public void testLargeFormSheetShownWithUndockedStyle() {
+        updateConfiguration(/* widthDp= */ 1600, /* heightDp= */ 2560);
+        addBrowserTab(mMediator, 1111, null);
+        mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
+        reset(mMockKeyboardAccessory, mMockAccessorySheet);
+
+        mModel.set(KEYBOARD_EXTENSION_STATE, REPLACING_KEYBOARD);
+        assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(REPLACING_KEYBOARD));
+
+        verify(mMockAccessorySheet).show();
+        verify(mMockAccessorySheet).setStyle(/* isDocked= */ false);
+    }
+
+    @Test
+    public void testNonLargeFormSheetShownWithDockedStyle() {
+        updateConfiguration(/* widthDp= */ 320, /* heightDp= */ 470);
+        addBrowserTab(mMediator, 1111, null);
+        mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
+        reset(mMockKeyboardAccessory, mMockAccessorySheet);
+
+        mModel.set(KEYBOARD_EXTENSION_STATE, REPLACING_KEYBOARD);
+        assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(REPLACING_KEYBOARD));
+
+        verify(mMockAccessorySheet).show();
+        verify(mMockAccessorySheet).setStyle(/* isDocked= */ true);
     }
 
     @Test

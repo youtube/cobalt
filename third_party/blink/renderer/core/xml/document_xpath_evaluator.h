@@ -39,8 +39,10 @@ class XPathResult;
 
 class CORE_EXPORT DocumentXPathEvaluator final
     : public GarbageCollected<DocumentXPathEvaluator>,
-      public GarbageCollectedMixin {
+      public Supplement<Document> {
  public:
+  static const char kSupplementName[];
+
   static DocumentXPathEvaluator& From(Document&);
 
   static XPathExpression* createExpression(Document&,
@@ -60,7 +62,6 @@ class CORE_EXPORT DocumentXPathEvaluator final
   void Trace(Visitor*) const override;
 
  private:
-  Member<Document> document_;
   Member<XPathEvaluator> xpath_evaluator_;
 };
 

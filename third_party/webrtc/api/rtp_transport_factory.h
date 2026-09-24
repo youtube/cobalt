@@ -11,7 +11,8 @@
 #define API_RTP_TRANSPORT_FACTORY_H_
 
 #include <memory>
-#include <string>
+
+#include "absl/strings/string_view.h"
 
 namespace webrtc {
 
@@ -22,7 +23,7 @@ class RtpTransportFactory {
  public:
   virtual ~RtpTransportFactory() = default;
   virtual std::unique_ptr<RtpTransport> CreateRtpTransport(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
       std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport) = 0;
 };

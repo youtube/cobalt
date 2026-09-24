@@ -38,17 +38,18 @@
 #include "pc/media_session.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/session_description.h"
+#include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/thread.h"
+#include "rtc_base/virtual_socket_server.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/pc/sctp/fake_sctp_transport.h"
+
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
 #endif
-#include "pc/test/fake_audio_capture_module.h"
-#include "rtc_base/virtual_socket_server.h"
-#include "test/gmock.h"
-#include "test/pc/sctp/fake_sctp_transport.h"
-
+#
 // This file contains tests that ensure the PeerConnection's implementation of
 // CreateOffer/CreateAnswer/SetLocalDescription/SetRemoteDescription conform
 // to the JavaScript Session Establishment Protocol (JSEP).

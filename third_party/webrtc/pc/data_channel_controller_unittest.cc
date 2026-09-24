@@ -23,9 +23,9 @@
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "api/units/timestamp.h"
-#include "media/sctp/sctp_transport_internal.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_utils.h"
@@ -44,6 +44,7 @@ namespace webrtc {
 namespace {
 
 using Message = DataChannelEventObserverInterface::Message;
+using ::testing::_;
 using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
 using ::testing::NiceMock;
@@ -209,6 +210,22 @@ TEST_F(DataChannelControllerTest, MaxChannels) {
       EXPECT_TRUE(ret.ok());
     }
   }
+}
+
+TEST_F(DataChannelControllerTest, RespectTransportFailureOnOpenChannel) {
+  NiceMock<MockDataChannelTransport> transport;
+  int channel_id = 0;
+
+  ON_CALL(*pc_, GetSctpSslRole_n).WillByDefault([&]() {
+    return std::optional<SSLRole>((channel_id & 1) ? SSL_SERVER : SSL_CLIENT);
+  });
+  EXPECT_CALL(transport, OpenChannel(_, _))
+      .WillOnce(Return(RTCError::InvalidParameter()));
+  DataChannelControllerForTest dcc(pc_.get(), &transport);
+
+  auto ret = dcc.InternalCreateDataChannelWithProxy(
+      "label", InternalDataChannelInit(DataChannelInit()));
+  EXPECT_FALSE(ret.ok());
 }
 
 TEST_F(DataChannelControllerTest, BufferedAmountIncludesFromTransport) {

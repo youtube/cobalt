@@ -1,7 +1,10 @@
 .text
 .file 1 "inserted_by_delocate.c"
 .loc 1 1 0
+.globl BORINGSSL_bcm_text_start
+.hidden BORINGSSL_bcm_text_start
 BORINGSSL_bcm_text_start:
+.LBORINGSSL_bcm_text_start_local_target:
 	.type foo, @function
 	.globl foo
 .Lfoo_local_target:
@@ -153,7 +156,10 @@ bar:
 	vpcmpneqq	.Llabel_BCM_1(%rip){1to8}, %zmm1, %k0
 .text
 .loc 1 2 0
+.globl BORINGSSL_bcm_text_end
+.hidden BORINGSSL_bcm_text_end
 BORINGSSL_bcm_text_end:
+.LBORINGSSL_bcm_text_end_local_target:
 .type bcm_redirector_memcpy, @function
 bcm_redirector_memcpy:
 	jmp	memcpy@PLT

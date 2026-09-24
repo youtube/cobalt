@@ -182,8 +182,8 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
     if (ShouldSkipOperation(op)) continue;
     switch (op.opcode) {
 #if V8_ENABLE_SANDBOX
-      case Opcode::kLoadTrustedPointerField:
-        ProcessTrustedLoad(op_idx, op.Cast<LoadTrustedPointerFieldOp>());
+      case Opcode::kLoadTrustedPointer:
+        ProcessTrustedLoad(op_idx, op.Cast<LoadTrustedPointerOp>());
         break;
 #endif
       case Opcode::kLoad:
@@ -392,7 +392,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 #if V8_ENABLE_SANDBOX
 void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
-    OpIndex op_idx, const LoadTrustedPointerFieldOp& load) {
+    OpIndex op_idx, const LoadTrustedPointerOp& load) {
   TRACE("> ProcessTrustedLoad(" << op_idx << ")");
 
   // We need to insert the load into the truncation mapping as a key, because
@@ -431,7 +431,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     TRACE(
         ">> Raw base or maybe inner pointer ==> Invalidating whole "
         "maybe-aliasing memory");
-    memory_.InvalidateMaybeAliasing();
+    memory_.InvalidateMaybeAliasing(store.base());
   }
 
   if (!store.kind.load_eliminable) {
@@ -481,7 +481,7 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
     return;
   }
   TRACE(">> Invalidating whole maybe-aliasing memory");
-  memory_.InvalidateMaybeAliasing();
+  memory_.InvalidateMaybeAliasing(store.base());
 #endif
 }
 

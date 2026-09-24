@@ -22,6 +22,7 @@
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "media/base/media_switches.h"
+#include "net/net_buildflags.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
 // This causes a gn error on Android builds, because gn does not understand
@@ -51,6 +52,13 @@
 #include "chrome/browser/startup/startup_launch_manager.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+#include "chrome/browser/signin/bound_session_credentials/unexportable_key_obsolete_profile_garbage_collector.h"  // nogncheck
+#include "chrome/browser/signin/bound_session_credentials/unexportable_key_provider_config.h"  // nogncheck
+#include "components/unexportable_keys/features.h"
+#include "components/unexportable_keys/unexportable_key_service_impl.h"
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
 namespace {
 
@@ -93,6 +101,8 @@ void GlobalFeatures::PostBrowserProcessInit() {
           *g_browser_process, g_browser_process);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+  PostBrowserProcessInitCore();
+
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     glic_profile_manager_ = std::make_unique<glic::GlicProfileManager>();
@@ -104,7 +114,17 @@ void GlobalFeatures::PostBrowserProcessInit() {
   }
 #endif
 
-  PostBrowserProcessInitCore();
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  if (unexportable_keys::UnexportableKeyServiceImpl::
+          IsStatefulUnexportableKeyProviderSupported(
+              unexportable_keys::GetDefaultConfig()) &&
+      base::FeatureList::IsEnabled(
+          unexportable_keys::kUnexportableKeyDeletion)) {
+    unexportable_key_obsolete_profile_garbage_collector_ = std::make_unique<
+        unexportable_keys::UnexportableKeyObsoleteProfileGarbageCollector>(
+        g_browser_process->profile_manager());
+  }
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 }
 
 void GlobalFeatures::PreBrowserProcessInitCore() {
@@ -126,6 +146,12 @@ void GlobalFeatures::PostBrowserProcessInitCore() {
 #endif
 
   application_locale_storage_ = std::make_unique<ApplicationLocaleStorage>();
+
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicGlobalEnabling::Delegate glic_enabling_delegate;
+  glic_global_enabling_ =
+      std::make_unique<glic::GlicGlobalEnabling>(glic_enabling_delegate);
+#endif
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   if (base::FeatureList::IsEnabled(
@@ -176,11 +202,6 @@ void GlobalFeatures::PostDestroyThreads() {
 #if !BUILDFLAG(IS_ANDROID)
   global_browser_collection_.reset();
 #endif  // !BUILDFLAG(IS_ANDROID)
-}
-
-void GlobalFeatures::Shutdown() {
-  PostMainMessageLoopRun();
-  PostDestroyThreads();
 }
 
 std::unique_ptr<system_permission_settings::PlatformHandle>

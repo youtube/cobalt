@@ -76,7 +76,10 @@ class Sweeper::ConcurrentMajorSweeper final {
     DCHECK_NE(NEW_SPACE, identity);
     while (!delegate->ShouldYield()) {
       PageMetadata* page = sweeper_->GetSweepingPageSafe(identity);
-      if (page == nullptr) return true;
+      if (page == nullptr) {
+        TRACE_GC_NOTE("Sweeper::ConcurrentMajorSweeper Finished");
+        return true;
+      }
       local_sweeper_.ParallelSweepPage(page, identity,
                                        SweepingMode::kLazyOrConcurrent);
     }
@@ -104,7 +107,10 @@ class Sweeper::ConcurrentMinorSweeper final {
     DCHECK(IsValidSweepingSpace(kNewSpace));
     while (!delegate->ShouldYield()) {
       PageMetadata* page = sweeper_->GetSweepingPageSafe(kNewSpace);
-      if (page == nullptr) return true;
+      if (page == nullptr) {
+        TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Finished");
+        return true;
+      }
       local_sweeper_.ParallelSweepPage(page, kNewSpace,
                                        SweepingMode::kLazyOrConcurrent);
     }
@@ -507,7 +513,10 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
                                       Tagged<JSArrayBuffer> object,
                                       MaybeObjectSize maybe_object_size) {
-    object->YoungMarkExtensionPromoted();
+    ArrayBufferExtension* extension = object->extension();
+    if (extension) {
+      extension->YoungMarkPromoted();
+    }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitJSArrayBuffer(map, object, maybe_object_size);
   }

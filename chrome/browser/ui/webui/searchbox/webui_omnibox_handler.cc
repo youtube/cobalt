@@ -10,15 +10,21 @@
 #include "base/metrics/histogram_functions.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_pedal_implementations.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
+#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/location_bar/selected_keyword_view.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_omnibox_client.h"
@@ -28,6 +34,7 @@
 #include "chrome/grit/new_tab_page_resources.h"
 #include "components/lens/lens_features.h"
 #include "components/navigation_metrics/navigation_metrics.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_controller_emitter.h"
@@ -45,6 +52,7 @@
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/strings/grit/components_strings.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "net/cookies/cookie_util.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
@@ -79,15 +87,40 @@ searchbox::mojom::SelectionLineState ConvertLineState(
 
 }  // namespace
 
+WebuiOmniboxHandler::WebContentsObserver::WebContentsObserver(
+    WebuiOmniboxHandler* handler,
+    content::WebContents* web_contents)
+    : handler_(handler) {
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents);
+  if (browser_window_interface) {
+    Observe(
+        browser_window_interface->GetTabStripModel()->GetActiveWebContents());
+  }
+}
+
+void WebuiOmniboxHandler::WebContentsObserver::ScopedObserve(
+    content::WebContents* web_contents) {
+  Observe(web_contents);
+}
+
+void WebuiOmniboxHandler::WebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* handle) {
+  handler_->OnNavigationFinished(handle);
+}
+
 WebuiOmniboxHandler::WebuiOmniboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
     MetricsReporter* metrics_reporter,
     OmniboxController* omnibox_controller,
-    content::WebUI* web_ui)
+    content::WebUI* web_ui,
+    GetSessionHandleCallback get_session_callback)
     : ContextualSearchboxHandler(std::move(pending_page_handler),
                                  Profile::FromWebUI(web_ui),
                                  web_ui->GetWebContents(),
-                                 /*controller=*/nullptr),
+                                 /*controller=*/nullptr,
+                                 std::move(get_session_callback)),
+      web_contents_observer_(/*handler=*/this, web_ui->GetWebContents()),
       metrics_reporter_(metrics_reporter) {
   // Keep a reference to the OmniboxController instance owned by the
   // `OmniboxView`.
@@ -95,12 +128,30 @@ WebuiOmniboxHandler::WebuiOmniboxHandler(
   controller_ = omnibox_controller;
   autocomplete_controller_observation_.Observe(autocomplete_controller());
   edit_model_observation_.Observe(omnibox_controller->edit_model());
+
+  auto* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(Profile::FromWebUI(web_ui));
+  if (aim_eligibility_service) {
+    aim_eligibility_subscription_ =
+        aim_eligibility_service->RegisterEligibilityChangedCallback(
+            base::BindRepeating(&WebuiOmniboxHandler::OnAimEligibilityChanged,
+                                weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 WebuiOmniboxHandler::~WebuiOmniboxHandler() = default;
 
+// TODO(crbug.com/469098088): Use something other than
+//   `AutocompleteController::Observer::OnStart()` to reduce the IPC overhead
+//   due to the fact that `AutocompleteController::Start()` gets invoked on
+//   *every* keystroke in the Omnibox.
 void WebuiOmniboxHandler::OnStart(AutocompleteController* controller,
                                   const AutocompleteInput& input) {
+  // Ignore the call until the page remote is bound and ready to receive calls.
+  if (!IsRemoteBound()) {
+    return;
+  }
+
   const AutocompleteProviderClient* client =
       autocomplete_controller()->autocomplete_provider_client();
   page_->UpdateLensSearchEligibility(
@@ -161,6 +212,24 @@ void WebuiOmniboxHandler::OnSelectionChanged(
           selection.action_index));
 }
 
+void WebuiOmniboxHandler::OnTabStripModelChanged(
+    TabStripModel* tab_strip_model,
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) {
+  web_contents_observer_.ScopedObserve(selection.new_contents);
+  ContextualSearchboxHandler::OnTabStripModelChanged(tab_strip_model, change,
+                                                     selection);
+}
+
+void WebuiOmniboxHandler::OnNavigationFinished(
+    content::NavigationHandle* navigation_handle) {
+  if (navigation_handle->HasCommitted() && navigation_handle->IsInMainFrame()) {
+    if (IsRemoteBound()) {
+      page_->OnTabStripChanged();
+    }
+  }
+}
+
 void WebuiOmniboxHandler::ActivateKeyword(
     uint8_t line,
     const GURL& url,
@@ -195,12 +264,65 @@ void WebuiOmniboxHandler::ShowContextMenu(const gfx::Point& point) {
   }
 }
 
+void WebuiOmniboxHandler::OpenLensSearch() {
+  edit_model()->OpenLensSearch();
+}
+
+void WebuiOmniboxHandler::AddTabContext(int32_t tab_id,
+                                        bool delay_upload,
+                                        AddTabContextCallback callback) {
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  auto* tab_strip_model = browser_window_interface->GetTabStripModel();
+  const tabs::TabHandle handle = tabs::TabHandle(tab_id);
+  tabs::TabInterface* const tab = handle.Get();
+  if (!tab) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+
+  auto tab_strip_id = tab_strip_model->GetIndexOfTab(tab);
+
+  TabRendererData tab_renderer_data =
+      TabRendererData::FromTabInModel(tab_strip_model, tab_strip_id);
+
+  SearchboxContextData* searchbox_context_data =
+      browser_window_interface->GetFeatures().searchbox_context_data();
+  if (!searchbox_context_data) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  auto context = searchbox_context_data->TakePendingContext();
+  if (!context) {
+    context = std::make_unique<SearchboxContextData::Context>();
+  }
+
+  auto tab_attachment = searchbox::mojom::TabAttachmentStub::New();
+  tab_attachment->tab_id = tab_id;
+  tab_attachment->title = base::UTF16ToUTF8(tab_renderer_data.title);
+  tab_attachment->url = tab_renderer_data.last_committed_url;
+  context->file_infos.push_back(
+      searchbox::mojom::SearchContextAttachmentStub::NewTabAttachment(
+          std::move(tab_attachment)));
+
+  searchbox_context_data->SetPendingContext(std::move(context));
+
+  edit_model()->OpenAiMode(false, /*via_context_menu=*/false);
+  std::move(callback).Run(std::nullopt);
+}
+
 void WebuiOmniboxHandler::OnShow() {
   // Ignore the call until the page remote is bound and ready to receive calls.
   if (!IsRemoteBound()) {
     return;
   }
   page_->OnShow();
+}
+
+void WebuiOmniboxHandler::SetPage(
+    mojo::PendingRemote<searchbox::mojom::Page> pending_page) {
+  ContextualSearchboxHandler::SetPage(std::move(pending_page));
+  OnAimEligibilityChanged();
 }
 
 std::optional<searchbox::mojom::AutocompleteMatchPtr>
@@ -230,6 +352,25 @@ WebuiOmniboxHandler::CreateAutocompleteMatch(
   return mojom_match;
 }
 
+void WebuiOmniboxHandler::OnAimEligibilityChanged() {
+  // Ignore the call until the page remote is bound and ready to receive calls.
+  if (!IsRemoteBound()) {
+    return;
+  }
+
+  auto* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile_);
+  if (aim_eligibility_service) {
+    bool eligible = aim_eligibility_service->IsAimEligible();
+    page_->UpdateAimEligibility(eligible);
+  }
+}
+
 int WebuiOmniboxHandler::GetContextMenuMaxTabSuggestions() {
   return omnibox::kContextMenuMaxTabSuggestions.Get();
+}
+
+std::optional<lens::LensOverlayInvocationSource>
+WebuiOmniboxHandler::GetInvocationSource() const {
+  return lens::LensOverlayInvocationSource::kOmniboxContextualQuery;
 }

@@ -457,6 +457,9 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
   if (!ret->supported_group_list.CopyFrom(DefaultSupportedGroupIds())) {
     return nullptr;
   }
+  if (!ret->supported_group_list_flags.Init(ret->supported_group_list.size())) {
+    return nullptr;
+  }
 
   return ret.release();
 }
@@ -532,6 +535,8 @@ SSL *SSL_new(SSL_CTX *ctx) {
   ssl->config->compliance_policy = ctx->compliance_policy;
 
   if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
+      !ssl->config->supported_group_list_flags.CopyFrom(
+          ctx->supported_group_list_flags) ||
       !ssl->config->alpn_client_proto_list.CopyFrom(
           ctx->alpn_client_proto_list) ||
       !ssl->config->verify_sigalgs.CopyFrom(ctx->verify_sigalgs)) {
@@ -1875,26 +1880,65 @@ static void clear_key_shares_if_invalid(SSL_CONFIG *config) {
   }
 }
 
+static bool check_group_flags(Span<const uint32_t> flags) {
+  if (flags.empty()) {
+    return true;
+  }
+  // The last element must not have the "equal preference with next" flag,
+  // because there is no next element.
+  return (flags.back() & SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT) == 0;
+}
+
+static bool set_group_ids_and_flags(const uint16_t *group_ids,
+                                    const uint32_t *flags, size_t num_group_ids,
+                                    Array<uint16_t> *groups_out,
+                                    Array<uint32_t> *flags_out) {
+  Span<const uint16_t> groups_span = num_group_ids == 0
+                                         ? DefaultSupportedGroupIds()
+                                         : Span(group_ids, num_group_ids);
+  if (!check_group_ids(groups_span)) {
+    return false;
+  }
+  // If using default groups, always use default flags.
+  if (flags == nullptr || num_group_ids == 0) {
+    return groups_out->CopyFrom(groups_span) &&
+           flags_out->Init(groups_span.size());
+  }
+  Span<const uint32_t> flags_span = Span(flags, num_group_ids);
+  if (!check_group_flags(flags_span)) {
+    return false;
+  }
+  return groups_out->CopyFrom(groups_span) && flags_out->CopyFrom(flags_span);
+}
+
 int SSL_CTX_set1_group_ids(SSL_CTX *ctx, const uint16_t *group_ids,
                            size_t num_group_ids) {
-  auto span = Span(group_ids, num_group_ids);
-  if (span.empty()) {
-    span = DefaultSupportedGroupIds();
-  }
-  return check_group_ids(span) && ctx->supported_group_list.CopyFrom(span);
+  return SSL_CTX_set1_group_ids_with_flags(ctx, group_ids, /*flags=*/nullptr,
+                                           num_group_ids);
+}
+
+int SSL_CTX_set1_group_ids_with_flags(SSL_CTX *ctx, const uint16_t *group_ids,
+                                      const uint32_t *flags,
+                                      size_t num_group_ids) {
+  return set_group_ids_and_flags(group_ids, flags, num_group_ids,
+                                 &ctx->supported_group_list,
+                                 &ctx->supported_group_list_flags);
 }
 
 int SSL_set1_group_ids(SSL *ssl, const uint16_t *group_ids,
                        size_t num_group_ids) {
+  return SSL_set1_group_ids_with_flags(ssl, group_ids, /*flags=*/nullptr,
+                                       num_group_ids);
+}
+
+int SSL_set1_group_ids_with_flags(SSL *ssl, const uint16_t *group_ids,
+                                  const uint32_t *flags, size_t num_group_ids) {
   if (!ssl->config) {
     return 0;
   }
-  auto span = Span(group_ids, num_group_ids);
-  if (span.empty()) {
-    span = DefaultSupportedGroupIds();
-  }
-  if (check_group_ids(span) &&
-      ssl->config->supported_group_list.CopyFrom(span)) {
+  if (set_group_ids_and_flags(group_ids, flags, num_group_ids,
+                              &ssl->config->supported_group_list,
+                              &ssl->config->supported_group_list_flags)) {
     clear_key_shares_if_invalid(ssl->config.get());
     return 1;
   }
@@ -1927,7 +1971,8 @@ static bool ssl_nids_to_group_ids(Array<uint16_t> *out_group_ids,
 
 int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups, size_t num_groups) {
   return ssl_nids_to_group_ids(&ctx->supported_group_list,
-                               Span(groups, num_groups));
+                               Span(groups, num_groups)) &&
+         ctx->supported_group_list_flags.Init(ctx->supported_group_list.size());
 }
 
 int SSL_set1_groups(SSL *ssl, const int *groups, size_t num_groups) {
@@ -1935,7 +1980,9 @@ int SSL_set1_groups(SSL *ssl, const int *groups, size_t num_groups) {
     return 0;
   }
   if (ssl_nids_to_group_ids(&ssl->config->supported_group_list,
-                            Span(groups, num_groups))) {
+                            Span(groups, num_groups)) &&
+      ssl->config->supported_group_list_flags.Init(
+          ssl->config->supported_group_list.size())) {
     clear_key_shares_if_invalid(ssl->config.get());
     return 1;
   }
@@ -1983,14 +2030,17 @@ static bool ssl_str_to_group_ids(Array<uint16_t> *out_group_ids,
 }
 
 int SSL_CTX_set1_groups_list(SSL_CTX *ctx, const char *groups) {
-  return ssl_str_to_group_ids(&ctx->supported_group_list, groups);
+  return ssl_str_to_group_ids(&ctx->supported_group_list, groups) &&
+         ctx->supported_group_list_flags.Init(ctx->supported_group_list.size());
 }
 
 int SSL_set1_groups_list(SSL *ssl, const char *groups) {
   if (!ssl->config) {
     return 0;
   }
-  if (ssl_str_to_group_ids(&ssl->config->supported_group_list, groups)) {
+  if (ssl_str_to_group_ids(&ssl->config->supported_group_list, groups) &&
+      ssl->config->supported_group_list_flags.Init(
+          ssl->config->supported_group_list.size())) {
     clear_key_shares_if_invalid(ssl->config.get());
     return 1;
   }

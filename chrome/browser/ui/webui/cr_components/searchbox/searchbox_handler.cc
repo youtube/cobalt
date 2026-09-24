@@ -331,8 +331,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"addTab", IDS_NTP_COMPOSE_MOST_RECENT_TABS},
       {"dismissButton", IDS_NTP_DISMISS},
       // TODO(b/467036804): Update the value of `lensSearchAriaLabel`.
-      {"lensSearchAriaLabel", IDS_LENS_OVERLAY_TAB_ENTRYPOINT_LABEL},
-      {"lensSearchLabel", IDS_LENS_OVERLAY_TAB_ENTRYPOINT_LABEL},
+      {"lensSearchAriaLabel", IDS_CONTENT_CONTEXT_LENS_OVERLAY},
+      {"lensSearchLabel", IDS_CONTENT_CONTEXT_LENS_OVERLAY},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
       {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL},
       {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
@@ -367,13 +367,18 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"createImages", IDS_NTP_COMPOSE_CREATE_IMAGES},
       {"composeDeepSearchPlaceholder", IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER},
       {"composeCreateImagePlaceholder", IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER},
+      {"askAboutThisPage", IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE},
+      {"askAboutThisPageAriaLabel",
+       IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL},
       {"askAboutThisTab", IDS_COMPOSE_ASK_ABOUT_THIS_TAB},
       {"askAboutThisTabAriaLabel", IDS_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL},
       {"removeToolChipAriaLabel", IDS_COMPOSE_REMOVE_TOOL_CHIP_A11Y_LABEL},
       {"composeFileTypesAllowedError",
        IDS_NTP_COMPOSE_FILE_TYPE_NOT_ALLOWED_ERROR},
-      {"listening", IDS_NEW_TAB_VOICE_LISTENING},
-      {"details", IDS_NEW_TAB_VOICE_DETAILS},
+      {"voiceClose", IDS_NEW_TAB_VOICE_CLOSE_TOOLTIP},
+      {"voiceDetails", IDS_NEW_TAB_VOICE_DETAILS},
+      {"voiceListening", IDS_NEW_TAB_VOICE_LISTENING},
+      {"voicePermissionError", IDS_NEW_TAB_VOICE_PERMISSION_ERROR},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -1098,8 +1103,9 @@ void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
   }
 }
 
-const AutocompleteMatch* SearchboxHandler::GetMatchWithUrl(size_t index,
-                                                           const GURL& url) {
+const AutocompleteMatch* SearchboxHandler::GetMatchWithUrl(
+    size_t index,
+    const GURL& url) const {
   const AutocompleteResult& result = autocomplete_controller()->result();
   if (index >= result.size()) {
     // This can happen due to asynchronous updates changing the result while
@@ -1116,15 +1122,15 @@ const AutocompleteMatch* SearchboxHandler::GetMatchWithUrl(size_t index,
   return &match;
 }
 
-omnibox::ChromeAimToolsAndModels SearchboxHandler::GetAimToolMode() {
+omnibox::ChromeAimToolsAndModels SearchboxHandler::GetAimToolMode() const {
   return omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
 }
 
-OmniboxController* SearchboxHandler::omnibox_controller() {
+OmniboxController* SearchboxHandler::omnibox_controller() const {
   return controller_;
 }
 
-AutocompleteController* SearchboxHandler::autocomplete_controller() {
+AutocompleteController* SearchboxHandler::autocomplete_controller() const {
   return omnibox_controller()->autocomplete_controller();
 }
 
@@ -1137,6 +1143,6 @@ void SearchboxHandler::set_page_is_bound_callback_for_testing(
   page_is_bound_callback_for_testing_ = std::move(callback);
 }
 
-OmniboxEditModel* SearchboxHandler::edit_model() {
+OmniboxEditModel* SearchboxHandler::edit_model() const {
   return omnibox_controller()->edit_model();
 }

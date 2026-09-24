@@ -114,20 +114,22 @@ class FuzzyMatchedVideoEncoderFactory : public VideoEncoderFactory {
 
 void PeerConnectionTestWrapper::Connect(PeerConnectionTestWrapper* caller,
                                         PeerConnectionTestWrapper* callee) {
-  caller->SubscribeOnIceCandidateReady([callee](const std::string& mid,
-                                                int index,
-                                                const std::string& candidate) {
-    callee->AddIceCandidate(mid, index, candidate);
+  caller->SubscribeOnIceCandidateReady(
+      callee, [callee](const std::string& mid, int index,
+                       const std::string& candidate) {
+        callee->AddIceCandidate(mid, index, candidate);
+      });
+  callee->SubscribeOnIceCandidateReady(
+      caller, [caller](const std::string& mid, int index,
+                       const std::string& candidate) {
+        caller->AddIceCandidate(mid, index, candidate);
+      });
+  caller->SubscribeOnSdpReady(callee, [callee](const std::string& sdp) {
+    callee->ReceiveOfferSdp(sdp);
   });
-  callee->SubscribeOnIceCandidateReady([caller](const std::string& mid,
-                                                int index,
-                                                const std::string& candidate) {
-    caller->AddIceCandidate(mid, index, candidate);
+  callee->SubscribeOnSdpReady(caller, [caller](const std::string& sdp) {
+    caller->ReceiveAnswerSdp(sdp);
   });
-  caller->SubscribeOnSdpReady(
-      [callee](const std::string& sdp) { callee->ReceiveOfferSdp(sdp); });
-  callee->SubscribeOnSdpReady(
-      [caller](const std::string& sdp) { caller->ReceiveAnswerSdp(sdp); });
 }
 
 void PeerConnectionTestWrapper::AwaitNegotiation(
@@ -308,6 +310,7 @@ void PeerConnectionTestWrapper::ListenForRemoteIceCandidates(
     scoped_refptr<PeerConnectionTestWrapper> remote_wrapper) {
   remote_wrapper_ = remote_wrapper;
   remote_wrapper_->SubscribeOnIceCandidateReady(
+      this,
       [this](const std::string& mid, int index, const std::string& candidate) {
         OnRemoteIceCandidate(mid, index, candidate);
       });

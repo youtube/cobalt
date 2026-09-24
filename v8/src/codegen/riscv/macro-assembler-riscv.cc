@@ -692,9 +692,13 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
     Branch(ok, eq, scratch, Operand(scratch1));
   }
 
-  // The write barrier can also be removed if the value is in read-only space.
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, ok);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Write barier can also be removed if value is in read-only space.
   CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_equal,
                 ok);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   Label not_ok;
 
@@ -755,9 +759,8 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
   // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
-  static_assert(kLastStaticRootPage <=
-                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
-  JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
+  static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
+  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, dest);
 #endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
@@ -7869,11 +7872,11 @@ void MacroAssembler::DecompressTagged(const Register& destination,
                                       const Register& source) {
   ASM_CODE_COMMENT(this);
   if (CpuFeatures::IsSupported(ZBA)) {
-    ZeroExtendWord(destination, source);
+    adduw(destination, source, kPtrComprCageBaseRegister);
   } else {
-    And(destination, source, Operand(0xFFFFFFFF));
+    ZeroExtendWord(destination, source);
+    AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
   }
-  AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {

@@ -59,6 +59,7 @@
 #include "pc/session_description.h"
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -306,7 +307,7 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
   MOCK_METHOD(bool,
               ValidateBundleSettings,
               (const webrtc::SessionDescription*,
-               (const std::map<std::string, const webrtc::ContentGroup*>&)),
+               (const flat_map<std::string, const webrtc::ContentGroup*>&)),
               (override));
   MOCK_METHOD(RTCErrorOr<scoped_refptr<RtpTransceiverInterface>>,
               AddTransceiver,

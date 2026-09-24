@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/containers/flat_set.h"
+#include "base/containers/flat_map.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -18,8 +18,6 @@
 #include "chrome/common/extensions/api/vpn_provider.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_observer.h"
 #include "chromeos/ash/components/network/network_configuration_observer.h"
-#include "chromeos/ash/components/network/network_state_handler_observer.h"
-#include "chromeos/ash/components/network/vpn_providers_observer.h"
 #include "chromeos/crosapi/mojom/vpn_service.mojom.h"
 #include "extensions/common/extension_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -29,12 +27,7 @@
 
 namespace ash {
 class NetworkConfigurationHandler;
-class NetworkStateHandler;
 }  // namespace ash
-
-namespace base {
-class Value;
-}  // namespace base
 
 namespace chromeos {
 
@@ -78,8 +71,6 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
       mojo::PendingRemote<crosapi::mojom::EventObserverForExtension> observer);
 
   // crosapi::mojom::VpnServiceForExtension:
-  void CreateConfiguration(const std::string& configuration_name,
-                           CreateConfigurationCallback) override;
   void DestroyConfiguration(const std::string& configuration_name,
                             DestroyConfigurationCallback) override;
 
@@ -91,12 +82,7 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
   // Otherwise, returns std::nullopt.
   std::optional<std::string> GetActiveConfigurationObjectPath() const;
 
-  bool HasConfigurationForServicePath(const std::string& service_path) const;
-
   void DestroyAllConfigurations();
-
-  void CreateConfigurationWithServicePath(const std::string& configuration_name,
-                                          const std::string& service_path);
 
   void DispatchConfigRemovedEvent(const std::string& configuration_name);
   void DispatchOnPacketReceivedEvent(const std::vector<char>& data);
@@ -106,9 +92,6 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
   friend class chromeos::VpnProviderApiTest;
   friend class chromeos::VpnService;
   friend class TestShillControllerAsh;
-
-  using StringToConfigurationMap =
-      std::map<std::string, raw_ptr<VpnConfiguration, CtnExperimental>>;
 
   const extensions::ExtensionId& extension_id() const { return extension_id_; }
 
@@ -122,12 +105,6 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
 
   // Removes configuration from the internal store and destroys it.
   void DestroyConfigurationInternal(VpnConfiguration*);
-
-  // Callback used to indicate that configuration was successfully created.
-  void OnCreateConfigurationSuccess(SuccessCallback,
-                                    VpnConfiguration*,
-                                    const std::string& service_path,
-                                    const std::string& guid);
 
   // Callback used to indicate that configuration creation failed.
   void OnCreateConfigurationFailure(FailureCallback,
@@ -146,9 +123,6 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
   const extensions::ExtensionId extension_id_;
   raw_ptr<chromeos::VpnService> controller_;
 
-  // Maps shill service path to unowned configuration.
-  StringToConfigurationMap service_path_to_configuration_map_;
-
   // Configuration that is currently in use.
   raw_ptr<VpnConfiguration> active_configuration_ = nullptr;
 
@@ -162,9 +136,7 @@ class VpnServiceForExtensionAsh : public crosapi::mojom::VpnServiceForExtension,
   base::WeakPtrFactory<VpnServiceForExtensionAsh> weak_factory_{this};
 };
 
-class VpnServiceAsh : public crosapi::mojom::VpnService,
-                      public ash::NetworkStateHandlerObserver,
-                      public ash::VpnProvidersObserver::Delegate {
+class VpnServiceAsh : public crosapi::mojom::VpnService {
  public:
   VpnServiceAsh();
   ~VpnServiceAsh() override;
@@ -185,13 +157,6 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
       const std::string& extension_id,
       bool destroy_configurations) override;
 
-  // ash::NetworkStateHandlerObserver:
-  void NetworkListChanged() override;
-
-  // ash::VpnProvidersObserver::Delegate:
-  void OnVpnExtensionsChanged(
-      base::flat_set<std::string> vpn_extensions) override;
-
   // Always returns a valid pointer.
   VpnServiceForExtensionAsh* GetVpnServiceForExtension(
       const std::string& extension_id);
@@ -206,22 +171,6 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
   friend class chromeos::VpnProviderApiTest;
   friend class VpnServiceForExtensionAsh;
 
-  // Callback for
-  // ash::NetworkConfigurationHandler::GetShillProperties(...); parses
-  // the |configuration_properties| dictionary and tries to add a new
-  // configuration provided that it belongs to some enabled extension.
-  void OnGetShillProperties(
-      const std::string& service_path,
-      std::optional<base::Value::Dict> configuration_properties);
-
-
-  // Ids of enabled vpn extensions.
-  base::flat_set<std::string> vpn_extensions_;
-
-  base::ScopedObservation<ash::NetworkStateHandler,
-                          ash::NetworkStateHandlerObserver>
-      network_state_handler_observer_{this};
-
   // Supports any number of receivers.
   mojo::ReceiverSet<crosapi::mojom::VpnService> receivers_;
 
@@ -231,8 +180,6 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
   base::flat_map<std::string, std::unique_ptr<VpnServiceForExtensionAsh>>
       extension_id_to_service_;
 
-  std::unique_ptr<ash::VpnProvidersObserver> vpn_providers_observer_;
-
   raw_ptr<chromeos::VpnService> controller_ = nullptr;
   base::WeakPtrFactory<VpnServiceAsh> weak_factory_{this};
 };
@@ -240,6 +187,7 @@ class VpnServiceAsh : public crosapi::mojom::VpnService,
 class VpnServiceForExtensionAsh::VpnConfiguration
     : public ash::ShillThirdPartyVpnObserver {
  public:
+  virtual const std::string& extension_id() const = 0;
   virtual const std::string& configuration_name() const = 0;
   virtual const std::string& key() const = 0;
   virtual const std::string& object_path() const = 0;

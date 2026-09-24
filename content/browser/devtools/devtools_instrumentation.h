@@ -1,13 +1,12 @@
 // Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_INSTRUMENTATION_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_INSTRUMENTATION_H_
 
-/*
-  The functions in this file are for routing instrumentation signals
-  to the relevant set of devtools protocol handlers.
-*/
+// The functions in this file are for routing instrumentation signals to the
+// relevant set of devtools protocol handlers.
 
 #include <cstdint>
 #include <optional>
@@ -20,8 +19,11 @@
 #include "content/browser/devtools/devtools_throttle_handle.h"
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/protocol/emulation_handler.h"
+<<<<<<< HEAD
+=======
 #endif
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/interest_group/devtools_enums.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
@@ -35,7 +37,7 @@
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/cookie_manager.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
-#include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
 #include "third_party/blink/public/common/page/drag_operation.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-forward.h"
@@ -54,6 +56,12 @@ namespace blink {
 struct UserAgentMetadata;
 }
 
+namespace download {
+class DownloadItem;
+class DownloadUrlParameters;
+struct DownloadCreateInfo;
+}  // namespace download
+
 namespace net {
 class HttpResponseHeaders;
 class SiteForCookies;
@@ -64,18 +72,13 @@ struct WebTransportError;
 
 namespace network {
 class URLLoaderFactoryBuilder;
+struct ResourceRequest;
 
 namespace mojom {
 class NetworkContextParams;
 class URLResponseHeadDevToolsInfo;
 }  // namespace mojom
 }  // namespace network
-
-namespace download {
-struct DownloadCreateInfo;
-class DownloadItem;
-class DownloadUrlParameters;
-}  // namespace download
 
 namespace content {
 class BackForwardCacheCanStoreDocumentResult;
@@ -97,7 +100,6 @@ class StoragePartition;
 class WebContents;
 struct DropData;
 struct PrerenderMismatchedHeaders;
-
 struct SignedExchangeError;
 
 namespace protocol::Audits {

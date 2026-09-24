@@ -27,6 +27,8 @@
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -1591,7 +1593,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         // StoreGlobalIC_PropertyCellCase doesn't support definition
         // of private fields, so handle them in runtime.
         GotoIfNot(IsSymbol(CAST(p->name())), &proceed_defining);
-        Branch(IsPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
+        Branch(IsAnyPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
         BIND(&proceed_defining);
       }
 
@@ -3008,9 +3010,12 @@ void AccessorAssembler::GenericPropertyLoad(
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-    TNode<Object> value = CallGetterIfAccessor(
+    TNode<JSAnyOrSharedFunctionInfo> value = CAST(CallGetterIfAccessor(
         var_value.value(), CAST(lookup_start_object), var_details.value(),
-        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow);
+        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow));
+
+    GotoIfLazyClosure(value, slow);
+
     Return(value);
   }
 
@@ -3052,6 +3057,8 @@ void AccessorAssembler::GenericPropertyLoad(
       Goto(slow);
 
       BIND(&return_value);
+
+      GotoIfLazyClosure(CAST(var_value.value()), slow);
       Return(var_value.value());
     }
 
@@ -3062,7 +3069,7 @@ void AccessorAssembler::GenericPropertyLoad(
       // For private names that don't exist on the receiver, we bail
       // to the runtime to throw. For private symbols, we just return
       // undefined.
-      Branch(IsPrivateName(CAST(name)), slow, &return_undefined);
+      Branch(IsAnyPrivateName(CAST(name)), slow, &return_undefined);
     }
 
     BIND(&return_undefined);

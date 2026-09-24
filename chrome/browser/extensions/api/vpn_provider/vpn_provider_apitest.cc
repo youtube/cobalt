@@ -18,7 +18,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/test_future.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crosapi/vpn_service_ash.h"
@@ -194,7 +193,7 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
                          api_vpn::PlatformMessage message) override {
     test_client_->OnPlatformMessage(
         shill::kObjectPathBase + GetKey(configuration_name),
-        base::to_underlying(message));
+        std::to_underlying(message));
   }
   void OnPacketReceived(const std::string& configuration_name,
                         const std::vector<char>& data) override {
@@ -221,19 +220,8 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
   }
 
   std::string GetSingleServicePath() {
-    std::vector<std::string> service_paths;
-    for (const auto& [extension_id, service] :
-         GetVpnServiceAsh()->extension_id_to_service_) {
-      const auto& service_path_map =
-          service->service_path_to_configuration_map_;
-      if (service_path_map.empty()) {
-        continue;
-      }
-      DCHECK_EQ(service_path_map.size(), 1U);
-      service_paths.push_back(service_path_map.begin()->first);
-    }
-    EXPECT_EQ(service_paths.size(), 1U);
-    return service_paths[0];
+    EXPECT_EQ(service()->service_path_to_configuration_map_.size(), 1);
+    return service()->service_path_to_configuration_map_.begin()->first;
   }
 
   bool CreateConfigForTest(const std::string& name) {
@@ -274,7 +262,7 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
                          const std::string& configuration_name) {
     service()->SendOnPlatformMessageToExtension(
         extension_id, configuration_name,
-        base::to_underlying(api_vpn::PlatformMessage::kError));
+        std::to_underlying(api_vpn::PlatformMessage::kError));
   }
 
   void ClearNetworkProfiles() {
@@ -448,7 +436,7 @@ IN_PROC_BROWSER_TEST_F(VpnProviderApiTest, VpnSuccess) {
   EXPECT_EQ(1, test_client_->set_parameters_counter_);
   EXPECT_EQ(1, test_client_->update_connection_state_counter_);
   EXPECT_EQ(1, test_client_->send_packet_counter_);
-  EXPECT_EQ(base::to_underlying(api_vpn::VpnConnectionState::kConnected),
+  EXPECT_EQ(std::to_underlying(api_vpn::VpnConnectionState::kConnected),
             test_client_->update_connection_state_counter_);
   for (size_t i = 0; i < std::size(kParameterValues); ++i) {
     const std::string* value =
@@ -480,6 +468,20 @@ class TestEventObserverForExtension
   void OnPacketReceived(const std::vector<uint8_t>& data) override {}
 };
 
+using SuccessOrFailureCallback =
+    base::OnceCallback<void(crosapi::mojom::VpnErrorResponsePtr)>;
+
+void RunSuccessCallback(SuccessOrFailureCallback callback) {
+  std::move(callback).Run(nullptr);
+}
+
+void RunFailureCallback(SuccessOrFailureCallback callback,
+                        const std::string& error_name,
+                        const std::string& error_message) {
+  std::move(callback).Run(
+      crosapi::mojom::VpnErrorResponse::New(error_name, error_message));
+}
+
 // Tests that the per-extension crosapi connection between ash and browser
 // is initialized by the moment ash decides to send a platform message to the
 // browser.
@@ -493,7 +495,14 @@ IN_PROC_BROWSER_TEST_F(VpnProviderApiTest, PlatformMessage) {
       receiver.BindNewPipeAndPassRemote());
 
   base::test::TestFuture<crosapi::mojom::VpnErrorResponsePtr> future;
-  remote->CreateConfiguration(kTestConfig, future.GetCallback());
+  auto callback = future.GetCallback();
+  auto [success, failure] = base::SplitOnceCallback(std::move(callback));
+
+  service()->CreateConfiguration(
+      extension_id(), kTestConfig,
+      base::BindOnce(&RunSuccessCallback, std::move(success)),
+      base::BindOnce(&RunFailureCallback, std::move(failure)));
+
   auto error = future.Take();
   ASSERT_FALSE(error) << "CreateConfiguration failed with |message| = "
                       << error->message.value_or(std::string{});

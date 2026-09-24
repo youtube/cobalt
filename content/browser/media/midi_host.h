@@ -11,7 +11,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
@@ -62,8 +61,7 @@ class CONTENT_EXPORT MidiHost : public midi::MidiManagerClient,
   void SetInputPortState(uint32_t port, midi::mojom::PortState state) override;
   void SetOutputPortState(uint32_t port, midi::mojom::PortState state) override;
   void ReceiveMidiData(uint32_t port,
-                       const uint8_t* data,
-                       size_t length,
+                       base::span<const uint8_t> data,
                        base::TimeTicks timestamp) override;
   void AccumulateMidiBytesSent(size_t n) override;
   void Detach() override;

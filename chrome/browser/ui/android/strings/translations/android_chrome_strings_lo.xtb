@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">ບັນທຶກຂໍ້ມູນໃນບັນຊີ Google ຂອງທ່ານ</translation>
 <translation id="1414919006379339073">ປິດໜ້າຈໍປັດຈຸບັນ</translation>
 <translation id="1416550906796893042">ເວີຊັນ​ແອັບພລິເຄຊັນ</translation>
-<translation id="1419753403124156396">ຣີສະຕາດ Chrome ບໍ?</translation>
 <translation id="1428770807407000502">ປິດການຊິ້ງຂໍ້ມູນບໍ?</translation>
 <translation id="1430915738399379752">ພິມ</translation>
 <translation id="1435593198351412143">ເປີດ PDF ໂດຍອັດຕະໂນມັດ</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">ອົງກອນຂອງທ່ານໄດ້ເປີດ Safe Browsing ທີ່ປັບປຸງດີຂຶ້ນ</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ການດາວໂຫຼດບໍ່ສຳເລັດ}other{# ການດາວໂຫຼດບໍ່ສຳເລັດ}}</translation>
 <translation id="2067805253194386918">ຂໍ້ຄວາມ</translation>
-<translation id="2072027001582274150">ແຖບທີ່ບໍ່ໄດ້ໃຊ້ ຫຼື ຊ້ຳກັນ</translation>
 <translation id="2079545284768500474">ບໍ່ເຮັດ</translation>
 <translation id="2082238445998314030">ຜົນຮັບ <ph name="RESULT_NUMBER" /> ຈາກ <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">ເພື່ອຕັ້ງຄ່າການຕື່ມຂໍ້ມູນອັດຕະໂນມັດໃຫ້ສຳເລັດ, ກະລຸນາຣີສະຕາດ Chrome ຕອນນີ້ເລີຍ. ແຖບຂອງທ່ານຈະເປີດຂຶ້ນຄືນໃໝ່ໂດຍອັດຕະໂນມັດ.</translation>
 <translation id="2091863218454846791">ການສະແດງມຸມມອງກະທັດຮັດ</translation>
 <translation id="2093731487903423814">15 ນາທີຫຼ້າສຸດ</translation>
 <translation id="2096577711562668473">ປ່ຽນບໍລິການຕື່ມຂໍ້ມູນອັດຕະໂນມັດບໍ?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">ແຕະຄ້າງໄວ້ເພື່ອປ່ຽນໄປໃຊ້ໂໝດບໍ່ເປີດເຜີຍຕົວຕົນ</translation>
 <translation id="2860954141821109167">ກວດໃຫ້ແນ່ໃຈວ່າໄດ້ເປີດນຳໃຊ້ແອັບໂທລະສັບໃນອຸປະກອນນີ້ແລ້ວ</translation>
 <translation id="2861923151411510142">ຄຸນສົມບັດ Chrome ບາງຢ່າງບໍ່ສາມາດໃຊ້ໄດ້ອີກຕໍ່ໄປ</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> ແລະ ອີກ 1 ແຖບ}other{<ph name="URL" /> ແລະ ອີກ <ph name="TAB_COUNT_MANY" /> ແຖບ}}</translation>
 <translation id="2869430948265924908">ເພື່ອປົກປ້ອງເນື້ອຫາທີ່ລະອຽດອ່ອນຂອງທ່ານໃນລົດ, ທ່ານຈະຕ້ອງສ້າງການລັອກໂປຣໄຟລ໌ລົດກ່ອນ.  ທ່ານສາມາດເຮັດໄດ້ໂດຍການໃຊ້ PIN, ລະຫັດ ຫຼື ລະຫັດຜ່ານ.</translation>
 <translation id="2870560284913253234">ເວັບ​ໄຊທ໌</translation>
 <translation id="2871733351037274014">ໂຫຼດໜ້າກ່ອນລ່ວງໜ້າ</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">ລາຍການອຸປະກອນທີ່ຈະແບ່ງປັນແຖບນຳໂດຍເປີດຢູ່ທີ່ລະດັບລວງສູງເຕັມຈໍ.</translation>
 <translation id="2908243544703713905">ຂ່າວທີ່ຍັງບໍ່ໄດ້ອ່ານພ້ອມແລ້ວ</translation>
 <translation id="2909615210195135082">ແພລດຟອມການແຈ້ງເຕືອນຂອງ Google</translation>
+<translation id="2912247081180973411">ປິດໜ້າຈໍ</translation>
 <translation id="2912345083818861431">ໃຊ້ການລັອກໜ້າຈໍເພື່ອເບິ່ງແຖບ​ບໍ່ເປີດເຜີຍຕົວຕົນ</translation>
 <translation id="2918484639460781603">ເຂົ້າໄປຫາການຕັ້ງຄ່າ</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, ແຖບທີ່ປິດສຽງຢູ່</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ສຶກສາກ່ຽວກັບບັນຊີທີ່ຖືກບລັອກ</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, ເປີດໃນແຖບໃໝ່</translation>
 <translation id="3166827708714933426">ທາງລັດແຖບ ແລະ ໜ້າຈໍ</translation>
-<translation id="316694332262407393">Chrome ກຳລັງເຮັດວຽກຢູ່ບ່ອນນີ້ຢູ່ກ່ອນແລ້ວ.</translation>
 <translation id="3167258285411721858">ທ່ານສາມາດຂໍເວັບໄຊມືຖືສຳລັບ <ph name="HOST_NAME" /> ໄດ້</translation>
 <translation id="3169472444629675720">ຄົ້ນຫາ</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, ແຖບບໍ່ເປີດເຜີຍຕົວຕົນທີ່ປິດສຽງຢູ່ ແລະ ປັກໝຸດເຊິ່ງເລືອກໄວ້ຫຼາຍແຖບ</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">ສຳເນົາລິ້ງໄປຫາໜ້າເວັບ <ph name="PAGE_TITLE" />. ແຫຼ່ງທີ່ມາ: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">ຮັບເນື້ອຫາທີ່ດີຂຶ້ນ</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 ແລະ ອີກ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ທາງເລືອກການຈັດສົ່ງ}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 ແລະ ອີກ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ທາງເລືອກການຈັດສົ່ງ}}</translation>
-<translation id="4698061626562952596">ກວດສອບແຖບທີ່ບໍ່ໄດ້ນຳໃຊ້ຂອງທ່ານຢູ່ບ່ອນນີ້</translation>
 <translation id="4698757800236023795">ທີ່ນຳໃຊ້ຢູ່ (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">ຮູບ ແລະໄຟລ໌ທີ່ແຄຊ໌ແລ້ວ</translation>
 <translation id="4710167854527459075">ຈັດຮຽງຈາກໃໝ່ສຸດ</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> ແຖບ - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> ແຖບ - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">ຄວາມ​ເປັນ​ສ່ວນ​ຕົວ</translation>
 <translation id="504456571576643789">ສິ່ງທີ່ຕ້ອງພິຈາລະນາ</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{ເລືອກ <ph name="WINDOW_COUNT_ONE" /> ໜ້າຈໍໄວ້}other{ເລືອກ <ph name="WINDOW_COUNT_NORMAL" /> ໜ້າຈໍໄວ້}}</translation>
 <translation id="5056587122125565772">ສ້າງຮູບ</translation>
 <translation id="506254248375231072">ບໍ່ມີແຖບ</translation>
 <translation id="5075939510584558547">ບັນທຶກໂດຍບໍ່ມີການເຂົ້າລະຫັດ</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">ແຖບທີ່ບໍ່ເຜີຍຕົວຕົນ</translation>
 <translation id="5142281402488957685">ສຳລັບຂ່າວໃໝ່, ໃຫ້ດຶງລົງເພື່ອໂຫຼດຂໍ້ມູນຄືນໃໝ່</translation>
 <translation id="5144385790872094440">ລະບົບຈະໂຫຼດໜ້າເວັບບາງໜ້າທີ່ທ່ານເຂົ້າເບິ່ງກ່ອນລ່ວງໜ້າ. ລະບົບອາດໂຫຼດໜ້າເວັບກ່ອນລ່ວງໜ້າຜ່ານເຊີບເວີຂອງ Google ເມື່ອລິ້ງຈາກເວັບໄຊ ຫຼື ແອັບຂອງ Google.</translation>
-<translation id="5145887002054615868">ແຖບທີ່ຊ້ຳກັນ ຫຼື ແຖບທີ່ບໍ່ໄດ້ໃຊ້ເປັນເວລາ <ph name="DAYS_INACTIVE" /> ມື້ຈະຍ້າຍມາບ່ອນນີ້<ph name="AUTODELETE_SECTION" />. ທ່ານສາມາດປ່ຽນຕົວເລືອກນີ້ໄດ້ທຸກເວລາໃນ <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">ບໍ່ມີແອັບທີ່ຮອງຮັບຕິດຕັ້ງໄວ້</translation>
 <translation id="5161254044473106830">ຈຳ​ເປັນ​ຕ້ອງ​ມີ​ຫົວ​ຂໍ້</translation>
 <translation id="5161262286013276579">ຊີດການຢືນຢັນກະແຈຜ່ານເປີດຢູ່</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">ທ່ານສາມາດໄປຫາໜ້າຕ່າງໆດ້ວຍເຄີເຊີຂໍ້ຄວາມ. ກົດ F7 ເພື່ອປິດ.</translation>
 <translation id="5471273988133666918">ບໍ່ສາມາດຍ້າຍແຖບ <ph name="TAB_TITLE" /> ໄດ້</translation>
 <translation id="548278423535722844">ເປີດໃນແອັບແຜນທີ່</translation>
+<translation id="5494920125229734069">ເລືອກ​ທັງ​ຫມົດ</translation>
 <translation id="549660026907543296">ເຂົ້າຮ່ວມເປັນ <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">ຊີດລຸ່ມສຸດທີ່ສະແດງການເຄື່ອນໄຫວຫຼ້າສຸດ</translation>
 <translation id="5526281268548144413">ບໍ່ສາມາດປິດຂ້າມຫຼາຍໜ້າຈໍໄດ້</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">ຊອກຫາໄຟລ໌ ແລະ ໜ້າເວັບຂອງທ່ານໃນການດາວໂຫຼດ</translation>
 <translation id="5962718611393537961">ແຕະເພື່ອຫຍໍ້ລົງ</translation>
 <translation id="5964869237734432770">ຢຸດຄຳອະທິບາຍຮູບ</translation>
+<translation id="5972844218283131174">ເຊົາເລືອກທັງໝົດ</translation>
 <translation id="5975083100439434680">ຊູມອອກ</translation>
 <translation id="5977976211062815271">ໃນອຸປະກອນນີ້</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 ໜ້າໃນລາຍຊື່ການອ່ານຂອງທ່ານ}other{# ໜ້າໃນລາຍຊື່ການອ່ານຂອງທ່ານ}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">ທ່ານບໍ່ຈຳເປັນຕ້ອງຈື່ລະຫັດຜ່ານນີ້. ລະບົບຈະບັນທຶກໄວ້ໃນຕົວຈັດການລະຫັດຜ່ານ Google.</translation>
 <translation id="8152331954420209374">ເຂົ້າໄປ Lens</translation>
 <translation id="8153206878708357851">ເປີດ/ປິດການຮຽກເບິ່ງດ້ວຍແປ້ນພິມ</translation>
+<translation id="8154784523622173959">ປັບແຕ່ງພື້ນຫຼັງຂອງໜ້ານີ້ໃຫ້ເປັນແບບສ່ວນຕົວ</translation>
 <translation id="8163820386638255770">ເພື່ອໃຊ້ ແລະ ບັນທຶກລະຫັດຜ່ານໃນບັນຊີ Google ຂອງທ່ານ, ກະລຸນາຢັ້ງຢືນວ່າແມ່ນທ່ານ</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) ລາຍການທີ່ບໍ່ໄດ້ນຳໃຊ້}other{(#) ລາຍການທີ່ບໍ່ໄດ້ນຳໃຊ້}}</translation>
 <translation id="8186512483418048923">ຍັງເຫຼືອ <ph name="FILES" /> ໄຟລ໌</translation>
 <translation id="8190358571722158785">ຍັງ​ເຫຼືອ 1 ມື້</translation>
 <translation id="8192765420340770300">ເປີດຊີດລຸ່ມສຸດສຳລັບການເຂົ້າສູ່ລະບົບໃນຄວາມສູງເຕັມແລ້ວ</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />ອຸປະກອນຂອງທ່ານ<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">ລຶບລ້າງຄຳຊອກຫາ</translation>
 <translation id="820568752112382238">ເວັບໄຊທີ່ເຂົ້າເບິ່ງຫຼາຍທີ່ສຸດ</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{ເຂົ້າຮ່ວມກຸ່ມແຖບກັບ <ph name="OWNER_FIRST_NAME" /> ແລະ ອີກ<ph name="NUMBER_OF_OTHER_MEMBERS" /> ຄົນ}other{ເຂົ້າຮ່ວມກຸ່ມແຖບກັບ <ph name="OWNER_FIRST_NAME" /> ແລະ ອີກ <ph name="NUMBER_OF_OTHER_MEMBERS" /> ຄົນ}}</translation>
 <translation id="8209050860603202033">ເປີດຮູບ</translation>

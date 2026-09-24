@@ -33,6 +33,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 namespace {
 
 struct EVP_PKEY_ALG_RSA_PSS : public EVP_PKEY_ALG {
@@ -75,8 +77,7 @@ static evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  bssl::UniquePtr<RSA> rsa(
-      RSA_public_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSA> rsa(RSA_public_key_from_bytes(CBS_data(key), CBS_len(key)));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -127,8 +128,7 @@ static evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  bssl::UniquePtr<RSA> rsa(
-      RSA_private_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(CBS_data(key), CBS_len(key)));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -181,8 +181,7 @@ static evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
     return ret;
   }
 
-  bssl::UniquePtr<RSA> rsa(
-      RSA_public_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSA> rsa(RSA_public_key_from_bytes(CBS_data(key), CBS_len(key)));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -221,8 +220,7 @@ static evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
     return ret;
   }
 
-  bssl::UniquePtr<RSA> rsa(
-      RSA_private_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(CBS_data(key), CBS_len(key)));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -329,7 +327,7 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth = {
 struct RSA_PKEY_CTX {
   // Key gen parameters
   int nbits = 2048;
-  bssl::UniquePtr<BIGNUM> pub_exp;
+  UniquePtr<BIGNUM> pub_exp;
   // RSA padding mode
   int pad_mode = RSA_PKCS1_PADDING;
   // message digest
@@ -342,7 +340,7 @@ struct RSA_PKEY_CTX {
   // parameters are restricted by the key's parameters. |md| and |mgf1md| may
   // not change, and |saltlen| must be at least |md|'s hash length.
   bool restrict_pss_params = false;
-  bssl::Array<uint8_t> oaep_label;
+  Array<uint8_t> oaep_label;
 };
 
 static bool is_pss_only(const EVP_PKEY_CTX *ctx) {
@@ -350,7 +348,7 @@ static bool is_pss_only(const EVP_PKEY_CTX *ctx) {
 }
 
 static int pkey_rsa_init(EVP_PKEY_CTX *ctx) {
-  RSA_PKEY_CTX *rctx = bssl::New<RSA_PKEY_CTX>();
+  RSA_PKEY_CTX *rctx = New<RSA_PKEY_CTX>();
   if (!rctx) {
     return 0;
   }
@@ -402,7 +400,7 @@ static int pkey_rsa_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) {
 }
 
 static void pkey_rsa_cleanup(EVP_PKEY_CTX *ctx) {
-  bssl::Delete(reinterpret_cast<RSA_PKEY_CTX *>(ctx->data));
+  Delete(reinterpret_cast<RSA_PKEY_CTX *>(ctx->data));
 }
 
 static int pkey_rsa_sign(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *siglen,
@@ -464,7 +462,7 @@ static int pkey_rsa_verify(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t siglen,
 
   size_t rslen;
   const size_t key_len = EVP_PKEY_size(ctx->pkey.get());
-  bssl::Array<uint8_t> tbuf;
+  Array<uint8_t> tbuf;
   if (!tbuf.InitForOverwrite(key_len) ||
       !RSA_verify_raw(rsa, &rslen, tbuf.data(), tbuf.size(), sig, siglen,
                       rctx->pad_mode)) {
@@ -515,10 +513,10 @@ static int pkey_rsa_verify_recover(EVP_PKEY_CTX *ctx, uint8_t *out,
                             kDummyHash, hash_len)) {
     return 0;
   }
-  bssl::UniquePtr<uint8_t> free_asn1_prefix(asn1_prefix_allocated ? asn1_prefix
-                                                                  : nullptr);
+  UniquePtr<uint8_t> free_asn1_prefix(asn1_prefix_allocated ? asn1_prefix
+                                                            : nullptr);
 
-  bssl::Array<uint8_t> tbuf;
+  Array<uint8_t> tbuf;
   size_t rslen;
   if (!tbuf.InitForOverwrite(key_len) ||
       !RSA_verify_raw(rsa, &rslen, tbuf.data(), tbuf.size(), sig, sig_len,
@@ -555,7 +553,7 @@ static int pkey_rsa_encrypt(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
   }
 
   if (rctx->pad_mode == RSA_PKCS1_OAEP_PADDING) {
-    bssl::Array<uint8_t> tbuf;
+    Array<uint8_t> tbuf;
     if (!tbuf.InitForOverwrite(key_len) ||
         !RSA_padding_add_PKCS1_OAEP_mgf1(
             tbuf.data(), tbuf.size(), in, inlen, rctx->oaep_label.data(),
@@ -587,7 +585,7 @@ static int pkey_rsa_decrypt(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
   }
 
   if (rctx->pad_mode == RSA_PKCS1_OAEP_PADDING) {
-    bssl::Array<uint8_t> tbuf;
+    Array<uint8_t> tbuf;
     size_t padded_len;
     if (!tbuf.InitForOverwrite(key_len) ||
         !RSA_decrypt(rsa, &padded_len, tbuf.data(), tbuf.size(), in, inlen,
@@ -763,7 +761,7 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
       }
       // |EVP_PKEY_CTRL_RSA_OAEP_LABEL| takes ownership of |label|'s underlying
       // buffer (via |Reset|), but only on success.
-      auto *label = reinterpret_cast<bssl::Span<uint8_t> *>(p2);
+      auto *label = reinterpret_cast<Span<uint8_t> *>(p2);
       rctx->oaep_label.Reset(label->data(), label->size());
       return 1;
     }
@@ -790,7 +788,7 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
       return 0;
     }
   }
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   if (!rsa) {
     return 0;
   }
@@ -987,7 +985,7 @@ int EVP_PKEY_CTX_get_rsa_mgf1_md(EVP_PKEY_CTX *ctx, const EVP_MD **out_md) {
 
 int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, uint8_t *label,
                                      size_t label_len) {
-  bssl::Span span(label, label_len);
+  Span span(label, label_len);
   return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,
                            EVP_PKEY_CTRL_RSA_OAEP_LABEL, 0, &span);
 }

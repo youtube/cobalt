@@ -266,7 +266,7 @@ class RTC_EXPORT PortAllocatorSession {
   virtual void PruneAllPorts() {}
 
   // This function has to be non-inlined due to usage in Chrome.
-  void SubscribePortReady(
+  [[deprecated]] void SubscribePortReady(
       absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback);
   void SubscribePortReady(
       void* tag,
@@ -279,7 +279,7 @@ class RTC_EXPORT PortAllocatorSession {
   // interface is down, or because there is no connection on the interface),
   // or when TURN ports are pruned because a higher-priority TURN port becomes
   // ready(pairable).
-  void SubscribePortsPruned(
+  [[deprecated]] void SubscribePortsPruned(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<PortInterface*>&)> callback) {
     ports_pruned_callbacks_.AddReceiver(std::move(callback));
@@ -295,7 +295,7 @@ class RTC_EXPORT PortAllocatorSession {
     ports_pruned_callbacks_.Send(session, ports);
   }
 
-  void SubscribeCandidatesReady(
+  [[deprecated]] void SubscribeCandidatesReady(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<Candidate>&)> callback) {
     candidates_ready_callbacks_.AddReceiver(std::move(callback));
@@ -311,7 +311,7 @@ class RTC_EXPORT PortAllocatorSession {
     candidates_ready_callbacks_.Send(session, candidates);
   }
 
-  void SubscribeCandidateError(
+  [[deprecated]] void SubscribeCandidateError(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const IceCandidateErrorEvent&)> callback) {
     candidate_error_callbacks_.AddReceiver(std::move(callback));
@@ -328,7 +328,7 @@ class RTC_EXPORT PortAllocatorSession {
   }
   // Candidates should be signaled to be removed when the port that generated
   // the candidates is removed.
-  void SubscribeCandidatesRemoved(
+  [[deprecated]] void SubscribeCandidatesRemoved(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<Candidate>&)> callback) {
     candidates_removed_callbacks_.AddReceiver(std::move(callback));
@@ -343,7 +343,7 @@ class RTC_EXPORT PortAllocatorSession {
                                const std::vector<Candidate>& candidates) {
     candidates_removed_callbacks_.Send(session, candidates);
   }
-  void SubscribeCandidatesAllocationDone(
+  [[deprecated]] void SubscribeCandidatesAllocationDone(
       absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
     candidates_allocation_done_callbacks_.AddReceiver(std::move(callback));
   }
@@ -356,6 +356,7 @@ class RTC_EXPORT PortAllocatorSession {
     candidates_allocation_done_callbacks_.Send(session);
   }
 
+  [[deprecated("Use SubscribeIceRegathering(void* tag, ...)")]]
   void SubscribeIceRegathering(
       absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
           callback) {

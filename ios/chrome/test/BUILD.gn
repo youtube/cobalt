@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/buildflag_header.gni")
 import("//build/config/c++/c++.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//ios/build/chrome_build.gni")
@@ -10,6 +11,11 @@ import("//ios/chrome/features.gni")
 import("//ios/public/provider/chrome/browser/build_config.gni")
 import("//testing/test.gni")
 import("//third_party/protobuf/proto_library.gni")
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [ "IOS_CHROME_ENABLE_PROFILE_ALTERING_TESTS=$ios_chrome_enable_profile_altering_tests" ]
+}
 
 # All tests needs to be listed in that target to be built as part of
 # "gn_all" target (i.e. by the bots).
@@ -188,7 +194,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/ai_prototyping/utils:unit_tests",
     "//ios/chrome/browser/alert_view/ui_bundled:unit_tests",
     "//ios/chrome/browser/app_launcher/model:unit_tests",
-    "//ios/chrome/browser/app_store_rating/ui_bundled:unit_tests",
+    "//ios/chrome/browser/app_store_rating/model:unit_tests",
     "//ios/chrome/browser/authentication/account_menu/coordinator:unit_tests",
     "//ios/chrome/browser/authentication/account_menu/ui:unit_tests",
     "//ios/chrome/browser/authentication/add_account_signin/coordinator:unit_tests",
@@ -268,11 +274,11 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/credential_provider_promo/ui_bundled:unit_tests",
     "//ios/chrome/browser/cross_platform_promos/model:unit_tests",
     "//ios/chrome/browser/data_sharing/model:unit_tests",
+    "//ios/chrome/browser/default_browser/install_attribution/model:unit_tests",
     "//ios/chrome/browser/default_browser/model:unit_tests",
-    "//ios/chrome/browser/default_browser/model/install_attribution:unit_tests",
-    "//ios/chrome/browser/default_promo/ui_bundled:unit_tests",
-    "//ios/chrome/browser/default_promo/ui_bundled/generic:unit_tests",
-    "//ios/chrome/browser/default_promo/ui_bundled/promo_handler:unit_tests",
+    "//ios/chrome/browser/default_browser/promo/generic/test:unit_tests",
+    "//ios/chrome/browser/default_browser/promo/tailored/test:unit_tests",
+    "//ios/chrome/browser/default_browser/promo/test:unit_tests",
     "//ios/chrome/browser/device_orientation/ui_bundled:unit_tests",
     "//ios/chrome/browser/device_reauth/model:unit_tests",
     "//ios/chrome/browser/device_sharing/model:unit_tests",
@@ -295,7 +301,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/favicon/model:unit_tests",
     "//ios/chrome/browser/feature_engagement/model:unit_tests",
     "//ios/chrome/browser/file_upload_panel/coordinator:unit_tests",
-    "//ios/chrome/browser/first_run/ui_bundled/tos:unit_tests",
+    "//ios/chrome/browser/first_run/tos/coordinator:unit_tests",
     "//ios/chrome/browser/flags:unit_tests",
     "//ios/chrome/browser/fullscreen/ui_bundled:unit_tests",
     "//ios/chrome/browser/geolocation/model:unit_tests",
@@ -379,8 +385,8 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/overlays/ui_bundled/test_modality:unit_tests",
     "//ios/chrome/browser/overlays/ui_bundled/web_content_area/alerts:unit_tests",
     "//ios/chrome/browser/overscroll_actions/model:unit_tests",
+    "//ios/chrome/browser/page_info/coordinator:unit_tests",
     "//ios/chrome/browser/page_info/model:unit_tests",
-    "//ios/chrome/browser/page_info/ui_bundled:unit_tests",
     "//ios/chrome/browser/partial_translate/ui_bundled:unit_tests",
     "//ios/chrome/browser/passwords/model:unit_tests",
     "//ios/chrome/browser/passwords/model/metrics:unit_tests",
@@ -391,9 +397,11 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/plus_addresses/ui:unit_tests",
     "//ios/chrome/browser/policy/model:unit_tests",
     "//ios/chrome/browser/policy/ui_bundled/idle:unit_tests",
-    "//ios/chrome/browser/popup_menu/ui_bundled:unit_tests",
-    "//ios/chrome/browser/popup_menu/ui_bundled/overflow_menu:unit_tests",
-    "//ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/destination_usage_history:unit_tests",
+    "//ios/chrome/browser/popup_menu/coordinator:unit_tests",
+    "//ios/chrome/browser/popup_menu/overflow_menu/coordinator:unit_tests",
+    "//ios/chrome/browser/popup_menu/overflow_menu/model:unit_tests",
+    "//ios/chrome/browser/popup_menu/overflow_menu/public:unit_tests",
+    "//ios/chrome/browser/popup_menu/overflow_menu/ui:unit_tests",
     "//ios/chrome/browser/post_restore_signin/ui_bundled:unit_tests",
     "//ios/chrome/browser/prefs/model:unit_tests",
     "//ios/chrome/browser/prerender/model:unit_tests",
@@ -404,10 +412,10 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/price_notifications/ui_bundled:unit_tests",
     "//ios/chrome/browser/price_notifications/ui_bundled/cells:unit_tests",
     "//ios/chrome/browser/profile/model:unit_tests",
+    "//ios/chrome/browser/promos_manager/coordinator:unit_tests",
     "//ios/chrome/browser/promos_manager/model:unit_tests",
-    "//ios/chrome/browser/promos_manager/ui_bundled:unit_tests",
+    "//ios/chrome/browser/push_notification/coordinator:unit_tests",
     "//ios/chrome/browser/push_notification/model:unit_tests",
-    "//ios/chrome/browser/push_notification/ui_bundled:unit_tests",
     "//ios/chrome/browser/reader_mode/coordinator:unit_tests",
     "//ios/chrome/browser/reader_mode/model:unit_tests",
     "//ios/chrome/browser/reading_list/model:unit_tests",
@@ -445,7 +453,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/settings/ui_bundled/autofill/cells:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/bandwidth:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/cells:unit_tests",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data:unit_tests",
+    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/coordinator:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/content_settings:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/credit_card_scanner:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/default_browser:unit_tests",
@@ -467,7 +475,6 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/settings/ui_bundled/privacy:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/privacy/incognito:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/privacy/lockdown_mode:unit_tests",
-    "//ios/chrome/browser/settings/ui_bundled/privacy/privacy_guide:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/safety_check:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/sync:unit_tests",
     "//ios/chrome/browser/settings/ui_bundled/utils:unit_tests",
@@ -571,7 +578,7 @@ test("ios_chrome_unittests") {
 
   if (target_environment != "catalyst") {
     deps += [
-      "//ios/chrome/browser/default_browser/model/default_status:unit_tests",
+      "//ios/chrome/browser/default_browser/default_status/model:unit_tests",
     ]
   }
 

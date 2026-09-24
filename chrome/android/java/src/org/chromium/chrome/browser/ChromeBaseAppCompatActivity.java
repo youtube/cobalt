@@ -40,6 +40,7 @@ import org.chromium.base.BundleUtils;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.FeatureList;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -68,6 +69,8 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.SimpleEdgeToEdgeController;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
+import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.ActivityResultTrackerImpl;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ImmutableWeakReference;
 import org.chromium.ui.base.UiAndroidFeatureList;
@@ -130,6 +133,10 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     // TODO(crbug.com/435269657): Update this and the ChromeActivity equivalent to OneShotSupplier
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
             new ObservableSupplierImpl<>();
+    // Manages activity results for this activity.
+    private final ActivityResultTrackerImpl mActivityResultTracker =
+            new ActivityResultTrackerImpl(
+                    new ActivityResultTrackerImpl.RegistryImpl(getActivityResultRegistry()));
 
     private NightModeStateProvider mNightModeStateProvider;
     private InsetObserver mInsetObserver;
@@ -140,6 +147,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     private @Nullable EdgeToEdgeLayoutCoordinator mEdgeToEdgeLayoutCoordinator;
     private @Nullable EdgeToEdgeControllerCreator mEdgeToEdgeControllerCreator;
     private NtpThemeStateProvider.@Nullable Observer mNtpThemeStateObserver;
+    private boolean mInMultiWindowMode;
 
     private static boolean sIsTabletDeterminationMismatchRecord;
 
@@ -202,6 +210,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         BundleUtils.restoreLoadedSplits(savedInstanceState);
+        mInMultiWindowMode = isInMultiWindowMode();
 
         mEdgeToEdgeStateProvider = new EdgeToEdgeStateProvider(getWindow());
 
@@ -212,6 +221,8 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
 
         initializeNightModeStateProvider();
         mNightModeStateProvider.addObserver(this);
+
+        mActivityResultTracker.onRestoreInstanceState(savedInstanceState);
 
         // onCreate may initialize some views, need to apply themes before that can happen.
         applyThemeOverlays();
@@ -321,6 +332,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         mNightModeStateProvider.removeObserver(this);
+        mActivityResultTracker.onDestroy();
         if (mModalDialogManagerSupplier.get() != null) {
             mModalDialogManagerSupplier.get().destroy();
         }
@@ -359,6 +371,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         BundleUtils.saveLoadedSplits(outState);
+        mActivityResultTracker.onSaveInstanceState(outState);
     }
 
     // This method has different Nullness than Activity.onRestoreInstanceState().
@@ -380,10 +393,26 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     }
 
     @Override
-    public void onMultiWindowModeChanged(boolean inMultiWindowMode, Configuration configuration) {
+    public final void onMultiWindowModeChanged(
+            boolean inMultiWindowMode, Configuration configuration) {
         super.onMultiWindowModeChanged(inMultiWindowMode, configuration);
         onMultiWindowModeChanged(inMultiWindowMode);
     }
+
+    @Override
+    public final void onMultiWindowModeChanged(boolean inMultiWindowMode) {
+        // Some OEMs double-notify about multi-window mode changes (eg. Samsung tablets).
+        if (FeatureList.isNativeInitialized()
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.AVOID_DOUBLE_MULTIWINDOW_CHANGES)
+                && mInMultiWindowMode == inMultiWindowMode) {
+            return;
+        }
+        mInMultiWindowMode = inMultiWindowMode;
+        handleMultiWindowModeChanged(inMultiWindowMode);
+        super.onMultiWindowModeChanged(inMultiWindowMode);
+    }
+
+    public void handleMultiWindowModeChanged(boolean inMultiWindowMode) {}
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
@@ -737,6 +766,14 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     @VisibleForTesting
     public @Nullable EdgeToEdgeManager getEdgeToEdgeManager() {
         return mEdgeToEdgeManager;
+    }
+
+    /**
+     * Returns the {@link ActivityResultTracker} for launching new activities and watching for their
+     * result.
+     */
+    protected ActivityResultTracker getActivityResultTracker() {
+        return mActivityResultTracker;
     }
 
     /** Returns the {@link InsetObserver} for observing changes to the system insets. */

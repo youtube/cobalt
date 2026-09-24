@@ -66,6 +66,7 @@
 #         mesa_ge_23.2
 #         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
+#         nvidia_ge_32.0.15.8180 nvidia_lt_32.0.15.8180
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
 # tags: [ asan no-asan ]
@@ -406,10 +407,10 @@ crbug.com/349132647 [ android android-sm-s911u1 android-chromium ] Pixel_WebGLCo
 # Meet effects tests currently take a while to actually start, which can cause
 # the initial heartbeat message to be delayed significantly. Additionally, these
 # are marked as failing until they are confirmed to be stable.
-crbug.com/286989320 [ linux ] Pixel_MeetEffects* [ Failure Slow ]
+crbug.com/286989320 [ linux ] Pixel_MeetEffects* [ Slow ]
 crbug.com/286989320 [ win amd ] Pixel_MeetEffects* [ Slow ]
 crbug.com/286989320 [ win nvidia ] Pixel_MeetEffects* [ Slow ]
-crbug.com/286989320 [ win qualcomm ] Pixel_MeetEffects* [ Failure Slow ]
+crbug.com/286989320 [ win qualcomm ] Pixel_MeetEffects* [ Slow ]
 crbug.com/286989320 [ win intel-0x4680 ] Pixel_MeetEffects* [ Slow ]
 crbug.com/286989320 [ win intel-0x9bc5 ] Pixel_MeetEffects* [ Slow ]
 
@@ -494,6 +495,9 @@ crbug.com/402429382 [ win11 amd-0x7480 ] Pixel_ReflectedDiv [ Failure ]
 # crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
 # crbug.com/402429382 [ win11 amd-0x150e ] Pixel_ReflectedDiv [ Failure ]
 
+# Win/Qualcomm Snapdragon X Elite
+# crbug.com/402429382 [ win11 qualcomm-0x36334330 ] Pixel_ReflectedDiv [ RetryOnFailure ]
+
 # Failures on all Mac and Windows bots running these tests
 crbug.com/370694819 [ mac ] Pixel_WebGPUDestroyed_TransferToOffscreenCanvas* [ Failure ]
 crbug.com/370694819 [ win ] Pixel_WebGPUDestroyed_TransferToOffscreenCanvas* [ Failure ]
@@ -532,7 +536,8 @@ crbug.com/425739516 [ mac arch-arm64 angle-metal graphite-enabled ] Pixel_Reflec
 crbug.com/415830130 [ android-16 android-chromium android-pixel-10 angle-opengles graphite-enabled imagination-technologies mobile no-clang-coverage passthrough renderer-skia-gl target-cpu-64 ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ fuchsia ] Pixel_Video_MP4_TreesInViz [ Failure ]
-crbug.com/415830130 [ android android-chromium ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
+crbug.com/415830130 [ android-16 android-brya android-chromium angle-vulkan desktop graphite-disabled intel-0x46a8 mesa_lt_19.1 no-clang-coverage passthrough renderer-skia-vulkan target-cpu-64 ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
+crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
 crbug.com/446950282 [ angle-metal asan graphite-disabled intel-0x3e9b no-clang-coverage release sonoma ] Pixel_ViewTransitionsCapture_TreesInViz [ Failure ]
 crbug.com/446950282 [ angle-metal graphite-disabled intel-0x3e9b no-asan no-clang-coverage release sequoia ] Pixel_ViewTransitionsCapture_TreesInViz [ Failure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
@@ -580,6 +585,9 @@ crbug.com/446157733 [ android-pixel-6 android-t angle-vulkan graphite-disabled r
 
 # Flakily runs into OOM issues in 32-bit browsers.
 crbug.com/466113477 [ win nvidia target-cpu-32 ] Pixel_MeetEffects_rainbow_wig_and_eyelashes [ Failure ]
+
+# MeetEffects failures
+crbug.com/286989320 [ linux nvidia ] Pixel_MeetEffects_rainbow_wig_and_eyelashes [ Failure Slow ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

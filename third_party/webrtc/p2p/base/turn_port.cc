@@ -297,6 +297,7 @@ TurnPort::~TurnPort() {
 
   if (socket_) {
     socket_->UnsubscribeSentPacket(this);
+    socket_->UnsubscribeReadyToSend(this);
     socket_->UnsubscribeConnect(this);
     socket_->UnsubscribeCloseEvent(this);
   }
@@ -502,7 +503,7 @@ bool TurnPort::CreateTurnClientSocket() {
   if (server_address_.proto == PROTO_TCP ||
       server_address_.proto == PROTO_TLS) {
     socket_->SubscribeConnect(
-        [this](AsyncPacketSocket* socket) { OnSocketConnect(socket); });
+        this, [this](AsyncPacketSocket* socket) { OnSocketConnect(socket); });
     socket_->SubscribeCloseEvent(
         this, [this](AsyncPacketSocket* s, int err) { OnSocketClose(s, err); });
   } else {

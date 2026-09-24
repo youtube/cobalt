@@ -96,7 +96,16 @@ class PortInterface {
   // Indicates that we received a successful STUN binding request from an
   // address that doesn't correspond to any current connection.  To turn this
   // into a real connection, call CreateConnection.
+  [[deprecated("Use SubscribeUnknownAddress(const void* tag, ...)")]]
   virtual void SubscribeUnknownAddress(
+      absl::AnyInvocable<void(PortInterface*,
+                              const SocketAddress&,
+                              ProtocolType,
+                              IceMessage*,
+                              const std::string&,
+                              bool)> callback) = 0;
+  virtual void SubscribeUnknownAddress(
+      const void* tag,
       absl::AnyInvocable<void(PortInterface*,
                               const SocketAddress&,
                               ProtocolType,
@@ -119,7 +128,11 @@ class PortInterface {
 
   // Signaled when this port decides to delete itself because it no longer has
   // any usefulness.
+  [[deprecated("Use SubscribePortDestroyed(const void* tag, ...)")]]
   virtual void SubscribePortDestroyed(
+      std::function<void(PortInterface*)> callback) = 0;
+  virtual void SubscribePortDestroyed(
+      const void* tag,
       std::function<void(PortInterface*)> callback) = 0;
 
   // Signaled when Port discovers ice role conflict with the peer.
@@ -128,10 +141,15 @@ class PortInterface {
 
   // Normally, packets arrive through a connection (or they result signaling of
   // unknown address).  Calling this method turns off delivery of packets
-  // through their respective connection and instead delivers every packet
   // through this port.
   virtual void EnablePortPackets() = 0;
+  [[deprecated("Use SubscribeReadPacket(const void* tag, ...)")]]
   virtual void SubscribeReadPacket(
+      absl::AnyInvocable<
+          void(PortInterface*, const char*, size_t, const SocketAddress&)>
+          callback) = 0;
+  virtual void SubscribeReadPacket(
+      const void* tag,
       absl::AnyInvocable<
           void(PortInterface*, const char*, size_t, const SocketAddress&)>
           callback) = 0;
@@ -141,7 +159,11 @@ class PortInterface {
                                 const SocketAddress&) = 0;
 
   // Emitted each time a packet is sent on this port.
+  [[deprecated("Use SubscribeSentPacket(const void* tag, ...)")]]
   virtual void SubscribeSentPacket(
+      absl::AnyInvocable<void(const SentPacketInfo&)> callback) = 0;
+  virtual void SubscribeSentPacket(
+      const void* tag,
       absl::AnyInvocable<void(const SentPacketInfo&)> callback) = 0;
   virtual void NotifySentPacket(const SentPacketInfo& packet) = 0;
 

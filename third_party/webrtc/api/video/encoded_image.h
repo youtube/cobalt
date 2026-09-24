@@ -267,6 +267,13 @@ class RTC_EXPORT EncodedImage {
   std::optional<Psnr> psnr() const { return psnr_; }
   void set_psnr(std::optional<Psnr> psnr) { psnr_ = psnr; }
 
+  void set_end_of_temporal_unit(bool is_end_of_temporal_unit) {
+    is_end_of_temporal_unit_ = is_end_of_temporal_unit;
+  }
+  std::optional<bool> is_end_of_temporal_unit() const {
+    return is_end_of_temporal_unit_;
+  }
+
  private:
   size_t capacity() const { return encoded_data_ ? encoded_data_->size() : 0; }
 
@@ -306,6 +313,11 @@ class RTC_EXPORT EncodedImage {
 
   // Encoders may compute PSNR for a frame.
   std::optional<Psnr> psnr_;
+
+  // If set, indicates whether this image is the last encoding of the temporal
+  // unit identified by the RTP timestamp field, including any potentially
+  // dropped layers.
+  std::optional<bool> is_end_of_temporal_unit_;
 };
 
 }  // namespace webrtc

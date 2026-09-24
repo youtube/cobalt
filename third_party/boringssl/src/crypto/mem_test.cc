@@ -189,7 +189,8 @@ TEST(InplaceVector, Basic) {
   EXPECT_EQ(vec.begin(), vec.end());
 
   int data3[] = {1, 2, 3};
-  ASSERT_TRUE(vec.TryCopyFrom(data3));
+  ASSERT_TRUE(vec.TryCopyFrom(Span(data3).first(1)));
+  ASSERT_TRUE(vec.TryAppend(Span(data3).subspan(1)));
   EXPECT_FALSE(vec.empty());
   EXPECT_EQ(3u, vec.size());
   auto iter = vec.begin();
@@ -241,7 +242,8 @@ TEST(InplaceVector, Basic) {
 TEST(InplaceVectorTest, ComplexType) {
   InplaceVector<std::vector<int>, 4> vec_of_vecs;
   const std::vector<int> data[] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
-  vec_of_vecs.CopyFrom(data);
+  vec_of_vecs.CopyFrom(Span(data).first(1));
+  vec_of_vecs.Append(Span(data).subspan(1));
   EXPECT_EQ(Span(vec_of_vecs), Span(data));
 
   vec_of_vecs.Resize(2);
@@ -438,8 +440,10 @@ TEST(InplaceVectorDeathTest, BoundsChecks) {
   EXPECT_DEATH_IF_SUPPORTED(vec.ResizeForOverwrite(5), "");
   int too_much_data[] = {1, 2, 3, 4, 5};
   EXPECT_DEATH_IF_SUPPORTED(vec.CopyFrom(too_much_data), "");
+  EXPECT_DEATH_IF_SUPPORTED(vec.Append(Span(too_much_data).first(2)), "");
   vec.Resize(4);
   EXPECT_DEATH_IF_SUPPORTED(vec.PushBack(42), "");
+  EXPECT_DEATH_IF_SUPPORTED(vec.Append(Span(too_much_data).first(1)), "");
 }
 
 }  // namespace

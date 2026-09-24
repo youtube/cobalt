@@ -87,7 +87,7 @@ class MediaContentDescription {
 
   // `protocol` is the expected media transport protocol, such as RTP/AVPF,
   // RTP/SAVPF or SCTP/DTLS.
-  std::string protocol() const { return protocol_; }
+  const std::string& protocol() const { return protocol_; }
   virtual void set_protocol(absl::string_view protocol) {
     protocol_ = std::string(protocol);
   }
@@ -135,9 +135,9 @@ class MediaContentDescription {
 
   int bandwidth() const { return bandwidth_; }
   void set_bandwidth(int bandwidth) { bandwidth_ = bandwidth; }
-  std::string bandwidth_type() const { return bandwidth_type_; }
+  const std::string& bandwidth_type() const { return bandwidth_type_; }
   void set_bandwidth_type(std::string bandwidth_type) {
-    bandwidth_type_ = bandwidth_type;
+    bandwidth_type_ = std::move(bandwidth_type);
   }
 
   // List of RTP header extensions. URIs are **NOT** guaranteed to be unique
@@ -428,7 +428,6 @@ class RTC_EXPORT ContentInfo {
   ContentInfo(ContentInfo&& o) = default;
   ContentInfo& operator=(ContentInfo&& o) = default;
 
-  // TODO(tommi): change return type to string_view.
   const std::string& mid() const { return mid_; }
   void set_mid(absl::string_view mid) { mid_ = std::string(mid); }
 
@@ -442,7 +441,6 @@ class RTC_EXPORT ContentInfo {
 
  private:
   std::string mid_;
-  friend class SessionDescription;
   std::unique_ptr<MediaContentDescription> description_;
 };
 
@@ -454,7 +452,7 @@ using ContentNames = std::vector<std::string>;
 // MediaDescription.
 class ContentGroup {
  public:
-  explicit ContentGroup(const std::string& semantics);
+  explicit ContentGroup(std::string semantics);
   ContentGroup(const ContentGroup&);
   ContentGroup(ContentGroup&&);
   ContentGroup& operator=(const ContentGroup&);
@@ -512,8 +510,8 @@ class SessionDescription {
   // Content accessors.
   const ContentInfos& contents() const { return contents_; }
   ContentInfos& contents() { return contents_; }
-  const ContentInfo* GetContentByName(const std::string& name) const;
-  ContentInfo* GetContentByName(const std::string& name);
+  const ContentInfo* GetContentByName(absl::string_view name) const;
+  ContentInfo* GetContentByName(absl::string_view name);
   const MediaContentDescription* GetContentDescriptionByName(
       absl::string_view name) const;
   MediaContentDescription* GetContentDescriptionByName(absl::string_view name);
@@ -522,29 +520,29 @@ class SessionDescription {
 
   // Content mutators.
   // Adds a content to this description. Takes ownership of ContentDescription*.
-  void AddContent(const std::string& name,
+  void AddContent(absl::string_view name,
                   MediaProtocolType type,
                   std::unique_ptr<MediaContentDescription> description);
-  void AddContent(const std::string& name,
+  void AddContent(absl::string_view name,
                   MediaProtocolType type,
                   bool rejected,
                   std::unique_ptr<MediaContentDescription> description);
-  void AddContent(const std::string& name,
+  void AddContent(absl::string_view name,
                   MediaProtocolType type,
                   bool rejected,
                   bool bundle_only,
                   std::unique_ptr<MediaContentDescription> description);
   void AddContent(ContentInfo&& content);
 
-  bool RemoveContentByName(const std::string& name);
+  bool RemoveContentByName(absl::string_view name);
 
   // Transport accessors.
   const TransportInfos& transport_infos() const { return transport_infos_; }
   TransportInfos& transport_infos() { return transport_infos_; }
-  const TransportInfo* GetTransportInfoByName(const std::string& name) const;
-  TransportInfo* GetTransportInfoByName(const std::string& name);
+  const TransportInfo* GetTransportInfoByName(absl::string_view name) const;
+  TransportInfo* GetTransportInfoByName(absl::string_view name);
   const TransportDescription* GetTransportDescriptionByName(
-      const std::string& name) const {
+      absl::string_view name) const {
     const TransportInfo* tinfo = GetTransportInfoByName(name);
     return tinfo ? &tinfo->description : NULL;
   }
@@ -555,19 +553,19 @@ class SessionDescription {
   }
   // Adds a TransportInfo to this description.
   void AddTransportInfo(const TransportInfo& transport_info);
-  bool RemoveTransportInfoByName(const std::string& name);
+  bool RemoveTransportInfoByName(absl::string_view name);
 
   // Group accessors.
   const ContentGroups& groups() const { return content_groups_; }
-  const ContentGroup* GetGroupByName(const std::string& name) const;
+  const ContentGroup* GetGroupByName(absl::string_view name) const;
   std::vector<const ContentGroup*> GetGroupsByName(
-      const std::string& name) const;
-  bool HasGroup(const std::string& name) const;
+      absl::string_view name) const;
+  bool HasGroup(absl::string_view name) const;
 
   // Group mutators.
   void AddGroup(const ContentGroup& group) { content_groups_.push_back(group); }
   // Remove the first group with the same semantics specified by `name`.
-  void RemoveGroupByName(const std::string& name);
+  void RemoveGroupByName(absl::string_view name);
 
   // Global attributes.
   // Determines how the MSIDs were/will be signaled. Flag value composed of

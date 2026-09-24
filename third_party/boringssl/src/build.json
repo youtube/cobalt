@@ -1011,7 +1011,7 @@
             "pki/testdata/verify_name_match_unittest/names/*.pem",
             "pki/testdata/verify_signed_data_unittest/*.pem",
             "pki/testdata/verify_unittest/*.der",
-            "pki/testdata/verify_unittest/self-issued.pem"
+            "pki/testdata/verify_unittest/*.pem"
         ]
     },
     "ssl_test": {

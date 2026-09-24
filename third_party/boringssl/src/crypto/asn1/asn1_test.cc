@@ -889,6 +889,11 @@ TEST(ASN1Test, SetBit) {
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 3));
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 4));
 
+  // Bits that were already out-of-bounds and clear may be cleared. This is a
+  // no-op.
+  ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 100, 0));
+  TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString1);
+
   // Bits may be set beyond the end of the string.
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 63, 1));
   static const uint8_t kBitStringLong[] = {0x03, 0x09, 0x00, 0x80, 0x00, 0x00,

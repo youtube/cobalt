@@ -210,7 +210,9 @@ class RtpSenderReceiverTest
     CreateVideoRtpSender(false, ssrc);
   }
 
-  void CreateVideoRtpSender() { CreateVideoRtpSender(false); }
+  void CreateVideoRtpSender() {
+    CreateVideoRtpSender(/*is_screencast=*/false, kVideoSsrc);
+  }
 
   StreamParams CreateSimulcastStreamParams(int num_layers) {
     std::vector<uint32_t> ssrcs;
@@ -245,7 +247,7 @@ class RtpSenderReceiverTest
     return CreateVideoRtpSender(stream_params);
   }
 
-  void CreateVideoRtpSender(bool is_screencast, uint32_t ssrc = kVideoSsrc) {
+  void CreateVideoRtpSender(bool is_screencast, uint32_t ssrc) {
     AddVideoTrack(is_screencast);
     std::unique_ptr<MockSetStreamsObserver> set_streams_observer =
         std::make_unique<MockSetStreamsObserver>();
@@ -277,8 +279,7 @@ class RtpSenderReceiverTest
   void CreateAudioRtpReceiver(
       std::vector<scoped_refptr<MediaStreamInterface>> streams = {}) {
     audio_rtp_receiver_ = make_ref_counted<AudioRtpReceiver>(
-        Thread::Current(), kAudioTrackId, streams,
-        /*is_unified_plan=*/true);
+        Thread::Current(), kAudioTrackId, streams);
     audio_rtp_receiver_->SetMediaChannel(voice_media_receive_channel());
     audio_rtp_receiver_->SetupMediaChannel(kAudioSsrc);
     audio_track_ = audio_rtp_receiver_->audio_track();
@@ -1667,7 +1668,7 @@ TEST_F(RtpSenderReceiverTest, PropagatesVideoTrackContentHint) {
 // value for screencast sources.
 TEST_F(RtpSenderReceiverTest,
        PropagatesVideoTrackContentHintForScreencastSource) {
-  CreateVideoRtpSender(true);
+  CreateVideoRtpSender(true, kVideoSsrc);
 
   video_track_->set_enabled(true);
 

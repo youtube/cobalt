@@ -14,6 +14,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/strings/string_builder.h"
 
 namespace {
 
@@ -63,11 +64,11 @@ RTCError RTCError::OK() {
 }
 
 const char* RTCError::message() const {
-  return message_.c_str();
+  return message_.str().c_str();
 }
 
 void RTCError::set_message(absl::string_view message) {
-  message_ = std::string(message);
+  message_ = StringBuilder(message);
 }
 
 absl::string_view ToString(RTCErrorType error) {

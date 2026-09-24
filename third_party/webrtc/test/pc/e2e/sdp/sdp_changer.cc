@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
@@ -184,7 +185,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchOffer(
     std::unique_ptr<SessionDescriptionInterface> offer,
     const VideoCodecConfig& first_codec) {
   for (auto& content : offer->description()->contents()) {
-    context_.mids_order.push_back(content.mid());
+    context_.mids_order.push_back(std::string(content.mid()));
     MediaContentDescription* media_desc = content.media_description();
     if (media_desc->type() != MediaType::VIDEO) {
       continue;
@@ -575,7 +576,7 @@ SignalingInterceptor::PatchAnswererIceCandidates(
 }
 
 SignalingInterceptor::SimulcastSectionInfo::SimulcastSectionInfo(
-    const std::string& mid,
+    absl::string_view mid,
     MediaProtocolType media_protocol_type,
     const std::vector<RidDescription>& rids_desc)
     : mid(mid), media_protocol_type(media_protocol_type) {

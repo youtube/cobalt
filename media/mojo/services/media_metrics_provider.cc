@@ -11,7 +11,6 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "media/base/key_systems.h"
@@ -102,7 +101,7 @@ MediaMetricsProvider::~MediaMetricsProvider() {
   if (!media_info_->is_mse) {
     builder.SetURLScheme(static_cast<int64_t>(media_info_->url_scheme));
     if (container_name_)
-      builder.SetContainerName(base::to_underlying(*container_name_));
+      builder.SetContainerName(std::to_underlying(*container_name_));
   }
 
   if (time_to_metadata_ != kNoTimestamp)
@@ -182,6 +181,15 @@ void MediaMetricsProvider::ReportPipelineUMA() {
     base::UmaHistogramExactLinear("Media.PipelineStatus.Unsupported",
                                   uma_info_.last_pipeline_status,
                                   PIPELINE_STATUS_MAX + 1);
+  }
+
+  // Report the audio decoder type used for playback.
+  if (uma_info_.audio_pipeline_info.decoder_type !=
+          AudioDecoderType::kUnknown &&
+      uma_info_.audio_pipeline_info.decoder_type !=
+          AudioDecoderType::kTesting) {
+    base::UmaHistogramEnumeration("Media.Audio.DecoderType",
+                                  uma_info_.audio_pipeline_info.decoder_type);
   }
 
   // Report whether video decoder fallback happened for each video codec, but

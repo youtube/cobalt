@@ -16,12 +16,12 @@ BoringCrypto has undergone the following validations:
 1. 2021-04-29: certificate [#4407](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407).
 1. 2022-06-13: certificate [#4735](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4735).
 1. 2023-04-28: certificate [#4953](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4953).
+1. 2024-04-07: certificate [#5104](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/5104).
 
 The following validations are active:
 
 | Version | Status | CAVP |
 | ------- | ------ | ---- |
-| 2024-04-07 | Review Pending at NIST    | [A5370](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=18027) |
 | 2024-08-05 | Review Pending at NIST    | [A6134](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=9831) |
 | 2025-01-07 | Review Pending at NIST    | [A6838](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?product=19570) |
 | 2025-07-28 | Review Pending at NIST    | [A7303](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/details?validation=39913) |
@@ -150,7 +150,7 @@ The script performs a number of other transformations which are worth noting but
 
 In order to actually implement the integrity test, a constructor function within the module calculates an HMAC from `module_start` to `module_end` using a fixed, all-zero key. It compares the result with the known-good value added (by the script) to the unhashed portion of the text segment. If they don't match, it calls `exit` in an infinite loop.
 
-Initially the known-good value will be incorrect. Another script (`inject_hash.go`) calculates the correct value from the assembled object and injects it back into the object.
+Initially the known-good value will be incorrect. Another script (`inject_hash.go`) calculates the correct value from the assembled object and injects it back into the object. When we calculate the correct value, we link `bcm.o` into a sample shared library to evaluate relocations first. Although the above process ensures that the module's text segment is the same every time it is linked, there may be some unevaluated relocations in `bcm.o`. The relocations will just be independent of anything else we link `bcm.o` into with.
 
 ![build process](./intcheck2.png)
 

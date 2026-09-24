@@ -18,9 +18,12 @@ import {
   QueryNodeState,
   NodeType,
   nextNodeId,
-  createFinalColumns,
 } from '../../../query_node';
-import {ColumnInfo, columnInfoFromSqlColumn} from '../../column_info';
+import {
+  ColumnInfo,
+  columnInfoFromSqlColumn,
+  newColumnInfoList,
+} from '../../column_info';
 import {time, TimeSpan, Time} from '../../../../../base/time';
 import {PerfettoSqlTypes} from '../../../../../trace_processor/perfetto_sql_type';
 import {Trace} from '../../../../../public/trace';
@@ -34,6 +37,7 @@ import {Callout} from '../../../../../widgets/callout';
 import {NodeIssues} from '../../node_issues';
 import {NodeModifyAttrs, NodeDetailsAttrs} from '../../node_explorer_types';
 import {loadNodeDoc} from '../../node_doc_loader';
+import {NodeTitle} from '../../node_styling_widgets';
 
 // Poll interval for dynamic mode selection updates (in milliseconds)
 const SELECTION_POLL_INTERVAL_MS = 200;
@@ -68,11 +72,14 @@ export class TimeRangeSourceNode implements QueryNode {
     };
 
     // Initialize columns: id, ts, dur
-    this.finalCols = createFinalColumns([
-      columnInfoFromSqlColumn({name: 'id', type: PerfettoSqlTypes.INT}),
-      columnInfoFromSqlColumn({name: 'ts', type: PerfettoSqlTypes.TIMESTAMP}),
-      columnInfoFromSqlColumn({name: 'dur', type: PerfettoSqlTypes.DURATION}),
-    ]);
+    this.finalCols = newColumnInfoList(
+      [
+        columnInfoFromSqlColumn({name: 'id', type: PerfettoSqlTypes.INT}),
+        columnInfoFromSqlColumn({name: 'ts', type: PerfettoSqlTypes.TIMESTAMP}),
+        columnInfoFromSqlColumn({name: 'dur', type: PerfettoSqlTypes.DURATION}),
+      ],
+      true,
+    );
 
     // If dynamic mode is enabled, subscribe to selection changes and
     // immediately populate from current selection
@@ -127,7 +134,7 @@ export class TimeRangeSourceNode implements QueryNode {
 
   nodeDetails(): NodeDetailsAttrs {
     return {
-      content: m('.pf-exp-node-title', this.getTitle()),
+      content: NodeTitle(this.getTitle()),
     };
   }
 
@@ -160,30 +167,41 @@ export class TimeRangeSourceNode implements QueryNode {
     };
   }
 
-  private static generateSql(start: time, dur: bigint): string {
-    return `SELECT 0 AS id, ${start} AS ts, ${dur} AS dur`;
-  }
-
   getStructuredQuery(): protos.PerfettoSqlStructuredQuery | undefined {
-    if (!this.validate()) {
-      return undefined;
-    }
-
-    // Type narrowing - validate() already checked that start and end are defined
+    // For dynamic nodes without start/end set, we can still generate a query
+    // that uses trace_start() and trace_end() - the backend handles this.
+    // Only validate for static nodes or when we have explicit values.
     const start = this.state.start;
     const end = this.state.end;
-    if (start === undefined || end === undefined) {
+
+    // If both are set, calculate duration
+    if (start !== undefined && end !== undefined) {
+      if (end < start) {
+        // Invalid range - can't generate query
+        return undefined;
+      }
+      const dur = end - start;
+      return StructuredQueryBuilder.fromTimeRange(start, dur, this.nodeId);
+    }
+
+    // If only start is set, let backend calculate dur from trace_end()
+    if (start !== undefined) {
+      return StructuredQueryBuilder.fromTimeRange(
+        start,
+        undefined,
+        this.nodeId,
+      );
+    }
+
+    // If only end is set without start, we cannot generate a meaningful query
+    if (end !== undefined) {
       return undefined;
     }
 
-    const dur = end - start;
-
-    const sql = TimeRangeSourceNode.generateSql(start, dur);
-
-    return StructuredQueryBuilder.fromSql(
-      sql,
-      [], // no dependencies
-      ['id', 'ts', 'dur'], // column names
+    // If neither is set (dynamic node), let backend use trace bounds
+    return StructuredQueryBuilder.fromTimeRange(
+      undefined,
+      undefined,
       this.nodeId,
     );
   }

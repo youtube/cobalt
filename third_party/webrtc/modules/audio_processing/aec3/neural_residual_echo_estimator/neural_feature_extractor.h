@@ -24,10 +24,10 @@ namespace webrtc {
 class FeatureExtractor {
  public:
   enum class ModelInputEnum {
-    kModelState = 0,
-    kMic = 1,
-    kLinearAecOutput = 2,
-    kAecRef = 3,
+    kMic = 0,
+    kLinearAecOutput = 1,
+    kAecRef = 2,
+    kModelState = 3,
     kNumInputs = 4
   };
   enum class ModelOutputEnum {

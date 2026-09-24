@@ -32,7 +32,8 @@ import {FilterNode} from './query_builder/nodes/filter_node';
 import {JoinNode} from './query_builder/nodes/join_node';
 import {UnionNode} from './query_builder/nodes/union_node';
 import {PerfettoSqlType} from '../../trace_processor/perfetto_sql_type';
-import {NodeType, addConnection, removeConnection} from './query_node';
+import {NodeType} from './query_node';
+import {addConnection, removeConnection} from './query_builder/graph_utils';
 import {ColumnInfo} from './query_builder/column_info';
 import {FilterDuringNode} from './query_builder/nodes/filter_during_node';
 import {TimeRangeSourceNode} from './query_builder/nodes/sources/timerange_source';
@@ -1162,6 +1163,8 @@ describe('JSON serialization/deserialization', () => {
       leftColumn: 'name',
       rightColumn: 'name',
       sqlExpression: '',
+      leftColumns: undefined,
+      rightColumns: undefined,
     });
     tableNode1.nextNodes.push(joinNode);
     tableNode2.nextNodes.push(joinNode);
@@ -1218,6 +1221,8 @@ describe('JSON serialization/deserialization', () => {
       leftColumn: '',
       rightColumn: '',
       sqlExpression: 't1.id = t2.parent_id',
+      leftColumns: undefined,
+      rightColumns: undefined,
     });
     tableNode1.nextNodes.push(joinNode);
     tableNode2.nextNodes.push(joinNode);
@@ -1412,6 +1417,8 @@ describe('JSON serialization/deserialization', () => {
       leftColumn: 'name',
       rightColumn: 'name',
       sqlExpression: '',
+      leftColumns: undefined,
+      rightColumns: undefined,
     });
     tableNode1.nextNodes.push(joinNode);
     tableNode2.nextNodes.push(joinNode);
@@ -1501,7 +1508,7 @@ describe('JSON serialization/deserialization', () => {
     expect(deserializedUnionNode.state.selectedColumns[1].checked).toBe(false);
   });
 
-  test('merge node filters duplicate columns and includes equality columns', () => {
+  test('join node requires explicit column selection', () => {
     const tableNode1 = new TableSourceNode({
       sqlTable: sqlModules.getTable('slice'),
       trace,
@@ -1514,10 +1521,8 @@ describe('JSON serialization/deserialization', () => {
       sqlModules,
     });
 
-    // Both tables have the same columns: name, ts, dur
-    // When joining on 'name', the final columns should:
-    // - Include 'name' once (the equality column)
-    // - Exclude 'ts' and 'dur' (duplicated across both inputs)
+    // Both tables have the same columns
+    // When leftColumns/rightColumns are undefined, columns default to unchecked
     const joinNode = new JoinNode({
       leftNode: tableNode1,
       rightNode: tableNode2,
@@ -1528,21 +1533,40 @@ describe('JSON serialization/deserialization', () => {
       leftColumn: 'name',
       rightColumn: 'name',
       sqlExpression: '',
+      leftColumns: undefined,
+      rightColumns: undefined,
     });
     tableNode1.nextNodes.push(joinNode);
     tableNode2.nextNodes.push(joinNode);
 
-    // Verify finalCols behavior
+    // With no columns checked, finalCols should be empty
+    expect(joinNode.finalCols).toEqual([]);
+
+    // Now explicitly check some columns
+    expect(joinNode.state.leftColumns).toBeDefined();
+    // Find and check the 'name' column from left
+    const nameCol = joinNode.state.leftColumns!.find(
+      (c) => c.column.name === 'name',
+    );
+    expect(nameCol).toBeDefined();
+    nameCol!.checked = true;
+
+    expect(joinNode.state.rightColumns).toBeDefined();
+    // Find and check 'ts' column from right (to show we can select any column)
+    const tsCol = joinNode.state.rightColumns!.find(
+      (c) => c.column.name === 'ts',
+    );
+    expect(tsCol).toBeDefined();
+    tsCol!.checked = true;
+
+    // Verify finalCols now includes only checked columns
     const finalCols = joinNode.finalCols;
     const colNames = finalCols.map((c: ColumnInfo) => c.name);
 
-    // Should include the equality column once
+    // Should include 'name' from left and 'ts' from right
     expect(colNames).toContain('name');
-    expect(colNames.filter((n) => n === 'name').length).toBe(1);
-
-    // Should NOT include duplicated columns (ts, dur appear in both tables)
-    expect(colNames).not.toContain('ts');
-    expect(colNames).not.toContain('dur');
+    expect(colNames).toContain('ts');
+    expect(colNames.length).toBe(2);
 
     // Verify the structured query includes select_columns
     const sq = joinNode.getStructuredQuery();

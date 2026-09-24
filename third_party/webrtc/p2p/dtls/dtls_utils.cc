@@ -113,4 +113,14 @@ ArrayView<const uint8_t> PacketStash::GetNext() {
   return ArrayView<const uint8_t>(buffer->data(), buffer->size());
 }
 
+std::vector<ArrayView<const uint8_t>> PacketStash::GetAll() const {
+  std::vector<ArrayView<const uint8_t>> ret;
+  ret.reserve(packets_.size());
+  for (const auto& buffer : packets_) {
+    const uint8_t* ptr = buffer.buffer->data();
+    ret.push_back(ArrayView<const uint8_t>(ptr, buffer.buffer->size()));
+  }
+  return ret;
+}
+
 }  // namespace webrtc

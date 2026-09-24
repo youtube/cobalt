@@ -33,7 +33,7 @@
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/core/SkVertices.h"
-#include "include/effects/SkGradientShader.h"
+#include "include/effects/SkGradient.h"
 #include "include/private/base/SkTemplates.h"
 #include "src/base/SkAutoMalloc.h"
 #include "src/core/SkFontPriv.h"
@@ -178,9 +178,9 @@ static void draw_text_on_path(SkCanvas* canvas, const void* text, size_t length,
 }
 
 static sk_sp<SkShader> make_shader() {
-    SkPoint pts[2] = {{0, 0}, {220, 0}};
-    SkColor colors[2] = {SK_ColorRED, SK_ColorBLUE};
-    return SkGradientShader::MakeLinear(pts, colors, nullptr, 2, SkTileMode::kMirror);
+    const SkPoint pts[2] = {{0, 0}, {220, 0}};
+    const SkColor4f colors[2] = {SkColors::kRed, SkColors::kBlue};
+    return SkShaders::LinearGradient(pts, {{colors, {}, SkTileMode::kMirror}, {}});
 }
 
 static void drawTextPath(SkCanvas* canvas, bool doStroke) {

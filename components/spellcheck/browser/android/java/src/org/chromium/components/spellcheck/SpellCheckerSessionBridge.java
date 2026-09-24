@@ -7,7 +7,10 @@ package org.chromium.components.spellcheck;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.style.SuggestionSpan;
+import android.util.Range;
 import android.view.textservice.SentenceSuggestionsInfo;
 import android.view.textservice.SpellCheckerSession;
 import android.view.textservice.SpellCheckerSession.SpellCheckerSessionListener;
@@ -27,14 +30,14 @@ import java.util.ArrayList;
 /** JNI interface for native SpellCheckerSessionBridge to use Android's spellchecker. */
 @NullMarked
 public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
-    // LINT.IfChange(SpellCheckResultDecoration)
-    /** Values from SpellCheckResult::Decoration on the C++ side * */
-    private static class SpellCheckResultDecoration {
+    // LINT.IfChange(SpellCheckDecoration)
+    /** Values from spellcheck::Decoration on the C++ side * */
+    private static class SpellCheckDecoration {
         public static final int SPELLING = 0;
         public static final int GRAMMAR = 1;
     }
 
-    // LINT.ThenChange(/components/spellcheck/common/spellcheck_result.h:DecorationEnum)
+    // LINT.ThenChange(/components/spellcheck/common/spellcheck_decoration.h:DecorationEnum)
 
     private long mNativeSpellCheckerSessionBridge;
     private final boolean mAllowGrammarChecks;
@@ -107,10 +110,12 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
 
     /**
      * Queries the input text against the SpellCheckerSession.
+     *
      * @param text Text to be queried.
+     * @param spellingMarkers the existing spelling markers present in the given text.
      */
     @CalledByNative
-    private void requestTextCheck(String text) {
+    private void requestTextCheck(String text, Range<Integer>[] spellingMarkers) {
         // SpellCheckerSession thinks that any word ending with a period is a typo.
         // We trim the period off before sending the text for spellchecking in order to avoid
         // unnecessary red underlines when the user ends a sentence with a period.
@@ -118,13 +123,28 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
         if (text.endsWith(".")) {
             text = text.substring(0, text.length() - 1);
         }
+
+        SpannableString spannable = new SpannableString(text);
+        for (Range<Integer> range : spellingMarkers) {
+            spannable.setSpan(
+                    new SuggestionSpan(
+                            ContextUtils.getApplicationContext(),
+                            new String[] {},
+                            SuggestionSpan.FLAG_MISSPELLED),
+                    range.getLower(),
+                    Math.min(range.getUpper(), text.length() - 1),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+
         assumeNonNull(mSpellCheckerSession)
                 .getSentenceSuggestions(
-                        new TextInfo[] {new TextInfo(text)}, SuggestionSpan.SUGGESTIONS_MAX_SIZE);
+                        new TextInfo[] {new TextInfo(spannable, 0, spannable.length(), 0, 0)},
+                        SuggestionSpan.SUGGESTIONS_MAX_SIZE);
     }
 
     /**
      * Checks for typos and sends results back to native through a JNI call.
+     *
      * @param results Results returned by the Android spellchecker.
      */
     @Override
@@ -136,7 +156,7 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
         ArrayList<Integer> offsets = new ArrayList<Integer>();
         ArrayList<Integer> lengths = new ArrayList<Integer>();
         ArrayList<String[]> suggestions = new ArrayList<String[]>();
-        ArrayList<Integer> spellcheckResultDecorations = new ArrayList<Integer>();
+        ArrayList<Integer> spellCheckDecorations = new ArrayList<Integer>();
         ArrayList<Boolean> hideSuggestionMenuBooleans = new ArrayList<Boolean>();
 
         for (SentenceSuggestionsInfo result : results) {
@@ -169,9 +189,9 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
                     // set.
                     final int decoration =
                             (attributes & grammarBitMask) != 0
-                                    ? SpellCheckResultDecoration.GRAMMAR
-                                    : SpellCheckResultDecoration.SPELLING;
-                    spellcheckResultDecorations.add(decoration);
+                                    ? SpellCheckDecoration.GRAMMAR
+                                    : SpellCheckDecoration.SPELLING;
+                    spellCheckDecorations.add(decoration);
                     ArrayList<String> suggestionsForWord = new ArrayList<String>();
                     for (int j = 0; j < info.getSuggestionsCount(); ++j) {
                         String suggestion = info.getSuggestionAt(j);
@@ -193,7 +213,7 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
                         convertIntListToArray(offsets),
                         convertIntListToArray(lengths),
                         suggestions.toArray(new String[suggestions.size()][]),
-                        convertIntListToArray(spellcheckResultDecorations),
+                        convertIntListToArray(spellCheckDecorations),
                         convertBoolListToArray(hideSuggestionMenuBooleans));
     }
 
@@ -225,6 +245,11 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
         return array;
     }
 
+    @CalledByNative
+    private static Range<Integer> createRange(int start, int end) {
+        return new Range<Integer>(start, end);
+    }
+
     @Override
     public void onGetSuggestions(SuggestionsInfo[] results) {}
 
@@ -235,7 +260,7 @@ public class SpellCheckerSessionBridge implements SpellCheckerSessionListener {
                 int[] offsets,
                 int[] lengths,
                 String[][] suggestions,
-                int[] spellcheckResultDecorations,
+                int[] spellCheckDecorations,
                 boolean[] hideSuggestionMenuBooleans);
     }
 }

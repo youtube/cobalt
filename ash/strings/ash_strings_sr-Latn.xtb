@@ -342,6 +342,7 @@
 <translation id="2201071101391734388"><ph name="INDEX" />. nedavna slika od <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Skupi Google zadatke</translation>
 <translation id="2208323208084708176">Režim spojenih radnih površina</translation>
+<translation id="2210311543574621570">Privremenu memoriju ćete videti ako pritisnete i zadržite Ctrl + V. Tu prečicu možete da isključite ako onemogućite oznaku #clipboard-history-longpress u odeljku chrome://flags.</translation>
 <translation id="2215920961700443347">Nema interneta. Povežite se na internet i probajte ponovo.</translation>
 <translation id="2222841058024245321">Radna površina 7</translation>
 <translation id="2223384056430485343">Na podeljenom ekranu</translation>
@@ -1026,7 +1027,6 @@ Neke funkcije su ograničene da bi se produžilo trajanje baterije.</translation
 <translation id="4449692009715125625">{NUM_NOTIFICATIONS,plural, =1{1 važno obaveštenje}one{# važno obaveštenje}few{# važna obaveštenja}other{# važnih obaveštenja}}</translation>
 <translation id="4450893287417543264">Ne prikazuj ponovo</translation>
 <translation id="4451374464530248585">Tasterska prečica Alt + strelica nadole je promenjena. Da biste koristili taster Page Down, pritisnite taster <ph name="LAUNCHER_KEY_NAME" /> + strelica nadole.</translation>
-<translation id="4453876312474547652">Privremenu memoriju ćete videti kad pritisnete i zadržite Ctrl + V. Ovu prečicu možete da isključite ako onemogućite oznaku #clipboard-history-longpress u odeljku chrome://flags (os://flags ako koristite Lacros).</translation>
 <translation id="445765352722456792">Prilagodi predloge</translation>
 <translation id="4458688154122353284">Zaustavi snimanje ekrana</translation>
 <translation id="445923051607553918">Pridružite se WiFi mreži</translation>
@@ -2001,7 +2001,7 @@ Da biste isključili uređaj, ponovo pritisnite i zadržite dugme za uključivan
 <translation id="7638572816805275740">Napravite snimak ekrana ili snimi video ekrana prozora</translation>
 <translation id="7642106959537987271">režim inverzije boja</translation>
 <translation id="7642647758716480637">Otvorite podešavanja mreže <ph name="NETWORK_NAME" />, <ph name="CONNECTION_STATUS" /></translation>
-<translation id="7645176681409127223"><ph name="USER_NAME" /> (vlasnik)</translation>
+<translation id="7645176681409127223"><ph name="USER_NAME" /> (vlasnik/ca)</translation>
 <translation id="7647488630410863958">Otključajte uređaj da biste pregledali obaveštenja</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7654687942625752712">Pritisnite oba tastera za jačinu zvuka i zadržite ih pet sekundi da biste onemogućili povratni govor.</translation>

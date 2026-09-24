@@ -324,6 +324,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
                                const Candidate& candidate) {
     candidate_gathered_callbacks_.Send(transport, candidate);
   }
+  [[deprecated("Use SubscribeCandidateGathered(void* tag, ...)")]]
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
           callback);
@@ -358,6 +359,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void NotifyRoleConflict(IceTransportInternal* transport) {
     role_conflict_callbacks_.Send(transport);
   }
+  [[deprecated("Use SubscribeRoleConflict(void* tag, ...)")]]
   void SubscribeRoleConflict(
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
   void SubscribeRoleConflict(
@@ -368,6 +370,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void NotifyIceTransportStateChanged(IceTransportInternal* transport) {
     ice_transport_state_changed_callbacks_.Send(transport);
   }
+  [[deprecated("Use SubscribeIceTransportStateChanged(void* tag, ...)")]]
   void SubscribeIceTransportStateChanged(
       absl::AnyInvocable<void(IceTransportInternal*)> callback);
 

@@ -17,6 +17,7 @@ import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customi
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {ContextualUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
+import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
@@ -403,6 +404,10 @@ export class AppElement extends AppElementBase {
       GlifAnimationState.INELIGIBLE;
   protected enableModalComposebox_: boolean =
       loadTimeData.getBoolean('enableModalComposebox');
+  protected ephemeralContextMenuDescriptionEnabled_: boolean =
+      loadTimeData.getBoolean('enableEphemeralContextMenuDescription') ?? false;
+  protected showContextMenuDescription_: boolean =
+      loadTimeData.getBoolean('composeboxShowContextMenuDescription');
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -896,7 +901,21 @@ export class AppElement extends AppElementBase {
 
   protected onOpenVoiceSearch_() {
     this.showVoiceSearchOverlay_ = true;
-    recordVoiceAction(VoiceAction.ACTIVATE_SEARCH_BOX);
+    recordVoiceAction(VoiceAction.ACTIVATE);
+  }
+
+  protected onComposeVoiceSearchAction_(
+      e: CustomEvent<{value: ComposeVoiceSearchAction}>) {
+    switch (e.detail.value) {
+      case ComposeVoiceSearchAction.ACTIVATE:
+        recordVoiceAction(VoiceAction.ACTIVATE);
+        break;
+      case ComposeVoiceSearchAction.QUERY_SUBMITTED:
+        recordVoiceAction(VoiceAction.QUERY_SUBMITTED);
+        break;
+      default:
+        assertNotReached();
+    }
   }
 
   protected onOpenLensSearch_() {
@@ -905,6 +924,13 @@ export class AppElement extends AppElementBase {
 
   protected onCloseLensSearch_() {
     this.showLensUploadDialog_ = false;
+  }
+
+  protected onContextMenuEntrypointClick_() {
+    if (this.ephemeralContextMenuDescriptionEnabled_ &&
+        this.showContextMenuDescription_) {
+      this.pageHandler_.recordContextMenuClick();
+    }
   }
 
   protected onCustomizeClick_() {

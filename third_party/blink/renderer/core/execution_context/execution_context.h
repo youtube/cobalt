@@ -126,6 +126,13 @@ enum ReferrerPolicySource { kPolicySourceHttpHeader, kPolicySourceMetaTag };
 // script written by a web author and an "isolated world" content script written
 // by an extension developer, but these share an ExecutionContext (the window)
 // in common.
+<<<<<<< HEAD
+class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
+                                     public MojoBindingContext,
+                                     public UseCounterAndConsoleLogger,
+                                     public FeatureContext {
+ public:
+=======
 class CORE_EXPORT ExecutionContext
     : public Supplementable<ExecutionContext, 35>,
       public MojoBindingContext,
@@ -171,6 +178,7 @@ class CORE_EXPORT ExecutionContext
     kDialServerManager = 34
   };
 
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ExecutionContext(const ExecutionContext&) = delete;
   ExecutionContext& operator=(const ExecutionContext&) = delete;
 

@@ -55,6 +55,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_mandatory_reauth_manager.h"
+#include "components/autofill/core/browser/payments/test/mock_multiple_request_payments_network_interface.h"
 #include "components/autofill/core/browser/payments/test/mock_virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/test_credit_card_save_manager.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
@@ -537,11 +538,14 @@ class FormDataImporterTest : public testing::Test {
     test_api(address_data_manager()).set_auto_accept_address_imports(true);
     personal_data_manager().SetSyncServiceForTest(&sync_service_);
 
+    payments_client().set_multiple_request_payments_network_interface(
+        std::make_unique<payments::MockMultipleRequestPaymentsNetworkInterface>(
+            client().GetURLLoaderFactory(), *client().GetIdentityManager()));
     auto virtual_card_enrollment_manager =
         std::make_unique<MockVirtualCardEnrollmentManager>(
             &payments_data_manager(),
             static_cast<payments::MultipleRequestPaymentsNetworkInterface*>(
-                nullptr),
+                payments_client().GetMultipleRequestPaymentsNetworkInterface()),
             &client());
     payments_client().set_virtual_card_enrollment_manager(
         std::move(virtual_card_enrollment_manager));
@@ -4058,6 +4062,39 @@ TEST_F(FormDataImporterTest,
       test_api(form_data_importer())
           .ExtractGUIDsOfProfilesWithoutManualEdits(*form_structure);
   EXPECT_THAT(guids, IsEmpty());
+}
+
+TEST_F(FormDataImporterTest,
+       ImportAddressProfiles_PrefilledStateAndCountry_Imported) {
+  base::test::ScopedFeatureList feature_list{
+    features::kAutofillEnableImportOfUnchangedValuesForCountryAndState};
+
+  // Create a form with a prefilled state and country.
+  FormData form = ConstructFormDateFromTypeValuePairs({
+      {NAME_FULL, "Pablo Diego Ruiz y Picasso"},
+      {EMAIL_ADDRESS, "theprez@gmail.com"},
+      {ADDRESS_HOME_LINE1, "21 Laussat St"},
+      {ADDRESS_HOME_CITY, "San Francisco"},
+      {ADDRESS_HOME_STATE, "California"},
+      {ADDRESS_HOME_ZIP, "94102"},
+      {ADDRESS_HOME_COUNTRY, "United States"},
+  });
+
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructFormStructureFromFormData(form);
+
+  // ConstructFormStructureFromFormData resets initial_value to an empty string.
+  // Set the fields back to simulate a prefilled field.
+  test_api(*form_structure->field(4)).set_initial_value(u"California");
+  test_api(*form_structure->field(6)).set_initial_value(u"United States");
+
+  ExtractAddressProfiles(/*extraction_successful=*/true, *form_structure);
+
+  const std::vector<const AutofillProfile*>& results =
+      address_data_manager().GetProfiles();
+  ASSERT_EQ(1U, results.size());
+  EXPECT_EQ(results[0]->GetRawInfo(ADDRESS_HOME_STATE), u"California");
+  EXPECT_EQ(results[0]->GetRawInfo(ADDRESS_HOME_COUNTRY), u"US");
 }
 
 class SkipSaveCardInFormDataImporterTest

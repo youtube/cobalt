@@ -20,6 +20,7 @@
 
 #include <openssl/base.h>
 #include <openssl/sha.h>
+#include <openssl/span.h>
 
 #include "../internal.h"
 
@@ -36,8 +37,8 @@ extern "C" {
 // with the padding removed or |in_len| if invalid.
 //
 // If the function returns one, it runs in time independent of the contents of
-// |in|. It is also guaranteed that |*out_len| >= |mac_size|, satisfying
-// |EVP_tls_cbc_copy_mac|'s precondition.
+// |in|. It is also guaranteed that, independent of |*out_padding_ok|, |mac_len|
+// <= |*out_len| <= |in_len|, satisfying |EVP_tls_cbc_copy_mac|'s precondition.
 int EVP_tls_cbc_remove_padding(crypto_word_t *out_padding_ok, size_t *out_len,
                                const uint8_t *in, size_t in_len,
                                size_t block_size, size_t mac_size);
@@ -83,23 +84,26 @@ OPENSSL_EXPORT int EVP_sha256_final_with_secret_suffix(
 //     EVP_tls_cbc_record_digest_supported must return true for this hash.
 //   md_out: the digest output. At most EVP_MAX_MD_SIZE bytes will be written.
 //   md_out_size: the number of output bytes is written here.
-//   header: the 13-byte, TLS record header.
-//   data: the record data itself
-//   data_size: the secret, reported length of the data once the padding and MAC
-//     have been removed.
-//   data_plus_mac_plus_padding_size: the public length of the whole
-//     record, including padding.
+//   len_header: the two length bytes of the TLS record header.
+//   aadvecs: the 11-byte TLS record header as it was provided by the caller.
+//   iovecs_without_trailer: the section of the plaintext that does not include
+//     the trailer whose length is secret (typically the entire plaintext with
+//     an upper bound of padding and MAC size removed)
+//   trailer: a buffer, of public length, containing the remainder of the
+//     plaintext as a prefix.
+//   data_in_trailer_size: the secret, reported length of the data portion in
+//     |trailer| once the padding and MAC have been removed.
 //
 // On entry: by virtue of having been through one of the remove_padding
 // functions, above, we know that data_plus_mac_size is large enough to contain
 // a padding byte and MAC. (If the padding was invalid, it might contain the
 // padding too. )
-int EVP_tls_cbc_digest_record(const EVP_MD *md, uint8_t *md_out,
-                              size_t *md_out_size, const uint8_t header[13],
-                              const uint8_t *data, size_t data_size,
-                              size_t data_plus_mac_plus_padding_size,
-                              const uint8_t *mac_secret,
-                              unsigned mac_secret_length);
+int EVP_tls_cbc_digest_record(
+    const EVP_MD *md, uint8_t *md_out, size_t *md_out_size,
+    const uint8_t len_header[2], bssl::Span<const CRYPTO_IVEC> aadvecs,
+    bssl::Span<const CRYPTO_IOVEC> iovecs_without_trailer,
+    bssl::Span<const uint8_t> trailer, size_t data_in_trailer_size,
+    const uint8_t *mac_secret, unsigned mac_secret_length);
 
 #define POLY1305_TAG_LEN 16
 

@@ -6566,31 +6566,29 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
 
   Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
+  Register undef = temps.Acquire();
 
   using FCA = FunctionCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiCallbackExitFrameConstants;
 
-  static_assert(FCA::kArgsLength == 6);
-  static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kTargetIndex == 4);
-  static_assert(FCA::kReturnValueIndex == 3);
-  static_assert(FCA::kContextIndex == 2);
-  static_assert(FCA::kIsolateIndex == 1);
-  static_assert(FCA::kUnusedIndex == 0);
+  static_assert(FCA::kApiArgsLength == 4);
+  static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
+  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
   //
-  // Target state:
-  //   sp[0 * kSystemPointerSize]: kUnused  <= FCA::implicit_args_
-  //   sp[1 * kSystemPointerSize]: kIsolate
-  //   sp[2 * kSystemPointerSize]: kContext
-  //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
-  //   sp[4 * kSystemPointerSize]: kTarget
-  //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
-  // Existing state:
-  //   sp[6 * kSystemPointerSize]:          <= FCA:::values_
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...    JS arguments
+  //                           |  sp[4]: receiver        <- kReceiverIndex
+  //                           |  sp[3]: target          <- kTargetIndex
+  //                           |  sp[2]: undefined       <- kReturnValueIndex
+  //  ...    JS arguments      |  sp[1]: context         <- kContextIndex
+  //  sp[0]: receiver          |  sp[0]: isolate         <- kIsolateIndex
+  //
 
   // We do not inline Api calls cross native context, so native_context()
   // is the context here.
@@ -6599,13 +6597,12 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
                        kContextRegister);
 
   ASM_CODE_COMMENT_STRING(masm, "inlined CallApiCallbackOptimized builtin");
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  // kNewTarget, kTarget, kReturnValue, kContext
-  __ Push(scratch, i::Cast<HeapObject>(function_template_info_.object()),
-          scratch, kContextRegister);
-  __ Move(scratch2, ER::isolate_address());
-  // kIsolate, kUnused
-  __ Push(scratch2, scratch);
+  __ LoadRoot(undef, RootIndex::kUndefinedValue);
+  __ Move(scratch, ER::isolate_address());
+  __ Push(function_template_info_.object(),  // kTargetIndex
+          undef,                             // kReturnValue
+          kContextRegister,                  // kContextIndex
+          scratch);                          // kIsolateIndex
 
   Register api_function_address =
       CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
@@ -6629,15 +6626,25 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EmitEnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                         StackFrame::API_CALLBACK_EXIT, api_function_address,
-                        scratch2);
+                        scratch);
 
   Register fp = __ GetFramePointer();
 #ifdef V8_TARGET_ARCH_ARM64
+  // LINT.IfChange(Workaround_347741609)
   // This is a workaround for performance regression observed on Apple Silicon
   // (https://crbug.com/347741609): reading argc value after the call via
   //   MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
   // is noticeably slower than using sp-based access:
-  MemOperand argc_operand = ExitFrameStackSlotOperand(FCA::kLengthOffset);
+  // TODO(ishell): consider another fix: store argc in C callee saved register
+  // instead of stack slot.
+  constexpr int kArgcOffsetFromSP =
+      FCA::kArgcIndex * kSystemPointerSize +
+      // Optional padding that EnterExitFrame() adds to ensure 16-byte stack
+      // alignment after reservation of the slot for the return PC.
+      ((1 + FC::getExtraSlotsCountFrom<ExitFrameConstants>()) % 2) *
+          kSystemPointerSize;
+  MemOperand argc_operand = ExitFrameStackSlotOperand(kArgcOffsetFromSP);
+  // LINT.ThenChange(/src/builtins/arm64/builtins-arm64.cc:Workaround_347741609)
 #else
   // We don't enable this workaround for other configurations because
   // a) it's not possible to convert fp-based encoding to sp-based one:
@@ -6649,17 +6656,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 #endif  // V8_TARGET_ARCH_ARM64
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::FunctionCallbackInfo");
-    // FunctionCallbackInfo::length_.
+    // kArgcIndex
     __ Move(scratch, num_args());  // not including receiver
     __ Move(argc_operand, scratch);
-
-    // FunctionCallbackInfo::implicit_args_.
-    __ LoadAddress(scratch, MemOperand(fp, FC::kImplicitArgsArrayOffset));
-    __ Move(MemOperand(fp, FC::kFCIImplicitArgsOffset), scratch);
-
-    // FunctionCallbackInfo::values_ (points at JS arguments on the stack).
-    __ LoadAddress(scratch, MemOperand(fp, FC::kFirstArgumentOffset));
-    __ Move(MemOperand(fp, FC::kFCIValuesOffset), scratch);
   }
 
   Register function_callback_info_arg = kCArgRegs[0];
@@ -6671,8 +6670,8 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
-  const int kSlotsToDropOnReturn =
-      FC::kFunctionCallbackInfoArgsLength + kJSArgcReceiverSlots + num_args();
+  const int kSlotsToDropOnReturn = FC::kFunctionCallbackInfoApiArgsLength +
+                                   kJSArgcReceiverSlots + num_args();
 
   const bool with_profiling = false;
   ExternalReference no_thunk_ref;
@@ -7956,6 +7955,18 @@ void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
 // Print params
 // ---
 
+std::ostream& operator<<(std::ostream& os, CheckType check_type) {
+  switch (check_type) {
+    case CheckType::kOmitHeapObjectCheck:
+      os << "no heapobj check";
+      break;
+    case CheckType::kCheckHeapObject:
+      os << "check heapobj";
+      break;
+  }
+  return os;
+}
+
 void SmiConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
@@ -8122,7 +8133,7 @@ void CheckMaps::PrintParams(std::ostream& os) const {
     }
     os << *map.object();
   }
-  os << ")";
+  os << ", " << check_type() << ")";
 }
 
 void CheckMapsWithAlreadyLoadedMap::PrintParams(std::ostream& os) const {
@@ -8247,6 +8258,9 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
   }
   if (is_const()) {
     os << ", is_const";
+  }
+  if (load_type() != LoadType::kUnknown) {
+    os << ", " << load_type();
   }
   os << ")";
 }
@@ -8571,13 +8585,10 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
   }
 #endif  // DEBUG
 
-  // Initialize.
-  // TODO(jgruber): We may want to initialize with some invalid value instead
-  // (nullptr?) since callers should fully initialize objects.
-  ForEachSlot([&](ValueNode*& node, vobj::Field desc) -> bool {
-    set_by_index(desc.slot_index, InitialFieldValue(builder, desc.type));
-    return true;
-  });
+  // Initialize to nullptr; we check against this in BuildInlinedAllocation to
+  // verify that all slots have been initialized by the caller.
+  static_assert(kUninitializedSlotValue == nullptr);
+  memset(slots_.data(), 0, slot_count * sizeof(slots_[0]));
 }
 
 compiler::MapRef VirtualObject::map_from_slot(
@@ -8592,27 +8603,6 @@ compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
       get(HeapObject::kMapOffset)->TryGetConstant(broker);
   if (!maybe_constant.has_value()) return {};
   return maybe_constant->AsMap();
-}
-
-// static
-ValueNode* VirtualObject::InitialFieldValue(MaglevGraphBuilder* builder,
-                                            vobj::FieldType type) {
-  switch (type) {
-    case vobj::FieldType::kTagged:
-      return builder->GetRootConstant(RootIndex::kOnePointerFillerMap);
-    case vobj::FieldType::kTrustedPointer:
-#ifdef V8_ENABLE_SANDBOX
-      return builder->GetUint32Constant(kNullTrustedPointerHandle);
-#else
-      return builder->GetSmiConstant(0);
-#endif
-    case vobj::FieldType::kInt32:
-      return builder->GetInt32Constant(0);
-    case vobj::FieldType::kFloat64:
-      return builder->GetFloat64Constant(0.);
-    case vobj::FieldType::kNone:
-      UNREACHABLE();
-  }
 }
 
 }  // namespace maglev

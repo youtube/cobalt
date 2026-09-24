@@ -18,6 +18,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(WEBRTC_WIN)
+#include <windows.h>
+#endif
+
 #include "absl/cleanup/cleanup.h"
 #ifdef BUILD_EXPERIMENTAL_TASK_QUEUE_COROUTINE_TESTS
 #include "absl/functional/any_invocable.h"
@@ -25,6 +29,9 @@
 #include "absl/strings/string_view.h"
 #include "api/make_ref_counted.h"
 #include "api/ref_count.h"
+#if defined(WEBRTC_WIN)
+#include "api/task_queue/default_task_queue_factory.h"
+#endif
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
@@ -358,6 +365,30 @@ TEST_P(TaskQueueTest, PostTwoWithSharedUnprotectedState) {
   });
   EXPECT_TRUE(done.Wait(TimeDelta::Seconds(1)));
 }
+
+#if !defined(WEBRTC_CHROMIUM_BUILD) && defined(WEBRTC_WIN)
+void CALLBACK ApcProc(ULONG_PTR data) {
+  reinterpret_cast<Event*>(data)->Set();
+}
+
+// This works for TaskQueueWin, but not for the Thread backed
+// implementation or TaskQueueStdlib.
+// Change this to `TEST_P(TaskQueueTest, QueueUserAPC)` when all
+// implementations support this and use GetParam() instead of
+// CreateDefaultTaskQueueFactory().
+TEST(TaskQueueTest, QueueUserAPC) {
+  std::unique_ptr<TaskQueueFactory> factory =
+      CreateDefaultTaskQueueFactory(nullptr);
+
+  auto queue = CreateTaskQueue(factory, "ApcCompat");
+  Event done;
+  queue->PostTask([&done] {
+    QueueUserAPC(&ApcProc, GetCurrentThread(),
+                 reinterpret_cast<ULONG_PTR>(&done));
+  });
+  EXPECT_TRUE(done.Wait(TimeDelta::Seconds(1)));
+}
+#endif  // !defined(WEBRTC_CHROMIUM_BUILD) && defined(WEBRTC_WIN)
 
 #ifdef BUILD_EXPERIMENTAL_TASK_QUEUE_COROUTINE_TESTS
 

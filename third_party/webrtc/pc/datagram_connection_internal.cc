@@ -141,6 +141,7 @@ DatagramConnectionInternal::DatagramConnectionInternal(
   }
 
   internal_transport_->ice_transport()->SubscribeCandidateGathered(
+      this,
       std::bind_front(&DatagramConnectionInternal::OnCandidateGathered, this));
 
   if (wire_protocol_ == WireProtocol::kDtls) {
@@ -153,14 +154,14 @@ DatagramConnectionInternal::DatagramConnectionInternal(
   }
 
   transport_channel_->SubscribeIceTransportStateChanged(
-      [this](IceTransportInternal* transport) {
+      this, [this](IceTransportInternal* transport) {
         if (transport->GetIceTransportState() ==
             webrtc::IceTransportState::kFailed) {
           OnConnectionError();
         }
       });
   internal_transport_->SubscribeDtlsHandshakeError(
-      [this](webrtc::SSLHandshakeError) { OnConnectionError(); });
+      this, [this](webrtc::SSLHandshakeError) { OnConnectionError(); });
 
   internal_transport_->SubscribeDtlsTransportState(
       this, [this](DtlsTransportInternal* transport, DtlsTransportState state) {

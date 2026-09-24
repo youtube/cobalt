@@ -18,13 +18,20 @@
 #include <cassert>
 
 #include <openssl/base.h>
+#include <openssl/bytestring.h>
+#include <openssl/mem.h>
+#include <openssl/sha2.h>
+#include <openssl/span.h>
+
 #include "cert_error_params.h"
 #include "cert_errors.h"
 #include "common_cert_errors.h"
 #include "extended_key_usage.h"
 #include "input.h"
+#include "merkle_tree.h"
 #include "name_constraints.h"
 #include "parse_certificate.h"
+#include "parse_values.h"
 #include "signature_algorithm.h"
 #include "trust_store.h"
 #include "verify_signed_data.h"
@@ -739,7 +746,7 @@ class PathVerifier {
  public:
   // Same parameters and meaning as VerifyCertificateChain().
   void Run(const ParsedCertificateList &certs,
-           const CertificateTrust &last_cert_trust,
+           const TrustAnchor &last_cert_trust,
            VerifyCertificateChainDelegate *delegate,
            const der::GeneralizedTime &time, KeyPurpose required_key_purpose,
            InitialExplicitPolicy initial_explicit_policy,
@@ -795,7 +802,7 @@ class PathVerifier {
   // Initializes the path validation algorithm given anchor constraints. This
   // follows the description in RFC 5937
   void ProcessRootCertificate(const ParsedCertificate &cert,
-                              const CertificateTrust &trust,
+                              const TrustAnchor &trust_anchor,
                               const der::GeneralizedTime &time,
                               KeyPurpose required_key_purpose,
                               CertErrors *errors,
@@ -891,6 +898,13 @@ class PathVerifier {
   //    working_issuer_name:  the issuer distinguished name expected
   //    in the next certificate in the chain.
   der::Input working_normalized_issuer_name_;
+
+  // |working_mtc_anchor_| is the trusted MTC Anchor that the chain-to-verify
+  // claims issued the next certificate in the chain, and should be used to
+  // verify that certificate. It is analogous to |working_public_key_|, except
+  // that MTCs don't have an EVP_PKEY that can be used to verify their
+  // "signature" and instead have an MTCAnchor used for verification.
+  const MTCAnchor *working_mtc_anchor_ = nullptr;
 
   // |max_path_length_| corresponds with the same named variable in RFC 5280
   // section 6.1.2.
@@ -1109,6 +1123,145 @@ void PathVerifier::ApplyPolicyConstraints(const ParsedCertificate &cert) {
   }
 }
 
+// This function implements draft-davidben-tls-merkle-tree-certs-08 section 7.2:
+// Verifying Certificate Signatures.
+static bool VerifyMTC(const ParsedCertificate &cert,
+                      const MTCAnchor *mtc_anchor) {
+  // Step 1: Check that the TBSCertificate's signature field is id-alg-mtcProof
+  // (kMtcProofDraftDavidben08) with omitted parameters.
+  if (cert.signature_algorithm() !=
+      SignatureAlgorithm::kMtcProofDraftDavidben08) {
+    // When we parse the signature algorithm, we check that the parameters are
+    // omitted.
+    return false;
+  }
+
+  // Step 2: Decode the signatureValue as an MTCProof.
+  CBS mtc_proof(cert.signature_value().bytes());
+  uint64_t start, end;
+  CBS inclusion_proof, signatures;
+  if (!CBS_get_u64(&mtc_proof, &start) || !CBS_get_u64(&mtc_proof, &end) ||
+      !CBS_get_u16_length_prefixed(&mtc_proof, &inclusion_proof) ||
+      !CBS_get_u16_length_prefixed(&mtc_proof, &signatures) ||
+      CBS_len(&mtc_proof) != 0) {
+    return false;
+  }
+
+  // Step 3: Let index be the certificate's serial number.
+  uint64_t index;
+  if (!der::ParseUint64(cert.tbs().serial_number, &index)) {
+    return false;
+  }
+  // Step 3's revocation check is not performed in this function. The caller is
+  // responsible for performing revocation checks.
+
+  // Steps 5 and 4 are done in reverse order. Step 4 builds a value that gets
+  // embedded in step 5's MerkleTreeCertEntry |entry|, and then step 5 proceeds
+  // to prepend a value to |entry| and run all of that through a hash function.
+  // The input to the hash function is built up in a single buffer, which means
+  // steps 5 and 4 are effectively done in reverse order.
+  //
+  // Step 5:
+  //
+  //   Construct a MerkleTreeCertEntry of type tbs_cert_entry with contents the
+  //   TBSCertificateLogEntry. Let entry_hash be the hash of the entry,
+  //   MTH({entry}) = HASH(0x00 || entry), as defined in Section 2.1.1 of
+  //   [RFC9162].
+  //
+  // A MerkleTreeCertEntry is defined as follows (section 5.3):
+  //
+  //   struct {
+  //       MerkleTreeCertEntryType type;
+  //       select (type) {
+  //          case null_entry: Empty;
+  //          case tbs_cert_entry: opaque tbs_cert_entry_data[N];
+  //          /* May be extended with future types. */
+  //       }
+  //   } MerkleTreeCertEntry;
+  //
+  // When type = tbs_cert_entry (0x0001), the MerkleTreeCertEntry entry - the
+  // input to HASH(0x00 || entry) - consists of the 16-bit value 0x0001 followed
+  // by the TBSCertificateLogEntry (constructed according to the instructions in
+  // step 4). The variable `entry` below corresponds to the input to HASH, i.e.
+  // it contains 0x00 (the MTH domain separator), 0x0001
+  // (MerkleTreeCertEntryType of tbs_cert_entry), and then the
+  // TBSCertificateLogEntry.
+  ScopedCBB entry;
+  CBB tbs_cert_log_entry;
+  if (!CBB_init(entry.get(), 0) ||
+      !CBB_add_u8(entry.get(), 0 /* MTH domain separator */) ||
+      !CBB_add_u16(entry.get(), 1 /* tbs_cert_entry */) ||
+      !CBB_add_asn1(entry.get(), &tbs_cert_log_entry, CBS_ASN1_SEQUENCE)) {
+    return false;
+  }
+  // Add version (if not V1):
+  CBB version;
+  if (cert.tbs().version != CertificateVersion::V1 &&
+      (!CBB_add_asn1(&tbs_cert_log_entry, &version,
+                     CBS_ASN1_CONTEXT_SPECIFIC | CBS_ASN1_CONSTRUCTED | 0) ||
+       !CBB_add_asn1_uint64(&version,
+                            static_cast<uint64_t>(cert.tbs().version)))) {
+    return false;
+  }
+  // Add issuer, validity, subject:
+  if (!CBB_add_bytes(&tbs_cert_log_entry, cert.tbs().issuer_tlv.data(),
+                     cert.tbs().issuer_tlv.size()) ||
+      !CBB_add_bytes(&tbs_cert_log_entry, cert.tbs().validity_tlv.data(),
+                     cert.tbs().validity_tlv.size()) ||
+      !CBB_add_bytes(&tbs_cert_log_entry, cert.tbs().subject_tlv.data(),
+                     cert.tbs().subject_tlv.size())) {
+    return false;
+  }
+  // Hash SPKI and add to entry.
+  CBB spki_hash;
+  uint8_t *hash_buf;
+  if (!CBB_add_asn1(&tbs_cert_log_entry, &spki_hash, CBS_ASN1_OCTETSTRING) ||
+      !CBB_add_space(&spki_hash, &hash_buf, SHA256_DIGEST_LENGTH)) {
+    return false;
+  }
+  SHA256(cert.tbs().spki_tlv.data(), cert.tbs().spki_tlv.size(), hash_buf);
+  // Add the stuff from the cert after the SPKI (issuerUniqueID,
+  // subjectUniqueID, extensions):
+  if (!CBB_add_bytes(&tbs_cert_log_entry, cert.tbs().bytes_after_spki.data(),
+                     cert.tbs().bytes_after_spki.size())) {
+    return false;
+  }
+
+  // Finally done assembling `entry` - compute its hash:
+  if (!CBB_flush(entry.get())) {
+    return false;
+  }
+  TreeHash entry_hash;
+  SHA256(CBB_data(entry.get()), CBB_len(entry.get()), entry_hash.data());
+
+  // Step 6: Let expected_subtree_hash be the result of evaluating the
+  // MTCProof's inclusion_proof.
+  Subtree range{start, end};
+  std::optional<TreeHash> expected_subtree_hash =
+      EvaluateMerkleSubtreeInclusionProof(inclusion_proof, index, entry_hash,
+                                          range);
+  if (!expected_subtree_hash) {
+    return false;
+  }
+
+  // Step 7: If [start, end) matches a trusted subtree (Section 7.4), check that
+  // expected_subtree_hash is equal to the trusted subtree's hash. Return
+  // success if it matches and failure if it does not.
+  if (!mtc_anchor) {
+    return false;
+  }
+  std::optional<TreeHashConstSpan> trusted_subtree_hash =
+      mtc_anchor->SubtreeHash(range);
+  if (!trusted_subtree_hash) {
+    // Step 8 would check the MTCProof's signatures if there's no matching
+    // trusted subtree. This implementation does not support that check yet.
+    return false;
+  }
+  return CRYPTO_memcmp(expected_subtree_hash->data(),
+                       trusted_subtree_hash->data(),
+                       expected_subtree_hash->size()) == 0;
+}
+
 void PathVerifier::BasicCertificateProcessing(
     const ParsedCertificate &cert, bool is_target_cert,
     bool is_target_cert_issuer, const der::GeneralizedTime &time,
@@ -1139,6 +1292,14 @@ void PathVerifier::BasicCertificateProcessing(
                           cert.tbs_certificate_tlv(), cert.signature_value(),
                           working_public_key_.get(),
                           delegate_->GetVerifyCache())) {
+      *shortcircuit_chain_validation = true;
+      errors->AddError(cert_errors::kVerifySignedDataFailed);
+    }
+  } else if (working_mtc_anchor_) {
+    if (!is_target_cert) {
+      *shortcircuit_chain_validation = true;
+      errors->AddError(cert_errors::kMaxPathLengthViolated);
+    } else if (!VerifyMTC(cert, working_mtc_anchor_)) {
       *shortcircuit_chain_validation = true;
       errors->AddError(cert_errors::kVerifySignedDataFailed);
     }
@@ -1208,6 +1369,7 @@ void PathVerifier::PrepareForNextCertificate(const ParsedCertificate &cert,
   //
   //    Assign the certificate subjectPublicKey to working_public_key.
   working_public_key_ = ParseAndCheckPublicKey(cert.tbs().spki_tlv, errors);
+  working_mtc_anchor_ = nullptr;
 
   // Note that steps e and f are omitted as they are handled by
   // the assignment to |working_spki| above. See the definition
@@ -1472,12 +1634,13 @@ void PathVerifier::ApplyTrustAnchorConstraints(const ParsedCertificate &cert,
 }
 
 void PathVerifier::ProcessRootCertificate(const ParsedCertificate &cert,
-                                          const CertificateTrust &trust,
+                                          const TrustAnchor &trust_anchor,
                                           const der::GeneralizedTime &time,
                                           KeyPurpose required_key_purpose,
                                           CertErrors *errors,
                                           bool *shortcircuit_chain_validation) {
   *shortcircuit_chain_validation = false;
+  const CertificateTrust &trust = trust_anchor.CertTrust();
   switch (trust.type) {
     case CertificateTrustType::UNSPECIFIED:
     case CertificateTrustType::TRUSTED_LEAF:
@@ -1517,7 +1680,12 @@ void PathVerifier::ProcessRootCertificate(const ParsedCertificate &cert,
   }
 
   // Use the certificate's SPKI and subject when verifying the next certificate.
-  working_public_key_ = ParseAndCheckPublicKey(cert.tbs().spki_tlv, errors);
+  const MTCAnchor *mtc_anchor = trust_anchor.MTCAnchor().get();
+  if (mtc_anchor) {
+    working_mtc_anchor_ = mtc_anchor;
+  } else {
+    working_public_key_ = ParseAndCheckPublicKey(cert.tbs().spki_tlv, errors);
+  }
   working_normalized_issuer_name_ = cert.normalized_subject();
 }
 
@@ -1593,7 +1761,7 @@ bssl::UniquePtr<EVP_PKEY> PathVerifier::ParseAndCheckPublicKey(
 }
 
 void PathVerifier::Run(
-    const ParsedCertificateList &certs, const CertificateTrust &last_cert_trust,
+    const ParsedCertificateList &certs, const TrustAnchor &last_cert_trust,
     VerifyCertificateChainDelegate *delegate, const der::GeneralizedTime &time,
     KeyPurpose required_key_purpose,
     InitialExplicitPolicy initial_explicit_policy,
@@ -1617,7 +1785,7 @@ void PathVerifier::Run(
   // Verifying a trusted leaf certificate isn't a well-specified operation, so
   // it's handled separately from the RFC 5280 defined verification process.
   if (certs.size() == 1) {
-    ProcessSingleCertChain(*certs.front(), last_cert_trust, time,
+    ProcessSingleCertChain(*certs.front(), last_cert_trust.CertTrust(), time,
                            required_key_purpose, errors->GetErrorsForCert(0));
     return;
   }
@@ -1737,7 +1905,7 @@ void PathVerifier::Run(
 VerifyCertificateChainDelegate::~VerifyCertificateChainDelegate() = default;
 
 void VerifyCertificateChain(
-    const ParsedCertificateList &certs, const CertificateTrust &last_cert_trust,
+    const ParsedCertificateList &certs, const TrustAnchor &last_cert_trust,
     VerifyCertificateChainDelegate *delegate, const der::GeneralizedTime &time,
     KeyPurpose required_key_purpose,
     InitialExplicitPolicy initial_explicit_policy,

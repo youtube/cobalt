@@ -101,6 +101,9 @@ BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
 
 BASE_FEATURE(kClientSideDetectionImageEmbeddingMatch,
              base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kCsdImageEmbeddingMatchWithIntelligentScan{
+    &kClientSideDetectionImageEmbeddingMatch,
+    "CsdImageEmbeddingMatchWithIntelligentScan", /*default_value=*/false};
 
 BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -128,6 +131,10 @@ BASE_FEATURE(kClientSideDetectionSendLlamaForcedTriggerInfo,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionServerModelForScamDetectionAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<int> kClientSideDetectionServerModelMaxScansPerDay{
+    &kClientSideDetectionServerModelForScamDetectionAndroid,
+    "MaxIntelligentScansPerDay",
+    /*default_value=*/5};
 #endif
 
 BASE_FEATURE(kClientSideDetectionShowLlamaScamVerdictWarning,
@@ -289,6 +296,9 @@ constexpr base::FeatureParam<std::string>
                                                  /*default_value=*/""};
 #endif
 
+BASE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kModifiedESBFetchErrorHandling, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMovePasswordLeakDetectionToggleIos,
@@ -405,6 +415,7 @@ base::Value::List GetFeatureStatusList() {
       &kExternalAppRedirectTelemetry,
       &kHashPrefixRealTimeLookups,
       &kLocalListsUseSBv5,
+      &kMigrateEnhancedSbUserToEnhancedBundle,
       &kNotificationTelemetrySwb,
       &kReportNotificationContentDetectionData,
       &kShowManualNotificationRevocationsSafetyHub,

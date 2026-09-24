@@ -122,6 +122,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="2216543877350048334">I dynnu'ch Cyfrif Google o Chrome, allgofnodwch</translation>
 <translation id="2236949375853147973">Fy Ngweithgarwch</translation>
 <translation id="22791603784558743">Cau Gemini yn Chrome Dev</translation>
+<translation id="2284380654876659752">Pan fyddwch yn ymweld â gwefan, mae Chrome yn anfon rhan o'r URL sydd wedi'i thywyllu at <ph name="BEGIN_LINK" />Bori'n Ddiogel gyda Google<ph name="END_LINK" /> drwy weinydd preifatrwydd sy'n cuddio eich cyfeiriad IP. Os yw gwefan yn gwneud rhywbeth amheus, bydd URL llawn a darnau o gynnwys tudalen hefyd yn cael eu hanfon.</translation>
 <translation id="2290014774651636340">Mae allweddi API Google ar goll. Bydd rhywfaint o swyddogaeth Google Chrome wedi'i hanalluogi.</translation>
 <translation id="2290095356545025170">Ydych chi'n siŵr eich bod eisiau dadosod Google Chrome?</translation>
 <translation id="2301513536169703857">I gael eich cyfrineiriau, nodau tudalen a rhagor ar eich holl ddyfeisiau, mewngofnodwch i Chrome.</translation>
@@ -206,6 +207,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="3112458742631356345">Gwnaeth Chrome rwystro'r lawrlwythiad hwn oherwydd nid yw'r ffeil yn cael ei lawrlwytho'n aml a gall fod yn beryglus</translation>
 <translation id="3114643501466072395">I wirio a yw'ch cyfrineiriau eraill yn ddiogel rhag toriadau data a phroblemau diogelwch eraill, <ph name="BEGIN_LINK" />mewngofnodwch i Chrome<ph name="END_LINK" />.</translation>
 <translation id="3119573284443908657">Gwnaeth Chrome rwystro'r lawrlwythiad hwn oherwydd bod y ffeil archif yn cynnwys ffeiliau eraill a allai guddio drwgwedd</translation>
+<translation id="3124332159330678621">Gallwch bersonoleiddio Chrome i roi gwedd newydd i'ch porwr</translation>
 <translation id="3130333203120345554">Chwiliad newydd</translation>
 <translation id="3135560418014806498">Ychwanegu Proffil Chrome</translation>
 <translation id="3137969841538672700">Llusgwch i chwilio</translation>
@@ -272,6 +274,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="3885770153807205175">Dewisydd iaith</translation>
 <translation id="3889417619312448367">Dadosod Google Chrome</translation>
 <translation id="3892148308691398805">Copïo'r testun</translation>
+<translation id="3906096710440765802">Mewngofnodwch i Chrome i gael eich cyfrineiriau, nodau tudalen a rhagor ar eich holl ddyfeisiau</translation>
 <translation id="3941890832296813527">Gwall gosod: Mae enw ffeil y gosodwr yn annilys neu heb ei gefnogi.</translation>
 <translation id="395904275706073188">Nid oes modd darllen tudalennau gwarchodedig. Rhowch gynnig ar dudalen wahanol.</translation>
 <translation id="3968962723676998462">Rhowch eich cyfrin-ymadrodd i'w ddefnyddio a chadwch ddata Chrome yn eich cyfrif, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -496,6 +499,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="6288580400488258237">Gosod Google Chrome fel eich porwr diofyn a'i binio i'ch bar tasgau</translation>
 <translation id="6291089322031436445">Apiau Chrome Dev</translation>
 <translation id="6291549208091401781">Mae Google Chrome eisoes wedi'i osod ar gyfer pob defnyddiwr ar eich cyfrifiadur.</translation>
+<translation id="6311220991371174222">Wedi methu â chychwyn Chrome oherwydd aeth rhywbeth o'i le wrth agor eich proffil. Rhowch gynnig ar ailgychwyn Chrome.</translation>
 <translation id="6319856120645568262">Mae angen caniatâd ar Chrome i fapio'ch amgylchoedd ac olrhain eich dwylo</translation>
 <translation id="6321592572353357376">Mae'r estyniad "<ph name="EXTENSION_NAME" />" eisiau i chi fewngofnodi i Chrome</translation>
 <translation id="6326175484149238433">Tynnu o Chrome</translation>
@@ -624,9 +628,11 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="7655472416356262023">Tynnu cyfrif o Chrome</translation>
 <translation id="7658239707568436148">Canslo</translation>
 <translation id="7670287553302121848">Mae angen ail-ddilysu'r cyfrif Chrome</translation>
+<translation id="7675756456029023637">Gofyn i Chrome</translation>
 <translation id="769538538642757151">Bydd Chrome yn rhoi gwybod i chi os oes angen i chi adolygu unrhyw beth</translation>
 <translation id="769906121737764913">Cau Gemini yn Chrome Beta</translation>
 <translation id="7716950018788545737">Tasg(au) wedi dod i ben.</translation>
+<translation id="7723388585204724670">Ailosod i Chrome Ddiofyn</translation>
 <translation id="77283119132245232">Yn darparu gwasanaethau olrhain system ar gyfer <ph name="BROWSER_NAME" />. Os yw'r gwasanaeth hwn wedi'i analluogi, ni fydd olion perfformiad a grëir gan y porwr yn cynnwys digwyddiadau system gyfan megis switsh cyd-destun a digwyddiadau trywydd parod.</translation>
 <translation id="7736869414036750079">Mae eich sefydliad yn gofyn i chi fewngofnodi i Chrome</translation>
 <translation id="7747138024166251722">Ni allai'r gosodwr greu cyfeiriadur dros dro. Gwnewch yn siŵr bod gennych ddigon o le storio ar gael a bod gennych y caniatâd i osod meddalwedd.</translation>

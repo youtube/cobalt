@@ -104,12 +104,14 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
                                   audio_decoder_factory2));
     PeerConnectionTestWrapper::Connect(caller_.get(), callee_.get());
 
-    caller_->SubscribeOnDataChannel([this](DataChannelInterface* channel) {
-      OnCallerAddedDataChanel(channel);
-    });
-    callee_->SubscribeOnDataChannel([this](DataChannelInterface* channel) {
-      OnCalleeAddedDataChannel(channel);
-    });
+    caller_->SubscribeOnDataChannel(this,
+                                    [this](DataChannelInterface* channel) {
+                                      OnCallerAddedDataChanel(channel);
+                                    });
+    callee_->SubscribeOnDataChannel(this,
+                                    [this](DataChannelInterface* channel) {
+                                      OnCalleeAddedDataChannel(channel);
+                                    });
   }
 
   void CreatePcs(scoped_refptr<AudioEncoderFactory> audio_encoder_factory,

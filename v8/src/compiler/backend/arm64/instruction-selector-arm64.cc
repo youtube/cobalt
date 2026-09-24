@@ -5910,6 +5910,15 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
                           kArm64S128UnzipRight, 8),
       CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddOdd, kArm64S128UnzipRight, 8,
                           kArm64S128UnzipRight, 8),
+      // 16x4 Arm64 instructions selected using special 8x8 patterns
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenEven, kArm64S128UnzipLeft, 16,
+                          kArm64S128UnzipLeft, 16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddEven, kArm64S128UnzipRight, 16,
+                          kArm64S128UnzipLeft, 16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenOdd, kArm64S128UnzipLeft, 16,
+                          kArm64S128UnzipRight, 16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddOdd, kArm64S128UnzipRight, 16,
+                          kArm64S128UnzipRight, 16),
   });
 #undef CANONICAL_TO_INSTRS
 
@@ -5972,11 +5981,13 @@ void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
 void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
   Arm64OperandGenerator g(this);
   auto view = this->simd_shuffle_view(node);
-  OpIndex input0 = view.input(0);
-  OpIndex input1 = view.input(1);
+  bool is_swizzle;
   constexpr size_t kShuffleBytes = 4;
   std::array<uint8_t, kShuffleBytes> shuffle;
-  std::copy(view.data(), view.data() + kShuffleBytes, shuffle.begin());
+  CanonicalizeShuffle<kSimd128Size, kSimd128QuarterSize>(view, shuffle.data(),
+                                                         &is_swizzle);
+  OpIndex input0 = view.input(0);
+  OpIndex input1 = view.input(1);
   std::array<uint8_t, 2> shuffle16x2;
   uint8_t shuffle32x1;
 

@@ -19,10 +19,8 @@
 
 #include "../fipsmodule/rsa/internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *out, size_t *out_len,
                                       size_t max_out, const uint8_t *from,
@@ -48,9 +46,6 @@ int rsa_marshal_pss_params(CBB *cbb, rsa_pss_params_t params);
 int rsa_parse_pss_params(CBS *cbs, rsa_pss_params_t *out,
                          int allow_explicit_trailer);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_RSA_INTERNAL_H

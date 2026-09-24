@@ -33,7 +33,7 @@ class NeuralResidualEchoEstimator {
   //   * R2_unbounded: A less conservative estimate.
   //
   // Input signals:
-  //   * x: Render signal (time-domain)
+  //   * render: Render block (time-domain)
   //   * y: Microphone signal (time-domain)
   //   * e: Output from linear subtraction stage (time-domain)
   //

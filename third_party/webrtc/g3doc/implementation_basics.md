@@ -112,11 +112,11 @@ the webrtc::Mutex can be used. Such variables MUST be marked up with
 RTC_GUARDED_BY(mutex), to allow static analysis that lessens the chance of
 deadlocks or unintended consequences.
 
+Avoid mixing use of Mutex and TaskQueue. Prefer lock-free programming.
+
 ### Synchronization primitives that are being removed
 The following non-exhaustive list of synchronization primitives are
 in the (slow) process of being removed from the codebase.
-
-* AsyncInvoker.
 
 * RecursiveCriticalSection. Try to use [webrtc::Mutex][6] instead, and don't recurse.
 
@@ -140,3 +140,20 @@ If the enum is not defined within a class, the "static" keyword is not needed.
 [6]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/webrtc/rtc_base/synchronization/mutex.h;drc=0d3c09a8fe5f12dfbc9f1bcd5790fda8830624ec;l=40
 [7]: https://abseil.io/docs/cpp/atomic_danger
 
+## Namespaces
+`cricket` and `rtc` namespaces do not exist; they were removed in 2025. All WebRTC types
+are in the `webrtc` namespace.
+
+## Verification of changes
+When making changes to the source code, it is not enough to only build the test binary that
+covers the modified code.
+
+Before uploading changes to gerrit for review, make sure to complete the following steps:
+
+* Ensure that your branch is up to date.
+* Run `git cl format`. This will format source code and build (.gn) files.
+* Check for and fix any IWYU errors.
+* Check for and fix any gn errors.
+* Ensure that a *full build* of all binaries passes. This will save time and resources.
+* If at any of the above steps changes had to be made, go back the first step and repeat
+  until no changes are required at every step.

@@ -210,7 +210,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
 @end
 
-@interface NewTabPageHeaderView ()
+@interface NewTabPageHeaderView () <TabGroupIndicatorViewDelegate>
 
 // The Lens button. May be null if Lens is not available.
 @property(nonatomic, strong, readwrite) ExtendedTouchTargetButton* lensButton;
@@ -691,7 +691,8 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   CGFloat maxTopMarginDiff = fakeOmniboxHeight - locationBarHeight -
                              kAdaptiveLocationBarVerticalMargin;
   topMarginConstraint.constant =
-      -content_suggestions::SearchFieldTopMargin() - maxTopMarginDiff * percent;
+      -content_suggestions::SearchFieldTopMargin(self.logoState) -
+      maxTopMarginDiff * percent;
   heightConstraint.constant =
       ntp_header::kFakeLocationBarTopConstraint -
       content_suggestions::HeaderSeparatorHeight() +
@@ -956,6 +957,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   _tabGroupIndicatorView.hidden = YES;
   _tabGroupIndicatorView.translatesAutoresizingMaskIntoConstraints = NO;
   _tabGroupIndicatorView.showSeparator = YES;
+  _tabGroupIndicatorView.delegate = self;
   [self addSubview:_tabGroupIndicatorView];
 
   _toolbarTabGroupIndicartorConstraint = [_toolBarView.topAnchor
@@ -1172,7 +1174,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
     // iPads pin slightly earlier than landscape iPhones.
     if (CanShowTabStrip(self)) {
-      offset -= content_suggestions::SearchFieldTopMargin();
+      offset -= content_suggestions::SearchFieldTopMargin(self.logoState);
     }
   }
   return offset;
@@ -1435,6 +1437,19 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
                 action:@selector(preloadVoiceSearch:)
       forControlEvents:UIControlEventTouchDown];
   [self.NTPShortcutsHandler preloadVoiceSearch];
+}
+
+#pragma mark - TabGroupIndicatorViewDelegate
+
+- (void)tabGroupIndicatorViewVisibilityUpdated:(BOOL)visible {
+  CHECK_EQ(_tabGroupIndicatorView.hidden, !visible);
+  if (visible) {
+    _toolbarTabGroupIndicartorConstraint.active = YES;
+    _toolbarNoTabGroupIndicartorConstraint.active = NO;
+  } else {
+    _toolbarTabGroupIndicartorConstraint.active = NO;
+    _toolbarNoTabGroupIndicartorConstraint.active = YES;
+  }
 }
 
 @end

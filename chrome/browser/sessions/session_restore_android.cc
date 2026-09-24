@@ -62,7 +62,8 @@ content::WebContents* SessionRestore::RestoreForeignSessionTab(
   if (disposition == WindowOpenDisposition::CURRENT_TAB) {
     // This will never be a bulk session restore so we can select the tab here.
     tab_model->CreateTab(current_tab, new_web_contents.release(),
-                         /*select=*/true);
+                         TabModel::kInvalidIndex, /*select=*/true,
+                         /*should_pin=*/false);
     tab_model->CloseTab(current_tab->GetHandle());
     return raw_new_web_contents;
   }
@@ -70,12 +71,14 @@ content::WebContents* SessionRestore::RestoreForeignSessionTab(
          disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB);
   // Do not select a tab here it will interrupt bulk session restores.
   tab_model->CreateTab(current_tab, new_web_contents.release(),
-                       /*select=*/false);
+                       TabModel::kInvalidIndex,
+                       /*select=*/false, /*should_pin=*/false);
   return raw_new_web_contents;
 }
 
 // static
-std::vector<Browser*> SessionRestore::RestoreForeignSessionWindows(
+std::vector<BrowserWindowInterface*>
+SessionRestore::RestoreForeignSessionWindows(
     Profile* profile,
     std::vector<const sessions::SessionWindow*>::const_iterator begin,
     std::vector<const sessions::SessionWindow*>::const_iterator end) {

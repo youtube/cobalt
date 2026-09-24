@@ -77,7 +77,7 @@ void HeadlessModeProtocolBrowserTest::SetUpCommandLine(
                                   "MAP *.test 127.0.0.1");
   HeadlessModeDevTooledBrowserTest::SetUpCommandLine(command_line);
 
-  test_meta_info_.AppendToCommandLine(*command_line);
+  feature_list_ = test_meta_info_.ProcessCommandLineSwitches(*command_line);
 }
 
 base::Value::Dict HeadlessModeProtocolBrowserTest::GetPageUrlExtraParams() {
@@ -495,6 +495,9 @@ HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
                             "shared/remove-screen-get-screen-details.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
+                            "shared/range-mouse-event-after-node-removal.js")
 
 // TODO(crbug.com/423951863): Fails on Mac.
 #if BUILDFLAG(IS_MAC)

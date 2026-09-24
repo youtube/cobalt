@@ -35,6 +35,7 @@ namespace blink {
 class Document;
 class Length;
 class TreeScope;
+class CSSPropertyName;
 
 class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
  public:
@@ -158,6 +159,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   bool IsStringValue() const { return class_type_ == kStringClass; }
   bool IsSuperellipseValue() const { return class_type_ == kSuperellipseClass; }
   bool IsURIValue() const { return class_type_ == kURIClass; }
+  bool IsURLPatternValue() const { return class_type_ == kURLPatternClass; }
   bool IsLinearTimingFunctionValue() const {
     return class_type_ == kLinearTimingFunctionClass;
   }
@@ -257,6 +259,15 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   String ClassTypeToString() const;
 #endif
 
+  // Checks if a CSS random() function is present in the value. If so, creates a
+  // deep copy and binds the random value's identifier to the specified property
+  // name and index. This ensures the random() function's internal identifier is
+  // uniquely associated with the provided property name and value index for
+  // caching purposes.
+  const CSSValue* CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+      const CSSPropertyName& property_name,
+      wtf_size_t property_value_index) const;
+
   void TraceAfterDispatch(blink::Visitor* visitor) const {}
   void Trace(Visitor*) const;
 
@@ -278,6 +289,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
     kCustomIdentClass,
     kStringClass,
     kURIClass,
+    kURLPatternClass,
     kValuePairClass,
     kLightDarkValuePairClass,
     kScrollClass,

@@ -205,6 +205,7 @@ component("gfx") {
       "android/android_surface_control_compat.h",
       "android/java_bitmap.cc",
       "android/java_bitmap.h",
+      "android/rect_jni_conversion.h",
       "android/surface_control_frame_rate.h",
       "android/view_configuration.cc",
       "android/view_configuration.h",
@@ -429,8 +430,6 @@ component("color_space") {
     "display_color_spaces.h",
     "hdr_metadata.cc",
     "hdr_metadata.h",
-    "hdr_metadata_agtm.cc",
-    "hdr_metadata_agtm.h",
     "hdr_static_metadata.cc",
     "hdr_static_metadata.h",
     "icc_profile.cc",
@@ -448,6 +447,7 @@ component("color_space") {
     "//components/viz/common/resources:shared_image_format",
     "//skia:skcms",
     "//ui/gfx:buffer_types",
+    "//ui/gfx:gfx_skia",
     "//ui/gfx:gfx_switches",
     "//ui/gfx/geometry:geometry_skia",
   ]
@@ -994,6 +994,7 @@ if (is_android) {
   generate_jni("gfx_jni_headers") {
     sources = [
       "../android/java/src/org/chromium/ui/gfx/BitmapHelper.java",
+      "../android/java/src/org/chromium/ui/gfx/RectJniConversion.java",
       "../android/java/src/org/chromium/ui/gfx/ViewConfigurationHelper.java",
     ]
   }

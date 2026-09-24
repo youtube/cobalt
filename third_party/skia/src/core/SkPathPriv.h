@@ -219,11 +219,6 @@ public:
     /** Returns true if the underlying SkPathRef has one single owner. */
     static bool TestingOnly_unique(const SkPath&);
 
-    // Won't be needed once we can make path's immutable (with their bounds always computed)
-    static bool HasComputedBounds(const SkPath& path) {
-        return path.hasComputedBounds();
-    }
-
     // returns Empty() if there are no points
     static SkRect ComputeTightBounds(SkSpan<const SkPoint> points,
                                      SkSpan<const SkPathVerb> verbs,
@@ -308,10 +303,6 @@ public:
         }
         return true;
     }
-
-#ifndef SK_PATH_USES_PATHDATA
-    static int LastMoveToIndex(const SkPath& path) { return path.fLastMoveToIndex; }
-#endif
 
     struct RectContour {
         SkRect          fRect;
@@ -464,6 +455,24 @@ public:
             convexity,
             SkTo<uint8_t>(builder.fSegmentMask),
         };
+    }
+
+    // Returns Empty if there are no points
+    // Returns {} if the bounds are not finite
+    static std::optional<SkRect> TrimmedBounds(SkSpan<const SkPoint> pts,
+                                               SkSpan<const SkPathVerb> vbs) {
+        // Does a trailing kMove verb contribute to the bounds?
+        // - only if it is the only verb in the path
+        // - otherwise we ignore it when computing bounds
+        if (vbs.size() > 1 && vbs.back() == SkPathVerb::kMove) {
+            SkASSERT(pts.size() > 0);
+            // While trailing moves do not contribute to the bounds, we still reject them.
+            if (!pts.back().isFinite()) {
+                return {};
+            }
+            pts = pts.subspan(0, pts.size() - 1);
+        }
+        return SkRect::Bounds(pts);
     }
 };
 

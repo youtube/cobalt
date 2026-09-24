@@ -369,7 +369,7 @@ class NatTcpTest : public ::testing::Test {
     server_->SubscribeReadEvent(
         this, [this](Socket* socket) { OnAcceptEvent(socket); });
     client_->SubscribeConnectEvent(
-        [this](Socket* socket) { OnConnectEvent(socket); });
+        this, [this](Socket* socket) { OnConnectEvent(socket); });
   }
 
   const Environment env_;

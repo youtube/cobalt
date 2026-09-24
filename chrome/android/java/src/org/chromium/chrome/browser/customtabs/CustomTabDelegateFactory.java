@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.customtabs;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -62,7 +63,6 @@ import org.chromium.components.browser_ui.util.ComposedBrowserControlsVisibility
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.util.Origin;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.external_intents.ExternalNavigationHandler;
 import org.chromium.components.external_intents.ExternalNavigationParams;
@@ -127,11 +127,27 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         @Override
         public boolean shouldDisableExternalIntentRequestsForUrl(
                 ExternalNavigationParams params, Intent intent) {
+            if (shouldSelfNavigationLaunchAsMultipleTask(params)) {
+                return false;
+            }
+
             // TODO(crbug.com/40549331): Migrate verifier hierarchy to GURL.
-            boolean shouldIgnore =
-                    mVerifier != null
-                            && mVerifier.shouldIgnoreExternalIntentHandlers(
-                                    params.getUrl().getSpec());
+            boolean isUrlInVerifiedScope =
+                    mVerifier != null && mVerifier.isUrlInVerifiedScope(params.getUrl().getSpec());
+
+            // http://crbug.com/647569 : Do not forward URL requests to external intents for URLs
+            // within the Webapp/TWA's scope.
+            return isUrlInVerifiedScope;
+        }
+
+        @Override
+        public boolean shouldSelfNavigationLaunchAsMultipleTask(ExternalNavigationParams params) {
+            boolean isUrlInVerifiedScope =
+                    mVerifier != null && mVerifier.isUrlInVerifiedScope(params.getUrl().getSpec());
+
+            if (isUrlInVerifiedScope && shouldLaunchNewWindow(params) && params.isTabInPWA()) {
+                return true;
+            }
 
             // Launch Handler Web API requires for an app to be opened in multiple instances. The
             // logic to achieve this is defined in the Android app layer and an intent must be
@@ -143,14 +159,11 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                     && params.isTabInPWA()
                     && params.isInitialNavigationInFrame()
                     && wasTabLaunchedFromLinkCreatingNewForegroundTab()
-                    && shouldIgnore) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-                return false;
+                    && isUrlInVerifiedScope) {
+                return true;
             }
 
-            // http://crbug.com/647569 : Do not forward URL requests to external intents for URLs
-            // within the Webapp/TWA's scope.
-            return shouldIgnore;
+            return false;
         }
 
         @Override
@@ -597,7 +610,7 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
             String url, @Nullable NativePage candidatePage, Tab tab, @Nullable PdfInfo pdfInfo) {
         // Navigation comes from user pressing "Back to safety" on an interstitial so close the tab.
         // See crbug.com/1270695
-        if (UrlConstants.NTP_URL.equals(url) && tab.isShowingErrorPage()) {
+        if (getOriginalNativeNtpUrl().equals(url) && tab.isShowingErrorPage()) {
             mActivity.finish();
         }
 

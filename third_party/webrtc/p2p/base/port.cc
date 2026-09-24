@@ -298,16 +298,29 @@ void Port::PostAddAddress(bool is_final) {
   }
 }
 
-void Port::SubscribePortComplete(absl::AnyInvocable<void(Port*)> callback) {
+[[deprecated]] void Port::SubscribePortComplete(
+    absl::AnyInvocable<void(Port*)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   port_complete_callback_list_.AddReceiver(std::move(callback));
 }
 
+void Port::SubscribePortComplete(const void* tag,
+                                 absl::AnyInvocable<void(Port*)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  port_complete_callback_list_.AddReceiver(tag, std::move(callback));
+}
 
-void Port::SubscribeCandidateError(
+[[deprecated]] void Port::SubscribeCandidateError(
     std::function<void(Port*, const IceCandidateErrorEvent&)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   candidate_error_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribeCandidateError(
+    const void* tag,
+    std::function<void(Port*, const IceCandidateErrorEvent&)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_error_callback_list_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
@@ -315,15 +328,29 @@ void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
   candidate_error_callback_list_.Send(this, event);
 }
 
-void Port::SubscribeCandidateReadyCallback(
+[[deprecated]] void Port::SubscribeCandidateReadyCallback(
     absl::AnyInvocable<void(Port*, const Candidate&)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   candidate_ready_callback_list_.AddReceiver(std::move(callback));
 }
 
-void Port::SubscribePortError(absl::AnyInvocable<void(Port*)> callback) {
+void Port::SubscribeCandidateReadyCallback(
+    const void* tag,
+    absl::AnyInvocable<void(Port*, const Candidate&)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_ready_callback_list_.AddReceiver(tag, std::move(callback));
+}
+
+[[deprecated]] void Port::SubscribePortError(
+    absl::AnyInvocable<void(Port*)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   port_error_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribePortError(const void* tag,
+                              absl::AnyInvocable<void(Port*)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  port_error_callback_list_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::AddOrReplaceConnection(Connection* conn) {
@@ -861,10 +888,17 @@ void Port::DestroyIfDead() {
   }
 }
 
-void Port::SubscribePortDestroyed(
+[[deprecated]] void Port::SubscribePortDestroyed(
     std::function<void(PortInterface*)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   port_destroyed_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribePortDestroyed(
+    const void* tag,
+    std::function<void(PortInterface*)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  port_destroyed_callback_list_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::SendPortDestroyed(Port* port) {
@@ -1033,13 +1067,24 @@ void Port::NotifyRoleConflict() {
   role_conflict_callback_();
 }
 
-void Port::SubscribeUnknownAddress(absl::AnyInvocable<void(PortInterface*,
+[[deprecated]] void Port::SubscribeUnknownAddress(
+    absl::AnyInvocable<void(PortInterface*,
+                            const SocketAddress&,
+                            ProtocolType,
+                            IceMessage*,
+                            const std::string&,
+                            bool)> callback) {
+  unknown_address_callbacks_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribeUnknownAddress(const void* tag,
+                                   absl::AnyInvocable<void(PortInterface*,
                                                            const SocketAddress&,
                                                            ProtocolType,
                                                            IceMessage*,
                                                            const std::string&,
                                                            bool)> callback) {
-  unknown_address_callbacks_.AddReceiver(std::move(callback));
+  unknown_address_callbacks_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::NotifyUnknownAddress(PortInterface* port,
@@ -1051,11 +1096,19 @@ void Port::NotifyUnknownAddress(PortInterface* port,
   unknown_address_callbacks_.Send(port, address, proto, msg, rf, port_muxed);
 }
 
-void Port::SubscribeReadPacket(
+[[deprecated]] void Port::SubscribeReadPacket(
     absl::AnyInvocable<
         void(PortInterface*, const char*, size_t, const SocketAddress&)>
         callback) {
   read_packet_callbacks_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribeReadPacket(
+    const void* tag,
+    absl::AnyInvocable<
+        void(PortInterface*, const char*, size_t, const SocketAddress&)>
+        callback) {
+  read_packet_callbacks_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::NotifyReadPacket(PortInterface* port,
@@ -1065,9 +1118,15 @@ void Port::NotifyReadPacket(PortInterface* port,
   read_packet_callbacks_.Send(port, data, size, remote_address);
 }
 
-void Port::SubscribeSentPacket(
+[[deprecated]] void Port::SubscribeSentPacket(
     absl::AnyInvocable<void(const SentPacketInfo&)> callback) {
   sent_packet_callbacks_.AddReceiver(std::move(callback));
+}
+
+void Port::SubscribeSentPacket(
+    const void* tag,
+    absl::AnyInvocable<void(const SentPacketInfo&)> callback) {
+  sent_packet_callbacks_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::NotifySentPacket(const SentPacketInfo& packet) {

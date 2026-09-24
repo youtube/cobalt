@@ -1396,7 +1396,7 @@ void BuildMediaDescription(const ContentInfo* content_info,
   // b=AS:<bandwidth> or
   // b=TIAS:<bandwidth>
   int bandwidth = media_desc->bandwidth();
-  std::string bandwidth_type = media_desc->bandwidth_type();
+  absl::string_view bandwidth_type = media_desc->bandwidth_type();
   if (bandwidth_type == kApplicationSpecificBandwidth && bandwidth >= 1000) {
     InitLine(kLineTypeSessionBandwidth, bandwidth_type, &os);
     bandwidth /= 1000;

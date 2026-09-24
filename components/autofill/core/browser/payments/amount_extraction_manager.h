@@ -12,6 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/types/expected.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -39,6 +40,36 @@ struct OptimizationGuideModelExecutionResult;
 }  // namespace optimization_guide
 
 namespace autofill::payments {
+
+// Encapsulates the result of the AI-based amount extraction process.
+// This uses base::expected to enforce explicit handling of both the success
+// path (valid amount and currency) and specific failure cases. This
+// distinguishs between a total failure to find an amount and a specific issue
+// with the currency.
+struct AiAmountExtractionResult {
+  using AmountAndCurrency = std::pair<int64_t, std::string>;
+
+  enum class Error {
+    kFailureToGenerateApc = 0,
+    kMissingServerResponse = 1,
+    kNegativeAmount = 2,
+    kAmountMissing = 3,
+    kMissingCurrency = 4,
+    kUnsupportedCurrency = 5,
+    kTimeout = 6,
+  };
+
+  using ResultType = base::expected<AmountAndCurrency, Error>;
+};
+
+// Status flags of the checkout amount extraction from the page.
+struct AmountExtractionStatus {
+  // Whether the attempt to extract the checkout amount timed out.
+  bool has_timed_out_for_page_load = false;
+  // Whether an unsupported currency was detected during the amount extraction
+  // process.
+  bool seen_unsupported_currency_for_page_load = false;
+};
 
 // Owned by `BrowserAutofillManager`. This class manages the flow of the
 // checkout amount extraction. The amount extraction flow starts from
@@ -93,10 +124,9 @@ class AmountExtractionManager {
 
   // Validates the AmountExtractionResponse returned from the server-side AI.
   // A valid response should be with a non-negative value for the field of
-  // `final_checkout_amount` and the field of `currency` should be from the
-  // standard ISO 4217 currency code.
-  bool IsValidAmountExtractionResponse(
-      const AmountExtractionResponse& response);
+  // `final_checkout_amount` and the field of `currency` should be "USD".
+  AiAmountExtractionResult::ResultType ValidateAmountExtractionResponse(
+      const optimization_guide::proto::AmountExtractionResponse& response);
 
   // Returns the set of all eligible features that depend on amount extraction
   // result when:
@@ -128,6 +158,16 @@ class AmountExtractionManager {
 
   // Trigger the search for the final checkout amount using server-side AI.
   virtual void TriggerCheckoutAmountExtractionWithAi();
+
+  // Indicates whether the AI-based amount extraction timed out for the current
+  // page load. Tied to the lifecycle of `this` and should not be reset by
+  // `Reset()`.
+  bool HasTimedOutForPageLoad() const;
+
+  // Indicates whether the AI-based amount extraction has found an unsupported
+  // currency. Tied to the lifecycle of `this` and should not be reset by
+  // `Reset()`.
+  bool SeenUnsupportedCurrencyForPageLoad() const;
 
  private:
   friend class AmountExtractionManagerTest;
@@ -176,6 +216,15 @@ class AmountExtractionManager {
   // logged once per page load.
   bool has_logged_amount_extraction_result_ = false;
 
+  // Set to true after the first time the AI-based amount extraction invalid
+  // response reason is logged. Ensures that logging occurs at most once per
+  // page load.
+  bool has_logged_ai_amount_extraction_invalid_response_reason_ = false;
+
+  // Set to true after the first time the annotated page content (APC) fetch
+  // result is logged. Ensures that logging occurs at most once per page load.
+  bool has_logged_apc_fetch_result_ = false;
+
   // Indicates whether there is an amount search ongoing or not. If set, do not
   // trigger the search. It gets reset to false once the search is done. This is
   // to avoid re-triggering amount extraction multiple times during an ongoing
@@ -185,6 +234,10 @@ class AmountExtractionManager {
   // The timer to enforce the timeout on client-side for AI-based amount
   // extraction.
   base::OneShotTimer timeout_timer_;
+
+  // Aggregated status for AI-based amount extraction for the current page load.
+  // Tied to the lifecycle of `this` and should not be reset by `Reset()`.
+  AmountExtractionStatus amount_extraction_status_;
 
   base::WeakPtrFactory<AmountExtractionManager> weak_ptr_factory_{this};
 };

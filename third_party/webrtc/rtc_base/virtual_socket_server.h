@@ -386,12 +386,14 @@ class VirtualSocketServer : public SocketServer {
   uint32_t SendDelay(uint32_t size) RTC_LOCKS_EXCLUDED(mutex_);
 
   // Sending was previously blocked, but now isn't.
-  // Deprecated interface
-  // New interface
-  void NotifyReadyToSend() { ready_to_send_callbacks_.Send(); }
-  void SubscribeReadyToSend(absl::AnyInvocable<void()> callback) {
+  [[deprecated]] void SubscribeReadyToSend(
+      absl::AnyInvocable<void()> callback) {
     ready_to_send_callbacks_.AddReceiver(std::move(callback));
   }
+  void SubscribeReadyToSend(void* tag, absl::AnyInvocable<void()> callback) {
+    ready_to_send_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyReadyToSend() { ready_to_send_callbacks_.Send(); }
 
  protected:
   // Returns a new IP not used before in this network.

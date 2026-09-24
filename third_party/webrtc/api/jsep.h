@@ -119,14 +119,14 @@ using IceCandidateInterface = IceCandidate;
 // Creates an IceCandidate based on SDP string.
 // Returns null if the sdp string can't be parsed.
 // `error` may be null.
-RTC_EXPORT IceCandidate* CreateIceCandidate(const std::string& sdp_mid,
+RTC_EXPORT IceCandidate* CreateIceCandidate(absl::string_view sdp_mid,
                                             int sdp_mline_index,
                                             const std::string& sdp,
                                             SdpParseError* error);
 
 // Creates an IceCandidate based on a parsed candidate structure.
 RTC_EXPORT std::unique_ptr<IceCandidate> CreateIceCandidate(
-    const std::string& sdp_mid,
+    absl::string_view sdp_mid,
     int sdp_mline_index,
     const Candidate& candidate);
 

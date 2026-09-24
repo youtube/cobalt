@@ -23,6 +23,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
@@ -76,7 +77,7 @@ bool ValidMediaSessionOptions(const MediaSessionOptions& session_options) {
 // static
 void WebRtcSessionDescriptionFactory::CopyCandidatesFromSessionDescription(
     const SessionDescriptionInterface* source_desc,
-    const std::string& content_name,
+    absl::string_view content_name,
     SessionDescriptionInterface* dest_desc) {
   if (!source_desc) {
     return;

@@ -476,3 +476,9 @@ bcm_infallible BCM_rand_bytes(uint8_t *out, size_t out_len) {
   BCM_rand_bytes_with_additional_data(out, out_len, kZeroAdditionalData);
   return bcm_infallible::approved;
 }
+
+int RAND_maybe_reseed() {
+  // Currently does nothing since we don't use jitter entropy yet and so the
+  // reseeding is quick.
+  return 0;
+}

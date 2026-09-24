@@ -495,6 +495,17 @@ class InplaceVector {
     return true;
   }
 
+  // TryAppend appends the vector by a copy of |in| and returns true, or
+  // returns false if |in| is too large.
+  [[nodiscard]] bool TryAppend(Span<const T> in) {
+    if (in.size() > capacity() - size()) {
+      return false;
+    }
+    std::uninitialized_copy(in.begin(), in.end(), &data()[size_]);
+    size_ += in.size();
+    return true;
+  }
+
   // TryPushBack appends |val| to the vector and returns a pointer to the
   // newly-inserted value, or nullptr if the vector is at capacity.
   [[nodiscard]] T *TryPushBack(T val) {
@@ -514,6 +525,7 @@ class InplaceVector {
     BSSL_CHECK(TryResizeForOverwrite(size));
   }
   void CopyFrom(Span<const T> in) { BSSL_CHECK(TryCopyFrom(in)); }
+  void Append(Span<const T> in) { BSSL_CHECK(TryAppend(in)); }
   T &PushBack(T val) {
     T *ret = TryPushBack(std::move(val));
     BSSL_CHECK(ret != nullptr);

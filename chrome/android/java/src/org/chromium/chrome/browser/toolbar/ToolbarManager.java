@@ -52,6 +52,7 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -289,8 +290,8 @@ public class ToolbarManager
                                             : TabBrowserControlsConstraintsHelper
                                                     .getObservableConstraints(tab));
 
-    private ObservableSupplierImpl<BottomControlsCoordinator> mBottomControlsCoordinatorSupplier =
-            new ObservableSupplierImpl<>();
+    private SettableObservableSupplier<BottomControlsCoordinator>
+            mBottomControlsCoordinatorSupplier = ObservableSuppliers.createMonotonic();
     private final ObservableSupplierImpl<Boolean> mSuppressToolbarSceneLayerSupplier =
             new ObservableSupplierImpl<>(false);
     private final ObservableSupplierImpl<Long> mCaptureResourceIdSupplier =
@@ -1195,7 +1196,7 @@ public class ToolbarManager
                         mActivity,
                         mActionBarDelegate,
                         toolbarActionModeCallback,
-                        mTabStripTopControlLayer);
+                        mTabStripTopControlLayer.getSupplier());
 
         tabObscuringHandler.addObserver(this);
 
@@ -1298,7 +1299,7 @@ public class ToolbarManager
                         mLocationBarModel,
                         clickDelegate,
                         scrimTarget,
-                        mTabStripTopControlLayer,
+                        mTabStripTopControlLayer.getSupplier(),
                         mBottomControlsStacker);
 
         var omnibox = mLocationBar.getOmniboxStub();
@@ -1872,9 +1873,9 @@ public class ToolbarManager
                         mIsIncognitoNtpShowingSupplier,
                         mIsTabSwitcherFinishedShowingSupplier,
                         mOmniboxFocusStateSupplier,
-                        mFormFieldFocusedSupplier,
+                        mFormFieldFocusedSupplier.getObservable(),
                         mFindInPageShowingSupplier,
-                        keyboardAccessoryStateSupplier,
+                        keyboardAccessoryStateSupplier.getInsetSupplier(),
                         mWindowAndroid.getKeyboardDelegate(),
                         mControlContainer,
                         mToolbarLayout,
@@ -1968,7 +1969,7 @@ public class ToolbarManager
                         mMenuButtonCoordinator,
                         assertNonNull(mMenuButtonCoordinator.getMenuButtonHelperSupplier()),
                         mTabSwitcherButtonCoordinator,
-                        mCustomTabCount,
+                        mCustomTabCount.getObservable(),
                         mHomepageEnabledSupplier,
                         mHomepageNonNtpSupplier,
                         mCompositorViewHolder::getResourceManager,
@@ -2333,7 +2334,7 @@ public class ToolbarManager
             @Nullable Runnable openGridTabSwitcherHandler,
             @Nullable OnClickListener bookmarkClickHandler,
             @Nullable OnClickListener customTabsBackClickHandler,
-            @Nullable ObservableSupplier<Integer> archivedTabCountSupplier,
+            @Nullable NonNullObservableSupplier<Integer> archivedTabCountSupplier,
             ObservableSupplier<TabModelDotInfo> tabModelNotificationDotSupplier,
             @Nullable UndoBarThrottle undoBarThrottle) {
         TraceEvent.begin("ToolbarManager.initializeWithNative");
@@ -2383,7 +2384,7 @@ public class ToolbarManager
             mTabSwitcherButtonCoordinator.initializeWithNative(
                     v -> openGridTabSwitcherHandler.run(),
                     tabSwitcherLongClickListener,
-                    mCustomTabCount,
+                    mCustomTabCount.getObservable(),
                     archivedTabCountSupplier,
                     tabModelNotificationDotSupplier,
                     () -> TabArchiveSettings.setIphShownThisSession(true),
@@ -2825,8 +2826,8 @@ public class ToolbarManager
     }
 
     /** Get the supplier for the current height of the tab strip. Always returns a valid integer. */
-    public ObservableSupplier<Integer> getTabStripHeightSupplier() {
-        return mTabStripTopControlLayer;
+    public NonNullObservableSupplier<Integer> getTabStripHeightSupplier() {
+        return mTabStripTopControlLayer.getSupplier();
     }
 
     /** Return the TabStripTransitionCoordinator. */

@@ -6,6 +6,7 @@
 #include "third_party/blink/public/common/buildflags.h"
 
 #include "base/containers/to_vector.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "media/base/audio_bus.h"

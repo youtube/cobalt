@@ -889,6 +889,21 @@ void WebApp::SetStoredTrustedIconSizes(IconPurpose purpose,
   }
 }
 
+void WebApp::SetUnvalidatedMigrationSources(
+    std::vector<proto::WebAppMigrationSource> sources) {
+  unvalidated_migration_sources_ = std::move(sources);
+}
+
+void WebApp::SetValidatedMigrationSources(
+    std::vector<proto::WebAppMigrationSource> sources) {
+  validated_migration_sources_ = std::move(sources);
+}
+
+void WebApp::SetPendingMigrationInfo(
+    std::vector<proto::PendingMigrationInfo> info) {
+  pending_migration_info_ = std::move(info);
+}
+
 void WebApp::SetInstalledBy(InstalledByPassKey,
                             std::deque<AppInstalledBy> installed_by) {
   for (const AppInstalledBy& data : installed_by) {
@@ -1069,7 +1084,10 @@ bool WebApp::operator==(const WebApp& other) const {
         app.trusted_icons_,
         app.stored_trusted_icon_sizes_any_,
         app.stored_trusted_icon_sizes_maskable_,
-        app.installed_by_
+        app.installed_by_,
+        app.unvalidated_migration_sources_,
+        app.validated_migration_sources_,
+        app.pending_migration_info_
         // clang-format on
     );
   };
@@ -1243,8 +1261,6 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("start_url", base::ToString(start_url_));
 
-  root.Set("sync_proto", syncer::WebAppSpecificsToValue(sync_proto_));
-
   root.Set("theme_color", ColorToString(theme_color_));
 
   root.Set("manifest_id", manifest_id_.spec());
@@ -1297,6 +1313,22 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
   }
   root.Set("installed_by", std::move(installed_by_list));
 
+  root.Set("unvalidated_migration_sources",
+           base::ToValueList(unvalidated_migration_sources_,
+                             [](const proto::WebAppMigrationSource& source) {
+                               return proto::ToValue(source);
+                             }));
+  root.Set("validated_migration_sources",
+           base::ToValueList(validated_migration_sources_,
+                             [](const proto::WebAppMigrationSource& source) {
+                               return proto::ToValue(source);
+                             }));
+  root.Set("pending_migration_info",
+           base::ToValueList(pending_migration_info_,
+                             [](const proto::PendingMigrationInfo& info) {
+                               return proto::ToValue(info);
+                             }));
+
   base::Value::Dict stored_trusted_icon_sizes_json;
   for (IconPurpose purpose : kIconPurposes) {
     // There can never be trusted monochrome icons.
@@ -1323,6 +1355,8 @@ base::Value WebApp::AsDebugValue() const {
   root.Set("chromeos_data", OptionalAsDebugValue(chromeos_data_));
 
   root.Set("client_data", client_data_.AsDebugValue());
+
+  root.Set("sync_proto", syncer::WebAppSpecificsToValue(sync_proto_));
 
   // The user_display_mode getter CHECK fails if sync_proto_ isn't initialized.
   if (sync_proto_.has_start_url()) {

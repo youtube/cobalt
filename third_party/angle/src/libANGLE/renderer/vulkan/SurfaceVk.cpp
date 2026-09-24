@@ -175,6 +175,22 @@ bool DepthStencilNeedsInputAttachmentUsage(const angle::FeaturesVk &features)
     return features.supportsShaderFramebufferFetchDepthStencil.enabled;
 }
 
+bool IsKnownAnglePresentMode(VkPresentModeKHR mode)
+{
+    switch (vk::ConvertVkPresentModeToPresentMode(mode))
+    {
+        case vk::PresentMode::ImmediateKHR:
+        case vk::PresentMode::MailboxKHR:
+        case vk::PresentMode::FifoKHR:
+        case vk::PresentMode::FifoRelaxedKHR:
+        case vk::PresentMode::SharedDemandRefreshKHR:
+        case vk::PresentMode::SharedContinuousRefreshKHR:
+            return true;
+        default:
+            return false;
+    }
+}
+
 angle::Result InitImageHelper(DisplayVk *displayVk,
                               EGLint width,
                               EGLint height,
@@ -1934,6 +1950,13 @@ angle::Result WindowSurfaceVk::queryAndAdjustSurfaceCaps(
             {
                 compatiblePresentModesOut->resize(compatibleModes.presentModeCount);
 
+                // Drop anything ANGLE can't handle.
+                std::erase_if(*compatiblePresentModesOut,
+                              [](VkPresentModeKHR mode) { return !IsKnownAnglePresentMode(mode); });
+
+                // Ensure at least one mode remains.
+                ASSERT(!compatiblePresentModesOut->empty());
+
                 // The implementation must always return the given present mode as compatible with
                 // itself.
                 ASSERT(IsCompatiblePresentMode(presentMode, compatiblePresentModesOut->data(),
@@ -2473,7 +2496,7 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
     }
 
     ANGLE_TRY(contextVk->flushAndSubmitCommands(shouldDrawOverlay ? nullptr : &presentSemaphore,
-                                                nullptr, RenderPassClosureReason::EGLSwapBuffers));
+                                                nullptr, QueueSubmitReason::EGLSwapBuffers));
 
     if (shouldDrawOverlay)
     {
@@ -2482,8 +2505,8 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
 
         ANGLE_TRY(recordPresentLayoutBarrierIfNecessary(contextVk));
 
-        ANGLE_TRY(contextVk->flushAndSubmitCommands(
-            &presentSemaphore, nullptr, RenderPassClosureReason::AlreadySpecifiedElsewhere));
+        ANGLE_TRY(contextVk->flushAndSubmitCommands(&presentSemaphore, nullptr,
+                                                    QueueSubmitReason::DrawOverlay));
     }
 
     ASSERT(image.image->getCurrentImageAccess() ==
@@ -3015,6 +3038,9 @@ VkResult WindowSurfaceVk::acquireNextSwapchainImage(vk::ErrorContext *context)
             image.image->recordWriteBarrierOneOff(renderer, vk::ImageAccess::SharedPresent,
                                                   &primaryCommandBuffer, &semaphore);
             ASSERT(semaphore == acquireImageSemaphore);
+
+            renderer->insertSubmitDebugMarkerInCommandBuffer(primaryCommandBuffer,
+                                                             QueueSubmitReason::AcquireNextImage);
             if (primaryCommandBuffer.end() != VK_SUCCESS)
             {
                 setDesiredSwapInterval(mState.swapInterval);

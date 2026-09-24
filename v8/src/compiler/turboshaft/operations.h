@@ -352,14 +352,12 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
 // MachineLoweringPhase.
-#define TURBOSHAFT_OTHER_OPERATION_LIST(V)                                     \
-  V(Allocate)                                                                  \
-  V(MajorGCForCompilerTesting)                                                 \
-  V(DecodeExternalPointer)                                                     \
-  V(JSStackCheck)                                                              \
-  /* TODO(mliedtke): Align DecodeExternalPointer to only emit it when building \
-   * with sandbox support and rename it to LoadExternalPointer. */             \
-  IF_SANDBOX(V, LoadTrustedPointerField)
+#define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
+  V(Allocate)                              \
+  V(MajorGCForCompilerTesting)             \
+  V(JSStackCheck)                          \
+  IF_SANDBOX(V, LoadExternalPointer)       \
+  IF_SANDBOX(V, LoadTrustedPointer)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -530,7 +528,7 @@ class InputsRepFactory {
   };
 };
 
-struct EffectDimensions {
+struct __attribute__((packed)) EffectDimensions {
   // Produced by loads, consumed by operations that should not move before loads
   // because they change memory.
   bool load_heap_memory : 1;
@@ -625,7 +623,7 @@ static_assert(sizeof(EffectDimensions) == sizeof(EffectDimensions::Bits));
 // they become more restricted in their movement. Note that calls are not the
 // most side-effectful operations, as they do not leave the heap in an
 // inconsistent state, so they do not need to be marked as raw heap access.
-struct OpEffects {
+struct __attribute__((packed)) OpEffects {
   EffectDimensions produces;
   EffectDimensions consumes;
 
@@ -2519,23 +2517,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
                   RegisterRepresentation to, Kind kind)
       : Base(input), kind(kind), from(from), to(to) {}
 
-  void Validate(const Graph& graph) const {
-    if (kind == Kind::kSmi) {
-      DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
-             (from.IsTaggedOrCompressed() && to.IsWord()));
-      DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
-                         to == RegisterRepresentation::Word64(),
-                     Is64());
-    } else {
-      // TODO(nicohartmann@): Without implicit truncation, the first case might
-      // not be correct anymore.
-      DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
-             (from == RegisterRepresentation::Tagged() &&
-              to == RegisterRepresentation::WordPtr()) ||
-             (from == RegisterRepresentation::Compressed() &&
-              to == RegisterRepresentation::Word32()));
-    }
-  }
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   auto options() const { return std::tuple{from, to, kind}; }
 };
 std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind assumption);
@@ -2920,7 +2902,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // When result_rep is RegisterRepresentation::Compressed(), then the load does
 // not decompress the value.
 struct LoadOp : OperationT<LoadOp> {
-  struct Kind {
+  struct __attribute__((packed)) Kind {
     // The `base` input is a tagged pointer to a HeapObject.
     bool tagged_base : 1;
     // The effective address might be unaligned. This is only set to true if
@@ -3157,16 +3139,15 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
 }
 
 #if V8_ENABLE_SANDBOX
-struct LoadTrustedPointerFieldOp
-    : FixedArityOperationT<2, LoadTrustedPointerFieldOp> {
+struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   const bool is_immutable;
   IndirectPointerTag tag;
 
   static constexpr OpEffects effects =
       OpEffects().CanReadMemory().CanDependOnChecks();
 
-  explicit LoadTrustedPointerFieldOp(V<WordPtr> table, V<Word32> handle,
-                                     bool is_immutable, IndirectPointerTag tag)
+  explicit LoadTrustedPointerOp(V<WordPtr> table, V<Word32> handle,
+                                bool is_immutable, IndirectPointerTag tag)
       : Base(table, handle), is_immutable(is_immutable), tag(tag) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -3683,8 +3664,8 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   }
 };
 
-struct DecodeExternalPointerOp
-    : FixedArityOperationT<1, DecodeExternalPointerOp> {
+#if V8_ENABLE_SANDBOX
+struct LoadExternalPointerOp : FixedArityOperationT<1, LoadExternalPointerOp> {
   ExternalPointerTagRange tag_range;
 
   // Accessing external pointers is only safe if the garbage collected pointer
@@ -3703,13 +3684,14 @@ struct DecodeExternalPointerOp
 
   V<Word32> handle() const { return input<Word32>(0); }
 
-  DecodeExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
+  LoadExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
       : Base(handle), tag_range(tag_range) {}
 
   void Validate(const Graph& graph) const { DCHECK(!tag_range.IsEmpty()); }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{tag_range}; }
 };
+#endif
 
 struct JSStackCheckOp : OperationT<JSStackCheckOp> {
   enum class Kind : uint8_t { kFunctionEntry, kBuiltinEntry, kLoop };

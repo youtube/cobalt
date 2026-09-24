@@ -40,6 +40,7 @@
 #include "api/units/timestamp.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/corruption_detection/frame_instrumentation_generator.h"
+#include "api/video/corruption_detection/frame_instrumentation_generator_factory.h"
 #include "api/video/encoded_image.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_adaptation_counters.h"
@@ -1413,7 +1414,8 @@ void VideoStreamEncoder::ReconfigureEncoder() {
           VideoFrameType::kVideoFrameKey);
       if (settings_.enable_frame_instrumentation_generator) {
         frame_instrumentation_generator_ =
-            FrameInstrumentationGenerator::Create(encoder_config_.codec_type);
+            FrameInstrumentationGeneratorFactory::Create(
+                encoder_config_.codec_type);
       }
     }
 

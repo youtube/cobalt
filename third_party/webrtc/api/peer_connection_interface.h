@@ -77,7 +77,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
 #include "api/async_dns_resolver.h"
@@ -688,6 +687,12 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     // https://github.com/w3c/webrtc-pc/issues/3072
     bool always_negotiate_data_channels = false;
 
+    // Number of SCTP streams to negotiate at SCTP connection establishment.
+    // Chiefly useful for testing what happens when you run out.
+    // This controls the announced_maximum_outgoing_streams parameter
+    // of the DcSctpOptions struct.
+    int max_sctp_streams = kMaxSctpStreams;
+
     //
     // Don't forget to update operator== if adding something.
     //
@@ -964,19 +969,6 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   CreateDataChannelOrError(const std::string& /* label */,
                            const DataChannelInit* /* config */) {
     return RTCError(RTCErrorType::INTERNAL_ERROR, "dummy function called");
-  }
-  // TODO(crbug.com/788659): Remove "virtual" below and default implementation
-  // above once mock in Chrome is fixed.
-  ABSL_DEPRECATED("Use CreateDataChannelOrError")
-  virtual scoped_refptr<DataChannelInterface> CreateDataChannel(
-      const std::string& label,
-      const DataChannelInit* config) {
-    auto result = CreateDataChannelOrError(label, config);
-    if (!result.ok()) {
-      return nullptr;
-    } else {
-      return result.MoveValue();
-    }
   }
 
   // NOTE: For the following 6 methods, it's only safe to dereference the

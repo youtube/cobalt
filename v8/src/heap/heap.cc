@@ -974,9 +974,7 @@ void Heap::AddHeapObjectAllocationTracker(
 
 void Heap::RemoveHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {
-  allocation_trackers_.erase(std::remove(allocation_trackers_.begin(),
-                                         allocation_trackers_.end(), tracker),
-                             allocation_trackers_.end());
+  std::erase(allocation_trackers_, tracker);
   if (allocation_trackers_.empty()) {
     isolate_->UpdateLogObjectRelocation();
   }
@@ -2416,10 +2414,13 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
-  // We don't want growing or shrinking of the current cycle to affect
-  // pretenuring decisions. The numbers collected in the GC will be for the
-  // capacity that was set before the GC.
-  pretenuring_handler_.ProcessPretenuringFeedback(new_space_capacity_before_gc);
+  if (IsYoungGenerationCollector(collector)) {
+    // We don't want growing or shrinking of the current cycle to affect
+    // pretenuring decisions. The numbers collected in the GC will be for the
+    // capacity that was set before the GC.
+    pretenuring_handler_.ProcessPretenuringFeedback(
+        new_space_capacity_before_gc);
+  }
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ShrinkOldGenerationAllocationLimitIfNotConfigured();
@@ -4424,8 +4425,6 @@ void Heap::CollectCodeStatistics() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
-  isolate()->PrintStack(stdout);
-
   for (SpaceIterator it(this); it.HasNext();) {
     it.Next()->Print();
   }
@@ -5029,11 +5028,6 @@ size_t Heap::HeapLimitMultiplier(uint64_t physical_memory) {
 // static
 size_t Heap::DefaultInitialOldGenerationSize(uint64_t physical_memory) {
   return 256 * MB * HeapLimitMultiplier(physical_memory);
-}
-
-// static
-size_t Heap::OldGenerationLowMemory(uint64_t physical_memory) {
-  return 128 * MB * HeapLimitMultiplier(physical_memory);
 }
 
 // static

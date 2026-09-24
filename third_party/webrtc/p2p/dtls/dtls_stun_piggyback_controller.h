@@ -79,6 +79,7 @@ class DtlsStunPiggybackController {
       StunMessageType stun_message_type);
   std::optional<const std::vector<uint32_t>> GetAckToPiggyback(
       StunMessageType stun_message_type);
+  std::vector<ArrayView<const uint8_t>> GetPending();
 
   // Called by Connection when receiving a STUN BINDING { REQUEST / RESPONSE }.
   void ReportDataPiggybacked(std::optional<ArrayView<uint8_t>> data,

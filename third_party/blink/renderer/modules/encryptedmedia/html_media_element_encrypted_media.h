@@ -29,10 +29,10 @@ class WebContentDecryptionModule;
 
 class MODULES_EXPORT HTMLMediaElementEncryptedMedia final
     : public GarbageCollected<HTMLMediaElementEncryptedMedia>,
-      public WebMediaPlayerEncryptedMediaClient,
-      public GarbageCollectedMixin {
+      public Supplement<HTMLMediaElement>,
+      public WebMediaPlayerEncryptedMediaClient {
  public:
-  static const unsigned kSupplementIndex;
+  static const char kSupplementName[];
 
   static MediaKeys* mediaKeys(HTMLMediaElement&);
   static ScriptPromise<IDLUndefined> setMediaKeys(ScriptState*,
@@ -63,8 +63,6 @@ class MODULES_EXPORT HTMLMediaElementEncryptedMedia final
   bool SetAttributeEventListener(const AtomicString& event_type,
                                  EventListener*);
   EventListener* GetAttributeEventListener(const AtomicString& event_type);
-
-  Member<HTMLMediaElement> html_media_element_;
 
   // Internal values specified by the EME spec:
   // https://w3c.github.io/encrypted-media/#htmlmediaelement-extensions

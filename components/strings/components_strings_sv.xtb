@@ -73,6 +73,7 @@
 <translation id="1113000785583998331">Vill du spara IBAN?</translation>
 <translation id="1113869188872983271">&amp;Ångra Ändra ordning</translation>
 <translation id="1118429183611783760">Dammsugare och golvstäd</translation>
+<translation id="111897705806685148">Använd nyckeln från en annan enhet</translation>
 <translation id="1119009590493440389"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />: tryck på Tabb och sedan på Retur om du vill hantera vilken Chrome-information du sparar i Google-kontot</translation>
 <translation id="1122714970786750095">El och elektronik</translation>
 <translation id="1123753900084781868">Live Caption är inte tillgängligt just nu</translation>
@@ -523,7 +524,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="1822995137827688764">Fastighetsutveckling</translation>
 <translation id="1823768272150895732">Teckensnitt</translation>
 <translation id="1824402189105105503">Åttonde rullen</translation>
-<translation id="1826516787628120939">Kontrollerar</translation>
+<translation id="1826516787628120939">Betalkonto</translation>
 <translation id="1829026591231985685">sparar information i Google Wallet i inställningarna</translation>
 <translation id="1832730227369924598">Synkronisering av skrivbord</translation>
 <translation id="1834452765064623979">Byggnad och underhåll</translation>
@@ -854,6 +855,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="2359629602545592467">Flera</translation>
 <translation id="2359808026110333948">Fortsätt</translation>
 <translation id="236000571258713023">Fordon</translation>
+<translation id="2360131275005204317">Flygbolag</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
 <translation id="236340516568226369">Ändra storlek på menyn för att aktivera och inaktivera</translation>
 <translation id="2365355378251437925">Ange <ph name="FIELD" /></translation>
@@ -1247,6 +1249,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="301521992641321250">Blockerades automatiskt</translation>
 <translation id="3016780570757425217">Veta din plats</translation>
 <translation id="3017086357773116182"><ph name="REMOVE_SUGGESTION_SUFFIX" />, tryck på Tabb och sedan på Retur för att ta bort förslaget.</translation>
+<translation id="3019738915977809060">Spara boardingkortet i Wallet</translation>
 <translation id="3022959067768579802">Fortsätt skriva</translation>
 <translation id="3023165109041533893">Föreslagna annonser på webbplatser bidrar till att skydda din webbhistorik och identitet samtidigt som webbplatser kan visa relevanta annonser. Utifrån din aktivitet kan en webbplats föreslå relaterade annonser när du fortsätter att surfa. I inställningarna kan du se en lista över dessa webbplatser och blockera dem som du inte vill ska ge förslag.</translation>
 <translation id="3024663005179499861">Felaktig policytyp</translation>
@@ -1355,7 +1358,6 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956"><ph name="PRINTER_NAME" /> på <ph name="SERVER_NAME" /></translation>
 <translation id="3197136577151645743">Får begära tillstånd att få veta om du använder den här enheten aktivt</translation>
-<translation id="3201482403106004262">Ett fel uppstod med enkäten.</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, tryck på Tabb och sedan på Retur om du vill hantera vilken information som synkroniseras i inställningarna för Chrome</translation>
 <translation id="3203025201812691413">Webbadressen får inte lämnas tom</translation>
 <translation id="320323717674993345">Avbryt betalningen</translation>
@@ -1445,6 +1447,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="3342018947887487892">Senare kan en webbplats be om denna information – antingen dina annonsämnen eller annonser som föreslås av webbplatser du har besökt.</translation>
 <translation id="334438173029876234">Skateboardutrustning</translation>
 <translation id="3347146863028219517">Skidor och snowboard</translation>
+<translation id="3349610303043713601">Surfa med AI</translation>
 <translation id="3349952286488694786">SRA2</translation>
 <translation id="3350450887151703713">Spola bakåt 10 sekunder</translation>
 <translation id="3352881017886802007">Sportspel</translation>
@@ -1551,6 +1554,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="3525130752944427905">10 x 14 tum</translation>
 <translation id="3525435918300186947">Vill du styra och omprogrammera MIDI-enheter?</translation>
 <translation id="3527181387426738155">Musik och ljud</translation>
+<translation id="3527624163937328588">Ta bort bilaga</translation>
 <translation id="3528171143076753409">Servercertifikatet är inte tillförlitligt.</translation>
 <translation id="3530944546672790857">{COUNT,plural, =0{Minst 1 objekt på synkroniserade enheter}=1{1 objekt (och fler på synkroniserade enheter)}other{# objekt (och fler på synkroniserade enheter)}}</translation>
 <translation id="3531366304259615706">Använd skärmlåset</translation>
@@ -1607,6 +1611,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="3600246354004376029"><ph name="TITLE" />, <ph name="DOMAIN" />, <ph name="TIME" /></translation>
 <translation id="3600492954573979888">Knappen Hantera Googles integritetsinställningar: aktivera om du vill öppna Google-kontots integritetsinställningar</translation>
 <translation id="3603507503523709">Appen blockeras av administratören</translation>
+<translation id="3605082766859363473">AI-läge har valts</translation>
 <translation id="3605899229568538311">5 x 5 tum</translation>
 <translation id="3606917451836803637">Tv-serier och tv-program</translation>
 <translation id="3608932978122581043">Ställa in riktning</translation>
@@ -1942,6 +1947,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="411918202192379658">Autofyll har nu blivit ännu bättre</translation>
 <translation id="4121428309786185360">Giltig till</translation>
 <translation id="4123572138124678573">Tre hål längst ned</translation>
+<translation id="4125597496726375563">Skapa bild har valts</translation>
 <translation id="412601465078863288">Tidsgränsen för uppladdning överskreds</translation>
 <translation id="4127317221386336246">Accessoarer</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{1 till}other{# till}}</translation>
@@ -2138,7 +2144,6 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="4409556632583862731">Ny tråd</translation>
 <translation id="4412074349188076601">Denna konfiguration har markerats som installerbar, men ingen avbildning tillhandahålls för denna arkitektur och kan därför inte installeras.</translation>
 <translation id="4412377069090572315">Så tycker andra</translation>
-<translation id="4414452699610169758">Använd Google Lösenordshantering och Chromes autofyll för att spara och fylla i lösenord, betalningsmetoder och adresser</translation>
 <translation id="4414515549596849729">cookies och webbplatsdata</translation>
 <translation id="4415156962929755728">Plast (högblank)</translation>
 <translation id="4415426530740016218">Hämtningsadress</translation>
@@ -2307,7 +2312,6 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="4732860731866514038">Laddar ned språkpaketet för <ph name="LANGUAGE" /> … <ph name="PERCENT" /> %</translation>
 <translation id="4733082559415072992"><ph name="URL" /> vill använda enhetens plats</translation>
 <translation id="473414950835101501">använda kamerorna</translation>
-<translation id="4734343956394152985"><ph name="BEGIN_BOLD" />Nuvarande standardinställning<ph name="END_BOLD" /> · <ph name="MARKETING_SNIPPET" /></translation>
 <translation id="4736825316280949806">Starta om Chromium</translation>
 <translation id="4736934858538408121">Virtuellt kort</translation>
 <translation id="473775607612524610">Uppdatera</translation>
@@ -2516,6 +2520,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" /> – tryck på Tabb för att visa fler sökgenvägar efter det här sökförslaget</translation>
 <translation id="5052517576853118371">Aktiva ämnen</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Om du vill skicka den här filen med Närdelning ska du frigöra utrymme (<ph name="DISK_SPACE_SIZE" />) på enheten}other{Om du vill skicka de här filerna med Närdelning ska du frigöra utrymme (<ph name="DISK_SPACE_SIZE" />) på enheten}}</translation>
+<translation id="5056587122125565772">Skapa bild</translation>
 <translation id="505757197798929356">Ange anledning till att den öppnas (obligatoriskt)</translation>
 <translation id="5058282932481719070">läs mer om förbättrad autofyll i inställningarna</translation>
 <translation id="5060419232449737386">Textningsinställningar</translation>
@@ -2672,6 +2677,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="5307166000025436103">OK</translation>
 <translation id="5308380583665731573">Anslut</translation>
 <translation id="5308689395849655368">Krashrapportering har  inaktiverats.</translation>
+<translation id="5309562313526658209">Navigera</translation>
 <translation id="5314967030527622926">Broschyrenhet</translation>
 <translation id="5316812925700871227">Rotera moturs</translation>
 <translation id="5317780077021120954">Spara</translation>
@@ -2934,6 +2940,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="5730040223043577876">Du rekommenderas att återställa lösenordet om du har återanvänt det på andra webbplatser.</translation>
 <translation id="5732392974455271431">Dina föräldrar kan ta bort blockeringen</translation>
 <translation id="573555826359077410">Knappen Skapa formulär: aktivera om du snabbt vill skapa ett nytt formulär i Google Formulär</translation>
+<translation id="5737022235680044108">Organisationen har blockerat <ph name="HOST_NAME" /> i inkognitoläge.</translation>
 <translation id="5738385766833540397">Hantera hur du får sänkt pris-aviseringar för produkter du bevakar</translation>
 <translation id="5739619009927381786">Lås upp skärmen i nästa steg, vanligtvis med fingeravtryck. Du kan även <ph name="BEGIN_LINK" />verifiera dig på andra sätt<ph name="END_LINK" />.</translation>
 <translation id="573974402615125334">Om du vill dela, gå med i och samarbeta i flikgrupper måste du synkronisera din historik och dina flikar</translation>
@@ -3456,7 +3463,6 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="6568793038316600992">Knappen Hantera betalningsmetoder: aktivera om du vill hantera betalningar och kreditkortsuppgifter i inställningarna för Chrome</translation>
 <translation id="6569060085658103619">Du visar en tilläggssida</translation>
 <translation id="6571992525120410251">Fråga <ph name="ENGINE_NAME" /> vad som helst</translation>
-<translation id="6572867903637058088">Var det här till hjälp?</translation>
 <translation id="6573200754375280815">Två hål till höger</translation>
 <translation id="6575408526598156416">Spara i kontot</translation>
 <translation id="6577792494180292262">Riskkapital</translation>
@@ -3616,6 +3622,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="6844998850832008753">Handspårning tillåts den här gången</translation>
 <translation id="6849023911358004088">Knappen Säkerhetsinställningar: aktivera om du vill hantera Säker webbsökning med mera i inställningarna för Chrome</translation>
 <translation id="6850286078059909152">Textfärg</translation>
+<translation id="685163597635765693">Organisationen har blockerat länkar till <ph name="HOST_NAME" /> i inkognitoläge.</translation>
 <translation id="6852204201400771460">Vill du läsa in appen igen?</translation>
 <translation id="6854691830678097752">Spara CVC-koden i kontot <ph name="ACCOUNT_EMAIL" /> så att det går snabbare i kassan</translation>
 <translation id="6857776781123259569">Hantera lösenord …</translation>
@@ -3628,6 +3635,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="6871813064737840684">Prishistorik på webben för det här alternativet</translation>
 <translation id="6873456682041376666">Övre fack</translation>
 <translation id="6874604403660855544">&amp;Gör om Lägg till</translation>
+<translation id="6875873347995743859">Skicka till assistent</translation>
 <translation id="6875894866901426843">Administratören raderar dina lokala filer, inklusive filer i papperskorgen, den <ph name="DATE_TIME" />.</translation>
 <translation id="6880941331070119097">Högprisalternativ</translation>
 <translation id="6881240511396774766">Skapa snabbt ett nytt Google-dokument</translation>
@@ -3657,6 +3665,7 @@ Annars blockeras detta av integritetsinställningarna. Om du tillåter detta kan
 <translation id="6917795328362592458">Lösenordet som du precis använde har läckt ut vid ett dataintrång. Du rekommenderas av Google Lösenordshantering att se över dina sparade lösenord.</translation>
 <translation id="6917873303492266709">Om du vill dela, gå med i och samarbeta i flikgrupper öppnar du inställningarna och aktiverar Tillåt inloggning i Chrome</translation>
 <translation id="6921197121276419421">Att installera webbappar tillåts</translation>
+<translation id="6922905531092220751">Ta bort bifogad bild</translation>
 <translation id="69238565902785824">Genom att ha kontot länkat kan du betala snabbare med <ph name="BNPL_ISSUER_NAME" />, men du kan ta bort länken på <ph name="IDS_AUTOFILL_BNPL_TOS_LINK_TEXT_WALLET_LINK_TEXT" /></translation>
 <translation id="6924013822850225188">Välj om du vill se dina kortförmåner i kassan (bankvillkor gäller)</translation>
 <translation id="6924933062125062950">Radera id-kort</translation>
@@ -3885,6 +3894,7 @@ Mer information.
 <translation id="7273111226200291353">Filer som du laddar ned skickas till Google Cloud eller tredje part för analys. De kan till exempel genomsökas i syfte att upptäcka känsliga uppgifter eller skadlig kod, och de kan lagras i enlighet med företagspolicyer och är synliga för administratören.</translation>
 <translation id="7275334191706090484">Hanterade bokmärken</translation>
 <translation id="7275808129217605899">Hälsosam kost</translation>
+<translation id="7282894295403887199">Du kan inte besöka den här sidan i inkognitoläget</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />: tryck på Tabb och sedan på Retur om du vill byta lösenord till Google-kontot</translation>
 <translation id="7286908876112207905">Det är inte tillåtet att klistra in innehållet på den här webbplatsen</translation>
 <translation id="7291578327729322058">Lägg till körkort</translation>
@@ -4051,7 +4061,6 @@ Mer information.
 <translation id="7525804896095537619">Namn måste anges</translation>
 <translation id="7526934274050461096">Din anslutning till webbplatsen är inte privat</translation>
 <translation id="7529884293139707752">Hemundervisning</translation>
-<translation id="7530215951451994972">Skapa bild</translation>
 <translation id="7531464389616946220">Skanna kortet</translation>
 <translation id="7534473948927234329"><ph name="STARTER_PACK_BOOKMARKS_FOCUSED_FRIENDLY_MATCH_TEXT" /> – tryck på Retur för att söka bland bokmärken</translation>
 <translation id="7534987659046836932">C7-kuvert</translation>
@@ -4134,6 +4143,7 @@ Mer information.
 <translation id="7648527891719919697">Den här webbplatsen förblir blockerad eftersom Avancerat skydd är aktiverat i <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android-inställningarna<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Läs mer om den här varningen<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">Spara filer på enheten</translation>
 <translation id="7649070708921625228">Hjälp</translation>
+<translation id="7650141368285545431">Använd nyckeln från en annan enhet</translation>
 <translation id="7653957176542370971">Arbetsbladet för betalningshantering har stängts</translation>
 <translation id="7655766454902053387">Jobbannonser</translation>
 <translation id="765676359832457558">Dölj avancerade inställningar ...</translation>
@@ -4257,6 +4267,7 @@ Mer information.
 <translation id="7844689747373518809">{COUNT,plural, =0{Inga}=1{1 app (<ph name="EXAMPLE_APP_1" />)}=2{2 appar (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}other{# appar (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />, <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Något gick fel. Försök igen.</translation>
 <translation id="784623644169604270">Ingen aktivitet nyligen</translation>
+<translation id="7853222852810008596">Betala senare är inte tillgängligt i den här valutan</translation>
 <translation id="785476343534277563">Skolsport</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="FORMATTED_TOTAL_AMOUNT" /> <ph name="CURRENCY_CODE" /></translation>
 <translation id="7860345425589240791">Ange ett nytt sista giltighetsdatum och CVC-koden på <ph name="SIDE_OF_CARD" /></translation>
@@ -4877,7 +4888,6 @@ Mer information:
 <translation id="8891031436559779793">Du får en avisering om priset sänks på en webbplats.</translation>
 <translation id="8891727572606052622">Ogiltigt proxyläge.</translation>
 <translation id="8894794286471754040">Långsidan först</translation>
-<translation id="8895334001368918465">Om du vill använda en annan autofyllningstjänst i Chrome aktiverar du den i Android-inställningarna och här</translation>
 <translation id="8897221284075091877">Fortsätt med ditt Google-konto om du vill be om att få se det här innehållet</translation>
 <translation id="8897428486789851669">Simning</translation>
 <translation id="8899807382908246773">Påträngande annonser</translation>
@@ -5070,7 +5080,6 @@ Mer information:
 <translation id="9195969368671142407">När organisationen begränsar sparandet i Google-kontot kan du inte dela eller gå med i flikgrupper</translation>
 <translation id="9198613052465150219">Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_LINK_GMA" />myactivity.google.com<ph name="END_LINK_GMA" /></translation>
 <translation id="9199905725844810519">Utskrift har blockerats</translation>
-<translation id="9201904868909900493">Öppnar enkäten …</translation>
 <translation id="9204089334327209740">När uppladdningen är klar kan du ändra filerna i <ph name="CLOUD_PROVIDER" />. Lokal lagring, inklusive filer i papperskorgen, tas bort automatiskt.</translation>
 <translation id="9205078245616868884">Din data har krypterats med din lösenfras för synkronisering. Ange den om du vill starta synkroniseringen.</translation>
 <translation id="920643408853370361">Reseförsäkringar</translation>

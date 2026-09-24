@@ -552,6 +552,9 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
 // _not already_ associated with the current OS thread.
 //
 // NOTE: *** This class should only be used by tests ***
+// NOTE: Use test::RunLoop instead of AutoThread as it also adopts the current
+// thread, and provides utilities for testing with threads. It also does not
+// expose a direct dependency on webrtc::Thread.
 //
 class AutoThread : public Thread {
  public:
@@ -566,7 +569,10 @@ class AutoThread : public Thread {
 // construction and uninstalls at destruction. If a Thread object is
 // already associated with the current OS thread, it is temporarily
 // disassociated and restored by the destructor.
-
+//
+// NOTE: Use test::RunLoop instead of AutoSocketServerThread as it also adopts
+// the current thread, and provides utilities for testing with threads. It also
+// does not expose a direct dependency on webrtc::Thread.
 class AutoSocketServerThread : public Thread {
  public:
   explicit AutoSocketServerThread(SocketServer* ss);

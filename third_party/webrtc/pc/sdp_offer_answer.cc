@@ -93,6 +93,8 @@
 #include "pc/usage_pattern.h"
 #include "pc/webrtc_session_description_factory.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/operations_chain.h"
@@ -161,11 +163,11 @@ void NoteAddIceCandidateResult(int result) {
                             kAddIceCandidateMax);
 }
 
-std::map<std::string, const ContentGroup*> GetBundleGroupsByMid(
+flat_map<std::string, const ContentGroup*> GetBundleGroupsByMid(
     const SessionDescription* desc) {
   std::vector<const ContentGroup*> bundle_groups =
       desc->GetGroupsByName(GROUP_TYPE_BUNDLE);
-  std::map<std::string, const ContentGroup*> bundle_groups_by_mid;
+  flat_map<std::string, const ContentGroup*> bundle_groups_by_mid;
   for (const ContentGroup* bundle_group : bundle_groups) {
     for (const std::string& content_name : bundle_group->content_names()) {
       bundle_groups_by_mid[content_name] = bundle_group;
@@ -177,7 +179,7 @@ std::map<std::string, const ContentGroup*> GetBundleGroupsByMid(
 // Returns true if `new_desc` requests an ICE restart (i.e., new ufrag/pwd).
 bool CheckForRemoteIceRestart(const SessionDescriptionInterface* old_desc,
                               const SessionDescriptionInterface* new_desc,
-                              const std::string& content_name) {
+                              absl::string_view content_name) {
   if (!old_desc) {
     return false;
   }
@@ -356,7 +358,7 @@ RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
 RTCError VerifyCrypto(
     const SessionDescription* desc,
     bool dtls_enabled,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   for (const ContentInfo& content_info : desc->contents()) {
     if (content_info.rejected) {
       continue;
@@ -397,7 +399,7 @@ RTCError VerifyCrypto(
 // media section/description in the BUNDLE group) needs a ufrag and pwd.
 bool VerifyIceUfragPwdPresent(
     const SessionDescription* desc,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   for (const ContentInfo& content_info : desc->contents()) {
     if (content_info.rejected) {
       continue;
@@ -431,7 +433,7 @@ bool VerifyIceUfragPwdPresent(
 }
 
 RTCError ValidateMids(const SessionDescription& description) {
-  std::set<std::string> mids;
+  flat_set<absl::string_view> mids;
   for (const ContentInfo& content : description.contents()) {
     if (content.mid().empty()) {
       LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
@@ -802,7 +804,7 @@ void AddPlanBRtpSenderOptions(
 
 MediaDescriptionOptions GetMediaDescriptionOptionsForTransceiver(
     RtpTransceiver* transceiver,
-    const std::string& mid,
+    absl::string_view mid,
     bool is_create_offer) {
   // NOTE: a stopping transceiver should be treated as a stopped one in
   // createOffer as specified in
@@ -1165,7 +1167,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   // Returns a reference to a cached map of bundle groups ordered by mid.
   // Note that this will only be valid after a successful call to
   // `IsDescriptionValid`.
-  const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid()
+  const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid()
       const {
     RTC_DCHECK(ok());
     return bundle_groups_by_mid_;
@@ -1173,21 +1175,21 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
 
  private:
   // Convenience methods for populating the embedded `error_` object.
-  void Unsupported(std::string message) {
-    SetError(RTCErrorType::UNSUPPORTED_OPERATION, std::move(message));
+  void Unsupported(absl::string_view message) {
+    SetError(RTCErrorType::UNSUPPORTED_OPERATION, message);
   }
 
-  void InvalidParam(std::string message) {
-    SetError(RTCErrorType::INVALID_PARAMETER, std::move(message));
+  void InvalidParam(absl::string_view message) {
+    SetError(RTCErrorType::INVALID_PARAMETER, message);
   }
 
-  void InternalError(std::string message) {
-    SetError(RTCErrorType::INTERNAL_ERROR, std::move(message));
+  void InternalError(absl::string_view message) {
+    SetError(RTCErrorType::INTERNAL_ERROR, message);
   }
 
-  void SetError(RTCErrorType type, std::string message) {
+  void SetError(RTCErrorType type, absl::string_view message) {
     RTC_DCHECK(ok()) << "Overwriting an existing error?";
-    error_ = RTCError(type, std::move(message));
+    error_ = RTCError(type, message);
   }
 
   // Called when the PeerConnection could be in an inconsistent state and we set
@@ -1207,7 +1209,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   scoped_refptr<SetRemoteDescriptionObserverInterface> observer_;
   std::function<void()> operations_chain_callback_;
   RTCError error_ = RTCError::OK();
-  std::map<std::string, const ContentGroup*> bundle_groups_by_mid_;
+  flat_map<std::string, const ContentGroup*> bundle_groups_by_mid_;
   const SdpType type_;
   const bool unified_plan_;
 };
@@ -1546,6 +1548,8 @@ void SdpOfferAnswerHandler::Initialize(
         CreateBuiltinVideoBitrateAllocatorFactory();
   }
   codec_lookup_helper_ = codec_lookup_helper;
+
+  max_sctp_streams_ = configuration.max_sctp_streams;
 }
 
 // ==================================================================
@@ -1798,7 +1802,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 
 RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   RTC_LOG_THREAD_BLOCK_COUNT();
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::ApplyLocalDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -2019,7 +2023,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
       } else {
         const MediaContentDescription* audio_desc =
             audio_content->media_description();
-        UpdateLocalSenders(audio_desc->streams(), audio_desc->type());
+        UpdateLocalSendersPlanB(audio_desc->streams(), audio_desc->type());
       }
     }
 
@@ -2031,7 +2035,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
       } else {
         const MediaContentDescription* video_desc =
             video_content->media_description();
-        UpdateLocalSenders(video_desc->streams(), video_desc->type());
+        UpdateLocalSendersPlanB(video_desc->streams(), video_desc->type());
       }
     }
   }
@@ -2179,7 +2183,7 @@ void SdpOfferAnswerHandler::ApplyRemoteDescription(
       if (CheckForRemoteIceRestart(operation->old_remote_description(),
                                    remote_description(), content.mid())) {
         if (operation->type() == SdpType::kOffer) {
-          pending_ice_restarts_.insert(content.mid());
+          pending_ice_restarts_.insert(std::string(content.mid()));
         }
       } else {
         // We retain all received candidates only if ICE is not restarted.
@@ -2412,9 +2416,9 @@ void SdpOfferAnswerHandler::PlanBUpdateSendersAndReceivers(
       bool default_audio_track_needed =
           !remote_peer_supports_msid_ &&
           RtpTransceiverDirectionHasSend(audio_desc->direction());
-      UpdateRemoteSendersList(GetActiveStreams(audio_desc),
-                              default_audio_track_needed, audio_desc->type(),
-                              new_streams.get());
+      UpdateRemoteSendersListPlanB(GetActiveStreams(audio_desc),
+                                   default_audio_track_needed,
+                                   audio_desc->type(), new_streams.get());
     }
   }
 
@@ -2427,9 +2431,9 @@ void SdpOfferAnswerHandler::PlanBUpdateSendersAndReceivers(
       bool default_video_track_needed =
           !remote_peer_supports_msid_ &&
           RtpTransceiverDirectionHasSend(video_desc->direction());
-      UpdateRemoteSendersList(GetActiveStreams(video_desc),
-                              default_video_track_needed, video_desc->type(),
-                              new_streams.get());
+      UpdateRemoteSendersListPlanB(GetActiveStreams(video_desc),
+                                   default_video_track_needed,
+                                   video_desc->type(), new_streams.get());
     }
   }
 
@@ -2503,7 +2507,7 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     return;
   }
 
-  std::map<std::string, const ContentGroup*> bundle_groups_by_mid =
+  flat_map<std::string, const ContentGroup*> bundle_groups_by_mid =
       GetBundleGroupsByMid(desc->description());
   RTCError error =
       ValidateSessionDescription(desc.get(), CS_LOCAL, bundle_groups_by_mid);
@@ -3135,7 +3139,7 @@ RTCError SdpOfferAnswerHandler::UpdateSessionState(
     SdpType type,
     ContentSource source,
     const SessionDescription* description,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   // If there's already a pending error then no state transition should
@@ -3260,10 +3264,10 @@ bool SdpOfferAnswerHandler::AddStream(MediaStreamInterface* local_stream) {
   stream_observers_.push_back(std::move(observer));
 
   for (const auto& track : local_stream->GetAudioTracks()) {
-    rtp_manager()->AddAudioTrack(track.get(), local_stream);
+    rtp_manager()->AddTrackPlanB(track.get(), local_stream);
   }
   for (const auto& track : local_stream->GetVideoTracks()) {
-    rtp_manager()->AddVideoTrack(track.get(), local_stream);
+    rtp_manager()->AddTrackPlanB(track.get(), local_stream);
   }
 
   pc_->legacy_stats()->AddStream(local_stream);
@@ -3279,10 +3283,10 @@ void SdpOfferAnswerHandler::RemoveStream(MediaStreamInterface* local_stream) {
   TRACE_EVENT0("webrtc", "PeerConnection::RemoveStream");
   if (!pc_->IsClosed()) {
     for (const auto& track : local_stream->GetAudioTracks()) {
-      rtp_manager()->RemoveAudioTrack(track.get(), local_stream);
+      rtp_manager()->RemoveTrackPlanB(track.get(), local_stream);
     }
     for (const auto& track : local_stream->GetVideoTracks()) {
-      rtp_manager()->RemoveVideoTrack(track.get(), local_stream);
+      rtp_manager()->RemoveTrackPlanB(track.get(), local_stream);
     }
   }
   local_streams_->RemoveStream(local_stream);
@@ -3300,37 +3304,41 @@ void SdpOfferAnswerHandler::RemoveStream(MediaStreamInterface* local_stream) {
 
 void SdpOfferAnswerHandler::OnAudioTrackAdded(AudioTrackInterface* track,
                                               MediaStreamInterface* stream) {
+  RTC_DCHECK(!IsUnifiedPlan());
   if (pc_->IsClosed()) {
     return;
   }
-  rtp_manager()->AddAudioTrack(track, stream);
+  rtp_manager()->AddTrackPlanB(track, stream);
   UpdateNegotiationNeeded();
 }
 
 void SdpOfferAnswerHandler::OnAudioTrackRemoved(AudioTrackInterface* track,
                                                 MediaStreamInterface* stream) {
+  RTC_DCHECK(!IsUnifiedPlan());
   if (pc_->IsClosed()) {
     return;
   }
-  rtp_manager()->RemoveAudioTrack(track, stream);
+  rtp_manager()->RemoveTrackPlanB(track, stream);
   UpdateNegotiationNeeded();
 }
 
 void SdpOfferAnswerHandler::OnVideoTrackAdded(VideoTrackInterface* track,
                                               MediaStreamInterface* stream) {
+  RTC_DCHECK(!IsUnifiedPlan());
   if (pc_->IsClosed()) {
     return;
   }
-  rtp_manager()->AddVideoTrack(track, stream);
+  rtp_manager()->AddTrackPlanB(track, stream);
   UpdateNegotiationNeeded();
 }
 
 void SdpOfferAnswerHandler::OnVideoTrackRemoved(VideoTrackInterface* track,
                                                 MediaStreamInterface* stream) {
+  RTC_DCHECK(!IsUnifiedPlan());
   if (pc_->IsClosed()) {
     return;
   }
-  rtp_manager()->RemoveVideoTrack(track, stream);
+  rtp_manager()->RemoveTrackPlanB(track, stream);
   UpdateNegotiationNeeded();
 }
 
@@ -3813,7 +3821,7 @@ void SdpOfferAnswerHandler::GenerateNegotiationNeededEvent() {
 RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     const SessionDescriptionInterface* sdesc,
     ContentSource source,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   // An assumption is that a check for session error is done at a higher level.
   RTC_DCHECK_EQ(SessionError::kNone, session_error());
 
@@ -3967,7 +3975,7 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     const SessionDescriptionInterface& new_session,
     const SessionDescriptionInterface* old_local_description,
     const SessionDescriptionInterface* old_remote_description,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   TRACE_EVENT0("webrtc",
                "SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels");
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -4141,17 +4149,17 @@ SdpOfferAnswerHandler::AssociateTransceiver(
       std::string sender_id = CreateRandomUuid();
       std::vector<RtpEncodingParameters> send_encodings =
           GetSendEncodingsFromRemoteDescription(*media_desc);
-      auto sender = rtp_manager()->CreateSender(
-          media_desc->type(), sender_id, nullptr, {}, send_encodings, nullptr);
       std::string receiver_id;
       if (!media_desc->streams().empty()) {
         receiver_id = media_desc->streams()[0].id;
       } else {
         receiver_id = CreateRandomUuid();
       }
-      auto receiver =
-          rtp_manager()->CreateReceiver(media_desc->type(), receiver_id);
-      transceiver = rtp_manager()->CreateAndAddTransceiver(sender, receiver);
+      transceiver = rtp_manager()->CreateAndAddTransceiver(
+          pc_->configuration()->media_config, audio_options_, video_options_,
+          pc_->GetCryptoOptions(), video_bitrate_allocator_factory_.get(),
+          media_desc->type(), nullptr, {}, send_encodings,
+          /*header_extensions_to_negotiate=*/{}, sender_id, receiver_id);
       transceiver->internal()->set_direction(
           RtpTransceiverDirection::kRecvOnly);
       if (type == SdpType::kOffer) {
@@ -4209,7 +4217,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
   // setting the value of the RtpTransceiver's mid property to the MID of the m=
   // section, and establish a mapping between the transceiver and the index of
   // the m= section.
-  transceiver->internal()->set_mid(content.mid());
+  transceiver->internal()->set_mid(std::string(content.mid()));
   transceiver->internal()->set_mline_index(mline_index);
   return std::move(transceiver);
 }
@@ -4536,8 +4544,8 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
     bool had_been_rejected =
         (current_local_content && current_local_content->rejected) ||
         (current_remote_content && current_remote_content->rejected);
-    const std::string& mid =
-        (local_content ? local_content->mid() : remote_content->mid());
+    const absl::string_view mid =
+        local_content ? local_content->mid() : remote_content->mid();
     MediaType media_type =
         (local_content ? local_content->media_description()->type()
                        : remote_content->media_description()->type());
@@ -4936,15 +4944,17 @@ void SdpOfferAnswerHandler::RemoveRemoteStreamsIfEmpty(
 
 void SdpOfferAnswerHandler::RemoveSenders(MediaType media_type) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  UpdateLocalSenders(std::vector<StreamParams>(), media_type);
-  UpdateRemoteSendersList(std::vector<StreamParams>(), false, media_type,
-                          nullptr);
+  RTC_DCHECK(!IsUnifiedPlan());
+  UpdateLocalSendersPlanB(std::vector<StreamParams>(), media_type);
+  UpdateRemoteSendersListPlanB(std::vector<StreamParams>(), false, media_type,
+                               nullptr);
 }
 
-void SdpOfferAnswerHandler::UpdateLocalSenders(
+void SdpOfferAnswerHandler::UpdateLocalSendersPlanB(
     const std::vector<StreamParams>& streams,
     MediaType media_type) {
-  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateLocalSenders");
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateLocalSendersPlanB");
+  RTC_DCHECK(!IsUnifiedPlan());
   RTC_DCHECK_RUN_ON(signaling_thread());
   std::vector<RtpSenderInfo>* current_senders =
       rtp_manager()->GetLocalSenderInfos(media_type);
@@ -4969,24 +4979,24 @@ void SdpOfferAnswerHandler::UpdateLocalSenders(
   for (const StreamParams& params : streams) {
     // The sync_label is the MediaStream label and the `stream.id` is the
     // sender id.
-    std::string stream_id(params.first_stream_id());
-    const std::string& sender_id = params.id;
-    uint32_t ssrc = params.first_ssrc();
-    const RtpSenderInfo* sender_info =
-        rtp_manager()->FindSenderInfo(*current_senders, stream_id, sender_id);
-    if (!sender_info) {
-      current_senders->push_back(RtpSenderInfo(stream_id, sender_id, ssrc));
+    bool found = absl::c_any_of(*current_senders, [&](const auto& info) {
+      return info.stream_id == params.first_stream_id() &&
+             info.sender_id == params.id;
+    });
+    if (!found) {
+      current_senders->push_back(RtpSenderInfo(params.first_stream_id(),
+                                               params.id, params.first_ssrc()));
       rtp_manager()->OnLocalSenderAdded(current_senders->back(), media_type);
     }
   }
 }
 
-void SdpOfferAnswerHandler::UpdateRemoteSendersList(
+void SdpOfferAnswerHandler::UpdateRemoteSendersListPlanB(
     const StreamParamsVec& streams,
     bool default_sender_needed,
     MediaType media_type,
     StreamCollection* new_streams) {
-  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateRemoteSendersList");
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateRemoteSendersListPlanB");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
 
@@ -5013,7 +5023,7 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
         sender_exists) {
       ++sender_it;
     } else {
-      rtp_manager()->OnRemoteSenderRemoved(
+      rtp_manager()->OnRemoteSenderRemovedPlanB(
           info, remote_streams_->find(info.stream_id), media_type);
       sender_it = current_senders->erase(sender_it);
     }
@@ -5049,13 +5059,13 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
       remote_streams_->AddStream(stream);
       new_streams->AddStream(stream);
     }
-
-    const RtpSenderInfo* sender_info =
-        rtp_manager()->FindSenderInfo(*current_senders, stream_id, sender_id);
-    if (!sender_info) {
+    bool found = absl::c_any_of(*current_senders, [&](const auto& info) {
+      return info.stream_id == stream_id && info.sender_id == sender_id;
+    });
+    if (!found) {
       current_senders->push_back(RtpSenderInfo(stream_id, sender_id, ssrc));
-      rtp_manager()->OnRemoteSenderAdded(current_senders->back(), stream.get(),
-                                         media_type);
+      rtp_manager()->OnRemoteSenderAddedPlanB(current_senders->back(),
+                                              stream.get(), media_type);
     }
   }
 
@@ -5070,16 +5080,19 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
       remote_streams_->AddStream(default_stream);
       new_streams->AddStream(default_stream);
     }
-    std::string default_sender_id = (media_type == MediaType::AUDIO)
-                                        ? kDefaultAudioSenderId
-                                        : kDefaultVideoSenderId;
-    const RtpSenderInfo* default_sender_info = rtp_manager()->FindSenderInfo(
-        *current_senders, kDefaultStreamId, default_sender_id);
-    if (!default_sender_info) {
+    absl::string_view default_sender_id = (media_type == MediaType::AUDIO)
+                                              ? kDefaultAudioSenderId
+                                              : kDefaultVideoSenderId;
+    bool found = absl::c_any_of(*current_senders, [&](const auto& info) {
+      return info.stream_id == kDefaultStreamId &&
+             info.sender_id == default_sender_id;
+    });
+
+    if (!found) {
       current_senders->push_back(
           RtpSenderInfo(kDefaultStreamId, default_sender_id, /*ssrc=*/0));
-      rtp_manager()->OnRemoteSenderAdded(current_senders->back(),
-                                         default_stream.get(), media_type);
+      rtp_manager()->OnRemoteSenderAddedPlanB(current_senders->back(),
+                                              default_stream.get(), media_type);
     }
   }
 }
@@ -5101,7 +5114,7 @@ void SdpOfferAnswerHandler::EnableSending() {
 RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     SdpType type,
     ContentSource source,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownMediaDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
   const SessionDescriptionInterface* sdesc =
@@ -5228,19 +5241,20 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
                                "control feedback types, ignoring all.";
         }
 
-        if (preferred_rtcp_cc_ack_type.has_value() &&
-            preferred_rtcp_cc_ack_type == remote_preferred_rtcp_cc_ack_type) {
-          // The call and the congestion controller live on the worker thread.
-          context_->worker_thread()->PostTask(
-              [call = pc_->call_ptr(),
-               preferred_rtcp_cc_ack_type = *preferred_rtcp_cc_ack_type] {
-                call->SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
-              });
-        } else {
-          RTC_LOG(LS_WARNING)
-              << "Inconsistent Congestion Control feedback types: "
-              << preferred_rtcp_cc_ack_type << " vs "
-              << remote_preferred_rtcp_cc_ack_type << " Using default.";
+        if (preferred_rtcp_cc_ack_type.has_value()) {
+          if (preferred_rtcp_cc_ack_type == remote_preferred_rtcp_cc_ack_type) {
+            // The call and the congestion controller live on the worker thread.
+            context_->worker_thread()->PostTask(
+                [call = pc_->call_ptr(),
+                 preferred_rtcp_cc_ack_type = *preferred_rtcp_cc_ack_type] {
+                  call->SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
+                });
+          } else {
+            RTC_LOG(LS_WARNING)
+                << "Inconsistent Congestion Control feedback types: "
+                << preferred_rtcp_cc_ack_type << " vs "
+                << remote_preferred_rtcp_cc_ack_type << " Using default.";
+          }
         }
       }
     }
@@ -5267,6 +5281,7 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
           {.local_port = local_sctp_description->port(),
            .remote_port = remote_sctp_description->port(),
            .max_message_size = max_message_size,
+           .max_sctp_streams = max_sctp_streams_,
            .local_init = local_sctp_description->sctp_init(),
            .remote_init = remote_sctp_description->sctp_init()});
       if (!error.ok()) {
@@ -5557,6 +5572,7 @@ RTCErrorOr<const ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
 }
 
 RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
+  RTC_DCHECK(!IsUnifiedPlan());
   RTC_LOG_THREAD_BLOCK_COUNT();
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::CreateChannels");
   // Creating the media channels. Transports should already have been created
@@ -5607,24 +5623,21 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
   return RTCError::OK();
 }
 
-void SdpOfferAnswerHandler::DestroyMediaChannels() {
-  RTC_LOG_THREAD_BLOCK_COUNT();
+void SdpOfferAnswerHandler::GetMediaChannelTeardownTasks(
+    std::vector<absl::AnyInvocable<void() &&>>& network_tasks,
+    std::vector<absl::AnyInvocable<void() &&>>& worker_tasks) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   if (!transceivers()) {
     return;
   }
-
-  // Destroy video channels first since they may have a pointer to a voice
-  // channel.
   auto list = transceivers()->List();
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
-
   for (const auto& transceiver : list) {
     if (transceiver->media_type() == MediaType::VIDEO) {
       if (auto task = transceiver->internal()->GetClearChannelNetworkTask())
         network_tasks.push_back(std::move(task));
-      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask())
+      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask(
+              /*stop_senders=*/true))
         worker_tasks.push_back(std::move(task));
     }
   }
@@ -5632,30 +5645,11 @@ void SdpOfferAnswerHandler::DestroyMediaChannels() {
     if (transceiver->media_type() == MediaType::AUDIO) {
       if (auto task = transceiver->internal()->GetClearChannelNetworkTask())
         network_tasks.push_back(std::move(task));
-      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask())
+      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask(
+              /*stop_senders=*/true))
         worker_tasks.push_back(std::move(task));
     }
   }
-
-  if (!network_tasks.empty()) {
-    network_thread()->BlockingCall([&network_tasks] {
-      for (auto& task : network_tasks) {
-        std::move(task)();
-        task = nullptr;
-      }
-    });
-  }
-
-  if (!worker_tasks.empty()) {
-    context_->worker_thread()->BlockingCall([&worker_tasks] {
-      for (auto& task : worker_tasks) {
-        std::move(task)();
-        task = nullptr;
-      }
-    });
-  }
-
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
 void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
@@ -5722,7 +5716,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
 
 MediaDescriptionOptions
 SdpOfferAnswerHandler::GetMediaDescriptionOptionsForActiveData(
-    const std::string& mid) const {
+    absl::string_view mid) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   // Direction for data sections is meaningless, but legacy endpoints might
   // expect sendrecv.
@@ -5734,7 +5728,7 @@ SdpOfferAnswerHandler::GetMediaDescriptionOptionsForActiveData(
 
 MediaDescriptionOptions
 SdpOfferAnswerHandler::GetMediaDescriptionOptionsForRejectedData(
-    const std::string& mid) const {
+    absl::string_view mid) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   MediaDescriptionOptions options(MediaType::DATA, mid,
                                   RtpTransceiverDirection::kInactive,
@@ -5744,7 +5738,7 @@ SdpOfferAnswerHandler::GetMediaDescriptionOptionsForRejectedData(
 
 bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
     ContentSource source,
-    const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   TRACE_EVENT0("webrtc",
                "SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState");
   RTC_DCHECK_RUN_ON(signaling_thread());

@@ -678,9 +678,10 @@ void SocketTest::CloseInClosedCallbackInternal(const IPAddress& loopback) {
   std::unique_ptr<Socket> client =
       socket_factory_->Create(loopback.family(), SOCK_STREAM);
   sink.Monitor(client.get());
-  client->SubscribeCloseEvent([&closer](webrtc::Socket* socket, int error) {
-    closer.OnClose(socket, error);
-  });
+  client->SubscribeCloseEvent(&closer,
+                              [&closer](webrtc::Socket* socket, int error) {
+                                closer.OnClose(socket, error);
+                              });
 
   // Create server and listen.
   std::unique_ptr<Socket> server =

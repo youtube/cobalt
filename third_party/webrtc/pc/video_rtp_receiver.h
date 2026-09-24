@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/frame_transformer_interface.h"
@@ -46,16 +47,18 @@ class VideoRtpReceiver : public RtpReceiverInternal {
   // An SSRC of 0 will create a receiver that will match the first SSRC it
   // sees. Must be called on signaling thread.
   VideoRtpReceiver(Thread* worker_thread,
-                   std::string receiver_id,
-                   std::vector<std::string> streams_ids);
+                   absl::string_view receiver_id,
+                   std::vector<std::string> streams_ids,
+                   VideoMediaReceiveChannelInterface* media_channel = nullptr);
   // TODO(hbos): Remove this when streams() is removed.
   // https://crbug.com/webrtc/9480
   VideoRtpReceiver(
       Thread* worker_thread,
-      const std::string& receiver_id,
-      const std::vector<scoped_refptr<MediaStreamInterface>>& streams);
+      absl::string_view receiver_id,
+      const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+      VideoMediaReceiveChannelInterface* media_channel = nullptr);
 
-  virtual ~VideoRtpReceiver();
+  ~VideoRtpReceiver() override;
 
   scoped_refptr<VideoTrackInterface> video_track() const { return track_; }
 

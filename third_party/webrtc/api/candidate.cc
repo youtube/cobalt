@@ -130,7 +130,7 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
   } else if (line_end + 1 == message.size()) {
     first_line = message.substr(0, line_end);
   } else {
-    return RTCError(RTCErrorType::INVALID_PARAMETER, "Expect one line only");
+    return RTCError::InvalidParameter() << "Expect one line only";
   }
 
   // For backwards compatibility, don't fail if the supplied string is in the
@@ -151,9 +151,8 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
   if (!tokenize_first(first_line, kSdpDelimiterColonChar, &attribute_candidate,
                       &candidate_value) ||
       attribute_candidate != kAttributeCandidate) {
-    return RTCError(RTCErrorType::INVALID_PARAMETER,
-                    absl::StrCat("Expected ", kAttributeCandidate, " got ",
-                                 attribute_candidate));
+    return RTCError::InvalidParameter() << "Expected " << kAttributeCandidate
+                                        << " got " << attribute_candidate;
   }
 
   std::vector<absl::string_view> fields =
@@ -167,9 +166,8 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
   const size_t expected_min_fields = 8;
   if (fields.size() < expected_min_fields ||
       (fields[6] != kAttributeCandidateTyp)) {
-    return RTCError(
-        RTCErrorType::INVALID_PARAMETER,
-        absl::StrCat("Expect at least ", expected_min_fields, " fields."));
+    return RTCError::InvalidParameter()
+           << "Expect at least " << expected_min_fields << " fields.";
   }
   const absl::string_view foundation = fields[0];
 
@@ -191,8 +189,7 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
 
   std::optional<ProtocolType> protocol = StringToProto(transport);
   if (!protocol) {
-    return RTCError(RTCErrorType::INVALID_PARAMETER,
-                    "Unsupported transport type");
+    return RTCError::InvalidParameter() << "Unsupported transport type";
   }
   bool tcp_protocol = false;
   switch (*protocol) {
@@ -204,7 +201,7 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
       tcp_protocol = true;
       break;
     default:
-      return RTCError(RTCErrorType::INVALID_PARAMETER, "Unsupported protocol");
+      return RTCError::InvalidParameter() << "Unsupported protocol";
   }
 
   IceCandidateType candidate_type;
@@ -218,8 +215,7 @@ RTCErrorOr<Candidate> ParseCandidate(absl::string_view message) {
   } else if (type == kCandidatePrflx) {
     candidate_type = IceCandidateType::kPrflx;
   } else {
-    return RTCError(RTCErrorType::INVALID_PARAMETER,
-                    "Unsupported candidate type");
+    return RTCError::InvalidParameter() << "Unsupported candidate type";
   }
 
   size_t current_position = expected_min_fields;

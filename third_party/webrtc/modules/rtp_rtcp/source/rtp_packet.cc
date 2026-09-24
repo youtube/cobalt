@@ -403,6 +403,10 @@ uint8_t* RtpPacket::AllocatePayload(size_t size_bytes) {
 }
 
 void RtpPacket::SetPayload(ArrayView<const uint8_t> payload) {
+  if (payload.empty()) {
+    SetPayloadSize(0);
+    return;
+  }
   memcpy(AllocatePayload(payload.size()), payload.data(), payload.size());
 }
 

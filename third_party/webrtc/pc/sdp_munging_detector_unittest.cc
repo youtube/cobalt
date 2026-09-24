@@ -691,7 +691,7 @@ TEST_F(SdpMungingTest, RemoveContentRejected) {
   std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_THAT(contents, SizeIs(1));
-  auto name = contents[0].mid();
+  std::string name = contents[0].mid();
   EXPECT_TRUE(offer->description()->RemoveContentByName(contents[0].mid()));
   std::string sdp;
   offer->ToString(&sdp);

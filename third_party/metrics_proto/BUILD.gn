@@ -54,7 +54,6 @@ proto_library("metrics_proto") {
     sources += ["cobalt_uma_event.proto"]
   }
   proto_in_dir = "."
-  generate_py_runtime = true
 }
 
 if (is_android) {

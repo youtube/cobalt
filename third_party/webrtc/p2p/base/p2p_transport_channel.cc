@@ -245,32 +245,33 @@ void P2PTransportChannel::AddAllocatorSession(
 
   session->set_generation(static_cast<uint32_t>(allocator_sessions_.size()));
   session->SubscribePortReady(
-      [this](PortAllocatorSession* session, PortInterface* port) {
+      this, [this](PortAllocatorSession* session, PortInterface* port) {
         OnPortReady(session, port);
       });
 
   session->SubscribePortsPruned(
-      [this](PortAllocatorSession* session,
-             const std::vector<PortInterface*>& ports) {
+      this, [this](PortAllocatorSession* session,
+                   const std::vector<PortInterface*>& ports) {
         OnPortsPruned(session, ports);
       });
 
   session->SubscribeCandidatesReady(
-      [this](PortAllocatorSession* session,
-             const std::vector<Candidate>& candidate) {
+      this, [this](PortAllocatorSession* session,
+                   const std::vector<Candidate>& candidate) {
         OnCandidatesReady(session, candidate);
       });
-  session->SubscribeCandidateError([this](PortAllocatorSession* session,
+  session->SubscribeCandidateError(this,
+                                   [this](PortAllocatorSession* session,
                                           const IceCandidateErrorEvent& event) {
-    OnCandidateError(session, event);
-  });
+                                     OnCandidateError(session, event);
+                                   });
   session->SubscribeCandidatesRemoved(
-      [this](PortAllocatorSession* session,
-             const std::vector<Candidate>& candidates) {
+      this, [this](PortAllocatorSession* session,
+                   const std::vector<Candidate>& candidates) {
         OnCandidatesRemoved(session, candidates);
       });
   session->SubscribeCandidatesAllocationDone(
-      [this](PortAllocatorSession* session) {
+      this, [this](PortAllocatorSession* session) {
         OnCandidatesAllocationDone(session);
       });
   if (!allocator_sessions_.empty()) {
@@ -295,14 +296,15 @@ void P2PTransportChannel::AddConnection(Connection* connection) {
         OnReadPacket(connection, packet);
       });
   connection->SubscribeReadyToSend(
-      [this](Connection* connection) { OnReadyToSend(connection); });
-  connection->SubscribeStateChange(
-      [this](Connection* connection) { OnConnectionStateChange(connection); });
+      this, [this](Connection* connection) { OnReadyToSend(connection); });
+  connection->SubscribeStateChange(this, [this](Connection* connection) {
+    OnConnectionStateChange(connection);
+  });
   connection->SubscribeDestroyed(this, [this](Connection* connection) {
     OnConnectionDestroyed(connection);
   });
   connection->SubscribeNominated(
-      [this](Connection* connection) { OnNominated(connection); });
+      this, [this](Connection* connection) { OnNominated(connection); });
 
   had_connection_ = true;
 
@@ -917,17 +919,18 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
   port->SetIceTiebreaker(allocator_->ice_tiebreaker());
   ports_.push_back(port);
   port->SubscribeUnknownAddress(
-      [this](PortInterface* port, const SocketAddress& address,
-             ProtocolType proto, IceMessage* stun_msg,
-             const std::string& remote_username, bool port_muxed) {
+      this, [this](PortInterface* port, const SocketAddress& address,
+                   ProtocolType proto, IceMessage* stun_msg,
+                   const std::string& remote_username, bool port_muxed) {
         OnUnknownAddress(port, address, proto, stun_msg, remote_username,
                          port_muxed);
       });
-  port->SubscribeSentPacket(
-      [this](const SentPacketInfo& sent_packet) { OnSentPacket(sent_packet); });
+  port->SubscribeSentPacket(this, [this](const SentPacketInfo& sent_packet) {
+    OnSentPacket(sent_packet);
+  });
 
   port->SubscribePortDestroyed(
-      [this](PortInterface* port) { OnPortDestroyed(port); });
+      this, [this](PortInterface* port) { OnPortDestroyed(port); });
   port->SubscribeRoleConflict([this] { NotifyRoleConflictInternal(); });
 
   // Attempt to create a connection from this new port to all of the remote
@@ -2145,6 +2148,8 @@ void P2PTransportChannel::OnConnectionStateChange(Connection* connection) {
   ice_controller_->OnSortAndSwitchRequest(
       IceSwitchReason::CONNECT_STATE_CHANGE);  // "candidate pair state
                                                // changed");
+
+  ice_controller_->OnConnectionUpdated(connection);
 }
 
 // When a connection is removed, edit it out, and then update our best

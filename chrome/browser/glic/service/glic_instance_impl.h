@@ -51,6 +51,7 @@ class GlicZeroStateSuggestionsManager;
 // even if it has no GlicUiEmbedder showing the UI. A host could have many
 // different GlicUiEmbedders during its lifetime.
 class GlicInstanceImpl : public GlicInstance,
+                         public GlicInstanceHelper::Instance,
                          public BrowserListObserver,
                          public Host::InstanceDelegate,
                          public Host::Observer,
@@ -230,7 +231,9 @@ class GlicInstanceImpl : public GlicInstance,
 
   // Test support.
   void CloseAllEmbeddersForTesting();
+#if !BUILDFLAG(IS_ANDROID)
   views::View* GetActiveEmbedderGlicViewForTesting();
+#endif
   std::string DescribeForTesting();
 
   // ActorTaskDelegate:
@@ -282,11 +285,6 @@ class GlicInstanceImpl : public GlicInstance,
     std::unique_ptr<GlicTabContentsObserver> tab_web_contents_observer;
   };
 
-  struct ConversationInfo {
-    std::string conversation_id;
-    std::string conversation_title;
-  };
-
   void NotifyStateChange();
 
   GlicUiEmbedder* GetActiveEmbedder();
@@ -304,8 +302,7 @@ class GlicInstanceImpl : public GlicInstance,
       std::optional<EmbedderKey> new_key);
   void ClearActiveEmbedderAndNotifyStateChange();
   void MaybeShowHostUi(GlicUiEmbedder* embedder);
-  void OnBoundTabDestroyed(tabs::TabInterface* tab,
-                           const InstanceId& instance_id);
+  void OnBoundTabDestroyed(tabs::TabInterface* tab);
   void OnBoundTabActivated(tabs::TabInterface* tab);
   bool ShouldDoAutomaticActivation() const;
   void OnZeroStateSuggestionsFetched(
@@ -354,7 +351,9 @@ class GlicInstanceImpl : public GlicInstance,
   // `IsActive` can be called by `host_`, so the member needs to outlive it.
   bool is_active_ = false;
   Host host_;
-  std::optional<ConversationInfo> conversation_info_;
+  // Never null
+  mojom::ConversationInfoPtr conversation_info_ =
+      mojom::ConversationInfo::New();
 
   // The pinned tab manager for the instance.
   // TODO (crbug.com/452150693): move ownership of this instance into the

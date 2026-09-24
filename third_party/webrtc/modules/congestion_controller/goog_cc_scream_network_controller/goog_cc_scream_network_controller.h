@@ -12,11 +12,9 @@
 #define MODULES_CONGESTION_CONTROLLER_GOOG_CC_SCREAM_NETWORK_CONTROLLER_GOOG_CC_SCREAM_NETWORK_CONTROLLER_H_
 
 #include <memory>
-#include <string_view>
 
 #include "absl/functional/any_invocable.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
@@ -25,26 +23,19 @@
 namespace webrtc {
 
 // GoogCcScreamNetworkController chooses if GoogCC or Scream should be used
-// depending on the field trial key WebRTC-Bwe-ScreamV2.
-// It should only be used together with RFC 8888 congestion control feedback.
+// depending on the Mode parameter.
 // The purpose of this wrapper is to simplify experimentation with Scream in L4S
 // enabled networks, without having to be better than Goog CC in all scenarios.
-//
-// If field trial value of the key WebRTC-Bwe-ScreamV2 contain:
-//   Enabled or mode:always - Scream is used always.
-//   mode:only_after_ce -  GoogCC is iniallally used, but Scream state is
-//                         updated in parallel. If ECN CE marks is seen in the
-//                         feedback, Scream is used instead of GoogCC for the
-//                         remaining duration of the call.
-//   mode:goog_cc_with_ect1 - Goog CC is always used, but the controller will
-//                            claim to support ECN adaptation until the first
-//                            CE mark is seen. After that, packets are not sent
-//                            as ECT(1).
 class GoogCcScreamNetworkController : public NetworkControllerInterface {
  public:
-  enum class CcType { kGoogCC, kScream };
+  enum class Mode {
+    kScreamAfterCe,  // Scream is used if a CE mark has been seen
+    kGoogCcWithEct1  // GoogCC is always used. Packets are sent as ECT1 unless a
+                     // CE mark has been seen.
+  };
   GoogCcScreamNetworkController(NetworkControllerConfig config,
-                                GoogCcConfig goog_cc_config);
+                                GoogCcConfig goog_cc_config,
+                                Mode mode);
   ~GoogCcScreamNetworkController() override;
 
   // webrtc::NetworkControllerInterface overrides.
@@ -67,24 +58,14 @@ class GoogCcScreamNetworkController : public NetworkControllerInterface {
 
   bool SupportsEcnAdaptation() const override {
     switch (mode_) {
-      case Mode::kGoogCc:
-        return false;
       case Mode::kGoogCcWithEct1:
         return !ecn_ce_seen_;
-      case Mode::kScreamAlways:
       case Mode::kScreamAfterCe:
         return true;
     }
   }
-  // Returns "ScreamV2" or "GoogCC" depending on currently used network
-  // controller.
-  std::string_view CurrentControllerType() const;
 
  private:
-  enum class Mode { kGoogCc, kScreamAlways, kScreamAfterCe, kGoogCcWithEct1 };
-
-  static Mode ParseMode(const FieldTrialsView& field_trials);
-
   NetworkControlUpdate MaybeRunOnAllControllers(
       absl::AnyInvocable<NetworkControlUpdate(NetworkControllerInterface&)>
           update);

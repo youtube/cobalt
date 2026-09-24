@@ -608,16 +608,21 @@ if(FIPS_DELOCATE)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
-  add_library(bcm_hashunset STATIC bcm-delocated.S)
-  set_target_properties(bcm_hashunset PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  set_target_properties(bcm_hashunset PROPERTIES LINKER_LANGUAGE C)
+  add_library(bcm_hashunset OBJECT bcm-delocated.S)
+
+  # bcm_hashunset may still have relocations, just link-independent ones. Link a
+  # sample shared object before computing the hash.
+  add_library(bcm_relocated SHARED $<TARGET_OBJECTS:bcm_hashunset>)
+  set_target_properties(bcm_relocated PROPERTIES LINKER_LANGUAGE CXX)
+  target_link_options(bcm_relocated PRIVATE "-Wl,-z,undefs")
 
   go_executable(inject_hash
                 boringssl.googlesource.com/boringssl.git/util/fipstools/inject_hash)
   add_custom_command(
     OUTPUT bcm.o
-    COMMAND ./inject_hash -o bcm.o -in-archive $<TARGET_FILE:bcm_hashunset>
-    DEPENDS bcm_hashunset inject_hash
+    COMMAND ./inject_hash -o bcm.o -in-object $<TARGET_OBJECTS:bcm_hashunset>
+            -in-hash $<TARGET_FILE:bcm_relocated>
+    DEPENDS bcm_hashunset bcm_relocated inject_hash
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
   set(CRYPTO_FIPS_OBJECTS bcm.o)

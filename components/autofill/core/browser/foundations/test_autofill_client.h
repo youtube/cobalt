@@ -177,7 +177,7 @@ class TestAutofillClientTemplate : public T {
     mock_autofill_optimization_guide_decider_.reset();
   }
 
-  MockAutofillAiManager* GetAutofillAiManager() override {
+  AutofillAiManager* GetAutofillAiManager() override {
     return mock_autofill_ai_delegate_.get();
   }
 
@@ -503,8 +503,8 @@ class TestAutofillClientTemplate : public T {
     GetPrefs()->registry()->RegisterIntegerPref(
         optimization_guide::prefs::
             kAutofillPredictionImprovementsEnterprisePolicyAllowed,
-        base::to_underlying(optimization_guide::model_execution::prefs::
-                                ModelExecutionEnterprisePolicyValue::kAllow),
+        std::to_underlying(optimization_guide::model_execution::prefs::
+                               ModelExecutionEnterprisePolicyValue::kAllow),
         PrefRegistry::LOSSY_PREF);
 
     identity_test_environment().MakePrimaryAccountAvailable(

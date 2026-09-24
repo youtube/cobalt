@@ -10,6 +10,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "content/browser/media/capture/pip_screen_capture_coordinator.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/media/session/media_session_impl.h"
 #include "content/browser/picture_in_picture/picture_in_picture_session.h"
@@ -19,6 +20,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_client.h"
 #include "media/base/media_switches.h"
@@ -127,10 +129,15 @@ void DocumentPictureInPictureWindowControllerImpl::WebContentsDestroyed() {
 }
 
 std::optional<gfx::Rect>
-DocumentPictureInPictureWindowControllerImpl::GetWindowBounds() {
+DocumentPictureInPictureWindowControllerImpl::GetWindowBoundsInScreen() {
   if (!child_contents_)
     return std::nullopt;
-  return child_contents_->GetContainerBounds();
+
+  if (auto* delegate = child_contents_->GetDelegate()) {
+    return delegate->GetWindowBoundsInScreen();
+  }
+
+  return std::nullopt;
 }
 
 void DocumentPictureInPictureWindowControllerImpl::PrimaryPageChanged(Page&) {
@@ -157,6 +164,10 @@ void DocumentPictureInPictureWindowControllerImpl::NotifyClosedAndStopObserving(
   child_contents_ = nullptr;
   child_contents_observer_.reset();
 
+  if (auto* coordinator = PipScreenCaptureCoordinator::GetInstance()) {
+    coordinator->OnPipClosed();
+  }
+
   WebContentsImpl* web_contents_impl = GetWebContentsImpl();
 
   // If the opener is being destroyed, then don't dispatch anything to it.
@@ -175,6 +186,8 @@ void DocumentPictureInPictureWindowControllerImpl::NotifyClosedAndStopObserving(
   // API and/or onleavepictureinpicture event once that's implemented.
   web_contents_impl->ExitPictureInPicture();
   Observe(/*web_contents=*/nullptr);
+<<<<<<< HEAD
+=======
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   PipScreenCaptureCoordinator* pip_screen_capture_coordinator =
@@ -183,6 +196,7 @@ void DocumentPictureInPictureWindowControllerImpl::NotifyClosedAndStopObserving(
     pip_screen_capture_coordinator->OnPipClosed();
   }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void DocumentPictureInPictureWindowControllerImpl::
@@ -192,11 +206,20 @@ void DocumentPictureInPictureWindowControllerImpl::
     return;
   }
 
+<<<<<<< HEAD
+  if (auto* coordinator = PipScreenCaptureCoordinator::GetInstance()) {
+    if (child_contents_) {
+      coordinator->OnPipShown(
+          *child_contents_,
+          web_contents_impl->GetPrimaryMainFrame()->GetGlobalId());
+    }
+=======
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   PipScreenCaptureCoordinator* pip_screen_capture_coordinator =
       PipScreenCaptureCoordinator::GetOrCreateForWebContents(web_contents_impl);
   if (pip_screen_capture_coordinator && child_contents_) {
     pip_screen_capture_coordinator->OnPipShown(*child_contents_);
+>>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 }

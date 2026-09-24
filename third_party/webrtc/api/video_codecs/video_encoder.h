@@ -68,10 +68,8 @@ class RTC_EXPORT EncodedImageCallback {
   // kDroppedByMediaOptimizations - dropped by MediaOptimizations (for rate
   // limiting purposes).
   // kDroppedByEncoder - dropped by encoder's internal rate limiter.
-  // TODO(bugs.webrtc.org/10164): Delete this enum? It duplicates the more
-  // general VideoStreamEncoderObserver::DropReason. Also,
-  // kDroppedByMediaOptimizations is not produced by any encoder, but by
-  // VideoStreamEncoder.
+  // TODO: bugs.webrtc.org/467444018 - Deprecate and remove after a transition
+  // period.
   enum class DropReason : uint8_t {
     kDroppedByMediaOptimizations,
     kDroppedByEncoder
@@ -82,7 +80,22 @@ class RTC_EXPORT EncodedImageCallback {
       const EncodedImage& encoded_image,
       const CodecSpecificInfo* codec_specific_info) = 0;
 
+  // TODO: bugs.webrtc.org/467444018 - Deprecate and remove after a transition
+  // period.
   virtual void OnDroppedFrame(DropReason /* reason */) {}
+
+  // Callback function called when an encoder has decided to drop a frame.
+  // This is usually either because of rate control buffer overflow or because
+  // the rate allocation of a given spatial index is set to zero, disabling it.
+  // The `rtp_timestamp` parameter uniquely identifier the temporal unit and
+  // thus the corresponding input frame. If `is_end_of_temporal_unit` is true,
+  // it means that no further callback to neither `OnEncodedImage()` nor
+  // `OnFrameDropped()` is expected for this RTP timestamp.
+  // TODO: bugs.webrtc.org/467444018 - Make pure virtual when all implementors
+  // have had time to update.
+  virtual void OnFrameDropped(uint32_t rtp_timestamp,
+                              int spatial_id,
+                              bool is_end_of_temporal_unit) {}
 };
 
 class RTC_EXPORT VideoEncoder {

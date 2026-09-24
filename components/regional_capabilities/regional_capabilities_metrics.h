@@ -23,8 +23,7 @@ enum class SearchEngineChoiceScreenConditions {
   kNotInRegionalScope = 2,
   // A policy sets the default search engine or disables search altogether.
   kControlledByPolicy = 3,
-  // The profile is out of scope.
-  kProfileOutOfScope = 4,
+  // kProfileOutOfScope = 4, // Deprecated
   // An extension controls the default search engine.
   kExtensionControlled = 5,
   // The user is eligible to see the screen at the next opportunity.
@@ -67,10 +66,18 @@ enum class SearchEngineChoiceScreenConditions {
   // The user is not eligible to make the choice because of their management
   // status.
   kManaged = 21,
+  // Although a choice had already been made, this profile is eligible due to
+  // having been requested by the program for devices that can be identified has
+  // having had this choice imported, for example from backup and restore flows.
+  kEligibleForRestore = 22,
 
-  kMaxValue = kManaged,
+  kMaxValue = kEligibleForRestore,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/search/enums.xml:SearchEngineChoiceScreenConditions)
+
+// Declaration for gtest, implemented in test-only targets.
+void PrintTo(const SearchEngineChoiceScreenConditions& condition,
+             std::ostream* os);
 }  // namespace search_engines
 
 namespace regional_capabilities {
@@ -78,6 +85,10 @@ namespace regional_capabilities {
 using search_engines::SearchEngineChoiceScreenConditions;
 
 std::string ToString(SearchEngineChoiceScreenConditions condition);
+
+// Return whether `condition` describes the profile as being eligible or not to
+// proceed with showing choice screens.
+bool IsEligible(SearchEngineChoiceScreenConditions condition);
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -116,6 +127,19 @@ void RecordVariationsCountryMatching(
     country_codes::CountryId persisted_profile_country,
     country_codes::CountryId current_device_country,
     bool is_device_country_from_fallback);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(AndroidProgramResolution)
+enum class AndroidProgramResolution {
+  kSuccess = 0,
+  kDefaultForOutOfProgramCountry = 1,
+  kMaxValue = kDefaultForOutOfProgramCountry,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/regional_capabilities/enums.xml:AndroidProgramResolution)
+
+void RecordAndroidProgramResolution(AndroidProgramResolution resolution);
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.

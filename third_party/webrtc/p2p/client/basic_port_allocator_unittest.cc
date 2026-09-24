@@ -288,26 +288,26 @@ class BasicPortAllocatorTestBase : public ::testing::Test {
     std::unique_ptr<PortAllocatorSession> session =
         allocator_->CreateSession(content_name, component, ice_ufrag, ice_pwd);
     session->SubscribePortReady(
-        [this](PortAllocatorSession* session, PortInterface* port) {
+        this, [this](PortAllocatorSession* session, PortInterface* port) {
           OnPortReady(session, port);
         });
     session->SubscribePortsPruned(
-        [this](PortAllocatorSession* session,
-               const std::vector<PortInterface*>& ports) {
+        this, [this](PortAllocatorSession* session,
+                     const std::vector<PortInterface*>& ports) {
           OnPortsPruned(session, ports);
         });
     session->SubscribeCandidatesReady(
-        [this](PortAllocatorSession* session,
-               const std::vector<Candidate>& candidate) {
+        this, [this](PortAllocatorSession* session,
+                     const std::vector<Candidate>& candidate) {
           OnCandidatesReady(session, candidate);
         });
     session->SubscribeCandidatesRemoved(
-        [this](PortAllocatorSession* session,
-               const std::vector<Candidate>& removed_candidates) {
+        this, [this](PortAllocatorSession* session,
+                     const std::vector<Candidate>& removed_candidates) {
           OnCandidatesRemoved(session, removed_candidates);
         });
     session->SubscribeCandidatesAllocationDone(
-        [this](PortAllocatorSession* session) {
+        this, [this](PortAllocatorSession* session) {
           OnCandidatesAllocationDone(session);
         });
     return session;

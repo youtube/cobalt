@@ -15,7 +15,7 @@ class MockMemoryPressureListener : public MemoryPressureListener {
   MockMemoryPressureListener();
   ~MockMemoryPressureListener() override;
 
-  MOCK_METHOD(void, OnMemoryPressure, (base::MemoryPressureLevel), (override));
+  MOCK_METHOD(void, OnMemoryPressure, (MemoryPressureLevel), (override));
 };
 
 // Same as MockMemoryPressureListener, but automatically registers with the
@@ -26,7 +26,7 @@ class RegisteredMockMemoryPressureListener : public MockMemoryPressureListener {
   ~RegisteredMockMemoryPressureListener() override;
 
  private:
-  SyncMemoryPressureListenerRegistration registration_;
+  MemoryPressureListenerRegistration registration_;
 };
 
 // Async version of RegisteredMockMemoryPressureListener.

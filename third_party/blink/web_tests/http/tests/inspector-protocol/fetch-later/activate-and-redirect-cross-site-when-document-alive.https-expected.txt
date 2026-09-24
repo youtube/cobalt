@@ -45,7 +45,7 @@ Network.requestWillBeSent {
         charset :
         connectionId : <number>
         connectionReused : true
-        encodedDataLength : 248
+        encodedDataLength : <number>
         fromDiskCache : false
         fromPrefetchCache : false
         fromServiceWorker : false

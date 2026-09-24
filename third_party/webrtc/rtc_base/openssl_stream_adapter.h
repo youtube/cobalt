@@ -92,6 +92,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   [[deprecated]] void SetMode(SSLMode mode) override;
   void SetMaxProtocolVersion(SSLProtocolVersion version) override;
   void SetInitialRetransmissionTimeout(int timeout_ms) override;
+  void UpdateRetransmissionTimeout(int timeout_ms) override;
   void SetMTU(int mtu) override;
 
   StreamResult Read(ArrayView<uint8_t> data, size_t& read, int& error) override;
