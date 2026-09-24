@@ -53,8 +53,8 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
 // Returns a Size containing the minimum width and minimum height of |a| and
 // |b|. If only one optional contains a value, returns that value. If neither
 // contains a value, returns std::nullopt.
-std::optional<Size> GetLowerResolution(const std::optional<Size>& a,
-                                       const std::optional<Size>& b);
+std::optional<Size> GetLowestResolution(const std::optional<Size>& a,
+                                        const std::optional<Size>& b);
 
 }  // namespace starboard
 

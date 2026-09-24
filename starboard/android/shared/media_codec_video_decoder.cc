@@ -307,7 +307,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_size_(GetLowerResolution(
+      max_video_size_(GetLowestResolution(
           ParseMaxResolution(stream_config.max_video_capabilities,
                              "max_video_capabilities",
                              stream_config.video_stream_info.frame_size),
@@ -521,11 +521,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         if (IsFrameSizeExceedingCapabilities(frame_size,
                                              max_video_size_.value())) {
           SB_LOG(ERROR) << "Video frame size " << frame_size
-                        << " exceeds max_video_capabilities "
-                        << max_video_size_.value()
+                        << " exceeds max resolution " << max_video_size_.value()
                         << ". Raising kSbPlayerErrorCapabilityChanged.";
           ReportError(kSbPlayerErrorCapabilityChanged,
-                      "Video frame size exceeds max_video_capabilities.");
+                      "Video frame size exceeds max resolution.");
           return;
         }
       }

@@ -206,8 +206,8 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
   return {content_region, coded_size};
 }
 
-std::optional<Size> GetLowerResolution(const std::optional<Size>& a,
-                                       const std::optional<Size>& b) {
+std::optional<Size> GetLowestResolution(const std::optional<Size>& a,
+                                        const std::optional<Size>& b) {
   if (!a) {
     return b;
   }

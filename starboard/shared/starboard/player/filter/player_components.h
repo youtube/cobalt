@@ -80,6 +80,18 @@ class PlayerComponents {
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const AudioStreamInfo& audio_stream_info,
+                         const VideoStreamInfo& video_stream_info,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
+                         const ExperimentalFeatures& experimental_features,
+                         void* surface_view,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         JobQueue* job_queue,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid,
+                         const std::string& max_video_resolution = "");
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
@@ -124,10 +136,6 @@ class PlayerComponents {
         return max_video_resolution_;
       }
 
-      void set_max_video_resolution(const std::string& max_video_resolution) {
-        max_video_resolution_ = max_video_resolution;
-      }
-
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
@@ -158,7 +166,6 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-      std::string max_video_resolution_;
       const ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
@@ -168,6 +175,8 @@ class PlayerComponents {
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
+
+      const std::string max_video_resolution_;
     };
 
     virtual ~Factory() {}

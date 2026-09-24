@@ -142,6 +142,36 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   SB_CHECK(job_queue_);
 }
 
+PlayerComponents::Factory::CreationParameters::CreationParameters(
+    const AudioStreamInfo& audio_stream_info,
+    const VideoStreamInfo& video_stream_info,
+    SbPlayer player,
+    SbPlayerOutputMode output_mode,
+    int max_video_input_size,
+    const ExperimentalFeatures& experimental_features,
+    void* surface_view,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    JobQueue* job_queue,
+    SbDrmSystem drm_system,
+    const std::string& max_video_resolution)
+    : audio_stream_info_(audio_stream_info),
+      video_stream_info_(video_stream_info),
+      player_(player),
+      output_mode_(output_mode),
+      max_video_input_size_(max_video_input_size),
+      experimental_features_(experimental_features),
+      surface_view_(surface_view),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
+      job_queue_(job_queue),
+      drm_system_(drm_system),
+      max_video_resolution_(max_video_resolution) {
+  SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
+            video_stream_info_.codec != kSbMediaVideoCodecNone);
+  SB_CHECK(job_queue_);
+}
+
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
