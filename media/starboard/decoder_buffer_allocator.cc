@@ -16,11 +16,13 @@
 
 #include <sys/mman.h>  // For MADV_COLD
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "starboard/common/allocator.h"
