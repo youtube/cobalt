@@ -11,6 +11,7 @@
 #if BUILDFLAG(IS_COBALT)
 #include <optional>
 
+#include "base/check.h"
 #include "base/dcheck_is_on.h"
 #endif
 #include "third_party/blink/renderer/core/core_export.h"

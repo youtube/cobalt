@@ -187,26 +187,22 @@ class CORE_EXPORT InlineNode : public LayoutInputNode {
   const InlineNodeData& Data() const {
     DCHECK(IsPrepareLayoutFinished());
     DCHECK(!GetLayoutBlockFlow()->NeedsCollectInlines());
-#if BUILDFLAG(IS_COBALT)
     const InlineNodeData& data =
         *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+#if BUILDFLAG(IS_COBALT)
     data.ValidateCapacity();
-    return data;
-#else
-    return *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
 #endif
+    return data;
   }
   // Same as |Data()| but can access even when |NeedsCollectInlines()| is set.
   const InlineNodeData& MaybeDirtyData() const {
     DCHECK(IsPrepareLayoutFinished());
-#if BUILDFLAG(IS_COBALT)
     const InlineNodeData& data =
         *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+#if BUILDFLAG(IS_COBALT)
     data.ValidateCapacity();
-    return data;
-#else
-    return *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
 #endif
+    return data;
   }
   const InlineNodeData& EnsureData() const;
 
