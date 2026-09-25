@@ -1414,34 +1414,98 @@ TEST_F(ElementTest, ScrollIntoViewNearestUseCounted) {
 #if BUILDFLAG(IS_COBALT)
 TEST_F(ElementTest, RecalcStyleSkipsPseudoElementsWhenNoPseudosOrStyles) {
   SetBodyInnerHTML(R"HTML(
-    <style>
-      .with-before::before { content: "before"; }
+    <style id="pseudo-styles">
+      #styled::before { content: "before"; }
+      #styled::after { content: "after"; }
+      #styled::first-letter { color: red; }
+      #scroller { overflow: scroll; scroll-marker-group: before; }
+      #scroller::scroll-button(block-start) { content: "^"; }
+      #scroller::scroll-button(inline-start) { content: "<"; }
+      #scroller::scroll-button(inline-end) { content: ">"; }
+      #scroller::scroll-button(block-end) { content: "v"; }
+      #marker-item::scroll-marker { content: "*"; }
+      #col-box::column { content: "c"; opacity: 0.5; }
+      #custom-select, #custom-select::picker(select) { appearance: base-select; }
+      #custom-select::picker-icon { content: "v"; }
+      #custom-option::checkmark { content: "x"; }
     </style>
     <div id="plain">Plain text</div>
-    <div id="styled" class="with-before">Styled text</div>
+    <div id="styled">Styled text</div>
+    <div id="scroller"><div id="marker-item">Item</div></div>
+    <div id="col-box"></div>
+    <select id="custom-select">
+      <option id="custom-option">Option</option>
+    </select>
   )HTML");
+  LocalFrame::NotifyUserActivation(
+      GetDocument().GetFrame(), mojom::UserActivationNotificationType::kTest);
+  To<HTMLSelectElement>(GetElementById("custom-select"))
+      ->showPicker(ASSERT_NO_EXCEPTION);
   UpdateAllLifecyclePhasesForTest();
 
   Element* plain = GetElementById("plain");
   Element* styled = GetElementById("styled");
-  ASSERT_TRUE(plain);
-  ASSERT_TRUE(styled);
+  Element* scroller = GetElementById("scroller");
+  Element* marker_item = GetElementById("marker-item");
+  Element* col_box = GetElementById("col-box");
+  Element* custom_select = GetElementById("custom-select");
+  Element* custom_option = GetElementById("custom-option");
 
-  // Plain element has neither PseudoElements nor pseudo-element styles.
+  PhysicalRect dummy_column_rect;
+  ASSERT_TRUE(
+      col_box->GetOrCreateColumnPseudoElementIfNeeded(0u, dummy_column_rect));
+
+  // 1. Plain element hits the !need_to_check_pseudos fast path for all 10
+  // gated pseudo-element types.
   EXPECT_FALSE(plain->GetComputedStyle()->HasAnyPseudoElementStyles());
   EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdBefore));
   EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdAfter));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdFirstLetter));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdScrollButtonBlockStart));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdScrollButtonInlineStart));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdScrollButtonInlineEnd));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdScrollButtonBlockEnd));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdScrollMarker));
+  EXPECT_EQ(nullptr, plain->GetColumnPseudoElements());
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdCheckMark));
+  EXPECT_EQ(nullptr, plain->GetPseudoElement(kPseudoIdPickerIcon));
 
-  // Styled element generates ::before during RecalcStyle.
-  EXPECT_TRUE(styled->GetComputedStyle()->HasAnyPseudoElementStyles());
+  // 2. Styled elements generate all 10 gated pseudo-element types.
   EXPECT_NE(nullptr, styled->GetPseudoElement(kPseudoIdBefore));
+  EXPECT_NE(nullptr, styled->GetPseudoElement(kPseudoIdAfter));
+  EXPECT_NE(nullptr, styled->GetPseudoElement(kPseudoIdFirstLetter));
+  EXPECT_NE(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonBlockStart));
+  EXPECT_NE(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonInlineStart));
+  EXPECT_NE(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonInlineEnd));
+  EXPECT_NE(nullptr, scroller->GetPseudoElement(kPseudoIdScrollButtonBlockEnd));
+  EXPECT_NE(nullptr, marker_item->GetPseudoElement(kPseudoIdScrollMarker));
+  ASSERT_TRUE(col_box->GetColumnPseudoElements());
+  EXPECT_EQ(1u, col_box->GetColumnPseudoElements()->size());
+  EXPECT_NE(nullptr, custom_option->GetPseudoElement(kPseudoIdCheckMark));
+  EXPECT_NE(nullptr, custom_select->GetPseudoElement(kPseudoIdPickerIcon));
 
-  // Removing the class still cleans up the existing ::before pseudo-element
-  // because GetElementRareData()->HasPseudoElements() is true on entry.
-  styled->removeAttribute(html_names::kClassAttr);
+  // 3. Clearing the pseudo-element CSS rules still enters need_to_check_pseudos
+  // (via GetElementRareData()->HasPseudoElements()) and removes all 10.
+  GetElementById("pseudo-styles")->setInnerHTML("");
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(styled->GetComputedStyle()->HasAnyPseudoElementStyles());
+
   EXPECT_EQ(nullptr, styled->GetPseudoElement(kPseudoIdBefore));
+  EXPECT_EQ(nullptr, styled->GetPseudoElement(kPseudoIdAfter));
+  EXPECT_EQ(nullptr, styled->GetPseudoElement(kPseudoIdFirstLetter));
+  EXPECT_EQ(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonBlockStart));
+  EXPECT_EQ(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonInlineStart));
+  EXPECT_EQ(nullptr,
+            scroller->GetPseudoElement(kPseudoIdScrollButtonInlineEnd));
+  EXPECT_EQ(nullptr, scroller->GetPseudoElement(kPseudoIdScrollButtonBlockEnd));
+  EXPECT_EQ(nullptr, marker_item->GetPseudoElement(kPseudoIdScrollMarker));
+  EXPECT_EQ(0u, col_box->GetColumnPseudoElements()->size());
+  EXPECT_EQ(nullptr, custom_option->GetPseudoElement(kPseudoIdCheckMark));
+  EXPECT_EQ(nullptr, custom_select->GetPseudoElement(kPseudoIdPickerIcon));
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
