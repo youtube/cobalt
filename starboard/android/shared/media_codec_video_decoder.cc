@@ -1186,7 +1186,7 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
-  if (active_notifier_) {
+  if (has_active_notifier()) {
     // When using SurfaceDestroyNotifier, OnSurfaceDestroyed() is always invoked
     // on the decoder thread via NotifyDestroyed().
     SB_CHECK(BelongsToCurrentThread());

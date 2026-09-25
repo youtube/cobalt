@@ -61,6 +61,9 @@ class VideoSurfaceHolder {
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
 
+  bool has_active_notifier() const { return active_notifier_ != nullptr; }
+
+ private:
   scoped_refptr<SurfaceDestroyNotifier> active_notifier_;
 };
 
