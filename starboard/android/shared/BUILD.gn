@@ -257,6 +257,8 @@ static_library("starboard_platform") {
     "video_frame_tracker.h",
     "video_max_video_input_size.cc",
     "video_max_video_input_size.h",
+    "video_max_video_resolution.cc",
+    "video_max_video_resolution.h",
     "video_render_algorithm_android.cc",
     "video_render_algorithm_android.h",
     "video_surface_texture_bridge.cc",

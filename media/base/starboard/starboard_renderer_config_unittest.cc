@@ -29,6 +29,7 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       base::Microseconds(100000);
   const std::string max_video_capabilities =
       "width=1920; height=1080; framerate=15;";
+  const std::string max_video_resolution;
   ExperimentalFeatures::Map map;
   map["Media.ForceDecodeToTexture"] = 1;
   map["Media.BypassMojoForMedia"] = 0;
@@ -36,7 +37,7 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
 
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
-      audio_write_duration_remote, max_video_capabilities,
+      audio_write_duration_remote, max_video_capabilities, max_video_resolution,
       experimental_features, gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);

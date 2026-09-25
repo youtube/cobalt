@@ -38,4 +38,16 @@ TEST(HTMLVideoElementExtensionsTest, canGetAndSetMaxVideoCapabilities) {
   ASSERT_EQ(video->GetMaxVideoCapabilities(), "testString");
 }
 
+TEST(HTMLVideoElementExtensionsTest, canGetAndSetMaxVideoResolution) {
+  std::unique_ptr<DummyPageHolder> dummy_page_holder =
+      std::make_unique<DummyPageHolder>();
+  V8TestingScope dummy_exception_state;
+  HTMLVideoElement* video =
+      MakeGarbageCollected<HTMLVideoElement>(dummy_page_holder->GetDocument());
+  ASSERT_EQ(video->GetMaxVideoResolution(), "");
+  HTMLVideoElementExtensions::setMaxVideoResolution(
+      *video, String("testString"), dummy_exception_state.GetExceptionState());
+  ASSERT_EQ(video->GetMaxVideoResolution(), "testString");
+}
+
 }  // namespace blink
