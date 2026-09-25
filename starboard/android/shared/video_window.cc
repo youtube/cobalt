@@ -25,11 +25,13 @@
 
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/android/shared/surface_destroy_notifier.h"
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -46,6 +48,13 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
   static NoDestructor<jni_zero::ScopedJavaGlobalRef<jobject>> instance;
   return *instance;
 }
+
+scoped_refptr<SurfaceDestroyNotifier>& GetGlobalSurfaceDestroyNotifier() {
+  static NoDestructor<scoped_refptr<SurfaceDestroyNotifier>> notifier;
+  return *notifier;
+}
+
+bool g_surface_transition_in_progress = false;
 
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = nullptr;
@@ -143,24 +152,58 @@ void ClearNativeWindow(void* raw_context) {
   EGL_CALL(eglDestroySurface(display, surface));
 }
 
+bool IsSurfaceDestroyNotifierEnabled() {
+  return features::FeatureList::IsEnabled(
+      features::kEnableSurfaceDestroyNotifier);
+}
+
 }  // namespace
 
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder) {
-    g_video_surface_holder->OnSurfaceDestroyed();
-    g_video_surface_holder = NULL;
-  }
-  GetGlobalVideoSurface().Reset();
-  if (g_native_video_window) {
-    ANativeWindow_release(g_native_video_window);
-    g_native_video_window = NULL;
-  }
-  if (surface) {
-    GetGlobalVideoSurface().Reset(env, surface);
-    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+  if (IsSurfaceDestroyNotifierEnabled()) {
+    scoped_refptr<SurfaceDestroyNotifier> notifier_to_notify;
+    {
+      std::lock_guard local(*GetViewSurfaceMutex());
+      g_surface_transition_in_progress = true;
+      notifier_to_notify = GetGlobalSurfaceDestroyNotifier();
+    }  // Lock released before Notify()
+    if (notifier_to_notify) {
+      notifier_to_notify->Notify();
+    }
+    {
+      std::lock_guard local(*GetViewSurfaceMutex());
+      GetGlobalVideoSurface().Reset();
+      if (g_native_video_window) {
+        ANativeWindow_release(g_native_video_window);
+        g_native_video_window = nullptr;
+      }
+      if (surface) {
+        GetGlobalVideoSurface().Reset(env, surface);
+        g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+      }
+      if (GetGlobalSurfaceDestroyNotifier() == notifier_to_notify) {
+        GetGlobalSurfaceDestroyNotifier() = nullptr;
+      }
+      g_surface_transition_in_progress = false;
+    }
+    return;
+  } else {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder) {
+      g_video_surface_holder->OnSurfaceDestroyed();
+      g_video_surface_holder = nullptr;
+    }
+    GetGlobalVideoSurface().Reset();
+    if (g_native_video_window) {
+      ANativeWindow_release(g_native_video_window);
+      g_native_video_window = nullptr;
+    }
+    if (surface) {
+      GetGlobalVideoSurface().Reset(env, surface);
+      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    }
   }
 }
 
@@ -170,6 +213,10 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // surface and it is not held by any decoder, i.e.
   // g_video_surface_holder is NULL.
   std::lock_guard lock(*GetViewSurfaceMutex());
+  if (IsSurfaceDestroyNotifierEnabled()) {
+    return !g_surface_transition_in_progress &&
+           !GetGlobalSurfaceDestroyNotifier() && GetGlobalVideoSurface();
+  }
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
@@ -187,7 +234,62 @@ VideoSurfaceHolder::AcquireVideoSurface() {
   return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
 }
 
+jni_zero::ScopedJavaLocalRef<jobject> VideoSurfaceHolder::AcquireVideoSurface(
+    JobQueue* job_queue) {
+  if (IsSurfaceDestroyNotifierEnabled()) {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_surface_transition_in_progress || !GetGlobalVideoSurface()) {
+      return {};
+    }
+    auto& global_notifier = GetGlobalSurfaceDestroyNotifier();
+    if (global_notifier) {
+      if (global_notifier->IsCurrentHolder(this)) {
+        JNIEnv* env = jni_zero::AttachCurrentThread();
+        return jni_zero::ScopedJavaLocalRef<jobject>(env,
+                                                     GetGlobalVideoSurface());
+      }
+      return {};
+    }
+    global_notifier =
+        make_scoped_refptr<SurfaceDestroyNotifier>(this, job_queue);
+    active_notifier_ = global_notifier;
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
+  }
+
+  // non-experiment fallback;
+  return AcquireVideoSurface();
+}
+
+VideoSurfaceHolder::~VideoSurfaceHolder() {
+  // ReleaseVideoSurface() must be called in the derived class destructor
+  // (e.g., ~MediaCodecVideoDecoder()) before the derived class is destructed,
+  // to avoid pure virtual function calls during destruction.
+  SB_DCHECK(!active_notifier_);
+}
+
+bool VideoSurfaceHolder::IsActiveNotifier(
+    const SurfaceDestroyNotifier* notifier) const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return active_notifier_.get() == notifier;
+}
+
 void VideoSurfaceHolder::ReleaseVideoSurface() {
+  if (IsSurfaceDestroyNotifierEnabled()) {
+    scoped_refptr<SurfaceDestroyNotifier> notifier_to_disconnect;
+    {
+      std::lock_guard lock(*GetViewSurfaceMutex());
+      notifier_to_disconnect = std::move(active_notifier_);
+      auto& global_notifier = GetGlobalSurfaceDestroyNotifier();
+      if (global_notifier && global_notifier->IsCurrentHolder(this)) {
+        global_notifier = nullptr;
+      }
+    }
+    if (notifier_to_disconnect) {
+      notifier_to_disconnect->Disconnect();
+    }
+    return;
+  }
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder == this) {
     g_video_surface_holder = NULL;

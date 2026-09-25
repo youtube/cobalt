@@ -18,10 +18,14 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+
+class SurfaceDestroyNotifier;
+class JobQueue;
 
 class VideoSurfaceHolder {
  public:
@@ -34,12 +38,21 @@ class VideoSurfaceHolder {
   // ClearVideoWindow() in this function may cause dead lock.
   virtual void OnSurfaceDestroyed() = 0;
 
+  bool IsActiveNotifier(const SurfaceDestroyNotifier* notifier) const;
+
  protected:
-  ~VideoSurfaceHolder() {}
+  ~VideoSurfaceHolder();
 
   // Returns the surface which video should be rendered. Surface cannot be
   // acquired before last holder release the surface.
   jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
+
+  // Returns the surface to which video should be rendered.
+  // Surface cannot be acquired before last holder releases the surface.
+  // |job_queue| is used by SurfaceDestroyNotifier to schedule teardown task on
+  // the player worker thread.
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface(
+      JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -49,6 +62,11 @@ class VideoSurfaceHolder {
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
+
+  bool has_active_notifier() const { return active_notifier_ != nullptr; }
+
+ private:
+  scoped_refptr<SurfaceDestroyNotifier> active_notifier_;
 };
 
 }  // namespace starboard

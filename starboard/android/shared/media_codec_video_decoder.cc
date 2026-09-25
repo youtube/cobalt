@@ -29,6 +29,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/surface_destroy_notifier.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
@@ -809,7 +810,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
       } else {
-        j_output_surface = AcquireVideoSurface();
+        j_output_surface = AcquireVideoSurface(job_queue());
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -1185,6 +1186,14 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
+  if (has_active_notifier()) {
+    // When using SurfaceDestroyNotifier, OnSurfaceDestroyed() is always invoked
+    // on the decoder thread via NotifyDestroyed().
+    SB_CHECK(BelongsToCurrentThread());
+    TeardownCodec();
+    return;
+  }
+
   if (!BelongsToCurrentThread()) {
     // Wait until codec is stopped.
     std::unique_lock lock(surface_destroy_mutex_);
