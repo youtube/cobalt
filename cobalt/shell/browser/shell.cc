@@ -51,6 +51,8 @@
 #include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
+#include "components/js_injection/common/enum.mojom.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -643,8 +645,9 @@ void Shell::RegisterInjectedJavaScript() {
     // Inject a script at document start for all origins
     const std::u16string script(base::UTF8ToUTF16(js));
     const std::vector<std::string> allowed_origins({"*"});
-    auto result = js_communication_host_->AddDocumentStartJavaScript(
-        script, allowed_origins);
+    auto result = js_communication_host_->AddPersistentJavaScript(
+        script, js_injection::mojom::DocumentInjectionTime::kDocumentStart,
+        allowed_origins, content::ISOLATED_WORLD_ID_GLOBAL);
 
     if (result.error_message.has_value()) {
       // error_message contains a value

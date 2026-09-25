@@ -64,20 +64,19 @@ blink_modules_sources("ml") {
     "//third_party/blink/renderer/modules/webgpu",
   ]
 
-<<<<<<< HEAD
-  if (webnn_enable_graph_dump) {
+if (webnn_enable_graph_dump) {
     sources += [
       "webnn/ml_graph_transform/utils/ml_graph_dump.cc",
       "webnn/ml_graph_transform/utils/ml_graph_dump.h",
     ]
     deps += [ "//third_party/fp16" ]
-=======
+  }
+
   if (is_cobalt) {
     # TODO(b/543717825): Cobalt excludes "ml" from the "modules" component's sub
     #_modules, so it no longer gets modules_export.h via that target's
     # allow_circular_includes_from. Depend on it directly instead.
     deps += [ "//third_party/blink/renderer/modules" ]
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 

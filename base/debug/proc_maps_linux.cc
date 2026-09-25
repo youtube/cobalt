@@ -11,9 +11,8 @@
 #include <string_view>
 #include <unordered_map>
 
-<<<<<<< HEAD
 #include "base/compiler_specific.h"
-=======
+
 #if BUILDFLAG(IS_COBALT)
 #include "base/containers/flat_map.h"
 #include "base/files/file_util.h"
@@ -21,8 +20,6 @@
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #endif
-
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/files/scoped_file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
@@ -254,7 +251,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
   std::vector<std::string_view> lines = base::SplitStringPiece(
       buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-  base::flat_map<std::string_view, ByteCount> tmp;
+  base::flat_map<std::string_view, ByteSize> tmp;
   for (const auto& line : lines) {
     std::vector<std::string_view> tokens = base::SplitStringPiece(
         line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -273,7 +270,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
 
     size_t val;
     if (base::StringToSizeT(tokens[1], &val)) {
-      tmp[key] = KiB(val);
+      tmp[key] = KiBU(val);
     }
   }
 
