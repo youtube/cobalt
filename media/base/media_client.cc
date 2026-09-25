@@ -22,23 +22,15 @@ MediaClient* GetMediaClient() {
   return g_media_client;
 }
 
-<<<<<<< HEAD
 MediaClient::MediaClient() = default;
-=======
-MediaClient::MediaClient() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!base::FeatureList::IsEnabled(kCobaltDisableDecoderBufferAllocator)) {
-    DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
-  }
-#endif
-}
->>>>>>> 9c2e82749a9 (media: Add kCobaltDisableDecoderBufferAllocator feature for experiment (#12784))
 
 MediaClient::~MediaClient() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void MediaClient::InstallDecoderBufferAllocator() {
-  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+  if (!base::FeatureList::IsEnabled(kCobaltDisableDecoderBufferAllocator)) {
+    DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+  }
 }
 
 // static
