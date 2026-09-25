@@ -42,12 +42,6 @@ public class CommandLineOverrideHelperTest {
   }
 
   @Test
-  public void testDefaultJsFlagOverridesList() {
-    String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-    assertThat(overrides.contains("--optimize-for-size")).isTrue();
-  }
-
-  @Test
   public void testDefaultEnableFeatureOverridesList() {
     String overrides = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     assertThat(overrides.contains("LogJsConsoleMessages")).isTrue();

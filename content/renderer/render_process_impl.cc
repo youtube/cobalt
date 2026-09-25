@@ -136,10 +136,12 @@ RenderProcessImpl::RenderProcessImpl()
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisallowV8FeatureFlagOverrides);
   if (!disallow_v8_feature_flag_overrides) {
+#if !BUILDFLAG(IS_COBALT)
     if (base::SysInfo::IsLowEndDevice()) {
       std::string_view optimize_flag("--optimize-for-size");
       v8::V8::SetFlagsFromString(optimize_flag.data(), optimize_flag.size());
     }
+#endif  // !BUILDFLAG(IS_COBALT)
 
     ////////////////////////////////////////////////////////////////////////////
     // V8 flags are typically set in gin/v8_initializer.cc. Only those flags
