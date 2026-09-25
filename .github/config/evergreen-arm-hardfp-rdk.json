@@ -7,6 +7,7 @@
   "test_on_device": true,
   "test_device_family": "rdk",
   "test_e2e": true,
+  "test_yts": true,
   "test_root_target": "//cobalt:gn_all",
   "test_dimensions": {
     "device_type": "rdk",
@@ -28,6 +29,16 @@
   "e2e_test_targets": [
     {
       "target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_rdk",
+      "test_attempts": "6"
+    }
+  ],
+  "yts_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_dom_document_tests",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_html_dom_element_tests",
       "test_attempts": "6"
     }
   ]
