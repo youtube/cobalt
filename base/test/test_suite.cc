@@ -657,14 +657,14 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+#if BUILDFLAG(IS_IOS)
+  InitIOSArgs(*argc, argv);
+#endif
+
   // CommandLine::Init() is called earlier from PreInitialize().
   testing::InitGoogleTest(argc, argv);
   testing::InitGoogleMock(argc, argv);
   MaybeInitFuzztest(*argc, argv);
-
-#if BUILDFLAG(IS_IOS)
-  InitIOSArgs(*argc, argv);
-#endif
 }
 
 int TestSuite::RunAllTests() {

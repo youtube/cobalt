@@ -2,15 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "base/test/test_support_ios.h"
 
 #import <UIKit/UIKit.h>
 
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
+#include "base/files/file_path.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_apple.h"
+#include "base/no_destructor.h"
+#include "base/path_service.h"
+#include "base/strings/strcat.h"
 #import "base/test/ios/google_test_runner_delegate.h"
 #include "base/test/test_suite.h"
 #include "base/test/test_switches.h"
@@ -279,6 +293,24 @@ void InitIOSRunHook(RunTestSuiteCallback callback) {
 }
 
 void InitIOSArgs(int argc, char* argv[]) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  static base::NoDestructor<std::vector<std::string>> rewritten_args;
+  FilePath cache_dir;
+  if (PathService::Get(DIR_CACHE, &cache_dir)) {
+    constexpr std::string_view kGTestOutputPrefix = "--gtest_output=xml:";
+    for (int i = 0; i < argc; ++i) {
+      std::string_view arg(argv[i]);
+      if (arg.starts_with(kGTestOutputPrefix)) {
+        std::string_view file_path = arg.substr(kGTestOutputPrefix.size());
+        if (!file_path.empty() && file_path[0] != '/') {
+          rewritten_args->push_back(StrCat(
+              {kGTestOutputPrefix, cache_dir.Append(file_path).value()}));
+          argv[i] = rewritten_args->back().data();
+        }
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   g_argc = argc;
   g_argv = argv;
 }
