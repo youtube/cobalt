@@ -30,12 +30,7 @@
 namespace blink {
 
 // static
-// This will be used again in a future milestone.
-// const char H5vcc::kSupplementName[] = "H5vcc";
-
-// static
-const unsigned H5vcc::kSupplementIndex =
-    static_cast<unsigned>(LocalDOMWindow::Supplements::kH5vcc);
+const char H5vcc::kSupplementName[] = "H5vcc";
 
 // static
 H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {

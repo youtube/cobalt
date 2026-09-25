@@ -19,6 +19,7 @@
 #include "content/browser/devtools/devtools_throttle_handle.h"
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/protocol/emulation_handler.h"
+#endif
 #include "content/browser/interest_group/devtools_enums.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"

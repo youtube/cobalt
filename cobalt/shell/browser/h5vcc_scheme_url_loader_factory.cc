@@ -404,7 +404,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     std::string status_line =
         "HTTP/1.1 " + std::to_string(http_status) + " " +
-        net::GetHttpReasonPhrase(static_cast<net::HttpStatusCode>(http_status));
+        std::string(net::GetHttpReasonPhrase(
+            static_cast<net::HttpStatusCode>(http_status)));
     response_head->headers =
         base::MakeRefCounted<net::HttpResponseHeaders>(status_line);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentType,

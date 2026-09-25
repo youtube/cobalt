@@ -175,13 +175,6 @@ class CORE_EXPORT HTMLVideoElement final
     return visibility_tracker_.Get();
   }
 
-VideoFrameCallbackRequester* GetVideoFrameCallbackRequester() const {
-    return video_frame_callback_requester_;
-  }
-  void SetVideoFrameCallbackRequester(VideoFrameCallbackRequester* requester) {
-    video_frame_callback_requester_ = requester;
-  }
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
 
@@ -303,7 +296,6 @@ VideoFrameCallbackRequester* GetVideoFrameCallbackRequester() const {
   cc::PaintFlags::FilterQuality filter_quality_ =
       cc::PaintFlags::FilterQuality::kLow;
   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
-Member<VideoFrameCallbackRequester> video_frame_callback_requester_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;

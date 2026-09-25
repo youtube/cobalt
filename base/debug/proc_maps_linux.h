@@ -14,6 +14,8 @@
 
 #include "base/base_export.h"
 #include "base/byte_size.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 
 namespace base::debug {
 
