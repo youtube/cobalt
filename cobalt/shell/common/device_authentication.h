@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <string>
 
-#include "starboard/configuration.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -51,16 +50,6 @@ std::string GetDeviceAuthenticationSignedURLQueryStringFromComponents(
 // to the signing process.
 std::string ComputeMessage(const std::string& cert_scope,
                            const std::string& start_time);
-
-// Given a message (arbitrary sequence of bytes) and a base64-encoded key
-// key, compute the HMAC-SHA256 signature and store it in the |signature_hash|
-// out parameter.  Note that 32 bytes will be written to the output hash, it is
-// an error if |signature_hash_size_in_bytes| is less than 32.
-void ComputeHMACSHA256SignatureWithProvidedKey(
-    const std::string& message,
-    const std::string& base64_key,
-    uint8_t* signature_hash,
-    size_t signature_hash_size_in_bytes);
 
 }  // namespace content
 
