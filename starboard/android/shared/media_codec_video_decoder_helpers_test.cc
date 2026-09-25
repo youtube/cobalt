@@ -65,19 +65,20 @@ TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
   Size frame_size = Resolution::k1080p;
 
   // Both dimensions provided
-  auto res = ParseMaxResolution("width=1280; height=720", frame_size);
+  auto res = ParseMaxResolution("width=1280; height=720",
+                                "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);
 
   // Only width provided (infer height)
-  res = ParseMaxResolution("width=1280", frame_size);
+  res = ParseMaxResolution("width=1280", "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);  // 1280 * 1080 / 1920 = 720
 
   // Only height provided (infer width)
-  res = ParseMaxResolution("height=720", frame_size);
+  res = ParseMaxResolution("height=720", "max_video_capabilities", frame_size);
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(res->width, 1280);
   EXPECT_EQ(res->height, 720);
@@ -194,6 +195,31 @@ TEST(MediaCodecVideoDecoderHelpersTest,
   EXPECT_EQ(geom.content_region.right, 239 + 1920);
   EXPECT_EQ(geom.content_region.top, 134 + 1080);
   EXPECT_EQ(geom.content_region.bottom, 134);
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest, GetLowestResolution) {
+  std::optional<Size> size_1080p(Resolution::k1080p);
+  std::optional<Size> size_720p(Resolution::k720p);
+
+  // Both present: picks the lower resolution regardless of argument order.
+  EXPECT_EQ(GetLowestResolution(size_1080p, size_720p), size_720p);
+  EXPECT_EQ(GetLowestResolution(size_720p, size_1080p), size_720p);
+
+  // Equal resolutions.
+  EXPECT_EQ(GetLowestResolution(size_720p, size_720p), size_720p);
+
+  // One present, one nullopt: returns the present resolution.
+  EXPECT_EQ(GetLowestResolution(size_720p, std::nullopt), size_720p);
+  EXPECT_EQ(GetLowestResolution(std::nullopt, size_720p), size_720p);
+
+  // Both nullopt: returns nullopt.
+  EXPECT_EQ(GetLowestResolution(std::nullopt, std::nullopt), std::nullopt);
+
+  // Mixed dimensions (one has smaller width, the other has smaller height):
+  // clamps each dimension independently to the minimum width and height.
+  std::optional<Size> narrow_tall(Size{1280, 1080});
+  std::optional<Size> wide_short(Size{1920, 720});
+  EXPECT_EQ(GetLowestResolution(narrow_tall, wide_short), size_720p);
 }
 
 }  // namespace

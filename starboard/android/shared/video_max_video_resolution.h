@@ -12,29 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_settings.h"
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_
 
-#include "starboard/android/shared/video_max_video_input_size.h"
-#include "starboard/android/shared/video_max_video_resolution.h"
-#include "starboard/android/shared/video_surface_view.h"
-#include "starboard/extension/player_settings.h"
+#include <string>
 
 namespace starboard {
 
-namespace {
+// Get max_video_resolution setting set via
+// SetMaxVideoResolutionForCurrentThread(). Returns empty string if not set.
+std::string GetMaxVideoResolutionForCurrentThread();
 
-const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
-    kStarboardExtensionPlayerSettingsName,
-    1,
-    &SetMaxVideoInputSizeForCurrentThread,
-    &SetMaxVideoResolutionForCurrentThread,
-    &SetVideoSurfaceViewForCurrentThread,
-};
-
-}  // namespace
-
-const void* GetPlayerSettingsApi() {
-  return &kPlayerSettingsApi;
-}
+// Sets the maximum video resolution string for any subsequently created
+// SbPlayer on the current calling thread. Pass nullptr or empty string to
+// clear.
+void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution);
 
 }  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_

@@ -79,7 +79,8 @@ class PlayerComponents {
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid,
+                         const std::string& max_video_resolution = "");
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
@@ -117,6 +118,11 @@ class PlayerComponents {
       const std::string& max_video_capabilities() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return video_stream_info_.max_video_capabilities;
+      }
+
+      const std::string& max_video_resolution() const {
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
+        return max_video_resolution_;
       }
 
       SbPlayer player() const { return player_; }
@@ -158,6 +164,8 @@ class PlayerComponents {
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
+
+      const std::string max_video_resolution_;
     };
 
     virtual ~Factory() {}

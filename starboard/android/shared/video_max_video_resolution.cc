@@ -12,29 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_settings.h"
-
-#include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_max_video_resolution.h"
-#include "starboard/android/shared/video_surface_view.h"
-#include "starboard/extension/player_settings.h"
+
+#include <cstdio>
 
 namespace starboard {
-
 namespace {
 
-const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
-    kStarboardExtensionPlayerSettingsName,
-    1,
-    &SetMaxVideoInputSizeForCurrentThread,
-    &SetMaxVideoResolutionForCurrentThread,
-    &SetVideoSurfaceViewForCurrentThread,
-};
+thread_local char g_max_video_resolution[256] = {0};
 
 }  // namespace
 
-const void* GetPlayerSettingsApi() {
-  return &kPlayerSettingsApi;
+std::string GetMaxVideoResolutionForCurrentThread() {
+  return g_max_video_resolution;
+}
+
+void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution) {
+  if (max_video_resolution) {
+    snprintf(g_max_video_resolution, sizeof(g_max_video_resolution), "%s",
+             max_video_resolution);
+  } else {
+    g_max_video_resolution[0] = '\0';
+  }
 }
 
 }  // namespace starboard

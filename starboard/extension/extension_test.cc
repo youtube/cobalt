@@ -431,6 +431,7 @@ TEST(ExtensionTest, PlayerSettings) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
+  EXPECT_NE(extension_api->SetMaxVideoResolutionForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
