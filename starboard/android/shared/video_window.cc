@@ -268,6 +268,12 @@ VideoSurfaceHolder::~VideoSurfaceHolder() {
   SB_DCHECK(!active_notifier_);
 }
 
+bool VideoSurfaceHolder::IsActiveNotifier(
+    const SurfaceDestroyNotifier* notifier) const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return active_notifier_.get() == notifier;
+}
+
 void VideoSurfaceHolder::ReleaseVideoSurface() {
   if (IsSurfaceDestroyNotifierEnabled()) {
     scoped_refptr<SurfaceDestroyNotifier> notifier_to_disconnect;

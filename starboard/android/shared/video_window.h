@@ -38,6 +38,8 @@ class VideoSurfaceHolder {
   // ClearVideoWindow() in this function may cause dead lock.
   virtual void OnSurfaceDestroyed() = 0;
 
+  bool IsActiveNotifier(const SurfaceDestroyNotifier* notifier) const;
+
  protected:
   ~VideoSurfaceHolder();
 

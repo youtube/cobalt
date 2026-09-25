@@ -57,6 +57,12 @@ void SurfaceDestroyNotifier::Notify() {
                     [this] { return state_ == State::kDone; })) {
     SB_LOG(WARNING)
         << "SurfaceDestroyNotifier::Notify timed out waiting for teardown!";
+    if (state_ == State::kWaiting) {
+      state_ = State::kDone;
+      holder_ = nullptr;
+      job_queue_ = nullptr;
+      cv_.notify_all();
+    }
   }
 }
 
@@ -71,7 +77,7 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
     executing_thread_id_ = std::this_thread::get_id();
     holder_to_notify = holder_;
   }
-  if (holder_to_notify) {
+  if (holder_to_notify && holder_to_notify->IsActiveNotifier(this)) {
     holder_to_notify->OnSurfaceDestroyed();
   }
 
