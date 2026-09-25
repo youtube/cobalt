@@ -333,12 +333,13 @@ semantics):
 ### 3. Foregrounding, Backgrounding, and Reference Signal Mappings
 
 -   **Window Lifetime Across Backgrounding (`SbWindowDestroy` & `SbWindowCreate`):**
-    When Cobalt backgrounds into **Concealed**, it operates as a non-visible
-    background service and performs no rendering, so it has no use for a native
-    application window. During the transition to **Concealed**, Cobalt releases
-    all GPU resources and informs the platform that it no longer needs the
-    native window by calling `SbWindowDestroy()`. When foregrounding (`Reveal`),
-    Cobalt requests a new native window by calling `SbWindowCreate()`. Calls to
+    While in **Concealed**, Cobalt operates as a non-visible background service
+    and performs no rendering, so it has no use for a native application window.
+    When transitioning from **Blurred** to **Concealed** (`kSbEventTypeConceal`),
+    Cobalt releases all GPU resources and informs the platform that it no longer
+    needs the native window by calling `SbWindowDestroy()`. When transitioning
+    from **Concealed** to **Blurred** (`kSbEventTypeReveal`), Cobalt requests a
+    new native window by calling `SbWindowCreate()`. Calls to
     `SbWindowDestroy()` by themselves are not a signal of intent to exit.
 -   **Foregrounding from Preload or Background (`Concealed` / `Frozen` -> `Started`):**
     To bring a preloaded or backgrounded application to the foreground, the
@@ -384,13 +385,23 @@ semantics):
 The application is running in the foreground, visible, and has active input
 focus (`document.visibilityState === "visible"`, `document.hasFocus() === true`).
 
--   **Platform Contract:** The native `SbWindow` and `EGLSurface` graphics
-    surfaces are mapped and active. The platform routes keyboard, pointer, and
-    remote control input events (`kSbEventTypeInput`) to the application.
--   **Transitions:** Entered on initial launch via `kSbEventTypeStart` or from
-    **Blurred** via `kSbEventTypeFocus`. Transitions to **Blurred** via
-    `kSbEventTypeBlur` (for example, when the top-level window loses focus or a
-    system overlay appears).
+-   **Platform Contract:** While in **Started**, the native `SbWindow` and
+    `EGLSurface` graphics surfaces are mapped and active, and the platform
+    routes keyboard, pointer, and remote control input events
+    (`kSbEventTypeInput`) to the application.
+-   **Entry Transitions:**
+    -   *Entered at launch (`kSbEventTypeStart`):* Cobalt creates the native
+        window via `SbWindowCreate()`, initializes `EGLSurface` and GPU
+        resources, and enables input focus.
+    -   *Entered from **Blurred** (`kSbEventTypeFocus`):* `SbWindow` and
+        `EGLSurface` are already active; Cobalt enables active input focus.
+-   **Web Application Signals:**
+    -   *Entered at launch (`kSbEventTypeStart`):* The document loads with
+        `document.visibilityState === "visible"` and
+        `document.hasFocus() === true`.
+    -   *Entered from **Blurred** (`kSbEventTypeFocus`):* The `focus` event is
+        dispatched on `window` / `document` (`document.hasFocus()` becomes
+        `true`).
 
 ### Blurred
 
@@ -398,17 +409,25 @@ The application remains visible (`document.visibilityState === "visible"`), or
 partially obscured by a system dialog/overlay, but has lost input focus
 (`document.hasFocus() === false`).
 
--   **Platform Contract:** The application does not receive input events, but
-    retains its native `SbWindow` and `EGLSurface` so it can return to
-    **Started** immediately without reallocating graphics surfaces. Cobalt
-    initiates an asynchronous flush of Cookies and LocalStorage when entering
-    **Blurred**.
--   **Web Application Signals:** The `blur` event is dispatched on `window` /
-    `document` upon entering **Blurred**, and `focus` is dispatched when
-    returning to **Started**.
--   **Transitions:** Entered from **Started** (`kSbEventTypeBlur`) or
-    **Concealed** (`kSbEventTypeReveal`). Transitions to **Started**
-    (`kSbEventTypeFocus`) or **Concealed** (`kSbEventTypeConceal`).
+-   **Platform Contract:** While in **Blurred**, the native `SbWindow` and
+    `EGLSurface` are active and visible, but the application does not receive
+    input events.
+-   **Entry Transitions:**
+    -   *Entered from **Started** (`kSbEventTypeBlur`):* Cobalt retains its
+        existing `SbWindow` and `EGLSurface` for fast refocus, disables input,
+        and initiates an asynchronous flush of Cookies and LocalStorage.
+    -   *Entered from **Concealed** (`kSbEventTypeReveal`):* Cobalt requests a
+        new native window via `SbWindowCreate()` and initializes `EGLSurface`
+        and GPU resources so the application becomes visible (unfocused).
+-   **Web Application Signals:**
+    -   *Entered from **Started** (`kSbEventTypeBlur`):* The `blur` event is
+        dispatched on `window` / `document` (`document.hasFocus()` becomes
+        `false`, while `document.visibilityState` remains `"visible"`).
+    -   *Entered from **Concealed** (`kSbEventTypeReveal`):* The
+        `visibilitychange` event is dispatched on `document`
+        (`document.visibilityState` transitions from `"hidden"` to `"visible"`,
+        while `document.hasFocus()` remains `false`), signaling the web
+        application to reinitialize graphics/media resources.
 
 ### Concealed
 
@@ -418,23 +437,34 @@ operating as a background service that can continue executing with minimized
 resource usage.
 
 -   **Platform Contract:** While in **Concealed**, Cobalt performs no rendering
-    and holds no GPU, `EGLSurface`, or native `SbWindow` resources. During the
-    transition into **Concealed**, Cobalt releases all GPU resources and calls
-    `SbWindowDestroy()`, and calls `SbWindowCreate()` when subsequently
-    foregrounded (`kSbEventTypeReveal`). Calls to `SbWindowDestroy()` by
-    themselves are not a signal of intent to exit. Memory reclamation is also
-    triggered to minimize background RAM footprint. Only after `SbEventHandle()`
-    returns may the platform revoke graphics access. To terminate the process,
-    the platform should dispatch the `kSbEventTypeStop` event.
--   **Web Application Signals:** The `visibilitychange` event is dispatched on
-    `document` (`document.visibilityState` becomes `"hidden"`). The web
-    application stops media playback (`SbPlayer`) and releases heavy resources;
-    on subsequent `Reveal` (`visibilitychange` to `"visible"`), resources and
-    playback are reinitialized.
--   **Transitions:** Entered at startup via `kSbEventTypePreload`, from
-    **Blurred** via `kSbEventTypeConceal`, or from **Frozen** via
-    `kSbEventTypeUnfreeze`. Transitions to **Blurred** (`kSbEventTypeReveal`) or
-    **Frozen** (`kSbEventTypeFreeze`).
+    and holds no GPU, `EGLSurface`, or native `SbWindow` resources. To terminate
+    the process, the platform should dispatch the `kSbEventTypeStop` event.
+-   **Entry Transitions:**
+    -   *Entered from **Blurred** (`kSbEventTypeConceal`):* Cobalt releases all
+        GPU resources, triggers memory reclamation, and calls
+        `SbWindowDestroy()` before `SbEventHandle()` returns. Only after
+        `SbEventHandle()` returns may the platform revoke graphics access.
+        (Calls to `SbWindowDestroy()` by themselves are not a signal of intent
+        to exit.)
+    -   *Entered at launch (`kSbEventTypePreload`):* Cobalt initializes in the
+        background without calling `SbWindowCreate()` or allocating GPU
+        surfaces (see [Application Preload](preload.md)).
+    -   *Entered from **Frozen** (`kSbEventTypeUnfreeze`):* Cobalt resumes
+        background execution without creating an `SbWindow` or GPU surfaces
+        until `kSbEventTypeReveal`.
+-   **Web Application Signals:**
+    -   *Entered from **Blurred** (`kSbEventTypeConceal`):* The
+        `visibilitychange` event is dispatched on `document`
+        (`document.visibilityState` transitions from `"visible"` to `"hidden"`),
+        signaling the web application to stop media playback (`SbPlayer`) and
+        release heavy resources.
+    -   *Entered at launch (`kSbEventTypePreload`):* The document loads in the
+        hidden state (`document.visibilityState === "hidden"`,
+        `document.hasFocus() === false`) with `launch=preload` appended to the
+        initial URL query string (`window.location.search`).
+    -   *Entered from **Frozen** (`kSbEventTypeUnfreeze`):* The Page Lifecycle
+        `resume` event (`document.onresume`) is dispatched on `document` (while
+        `document.visibilityState` remains `"hidden"`).
 
 ### Frozen
 
@@ -442,22 +472,20 @@ The application is hidden in the background (`document.visibilityState ===
 "hidden"`, `document.hasFocus() === false`), receives no input, and its program
 execution can be halted.
 
--   **Platform Contract:** Cobalt freezes page execution, holds no `SbWindow` or
-    GPU/`EGLSurface` resources, releases `SbPlayer` hardware media decoder
-    resources, suspends background services (including the Evergreen updater),
-    and synchronously flushes all persistent storage (Cookies and LocalStorage
-    in `kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
-    before `SbEventHandle(kSbEventTypeFreeze)` returns. Once
-    `SbEventHandle(kSbEventTypeFreeze)` returns, the platform may suspend OS
-    threads (e.g., `SIGSTOP`) or forcefully terminate the process at any time
-    without data loss.
--   **Web Application Signals:** The Page Lifecycle `freeze` event
-    (`document.onfreeze`) is dispatched when entering **Frozen**, and `resume`
-    (`document.onresume`) is dispatched when transitioning back to
-    **Concealed** via `kSbEventTypeUnfreeze`.
--   **Transitions:** Entered from **Concealed** (`kSbEventTypeFreeze`).
-    Transitions to **Concealed** (`kSbEventTypeUnfreeze`) or **Stopped**
-    (`kSbEventTypeStop`).
+-   **Platform Contract:** While in **Frozen**, page execution and background
+    services (including the Evergreen updater) are suspended, no `SbWindow`,
+    GPU/`EGLSurface`, or `SbPlayer` decoder resources are held, and persistent
+    storage is synced to disk. The platform may suspend OS threads (e.g.,
+    `SIGSTOP`) or terminate the process without data loss.
+-   **Entry Transitions:**
+    -   *Entered from **Concealed** (`kSbEventTypeFreeze`):* Cobalt freezes page
+        execution, releases any remaining `SbPlayer` decoder resources, suspends
+        background services, and synchronously flushes Cookies and LocalStorage
+        (`kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
+        before `SbEventHandle(kSbEventTypeFreeze)` returns.
+-   **Web Application Signals:**
+    -   *Entered from **Concealed** (`kSbEventTypeFreeze`):* The Page Lifecycle
+        `freeze` event (`document.onfreeze`) is dispatched on `document`.
 
 ### Stopped
 
