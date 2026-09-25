@@ -62,10 +62,10 @@ TEST_F(V8CpuProfilerTest, SamplingProfilerCollectsSamplesWithoutCrashing) {
     }
   } scoped_profiler{profiler, title};
 
-  // Run JavaScript on this thread for ~200ms so that it is sampled repeatedly.
+  // Run JavaScript on this thread for ~50ms so that it is sampled repeatedly.
   constexpr char kBusyLoopScript[] = R"(
     let x = 0;
-    const deadline = Date.now() + 200;
+    const deadline = Date.now() + 50;
     while (Date.now() < deadline) {
       x += Math.sqrt(x + 1);
     }

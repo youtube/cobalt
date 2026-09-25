@@ -65,6 +65,11 @@ struct SiginfoHandlerArgs {
 };
 SiginfoHandlerArgs g_siginfo_handler_args;
 
+// Lock-free atomic operations are signal-safe ([support.signal]).
+static_assert(std::atomic<int>::is_always_lock_free);
+static_assert(std::atomic<bool>::is_always_lock_free);
+static_assert(std::atomic<uintptr_t>::is_always_lock_free);
+
 // --- Signal Handlers ---
 
 // A simple signal handler that sets a global flag.
