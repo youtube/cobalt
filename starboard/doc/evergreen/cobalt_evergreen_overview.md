@@ -443,16 +443,18 @@ All of the other installation slots are located within the storage directory
 specified by `kSbSystemPathStorageDirectory`. This will vary depending on the
 platform.
 
-For example, on the Raspberry Pi the `kSbSystemPathStorageDirectory` directory
-is `/home/pi/.cobalt_storage`, and the paths to all existing installation slots
-will be as follows:
+For example, on AOSP the read-only system image is shipped inside the APK, so
+`kSbSystemPathContentDirectory` is the app's asset directory
+(`/cobalt/assets`), while `kSbSystemPathStorageDirectory` is a subdirectory of
+the app's files directory. The paths to all existing installation slots will be
+as follows:
 
 ```
-/home/pi/<kSbSystemPathContentDirectory>/app/cobalt (system image installation SLOT_0) (read-only)
-/home/pi/.cobalt_storage/installation_1 (SLOT_1)
-/home/pi/.cobalt_storage/installation_2 (SLOT_2)
+/cobalt/assets/app/cobalt (system image installation SLOT_0) (read-only)
+/data/data/dev.cobalt.coat/files/storage/installation_1 (SLOT_1)
+/data/data/dev.cobalt.coat/files/storage/installation_2 (SLOT_2)
 ...
-/home/pi/.cobalt_storage/installation_N (SLOT_N)
+/data/data/dev.cobalt.coat/files/storage/installation_N (SLOT_N)
 ```
 
 Where the most recent update is stored will alternate between the available
@@ -527,22 +529,22 @@ point to either the system fonts on the device or the Cobalt `standard` (23MB)
 or the Cobalt `limited` (3.1MB) font packages. An easy way to use the Cobalt
 fonts is to set `kSbSystemPathFontDirectory` to point to
 `kSbSystemPathContentDirectory/fonts` and configure `cobalt_font_package` to
-`standard` or `limited` in your port.
+`standard`, `limited` or `android_system` in your port.
 
 Cobalt Evergreen (built by Google), will by default use the `empty` font
 package to minimize storage requirements. A separate
 `cobalt_font_package` variable is set to `empty` in the Evergreen platform.
 
-On Raspberry Pi the Cobalt fonts are configured the following way:
+On AOSP the Cobalt fonts are configured the following way:
 
 `empty` set of fonts under:
 ```
-<kSbSystemPathContentDirectory>/app/starboard/content/fonts
+/cobalt/assets/app/cobalt/content/fonts
 ```
 
-`standard` or `limited` set of fonts under:
+`standard`, `limited` or `android_system` set of fonts under:
 ```
-<kSbSystemPathContentDirectory>/fonts
+/cobalt/assets/fonts
 ```
 
 ### Handling Pending Updates
