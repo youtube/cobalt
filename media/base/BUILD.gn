@@ -733,7 +733,12 @@ source_set("unit_tests") {
     sources += [
       "starboard/experimental_features_unittest.cc",
       "starboard/ipc_param_traits_unittest.cc",
+      "starboard/mime_util_starboard_unittest.cc",
       "starboard/starboard_renderer_config_unittest.cc",
+    ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
     ]
   }
 }
