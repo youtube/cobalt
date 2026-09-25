@@ -249,13 +249,20 @@ MediaCodecDecoder::MediaCodecDecoder(
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
 
+  const MediaCodec::VideoPlatformOptions platform_options = {
+      max_video_input_size,
+      skip_video_frames_over_60_fps,
+      ignore_mediacodec_callbacks_during_flushing,
+      enable_frame_renderer_listener,
+      require_secured_decoder,
+      require_software_codec,
+      tunnel_mode_audio_session_id,
+      enable_ndk_video};
+
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
-      {max_video_input_size, skip_video_frames_over_60_fps,
-       ignore_mediacodec_callbacks_during_flushing,
-       enable_frame_renderer_listener, require_secured_decoder,
-       require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video});
+      platform_options);
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -265,6 +272,19 @@ MediaCodecDecoder::MediaCodecDecoder(
                   << *error_message;
     return;
   }
+
+  create_video_codec_ =
+      [this, &media_codec_factory, video_codec, frame_size_hint, fps,
+       max_frame_size, platform_options,
+       j_surface = jni_zero::ScopedJavaGlobalRef<jobject>(j_output_surface),
+       j_crypto = jni_zero::ScopedJavaGlobalRef<jobject>(j_media_crypto)](
+          const SbMediaColorMetadata* new_color_metadata) {
+        return media_codec_factory.CreateVideoMediaCodec(
+            video_codec, frame_size_hint, fps, max_frame_size,
+            /*handler=*/this, j_surface, j_crypto, new_color_metadata,
+            platform_options);
+      };
+
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
                << ", video_decoder_poll_interval(msec)="
@@ -376,7 +396,32 @@ void MediaCodecDecoder::WriteEndOfStream() {
 
 void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  if (swapping_.load()) {
+    // Only tunnel mode uses the playback rate, and swaps skip tunnel mode.
+    return;
+  }
   media_codec_bridge_->SetPlaybackRate(playback_rate);
+}
+
+bool MediaCodecDecoder::RequestCodecSwap(
+    const SbMediaColorMetadata* color_metadata) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  if (!use_dual_threads_ || tunnel_mode_enabled_ || !video_input_thread_ ||
+      !create_video_codec_) {
+    return false;
+  }
+
+  std::lock_guard lock(mutex_);
+  swap_color_metadata_ = color_metadata
+                             ? std::optional<SbMediaColorMetadata>(
+                                   *color_metadata)
+                             : std::nullopt;
+  swapping_.store(true);
+  swap_requested_.store(true);
+  // Accept input for the new codec.
+  stream_ended_.store(false);
+  video_input_condition_variable_.notify_one();
+  return true;
 }
 
 bool MediaCodecDecoder::Flush() {
@@ -391,6 +436,14 @@ bool MediaCodecDecoder::Flush() {
 
   // 1. Terminate `audio_decoder` or `video_decoder` thread.
   TerminateDecoderThread();
+
+  // A swap that never ran or failed leaves the codec out of sync with the
+  // host, so have it recreate the decoder.
+  const bool swap_not_run = swap_requested_.exchange(false);
+  const bool swap_failed = swapping_.exchange(false);
+  if (swap_not_run || swap_failed || !media_codec_bridge_) {
+    return false;
+  }
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
   // 2.1. Flush() |media_codec_bridge_|.
@@ -599,6 +652,19 @@ void MediaCodecDecoder::InputThreadFunc() {
   };
 
   while (!destroying_.load()) {
+    if (swap_requested_.exchange(false)) {
+      PerformCodecSwap(&input_buffer_indices);
+      continue;
+    }
+    if (swapping_.load()) {
+      // Either a request is landing right now, or the swap failed and an
+      // error was reported and we wait to be torn down.
+      std::unique_lock lock(mutex_);
+      video_input_condition_variable_.wait(lock, [this] {
+        return destroying_.load() || swap_requested_.load();
+      });
+      continue;
+    }
     if (can_process_input()) {
       if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
         // Sleep for 1 ms to avoid busy looping.
@@ -606,7 +672,8 @@ void MediaCodecDecoder::InputThreadFunc() {
       }
     } else {
       std::unique_lock lock(mutex_);
-      if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
+      if (pending_inputs_.empty() && input_buffer_indices_.empty() &&
+          !swap_requested_.load()) {
         // Wait for up to one second.  Technically we can wait longer, picking
         // a reasonably small duration to avoid potential deadlock.
         video_input_condition_variable_.wait_for(lock, std::chrono::seconds(1));
@@ -625,6 +692,16 @@ void MediaCodecDecoder::OutputThreadFunc() {
   std::vector<DequeueOutputResult> dequeue_output_results;
 
   while (!destroying_.load()) {
+    if (swapping_.load()) {
+      // Outputs from the released codec are stale.
+      dequeue_output_results.clear();
+      std::unique_lock lock(mutex_);
+      video_output_condition_variable_.wait(lock, [this] {
+        return destroying_.load() || !swapping_.load();
+      });
+      continue;
+    }
+
     bool can_process_output = !dequeue_output_results.empty();
 
     if (can_process_output) {
@@ -698,6 +775,48 @@ void MediaCodecDecoder::TerminateDecoderThread() {
     decoder_thread_->Join();
     decoder_thread_.reset();
   }
+}
+
+void MediaCodecDecoder::PerformCodecSwap(
+    std::vector<int>* input_buffer_indices) {
+  SB_DCHECK(input_buffer_indices);
+  SB_DCHECK(!pending_input_to_retry_);
+
+  std::optional<SbMediaColorMetadata> color_metadata;
+  {
+    std::lock_guard lock(mutex_);
+    color_metadata = swap_color_metadata_;
+  }
+
+  SB_LOG(INFO) << "Swapping video codec on the input thread.";
+  media_codec_bridge_.reset();
+
+  // Buffer indices belong to the released codec. Clear them after the release
+  // so late callbacks from it are dropped too.
+  {
+    std::lock_guard lock(mutex_);
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+  }
+  input_buffer_indices->clear();
+  first_call_on_handler_thread_ = true;
+
+  auto result =
+      create_video_codec_(color_metadata ? &*color_metadata : nullptr);
+  if (!result) {
+    // |swapping_| stays set so both decoder threads stay idle until teardown.
+    ReportError(kSbPlayerErrorDecode,
+                "Failed to swap video codec: " + result.error());
+    return;
+  }
+  media_codec_bridge_ = std::move(result.value());
+
+  {
+    std::lock_guard lock(mutex_);
+    swapping_.store(false);
+    video_output_condition_variable_.notify_one();
+  }
+  SB_LOG(INFO) << "Video codec swapped.";
 }
 
 void MediaCodecDecoder::CollectPendingData_Locked(

@@ -1341,6 +1341,28 @@ void MediaCodecVideoDecoder::PerformCodecTransition() {
   buffers.swap(pending_transition_buffers_);
   const bool write_end_of_stream = transition_eos_pending_;
 
+  if (media_decoder_ && !buffers.empty()) {
+    std::optional<SbMediaColorMetadata> new_color_metadata;
+    const auto& color_metadata =
+        buffers.front()->video_stream_info().color_metadata;
+    if (!IsIdentity(color_metadata)) {
+      new_color_metadata = color_metadata;
+    }
+    // Drop any frames still referencing the old codec before it's released,
+    // as the teardown path does via OnFlushing().
+    decoder_status_cb_(kReleaseAllFrames, NULL);
+    if (media_decoder_->RequestCodecSwap(
+            new_color_metadata ? &*new_color_metadata : nullptr)) {
+      color_metadata_ = new_color_metadata;
+      ResetDecoderState();
+      WriteInputBuffers(buffers);
+      if (write_end_of_stream) {
+        WriteEndOfStream();
+      }
+      return;
+    }
+  }
+
   TeardownCodecAndReset();
 
   if (!buffers.empty()) {

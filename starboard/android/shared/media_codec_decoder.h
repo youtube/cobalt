@@ -156,6 +156,12 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
 
   bool Flush();
 
+  // Releases the video codec and creates a new one configured with
+  // |color_metadata| on the video input thread, keeping the decoder threads and
+  // output surface. Returns false if unsupported, in which case nothing
+  // changes.
+  bool RequestCodecSwap(const SbMediaColorMetadata* color_metadata);
+
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
@@ -203,6 +209,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   void OutputThreadFunc();
 
   void TerminateDecoderThread();
+
+  // Runs on the video input thread.
+  void PerformCodecSwap(std::vector<int>* input_buffer_indices);
 
   void CollectPendingData_Locked(
       std::deque<PendingInput>* pending_inputs,
@@ -281,6 +290,16 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   std::unique_ptr<Thread> video_output_thread_;
 
   std::unique_ptr<MediaCodec> media_codec_bridge_;
+
+  // Codec swap support (video, dual threads only). |create_video_codec_|
+  // recreates the video codec with the construction-time parameters.
+  std::function<NonNullResult<std::unique_ptr<MediaCodec>>(
+      const SbMediaColorMetadata*)>
+      create_video_codec_;
+  std::optional<SbMediaColorMetadata> swap_color_metadata_;
+  std::atomic_bool swap_requested_{false};
+  // Set from the swap request until the new codec is installed.
+  std::atomic_bool swapping_{false};
 };
 
 }  // namespace starboard
