@@ -39,6 +39,10 @@ using std::placeholders::_2;
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 }  // namespace
 
+// DEMO ONLY: lets the video decoder hold the pipeline across a codec
+// transition. Set and invoked on the player worker thread only.
+std::function<void(bool)> g_demo_transition_stall_cb;
+
 FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param,
     SbDecodeTargetGraphicsContextProvider* provider)
@@ -152,6 +156,9 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
+  g_demo_transition_stall_cb = std::bind(
+      &FilterBasedPlayerWorkerHandler::OnTransitionStall, this, _1);  // DEMO
+
   return Success();
 }
 
@@ -171,6 +178,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   }
 
   media_time_provider_->Pause();
+  stalled_for_transition_ = false;  // DEMO ONLY
   if (video_renderer_) {
     video_renderer_->Seek(seek_to_time);
   }
@@ -314,7 +322,9 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   if (pause) {
     media_time_provider_->Pause();
   } else {
-    media_time_provider_->Play();
+    if (!stalled_for_transition_) {  // DEMO ONLY
+      media_time_provider_->Play();
+    }
   }
   Update();
   return Success();
@@ -401,6 +411,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   audio_preroll_track_.End();
   video_preroll_track_.End();
 
+  g_demo_transition_stall_cb = nullptr;  // DEMO ONLY
   RemoveJobByToken(&update_job_token_);
 
   std::unique_ptr<PlayerComponents> player_components;
@@ -436,7 +447,8 @@ void FilterBasedPlayerWorkerHandler::Update() {
     double playback_rate;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
         &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-    update_media_info_cb_(media_time, dropped_frames, !is_underflow);
+    update_media_info_cb_(media_time, dropped_frames,
+                          !is_underflow && !stalled_for_transition_);
   }
 
   RemoveJobByToken(&update_job_token_);
@@ -512,6 +524,24 @@ void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
       (!video_renderer_ || video_ended_)) {
     update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
+}
+
+// DEMO ONLY: holds the media clock while the video decoder rebuilds its codec,
+// and reports the player as not progressing so SbPlayerGetInfo() freezes the
+// timestamp rather than extrapolating past the transition.
+void FilterBasedPlayerWorkerHandler::OnTransitionStall(bool stalled) {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!media_time_provider_ || stalled == stalled_for_transition_) {
+    return;
+  }
+  SB_LOG(INFO) << "DEMO: transition stall " << (stalled ? "begin" : "end");
+  stalled_for_transition_ = stalled;
+  if (stalled) {
+    media_time_provider_->Pause();
+  } else if (!paused_) {
+    media_time_provider_->Play();
+  }
+  Update();
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {

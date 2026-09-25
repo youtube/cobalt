@@ -70,6 +70,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled(SbMediaType media_type);
   void OnEnded(SbMediaType media_type);
+  void OnTransitionStall(bool stalled);  // DEMO ONLY
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
@@ -102,6 +103,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   VideoRenderer* video_renderer_ = nullptr;
 
   bool paused_ = false;
+  bool stalled_for_transition_ = false;  // DEMO ONLY
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
   PlayerWorker::Bounds bounds_ = {};

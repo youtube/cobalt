@@ -271,6 +271,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::atomic_bool transition_eos_received_{false};
   bool transition_eos_pending_ = false;
   InputBuffers pending_transition_buffers_;
+  std::atomic_bool awaiting_first_frame_after_transition_{false};  // DEMO
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;

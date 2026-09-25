@@ -49,6 +49,10 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+
+// DEMO ONLY: defined in filter_based_player_worker_handler.cc.
+extern std::function<void(bool)> g_demo_transition_stall_cb;
+
 namespace {
 
 using jni_zero::AttachCurrentThread;
@@ -1039,6 +1043,15 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     return;
   }
 
+  if (!is_end_of_stream &&
+      awaiting_first_frame_after_transition_.exchange(false)) {  // DEMO ONLY
+    Schedule([] {
+      if (g_demo_transition_stall_cb) {
+        g_demo_transition_stall_cb(false);
+      }
+    });
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1341,7 +1354,12 @@ void MediaCodecVideoDecoder::PerformCodecTransition() {
   buffers.swap(pending_transition_buffers_);
   const bool write_end_of_stream = transition_eos_pending_;
 
+  if (g_demo_transition_stall_cb) {  // DEMO ONLY
+    g_demo_transition_stall_cb(true);
+  }
+
   TeardownCodecAndReset();
+  awaiting_first_frame_after_transition_.store(true);  // DEMO ONLY
 
   if (!buffers.empty()) {
     WriteInputBuffers(buffers);
