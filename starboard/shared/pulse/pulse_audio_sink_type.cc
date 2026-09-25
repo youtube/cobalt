@@ -404,16 +404,14 @@ SbAudioSink PulseAudioSinkType::Create(
 }
 
 void PulseAudioSinkType::RemoveSink(PulseAudioSink* pulse_audio_sink) {
-  {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      // |pulse_audio_sink| isn't registered if Create() failed.
-      if (it != sinks_.end()) {
-        sinks_.erase(it);
-      }
-    }
+  std::lock_guard lock(mutex_);
+  auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
+  // |pulse_audio_sink| isn't registered if Create() failed.
+  if (it == sinks_.end()) {
+    return;
   }
+
+  sinks_.erase(it);
 }
 
 bool PulseAudioSinkType::Initialize() {
