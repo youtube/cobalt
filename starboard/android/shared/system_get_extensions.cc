@@ -16,6 +16,7 @@
 #include "starboard/system.h"
 // clang-format on
 
+#include "build/build_config.h"
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
@@ -27,6 +28,7 @@
 #include "starboard/android/shared/player_settings.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
+#include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/experimental_features.h"
@@ -40,6 +42,19 @@
 #include "starboard/shared/starboard/experimental_features.h"
 
 const void* SbSystemGetExtension(const char* name) {
+#if BUILDFLAG(IS_STARBOARD)
+  // Extensions the loader app injects into the Evergreen binary, such as the
+  // installation manager, take precedence over the platform's own.
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
+  if (evergreen_config != nullptr &&
+      evergreen_config->custom_get_extension_ != nullptr) {
+    const void* ext = evergreen_config->custom_get_extension_(name);
+    if (ext != nullptr) {
+      return ext;
+    }
+  }
+#endif
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::GetPlatformServiceApiAndroid();
   }
