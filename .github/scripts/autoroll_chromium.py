@@ -63,7 +63,7 @@ def replace_submodules_with_dirs():
   repo_url = lib.get_out(['git', 'remote', 'get-url', 'origin']).strip()
   lib.run(['gclient', 'config', '--name=src', '--unmanaged', repo_url],
           cwd='..')
-  lib.run(['gclient', 'sync', '--no-history'], cwd='..')
+  lib.run(['gclient', 'sync', '--no-history', '--nohooks'], cwd='..')
   lib.run(['rm', '-f', '--', os.path.join('..', '.gclient')])
   lib.log('Removing Chromium submodules for Cobalt directories...')
   for submodule_dir in _COBALT_SUBMODULE_DIRS:
