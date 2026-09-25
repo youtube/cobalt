@@ -36,10 +36,15 @@ constexpr SbMediaAudioSampleType kSampleType =
 
 class FakeAudioSinkAndroid : public AudioSinkAndroid {
  public:
-  FakeAudioSinkAndroid(SbAudioSinkPrivate::Type* type, bool flush_succeeds)
-      : type_(type), flush_succeeds_(flush_succeeds) {}
+  FakeAudioSinkAndroid(bool flush_succeeds,
+                       std::function<void(FakeAudioSinkAndroid*)> on_destroy)
+      : flush_succeeds_(flush_succeeds), on_destroy_(std::move(on_destroy)) {}
 
-  bool IsType(SbAudioSinkPrivate::Type* type) override { return type == type_; }
+  ~FakeAudioSinkAndroid() override {
+    if (on_destroy_) {
+      on_destroy_(this);
+    }
+  }
 
   void SetPlaybackRate(double playback_rate) override {
     playback_rate_ = playback_rate;
@@ -64,8 +69,8 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
   double volume() const { return volume_; }
 
  private:
-  SbAudioSinkPrivate::Type* type_;
   bool flush_succeeds_ = true;
+  std::function<void(FakeAudioSinkAndroid*)> on_destroy_;
   bool flush_called_ = false;
   bool start_time_set_ = false;
   int64_t last_start_time_us_ = -1;
@@ -95,23 +100,17 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override {
-    auto sink = new FakeAudioSinkAndroid(this, flush_succeeds_);
+    auto sink = new FakeAudioSinkAndroid(
+        flush_succeeds_, [this](FakeAudioSinkAndroid* destroyed_sink) {
+          if (destroyed_sink == last_created_sink_) {
+            last_sink_destroyed_ = true;
+          }
+          ++destroy_count_;
+        });
     last_created_sink_ = sink;
     last_sink_destroyed_ = false;
     ++create_count_;
     return sink;
-  }
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink == last_created_sink_) {
-      last_sink_destroyed_ = true;
-    }
-    ++destroy_count_;
-    delete audio_sink;
   }
 
   SbAudioSinkPrivate::Type* old_primary_type_ = nullptr;

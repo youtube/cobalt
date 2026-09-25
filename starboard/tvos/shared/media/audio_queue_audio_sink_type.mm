@@ -45,7 +45,7 @@ class TvosAudioSinkType;
 class TvosAudioSink : public SbAudioSinkPrivate {
  public:
   TvosAudioSink(
-      const TvosAudioSinkType* type,
+      TvosAudioSinkType* type,
       const int number_of_channels,
       const int sampling_frequency,
       const SbMediaAudioSampleType sample_type,
@@ -56,10 +56,11 @@ class TvosAudioSink : public SbAudioSinkPrivate {
       void* const context);
   ~TvosAudioSink() override;
 
-  bool IsType(Type* type) override;
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
   bool Initialize();
+  // Called by TvosAudioSinkType once the sink is handed to the audio thread.
+  void set_registered() { registered_ = true; }
   // |maximum_polling_delay| contains the maximum polling intervel the current
   // audio sink instance is expected.  The audio sink thread should use a wait
   // interval less than or equal to the value of |maximum_polling_delay|.
@@ -77,7 +78,7 @@ class TvosAudioSink : public SbAudioSinkPrivate {
   bool UpdateTimestamp();
   void TryWriteFrames(int frames_in_buffer, int offset_in_frames);
 
-  const TvosAudioSinkType* type_;
+  TvosAudioSinkType* type_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   const ConsumeFramesFunc consume_frames_func_;
   void* const context_;
@@ -96,6 +97,7 @@ class TvosAudioSink : public SbAudioSinkPrivate {
   std::mutex audio_queue_buffer_mutex_;
   std::atomic_bool is_paused_{false};
   bool audio_queue_is_playing_ = false;
+  bool registered_ = false;
 };
 
 class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
@@ -114,11 +116,7 @@ class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override;
+  void RemoveSink(TvosAudioSink* sink);
 
   bool BelongToAudioThread() const;
 
@@ -140,7 +138,7 @@ class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
 };
 
 TvosAudioSink::TvosAudioSink(
-    const TvosAudioSinkType* type,
+    TvosAudioSinkType* type,
     const int number_of_channels,
     const int sampling_frequency,
     const SbMediaAudioSampleType sample_type,
@@ -163,6 +161,9 @@ TvosAudioSink::TvosAudioSink(
 }
 
 TvosAudioSink::~TvosAudioSink() {
+  if (registered_) {
+    type_->RemoveSink(this);
+  }
   // Disposing of an audio queue also disposes of its resources, including
   // its buffers.
   if (audio_queue_) {
@@ -200,10 +201,6 @@ void TvosAudioSink::SetVolume(double volume) {
       audio_queue_, kAudioQueueParam_Volume, static_cast<Float32>(volume));
   SB_LOG_IF(ERROR, status != 0)
       << "Error: cannot set volume (" << status << ").";
-}
-
-bool TvosAudioSink::IsType(Type* type) {
-  return type_ == type;
 }
 
 bool TvosAudioSink::Initialize() {
@@ -431,25 +428,21 @@ SbAudioSink TvosAudioSinkType::Create(
     std::lock_guard lock(audio_thread_mutex_);
     sinks_to_add_.push_back(audio_sink.get());
   }
+  audio_sink->set_registered();
   audio_thread_condition_.notify_one();
   return audio_sink.release();
 }
 
-void TvosAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid || !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
+void TvosAudioSinkType::RemoveSink(TvosAudioSink* sink) {
   {
     std::lock_guard lock(audio_thread_mutex_);
-    sinks_to_destroy_.push_back(static_cast<TvosAudioSink*>(audio_sink));
+    sinks_to_destroy_.push_back(sink);
   }
   audio_thread_condition_.notify_one();
   {
     std::unique_lock lock(audio_thread_mutex_);
     destroy_condition_.wait(lock, [&] { return sinks_to_destroy_.empty(); });
   }
-  delete audio_sink;
 }
 
 bool TvosAudioSinkType::BelongToAudioThread() const {

@@ -156,11 +156,11 @@ SbAudioSink SbAudioSinkImpl::Create(
         channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frame_buffers_size_in_frames, update_source_status_func,
         consume_frames_func, error_func, context);
-    if (audio_sink_type->IsValid(audio_sink)) {
+    if (SbAudioSinkIsValid(audio_sink)) {
       return audio_sink;
     }
     SB_LOG(ERROR) << "Failed to create SbAudioSink from preferred type.";
-    audio_sink_type->Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
   } else {
     SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
   }
@@ -171,11 +171,11 @@ SbAudioSink SbAudioSinkImpl::Create(
         channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frame_buffers_size_in_frames, update_source_status_func,
         consume_frames_func, error_func, context);
-    if (fallback_type->IsValid(audio_sink)) {
+    if (SbAudioSinkIsValid(audio_sink)) {
       return audio_sink;
     }
     SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
-    fallback_type->Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
   } else {
     SB_LOG(WARNING) << "Fallback Sink Type is invalid.";
   }

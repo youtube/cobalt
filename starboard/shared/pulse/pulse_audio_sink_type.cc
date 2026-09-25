@@ -76,8 +76,6 @@ class PulseAudioSink : public SbAudioSinkImpl {
                  void* context);
   ~PulseAudioSink() override;
 
-  bool IsType(Type* type) override;
-
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
 
@@ -135,10 +133,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-  void Destroy(SbAudioSink audio_sink) override;
+  void RemoveSink(PulseAudioSink* pulse_audio_sink);
 
   bool Initialize();
 
@@ -193,13 +188,10 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
+  type_->RemoveSink(this);
   if (stream_) {
     type_->DestroyStream(stream_);
   }
-}
-
-bool PulseAudioSink::IsType(Type* type) {
-  return static_cast<Type*>(type_) == type;
 }
 
 void PulseAudioSink::SetPlaybackRate(double playback_rate) {
@@ -411,24 +403,15 @@ SbAudioSink PulseAudioSinkType::Create(
   return audio_sink;
 }
 
-void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid) {
+void PulseAudioSinkType::RemoveSink(PulseAudioSink* pulse_audio_sink) {
+  std::lock_guard lock(mutex_);
+  auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
+  // |pulse_audio_sink| isn't registered if Create() failed.
+  if (it == sinks_.end()) {
     return;
   }
-  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
-  PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
-  {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      SB_DCHECK(it != sinks_.end());
-      sinks_.erase(it);
-    }
-    delete audio_sink;
-  }
+
+  sinks_.erase(it);
 }
 
 bool PulseAudioSinkType::Initialize() {

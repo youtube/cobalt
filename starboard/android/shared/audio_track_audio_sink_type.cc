@@ -117,7 +117,6 @@ class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
 };
 
 std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -139,7 +138,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
   }
 
   auto audio_sink = std::make_unique<AudioTrackAudioSink>(
-      PassKey<AudioTrackAudioSink>(), type, channels, sampling_frequency_hz,
+      PassKey<AudioTrackAudioSink>(), channels, sampling_frequency_hz,
       sample_type, frame_buffers, frames_per_channel, preferred_buffer_size,
       callbacks, start_media_time, tunnel_mode_audio_session_id,
       allow_audio_writing_on_pause, pause_using_audio_track_state,
@@ -151,7 +150,6 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
 
 // static
 std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::CreateForTesting(
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -170,7 +168,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::CreateForTesting(
   }
 
   auto audio_sink = std::make_unique<AudioTrackAudioSink>(
-      PassKey<AudioTrackAudioSink>(), type, channels, sampling_frequency_hz,
+      PassKey<AudioTrackAudioSink>(), channels, sampling_frequency_hz,
       sample_type, frame_buffers, frames_per_channel, preferred_buffer_size,
       callbacks, start_media_time, tunnel_mode_audio_session_id,
       allow_audio_writing_on_pause, pause_using_audio_track_state,
@@ -182,7 +180,6 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::CreateForTesting(
 
 AudioTrackAudioSink::AudioTrackAudioSink(
     PassKey<AudioTrackAudioSink>,
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -196,8 +193,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     bool pause_using_audio_track_state,
     std::unique_ptr<AudioTrack> audio_track,
     void* context)
-    : type_(type),
-      channels_(channels),
+    : channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
       frame_buffer_(frame_buffers[0]),
@@ -641,7 +637,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
 
   auto audio_sink = AudioTrackAudioSink::Create(
-      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes, callbacks,
       start_media_time, tunnel_mode_audio_session_id, is_web_audio,
       allow_audio_writing_on_pause, pause_using_audio_track_state, context);
