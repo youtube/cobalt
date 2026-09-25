@@ -156,7 +156,7 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
     // Declared out of line rather than brace-initialized in place: cpplint's
     // whitespace/braces check looks ahead past the closing brace for a
     // delimiter, and the #if below hides it.
-    const StarboardRendererConfig::ExperimentalFeatures experimental_features;
+    const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
 
     bridge_ = std::make_unique<SbPlayerBridge>(
         &mock_sbplayer_interface_, task_environment_.GetMainThreadTaskRunner(),
@@ -166,6 +166,7 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
         kSbWindowInvalid, kSbDrmSystemInvalid, &host_,
         /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
         /*max_video_capabilities=*/"",
+        /*max_video_resolution=*/"",
         /*max_video_input_size=*/0, experimental_features
 #if BUILDFLAG(IS_ANDROID)
         ,
