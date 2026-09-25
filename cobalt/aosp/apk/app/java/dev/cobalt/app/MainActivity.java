@@ -86,7 +86,7 @@ public class MainActivity extends BaseCobaltActivity {
 
     void nativeSendFocusEvent();
 
-    void nativeSendConcealEvent();
+    void nativeSendFreezeEvent();
 
     void nativeSendStopEvent();
   }
@@ -215,9 +215,11 @@ public class MainActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
-    // Covers stopping without dropping the surface, which is the only case
-    // where surfaceDestroyed() doesn't run first.
-    MainActivityJni.get().nativeSendConcealEvent();
+    // The app is no longer visible, so freeze it. Starboard first conceals it
+    // if surfaceDestroyed() hasn't already done so, which covers stopping
+    // without dropping the surface. Coming back, the focus event sent once a
+    // surface is available unfreezes and reveals it again.
+    MainActivityJni.get().nativeSendFreezeEvent();
     super.onStop();
   }
 

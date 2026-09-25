@@ -203,9 +203,9 @@ void JNI_MainActivity_NativeSendFocusEvent(JNIEnv* /*env*/) {
   }
 }
 
-void JNI_MainActivity_NativeSendConcealEvent(JNIEnv* /*env*/) {
+void JNI_MainActivity_NativeSendFreezeEvent(JNIEnv* /*env*/) {
   if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
-    application->Conceal(nullptr, nullptr);
+    application->Freeze(nullptr, nullptr);
   }
 }
 
