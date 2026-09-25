@@ -1,0 +1,78 @@
+name: Evaluate CI Pruning
+description: >
+  Determines whether the whole CI pipeline can be safely skipped for a pull
+  request, for example when only documentation or repository metadata changed.
+outputs:
+  skip_ci:
+    description: "'true' when no changed file can possibly affect the build or tests."
+    value: ${{ steps.evaluate.outputs.skip_ci }}
+runs:
+  using: "composite"
+  steps:
+    - name: Evaluate CI Pruning
+      id: evaluate
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        GH_REPO: ${{ github.repository }}
+        GH_TOKEN: ${{ github.token }}
+        # Files matching any of these patterns cannot affect compilation, test
+        # execution or CI behaviour, so a pull request that touches nothing but
+        # these can safely skip the entire pipeline.
+        #
+        # This is a strict allowlist: anything unlisted (including everything
+        # under .github/) forces a full run, so the failure mode of an
+        # unrecognized path is "run CI", never "silently skip it".
+        PRUNABLE_PATTERNS: |
+          \.md$
+          ^docs/
+          ^\.agent/
+          ^\.gemini/
+          (^|/)OWNERS$
+          (^|/)AUTHORS$
+          (^|/)LICENSE(\..+)?$
+          (^|/)\.gitignore$
+      run: |
+        set -euo pipefail
+
+        # Only pull requests are ever pruned. Postsubmit, nightly and manual
+        # runs always execute in full.
+        if [[ "${EVENT_NAME}" != "pull_request" || -z "${PR_NUMBER}" ]]; then
+          echo "Not a pull request. Running full CI."
+          echo "skip_ci=false" >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+
+        changed_files="$(gh pr diff "${PR_NUMBER}" --name-only)"
+
+        # An empty diff is unexpected (e.g. an API hiccup). Fail safe.
+        if [[ -z "${changed_files}" ]]; then
+          echo "Could not determine changed files. Running full CI."
+          echo "skip_ci=false" >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+
+        readarray -t prunable_patterns < <(echo "${PRUNABLE_PATTERNS}" | sed '/^[[:space:]]*$/d')
+
+        skip_ci=true
+        while IFS= read -r filename; do
+          [[ -z "${filename}" ]] && continue
+          matched=false
+          for pattern in "${prunable_patterns[@]}"; do
+            if [[ "${filename}" =~ ${pattern} ]]; then
+              matched=true
+              break
+            fi
+          done
+          if [[ "${matched}" == "false" ]]; then
+            echo "'${filename}' may affect the build. Running full CI."
+            skip_ci=false
+            break
+          fi
+        done <<< "${changed_files}"
+
+        if [[ "${skip_ci}" == "true" ]]; then
+          echo "All changed files are documentation or metadata. Pruning CI!"
+        fi
+        echo "skip_ci=${skip_ci}" >> "${GITHUB_OUTPUT}"
