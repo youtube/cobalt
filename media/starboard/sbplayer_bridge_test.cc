@@ -88,9 +88,8 @@ base::HeapArray<uint8_t> MakeBlockAdditional(
   const std::array<uint8_t, 8u> id_bytes = base::U64ToBigEndian(block_add_id);
   auto payload =
       base::HeapArray<uint8_t>::Uninit(id_bytes.size() + content.size());
-  auto [id_span, content_span] =
-      base::span(payload).split_at<id_bytes.size()>();
-  id_span.copy_from(base::span(id_bytes));
+  auto [id_span, content_span] = payload.as_span().split_at<id_bytes.size()>();
+  id_span.copy_from(id_bytes);
   content_span.copy_from(content);
   return payload;
 }

@@ -235,4 +235,9 @@ base::FilePath ContentBrowserTest::GetTestDataFilePath() {
   return base::FilePath(FILE_PATH_LITERAL("content/test/data"));
 }
 
+// static
+void ContentBrowserTest::SetGpuClientForTesting(ContentGpuClient* client) {
+  GetContentClientForTesting()->gpu_ = client;
+}
+
 }  // namespace content
