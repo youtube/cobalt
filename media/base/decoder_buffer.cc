@@ -76,6 +76,8 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
+  // Without an external allocator, data is stored in `data_`, a
+  // base::HeapArray backed by PartitionAlloc, and memcpy writes into it.
   memcpy(writable_data(), data, size);
 }
 
@@ -102,12 +104,12 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-    // For Starboard builds, if the incoming ExternalMemory object wraps a Starboard
-    // media pool handle, adopt the raw handle inline into allocator_data_ and
-    // destroy the transient ExternalMemory wrapper struct immediately. This avoids
-    // storing long-lived heap wrapper objects for every sample frame (preventing RSS
-    // bloat) and eliminates pointer indirection on hot paths, leaving external_memory_
-    // as nullptr.
+    // For Starboard builds, if the incoming ExternalMemory object wraps a
+    // Starboard media pool handle, adopt the raw handle inline into
+    // allocator_data_ and destroy the transient ExternalMemory wrapper struct
+    // immediately. This avoids storing long-lived heap wrapper objects for
+    // every sample frame (preventing RSS bloat) and eliminates pointer
+    // indirection on hot paths, leaving external_memory_ as nullptr.
     : allocator_data_([&]() -> std::optional<AllocatorData> {
         if (external_memory &&
             external_memory->handle() != Allocator::kInvalidHandle) {
@@ -122,12 +124,19 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {
+        // When s_allocator is nullptr, memory is allocated via data_ instead,
+        // while allocator_data_ is used only when s_allocator is set.
+        if (!s_allocator) {
+          return std::nullopt;
+        }
         if (size == 0) {
           return std::nullopt;
         }
         CHECK(s_allocator);
         return AllocatorData(type, s_allocator->Allocate(type, size), size);
-      }()) {}
+      }()),
+      data_(!s_allocator && size > 0 ? base::HeapArray<uint8_t>::Uninit(size)
+                                     : base::HeapArray<uint8_t>()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 
