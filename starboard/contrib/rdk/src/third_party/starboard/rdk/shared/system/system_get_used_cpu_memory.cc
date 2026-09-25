@@ -57,8 +57,12 @@ std::string GetMemoryCgroupPath(const char* property) {
 }  // namespace
 
 int64_t SbSystemGetUsedCPUMemory() {
+  std::string path = GetMemoryCgroupPath("memory.usage_in_bytes");
   starboard::ScopedFile status_file(
-      GetMemoryCgroupPath("memory.usage_in_bytes").c_str(), O_RDONLY);
+      starboard::FileCanOpen(path.c_str(), O_RDONLY)
+          ? path.c_str()
+          : "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+      O_RDONLY);
 
   if (status_file.IsValid()) {
     const int kBufferSize = 512;
