@@ -498,13 +498,12 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
     // If the queue blocks, appsrc stops pushing buffers which halts the buffer
     // probe triggers, preventing the did-reach-buffering-target event and
     // trapping the pipeline in a paused state.
-    uint32_t max_queue_buffers = (media_type == kSbMediaTypeVideo) ? 300 : 60;
     GstElement* queue = gst_element_factory_make("queue", nullptr);
     g_object_set (
       G_OBJECT (queue),
-      "max-size-buffers", (guint) max_queue_buffers,
+      "max-size-buffers", (guint) 0,
       "max-size-bytes", 0,
-      "max-size-time", (gint64) 0,
+      "max-size-time", (gint64) 5 * GST_SECOND,
       "silent", TRUE,
       nullptr);
     gst_bin_add(GST_BIN(element), queue);
