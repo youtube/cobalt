@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//starboard/build/config/starboard_target_type.gni")
-import("//starboard/contrib/cast/cast.gni")
 import("//testing/test.gni")
 
 # TODO: b/389791129 - Evaluate and cleanup targets in if(!is_cobalt) code block.
@@ -54,10 +53,6 @@ if (!is_cobalt) {
 
     if (sb_enable_benchmark) {
       deps += [ "//starboard/benchmark" ]
-    }
-
-    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
-      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
     }
 
     if (!sb_is_evergreen) {
@@ -271,9 +266,6 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:read_evergreen_version_test",
         "//starboard/loader_app:slot_management_test",
       ]
-    }
-    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
-      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast_starboard_api_test" ]
     }
   }
 }
