@@ -19,12 +19,11 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cstring>
 #include <iterator>
 
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
-#include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
@@ -837,18 +836,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     SB_DCHECK_GE(size, 0);
     SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
-    using ::starboard::experimental::IsPointerAnnotated;
-    using ::starboard::experimental::UnannotatePointer;
-
-    if (IsPointerAnnotated(data)) {
-      auto* pool = MemFdMediaBufferPool::Get();
-      SB_DCHECK(pool);
-
-      // Unannotate the pointer here to convert it into the position the
-      // extension understands.
-      intptr_t position = UnannotatePointer(reinterpret_cast<intptr_t>(data));
-      pool->Read(position, address, size);
-    } else {
+    if (size > 0) {
       memcpy(address, data, size);
     }
   }

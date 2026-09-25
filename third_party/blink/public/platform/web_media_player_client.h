@@ -58,6 +58,7 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual std::string GetMaxVideoCapabilities() const {return "";}
+  virtual std::string GetMaxVideoResolution() const {return "";}
 #endif //BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:

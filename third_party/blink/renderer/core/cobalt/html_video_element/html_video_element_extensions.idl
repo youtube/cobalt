@@ -33,4 +33,8 @@
     // is the same as the format for the string passed in to
     // HTMLMediaElement.canPlayType()."
     [RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
+    // Functions similarly to setMaxVideoCapabilities, but only sets the max
+    // resolution. Does not affect output mode/decode-to-texture behavior.
+    // Format is the same as max_video_capabilities.
+    [RaisesException] void setMaxVideoResolution(DOMString max_video_resolution);
 };

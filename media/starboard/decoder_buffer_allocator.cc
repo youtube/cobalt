@@ -16,8 +16,6 @@
 
 #include <sys/mman.h>  // For MADV_COLD
 
-#include <algorithm>
-
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -26,16 +24,10 @@
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
 #include "media/base/starboard/sbmedia_interface.h"
-#include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
-#include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
-#include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
-#include "starboard/common/experimental/media_buffer_pool.h"
-#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
-#include "starboard/configuration.h"
 
 namespace media {
 
@@ -48,22 +40,9 @@ constexpr base::TimeDelta kDefaultPeriodicDecommitInterval = base::Seconds(5);
 using DefaultReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
         starboard::EmbeddedMetadataReuseAllocatorBase>;
-using starboard::experimental::MediaBufferPool;
 
 const char* ToString(bool value) {
   return value ? "enabled" : "disabled";
-}
-
-template <typename Callback>
-base::expected<void, std::string> ProcessEnableOnlySetting(
-    const std::string& name,
-    int value,
-    Callback on_enable) {
-  if (value == 0) {
-    return base::unexpected(name + " cannot be disabled.");
-  }
-  on_enable();
-  return base::ok();
 }
 
 }  // namespace
@@ -81,6 +60,12 @@ DecoderBufferAllocator::DecoderBufferAllocator(
     : is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
+  if (base::FeatureList::IsEnabled(
+          media::kCobaltDisableDecoderBufferAllocator)) {
+    LOG(INFO) << "DecoderBufferAllocator is disabled via feature flag.";
+    return;
+  }
+
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
@@ -177,26 +162,6 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
               << " bytes of decoder buffer pool.";
     strategy_.reset();
   }
-}
-
-void DecoderBufferAllocator::Write(Handle handle,
-                                   const void* data,
-                                   size_t size) {
-  // The lock adds overhead to the cases where |handle| is a pointer, so we take
-  // a short cut to ensure that there is no overhead adding to our existing
-  // logic.
-  using ::starboard::experimental::IsPointerAnnotated;
-
-  if (!IsPointerAnnotated(handle)) {
-    memcpy(reinterpret_cast<void*>(handle), data, size);
-    return;
-  }
-
-  // TODO(b/369245553): Consider combining Allocate() and Write() into one
-  //                    function to avoid the extra lock.
-  base::AutoLock scoped_lock(mutex_);
-  DCHECK(strategy_);
-  strategy_->Write(reinterpret_cast<void*>(handle), data, size);
 }
 
 base::TimeDelta
@@ -321,10 +286,6 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
         strategy_config, enable_decommit_on_suspend, periodic_decommit);
     return base::ok();
   }
-  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
-    return ProcessEnableOnlySetting(name, value,
-                                    [] { EnableMediaBufferPoolStrategy(); });
-  }
   return base::unexpected(name + " isn't a supported setting.");
 }
 
@@ -402,31 +363,13 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
       strategy_config, enable_decommit_on_suspend, periodic_decommit));
 }
 
-// static
-void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
-  auto* allocator = Get();
-  CHECK(allocator);
-  allocator->UpdateAllocatorStrategy(base::BindRepeating(
-      [](int initial_capacity, int allocation_unit)
-          -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
-        auto pool = MediaBufferPool::Acquire();
-        if (pool) {
-          LOG(INFO) << "DecoderBufferAllocator is using MediaBufferPool.";
-          return std::make_unique<
-              MediaBufferPoolDecoderBufferAllocatorStrategy>(
-              pool, initial_capacity, allocation_unit);
-        }
-        LOG(INFO) << "DecoderBufferAllocator failed to enable MediaBufferPool"
-                  << " as MediaBufferPool::Acquire() returns nullptr.";
-        return nullptr;
-      }));
-}
-
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   mutex_.AssertAcquired();
   if (strategy_) {
     return;
   }
+  CHECK(!base::FeatureList::IsEnabled(
+      media::kCobaltDisableDecoderBufferAllocator));
 
   is_strategy_switch_pending_ = false;
 

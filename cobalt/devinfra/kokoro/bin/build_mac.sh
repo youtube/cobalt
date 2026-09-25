@@ -28,6 +28,12 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
+  # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+  # `--end-of-options` to `git checkout`. Need to update git on runners.
+  git -C tools/depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+  export DEPOT_TOOLS_UPDATE=0
+  git config --global --add safe.directory '*'
+  source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src "${git_url}"
   echo "target_os=['ios']" >> .gclient

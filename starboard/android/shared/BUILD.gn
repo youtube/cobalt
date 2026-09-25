@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/abi.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
@@ -130,6 +131,9 @@ static_library("starboard_platform") {
     "audio_permission_requester.h",
     "audio_renderer_passthrough.cc",
     "audio_renderer_passthrough.h",
+    "audio_renderer_sink_android.cc",
+    "audio_renderer_sink_android.h",
+    "audio_sink_android.h",
     "audio_sink_get_max_channels.cc",
     "audio_sink_get_min_buffer_size_in_frames.cc",
     "audio_sink_get_nearest_supported_sample_frequency.cc",
@@ -174,8 +178,6 @@ static_library("starboard_platform") {
     "log_raw.cc",
     "max_media_codec_output_buffers_lookup_table.cc",
     "max_media_codec_output_buffers_lookup_table.h",
-    "media_buffer_pool_extension.cc",
-    "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
     "media_codec.cc",
@@ -199,8 +201,6 @@ static_library("starboard_platform") {
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
-    "memfd_media_buffer_pool.cc",
-    "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
     "ndk_audio_track.cc",
     "ndk_audio_track.h",
@@ -257,6 +257,8 @@ static_library("starboard_platform") {
     "video_frame_tracker.h",
     "video_max_video_input_size.cc",
     "video_max_video_input_size.h",
+    "video_max_video_resolution.cc",
+    "video_max_video_resolution.h",
     "video_render_algorithm_android.cc",
     "video_render_algorithm_android.h",
     "video_surface_texture_bridge.cc",
@@ -287,6 +289,13 @@ static_library("starboard_platform") {
   configs += [
     "//starboard/build/config:starboard_implementation",
     ":starboard_platform_libs",
+  ]
+
+  defines = [
+    # system_get_property.cc stringizes this to build the platform name
+    # (e.g. for the User-Agent string). Without it, the ABI ends up as the
+    # literal text "ANDROID_ABI" instead of e.g. "armeabi-v7a".
+    "ANDROID_ABI=$android_app_abi",
   ]
 
   public_deps = [
@@ -341,7 +350,6 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/speech_synthesis_speak.cc",
       "//starboard/shared/stub/system_network_is_disconnected.cc",
       "//starboard/shared/stub/system_raise_platform_error.cc",
-      "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
@@ -443,6 +451,7 @@ test("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "audio_renderer_passthrough_test.cc",
+              "audio_renderer_sink_android_test.cc",
               "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
               "features_extension_test.cc",
@@ -450,7 +459,6 @@ test("starboard_platform_tests") {
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
               "media_codec_video_decoder_test.cc",
-              "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
               "model_year_test.cc",
@@ -475,6 +483,10 @@ test("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  deps += [ "//cobalt/android:cobalt_testing_java" ]
+  android_manifest_template =
+      "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
 }
 
 java_cpp_enum("java_enums") {

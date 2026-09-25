@@ -26,10 +26,13 @@
 #include "starboard/key.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/window.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
+
+using jni_zero::AttachCurrentThread;
 
 unsigned int MetaStateToSbKeyModifiers(int meta_state) {
   unsigned int modifiers = kSbKeyModifiersNone;
@@ -49,6 +52,22 @@ unsigned int MetaStateToSbKeyModifiers(int meta_state) {
 }
 
 }  // namespace
+
+ApplicationAOSP::ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback)
+    : QueueApplication(sb_event_handle_callback) {
+  g_instance.store(this, std::memory_order_release);
+  starboard_bridge_->ApplicationStarted(AttachCurrentThread());
+}
+
+ApplicationAOSP::~ApplicationAOSP() {
+  starboard_bridge_->ApplicationStopping(AttachCurrentThread());
+  // Clear here instead of letting ~Application clear it because it runs only
+  // after ~QueueApplication has already destroyed the event queue. If a JNI
+  // thread would Inject() between the queue destruction and the application
+  // destruction could inject into a destroyed queue. So we destroy the
+  // application instance here to prevent it.
+  g_instance.store(nullptr, std::memory_order_release);
+}
 
 void ApplicationAOSP::Initialize() {
   SbAudioSinkImpl::Initialize();

@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdint.h>
-#include <unwind.h>
+// clang-format off
+#include "starboard/window.h"
+// clang-format on
 
-extern "C" {
+#include <jni.h>
 
-_Unwind_Reason_Code _Unwind_Backtrace(_Unwind_Trace_Fn /*trace*/,
-                                      void* /*trace_argument*/) {
-  return _URC_END_OF_STACK;
+#include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
+
+float SbWindowGetDiagonalSizeInInches(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return 0.0f;
+  }
+
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return static_cast<float>(
+      starboard::StarboardBridge::GetInstance()->GetScreenDiagonal(env));
 }
-
-_Unwind_VRS_Result _Unwind_VRS_Get(
-    struct _Unwind_Context* /*context*/,
-    _Unwind_VRS_RegClass /*regclass*/,
-    uint32_t /*regno*/,
-    _Unwind_VRS_DataRepresentation /*representation*/,
-    void* /*valuep*/) {
-  return _UVRSR_FAILED;
-}
-
-}  // extern "C"

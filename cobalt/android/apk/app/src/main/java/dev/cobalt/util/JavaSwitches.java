@@ -61,6 +61,11 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
+  /** Kimono key to opt a device out of low-end device mode. */
+  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+
+  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
+
   /** flag to enable deferred V8 bytecode serialization in background/idle */
   public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
 
@@ -81,9 +86,6 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to enable the GPU shader disk cache. */
-  public static final String ENABLE_GPU_SHADER_DISK_CACHE = "EnableGpuShaderDiskCache";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -112,6 +114,10 @@ public class JavaSwitches {
   /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
   public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
 
+  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
+  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
+      "EnableCobaltContentLengthAwareMojoPipeSizing";
+
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -127,11 +133,6 @@ public class JavaSwitches {
 
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
-
-  /** Flag to force SurfaceView for UI rendering (legacy fallback). */
-  // We keep this fallback for emergency brake.
-  // TODO: b/542337082 - Remove this after 09/17 (2-weeks after full-launch).
-  public static final String SURFACE_VIEW_UI_RENDERING = "SurfaceViewUiRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
@@ -295,6 +296,7 @@ public class JavaSwitches {
   public static List<String> getDefaultCommandLineArgs() {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
+    defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
     }
@@ -330,6 +332,13 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
+    }
+
+    // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices. Use Java
+    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to Finch
+    // if high-end device benefits from removing this low-end-device-mode flag.
+    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+      extraCommandLineArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
@@ -420,6 +429,11 @@ public class JavaSwitches {
       }
     }
 
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
+      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
+    }
+
     StringJoiner featureParams = new StringJoiner("/");
     String interestAreaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
@@ -439,10 +453,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE)) {
-      extraCommandLineArgs.add("--enable-gpu-shader-disk-cache");
     }
 
     String maxHttpCacheSize =
@@ -471,10 +481,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE)) {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.SURFACE_VIEW_UI_RENDERING)) {
-      extraCommandLineArgs.add("--use-surface-view-for-ui");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
