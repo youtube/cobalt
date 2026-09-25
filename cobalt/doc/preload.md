@@ -116,8 +116,7 @@ application window:
         side-effect**—it delivers the deep link to the web application, but does
         **not** reveal or focus the application on its own.
     3.  To make the application visible and interactive when delivering the deep
-        link, the platform **must also dispatch `kSbEventTypeFocus`** (or
-        `kSbEventTypeReveal` followed by `kSbEventTypeFocus`).
+        link, the platform **must also dispatch `kSbEventTypeFocus`**.
 
 ### 4. Bounding Preload Execution & Linux Reference Signals (`suspend_signals.cc`)
 
@@ -126,13 +125,11 @@ application window:
     can dispatch `kSbEventTypeFreeze` (or call `SbSystemRequestFreeze()`) once
     the budget expires. When `SbEventHandle(kSbEventTypeFreeze)` returns, all
     cookies/storage are flushed to disk and background execution can be halted
-    in the **Frozen** state. In
-    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc),
-    the convenience virtual callbacks `Application::OnSuspend()` and
-    `Application::OnResume()` are invoked right before dispatching
-    `kSbEventTypeFreeze` and `kSbEventTypeUnfreeze` to Cobalt, allowing a
-    Starboard platform to perform platform-specific actions to prepare for
-    halting or restarting program execution.
+    in the **Frozen** state. *(Optional convenience virtual callbacks
+    `Application::OnSuspend()` and `Application::OnResume()` in
+    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)
+    are invoked right before `kSbEventTypeFreeze` and `kSbEventTypeUnfreeze` are
+    dispatched to Cobalt, though they are usually not needed or used.)*
 -   **Linux Reference Signal Mappings (`starboard/shared/signal/suspend_signals.cc`):**
     On Linux reference platforms, lifecycle transitions can be triggered via
     POSIX signals:

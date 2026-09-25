@@ -109,8 +109,7 @@ Deep links can be passed into Cobalt in two ways:
 > side-effect**. It delivers the deep link string to the application but does
 > not reveal or focus Cobalt on its own. If a deep link is intended to bring a
 > preloaded (`Concealed`) or suspended (`Frozen`) Cobalt instance to the
-> foreground, the platform must separately dispatch `kSbEventTypeFocus` (or
-> `kSbEventTypeReveal` followed by `kSbEventTypeFocus`). See
+> foreground, the platform must separately dispatch `kSbEventTypeFocus`. See
 > [Cobalt Application Lifecycle](lifecycle.md) for details.
 
 ## Behavior Details

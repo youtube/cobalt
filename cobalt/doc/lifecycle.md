@@ -16,6 +16,7 @@ synchronization across browser and renderer threads, see
 - [Lifecycle State Machine](#lifecycle-state-machine)
 - [Platform Event and Resource Contract](#platform-event-and-resource-contract)
   - [SbEventHandle vs. SbSystemRequest](#sbeventhandle-vs-sbsystemrequest)
+  - [Shared `starboard::Application` Event Pipeline (`SbSystemRequest*` -> `Application::*` -> `SbEventHandle`)](#shared-starboardapplication-event-pipeline-sbsystemrequest---application---sbeventhandle)
   - [Living Room Scenario Mapping](#living-room-scenario-mapping)
 - [Implementing the Platform Interface](#implementing-the-platform-interface)
   - [1. Startup and Preloading (`SbEventStartData` & `QueueApplication`)](#1-startup-and-preloading-sbeventstartdata--queueapplication)
@@ -204,6 +205,33 @@ the Starboard boundary and have distinct return-time contracts:
 | **Frozen** | `kSbEventTypeFreeze` | `SbSystemRequestFreeze` | No `SbWindow`, GPU, `EGLSurface`, or `SbPlayer` resources held; persistent storage synced to disk; program execution suspended | `visibilityState: "hidden"`<br>`hasFocus(): false` |
 | **Stopped** | `kSbEventTypeStop` | `SbSystemRequestStop` | No resources held; all threads terminated and process exited | N/A (Terminated) |
 
+### Shared `starboard::Application` Event Pipeline (`SbSystemRequest*` -> `Application::*` -> `SbEventHandle`)
+
+On platforms built on `starboard::Application` / `starboard::QueueApplication`
+([`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)),
+the `SbSystemRequest*()` functions in
+`starboard/shared/starboard/system_request_*.cc` are implemented as thread-safe
+wrappers that forward directly to the singleton `starboard::Application::Get()`
+instance. Calling `SbSystemRequest*()` (or calling `Application::Get()->*()`
+directly from platform code) enqueues an `Application::Event` via `Inject()`.
+The main Starboard run loop (`Application::RunLoop()`) then dequeues the event
+on the main thread, sequences any required intermediate state transitions
+(`DispatchAndDelete()`), and dispatches each resulting `SbEvent` to Cobalt via
+`SbEventHandle()`:
+
+| C Request Function (`starboard/system.h`) | `starboard::Application` Method (`application.cc`) | Intermediate Events Sequenced (if needed) | Dispatched `SbEventType` (`SbEventHandle`) | Target State |
+| :--- | :--- | :--- | :--- | :--- |
+| *(Startup only)* | `Application::DispatchStart()` | — | `kSbEventTypeStart` | `Started` |
+| *(Startup only)* | `Application::DispatchPreload()` | — | `kSbEventTypePreload` | `Concealed` |
+| `SbSystemRequestFocus()` | `Application::Focus(ctx, cb)` | `kSbEventTypeUnfreeze` -> `kSbEventTypeReveal` | `kSbEventTypeFocus` | `Started` |
+| `SbSystemRequestBlur()` | `Application::Blur(ctx, cb)` | — | `kSbEventTypeBlur` | `Blurred` |
+| `SbSystemRequestReveal()` | `Application::Reveal(ctx, cb)` | `kSbEventTypeUnfreeze` | `kSbEventTypeReveal` | `Blurred` |
+| `SbSystemRequestConceal()` | `Application::Conceal(ctx, cb)` | `kSbEventTypeBlur` | `kSbEventTypeConceal` | `Concealed` |
+| *(Platform internal)* | `Application::Unfreeze(ctx, cb)` | — | `kSbEventTypeUnfreeze` | `Concealed` |
+| `SbSystemRequestFreeze()` | `Application::Freeze(ctx, cb)` | `kSbEventTypeBlur` -> `kSbEventTypeConceal` | `kSbEventTypeFreeze` | `Frozen` |
+| `SbSystemRequestStop(err)` | `Application::Stop(err)` | `kSbEventTypeBlur` -> `kSbEventTypeConceal` -> `kSbEventTypeFreeze` | `kSbEventTypeStop` | `Stopped` |
+| *(Deep link)* | `Application::Link(url)` | *(None — no state change)* | `kSbEventTypeLink` | *(Unchanged)* |
+
 ### Living Room Scenario Mapping
 
 | TV / Device Scenario | Direction | Starboard Event / Function | Resulting State |
@@ -300,12 +328,7 @@ semantics):
     -   **Foregrounding with a Deep Link:** When a deep link is meant to bring a
         preloaded (`Concealed`) or suspended (`Frozen`) Cobalt instance to the
         foreground, the platform **must separately dispatch `kSbEventTypeFocus`**
-        (or `kSbEventTypeReveal` followed by `kSbEventTypeFocus`) alongside
-        `kSbEventTypeLink`. *(Note: If a platform instead sends a redundant
-        `kSbEventTypeStart` with a non-empty `SbEventStartData::link` after
-        startup, Cobalt automatically converts `data->link` into a
-        `kSbEventTypeLink` event and transitions the application to
-        **Started**.)*
+        alongside `kSbEventTypeLink`.
 
 ### 3. Foregrounding, Backgrounding, and Reference Signal Mappings
 
@@ -317,15 +340,6 @@ semantics):
     native window by calling `SbWindowDestroy()`. When foregrounding (`Reveal`),
     Cobalt requests a new native window by calling `SbWindowCreate()`. Calls to
     `SbWindowDestroy()` by themselves are not a signal of intent to exit.
--   **`starboard::Application` Freeze/Unfreeze Convenience Callbacks (`OnSuspend` & `OnResume`):**
-    For freezing and unfreezing program execution,
-    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)
-    provides convenience virtual callbacks on `starboard::Application`:
-    `Application::OnSuspend()` and `Application::OnResume()`. These are invoked
-    immediately before dispatching the `kSbEventTypeFreeze` and
-    `kSbEventTypeUnfreeze` events to Cobalt (`SbEventHandle()`), respectively,
-    and can be overridden by a Starboard platform to perform platform-specific
-    actions needed to prepare for halting or restarting program execution.
 -   **Foregrounding from Preload or Background (`Concealed` / `Frozen` -> `Started`):**
     To bring a preloaded or backgrounded application to the foreground, the
     platform dispatches `kSbEventTypeFocus` (or calls `SbSystemRequestFocus()`),
@@ -354,6 +368,14 @@ semantics):
         ahead of `SIGCONT` (`SbSystemRequestFocus`), ensuring Cobalt transitions
         directly from **Frozen** to **Stopped** without briefly foregrounding
         (`Unfreeze` -> `Reveal` -> `Focus`) first.
+-   **Optional `starboard::Application` Freeze/Unfreeze Callbacks (`OnSuspend` & `OnResume`):**
+    [`starboard/shared/starboard/application.cc`](../../starboard/shared/starboard/application.cc)
+    provides optional convenience virtual callbacks on `starboard::Application`—`Application::OnSuspend()`
+    and `Application::OnResume()`—which are invoked right before dispatching
+    `kSbEventTypeFreeze` and `kSbEventTypeUnfreeze` to Cobalt
+    (`SbEventHandle()`). These callbacks can be overridden if a platform needs
+    to prepare for halting or restarting program execution, but they are
+    optional and are usually not needed or used.
 
 ## Lifecycle States Reference
 
@@ -425,13 +447,10 @@ execution can be halted.
     resources, suspends background services (including the Evergreen updater),
     and synchronously flushes all persistent storage (Cookies and LocalStorage
     in `kSbSystemPathCacheDirectory` / `kSbSystemPathFilesDirectory`) to disk
-    before `SbEventHandle(kSbEventTypeFreeze)` returns. In
-    `starboard/shared/starboard/application.cc`, `Application::OnSuspend()` is
-    called right before `kSbEventTypeFreeze` is dispatched to Cobalt, and
-    `Application::OnResume()` is called right before `kSbEventTypeUnfreeze` is
-    dispatched. Once `SbEventHandle(kSbEventTypeFreeze)` returns, the platform
-    may suspend OS threads (e.g., `SIGSTOP`) or forcefully terminate the process
-    at any time without data loss.
+    before `SbEventHandle(kSbEventTypeFreeze)` returns. Once
+    `SbEventHandle(kSbEventTypeFreeze)` returns, the platform may suspend OS
+    threads (e.g., `SIGSTOP`) or forcefully terminate the process at any time
+    without data loss.
 -   **Web Application Signals:** The Page Lifecycle `freeze` event
     (`document.onfreeze`) is dispatched when entering **Frozen**, and `resume`
     (`document.onresume`) is dispatched when transitioning back to
