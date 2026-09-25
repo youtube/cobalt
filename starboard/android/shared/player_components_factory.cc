@@ -99,6 +99,13 @@ bool ShouldEnableResetAudioDecoder(
 #endif
 }
 
+NdkAudioMode GetNdkAudioMode(
+    const ExperimentalFeatures& experimental_features) {
+  return static_cast<NdkAudioMode>(
+      experimental_features.Get(kMediaNdkAudioMode)
+          .value_or(static_cast<int>(NdkAudioMode::kDisabled)));
+}
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -187,10 +194,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
-    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
-      AudioTrack::SetNdkAudioTrackEnabled(true);
-      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
-    }
+    const NdkAudioMode ndk_audio_mode = GetNdkAudioMode(experimental_features);
+    AudioTrack::SetNdkAudioTrackEnabled(ndk_audio_mode ==
+                                        NdkAudioMode::kAudioTrack);
+    SB_LOG(INFO) << "`ndk_audio_mode` is set to " << ToString(ndk_audio_mode);
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -424,12 +431,22 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder);
 
+      const bool enable_ndk_audio_pull_sink =
+          GetNdkAudioMode(experimental_features) == NdkAudioMode::kPullSink;
+
+      AudioRendererSinkAndroid::Options sink_options;
+      sink_options.tunnel_mode_audio_session_id = tunnel_mode_audio_session_id;
+      sink_options.allow_audio_writing_on_pause = allow_audio_writing_on_pause;
+      sink_options.enable_video_renderer_vsp_adjustment =
+          enable_video_renderer_vsp_adjustment;
+      sink_options.allow_flush_during_seek =
+          allow_flush_audio_track_during_seek;
+      sink_options.pause_using_audio_track_state =
+          pause_using_audio_track_state;
+      sink_options.enable_ndk_audio_pull_sink = enable_ndk_audio_pull_sink;
+
       components.audio.renderer_sink =
-          std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek,
-              pause_using_audio_track_state);
+          std::make_unique<AudioRendererSinkAndroid>(sink_options);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {

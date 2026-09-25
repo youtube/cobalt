@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/android/shared/aaudio_audio_sink.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
@@ -33,16 +34,30 @@ namespace {
 using jni_zero::AttachCurrentThread;
 
 AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state) {
+    const AudioRendererSinkAndroid::Options& options) {
   return [=](int64_t start_media_time, int channels, int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frame_buffers_size_in_frames,
              SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-             SbAudioSinkPrivate::ErrorFunc error_func, void* context) {
+             SbAudioSinkPrivate::ErrorFunc error_func,
+             void* context) -> SbAudioSink {
+    if (options.enable_ndk_audio_pull_sink &&
+        AaudioAudioSink::IsSupported(audio_sample_type) &&
+        !options.tunnel_mode_audio_session_id) {
+      auto aaudio_sink = AaudioAudioSink::Create(
+          channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+          frame_buffers_size_in_frames,
+          {update_source_status_func, consume_frames_func, error_func},
+          /*is_web_audio=*/false, context);
+      if (aaudio_sink != nullptr) {
+        return aaudio_sink.release();
+      }
+      SB_LOG(WARNING) << "Failed to create AaudioAudioSink, falling "
+                         "back to AudioTrack";
+    }
+
     auto type = static_cast<AudioTrackAudioSinkType*>(
         SbAudioSinkImpl::GetPreferredType());
     SB_CHECK(type);
@@ -51,31 +66,24 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
         channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frame_buffers_size_in_frames,
         {update_source_status_func, consume_frames_func, error_func},
-        start_media_time, tunnel_mode_audio_session_id,
-        /*is_web_audio=*/false, allow_audio_writing_on_pause,
-        pause_using_audio_track_state, context);
+        start_media_time, options.tunnel_mode_audio_session_id,
+        /*is_web_audio=*/false, options.allow_audio_writing_on_pause,
+        options.pause_using_audio_track_state, context);
   };
 }
 
 }  // namespace
 
 AudioRendererSinkAndroid::AudioRendererSinkAndroid(
-    std::optional<int> tunnel_mode_audio_session_id,
-    bool allow_audio_writing_on_pause,
-    bool enable_video_renderer_vsp_adjustment,
-    bool allow_flush_during_seek,
-    bool pause_using_audio_track_state,
+    const Options& options,
     CreateAudioSinkFunc create_audio_sink_func)
-    : AudioRendererSinkImpl(
-          create_audio_sink_func
-              ? std::move(create_audio_sink_func)
-              : GetDefaultCreateAudioSinkFunc(tunnel_mode_audio_session_id,
-                                              allow_audio_writing_on_pause,
-                                              pause_using_audio_track_state)),
-      is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
+    : AudioRendererSinkImpl(create_audio_sink_func
+                                ? std::move(create_audio_sink_func)
+                                : GetDefaultCreateAudioSinkFunc(options)),
+      is_tunnel_mode_enabled_(options.tunnel_mode_audio_session_id.has_value()),
       enable_video_renderer_vsp_adjustment_(
-          enable_video_renderer_vsp_adjustment),
-      allow_flush_during_seek_(allow_flush_during_seek) {}
+          options.enable_video_renderer_vsp_adjustment),
+      allow_flush_during_seek_(options.allow_flush_during_seek) {}
 
 bool AudioRendererSinkAndroid::AllowOverflowAudioSamples() const {
   return is_tunnel_mode_enabled_;
@@ -141,9 +149,7 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
-  const bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
-  if (allow_flush_during_seek_ && is_android_sink && channels == channels_ &&
+  if (allow_flush_during_seek_ && audio_sink_ && channels == channels_ &&
       sampling_frequency_hz == sampling_frequency_hz_ &&
       audio_sample_type == audio_sample_type_) {
     SB_LOG(INFO) << "Audio sink is already started with the same config, "
@@ -175,15 +181,11 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
 }
 
 void AudioRendererSinkAndroid::Reset() {
-  bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
-  if (allow_flush_during_seek_ && is_android_sink) {
-    auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
-    if (android_sink->Flush()) {
-      SB_LOG(INFO) << "Flushing audio sink.";
-      is_flushed_ = true;
-      return;
-    }
+  if (allow_flush_during_seek_ && audio_sink_ &&
+      static_cast<AudioSinkAndroid*>(audio_sink_)->Flush()) {
+    SB_LOG(INFO) << "Flushing audio sink.";
+    is_flushed_ = true;
+    return;
   }
   SB_LOG(INFO) << "Resetting audio sink.";
   is_flushed_ = false;
