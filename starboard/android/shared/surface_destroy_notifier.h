@@ -48,7 +48,7 @@ class SurfaceDestroyNotifier
   void Disconnect();
   void Notify();
 
-  bool IsCurrentHolder(VideoSurfaceHolder* holder) {
+  bool IsCurrentHolder(VideoSurfaceHolder* holder) const {
     std::lock_guard lock(mutex_);
     return holder_ == holder;
   }

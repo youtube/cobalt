@@ -52,17 +52,11 @@ void SurfaceDestroyNotifier::Notify() {
     return;
   }
 
-  constexpr std::chrono::seconds kTeardownTimeout(1);
+  constexpr std::chrono::seconds kTeardownTimeout(5);
   if (!cv_.wait_for(lock, kTeardownTimeout,
                     [this] { return state_ == State::kDone; })) {
     SB_LOG(WARNING)
         << "SurfaceDestroyNotifier::Notify timed out waiting for teardown!";
-    if (state_ == State::kWaiting) {
-      state_ = State::kDone;
-      holder_ = nullptr;
-      job_queue_ = nullptr;
-      cv_.notify_all();
-    }
   }
 }
 
