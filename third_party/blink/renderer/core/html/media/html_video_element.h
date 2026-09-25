@@ -185,10 +185,13 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
+  void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
 
   // GetMaxVideoCapabilities() overrides the function in web_media_player_client.h to allow
   // other cc/h files to access the max_video_capabilities_ variable.
   std::string GetMaxVideoCapabilities() const override { return max_video_capabilities_ ; }
+  // Similar to GetMaxVideoCapabilities(), but retrieves the maximum video resolution hint.
+  std::string GetMaxVideoResolution() const override { return max_video_resolution_ ; }
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -311,6 +314,7 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;
+  std::string max_video_resolution_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
