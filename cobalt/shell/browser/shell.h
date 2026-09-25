@@ -193,7 +193,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       RenderWidgetHost* render_widget_host,
       base::RepeatingClosure hang_monitor_restarter) override;
   void ActivateContents(WebContents* contents) override;
-  bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
       WebContents& web_contents,
       PreloadingTriggerType trigger_type) override;
