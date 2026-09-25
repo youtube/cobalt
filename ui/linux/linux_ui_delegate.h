@@ -11,9 +11,7 @@
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
 
-namespace gfx {
-using AcceleratedWidget = uint32_t;
-}
+#include "ui/gfx/native_widget_types.h"
 
 namespace ui {
 
@@ -34,7 +32,7 @@ class COMPONENT_EXPORT(LINUX_UI) LinuxUiDelegate {
 
   // Only implemented on Wayland.
   virtual bool ExportWindowHandle(
-      uint32_t parent_widget,
+      gfx::AcceleratedWidget parent_widget,
       base::OnceCallback<void(const std::string&)> callback);
 
   // Only implemented on X11.

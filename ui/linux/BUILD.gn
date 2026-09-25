@@ -34,7 +34,10 @@ component("linux_ui") {
     "//ui/display/types",
     "//ui/gfx/geometry",
   ]
-  public_deps = [ "//printing/buildflags" ]
+  public_deps = [
+    "//printing/buildflags",
+    "//ui/gfx:native_widget_types",
+  ]
 }
 
 component("linux_ui_factory") {
