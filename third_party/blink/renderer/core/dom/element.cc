@@ -4366,36 +4366,40 @@ void Element::RecalcStyle(const StyleRecalcChange change,
       child_change.TraversePseudoElements(*this) &&
       ((GetElementRareData() && GetElementRareData()->HasPseudoElements()) ||
        (GetComputedStyle() && GetComputedStyle()->HasAnyPseudoElementStyles()));
-#else
-  const bool need_to_check_pseudos = true;
 #endif
   if (child_change.TraversePseudoElements(*this)) {
     UpdateBackdropPseudoElement(child_change, child_recalc_context);
     UpdatePseudoElement(kPseudoIdMarker, child_change, child_recalc_context);
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupBefore,
                                      child_change, child_recalc_context);
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
     if (need_to_check_pseudos) {
-      UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonBlockStart,
-                                       child_change, child_recalc_context);
-      UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonInlineStart,
-                                       child_change, child_recalc_context);
-      UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonInlineEnd,
-                                       child_change, child_recalc_context);
-      UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonBlockEnd,
-                                       child_change, child_recalc_context);
-      UpdatePseudoElement(kPseudoIdScrollMarker, child_change,
-                          child_recalc_context);
-      UpdateColumnPseudoElements(child_change, child_recalc_context);
+    // clang-format on
+#endif
+    UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonBlockStart,
+                                     child_change, child_recalc_context);
+    UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonInlineStart,
+                                     child_change, child_recalc_context);
+    UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonInlineEnd,
+                                     child_change, child_recalc_context);
+    UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonBlockEnd,
+                                     child_change, child_recalc_context);
+    UpdatePseudoElement(kPseudoIdScrollMarker, child_change,
+                        child_recalc_context);
+    UpdateColumnPseudoElements(child_change, child_recalc_context);
 
-      if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
-        if (DynamicTo<HTMLOptionElement>(this)) {
-          UpdatePseudoElement(kPseudoIdCheckMark, child_change,
-                              child_recalc_context);
-        }
+    if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
+      if (DynamicTo<HTMLOptionElement>(this)) {
+        UpdatePseudoElement(kPseudoIdCheckMark, child_change,
+                            child_recalc_context);
       }
-
-      UpdatePseudoElement(kPseudoIdBefore, child_change, child_recalc_context);
     }
+
+    UpdatePseudoElement(kPseudoIdBefore, child_change, child_recalc_context);
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
   }
 
   if (child_change.TraverseChildren(*this)) {
@@ -4418,47 +4422,58 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   }
 
   if (child_change.TraversePseudoElements(*this)) {
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
     if (need_to_check_pseudos) {
-      UpdatePseudoElement(kPseudoIdAfter, child_change, child_recalc_context);
+    // clang-format on
+#endif
+    UpdatePseudoElement(kPseudoIdAfter, child_change, child_recalc_context);
 
-      if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
-        if (IsA<HTMLSelectElement>(this)) {
-          UpdatePseudoElement(kPseudoIdPickerIcon, child_change,
-                              child_recalc_context);
-        }
+    if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
+      if (IsA<HTMLSelectElement>(this)) {
+        UpdatePseudoElement(kPseudoIdPickerIcon, child_change,
+                            child_recalc_context);
       }
     }
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
 
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupAfter,
                                      child_change, child_recalc_context);
 
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
     if (need_to_check_pseudos) {
-      // If we are re-attaching us or any of our descendants, we need to attach
-      // the descendants before we know if this element generates a
-      // ::first-letter and which element the ::first-letter inherits style
-      // from.
-      //
-      // If style recalc was suppressed for this element, it means it's a size
-      // query container, and child_change.ReattachLayoutTree() comes from the
-      // skipped style recalc. In that case we haven't updated the style, and we
-      // will not update the ::first-letter style in the originating element's
-      // AttachLayoutTree().
-      if (child_change.ReattachLayoutTree() && !change.IsSuppressed()) {
-        // Make sure we reach this element during reattachment. There are cases
-        // where we compute and store the styles for a subtree but stop
-        // attaching layout objects at an element that does not allow child
-        // boxes. Marking dirty for re-attachment means we AttachLayoutTree()
-        // will still traverse down to all elements with a ComputedStyle which
-        // clears the NeedsStyleRecalc() flag.
-        if (PseudoElement* first_letter =
-                GetPseudoElement(kPseudoIdFirstLetter)) {
-          first_letter->SetNeedsReattachLayoutTree();
-        }
-      } else if (!ChildNeedsReattachLayoutTree()) {
-        UpdateFirstLetterPseudoElement(StyleUpdatePhase::kRecalc,
-                                       child_recalc_context);
+    // clang-format on
+#endif
+    // If we are re-attaching us or any of our descendants, we need to attach
+    // the descendants before we know if this element generates a ::first-letter
+    // and which element the ::first-letter inherits style from.
+    //
+    // If style recalc was suppressed for this element, it means it's a size
+    // query container, and child_change.ReattachLayoutTree() comes from the
+    // skipped style recalc. In that case we haven't updated the style, and we
+    // will not update the ::first-letter style in the originating element's
+    // AttachLayoutTree().
+    if (child_change.ReattachLayoutTree() && !change.IsSuppressed()) {
+      // Make sure we reach this element during reattachment. There are cases
+      // where we compute and store the styles for a subtree but stop attaching
+      // layout objects at an element that does not allow child boxes. Marking
+      // dirty for re-attachment means we AttachLayoutTree() will still traverse
+      // down to all elements with a ComputedStyle which clears the
+      // NeedsStyleRecalc() flag.
+      if (PseudoElement* first_letter =
+              GetPseudoElement(kPseudoIdFirstLetter)) {
+        first_letter->SetNeedsReattachLayoutTree();
       }
+    } else if (!ChildNeedsReattachLayoutTree()) {
+      UpdateFirstLetterPseudoElement(StyleUpdatePhase::kRecalc,
+                                     child_recalc_context);
     }
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
     // RecalcTransitionPseudoTreeStyle generally manages the transition pseudo
     // tree, but it won't be called after the transition is finished, so we need
     // to clean up here.
