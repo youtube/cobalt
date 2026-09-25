@@ -238,14 +238,21 @@ jni_zero::ScopedJavaLocalRef<jobject> VideoSurfaceHolder::AcquireVideoSurface(
     JobQueue* job_queue) {
   if (IsSurfaceDestroyNotifierEnabled()) {
     std::lock_guard lock(*GetViewSurfaceMutex());
-    if (g_surface_transition_in_progress ||
-        GetGlobalSurfaceDestroyNotifier() != nullptr ||
-        !GetGlobalVideoSurface()) {
+    if (g_surface_transition_in_progress || !GetGlobalVideoSurface()) {
       return {};
     }
-    GetGlobalSurfaceDestroyNotifier() =
+    auto& global_notifier = GetGlobalSurfaceDestroyNotifier();
+    if (global_notifier) {
+      if (global_notifier->IsCurrentHolder(this)) {
+        JNIEnv* env = jni_zero::AttachCurrentThread();
+        return jni_zero::ScopedJavaLocalRef<jobject>(env,
+                                                     GetGlobalVideoSurface());
+      }
+      return {};
+    }
+    global_notifier =
         make_scoped_refptr<SurfaceDestroyNotifier>(this, job_queue);
-    active_notifier_ = GetGlobalSurfaceDestroyNotifier();
+    active_notifier_ = global_notifier;
     JNIEnv* env = jni_zero::AttachCurrentThread();
     return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
   }

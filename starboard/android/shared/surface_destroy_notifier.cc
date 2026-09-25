@@ -48,6 +48,7 @@ void SurfaceDestroyNotifier::Notify() {
   if (!job_queue_->Schedule(std::move(task))) {
     SB_LOG(ERROR) << "Failed to schedule NotifyDestroyed on JobQueue.";
     state_ = State::kDone;
+    cv_.notify_all();
     return;
   }
 
