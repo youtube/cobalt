@@ -37,8 +37,12 @@
 #include <tuple>
 #include <utility>
 
+#include "base/feature_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/numerics/checked_math.h"
+#include "build/build_config.h"
 #include "media/base/logging_override_if_enabled.h"
+#include "media/base/media_switches.h"
 #include "media/base/stream_parser_buffer.h"
 #include "partition_alloc/partition_alloc.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -68,6 +72,7 @@
 #include "third_party/blink/renderer/core/html/track/audio_track_list.h"
 #include "third_party/blink/renderer/core/html/track/video_track.h"
 #include "third_party/blink/renderer/core/html/track/video_track_list.h"
+#include "third_party/blink/renderer/core/typed_arrays/array_buffer/array_buffer_contents.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer_view.h"
 #include "third_party/blink/renderer/modules/mediasource/media_source.h"
@@ -638,12 +643,49 @@ void SourceBuffer::SetAppendWindowEnd_Locked(
   append_window_end_ = end;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+base::ScopedClosureRunner SourceBuffer::RetainAppendedArrayBuffer(
+    DOMArrayBuffer* buffer) {
+  DCHECK(base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser));
+  DCHECK(buffer);
+
+  ArrayBufferContents contents;
+  if (!buffer->ShareNonSharedForInternalUse(contents)) {
+    return base::ScopedClosureRunner();
+  }
+
+  // The closure does nothing when run; its only job is to own `contents` so
+  // that the backing store stays alive until the parser destroys the runner.
+  // That may happen on any thread.
+  return base::ScopedClosureRunner(
+      base::DoNothingWithBoundArgs(std::move(contents)));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void SourceBuffer::appendBuffer(DOMArrayBuffer* data,
                                 ExceptionState& exception_state) {
   DVLOG(2) << __func__ << " this=" << this << " size=" << data->ByteLength();
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::ScopedClosureRunner release_runner;
+  // An empty append retains nothing, but must still run the append algorithm
+  // below so that `updateend` fires.
+  if (!data->ByteSpan().empty() &&
+      base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser)) {
+    release_runner = RetainAppendedArrayBuffer(data);
+    if (!release_runner) {
+      MediaSource::LogAndThrowDOMException(
+          exception_state, DOMExceptionCode::kInvalidStateError,
+          "Unable to retain the appended ArrayBuffer.");
+      return;
+    }
+  }
+  AppendBufferInternal(data->ByteSpan(), std::move(release_runner),
+                       exception_state);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   AppendBufferInternal(data->ByteSpan(), exception_state);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
@@ -651,7 +693,27 @@ void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
   DVLOG(3) << __func__ << " this=" << this << " size=" << data->byteLength();
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Retain the whole backing ArrayBuffer; the view's bytes are a subrange of
+  // it, so this keeps the appended span alive.
+  base::ScopedClosureRunner release_runner;
+  // An empty append retains nothing, but must still run the append algorithm
+  // below so that `updateend` fires.
+  if (!data->ByteSpan().empty() &&
+      base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser)) {
+    release_runner = RetainAppendedArrayBuffer(data->buffer());
+    if (!release_runner) {
+      MediaSource::LogAndThrowDOMException(
+          exception_state, DOMExceptionCode::kInvalidStateError,
+          "Unable to retain the appended ArrayBuffer.");
+      return;
+    }
+  }
+  AppendBufferInternal(data->ByteSpan(), std::move(release_runner),
+                       exception_state);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   AppendBufferInternal(data->ByteSpan(), exception_state);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // Note that |chunks| may be a sequence of mixed audio and video encoded chunks
@@ -1988,8 +2050,15 @@ bool SourceBuffer::EvictCodedFrames(double media_time, size_t new_data_size) {
   return result;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void SourceBuffer::AppendBufferInternal(
+    base::span<const unsigned char> data,
+    base::ScopedClosureRunner release_runner,
+    ExceptionState& exception_state) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
                                         ExceptionState& exception_state) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "SourceBuffer::appendBuffer",
                                     TRACE_ID_LOCAL(this), "size", data.size());
   // Section 3.2 appendBuffer()
@@ -2020,9 +2089,19 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
   // attachment is usable and underlying demuxer is protected from destruction
   // (applicable especially for MSE-in-Worker case). Note, we must have
   // |source_| and |source_| must have an attachment because !IsRemoved().
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Note `release_runner` is moved into the callback: if the attachment is
+  // closing and the callback is never run, destroying it releases the retained
+  // ArrayBuffer.
+  if (!source_->RunUnlessElementGoneOrClosingUs(
+          WTF::BindOnce(&SourceBuffer::AppendBufferInternal_Locked,
+                        WrapPersistent(this), data, std::move(release_runner),
+                        WTF::Unretained(&exception_state)))) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
           &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
           data, WTF::Unretained(&exception_state)))) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(
@@ -2031,10 +2110,18 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
   }
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void SourceBuffer::AppendBufferInternal_Locked(
+    base::span<const unsigned char> data,
+    base::ScopedClosureRunner release_runner,
+    ExceptionState* exception_state,
+    MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 void SourceBuffer::AppendBufferInternal_Locked(
     base::span<const unsigned char> data,
     ExceptionState* exception_state,
     MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(source_);
   DCHECK(!updating_);
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
@@ -2052,7 +2139,15 @@ void SourceBuffer::AppendBufferInternal_Locked(
   // 2. Add data to the end of the input buffer. Zero-length appends result in
   // just a single async segment parser loop run later, with nothing added to
   // the parser's input buffer here synchronously.
-  if (!web_source_buffer_->AppendToParseBuffer(data)) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `release_runner` is null unless the appended ArrayBuffer is retained for
+  // us, in which case the parser may borrow `data` instead of copying it.
+  const bool append_succeeded =
+      web_source_buffer_->AppendToParseBuffer(data, std::move(release_runner));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  const bool append_succeeded = web_source_buffer_->AppendToParseBuffer(data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!append_succeeded) {
     MediaSource::LogAndThrowQuotaExceededError(
         *exception_state,
         "Unable to allocate space required to buffer appended media.");

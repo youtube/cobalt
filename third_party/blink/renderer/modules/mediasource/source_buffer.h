@@ -33,7 +33,9 @@
 
 #include <memory>
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
+#include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/time/time.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -165,7 +167,20 @@ class SourceBuffer final : public EventTarget,
 
   bool PrepareAppend(double media_time, size_t new_data_size, ExceptionState&);
   bool EvictCodedFrames(double media_time, size_t new_data_size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Takes a reference on `buffer`'s v8::BackingStore and returns a runner that
+  // drops it when destroyed, so that the stream parser can borrow the appended
+  // bytes instead of copying them.
+  base::ScopedClosureRunner RetainAppendedArrayBuffer(DOMArrayBuffer* buffer);
+
+  // `release_runner` keeps the appended bytes alive for as long as the stream
+  // parser needs them. A null runner means the parser must copy them.
+  void AppendBufferInternal(base::span<const unsigned char>,
+                            base::ScopedClosureRunner release_runner,
+                            ExceptionState&);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendBufferInternal(base::span<const unsigned char>, ExceptionState&);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendEncodedChunksAsyncPart();
   void AppendBufferAsyncPart();
   void AppendError(MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
@@ -202,10 +217,18 @@ class SourceBuffer final : public EventTarget,
       size_t size,
       ExceptionState* exception_state,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void AppendBufferInternal_Locked(
+      base::span<const unsigned char>,
+      base::ScopedClosureRunner release_runner,
+      ExceptionState*,
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendBufferInternal_Locked(
       base::span<const unsigned char>,
       ExceptionState*,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendEncodedChunksAsyncPart_Locked(
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
   void AppendBufferAsyncPart_Locked(
