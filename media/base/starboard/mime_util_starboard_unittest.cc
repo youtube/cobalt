@@ -159,7 +159,7 @@ TEST_F(MimeUtilStarboardTest, IsSupportedMediaFormatMapsSupportType) {
 // An executable inventory of every custom MIME parameter Cobalt is expected to
 // forward to Starboard untouched. The MIME string is kept byte-for-byte
 // identical to the one in
-// CustomMimeTypeBrowserTest.MediaSourceIsTypeSupported_AllCustomParametersCombined
+// CustomMimeTypeBrowserTest.MediaSourceIsTypeSupported_ForwardsRawCustomAttributes
 // so that this serves as a fast unit-level backstop for that browser test.
 TEST_F(MimeUtilStarboardTest,
        IsSupportedMediaMimeTypeForwardsAllCustomParameters) {

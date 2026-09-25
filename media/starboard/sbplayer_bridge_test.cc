@@ -143,7 +143,8 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
                 CapturedSample captured;
                 captured.has_side_data_pointer = info.side_data != nullptr;
                 captured.side_data_count = info.side_data_count;
-                if (info.side_data && info.side_data_count > 0) {
+                if (info.side_data && info.side_data_count > 0 &&
+                    info.side_data[0].data) {
                   captured.side_data_type = info.side_data[0].type;
                   captured.side_data.assign(
                       info.side_data[0].data,
