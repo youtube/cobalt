@@ -39,6 +39,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="8" label="onLowMemory()"/>
 </enum>
 
+<enum name="AndroidDecoderFramework">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="OpenMAX (OMX)"/>
+  <int value="2" label="Codec2 (C2)"/>
+</enum>
+
 <enum name="BooleanHung">
   <int value="0" label="Is not hung"/>
   <int value="1" label="Is hung"/>
