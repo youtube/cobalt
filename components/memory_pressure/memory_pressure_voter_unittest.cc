@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "base/functional/bind.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace memory_pressure {
@@ -23,6 +24,35 @@ class TestDelegate
 
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT)
+TEST(MemoryPressureVoterTest, CobaltStatelessTransientOnVote) {
+  TestDelegate delegate;
+  MemoryPressureVoteAggregator aggregator(&delegate);
+
+  EXPECT_EQ(aggregator.current_pressure_level_for_testing(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+
+  auto mock_os_voter = aggregator.CreateVoter();
+  auto mock_cobalt_voter = aggregator.CreateVoter();
+
+  // OS evaluator votes CRITICAL.
+  mock_os_voter->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL, true);
+  EXPECT_EQ(aggregator.current_pressure_level_for_testing(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+  // level immediately resets to new level without lingering zombie votes.
+  mock_cobalt_voter->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE, false);
+  EXPECT_EQ(aggregator.current_pressure_level_for_testing(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+
+  // Resetting mock_os_voter does not corrupt the current level.
+  mock_os_voter.reset();
+  EXPECT_EQ(aggregator.current_pressure_level_for_testing(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+}
+#else
 TEST(MemoryPressureVoterTest, EvaluateVotes) {
   TestDelegate delegate;
   MemoryPressureVoteAggregator aggregator(&delegate);
@@ -117,5 +147,6 @@ TEST(MemoryPressureVoterTest, SetVote) {
   EXPECT_EQ(aggregator.EvaluateVotesForTesting(),
             base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
 }
+#endif
 
 }  // namespace memory_pressure
