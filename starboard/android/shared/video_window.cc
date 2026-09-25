@@ -255,9 +255,10 @@ jni_zero::ScopedJavaLocalRef<jobject> VideoSurfaceHolder::AcquireVideoSurface(
 }
 
 VideoSurfaceHolder::~VideoSurfaceHolder() {
-  if (IsSurfaceDestroyNotifierEnabled()) {
-    ReleaseVideoSurface();
-  }
+  // ReleaseVideoSurface() must be called in the derived class destructor
+  // (e.g., ~MediaCodecVideoDecoder()) before the derived class is destructed,
+  // to avoid pure virtual function calls during destruction.
+  SB_DCHECK(!active_notifier_);
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
