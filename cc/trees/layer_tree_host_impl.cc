@@ -1745,6 +1745,36 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame) {
     return draw_result;
   }
 
+  const gfx::Rect device_viewport = active_tree_->GetDeviceViewport();
+  base::CheckedNumeric<int64_t> viewport_area =
+      device_viewport.size().GetCheckedArea();
+
+  Region total_repainted_region;
+  for (auto* layer : *active_tree_) {
+    if (!layer->draws_content() || layer->update_rect().IsEmpty())
+      continue;
+
+    gfx::Rect screen_rect = MathUtil::MapEnclosingClippedRect(
+        layer->ScreenSpaceTransform(), layer->update_rect());
+    screen_rect.Intersect(device_viewport);
+    if (!screen_rect.IsEmpty())
+      total_repainted_region.Union(screen_rect);
+  }
+
+  base::CheckedNumeric<int64_t> total_repainted_area = 0;
+  for (gfx::Rect rect : total_repainted_region) {
+    total_repainted_area += static_cast<int64_t>(
+        rect.size().GetCheckedArea().ValueOrDefault(0));
+  }
+
+  if (viewport_area.IsValid() && total_repainted_area.IsValid() &&
+      viewport_area.ValueOrDefault(0) > 0) {
+    int64_t percentage =
+        ((total_repainted_area * 100ll) / viewport_area).ValueOrDefault(0);
+    UMA_HISTOGRAM_PERCENTAGE("Compositing.Renderer.PaintInvalidationArea",
+                             percentage);
+  }
+
   // If we return DrawResult::kSuccess, then we expect DrawLayers() to be called
   // before this function is called again.
   return DrawResult::kSuccess;

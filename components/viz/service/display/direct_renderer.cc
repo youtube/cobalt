@@ -243,6 +243,18 @@ void DirectRenderer::DrawFrame(
   current_frame()->device_viewport_size = device_viewport_size;
   current_frame()->display_color_spaces = display_color_spaces;
 
+  base::CheckedNumeric<int64_t> display_area =
+      device_viewport_size.GetCheckedArea();
+  base::CheckedNumeric<int64_t> root_damage_area =
+      current_frame()->root_damage_rect.size().GetCheckedArea();
+  if (display_area.IsValid() && root_damage_area.IsValid() &&
+      display_area.ValueOrDefault(0) > 0) {
+    int64_t percentage =
+        ((root_damage_area * 100ll) / display_area).ValueOrDefault(0);
+    UMA_HISTOGRAM_PERCENTAGE("Compositing.DirectRenderer.RootDamage",
+                             percentage);
+  }
+
   output_surface_->SetNeedsMeasureNextDrawLatency();
   BeginDrawingFrame();
 
