@@ -39,7 +39,7 @@ class VideoSurfaceHolder {
   virtual void OnSurfaceDestroyed() = 0;
 
  protected:
-  ~VideoSurfaceHolder() = default;
+  ~VideoSurfaceHolder();
 
   // Returns the surface which video should be rendered. Surface cannot be
   // acquired before last holder release the surface.

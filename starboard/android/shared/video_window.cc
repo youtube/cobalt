@@ -165,6 +165,12 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     {
       std::lock_guard local(*GetViewSurfaceMutex());
       notifier_to_notify = GetGlobalSurfaceDestroyNotifier();
+    }  // Lock released before Notify()
+    if (notifier_to_notify) {
+      notifier_to_notify->Notify();
+    }
+    {
+      std::lock_guard local(*GetViewSurfaceMutex());
       GetGlobalVideoSurface().Reset();
       if (g_native_video_window) {
         ANativeWindow_release(g_native_video_window);
@@ -174,10 +180,6 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
         GetGlobalVideoSurface().Reset(env, surface);
         g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
       }
-    }  // Lock released before Notify()
-    if (notifier_to_notify) {
-      notifier_to_notify->Notify();
-      std::lock_guard local(*GetViewSurfaceMutex());
       if (GetGlobalSurfaceDestroyNotifier() == notifier_to_notify) {
         GetGlobalSurfaceDestroyNotifier() = nullptr;
       }
@@ -244,6 +246,12 @@ jni_zero::ScopedJavaLocalRef<jobject> VideoSurfaceHolder::AcquireVideoSurface(
 
   // non-experiment fallback;
   return AcquireVideoSurface();
+}
+
+VideoSurfaceHolder::~VideoSurfaceHolder() {
+  if (IsSurfaceDestroyNotifierEnabled()) {
+    ReleaseVideoSurface();
+  }
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
