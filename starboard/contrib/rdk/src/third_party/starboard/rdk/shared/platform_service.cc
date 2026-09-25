@@ -30,14 +30,16 @@
 
 #include "third_party/starboard/rdk/shared/platform_service.h"
 
+#include <strings.h>
+
 #include <cstring>
 #include <memory>
 #include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/extension/platform_service.h"
-
 #include "third_party/starboard/rdk/shared/log_override.h"
+#include "third_party/starboard/rdk/shared/pre_app_recommendation_service.h"
 
 const char kCobaltExtensionContentEntitlementName[] = "com.google.youtube.tv.ContentEntitlement";
 
@@ -52,6 +54,39 @@ typedef struct CobaltExtensionPlatformServicePrivate {
                      uint64_t* output_length,
                      bool* invalid_state) = 0;
 } CobaltExtensionPlatformServicePrivate;
+
+class PreappRecommendationPlatformService
+    : public CobaltExtensionPlatformServicePrivate {
+ public:
+  PreappRecommendationPlatformService(void* context,
+                                      ReceiveMessageCallback receive_callback,
+                                      std::unique_ptr<PlatformServiceImpl> impl)
+      : CobaltExtensionPlatformServicePrivate(context, receive_callback),
+        impl_(std::move(impl)) {}
+
+  ~PreappRecommendationPlatformService() override {
+    if (impl_) {
+      const CobaltPlatformServiceApi* api =
+          reinterpret_cast<const CobaltPlatformServiceApi*>(
+              starboard::GetPreappRecommendationServiceApi());
+      api->Close(impl_.get());
+    }
+  }
+
+  void* Send(const void* data,
+             uint64_t data_length,
+             uint64_t* output_length,
+             bool* invalid_state) override {
+    const CobaltPlatformServiceApi* api =
+        reinterpret_cast<const CobaltPlatformServiceApi*>(
+            starboard::GetPreappRecommendationServiceApi());
+    return api->Send(impl_.get(), data, data_length, output_length,
+                     invalid_state);
+  }
+
+ private:
+  std::unique_ptr<PlatformServiceImpl> impl_;
+};
 
 namespace starboard {
 
@@ -76,8 +111,16 @@ struct ContentEntitlementCobaltExtensionPlatformService : public CobaltExtension
 
 bool Has(const char* name) {
   // Check if platform has service name.
-  bool result =  false && strcmp(name, kCobaltExtensionContentEntitlementName) == 0;
-  SB_LOG(INFO) << "Entitlement Has service called " << name << " result = " << result;
+  if (strcasecmp(name, kPreappRecommendationServiceName) == 0) {
+    const CobaltPlatformServiceApi* api =
+        reinterpret_cast<const CobaltPlatformServiceApi*>(
+            GetPreappRecommendationServiceApi());
+    return api->Has(name);
+  }
+  bool result =
+      false && strcmp(name, kCobaltExtensionContentEntitlementName) == 0;
+  SB_LOG(INFO) << "Entitlement Has service called " << name
+               << " result = " << result;
   return result;
 }
 
@@ -88,7 +131,18 @@ CobaltExtensionPlatformService Open(void* context,
 
   CobaltExtensionPlatformService service;
 
-  if (false && strcmp(name, kCobaltExtensionContentEntitlementName) == 0) {
+  if (strcasecmp(name, kPreappRecommendationServiceName) == 0) {
+    const CobaltPlatformServiceApi* api =
+        reinterpret_cast<const CobaltPlatformServiceApi*>(
+            GetPreappRecommendationServiceApi());
+    service = new PreappRecommendationPlatformService(
+        context, receive_callback,
+        std::unique_ptr<PlatformServiceImpl>(
+            api->Open(context, receive_callback)));
+    SB_LOG(INFO) << "Open() created service: " << name;
+    return service;
+  } else if (false &&
+             strcmp(name, kCobaltExtensionContentEntitlementName) == 0) {
     SB_LOG(INFO) << "Open() service created: " << name;
     service =
       new ContentEntitlementCobaltExtensionPlatformService(context, receive_callback);
