@@ -15,6 +15,7 @@
 #include "starboard/android/shared/surface_destroy_notifier.h"
 
 #include <chrono>
+#include <thread>
 #include <utility>
 
 #include "starboard/android/shared/video_window.h"
@@ -24,15 +25,15 @@
 namespace starboard {
 
 void SurfaceDestroyNotifier::Disconnect() {
-  {
-    std::lock_guard lock(mutex_);
-    holder_ = nullptr;
-    job_queue_ = nullptr;
-    if (state_ != State::kExecuting) {
-      state_ = State::kDone;
-    }
+  std::unique_lock lock(mutex_);
+  holder_ = nullptr;
+  job_queue_ = nullptr;
+  if (state_ != State::kExecuting) {
+    state_ = State::kDone;
+  } else if (executing_thread_id_ != std::this_thread::get_id()) {
+    cv_.wait(lock, [this] { return state_ == State::kDone; });
   }
-  cv_.notify_one();
+  cv_.notify_all();
 }
 
 void SurfaceDestroyNotifier::Notify() {
@@ -66,6 +67,7 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
       return;
     }
     state_ = State::kExecuting;
+    executing_thread_id_ = std::this_thread::get_id();
     holder_to_notify = holder_;
   }
   if (holder_to_notify) {
@@ -75,10 +77,11 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
   {
     std::lock_guard lock(mutex_);
     state_ = State::kDone;
+    executing_thread_id_ = std::thread::id();
     holder_ = nullptr;
     job_queue_ = nullptr;
   }
-  cv_.notify_one();
+  cv_.notify_all();
 }
 
 }  // namespace starboard

@@ -17,6 +17,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 #include "starboard/common/ref_counted.h"
 
@@ -70,6 +71,7 @@ class SurfaceDestroyNotifier
   State state_ = State::kIdle;
   VideoSurfaceHolder* holder_ = nullptr;
   JobQueue* job_queue_ = nullptr;
+  std::thread::id executing_thread_id_;
 };
 
 }  // namespace starboard

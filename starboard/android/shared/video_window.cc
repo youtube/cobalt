@@ -54,6 +54,8 @@ scoped_refptr<SurfaceDestroyNotifier>& GetGlobalSurfaceDestroyNotifier() {
   return *notifier;
 }
 
+bool g_surface_transition_in_progress = false;
+
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
@@ -164,6 +166,7 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     scoped_refptr<SurfaceDestroyNotifier> notifier_to_notify;
     {
       std::lock_guard local(*GetViewSurfaceMutex());
+      g_surface_transition_in_progress = true;
       notifier_to_notify = GetGlobalSurfaceDestroyNotifier();
     }  // Lock released before Notify()
     if (notifier_to_notify) {
@@ -183,6 +186,7 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
       if (GetGlobalSurfaceDestroyNotifier() == notifier_to_notify) {
         GetGlobalSurfaceDestroyNotifier() = nullptr;
       }
+      g_surface_transition_in_progress = false;
     }
     return;
   } else {
@@ -210,7 +214,8 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // g_video_surface_holder is NULL.
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (IsSurfaceDestroyNotifierEnabled()) {
-    return !GetGlobalSurfaceDestroyNotifier() && GetGlobalVideoSurface();
+    return !g_surface_transition_in_progress &&
+           !GetGlobalSurfaceDestroyNotifier() && GetGlobalVideoSurface();
   }
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
@@ -233,7 +238,8 @@ jni_zero::ScopedJavaLocalRef<jobject> VideoSurfaceHolder::AcquireVideoSurface(
     JobQueue* job_queue) {
   if (IsSurfaceDestroyNotifierEnabled()) {
     std::lock_guard lock(*GetViewSurfaceMutex());
-    if (GetGlobalSurfaceDestroyNotifier() != nullptr ||
+    if (g_surface_transition_in_progress ||
+        GetGlobalSurfaceDestroyNotifier() != nullptr ||
         !GetGlobalVideoSurface()) {
       return {};
     }
@@ -264,11 +270,11 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
       if (global_notifier && global_notifier->IsCurrentHolder(this)) {
         global_notifier = nullptr;
       }
-      if (notifier_to_disconnect) {
-        notifier_to_disconnect->Disconnect();
-      }
-      return;
     }
+    if (notifier_to_disconnect) {
+      notifier_to_disconnect->Disconnect();
+    }
+    return;
   }
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder == this) {
