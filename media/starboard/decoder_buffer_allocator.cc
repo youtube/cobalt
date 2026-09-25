@@ -16,11 +16,13 @@
 
 #include <sys/mman.h>  // For MADV_COLD
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "starboard/common/allocator.h"
@@ -58,6 +60,12 @@ DecoderBufferAllocator::DecoderBufferAllocator(
     : is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
+  if (base::FeatureList::IsEnabled(
+          media::kCobaltDisableDecoderBufferAllocator)) {
+    LOG(INFO) << "DecoderBufferAllocator is disabled via feature flag.";
+    return;
+  }
+
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
@@ -360,6 +368,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   if (strategy_) {
     return;
   }
+  CHECK(!base::FeatureList::IsEnabled(
+      media::kCobaltDisableDecoderBufferAllocator));
 
   is_strategy_switch_pending_ = false;
 

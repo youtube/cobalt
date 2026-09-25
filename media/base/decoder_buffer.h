@@ -216,6 +216,13 @@ class MEDIA_EXPORT DecoderBuffer
     if (external_memory_) {
       return external_memory_->handle();
     }
+    // Non-empty `data_` means PartitionAlloc is used instead of
+    // DecoderBufferAllocator (`s_allocator` is null).
+    // TODO: b/563478845 - Clean up once the PartitionAlloc experiment concludes.
+    if (!data_.empty()) {
+      return reinterpret_cast<Allocator::Handle>(data_.data());
+    }
+
     return Allocator::kInvalidHandle;
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
