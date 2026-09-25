@@ -15,11 +15,25 @@
 #include "ui/ozone/platform/starboard/gl_ozone_egl_starboard.h"
 
 #include <memory>
+#include <type_traits>
 
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 
 namespace ui {
+
+namespace {
+
+template <typename Target, typename Source>
+Target CastToNativeWindow(Source source) {
+  if constexpr (std::is_pointer_v<Target>) {
+    return reinterpret_cast<Target>(static_cast<uintptr_t>(source));
+  } else {
+    return static_cast<Target>(source);
+  }
+}
+
+}  // namespace
 
 // Macro to simplify the lookup of function pointers from a given interface.
 // It checks if 'name' matches '#func_name' and returns the corresponding
@@ -241,7 +255,8 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
   return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
-      display->GetAs<gl::GLDisplayEGL>(), window, nullptr));
+      display->GetAs<gl::GLDisplayEGL>(),
+      CastToNativeWindow<EGLNativeWindowType>(window), nullptr));
 }
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(

@@ -222,7 +222,11 @@ constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 using AcceleratedWidget = ANativeWindow*;
 constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
 #elif BUILDFLAG(IS_OZONE)
+#if BUILDFLAG(IS_COBALT)
+using AcceleratedWidget = uint64_t;
+#else
 using AcceleratedWidget = uint32_t;
+#endif
 constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 #else
 #error unknown platform

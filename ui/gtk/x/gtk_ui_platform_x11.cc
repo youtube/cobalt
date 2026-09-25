@@ -73,7 +73,8 @@ bool GtkUiPlatformX11::SetGtkWidgetTransientFor(GtkWidget* widget,
                 gtk_native_get_surface(gtk_widget_get_native(widget)))
           : gdk_x11_window_get_xid(gtk_widget_get_window(widget)));
   connection_->SetProperty(x11_window, x11::Atom::WM_TRANSIENT_FOR,
-                           x11::Atom::WINDOW, parent);
+                           x11::Atom::WINDOW,
+                           static_cast<x11::Window>(parent));
   connection_->SetProperty(x11_window, x11::GetAtom("_NET_WM_WINDOW_TYPE"),
                            x11::Atom::ATOM,
                            x11::GetAtom("_NET_WM_WINDOW_TYPE_DIALOG"));

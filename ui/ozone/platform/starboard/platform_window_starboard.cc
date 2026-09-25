@@ -177,8 +177,8 @@ void PlatformWindowStarboard::Show(bool inactive) {
   if (!widget_available_) {
     widget_available_ = true;
 
-    intptr_t handle =
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    uintptr_t handle =
+        reinterpret_cast<uintptr_t>(SbWindowGetPlatformHandle(sb_window_));
     delegate_->OnAcceleratedWidgetAvailable(handle);
   }
 }

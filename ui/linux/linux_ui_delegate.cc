@@ -28,7 +28,7 @@ LinuxUiDelegate::~LinuxUiDelegate() {
 }
 
 bool LinuxUiDelegate::ExportWindowHandle(
-    uint32_t parent_widget,
+    gfx::AcceleratedWidget parent_widget,
     base::OnceCallback<void(const std::string&)> callback) {
   // This function should not be called when using a platform that doesn't
   // implement it.
