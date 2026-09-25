@@ -1,0 +1,31 @@
+name: Check Pruned Status
+description: >
+  Reports whether the build for this platform was pruned by `gn analyze`, i.e.
+  nothing was compiled and no test artifacts were produced. Downstream test jobs
+  use this to skip work instead of failing on missing artifacts.
+outputs:
+  pruned:
+    description: "'true' when the platform build produced no artifacts."
+    value: ${{ steps.check.outputs.pruned }}
+runs:
+  using: "composite"
+  steps:
+    - name: Download Build Status
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      continue-on-error: true
+      with:
+        name: ${{ matrix.platform }}_test_targets_json
+        path: build_status
+    - name: Evaluate Pruned Status
+      id: check
+      shell: bash
+      run: |
+        set -euo pipefail
+        pruned=false
+        # Absence of the marker means the build ran normally (or the artifact is
+        # unavailable), in which case we must not skip anything.
+        if [[ -f build_status/build_pruned ]]; then
+          pruned="$(cat build_status/build_pruned)"
+        fi
+        echo "Platform build pruned: ${pruned}"
+        echo "pruned=${pruned}" >> "${GITHUB_OUTPUT}"

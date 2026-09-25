@@ -20,8 +20,8 @@ inputs:
     default: 'false'
 outputs:
   skip_ninja:
-    description: "'true' when no compilation was performed."
-    value: ${{ inputs.dry_run == 'true' && 'true' || 'false' }}
+    description: "'true' when no compilation was performed (pruned or dry run)."
+    value: ${{ steps.analyze.outputs.skip_ninja || 'false' }}
 runs:
   using: "composite"
   steps:
@@ -68,18 +68,84 @@ runs:
         id: changed-files
         env:
           CHANGED_FILES_LIST: changed_files.txt
+        working-directory: cobalt/src
         run: |
           set -x
-          cd cobalt/src
           # GitHub's actions/checkout action, by default, checks out the merge commit when
           # a pull request event triggers a workflow. This merge commit represents the state
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          # TODO(b/382508397): Disabled for now.
-          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          # cat ${CHANGED_FILES_LIST}
+          git diff --name-only HEAD~1 HEAD > "${CHANGED_FILES_LIST}"
+          cat "${CHANGED_FILES_LIST}"
         shell: bash
+      - name: GN Analyze
+        id: analyze
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+          EVENT_NAME: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        working-directory: cobalt/src
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # A dry run never compiles anything, regardless of what changed.
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run requested. Skipping compilation."
+            echo "skip_ninja=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # Default to building unless gn proves the change cannot affect us.
+          echo "skip_ninja=false" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${EVENT_NAME}" != "pull_request" || ! -s "${CHANGED_FILES_LIST}" ]]; then
+            exit 0
+          fi
+
+          # gn analyze answers "No dependency" both for a source file that nothing depends
+          # on AND for a path it has never heard of. That second case is unsafe to prune:
+          # runtime data, test expectations and scripts are consumed by tests without being
+          # inputs to the build graph. So we only consult gn when every changed file is
+          # something gn can reason about.
+          while IFS= read -r filename; do
+            [[ -z "${filename}" ]] && continue
+            case "${filename}" in
+              *.c|*.cc|*.cpp|*.h|*.hpp|*.m|*.mm|*.java|*.gn|*.gni) ;;
+              *)
+                echo "'${filename}' is not a gn-visible source file. Building normally."
+                exit 0
+                ;;
+            esac
+          done < "${CHANGED_FILES_LIST}"
+
+          # gn expects source paths to be prefixed with '//', e.g. //cobalt/browser/main.cc.
+          files_json=$(jq -R -s -c 'split("\n") | map(select(length > 0) | "//" + .)' \
+              < "${CHANGED_FILES_LIST}")
+
+          # We evaluate against additional_compile_targets: ["all"] to determine whether the
+          # modified files affect any output in the entire ninja build graph. test_targets is
+          # left empty because test binaries are already built as compile targets under "all".
+          jq -n --argjson files "${files_json}" '{
+            files: $files,
+            additional_compile_targets: ["all"],
+            test_targets: []
+          }' > gn_analyze_input.json
+          cat gn_analyze_input.json
+
+          gn analyze "out/${PLATFORM}_${CONFIG}" gn_analyze_input.json gn_analyze_output.json
+          cat gn_analyze_output.json
+
+          # "No dependency" is the only status that proves the change is irrelevant here.
+          # Every other status ("Found dependency", "Found dependency (all)", or an error)
+          # falls through to a normal build.
+          if [[ "$(jq -r '.status' gn_analyze_output.json)" == "No dependency" ]]; then
+            echo "gn analyze reported 'No dependency'. Pruning the build for ${PLATFORM}."
+            echo "skip_ninja=true" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
         if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
@@ -91,9 +157,30 @@ runs:
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
           TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+          PRUNED_MARKER_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/build_pruned
+          SKIP_NINJA: ${{ steps.analyze.outputs.skip_ninja }}
+          DRY_RUN: ${{ inputs.dry_run }}
         working-directory: cobalt/src
         run: |
           set -x
+
+          # Publish whether this platform produced any binaries. Downstream test jobs read
+          # this marker (see the check_pruned action) so they can skip instead of failing on
+          # artifacts that were never uploaded. A dry run still exercises the whole job graph,
+          # so it is deliberately not reported as pruned.
+          pruned=false
+          if [[ "${SKIP_NINJA}" == "true" && "${DRY_RUN}" != "true" ]]; then
+            pruned=true
+          fi
+          echo -n "${pruned}" > "${PRUNED_MARKER_FILE}"
+
+          if [[ "${pruned}" == "true" ]]; then
+            echo "Build was pruned by gn analyze. Emitting an empty test target list."
+            echo '[]' > "${TEST_TARGETS_JSON_FILE}"
+            echo "test_targets_json=[]" >> "${GITHUB_OUTPUT}"
+            echo "test_targets_count=0" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
 
           if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
             echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
@@ -133,9 +220,11 @@ runs:
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }}_test_targets_json
-          path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          path: |
+            cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+            cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/build_pruned
       - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 && inputs.dry_run != 'true' }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 && steps.analyze.outputs.skip_ninja != 'true' }}
         id: build-test-targets
         working-directory: cobalt/src
         env:
@@ -148,7 +237,7 @@ runs:
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
-        if: inputs.dry_run != 'true'
+        if: steps.analyze.outputs.skip_ninja != 'true'
         working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -164,7 +253,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: inputs.dry_run != 'true' && (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
+        if: steps.analyze.outputs.skip_ninja != 'true' && (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }} APKs
