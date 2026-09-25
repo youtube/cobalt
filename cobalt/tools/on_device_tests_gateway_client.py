@@ -218,6 +218,40 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   return params
 
 
+def _internal_test_gcs_params(args: argparse.Namespace, target_name: str,
+                              test_attempts: str) -> List[str]:
+  """Builds the GCS upload params for an e2e/yts test request.
+
+  GcsCobaltTestResultUploaderPlugin uploads <gen_dir>/cobalt.log to
+  gcs_result_path, renamed to gcs_log_filename so that the logs of the
+  different targets in a run do not overwrite each other.
+
+  Args:
+      args: Parsed command line arguments.
+      target_name: Test target name, without the Blaze package.
+      test_attempts: Effective number of attempts for this target.
+
+  Returns:
+      A list of Mobile Harness params, empty if no GCS result path was given.
+  """
+  if not args.gcs_result_path:
+    return []
+
+  params = [
+      f'gcs_result_path={args.gcs_result_path}',
+      f'gcs_log_filename={target_name}_cobalt.log',
+  ]
+  try:
+    if int(test_attempts or 1) > 1:
+      # Must delete existing results when retries are enabled so that a log
+      # from an earlier attempt is not mistaken for the final result.
+      params.append('gcs_delete_before_upload=true')
+  except ValueError:
+    logging.warning('Invalid test_attempts value: %s', test_attempts)
+
+  return params
+
+
 def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
   test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
@@ -295,6 +329,10 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
             params.append('app=dev.cobalt.coat')
           else:
             files.append(f'cobalt_path={bigstore_path}')
+
+      params.extend(
+          _internal_test_gcs_params(args, test_target.split(':')[-1],
+                                    test_attempts or args.test_attempts))
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
@@ -410,6 +448,11 @@ def main() -> int:
       default='900',
       help='Timeout in seconds for the test to start.',
   )
+  trigger_args.add_argument(
+      '--gcs_result_path',
+      type=str,
+      help='GCS URL where test result files and logs should be uploaded.',
+  )
 
   # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
@@ -428,11 +471,6 @@ def main() -> int:
       '--gcs_archive_path',
       type=str,
       help='Path to Cobalt archive to be tested. Must be on GCS.',
-  )
-  unit_test_group.add_argument(
-      '--gcs_result_path',
-      type=str,
-      help='GCS URL where test result files should be uploaded.',
   )
 
   # --- E2E Test Arguments ---
