@@ -79,10 +79,9 @@ jobs:
       RBE_INSTANCE: "projects/cobalt-actions-prod/instances/default_instance"
       RBE_SERVICE: "remotebuildexecution.googleapis.com:443"
       SISO_CREDENTIAL_HELPER: "gcloud"
-      GCP_PROJECT: ${{ vars.GCP_PROJECT || 'lxn-test' }}
-      GCP_REGION: "us-central1"
-      #TODO(b/552561778): Move to dedicated production reasoning engine ID once finalized.
-      REASONING_ENGINE_ID: ${{ vars.REASONING_ENGINE_ID || '6110792607330205696' }}
+      GCP_LOCATION: "us-central1"
+      REASONING_ENGINE_ID: ${{ vars.REASONING_ENGINE_ID || '5025326141087416320' }}
+      GCS_MEMORY_URI: ${{ vars.GCS_MEMORY_URI || 'gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -106,6 +105,14 @@ jobs:
         uses: ./src/.github/actions/gob_auth
         with:
           use_gcloud: 'true'
+
+      - name: Set GCP Project
+        run: |
+          GCP_PROJECT="${{ vars.GCP_PROJECT }}"
+          if [[ -z "${GCP_PROJECT}" ]]; then
+            GCP_PROJECT=$(gcloud config get-value project)
+          fi
+          echo "GCP_PROJECT=${GCP_PROJECT}" >> "${GITHUB_ENV}"
 
       - name: Setup Working Branch
         id: branch_setup
@@ -188,10 +195,6 @@ jobs:
         run: |
           set -x
           python3 --version
-          curl -sS https://bootstrap.pypa.io/get-pip.py | python3 - --user --break-system-packages
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-          export PATH="${HOME}/.local/bin:${PATH}"
-
           python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/requirements.txt"
 
       - name: Run AI Rebase Agent
