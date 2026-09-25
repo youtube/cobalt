@@ -29,10 +29,6 @@ class JobQueue;
 
 class VideoSurfaceHolder {
  public:
-  struct AcquiredSurface {
-    scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
-    jni_zero::ScopedJavaGlobalRef<jobject> surface;
-  };
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -49,11 +45,12 @@ class VideoSurfaceHolder {
   // acquired before last holder release the surface.
   jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
 
-  // Returns an AcquiredSurface to which video should be rendered.
+  // Returns the surface to which video should be rendered.
   // Surface cannot be acquired before last holder releases the surface.
   // |job_queue| is used by SurfaceDestroyNotifier to schedule teardown task on
   // the player worker thread.
-  AcquiredSurface AcquireVideoSurface(JobQueue* job_queue);
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface(
+      JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -64,7 +61,6 @@ class VideoSurfaceHolder {
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
 
- private:
   scoped_refptr<SurfaceDestroyNotifier> active_notifier_;
 };
 

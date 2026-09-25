@@ -34,8 +34,7 @@ class JobQueue;
 // - RefCountedThreadSafe with internal mutex guarding state transitions.
 // - Created in VideoSurfaceHolder::AcquireVideoSurface(), where references are
 //   stored globally in GetGlobalSurfaceDestroyNotifier() and locally in
-//   the decoder (VideoSurfaceHolder::active_notifier_ /
-//   MediaCodecVideoDecoder).
+//   VideoSurfaceHolder::active_notifier_.
 // - When Notify() is invoked from the JNI thread, an in-flight task on the
 //   JobQueue also holds a reference to ensure the object stays alive until
 //   NotifyDestroyed() completes on the decoder thread.
