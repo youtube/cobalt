@@ -104,6 +104,17 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   DCHECK(get_gpu_factories_cb_);
   GpuVideoAcceleratorFactories* gpu_factories = get_gpu_factories_cb_.Run();
 
+  StarboardRendererClient::AsyncGetGpuFactoriesCB async_get_gpu_factories_cb =
+      base::BindOnce(
+          [](scoped_refptr<base::SequencedTaskRunner> main_task_runner,
+             GetGpuFactoriesCB get_factories_cb,
+             base::OnceCallback<void(GpuVideoAcceleratorFactories*)> reply_cb) {
+            main_task_runner->PostTaskAndReplyWithResult(
+                FROM_HERE, get_factories_cb, std::move(reply_cb));
+          },
+          base::SequencedTaskRunner::GetCurrentDefault(),
+          get_gpu_factories_cb_);
+
   // Initialize StarboardRendererWrapper via StarboardRendererConfig.
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
@@ -127,7 +138,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       std::move(request_overlay_info_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
           ,
-      config.experimental_features.GetBool(kMediaBypassMojoForMedia));
+      config.experimental_features.GetBool(kMediaBypassMojoForMedia),
+      std::move(async_get_gpu_factories_cb));
 }
 
 }  // namespace media

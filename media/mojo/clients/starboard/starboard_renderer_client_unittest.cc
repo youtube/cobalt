@@ -53,6 +53,7 @@ struct FakeMojomRendererCallRecord {
   bool initialize_with_bypass_bridge_called = false;
   uint32_t last_bypass_bridge_id = 0;
   std::optional<size_t> last_stream_count;
+  mojom::CommandBufferIdPtr last_command_buffer_id;
 };
 
 class FakeMojomRenderer : public mojom::Renderer {
@@ -108,7 +109,11 @@ class FakeStarboardRendererExtension
   MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnGpuChannelTokenReady(
-      mojom::CommandBufferIdPtr command_buffer_id) override {}
+      mojom::CommandBufferIdPtr command_buffer_id) override {
+    if (record_) {
+      record_->last_command_buffer_id = std::move(command_buffer_id);
+    }
+  }
 #if BUILDFLAG(IS_IOS_TVOS)
   void SetSourceUrl(const std::string& source_url) override {}
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -164,8 +169,11 @@ class StarboardRendererClientTest : public ::testing::Test {
     media_resource_ = std::make_unique<FakeMediaResource>(3, 9, false);
   }
 
-  void InitializeStarboardRendererClient(bool with_gpu_factories = true,
-                                         bool bypass_mojo_for_media = false) {
+  void InitializeStarboardRendererClient(
+      bool with_gpu_factories = true,
+      bool bypass_mojo_for_media = false,
+      StarboardRendererClient::AsyncGetGpuFactoriesCB
+          async_get_gpu_factories_cb = base::NullCallback()) {
     mojo::PendingRemote<mojom::Renderer> renderer_remote;
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
@@ -201,7 +209,7 @@ class StarboardRendererClientTest : public ::testing::Test {
         /*request_overlay_info_cb=*/base::DoNothing()
 #endif  // BUILDFLAG(IS_ANDROID)
             ,
-        bypass_mojo_for_media);
+        bypass_mojo_for_media, std::move(async_get_gpu_factories_cb));
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
@@ -239,6 +247,50 @@ TEST_F(StarboardRendererClientTest, InitializeWithoutGpuFactories) {
   starboard_renderer_client_->UpdateStarboardRenderingMode(
       StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest,
+       InitializeRetriesGpuFactoriesWhenChannelTokenIsEmpty) {
+  auto fresh_gpu_factories =
+      std::make_unique<NiceMock<MockGpuVideoAcceleratorFactories>>(nullptr);
+  const base::UnguessableToken kExpectedToken =
+      base::UnguessableToken::Create();
+  constexpr int32_t kExpectedRouteId = 42;
+
+  EXPECT_CALL(*mock_gpu_factories_, GetChannelToken(_))
+      .WillOnce(Invoke(
+          [](base::OnceCallback<void(const base::UnguessableToken&)> callback) {
+            std::move(callback).Run(base::UnguessableToken());
+          }));
+  EXPECT_CALL(*fresh_gpu_factories, GetChannelToken(_))
+      .WillOnce(Invoke(
+          [kExpectedToken](
+              base::OnceCallback<void(const base::UnguessableToken&)>
+                  callback) { std::move(callback).Run(kExpectedToken); }));
+  EXPECT_CALL(*fresh_gpu_factories, GetCommandBufferRouteId())
+      .WillOnce(::testing::Return(kExpectedRouteId));
+
+  InitializeStarboardRendererClient(
+      /*with_gpu_factories=*/true, /*bypass_mojo_for_media=*/false,
+      base::BindOnce(
+          [](GpuVideoAcceleratorFactories* fresh_factories,
+             base::OnceCallback<void(GpuVideoAcceleratorFactories*)> reply_cb) {
+            std::move(reply_cb).Run(fresh_factories);
+          },
+          fresh_gpu_factories.get()));
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(fake_mojom_renderer_record_.last_command_buffer_id);
+  EXPECT_EQ(fake_mojom_renderer_record_.last_command_buffer_id->channel_token,
+            kExpectedToken);
+  EXPECT_EQ(fake_mojom_renderer_record_.last_command_buffer_id->route_id,
+            kExpectedRouteId);
 }
 
 TEST_F(StarboardRendererClientTest, PunchOutModeDoesNotStartSink) {

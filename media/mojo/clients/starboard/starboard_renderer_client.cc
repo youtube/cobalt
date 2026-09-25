@@ -62,7 +62,8 @@ StarboardRendererClient::StarboardRendererClient(
     RequestOverlayInfoCB request_overlay_info_cb
 #endif  // BUILDFLAG(IS_ANDROID)
     ,
-    bool bypass_mojo_for_media)
+    bool bypass_mojo_for_media,
+    AsyncGetGpuFactoriesCB async_get_gpu_factories_cb)
     : MojoRendererWrapper(std::move(mojo_renderer)),
       media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
@@ -72,7 +73,8 @@ StarboardRendererClient::StarboardRendererClient(
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
       get_sb_window_handle_callback_(get_sb_window_handle_callback),
-      gpu_factories_(gpu_factories)
+      gpu_factories_(gpu_factories),
+      async_get_gpu_factories_cb_(std::move(async_get_gpu_factories_cb))
 #if BUILDFLAG(IS_ANDROID)
       ,
       request_overlay_info_cb_(std::move(request_overlay_info_cb))
@@ -374,6 +376,33 @@ void StarboardRendererClient::OnGpuChannelTokenReady(
     command_buffer_id = mojom::CommandBufferId::New();
     command_buffer_id->channel_token = std::move(channel_token);
     command_buffer_id->route_id = gpu_factories_->GetCommandBufferRouteId();
+  } else if (async_get_gpu_factories_cb_) {
+    MEDIA_LOG(WARNING, media_log_)
+        << "StarboardRendererClient received empty GPU channel token "
+           "(context lost); requesting fresh GpuFactories.";
+    std::move(async_get_gpu_factories_cb_)
+        .Run(base::BindOnce(&StarboardRendererClient::OnFreshGpuFactoriesReady,
+                            weak_factory_.GetWeakPtr(),
+                            std::move(command_buffer_id),
+                            std::move(complete_cb)));
+    return;
+  }
+  InitAndConstructMojoRenderer(std::move(command_buffer_id),
+                               std::move(complete_cb));
+}
+
+void StarboardRendererClient::OnFreshGpuFactoriesReady(
+    mojom::CommandBufferIdPtr command_buffer_id,
+    base::OnceClosure complete_cb,
+    GpuVideoAcceleratorFactories* gpu_factories) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  gpu_factories_ = gpu_factories;
+  if (gpu_factories_) {
+    gpu_factories_->GetChannelToken(
+        base::BindOnce(&StarboardRendererClient::OnGpuChannelTokenReady,
+                       weak_factory_.GetWeakPtr(), std::move(command_buffer_id),
+                       std::move(complete_cb)));
+    return;
   }
   InitAndConstructMojoRenderer(std::move(command_buffer_id),
                                std::move(complete_cb));
