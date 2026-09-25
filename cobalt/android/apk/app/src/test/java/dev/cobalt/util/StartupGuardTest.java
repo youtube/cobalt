@@ -188,4 +188,55 @@ public class StartupGuardTest {
             StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
                 + StartupGuard.MILESTONE_NAMES[StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT]));
   }
+
+  @Test
+  public void crashRunnable_executesPreCrashHook_whenExecuted() {
+    boolean[] hookExecuted = new boolean[] {false};
+    mStartupGuard.setPreCrashHook(() -> hookExecuted[0] = true);
+
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException e) {
+      // Expected
+    }
+
+    assertTrue("preCrashHook should have executed prior to crash", hookExecuted[0]);
+  }
+
+  @Test
+  public void crashRunnable_hookThrows_stillCrashes() {
+    mStartupGuard.setPreCrashHook(
+        () -> {
+          throw new RuntimeException("Simulated failure in preCrashHook");
+        });
+
+    boolean crashed = false;
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException e) {
+      if (e.getMessage() != null && e.getMessage().contains("crash triggered by StartupGuard")) {
+        crashed = true;
+      }
+    }
+
+    assertTrue("StartupGuard must still crash even if preCrashHook throws", crashed);
+  }
+
+  @Test
+  public void getStartupStatus_and_getHighestMilestone() {
+    assertEquals(0L, mStartupGuard.getStartupStatus());
+    assertEquals(0, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT); // 2
+    assertEquals(1L << 2, mStartupGuard.getStartupStatus());
+    assertEquals(2, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT); // 5
+    assertEquals((1L << 2) | (1L << 5), mStartupGuard.getStartupStatus());
+    assertEquals(5, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED); // 37
+    assertEquals((1L << 2) | (1L << 5) | (1L << 37), mStartupGuard.getStartupStatus());
+    assertEquals(37, mStartupGuard.getHighestMilestone());
+  }
 }
