@@ -264,6 +264,7 @@ static_library("cobalt_shell_lib") {
       "browser/shell_platform_delegate_android.cc",
       "browser/shell_web_contents_view_delegate_android.cc",
     ]
+    deps += [ "//gpu/config" ]
   }
 
   if (is_ios) {

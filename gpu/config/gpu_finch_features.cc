@@ -57,6 +57,16 @@ BASE_FEATURE(kUseGles2ForOopR,
 BASE_FEATURE(kCobaltInProcessDirectRaster,
              "CobaltInProcessDirectRaster",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, uses Android SurfaceControl for the display compositor with
+// Starboard media, removes the primary UI plane, and releases VizBufferQueue UI
+// buffers during fullscreen Starboard underlay video playback when the UI fades
+// out.
+BASE_FEATURE(kCobaltSinglePlaneVideoPassthrough,
+             "CobaltSinglePlaneVideoPassthrough",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not
@@ -773,6 +783,17 @@ bool IsAndroidSurfaceControlEnabled() {
 
   if (!gfx::SurfaceControl::IsSupported())
     return false;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard media renders video via VideoSurfaceView underlay rather than
+  // AImageReader, and uses SurfaceControl (GLSurfaceEGLSurfaceControl +
+  // VizBufferQueue) on Android 11+ (API 30+) when SinglePlaneVideoPassthrough
+  // is enabled.
+  if (build_info->sdk_int() >= base::android::SDK_VERSION_R &&
+      base::FeatureList::IsEnabled(kCobaltSinglePlaneVideoPassthrough)) {
+    return true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // We can use surface control only with AImageReader.
   if (!base::android::EnableAndroidImageReader()) {

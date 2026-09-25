@@ -448,6 +448,13 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
 
   bool next_frame_needs_full_frame_redraw_ = false;
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // True if the previous frame omitted the primary output surface plane (e.g.
+  // single-plane video passthrough), in which case its buffers were released
+  // and the root render pass must be fully redrawn once the plane returns.
+  bool output_surface_plane_removed_last_frame_ = false;
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Cached values given to Reshape(). The `reshape_params_` is optional
   // to prevent use of uninitialized values. The size in these parameters
   // may be larger than the `device_viewport_size_` that users see.

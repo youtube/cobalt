@@ -138,6 +138,19 @@ void GLSurfaceEGLSurfaceControl::Present(
 void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
     SwapCompletionCallback completion_callback,
     PresentationCallback present_callback) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Only reachable with SinglePlaneVideoPassthrough: Cobalt uses this
+  // presenter only when features::IsAndroidSurfaceControlEnabled().
+  if (!surface_lost_ && !pending_transaction_) {
+    // When the primary output surface plane is removed (e.g., single-plane
+    // video underlay passthrough) and zero SurfaceControl overlay planes are
+    // scheduled this frame, ScheduleOverlayPlane() is not called. Initialize
+    // pending_transaction_ here so the cleanup code below detaches the buffer
+    // and removes ChromeChildSurface.
+    pending_transaction_.emplace();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // The transaction is initialized on the first ScheduleOverlayPlane call. If
   // we don't have a transaction at this point, it means the scheduling the
   // overlay plane failed. Simply report a swap failure to lose the context and
@@ -180,6 +193,21 @@ void GLSurfaceEGLSurfaceControl::CommitPendingTransaction(
       surface_state.visibility = false;
     }
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (pending_surfaces_count_ == 0 && !surface_list_.empty()) {
+    // No planes at all this frame (single-plane video underlay passthrough).
+    // SurfaceFlinger keeps the last buffer of a hidden layer cached in its
+    // composition state, so also detach and drop the child surfaces to let it
+    // destroy the layers and release that buffer. ScheduleOverlayPlane()
+    // recreates a child surface when planes come back. Surfaces still
+    // referenced by pending ResourceRefs stay alive until their ack.
+    for (auto& surface_state : surface_list_) {
+      pending_transaction_->SetParent(*surface_state.surface, nullptr);
+    }
+    surface_list_.clear();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(khushalsagar): Consider using the SetDamageRect API for partial
   // invalidations. Note that the damage rect set should be in the space in
@@ -383,7 +411,16 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
         *surface_state.surface, image_color_space, surface_state.hdr_metadata);
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Child surfaces are recreated after single-plane mode (see
+  // CommitPendingTransaction()), so re-apply a previously set frame rate on
+  // new surfaces. A non-default |frame_rate_| implies SetFrameRate() was
+  // called, which only happens when SupportsSetFrameRate().
+  if (frame_rate_update_pending_ ||
+      (uninitialized && frame_rate_ != gfx::SurfaceControlFrameRate()))
+#else
   if (frame_rate_update_pending_)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     pending_transaction_->SetFrameRate(*surface_state.surface, frame_rate_);
 
   return true;
