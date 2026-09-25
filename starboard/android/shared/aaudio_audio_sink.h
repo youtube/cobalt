@@ -88,6 +88,12 @@ class AaudioAudioSink final : public AudioSinkAndroid {
     void operator()(AAudioStream* stream) const;
   };
 
+  void CopyFromFrameBuffer(int offset_in_frames,
+                           int num_frames,
+                           float volume,
+                           float* dest) const;
+  void WriteSilence(float* dest, int num_frames) const;
+
   std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream_;
   const int channels_;
   void* const frame_buffer_;

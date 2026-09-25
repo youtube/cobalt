@@ -53,6 +53,19 @@ struct AAudioStreamBuilderDeleter {
   }
 };
 
+void CopyWithVolume(const float* src,
+                    int num_samples,
+                    float volume,
+                    float* dest) {
+  if (volume == 1.0f) {
+    std::memcpy(dest, src, num_samples * sizeof(float));
+    return;
+  }
+  for (int i = 0; i < num_samples; ++i) {
+    dest[i] = src[i] * volume;
+  }
+}
+
 }  // namespace
 
 void AaudioAudioSink::AAudioStreamDeleter::operator()(
@@ -214,13 +227,15 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
     return AAUDIO_CALLBACK_RESULT_STOP;
   }
 
+  float* dest = static_cast<float*>(audio_data);
+
   // If we don't acquire |flush_mutex_| (Flush() is being called) or a flush was
   // just requested, output silence and skip consume_frames() to avoid consuming
   // stale pre-seek frames.
   std::unique_lock lock(flush_mutex_, std::try_to_lock);
   if (!lock.owns_lock() ||
       flush_requested_.exchange(false, std::memory_order_relaxed)) {
-    std::memset(audio_data, 0, num_frames * channels_ * sizeof(float));
+    WriteSilence(dest, num_frames);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
@@ -232,52 +247,17 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
   callbacks_.update_source_status(&frames_in_buffer, &offset_in_frames,
                                   &is_playing, &is_eos_reached, context_);
 
-  float rate = playback_rate_.load(std::memory_order_relaxed);
-  if (rate == 0.0f) {
-    is_playing = false;
-  }
-
-  if (!is_playing || frames_in_buffer <= 0) {
-    std::memset(audio_data, 0, num_frames * channels_ * sizeof(float));
+  const bool is_paused = playback_rate_.load(std::memory_order_relaxed) == 0.0f;
+  if (!is_playing || is_paused || frames_in_buffer <= 0) {
+    WriteSilence(dest, num_frames);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
-  int frames_to_copy = std::min(static_cast<int>(num_frames), frames_in_buffer);
-  float* dest = static_cast<float*>(audio_data);
-  const float* src = static_cast<const float*>(frame_buffer_);
-  float volume = volume_.load(std::memory_order_relaxed);
-
-  int first_chunk_frames =
-      std::min(frames_to_copy, frames_per_channel_ - offset_in_frames);
-  int second_chunk_frames = frames_to_copy - first_chunk_frames;
-
-  const float* src_ptr = src + offset_in_frames * channels_;
-  int first_chunk_samples = first_chunk_frames * channels_;
-  if (volume == 1.0f) {
-    std::memcpy(dest, src_ptr, first_chunk_samples * sizeof(float));
-  } else {
-    for (int i = 0; i < first_chunk_samples; ++i) {
-      dest[i] = src_ptr[i] * volume;
-    }
-  }
-
-  if (second_chunk_frames > 0) {
-    float* dest_second = dest + first_chunk_samples;
-    int second_chunk_samples = second_chunk_frames * channels_;
-    if (volume == 1.0f) {
-      std::memcpy(dest_second, src, second_chunk_samples * sizeof(float));
-    } else {
-      for (int i = 0; i < second_chunk_samples; ++i) {
-        dest_second[i] = src[i] * volume;
-      }
-    }
-  }
-
-  if (frames_to_copy < num_frames) {
-    int silence_samples = (num_frames - frames_to_copy) * channels_;
-    std::memset(dest + frames_to_copy * channels_, 0,
-                silence_samples * sizeof(float));
-  }
+  // On underrun, play what's available and pad the rest with silence.
+  const int frames_to_copy = std::min<int>(num_frames, frames_in_buffer);
+  CopyFromFrameBuffer(offset_in_frames, frames_to_copy,
+                      volume_.load(std::memory_order_relaxed), dest);
+  WriteSilence(dest + frames_to_copy * channels_, num_frames - frames_to_copy);
 
   // TODO: b/561166288 - Frames are reported as consumed when copied, not when
   // presented, so media time leads actual output by the output latency. Report
@@ -299,6 +279,32 @@ void AaudioAudioSink::OnAudioError(aaudio_result_t error) {
 
   const bool capability_changed = (error == AAUDIO_ERROR_DISCONNECTED);
   callbacks_.error(capability_changed, "AAudio stream error", context_);
+}
+
+void AaudioAudioSink::CopyFromFrameBuffer(int offset_in_frames,
+                                          int num_frames,
+                                          float volume,
+                                          float* dest) const {
+  SB_CHECK_GE(offset_in_frames, 0);
+  SB_CHECK_LT(offset_in_frames, frames_per_channel_);
+  SB_CHECK_LE(num_frames, frames_per_channel_);
+
+  const float* src = static_cast<const float*>(frame_buffer_);
+  const int frames_before_wrap =
+      std::min(num_frames, frames_per_channel_ - offset_in_frames);
+  const int frames_after_wrap = num_frames - frames_before_wrap;
+
+  CopyWithVolume(src + offset_in_frames * channels_,
+                 frames_before_wrap * channels_, volume, dest);
+  if (frames_after_wrap <= 0) {
+    return;
+  }
+  CopyWithVolume(src, frames_after_wrap * channels_, volume,
+                 dest + frames_before_wrap * channels_);
+}
+
+void AaudioAudioSink::WriteSilence(float* dest, int num_frames) const {
+  std::fill_n(dest, num_frames * channels_, 0.0f);
 }
 
 }  // namespace starboard
