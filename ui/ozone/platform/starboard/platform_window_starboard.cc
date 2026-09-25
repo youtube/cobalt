@@ -114,6 +114,16 @@ void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
   gfx::Rect old_bounds = PlatformWindowStarboard::GetBoundsInPixels();
   gfx::Rect new_bounds_px(old_bounds.x(), old_bounds.y(), width, height);
   PlatformWindowStarboard::SetBoundsInPixels(new_bounds_px);
+#if BUILDFLAG(IS_STARBOARD)
+  // WindowTreeHostPlatform::OnBoundsChanged ignores the notification when the
+  // window pixel dimensions and scale factor are unchanged. Starboard platforms
+  // also dispatch kSbEventTypeWindowSizeChanged when HDMI or HDR output modes
+  // change without a resolution change (for example, when hardware video plane
+  // teardown triggers an HDMI HDR-to-SDR transition while the UI is static).
+  // Damaging the full window rect forces the compositor to schedule a redraw
+  // and issue a fresh eglSwapBuffers commit so the display compositor unblanks.
+  delegate_->OnDamageRect(gfx::Rect(new_bounds_px.size()));
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {

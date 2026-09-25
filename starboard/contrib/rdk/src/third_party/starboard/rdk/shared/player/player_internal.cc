@@ -53,6 +53,7 @@
 #include "starboard/common/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
+#include "starboard/event.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -807,19 +808,6 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   if (color_metadata.bits_per_channel < 8) {
     return;
   }
-  if (IsSDRVideo(color_metadata.bits_per_channel,
-                 color_metadata.primaries,
-                 color_metadata.transfer,
-                 color_metadata.matrix)) {
-    return;
-  }
-
-  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-  if (color_metadata.bits_per_channel <= 8 &&
-      color_metadata.matrix == kSbMediaMatrixIdInvalid &&
-      memcmp(&color_metadata.mastering_metadata, &kEmptyMasteringMetadata, sizeof(SbMediaMasteringMetadata)) == 0) {
-    return;
-  }
 
   GstVideoColorimetry colorimetry;
   colorimetry.range = RangeIdToGstVideoColorRange(color_metadata.range);
@@ -836,6 +824,25 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
     gst_caps_set_simple (caps, "colorimetry", G_TYPE_STRING, tmp, NULL);
     GST_DEBUG ("Setting \"colorimetry\" to %s", tmp);
     g_free (tmp);
+  }
+
+  // Populate the GStreamer colorimetry field above for both SDR and HDR
+  // streams so hardware decoders and video sinks know when a stream uses
+  // explicit BT.709 SDR colorimetry rather than an unspecified transfer
+  // function. Return early here for SDR streams so HDR static mastering
+  // display and content light level metadata are only attached to HDR streams.
+  if (IsSDRVideo(color_metadata.bits_per_channel,
+                 color_metadata.primaries,
+                 color_metadata.transfer,
+                 color_metadata.matrix)) {
+    return;
+  }
+
+  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+  if (color_metadata.bits_per_channel <= 8 &&
+      color_metadata.matrix == kSbMediaMatrixIdInvalid &&
+      memcmp(&color_metadata.mastering_metadata, &kEmptyMasteringMetadata, sizeof(SbMediaMasteringMetadata)) == 0) {
+    return;
   }
 
   GstVideoMasteringDisplayInfo mastering_display_info;
@@ -1718,6 +1725,11 @@ struct PlayerRegistry
     players_.erase(std::remove(players_.begin(), players_.end(), p), players_.end());
   }
 
+  bool IsEmpty() {
+    std::lock_guard lock(mutex_);
+    return players_.empty();
+  }
+
   void ForceStop() {
     std::vector<GstElement*> pipelines;
     {
@@ -1958,6 +1970,18 @@ PlayerImpl::~PlayerImpl() {
 #if defined(HAS_OCDM)
     reinterpret_cast<DrmSystemOcdm*>( drm_system_ )->Release();
 #endif
+  }
+
+  // When the last active GStreamer pipeline is destroyed, westerossink closes
+  // its secondary Wayland connection to Cobalt/wst-YouTube, which causes
+  // WPEFramework/RDKShell to emit onApplicationDisconnected and disables the
+  // hardware video plane. If no new player is immediately started (for
+  // example, when navigating back to the static browse UI), notify
+  // ApplicationRdk so it restores the Wayland client connection state and
+  // forces a compositor redraw.
+  if (GetPlayerRegistry()->IsEmpty()) {
+    SbEventSchedule([](void* /*data*/) { NotifyPlayerDestroyed(); }, nullptr,
+                    0);
   }
 }
 
