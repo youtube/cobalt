@@ -267,7 +267,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
     switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
-    switches.put(JavaSwitches.DISABLE_BACK_FORWARD_CACHE, "1");
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -295,7 +294,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--allow-critical-memory-pressure-handling-in-foreground");
     assertThat(args).contains("--enable-features=EvictMemoryCacheOnCriticalMemoryPressure");
     assertThat(args).contains("--disable-features=LessAggressiveParkableString");
-    assertThat(args).contains("--disable-back-forward-cache");
 
     // Check js-flags
     boolean foundJsFlags = false;
@@ -345,7 +343,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
     switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
-    switches.put(JavaSwitches.DISABLE_BACK_FORWARD_CACHE, "1");
 
     JavaSwitches.setOverrideForTesting(false);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -365,7 +362,6 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--max-http-cache-size=50000000");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
     assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
-    assertThat(args).doesNotContain("--disable-back-forward-cache");
 
     for (String arg : args) {
       assertThat(arg).doesNotContain("CobaltDynamicMojoPipeSizing");

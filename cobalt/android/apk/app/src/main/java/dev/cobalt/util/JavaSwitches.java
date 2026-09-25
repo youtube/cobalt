@@ -158,9 +158,6 @@ public class JavaSwitches {
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
 
-  /** Flag to disable BackForwardCache for WebContents. */
-  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
-
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
 
@@ -499,10 +496,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
-      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
     List<String> enabledMemoryPressureFeatures = new ArrayList<>();
