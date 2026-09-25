@@ -59,7 +59,7 @@ HighlightRegistry* HighlightRegistry::GetHighlightRegistry(const Node* node) {
 =======
       ->Supplementable<LocalDOMWindow,
                        51>::RequireSupplement<HighlightRegistry>();
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool HighlightRegistry::IsAbstractRangePaintable(AbstractRange* abstract_range,

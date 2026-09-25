@@ -194,7 +194,7 @@ class CORE_EXPORT HTMLVideoElement final
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -316,7 +316,7 @@ class CORE_EXPORT HTMLVideoElement final
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string max_video_capabilities_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink

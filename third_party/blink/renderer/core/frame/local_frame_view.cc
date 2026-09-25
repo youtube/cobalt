@@ -2695,7 +2695,7 @@ bool LocalFrameView::RunCompositingInputsLifecyclePhase(
                 window->Supplementable<LocalDOMWindow>::RequireSupplement<
 =======
                 window->Supplementable<LocalDOMWindow, 51>::RequireSupplement<
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                     HighlightRegistry>()) {
           highlight_registry->ValidateHighlightMarkers();
         }

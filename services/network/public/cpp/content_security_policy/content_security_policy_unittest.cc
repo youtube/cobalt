@@ -1669,7 +1669,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
             csp->cobalt_insecure_local_network = true;
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             return csp;
           }),
           "The source list for the Content Security Policy directive "
@@ -1691,7 +1691,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "ignored.",
       },
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   };
 
   for (auto& test : cases) {

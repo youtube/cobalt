@@ -2541,7 +2541,7 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   Supplementable<LocalDOMWindow>::Trace(visitor);
 =======
   Supplementable<LocalDOMWindow, 51>::Trace(visitor);
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {

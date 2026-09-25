@@ -558,7 +558,7 @@ void GetSmapsRollup(base::ProcessId pid,
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -879,7 +879,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     GetSmapsRollup(handle, &pss, &swap_pss);
 #else
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     GetSmapsRollup(&pss, &swap_pss);
 #endif
     dump->pss_kb = pss.InKiB();

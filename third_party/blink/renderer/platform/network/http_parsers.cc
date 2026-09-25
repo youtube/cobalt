@@ -205,7 +205,7 @@ blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
 #else
       source_list->report_sample, source_list->report_hash_algorithm);
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 blink::ContentSecurityPolicyHeaderPtr ConvertToBlink(

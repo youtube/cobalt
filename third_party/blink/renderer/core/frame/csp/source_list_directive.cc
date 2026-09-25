@@ -173,7 +173,7 @@ bool CSPSourceListIsNone(
 #else
          !source_list.hashes.size();
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool CSPSourceListIsSelf(
@@ -191,7 +191,7 @@ bool CSPSourceListIsSelf(
 #else
          !source_list.hashes.size();
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool CSPSourceListIsHashOrNoncePresent(

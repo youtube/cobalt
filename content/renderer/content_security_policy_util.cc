@@ -47,7 +47,7 @@ network::mojom::CSPSourceListPtr BuildCSPSourceList(
 #else
       source_list.report_sample, source_list.report_hash_algorithm);
 #endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::vector<blink::WebString> ToVectorOfWebStrings(
@@ -92,7 +92,7 @@ blink::WebCSPSourceList ToWebCSPSourceList(
           source_list->cobalt_insecure_local_network,
           source_list->cobalt_insecure_private_range};
 #else
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           source_list->report_hash_algorithm};
 #endif  // BUILDFLAG(IS_COBALT)
 }

@@ -154,7 +154,7 @@ class MEDIA_EXPORT DemuxerManager {
 =======
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<Demuxer> CreateDemuxerExtensionWrapper();
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)

@@ -196,7 +196,7 @@ void DocumentPictureInPictureWindowControllerImpl::NotifyClosedAndStopObserving(
     pip_screen_capture_coordinator->OnPipClosed();
   }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void DocumentPictureInPictureWindowControllerImpl::
@@ -219,7 +219,7 @@ void DocumentPictureInPictureWindowControllerImpl::
       PipScreenCaptureCoordinator::GetOrCreateForWebContents(web_contents_impl);
   if (pip_screen_capture_coordinator && child_contents_) {
     pip_screen_capture_coordinator->OnPipShown(*child_contents_);
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f2451b7cb7c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 }
