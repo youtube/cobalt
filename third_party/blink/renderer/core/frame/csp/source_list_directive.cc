@@ -164,16 +164,13 @@ bool CSPSourceListIsNone(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
-<<<<<<< HEAD
-         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
-=======
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network &&
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval &&
+         !source_list.cobalt_insecure_local_network &&
          !source_list.cobalt_insecure_private_range;
 #else
-         !source_list.hashes.size();
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool CSPSourceListIsSelf(
@@ -183,15 +180,12 @@ bool CSPSourceListIsSelf(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
-<<<<<<< HEAD
-         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
-=======
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval &&
+         !source_list.cobalt_insecure_local_network;
 #else
-         !source_list.hashes.size();
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool CSPSourceListIsHashOrNoncePresent(

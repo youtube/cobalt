@@ -1843,11 +1843,7 @@ void Range::ResetUpdateSelectionBehavior() {
 void Range::ScheduleVisualUpdateIfInRegisteredHighlight(Document& document) {
   if (LocalDOMWindow* window = document.domWindow()) {
     if (HighlightRegistry* highlight_registry =
-<<<<<<< HEAD
             window->Supplementable<LocalDOMWindow>::RequireSupplement<
-=======
-            window->Supplementable<LocalDOMWindow, 51>::RequireSupplement<
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                 HighlightRegistry>()) {
       for (const auto& highlight_registry_map_entry :
            highlight_registry->GetHighlights()) {

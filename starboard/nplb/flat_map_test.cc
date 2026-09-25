@@ -19,6 +19,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 #include "starboard/common/time.h"
 #include "starboard/system.h"
@@ -575,7 +576,7 @@ int64_t PerfTestFind(const MapIntType& map,
     if (index == n) {
       index = 0;
     }
-    map.find(search_queries_data[index]);
+    std::ignore = map.find(search_queries_data[index]);
     ++index;
   }
   int64_t delta_time = GetThreadTimeMonotonicNow() - start_time;

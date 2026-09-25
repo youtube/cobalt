@@ -34,12 +34,7 @@
 namespace blink {
 
 // static
-// This will be used again in a future milestone.
-// const char OnScreenKeyboard::kSupplementName[] = "OnScreenKeyboard";
-
-// static
-const unsigned OnScreenKeyboard::kSupplementIndex =
-    static_cast<unsigned>(LocalDOMWindow::Supplements::kOnScreenKeyboard);
+const char OnScreenKeyboard::kSupplementName[] = "OnScreenKeyboard";
 
 OnScreenKeyboard::OnScreenKeyboard(LocalDOMWindow& window)
     : Supplement<LocalDOMWindow>(window),

@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/dial/dial_server_manager.h"
 
 #include "base/functional/bind.h"
+#include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -25,12 +26,7 @@
 namespace blink {
 
 // static
-// This will be used again in a future milestone.
-// const char DialServerManager::kSupplementName[] = "DialServerManager";
-
-// static
-const unsigned DialServerManager::kSupplementIndex =
-    static_cast<unsigned>(ExecutionContext::Supplements::kDialServerManager);
+const char DialServerManager::kSupplementName[] = "DialServerManager";
 
 // static
 DialServerManager* DialServerManager::From(ExecutionContext* context) {

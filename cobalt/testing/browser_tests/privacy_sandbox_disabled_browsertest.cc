@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -166,14 +167,14 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxDisabledBrowserTest,
                                 ->GetBrowserContext()
                                 ->GetDefaultStoragePartition();
 
-  base::test::TestFuture<std::unique_ptr<std::string>> future;
+  base::test::TestFuture<std::optional<std::string>> future;
   url_loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       storage_partition->GetURLLoaderFactoryForBrowserProcess().get(),
       future.GetCallback());
 
   // Since Trust Tokens are disabled (context->trust_token_store() is null),
   // CorsURLLoaderFactory rejects the request with ERR_INVALID_ARGUMENT.
-  EXPECT_FALSE(future.Get());
+  EXPECT_FALSE(future.Get().has_value());
   EXPECT_EQ(net::ERR_INVALID_ARGUMENT, url_loader->NetError());
 }
 

@@ -20,6 +20,7 @@
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/strings/escape.h"
 #include "base/time/time.h"
@@ -199,13 +200,9 @@ void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
   base::Base64Decode(base64_key, &key);
 
   // Generate signature from message using HMAC-SHA256.
-  crypto::HMAC hmac(crypto::HMAC::SHA256);
-  if (!hmac.Init(key)) {
-    DLOG(ERROR) << "Unable to initialize HMAC-SHA256.";
-  }
-  if (!hmac.Sign(message, signature, signature_size_in_bytes)) {
-    DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
-  }
+  const auto digest = crypto::hmac::SignSha256(base::as_byte_span(key),
+                                               base::as_byte_span(message));
+  std::ranges::copy(digest, signature);
 }
 
 }  // namespace content

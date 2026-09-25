@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -120,7 +121,7 @@ class NetworkFetcher : public update_client::NetworkFetcher {
 #if defined(IN_MEMORY_UPDATES)
   void OnDownloadToStringComplete(
       DownloadToStringCompleteCallback download_to_string_complete_callback,
-      std::unique_ptr<std::string> response_body);
+      std::optional<std::string> response_body);
 #endif
 
   static constexpr int kMaxRetriesOnNetworkChange = 3;

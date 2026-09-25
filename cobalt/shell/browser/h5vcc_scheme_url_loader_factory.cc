@@ -22,6 +22,7 @@
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -403,8 +404,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     response_head->content_length = content_.size();
 
     std::string status_line =
-        "HTTP/1.1 " + std::to_string(http_status) + " " +
-        net::GetHttpReasonPhrase(static_cast<net::HttpStatusCode>(http_status));
+        base::StrCat({"HTTP/1.1 ", std::to_string(http_status), " ",
+                      net::GetHttpReasonPhrase(http_status)});
     response_head->headers =
         base::MakeRefCounted<net::HttpResponseHeaders>(status_line);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentType,
