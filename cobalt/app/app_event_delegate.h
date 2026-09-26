@@ -90,7 +90,10 @@ class AppEventDelegate {
   AppEventDelegate(const AppEventDelegate&) = delete;
   AppEventDelegate& operator=(const AppEventDelegate&) = delete;
 
-  // Receives a Starboard event and handles it.
+  // Receives a Starboard event and handles it. For deactivating events with a
+  // synchronous return-time contract (Conceal, Freeze, and Stop), blocks the
+  // calling thread's RunLoop until the target state (and teardown, for Stop)
+  // is reached.
   void HandleEvent(const SbEvent* event) LOCKS_EXCLUDED(lock_);
 
   void DoTeardown() LOCKS_EXCLUDED(lock_);
@@ -115,10 +118,7 @@ class AppEventDelegate {
 
   // Starts a transition of the application state from its current state to the
   // target |state| by traversing all intermediate states in strict linear
-  // order. If this is a deactivating transition (e.g. Conceal or Freeze), it
-  // synchronously blocks the calling OS (Starboard) thread using a nested
-  // base::RunLoop until the target state is reached or a safety timeout occurs.
-  // Activating transitions are executed asynchronously.
+  // order.
   void TransitionToLifeCycleState(ApplicationState state)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
