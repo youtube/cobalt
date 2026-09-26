@@ -127,9 +127,19 @@ typedef int (*DlIteratePhdrFn)(int (*callback)(struct dl_phdr_info* info,
                                                void* data),
                                void* data);
 
-// Stores the pointer to glibc's original dl_iterate_phdr() function.
-// Stored as an atomic pointer so it can be safely read from any thread without
-// requiring mutex locks.
+// No-op function whose address is used as a sentinel when dlsym() returns
+// nullptr. Storing a valid function pointer distinguishes a completed lookup
+// that found no symbol from an uninitialized state (nullptr) without casting
+// an integer to a function pointer.
+SB_NO_SANITIZE_ADDRESS int LookupFailedSentinel(
+    int (*callback)(struct dl_phdr_info* info, size_t size, void* data),
+    void* data) {
+  return 0;
+}
+
+// Stores the pointer to glibc's original dl_iterate_phdr() function, or
+// &LookupFailedSentinel if lookup returned nullptr. Stored as an atomic pointer
+// so it can be safely read from any thread without requiring mutex locks.
 std::atomic<DlIteratePhdrFn> g_real_dl_iterate_phdr{nullptr};
 
 // Resolves glibc's original dl_iterate_phdr() implementation using dlsym()
@@ -145,7 +155,9 @@ __attribute__((constructor)) void InitDlIteratePhdrOverride() {
   if (g_real_dl_iterate_phdr.load(std::memory_order_relaxed) == nullptr) {
     DlIteratePhdrFn real_fn =
         reinterpret_cast<DlIteratePhdrFn>(dlsym(RTLD_NEXT, "dl_iterate_phdr"));
-    g_real_dl_iterate_phdr.store(real_fn, std::memory_order_release);
+    g_real_dl_iterate_phdr.store(
+        real_fn != nullptr ? real_fn : &LookupFailedSentinel,
+        std::memory_order_release);
   }
 }
 
@@ -184,7 +196,7 @@ SB_EXPORT_PLATFORM SB_NO_SANITIZE_ADDRESS int dl_iterate_phdr(
   // Step 1: Delegate to glibc's real dl_iterate_phdr() to enumerate all
   // standard system libraries (e.g. libc, libpthread).
   int status = 0;
-  if (real_fn) {
+  if (real_fn && real_fn != &LookupFailedSentinel) {
     status = real_fn(callback, data);
     // If the callback returned a non-zero value, honor early termination.
     if (status != 0) {
