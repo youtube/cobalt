@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/animation/animation_timeline.h"
 #include "third_party/blink/renderer/core/animation/animation_trigger.h"
 #include "third_party/blink/renderer/core/animation/css/css_timeline_map.h"
@@ -350,12 +351,17 @@ class CORE_EXPORT CSSAnimationUpdate final {
     visitor->Trace(changed_timeline_attachments_);
   }
 
+#if !BUILDFLAG(IS_COBALT)
  private:
+#endif
   bool HasActiveInterpolations() const {
     return !active_interpolations_for_animations_.empty() ||
            !active_interpolations_for_transitions_.empty();
   }
 
+#if BUILDFLAG(IS_COBALT)
+ private:
+#endif
   // Order is significant since it defines the order in which new animations
   // will be started. Note that there may be multiple animations present
   // with the same name, due to the way in which we split up animations with

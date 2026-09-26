@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/animation/css/css_animations.h"
 
+#include "base/test/trace_event_analyzer.h"
+#include "build/build_config.h"
 #include "cc/animation/animation.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_animation_trigger_type.h"
@@ -14,6 +16,8 @@
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_value.h"
+#include "third_party/blink/renderer/core/css/resolver/style_resolver_stats.h"
+#include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
@@ -1994,5 +1998,87 @@ TEST_P(CSSAnimationsTriggerTest, IgnoreCSSAfterJSSetsTrigger) {
   target->setAttribute(html_names::kClassAttr, AtomicString("repeat_trigger"));
   EXPECT_EQ(animation->trigger(), js_trigger);
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(CSSAnimationsTest, CancelledTransitionSkipsAnimationCascade) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #test {
+        filter: contrast(20%);
+        transition: filter 1s;
+      }
+      #test.contrast30 { filter: contrast(30%); }
+      #test.cancel { transition: none; }
+    </style>
+    <div id="test"></div>
+  )HTML");
+
+  Element* element = GetDocument().getElementById(AtomicString("test"));
+  ASSERT_TRUE(element);
+
+  trace_analyzer::Start("blink,blink_style");
+
+  // Starting a transition produces active interpolations and runs the
+  // animation cascade (incrementing styles_animated).
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast30"));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(element->ComputedStyleRef().HasCurrentFilterAnimation());
+  ASSERT_TRUE(GetDocument().GetStyleEngine().Stats());
+  EXPECT_EQ(1u, GetDocument().GetStyleEngine().Stats()->styles_animated);
+
+  // Cancelling the running transition without starting a new one produces a
+  // non-empty CSSAnimationUpdate (CancelledTransitions() is non-empty) with
+  // HasActiveInterpolations() == false, skipping the animation cascade.
+  element->setAttribute(html_names::kClassAttr, AtomicString("cancel"));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(element->ComputedStyleRef().HasCurrentFilterAnimation());
+  ASSERT_TRUE(GetDocument().GetStyleEngine().Stats());
+  EXPECT_EQ(0u, GetDocument().GetStyleEngine().Stats()->styles_animated);
+
+  trace_analyzer::Stop();
+}
+
+TEST_P(CSSAnimationsTest, InterruptedReversingTransitionShortensDuration) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #test {
+        filter: contrast(100%);
+        transition: filter linear 1s;
+      }
+      #test.contrast0 { filter: contrast(0%); }
+    </style>
+    <div id="test">TEST</div>
+  )HTML");
+
+  Element* element = GetDocument().getElementById(AtomicString("test"));
+  ASSERT_TRUE(element);
+
+  // Start a 1s linear transition from contrast(100%) -> contrast(0%).
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast0"));
+  UpdateAllLifecyclePhasesForTest();
+  ElementAnimations* animations = element->GetElementAnimations();
+  ASSERT_TRUE(animations);
+  ASSERT_EQ(1u, animations->Animations().size());
+  Animation* animation = (*animations->Animations().begin()).key;
+  StartAnimationOnCompositor(animation);
+  AdvanceClockSeconds(0.4);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_NEAR(0.6, GetContrastFilterAmount(element), kTolerance);
+
+  // Reverse the transition back to the original start value (contrast(100%)).
+  // The reversing shortening factor is 0.4 (duration = 0.4s), so advancing
+  // 0.2s reaches the midpoint between 0.6 and 1.0 (0.8).
+  element->setAttribute(html_names::kClassAttr, g_empty_atom);
+  UpdateAllLifecyclePhasesForTest();
+  for (const auto& entry : animations->Animations()) {
+    if (entry.key != animation) {
+      StartAnimationOnCompositor(entry.key);
+    }
+  }
+  AdvanceClockSeconds(0.2);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_NEAR(0.8, GetContrastFilterAmount(element), kTolerance);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink

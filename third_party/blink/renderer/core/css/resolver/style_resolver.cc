@@ -35,6 +35,7 @@
 #include "base/containers/adapters.h"
 #include "base/memory/stack_allocated.h"
 #include "base/types/optional_util.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/public/web/web_print_page_description.h"
 #include "third_party/blink/public/web/web_print_params.h"
@@ -2527,7 +2528,14 @@ bool StyleResolver::ApplyAnimatedStyle(
       state.AnimationUpdate(), *animating_element, state.StyleBuilder(),
       state.OldStyle(), style_recalc_context, state.CanTriggerAnimations());
 
+#if BUILDFLAG(IS_COBALT)
+  // b/475091954: Backport https://crrev.com/c/7511344 - don't apply
+  // animations/transitions in the cascade when there are no active
+  // interpolations (e.g. when only cancelling or finishing transitions).
+  bool apply = state.AnimationUpdate().HasActiveInterpolations();
+#else
   bool apply = !state.AnimationUpdate().IsEmpty();
+#endif
   if (apply) {
     const ActiveInterpolationsMap& animations =
         state.AnimationUpdate().ActiveInterpolationsForAnimations();
