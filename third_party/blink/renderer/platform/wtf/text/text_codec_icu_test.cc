@@ -4,12 +4,19 @@
 
 #include "third_party/blink/renderer/platform/wtf/text/text_codec_icu.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace WTF {
 
+#if !BUILDFLAG(IS_COBALT)
+// b/561702947: Disabled for unused functionality from ICU.
+// Legacy character conversion tables (.cnv files) like iso-2022-jp were removed
+// from Cobalt's ICU database to conserve binary size. Cobalt and YouTube on TV
+// operate entirely in UTF-8.
 TEST(TextCodecICUTest, IgnorableCodePoint) {
   TextEncoding iso2022jp("iso-2022-jp");
   std::unique_ptr<TextCodec> codec = TextCodecICU::Create(iso2022jp, nullptr);
@@ -31,4 +38,5 @@ TEST(TextCodecICUTest, IgnorableCodePoint) {
       "XYZ",
       encoded2);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 }
