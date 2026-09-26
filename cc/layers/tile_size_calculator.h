@@ -32,6 +32,10 @@ class CC_EXPORT TileSizeCalculator {
     gfx::Size max_untiled_layer_size;
     gfx::Size default_tile_size;
     gfx::Size content_bounds;
+#if BUILDFLAG(IS_COBALT)
+    bool single_tile_visible_interest_area = false;
+    bool single_tile_visible_only = false;
+#endif
 
     bool operator==(const AffectingParams& other) const;
   };

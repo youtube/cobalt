@@ -155,6 +155,12 @@ TileSizeCalculator::AffectingParams TileSizeCalculator::GetAffectingParams(
       layer_tree_impl->settings().max_untiled_layer_size;
   params.default_tile_size = layer_tree_impl->settings().default_tile_size;
   params.content_bounds = content_bounds;
+#if BUILDFLAG(IS_COBALT)
+  params.single_tile_visible_interest_area =
+      layer_tree_impl->settings().single_tile_visible_interest_area;
+  params.single_tile_visible_only =
+      layer_tree_impl->settings().single_tile_visible_only;
+#endif
   return params;
 }
 
@@ -174,6 +180,31 @@ gfx::Size TileSizeCalculator::CalculateTileSize(gfx::Size content_bounds) {
   if (!UpdateAffectingParams(content_bounds)) {
     return tile_size_;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (affecting_params_.single_tile_visible_only) {
+    int tw = std::clamp(
+        MathUtil::UncheckedRoundUp(content_bounds.width(),
+                                   kTileMinimalAlignment),
+        kTileMinimalAlignment, affecting_params_.max_texture_size);
+    int th = std::clamp(
+        MathUtil::UncheckedRoundUp(content_bounds.height(),
+                                   kTileMinimalAlignment),
+        kTileMinimalAlignment, affecting_params_.max_texture_size);
+    tile_size_ = gfx::Size(tw, th);
+    return tile_size_;
+  }
+  if (affecting_params_.single_tile_visible_interest_area) {
+    gfx::Size single_size = AdjustGpuTileSize(
+        content_bounds.width(), content_bounds.height(),
+        affecting_params_.max_tile_size,
+        /*min_height_for_gpu_raster_tile=*/4);
+    int tw = std::min(single_size.width(), affecting_params_.max_texture_size);
+    int th = std::min(single_size.height(), affecting_params_.max_texture_size);
+    tile_size_ = gfx::Size(tw, th);
+    return tile_size_;
+  }
+#endif
 
   int default_tile_width = 0;
   int default_tile_height = 0;
