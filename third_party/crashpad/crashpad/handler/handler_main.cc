@@ -88,7 +88,7 @@
 #include "util/win/session_end_watcher.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#if BUILDFLAG(IS_COBALT)
 #include <functional>
 #endif
 
@@ -1063,7 +1063,7 @@ int HandlerMain(int argc,
     return ExitFailure();
   }
 
-#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#if BUILDFLAG(IS_COBALT)
   ScopedStoppable prune_thread;
   // TODO: b/446889385 - Cobalt: re-evaluate the max database size when we have
   // better data about the distribution of minidump sizes for chrobalt.
@@ -1083,7 +1083,7 @@ int HandlerMain(int argc,
       prune_now_cb = std::bind(
           &crashpad::PruneCrashReportThread::PruneNow,
           (crashpad::PruneCrashReportThread*) prune_thread.Get());
-#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#endif  // BUILDFLAG(IS_COBALT)
 
   ScopedStoppable upload_thread;
   if (!options.url.empty()) {
@@ -1104,12 +1104,17 @@ int HandlerMain(int argc,
         options.ca_certificates_path,
 #endif
         upload_thread_options,
-#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#if BUILDFLAG(IS_COBALT)
         prune_now_cb));
-#else  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#else  // BUILDFLAG(IS_COBALT)
         CrashReportUploadThread::ProcessPendingReportsObservationCallback()));
-#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#endif  // BUILDFLAG(IS_COBALT)
     upload_thread.Get()->Start();
+#if BUILDFLAG(IS_COBALT)
+  } else {
+    // Prune on demand even when uploads are disabled or the URL is empty.
+    prune_now_cb();
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
@@ -1180,7 +1185,7 @@ int HandlerMain(int argc,
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#if !BUILDFLAG(IS_COBALT)
   // This is dead code anyway when the handler is started in response to a
   // crash, which it always is for Cobalt, and by not even building this we make
   // it more clear that there is only one prune thread instantiated (above).
@@ -1190,7 +1195,7 @@ int HandlerMain(int argc,
         database.get(), PruneCondition::GetDefault()));
     prune_thread.Get()->Start();
   }
-#endif  // !BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_APPLE)
   if (options.mach_service.empty()) {
