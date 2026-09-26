@@ -134,12 +134,13 @@ the Starboard boundary and have distinct return-time contracts:
     -   **Who calls it:** Implemented by Cobalt (`SB_IMPORT`) and called by the
         platform whenever the OS or window manager transitions the application.
     -   **Calling Thread:** `kSbEventTypeStart` (or `kSbEventTypePreload`),
-        `kSbEventTypeFreeze`, and `kSbEventTypeStop` **must** be invoked from the
-        same thread (the main thread), because `Start`/`Preload` binds Cobalt's
-        main task runner to the calling thread, and `Freeze` and `Stop`
-        synchronously wait on (and `Stop` tears down) that thread's task
-        environment. Other events (`Blur`, `Focus`, `Conceal`, `Reveal`,
-        `Unfreeze`, `Link`) are thread-safe and may be called from any thread.
+        `kSbEventTypeConceal`, `kSbEventTypeFreeze`, and `kSbEventTypeStop`
+        **must** be invoked from the same thread (the main thread), because
+        `Start`/`Preload` binds Cobalt's main task runner to the calling thread,
+        and `Conceal`, `Freeze`, and `Stop` synchronously wait on (and `Stop`
+        tears down) that thread's task environment. Other events (`Blur`,
+        `Focus`, `Reveal`, `Unfreeze`, `Link`) are thread-safe and may be called
+        from any thread.
         Platforms using `starboard::Application` / `starboard::QueueApplication`
         can safely invoke `Application::Get()->Blur()`, `Conceal()`, `Freeze()`,
         `Unfreeze()`, `Reveal()`, `Focus()`, `Stop()`, or `Link()` from **any**
