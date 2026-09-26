@@ -7,6 +7,7 @@
 
 #include <bitset>
 
+#include "build/build_config.h"
 #include "cc/debug/debug_export.h"
 
 namespace cc {
@@ -27,6 +28,9 @@ class CC_DEBUG_EXPORT LayerTreeDebugState {
 
   bool debugger_paused = false;
   bool show_fps_counter = false;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  bool mystery_hud_menu_active = false;
+#endif
   DebugBorderTypes show_debug_borders = false;
 
   bool show_layout_shift_regions = false;
