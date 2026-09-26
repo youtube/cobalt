@@ -362,6 +362,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
@@ -441,6 +442,8 @@ test("cobalt_unittests") {
     "//components/variations",
     "//components/variations/service",
     "//content/test:test_support",
+    "//gin",
+    "//gin:gin_test",
     "//media:test_support",
     "//mojo/core/embedder",
     "//mojo/core/test:run_all_unittests",
@@ -449,6 +452,7 @@ test("cobalt_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/metrics_proto",
+    "//v8",
   ]
 
   # All configs that provide definitions for switch constants.
