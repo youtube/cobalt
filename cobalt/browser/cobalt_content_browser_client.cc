@@ -28,6 +28,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -108,6 +109,8 @@
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/proxy_server_support.h"
 #endif
+
+#include "starboard/configuration_constants.h"
 
 namespace cobalt {
 
@@ -330,6 +333,25 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
                                              cache_path);
 }
 
+// static
+uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+    uint32_t total_dir_budget_bytes) {
+  // Reserve 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+  // - 5 MB for V8 JS code cache (Code Cache)
+  // - 6 MB for Service Worker CacheStorage
+  // - 1 MB non-HTTP-cache directory headroom (matching Cobalt 25's 1 << 20
+  //   reserve for index files, persistent metrics, and metadata)
+  constexpr uint32_t kNonHttpReserveBytes = 12 * 1024 * 1024;
+  constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
+
+  if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
+    // For small platform budgets, ensure we do not return 0 or negative.
+    return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
+  }
+
+  return total_dir_budget_bytes - kNonHttpReserveBytes;
+}
+
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
@@ -431,6 +453,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kTransportSecurityPersisterFilename);
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
+
+    network_context_params->http_cache_max_size = base::checked_cast<int>(
+        ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
   }
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(

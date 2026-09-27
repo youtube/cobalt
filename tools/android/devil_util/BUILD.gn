@@ -66,6 +66,5 @@ executable("devil_util_bin") {
   # Statically link libc++ to make it a self-contained executable.
   if (is_cobalt && is_partner_toolchain) {
     ldflags = [ "-static-libstdc++" ]
-    deps += [ "//buildtools/third_party/libunwind" ]
   }
 }

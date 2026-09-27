@@ -27,8 +27,6 @@ namespace cobalt {
 const std::vector<const char*>&
 CommandLinePreprocessor::GetCobaltToggleSwitches() {
   static const std::vector<const char*> kCobaltToggleSwitches{
-      // Enable Blink to work in overlay video mode
-      ::switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       ::switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist

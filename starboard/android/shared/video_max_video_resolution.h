@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_
 
-#include "starboard/extension/experimental/media_buffer_pool.h"
+#include <string>
 
 namespace starboard {
-namespace android {
-namespace shared {
 
-const void* GetMediaBufferPoolApi();
+// Get max_video_resolution setting set via
+// SetMaxVideoResolutionForCurrentThread(). Returns empty string if not set.
+std::string GetMaxVideoResolutionForCurrentThread();
 
-}  // namespace shared
-}  // namespace android
+// Sets the maximum video resolution string for any subsequently created
+// SbPlayer on the current calling thread. Pass nullptr or empty string to
+// clear.
+void SetMaxVideoResolutionForCurrentThread(const char* max_video_resolution);
+
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_MAX_VIDEO_RESOLUTION_H_
