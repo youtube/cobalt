@@ -798,12 +798,11 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
-<<<<<<< HEAD
     if (base::EqualsCaseInsensitiveASCII(expression, "'trusted-types-eval'")) {
       directive->allow_trusted_types_eval = true;
       continue;
     }
-=======
+
 #if BUILDFLAG(IS_COBALT)
     if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-local-network'")) {
       directive->cobalt_insecure_local_network = true;
@@ -814,7 +813,6 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 #endif
->>>>>>> parent of 2178959043e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     std::string nonce;
     if (ParseNonce(expression, &nonce)) {

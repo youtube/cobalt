@@ -80,6 +80,7 @@ group("cobalt_shell_lib_deps") {
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
     "//components/js_injection/browser",
+    "//components/js_injection/common:enum_mojom",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",

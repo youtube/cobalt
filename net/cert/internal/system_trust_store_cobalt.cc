@@ -31,6 +31,9 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   bool IsKnownRoot(const bssl::ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
   }
+  bool IsKnownMtcAnchor(const bssl::MTCAnchor* anchor) const override {
+    return trust_store_chrome_->ContainsMTCAnchor(anchor);
+  }
   int64_t chrome_root_store_version() const override {
     return trust_store_chrome_->version();
   }

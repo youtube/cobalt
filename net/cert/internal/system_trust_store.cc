@@ -436,6 +436,10 @@ class SystemTrustStoreStarboard : public SystemTrustStore {
     return g_root_certs_starboard.Get().system_trust_store()->Contains(
         trust_anchor);
   }
+
+  bool IsKnownMtcAnchor(const bssl::MTCAnchor* anchor) const override {
+    return false;
+  }
 };
 
 std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {

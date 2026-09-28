@@ -43,9 +43,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  // This will be used again in a future milestone.
-  // static const char kSupplementName[];
-  static const unsigned kSupplementIndex;
+  static const char kSupplementName[];
 
   // For window.h5vcc
   static H5vcc* h5vcc(LocalDOMWindow&);
