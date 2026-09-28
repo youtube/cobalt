@@ -33,28 +33,46 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_ACTION: ${{ github.event.action }}
         shell: bash
         run: |
           set -euo pipefail
 
-          # 1. Set initial pending status for CI / All Pass gate
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="pending" \
-            -f description="Checks are running" \
-            -f context="CI / All Pass" || true
-
-          # 2. Find or create sticky anchor comment
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
+
+          # 1. Determine contexts: on synchronize pull existing CI / statuses, otherwise default to CI / All Pass
+          contexts=("CI / All Pass")
+          if [[ "${EVENT_ACTION}" == "synchronize" && -n "${BEFORE_SHA:-}" ]]; then
+            mapfile -t prev_contexts < <(gh api "repos/${REPO}/commits/${BEFORE_SHA}/status" 2>/dev/null \
+              | jq -r '.statuses[]? | select(.context | startswith("CI /")) | .context' 2>/dev/null | sort -u || true)
+            contexts+=("${prev_contexts[@]}")
+          fi
+          mapfile -t contexts < <(printf '%s\n' "${contexts[@]}" | grep -v '^$' | sort -u)
+
+          # 2. Reset all CI / commit statuses to pending on HEAD_SHA
+          for ctx in "${contexts[@]}"; do
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+              -f state="pending" \
+              -f description="Checks are running" \
+              -f context="${ctx}" || true
+          done
+
+          # 3. Build anchor comment table
+          table=$(printf '| Context | State | Description |\n|---|---|---|')
+          for ctx in "${contexts[@]}"; do
+            table+=$(printf '\n| %s | ⏳ PENDING | Checks are running |' "${ctx}")
+          done
+          body=$(printf '%s\n\n%s' "${header}" "${table}")
+
+          # 4. Create or patch anchor comment
           comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" 2>/dev/null \
             | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
 
-          body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-
-          if [[ -z "${comment_id}" ]]; then
-            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --silent
-          else
-            # Reset table to pending on synchronize or reopen
+          if [[ -n "${comment_id}" ]]; then
             gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="${body}" --silent
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --silent
           fi
 
   generate_commit_message:
