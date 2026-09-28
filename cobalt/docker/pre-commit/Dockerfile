@@ -2,9 +2,7 @@
 # To edit, push to experimental/* or feature/* branch
 #
 # BEFORE BUILDING: Run `cp .pre-commit-config.yaml cobalt/docker/pre-commit/`
-ARG BASE_IMAGE_SHA=sha256:be15f84c44c4ee68b4f187128f0278df1b0f424c04fb5f08b098967d5b896388
-
-FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
+FROM marketplace.gcr.io/google/debian12@sha256:be15f84c44c4ee68b4f187128f0278df1b0f424c04fb5f08b098967d5b896388
 
 ### Install dependencies.
 ARG GJF_VERSION=1.24.0
