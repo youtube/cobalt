@@ -124,6 +124,8 @@ public class MainActivity extends BaseCobaltActivity {
               mStarboardStarted = true;
               // Spawn the loader thread.
               MainActivityJni.get().startLoader();
+              // Required for CI test automation to detect browser process initialization.
+              Log.i(TAG, "Browser process init succeeded");
             }
           }
 

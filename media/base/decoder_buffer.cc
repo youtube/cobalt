@@ -4,6 +4,7 @@
 
 #include "media/base/decoder_buffer.h"
 
+#include <cstring>
 #include <sstream>
 #include <variant>
 
@@ -13,9 +14,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/pass_key.h"
 #include "media/base/subsample_entry.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -74,10 +72,11 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     CHECK_EQ(size, 0u);
     return;
   }
-
-  if (size > 0) {
-    s_allocator->Write(allocator_data_->handle, data, size);
+  if (size == 0) {
+    return;
   }
+
+  memcpy(writable_data(), data, size);
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
@@ -103,7 +102,6 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     // For Starboard builds, if the incoming ExternalMemory object wraps a Starboard
     // media pool handle, adopt the raw handle inline into allocator_data_ and
     // destroy the transient ExternalMemory wrapper struct immediately. This avoids
@@ -121,9 +119,6 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
         return std::nullopt;
       }()),
       external_memory_(allocator_data_ ? nullptr : std::move(external_memory)) {}
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    : external_memory_(std::move(external_memory)) {}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {

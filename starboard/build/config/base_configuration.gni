@@ -40,7 +40,7 @@ declare_args() {
   sb_enable_lib = false
 
   # Directory path to static contents' data.
-  sb_static_contents_output_data_dir = "$root_out_dir/content/data"
+  sb_static_contents_output_data_dir = "$root_out_dir"
 
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false

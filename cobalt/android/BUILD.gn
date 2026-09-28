@@ -283,7 +283,7 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
-  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_sources = [ "$root_out_dir/fonts/fonts.xml" ]
   renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
   deps = [
