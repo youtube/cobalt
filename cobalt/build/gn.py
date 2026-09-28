@@ -61,6 +61,7 @@ _COBALT_STARBOARD_PLATFORMS = [
     'evergreen-arm-softfp',
     'evergreen-arm-softfp-aosp',
     'evergreen-arm64',
+    'evergreen-arm64-aosp',
     'evergreen-arm-hardfp-rdk',
     'evergreen-x64',
     'linux-x64x11',

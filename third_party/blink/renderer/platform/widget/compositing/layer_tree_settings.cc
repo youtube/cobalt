@@ -503,11 +503,7 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // On low-end we want to be very careful about killing other
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
-  #if BUILDFLAG(IS_COBALT)
-    settings.max_memory_for_prepaint_percentage = 0;
-  #else
     settings.max_memory_for_prepaint_percentage = 67;
-  #endif
   } else {
     // On other devices we have increased memory excessively to avoid
     // raster-on-demand already, so now we reserve 50% _only_ to avoid
@@ -543,6 +539,25 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     }
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_COBALT)
+  // Gates the compositor prepaint memory budget on every Cobalt platform (both
+  // Android TV and 3P/Starboard), overriding the platform defaults assigned
+  // above. This is the percentage of the tile memory budget available to
+  // prepaint tiles: it sets the tile manager's soft memory limit (see
+  // LayerTreeHostImpl::UpdateTileManagerMemoryPolicy), while tiles required for
+  // the current draw (TilePriority::NOW) always use the hard limit. The default
+  // of 0 disables prepaint raster entirely to minimize GPU/tile memory.
+  // Disabling the feature restores the upstream per-platform defaults.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMaxMemoryForPrepaint)) {
+    // Clamp because the setting is a size_t; a negative Finch parameter would
+    // otherwise wrap around and remove the soft memory limit entirely.
+    settings.max_memory_for_prepaint_percentage = static_cast<size_t>(
+        std::clamp(base::features::kCobaltMaxMemoryForPrepaintPercentage.Get(),
+                   0, 100));
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
     settings.scrollbar_thinning_duration = base::TimeDelta();

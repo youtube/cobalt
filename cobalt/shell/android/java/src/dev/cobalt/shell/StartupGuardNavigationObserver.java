@@ -25,14 +25,16 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
   @Override
   public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigation) {
     if (navigation.getUrl() != null && navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
-      StartupGuard.getInstance().setStartupMilestone(33);
+      StartupGuard.getInstance()
+          .setStartupMilestone(StartupGuard.STARTUP_GUARD_OBSERVER_DID_START_NAVIGATION);
     }
   }
 
   @Override
   public void didRedirectNavigation(NavigationHandle navigation) {
     if (navigation.getUrl() != null && navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
-      StartupGuard.getInstance().setStartupMilestone(36);
+      StartupGuard.getInstance()
+          .setStartupMilestone(StartupGuard.STARTUP_GUARD_OBSERVER_DID_REDIRECT_NAVIGATION);
     }
 
     // If the page starts to navigate, the app is functioning.
@@ -45,7 +47,8 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
   @Override
   public void didStartLoading(GURL url) {
     if (url != null && url.getSpec().startsWith(YOUTUBE_URL)) {
-      StartupGuard.getInstance().setStartupMilestone(32);
+      StartupGuard.getInstance()
+          .setStartupMilestone(StartupGuard.STARTUP_GUARD_OBSERVER_DID_START_LOADING);
     }
   }
 
@@ -53,14 +56,16 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
   public void didFailLoad(
       boolean isInPrimaryMainFrame, int errorCode, GURL failingUrl, int rfhLifecycleState) {
     if (failingUrl != null && failingUrl.getSpec().startsWith(YOUTUBE_URL)) {
-      StartupGuard.getInstance().setStartupMilestone(34);
+      StartupGuard.getInstance()
+          .setStartupMilestone(StartupGuard.STARTUP_GUARD_OBSERVER_DID_FAIL_LOAD);
     }
   }
 
   @Override
   public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigation) {
     if (navigation.getUrl() != null && navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
-      StartupGuard.getInstance().setStartupMilestone(35);
+      StartupGuard.getInstance()
+          .setStartupMilestone(StartupGuard.STARTUP_GUARD_OBSERVER_DID_FINISH_NAVIGATION);
     }
 
     StartupGuard.getInstance().disarm();

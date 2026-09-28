@@ -47,6 +47,11 @@ ANativeWindow* AcquireWindowSurface() {
   return g_native_window;
 }
 
+bool HasWindowSurface() {
+  std::lock_guard<std::mutex> lock(g_window_mutex);
+  return g_native_window != nullptr;
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

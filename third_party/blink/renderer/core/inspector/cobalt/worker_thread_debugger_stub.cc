@@ -20,8 +20,18 @@ WorkerThreadDebugger::WorkerThreadDebugger(v8::Isolate* isolate)
     : ThreadDebuggerCommonImpl(isolate) {}
 WorkerThreadDebugger::~WorkerThreadDebugger() = default;
 
-WorkerThreadDebugger* WorkerThreadDebugger::From(v8::Isolate*) {
-  return nullptr;
+// Mirroring worker_thread_debugger.cc instead of returning nullptr is
+// required because callers such as DedicatedWorkerGlobalScope::postMessage()
+// unconditionally invoke ThreadDebuggerCommonImpl base-class methods on the
+// returned pointer, which read `this->v8_inspector_` and segfault at offset
+// 0x4 if From() returns nullptr. See b/564844345.
+WorkerThreadDebugger* WorkerThreadDebugger::From(v8::Isolate* isolate) {
+  ThreadDebugger* debugger = ThreadDebugger::From(isolate);
+  if (!debugger) {
+    return nullptr;
+  }
+  DCHECK(debugger->IsWorker());
+  return static_cast<WorkerThreadDebugger*>(debugger);
 }
 void WorkerThreadDebugger::ExceptionThrown(WorkerThread*, ErrorEvent*) {}
 void WorkerThreadDebugger::WorkerThreadCreated(WorkerThread*) {}

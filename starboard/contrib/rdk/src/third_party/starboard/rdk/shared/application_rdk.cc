@@ -107,7 +107,10 @@ static void setTimerInterval(int fd, microseconds time) {
 ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
   , input_handler_(new EssInput)
-  , hang_monitor_(new HangMonitor("ApplicationRdk")) {
+#if !defined(COBALT_BUILD_TYPE_DEVEL)
+  , hang_monitor_(new HangMonitor("ApplicationRdk"))
+#endif
+{
   BuildEssosContext();
 }
 
@@ -321,6 +324,7 @@ void ApplicationRdk::OnSuspend() {
   SbSpeechSynthesisCancel();
 
   if (!(monitor_timer_fd_ < 0)) {
+    hang_monitor_.reset();
     setTimerInterval(monitor_timer_fd_, 0s);
   }
 
@@ -359,9 +363,12 @@ void ApplicationRdk::OnResume() {
     }
   }
 
-  if (!(monitor_timer_fd_ < 0) && hang_monitor_) {
+#if !defined(COBALT_BUILD_TYPE_DEVEL)
+  if (!(monitor_timer_fd_ < 0)) {
+    hang_monitor_ = std::make_unique<HangMonitor>("ApplicationRdk");
     setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
   }
+#endif
 
   setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
   platform::PlatformInterface::get().resume();

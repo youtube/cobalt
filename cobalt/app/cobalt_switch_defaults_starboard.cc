@@ -45,8 +45,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
 
   // List of toggleable default switches.
   static const std::vector<const char*> kCobaltToggleSwitches{
-      // Enable Blink to work in overlay video mode
-      ::switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       ::switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU
@@ -56,9 +54,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // disabled.
       ::switches::kNoZygote,
       sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory
-      // (ZeroCopyRasterBufferProvider).
-      blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of
       // the known regressions is 4444 textures, which are then disabled
@@ -83,7 +78,7 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan,MemoryCacheStrongReference"},
+      {::switches::kDisableFeatures, "Vulkan"},
       {::switches::kEnableFeatures,
        "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
@@ -94,7 +89,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "DefaultEnableANGLEValidation, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
-       "ReclaimOldPrepaintTiles"},
+       "ReclaimOldPrepaintTiles, "
+       "WebAudioRemoveAudioDestinationResampler"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},

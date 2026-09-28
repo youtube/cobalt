@@ -18,10 +18,12 @@
 #include "third_party/starboard/rdk/shared/libcobalt.h"
 
 #include <cstring>
+#include <memory>
 #include <mutex>
 
-#include "starboard/common/semaphore.h"
+#include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/semaphore.h"
 
 #if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
 #include "third_party/starboard/rdk/shared/rdkservices.h"
@@ -40,6 +42,10 @@ using ::starboard::AdvertisingId;
 using ::starboard::ApplicationRdk;
 using ::starboard::Semaphore;
 using ::starboard::SystemProperties;
+
+// Bound lifecycle transitions to 2.5 seconds to prevent Thunder RPC worker
+// threads from hanging indefinitely if the Starboard event loop stalls.
+constexpr int64_t kLifecycleActionTimeoutUsec = 2'500'000;
 
 struct APIContext
 {
@@ -194,16 +200,22 @@ private:
           void*, ApplicationRdk::EventHandledCallback)) {
     std::unique_lock lock(mutex_);
     if (WaitForApp(lock) == kRunning) {
-      Semaphore sem;
+      auto sem = std::make_shared<Semaphore>();
+      auto* sem_payload = new std::shared_ptr<Semaphore>(sem);
       (ApplicationRdk::Get()->*action)(
-        &sem,
-        [](void* ctx) {
-          reinterpret_cast<Semaphore*>(ctx)->Put();
-        });
+          sem_payload,
+          [](void* ctx) {
+            auto* p = static_cast<std::shared_ptr<Semaphore>*>(ctx);
+            (*p)->Put();
+            delete p;
+          });
       lock.unlock();
-      sem.Take();
-    }
-    else {
+      if (!sem->TakeWait(kLifecycleActionTimeoutUsec)) {
+        SB_LOG(WARNING)
+            << "libcobalt: Lifecycle action timed out after "
+            << kLifecycleActionTimeoutUsec << " us.";
+      }
+    } else {
       lock.unlock();
     }
   }
