@@ -8,7 +8,6 @@ on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [android, aosp, evergreen, linux, tvos]
     types:
-      - in_progress
       - completed
   workflow_dispatch:
     inputs:
@@ -36,7 +35,7 @@ env:
 jobs:
   init-comment:
     runs-on: ubuntu-latest
-    if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
+    if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number || github.event.workflow_run.head_sha) != ''
     permissions:
       pull-requests: write
     concurrency:
@@ -58,21 +57,30 @@ jobs:
         run: |
           set -euo pipefail
 
+          pr_number="${PR_NUMBER:-}"
           head_sha="${HEAD_SHA:-}"
-          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
-            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+          fi
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
 
-          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
 
+          if [[ -z "${pr_number}" ]]; then
+            echo "comment_id=" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" 2>/dev/null \
+          comment_id=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null \
             | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
 
           if [[ -z "${comment_id}" ]]; then
             body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-            comment_id=$(gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --jq '.id')
+            comment_id=$(gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" -f body="${body}" --jq '.id')
           fi
 
           echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
@@ -88,6 +96,7 @@ jobs:
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
       rerun_triggered: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
+      run_analysis: ${{ steps.update-commit-status.outputs.run_analysis || 'false' }}
     steps:
       - name: Resolve Context
         id: resolve
@@ -102,6 +111,9 @@ jobs:
 
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+          fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
@@ -192,6 +204,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
@@ -248,6 +261,11 @@ jobs:
             | length > 0 and all(.state == "success")
           ')
 
+          all_done=$(echo "${status_json}" | jq -r '
+            [.statuses[]? | select(.context | startswith("CI /")?) | select(.context != "CI / All Pass")]
+            | length > 0 and all(.state != "pending")
+          ')
+
           # 3. Determine overall status and description
           if [[ "${has_failures}" == "true" ]]; then
             overall_state="failure"
@@ -267,10 +285,94 @@ jobs:
               -f context="CI / All Pass"
           fi
 
-  comment-pr:
+          run_analysis="false"
+          if [[ "${has_failures}" == "true" && "${all_done}" == "true" && -n "${PR_NUMBER:-}" ]]; then
+            run_analysis="true"
+          fi
+
+          echo "run_analysis=${run_analysis}" >> "${GITHUB_OUTPUT}"
+
+  shepherd-analysis:
     runs-on: ubuntu-latest
     needs: [init-comment, status-and-deflake]
+    if: always() && needs.status-and-deflake.outputs.run_analysis == 'true' && needs.status-and-deflake.outputs.rerun_triggered != 'true' && !cancelled()
+    concurrency:
+      group: shepherd-analysis @ ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      verdict: ${{ steps.extract.outputs.verdict }}
+      confidence: ${{ steps.extract.outputs.confidence }}
+      findings: ${{ steps.extract.outputs.findings }}
+    steps:
+      - name: Configure environment for Gemini CLI
+        run: |
+          echo "GEMINI_CLI_TRUST_WORKSPACE=true" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+
+      - name: Checkout files
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            .agent
+
+      - name: Run Gemini PR Shepherd Analysis
+        id: gemini-analysis
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          github_pr_number: ${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }}
+          gemini_model: 'gemini-2.5-flash'
+          upload_artifacts: true
+          prompt: |
+            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }} using the `gh` tool.
+            Provide your final determination as a JSON object with the following fields:
+            - "verdict": "failure" (if real failure in PR), "flaky" (if failures are due to flakes/infra), or "pass" (if all passed)
+            - "confidence": a number from 0 to 1 indicating your confidence in the verdict
+            - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
+
+            For a flaky verdict all retries of a workflow run must be analyzed/triaged.
+
+      - name: Extract Analysis Results
+        id: extract
+        if: always() && !cancelled()
+        env:
+          AGENT_SUMMARY: ${{ steps.gemini-analysis.outputs.summary }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          verdict=$(echo "${AGENT_SUMMARY:-}" | jq -r '.verdict // empty' 2>/dev/null || true)
+          confidence=$(echo "${AGENT_SUMMARY:-}" | jq -r '.confidence // empty' 2>/dev/null || true)
+          findings=$(echo "${AGENT_SUMMARY:-}" | jq -r '.findings_summary // empty' 2>/dev/null || true)
+          if [[ -z "${findings}" ]]; then
+            findings="${AGENT_SUMMARY:-}"
+          fi
+
+          echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
+          echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "findings<<${DELIMITER}"
+            echo "${findings}"
+            echo "${DELIMITER}"
+          } >> "${GITHUB_OUTPUT}"
+
+  comment-pr:
+    runs-on: ubuntu-latest
+    needs: [init-comment, status-and-deflake, shepherd-analysis]
     if: always() && needs.init-comment.outputs.comment_id != '' && !cancelled()
+    concurrency:
+      group: ci-shepherd-comment @ ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
+      cancel-in-progress: true
     permissions:
       statuses: read
       pull-requests: write
@@ -281,6 +383,9 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
           COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          VERDICT: ${{ needs.shepherd-analysis.outputs.verdict }}
+          CONFIDENCE: ${{ needs.shepherd-analysis.outputs.confidence }}
+          FINDINGS: ${{ needs.shepherd-analysis.outputs.findings }}
         shell: bash
         run: |
           set -euo pipefail
@@ -296,6 +401,26 @@ jobs:
             .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
             "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
           ' >> shepherd_report.md
+
+          if [[ -n "${FINDINGS:-}" || -n "${VERDICT:-}" ]]; then
+            {
+              echo ""
+              echo "### 🤖 CI Shepherd Analysis"
+              echo ""
+              if [[ -n "${VERDICT:-}" ]]; then
+                echo "- **Verdict**: ${VERDICT}"
+              fi
+              if [[ -n "${CONFIDENCE:-}" ]]; then
+                echo "- **Confidence**: ${CONFIDENCE}"
+              fi
+              if [[ -n "${VERDICT:-}" || -n "${CONFIDENCE:-}" ]]; then
+                echo ""
+              fi
+              if [[ -n "${FINDINGS:-}" ]]; then
+                echo "${FINDINGS}"
+              fi
+            } >> shepherd_report.md
+          fi
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
