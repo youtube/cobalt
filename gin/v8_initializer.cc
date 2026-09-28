@@ -395,9 +395,6 @@ void SetFeatureFlags() {
                         features::kV8PreconfigureOldGenSize.Get());
   }
 #if BUILDFLAG(IS_COBALT)
-  SetV8FlagsIfOverridden(base::features::kCobaltV8OptimizeForSize,
-                         "--optimize-for-size", "--no-optimize-for-size");
-
   // FeatureParam::Get() returns the declared default when the feature is
   // disabled, so there's no need to check FeatureList::IsEnabled() here.
   int max_old_space_mb = base::features::kCobaltV8MaxOldSpaceSizeMb.Get();
