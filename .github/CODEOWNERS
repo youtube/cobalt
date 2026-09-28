@@ -1,7 +1,15 @@
-/.github/                                   @youtube/cobalt-build
+/.github/ @youtube/cobalt-ci-owners
+/.pre-commit-config.yaml @youtube/cobalt-ci-owners
+/cobalt/build/*.py @youtube/cobalt-ci-owners
+/cobalt/build/**/*.py @youtube/cobalt-ci-owners
+/cobalt/build/testing/ @youtube/cobalt-ci-owners
+/cobalt/devinfra/ @youtube/cobalt-ci-owners
+/cobalt/docker/ @youtube/cobalt-ci-owners
+/cobalt/precommit/ @youtube/cobalt-ci-owners
+/docker-compose.yaml @youtube/cobalt-ci-owners
 
 # Set owners for the CODEOWNERS file itself.
-/.github/CODEOWNERS                         @youtube/cobalt-starboard-owners
+/.github/CODEOWNERS @youtube/cobalt-starboard-owners
 
 /cobalt/media                               @youtube/cobalt-media
 /media/                                     @youtube/cobalt-media
