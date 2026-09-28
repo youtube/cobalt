@@ -140,6 +140,9 @@ annotated-types==0.8.0 \
 anthropic==1.4.0 \
     --hash=sha256:590e85bff75b713a123b03f586d68f02266b5fdc49f70dd75f721ced93a4716c \
     --hash=sha256:f0d017e901e48b343520b5d458f8240c283c8d850bf6d119834c622207e0a74c
+anthropic[vertex]==1.4.0 \
+    --hash=sha256:590e85bff75b713a123b03f586d68f02266b5fdc49f70dd75f721ced93a4716c \
+    --hash=sha256:f0d017e901e48b343520b5d458f8240c283c8d850bf6d119834c622207e0a74c
     # via -r .github/rebase/requirements.in
 anyio==4.15.0 \
     --hash=sha256:7ecd9937369ffce8bba0b5ccb9b3a9507b101b0ed50256aecfbab27e6c2acb99 \
@@ -663,6 +666,9 @@ google-auth[pyopenssl]==2.57.1 \
 google-auth[requests]==2.57.1 \
     --hash=sha256:ab439dee60a6856412bc058f13a68eb6a59c5b81526bb89cfdcf89ce9c0a48c9 \
     --hash=sha256:eb47b230fc6707eed4aee1c9cef55ec05bc1785eecba74ff8b572d531e921b1e
+google-auth[pyopenssl,requests]==2.57.1 \
+    --hash=sha256:ab439dee60a6856412bc058f13a68eb6a59c5b81526bb89cfdcf89ce9c0a48c9 \
+    --hash=sha256:eb47b230fc6707eed4aee1c9cef55ec05bc1785eecba74ff8b572d531e921b1e
     # via
     #   -r .github/rebase/requirements.in
     #   anthropic
@@ -676,6 +682,9 @@ google-auth[requests]==2.57.1 \
     #   google-cloud-storage
     #   google-genai
 google-cloud-aiplatform==2.1.0 \
+    --hash=sha256:964eca160d4af48a2e04b5ee476fb4d38c84388f23b4420e2c71b30151d625bd \
+    --hash=sha256:de5c6dace6cb81943fc6ee1fad02f7a02e9b18e50c24b267bd9627f6b9cd3d14
+google-cloud-aiplatform[langchain,reasoningengine]==2.1.0 \
     --hash=sha256:964eca160d4af48a2e04b5ee476fb4d38c84388f23b4420e2c71b30151d625bd \
     --hash=sha256:de5c6dace6cb81943fc6ee1fad02f7a02e9b18e50c24b267bd9627f6b9cd3d14
     # via -r .github/rebase/requirements.in
