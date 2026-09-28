@@ -7,7 +7,6 @@
     "*SbPlayer*",
     "*VerticalVideoTest*",
     "CrashpadConfigTest.VerifyUploadCert",
-    "LoaderAppMetricsTest.VerifyLoaderAppMetricsExtension",
     "NativeStabilityTest.VerifyNativeStabilityExtension",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
