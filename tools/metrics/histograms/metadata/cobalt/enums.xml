@@ -98,6 +98,18 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="4" label="Empty config loaded due to rollback"/>
 </enum>
 
+<enum name="GpuMemoryAblationResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="GL Out Of Memory"/>
+  <int value="2" label="Exceeds Max Limit"/>
+  <int value="3" label="GpuChannelManager Unavailable"/>
+  <int value="4" label="SharedContextState Unavailable"/>
+  <int value="5" label="Context Lost"/>
+  <int value="6" label="MakeCurrent Failed"/>
+  <int value="7" label="GL API Unavailable"/>
+  <int value="8" label="Other GL Error"/>
+</enum>
+
 <enum name="LocalStorageDatabaseResetReason">
   <int value="0" label="Failure to open the database"/>
   <int value="1" label="Schema version mismatch"/>
