@@ -1233,7 +1233,7 @@ BASE_FEATURE(kIgnoreInputWhileHidden,
 
 BASE_FEATURE(kImageLoadingPrioritizationFix,
              "ImageLoadingPrioritizationFix",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIndexedDBCompressValuesWithSnappy,
              "IndexedDBCompressValuesWithSnappy",
@@ -2080,7 +2080,7 @@ BASE_FEATURE(kOpenAllUrlsOrFilesOnDrop,
 
 BASE_FEATURE(kOptimizeHTMLElementUrls,
              "OptimizeHTMLElementUrls",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(size_t,
                    kDocumentURLCacheSize,

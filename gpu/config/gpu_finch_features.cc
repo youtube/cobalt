@@ -420,7 +420,7 @@ BASE_FEATURE(kIncreasedCmdBufferParseSlice,
 // client of transfer cache.
 BASE_FEATURE(kPruneOldTransferCacheEntries,
              "PruneOldTransferCacheEntries",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // On platforms with delegated compositing, try to release overlays later, when
 // no new frames are swapped.

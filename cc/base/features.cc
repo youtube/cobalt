@@ -43,7 +43,7 @@ BASE_FEATURE(kMainRepaintScrollPrefersNewContent,
 
 BASE_FEATURE(kDeferImplInvalidation,
              "DeferImplInvalidation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kDeferImplInvalidationFrames{
     &kDeferImplInvalidation, "frames", 1};
@@ -154,7 +154,7 @@ BASE_FEATURE(kTreeAnimationsInViz,
 
 BASE_FEATURE(kSendExplicitDecodeRequestsImmediately,
              "SendExplicitDecodeRequestsImmediately",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNewContentForCheckerboardedScrolls,
              "NewContentForCheckerboardedScrolls",
@@ -227,7 +227,7 @@ const base::FeatureParam<int> kRenderThrottledFrameIntervalHz{
 
 BASE_FEATURE(kFastPathNoRaster,
              "FastPathNoRaster",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExportFrameTimingAfterFrameDone,
              "ExportFrameTimingAfterFrameDone",
