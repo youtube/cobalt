@@ -20,12 +20,12 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Download Results
+    - name: Download Retry Filters
       if: ${{ inputs.retry_all != 'true' && inputs.retry_all != true && github.run_attempt > 1 }}
       uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
       continue-on-error: true
       with:
-        pattern: ${{ inputs.test_results_key }}*
+        pattern: ${{ inputs.test_results_key }}*_retry_filter_*
         path: previous_results
     - name: Prepare Test Filters
       id: prepare-filters

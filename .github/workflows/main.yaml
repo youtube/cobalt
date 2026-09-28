@@ -1010,7 +1010,7 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          pattern: ${{ env.TEST_RESULTS_KEY }}*_${{ github.run_attempt }}
           path: results/
       - name: Test Results
         id: test-results
@@ -1076,7 +1076,7 @@ jobs:
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}*_${{ github.run_attempt }}
           path: results/
       - name: Test Results
         uses: ./.github/actions/process_test_results
@@ -1150,8 +1150,14 @@ jobs:
           xml_files=(results/**/*.xml)
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
+            # Deduplicate XML files across run attempts so the latest attempt wins.
+            declare -A latest_xmls
+            for xml in "${xml_files[@]}"; do
+              fname=$(basename "${xml}")
+              latest_xmls["${fname}"]="${xml}"
+            done
             test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
-              "${xml_files[@]}" || true)
+              "${latest_xmls[@]}" || true)
             if [[ -z "${test_failures}" ]]; then
               test_failures='{}'
             fi
