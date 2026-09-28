@@ -173,5 +173,131 @@
     "executable": "out/android-arm_devel/bin/run_cobalt_coat_junit_tests",
     "runs_on": "host",
     "test_type": "junit"
+  },
+  {
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_kirkwood",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_tcl_smart_tv",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_boreal_non_shared",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_bravia",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_kirkwood",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_kirkwood",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_kirkwood",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_sabrina",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_sabrina",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_sabrina",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_sabrina_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_sabrina_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_kirkwood_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_boreal_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_boreal_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:ATV_KIMONO_YTS_PLAYBACK_TESTS_ARM_DEVICES",
+    "runs_on": "device",
+    "test_type": "yts_playback_test",
+    "build": false
+  },
+  {
+    "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
+    "runs_on": "device",
+    "test_type": "yts_wpt_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_finch_experiments_api_sabrina_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_finch_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_finch_experiments_api_kirkwood_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_finch_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/kimono_tests:yts_finch_experiments_api_boreal_custom_test",
+    "runs_on": "device",
+    "test_type": "yts_finch_test",
+    "build": false
   }
 ]
