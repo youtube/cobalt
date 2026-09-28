@@ -1147,10 +1147,16 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
+          # Sort XML files by version/attempt so that retried attempts (e.g. _2) sort after
+          # earlier attempts (e.g. _1).
           readarray -t xml_files < <(printf '%s\n' results/**/*.xml | sort -V)
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
-            # Deduplicate XML files across run attempts so the latest attempt wins.
+            # Deduplicate XML files across workflow run attempts:
+            # - Suffixing artifacts with _<run_attempt> extracts into 'results/<artifact>_<run_attempt>/...'.
+            # - Trimming 'results/*/' yields the relative test path within the artifact (e.g. 'shard_0/...').
+            # - Keying by this relative path ensures shards are not collided, while later run attempts
+            #   naturally overwrite results from earlier attempts for the same shard/target.
             declare -A latest_xmls
             for xml in "${xml_files[@]}"; do
               latest_xmls["${xml#results/*/}"]="${xml}"
