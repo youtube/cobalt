@@ -231,7 +231,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
-  REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
@@ -319,6 +318,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(inotify_init1);      // Linux API
   REGISTER_WRAPPER(inotify_rm_watch);   // Linux API
   REGISTER_WRAPPER(ioctl_FIONREAD);     // Linux API
+  REGISTER_WRAPPER(isatty);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);
