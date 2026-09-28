@@ -1,24 +1,71 @@
 # Disable dangerous-triggers rule because this workflow uses pull_request_target
-# and issue_comment strictly to generate commit messages with Gemini AI
-# without checking out or executing untrusted code from PR branches.
+# and issue_comment strictly for PR automation (anchor comment, commit statuses,
+# and commit message generation) without checking out or executing untrusted
+# code from PR branches.
 # actionlint: disable dangerous-triggers
-name: 'Gemini Commit Message Generator'
+name: 'Pull Request Automation'
 
 on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize]
   issue_comment:
     types: [created]
+
+concurrency:
+  group: ${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  ci-shepherd-anchor:
+    name: Initialize CI Shepherd Anchor
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Initialize Anchor Comment and Commit Status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # 1. Set initial pending status for CI / All Pass gate
+          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state="pending" \
+            -f description="Checks are running" \
+            -f context="CI / All Pass" || true
+
+          # 2. Find or create sticky anchor comment
+          header="<!-- sticky-pull-request-comment: shepherd-report -->"
+          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" 2>/dev/null \
+            | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
+
+          body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
+
+          if [[ -z "${comment_id}" ]]; then
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --silent
+          else
+            # Reset table to pending on synchronize or reopen
+            gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="${body}" --silent
+          fi
+
   generate_commit_message:
+    name: Generate Commit Message
+    needs: [ci-shepherd-anchor]
     # Run condition: PR open/reopen OR comment '/generate-commit-message' on a PR
     if: >
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
+      always() && !cancelled() && (
+        (github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'reopened')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
+      )
 
     runs-on: ubuntu-latest
 
