@@ -296,6 +296,7 @@ public class JavaSwitches {
   public static List<String> getDefaultCommandLineArgs() {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
+    // TODO(cobalt, b/567120883): Remove this if we use the Finch flag LowEndMemoryExperiment.
     defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);

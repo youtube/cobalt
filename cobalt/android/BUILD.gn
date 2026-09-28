@@ -87,6 +87,11 @@ generate_jni("jni_headers") {
   }
 }
 
+generate_jni("cobalt_feature_map_jni") {
+  sources =
+      [ "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureMap.java" ]
+}
+
 generate_jni("browser_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
@@ -223,14 +228,18 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
       "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
       "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
+      "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureList.java",
+      "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureMap.java",
     ]
     deps += [
       ":cobalt_browser_java",
+      ":cobalt_feature_map_jni_java",
       "//base:process_launcher_java",
       "//base/version_info/android:version_constants_java",
       "//cobalt/shell/android:cobalt_shell_assets",
       "//cobalt/shell/android:cobalt_shell_java",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
+      "//components/cached_flags:java",
       "//components/embedder_support/android:view_java",
       "//content/public/android:content_java",
       "//media/capture/video/android:capture_java",
@@ -373,6 +382,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
     "apk/app/src/test/java/dev/cobalt/coat/PlatformErrorTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
+    "apk/app/src/test/java/dev/cobalt/features/CobaltFeatureListTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
@@ -383,10 +393,12 @@ robolectric_binary("cobalt_coat_junit_tests") {
     ":cobalt_browser_java",
     ":cobalt_main_java",
     ":cobalt_pip_java",
+    "//base:base_cached_flags_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
     "//cobalt/shell/android:cobalt_shell_java",
+    "//components/cached_flags:java",
     "//components/embedder_support/android:view_java",
     "//components/thin_webview:java",
     "//content/public/android:content_java",
