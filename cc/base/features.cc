@@ -281,4 +281,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "max_animation_duration",
                    base::Milliseconds(700));
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltTileMemoryMetrics,
+             "CobaltTileMemoryMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
+    &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
+#endif
+
 }  // namespace features
