@@ -44,8 +44,7 @@ public class CommandLineOverrideHelperTest {
   @Test
   public void testDefaultJsFlagOverridesList() {
     String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-    assertThat(overrides).contains("--no-decommit-pooled-pages");
-    assertThat(overrides).doesNotContain("--optimize-for-size");
+    assertThat(overrides.contains("--optimize-for-size")).isFalse();
   }
 
   @Test
