@@ -158,5 +158,62 @@ TEST(VideoFrameTrackerTest, UnorderedInputFramesAreHandled) {
   EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
 }
 
+TEST(VideoFrameTrackerTest, StalePreSeekRenderedCallbacksAreIgnoredPostSeek) {
+  VideoFrameTracker video_frame_tracker(
+      /*max_pending_frames_size=*/100,
+      /*ignore_stale_rendered_frames_after_seek=*/true);
+
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+  video_frame_tracker.OnFrameRendered(10000);
+
+  // Seek back to 0 (e.g. looping)
+  video_frame_tracker.Seek(0);
+
+  // Post-seek new stream input buffers queued starting at 0
+  video_frame_tracker.OnInputBuffer(0);
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+
+  // A stale OnFrameRendered callback from pre-seek flushed stream arrives
+  video_frame_tracker.OnFrameRendered(20000);
+
+  // Should NOT count as dropped frame because stale callback is ignored
+  // post-seek
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+
+  // Actual post-seek frames rendered
+  video_frame_tracker.OnFrameRendered(0);
+  video_frame_tracker.OnFrameRendered(10000);
+
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+}
+
+TEST(VideoFrameTrackerTest,
+     StalePreSeekRenderedCallbackMatchingSecondFrameIsIgnoredPostSeek) {
+  VideoFrameTracker video_frame_tracker(
+      /*max_pending_frames_size=*/100,
+      /*ignore_stale_rendered_frames_after_seek=*/true);
+
+  video_frame_tracker.Seek(0);
+
+  // Post-seek stream: input frames 0, 10000, 20000
+  video_frame_tracker.OnInputBuffer(0);
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+
+  // A stale OnFrameRendered callback from pre-seek flushed stream arrives
+  // with timestamp 10000 (matching the second expected frame). When checking
+  // only 1 frame post-seek, this is ignored as a stale pre-seek frame.
+  video_frame_tracker.OnFrameRendered(10000);
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+
+  // When the actual first post-seek frame (0) is rendered, it unlocks normal
+  // tracking.
+  video_frame_tracker.OnFrameRendered(0);
+  video_frame_tracker.OnFrameRendered(10000);
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+}
+
 }  // namespace
 }  // namespace starboard

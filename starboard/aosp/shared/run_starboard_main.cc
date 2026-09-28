@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+
+#include "starboard/aosp/shared/application_aosp.h"
 #include "starboard/event.h"
 
-namespace starboard::aosp::shared {
-
-extern "C" int SbRunStarboardMain(int argc,
-                                  char** argv,
-                                  SbEventHandleCallback callback) {
-  // TODO(crbug.com/495203133): to be implemented.
+extern "C" void SbEventCancel(SbEventId event_id) {
+  starboard::Application::Get()->Cancel(event_id);
 }
 
-}  // namespace starboard::aosp::shared
+extern "C" SbEventId SbEventSchedule(SbEventCallback callback,
+                                     void* context,
+                                     int64_t delay_usec) {
+  return starboard::Application::Get()->Schedule(callback, context, delay_usec);
+}
+
+extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
+                                            char** argv,
+                                            SbEventHandleCallback callback) {
+  starboard::ApplicationAOSP application(callback);
+  return application.Run(argc, argv);
+}

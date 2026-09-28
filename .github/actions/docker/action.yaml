@@ -27,33 +27,41 @@ runs:
     - name: Set Docker Build Vars
       env:
         DOCKER_SERVICE: ${{ inputs.docker_service }}
+        IS_PR: ${{ inputs.is_pr }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         # Set Docker Build Vars
         set -x
 
         # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
-        FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
+        if [[ "${IS_PR}" == "true" ]]; then
+          FLOATING_TAG="${PR_NUMBER}"
+        else
+          FLOATING_TAG="${GITHUB_REF_NAME}"
+        fi
         # Replace slashes with double underscore.
         FLOATING_TAG="${FLOATING_TAG//\//__}"
         # Remove url unsafe suffix from LTS branches.
         FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
 
-        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> $GITHUB_ENV
+        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Login to GAR
+      env:
+        IS_PR: ${{ inputs.is_pr }}
       run: |
         # Login to GAR
         TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
+        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' "${TOKEN_ENDPOINT}" | jq -r .access_token)
 
         # Login to GAR to be able to push images created by fork based PR workflows.
-        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
-          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
+        if [[ "${IS_PR}" == "true" ]]; then
+          printf "%s" "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
         fi
 
         # Login to Marketplace GAR to be able to pull base images.
-        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
+        printf "%s" "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
       shell: bash
 
     - name: Login to GitHub Docker Registry
@@ -74,9 +82,9 @@ runs:
       run: |
         # Pull Existing Docker Image
         set -x
-        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
+        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${GITHUB_REPOSITORY}/${DOCKER_SERVICE}"
 
-        if [[ "$IS_PR" == "true" ]]; then
+        if [[ "${IS_PR}" == "true" ]]; then
           if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
             # A postsubmit image exists, use it.
             echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
@@ -88,16 +96,16 @@ runs:
 
             if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
               echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
-              echo "build_image=true" >> $GITHUB_OUTPUT
+              echo "build_image=true" >> "${GITHUB_OUTPUT}"
             fi
           fi
         fi
 
         # Tell builders which image tag to use.
-        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> $GITHUB_OUTPUT
+        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> "${GITHUB_OUTPUT}"
 
         # Make the compose image tag available to the build step below.
-        echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> $GITHUB_ENV
+        echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Build and Push Docker Image
@@ -110,7 +118,7 @@ runs:
         set -x
         docker compose build ${DOCKER_SERVICE}
 
-        # The compose build tags the built image with $DOCKER_COMPOSE_IMAGE. Add the Docker content sha and floating tag and push.
+        # The compose build tags the built image with ${DOCKER_COMPOSE_IMAGE}. Add the Docker content sha and floating tag and push.
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
         docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"

@@ -54,6 +54,7 @@ void OnScreenKeyboardImpl::Bind(
 void OnScreenKeyboardImpl::RegisterClient(
     mojo::PendingRemote<mojom::OnScreenKeyboardClient> client) {
   on_screen_keyboard_client_.Bind(std::move(client));
+  on_screen_keyboard_client_.reset_on_disconnect();
 }
 
 void OnScreenKeyboardImpl::Show(const std::string& text,

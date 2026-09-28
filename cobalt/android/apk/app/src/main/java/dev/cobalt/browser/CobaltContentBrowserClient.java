@@ -23,7 +23,9 @@ public class CobaltContentBrowserClient {
   @NativeMethods
   interface Natives {
     void flushCookiesAndLocalStorage();
+
     void dispatchBlur();
+
     void dispatchFocus();
   }
 

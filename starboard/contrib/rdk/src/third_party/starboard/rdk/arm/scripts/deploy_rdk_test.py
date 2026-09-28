@@ -44,7 +44,12 @@ class TestDeployRdk(unittest.TestCase):
         """Sets up mocks for all system-level calls."""
         super().setUp()
         self.mock_run = mock.patch.object(deploy_rdk, "run_command").start()
-        self.mock_run.return_value = "Everything is up-to-date"
+        def run_cmd_side_effect(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            return "Everything is up-to-date"
+        self.mock_run.side_effect = run_cmd_side_effect
 
         self.mock_sub_run = mock.patch("subprocess.run").start()
         def sub_run_side_effect(cmd, *args, **kwargs):
@@ -61,8 +66,11 @@ class TestDeployRdk(unittest.TestCase):
         self.mock_sub_run.side_effect = sub_run_side_effect
 
         # Mock filesystem and environment
+        mock.patch("time.sleep").start()
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
@@ -86,19 +94,17 @@ class TestDeployRdk(unittest.TestCase):
 
     def test_plugin_mode_packaging(self):
         """Verifies targets and tar command for plugin mode."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+        self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        # Check targets built: cobalt_loader, loader_app and loader_app_rdk_plugin
+        # Check targets built: cobalt_loader
         build_call = next(call for call in self.mock_run.call_args_list 
                          if "autoninja" in str(call))
         targets = build_call[0][0]
         self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertIn("loader_app_rdk_plugin", targets)
 
         # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
         tar_call = next(call for call in self.mock_run.call_args_list 
@@ -110,37 +116,11 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
         self.assertIn("libloader_app.so", tar_args)
 
-    def test_executable_mode_packaging(self):
-        """Verifies targets and tar command for executable mode."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
-
-        argv = ["deploy_rdk.py", "--mode", "executable", "--force-deploy"]
-        with mock.patch("sys.argv", argv):
-            deploy_rdk.main()
-
-        # Check targets built: cobalt_loader and loader_app
-        build_call = next(call for call in self.mock_run.call_args_list 
-                         if "autoninja" in str(call))
-        targets = build_call[0][0]
-        self.assertIn("cobalt_loader", targets)
-        self.assertIn("loader_app", targets)
-        self.assertNotIn("loader_app_rdk_plugin", targets)
-
-        # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
-        tar_call = next(call for call in self.mock_run.call_args_list 
-                       if "tar" in str(call))
-        tar_args = tar_call[0][0]
-        self.assertIn("-czvf", tar_args)
-        self.assertIn("-T", tar_args)
-        self.assertIn("-C", tar_args)
-        self.assertIn("cobalt_loader.runtime_deps", str(tar_args))
-        self.assertNotIn("libloader_app.so", tar_args)
-
     def test_plugin_mode_launch(self):
         """Verifies plugin mode uses deactivate -> sleep -> activate sequence."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+        self.mock_run.side_effect = lambda *args, **kwargs: ""
 
-        argv = ["deploy_rdk.py", "--mode", "plugin", "--run", "--force-deploy"]
+        argv = ["deploy_rdk.py", "--run", "--force-deploy"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
@@ -157,28 +137,34 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("bash -l -c", full_remote_cmd)
         self.assertIn("/data/out_cobalt", full_remote_cmd)
 
-    def test_executable_mode_remote_dir(self):
-        """Verifies executable mode uses the correct remote directory."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+    def test_plugin_mode_deeplink_launch(self):
+        """Verifies plugin mode activates YouTube and executes YouTube.deeplink JSON-RPC call."""
+        def run_cmd_mock(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            elif "Controller.1.configuration@YouTube" in cmd_str:
+                return '{"jsonrpc":"2.0","id":1,"result":{"url":"https://www.youtube.com/tv","sbmainargs":[]}}'
+            return "Everything is up-to-date"
 
-        argv = ["deploy_rdk.py", "--mode", "executable", "--run", "--force-deploy"]
+        self.mock_run.side_effect = run_cmd_mock
+
+        argv = ["deploy_rdk.py", "--run", "--force-deploy", "--deeplink", "v=dQw4w9WgXcQ"]
         with mock.patch("sys.argv", argv):
             deploy_rdk.main()
 
-        found_executable_dir = False
-        for call_args in self.mock_run.call_args_list:
-            cmd_arg = str(call_args[0][0])
-            if "/data/out_loader_app_executable" in cmd_arg:
-                found_executable_dir = True
+        deeplink_call = next((call for call in self.mock_run.call_args_list 
+                             if "YouTube.deeplink" in str(call)), None)
+        self.assertIsNotNone(deeplink_call)
+        self.assertIn("v=dQw4w9WgXcQ", str(deeplink_call[0][0]))
 
-        self.assertTrue(
-            found_executable_dir,
-            "Executable mode did not use /data/out_loader_app_executable",
-        )
+        activate_call = next((call for call in self.mock_run.call_args_list 
+                             if "Controller.1.activate" in str(call)), None)
+        self.assertIsNotNone(activate_call)
 
     def test_only_lib_flag(self):
         """Verifies that --only-lib pushes the lz4 file to correct folder."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+        self.mock_run.side_effect = lambda *args, **kwargs: ""
 
         argv = ["deploy_rdk.py", "--only-lib", "--force-deploy"]
         with mock.patch("sys.argv", argv):
@@ -201,8 +187,40 @@ class TestDeployRdk(unittest.TestCase):
         self.assertTrue(found_remote_dir, "Did not create remote lib directory")
         self.assertTrue(found_push, "Did not push libcobalt.lz4 to correct folder")
 
+    def test_device_id_flag_skips_auto_detection(self):
+        """Verifies --device-id targets the given serial without auto-detecting."""
+        self.mock_run.side_effect = None
+        self.mock_run.return_value = ""
+
+        argv = [
+            "deploy_rdk.py", "--only-lib", "--force-deploy",
+            "--device-id", "localhost:44133"
+        ]
+        with mock.patch.object(deploy_rdk, "get_device_id") as mock_detect:
+            with mock.patch("sys.argv", argv):
+                deploy_rdk.main()
+            mock_detect.assert_not_called()
+
+        calls = [str(c) for c in self.mock_run.call_args_list]
+        self.assertTrue(
+            any("localhost:44133" in c for c in calls),
+            "Commands were not addressed to the requested device serial")
+
+    def test_device_id_and_device_ip_are_mutually_exclusive(self):
+        """Verifies passing both --device-id and --device-ip is rejected."""
+        argv = [
+            "deploy_rdk.py", "--device-id", "localhost:44133",
+            "--device-ip", "192.0.2.10"
+        ]
+        with mock.patch("sys.argv", argv), mock.patch(
+                "sys.exit", side_effect=SystemExit) as mock_exit:
+            with self.assertRaises(SystemExit):
+                deploy_rdk.main()
+        mock_exit.assert_called_once_with(1)
+
     def test_revert_c25(self):
         """Verifies --revert-c25 runs chCobalt c25 and reboot -f."""
+        self.mock_run.side_effect = None
         self.mock_run.return_value = "/data/out_cobalt/libloader_app.so"
         with mock.patch("sys.argv", ["deploy_rdk.py", "--revert-c25"]):
             deploy_rdk.main()
@@ -213,7 +231,7 @@ class TestDeployRdk(unittest.TestCase):
 
     def test_no_rbe_flag(self):
         """Verifies --no-rbe flag passes --no-rbe to GN."""
-        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+        self.mock_run.side_effect = lambda *args, **kwargs: ""
         with mock.patch.dict(os.environ, {"RDK_HOME": "/mock/rdk/home"}):
             with mock.patch("sys.argv", ["deploy_rdk.py", "--no-rbe", "--force-deploy"]):
                 deploy_rdk.main()
@@ -222,19 +240,29 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("--no-rbe", gn_call[0][0])
 
 
+
 class TestDeployRdkDeviceDetection(unittest.TestCase):
     """Unit tests for the device auto-detection logic in deploy_rdk script."""
 
     def setUp(self):
         super().setUp()
         self.mock_run = mock.patch.object(deploy_rdk, "run_command").start()
-        self.mock_run.return_value = "Everything is up-to-date"
+        def run_cmd_side_effect(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            elif "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            return "Everything is up-to-date"
+        self.mock_run.side_effect = run_cmd_side_effect
 
         self.mock_sub_run = mock.patch("subprocess.run").start()
 
         # Mock filesystem
         mock.patch("os.path.exists", return_value=True).start()
         mock.patch("pathlib.Path.exists", return_value=True).start()
+        mock.patch("pathlib.Path.read_text", return_value="starboard_level_final_executable_type = \"shared_library\"\n").start()
+        mock.patch("pathlib.Path.write_text").start()
         mock.patch("pathlib.Path.mkdir").start()
         mock.patch("pathlib.Path.unlink").start()
         mock.patch("os.remove").start()
@@ -371,35 +399,37 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
 
     @mock.patch("time.sleep")
     def test_switch_cobalt_version_and_reboot(self, mock_sleep):
-        def sub_run_side_effect(cmd, *args, **kwargs):
+        def sub_run_mock(cmd, *args, **kwargs):
             cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
             if "adb devices" in cmd_str:
                 return mock.MagicMock(returncode=0, stdout="List of devices attached\nonly_device\tdevice\n")
             elif "cat /etc/device.properties" in cmd_str:
                 return mock.MagicMock(returncode=0, stdout="MODEL_NAME=AH212\n")
-            elif "cat /version.txt" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="custom version: RDK_V6_AH212_20260420\n")
-            elif "readlink /usr/lib/libloader_app.so" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="/usr/lib/libloader_app_c25.so\n")
-            elif "chCobalt custom_cobalt" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="Switching Cobalt to use custom Cobalt.")
-            elif "reboot" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="")
-            elif "echo ok" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="ok\n")
-            return mock.MagicMock(returncode=1, stdout="")
+            return mock.MagicMock(returncode=0, stdout="")
 
-        self.mock_sub_run.side_effect = sub_run_side_effect
+        self.mock_sub_run.side_effect = sub_run_mock
+
+        def run_cmd_mock(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            elif "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/usr/lib/libloader_app_c25.so\n"
+            elif "echo ok" in cmd_str:
+                return "ok\n"
+            return "Everything is up-to-date"
+
+        self.mock_run.side_effect = run_cmd_mock
 
         with mock.patch.dict(os.environ, {"RDK_HOME": "/mock/rdk/home"}):
             with mock.patch("sys.argv", ["deploy_rdk.py", "--force-deploy"]):
                 deploy_rdk.main()
 
         # Check that chCobalt custom_cobalt, reboot, and echo ok were called
-        sub_run_calls = [str(call) for call in self.mock_sub_run.call_args_list]
-        self.assertTrue(any("chCobalt custom_cobalt" in call for call in sub_run_calls))
-        self.assertTrue(any("reboot" in call for call in sub_run_calls))
-        self.assertTrue(any("echo ok" in call for call in sub_run_calls))
+        run_calls = [str(call) for call in self.mock_run.call_args_list]
+        self.assertTrue(any("chCobalt custom_cobalt" in call for call in run_calls))
+        self.assertTrue(any("reboot" in call for call in run_calls))
+        self.assertTrue(any("echo ok" in call for call in run_calls))
         
         # Check that sleep was called to wait for reboot
         mock_sleep.assert_any_call(30)
@@ -452,12 +482,6 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
         self.mock_exit.assert_called_once_with(1)
 
 
-    def test_devtools_in_gold_build_fails(self):
-        with mock.patch("sys.argv", ["deploy_rdk.py", "--config", "gold", "--devtools"]):
-            with self.assertRaises(SystemExit):
-                deploy_rdk.main()
-
-        self.mock_exit.assert_called_once_with(1)
 
 
     @mock.patch("tempfile.TemporaryDirectory")
@@ -485,6 +509,86 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 deploy_rdk.main()
             except KeyboardInterrupt:
                 self.fail("KeyboardInterrupt was not caught by deploy_rdk --logs")
+
+
+class TestRemoveDuplicateSbArgs(unittest.TestCase):
+    """Unit tests for remove_duplicate_sb_args function."""
+
+    def test_inline_key_value(self):
+        """Verifies deduplication of --key=value flags."""
+        sb_args = ["--url=https://old.com", "--v=1"]
+        new_args = ["--url=https://new.com"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--url=https://new.com"])
+
+    def test_valueless_boolean_flag(self):
+        """Verifies deduplication of valueless/boolean flags."""
+        sb_args = ["--enable-heap-profiling", "--v=1"]
+        new_args = ["--enable-heap-profiling"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--enable-heap-profiling"])
+
+    def test_combined_inline_and_boolean_flags(self):
+        """Verifies deduplication when inline and boolean flags are present and overridden."""
+        sb_args = [
+            "--foo=old_inline",
+            "--bar",
+            "--keep=123",
+        ]
+        new_args = [
+            "--foo=new_inline",
+            "--bar",
+        ]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        expected = [
+            "--keep=123",
+            "--foo=new_inline",
+            "--bar",
+        ]
+        self.assertEqual(result, expected)
+
+    def test_double_dash_separator(self):
+        """Verifies that the double-dash separator '--' is not treated as a flag key and filtered out."""
+        sb_args = ["--v=1", "--", "positional_arg"]
+        new_args = ["--v=2"]
+        result = deploy_rdk.remove_duplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--", "positional_arg", "--v=2"])
+
+    def test_positional_param_rejection(self):
+        """Verifies parse_args fails when positional arguments are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "www.youtube.com/tv"]
+        with mock.patch("sys.argv", argv):
+            with mock.patch("sys.exit") as mock_exit:
+                deploy_rdk.parse_args()
+                mock_exit.assert_called_once_with(1)
+
+    def test_valid_param_flags(self):
+        """Verifies parse_args succeeds when valid -- flags are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "--url=www.youtube.com/tv", "--enable-heap-profiling"]
+        with mock.patch("sys.argv", argv):
+            args = deploy_rdk.parse_args()
+            self.assertEqual(args.param, ["--url=www.youtube.com/tv", "--enable-heap-profiling"])
+
+    def test_user_override_replaces_script_args(self):
+        """Verifies user override flags in --param replace script-added flags if keys collide."""
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999"]
+        override_args = deploy_rdk.remove_duplicate_sb_args(script_args, user_override_args)
+        self.assertEqual(override_args, ["--remote-debugging-port=9999"])
+
+    def test_three_arg_precedence(self):
+        """Verifies remove_duplicate_sb_args correctly deduplicates across all 3 argument sources."""
+        cobalt_json_args = ["--v=1", "--remote-debugging-port=8080", "--url=https://old.com"]
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999", "--enable-heap-profiling"]
+
+        result = deploy_rdk.remove_duplicate_sb_args(
+            cobalt_json_args, script_args, user_override_args
+        )
+        self.assertEqual(
+            result,
+            ["--v=1", "--url=https://old.com", "--remote-debugging-port=9999", "--enable-heap-profiling"]
+        )
 
 
 if __name__ == "__main__":

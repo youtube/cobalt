@@ -4,6 +4,7 @@
 
 #include "media/base/decoder_buffer.h"
 
+#include <cstring>
 #include <sstream>
 #include <variant>
 
@@ -13,9 +14,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/pass_key.h"
 #include "media/base/subsample_entry.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -74,10 +72,13 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     CHECK_EQ(size, 0u);
     return;
   }
-
-  if (size > 0) {
-    s_allocator->Write(allocator_data_->handle, data, size);
+  if (size == 0) {
+    return;
   }
+
+  // Without an external allocator, data is stored in `data_`, a
+  // base::HeapArray backed by PartitionAlloc, and memcpy writes into it.
+  memcpy(writable_data(), data, size);
 }
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
@@ -103,16 +104,39 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-    : external_memory_(std::move(external_memory)) {}
+    // For Starboard builds, if the incoming ExternalMemory object wraps a
+    // Starboard media pool handle, adopt the raw handle inline into
+    // allocator_data_ and destroy the transient ExternalMemory wrapper struct
+    // immediately. This avoids storing long-lived heap wrapper objects for
+    // every sample frame (preventing RSS bloat) and eliminates pointer
+    // indirection on hot paths, leaving external_memory_ as nullptr.
+    : allocator_data_([&]() -> std::optional<AllocatorData> {
+        if (external_memory &&
+            external_memory->handle() != Allocator::kInvalidHandle) {
+          DemuxerStream::Type type = external_memory->type();
+          size_t size = external_memory->Span().size();
+          Allocator::Handle handle = external_memory->ReleaseHandle();
+          return AllocatorData(type, handle, size);
+        }
+        return std::nullopt;
+      }()),
+      external_memory_(allocator_data_ ? nullptr : std::move(external_memory)) {}
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
     : allocator_data_([&]() -> std::optional<AllocatorData> {
+        // When s_allocator is nullptr, memory is allocated via data_ instead,
+        // while allocator_data_ is used only when s_allocator is set.
+        if (!s_allocator) {
+          return std::nullopt;
+        }
         if (size == 0) {
           return std::nullopt;
         }
         CHECK(s_allocator);
         return AllocatorData(type, s_allocator->Allocate(type, size), size);
-      }()) {}
+      }()),
+      data_(!s_allocator && size > 0 ? base::HeapArray<uint8_t>::Uninit(size)
+                                     : base::HeapArray<uint8_t>()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 

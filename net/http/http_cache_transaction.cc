@@ -17,6 +17,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "base/auto_reset.h"
 #include "base/check.h"
@@ -34,6 +35,7 @@
 #include "base/memory/stack_allocated.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/pickle.h"
 #include "base/strings/string_util.h"  // For EqualsCaseInsensitiveASCII.
 #include "base/task/single_thread_task_runner.h"
@@ -3991,17 +3993,50 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache.
   std::string mime_type;
-  if (headers.GetMimeType(&mime_type)) {
-    bool is_html = (mime_type == "text/html");
-    bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
-        || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-    if (!is_html && !is_js) {
-      return true; // Do not write to cache / doom existing entry
+  if (!headers.GetMimeType(&mime_type)) {
+    return true;  // Reject unknown MIME types.
+  }
+
+  // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
+  static constexpr std::string_view accepted_asset_types[] = {
+      "text/html",
+      "javascript",
+      "ecmascript",
+      "text/css",
+      "application/wasm",
+  };
+
+  bool is_accepted_mime_type = false;
+  for (std::string_view type : accepted_asset_types) {
+    if (mime_type == type ||
+        base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
+      is_accepted_mime_type = true;
+      break;
     }
-  } else {
-    // If we cannot determine the MIME type, err on the side of caution and do not cache.
+  }
+
+  if (!is_accepted_mime_type) {
+    return true;  // Do not write to cache / doom existing entry
+  }
+
+  // Exclude Ad Impression Pings & Telemetry reporting endpoints.
+  static constexpr std::string_view kExcludedPaths[] = {
+      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
+  for (std::string_view excluded : kExcludedPaths) {
+    if (request_->url.spec().find(excluded) != std::string::npos) {
+      return true;
+    }
+  }
+
+  // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
+  if (headers.response_code() < 200 || headers.response_code() >= 400) {
+    return true;
+  }
+
+  // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
+  int64_t len = headers.GetContentLength();
+  if (len >= 0 && len < 512) {
     return true;
   }
 #endif

@@ -541,6 +541,8 @@ enum {
   kWheelRightButton = 7,
   kPointerBackButton = 8,
   kPointerForwardButton = 9,
+  kPointerForwardButtonAlt = 10,
+  kPointerBackButtonAlt = 11,
 };
 
 SbKey XButtonEventToSbKey(XButtonEvent* event) {
@@ -561,9 +563,11 @@ SbKey XButtonEventToSbKey(XButtonEvent* event) {
     case kWheelRightButton:
       return kSbKeyRight;
     case kPointerBackButton:
-      return kSbKeyBrowserBack;
+    case kPointerBackButtonAlt:
+      return kSbKeyMouse4;
     case kPointerForwardButton:
-      return kSbKeyBrowserForward;
+    case kPointerForwardButtonAlt:
+      return kSbKeyMouse5;
     default:
       return kSbKeyUnknown;
   }

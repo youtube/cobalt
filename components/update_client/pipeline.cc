@@ -4,6 +4,9 @@
 
 #include "components/update_client/pipeline.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <algorithm>
+#endif
 #include <cstdint>
 #include <optional>
 #include <queue>
@@ -312,7 +315,6 @@ std::queue<Operation> MakeOperations(
 #endif
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
-    const std::string& next_version,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
@@ -326,6 +328,7 @@ std::queue<Operation> MakeOperations(
         void(base::OnceCallback<
              void(base::expected<base::FilePath, UnpackerError>)>)> cache_check,
     const std::string& install_data) {
+
   std::queue<Operation> ops;
   for (const ProtocolParser::Operation& operation : pipeline.operations) {
     if (operation.type == "download") {
@@ -391,7 +394,7 @@ std::queue<Operation> MakeOperations(
               : std::make_unique<CrxInstaller::InstallParams>(
                     operation.path, operation.arguments, install_data),
 #if BUILDFLAG(IS_STARBOARD)
-          metadata, next_version,
+          metadata,
 #endif
           event_adder, state_tracker, install_progress_callback,
           install_complete_callback));
@@ -416,6 +419,23 @@ std::queue<Operation> MakeOperations(
                                  protocol_request::kEventUnknown);
     }
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // We enforce the presence of a crx3 verification step to prevent
+  // download-only bypass payloads. This check is purposefully positioned
+  // at the end of the sequence rather than the top so that malformed early
+  // pipeline steps (e.g., missing download URLs) correctly trigger their
+  // associated localized error events first, preserving tests and expected
+  // error granularity.
+  const bool has_crx3 = std::any_of(
+      pipeline.operations.begin(), pipeline.operations.end(),
+      [](const ProtocolParser::Operation& op) { return op.type == "crx3"; });
+  if (!has_crx3) {
+    return MakeErrorOperations(event_adder, kInvalidOperationAttributesError,
+                               protocol_request::kEventUnknown);
+  }
+#endif
+
   return ops;
 }
 
@@ -437,7 +457,6 @@ void MakePipeline(
 #endif
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
-    const std::string& next_version,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
@@ -513,7 +532,6 @@ void MakePipeline(
 #endif
 #if BUILDFLAG(IS_STARBOARD)
             metadata,
-            next_version,
 #endif
             state_tracker,
             base::BindRepeating(

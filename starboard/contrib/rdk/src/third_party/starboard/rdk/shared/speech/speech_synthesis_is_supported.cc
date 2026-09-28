@@ -29,7 +29,10 @@
 // limitations under the License.
 
 #include "starboard/speech_synthesis.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+
+using namespace third_party::starboard::rdk::shared;
 
 bool SbSpeechSynthesisIsSupported() {
-  return true;
+  return platform::text_to_speech().is_available().value_or(false);
 }

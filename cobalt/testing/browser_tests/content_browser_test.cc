@@ -94,10 +94,7 @@ ContentBrowserTest::ContentBrowserTest() {
 
 ContentBrowserTest::~ContentBrowserTest() {}
 
-void ContentBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
-  // Cobalt UI does not need nor support Toolbar.
-  command_line->AppendSwitch(switches::kContentShellHideToolbar);
-}
+void ContentBrowserTest::SetUpCommandLine(base::CommandLine*) {}
 
 void ContentBrowserTest::SetUp() {
   metrics::CleanExitBeacon::SkipCleanShutdownStepsForTesting();

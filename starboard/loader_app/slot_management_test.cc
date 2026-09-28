@@ -36,7 +36,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-
 namespace loader_app {
 namespace {
 using ::starboard::SbFileDeleteRecursive;
@@ -500,10 +499,10 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
-INSTANTIATE_TEST_CASE_P(SlotManagementTests,
-                        SlotManagementTest,
-                        ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(SlotManagementTests,
+                         SlotManagementTest,
+                         ::testing::Bool());
 
 }  // namespace
 }  // namespace loader_app
-#endif  // #if BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)

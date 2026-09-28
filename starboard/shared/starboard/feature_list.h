@@ -145,12 +145,30 @@ struct SbFeatureParamExt : public SbFeatureParam {
                 "Unsupported Starboard FeatureParam<> type");
 
   constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
-      : SbFeatureParam{feature.name, name} {}
+      : SbFeatureParam{feature.name, name, GetParamType()} {}
 
   // Function used to retrieve the parameter value for a given param. Outside
   // code will call this function, which will then call the corresponding
   // FeatureList::GetParam function.
   T Get() const { return FeatureList::GetParam(*this); }
+
+ private:
+  static constexpr SbFeatureParamType GetParamType() {
+    if constexpr (std::is_same_v<bool, T>) {
+      return SbFeatureParamTypeBool;
+    } else if constexpr (std::is_same_v<int, T>) {
+      return SbFeatureParamTypeInt;
+    } else if constexpr (std::is_same_v<double, T>) {
+      return SbFeatureParamTypeDouble;
+    } else if constexpr (std::is_same_v<std::string, T>) {
+      return SbFeatureParamTypeString;
+    } else if constexpr (std::is_same_v<int64_t, T>) {
+      return SbFeatureParamTypeTime;
+    } else {
+      static_assert(!std::is_same_v<T, T>,
+                    "Unsupported Starboard FeatureParam<> type");
+    }
+  }
 };
 
 template <>

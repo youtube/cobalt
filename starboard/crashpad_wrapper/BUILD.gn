@@ -28,9 +28,28 @@ if (is_starboard && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:evergreen_info",
       "//third_party/crashpad/crashpad/client",
       "//third_party/crashpad/crashpad/client:common",
+      "//third_party/crashpad/crashpad/snapshot",
+      "//third_party/crashpad/crashpad/util",
     ]
 
     data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)" ]
+  }
+
+  source_set("crashpad_wrapper_test") {
+    testonly = true
+    sources = [ "wrapper_test.cc" ]
+
+    deps = [
+      ":crashpad_wrapper",
+      "//base",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/minidump",
+      "//third_party/crashpad/crashpad/snapshot",
+      "//third_party/crashpad/crashpad/snapshot:test_support",
+      "//third_party/crashpad/crashpad/util",
+    ]
   }
 }
 

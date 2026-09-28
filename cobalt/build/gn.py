@@ -58,21 +58,20 @@ _CHROMIUM_PLATFORMS = [
     'chromium_mac-arm64',
 ]
 _COBALT_STARBOARD_PLATFORMS = [
-    'evergreen-arm-hardfp-raspi',
     'evergreen-arm-softfp',
+    'evergreen-arm-softfp-aosp',
     'evergreen-arm64',
+    'evergreen-arm64-aosp',
     'evergreen-arm-hardfp-rdk',
     'evergreen-x64',
     'linux-x64x11',
     'linux-x64x11-modular',
     'linux-x64x11-no-starboard',
-    'raspi-2-modular',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
     'android-arm64',
     'android-x86',
-    'aosp-arm',
 ]
 _COBALT_TVOS_PLATFORMS = [
     'tvos-arm64-device',

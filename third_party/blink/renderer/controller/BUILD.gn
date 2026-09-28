@@ -17,6 +17,9 @@ visibility = [
   "//:gn_all",
   "//third_party/blink/*",
 ]
+if (is_cobalt) {
+  visibility += [ "//cobalt/*" ]
+}
 
 component("controller") {
   output_name = "blink_controller"

@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
@@ -21,8 +23,12 @@
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
 #include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
+#include "cobalt/browser/h5vcc_memory/h5vcc_memory_impl.h"
+#include "cobalt/browser/h5vcc_memory/public/mojom/h5vcc_memory.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/h5vcc_native_stability/h5vcc_native_stability_impl.h"
+#include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
@@ -62,6 +68,11 @@
 #include "mojo/public/cpp/bindings/message.h"
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+#include "cobalt/browser/dial/dial_server_impl.h"
+#include "cobalt/browser/dial/public/mojom/in_app_dial.mojom.h"
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
+
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 
@@ -90,7 +101,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
-    absl::optional<int64_t> app_startup_timestamp,
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
 // We want to use the Java Mojo implementation for 1P ATV only.
@@ -106,6 +117,8 @@ void PopulateCobaltFrameBinders(
           &h5vcc_accessibility::H5vccAccessibilityImpl::Create));
   binder_map->Add<h5vcc_experiments::mojom::H5vccExperiments>(
       base::BindRepeating(&h5vcc_experiments::H5vccExperimentsImpl::Create));
+  binder_map->Add<h5vcc_memory::mojom::H5vccMemory>(
+      base::BindRepeating(&h5vcc_memory::H5vccMemoryImpl::Create));
   binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(
       base::BindRepeating(&h5vcc_metrics::H5vccMetricsImpl::Create));
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
@@ -167,8 +180,32 @@ void PopulateCobaltFrameBinders(
           }));
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+  binder_map->Add<in_app_dial::mojom::DialServer>(
+      base::BindRepeating(&in_app_dial::DialServerImpl::Create));
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
+
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+#if BUILDFLAG(USE_EVERGREEN)
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));
+#else
+  // For platforms not (yet) supporting native stability reporting, register
+  // a stub binder that ignores binding requests and drops the receiver. This
+  // prevents the browser from terminating the frame's Mojo broker if the
+  // interface is requested, while ensuring no disk I/O or state modification
+  // occurs on unsupported platforms.
+  binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
+      base::BindRepeating(
+          [](content::RenderFrameHost*,
+             mojo::PendingReceiver<
+                 h5vcc_native_stability::mojom::H5vccNativeStability>) {
+            VLOG(1) << "Ignoring H5vccNativeStability request for "
+                    << "non-Evergreen build.";
+          }));
+#endif
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(

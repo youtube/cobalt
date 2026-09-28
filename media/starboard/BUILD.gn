@@ -28,7 +28,10 @@ config("disable_unreachable_warnings") {
 }
 
 source_set("starboard") {
-  visibility = [ "//media" ]
+  visibility = [
+    "//media",
+    "//media/starboard:*",
+  ]
 
   sources = []
   deps = []
@@ -39,8 +42,6 @@ source_set("starboard") {
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
       "decoder_buffer_memory_info.h",
-      "media_buffer_pool_decoder_buffer_allocator_strategy.cc",
-      "media_buffer_pool_decoder_buffer_allocator_strategy.h",
       "sbplayer_bridge.cc",
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
@@ -60,6 +61,12 @@ source_set("starboard") {
     ]
 
     deps += [ ":buildflags" ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [
+        "url_player_demuxer.cc",
+        "url_player_demuxer.h",
+      ]
+    }
   }
 
   deps += [
@@ -87,6 +94,26 @@ source_set("starboard") {
   ]
 }
 
+source_set("test_support") {
+  testonly = true
+  sources = []
+  if (use_starboard_media) {
+    sources += [
+      "mock_sbplayer_interface.cc",
+      "mock_sbplayer_interface.h",
+    ]
+  }
+  configs += [ "//media:media_config" ]
+  deps = [ "//base" ]
+  if (use_starboard_media) {
+    deps += [
+      ":starboard",
+      "//starboard:starboard_group",
+      "//testing/gmock",
+    ]
+  }
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = []
@@ -94,7 +121,6 @@ source_set("unit_tests") {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
-      "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
       "starboard_media_external_memory_allocator_unittest.cc",
       "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",
@@ -103,6 +129,7 @@ source_set("unit_tests") {
   }
   configs += [ "//media:media_config" ]
   deps = [
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//media:test_support",

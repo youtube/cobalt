@@ -23,7 +23,6 @@
     "PosixSocketShutdownTest.ShutdownRD",
     "PosixSocketShutdownTest.ShutdownRDWR",
     "PosixSocketShutdownTest.ShutdownWR",
-    "PosixThreadAttrTest.SchedParam",
-    "PosixTimeClockTests.ClockIncreasesOverTime"
+    "PosixThreadAttrTest.SchedParam"
   ]
 }

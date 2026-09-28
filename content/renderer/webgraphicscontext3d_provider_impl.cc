@@ -9,6 +9,9 @@
 #include "build/build_config.h"
 #include "cc/paint/paint_image.h"
 #include "cc/tiles/gpu_image_decode_cache.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cc/tiles/image_decode_cache_utils.h"
+#endif
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/client/context_support.h"
 #include "gpu/command_buffer/client/gl_helper.h"
@@ -185,7 +188,12 @@ cc::ImageDecodeCache* WebGraphicsContext3DProviderImpl::ImageDecodeCache(
       color_type,
       std::make_unique<cc::GpuImageDecodeCache>(
           provider_.get(), use_transfer_cache, color_type, kMaxWorkingSetBytes,
-          provider_->ContextCapabilities().max_texture_size, nullptr));
+          provider_->ContextCapabilities().max_texture_size,
+#if BUILDFLAG(IS_COBALT)
+          cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount(),
+          cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes(),
+#endif
+          nullptr));
   DCHECK(insertion_result.second);
   cache_iterator = insertion_result.first;
   return cache_iterator->second.get();

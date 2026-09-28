@@ -351,7 +351,7 @@ TEST(StringUtilTest, TruncateUTF8ToByteSize) {
   EXPECT_EQ(output.compare(""), 0);
 }
 
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
 TEST(StringUtilTest, as_wcstr) {
   char16_t rw_buffer[10] = {};
   static_assert(
@@ -410,7 +410,7 @@ TEST(StringUtilTest, as_u16cstr) {
       std::is_same<const char16_t*, decltype(as_u16cstr(piece))>::value, "");
   EXPECT_EQ(static_cast<const void*>(piece.data()), as_u16cstr(piece));
 }
-#endif  // defined(WCHAR_T_IS_UTF16)
+#endif  // defined(WCHAR_T_IS_16_BIT)
 
 TEST(StringUtilTest, TrimWhitespace) {
   std::u16string output;  // Allow contents to carry over to next testcase
@@ -571,7 +571,7 @@ TEST(StringUtilTest, IsStringASCII) {
     }
   }
 
-#if defined(WCHAR_T_IS_UTF32)
+#if defined(WCHAR_T_IS_32_BIT)
   {
     const size_t string_length = wchar_ascii.length();
     for (size_t len = 0; len < string_length; ++len) {
@@ -589,7 +589,7 @@ TEST(StringUtilTest, IsStringASCII) {
       }
     }
   }
-#endif  // WCHAR_T_IS_UTF32
+#endif  // WCHAR_T_IS_32_BIT
 }
 
 TEST(StringUtilTest, ConvertASCII) {

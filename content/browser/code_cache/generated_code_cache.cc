@@ -480,13 +480,11 @@ void GeneratedCodeCache::WriteEntry(const GURL& url,
     return;
 
 #if BUILDFLAG(IS_COBALT)
-  if (cache_type_ == CodeCacheType::kJavaScript &&
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-optimized-v8-code-cache")) {
-    // Only store V8 bytecode for substantial scripts (>= 1 KB) where bytecode
-    // caching actually saves meaningful CPU compilation time.
-    constexpr size_t kMinBytecodeSizeForCobaltCache = 1024;
-    if (data.size() < kMinBytecodeSizeForCobaltCache) {
+  if (cache_type_ == CodeCacheType::kJavaScript) {
+    // We skip caching below experimental thresholds to preserve
+    // cache slots for heavy core bundles.
+    constexpr size_t kMinBytecodeSize = 1024;
+    if (data.size() < kMinBytecodeSize) {
       return;
     }
   }

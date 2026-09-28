@@ -120,7 +120,7 @@ TEST(SbPlayerGetPreferredOutputModeTest, SecuredDrmRequiresPunchOut) {
 }
 
 TEST(SbPlayerGetPreferredOutputModeTest,
-     SecuredDrmWithDecodeToTextureIsInvalid) {
+     SecuredDrmForSecondaryPlayerRequiresPunchOut) {
   SbPlayerCreationParam creation_param = GetSdrPlaybackParam();
 
   SbDrmSystem drm_system = CreateDummyDrmSystem("com.widevine");
@@ -132,11 +132,11 @@ TEST(SbPlayerGetPreferredOutputModeTest,
 
   creation_param.output_mode = kSbPlayerOutputModePunchOut;
   auto preferred_output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
-  EXPECT_EQ(preferred_output_mode, kSbPlayerOutputModeInvalid);
+  EXPECT_EQ(preferred_output_mode, kSbPlayerOutputModePunchOut);
 
   creation_param.output_mode = kSbPlayerOutputModeDecodeToTexture;
   preferred_output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
-  EXPECT_EQ(preferred_output_mode, kSbPlayerOutputModeInvalid);
+  EXPECT_EQ(preferred_output_mode, kSbPlayerOutputModePunchOut);
 
   SbDrmDestroySystem(drm_system);
 }

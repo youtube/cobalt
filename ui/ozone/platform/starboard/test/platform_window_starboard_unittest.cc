@@ -14,6 +14,7 @@
 
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
+#include "base/functional/bind.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
@@ -32,12 +33,23 @@ ui::Event* CreateTestEvent() {
 
 TEST(PlatformWindowStarboardTest, CreateAndDestroy) {
   TestPlatformWindowDelegate delegate;
+  SbWindow created_window = kSbWindowInvalid;
+  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::BindRepeating(
+      [](SbWindow* out_window, SbWindow window) { *out_window = window; },
+      &created_window));
+
   constexpr gfx::Rect kBounds(100, 200, 300, 400);
   std::unique_ptr<ui::PlatformWindowStarboard> window =
       std::make_unique<ui::PlatformWindowStarboard>(&delegate, kBounds);
 
-  // Check initial bounds.
-  EXPECT_EQ(window->GetBoundsInPixels(), kBounds);
+  // Check initial bounds against the native Starboard window size.
+  EXPECT_TRUE(SbWindowIsValid(created_window));
+  SbWindowSize sb_size{};
+  EXPECT_TRUE(SbWindowGetSize(created_window, &sb_size));
+  EXPECT_EQ(window->GetBoundsInPixels(),
+            gfx::Rect(kBounds.x(), kBounds.y(), sb_size.width, sb_size.height));
+
+  ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
 
   // Destroy the window.
   window->Close();

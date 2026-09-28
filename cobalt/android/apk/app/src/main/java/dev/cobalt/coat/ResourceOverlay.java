@@ -32,10 +32,8 @@ public class ResourceOverlay {
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
-    mSupportsSphericalVideos =
-        context.getResources().getBoolean(R.bool.supports_spherical_videos);
-    mMaxVideoBufferBudget =
-        context.getResources().getInteger(R.integer.max_video_buffer_budget);
+    mSupportsSphericalVideos = context.getResources().getBoolean(R.bool.supports_spherical_videos);
+    mMaxVideoBufferBudget = context.getResources().getInteger(R.integer.max_video_buffer_budget);
     mMinAudioSinkBufferSizeInFrames =
         context.getResources().getInteger(R.integer.min_audio_sink_buffer_size_in_frames);
   }

@@ -31,9 +31,9 @@ public class StarboardBridge extends BaseStarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
-  private CobaltMediaSession mCobaltMediaSession;
-  private VolumeStateReceiver mVolumeStateReceiver;
-  private PlatformError mPlatformError;
+  private final CobaltMediaSession mCobaltMediaSession;
+  private final VolumeStateReceiver mVolumeStateReceiver;
+  private volatile PlatformError mPlatformError;
 
   public StarboardBridge(
       Context appContext,
@@ -48,15 +48,38 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
-  protected void onActivityStop(Activity activity) {
-    super.onActivityStop(activity);
-    mCobaltMediaSession.onActivityStop();
+  protected void onServiceCreated(CobaltService service) {
+    super.onServiceCreated(service);
+    service.receiveStarboardBridge(this);
   }
 
   @Override
-  void raisePlatformError(int errorType, long data, String url) {
-    StartupGuard.getInstance().setStartupMilestone(37);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
+  protected void onActivityStop(Activity activity) {
+    super.onActivityStop(activity);
+    if (isActivityLifecycleCoordinationEnabled()) {
+      if (!hasStartedActivities()) {
+        mCobaltMediaSession.onActivityStop();
+      }
+    } else {
+      mCobaltMediaSession.onActivityStop();
+    }
+  }
+
+  @Override
+  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof CobaltActivity cobaltActivity) {
+      if (disableDismiss) {
+        if (cobaltActivity.hasHiddenSplashScreen()) {
+          android.util.Log.i(
+              "StarboardBridge",
+              "Ignoring platform error because splash screen has already been hidden.");
+          return;
+        }
+      }
+    }
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url, disableDismiss);
     mPlatformError.raise();
   }
 
@@ -66,6 +89,10 @@ public class StarboardBridge extends BaseStarboardBridge {
       return mPlatformError.isShowing();
     }
     return false;
+  }
+
+  public PlatformError getPlatformError() {
+    return mPlatformError;
   }
 
   public void setWebContents(WebContents webContents) {
@@ -79,11 +106,15 @@ public class StarboardBridge extends BaseStarboardBridge {
 
   @Override
   protected void hideSplashScreen() {
+    mPlatformError = null;
+    if (mActivityHolder.get() instanceof CobaltActivity activity) {
+      activity.onSplashScreenHidden();
+    }
     StartupGuard.getInstance().disarm();
   }
 
   @Override
-  protected void setStartupMilestone(int milestone) {
+  protected void setStartupMilestone(@StartupGuard.Milestone int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
   }
 

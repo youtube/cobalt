@@ -130,8 +130,7 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
 
   return std::make_unique<MojoRenderer>(
       media_task_runner, nullptr, video_renderer_sink,
-      std::move(renderer_remote),
-      config.experimental_features.GetBool(kMediaBypassMojoForMedia));
+      std::move(renderer_remote));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

@@ -54,6 +54,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   ~CobaltBrowserMainParts() override = default;
 
   // ShellBrowserMainParts overrides.
+  int PreEarlyInitialization() override;
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
   void PostDestroyThreads() override;

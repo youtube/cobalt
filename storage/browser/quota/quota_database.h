@@ -266,6 +266,9 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaDatabase {
   bool OpenDatabase();
   bool EnsureDatabaseVersion();
   bool ResetStorage();
+#if BUILDFLAG(IS_STARBOARD)
+  void DisableDatabase();
+#endif
 
   bool CreateSchema();
   bool CreateTable(const TableSchema& table);

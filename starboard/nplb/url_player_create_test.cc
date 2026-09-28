@@ -14,12 +14,13 @@
 
 #include <vector>
 
+#include "build/build_config.h"
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
 
-#if SB_HAS(PLAYER_WITH_URL)
-#include "starboard/shared/uikit/url_player.h"
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,7 +28,7 @@
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 
 const char kPlayerUrl[] = "about:blank";
 
@@ -159,7 +160,7 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
   SbWindowDestroy(window);
 }
 
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 }  // namespace
 }  // namespace nplb

@@ -23,24 +23,25 @@ import org.jni_zero.NativeMethods;
 @JNINamespace("starboard::features")
 @NullMarked
 public class StarboardFeatureList {
-    private StarboardFeatureList() {}
-    /**
-     * Returns whether the specified feature is enabled or not.
-     *
-     * Note: This queries features defined with STARBOARD_FEATURE in
-     * //starboard/extension/feature_config.h
-     *
-     * @param featureName The name of the feature to query.
-     * @return Whether the feature is enabled or not.
-     */
-    public static boolean isEnabled(String featureName) {
-        assert FeatureList.isNativeInitialized();
-        return StarboardFeatureListJni.get().isEnabled(featureName);
-    }
+  private StarboardFeatureList() {}
 
-    /** Native Methods for StarboardFeatureList. */
-    @NativeMethods
-    public interface Natives {
-        boolean isEnabled(String featureName);
-    }
+  /**
+   * Returns whether the specified feature is enabled or not.
+   *
+   * <p>Note: This queries features defined with STARBOARD_FEATURE in
+   * //starboard/extension/feature_config.h
+   *
+   * @param featureName The name of the feature to query.
+   * @return Whether the feature is enabled or not.
+   */
+  public static boolean isEnabled(String featureName) {
+    assert FeatureList.isNativeInitialized();
+    return StarboardFeatureListJni.get().isEnabled(featureName);
+  }
+
+  /** Native Methods for StarboardFeatureList. */
+  @NativeMethods
+  public interface Natives {
+    boolean isEnabled(String featureName);
+  }
 }

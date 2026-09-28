@@ -38,18 +38,15 @@ void DecodedAudioQueue::Clear() {
   frames_ = 0;
 }
 
-void DecodedAudioQueue::Append(
-    const scoped_refptr<DecodedAudio>& decoded_audio) {
-  SB_DCHECK_EQ(decoded_audio->storage_type(),
-               kSbMediaAudioFrameStorageTypeInterleaved);
+void DecodedAudioQueue::Append(DecodedAudio&& decoded_audio) {
+  // Update the |frames_| counter since we have added frames.
+  frames_ += decoded_audio.frames();
+  SB_CHECK_GT(frames_, 0);  // make sure it doesn't overflow.
+
   // Add the buffer to the queue. Inserting into deque invalidates all
   // iterators, so point to the first buffer.
-  buffers_.push_back(decoded_audio);
+  buffers_.push_back(std::move(decoded_audio));
   current_buffer_ = buffers_.begin();
-
-  // Update the |frames_| counter since we have added frames.
-  frames_ += decoded_audio->frames();
-  SB_CHECK_GT(frames_, 0);  // make sure it doesn't overflow.
 }
 
 int DecodedAudioQueue::ReadFrames(int frames,
@@ -93,9 +90,9 @@ int DecodedAudioQueue::InternalRead(int frames,
       break;
     }
 
-    scoped_refptr<DecodedAudio> buffer = *current_buffer;
+    const DecodedAudio& buffer = *current_buffer;
 
-    int remaining_frames_in_buffer = buffer->frames() - current_buffer_offset;
+    int remaining_frames_in_buffer = buffer.frames() - current_buffer_offset;
 
     if (frames_to_skip > 0) {
       // If there are frames to skip, do it first. May need to skip into
@@ -111,17 +108,17 @@ int DecodedAudioQueue::InternalRead(int frames,
 
       // if |dest| is NULL, there's no need to copy.
       if (dest) {
-        SB_DCHECK_EQ(buffer->channels(), dest->channels());
+        SB_DCHECK_EQ(buffer.channels(), dest->channels());
         if (dest->sample_type() == kSbMediaAudioSampleTypeFloat32) {
-          const float* source = reinterpret_cast<const float*>(buffer->data()) +
-                                buffer->channels() * current_buffer_offset;
+          const float* source = reinterpret_cast<const float*>(buffer.data()) +
+                                buffer.channels() * current_buffer_offset;
           float* destination = reinterpret_cast<float*>(dest->data()) +
                                dest->channels() * (dest_frame_offset + taken);
           memcpy(destination, source, copied * dest->channels() * 4);
         } else {
           const int16_t* source =
-              reinterpret_cast<const int16_t*>(buffer->data()) +
-              buffer->channels() * current_buffer_offset;
+              reinterpret_cast<const int16_t*>(buffer.data()) +
+              buffer.channels() * current_buffer_offset;
           int16_t* destination = reinterpret_cast<int16_t*>(dest->data()) +
                                  dest->channels() * (dest_frame_offset + taken);
           memcpy(destination, source, copied * dest->channels() * 2);
@@ -138,7 +135,7 @@ int DecodedAudioQueue::InternalRead(int frames,
     }
 
     // Has the buffer has been consumed?
-    if (current_buffer_offset == buffer->frames()) {
+    if (current_buffer_offset == buffer.frames()) {
       // If we are at the last buffer, no more data to be copied, so stop.
       BufferQueue::iterator next = current_buffer + 1;
       if (next == buffers_.end()) {

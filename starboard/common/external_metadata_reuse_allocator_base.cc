@@ -175,7 +175,7 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
-  TryToDecommitOneBlock();
+  TryToDecommitOneBlock(/*cadence=*/100);
 
   return user_address;
 }
@@ -315,7 +315,9 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
           /*enable_decommit_on_idle=*/false,
           /*retain_blocks=*/0,
           /*conservative_decommit_blocks=*/0,
-          /*aggressive_decommit_on_suspend=*/false) {}
+          /*aggressive_decommit_on_suspend=*/false,
+          /*memset_on_reclaim=*/false,
+          /*mark_as_cold_on_reclaim=*/false) {}
 
 ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
     Allocator* fallback_allocator,
@@ -325,12 +327,16 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
     bool enable_decommit_on_idle,
     size_t retain_blocks,
     size_t conservative_decommit_blocks,
-    bool aggressive_decommit_on_suspend)
+    bool aggressive_decommit_on_suspend,
+    bool memset_on_reclaim,
+    bool mark_as_cold_on_reclaim)
     : ReuseAllocatorBase(fallback_allocator,
                          max_capacity,
                          retain_blocks,
                          conservative_decommit_blocks,
-                         aggressive_decommit_on_suspend),
+                         aggressive_decommit_on_suspend,
+                         memset_on_reclaim,
+                         mark_as_cold_on_reclaim),
       allocation_increment_(allocation_increment),
       enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {

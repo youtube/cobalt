@@ -23,8 +23,28 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 import grpc
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..'))
+if _REPO_ROOT not in sys.path:
+  sys.path.insert(0, _REPO_ROOT)
+_DEVINFRA_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'devinfra', 'github'))
+if _DEVINFRA_DIR not in sys.path:
+  sys.path.insert(0, _DEVINFRA_DIR)
+
+# pylint: disable=wrong-import-position
+try:
+  from cobalt.devinfra.github.test_filter import get_gtest_filter
+except ImportError:
+  try:
+    from cobalt.tools.test_filter import get_gtest_filter
+  except ImportError:
+    from test_filter import get_gtest_filter
+
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
+# pylint: enable=wrong-import-position
 
 _WORK_DIR = '/on_device_tests_gateway'
 
@@ -38,16 +58,14 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 # These paths are hardcoded in various places. DO NOT CHANGE!
 _DIR_ON_DEV_MAP = {
     'android': '/sdcard/Download',
-    'raspi': '/home/pi/test/results',
     'rdk': '/data/test/results',
 }
 
 _DEPS_ARCH_MAP = {
     'android': '/sdcard/chromium_tests_root/deps.tar.gz',
-    'raspi': '/home/pi/test/',
     'rdk': '/data/test/',
 }
-_GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk', 'raspi')
+_GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
@@ -59,7 +77,8 @@ class OnDeviceTestsGatewayClient:
 
   def __init__(self):
     self.channel = grpc.insecure_channel(
-        target=f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}',  # pylint:disable=line-too-long
+        target=(f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:'
+                f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}'),
         # These options need to match server settings.
         options=[
             ('grpc.keepalive_time_ms', 10000),
@@ -151,44 +170,22 @@ def _get_test_args_and_dimensions(
   return test_args, device_type, device_pool
 
 
-def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
-  """Retrieves gtest filters for a given target.
-
-  Args:
-      filter_json_dir: Directory containing filter JSON files.
-      target_name: The name of the gtest target.
-
-  Returns:
-      A string containing the gtest filters.
-  """
-  gtest_filter = '*'
-  filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
-  if os.path.exists(filter_json_file):
-    with open(filter_json_file, 'r', encoding='utf-8') as f:
-      filter_data = json.load(f)
-      failing_tests = ':'.join(filter_data.get('failing_tests', []))
-      if failing_tests:
-        gtest_filter = '-' + failing_tests
-  return gtest_filter
-
-
 def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   """Builds the list of files for a unit test request."""
-  is_modular_raspi = 'builder-raspi-2-modular' in args.label
-
   # TODO: b/432536319 - Use flag to determine file ending.
 
   if args.device_family == 'android':
-    return [
+    res = [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
-  elif is_modular_raspi and args.device_family == 'raspi':
-    return [
-        f'bin={args.gcs_archive_path}/{target_name}',
-        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
-    ]
+
+    if target_name == 'cobalt_browsertests':
+      res.append(f'host_deps={args.gcs_archive_path}/'
+                 'cobalt_browsertests_host_deps.tar.gz')
+    return res
+
   elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
@@ -234,37 +231,57 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   for target_data in targets:
     test_type = args.test_type
 
-    if test_type == 'unit_test':
+    if test_type in ('unit_test', 'browser_test'):
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
-      test_target = target_data
+      target_gtest_filter = ''
+      if isinstance(target_data, dict):
+        test_target = target_data['target']
+        if test_attempts := target_data.get('test_attempts', ''):
+          test_args.append(f'test_attempts={test_attempts}')
+        target_gtest_filter = target_data.get('gtest_filter', '')
+      else:
+        test_target = target_data
+        if args.test_attempts:
+          test_args.append(f'test_attempts={args.test_attempts}')
       target_name = test_target.split(':')[-1]
-      gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-      if gtest_filter == '-*':
-        print(f'Skipping {target_name} due to test filter.')
-        continue
-      if args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+      if args.gtest_filter:
+        gtest_filter = args.gtest_filter
+      elif target_gtest_filter:
+        gtest_filter = target_gtest_filter
+      else:
+        gtest_filter = get_gtest_filter(args.filter_json_dir, target_name)
+        if gtest_filter == '-*':
+          print(f'Skipping {target_name} due to test filter.')
+          continue
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
-      command_line_args = ' '.join([
+      cmd_args = [
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
           '--single-process-tests',
-      ])
+          '--num-retries=0',
+      ]
+      command_line_args = ' '.join(cmd_args)
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
+      if 'cobalt_browsertests' in target_name:
+        test_type = 'browser_test'
 
-    elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
-      test_target = target_data['target']
-      test_attempts = target_data.get('test_attempts', '')
+    elif test_type in ('e2e_test', 'yts_test', 'yts_wpt_test'):
+      if isinstance(target_data, dict):
+        test_target = target_data.get('target', '')
+        test_attempts = target_data.get('test_attempts', '')
+      else:
+        test_target = target_data
+        test_attempts = ''
       if test_attempts:
         test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
       files = []
-      if test_type in ('browser_test', 'yts_wpt_test'):
+      if test_type == 'yts_wpt_test':
         test_type = 'e2e_test'
         params = []
       else:
@@ -402,6 +419,11 @@ def main() -> int:
       help='Directory containing filter JSON files for test selection.',
   )
   unit_test_group.add_argument(
+      '--gtest_filter',
+      type=str,
+      help='Explicit gtest filter string to run specific test cases.',
+  )
+  unit_test_group.add_argument(
       '-a',
       '--gcs_archive_path',
       type=str,
@@ -440,25 +462,33 @@ def main() -> int:
 
   args = parser.parse_args()
 
-  # TODO(b/428961033): Let argparse handle these checks as required arguments.
-  if args.test_type in ('e2e_test', 'yts_test'):
-    if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
-  elif args.test_type == 'unit_test':
-    if not args.device_family:
-      raise ValueError('--device_family is required for unit_test')
-    if not args.gcs_archive_path:
-      raise ValueError('--gcs_archive_path is required for unit_test')
-    if not args.gcs_result_path:
-      raise ValueError('--gcs_result_path is required for unit_test')
-    if not args.filter_json_dir:
-      raise ValueError('--filter_json_dir is required for unit_test')
-
-  test_requests = _process_test_requests(args)
   client = OnDeviceTestsGatewayClient()
 
   try:
     if args.action == 'trigger':
+      # TODO(b/428961033): Let argparse handle these checks as required
+      # arguments.
+      if args.test_type in ('e2e_test', 'yts_test'):
+        if not args.cobalt_path:
+          raise ValueError('--cobalt_path is required for e2e_test or yts_test')
+      elif args.test_type in ('unit_test', 'browser_test'):
+        if not args.device_family:
+          raise ValueError(f'--device_family is required for {args.test_type}')
+        if not args.gcs_archive_path:
+          raise ValueError(
+              f'--gcs_archive_path is required for {args.test_type}')
+        if not args.gcs_result_path:
+          raise ValueError(
+              f'--gcs_result_path is required for {args.test_type}')
+        if not args.filter_json_dir:
+          raise ValueError(
+              f'--filter_json_dir is required for {args.test_type}')
+
+      test_requests = _process_test_requests(args)
+      if not test_requests:
+        print('No tests to run.')
+        return 0
+
       client.run_trigger_command(args.token, args.label, test_requests)
     else:
       client.run_watch_command(args.token, args.session_id)

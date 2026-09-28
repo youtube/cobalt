@@ -479,13 +479,10 @@ bool TryMatchLoadStoreShift(Arm64OperandGeneratorT* g,
                             OpIndex index, InstructionOperand* index_op,
                             InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
-  if (const ChangeOp* change =
-          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
-      change && selector->CanCover(index, change->input())) {
-    index = change->input();
-  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
-  if (shift == nullptr) return false;
+  if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
+    return false;
+  }
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
@@ -2964,9 +2961,19 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
       return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
     case Opcode::kComparison:
       return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
-    case Opcode::kOverflowCheckedBinop:
-      return op.Cast<OverflowCheckedBinopOp>().rep ==
-             WordRepresentation::Word32();
+    case Opcode::kOverflowCheckedBinop: {
+      const OverflowCheckedBinopOp& binop = op.Cast<OverflowCheckedBinopOp>();
+      if (binop.rep != WordRepresentation::Word32()) return false;
+      switch (binop.kind) {
+        case OverflowCheckedBinopOp::Kind::kSignedAdd:
+        case OverflowCheckedBinopOp::Kind::kSignedSub:
+          return true;
+        case OverflowCheckedBinopOp::Kind::kSignedMul:
+          // EmitInt32MulWithOverflow doesn't zero-extend because Arm64 doesn't
+          // have a flag-setting int32 multiplication.
+          return false;
+      }
+    }
     case Opcode::kProjection:
       return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
     case Opcode::kLoad: {

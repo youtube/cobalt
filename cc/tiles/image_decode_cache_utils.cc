@@ -11,6 +11,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_number_conversions.h"
 #include "cc/base/switches.h"
 #endif
@@ -77,6 +78,58 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   return decoded_image_working_set_budget_bytes;
 #endif
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count =
+      []() {
+        auto* command_line = base::CommandLine::ForCurrentProcess();
+        if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+          std::string value = command_line->GetSwitchValueASCII(
+              switches::kCCImageCacheLimitItems);
+          int parsed_value;
+          if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+            return static_cast<size_t>(parsed_value);
+          }
+        }
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltCCImageCacheLimitItems)) {
+          int items = base::features::kCobaltCCImageCacheLimitItemsCount.Get();
+          if (items >= 0) {
+            return static_cast<size_t>(items);
+          }
+        }
+#if BUILDFLAG(IS_STARBOARD)
+        // Cache 15 decoded images. Scroll FPS doubles once 13 are cached;
+        // 15 adds margin and costs ~1 MB of GPU memory. See b/562624433.
+        return static_cast<size_t>(15);
+#else
+        return static_cast<size_t>(
+            2000);  // kNormalMaxItemsInCacheForGpu default
+#endif
+      }();
+  return cobalt_decoded_image_persistent_cache_budget_count;
+}
+
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_bytes = []() {
+    size_t budget = std::numeric_limits<size_t>::max();
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitMbs)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitMbs);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value) * 1024 * 1024;
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_bytes;
+}
+#endif
 
 }  // namespace cc
 

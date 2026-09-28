@@ -5,6 +5,6 @@
     "MimeUtilTest.ChecksSupportedMp3Containers",
     "MimeUtilTest.ChecksSupportedPcmContainers",
     "SbPlayerGetPreferredOutputModeTest.SecuredDrmRequiresPunchOut",
-    "SbPlayerGetPreferredOutputModeTest.SecuredDrmWithDecodeToTextureIsInvalid"
+    "SbPlayerGetPreferredOutputModeTest.SecuredDrmForSecondaryPlayerRequiresPunchOut"
   ]
 }

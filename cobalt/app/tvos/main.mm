@@ -20,13 +20,16 @@
 #include <string>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/tvos/plist_info.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
@@ -169,7 +172,16 @@ static const char** g_argv = nullptr;
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+  base::CommandLine original_cmd_line(g_argc, g_argv);
+  if (!original_cmd_line.HasSwitch(cobalt::switches::kInitialURL)) {
+    const auto plistUrl = cobalt::GetValueFromPlistAsString("YTApplicationURL");
+    if (plistUrl.has_value()) {
+      original_cmd_line.AppendSwitchNative(cobalt::switches::kInitialURL,
+                                           *plistUrl);
+    }
+  }
+
+  const cobalt::CommandLinePreprocessor cobalt_cmd_line(original_cmd_line);
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
 

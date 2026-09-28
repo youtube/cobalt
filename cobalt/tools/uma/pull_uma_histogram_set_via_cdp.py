@@ -36,7 +36,6 @@ import websocket  # pylint: disable=wrong-import-position
 import subprocess  # pylint: disable=wrong-import-position
 
 from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-position
-from devil.android import device_utils  # pylint: disable=wrong-import-position
 
 # Configuration
 COBALT_DEBUG_PORT = 9222
@@ -108,15 +107,10 @@ def get_websocket_url(platform: str, port: int, quiet: bool):
   if platform == 'android':
     for i in range(MAX_WEBSOCKET_RETRIES):
       try:
-        devs = list(device_utils.DeviceUtils.HealthyDevices())
-        if not devs:
-          _print_q('Error: No healthy Android devices found.', quiet)
-          return None
-        dev = devs[0]
-        dev.adb.Forward(
-            f'tcp:{port}',
-            'localabstract:content_shell_devtools_remote',
-            allow_rebind=True)
+        run_adb_command([
+            'adb', 'forward', f'tcp:{port}',
+            'localabstract:content_shell_devtools_remote'
+        ])
         response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
         response.raise_for_status()
         targets = response.json()

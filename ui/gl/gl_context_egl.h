@@ -37,12 +37,17 @@ class GL_EXPORT GLContextEGL : public GLContextReal {
   GLDisplayEGL* GetGLDisplayEGL() override;
   GLContextEGL* AsGLContextEGL() override;
   bool CanShareTexturesWithContext(GLContext* other_context) override;
+#if BUILDFLAG(IS_COBALT)
+  void Destroy() override;
+#endif
 
  protected:
   ~GLContextEGL() override;
 
  private:
+#if !BUILDFLAG(IS_COBALT)
   void Destroy();
+#endif
   void ReleaseBackpressureFences();
 
   EGLContext context_ = nullptr;

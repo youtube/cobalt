@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 18
 
+### RDK: Suspend hangwatcher while backgrounded and bound lifecycle
+### events to 2.5s
+
+Suspend the hangwatcher while suspended to prevent signaling a hand
+when resuming after >30s in the background.
+
 ### Removed SbFileAtomicReplace from Starboard API
 Moved `SbFileAtomicReplace` from `starboard/file.h` to `starboard/common/file.h`.
 Platforms no longer need to implement this API.

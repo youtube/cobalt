@@ -18,16 +18,17 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
@@ -71,6 +72,21 @@ public class DisplayUtil {
   public static DisplayDpi getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
     return new DisplayDpi(metrics.xdpi, metrics.ydpi);
+  }
+
+  /** Return supported hdr types. */
+  @CalledByNative
+  @Nullable
+  public static int[] getSupportedHdrTypes() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return null;
+    }
+    Display display = getDefaultDisplay();
+    if (display == null) {
+      return null;
+    }
+    Display.HdrCapabilities hdrCapabilities = display.getHdrCapabilities();
+    return hdrCapabilities != null ? hdrCapabilities.getSupportedHdrTypes() : null;
   }
 
   /** Returns the default display associated with a context. */

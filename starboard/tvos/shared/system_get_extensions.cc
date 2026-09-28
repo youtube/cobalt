@@ -19,10 +19,8 @@
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
-#include "starboard/tvos/shared/media/player_configuration.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -45,12 +43,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionIfaName) == 0) {
     SB_LOG(INFO) << "IFA is not supported via Starboard.";
-    return nullptr;
-  }
-  if (strcmp(name, kStarboardExtensionPlayerConfigurationName) == 0) {
-    // TODO: b/447334535 - This depends on decode to texture mode being
-    // implemented.
-    // return starboard::GetPlayerConfigurationApi();
     return nullptr;
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {

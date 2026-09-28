@@ -50,6 +50,9 @@ class MEDIA_EXPORT SourceBufferState {
   ~SourceBufferState();
 
   void Init(StreamParser::InitCB init_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+            std::string_view mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
             std::optional<std::string_view> expected_codecs,
             const StreamParser::EncryptedMediaInitDataCB&
                 encrypted_media_init_data_cb);
@@ -182,6 +185,14 @@ class MEDIA_EXPORT SourceBufferState {
 
   void SetParseWarningCallback(SourceBufferParseWarningCB parse_warning_cb);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Set and get the current |mime_type_| string for the SourceBuffer.
+  void set_mime_type(std::string_view mime_type) {
+    mime_type_ = std::string(mime_type);
+  }
+  const std::string& mime_type() const { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   // State advances through this list to PARSER_INITIALIZED.
   // The intent is to ensure at least one config is received prior to parser
@@ -298,6 +309,11 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Full mime_type string of the SourceBuffer.
+  std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

@@ -14,8 +14,7 @@
   },
   "targets": [
     "cobalt:gn_all",
-    "loader_app",
-    "loader_app_rdk_plugin",
+    "cobalt/testing/browser_tests:cobalt_browsertests_loader",
     "crash_sandbox_loaded_content",
     "noop_sandbox_loaded_content",
     "one_app_only_sandbox_loaded_content"

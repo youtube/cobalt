@@ -33,7 +33,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
@@ -423,7 +423,8 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   // robustness algorithm).
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string full_mime = container_lower + "; codecs=\"" + codecs + "\"";
-  if (SbMediaCanPlayMimeAndKeySystem(full_mime.c_str(), key_system.c_str()) ==
+  if (::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+          full_mime.c_str(), key_system.c_str()) ==
       kSbMediaSupportTypeNotSupported) {
     LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
               << ") are unsupported.";

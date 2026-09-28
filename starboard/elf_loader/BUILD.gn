@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/config/starboard_executable.gni")
 
 _elf_loader_sources = [
   "dynamic_section.cc",
@@ -67,29 +68,32 @@ static_library("elf_loader") {
   if (current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
   }
+
+  if (use_asan) {
+    sources += [ "dl_iterate_phdr_override.cc" ]
+  }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+  starboard_executable("elf_loader_sandbox") {
     testonly = true
-    output_dir = root_build_dir
-
+    target_type = starboard_level_gtest_target_type
     sources = [ "elf_loader_sandbox.cc" ]
-    configs += [ ":elf_loader_config" ]
+    extra_configs = [ ":elf_loader_config" ]
 
-    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     deps = [
       ":constants",
       ":elf_loader",
       ":evergreen_info",
       ":sabi_string",
       "//starboard:starboard_group",
-      "//starboard/content/fonts:copy_font_data",
     ]
 
     if (is_android) {
       deps += [ "//starboard/android/shared:test_support" ]
+    } else {
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     }
 
     if (is_starboard && use_crashpad) {
@@ -123,6 +127,9 @@ if (current_toolchain == starboard_toolchain) {
         "relocations_test.cc",
         "zstd_file_impl_test.cc",
       ]
+      if (use_asan) {
+        sources += [ "dl_iterate_phdr_override_test.cc" ]
+      }
       deps += [
         ":copy_elf_loader_testdata",
         ":elf_loader",
@@ -134,9 +141,6 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 copy("copy_elf_loader_testdata") {
-  if (enable_install_targets) {
-    install_content = true
-  }
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed.zst",

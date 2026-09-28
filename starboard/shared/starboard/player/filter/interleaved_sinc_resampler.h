@@ -27,6 +27,7 @@
 #include <queue>
 #include <utility>
 
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 
@@ -92,11 +93,15 @@ class InterleavedSincResampler {
   // The kernel size can be adjusted for quality (higher is better) at the
   // expense of performance.  Must be a multiple of 32.
   static const int kKernelSize = 32;
+  static_assert(
+      IsAligned(kKernelSize, 32),
+      "kKernelSize must be a multiple of 32 for easy SSE optimizations.");
 
   // The number of destination frames generated per processing pass.  Affects
   // how often and for how much AudioResampler calls back for input.
   // Must be greater than kKernelSize.
   static const int kBlockSize = 512;
+  static_assert(kBlockSize > kKernelSize);
 
   // The kernel offset count is used for interpolation and is the number of
   // sub-sample kernel shifts.  Can be adjusted for quality (higher is better)

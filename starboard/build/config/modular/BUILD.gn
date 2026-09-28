@@ -78,9 +78,6 @@ config("modular") {
       # Default visibility to hidden, to enable dead stripping.
       "-fvisibility=hidden",
       "-fno-exceptions",
-
-      # Disable usage of frame pointers.
-      "-fomit-frame-pointer",
       "-fno-strict-aliasing",  # See http://crbug.com/32204
       "-fno-use-cxa-atexit",
 

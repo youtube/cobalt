@@ -777,7 +777,12 @@ void PaintArtifactCompositor::Layerizer::LayerizeGroup(
         pending_layers_.pop_back();
         break;
       }
-      if (new_layer.MightOverlap(candidate_layer)) {
+#if BUILDFLAG(IS_COBALT)
+    if (candidate_layer.DrawsContent() &&
+          new_layer.MightOverlap(candidate_layer)) {
+#else  // BUILDFLAG(IS_COBALT)
+    if (new_layer.MightOverlap(candidate_layer)) {
+#endif  // BUILDFLAG(IS_COBALT)
         new_layer.SetCompositingTypeToOverlap();
         break;
       }

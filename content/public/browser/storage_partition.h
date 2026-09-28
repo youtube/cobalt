@@ -393,6 +393,11 @@ class CONTENT_EXPORT StoragePartition {
   static void SetDefaultQuotaSettingsForTesting(
       const storage::QuotaSettings* settings);
 
+#if BUILDFLAG(IS_COBALT)
+  static void SetDefaultCacheQuotaSettingsForTesting(
+      const storage::QuotaSettings* settings);
+#endif
+
   virtual void OverrideDeleteStaleSessionOnlyCookiesDelayForTesting(
       const base::TimeDelta& delay) = 0;
 

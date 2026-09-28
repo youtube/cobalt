@@ -279,10 +279,10 @@ AslrMask(uintptr_t bits) {
   // This is a good range on 32-bit Windows and Android (the only platforms on
   // which we support 32-bitness). Allocates in the 0.5 - 1.5 GiB region. There
   // is no issue with carries here.
-  PA_ALWAYS_INLINE PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR uintptr_t ASLRMask() {
+  PA_ALWAYS_INLINE constexpr uintptr_t ASLRMask() {
     return AslrMask(30);
   }
-  PA_ALWAYS_INLINE PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR uintptr_t ASLROffset() {
+  PA_ALWAYS_INLINE constexpr uintptr_t ASLROffset() {
     return AslrAddress(0x20000000ULL);
   }
 

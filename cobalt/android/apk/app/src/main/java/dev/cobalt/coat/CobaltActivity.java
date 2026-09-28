@@ -16,13 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -40,6 +34,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -59,17 +54,18 @@ import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -79,27 +75,21 @@ import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
-/** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends Activity {
-  private static final String URL_ARG = "--url=";
-  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+/* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
+public abstract class CobaltActivity extends BaseCobaltActivity {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
   private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
-
-  // This key differs in naming format for legacy reasons
-  public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
   private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
-  private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
-  private Map<String, String> mJavaSwitches = new HashMap<>();
+  private final List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList =
+      new ArrayList<>();
+  private final Map<String, String> mJavaSwitches = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
@@ -107,8 +97,6 @@ public abstract class CobaltActivity extends Activity {
   private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
-
-  private long mTimeInNanoseconds;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
@@ -119,7 +107,23 @@ public abstract class CobaltActivity extends Activity {
   private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
+
   private boolean mIsCobaltUsingAndroidOverlay;
+
+  private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
+  private boolean mIsNetworkRecoveryObserverRegistered = false;
+
+  private volatile boolean mHasHiddenSplashScreen = false;
+
+  public boolean hasHiddenSplashScreen() {
+    return mHasHiddenSplashScreen;
+  }
+
+  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
+  private long mLastRetryTimestampMs = 0L;
+
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
 
   private String mStartDeepLink;
 
@@ -142,90 +146,73 @@ public abstract class CobaltActivity extends Activity {
         }
       };
   private boolean mWasDisplayOn = true;
-
-  private Bundle getActivityMetaData() {
-    ComponentName componentName = getIntent().getComponent();
-    if (componentName == null) {
-      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
-      return null;
-    }
-    ActivityInfo ai;
-    try {
-      ai = getPackageManager().getActivityInfo(componentName, PackageManager.GET_META_DATA);
-    } catch (NameNotFoundException e) {
-      Log.e(TAG, "Error getting activity info", e);
-      return null;
-    }
-    if (ai == null) {
-      return null;
-    }
-    return ai.metaData;
-  }
+  private static boolean sIsMemoryPressureInitialized = false;
 
   @VisibleForTesting
-  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
+  static void appendMetaDataArgs(@NonNull List<String> args, @Nullable Bundle metaData) {
     if (metaData == null) {
-      return commandLineArgs;
-    }
-
-    List<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
+      return;
     }
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
     if (!enableSplashScreen) {
-      args.add("--disable-splash-screen");
+      args.add("--enable-features=DisableSplashScreen");
     }
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
     if (TextUtils.isEmpty(enableFeatures)) {
-      return args.toArray(new String[0]);
+      return;
     }
 
     // CommandLineOverrideHelper will merge this with other --enable-features flags
     // It also accepts semi-colon-separated list of features.
     // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
     args.add("--enable-features=" + enableFeatures);
-    return args.toArray(new String[0]);
+  }
+
+  private void appendIntentArgs(@NonNull List<String> args) {
+    if (isReleaseBuild()) {
+      return;
+    }
+
+    String[] intentArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+    if (intentArgs == null) {
+      return;
+    }
+    Collections.addAll(args, intentArgs);
+  }
+
+  @VisibleForTesting
+  @NonNull
+  List<String> getCommandLineArgs() {
+    List<String> args = new ArrayList<>();
+    if (isDevelopmentBuild()) {
+      args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
+    }
+    appendMetaDataArgs(args, getActivityMetaData());
+    args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+    appendIntentArgs(args);
+    return args;
   }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
-    StartupGuard.getInstance().setStartupMilestone(1);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
 
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
-
-      String[] commandLineArgs = null;
-      if (!VersionInfo.isReleaseBuild()) {
-        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
-      }
-      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
-
-      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
-
-      if (!extraCommandLineArgs.isEmpty()) {
-        if (commandLineArgs != null) {
-          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
-        }
-        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
-      }
-
-      CommandLineOverrideHelper.getFlagOverrides(
-          new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
+      CommandLineOverrideHelper.getFlagOverrides(getCommandLineArgs());
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
-    StartupGuard.getInstance().setStartupMilestone(2);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
-    StartupGuard.getInstance().setStartupMilestone(3);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_LIBRARY_LOADER_INIT);
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
@@ -238,16 +225,16 @@ public abstract class CobaltActivity extends Activity {
       mStartDeepLink = "";
     }
 
-    StartupGuard.getInstance().setStartupMilestone(4);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_STARBOARD_BRIDGE_INIT);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
-          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+      if (CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml")) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
+      starboardBridge.onActivityCreate(this);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
       if (savedInstanceState == null) {
@@ -255,7 +242,7 @@ public abstract class CobaltActivity extends Activity {
       }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
-    StartupGuard.getInstance().setStartupMilestone(7);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_STARBOARD_BRIDGE_INIT);
 
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
@@ -272,9 +259,11 @@ public abstract class CobaltActivity extends Activity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
+        mShellManager.getContentViewRenderView().getAnchorView());
     mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getAnchorView());
+
+    maybeRegisterNetworkRecoveryObserver();
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -295,32 +284,53 @@ public abstract class CobaltActivity extends Activity {
       StartupGuard.getInstance().disarm();
     }
 
-    StartupGuard.getInstance().setStartupMilestone(8);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_WINDOW_CONFIGURED);
     // TODO(b/377025559): Bring back WebTests launch capability
-    BrowserStartupController.getInstance()
-        .startBrowserProcessesAsync(
-            LibraryProcessType.PROCESS_BROWSER,
-            false, // Do not start a separate GPU process
-            // TODO(b/377025565): Figure out what this means
-            false, // Do not start in "minimal" or paused mode
-            new BrowserStartupController.StartupCallback() {
-              @Override
-              public void onSuccess() {
-                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
-                // success.
-                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
-                Log.i(TAG, "Browser process init succeeded");
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleStartEvent(
+          getStarboardBridge().getArgs(), mStartDeepLink, mTimeInNanoseconds / 1000L);
+      // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+      // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
+      Log.i(TAG, "Browser process init succeeded");
 
-                finishInitialization(savedInstanceState);
-                getStarboardBridge().measureAppStartTimestamp();
-              }
+      if (isDestroyed() || isFinishing()) {
+        Log.w(TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+        return;
+      }
+      finishInitialization(savedInstanceState);
+    } else {
+      BrowserStartupController.getInstance()
+          .startBrowserProcessesAsync(
+              LibraryProcessType.PROCESS_BROWSER,
+              false, // Do not start a separate GPU process
+              // TODO(b/377025565): Figure out what this means
+              false, // Do not start in "minimal" or paused mode
+              new BrowserStartupController.StartupCallback() {
+                @Override
+                public void onSuccess() {
+                  // NOTE: This log message is hard-coded in smoke tests to detect browser startup
+                  // success.
+                  // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
+                  // suite.
+                  Log.i(TAG, "Browser process init succeeded");
 
-              @Override
-              public void onFailure() {
-                Log.e(TAG, "Browser process init failed");
-                initializationFailed();
-              }
-            });
+                  if (isDestroyed() || isFinishing()) {
+                    Log.w(
+                        TAG, "Activity is finishing or destroyed; skipping finishInitialization.");
+                    return;
+                  }
+
+                  finishInitialization(savedInstanceState);
+                  getStarboardBridge().measureAppStartTimestamp();
+                }
+
+                @Override
+                public void onFailure() {
+                  Log.e(TAG, "Browser process init failed");
+                  initializationFailed();
+                }
+              });
+    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -419,10 +429,6 @@ public abstract class CobaltActivity extends Activity {
     return mLastSentIntent;
   }
 
-  private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
-    return intent != null ? intent.getStringArrayExtra(key) : null;
-  }
-
   /**
    * @return The {@link ShellManager} configured for the activity or null if it has not been created
    *     yet.
@@ -482,22 +488,19 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    // Record the application start timestamp.
-    mTimeInNanoseconds = System.nanoTime();
-
-    // To ensure that volume controls adjust the correct stream, make this call
-    // early in the app's lifecycle. This connects the volume controls to
-    // STREAM_MUSIC whenever the target activity or fragment is visible.
-    setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
     createContent(savedInstanceState);
-    MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
-    MemoryPressureUma.initializeForBrowser();
-    NetworkChangeNotifier.init();
-    NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    if (!NetworkChangeNotifier.isInitialized()) {
+      NetworkChangeNotifier.init();
+      NetworkChangeNotifier.setAutoDetectConnectivityState(true);
+    }
+    if (!sIsMemoryPressureInitialized) {
+      MemoryPressureUma.initializeForBrowser();
+      MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+      sIsMemoryPressureInitialized = true;
+    }
 
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
@@ -507,7 +510,7 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
-    StartupGuard.getInstance().setStartupMilestone(9);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_START);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
@@ -556,17 +559,14 @@ public abstract class CobaltActivity extends Activity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
+  @Override
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
   @Override
   protected void onStart() {
-    DisplayUtil.cacheDefaultDisplay(this);
-    DisplayUtil.addDisplayListener(this);
-    mWasDisplayOn = isDisplayOn();
-    registerDisplayListener();
-    StartupGuard.getInstance().setStartupMilestone(10);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -578,66 +578,99 @@ public abstract class CobaltActivity extends Activity {
       createNewSurfaceView();
     }
 
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
 
-    getStarboardBridge().onActivityStart(this);
+    if (isNvidiaShield()) {
+      mWasDisplayOn = isDisplayOn();
+      registerDisplayListener();
+    }
+
     super.onStart();
 
-    if (mFreezeRunnable != null) {
+    if (isNvidiaShield() && mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
     }
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null
-        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
-            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
-      // document.onresume event
-      webContents.onResume();
+
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleRevealEvent(System.nanoTime() / 1000L);
+    } else {
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null
+          && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+        // document.onresume event
+        webContents.onResume();
+      }
+      // visibility:visible event
+      if (isNvidiaShield()) {
+        updateShellActivityVisible(mWasDisplayOn);
+      } else {
+        updateShellActivityVisible(true);
+      }
     }
-    // visibility:visible event
-    updateShellActivityVisible(mWasDisplayOn);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
-    StartupGuard.getInstance().setStartupMilestone(11);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_PAUSE);
   }
 
   @Override
   protected void onPause() {
     mPhysicalBackKeyPressed = false;
-    CobaltContentBrowserClient.dispatchBlur();
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleBlurEvent(System.nanoTime() / 1000L);
+    } else {
+      CobaltContentBrowserClient.dispatchBlur();
+    }
     super.onPause();
   }
 
   @Override
   protected void onStop() {
-    unregisterDisplayListener();
-    getStarboardBridge().onActivityStop(this);
+    long stopTimestamp = System.nanoTime() / 1000L;
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+    }
     super.onStop();
 
-    // visibility:hidden event
-    updateShellActivityVisible(false);
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
-        if (mFreezeRunnable != null) {
-          mHandler.removeCallbacks(mFreezeRunnable);
-        }
-        mFreezeRunnable =
-            new Runnable() {
-              @Override
-              public void run() {
-                WebContents currentWebContents = getActiveWebContents();
-                if (currentWebContents != null) {
-                  currentWebContents.onFreeze();
-                }
-                mFreezeRunnable = null;
-              }
-            };
-        mHandler.postDelayed(mFreezeRunnable, 1500);
-      } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+    if (useStarboardLifeCycle()) {
+      if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
         // If ENABLE_FREEZE is specified, fire freeze event immediately
-        webContents.onFreeze();
+        AppEventBridge.handleFreezeEvent(stopTimestamp);
+      } else {
+        AppEventBridge.handleConcealEvent(stopTimestamp);
       }
+    } else {
+      // visibility:hidden event
+      updateShellActivityVisible(false);
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null) {
+        if (isNvidiaShield()) {
+          if (mFreezeRunnable != null) {
+            mHandler.removeCallbacks(mFreezeRunnable);
+          }
+          mFreezeRunnable =
+              new Runnable() {
+                @Override
+                public void run() {
+                  WebContents currentWebContents = getActiveWebContents();
+                  if (currentWebContents != null) {
+                    currentWebContents.onFreeze();
+                  }
+                  mFreezeRunnable = null;
+                }
+              };
+          mHandler.postDelayed(mFreezeRunnable, 1500);
+        } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+          // If ENABLE_FREEZE is specified, fire freeze event immediately
+          webContents.onFreeze();
+        }
+      }
+    }
+
+    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -653,48 +686,180 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    StartupGuard.getInstance().setStartupMilestone(12);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
+    checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
-    CobaltContentBrowserClient.dispatchFocus();
-    StartupGuard.getInstance().setStartupMilestone(13);
+    if (useStarboardLifeCycle()) {
+      AppEventBridge.handleFocusEvent(System.nanoTime() / 1000L);
+    } else {
+      CobaltContentBrowserClient.dispatchFocus();
+    }
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
   }
 
   @Override
   protected void onDestroy() {
-    unregisterDisplayListener();
-    if (mFreezeRunnable != null) {
-      mHandler.removeCallbacks(mFreezeRunnable);
-      mFreezeRunnable = null;
+    unregisterNetworkRecoveryObserver();
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+      if (mFreezeRunnable != null) {
+        mHandler.removeCallbacks(mFreezeRunnable);
+        mFreezeRunnable = null;
+      }
     }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
-    mWindowAndroid.destroy();
+    if (mWindowAndroid != null) {
+      mWindowAndroid.destroy();
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
     }
     super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
   }
 
-  @Override
-  public boolean onSearchRequested() {
-    return getStarboardBridge().onSearchRequested();
+  public void onSplashScreenHidden() {
+    mHasHiddenSplashScreen = true;
+    unregisterNetworkRecoveryObserver();
   }
 
-  /** Returns true if the argument list contains an arg starting with argName. */
-  private static boolean hasArg(List<String> args, String argName) {
-    for (String arg : args) {
-      if (arg.startsWith(argName)) {
-        return true;
+  private void maybeRegisterNetworkRecoveryObserver() {
+    if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
+      return;
+    }
+    if (mNetworkRecoveryObserver == null) {
+      mNetworkRecoveryObserver =
+          new NetworkChangeNotifier.ConnectionTypeObserver() {
+            @Override
+            public void onConnectionTypeChanged(int connectionType) {
+              checkAndRetryOnNetworkOnline();
+            }
+          };
+    }
+    NetworkChangeNotifier.init();
+    NetworkChangeNotifier.addConnectionTypeObserver(mNetworkRecoveryObserver);
+    mIsNetworkRecoveryObserverRegistered = true;
+  }
+
+  private void unregisterNetworkRecoveryObserver() {
+    if (!mIsNetworkRecoveryObserverRegistered || mNetworkRecoveryObserver == null) {
+      return;
+    }
+    mIsNetworkRecoveryObserverRegistered = false;
+    NetworkChangeNotifier.removeConnectionTypeObserver(mNetworkRecoveryObserver);
+  }
+
+  public void checkAndRetryOnNetworkOnline() {
+    if (mHasHiddenSplashScreen) {
+      unregisterNetworkRecoveryObserver();
+      return;
+    }
+    if (!NetworkChangeNotifier.isOnline()) {
+      return;
+    }
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null && webContents.isLoading()) {
+      return;
+    }
+
+    long now = SystemClock.elapsedRealtime();
+    if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
+      // Avoid Network Flapping Retry Storms
+      return;
+    }
+    mLastRetryTimestampMs = now;
+
+    StarboardBridge bridge = getStarboardBridge();
+    if (bridge != null && bridge.getPlatformError() != null) {
+      Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
+      bridge.getPlatformError().retry();
+    } else {
+      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
+      reloadUrl(null);
+    }
+  }
+
+  /** Performs reload of the target/current URL or active WebContents. */
+  public void reloadUrl(@Nullable String targetUrl) {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      mHandler.post(() -> reloadUrl(targetUrl));
+      return;
+    }
+
+    WebContents webContents = getActiveWebContents();
+    String currentUrl = targetUrl != null ? targetUrl : "";
+    if (currentUrl.isEmpty() && webContents != null && webContents.getVisibleUrl() != null) {
+      Log.i(TAG, "No URL provided, using visible URL");
+      currentUrl = webContents.getVisibleUrl().getSpec();
+    }
+
+    if ((currentUrl.isEmpty() || "about:blank".equals(currentUrl))
+        && !TextUtils.isEmpty(mStartupUrl)) {
+      Log.i(TAG, "URL is blank or empty, falling back to startup URL: " + mStartupUrl);
+      currentUrl = mStartupUrl;
+    }
+
+    int retryCount = sRetryCount.incrementAndGet();
+
+    if (currentUrl.isEmpty()) {
+      if (webContents != null) {
+        Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
+        webContents.getNavigationController().reload(/* checkForRepost= */ true);
+      }
+    } else {
+      if (getActiveShell() != null) {
+        getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
       }
     }
-    return false;
+  }
+
+  /**
+   * Adds a retry param to the URL if not already present to differentiate bootstrap requests that
+   * originate from a network dialog retry. Note: Uri.Builder handles appending query parameters
+   * before the fragment (hash) correctly.
+   */
+  @VisibleForTesting
+  static String addRetryUrlParam(String url, int count) {
+    Uri parsedUri = Uri.parse(url);
+    if (!parsedUri.isHierarchical()) {
+      return url;
+    }
+    Uri.Builder uriBuilder = parsedUri.buildUpon();
+
+    uriBuilder.query(null);
+    boolean retryParamAdded = false;
+
+    for (String key : parsedUri.getQueryParameterNames()) {
+      if (RETRY_PARAM_KEY.equals(key)) {
+        if (!retryParamAdded) {
+          uriBuilder.appendQueryParameter(key, String.valueOf(count));
+          retryParamAdded = true;
+        }
+      } else {
+        for (String value : parsedUri.getQueryParameters(key)) {
+          uriBuilder.appendQueryParameter(key, value);
+        }
+      }
+    }
+
+    if (!retryParamAdded) {
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
+    }
+
+    String result = uriBuilder.build().toString();
+    Log.i(TAG, "Reloading URL with retry param: " + result);
+    return result;
+  }
+
+  @VisibleForTesting
+  static void resetRetryCount() {
+    sRetryCount.set(0);
   }
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
@@ -702,97 +867,11 @@ public abstract class CobaltActivity extends Activity {
     return this.mJavaSwitches;
   }
 
-  /**
-   * Get argv/argc style args, if any from intent extras. Returns empty array if there are none
-   *
-   * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
-   * dev.cobalt.coat/dev.cobalt.app.MainActivity
-   */
-  protected String[] getArgs() {
-    String[] commandLineArgs = null;
-    Intent intent = getIntent();
-    if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
-    }
-    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
-  }
-
-  @VisibleForTesting
-  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
-    ArrayList<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
-    }
-
-    // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    if (!hasArg(args, URL_ARG) && metaData != null) {
-      String url = metaData.getString(META_DATA_APP_URL);
-      if (url != null) {
-        args.add(URL_ARG + url);
-      }
-    }
-
-    CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
-    if (urlParams != null) {
-      appendUrlParamsToUrl(args, urlParams);
-    }
-
-    return args.toArray(new String[0]);
-  }
-
-  @VisibleForTesting
-  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
-    int idx = -1;
-    for (int i = 0; i < args.size(); i++) {
-      if (args.get(i).startsWith(URL_ARG)) {
-        idx = i;
-        break;
-      }
-    }
-
-    if (idx >= 0) {
-      StringBuilder urlBuilder = new StringBuilder();
-      urlBuilder.append(args.get(idx));
-      // append & if ? is already in the url, otherwise append ?
-      if (urlBuilder.indexOf("?") > 0) {
-        urlBuilder.append("&");
-      } else {
-        urlBuilder.append("?");
-      }
-
-      for (int j = 0; j < urlParams.length; j++) {
-        // sanitize the input before append to the url.
-        String paramKeyValuePair = urlParams[j].toString();
-        if (URL_PARAM_PATTERN.matcher(paramKeyValuePair).matches()) {
-          urlBuilder.append(paramKeyValuePair);
-          urlBuilder.append('&');
-        }
-      }
-
-      urlBuilder.deleteCharAt(urlBuilder.length() - 1);
-      args.set(idx, urlBuilder.toString());
-    }
-  }
-
-  protected boolean isReleaseBuild() {
-    return StarboardBridge.isReleaseBuild();
-  }
-
-  protected boolean isDevelopmentBuild() {
-    return StarboardBridge.isDevelopmentBuild();
-  }
-
   @Override
-  protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
-  }
-
-  /**
-   * Returns the URL from an Intent as a string. This may be overridden for additional processing.
-   */
-  protected String getIntentUrlAsString(Intent intent) {
-    Uri intentUri = intent.getData();
-    return (intentUri == null) ? "" : intentUri.toString();
+  public boolean useStarboardLifeCycle() {
+    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)
+        || (CommandLine.isInitialized()
+            && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
   }
 
   @Override
@@ -829,8 +908,8 @@ public abstract class CobaltActivity extends Activity {
             LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
             // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams) {
-              ((FrameLayout.LayoutParams) layoutParams).setMargins(x, y, x + width, y + height);
+            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
+              frameLayoutParams.setMargins(x, y, x + width, y + height);
             } else {
               Log.w(
                   TAG,
@@ -854,8 +933,7 @@ public abstract class CobaltActivity extends Activity {
       return;
     }
     ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout) {
-      FrameLayout frameLayout = (FrameLayout) parent;
+    if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);
       frameLayout.removeView(mVideoSurfaceView);
       Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
@@ -869,10 +947,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  public long getAppStartTimestamp() {
-    return mTimeInNanoseconds;
   }
 
   public void evaluateJavaScript(String jsCode) {
@@ -914,6 +988,12 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
+  private static boolean isNvidiaShield() {
+    return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
+        || "NVIDIA".equalsIgnoreCase(Build.BRAND)
+        || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));
+  }
+
   private boolean isDisplayOn() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {
@@ -935,7 +1015,9 @@ public abstract class CobaltActivity extends Activity {
     if (isDisplayOn != mWasDisplayOn) {
       mWasDisplayOn = isDisplayOn;
       Log.i(TAG, "Display state changed: isDisplayOn = " + isDisplayOn);
-      updateShellActivityVisible(isDisplayOn);
+      if (!useStarboardLifeCycle()) {
+        updateShellActivityVisible(isDisplayOn);
+      }
     }
   }
 

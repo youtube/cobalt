@@ -16,10 +16,14 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <variant>
 
+#include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -33,10 +37,10 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
-#include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -45,6 +49,13 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#include "cobalt/internal/cobalt/components/cdm/renderer/starboard/platform_drm_key_system_info.h"
+#endif  // defined(COBALT_INTERNAL_BUILD)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 
@@ -216,10 +227,14 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -256,13 +271,22 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  key_system_infos->push_back(std::make_unique<cdm::PlatformDrmKeySystemInfo>(
+      codecs,                                        // Regular codecs.
+      kEncryptionSchemes,                            // Encryption schemes.
+      codecs,                                        // Hardware secure codecs.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                     // identifier.
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
@@ -271,11 +295,11 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -285,11 +309,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -340,15 +364,21 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   }
   renderer_factory_traits->experimental_features = experimental_features;
 
-  // For experimental purposes, we check both command-line feature flags and
-  // H5vcc settings here so web apps can toggle external memory pooling
-  // dynamically. Once this feature is finalized and enabled by default, this
-  // initialization should be moved back to
+  // The feature is enabled by default; H5vcc settings still take precedence
+  // when the web app explicitly sets the key, so external memory pooling can
+  // be toggled dynamically (e.g. for a holdback experiment). When the key is
+  // unset, fall back to the command-line/default feature state.
+  // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
+  // initialization back to
   // CobaltContentRendererClient::RenderThreadStarted().
+  // The external memory pool routes allocations to DecoderBufferAllocator;
+  // disable it when DecoderBufferAllocator is disabled for PartitionAlloc.
   const bool enable_external_pool =
-      base::FeatureList::IsEnabled(
-          ::media::kCobaltUseExternalMediaMemoryPool) ||
-      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
+      !base::FeatureList::IsEnabled(
+          ::media::kCobaltDisableDecoderBufferAllocator) &&
+      experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
+          .value_or(base::FeatureList::IsEnabled(
+              ::media::kCobaltUseExternalMediaMemoryPool));
   {
     base::AutoLock scoped_lock(media_allocator_lock_);
     is_external_memory_pool_enabled_ = enable_external_pool;
@@ -363,13 +393,33 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
   CHECK(content::RenderThread::IsMainThread());
 
   // Register the current thread (which is the InProcessRendererThread in
-  // single- process mode) for hang watching. Store the ScopedClosureRunner to
-  // keep the registration active until this client object is destroyed.
+  // single-process mode) for hang watching. HangWatcher is a leaky singleton,
+  // and InProcessRendererThread runs for the duration of the web application.
+  // Release the ScopedClosureRunner instead of storing it on
+  // CobaltContentRendererClient (which is destroyed on the main thread during
+  // shutdown), and avoid thread_local ScopedClosureRunner which pulls in
+  // __cxa_thread_atexit_impl (an illegal API leak in Evergreen).
   if (base::HangWatcher::IsEnabled() && base::HangWatcher::GetInstance()) {
     // Use kRendererThread as the type for this in-process renderer thread.
-    unregister_thread_closure = base::HangWatcher::RegisterThread(
-        base::HangWatcher::ThreadType::kRendererThread);
+    base::ScopedClosureRunner unregister_thread_closure =
+        base::HangWatcher::RegisterThread(
+            base::HangWatcher::ThreadType::kRendererThread);
+    std::ignore = unregister_thread_closure.Release();
   }
+}
+
+std::unique_ptr<::media::Demuxer>
+CobaltContentRendererClient::OverrideDemuxerForUrl(
+    content::RenderFrame* render_frame,
+    const GURL& url,
+    scoped_refptr<base::SequencedTaskRunner> task_runner) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (::media::IsHlsUrl(url)) {
+    return std::make_unique<::media::UrlPlayerDemuxer>(std::move(task_runner),
+                                                       url);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  return nullptr;
 }
 
 }  // namespace cobalt

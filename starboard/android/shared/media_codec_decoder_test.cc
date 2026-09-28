@@ -37,7 +37,9 @@ class MockHost : public MediaCodecDecoder::Host {
  public:
   MOCK_METHOD(void,
               ProcessOutputBuffer,
-              (MediaCodec * media_codec, const DequeueOutputResult& output),
+              (MediaCodec * media_codec,
+               const DequeueOutputResult& output,
+               int number_of_pending_inputs),
               (override));
   MOCK_METHOD(void,
               OnEndOfStreamWritten,
@@ -148,16 +150,16 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   bool output_processed = false;
   DequeueOutputResult processed_output;
 
-  EXPECT_CALL(host_, ProcessOutputBuffer(_, _))
-      .WillOnce(
-          Invoke([&](MediaCodec* codec, const DequeueOutputResult& output) {
-            std::lock_guard lock(output_mutex);
-            output_processed = true;
-            processed_output = output;
-            // Test code usually releases output buffer
-            codec->ReleaseOutputBuffer(output.index, false);
-            output_cv.notify_all();
-          }));
+  EXPECT_CALL(host_, ProcessOutputBuffer(_, _, _))
+      .WillOnce(Invoke([&](MediaCodec* codec, const DequeueOutputResult& output,
+                           int number_of_pending_inputs) {
+        std::lock_guard lock(output_mutex);
+        output_processed = true;
+        processed_output = output;
+        // Test code usually releases output buffer
+        codec->ReleaseOutputBuffer(output.index, false);
+        output_cv.notify_all();
+      }));
 
   fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 512);
 

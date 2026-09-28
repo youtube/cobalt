@@ -15,11 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
 #define STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
 
-#include <functional>
 #include <iosfwd>
 #include <map>
 #include <mutex>
-#include <string>
 
 #include "starboard/common/size.h"
 #include "starboard/media.h"
@@ -50,8 +48,6 @@ class MaxMediaCodecOutputBuffersLookupTable {
 
   int GetMaxOutputVideoBuffers(const VideoOutputFormat& format) const;
 
-  void SetEnabled(bool enable);
-
   void UpdateMaxOutputBuffers(const VideoOutputFormat& format,
                               int max_num_of_frames);
 
@@ -60,8 +56,6 @@ class MaxMediaCodecOutputBuffersLookupTable {
       const MaxMediaCodecOutputBuffersLookupTable& table);
 
  private:
-  bool enable_ = true;
-
   mutable std::mutex mutex_;
   std::map<VideoOutputFormat, int> lookup_table_;
 };

@@ -953,11 +953,6 @@
       status: "stable",
     },
     {
-      // Cobalt comment: guards Cobalt's friendly name web API.
-      name: "CobaltFriendlyName",
-      status: "test",
-    },
-    {
       name: "CoepReflection",
       status: "test",
     },

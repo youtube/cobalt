@@ -28,8 +28,10 @@ import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
@@ -47,22 +49,40 @@ public class AudioTrackBridge {
   // mRawAudioTimestamp is used to retrieve the timestamp directly from android.media.AudioTrack.
   // mAudioTimestamp is a wrapper that ensures the framePosition is monotonically increasing
   // before it is passed to the native side.
-  private android.media.AudioTimestamp mRawAudioTimestamp = new android.media.AudioTimestamp();
-  private AudioTimestamp mAudioTimestamp = new AudioTimestamp(0, 0);
+  private final android.media.AudioTimestamp mRawAudioTimestamp =
+      new android.media.AudioTimestamp();
+  private final AudioTimestamp mAudioTimestamp = new AudioTimestamp(0, 0);
 
   private final Object mPositionLock = new Object();
+
   @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
 
   private final boolean mTunnelModeEnabled;
+  private final int mSampleType;
   // The following variables are used only when |tunnelModeEnabled| is true.
   private ByteBuffer mAvSyncHeader;
   private int mAvSyncPacketBytesRemaining;
+
+  private final AtomicInteger mAudioDeviceChange = new AtomicInteger(AudioDeviceChange.NONE);
+
+  public void onAudioDeviceChanged(@AudioDeviceChange int change) {
+    mAudioDeviceChange.accumulateAndGet(change, Math::max);
+  }
+
+  @CalledByNative
+  private @JniType("starboard::AudioDeviceChange") int getAndResetAudioDeviceChange() {
+    return mAudioDeviceChange.getAndSet(AudioDeviceChange.NONE);
+  }
 
   // Pre-allocated byte[] or float[] shared with C++ via getPreAllocatedAudioDataAs*Array() to avoid
   // allocation on every WriteSample(). C++ writes directly to this array,
   // which is then passed back to Java write*() methods.
   private Object mPreAllocatedAudioData;
+
+  public int getSampleType() {
+    return mSampleType;
+  }
 
   private static int getBytesPerSample(int audioFormat) {
     switch (audioFormat) {
@@ -86,7 +106,8 @@ public class AudioTrackBridge {
       case AudioFormat.ENCODING_E_AC3:
         return new byte[maxSamplesPerWrite];
       default:
-        // Throwing RuntimeException crashes the app, which is intended since the invariant is broken.
+        // Throwing RuntimeException crashes the app, which is intended since the invariant is
+        // broken.
         throw new IllegalArgumentException("Unsupported sample type: " + sampleType);
     }
   }
@@ -100,6 +121,7 @@ public class AudioTrackBridge {
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
+    mSampleType = sampleType;
 
     mTunnelModeEnabled = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     int channelConfig;
@@ -378,7 +400,8 @@ public class AudioTrackBridge {
   }
 
   @CalledByNative
-  private int writeWithPresentationTime(byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
+  private int writeWithPresentationTime(
+      byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
@@ -430,7 +453,8 @@ public class AudioTrackBridge {
 
     if (mAvSyncHeader.remaining() > 0) {
       int ret =
-          mAudioTrack.write(mAvSyncHeader, mAvSyncHeader.remaining(), AudioTrack.WRITE_NON_BLOCKING);
+          mAudioTrack.write(
+              mAvSyncHeader, mAvSyncHeader.remaining(), AudioTrack.WRITE_NON_BLOCKING);
       if (ret < 0) {
         mAvSyncPacketBytesRemaining = 0;
         return ret;
@@ -533,8 +557,6 @@ public class AudioTrackBridge {
       mFramePosition = framePosition;
       mNanoTime = nanoTime;
     }
-
-
 
     @CalledByNative("AudioTimestamp")
     public long getFramePosition() {

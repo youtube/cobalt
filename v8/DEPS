@@ -521,7 +521,7 @@ deps = {
       },
     ],
   },
-  'third_party/siso': {
+  'third_party/siso/cipd': {
     'packages': [
       {
         'package': 'infra/build/siso/${{platform}}',
@@ -576,6 +576,12 @@ include_rules = [
   '-absl/types/any.h', # Requires RTTI.
   '-absl/types/flags', # Requires RTTI.
 ]
+
+specific_include_rules = {
+  "v8-inspector.h": [
+    "+cppgc/garbage-collected.h",
+  ],
+}
 
 # checkdeps.py shouldn't check for includes in these directories:
 skip_child_includes = [

@@ -194,8 +194,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
           mastering_metadata.white_point_chromaticity_x,
           mastering_metadata.white_point_chromaticity_y,
           mastering_metadata.luminance_max, mastering_metadata.luminance_min,
-          color_metadata->max_cll, color_metadata->max_fall,
-          platform_options.force_big_endian_hdr_metadata));
+          color_metadata->max_cll, color_metadata->max_fall));
     }
   }
 
@@ -217,7 +216,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
       platform_options.enable_frame_renderer_listener,
       platform_options.skip_video_frames_over_60_fps,
       platform_options.ignore_mediacodec_callbacks_during_flushing,
-      platform_options.enable_low_latency, j_create_media_codec_bridge_result);
+      j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(

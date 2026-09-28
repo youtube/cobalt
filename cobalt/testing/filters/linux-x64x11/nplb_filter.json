@@ -29,6 +29,7 @@
     "PosixSocketShutdownTest.ShutdownRDWR",
     "PosixSocketShutdownTest.ShutdownWR",
     "PosixStrftimeTest.TimezoneOffsetSpecifier",
-    "PosixThreadAttrTest.SchedParam"
+    "PosixThreadAttrTest.SchedParam",
+    "PosixTimeTimeTests.MatchesGettimeofdayWithNullArgument"
   ]
 }

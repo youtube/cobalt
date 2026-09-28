@@ -411,10 +411,29 @@ void GLContextEGL::Destroy() {
   ReleaseBackpressureFences();
   OnContextWillDestroy();
   if (context_) {
+#if BUILDFLAG(IS_COBALT)
+    // Unbind the context from the calling thread before destroying it so that
+    // the driver or ANGLE immediately releases the thread context binding.
+    if (IsCurrent(nullptr) || eglGetCurrentContext() == context_) {
+      SetCurrent(nullptr);
+      if (gl_display_ && gl_display_->IsInitialized() &&
+          gl_display_->IsEGLSurfacelessContextSupported()) {
+        eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
+                       EGL_NO_CONTEXT);
+      }
+    }
+    if (gl_display_ && gl_display_->IsInitialized()) {
+      if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
+        LOG(ERROR) << "eglDestroyContext failed with error "
+                   << GetLastEGLErrorString();
+      }
+    }
+#else
     if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
       LOG(ERROR) << "eglDestroyContext failed with error "
                  << GetLastEGLErrorString();
     }
+#endif
 
     context_ = nullptr;
   }
@@ -510,7 +529,14 @@ void GLContextEGL::ReleaseBackpressureFences() {
 }
 
 bool GLContextEGL::MakeCurrentImpl(GLSurface* surface) {
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, context_ can be explicitly destroyed upon context loss during
+  // background suspend while wrapper references remain active.
+  if (!context_)
+    return false;
+#else
   DCHECK(context_);
+#endif
   if (lost_) {
     LOG(ERROR) << "Failed to make context current since it is marked as lost";
     return false;
@@ -526,6 +552,13 @@ bool GLContextEGL::MakeCurrentImpl(GLSurface* surface) {
   if (unbind_fbo_on_makecurrent_ && GetCurrent()) {
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (!gl_display_ || !gl_display_->IsInitialized()) {
+    LOG(WARNING) << "Failed to make context current: display is not initialized";
+    return false;
+  }
+#endif
 
   if (!eglMakeCurrent(gl_display_->GetDisplay(), surface->GetHandle(),
                       surface->GetHandle(), context_)) {
@@ -561,20 +594,38 @@ void GLContextEGL::ReleaseCurrent(GLSurface* surface) {
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 
   SetCurrent(nullptr);
+#if BUILDFLAG(IS_COBALT)
+  if (gl_display_ && gl_display_->IsInitialized()) {
+    if (!eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
+                        EGL_NO_CONTEXT)) {
+      LOG(ERROR) << "eglMakeCurrent failed to release current with error "
+                 << GetLastEGLErrorString();
+      lost_ = true;
+    }
+  }
+#else
   if (!eglMakeCurrent(gl_display_->GetDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE,
                       EGL_NO_CONTEXT)) {
     LOG(ERROR) << "eglMakeCurrent failed to release current with error "
                << GetLastEGLErrorString();
     lost_ = true;
   }
+#endif
 
   DCHECK(!IsCurrent(nullptr));
 }
 
 bool GLContextEGL::IsCurrent(GLSurface* surface) {
+#if BUILDFLAG(IS_COBALT)
+  // Dependent surfaces and presentation helpers may check if their context is
+  // current during teardown after context_ has already been destroyed.
+  if (!context_ || lost_)
+    return false;
+#else
   DCHECK(context_);
   if (lost_)
     return false;
+#endif
 
   bool native_context_is_current = context_ == eglGetCurrentContext();
 

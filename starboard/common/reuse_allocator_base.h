@@ -46,12 +46,20 @@ class ReuseAllocatorBase : public Allocator {
   // suspend).
   void DecommitAllDecommitableBlocks();
 
+  // Attempts to decommit a single pending idle block, amortized by `cadence`.
+  // When `cadence == 1`, it immediately decommits a pending block.
+  void TryToDecommitOneBlock(int cadence);
+
  protected:
+  // TODO(b/454441375): Refactor positional boolean parameters into an Options
+  // struct to prevent argument ordering mistakes.
   ReuseAllocatorBase(Allocator* fallback_allocator,
                      size_t max_capacity,
                      size_t retain_blocks,
                      size_t conservative_decommit_blocks,
-                     bool aggressive_decommit_on_suspend = false);
+                     bool aggressive_decommit_on_suspend,
+                     bool memset_on_reclaim,
+                     bool mark_as_cold_on_reclaim);
   ~ReuseAllocatorBase() override;
 
   bool CapacityExceeded() const {
@@ -73,9 +81,6 @@ class ReuseAllocatorBase : public Allocator {
 
   // Reclaims all backing allocations to the base idle pool (subclass-driven).
   void ReclaimFallbackBlocks();
-
-  // Step counter to amortize decommits across sequential active allocations.
-  void TryToDecommitOneBlock();
 
   // Enumerates fallback backing allocations. Templated to allow zero-cost
   // compiler inlining for capturing lambdas and avoid std::function overhead.
@@ -129,6 +134,12 @@ class ReuseAllocatorBase : public Allocator {
   // Whether to aggressively decommit all idle blocks on app suspend.
   const bool aggressive_decommit_on_suspend_ = false;
 
+  // Whether to memset fallback memory blocks to 0 when reclaimed.
+  const bool memset_on_reclaim_ = false;
+
+  // Whether to mark fallback memory blocks cold (MADV_COLD) when reclaimed.
+  const bool mark_as_cold_on_reclaim_ = false;
+
   // A list of all backing memory blocks allocated from the fallback allocator.
   // We keep track of this so we can decommit on idle and free them upon
   // destruction.
@@ -138,8 +149,8 @@ class ReuseAllocatorBase : public Allocator {
   // allocator.
   size_t capacity_ = 0;
 
-  // Counter to amortize decommits over multiple allocations.
-  size_t allocation_counter_ = 0;
+  // Counter to amortize decommits over multiple allocation attempts.
+  size_t block_decommit_attempt_count_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.
   bool has_pending_decommits_ = false;

@@ -365,6 +365,12 @@ test("nplb") {
 
   deps += cobalt_platform_dependencies
 
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
+
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }
@@ -374,6 +380,11 @@ test("nplb") {
   }
 
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
+
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//cobalt/common/icu_init" ]
+    data_deps += [ "//third_party/icu:icudata" ]
+  }
 
   if (is_starboard) {
     sources += [
@@ -387,7 +398,10 @@ test("nplb") {
     ]
 
     if (use_evergreen) {
-      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+      sources += [
+        "nplb_evergreen_compat_tests/crashpad_config_test.cc",
+        "nplb_evergreen_compat_tests/native_stability_test.cc",
+      ]
     }
 
     data_deps += [
@@ -400,5 +414,6 @@ test("nplb") {
 
   if (is_ios && target_platform == "tvos" && is_internal_build) {
     sources += internal_tvos_test_sources
+    deps += [ "//cobalt/internal/third_party/platform_drm:headers" ]
   }
 }

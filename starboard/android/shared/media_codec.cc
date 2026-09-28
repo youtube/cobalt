@@ -197,13 +197,10 @@ std::ostream& operator<<(std::ostream& os,
             << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
             << ToString(options.enable_frame_renderer_listener)
-            << ", enable_low_latency=" << ToString(options.enable_low_latency)
             << ", require_secured_decoder="
             << ToString(options.require_secured_decoder)
             << ", require_software_codec="
             << ToString(options.require_software_codec)
-            << ", force_big_endian_hdr_metadata="
-            << ToString(options.force_big_endian_hdr_metadata)
             << ", tunnel_mode_audio_session_id="
             << ToString(options.tunnel_mode_audio_session_id) << "}";
 }

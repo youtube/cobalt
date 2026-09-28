@@ -15,6 +15,8 @@
 #include "cobalt/shell/common/shell_switches.h"
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "cobalt/browser/features.h"
 
 namespace switches {
 
@@ -28,20 +30,11 @@ const char kContentShellUserDataDir[] = "user-data-dir";
 // The directory breakpad should store minidumps in.
 const char kCrashDumpsDir[] = "crash-dumps-dir";
 
-// Disables showing splash screen.
-const char kDisableSplashScreen[] = "disable-splash-screen";
-
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
 
 // Size for the content_shell's host window (i.e. "800x600").
 const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
-
-// Hides toolbar from content_shell's host window.
-const char kContentShellHideToolbar[] = "content-shell-hide-toolbar";
-
-// Forces the display of a video as the splash screen.
-const char kForceVideoSplashScreen[] = "force-video-splash-screen";
 
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
@@ -65,9 +58,13 @@ const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
 
 bool ShouldCreateSplashScreen() {
-  const base::CommandLine* command_line =
-      base::CommandLine::ForCurrentProcess();
-  return !command_line->HasSwitch(kDisableSplashScreen);
+  // If the FeatureList isn't available yet, fall back to the feature's default
+  // state. This may happen during early startup.
+  if (!base::FeatureList::GetInstance()) {
+    return cobalt::features::kDisableSplashScreen.default_state ==
+           base::FEATURE_DISABLED_BY_DEFAULT;
+  }
+  return !base::FeatureList::IsEnabled(cobalt::features::kDisableSplashScreen);
 }
 
 }  // namespace switches

@@ -95,6 +95,7 @@ struct ProcessMemoryInfo {
 
 #if BUILDFLAG(IS_COBALT)
   uint64_t vm_size_bytes = 0;
+  uint64_t vm_hwm_bytes = 0;
 #endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)

@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,6 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
 #include "starboard/event.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 
@@ -49,7 +49,7 @@ class AppEventRunner {
   virtual void InitializeSystem() = 0;
 
   // Creates the main delegate for the content process.
-  virtual void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+  virtual void CreateMainDelegate(std::optional<int64_t> startup_timestamp,
                                   bool is_visible,
                                   const char* initial_deep_link) = 0;
 

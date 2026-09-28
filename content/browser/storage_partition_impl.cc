@@ -52,12 +52,12 @@
 #endif
 #include "components/services/storage/storage_service_impl.h"
 #include "components/variations/net/variations_http_headers.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -101,8 +101,10 @@
 #include "content/browser/notifications/platform_notification_context_impl.h"
 #include "content/browser/payments/payment_app_context_impl.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/private_aggregation/private_aggregation_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/push_messaging/push_messaging_context.h"
 #include "content/browser/quota/quota_context.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -203,6 +205,9 @@ namespace {
 using Type = StoragePartitionImpl::ContextType;
 
 const storage::QuotaSettings* g_test_quota_settings;
+#if BUILDFLAG(IS_COBALT)
+const storage::QuotaSettings* g_test_cache_quota_settings;
+#endif
 
 // Timeout after which the
 // History.ClearBrowsingData.Duration.SlowTasks180sStoragePartition histogram is
@@ -918,6 +923,9 @@ class StoragePartitionImpl::DataDeletionHelper {
       const base::FilePath& path,
       DOMStorageContextWrapper* dom_storage_context,
       storage::QuotaManager* quota_manager,
+#if BUILDFLAG(IS_COBALT)
+      storage::QuotaManager* cache_quota_manager,
+#endif
       storage::SpecialStoragePolicy* special_storage_policy,
       storage::FileSystemContext* filesystem_context,
       network::mojom::CookieManager* cookie_manager,
@@ -1390,8 +1398,32 @@ void StoragePartitionImpl::Initialize(
           ChromeBlobStorageContext::GetRemoteFor(browser_context_),
           std::move(file_system_access_context), GetIOThreadTaskRunner({}));
 
+  base::FilePath cache_storage_path = path;
+#if BUILDFLAG(IS_COBALT)
+  if (!is_in_memory()) {
+    base::FilePath custom_cache_path =
+        GetContentClient()->browser()->GetCacheStoragePath(
+            browser_context_, partition_path_, relative_partition_path_);
+    if (!custom_cache_path.empty()) {
+      cache_storage_path = custom_cache_path;
+      cache_quota_context_ = base::MakeRefCounted<QuotaContext>(
+          is_in_memory(), cache_storage_path,
+          browser_context_->GetSpecialStoragePolicy(),
+          base::BindRepeating(&StoragePartitionImpl::GetCacheQuotaSettings,
+                              weak_factory_.GetWeakPtr()));
+      cache_quota_manager_ = cache_quota_context_->quota_manager();
+      quota_manager_proxy = cache_quota_manager_->proxy();
+      if (storage_notification_service) {
+        cache_quota_manager_->SetStoragePressureCallback(
+            storage_notification_service
+                ->CreateThreadSafePressureNotificationCallback());
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   cache_storage_control_wrapper_ = std::make_unique<CacheStorageControlWrapper>(
-      GetIOThreadTaskRunner({}), path,
+      GetIOThreadTaskRunner({}), cache_storage_path,
       browser_context_->GetSpecialStoragePolicy(), quota_manager_proxy,
       ChromeBlobStorageContext::GetRemoteFor(browser_context_));
 
@@ -1552,8 +1584,10 @@ void StoragePartitionImpl::Initialize(
 
   font_access_manager_ = FontAccessManager::Create();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   aggregation_service_ =
       std::make_unique<AggregationServiceImpl>(is_in_memory(), path, this);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   if (is_in_memory()) {
@@ -1577,13 +1611,13 @@ void StoragePartitionImpl::Initialize(
     shared_storage_header_observer_ =
         std::make_unique<SharedStorageHeaderObserver>(this);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi)) {
     private_aggregation_manager_ =
         std::make_unique<PrivateAggregationManagerImpl>(is_in_memory(), path,
                                                         this);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StoragePartitionImpl::OnStorageServiceDisconnected() {
@@ -1743,6 +1777,13 @@ QuotaContext* StoragePartitionImpl::GetQuotaContext() {
   DCHECK(initialized_);
   return quota_context_.get();
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool StoragePartitionImpl::HasSplitQuota() {
+  DCHECK(initialized_);
+  return cache_quota_context_ != nullptr;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 storage::mojom::CacheStorageControl*
 StoragePartitionImpl::GetCacheStorageControl() {
@@ -1940,7 +1981,11 @@ ContentIndexContextImpl* StoragePartitionImpl::GetContentIndexContext() {
 
 AggregationService* StoragePartitionImpl::GetAggregationService() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return aggregation_service_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 leveldb_proto::ProtoDatabaseProvider*
@@ -1975,13 +2020,21 @@ storage::SharedStorageManager* StoragePartitionImpl::GetSharedStorageManager() {
 PrivateAggregationManager*
 StoragePartitionImpl::GetPrivateAggregationManager() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return private_aggregation_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 PrivateAggregationDataModel*
 StoragePartitionImpl::GetPrivateAggregationDataModel() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return private_aggregation_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 CookieDeprecationLabelManager*
@@ -2812,19 +2865,23 @@ void StoragePartitionImpl::ClearDataImpl(
   helper->ClearDataOnUIThread(
       storage_key, filter_builder, std::move(storage_key_policy_matcher),
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
-      quota_manager_.get(), special_storage_policy_.get(),
-      filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
+      quota_manager_.get(),
+#if BUILDFLAG(IS_COBALT)
+      cache_quota_manager_.get(),
+#endif
+      special_storage_policy_.get(), filesystem_context_.get(),
+      GetCookieManagerForBrowserProcess(),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       interest_group_manager_.get(),
       attribution_manager_.get(),
-#else
-      nullptr,
-      nullptr,
-#endif
-      aggregation_service_.get(), private_aggregation_manager_.get(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      aggregation_service_.get(),
+      private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #else
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
       nullptr,
 #endif
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3005,6 +3062,9 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     const base::FilePath& path,
     DOMStorageContextWrapper* dom_storage_context,
     storage::QuotaManager* quota_manager,
+#if BUILDFLAG(IS_COBALT)
+    storage::QuotaManager* cache_quota_manager,
+#endif
     storage::SpecialStoragePolicy* special_storage_policy,
     storage::FileSystemContext* filesystem_context,
     network::mojom::CookieManager* cookie_manager,
@@ -3142,6 +3202,19 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                        storage_key, storage_policy_ref,
                        combined_storage_key_matcher, perform_storage_cleanup,
                        CreateTaskCompletionClosure(TracingDataType::kQuota)));
+#if BUILDFLAG(IS_COBALT)
+    if (cache_quota_manager &&
+        (remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE)) {
+      GetIOThreadTaskRunner({})->PostTask(
+          FROM_HERE,
+          base::BindOnce(&DataDeletionHelper::ClearQuotaManagedDataOnIOThread,
+                         base::Unretained(this),
+                         base::WrapRefCounted(cache_quota_manager), begin, end,
+                         storage_key, storage_policy_ref,
+                         combined_storage_key_matcher, perform_storage_cleanup,
+                         CreateTaskCompletionClosure(TracingDataType::kQuota)));
+    }
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_LOCAL_STORAGE) {
@@ -3209,7 +3282,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
               CreateTaskCompletionClosure(TracingDataType::kConversions)));
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (aggregation_service &&
       (remove_mask_ & REMOVE_DATA_MASK_AGGREGATION_SERVICE)) {
@@ -3236,6 +3308,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kPrivateAggregation)));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI) &&
@@ -3594,8 +3667,8 @@ void StoragePartitionImpl::OverrideSharedWorkerServiceForTesting(
   DCHECK(initialized_);
   shared_worker_service_ = std::move(shared_worker_service);
 }
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StoragePartitionImpl::OverrideSharedStorageRuntimeManagerForTesting(
     std::unique_ptr<SharedStorageRuntimeManager>
         shared_storage_runtime_manager) {
@@ -3609,7 +3682,6 @@ void StoragePartitionImpl::OverrideSharedStorageHeaderObserverForTesting(
   DCHECK(initialized_);
   shared_storage_header_observer_ = std::move(shared_storage_header_observer);
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StoragePartitionImpl::OverrideAggregationServiceForTesting(
     std::unique_ptr<AggregationService> aggregation_service) {
@@ -3617,13 +3689,11 @@ void StoragePartitionImpl::OverrideAggregationServiceForTesting(
   aggregation_service_ = std::move(aggregation_service);
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StoragePartitionImpl::OverrideAttributionManagerForTesting(
     std::unique_ptr<AttributionManager> attribution_manager) {
   DCHECK(initialized_);
   attribution_manager_ = std::move(attribution_manager);
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(
     std::unique_ptr<PrivateAggregationManagerImpl>
@@ -3631,6 +3701,7 @@ void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(
   DCHECK(initialized_);
   private_aggregation_manager_ = std::move(private_aggregation_manager);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StoragePartitionImpl::OverrideDeviceBoundSessionManagerForTesting(
     std::unique_ptr<network::mojom::DeviceBoundSessionManager>
@@ -3653,6 +3724,27 @@ void StoragePartitionImpl::GetQuotaSettings(
       GetPath(), browser_context_->IsOffTheRecord(),
       storage::GetDefaultDeviceInfoHelper(), std::move(callback));
 }
+
+#if BUILDFLAG(IS_COBALT)
+void StoragePartitionImpl::GetCacheQuotaSettings(
+    storage::OptionalQuotaSettingsCallback callback) {
+  if (g_test_cache_quota_settings) {
+    // For debugging tests harness can inject settings.
+    std::move(callback).Run(*g_test_cache_quota_settings);
+    return;
+  }
+
+  base::FilePath cache_path =
+      GetContentClient()->browser()->GetCacheStoragePath(
+          browser_context_, partition_path_, relative_partition_path_);
+  if (cache_path.empty()) {
+    cache_path = GetPath();
+  }
+
+  GetContentClient()->browser()->GetCacheQuotaSettings(
+      browser_context_, cache_path, std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void StoragePartitionImpl::InitNetworkContext() {
   network::mojom::NetworkContextParamsPtr context_params =
@@ -3781,6 +3873,13 @@ void StoragePartition::SetDefaultQuotaSettingsForTesting(
     const storage::QuotaSettings* settings) {
   g_test_quota_settings = settings;
 }
+
+#if BUILDFLAG(IS_COBALT)
+void StoragePartition::SetDefaultCacheQuotaSettingsForTesting(
+    const storage::QuotaSettings* settings) {
+  g_test_cache_quota_settings = settings;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 mojo::PendingRemote<network::mojom::CookieAccessObserver>
 StoragePartitionImpl::CreateCookieAccessObserverForServiceWorker() {

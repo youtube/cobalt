@@ -21,14 +21,18 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
+#include "starboard/android/shared/display_util.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -53,14 +57,6 @@ const jint HDR_TYPE_HLG = 3;
 const jint HDR_TYPE_HDR10_PLUS = 4;
 
 const char SECURE_DECODER_SUFFIX[] = ".secure";
-
-bool EndsWith(const std::string& str, const std::string& suffix) {
-  if (str.size() < suffix.size()) {
-    return false;
-  }
-  return strcmp(str.c_str() + (str.size() - suffix.size()), suffix.c_str()) ==
-         0;
-}
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
   const auto j_range_ref = JavaParamRef<jobject>(env, j_range);
@@ -96,18 +92,7 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     std::set<SbMediaTransferId> supported_transfer_ids;
 
     JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
-        StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
-
-    if (!j_supported_hdr_types) {
-      // Failed to get supported hdr types.
-      SB_LOG(ERROR) << "Failed to load supported hdr types.";
-      return std::set<SbMediaTransferId>();
-    }
-
-    std::vector<int> hdr_types;
-    base::android::JavaIntArrayToIntVector(env, j_supported_hdr_types,
-                                           &hdr_types);
+    std::vector<int> hdr_types = DisplayUtil::GetSupportedHdrTypes(env);
     for (int hdr_type : hdr_types) {
       switch (hdr_type) {
         case HDR_TYPE_DOLBY_VISION:
@@ -355,8 +340,12 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     return true;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   const bool enable_av1_startup_optimization =
       FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
+#else
+  const bool enable_av1_startup_optimization = false;
+#endif
   if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
     return true;
   }
@@ -412,14 +401,6 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
 std::string MediaCapabilitiesCache::FindAudioDecoder(
     const std::string& mime_type,
     int bitrate) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name =
-        Java_MediaCodecUtil_findAudioDecoder(env, j_mime, bitrate);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
@@ -454,17 +435,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     Size frame_size,
     int bitrate,
     int fps) {
-  if (!is_enabled_) {
-    JNIEnv* env = AttachCurrentThread();
-    auto j_mime = ConvertUTF8ToJavaString(env, mime_type);
-    auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
-        env, j_mime, must_support_secure, must_support_hdr,
-        /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
-        /*decoderCacheTtlMs=*/-1, frame_size.width, frame_size.height, bitrate,
-        fps);
-    return ConvertJavaStringToUTF8(env, j_decoder_name);
-  }
-
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 

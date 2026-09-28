@@ -80,6 +80,20 @@ interface StarboardRendererClientExtension {
   // Get SbWindow from StarboardRendererClient.
   GetSbWindowHandle();
 
+  [EnableIf=is_ios]
+  // Forward encrypted media init data for DRM key exchange.
+  OnEncryptedMediaInitDataEncountered(string init_data_type,
+                                      array<uint8> init_data);
+
+  [EnableIf=is_ios]
+  // URL player duration forwarding.
+  OnDurationChange(mojo_base.mojom.TimeDelta duration);
+
+  [EnableIf=is_ios]
+  // URL player buffered ranges forwarding.
+  OnBufferedTimeRangesChange(mojo_base.mojom.TimeDelta start,
+                             mojo_base.mojom.TimeDelta length);
+
   [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
   RequestOverlayInfo(bool restart_for_transitions);
@@ -147,6 +161,13 @@ interface StarboardRendererExtension {
 
   // Pass SbWindow to StarboardRenderer.
   OnSbWindowHandleReady(uint64 sb_window_handle);
+
+  // Initialize media bypass bridge in single-process mode.
+  InitializeWithBypassBridge(uint32 bypass_bridge_id) => (bool success);
+
+  [EnableIf=is_ios]
+  // Pass source URL for URL player.
+  SetSourceUrl(string source_url);
 
   [EnableIf=is_android]
   // Notify StarboardRendererWrapper when the current OverlayInfo changes.

@@ -18,6 +18,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
@@ -158,9 +159,11 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   base::span<const uint8_t> input_data = data && !data->IsDetached()
                                              ? data->ByteSpan()
                                              : base::span<const uint8_t>();
-  std::optional<base::span<const uint8_t>> response_data;
+  std::optional<mojo_base::BigBuffer> response_data;
+  WTF::String error_message;
 
-  bool mojo_result = platform_service_remote_->Send(input_data, &response_data);
+  bool mojo_result = platform_service_remote_->Send(input_data, &response_data,
+                                                    &error_message);
 
   if (!mojo_result) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
@@ -173,16 +176,18 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   }
 
   if (!response_data.has_value()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kInvalidStateError,
-        "Browser side could not send data to the service.");
+    WTF::String msg = error_message.empty()
+                          ? "Browser side could not send data to the service."
+                          : error_message;
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      msg);
 
     // Since the API is marked [RaisesException] and this error path throws a
     // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
-  return DOMArrayBuffer::Create(response_data.value());
+  return DOMArrayBuffer::Create(base::span(*response_data));
 }
 
 void H5vccPlatformService::close() {

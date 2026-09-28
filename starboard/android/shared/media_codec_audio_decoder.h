@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <string>
 
@@ -60,7 +61,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -70,7 +71,8 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   Result<void> InitializeCodec();
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
-                           const DequeueOutputResult& output) override;
+                           const DequeueOutputResult& output,
+                           int number_of_pending_inputs) override;
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override {}
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override { return false; }
@@ -96,7 +98,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   ConsumedCB consumed_cb_;
 
   std::mutex decoded_audios_mutex_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;

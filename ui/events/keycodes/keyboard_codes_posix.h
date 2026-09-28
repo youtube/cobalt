@@ -307,6 +307,7 @@ enum KeyboardCode : unsigned short {
   VKEY_INFO = 0x1C9,
   VKEY_GUIDE = 0x1CA,
   VKEY_MEDIA_AUDIO_TRACK = 0x3001,
+  VKEY_MICROPHONE = 0x3002,
 #endif  // BUILDFLAG(IS_COBALT)
 };
 

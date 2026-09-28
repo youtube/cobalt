@@ -338,6 +338,15 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
   if (!priority) {
@@ -1354,7 +1363,13 @@ void RenderThreadImpl::OnChannelError() {
   // So, if we get a channel error, crash the whole process right now to get a
   // more informative stack, since we will otherwise just crash later when we
   // try to restart it.
+  // In Cobalt single-process mode, when BrowserMainLoop shuts down IPC channels
+  // during application termination, the in-process renderer thread naturally
+  // receives a channel error notification. Crashing here would prevent clean
+  // process exit.
+#if !BUILDFLAG(IS_COBALT)
   CHECK(!IsSingleProcess());
+#endif
   ChildThreadImpl::OnChannelError();
 }
 
@@ -1822,9 +1837,15 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
+#if BUILDFLAG(IS_COBALT)
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#else
   if (!RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(

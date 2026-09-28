@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/audio_sink.h"
@@ -55,7 +56,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
-      SbMediaAudioFrameStorageType audio_frame_storage_type,
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -65,7 +65,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   SbAudioSink Create(int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,
-                     SbMediaAudioFrameStorageType audio_frame_storage_type,
                      SbAudioSinkFrameBuffers frame_buffers,
                      int frames_per_channel,
                      Callbacks callbacks,
@@ -73,6 +72,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      std::optional<int> tunnel_mode_audio_session_id,
                      bool is_web_audio,
                      bool allow_audio_writing_on_pause,
+                     bool pause_using_audio_track_state,
                      void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -103,7 +103,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
-class AudioTrackAudioSink : public SbAudioSinkImpl {
+class AudioTrackAudioSink : public AudioSinkAndroid {
  public:
   static std::unique_ptr<AudioTrackAudioSink> Create(
       Type* type,
@@ -118,6 +118,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
+      bool pause_using_audio_track_state,
       void* context);
   static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
       Type* type,
@@ -131,6 +132,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
+      bool pause_using_audio_track_state,
       std::unique_ptr<AudioTrack> fake_audio_track,
       void* context);
 
@@ -146,6 +148,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       int64_t start_media_time,
                       std::optional<int> tunnel_mode_audio_session_id,
                       bool allow_audio_writing_on_pause,
+                      bool pause_using_audio_track_state,
                       std::unique_ptr<AudioTrack> audio_track,
                       void* context);
   ~AudioTrackAudioSink() override;
@@ -154,10 +157,13 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
+  bool Flush() override;
+  void SetStartTime(int64_t start_time_us) override {
+    start_time_.store(start_time_us);
+  }
+
   int GetUnderrunCount();
   int GetStartThresholdInFrames();
-  bool Flush();
-  void SetStartTime(int64_t start_time) { start_time_.store(start_time); }
 
  private:
   class AudioTrackOutThread;
@@ -169,7 +175,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  int64_t GetFramesDurationUs(int frames) const;
+  int64_t GetFramesDurationUs(int64_t frames) const;
 
   const raw_ptr<Type> type_;
   const int channels_;
@@ -183,12 +189,14 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const raw_ptr<void> context_;
 
   const bool allow_audio_writing_on_pause_;
+  const bool pause_using_audio_track_state_;
 
   // Guaranteed to be non-null.
   const std::unique_ptr<AudioTrack> audio_track_;
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};
+  std::atomic_bool is_flushed_{false};
   // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 

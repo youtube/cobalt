@@ -21,9 +21,11 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
+#include "starboard/extension/low_memory_kill.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
+#include "starboard/linux/shared/low_memory_kill.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 
@@ -35,9 +37,11 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/native_stability.h"
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
@@ -59,6 +63,9 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
+  }
 
   // TODO: b/371419798 - enable for non-evergreen builds once we've resolved the
   // SIGILL in h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Has().
@@ -77,5 +84,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif
+  if (strcmp(name, kStarboardExtensionLowMemoryKillName) == 0) {
+    return starboard::GetLowMemoryKillApi();
+  }
   return NULL;
 }

@@ -24,6 +24,8 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "starboard/common/app_key.h"
+#include "starboard/common/device_type.h"
+#include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -65,11 +67,16 @@ bool PathProviderStarboard(int key, FilePath* result) {
     // it in or remove it and references to it.
     case DIR_SRC_TEST_DATA_ROOT: {
       FilePath test_data_path;
-      // On POSIX, unit tests execute two levels deep from the source root.
-      // For example:  out/{Debug|Release}/net_unittest
       if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
 #if BUILDFLAG(USE_EVERGREEN)
-        *result = test_data_path.DirName().DirName().DirName();
+        // On desktop host, navigate up to the source checkout.
+        // On target devices (e.g. STB, TV), test data is packaged directly in DIR_EXE.
+        if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
+            starboard::kSystemDeviceTypeDesktopPC) {
+          *result = test_data_path.DirName().DirName().DirName();
+        } else {
+          *result = test_data_path;
+        }
 #else
         *result = test_data_path.DirName().DirName();
 #endif

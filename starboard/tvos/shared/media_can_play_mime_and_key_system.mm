@@ -92,7 +92,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
 
   // "application/x-mpegURL" is for hls content and will use UrlPlayer. The
   // supported types are different from SbPlayer.
-  if (strncmp(kUrlPlayerMimeType, mime, kUrlPlayerMimeTypeLength) == 0) {
+  if (strncasecmp(kUrlPlayerMimeType, mime, kUrlPlayerMimeTypeLength) == 0) {
     auto mime_type = starboard::MimeType::Create(mime);
     if (!mime_type) {
       return kSbMediaSupportTypeNotSupported;

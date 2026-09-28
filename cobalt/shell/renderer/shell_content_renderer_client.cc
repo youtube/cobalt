@@ -25,6 +25,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
@@ -86,6 +87,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
       const network::ResourceRequest& request) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     if (local_frame_token.has_value()) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       auto throttle =
           content::MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
               [](const blink::LocalFrameToken& local_frame_token,
@@ -108,6 +110,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
       if (throttle) {
         throttles.push_back(std::move(throttle));
       }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     }
 
     return throttles;

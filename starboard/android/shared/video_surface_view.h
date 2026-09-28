@@ -17,8 +17,8 @@
 
 namespace starboard {
 
-// Get surface_view via SetVideoSurfaceViewForCurrentThread(),
-// it returns 0 if s_thread_local_key is invalid.
+// Get surface_view via SetVideoSurfaceViewForCurrentThread().
+// Returns nullptr if not set.
 void* GetSurfaceViewForCurrentThread();
 
 // This is used to set the SurfaceView for the subsequently created

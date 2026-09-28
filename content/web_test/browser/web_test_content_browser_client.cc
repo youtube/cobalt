@@ -59,10 +59,14 @@
 #include "content/web_test/browser/web_test_control_host.h"
 #include "content/web_test/browser/web_test_cookie_manager.h"
 #include "content/web_test/browser/web_test_device_posture_provider.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/web_test/browser/web_test_fedcm_manager.h"
+#endif
 #include "content/web_test/browser/web_test_origin_trial_throttle.h"
 #include "content/web_test/browser/web_test_permission_manager.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/web_test/browser/web_test_privacy_sandbox.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
@@ -585,15 +589,19 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       base::BindRepeating(
           &WebTestContentBrowserClient::BindDevicePostureProviderAutomation,
           base::Unretained(this)));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   map->Add<blink::test::mojom::FederatedAuthRequestAutomation>(
       base::BindRepeating(&WebTestContentBrowserClient::BindFedCmAutomation,
                           base::Unretained(this)));
+#endif
   map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
       base::Unretained(this)));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map->Add<blink::test::mojom::WebPrivacySandboxAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebPrivacySandboxAutomation,
       base::Unretained(this)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
   map->Add<blink::test::mojom::WebPressureManagerAutomation>(
@@ -668,6 +676,7 @@ void WebTestContentBrowserClient::BindDevicePostureProviderAutomation(
       std::move(receiver));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void WebTestContentBrowserClient::BindFedCmAutomation(
     RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<blink::test::mojom::FederatedAuthRequestAutomation>
@@ -675,6 +684,7 @@ void WebTestContentBrowserClient::BindFedCmAutomation(
   fedcm_managers_.Add(std::make_unique<WebTestFedCmManager>(render_frame_host),
                       std::move(receiver));
 }
+#endif
 
 void WebTestContentBrowserClient::BindWebSensorProviderAutomation(
     RenderFrameHost* render_frame_host,
@@ -695,9 +705,11 @@ void WebTestContentBrowserClient::BindWebPrivacySandboxAutomation(
     RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<blink::test::mojom::WebPrivacySandboxAutomation>
         receiver) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   WebTestPrivacySandbox::GetOrCreate(
       WebContents::FromRenderFrameHost(render_frame_host))
       ->Bind(std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)

@@ -43,6 +43,18 @@ SB_EXPORT_PLATFORM const char* SbRdkGetCobaltExitStrategy();
 
 #ifdef __cplusplus
 }  // extern "C"
+
+namespace third_party::starboard::rdk::shared::libcobalt_api {
+void Initialize();
+void Teardown();
+}  // namespace third_party::starboard::rdk::shared::libcobalt_api
+
+namespace starboard {
+namespace libcobalt_api {
+using ::third_party::starboard::rdk::shared::libcobalt_api::Initialize;
+using ::third_party::starboard::rdk::shared::libcobalt_api::Teardown;
+}  // namespace libcobalt_api
+}  // namespace starboard
 #endif
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_LIBCOBALT_H_

@@ -16,18 +16,60 @@
 #include <dirent.h>
 // clang-format on
 
-#include <android/asset_manager.h>
+#include <errno.h>
+#include <string.h>
 
-#include <map>
-#include <mutex>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "starboard/android/shared/asset_manager.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/string.h"
-#include "starboard/configuration_constants.h"
 
+using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
-using starboard::OpenAndroidAsset;
-using starboard::OpenAndroidAssetDir;
+
+namespace {
+
+// A helper structure used internally as a DIR replacement for asset paths.
+// It's used in the wrapped opendir/fdopendir/closedir/readdir/readdir_r.
+struct AndroidAssetDir {
+  std::vector<std::string> entries;
+  size_t index;
+  struct dirent entry;
+  // The AssetManager directory descriptor this handle owns. It is only a
+  // placeholder used as a map key, but AssetManager::OpenDirectory() reserves a
+  // real descriptor, so it stays open until __wrap_closedir() releases it.
+  int fd;
+};
+
+// Wraps an AssetManager directory descriptor in the DIR handle from
+// __wrap_opendir()/__wrap_fdopendir().
+DIR* MakeAssetDir(AssetManager* asset_manager, int fd) {
+  std::vector<std::string> entries;
+  if (!asset_manager->GetDirectoryEntries(fd, &entries)) {
+    // fd stopped being an asset directory between the caller's check and
+    // this point, so nothing to enumerate and nothing to close.
+    errno = EBADF;
+    return NULL;
+  }
+
+  AndroidAssetDir* retdir = new AndroidAssetDir();
+  retdir->entries = std::move(entries);
+  retdir->index = 0;
+  retdir->fd = fd;
+  DIR* dir = reinterpret_cast<DIR*>(retdir);
+  asset_manager->RegisterAssetDir(dir);
+  return dir;
+}
+
+void FillAssetDirent(const std::string& name, struct dirent* out) {
+  memset(out, 0, sizeof(*out));
+  starboard::strlcpy(out->d_name, name.c_str(), sizeof(out->d_name));
+}
+
+}  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
 // Implementations below exposed externally in pure C for emulation.
@@ -36,102 +78,49 @@ using starboard::OpenAndroidAssetDir;
 extern "C" {
 DIR* __real_opendir(const char* path);
 
+DIR* __real_fdopendir(int fd);
+
 int __real_closedir(DIR* dir);
+
+struct dirent* __real_readdir(DIR* dir);
 
 int __real_readdir_r(DIR* __restrict dir,
                      struct dirent* __restrict dirent_buf,
                      struct dirent** __restrict dirent);
-
-// AAssetDir does not have a file descriptor so we must generate one
-// https://android.googlesource.com/platform/frameworks/base/+/master/native/android/asset_manager.cpp
-static int gen_fd() {
-  static int fd = 100;
-  fd++;
-  if (fd == 0x7FFFFFFF) {
-    fd = 100;
-  }
-  return fd;
-}
-
-std::mutex mutex_;
-static std::map<int, AAssetDir*>* asset_map = nullptr;
-
-static int handle_db_put(AAssetDir* assetDir) {
-  std::lock_guard scoped_lock(mutex_);
-  if (asset_map == nullptr) {
-    asset_map = new std::map<int, AAssetDir*>();
-  }
-
-  int fd = gen_fd();
-  // Go through the map and make sure there isn't duplicated index
-  // already.
-  while (asset_map->find(fd) != asset_map->end()) {
-    fd = gen_fd();
-  }
-  asset_map->insert({fd, assetDir});
-
-  return fd;
-}
-
-static AAssetDir* handle_db_get(int fd, bool erase) {
-  std::lock_guard scoped_lock(mutex_);
-  if (fd < 0) {
-    return nullptr;
-  }
-  if (asset_map == nullptr) {
-    return nullptr;
-  }
-
-  auto itr = asset_map->find(fd);
-  if (itr == asset_map->end()) {
-    return nullptr;
-  }
-
-  AAssetDir* asset_dir = itr->second;
-  if (erase) {
-    asset_map->erase(itr);
-  }
-  return asset_dir;
-}
-
-struct _PosixEmuAndroidAssetDir {
-  int64_t magic;
-  int fd;
-};
-
-constexpr int64_t kMagicNum = -1;
 
 DIR* __wrap_opendir(const char* path) {
   if (!IsAndroidAssetPath(path)) {
     return __real_opendir(path);
   }
 
-  AAssetDir* asset_dir = OpenAndroidAssetDir(path);
-  if (asset_dir) {
-    int descriptor = handle_db_put(asset_dir);
-    struct _PosixEmuAndroidAssetDir* retdir =
-        reinterpret_cast<_PosixEmuAndroidAssetDir*>(
-            malloc(sizeof(struct _PosixEmuAndroidAssetDir)));
-    retdir->magic = kMagicNum;
-    retdir->fd = descriptor;
-    return reinterpret_cast<DIR*>(retdir);
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  // OpenDirectory() sets errno to ENOTDIR or ENOENT on failure.
+  int fd = asset_manager->OpenDirectory(path);
+  if (fd < 0) {
+    return NULL;
   }
-  return NULL;
+  return MakeAssetDir(asset_manager, fd);
+}
+
+DIR* __wrap_fdopendir(int fd) {
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (!asset_manager->IsAssetDirFd(fd)) {
+    return __real_fdopendir(fd);
+  }
+
+  return MakeAssetDir(asset_manager, fd);
 }
 
 int __wrap_closedir(DIR* dir) {
   if (!dir) {
     return -1;
   }
-  struct _PosixEmuAndroidAssetDir* adir = (struct _PosixEmuAndroidAssetDir*)dir;
-  if (adir->magic == kMagicNum) {  // This is an Asset
-    int descriptor = adir->fd;
-    AAssetDir* asset_dir = handle_db_get(descriptor, true);
-    if (asset_dir != nullptr) {
-      AAssetDir_close(asset_dir);
-    }
-    free(adir);
-    return 0;
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (asset_manager->UnregisterAssetDir(dir)) {
+    AndroidAssetDir* asset_dir = reinterpret_cast<AndroidAssetDir*>(dir);
+    int result = asset_manager->CloseDirectory(asset_dir->fd);
+    delete asset_dir;
+    return result;
   }
   return __real_closedir(dir);
 }
@@ -140,23 +129,40 @@ int __wrap_readdir_r(DIR* __restrict dir,
                      struct dirent* __restrict dirent_buf,
                      struct dirent** __restrict dirent) {
   if (!dir) {
-    return -1;
+    // readdir_r() reports failure by returning an error number, not -1.
+    return EBADF;
   }
 
-  struct _PosixEmuAndroidAssetDir* adir = (struct _PosixEmuAndroidAssetDir*)dir;
-  if (adir->magic == kMagicNum) {  // This is an Asset
-    int descriptor = adir->fd;
-    AAssetDir* asset_dir = handle_db_get(descriptor, false);
-    const char* file_name = AAssetDir_getNextFileName(asset_dir);
-    if (file_name == NULL) {
-      return -1;
+  if (AssetManager::GetInstance()->IsAssetDir(dir)) {
+    AndroidAssetDir* asset_dir = reinterpret_cast<AndroidAssetDir*>(dir);
+    if (asset_dir->index >= asset_dir->entries.size()) {
+      *dirent = NULL;  // End of directory
+      return 0;
     }
+    FillAssetDirent(asset_dir->entries[asset_dir->index++], dirent_buf);
     *dirent = dirent_buf;
-    starboard::strlcpy((*dirent)->d_name, file_name, kSbFileMaxName);
     return 0;
   }
 
   return __real_readdir_r(dir, dirent_buf, dirent);
+}
+
+struct dirent* __wrap_readdir(DIR* dir) {
+  if (!dir) {
+    errno = EBADF;
+    return NULL;
+  }
+
+  if (AssetManager::GetInstance()->IsAssetDir(dir)) {
+    AndroidAssetDir* asset_dir = reinterpret_cast<AndroidAssetDir*>(dir);
+    if (asset_dir->index >= asset_dir->entries.size()) {
+      return NULL;
+    }
+    FillAssetDirent(asset_dir->entries[asset_dir->index++], &asset_dir->entry);
+    return &asset_dir->entry;
+  }
+
+  return __real_readdir(dir);
 }
 
 }  // extern "C"

@@ -51,16 +51,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) AddressPoolManagerBitmap {
   // granularity. Since DirectMapAllocationGranularity() is no smaller than
   // PageAllocationGranularity(), we don't need to decrease the bitmap
   // granularity any further.
-#if PA_BUILDFLAG(IS_ANDROID)
-  // On 32-bit Android, the page size is dynamic. We must hardcode the minimum
-  // possible PartitionPageShift (14, i.e. 16KB) to keep the std::bitset
-  // statically sized.
-  static constexpr size_t kBitShiftOfBRPPoolBitmap = 14;
-  static constexpr size_t kBytesPer1BitOfBRPPoolBitmap = 16384;
-#else
   static constexpr size_t kBitShiftOfBRPPoolBitmap = PartitionPageShift();
   static constexpr size_t kBytesPer1BitOfBRPPoolBitmap = PartitionPageSize();
-#endif
   static_assert(kBytesPer1BitOfBRPPoolBitmap == 1 << kBitShiftOfBRPPoolBitmap,
                 "");
   static constexpr size_t kGuardOffsetOfBRPPoolBitmap = 1;
@@ -73,15 +65,10 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) AddressPoolManagerBitmap {
   // DirectMapAllocationGranularity(). No need to eliminate guard pages at the
   // ends, as this is a BackupRefPtr-specific concern, hence no need to lower
   // the granularity to partition page size.
-#if PA_BUILDFLAG(IS_ANDROID)
-  static constexpr size_t kBitShiftOfRegularPoolBitmap = 12;
-  static constexpr size_t kBytesPer1BitOfRegularPoolBitmap = 4096;
-#else
   static constexpr size_t kBitShiftOfRegularPoolBitmap =
       DirectMapAllocationGranularityShift();
   static constexpr size_t kBytesPer1BitOfRegularPoolBitmap =
       DirectMapAllocationGranularity();
-#endif
   static_assert(kBytesPer1BitOfRegularPoolBitmap ==
                     1 << kBitShiftOfRegularPoolBitmap,
                 "");

@@ -51,7 +51,7 @@ bool ReadUnicodeCharacter(const char16_t* src,
   return IsValidCodepoint(*code_point);
 }
 
-#if defined(WCHAR_T_IS_UTF32)
+#if defined(WCHAR_T_IS_32_BIT)
 bool ReadUnicodeCharacter(const wchar_t* src,
                           size_t src_len,
                           size_t* char_index,
@@ -62,7 +62,7 @@ bool ReadUnicodeCharacter(const wchar_t* src,
   // Validate the value.
   return IsValidCodepoint(*code_point);
 }
-#endif  // defined(WCHAR_T_IS_UTF32)
+#endif  // defined(WCHAR_T_IS_32_BIT)
 
 // WriteUnicodeCharacter -------------------------------------------------------
 

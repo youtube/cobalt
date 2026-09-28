@@ -18,7 +18,7 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
     "executable": "out/android-arm64_devel/cobalt_browsertests_apk/cobalt_browsertests-debug.apk",
     "runs_on": "device",
-    "test_type": "browsertest"
+    "test_type": "gtest"
   },
   {
     "target": "cobalt:cobalt_unittests",
@@ -81,6 +81,12 @@
   {
     "target": "starboard/android/shared:starboard_platform_tests",
     "executable": "out/android-arm64_devel/starboard_platform_tests_apk/starboard_platform_tests-debug.apk",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
+    "target": "starboard/shared/starboard/player/filter/testing:player_filter_tests",
+    "executable": "out/android-arm64_devel/player_filter_tests_apk/player_filter_tests-debug.apk",
     "runs_on": "device",
     "test_type": "gtest"
   },

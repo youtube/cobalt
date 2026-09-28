@@ -18,13 +18,22 @@
 #include "third_party/starboard/rdk/shared/libcobalt.h"
 
 #include <cstring>
+#include <memory>
 #include <mutex>
 
-#include "starboard/common/semaphore.h"
+#include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/semaphore.h"
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
 #include "third_party/starboard/rdk/shared/rdkservices.h"
+#endif
+
+#include "third_party/starboard/rdk/shared/system/system_properties_override.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
+
+using namespace third_party::starboard::rdk::shared;
+using namespace third_party::starboard::rdk::shared::system;
 
 namespace
 {
@@ -33,6 +42,10 @@ using ::starboard::AdvertisingId;
 using ::starboard::ApplicationRdk;
 using ::starboard::Semaphore;
 using ::starboard::SystemProperties;
+
+// Bound lifecycle transitions to 2.5 seconds to prevent Thunder RPC worker
+// threads from hanging indefinitely if the Starboard event loop stalls.
+constexpr int64_t kLifecycleActionTimeoutUsec = 2'500'000;
 
 struct APIContext
 {
@@ -162,6 +175,11 @@ struct APIContext
     return exit_strategy_.c_str();
   }
 
+  bool IsAppRunning() const
+  {
+    return (state_ == kRunning);
+  }
+
 private:
   enum State {
     kUninitialized,
@@ -182,16 +200,22 @@ private:
           void*, ApplicationRdk::EventHandledCallback)) {
     std::unique_lock lock(mutex_);
     if (WaitForApp(lock) == kRunning) {
-      Semaphore sem;
+      auto sem = std::make_shared<Semaphore>();
+      auto* sem_payload = new std::shared_ptr<Semaphore>(sem);
       (ApplicationRdk::Get()->*action)(
-        &sem,
-        [](void* ctx) {
-          reinterpret_cast<Semaphore*>(ctx)->Put();
-        });
+          sem_payload,
+          [](void* ctx) {
+            auto* p = static_cast<std::shared_ptr<Semaphore>*>(ctx);
+            (*p)->Put();
+            delete p;
+          });
       lock.unlock();
-      sem.Take();
-    }
-    else {
+      if (!sem->TakeWait(kLifecycleActionTimeoutUsec)) {
+        SB_LOG(WARNING)
+            << "libcobalt: Lifecycle action timed out after "
+            << kLifecycleActionTimeoutUsec << " us.";
+      }
+    } else {
       lock.unlock();
     }
   }
@@ -210,7 +234,8 @@ SB_ONCE_INITIALIZE_FUNCTION(APIContext, GetContext);
 
 }  // namespace
 
-namespace starboard {
+namespace third_party::starboard::rdk::shared::libcobalt_api {
+
 void Initialize()
 {
   GetContext()->OnInitialize();
@@ -219,6 +244,24 @@ void Initialize()
 void Teardown()
 {
   GetContext()->OnTeardown();
+}
+
+}  // namespace third_party::starboard::rdk::shared::libcobalt_api
+
+namespace starboard {
+namespace libcobalt_api {
+  using ::third_party::starboard::rdk::shared::libcobalt_api::Initialize;
+  using ::third_party::starboard::rdk::shared::libcobalt_api::Teardown;
+}
+
+void Initialize()
+{
+  libcobalt_api::Initialize();
+}
+
+void Teardown()
+{
+  libcobalt_api::Teardown();
 }
 
 }  // namespace starboard
@@ -253,10 +296,13 @@ void SbRdkSetSetting(const char* key, const char* json) {
   if (!key || key[0] == '\0' || !json)
     return;
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
   if (strcmp(key, "accessibility") == 0) {
-    Accessibility::SetSettings(json);
+    Accessibility::SetSettings(json, GetContext()->IsAppRunning());
   }
-  else if (strcmp(key, "systemproperties") == 0) {
+  else
+#endif
+  if (strcmp(key, "systemproperties") == 0) {
     SystemProperties::SetSettings(json);
   }
   else if (strcmp(key, "advertisingid") == 0) {
@@ -271,10 +317,13 @@ int SbRdkGetSetting(const char* key, char** out_json) {
   bool result = false;
   std::string tmp;
 
+#if defined(ENABLE_RDKSERVICES_API) && ENABLE_RDKSERVICES_API
   if (strcmp(key, "accessibility") == 0) {
     result = Accessibility::GetSettings(tmp);
   }
-  else if (strcmp(key, "systemproperties") == 0) {
+  else
+#endif
+  if (strcmp(key, "systemproperties") == 0) {
     result = SystemProperties::GetSettings(tmp);
   }
   else if (strcmp(key, "advertisingid") == 0) {

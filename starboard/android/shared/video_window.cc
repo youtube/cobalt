@@ -28,10 +28,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
 #include "starboard/common/once.h"
-#include "starboard/common/ref_counted.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -51,13 +49,8 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
 
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = nullptr;
-
-// Global ref-counted video surface destroy notifier wrapped in NoDestructor
-// to avoid exit-time destructor issues.
-scoped_refptr<SurfaceDestroyNotifier>& GetGlobalSurfaceDestroyNotifier() {
-  static NoDestructor<scoped_refptr<SurfaceDestroyNotifier>> notifier;
-  return *notifier;
-}
+// Global video surface pointer holder.
+VideoSurfaceHolder* g_video_surface_holder = nullptr;
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
@@ -66,6 +59,14 @@ void ClearNativeWindow(void* raw_context) {
     SB_LOG(ERROR) << "Found no EGL display in ClearNativeWindow";
     return;
   }
+
+  // Save pre-existing EGL context state to restore at the end of this function.
+  // This prevents unbinding the shared GPU thread's context from other active
+  // players.
+  EGLDisplay old_display = eglGetCurrentDisplay();
+  EGLSurface old_draw_surface = eglGetCurrentSurface(EGL_DRAW);
+  EGLSurface old_read_surface = eglGetCurrentSurface(EGL_READ);
+  EGLContext old_context = eglGetCurrentContext();
 
   const EGLint kAttributeList[] = {
       EGL_RED_SIZE,
@@ -135,9 +136,9 @@ void ClearNativeWindow(void* raw_context) {
 
   EGL_CALL(eglSwapBuffers(display, surface));
 
-  // Cleanup all used resources.
-  EGL_CALL(
-      eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  // Restore pre-existing EGL state and destroy temporary cleanup resources.
+  EGL_CALL(eglMakeCurrent(old_context == EGL_NO_CONTEXT ? display : old_display,
+                          old_draw_surface, old_read_surface, old_context));
   EGL_CALL(eglDestroyContext(display, context));
   EGL_CALL(eglDestroySurface(display, surface));
 }
@@ -147,126 +148,53 @@ void ClearNativeWindow(void* raw_context) {
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  scoped_refptr<SurfaceDestroyNotifier> notifier_to_notify;
-  {
-    std::lock_guard lock(*GetViewSurfaceMutex());
-    if (GetGlobalSurfaceDestroyNotifier()) {
-      notifier_to_notify = GetGlobalSurfaceDestroyNotifier();
-      GetGlobalSurfaceDestroyNotifier() = nullptr;
-    }
-    GetGlobalVideoSurface().Reset();
-    if (g_native_video_window) {
-      ANativeWindow_release(g_native_video_window);
-      g_native_video_window = nullptr;
-    }
-    if (surface) {
-      GetGlobalVideoSurface().Reset(env, surface);
-      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
-    }
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  if (g_video_surface_holder) {
+    g_video_surface_holder->OnSurfaceDestroyed();
+    g_video_surface_holder = NULL;
   }
-
-  if (notifier_to_notify) {
-    notifier_to_notify->Notify();
+  GetGlobalVideoSurface().Reset();
+  if (g_native_video_window) {
+    ANativeWindow_release(g_native_video_window);
+    g_native_video_window = NULL;
   }
-}
-
-void SurfaceDestroyNotifier::Disconnect() {
-  {
-    std::lock_guard lock(mutex_);
-    disconnected_ = true;
-    job_queue_ = nullptr;
-    holder_ = nullptr;
-    done_ = true;  // Mark as done_ so Notify() can exit immediately
+  if (surface) {
+    GetGlobalVideoSurface().Reset(env, surface);
+    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
   }
-  done_cv_.notify_one();
-}
-
-void SurfaceDestroyNotifier::Notify() {
-  std::unique_lock lock(mutex_);
-  if (disconnected_ || !holder_ || !job_queue_) {
-    return;
-  }
-
-  done_ = false;
-  scoped_refptr<SurfaceDestroyNotifier> self(this);
-  job_queue_->Schedule([self]() { self->NotifyDestroyed(); });
-
-  // Wait for the task to complete with a 1-second timeout.
-  done_cv_.wait_for(lock, std::chrono::seconds(1), [this] { return done_; });
-}
-
-void SurfaceDestroyNotifier::NotifyDestroyed() {
-  VideoSurfaceHolder* holder_to_notify = nullptr;
-  {
-    std::lock_guard lock(mutex_);
-    if (!disconnected_) {
-      holder_to_notify = holder_;
-    }
-  }
-
-  if (holder_to_notify) {
-    holder_to_notify->OnSurfaceDestroyed();
-  }
-
-  {
-    std::lock_guard lock(mutex_);
-    done_ = true;
-  }
-  done_cv_.notify_one();
 }
 
 // static
 bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
-  // g_surface_destroy_notifier is nullptr.
+  // g_video_surface_holder is NULL.
   std::lock_guard lock(*GetViewSurfaceMutex());
-  return !GetGlobalSurfaceDestroyNotifier() && GetGlobalVideoSurface();
+  return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
-VideoSurfaceHolder::AcquiredSurface VideoSurfaceHolder::AcquireVideoSurface(
-    JobQueue* job_queue) {
+jni_zero::ScopedJavaLocalRef<jobject>
+VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (GetGlobalSurfaceDestroyNotifier() != nullptr) {
-    // Other VideoSurfaceHolder has already acquired destroyer
+  if (g_video_surface_holder != NULL) {
     return {};
   }
   if (!GetGlobalVideoSurface()) {
-    // Video Surface not created yet
     return {};
   }
-  GetGlobalSurfaceDestroyNotifier() =
-      make_scoped_refptr<SurfaceDestroyNotifier>(this, job_queue);
+  g_video_surface_holder = this;
   JNIEnv* env = jni_zero::AttachCurrentThread();
-
-  return {GetGlobalSurfaceDestroyNotifier(),
-          jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface())};
+  return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-
-  auto& notifier = GetGlobalSurfaceDestroyNotifier();
-  if (!notifier || !notifier->IsCurrentHolder(this)) {
-    return;
-  }
-  notifier->Disconnect();
-  notifier = nullptr;
-}
-
-bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == nullptr) {
-    return false;
-  } else {
-    *width = ANativeWindow_getWidth(g_native_video_window);
-    *height = ANativeWindow_getHeight(g_native_video_window);
-    return true;
+  if (g_video_surface_holder == this) {
+    g_video_surface_holder = NULL;
   }
 }
 
-void VideoSurfaceHolder::CleanUpVideoWindow(
-    bool force_clear,
+void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
@@ -277,27 +205,25 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
+  SB_CHECK(gpu_provider);
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                    g_native_video_window);
+  SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void VideoSurfaceHolder::ResetVideoSurface() {
+  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
+  // during painting.
+  std::lock_guard lock(*GetViewSurfaceMutex());
+
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clean up video window when JNIEnv was null.";
-    return;
-  }
-
-  if (force_clear) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
+    SB_LOG(INFO) << "Tried to reset video window when JNIEnv was null.";
     return;
   }
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
-}
-
-void SetVideoSurfaceForTesting(JNIEnv* env, jobject surface) {
-  JNI_VideoSurfaceView_OnVideoSurfaceChanged(
-      env, jni_zero::JavaParamRef<jobject>(env, surface));
+  SB_LOG(INFO) << "Video surface has been reset.";
 }
 
 }  // namespace starboard

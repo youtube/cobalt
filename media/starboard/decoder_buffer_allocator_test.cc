@@ -27,8 +27,11 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -258,6 +261,35 @@ INSTANTIATE_TEST_SUITE_P(DecoderBufferAllocatorTests,
                            std::replace(name.begin(), name.end(), '/', '_');
                            return name;
                          });
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     IsBufferPoolAllocateOnDemandMetric) {
+  base::HistogramTester histogram_tester;
+
+  {
+    DecoderBufferAllocator allocator(
+        /*is_memory_pool_allocated_on_demand=*/true, 0, 0);
+    histogram_tester.ExpectBucketCount(
+        "Cobalt.Media.IsBufferPoolAllocateOnDemand", true, 1);
+  }
+
+  {
+    DecoderBufferAllocator allocator(
+        /*is_memory_pool_allocated_on_demand=*/false, 1024, 1024);
+    histogram_tester.ExpectBucketCount(
+        "Cobalt.Media.IsBufferPoolAllocateOnDemand", false, 1);
+  }
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest, DisabledViaFeatureFlag) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      media::kCobaltDisableDecoderBufferAllocator);
+
+  DecoderBufferAllocator allocator;
+  EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
+}
 
 }  // namespace
 }  // namespace media

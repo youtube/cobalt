@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <list>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
@@ -48,8 +50,12 @@ VideoRenderAlgorithmAndroid::VideoRenderAlgorithmAndroid(
     VideoFrameTracker* frame_tracker)
     : video_decoder_(video_decoder),
       frame_tracker_(frame_tracker),
+#if !BUILDFLAG(IS_STARBOARD)
       release_frames_after_audio_starts_(features::FeatureList::IsEnabled(
           features::kReleaseVideoFramesAfterAudioStarts)) {
+#else
+      release_frames_after_audio_starts_(false) {
+#endif
   SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }

@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 
 #include <cstring>
+#include <memory>
 #include <utility>
 
 #include "base/check.h"
@@ -70,9 +71,17 @@ class StarboardPoolExternalMemory : public DecoderBuffer::ExternalMemory {
 
   DecoderBuffer::Allocator::Handle handle() const override { return handle_; }
 
+  DemuxerStream::Type type() const override { return type_; }
+
+  DecoderBuffer::Allocator::Handle ReleaseHandle() override {
+    DecoderBuffer::Allocator::Handle h = handle_;
+    handle_ = DecoderBuffer::Allocator::kInvalidHandle;
+    return h;
+  }
+
  private:
   DecoderBuffer::Allocator* const pool_;
-  const DecoderBuffer::Allocator::Handle handle_;
+  DecoderBuffer::Allocator::Handle handle_;
   const size_t size_;
   const base::span<const uint8_t> span_;
   const DemuxerStream::Type type_;
@@ -118,13 +127,8 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(base::span<const uint8_t> span,
     return nullptr;
   }
 
-  pool->Write(handle, span.data(), span.size());
-
-  // Cast handle to pointer for read access in span.
-  // Note: If annotated pointers are enabled, IsPointerAnnotated check will
-  // occur when Span().data() is accessed, consistent with
-  // DecoderBuffer::data().
-  const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(handle);
+  auto* data_ptr = reinterpret_cast<uint8_t*>(handle);
+  memcpy(data_ptr, span.data(), span.size());
   return std::make_unique<StarboardPoolExternalMemory>(
       pool, handle, span.size(), data_ptr, type);
 }

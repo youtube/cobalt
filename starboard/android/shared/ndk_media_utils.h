@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_NDK_MEDIA_UTILS_H_
 #define STARBOARD_ANDROID_SHARED_NDK_MEDIA_UTILS_H_
 
+#include <aaudio/AAudio.h>
 #include <media/NdkMediaError.h>
 
 #include <string>
@@ -22,6 +23,7 @@
 namespace starboard {
 
 std::string ToString(media_status_t status);
+std::string ToString(aaudio_stream_state_t state);
 
 }  // namespace starboard
 

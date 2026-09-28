@@ -24,6 +24,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/no_destructor.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -64,7 +65,10 @@ const char kSystemImageZstdCompressedLibraryPath[] =
 const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
 
 // Portable ELF loader.
-elf_loader::ElfLoader g_elf_loader;
+elf_loader::ElfLoader& GetElfLoader() {
+  static starboard::NoDestructor<elf_loader::ElfLoader> s_elf_loader;
+  return *s_elf_loader;
+}
 
 // Pointer to the |SbEventHandle| function in the
 // Cobalt binary.
@@ -76,12 +80,12 @@ class CobaltLibraryLoader : public loader_app::LibraryLoader {
                     const std::string& content_path,
                     elf_loader::CompressionType compression_type,
                     bool use_memory_mapped_file) {
-    return g_elf_loader.Load(library_path, content_path, false,
-                             &loader_app::SbSystemGetExtensionShim,
-                             compression_type, use_memory_mapped_file);
+    return GetElfLoader().Load(library_path, content_path, false,
+                               &loader_app::SbSystemGetExtensionShim,
+                               compression_type, use_memory_mapped_file);
   }
   virtual void* Resolve(const std::string& symbol) {
-    return g_elf_loader.LookupSymbol(symbol.c_str());
+    return GetElfLoader().LookupSymbol(symbol.c_str());
   }
 };
 
@@ -150,7 +154,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   elf_loader::CompressionType compression_type =
       elf_loader::CompressionType::kNone;
   struct stat info;
-  if (stat(lz4_compressed_library_path.c_str(), &info) == 0) {
+  if (use_memory_mapped_file &&
+      stat(uncompressed_library_path.c_str(), &info) == 0) {
+    library_path = uncompressed_library_path;
+  } else if (stat(lz4_compressed_library_path.c_str(), &info) == 0) {
     library_path = lz4_compressed_library_path;
     compression_type = elf_loader::CompressionType::kLz4;
   } else if (stat(zstd_compressed_library_path.c_str(), &info) == 0) {
@@ -172,14 +179,14 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     return;
   }
 
-  if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
-                         compression_type, use_memory_mapped_file)) {
+  if (!GetElfLoader().Load(library_path, content_path, false, nullptr,
+                           compression_type, use_memory_mapped_file)) {
     SB_NOTREACHED() << "Failed to load library at '"
-                    << g_elf_loader.GetLibraryPath() << "'.";
+                    << GetElfLoader().GetLibraryPath() << "'.";
     return;
   }
 
-  SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
+  SB_LOG(INFO) << "Successfully loaded '" << GetElfLoader().GetLibraryPath()
                << "'.";
 
   EvergreenInfo evergreen_info;
@@ -191,7 +198,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   }
 
   auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
-      g_elf_loader.LookupSymbol("GetEvergreenSabiString"));
+      GetElfLoader().LookupSymbol("GetEvergreenSabiString"));
 
   if (!CheckSabi(get_evergreen_sabi_string_func)) {
     SB_LOG(ERROR) << "CheckSabi failed";
@@ -199,7 +206,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   }
 
   auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
-      g_elf_loader.LookupSymbol("GetCobaltUserAgentString"));
+      GetElfLoader().LookupSymbol("GetCobaltUserAgentString"));
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
@@ -215,7 +222,7 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-      g_elf_loader.LookupSymbol("SbEventHandle"));
+      GetElfLoader().LookupSymbol("SbEventHandle"));
 
   if (!g_sb_event_func) {
     SB_LOG(ERROR) << "Failed to find SbEventHandle.";
@@ -279,21 +286,9 @@ void SbEventHandle(const SbEvent* event) {
         command_line.GetSwitchValue(loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
-    bool use_compressed_updates =
-        !is_evergreen_lite &&
-        !command_line.HasSwitch(loader_app::kUseUncompressedUpdates);
-
     bool use_memory_mapped_file =
         command_line.HasSwitch(loader_app::kLoaderUseMemoryMappedFile);
     SB_LOG(INFO) << "use_memory_mapped_file=" << use_memory_mapped_file;
-
-    if (use_compressed_updates && use_memory_mapped_file) {
-      SB_LOG(ERROR) << "Compression and memory mapping are incompatible."
-                    << " Compressed updates should not be installed because"
-                    << " the loader app is configured to use memory mapping"
-                    << " and would not be able to load them.";
-      return;
-    }
 
     if (command_line.HasSwitch(loader_app::kLoaderTrackMemory)) {
       std::string period =

@@ -17,6 +17,7 @@
 
 #import <AVFoundation/AVFoundation.h>
 
+#include <optional>
 #include <queue>
 
 #include "starboard/shared/starboard/media/media_util.h"
@@ -36,7 +37,7 @@ class TvosAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -64,7 +65,7 @@ class TvosAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   const AudioStreamInfo audio_stream_info_;
   OutputCB output_cb_;
   ErrorCB error_cb_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
   int bytes_per_frame_;
   UInt32 input_format_id_;
   UInt32 input_header_size_ = 0;

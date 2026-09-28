@@ -450,6 +450,36 @@ BASE_FEATURE(kClientHintsXRFormFactor,
 // bypassing BufferingBytesConsumer Oilpan heap buffering.
 BASE_FEATURE(kCobaltBypassBufferingBytesConsumer,
              "CobaltBypassBufferingBytesConsumer",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Bypasses Blink HTMLPreloadScanner and HTMLResourcePreloader in Cobalt
+// since Cobalt UI is a single-page app with dynamically generated DOM.
+BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
+             "CobaltBypassHTMLPreloadScanner",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Bypasses Blink ResourceLoadScheduler queueing and throttling for subresources
+// in Cobalt, dispatching requests immediately.
+BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
+             "CobaltBypassResourceLoadScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
+// devices so that shelf tracks and carousels are promoted to dedicated
+// hardware-composited cc::PictureLayers rather than triggering CPU repaints.
+// Enabled by default on Starboard, disabled by default on Android.
+BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
+             "CobaltPreserveTrivial3DTransform",
+#if BUILDFLAG(IS_STARBOARD)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+// Enables full memory cache eviction on critical memory pressure in Cobalt.
+BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
+             "EvictMemoryCacheOnCriticalMemoryPressure",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -490,6 +520,35 @@ BASE_FEATURE(kCombineNewWindowIPCs,
 BASE_FEATURE(kConsumeCodeCacheOffThread,
              "ConsumeCodeCacheOffThread",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kHighestPmfReporterConfigurable,
+             "HighestPmfReporterConfigurable",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(std::string,
+                   kHighestPmfReporterIntervals,
+                   &kHighestPmfReporterConfigurable,
+                   "intervals",
+                   "2,4,8,16");
+
+BASE_FEATURE_PARAM(std::string,
+                   kHighestPmfReporterMetricSuffixes,
+                   &kHighestPmfReporterConfigurable,
+                   "metric_suffixes",
+                   "0to2min,2to4min,4to8min,8to16min");
+
+BASE_FEATURE(kMemoryUsageMonitorConfigurable,
+             "MemoryUsageMonitorConfigurable",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kMemoryUsageMonitorPollingIntervalMs,
+                   &kMemoryUsageMonitorConfigurable,
+                   "polling_interval_ms",
+                   1000);
+#endif
+
 
 // Enables the constant streaming in the ContentCapture task.
 BASE_FEATURE(kContentCaptureConstantStreaming,
@@ -1934,7 +1993,9 @@ BASE_FEATURE(kMixedContentAutoupgrade,
 BASE_FEATURE(kMemoryCacheStrongReference,
              "MemoryCacheStrongReference",
 // Finch study showed no improvement on Android for strong memory cache.
-#if BUILDFLAG(IS_ANDROID)
+// Starboard (Cobalt) opts out for the same reason, and to keep the memory
+// footprint down on constrained TV devices.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT

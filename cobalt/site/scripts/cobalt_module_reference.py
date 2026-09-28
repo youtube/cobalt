@@ -146,6 +146,39 @@ def _find_member_definition(memberdef_element):
   type_name = re.sub(r'\s+\*', '*', type_name)
   type_name = re.sub(r'\s+&', '&', type_name)
 
+  if type_name.startswith('union '):
+    location = memberdef_element.find('./location')
+    if location is not None:
+      file_path = location.get('file')
+      line_idx_attr = location.get('line')
+      if file_path and line_idx_attr:
+        types = []
+        try:
+          line_idx = int(line_idx_attr) - 1
+          with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+          if 0 <= line_idx < len(lines):
+            for i in range(line_idx, -1, -1):
+              line = lines[i].strip()
+              if line.startswith('union'):
+                break
+              is_comment = line.startswith('//') or line.startswith(
+                  '/*') or line.startswith('///')
+              is_bracket = line in ('};', '{')
+              has_semicolon = ';' in line
+              if line and not is_comment and not is_bracket and has_semicolon:
+                var_def = line.split(';')[0].strip()
+                if ' ' in var_def:
+                  type_str = var_def.rsplit(' ', 1)[0].strip()
+                  types.insert(0, type_str)
+            if types:
+              res = 'union { ' + ', '.join(types) + ' }'
+              if member_name and not member_name.startswith('@'):
+                res += ' ' + member_name
+              return res
+        except (IOError, ValueError):
+          pass
+
   # Doxygen does not handle structs of non-typedef'd function pointers
   # gracefully. The 'type' and 'argsstring' elements are used to temporarily
   # store the information needed to be able to rebuild the full signature, e.g.:
@@ -180,12 +213,11 @@ def _node_to_markdown(out, node):
     assert not _strip(tail)
     out.paragraph()
   elif node.tag == 'bold':
-    assert len(node) == 0
+    assert len(node) == 0, f'bold node has children: {[c.tag for c in node]}'
     out.bold(text)
     text = ''
   elif node.tag == 'computeroutput':
-    assert len(node) == 0
-    out.code(text)
+    out.code(''.join(node.itertext()))
     text = ''
   elif node.tag == 'ulink':
     url = node.get('url')
@@ -217,7 +249,8 @@ def _node_to_markdown(out, node):
     out.heading(levels=levels)
   elif node.tag == 'verbatim':
     # Verbatim tags can appear inside paragraphs.
-    assert len(node) == 0
+    assert len(
+        node) == 0, f'verbatim node has children: {[c.tag for c in node]}'
     # Don't replace pipes in verbatim text.
     text = node.text if node.text else ''
     # Strip doxygen comment prefix '///' and one space if present
@@ -239,8 +272,9 @@ def _node_to_markdown(out, node):
   if text:
     out.text(text)
 
-  for child in node:
-    _node_to_markdown(out, child)
+  if node.tag != 'computeroutput':
+    for child in node:
+      _node_to_markdown(out, child)
 
   if node.tag == 'para':
     out.end_paragraph()

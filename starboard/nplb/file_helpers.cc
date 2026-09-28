@@ -50,16 +50,26 @@ std::string GetTempDir() {
 
 std::string GetFileTestsDataDir() {
   std::vector<char> content_path(kPathSize);
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
-                              content_path.data(), kPathSize));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "nplb" +
-                               kSbFileSepChar + "file_tests";
-  struct stat info;
-  SB_CHECK_EQ(stat(directory_path.c_str(), &info), 0);
-  SB_CHECK(S_ISDIR(info.st_mode));
-  return directory_path;
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kPathSize));
+  constexpr char kFileTestsDir[] = "/test/starboard/nplb/file_tests";
+
+  // The locations to try, in order.
+  const std::string kRoots[] = {
+      std::string(content_path.data()),
+      "/sdcard/chromium_tests_root",
+  };
+
+  for (const auto& root : kRoots) {
+    const std::string directory_path = root + kFileTestsDir;
+    struct stat info;
+    if (stat(directory_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
+      return directory_path;
+    }
+  }
+
+  SB_CHECK(false) << "Cannot find the nplb file_tests directory.";
+  return "";
 }
 
 // Make a vector of absolute paths in our test data from a null-terminated array
@@ -169,6 +179,12 @@ bool FileExists(const char* path) {
 bool DirectoryExists(const char* path) {
   struct stat info;
   return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+bool PermissionsAreSubsetOf(mode_t st_mode, mode_t requested) {
+  const mode_t kPermissionMask = S_IRWXU | S_IRWXG | S_IRWXO;  // 0777
+  const mode_t actual = st_mode & kPermissionMask;
+  return (actual & requested) == actual;
 }
 
 ScopedTempDir::ScopedTempDir() {

@@ -107,6 +107,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       bool* out_block_is_site_setting_specific) override;
   GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
+  base::FilePath GetCacheStoragePath(
+      content::BrowserContext* browser_context,
+      const base::FilePath& partition_path,
+      const base::FilePath& relative_partition_path) override;
   base::OnceClosure SelectClientCertificate(
       BrowserContext* browser_context,
       int process_id,

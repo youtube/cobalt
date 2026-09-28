@@ -29,6 +29,7 @@ namespace cobalt {
 // to unintended behavior.
 class CommandLinePreprocessor {
  public:
+  explicit CommandLinePreprocessor(const base::CommandLine& command_line);
   CommandLinePreprocessor(int argc, const char* const* argv);
 
   const base::CommandLine::StringVector argv() const;

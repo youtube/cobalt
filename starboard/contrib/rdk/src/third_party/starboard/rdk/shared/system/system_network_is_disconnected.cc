@@ -15,7 +15,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,10 +31,10 @@
 //
 #include "starboard/system.h"
 #include "starboard/event.h"
-#include "third_party/starboard/rdk/shared/rdkservices.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 
-using starboard::NetworkInfo;
+using namespace third_party::starboard::rdk::shared;
 
 bool SbSystemNetworkIsDisconnected() {
-  return NetworkInfo::IsDisconnected();
+  return platform::device().is_disconnected().value_or(false);
 }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -45,7 +47,7 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
     return nullptr;
   }
 
-  absl::optional<SupportedVideoDecoderConfigs>
+  std::optional<SupportedVideoDecoderConfigs>
   GetPlatformSupportedVideoDecoderConfigs() final {
     return {};
   }
