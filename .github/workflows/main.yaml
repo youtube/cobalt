@@ -1147,14 +1147,13 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
-          xml_files=(results/**/*.xml)
+          readarray -t xml_files < <(printf '%s\n' results/**/*.xml | sort -V)
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
             # Deduplicate XML files across run attempts so the latest attempt wins.
             declare -A latest_xmls
             for xml in "${xml_files[@]}"; do
-              fname=$(basename "${xml}")
-              latest_xmls["${fname}"]="${xml}"
+              latest_xmls["${xml#results/*/}"]="${xml}"
             done
             test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
               "${latest_xmls[@]}" || true)
