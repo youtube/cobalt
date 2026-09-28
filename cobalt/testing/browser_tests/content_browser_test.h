@@ -54,7 +54,6 @@
 #endif
 
 namespace content {
-class ContentGpuClient;
 class TestShell;
 class TestBrowserContext;
 
@@ -89,11 +88,6 @@ class ContentBrowserTest : public BrowserTestBase {
 
   // File path to test data, relative to DIR_SRC_TEST_DATA_ROOT.
   base::FilePath GetTestDataFilePath();
-
-  // Sets the ContentGpuClient on the global ContentClient for single-process
-  // browser tests on platforms where ContentMainRunnerImpl::Initialize() runs
-  // prior to SetUpCommandLine().
-  static void SetGpuClientForTesting(ContentGpuClient* client);
 
  private:
   raw_ptr<TestShell, AcrossTasksDanglingUntriaged> shell_ = nullptr;
