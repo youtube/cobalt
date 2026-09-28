@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+assert(default_toolchain == cobalt_toolchain,
+       "default_toolchain ($default_toolchain) should match " +
+           "cobalt_toolchain ($cobalt_toolchain).")
+
 is_default_toolchain = current_toolchain == default_toolchain
 is_starboard_toolchain = current_toolchain == starboard_toolchain
-is_cobalt_toolchain = current_toolchain == cobalt_toolchain
+is_cobalt_toolchain = current_toolchain == default_toolchain
 is_host_toolchain = current_toolchain == host_toolchain
 is_native_toolchain = current_toolchain == native_toolchain
 

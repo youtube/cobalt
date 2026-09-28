@@ -12,29 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_settings.h"
+#include "media/base/platform_init_data_types.h"
 
-#include "starboard/android/shared/video_max_video_input_size.h"
-#include "starboard/android/shared/video_max_video_resolution.h"
-#include "starboard/android/shared/video_surface_view.h"
-#include "starboard/extension/player_settings.h"
+#include "base/check.h"
+#include "base/no_destructor.h"
 
-namespace starboard {
+namespace media {
 
 namespace {
 
-const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
-    kStarboardExtensionPlayerSettingsName,
-    1,
-    &SetMaxVideoInputSizeForCurrentThread,
-    &SetMaxVideoResolutionForCurrentThread,
-    &SetVideoSurfaceViewForCurrentThread,
-};
+std::string& StoredString() {
+  static base::NoDestructor<std::string> s;
+  return *s;
+}
 
 }  // namespace
 
-const void* GetPlayerSettingsApi() {
-  return &kPlayerSettingsApi;
+void SetPlatformDrmInitDataTypeString(const std::string& type_string) {
+  DCHECK(!type_string.empty());
+  std::string& stored = StoredString();
+  DCHECK(stored.empty());
+  stored = type_string;
 }
 
-}  // namespace starboard
+const std::string& GetPlatformDrmInitDataTypeString() {
+  return StoredString();
+}
+
+}  // namespace media

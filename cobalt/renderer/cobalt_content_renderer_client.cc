@@ -227,6 +227,11 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -366,7 +371,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
   // initialization back to
   // CobaltContentRendererClient::RenderThreadStarted().
+  // The external memory pool routes allocations to DecoderBufferAllocator;
+  // disable it when DecoderBufferAllocator is disabled for PartitionAlloc.
   const bool enable_external_pool =
+      !base::FeatureList::IsEnabled(
+          ::media::kCobaltDisableDecoderBufferAllocator) &&
       experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
           .value_or(base::FeatureList::IsEnabled(
               ::media::kCobaltUseExternalMediaMemoryPool));

@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+// clang-format off
+#include "starboard/window.h"
+// clang-format on
 
-#include "starboard/extension/experimental/media_buffer_pool.h"
+#include <jni.h>
 
-namespace starboard {
-namespace android {
-namespace shared {
+#include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
 
-const void* GetMediaBufferPoolApi();
+float SbWindowGetDiagonalSizeInInches(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return 0.0f;
+  }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return static_cast<float>(
+      starboard::StarboardBridge::GetInstance()->GetScreenDiagonal(env));
+}

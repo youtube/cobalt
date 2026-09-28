@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/aosp/shared/window_internal.h"
-#include "starboard/window.h"
+#ifndef MEDIA_BASE_PLATFORM_INIT_DATA_TYPES_H_
+#define MEDIA_BASE_PLATFORM_INIT_DATA_TYPES_H_
 
-void* SbWindowGetPlatformHandle(SbWindow window) {
-  if (!SbWindowIsValid(window)) {
-    return nullptr;
-  }
-  // EGLNativeWindowType and ANativeWindow* are the same on Android, so it
-  // can be handed straight to eglCreateWindowSurface(). Refreshed first so a
-  // window that outlived a background/foreground cycle won't use surfaces
-  // that Android already destroyed.
-  return starboard::RefreshWindowSurface(window);
-}
+#include <string>
+
+#include "media/base/media_export.h"
+
+namespace media {
+
+// Platform-specific DRM init data type string for PLATFORM_DRM.
+// Internal code sets the string at startup; public code only reads it.
+MEDIA_EXPORT void SetPlatformDrmInitDataTypeString(
+    const std::string& type_string);
+MEDIA_EXPORT const std::string& GetPlatformDrmInitDataTypeString();
+
+}  // namespace media
+
+#endif  // MEDIA_BASE_PLATFORM_INIT_DATA_TYPES_H_
