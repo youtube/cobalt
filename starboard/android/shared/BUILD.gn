@@ -220,10 +220,6 @@ static_library("starboard_platform") {
     "player_set_playback_rate.cc",
     "player_settings.cc",
     "player_settings.h",
-
-    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "posix_emu/pthread.cc",
-
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
     "safe_jni.h",
@@ -358,6 +354,8 @@ static_library("starboard_platform") {
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
+      "posix_emu/pthread.cc",
+      "posix_emu/random.cc",
       "posix_emu/stat.cc",
       "posix_emu/stdlib.cc",
     ]
