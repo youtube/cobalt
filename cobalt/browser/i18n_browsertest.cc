@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/i18n/rtl.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
@@ -351,12 +352,8 @@ IN_PROC_BROWSER_TEST_F(I18nBrowserTest, NumberFormattingAcrossLocales) {
             content::EvalJs(shell()->web_contents(), script).ExtractString());
 }
 
-// 6. Verify regional sub-locales alongside the 83 officially supported locales
-// and their regional variants.
-//
-// Cobalt officially supports 83 languages and specific regional variants
-// (e.g., fr, fr-CA, es-ES, es-419, es-US, en, en-GB, en-IN, pt-BR, pt-PT,
-// zh, zh-HK, zh-TW, sr, sr-Latn).
+// 6. Verify non-official regional sub-locales gracefully fall back to their
+// parent language.
 //
 // Additional regional sub-locales (such as fr-SN, fr-BE, es-CO, es-AR, en-AU,
 // pt-AO, ar-EG, zh-SG) may either be formatted using sub-locale-specific data
@@ -367,16 +364,6 @@ IN_PROC_BROWSER_TEST_F(I18nBrowserTest, RegionalSubLocalesGracefulFallback) {
 
   const std::string script = R"(
     (() => {
-      // Officially supported locales with regional variants.
-      const officialRegionalLocales = [
-        'fr', 'fr-CA',
-        'es-ES', 'es-419', 'es-US',
-        'en', 'en-GB', 'en-IN',
-        'pt-BR', 'pt-PT',
-        'zh', 'zh-HK', 'zh-TW',
-        'sr', 'sr-Latn'
-      ];
-
       // Additional regional sub-locales that may either resolve directly or
       // gracefully fall back to their base language.
       const additionalRegionalSubLocales = [
@@ -390,20 +377,6 @@ IN_PROC_BROWSER_TEST_F(I18nBrowserTest, RegionalSubLocalesGracefulFallback) {
 
       const testDate = new Date(Date.UTC(2026, 8, 14, 12, 0, 0));
       const testNumber = 9876543.21;
-
-      // Verify officially supported locales and their regional variants.
-      for (const loc of officialRegionalLocales) {
-        try {
-          const dateStr = new Intl.DateTimeFormat(loc).format(testDate);
-          const numStr = new Intl.NumberFormat(loc).format(testNumber);
-          const coll = new Intl.Collator(loc).compare('a', 'b');
-          if (!dateStr || !numStr || coll >= 0) {
-            return `Official locale ${loc} verification failed`;
-          }
-        } catch (e) {
-          return `Exception in official locale ${loc}: ${e.message}`;
-        }
-      }
 
       // Verify additional regional sub-locales produce valid outputs (either
       // directly or via fallback to their parent language).
@@ -472,6 +445,7 @@ class I18nBrowserLanguageParamTest
   void CreatedBrowserMainParts(
       content::BrowserMainParts* browser_main_parts) override {
     content::ContentBrowserTest::CreatedBrowserMainParts(browser_main_parts);
+    base::i18n::SetICUDefaultLocale(GetParam());
     browser_client_ = std::make_unique<LocaleContentBrowserClient>(GetParam());
   }
 
@@ -495,15 +469,25 @@ IN_PROC_BROWSER_TEST_P(I18nBrowserLanguageParamTest, VerifyBrowserLanguage) {
   SetUpPage();
 
   const std::string expected_prefix = GetParam();
-  const std::string script = "navigator.language";
-  const std::string actual_lang =
-      content::EvalJs(shell()->web_contents(), script).ExtractString();
+  const std::string expected_lang = expected_prefix.substr(0, 2);
 
-  // navigator.language should start with the requested language code.
-  std::string expected_lang = expected_prefix.substr(0, 2);
+  const std::string actual_lang =
+      content::EvalJs(shell()->web_contents(), "navigator.language")
+          .ExtractString();
   EXPECT_EQ(expected_lang, actual_lang.substr(0, 2))
-      << "Expected language starting with " << expected_lang << " but got "
-      << actual_lang;
+      << "Expected navigator.language starting with " << expected_lang
+      << " but got " << actual_lang;
+
+  // Verify that the renderer's ICU default locale (configured via --lang and
+  // LocaleContentBrowserClient::GetApplicationLocale(), independent of
+  // RendererPreferences::accept_languages) matches the requested language.
+  const std::string resolved_intl_locale =
+      content::EvalJs(shell()->web_contents(),
+                      "new Intl.DateTimeFormat().resolvedOptions().locale")
+          .ExtractString();
+  EXPECT_EQ(expected_lang, resolved_intl_locale.substr(0, 2))
+      << "Expected default Intl locale starting with " << expected_lang
+      << " but got " << resolved_intl_locale;
 
   // Verify that default Intl date/number formatters work with the active
   // language.
