@@ -71,10 +71,6 @@ void MidiHost::BindReceiver(
     RenderFrameHost*,  // Required for the BinderMapWithContext interface.
     mojo::PendingReceiver<midi::mojom::MidiSessionProvider> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-<<<<<<< HEAD
-  // NOTE: This is not the correct sequence to call RenderFrameHost::GetProcess
-  //       hence, we have the render_process_id passed in separately.
-=======
 #if BUILDFLAG(IS_COBALT)
   // Cobalt-specific: embedders are permitted to skip creating a MidiService
   // (Cobalt does not; see the IS_COBALT carve-out in
@@ -86,8 +82,8 @@ void MidiHost::BindReceiver(
     return;
   }
 #endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> d91b17b5264 (content: Fail gracefully when Cobalt-disabled services are reached (#12799))
+  // NOTE: This is not the correct sequence to call RenderFrameHost::GetProcess
+  //       hence, we have the render_process_id passed in separately.
   mojo::MakeSelfOwnedReceiver(
       base::WrapUnique(new MidiHost(render_process_id, midi_service)),
       std::move(receiver));
