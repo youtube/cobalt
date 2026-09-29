@@ -93,6 +93,11 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
 
   ~Demuxer() override;
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Receives encrypted init data from the platform URL player. No-op default.
+  virtual void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb);
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Returns the name of the demuxer for logging purpose.
   virtual std::string GetDisplayName() const = 0;
 

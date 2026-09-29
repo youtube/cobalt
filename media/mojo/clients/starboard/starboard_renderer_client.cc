@@ -35,6 +35,8 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
+#include "media/base/eme_constants.h"
+#include "media/base/platform_init_data_types.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -296,7 +298,32 @@ void StarboardRendererClient::OnEncryptedMediaInitDataEncountered(
     const std::string& init_data_type,
     const std::vector<uint8_t>& init_data) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  // TODO(b/498421484): Forward this to blink so the `encrypted` event fires.
+
+  if (!media_resource_) {
+    LOG(ERROR) << "[UrlPlayer] OnEncryptedMediaInitDataEncountered called "
+               << "without media_resource_";
+    return;
+  }
+
+  EmeInitDataType eme_type = EmeInitDataType::UNKNOWN;
+  const std::string& platform_type = GetPlatformDrmInitDataTypeString();
+  if (!platform_type.empty() && init_data_type == platform_type) {
+    eme_type = EmeInitDataType::PLATFORM_DRM;
+  } else if (init_data_type == "cenc") {
+    eme_type = EmeInitDataType::CENC;
+  } else if (init_data_type == "webm") {
+    eme_type = EmeInitDataType::WEBM;
+  } else if (init_data_type == "keyids") {
+    eme_type = EmeInitDataType::KEYIDS;
+  }
+  if (eme_type == EmeInitDataType::UNKNOWN) {
+    LOG(ERROR) << "[UrlPlayer] Unknown init data type: " << init_data_type;
+    return;
+  }
+
+  DVLOG(1) << "[UrlPlayer] Forwarding encrypted init data, type="
+           << init_data_type << " size=" << init_data.size();
+  media_resource_->ForwardEncryptedMediaInitData(eme_type, init_data);
 }
 
 void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
