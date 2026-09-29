@@ -90,11 +90,16 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
   void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration) override;
   void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
                                               base::TimeDelta length) override;
+  void ForwardEncryptedMediaInitData(
+      EmeInitDataType init_data_type,
+      const std::vector<uint8_t>& init_data) override;
+  void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) override;
 
  private:
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   raw_ptr<DemuxerHost> host_ = nullptr;
   const GURL url_;
+  EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
   UrlPlayerDemuxerStream audio_stream_{DemuxerStream::AUDIO};
   UrlPlayerDemuxerStream video_stream_{DemuxerStream::VIDEO};
 };
