@@ -71,17 +71,31 @@ def get_commits(branch, start):
   return commits
 
 
-def get_rolled_source_shas(target_branch):
-  """Returns a set of source commit SHAs already cherry-picked into HEAD."""
+def get_rolled_source_items(target_branch):
+  """Returns (rolled_shas, rolled_pr_nums) cherry-picked into HEAD."""
   ref = target_branch
   res = subprocess.run(['git', 'rev-parse', '--verify', ref],
                        capture_output=True,
                        check=False)
   if res.returncode != 0:
     ref = f'origin/{target_branch}'
-  output = get_out(['git', 'log', f'{ref}..HEAD', '--format=%b'])
-  return set(
+  # Inspect full commit messages from target_branch to HEAD.
+  output = get_out(['git', 'log', f'{ref}..HEAD', '--format=%B'])
+  shas = set(
       re.findall(r'\(cherry picked from commit ([0-9a-fA-F]+)\)', output))
+  prs = set()
+  pattern = (r'(?:Refer to (?:the )?original PR: '
+             r'(?:https://github\.com/[^/]+/[^/]+/pull/)?#?|'
+             r'Cherry pick PR #)(\d+)')
+  for m in re.finditer(pattern, output):
+    prs.add(int(m.group(1)))
+  return shas, prs
+
+
+def get_rolled_source_shas(target_branch):
+  """Returns a set of source commit SHAs already cherry-picked into HEAD."""
+  shas, _ = get_rolled_source_items(target_branch)
+  return shas
 
 
 _PR_LABELS_CACHE = {}

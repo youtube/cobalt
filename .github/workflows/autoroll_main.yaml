@@ -78,13 +78,15 @@ jobs:
           FIRST_SHA=$(gh pr list --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=${FIRST_SHA}" >> "${GITHUB_OUTPUT}"
 
-      - name: Fetch Open PRs with Labels
+      - name: Fetch Candidate PRs with Labels
         if: matrix.branch.mode == 'label'
         env:
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          SOURCE_BRANCH: ${{ matrix.branch.source }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
         run: |
-          gh pr list --state open --limit 1000 --json number,labels > "${RUNNER_TEMP}/open_prs.json"
+          gh pr list --state merged --base "${SOURCE_BRANCH}" --label "cp-${TARGET_BRANCH}" --limit 1000 --json number,labels > "${RUNNER_TEMP}/candidate_prs.json"
 
       - name: Cherry Pick Merged PRs
         id: autoroll
@@ -100,15 +102,21 @@ jobs:
         run: |
           set -x
 
+          ARGS=(
+            --source-branch "${SOURCE_BRANCH}"
+            --target-branch "${TARGET_BRANCH}"
+            --autoroll-file "${AUTOROLL_FILE}"
+            --max-commits "${MAX_COMMITS}"
+            --existing-pr-sha "${FIRST_SHA}"
+            --mode "${ROLL_MODE}"
+          )
+
+          if [[ "${ROLL_MODE}" == "label" ]]; then
+            ARGS+=(--prs-json "${RUNNER_TEMP}/candidate_prs.json")
+          fi
+
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll.py" \
-            --source-branch "${SOURCE_BRANCH}" \
-            --target-branch "${TARGET_BRANCH}" \
-            --autoroll-file "${AUTOROLL_FILE}" \
-            --max-commits "${MAX_COMMITS}" \
-            --existing-pr-sha "${FIRST_SHA}" \
-            --mode "${ROLL_MODE}" \
-            --prs-json "${RUNNER_TEMP}/open_prs.json")
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll.py" "${ARGS[@]}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "${GITHUB_OUTPUT}"
