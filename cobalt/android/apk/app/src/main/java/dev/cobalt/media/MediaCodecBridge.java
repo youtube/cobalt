@@ -34,12 +34,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
@@ -61,24 +64,32 @@ class MediaCodecBridge {
   @VisibleForTesting
   static final String METRIC_DECODER_FRAMEWORK = "Cobalt.Media.Android.DecoderFramework";
 
-  @VisibleForTesting static final int DECODER_FRAMEWORK_UNKNOWN = 0;
-  @VisibleForTesting static final int DECODER_FRAMEWORK_OMX = 1;
-  @VisibleForTesting static final int DECODER_FRAMEWORK_CODEC2 = 2;
-  @VisibleForTesting static final int DECODER_FRAMEWORK_MAX = 3;
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused. Keep in sync with
+  // AndroidDecoderFramework in tools/metrics/histograms/metadata/cobalt/enums.xml.
+  @IntDef({DecoderFramework.UNKNOWN, DecoderFramework.OMX, DecoderFramework.CODEC2})
+  @Retention(RetentionPolicy.SOURCE)
+  @VisibleForTesting
+  @interface DecoderFramework {
+    int UNKNOWN = 0;
+    int OMX = 1;
+    int CODEC2 = 2;
+    int NUM_ENTRIES = 3;
+  }
 
   @VisibleForTesting
-  static int getDecoderFramework(String decoderName) {
+  static @DecoderFramework int getDecoderFramework(String decoderName) {
     if (decoderName == null) {
-      return DECODER_FRAMEWORK_UNKNOWN;
+      return DecoderFramework.UNKNOWN;
     }
     String lowerName = decoderName.toLowerCase(Locale.US);
     if (lowerName.startsWith("c2.")) {
-      return DECODER_FRAMEWORK_CODEC2;
+      return DecoderFramework.CODEC2;
     }
     if (lowerName.startsWith("omx.")) {
-      return DECODER_FRAMEWORK_OMX;
+      return DecoderFramework.OMX;
     }
-    return DECODER_FRAMEWORK_UNKNOWN;
+    return DecoderFramework.UNKNOWN;
   }
 
   private final Object mNativeBridgeLock = new Object();
@@ -640,7 +651,7 @@ class MediaCodecBridge {
     }
 
     RecordHistogram.recordEnumeratedHistogram(
-        METRIC_DECODER_FRAMEWORK, getDecoderFramework(decoderName), DECODER_FRAMEWORK_MAX);
+        METRIC_DECODER_FRAMEWORK, getDecoderFramework(decoderName), DecoderFramework.NUM_ENTRIES);
 
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }

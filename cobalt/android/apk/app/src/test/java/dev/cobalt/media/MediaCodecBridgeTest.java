@@ -14,11 +14,9 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.MediaCodecBridge.DECODER_FRAMEWORK_CODEC2;
-import static dev.cobalt.media.MediaCodecBridge.DECODER_FRAMEWORK_OMX;
-import static dev.cobalt.media.MediaCodecBridge.DECODER_FRAMEWORK_UNKNOWN;
 import static org.junit.Assert.assertEquals;
 
+import dev.cobalt.media.MediaCodecBridge.DecoderFramework;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -42,30 +40,30 @@ public class MediaCodecBridgeTest {
   @Test
   public void testGetDecoderFramework_c2Decoders() {
     assertEquals(
-        DECODER_FRAMEWORK_CODEC2, MediaCodecBridge.getDecoderFramework("c2.android.av1.decoder"));
+        DecoderFramework.CODEC2, MediaCodecBridge.getDecoderFramework("c2.android.av1.decoder"));
     assertEquals(
-        DECODER_FRAMEWORK_CODEC2,
+        DecoderFramework.CODEC2,
         MediaCodecBridge.getDecoderFramework("c2.amlogic.av1.decoder.awesome"));
     assertEquals(
-        DECODER_FRAMEWORK_CODEC2, MediaCodecBridge.getDecoderFramework("C2.qti.vp9.decoder"));
+        DecoderFramework.CODEC2, MediaCodecBridge.getDecoderFramework("C2.qti.vp9.decoder"));
   }
 
   @Test
   public void testGetDecoderFramework_omxDecoders() {
     assertEquals(
-        DECODER_FRAMEWORK_OMX,
+        DecoderFramework.OMX,
         MediaCodecBridge.getDecoderFramework("OMX.amlogic.av1.decoder.awesome2"));
     assertEquals(
-        DECODER_FRAMEWORK_OMX, MediaCodecBridge.getDecoderFramework("OMX.google.h264.decoder"));
+        DecoderFramework.OMX, MediaCodecBridge.getDecoderFramework("OMX.google.h264.decoder"));
     assertEquals(
-        DECODER_FRAMEWORK_OMX, MediaCodecBridge.getDecoderFramework("omx.broadcom.video_decoder"));
+        DecoderFramework.OMX, MediaCodecBridge.getDecoderFramework("omx.broadcom.video_decoder"));
   }
 
   @Test
   public void testGetDecoderFramework_unknownDecoders() {
     assertEquals(
-        DECODER_FRAMEWORK_UNKNOWN, MediaCodecBridge.getDecoderFramework("unknown.video.decoder"));
-    assertEquals(DECODER_FRAMEWORK_UNKNOWN, MediaCodecBridge.getDecoderFramework(""));
-    assertEquals(DECODER_FRAMEWORK_UNKNOWN, MediaCodecBridge.getDecoderFramework(null));
+        DecoderFramework.UNKNOWN, MediaCodecBridge.getDecoderFramework("unknown.video.decoder"));
+    assertEquals(DecoderFramework.UNKNOWN, MediaCodecBridge.getDecoderFramework(""));
+    assertEquals(DecoderFramework.UNKNOWN, MediaCodecBridge.getDecoderFramework(null));
   }
 }
