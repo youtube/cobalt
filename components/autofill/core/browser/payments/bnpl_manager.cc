@@ -26,6 +26,7 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
+#include "components/autofill/core/browser/metrics/payments/ai_amount_extraction_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/bnpl_metrics.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_strategy.h"
@@ -35,7 +36,7 @@
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
-#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_ui_delegate.h"
 #include "components/autofill/core/browser/ui/payments/select_bnpl_issuer_dialog_controller_impl.h"
@@ -151,15 +152,6 @@ void BnplManager::OnDidAcceptBnplSuggestion(
       break;
     }
     case kCheckAmountExtractionBeforeContinuingFlow: {
-      base::OnceClosure cancel_callback;
-#if BUILDFLAG(IS_ANDROID)
-      cancel_callback =
-          base::BindOnce(&BnplManager::OnTouchToFillIssuerSelectionCancelled,
-                         weak_factory_.GetWeakPtr());
-#else
-      cancel_callback =
-          base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr());
-#endif  // BUILDFLAG(IS_ANDROID)
       // Shows the issuer selection screen when amount extraction returns a
       // valid amount.
       if (ongoing_flow_state_->final_checkout_amount.has_value()) {
@@ -168,7 +160,8 @@ void BnplManager::OnDidAcceptBnplSuggestion(
                 GetSortedBnplIssuerContext(), ongoing_flow_state_->app_locale,
                 base::BindOnce(&BnplManager::OnIssuerSelected,
                                weak_factory_.GetWeakPtr()),
-                std::move(cancel_callback), HasSeenAmountExtractionAiTerms());
+                base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr()),
+                HasSeenAmountExtractionAiTerms());
       } else {
         // We can only enter this branch if the user selected the BNPL chip
         // before amount extraction returned. If amount extraction had already
@@ -266,8 +259,6 @@ void BnplManager::OnAmountExtractionReturned(
         // screen is currently visible following the BNPL chip click. The UI
         // will then update its state based on the result of amount extraction.
         ongoing_flow_state_->final_checkout_amount = extracted_amount;
-        // TODO(crbug.com/438784412): Handle cases where the amount is present
-        // but unsupported by all issuers, or if the amount is null.
         payments_autofill_client().OnPurchaseAmountExtracted(
             extracted_amount.has_value() ? GetSortedBnplIssuerContext()
                                          : std::vector<BnplIssuerContext>(),
@@ -315,24 +306,35 @@ void BnplManager::OnAmountExtractionReturned(
 }
 
 void BnplManager::OnAmountExtractionReturnedFromAi(
-    const std::optional<int64_t>& extracted_amount_in_micros,
-    bool timeout_reached) {
-  if (timeout_reached || !extracted_amount_in_micros.has_value()) {
-    // If an invalid response is received from `AmountExtractionManager`, BNPL
-    // flow will close the current dialog and show the error dialog.
+    const AiAmountExtractionResult::ResultType result) {
+  if (!result.has_value()) {
     payments_autofill_client()
         .GetBnplUiDelegate()
         ->RemoveSelectBnplIssuerOrProgressUi();
 
-    payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
-        AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-            /*is_permanent_error=*/false));
+    switch (result.error()) {
+      case AiAmountExtractionResult::Error::kFailureToGenerateApc:
+      case AiAmountExtractionResult::Error::kMissingServerResponse:
+      case AiAmountExtractionResult::Error::kNegativeAmount:
+      case AiAmountExtractionResult::Error::kAmountMissing:
+      case AiAmountExtractionResult::Error::kMissingCurrency:
+      case AiAmountExtractionResult::Error::kTimeout:
+        payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
+            AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+                /*is_permanent_error=*/false));
+        break;
+      case AiAmountExtractionResult::Error::kUnsupportedCurrency:
+        payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
+            AutofillErrorDialogContext::WithBnplUnsupportedCurrencyError());
+        break;
+    }
 
     Reset();
     return;
   }
 
-  ongoing_flow_state_->final_checkout_amount = extracted_amount_in_micros;
+  const std::pair<int64_t, std::string>& amount_and_currency = result.value();
+  ongoing_flow_state_->final_checkout_amount = amount_and_currency.first;
 
   if (IssuerSelectedAndCheckoutAmountWithinRange()) {
     // If the selected issuer is eligible, continue the BNPL flow with this
@@ -340,8 +342,6 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
     OnIssuerSelectedAndCheckoutAmountAvailable();
   } else {
     // If the selected issuer is not eligible, update UI.
-    // This handles both "issuer selected but ineligible" and
-    // "no issuer selected yet" cases.
     CHECK_DEREF(payments_autofill_client().GetBnplUiDelegate())
         .UpdateBnplIssuerDialogUi(GetSortedBnplIssuerContext());
   }
@@ -484,7 +484,20 @@ bool BnplManager::IssuerSelectedAndCheckoutAmountWithinRange() {
           price_range->price_lower_bound ||
       ongoing_flow_state_->final_checkout_amount >
           price_range->price_upper_bound) {
+    if (!has_logged_ai_amount_extracted_in_issuer_range_) {
+      autofill_metrics::LogAiAmountExtractedInIssuerRange(
+          /*is_within_range=*/false, ongoing_flow_state_->issuer->issuer_id(),
+          browser_autofill_manager_->driver().GetPageUkmSourceId());
+      has_logged_ai_amount_extracted_in_issuer_range_ = true;
+    }
     return false;
+  }
+
+  if (!has_logged_ai_amount_extracted_in_issuer_range_) {
+    autofill_metrics::LogAiAmountExtractedInIssuerRange(
+        /*is_within_range=*/true, ongoing_flow_state_->issuer->issuer_id(),
+        browser_autofill_manager_->driver().GetPageUkmSourceId());
+    has_logged_ai_amount_extracted_in_issuer_range_ = true;
   }
   return true;
 }
@@ -968,13 +981,5 @@ std::vector<BnplIssuerContext> BnplManager::GetSortedBnplIssuerContext() {
 
   return result;
 }
-
-#if BUILDFLAG(IS_ANDROID)
-void BnplManager::OnTouchToFillIssuerSelectionCancelled() {
-  // TODO(crbug.com/430575808): Add a metric to track cancellations on the
-  // selection screen.
-  Reset();
-}
-#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace autofill::payments

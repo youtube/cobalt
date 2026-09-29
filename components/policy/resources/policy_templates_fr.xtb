@@ -438,34 +438,8 @@ Si cette règle est désactivée ou n'est pas configurée, les paramètres de re
       Si l'option "Forcé" (2) est sélectionnée, le sélecteur de profil ne pourra pas être supprimé par l'utilisateur. Le sélecteur de profil sera affiché même si un seul profil est disponible.</translation>
 <translation id="1339174690935954950">Empêcher les utilisateurs d'envoyer des commentaires</translation>
 <translation id="1340053691042184658">Empêcher les connexions en mode Invité dans le navigateur</translation>
-<translation id="134154550994512097">Cette règle détermine si les utilisateurs peuvent activer ou non le mode HTTPS uniquement (toujours utiliser une connexion sécurisée) dans les paramètres. Ce mode fait passer toutes les navigations en HTTPS.
-      Si ce paramètre n'est pas défini ou s'il est défini sur "Autorisé", les utilisateurs seront autorisés à activer le mode HTTPS uniquement.
-      Si ce paramètre est défini sur "Interdit", les utilisateurs ne seront pas autorisés à activer le mode HTTPS uniquement.
-      Si ce paramètre est défini sur "force_enabled", le mode HTTPS uniquement sera activé en mode Strict et les utilisateurs ne pourront pas le désactiver.
-      Si ce paramètre est défini sur "force_balanced_enabled", le mode HTTPS uniquement sera activé en mode Équilibré et les utilisateurs ne pourront pas le désactiver.
-      force_enabled est pris en charge à partir de M112, et force_balanced_enabled à partir de M129.
-      Si vous définissez cette règle sur une valeur non prise en charge par la version de Chrome qui la reçoit, Chrome utilisera le paramètre autorisé par défaut.
-
-La règle <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> distincte permet d'éviter que cette fonctionnalité mette à niveau des noms d'hôte ou des modèles du nom d'hôte spécifiques vers HTTPS.</translation>
 <translation id="1342918903685430097">Configurer la version <ph name="PRODUCT_OS_NAME" /> minimale autorisée pour l'appareil.</translation>
 <translation id="1343128241903870688">Désactiver les rapports sur les infos des applis de l'appareil</translation>
-<translation id="1345276795096570241">Désactivez l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> pour les fournisseurs d'identité listés.
-
-Si vous ajoutez la valeur <ph name="POLICY_VALUE_ALL" />, tous les fournisseurs d'identité pris en charge pour l'authentification unique sont désactivés.
-
-Si vous ajoutez la valeur <ph name="POLICY_VALUE_MICROSOFT" />, la prise en charge de l'authentification unique pour le fournisseur d'identité cloud Microsoft® dans Chrome sera désactivée.
-
-Si vous ne configurez pas cette règle, tous les fournisseurs d'identité pris en charge par <ph name="PRODUCT_NAME" /> seront activés.
-
-Pour les fournisseurs d'identité activés dans <ph name="PRODUCT_NAME" /> et configurés sur l'appareil par l'administrateur, les utilisateurs qui se connectent une fois via ce fournisseur d'identité, sur n'importe quelle appli compatible avec <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" />, peuvent être connectés automatiquement aux propriétés Web utilisant ce fournisseur d'identité. Les informations concernant l'authentification de l'utilisateur sont transmises au fournisseur d'identité cloud de l'utilisateur pour chaque événement d'authentification.
-
-Remarques :
-
-<ph name="PRODUCT_NAME" /> ne prend pas en charge l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> en mode navigation privée ou Invité.
-
-<ph name="PRODUCT_NAME" /> ne prend en charge l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> que pour le fournisseur d'identité suivant : Microsoft.
-
-Cette fonctionnalité est disponible à partir de <ph name="MAC_OS_NAME" /> 10.15.</translation>
 <translation id="1347198119056266798">Cette règle est obsolète. Veuillez utiliser <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> et <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />. Cette règle est ignorée si les règles <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />, <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> ou <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> (obsolète) sont configurées.
 
       SafeSearch est obligatoirement activé pour la recherche sur le Web Google, et ce paramètre ne peut pas être modifié par l'utilisateur. Ce paramètre impose également l'application du mode restreint modéré sur YouTube.
@@ -694,6 +668,7 @@ Si cette règle est activée, le sélecteur d'emoji prend en charge les emoji GI
 Si cette règle est désactivée ou n'est pas configurée, le sélecteur d'emoji ne sera pas compatible avec les emoji GIF.
 Si cette règle n'est pas configurée, le sélecteur d'emoji est activé pour les utilisateurs standards, mais désactivé pour les utilisateurs gérés.</translation>
 <translation id="1494138678487405397">Désactiver le contraste élevé sur l'écran de connexion</translation>
+<translation id="1496845825930059227">Spécifie une liste de domaines SaaS qui feront l'objet d'un rapport pour le profil géré</translation>
 <translation id="1497797462580613666">Le gestionnaire de téléchargement proposera l'option d'enregistrer des fichiers dans <ph name="GOOGLE_DRIVE_NAME" />.</translation>
 <translation id="1499129134689253257">Contrôler le nouveau comportement de <ph name="OFFSET_PARENT" /></translation>
 <translation id="1501644502684303995">Appliquer uniquement les connexions en ligne depuis l'écran de connexion</translation>
@@ -1805,9 +1780,6 @@ Si cette règle est désactivée ou qu'elle n'est pas configurée, le transfert 
       Elle remplace <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />, <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />, <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> et les préférences de l'utilisateur.
 
       Cette règle ne concerne que l'accès aux appareils USB via l'API Web Serial. Pour autoriser l'accès aux appareils USB via l'API WebUSB, consultez la règle <ph name="WEB_USB_ALLOW_DEVICES_FOR_URLS_POLICY_NAME" />.</translation>
-<translation id="2246450159673309951">Si vous définissez la règle <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />, les pages Web dont les URL sont interdites ne peuvent pas se charger en mode navigation privée. Les administrateurs peuvent spécifier la liste des formats d'URL à bloquer. Si cette règle n'est pas configurée, aucune URL n'est bloquée en mode navigation privée. Vous pouvez définir jusqu'à 1 000 exceptions dans <ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" />. Découvrez les formats d'URL à respecter ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ).
-
-Cette règle ne s'applique qu'au mode navigation privée. Pour bloquer des URL pour tous les profils utilisateur, veuillez utiliser la règle <ph name="URL_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="2246565294817797392">Bloquer les cookies tronqués</translation>
 <translation id="2246621891161157804">Autoriser Chrome à bloquer les navigations vers des protocoles externes dans des cadres iFrame en bac à sable</translation>
 <translation id="2246709168653295240">Autoriser la détection d'inactivité sur ces sites</translation>
@@ -5464,21 +5436,6 @@ Si cette règle est désactivée, l'utilisateur ne voit pas cette promo.</transl
 
       Si elle n'est pas configurée, l'écran d'introduction de Gemini sera passé pour les utilisateurs gérés par une entreprise, mais s'affichera pour les utilisateurs non gérés.</translation>
 <translation id="4783415902268741066">Autoriser l'affichage de la page des résultats les plus récents du moteur de recherche par défaut dans un panneau latéral du navigateur</translation>
-<translation id="4784457904946078535">Cette règle contrôle le partage du contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> via le panneau latéral ou les onglets de <ph name="PRODUCT_NAME" />.
-
-Sachez que cette règle n'a pas d'incidence sur le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> sur le Web. Elle contrôle uniquement la façon dont les utilisateurs peuvent partager des informations avec ce mode lorsqu'ils utilisent <ph name="PRODUCT_NAME" />.
-
-0/Non configurée : les utilisateurs peuvent partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
-
-1 : les utilisateurs ne peuvent pas partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Les points d'entrée pour partager le contexte seront désactivés ou masqués.
-
-Cette règle sera ignorée lorsque la <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> ne sera pas le moteur de recherche par défaut des utilisateurs, car la fonctionnalité sera désactivée.
-
-Cette règle est indépendante de la règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ne contrôle que les points d'entrée sur l'omnibox ou le champ de recherche de la page "Nouvel onglet", tandis que cette règle contrôle le partage de contexte via le panneau latéral ou les onglets.
-
-Cette règle ne contrôle pas non plus l'intégration de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, qui peut être désactivée par <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="4786784434769279324">Actions à exécuter lorsque l'ordinateur est inactif</translation>
 <translation id="4787763197941188108">Cette règle permet d'ignorer le format de la page d'impression par défaut.
 
@@ -6030,6 +5987,7 @@ Si cette règle n'est pas configurée ou qu'elle est désactivée, les cookies e
           Si cette règle n'est pas configurée, la ligne de commande par défaut est utilisée.</translation>
 <translation id="5151099177901233471">Activer les rapports sur le fuseau horaire de l'appareil</translation>
 <translation id="5151163911478747031">Désactiver l'attribution de l'extension dans le pied de la page "Nouvel onglet"</translation>
+<translation id="5151850599880109339">Activer le mode HTTPS uniquement en mode équilibré</translation>
 <translation id="5152393033264257734">Autoriser les contrôles d'interception des requêtes DNS et les barres d'infos "Essayez avec http://siteintranet/".</translation>
 <translation id="5152787786897382519">Chromium et Google Chrome possèdent tous deux des groupes de règles interdépendantes pour contrôler une fonctionnalité. Ces ensembles sont représentés par les groupes de règles suivants. Les règles pouvant avoir plusieurs sources, seules les valeurs issues de la source ayant la priorité la plus haute sont appliquées. Les valeurs provenant d'une source ayant une priorité inférieure dans le même groupe sont ignorées. L'ordre de priorité est défini à la page <ph name="POLICY_PRIORITY_DOC_URL" />.</translation>
 <translation id="5153187201534281749">Icône des fonctionnalités expérimentales du navigateur dans la barre d'outils</translation>
@@ -6346,34 +6304,6 @@ Remarque : Cette règle ne s'applique pas aux mises à niveau HSTS.</translatio
 
 Si cette règle est désactivée, ces deux historiques ne peuvent pas être supprimés. Même si cette règle est désactivée, cela ne garantit pas que ces historiques soient conservés. En effet, les utilisateurs peuvent modifier ou supprimer directement les fichiers de ces historiques. De même, le navigateur peut arriver à expiration ou archiver l'historique partiellement ou intégralement à tout moment.</translation>
 <translation id="5322649594584715998">Recharge complète de la batterie en mode standard. Ce mode désactive les recharges adaptative et limitée.</translation>
-<translation id="5322726025747768984">Cette règle, quand elle est configurée, permet de sélectionner le proxy que le navigateur utilise en fonction de l'URL de destination et d'autres conditions. Elle prévaut sur les paramètres de proxy définis dans la règle <ph name="PROXY_SETTINGS_POLICY_NAME" />, l'API d'extension <ph name="PROXY_SETTINGS_EXTENSION_API" /> ou manuellement dans les paramètres utilisateur, le cas échéant.
-
-Si cette règle n'est pas configurée, cela n'a aucune incidence sur les autres règles de proxy ou les paramètres utilisateur.
-
-Lorsque le navigateur doit décider quel proxy utiliser, les entrées de la règle <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> sont évaluées dans l'ordre jusqu'à ce qu'une entrée remplisse toutes les conditions suivantes :
-  * Au moins un des formats d'URL dans <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> correspond.
-  * Aucun des formats d'URL dans <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> ne correspond.
-  * Si <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> est spécifié et qu'il s'agit d'une liste non vide, toutes les conditions représentées par ses entrées sont remplies.
-En cas de correspondance, la valeur de <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> sera utilisée comme proxy. Si aucune correspondance n'est trouvée, les paramètres de proxy seront ceux définis dans la règle <ph name="PROXY_SETTINGS_POLICY_NAME" />.
-
-Les formats d'URL acceptés par <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> et <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> sont décrits sur https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
-
-Les entrées du champ <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> correspondent à des valeurs de chaîne de fichiers PAC, telles que :
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-Vous pouvez aussi utiliser directement des spécificateurs de proxy de type URL pour spécifier le proxy, par exemple :
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-La première entrée accessible de la liste sera utilisée comme proxy. Les entrées non valides de la liste sont ignorées.
-
-Le champ <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> contient une liste de conditions qui doivent toutes être remplies pour que la règle de remplacement serve à déterminer le proxy à utiliser. Si ce champ n'est pas défini, l'entrée sera utilisée tant qu'au moins un hôte dans <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> correspondra.
-
-La condition <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> vérifie si l’<ph name="PROXY_OVERRIDE_RULES_HOST" /> DNS fourni peut être résolu en une adresse IP. La condition est considérée comme remplie, si la valeur de <ph name="PROXY_OVERRIDE_RULES_RESULT" /> est "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />". Si la valeur est définie sur <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, la condition est considérée comme remplie si la résolution a échoué.</translation>
 <translation id="5323200200131319468">Activer la lecture vocale sur l'écran de connexion</translation>
 <translation id="5323271643727095577">Ne pas afficher de boîte de dialogue d'annulation quand event.preventDefault() est appelé pour l'événement beforeunload. Afficher la boîte de dialogue d'annulation quand beforeunload event.returnValue est la chaîne vide de l'événement beforeunload.</translation>
 <translation id="5324430722441910403">Paramètres de recherche sur site</translation>
@@ -6519,6 +6449,7 @@ Si la règle est définie sur "False", les enseignants ne peuvent pas accéder �
 
           Si cette règle est désactivée, cette fonctionnalité est désactivée de façon forcée.
           </translation>
+<translation id="5433139124622290129">Spécifie une liste de domaines SaaS qui feront l'objet d'un rapport pour le navigateur géré</translation>
 <translation id="5433865420958136693">Utiliser l'accélération graphique si disponible</translation>
 <translation id="5435888298115339571">Activer le partage du bureau dans l'omnibox et le menu à trois points</translation>
 <translation id="5435967860403961472">Détermine si les extensions supprimées en raison d'infractions non liées à des logiciels malveillants peuvent toujours être installées d'office dans des environnements de faible confiance.
@@ -6771,15 +6702,6 @@ Consultez également https://wiki.samba.org/index.php/Samba_4.6_Features_added/c
 <translation id="5561811616825571914">Sélectionner automatiquement des certificats client pour ces sites sur l'écran de connexion</translation>
 <translation id="5561893881195372931">Désactiver le contraste élevé</translation>
 <translation id="5563240289883266691">Activer les rapports d'utilisation des applis Linux</translation>
-<translation id="5564424694465792000">Cette règle contrôle la connexion au navigateur. Elle vous permet de spécifier si l'utilisateur peut se connecter à <ph name="PRODUCT_NAME" /> à l'aide de son compte et utiliser les services associés à ce compte, comme la synchronisation <ph name="PRODUCT_NAME" />.
-
-      Si elle est définie sur "Désactiver la connexion au navigateur", l'utilisateur ne peut pas se connecter au navigateur ni utiliser les services associés au compte. Dans ce cas, les fonctionnalités du navigateur, comme la synchronisation <ph name="PRODUCT_NAME" />, sont indisponibles. Sur <ph name="IOS_NAME" />, si l'utilisateur est connecté au moment où la règle est désactivée, il sera déconnecté immédiatement. Sur d'autres plates-formes, il sera déconnecté la prochaine fois qu'il lancera <ph name="PRODUCT_NAME" />. En revanche, quelle que soit la plate-forme, ses données de profil locales (favoris, mots de passe, etc.) seront conservées et resteront utilisables. Il pourra toujours se connecter aux services Web Google, comme Gmail, et s'en servir.
-
-      Si la règle est définie sur "Activer la connexion au navigateur", l'utilisateur peut se connecter au navigateur. Sur toutes les plates-formes, sauf <ph name="IOS_NAME" />, la connexion se fait automatiquement lorsque l'utilisateur accède à des services Web Google, comme Gmail. Lorsque l'utilisateur est connecté au navigateur, ses informations de compte sont conservées par le navigateur. Cependant, cela ne signifie pas que la synchronisation <ph name="PRODUCT_NAME" /> est activée par défaut : l'utilisateur doit explicitement accepter d'utiliser cette fonctionnalité. En activant cette règle, vous empêchez l'utilisateur de désactiver le paramètre qui autorise la connexion au navigateur. Pour contrôler la disponibilité de la synchronisation <ph name="PRODUCT_NAME" />, utilisez la règle <ph name="SYNC_POLICY_NAME" />.
-
-      Si la règle est définie sur "Obliger la connexion au navigateur", une boîte de dialogue s'affiche pour demander à l'utilisateur de choisir un compte auquel se connecter pour utiliser le navigateur. Cette mesure permet de s'assurer que dans le cas de comptes gérés, les règles qui les régissent sont bien appliquées. La règle <ph name="GUEST_MODE_POLICY_NAME" /> est désactivée par défaut. Sachez que les profils existants non connectés seront verrouillés et inaccessibles une fois cette règle activée. Pour en savoir plus, consultez cet article du centre d'aide : https://support.google.com/chrome/a/answer/7572556. Cette option n'est pas prise en charge sur <ph name="LINUX_OS_NAME" /> ni sur <ph name="ANDROID_NAME" />. L'option "Activer la connexion au navigateur" est alors utilisée.
-
-      Si la règle n'est pas définie, l'utilisateur peut décider d'activer ou non l'option de connexion au navigateur dans les paramètres de <ph name="PRODUCT_NAME" />, et l'utiliser à sa convenance.</translation>
 <translation id="5565178130821694365">Le mot de passe doit obligatoirement être saisi tous les deux jours (48 heures)</translation>
 <translation id="5566210228171064229">Autoriser l'impression avec et sans code</translation>
 <translation id="5569504149646180067">Configure la connexion automatique des utilisateurs pour les comptes reposant sur un fournisseur d'identité cloud Microsoft®.
@@ -8464,11 +8386,6 @@ Pour que les modifications apportées à cette règle puissent être appliquées
 
       - Si cette règle est désactivée, les administrateurs doivent le signaler aux utilisateurs finaux de l'appareil.</translation>
 <translation id="6605778633186421420">Activer la prise en charge de la compression par dictionnaire</translation>
-<translation id="6605903339716787410">Cette règle permet d'autoriser l'accès aux URL listées en mode navigation privée, comme exceptions à <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />. Par exemple, définir <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> sur "*" bloque toutes les requêtes en mode navigation privée, et vous pouvez appliquer cette règle pour autoriser l'accès à une liste limitée d'URL. Utilisez-la pour définir des exceptions à certains schémas, ports, chemins d'accès spécifiques ou sous-domaines d'autres domaines à l'aide du format spécifié sur ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ). La règle <ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" /> prévaut sur <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />. Cette règle est limitée à 1 000 entrées.
-
-Si cette règle n'est pas configurée, aucune exception à <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> n'est autorisée.
-
-Cette règle ne concerne que le mode navigation privée. Pour autoriser les URL pour tous les profils utilisateur, veuillez utiliser la règle <ph name="URL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="6607983779935460461">Prise en charge de l'URL des données pour SVGUseElement.</translation>
 <translation id="660893824005096050">Autoriser les enseignants à envoyer une transcription aux élèves.</translation>
 <translation id="6609867253856597039">Définir l'expérience utilisateur pour les fonctionnalités désactivées</translation>
@@ -8574,6 +8491,23 @@ Lorsqu'elle est activée, la fonctionnalité de mise à jour GREASE User-Agent C
 <translation id="6682305153467826752">Activer les rapports sur les informations d'identification de l'ordinateur</translation>
 <translation id="6684842561251679182">Nombre d'incréments de clé du kernel des versions intermédiaires retenus</translation>
 <translation id="6685903773201985073">Activer l'authentification ambiante pour les sessions Invité et standards.</translation>
+<translation id="668721405120274587">Cette règle contrôle le partage du contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> via le panneau latéral ou les onglets de <ph name="PRODUCT_NAME" />.
+
+Sachez que cette règle n'a pas d'incidence sur le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> sur le Web. Elle contrôle uniquement la façon dont les utilisateurs peuvent partager des informations avec ce mode lorsqu'ils utilisent <ph name="PRODUCT_NAME" />.
+
+0/Non configurée : les utilisateurs peuvent partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 : les utilisateurs ne peuvent pas partager le contenu de la page ou du fichier avec le <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Les points d'entrée pour partager le contexte seront désactivés ou masqués.
+
+Cette règle sera ignorée lorsque la <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> ne sera pas le moteur de recherche par défaut des utilisateurs, car la fonctionnalité sera désactivée.
+
+Cette règle est indépendante de la règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La règle <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ne contrôle que les points d'entrée sur l'omnibox ou le champ de recherche de la page "Nouvel onglet", tandis que cette règle contrôle le partage de contexte via le panneau latéral ou les onglets.
+
+Cette règle ne contrôle pas non plus l'intégration de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, qui peut être désactivée par <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Si cette règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6687291630099400188">Ne pas afficher les informations système sur l'écran de connexion</translation>
 <translation id="6689343802305995925">Aucune action ne se produit.</translation>
 <translation id="6689792153960219308">Envoyer des rapports sur l'état du matériel</translation>
@@ -8889,6 +8823,15 @@ Si la règle <ph name="DEVICE_POWER_BATTERY_CHARGING_OPTIMIZATION_POLICY_NAME" /
 <translation id="6908640907898649429">Configure le moteur de recherche par défaut. Vous pouvez définir le moteur de recherche par défaut dont se servira l'utilisateur ou choisir de désactiver le moteur de recherche par défaut.</translation>
 <translation id="6910715067772088598">Désactiver les journaux d'applis kiosque</translation>
 <translation id="6913068954484253496">Autoriser <ph name="PRODUCT_NAME" /> à se connecter aux appareils Cast sur toutes les adresses IP.</translation>
+<translation id="691374293559164968">Cette règle contrôle la connexion au navigateur. Elle vous permet de spécifier si l'utilisateur peut se connecter à <ph name="PRODUCT_NAME" /> à l'aide de son compte et utiliser les services associés à ce compte, comme la synchronisation <ph name="PRODUCT_NAME" />.
+
+      Si elle est définie sur "Désactiver la connexion au navigateur", l'utilisateur ne peut pas se connecter au navigateur ni utiliser les services associés au compte. Dans ce cas, les fonctionnalités du navigateur, comme la synchronisation <ph name="PRODUCT_NAME" />, sont indisponibles. Sur <ph name="IOS_NAME" />, si l'utilisateur est connecté au moment où la règle est désactivée, il sera déconnecté immédiatement. Sur d'autres plates-formes, il sera déconnecté la prochaine fois qu'il lancera <ph name="PRODUCT_NAME" />. En revanche, quelle que soit la plate-forme, ses données de profil locales (favoris, mots de passe, etc.) seront conservées et resteront utilisables. Il pourra toujours se connecter aux services Web Google, comme Gmail, et s'en servir.
+
+      Si la règle est définie sur "Activer la connexion au navigateur", l'utilisateur peut se connecter au navigateur. Sur toutes les plates-formes, sauf <ph name="IOS_NAME" />, la connexion se fait automatiquement lorsque l'utilisateur accède à des services Web Google, comme Gmail. Lorsque l'utilisateur est connecté au navigateur, ses informations de compte sont conservées par le navigateur. Cependant, cela ne signifie pas que la synchronisation <ph name="PRODUCT_NAME" /> est activée par défaut : l'utilisateur doit explicitement accepter d'utiliser cette fonctionnalité. En activant cette règle, vous empêchez l'utilisateur de désactiver le paramètre qui autorise la connexion au navigateur. Pour contrôler la disponibilité de la synchronisation <ph name="PRODUCT_NAME" />, utilisez la règle <ph name="SYNC_POLICY_NAME" />.
+
+      Si la règle est définie sur "Obliger la connexion au navigateur", une boîte de dialogue s'affiche pour demander à l'utilisateur de choisir un compte auquel se connecter pour utiliser le navigateur. Cette mesure permet de s'assurer que dans le cas de comptes gérés, les règles qui les régissent sont bien appliquées. La règle <ph name="GUEST_MODE_POLICY_NAME" /> est désactivée par défaut. Sachez que les profils existants non connectés seront verrouillés et inaccessibles une fois cette règle activée. Pour en savoir plus, consultez cet article du centre d'aide : https://support.google.com/chrome/?p=force_browser_signin. Cette option n'est pas prise en charge sur <ph name="PRODUCT_OS_NAME" /> ni sur <ph name="ANDROID_NAME" />. L'option "Activer la connexion au navigateur" est alors utilisée.
+
+      Si la règle n'est pas définie, l'utilisateur peut décider d'activer ou non l'option de connexion au navigateur dans les paramètres de <ph name="PRODUCT_NAME" />, et l'utiliser à sa convenance.</translation>
 <translation id="6915493311660114995">Si cette règle est activée, <ph name="PRODUCT_NAME" /> autorise les requêtes d'authentification Web sur les sites dont les certificats TLS comportent des erreurs (c'est-à-dire les sites Web considérés comme non sécurisés).
 
 Si la règle est désactivée ou n'est pas configurée, le comportement par défaut s'applique et ces requêtes sont bloquées.</translation>
@@ -9074,6 +9017,7 @@ Si cette règle n'est pas configurée pour un site, alors la règle <ph name="DE
 <translation id="7016587686120059767">Désactiver le mode Invité</translation>
 <translation id="7019805045859631636">Rapide</translation>
 <translation id="7021590945154530517">Activer le contrôle de l'état de l'appareil</translation>
+<translation id="7021952112057614674">Désactiver le mode HTTPS uniquement</translation>
 <translation id="7025153290982655996">Revenir à l'ancien comportement du champ d'application des cookies</translation>
 <translation id="7025332601572838001">Configurer le comportement de la boîte de dialogue des conditions d'utilisation la première fois que des onglets personnalisés Chrome sont exécutés</translation>
 <translation id="7026351325994257733">Autoriser la synchronisation des configurations du réseau Wi-Fi entre les appareils <ph name="PRODUCT_OS_NAME" /> et un téléphone Android connecté.</translation>
@@ -9234,6 +9178,23 @@ Cette règle ne concerne pas les gestionnaires de mots de passe tiers qui utilis
 
       Remarque : la fonctionnalité de numérisation est actuellement désactivée par défaut via un flag de fonctionnalité. Si l'utilisateur active la fonctionnalité avec ce flag, il reste possible de la désactiver à l'aide de cette règle.</translation>
 <translation id="7115684775550072082">Ne conserver les espaces blancs que pour les types MIME texte et XML</translation>
+<translation id="7116098886490965998">Désactivez l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> pour les fournisseurs d'identité listés.
+
+Si vous ajoutez la valeur <ph name="POLICY_VALUE_ALL" />, tous les fournisseurs d'identité pris en charge pour l'authentification unique sont désactivés.
+
+Si vous ajoutez la valeur <ph name="POLICY_VALUE_MICROSOFT" />, la prise en charge de l'authentification unique pour le fournisseur d'identité cloud Microsoft® dans Chrome sera désactivée.
+
+Si vous ne configurez pas cette règle, tous les fournisseurs d'identité pris en charge par <ph name="PRODUCT_NAME" /> seront activés.
+
+Pour les fournisseurs d'identité activés dans <ph name="PRODUCT_NAME" /> et configurés sur l'appareil par l'administrateur, les utilisateurs qui se connectent une fois via ce fournisseur d'identité, sur n'importe quelle appli compatible avec <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" />, peuvent être connectés automatiquement aux propriétés Web utilisant ce fournisseur d'identité. Les informations concernant l'authentification de l'utilisateur sont transmises au fournisseur d'identité cloud de l'utilisateur pour chaque événement d'authentification.
+
+Remarques :
+
+<ph name="PRODUCT_NAME" /> ne prend pas en charge l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> en mode navigation privée ou Invité.
+
+<ph name="PRODUCT_NAME" /> ne prend en charge l'authentification unique utilisant <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> que pour les fournisseurs d'identité suivants : Microsoft, Okta.
+
+Cette fonctionnalité est disponible à partir de <ph name="MAC_OS_NAME" /> 10.15.</translation>
 <translation id="7119538491527883595">Stockage des données utilisateur locales</translation>
 <translation id="7121046543122812054">Cette règle étant obsolète, vous pouvez utiliser <ph name="BROWSER_SIGNIN_POLICY_NAME" /> à la place.
 
@@ -9829,6 +9790,15 @@ Pour en savoir plus, veuillez consulter <ph name="DEFAULT_DIRECT_SOCKETS_SETTING
 
       Si cette règle n'est pas configurée ou si elle est définie sur "False", les suites de chiffrement RC4 dans TLS ne seront pas activées. Sinon, il est possible de la définir sur "true" afin de conserver la compatibilité avec un serveur obsolète. Il s'agit d'une solution provisoire et il est conseillé de reconfigurer le serveur.</translation>
 <translation id="751615601677744094">Désactivée : comportement normal pour les événements de mutation, soit un non-déclenchement de ces événements après la date de suppression.</translation>
+<translation id="7518736413346509172">Si cette règle est activée, les requêtes "<ph name="LOCAL_NETWORK_ACCESS" />" n'afficheront des avertissements dans les <ph name="CHROME_DEVTOOLS_NAME" /> qu'en cas d'échec des vérifications "<ph name="LOCAL_NETWORK_ACCESS" />".
+
+Si cette règle est désactivée ou n'est pas configurée, les requêtes "<ph name="LOCAL_NETWORK_ACCESS" />" utiliseront le traitement par défaut.
+
+Pour connaître les restrictions concernant "<ph name="LOCAL_NETWORK_ACCESS" />", consultez https://wicg.github.io/local-network-access/.
+
+Cette règle d'entreprise est temporaire et sera supprimée après M152.
+
+À long terme, la règle "<ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" />" peut être utilisée pour ajouter à la liste d'autorisation les formats d'URL auxquels l'autorisation "<ph name="LOCAL_NETWORK_ACCESS" />" doit être automatiquement accordée.</translation>
 <translation id="7519218194072744342">URL du gestionnaire de protocoles.</translation>
 <translation id="7519251620064708155">Autoriser la génération de clé sur ces sites</translation>
 <translation id="7521864460386999758">Empêcher l'injection de code tiers dans Chrome</translation>
@@ -9927,6 +9897,21 @@ Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_PRINTING_
 Les formats d'URL ne doivent pas entrer en conflit avec ceux de <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL est listé dans les deux règles.
 
 Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://chromeenterprise.google/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
+<translation id="7615612213075471065">Cette règle permet de contrôler la création de rapports <ph name="PRODUCT_NAME" /> sur les visites de domaines SaaS et les transferts de contenu pour un navigateur géré.
+
+Lorsqu'elle est configurée, les URL correspondant aux domaines SaaS sont utilisées pour générer un rapport et importées. Les URL dont le préfixe ne correspond à aucune entrée de la liste sont ignorées.
+
+Si cette règle n'est pas configurée ou qu'aucun préfixe ne correspond, aucun rapport n'est généré.
+
+Les formats correspondants sont semblables à ceux de la règle <ph name="URL_BLOCKLIST_POLICY_NAME" /> décrite sur https://support.google.com/chrome/a?p=url_blocklist_filter_format. À quelques exceptions près ci-dessous :
+
+ * L'hôte de l'URL doit correspondre au nom d'hôte ou être un sous-domaine du nom d'hôte de l'un des domaines de la liste des sites SaaS.
+
+ * Le chemin de l'URL doit commencer par le chemin d'accès de l'entrée de la liste des sites SaaS correspondants.
+
+ * Le schéma, le port et la requête d'URL ne sont pas pris en compte lors de la mise en correspondance.
+
+La valeur de cette règle est renseignée par l'infrastructure de règles cloud. Les administrateurs ne peuvent pas la définir directement.</translation>
 <translation id="7616631530432070402">Les suites de chiffrement 3DES seront activées dans TLS</translation>
 <translation id="761788785484453836">Exiger l'isolation pour tous les sites Web</translation>
 <translation id="7620869951155758729">Cette règle définit la configuration utilisée pour générer et valider le code d'accès parental.
@@ -10088,7 +10073,6 @@ Si cette règle n'est pas configurée, le moteur de rendu des PDF est sélection
       Remarque : Pour savoir quelles variables vous pouvez utiliser, consultez la page https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables.</translation>
 <translation id="7719808201797990069">Exceptions à la suppression des onglets en raison du format d'URL</translation>
 <translation id="7721944091689270995">ID utilisateur <ph name="PLUGIN_VM_NAME" /></translation>
-<translation id="7725010277314676939">Activer de force le mode HTTPS uniquement en mode Strict</translation>
 <translation id="7728486978686128364">Ne pas utiliser de méthodes de requête en majuscules, sauf pour DELETE/GET/HEAD/OPTIONS/POST/PUT</translation>
 <translation id="7731026922044991970">Rétablir l'ancien comportement <ph name="ATTRIBUTE_SAMESITE_NAME" /> pour les cookies sur tous les sites</translation>
 <translation id="7732907212083471072">Règles supprimées</translation>
@@ -10303,6 +10287,11 @@ Pour en savoir plus sur les formats d‘<ph name="URL_LABEL" /> valides, veuille
 <translation id="7891884447851425349">Si la règle <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> est activée, la règle <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> vous permet de spécifier l'URL du moteur de recherche utilisé lors d'une recherche par défaut. L'URL doit inclure la chaîne <ph name="SEARCH_TERM_MARKER" />, qui sera remplacée dans la requête par les termes de recherche de l'utilisateur.
 
       Vous pouvez spécifier cette URL comme suit : <ph name="GOOGLE_SEARCH_URL" />.</translation>
+<translation id="7893719068404928632">Lorsque cette règle est activée, la requête principale est bloquée chaque fois qu'un avertissement est censé s'afficher dans les <ph name="CHROME_DEVTOOLS_NAME" /> en raison de l'échec des vérifications "<ph name="LOCAL_NETWORK_ACCESS" />".
+
+Si cette règle est désactivée ou n'est pas configurée, les requêtes "<ph name="LOCAL_NETWORK_ACCESS" />" utiliseront le traitement par défaut.
+
+Pour connaître les restrictions concernant "<ph name="LOCAL_NETWORK_ACCESS" />", consultez https://wicg.github.io/local-network-access/.</translation>
 <translation id="7894185046683379696">Cette règle permet de définir, en millisecondes, le délai d'inactivité au terme duquel l'écran est verrouillé lorsque l'appareil fonctionne sur secteur ou sur batterie. Ce délai doit être inférieur au délai d'inactivité spécifié dans la règle <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
       Si cette règle est définie sur zéro, <ph name="PRODUCT_OS_NAME" /> ne verrouille pas l'écran en cas d'inactivité de l'utilisateur. Si cette règle n'est pas configurée, un délai par défaut est utilisé.
@@ -11069,6 +11058,7 @@ Si cette règle n'est pas configurée, la valeur globale par défaut est utilis�
       Si cette règle n'est pas configurée, les utilisateurs peuvent contrôler si <ph name="PRODUCT_NAME" /> est le navigateur par défaut et, dans le cas contraire, si une notification doit être affichée pour les en informer.
 
       Remarque (pour les administrateurs <ph name="MS_WIN_NAME" />) : Ce paramètre ne peut être activé que pour les ordinateurs sous Windows 7. Pour les versions ultérieures, vous devez déployer un fichier d'associations d'applications par défaut qui définisse <ph name="PRODUCT_NAME" /> comme le gestionnaire des protocoles <ph name="HTTPS_PROTOCOL" /> et <ph name="HTTP_PROTOCOL" /> (et éventuellement du protocole <ph name="FTP_PROTOCOL" /> ainsi que d'autres formats de fichiers). Pour en savoir plus, consultez l'aide de Chrome à l'adresse https://support.google.com/chrome?p=make_chrome_default_win.</translation>
+<translation id="8437147918598002525">Activer le mode HTTPS uniquement en mode strict</translation>
 <translation id="8437836857126992452">Permet de déterminer quelles extensions les utilisateurs ne peuvent PAS installer. Les extensions déjà installées, mais qui sont bloquées, sont désactivées sans que l'utilisateur puisse les activer. Elles sont automatiquement réactivées dès que vous les retirez de la liste de blocage.
 
           Si vous saisissez la valeur "*" dans la liste de blocage, toutes les extensions sont bloquées par défaut. Les extensions explicitement listées dans la liste d'autorisation sont autorisées si elles sont signées (empaquetées). Toutes les extensions non empaquetées sont bloquées.
@@ -11382,6 +11372,23 @@ Elle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="8631437968147930597">Liste des applications de prise de notes autorisées sur l'écran de verrouillage de <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="8633550872001751090">Autoriser l'inclusion des données de <ph name="PRODUCT_NAME" /> dans les sauvegardes</translation>
 <translation id="8634062512783775032">Utiliser <ph name="AES_KL_NAME" /> comme algorithme de chiffrement du stockage de l'utilisateur si celui-ci est compatible</translation>
+<translation id="8635783478441936474">Cette règle permet de contrôler la création de rapports <ph name="PRODUCT_NAME" /> sur les visites de domaines SaaS et les transferts de contenu pour un profil géré.
+
+Lorsqu'elle est configurée, les URL correspondant aux domaines SaaS sont utilisées pour générer un rapport et importées. Les URL dont le préfixe ne correspond à aucune entrée de la liste sont ignorées.
+
+Si cette règle n'est pas configurée ou qu'aucun préfixe ne correspond, aucun rapport n'est généré.
+
+Les formats correspondants sont semblables à ceux de la règle <ph name="URL_BLOCKLIST_POLICY_NAME" /> décrite sur https://support.google.com/chrome/a?p=url_blocklist_filter_format. À quelques exceptions près ci-dessous :
+
+ * L'hôte de l'URL doit correspondre au nom d'hôte ou être un sous-domaine du nom d'hôte de l'un des domaines de la liste des sites SaaS.
+
+ * Le chemin de l'URL doit commencer par le chemin d'accès de l'entrée de la liste des sites SaaS correspondants.
+
+ * Le schéma, le port et la requête d'URL ne sont pas pris en compte lors de la mise en correspondance.
+
+Cette règle ne peut être configurée que comme règle relative aux utilisateurs du cloud.
+
+La valeur de cette règle est renseignée par l'infrastructure de règles cloud. Les administrateurs ne peuvent pas la définir directement.</translation>
 <translation id="8637566476051166626">Ports réseau explicitement autorisés</translation>
 <translation id="8643838501942693770">Autoriser les cookies tiers, mais permettre aux utilisateurs de modifier ce paramètre</translation>
 <translation id="864611373241249369">Une fois <ph name="LACROS_NAME" /> désactivé, nous tentons de migrer toutes les données.</translation>
@@ -12161,7 +12168,6 @@ Si cette règle n'est pas configurée, ce paramètre est activé et l'utilisateu
       Cette règle est une mesure temporaire qui sera supprimée dans les futures versions de <ph name="PRODUCT_NAME" />. Après la suppression de cette règle, il sera toujours possible d'envoyer d'autres types de requêtes DNS avec <ph name="PRODUCT_NAME" />.</translation>
 <translation id="9167719789236691545">Désactiver Drive dans l'application "Fichiers" de <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="9171359005568194889">Activer l'enregistrement des clés d'accès dans le gestionnaire de mots de passe</translation>
-<translation id="9172648973829444124">Activer de force le mode HTTPS uniquement en mode Équilibré</translation>
 <translation id="9172911925443428317">Ne pas autoriser l'affichage de la promo concernant la note sur l'App Store</translation>
 <translation id="9173133289347070466">Les enquêtes intégrées <ph name="PRODUCT_NAME" /> permettent de recueillir les commentaires des utilisateurs concernant le navigateur. Les réponses à l'enquête ne sont pas associées à des comptes utilisateur.
 Si cette règle est activée ou n'est pas configurée, les enquêtes intégrées peuvent être présentées aux utilisateurs.
@@ -12173,7 +12179,6 @@ Cette règle n'a aucun effet si la règle <ph name="METRICS_REPORTING_ENABLED_PO
 <translation id="9180108183162961002">Autoriser les connexions en mode Invité dans le navigateur</translation>
 <translation id="9185963199234034321">Activer le contraste élevé sur l'écran de connexion et permettre à l'utilisateur de le désactiver temporairement</translation>
 <translation id="9187743794267626640">Désactiver le montage de périphériques de stockage externe</translation>
-<translation id="9189737595688383533">Ne pas autoriser les utilisateurs à activer aucun mode HTTPS uniquement</translation>
 <translation id="9190022798664427644">Activer l'audio mono</translation>
 <translation id="9190456586252617675">Cette règle permet de gérer le mode du processus de prise en main de l'Assistant.
 
@@ -12192,12 +12197,31 @@ La valeur par défaut est "RollbackDisabled".</translation>
 <translation id="9206472508136116830">Ne pas autoriser la découverte des partages NetBIOS</translation>
 <translation id="9207596996305971030">Ne pas signaler les événements de connexion/déconnexion</translation>
 <translation id="9210647066889383361">Autoriser les utilisateurs à se connecter à leur appareil avec Smart Lock</translation>
+<translation id="9212598607138782107">Fournisseur d'identité cloud Okta®</translation>
 <translation id="9213751049772256263">Désactiver toutes les variantes</translation>
 <translation id="9217154963008402249">Fréquence des paquets réseau de contrôle</translation>
 <translation id="9220314833408124365">Utiliser une règle par défaut en matière d'URL de provenance (no-referrer-when-downgrade)</translation>
 <translation id="922160134042190462">Ne pas activer <ph name="DESK_API_NAME" /> pour le contrôle <ph name="PRODUCT_OS_NAME" /> tiers</translation>
 <translation id="9221827710437832530">Autoriser l'accès à la géolocalisation sur l'écran de connexion.</translation>
 <translation id="922540222991413931">Configurer les sources d'installation des extensions, des applications et des scripts d'utilisateur</translation>
+<translation id="924360639456783890">Cette règle détermine si les utilisateurs peuvent activer ou non le mode HTTPS uniquement (toujours utiliser une connexion sécurisée) dans les paramètres. Ce mode fait passer toutes les navigations en HTTPS.
+
+Si ce paramètre n'est pas défini ou s'il est défini sur "allowed", les utilisateurs seront autorisés à activer le mode HTTPS uniquement.
+
+Si ce paramètre est défini sur "disallowed", le mode HTTPS uniquement sera désactivé.
+
+Si ce paramètre est défini sur "force_enabled", le mode HTTPS uniquement sera activé en mode strict.
+
+Si ce paramètre est défini sur "force_balanced_enabled", le mode HTTPS uniquement sera activé en mode équilibré.
+
+"force_enabled" est pris en charge à partir de M112 et "force_balanced_enabled" à partir de M129.
+
+"force_enabled" et "force_balanced_enabled" peuvent aussi être recommandés aux utilisateurs.
+Le mode HTTPS uniquement sera initialement défini sur "Strict" ou "Équilibré", mais les utilisateurs pourront le modifier.
+
+Si vous définissez cette règle sur une valeur non prise en charge par la version de Chrome qui la reçoit, Chrome utilisera le paramètre autorisé par défaut.
+
+La règle <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> distincte permet d'éviter que cette fonctionnalité mette à niveau des noms d'hôte ou des modèles du nom d'hôte spécifiques vers HTTPS.</translation>
 <translation id="924557436754151212">Importer les mots de passe enregistrés du navigateur par défaut à la première exécution</translation>
 <translation id="925379810778921867">Un SharedWorker d'URL blob hérite d'un contrôleur.</translation>
 <translation id="927384371566552478">Si cette règle est activée ou qu'elle n'est pas configurée, les utilisateurs ont accès à l'interface utilisateur d'importation/exportation. Si elle est désactivée, ils n'y ont pas accès.</translation>

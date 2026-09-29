@@ -430,34 +430,8 @@ URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /
       「強制」（2）を選択した場合、ユーザーはプロフィール選択画面を無効にできません。プロフィールが 1 つしかない場合でも、プロフィール選択画面は表示されます。</translation>
 <translation id="1339174690935954950">ユーザーにフィードバックの送信を許可しない</translation>
 <translation id="1340053691042184658">ゲスト ブラウジングでのログインを許可しない</translation>
-<translation id="134154550994512097">このポリシーでは、ユーザーが [設定] で HTTPS 優先モード（常に安全な接続を使用する）を有効にできるかどうかを管理します。HTTPS 優先モードでは、移動先がすべて HTTPS にアップグレードされます。
-      未設定のままにした場合や「allowed（許可する）」に設定した場合、ユーザーは HTTPS 優先モードを有効にできます。
-      「disallowed（許可しない）」に設定した場合、ユーザーは HTTPS 優先モードを有効にできません。
-      「force_enabled（強制的に有効にする）」に設定した場合、HTTPS 優先モードが厳格モードで有効になり、ユーザーはこれを無効にできません。
-      「force_balanced_enabled（強制的にバランスモードで有効にする）」に設定した場合、HTTPS 優先モードがバランスモードで有効になり、ユーザーはこれを無効にできません。
-      「force_enabled」は M112 以降、「force_balanced_enabled」は M129 以降でサポートされます。
-      ポリシーを受け取る Chrome のバージョンでサポートされていない値を指定した場合、Chrome ではデフォルトの「allowed」の設定が使用されます。
-
-<ph name="HTTP_ALLOWLIST_POLICY_NAME" /> ポリシーを別途設定して、この機能による HTTPS へのアップグレードを特定のホスト名またはホスト名のパターンに適用しないよう指定できます。</translation>
 <translation id="1342918903685430097">デバイスでの使用を許可する <ph name="PRODUCT_OS_NAME" /> の最小バージョンを設定する</translation>
 <translation id="1343128241903870688">デバイスのアプリ情報レポートを無効にする</translation>
-<translation id="1345276795096570241">リストの ID プロバイダに対して、<ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオン（SSO）を無効にします。
-
-値 <ph name="POLICY_VALUE_ALL" /> を追加すると、SSO でサポートされているすべての ID プロバイダが無効になります。
-
-値 <ph name="POLICY_VALUE_MICROSOFT" /> を追加すると、Chrome で Microsoft® クラウド ID プロバイダのシングル サインオンのサポートが無効になります。
-
-このポリシーを未設定のままにした場合、<ph name="PRODUCT_NAME" /> でサポートされているすべての ID プロバイダが有効になります。
-
-<ph name="PRODUCT_NAME" /> で有効化され、管理者によってデバイスに設定された ID プロバイダを使用して、<ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> をサポートする任意のアプリケーションでログインしたユーザーは、その ID プロバイダを使用してウェブ プロパティに自動ログインできます。ユーザーの認証情報に関する情報は、認証イベントごとにユーザーのクラウド ID プロバイダに送信されます。
-
-注:
-
-<ph name="PRODUCT_NAME" /> は、シークレット モードまたはゲストモードでの <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオンをサポートしていません。
-
-<ph name="PRODUCT_NAME" /> は、Microsoft の <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオンのみサポートしています。
-
-この機能は <ph name="MAC_OS_NAME" /> 10.15 以降で利用できます。</translation>
 <translation id="1347198119056266798">このポリシーはサポートを終了しました。代わりに <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> と <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> を使用してください。<ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />、<ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />、<ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" />（サポート終了）のいずれかのポリシーが設定されている場合、このポリシーは無視されます。
 
       Google ウェブ検索のクエリ実行時にセーフサーチを自動的に有効にします。ユーザーはこの設定を変更できません。また、YouTube では制限付きモード「中」が自動的に適用されます。
@@ -663,6 +637,7 @@ PromptInTab に設定した場合は、ユーザーの認証が期限切れに�
 このポリシーを無効に設定するか未設定のままにした場合、絵文字選択ツールで GIF 絵文字はサポートされません。
 このポリシーを未設定のままにした場合、絵文字選択ツールは通常のユーザーに対しては有効になり、管理対象ユーザーに対しては無効になります。</translation>
 <translation id="1494138678487405397">ログイン画面でハイ コントラストを無効にする</translation>
+<translation id="1496845825930059227">管理対象プロファイルについてレポートを作成する SaaS ドメインのリストを指定する</translation>
 <translation id="1497797462580613666"><ph name="GOOGLE_DRIVE_NAME" /> にファイルを保存するオプションをダウンロード マネージャーに表示する。</translation>
 <translation id="1499129134689253257"><ph name="OFFSET_PARENT" /> の新しい動作を管理する</translation>
 <translation id="1501644502684303995">ログイン画面でのみオンライン ログインを強制適用する</translation>
@@ -1742,9 +1717,6 @@ URI テンプレートに <ph name="HTTP_VARIABLE_DNS" /> 変数が含まれて�
 
       このポリシーが false の場合、おすすめのページは取得されず、表示されません。</translation>
 <translation id="2244674148015569802">このポリシーでは、ベンダー ID と製品 ID が <ph name="VENDOR_ID_FIELD_NAME" /> および <ph name="PRODUCT_ID_FIELD_NAME" /> フィールドに一致する USB シリアル デバイスへのアクセスを自動的に許可するサイトのリストを指定できます。<ph name="PRODUCT_ID_FIELD_NAME" /> フィールドを省略すると、<ph name="VENDOR_ID_FIELD_NAME" /> フィールドに一致するベンダー ID と任意の製品 ID を持つデバイスへのアクセスをサイトに許可することになります。必ず有効な URL を指定してください。無効な URL を指定した場合、このポリシーは無視されます。URL のオリジン（スキーム、ホストとポート）のみが考慮されます。ChromeOS 上で、このポリシーは関連のあるユーザーにのみ適用されます。このポリシーは、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />、<ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />、<ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" />、ユーザーの設定をオーバーライドします。このポリシーは、Web Serial API 経由での USB デバイスへのアクセスのみに影響を与えます。WebUSB API 経由での USB デバイスへのアクセスを許可するには、<ph name="WEB_USB_ALLOW_DEVICES_FOR_URLS_POLICY_NAME" /> ポリシーを参照してください。</translation>
-<translation id="2246450159673309951"><ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> ポリシーを設定すると、シークレット モードで特定の URL をウェブページで読み込まないようブロックできます。管理者は、ブロックする URL パターンのリストを指定できます。このポリシーを未設定のままにした場合、シークレット モードで URL はブロックされません。<ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" /> で最大 1,000 件の例外を定義できます。URL パターンの指定方法（https://support.google.com/chrome/a?p=url_blocklist_filter_format）をご確認ください。
-
-このポリシーはシークレット モードにのみ適用されます。すべてのユーザー プロファイルの URL をブロックするには、<ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーを使用してください。</translation>
 <translation id="2246565294817797392">切り捨ての処理を行った Cookie をブロックする</translation>
 <translation id="2246621891161157804">サンドボックス化された iframe 内で外部プロトコルへの移動を Chrome がブロックできるようにする</translation>
 <translation id="2246709168653295240">アイドル状態の検出を許可するサイトを指定する</translation>
@@ -5314,21 +5286,6 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 
       未設定の場合、Gemini の紹介画面は企業の管理対象ユーザーに対してはスキップされ、管理対象外ユーザーには表示されます。</translation>
 <translation id="4783415902268741066">ブラウザのサイドパネルにデフォルトの検索エンジンの最新の検索結果ページを表示することを許可します</translation>
-<translation id="4784457904946078535">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
-
-なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
-
-0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
-
-1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントは無効になるか、非表示になります。
-
-<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
-
-このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
-
-また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="4786784434769279324">パソコンがアイドル状態になったときに行う動作</translation>
 <translation id="4787763197941188108">デフォルトの印刷ページサイズをオーバーライドします。
 
@@ -5819,6 +5776,7 @@ Protected Audience API のサポートを終了により、このポリシーは
           このポリシーを設定していない場合、デフォルト コマンド ラインが使用されます。</translation>
 <translation id="5151099177901233471">デバイスのタイムゾーン情報レポートを有効にする</translation>
 <translation id="5151163911478747031">NTP フッターで拡張機能の帰属先表示を無効にする</translation>
+<translation id="5151850599880109339">HTTPS 優先モードをバランスモードで有効にする</translation>
 <translation id="5152393033264257734">DNS 傍受チェックと「もしかして: "http://intranetsite/"」情報バーを有効にする。</translation>
 <translation id="5152787786897382519">Chromium と Google Chrome には、機能を制御するための、相互依存型のポリシー グループが用意されています。これらのセットは、次のポリシー グループで表されます。ポリシーに複数のソースが含まれる場合は、優先度の最も高いソースの値のみが適用されます。同じグループ内にある優先度の低いソースの値は無視されます。優先度の順位は <ph name="POLICY_PRIORITY_DOC_URL" /> で定義されているとおりです。</translation>
 <translation id="5153187201534281749">ツールバー上のブラウザの試験運用版機能アイコン</translation>
@@ -6122,34 +6080,6 @@ Protected Audience API のサポートを終了により、このポリシーは
 
 このポリシーを無効に設定した場合、閲覧とダウンロードの履歴は削除できません。なお、このポリシーを無効にした場合も、閲覧とダウンロードの履歴が保持される保証はありません。ユーザーが履歴データベースのファイルを直接編集または削除できる可能性もあります。また、ブラウザ自体で履歴の有効期限が切れたりすべての履歴アイテムがアーカイブされたりする場合もあります。</translation>
 <translation id="5322649594584715998">標準速度でバッテリーをフル充電する。（アダプティブ充電と制限充電は無効になります）。</translation>
-<translation id="5322726025747768984">このポリシーでは、接続先の URL やその他の条件に基づいてブラウザで使用するプロキシを選択するルールを設定します。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシー、<ph name="PROXY_SETTINGS_EXTENSION_API" /> の拡張機能 API、またはユーザーが手動で設定したプロキシ設定より優先されます（設定されている場合）。
-
-このポリシーを未設定のままにした場合、他のプロキシ ポリシーやユーザー設定には影響しません。
-
-ブラウザで使用するプロキシを決定する必要がある場合、次のすべての条件を満たすエントリが見つかるまで、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーのエントリが順番に照合されます。
-  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の URL パターンの少なくとも 1 つに一致する。
-  * <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> の URL パターンのいずれにも一致しない。
-  * <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> で空白以外のリストが指定されている場合、そのエントリが示すすべての条件が満たされている。
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> の値は、一致した場合にプロキシとして使用されます。一致するエントリが見つからない場合は、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーで設定されたプロキシにフォールバックされます。
-
-<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> と <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> でサポートされている URL パターンについては、https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns をご覧ください。
-
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> フィールドのエントリは、次のような PAC ファイルの文字列値に対応します。
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-または、URL と似た形式のプロキシ指定子を使用して、次のようにプロキシを直接指定することもできます。
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-リスト内の最初に到達可能なエントリがプロキシとして使用されます。リスト内の無効なエントリは無視されます。
-
-<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> フィールドには、オーバーライド ルールで使用するプロキシを決定する際に、すべて満たす必要がある条件のリストを指定します。未設定の場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の少なくとも 1 つのホストが一致すれば、エントリが使用されます。
-
-<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件は、指定された DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> が IP アドレスに解決可能かどうかを判定します。<ph name="PROXY_OVERRIDE_RULES_RESULT" /> の値が「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」の場合は、条件が満たされたと判定されます。代わりにこの値を「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」に設定した場合は、解決に失敗すると、条件が満たされたと判定されます。</translation>
 <translation id="5323200200131319468">ログイン画面で音声フィードバックを有効にする</translation>
 <translation id="5323271643727095577">beforeunload イベントで event.preventDefault() が呼び出されたときにキャンセル ダイアログを表示しない。beforeunload イベントで beforeunload event.returnValue が空の文字列のときにキャンセル ダイアログを表示する。</translation>
 <translation id="5324430722441910403">サイト内検索の設定</translation>
@@ -6292,6 +6222,7 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 
           このポリシーを無効に設定した場合、この機能は強制的に無効になります。
           </translation>
+<translation id="5433139124622290129">管理対象ブラウザについてレポートを作成する SaaS ドメインのリストを指定する</translation>
 <translation id="5433865420958136693">グラフィック アクセラレーションが使用可能な場合は使用する</translation>
 <translation id="5435888298115339571">アドレスバーとその他メニューでデスクトップ共有を有効にする</translation>
 <translation id="5435967860403961472">マルウェア以外の違反が原因で削除された拡張機能を、信頼度の低い環境で引き続き自動インストールできるようにするかどうかを制御します。
@@ -6521,9 +6452,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5561811616825571914">指定サイトに対し、ログイン画面でクライアント証明書を自動的に選択する</translation>
 <translation id="5561893881195372931">ハイ コントラストを無効にする</translation>
 <translation id="5563240289883266691">Linux アプリの使用状況に関するレポートを有効にする</translation>
-<translation id="5564424694465792000">ブラウザのログイン動作を制御するポリシーです。このポリシーによって、ユーザーが自分のアカウントで <ph name="PRODUCT_NAME" /> にログインして <ph name="PRODUCT_NAME" /> 同期などのアカウント関連のサービスを使用できるかどうかを指定できます。このポリシーを「ブラウザのログインを無効にする」に設定した場合、ユーザーはブラウザにログインして、アカウントに基づくサービスを使用することができません。この場合、<ph name="PRODUCT_NAME" /> 同期などのブラウザレベルの機能は使用不可となります。<ph name="IOS_NAME" /> では、ユーザーがログインしている状態でこのポリシーが「無効」に設定されると、そのユーザーは直ちにログアウト状態になります。その他のプラットフォームでは、ユーザーは次回の <ph name="PRODUCT_NAME" /> の実行時にログアウト状態になります。すべてのプラットフォームで、ブックマークやパスワードなどのローカルのプロファイル データは保持され、引き続き使用できます。ユーザーは引き続きログインして、Gmail などの Google ウェブサービスを使用できます。このポリシーを「ブラウザのログインを有効にする」に設定した場合、ユーザーはブラウザにログインできます。<ph name="IOS_NAME" /> を除くすべてのプラットフォームでは、ユーザーは Gmail などの Google ウェブサービスにログインするとブラウザに自動的にログインした状態になります。ブラウザにログインしているときには、ユーザーのアカウント情報がブラウザで保持されます。ただし、<ph name="PRODUCT_NAME" /> 同期はデフォルトではオンになりません。この機能を使用するには、ユーザーが別途オンにする必要があります。このポリシーを有効にした場合、ユーザーは「ブラウザのログインを許可する」設定をオフにできません。<ph name="PRODUCT_NAME" /> 同期を利用できるかどうかを制御するには、<ph name="SYNC_POLICY_NAME" /> ポリシーを使用します。このポリシーが「ブラウザのログインを必須とする」に設定されている場合、ユーザーにはアカウント選択のダイアログが表示されます。ブラウザを使用するには、いずれかのアカウントを選択してログインする必要があります。管理対象アカウントの場合、この設定を使用することで、アカウントに関連付けられているポリシーの適用を徹底できます。<ph name="GUEST_MODE_POLICY_NAME" /> のデフォルト値は無効に設定されます。このポリシーを有効にした後、ログインしていない既存のプロファイルはロックされ、アクセスできなくなります。詳細については、ヘルプセンターの記事（https://support.google.com/chrome/a/answer/7572556）をご覧ください。<ph name="LINUX_OS_NAME" /> と <ph name="ANDROID_NAME" /> ではこのオプションはサポートされておらず、使用した場合は「ブラウザのログインを有効にする」の設定に置き換えられます。
-
-      このポリシーが未設定の場合、ユーザーは <ph name="PRODUCT_NAME" /> の設定でブラウザのログインを有効にするかどうかを自身で判断し、状況に応じて使い分けできます。</translation>
 <translation id="5565178130821694365">2 日（48 時間）ごとにパスワードの入力を求める</translation>
 <translation id="5566210228171064229">PIN ありと PIN なしの印刷を両方許可します</translation>
 <translation id="5569504149646180067">Microsoft® のクラウド ID プロバイダでサポートされるアカウントの自動ユーザー ログインを設定します。
@@ -8155,11 +8083,6 @@ False に設定すると、P2P は使用されません。
 
       - このポリシーが無効の場合、管理者はそのことをデバイスのエンドユーザーに知らせる必要があります。</translation>
 <translation id="6605778633186421420">圧縮辞書転送のサポートを有効にする</translation>
-<translation id="6605903339716787410">このポリシーでは、<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> の例外として、シークレット モードでアクセスを許可する URL のリストを指定できます。このポリシーは、たとえば <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> で「*」と設定してシークレット モードですべてのリクエストをブロックし、限定された一部の URL のみアクセスを許可する場合に使用します。つまり、特定のスキームや、他のドメインのサブドメイン、ポート、具体的なパスについて例外を設定します。設定の際は、https://support.google.com/chrome/a?p=url_blocklist_filter_format で指定された形式を使用します。<ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" /> ポリシーは <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> よりも優先されます。このポリシーで指定できる URL は最大 1,000 件です。
-
-このポリシーを未設定のままにした場合、<ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> に例外は設定されません。
-
-このポリシーはシークレット モードにのみ適用されます。すべてのユーザー プロファイルの URL を許可するには、<ph name="URL_ALLOWLIST_POLICY_NAME" /> ポリシーを使用してください。</translation>
 <translation id="6607983779935460461">SVGUseElement のデータ URL サポート。</translation>
 <translation id="660893824005096050">教師に生徒への文字起こしの送信を許可する。</translation>
 <translation id="6609867253856597039">無効にした機能のユーザー エクスペリエンスを設定する</translation>
@@ -8265,6 +8188,23 @@ False に設定すると、P2P は使用されません。
 <translation id="6682305153467826752">マシン識別情報のレポートを有効にする</translation>
 <translation id="6684842561251679182">カーネルキーの増分を保留するマイルストーンの数</translation>
 <translation id="6685903773201985073">ゲスト セッションと標準セッションでアンビエント認証を有効にします。</translation>
+<translation id="668721405120274587">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
+
+なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
+
+0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
+
+1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントは無効になるか、非表示になります。
+
+<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
+
+このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
+
+また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
+
+このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="6687291630099400188">ログイン画面にシステム情報を表示しない</translation>
 <translation id="6689343802305995925">何の処理も行わない。</translation>
 <translation id="6689792153960219308">ハードウェア ステータスを報告する</translation>
@@ -8565,6 +8505,13 @@ false に設定するか未設定のままにした場合、このレイアウ�
 <translation id="6908640907898649429">デフォルトの検索プロバイダを設定します。ユーザーが使用するデフォルトの検索プロバイダを指定するか、既定の検索を無効にすることができます。</translation>
 <translation id="6910715067772088598">キオスク アプリケーションのログを無効にする</translation>
 <translation id="6913068954484253496">すべての IP アドレスのキャスト デバイスに接続することを <ph name="PRODUCT_NAME" /> に許可する</translation>
+<translation id="691374293559164968">このポリシーでは、ブラウザのログイン動作を制御します。ユーザーが自分のアカウントで <ph name="PRODUCT_NAME" /> にログインして、<ph name="PRODUCT_NAME" /> 同期などのアカウント関連のサービスを使用できるようにするかどうかを指定できます。
+
+      このポリシーを「ブラウザのログインを無効にする」に設定した場合、ユーザーはブラウザにログインして、アカウントに基づくサービスを使用することができません。この場合、<ph name="PRODUCT_NAME" /> 同期などのブラウザレベルの機能は使用不可となります。<ph name="IOS_NAME" /> では、ユーザーがログインしている状態でこのポリシーが「無効」に設定されると、そのユーザーは直ちにログアウト状態になります。その他のプラットフォームでは、ユーザーは次回の <ph name="PRODUCT_NAME" /> の実行時にログアウト状態になります。すべてのプラットフォームで、ブックマークやパスワードなどのローカルのプロファイル データは保持され、引き続き使用できます。ユーザーは引き続き Gmail などの Google ウェブサービスにログインして使用できます。
+
+      このポリシーを「ブラウザのログインを有効にする」に設定した場合、ユーザーはブラウザにログインできます。<ph name="IOS_NAME" /> を除くすべてのプラットフォームでは、ユーザーは Gmail などの Google ウェブサービスにログインするとブラウザに自動的にログインした状態になります。ブラウザにログインしているときは、ユーザーのアカウント情報がブラウザで保持されます。ただし、<ph name="PRODUCT_NAME" /> 同期はデフォルトではオンになりません。この機能を使用するには、ユーザーが別途オンにする必要があります。このポリシーを有効にした場合、ユーザーは「ブラウザのログインを許可する」設定をオフにできません。<ph name="PRODUCT_NAME" /> 同期を利用できるかどうかを制御するには、<ph name="SYNC_POLICY_NAME" /> ポリシーを使用します。このポリシーが「ブラウザのログインを必須とする」に設定されている場合、ユーザーにはアカウント選択のダイアログが表示されます。ブラウザを使用するには、いずれかのアカウントを選択してログインする必要があります。管理対象アカウントの場合、この設定を使用することで、アカウントに関連付けられているポリシーの適用を徹底できます。<ph name="GUEST_MODE_POLICY_NAME" /> のデフォルト値は無効に設定されます。このポリシーを有効にした後、ログインしていない既存のプロファイルはロックされ、アクセスできなくなります。詳しくは、ヘルプセンターの記事（https://support.google.com/chrome/?p=force_browser_signin）をご覧ください。<ph name="PRODUCT_OS_NAME" /> と <ph name="ANDROID_NAME" /> ではこのオプションはサポートされておらず、使用した場合は「ブラウザのログインを有効にする」の設定に置き換えられます。
+
+      このポリシーが未設定の場合、ユーザーは <ph name="PRODUCT_NAME" /> の設定でブラウザのログインを有効にするかどうかを自身で判断し、状況に応じて使い分けできます。</translation>
 <translation id="6915493311660114995">有効に設定した場合、<ph name="PRODUCT_NAME" /> では、TLS 証明書にエラーがあるウェブサイト（ウェブサイトが安全でないと判断されるなど）でウェブ認証リクエストを許可します。このポリシーを無効に設定するか未設定のままにした場合、このようなリクエストをブロックするデフォルトの動作が適用されます。</translation>
 <translation id="6915524162137327111">管理ラベルを 30 秒間表示する</translation>
 <translation id="6919205861950516688">タブの整理機能を許可しない。</translation>
@@ -8739,6 +8686,7 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 <translation id="7016587686120059767">ゲストモードを無効にする</translation>
 <translation id="7019805045859631636">速い</translation>
 <translation id="7021590945154530517">デバイスの稼働状況の監視を有効にする</translation>
+<translation id="7021952112057614674">HTTPS 優先モードを無効にする</translation>
 <translation id="7025153290982655996">従来の Cookie スコープの動作に戻す</translation>
 <translation id="7025332601572838001">CCT の初回実行時の利用規約処理を設定します</translation>
 <translation id="7026351325994257733">Wi-Fi ネットワーク設定を <ph name="PRODUCT_OS_NAME" /> デバイスと接続された Android スマートフォンとの間で同期できるようにします。</translation>
@@ -8897,6 +8845,23 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 
       注: 現在、スキャン機能は機能フラグによりデフォルトで無効になっています。ユーザーが機能フラグでこの機能を有効にしても、このポリシーにより引き続き無効になる可能性があります。</translation>
 <translation id="7115684775550072082">テキストと XML の MIME タイプでのみ空白文字を保持する</translation>
+<translation id="7116098886490965998">リストの ID プロバイダに対して、<ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオン（SSO）を無効にします。
+
+値 <ph name="POLICY_VALUE_ALL" /> を追加すると、SSO でサポートされているすべての ID プロバイダが無効になります。
+
+値 <ph name="POLICY_VALUE_MICROSOFT" /> を追加すると、Chrome で Microsoft® クラウド ID プロバイダのシングル サインオンのサポートが無効になります。
+
+このポリシーを未設定のままにした場合、<ph name="PRODUCT_NAME" /> でサポートされているすべての ID プロバイダが有効になります。
+
+<ph name="PRODUCT_NAME" /> で有効化され、管理者によってデバイスに設定された ID プロバイダを使用して、<ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> をサポートする任意のアプリケーションでログインしたユーザーは、その ID プロバイダを使用してウェブ プロパティに自動ログインできます。ユーザーの認証情報に関する情報は、認証イベントごとにユーザーのクラウド ID プロバイダに送信されます。
+
+注:
+
+<ph name="PRODUCT_NAME" /> は、シークレット モードまたはゲストモードでの <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオンをサポートしていません。
+
+<ph name="PRODUCT_NAME" /> は、Microsoft と Okta の <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> を使用したシングル サインオンのみサポートしています。
+
+この機能は <ph name="MAC_OS_NAME" /> 10.15 以降で利用できます。</translation>
 <translation id="7119538491527883595">ローカル ユーザーデータ ストレージ</translation>
 <translation id="7121046543122812054">このポリシーはサポートが終了しています。代わりに <ph name="BROWSER_SIGNIN_POLICY_NAME" /> を使用してください。
 
@@ -9444,6 +9409,15 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 
       このポリシーを設定しない場合や false に設定した場合は、TLS の RC4 暗号スイートは有効になりません。また、true に設定して古いサーバーとの互換性を維持できます。これは暫定的な措置であり、サーバーの再設定が必要です。</translation>
 <translation id="751615601677744094">無効: ミューテーション イベントの通常の動作です。削除日以降にイベントは発生しません。</translation>
+<translation id="7518736413346509172">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、<ph name="LOCAL_NETWORK_ACCESS" /> チェックが失敗となり、<ph name="CHROME_DEVTOOLS_NAME" /> に警告のみが表示されます。
+
+このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+このエンタープライズ ポリシーは一時的なものであり、M152 以降で削除される予定です。
+
+長期的には、ポリシー <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> を使用して、<ph name="LOCAL_NETWORK_ACCESS" /> 権限を自動的に付与する URL パターンの許可リストを指定するという方法があります。</translation>
 <translation id="7519218194072744342">プロトコル ハンドラの URL です。</translation>
 <translation id="7519251620064708155">指定サイトでのキー生成を許可する</translation>
 <translation id="7521864460386999758">サードパーティのコードを Chrome に設定できないようにする</translation>
@@ -9540,6 +9514,21 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
 
 有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
+<translation id="7615612213075471065">このポリシーでは、<ph name="PRODUCT_NAME" /> の管理対象ブラウザでの SaaS ドメインへのアクセスとコンテンツ移行のレポートを制御します。
+
+このポリシーを設定した場合、SaaS ドメインと一致する URL についてレポートが作成され、アップロードされます。一致しない URL は無視されます。
+
+このポリシーを未設定のままにするか空のリストを設定した場合、レポートは作成されません。
+
+一致パターンは、「<ph name="URL_BLOCKLIST_POLICY_NAME" />」ポリシーと同様の形式で指定します。詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。ただし、以下のような例外があります。
+
+ * URL ホストは、SaaS サイトリストのいずれかのドメインのホスト名と一致するか、そのサブドメインである必要があります。
+
+ * URL パスは、一致した SaaS サイトリストのエントリのパスで始まっている必要があります。
+
+ * 照合プロセスでは、URL スキーム、ポート、クエリは無視されます。
+
+このポリシーの値はクラウド ポリシー インフラストラクチャによって入力され、管理者が直接設定することはできません。</translation>
 <translation id="7616631530432070402">TLS の 3DES 暗号スイートが有効になります</translation>
 <translation id="761788785484453836">すべてのウェブサイトでサイト分離を必須にする</translation>
 <translation id="7620869951155758729">このポリシーでは、保護者のアクセスコードの生成と確認に使用する設定を指定します。 |current_config| は常にアクセスコードの生成に使用され、|future_config| でアクセスコードを確認できなかった場合に限り確認に使用されます。
@@ -9693,7 +9682,6 @@ URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> �
       注: 使用できる変数の一覧については、https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables をご覧ください。</translation>
 <translation id="7719808201797990069">タブ破棄の例外 URL パターン</translation>
 <translation id="7721944091689270995"><ph name="PLUGIN_VM_NAME" /> ユーザー ID</translation>
-<translation id="7725010277314676939">HTTPS 優先モードを厳格モードで強制的に有効にする</translation>
 <translation id="7728486978686128364">DELETE、GET、HEAD、OPTIONS、POST、PUT 以外のリクエスト メソッドを大文字にしない</translation>
 <translation id="7731026922044991970">すべてのサイトの Cookie を以前の <ph name="ATTRIBUTE_SAMESITE_NAME" /> 動作に戻す</translation>
 <translation id="7732907212083471072">削除済みのポリシー</translation>
@@ -9902,6 +9890,11 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="7891884447851425349"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> では、デフォルトの検索に使用する検索エンジンの URL を指定できます。この URL には <ph name="SEARCH_TERM_MARKER" /> という文字列を含めます。この文字列は、クエリの送信時にユーザーが指定した検索キーワードに置き換えられます。
 
       Google の検索 URL は次のように指定できます。<ph name="GOOGLE_SEARCH_URL" /></translation>
+<translation id="7893719068404928632">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> チェックの失敗により <ph name="CHROME_DEVTOOLS_NAME" /> に警告が表示されると想定されるケースでは、代わりにメイン リクエストがブロックされます。
+
+このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。</translation>
 <translation id="7894185046683379696">このポリシーでは、AC 電源またはバッテリーでの使用時に、ユーザー入力が行われなくなってから画面をロックするまでの時間（ミリ秒）を指定できます。<ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" /> で指定したアイドル時間より長い値は指定できません。
 
       この時間をゼロに設定した場合、ユーザーがアイドル状態になっても <ph name="PRODUCT_OS_NAME" /> の画面はロックされません。未設定の場合、デフォルトの時間が使用されます。
@@ -10644,6 +10637,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8433769814000220721">おすすめのコンテンツを有効にする</translation>
 <translation id="8435304381855818385">デフォルトの動的コードの設定</translation>
 <translation id="843609873781525167">このポリシーを True に設定すると、<ph name="PRODUCT_NAME" /> で起動時にデフォルトのブラウザであるかが常に確認され、可能であれば自動的に登録されます。このポリシーを False に設定した場合、<ph name="PRODUCT_NAME" /> でデフォルトであるかどうかが確認されなくなり、このオプションに対するユーザー制御がオフになります。このポリシーを未設定のままにした場合は、<ph name="PRODUCT_NAME" /> でデフォルトに指定するかどうかをユーザーが制御でき、またデフォルトにしない場合はユーザー通知が表示されるかどうかを制御できます。注: <ph name="MS_WIN_NAME" /> 管理者の場合は、Windows 7 が稼働するマシンについてのみ、この設定をオンにできます。それ以後のバージョンについては、<ph name="PRODUCT_NAME" /> を <ph name="HTTPS_PROTOCOL" /> プロトコルと <ph name="HTTP_PROTOCOL" /> プロトコル（必要に応じて <ph name="FTP_PROTOCOL" /> プロトコルとその他のファイル形式）のハンドラにする、「デフォルトのアプリケーション関連付け」ファイルをデプロイする必要があります。Chrome ヘルプ（https://support.google.com/chrome?p=make_chrome_default_win）をご覧ください。</translation>
+<translation id="8437147918598002525">HTTPS 優先モードを厳格モードで有効にする</translation>
 <translation id="8437836857126992452">ユーザーがインストールできない拡張機能を指定できます。すでにインストールされている拡張機能をブロック設定した場合、その拡張機能は無効になり、ユーザーが有効にすることはできません。拒否リストに登録して無効になった拡張機能は、拒否リストから削除すると自動的に再度有効になります。
 
           拒否リストの値が「*」の場合、すべての拡張機能がデフォルトでブロック対象となります。許可リストに明示的に登録されている拡張機能は、署名されている（パッケージ化されている）場合に許可されます。パッケージ化されていない拡張機能はすべてブロックされます。
@@ -10955,6 +10949,23 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8631437968147930597"><ph name="PRODUCT_OS_NAME" /> のロック画面で許可されるメモアプリのリスト</translation>
 <translation id="8633550872001751090"><ph name="PRODUCT_NAME" /> データをバックアップに含めることを許可する</translation>
 <translation id="8634062512783775032">サポートされている場合にユーザー ストレージの暗号化で <ph name="AES_KL_NAME" /> を暗号化アルゴリズムとして使用する</translation>
+<translation id="8635783478441936474">このポリシーでは、<ph name="PRODUCT_NAME" /> の管理対象プロファイルでの SaaS ドメインへのアクセスとコンテンツ移行のレポートを制御します。
+
+このポリシーを設定した場合、SaaS ドメインと一致する URL についてレポートが作成され、アップロードされます。一致しない URL は無視されます。
+
+このポリシーを未設定のままにするか空のリストを設定した場合、レポートは作成されません。
+
+一致パターンは、「<ph name="URL_BLOCKLIST_POLICY_NAME" />」ポリシーと同様の形式で指定します。詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。ただし、以下のような例外があります。
+
+ * URL ホストは、SaaS サイトリストのいずれかのドメインのホスト名と一致するか、そのサブドメインである必要があります。
+
+ * URL パスは、一致した SaaS サイトリストのエントリのパスで始まっている必要があります。
+
+ * 照合プロセスでは、URL スキーム、ポート、クエリは無視されます。
+
+このポリシーは、クラウド ユーザー ポリシーとしてのみ設定できます。
+
+このポリシーの値はクラウド ポリシー インフラストラクチャによって入力され、管理者が直接設定することはできません。</translation>
 <translation id="8637566476051166626">明示的に許可するネットワーク ポートを指定する</translation>
 <translation id="8643838501942693770">サードパーティ Cookie を許可し、ユーザーはこの設定を変更できる</translation>
 <translation id="864611373241249369"><ph name="LACROS_NAME" /> が無効になった後、すべてのデータの移行を試みる。</translation>
@@ -11722,7 +11733,6 @@ M119 よりデフォルトで無効になります）。
       このポリシーは一時的なもので、今後リリースされるバージョン <ph name="PRODUCT_NAME" /> で削除される予定です。ポリシーの削除後は、<ph name="PRODUCT_NAME" /> はその他の DNS タイプのクエリを常に行えるようになります。</translation>
 <translation id="9167719789236691545"><ph name="PRODUCT_OS_NAME" /> ファイルアプリでドライブを無効にする</translation>
 <translation id="9171359005568194889">パスワード マネージャーへのパスキーの保存を有効にする</translation>
-<translation id="9172648973829444124">HTTPS 優先モードをバランスモードで強制的に有効にする</translation>
 <translation id="9172911925443428317">App Store の評価に関するプロモーションの表示を許可しない</translation>
 <translation id="9173133289347070466"><ph name="PRODUCT_NAME" /> のサービス内アンケートでは、ブラウザに対するユーザーのフィードバックを収集します。アンケートの回答はユーザーのアカウントには関連付けられません。
 このポリシーを有効に設定するか未設定のままにした場合、サービス内アンケートがユーザーに表示されます。
@@ -11734,7 +11744,6 @@ M119 よりデフォルトで無効になります）。
 <translation id="9180108183162961002">ゲスト ブラウジングでのログインを許可する</translation>
 <translation id="9185963199234034321">ログイン画面でハイ コントラストを有効にし、ユーザーが一時的に無効にすることを許可する</translation>
 <translation id="9187743794267626640">外部ストレージのマウントを無効にする</translation>
-<translation id="9189737595688383533">ユーザーに HTTPS 優先モードの有効化を許可しない</translation>
 <translation id="9190022798664427644">モノラル音声を有効にする</translation>
 <translation id="9190456586252617675">このポリシーでは、アシスタントのオンボーディング エクスペリエンスのモードを管理します。
 
@@ -11753,12 +11762,31 @@ M119 よりデフォルトで無効になります）。
 <translation id="9206472508136116830">NetBIOS 共有の検出を許可しない</translation>
 <translation id="9207596996305971030">ログイン / ログアウト イベントを報告しない</translation>
 <translation id="9210647066889383361">Smart Lock を使用したデバイスへのログインをユーザーに許可する</translation>
+<translation id="9212598607138782107">Okta® クラウド ID プロバイダ</translation>
 <translation id="9213751049772256263">すべてのバリエーションを無効にします</translation>
 <translation id="9217154963008402249">監視ネットワーク パケットの送信間隔</translation>
 <translation id="9220314833408124365">デフォルトのリファラー ポリシー「no-referrer-when-downgrade」を使用する</translation>
 <translation id="922160134042190462">サードパーティの <ph name="PRODUCT_OS_NAME" /> 制御機能に対して <ph name="DESK_API_NAME" /> を有効にしない</translation>
 <translation id="9221827710437832530">ログイン画面で位置情報へのアクセスを許可する。</translation>
 <translation id="922540222991413931">拡張機能、アプリ、ユーザー スクリプトのインストール ソースを設定する</translation>
+<translation id="924360639456783890">このポリシーでは、ユーザーが [設定] で HTTPS 優先モード（常に安全な接続を使用する）を有効にできるかどうかを管理します。HTTPS 優先モードでは、移動先がすべて HTTPS にアップグレードされます。
+
+未設定のままにした場合や「allowed（許可する）」に設定した場合、ユーザーは HTTPS 優先モードを有効にできます。
+
+この設定を「disallowed（許可しない）」に設定した場合、HTTPS 優先モードは無効になります。
+
+この設定を「force_enabled（強制的に有効にする）」に設定した場合、HTTPS 優先モードが厳格モードで有効になります。
+
+この設定を「force_balanced_enabled（強制的にバランスモードで有効にする）」に設定した場合、HTTPS 優先モードがバランスモードで有効になります。
+
+「force_enabled」は M112 以降、「force_balanced_enabled」は M129 以降でサポートされます。
+
+「force_enabled」と「force_balanced_enabled」はユーザーにも推奨できる設定です。
+HTTPS 優先モードは、初期設定では厳格モードまたはバランスモードになりますが、ユーザーはこれを変更できます。
+
+ポリシーを受け取る Chrome のバージョンでサポートされていない値を指定した場合、Chrome ではデフォルトの「allowed」の設定が使用されます。
+
+<ph name="HTTP_ALLOWLIST_POLICY_NAME" /> ポリシーを別途設定して、この機能による HTTPS へのアップグレードを特定のホスト名またはホスト名のパターンに適用しないよう指定できます。</translation>
 <translation id="924557436754151212">初回実行時にデフォルトのブラウザから保存したパスワードをインポートする</translation>
 <translation id="925379810778921867">SharedWorker は blob URL のコントローラを継承する。</translation>
 <translation id="927384371566552478">このポリシーを有効に設定するか未設定のままにした場合、ユーザーは書き出しと読み込みの UI を使用できます。このポリシーを無効に設定した場合、ユーザーは書き出しと読み込みの UI を使用できません。</translation>

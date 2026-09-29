@@ -215,6 +215,7 @@
 <translation id="3313189106987092621">Chromium จะแจ้งเตือนคุณก่อนโหลดเว็บไซต์โดยใช้การเชื่อมต่อที่ไม่ปลอดภัย</translation>
 <translation id="3316771292331273802">คุณจะออกจากระบบของเว็บไซต์ส่วนใหญ่เมื่อปิดหน้าต่าง Chromium ทั้งหมด ยกเว้นบัญชี Google ที่ลงชื่อเข้าใช้ Chromium หากต้องการให้เว็บไซต์จดจำคุณ ให้<ph name="SETTINGS_LINK" /></translation>
 <translation id="3322413454779348750">มีการเปลี่ยนเครื่องมือค้นหาเริ่มต้นของคุณจากภายนอก Chromium Chromium จึงรีเซ็ตเครื่องมือดังกล่าวเพื่อปกป้องคุณ</translation>
+<translation id="3331557257666250900">ลงชื่อเข้าใช้ Chromium เพื่อรับรหัสผ่าน บุ๊กมาร์ก และข้อมูลอื่นๆ ในอุปกรณ์ทุกเครื่องของคุณ</translation>
 <translation id="3352986031709923790">มุมขวาบนของพื้นที่การค้นหา: ขวา <ph name="RIGHT" />% บน <ph name="TOP" />%</translation>
 <translation id="3366305173356742781">ข้อมูล Chromium ในบัญชี</translation>
 <translation id="3369405342922656244">ค้นหาหน้านี้ด้วยการค้นหารูปภาพ</translation>
@@ -266,6 +267,7 @@
 <translation id="3971865010372729242">เมื่อคุณพิมพ์ในแถบที่อยู่หรือช่องค้นหา Chromium จะส่งสิ่งที่คุณพิมพ์ไปยังเครื่องมือค้นหา, AI และเครื่องมือตัวแทนขององค์กรเพื่อรับคำแนะนำ</translation>
 <translation id="3975724895399328945">เกี่ยวกับ Google Chrome สำหรับการทดสอบ</translation>
 <translation id="3997429360543082038">เกี่ยวกับ Chromium OS</translation>
+<translation id="4010059961270896984">เมื่อคุณเข้าชมเว็บไซต์ Chromium จะนำเฉพาะบางส่วนของ URL มาปรับให้ยากต่อการอ่าน (Obfuscate) แล้วส่งไปยัง <ph name="BEGIN_LINK" />Google Safe Browsing<ph name="END_LINK" /> ผ่านเซิร์ฟเวอร์ส่วนตัวที่ซ่อนที่อยู่ IP ของคุณ หากเว็บไซต์ทำสิ่งที่น่าสงสัย ระบบจะส่ง URL แบบเต็มและเนื้อหาของหน้าเว็บบางส่วนด้วย</translation>
 <translation id="4019629340646866719">Chromium OS เกิดขึ้นได้ด้วยการสนับสนุนจาก<ph name="BEGIN_LINK_CROS_OSS" />ซอฟต์แวร์โอเพนซอร์ส<ph name="END_LINK_CROS_OSS" />อื่นเพิ่มเติม ตลอดจน<ph name="BEGIN_LINK_LINUX_OSS" />สภาพแวดล้อมในการพัฒนาซอฟต์แวร์ Linux<ph name="END_LINK_LINUX_OSS" /></translation>
 <translation id="4022972681110646219">แปลหน้าจอ</translation>
 <translation id="4023601594785368013">ภาษาต้นฉบับ: <ph name="LANGUAGE" /></translation>
@@ -280,6 +282,7 @@
 <translation id="4095980151185649725">{COUNT,plural, =1{องค์กรจะปิด Chromium โดยอัตโนมัติเมื่อไม่มีการใช้งานเป็นเวลา 1 นาที ลบข้อมูลการท่องเว็บแล้ว ซึ่งอาจรวมถึงประวัติการเข้าชม การป้อนข้อความอัตโนมัติ และการดาวน์โหลด}other{องค์กรจะปิด Chromium โดยอัตโนมัติเมื่อไม่มีการใช้งานเป็นเวลา # นาที ลบข้อมูลการท่องเว็บแล้ว ซึ่งอาจรวมถึงประวัติการเข้าชม การป้อนข้อความอัตโนมัติ และการดาวน์โหลด}}</translation>
 <translation id="4118474109249235144">โหมดไม่ระบุตัวตนของ Chromium</translation>
 <translation id="4122186850977583290">ไปที่หน้าเกี่ยวกับ Chromium</translation>
+<translation id="4135244987012252068">ปรับแต่ง Chromium เพื่อสร้างรูปลักษณ์ใหม่ๆ ให้เบราว์เซอร์</translation>
 <translation id="4147856324248078748">ปรับแต่ง Chromium</translation>
 <translation id="4148957013307229264">กำลังติดตั้ง...</translation>
 <translation id="419998258129752635"><ph name="PAGE_TITLE" /> - หน้าลงชื่อเข้าใช้ของเครือข่าย - Chromium</translation>
@@ -337,6 +340,7 @@
 <translation id="4724676981607797757">การติดตั้งไม่สำเร็จเนื่องจากเกิดข้อผิดพลาดเกี่ยวกับโปรโตคอลที่ไม่รองรับ</translation>
 <translation id="4746050847053251315">ปิด Chromium ใช่ไหม</translation>
 <translation id="4748217263233248895">ระบบเพิ่งนำการอัปเดตความปลอดภัยพิเศษไปใช้กับ Chromium รีสตาร์ทเลย แล้วเราจะคืนค่าแท็บให้คุณ</translation>
+<translation id="4759645701210484457">ถาม Chromium</translation>
 <translation id="4771701986670315895">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และอีก <ph name="COUNT" /> รายการออกแล้ว</translation>
 <translation id="4788777615168560705">Chromium ตรวจสอบรหัสผ่านของคุณไม่ได้ โปรดรอ 24 ชั่วโมงแล้วลองอีกครั้งหรือ<ph name="BEGIN_LINK" />ตรวจสอบรหัสผ่านในบัญชี Google<ph name="END_LINK" /></translation>
 <translation id="479167709087336770">การดำเนินการนี้จะใช้โปรแกรมตรวจตัวสะกดแบบเดียวกับใน Google Search ข้อความที่คุณพิมพ์ในเบราว์เซอร์จะส่งไปยัง Google คุณปรับเปลี่ยนลักษณะการทำงานนี้ได้ทุกเมื่อในการตั้งค่า</translation>
@@ -584,6 +588,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="77283119132245232">ให้บริการ System Tracing สำหรับ <ph name="BROWSER_NAME" /> หากปิดใช้บริการนี้ การติดตามประสิทธิภาพที่เบราว์เซอร์สร้างขึ้นจะไม่รวมเหตุการณ์ทั้งระบบ เช่น เหตุการณ์การเปลี่ยนบริบทและเธรดพร้อมใช้งาน</translation>
 <translation id="7745317241717453663">การดำเนินการนี้จะลบข้อมูลการท่องเว็บออกจากอุปกรณ์นี้ หากต้องการดึงข้อมูลภายหลัง ให้ลงชื่อเข้าใช้ Chromium ด้วย <ph name="USER_EMAIL" /></translation>
 <translation id="7747138024166251722">โปรแกรมติดตั้งสร้างไดเรกทอรีชั่วคราวไม่ได้ โปรดตรวจสอบพื้นที่ดิสก์ว่างและการอนุญาตให้ติดตั้งซอฟต์แวร์</translation>
+<translation id="7750130090210923118">รีเซ็ตเป็น Chromium ซึ่งเป็นค่าเริ่มต้น</translation>
 <translation id="7786760609782648049">ทำให้ Chromium เร็วขึ้น</translation>
 <translation id="7790626492778995050"><ph name="PAGE_TITLE" /> - Chromium Canary</translation>
 <translation id="7803986347287457849">ทำให้ผู้ที่มีสิทธิ์เข้าถึงการเข้าใช้อินเทอร์เน็ตของคุณดูว่าคุณเข้าชมเว็บไซต์ไหนบ้างได้ยากขึ้น Chromium ใช้การเชื่อมต่อที่ปลอดภัยเพื่อค้นหาที่อยู่ IP ของเว็บไซต์ใน DNS (ระบบชื่อโดเมน)</translation>
@@ -684,6 +689,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8907580949721785412">Chromium กำลังพยายามแสดงรหัสผ่าน พิมพ์รหัสผ่าน Windows ของคุณเพื่อแสดงรหัสผ่าน</translation>
 <translation id="8941642502866065432">อัปเดต Chromium ไม่ได้</translation>
 <translation id="897581876605952338">โลโก้ Chromium Enterprise</translation>
+<translation id="8981150672034878610">เริ่ม Chromium ไม่ได้เนื่องจากเกิดข้อผิดพลาดขณะเปิดโปรไฟล์ ลองรีสตาร์ท Chromium</translation>
 <translation id="8988036198400390003">จัดการโปรไฟล์ Chromium</translation>
 <translation id="9019929317751753759">เพื่อให้ Chromium ปลอดภัยขึ้น เราได้ปิดส่วนขยายต่อไปนี้ซึ่งไม่ได้แสดงอยู่ใน <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> และอาจมีการเพิ่มเข้ามาโดยที่คุณไม่รู้ตัว</translation>
 <translation id="904366664621834601">Chromium บล็อกการดาวน์โหลดนี้เนื่องจากไฟล์ที่เก็บถาวรมีไฟล์อื่นๆ ที่อาจซ่อนมัลแวร์ไว้</translation>

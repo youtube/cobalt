@@ -30,11 +30,11 @@
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_live_tab_context.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "components/sessions/content/content_live_tab.h"
+#include "components/sessions/core/live_tab_context.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
@@ -45,9 +45,23 @@
 #include "extensions/browser/extension_function_dispatcher.h"
 #include "extensions/browser/extension_function_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/error_utils.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/android/tab_model/android_live_tab_context.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_live_tab_context.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -67,6 +81,13 @@ const char kNoBrowserToRestoreSession[] =
 const char kSessionSyncError[] = "Synced sessions are not available.";
 const char kRestoreInIncognitoError[] =
     "Can not restore sessions in incognito mode.";
+const char kNoLiveTabContextError[] = "Unable to determine live tab context.";
+const char kNoActiveTabError[] = "No active tab.";
+
+#if !BUILDFLAG(ENABLE_EXTENSIONS)
+const char kWindowRestoreNotSupportedError[] =
+    "Window restore is not supported on this platform.";
+#endif
 
 // Comparator function for use with std::sort that will sort sessions by
 // descending modified_time (i.e., most recent first).
@@ -152,6 +173,42 @@ api::sessions::Session CreateSessionModelHelper(
 
 bool is_window_entry(const sessions::tab_restore::Entry& entry) {
   return entry.type == sessions::tab_restore::Type::WINDOW;
+}
+
+// Returns the active web contents or null if none is found.
+content::WebContents* GetActiveWebContents(BrowserWindowInterface* browser) {
+  CHECK(browser);
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser)->GetActiveTab();
+  return active_tab ? active_tab->GetContents() : nullptr;
+}
+
+// Returns the `LiveTabContent` for a browser. The lookup method depends on
+// the platform. Returns null if none is found.
+sessions::LiveTabContext* GetLiveTabContextForBrowser(
+    BrowserWindowInterface* browser) {
+  CHECK(browser);
+  auto* web_contents = GetActiveWebContents(browser);
+  if (!web_contents) {
+    return nullptr;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  return AndroidLiveTabContext::FindContextForWebContents(web_contents);
+#else
+  return BrowserLiveTabContext::FindContextForWebContents(web_contents);
+#endif
+}
+
+// Returns the `BrowserWindowInterface` for a `Profile` or null if none is
+// found.
+BrowserWindowInterface* FindBrowserWindowInterfaceWithProfile(
+    Profile* profile) {
+  for (BrowserWindowInterface* bwi : GetAllBrowserWindowInterfaces()) {
+    if (bwi->GetProfile() == profile) {
+      return bwi;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -472,7 +529,8 @@ SessionsRestoreFunction::GetRestoredWindowResult(int window_id) {
 }
 
 ExtensionFunction::ResponseValue
-SessionsRestoreFunction::RestoreMostRecentlyClosed(Browser* browser) {
+SessionsRestoreFunction::RestoreMostRecentlyClosed(
+    BrowserWindowInterface* browser) {
   sessions::TabRestoreService* tab_restore_service =
       TabRestoreServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context()));
@@ -483,9 +541,10 @@ SessionsRestoreFunction::RestoreMostRecentlyClosed(Browser* browser) {
     return Error(kNoRecentlyClosedSessionsError);
 
   bool is_window = is_window_entry(*entries.front());
-  sessions::LiveTabContext* context =
-      BrowserLiveTabContext::FindContextForWebContents(
-          browser->tab_strip_model()->GetActiveWebContents());
+  sessions::LiveTabContext* context = GetLiveTabContextForBrowser(browser);
+  if (!context) {
+    return Error(kNoLiveTabContextError);
+  }
   std::vector<sessions::LiveTab*> restored_tabs =
       tab_restore_service->RestoreMostRecentEntry(context);
   DCHECK(restored_tabs.size());
@@ -502,7 +561,7 @@ SessionsRestoreFunction::RestoreMostRecentlyClosed(Browser* browser) {
 
 ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreLocalSession(
     const SessionId& session_id,
-    Browser* browser) {
+    BrowserWindowInterface* browser) {
   sessions::TabRestoreService* tab_restore_service =
       TabRestoreServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context()));
@@ -523,9 +582,10 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreLocalSession(
     }
   }
 
-  sessions::LiveTabContext* context =
-      BrowserLiveTabContext::FindContextForWebContents(
-          browser->tab_strip_model()->GetActiveWebContents());
+  sessions::LiveTabContext* context = GetLiveTabContextForBrowser(browser);
+  if (!context) {
+    return Error(kNoLiveTabContextError);
+  }
   std::vector<sessions::LiveTab*> restored_tabs =
       tab_restore_service->RestoreEntryById(
           context, SessionID::FromSerializedValue(session_id.id()),
@@ -548,11 +608,10 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreLocalSession(
 
 ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
     const SessionId& session_id,
-    Browser* browser) {
+    BrowserWindowInterface* browser) {
   Profile* profile = Profile::FromBrowserContext(browser_context());
   sync_sessions::SessionSyncService* service =
-      SessionSyncServiceFactory::GetInstance()->GetForProfile(
-          Profile::FromBrowserContext(browser_context()));
+      SessionSyncServiceFactory::GetInstance()->GetForProfile(profile);
   DCHECK(service);
 
   sync_sessions::OpenTabsUIDelegate* open_tabs =
@@ -565,8 +624,10 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
   if (open_tabs->GetForeignTab(session_id.session_tag(),
                                SessionID::FromSerializedValue(session_id.id()),
                                &tab)) {
-    TabStripModel* tab_strip = browser->tab_strip_model();
-    content::WebContents* contents = tab_strip->GetActiveWebContents();
+    content::WebContents* contents = GetActiveWebContents(browser);
+    if (!contents) {
+      return Error(kNoActiveTabError);
+    }
 
     content::WebContents* tab_contents =
         SessionRestore::RestoreForeignSessionTab(
@@ -590,12 +651,18 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
   if (window == windows.end())
     return Error(kInvalidSessionIdError, session_id.ToString());
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   // Only restore one window at a time.
-  std::vector<Browser*> browsers =
+  std::vector<BrowserWindowInterface*> browsers =
       SessionRestore::RestoreForeignSessionWindows(profile, window, window + 1);
   // Will always create one browser because we only restore one window per call.
   DCHECK_EQ(1u, browsers.size());
   return GetRestoredWindowResult(ExtensionTabUtil::GetWindowId(browsers[0]));
+#else
+  // TODO(crbug.com/405219627): Support window restore on desktop Android.
+  NOTIMPLEMENTED();
+  return Error(kWindowRestoreNotSupportedError);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
 ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
@@ -603,7 +670,8 @@ ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(params);
 
   Profile* profile = Profile::FromBrowserContext(browser_context());
-  Browser* browser = chrome::FindBrowserWithProfile(profile);
+  BrowserWindowInterface* browser =
+      FindBrowserWindowInterfaceWithProfile(profile);
   if (!browser)
     return RespondNow(Error(kNoBrowserToRestoreSession));
 

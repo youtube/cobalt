@@ -45,7 +45,7 @@ extern "C" {
 // C++ template without any macros.
 
 
-#define LHASH_OF(type) struct lhash_st_##type
+#define LHASH_OF(type) struct type##_lhash_st
 #define DECLARE_LHASH_OF(type) LHASH_OF(type);
 
 // lhash_cmp_func is a comparison function that returns a value equal, or not

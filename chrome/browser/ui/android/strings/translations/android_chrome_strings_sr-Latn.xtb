@@ -114,7 +114,6 @@ Još podešavanja koja koriste podatke za poboljšanje doživljaja Chrome-a potr
 <translation id="1413446866325418126">Sačuvajte podatke na Google nalogu</translation>
 <translation id="1414919006379339073">Zatvori prozor u kome se trenutno radi</translation>
 <translation id="1416550906796893042">Verzija aplikacije</translation>
-<translation id="1419753403124156396">Želite da ponovo pokrenete Chrome?</translation>
 <translation id="1428770807407000502">Želite da isključite sinhronizaciju?</translation>
 <translation id="1430915738399379752">Štampaj</translation>
 <translation id="1435593198351412143">Automatski otvaraj PDF-ove</translation>
@@ -247,10 +246,8 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2063047797624276601">Organizacija je uključila poboljšano bezbedno pregledanje</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 preuzimanje nije uspelo}one{# preuzimanje nije uspelo}few{# preuzimanja nisu uspela}other{# preuzimanja nije uspelo}}</translation>
 <translation id="2067805253194386918">tekst</translation>
-<translation id="2072027001582274150">Nekorišćene ili duple kartice</translation>
 <translation id="2079545284768500474">Opozovi</translation>
 <translation id="2082238445998314030"><ph name="RESULT_NUMBER" />. od <ph name="TOTAL_RESULTS" /> rezultata</translation>
-<translation id="2088833076121753253">Da biste dovršili podešavanje automatskog popunjavanja, restartujte Chrome. Kartice će se automatski ponovo otvoriti.</translation>
 <translation id="2091863218454846791">Ovo je kompaktni prikaz</translation>
 <translation id="2093731487903423814">poslednjih 15 minuta</translation>
 <translation id="2096577711562668473">Želite da promenite uslugu automatskog popunjavanja?</translation>
@@ -403,7 +400,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2751271371269891762">Da bi vam obeleživači i drugi sadržaj bili dostupni na svim uređajima, prijavite se kao <ph name="EMAIL" /></translation>
 <translation id="2760805590727089264">MM/GG</translation>
 <translation id="2762000892062317888">malopre</translation>
-<translation id="276969039800130567">Prijavljen/na kao <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="276969039800130567">Prijavljeni ste kao <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="2777555524387840389">Još <ph name="SECONDS" /> sek</translation>
 <translation id="2779651927720337254">nije uspelo</translation>
 <translation id="2781151931089541271">Još 1 sek</translation>
@@ -428,6 +425,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2854916915045135148">Dodirnite i zadržite da biste prešli u režim bez arhiviranja</translation>
 <translation id="2860954141821109167">Uverite se da je neka aplikacija za telefon omogućena na ovom uređaju</translation>
 <translation id="2861923151411510142">Neke Chrome funkcije više neće biti dostupne</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> i još 1 kartica}one{<ph name="URL" /> i još <ph name="TAB_COUNT_MANY" /> kartica}few{<ph name="URL" /> i još <ph name="TAB_COUNT_MANY" /> kartice}other{<ph name="URL" /> i još <ph name="TAB_COUNT_MANY" /> kartica}}</translation>
 <translation id="2869430948265924908">Da biste zaštitili osetljiv sadržaj u automobilu, morate da primenite zaključavanje profila automobila.  To možete da uradite pomoću PIN-a, koda ili lozinke.</translation>
 <translation id="2870560284913253234">Sajt</translation>
 <translation id="2871733351037274014">Predučitavajte stranice</translation>
@@ -446,6 +444,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2904414404539560095">Lista uređaja sa kojima se deli kartica je otvorena u punoj visini.</translation>
 <translation id="2908243544703713905">Nepročitane vesti su spremne</translation>
 <translation id="2909615210195135082">Google platforma za obaveštenja</translation>
+<translation id="2912247081180973411">Zatvori prozore</translation>
 <translation id="2912345083818861431">Koristite otključavanje ekrana da biste videli otvorene kartice bez arhiviranja</translation>
 <translation id="2918484639460781603">Idi na podešavanja</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, kartica sa isključenim zvukom</translation>
@@ -503,7 +502,6 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="3159335509547415276">Saznajte više o blokiranim nalozima</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, otvara se na novoj kartici</translation>
 <translation id="3166827708714933426">Prečice za kartice i prozore</translation>
-<translation id="316694332262407393">Chrome je već pokrenut.</translation>
 <translation id="3167258285411721858">Možete da zatražite mobilni sajt za <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, višestruko izabrana zakačena kartica bez arhiviranja sa isključenim zvukom</translation>
@@ -851,7 +849,6 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="468924408576231679">Kopirajte link do veb-stranice <ph name="PAGE_TITLE" />. Izvor: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Dobijajte bolji sadržaj</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}few{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
-<translation id="4698061626562952596">Pregledajte neaktivne kartice ovde</translation>
 <translation id="4698757800236023795">Aktivne (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Keširane slike i fajlovi</translation>
 <translation id="4710167854527459075">Sortiraj po najnovijem</translation>
@@ -950,6 +947,7 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> kartica – <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> kartica – <ph name="URL_LIST" />}few{<ph name="TAB_COUNT_MANY" /> kartice – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> kartica – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Privatnost</translation>
 <translation id="504456571576643789">Šta treba imati u vidu</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{Izabran je <ph name="WINDOW_COUNT_ONE" /> prozor}one{Izabran je <ph name="WINDOW_COUNT_NORMAL" /> prozor}few{Izabrana su <ph name="WINDOW_COUNT_NORMAL" /> prozora}other{Izabrano je <ph name="WINDOW_COUNT_NORMAL" /> prozora}}</translation>
 <translation id="5056587122125565772">Napravi sliku</translation>
 <translation id="506254248375231072">Nema kartica</translation>
 <translation id="5075939510584558547">Sačuvajte bez šifrovanja</translation>
@@ -966,7 +964,6 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="5123685120097942451">Kartica bez arhiviranja</translation>
 <translation id="5142281402488957685">Povucite nadole da biste osvežili i videli nove priče</translation>
 <translation id="5144385790872094440">Neke od stranica koje posećujete su predučitane. Stranice mogu da budu predučitane preko Google servera kada do njih vodi link sa Google sajta ili iz aplikacije.</translation>
-<translation id="5145887002054615868">Duple kartice ili kartice koje se ne koriste <ph name="DAYS_INACTIVE" /> dana premeštaju se ovde<ph name="AUTODELETE_SECTION" />. To možete da promenite u bilo kom trenutku u odeljku <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Nije instalirana nijedna podržana aplikacija</translation>
 <translation id="5161254044473106830">Naslov je obavezan</translation>
 <translation id="5161262286013276579">Tabela za potvrdu pristupnog ključa je otvorena</translation>
@@ -1041,6 +1038,7 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="5469852975082458401">Možete da se krećete stranicama pomoću kursora za tekst. Pritisnite F7 da biste to isključili.</translation>
 <translation id="5471273988133666918">Premeštanje kartice <ph name="TAB_TITLE" /> nije uspelo</translation>
 <translation id="548278423535722844">Otvorite u aplikaciji za mape</translation>
+<translation id="5494920125229734069">Izbor svih stavki</translation>
 <translation id="549660026907543296">Pridružite se kao <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Donja tabela sa nedavnim aktivnostima</translation>
 <translation id="5526281268548144413">Ne možete da zatvorite u više prozora</translation>
@@ -1149,6 +1147,7 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="5958275228015807058">Pronađite datoteke i stranice u Preuzimanjima</translation>
 <translation id="5962718611393537961">Dodirnite da biste skupili</translation>
 <translation id="5964869237734432770">Zaustavi opise slika</translation>
+<translation id="5972844218283131174">Opozovi sve</translation>
 <translation id="5975083100439434680">Umanjivanje</translation>
 <translation id="5977976211062815271">Na ovom uređaju</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 stranica na listi za čitanje}one{# stranica na listi za čitanje}few{# stranice na listi za čitanje}other{# stranica na listi za čitanje}}</translation>
@@ -1721,12 +1720,14 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="8137562778192957619">Ne morate da zapamtite ovu lozinku. Čuva se u Google menadžeru lozinki.</translation>
 <translation id="8152331954420209374">Idi na Objektiv</translation>
 <translation id="8153206878708357851">Uključite/isključite navigaciju kursorom</translation>
+<translation id="8154784523622173959">Personalizujte pozadinu ove stranice</translation>
 <translation id="8163820386638255770">Da biste koristili i čuvali lozinke na Google nalogu, potvrdite svoj identitet</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) neaktivna stavka}one{(#) neaktivna stavka}few{(#) neaktivne stavke}other{(#) neaktivnih stavki}}</translation>
 <translation id="8186512483418048923">Preostale datoteke: <ph name="FILES" /></translation>
 <translation id="8190358571722158785">Još 1 dan</translation>
 <translation id="8192765420340770300">Donja tabela za prijavljivanje je otvorena u punoj visini</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Uređaji<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Obriši upit za pretragu</translation>
 <translation id="820568752112382238">Najposećeniji sajtovi</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Pridružite se grupi kartica sa korisnikom <ph name="OWNER_FIRST_NAME" /> i još <ph name="NUMBER_OF_OTHER_MEMBERS" /> osobom}one{Pridružite se grupi kartica sa korisnikom <ph name="OWNER_FIRST_NAME" /> i još <ph name="NUMBER_OF_OTHER_MEMBERS" /> osobom}few{Pridružite se grupi kartica sa korisnikom <ph name="OWNER_FIRST_NAME" /> i još <ph name="NUMBER_OF_OTHER_MEMBERS" /> osobe}other{Pridružite se grupi kartica sa korisnikom <ph name="OWNER_FIRST_NAME" /> i još <ph name="NUMBER_OF_OTHER_MEMBERS" /> osoba}}</translation>
 <translation id="8209050860603202033">Otvori sliku</translation>

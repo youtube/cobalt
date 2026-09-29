@@ -135,6 +135,11 @@ class MockCompositeContextDecorator : public CompositeContextDecorator {
               (override));
 };
 
+class MockGetActiveTaskCountCallback {
+ public:
+  MOCK_METHOD(size_t, Run, ());
+};
+
 class ContextualTasksServiceImplTest : public testing::Test {
  public:
   ContextualTasksServiceImplTest() = default;
@@ -157,7 +162,10 @@ class ContextualTasksServiceImplTest : public testing::Test {
         syncer::DataTypeStoreTestUtil::FactoryForInMemoryStoreForTest(),
         std::move(mock_decorator), mock_aim_eligibility_service_.get(),
         identity_test_environment_.identity_manager(), &pref_service_,
-        SupportsEphemeralOnly());
+        SupportsEphemeralOnly(),
+        base::BindRepeating(
+            &MockGetActiveTaskCountCallback::Run,
+            base::Unretained(&mock_get_active_task_count_callback_)));
   }
 
   virtual bool SupportsEphemeralOnly() { return false; }
@@ -267,7 +275,24 @@ class ContextualTasksServiceImplTest : public testing::Test {
   std::unique_ptr<ContextualTasksServiceImpl> service_;
   raw_ptr<testing::NiceMock<MockCompositeContextDecorator>> mock_decorator_;
   testing::NiceMock<MockContextualTasksObserver> observer_;
+  testing::NiceMock<MockGetActiveTaskCountCallback>
+      mock_get_active_task_count_callback_;
 };
+
+TEST_F(ContextualTasksServiceImplTest, CreateTask_RecordsActiveTasksHistogram) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(mock_get_active_task_count_callback_, Run()).WillOnce(Return(5));
+  service_->CreateTask();
+  histogram_tester.ExpectUniqueSample("ContextualTasks.ActiveTasksCount", 6, 1);
+}
+
+TEST_F(ContextualTasksServiceImplTest,
+       CreateTaskFromUrl_RecordsActiveTasksHistogram) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(mock_get_active_task_count_callback_, Run()).WillOnce(Return(2));
+  service_->CreateTaskFromUrl(GURL("https://google.com"));
+  histogram_tester.ExpectUniqueSample("ContextualTasks.ActiveTasksCount", 3, 1);
+}
 
 TEST_F(ContextualTasksServiceImplTest, CreateTask_Persistent) {
   service_->AddObserver(&observer_);
@@ -1710,6 +1735,26 @@ TEST_F(ContextualTasksServiceImplEphemeralOnlyTest, CreateTask) {
   ContextualTask task = service_->CreateTask();
   EXPECT_TRUE(task.IsEphemeral());
   EXPECT_TRUE(GetTasks().empty());
+}
+
+// Regression test for https://crbug.com/470110337
+TEST_F(ContextualTasksServiceImplTest,
+       AssociateTabWithTask_SelfAssociationCrash_crbug_470110337) {
+  ContextualTask task = service_->CreateTask();
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+
+  // 1. Associate tab.
+  service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
+
+  // The original bug relied on the task being "empty" (no threads) so that
+  // disassociation would trigger deletion. If this assertion fails in the
+  // future, the test is no longer valid for this regression.
+  ASSERT_FALSE(GetTaskById(task.GetTaskId())->GetThread().has_value());
+
+  // 2. Re-associate same tab.
+  // Previously, re-associating an empty task triggered a disassociate -> delete
+  // cycle while holding an iterator, causing a Use-After-Free.
+  service_->AssociateTabWithTask(task.GetTaskId(), tab_id);
 }
 
 }  // namespace contextual_tasks

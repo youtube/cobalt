@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
+#import "ios/chrome/test/earl_grey/chrome_coordinator_app_interface.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
@@ -203,10 +204,12 @@ id<GREYMatcher> ProactivePasswordGenerationUseKeyboardButton() {
 
 // Tests that the bottom sheet opens on autofocus events.
 - (void)testAutofocusOnProactiveBottomSheet {
-  [self loadSignupAutofocusPage];
+  [ChromeCoordinatorAppInterface startPasswordSuggestionCoordinator];
 
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:UseGeneratedPasswordButton()];
+
+  [ChromeCoordinatorAppInterface stopCoordinator];
 }
 
 // Tests that the keyboard appears if the "Use Keyboard" button is
@@ -242,19 +245,7 @@ id<GREYMatcher> ProactivePasswordGenerationUseKeyboardButton() {
 
 // Tests that the bottom sheet does not show after it has been
 // dismissed three consecutive times.
-// TODO(crbug.com/464201277): Test is flaky on devices.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testSilenceProactiveBottomSheet testSilenceProactiveBottomSheet
-#else
-#define MAYBE_testSilenceProactiveBottomSheet \
-  FLAKY_testSilenceProactiveBottomSheet
-#endif
-- (void)MAYBE_testSilenceProactiveBottomSheet {
-  // TODO(crbug.com/439743829): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
+- (void)testSilenceProactiveBottomSheet {
   // Dismiss #1
   [self loadSignupPage];
   [self openAndDismissBottomSheet];

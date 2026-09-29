@@ -651,6 +651,36 @@ TEST_F(AudioEncoderCopyRedTest, AvoidRedundantNonSpeechEncoding) {
   EXPECT_EQ(encoded_.size(), 5u + 100u + 200u);
 }
 
+TEST_F(AudioEncoderCopyRedTest, SingleRedundantPathNoIteratorUnderflow) {
+  const int primary_payload_type = red_payload_type_ + 1;
+  AudioEncoder::EncodedInfo info;
+  info.payload_type = primary_payload_type;
+  info.encoded_bytes = 10;
+  info.encoded_timestamp = timestamp_;
+
+  // First encode seeds the redundancy list so the next encode has exactly one
+  // older payload to include as redundancy.
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(MockAudioEncoder::FakeEncoding(info));
+  Encode();
+
+  // Second encode yields a primary payload plus that single redundant payload.
+  // Running this path makes sure we handle the iterator safely in stricter
+  // STL builds.
+  timestamp_ += 960;
+  info.encoded_timestamp = timestamp_;
+  EXPECT_CALL(*mock_encoder_, EncodeImpl(_, _, _))
+      .WillOnce(MockAudioEncoder::FakeEncoding(info));
+  Encode();
+
+  EXPECT_FALSE(encoded_.empty());
+  EXPECT_EQ(encoded_.size(), encoded_info_.encoded_bytes);
+  ASSERT_EQ(encoded_info_.redundant.size(), 2u);
+  EXPECT_EQ(encoded_info_.payload_type, red_payload_type_);
+  EXPECT_EQ(encoded_info_.redundant[0].payload_type, primary_payload_type);
+  EXPECT_EQ(encoded_info_.redundant[1].payload_type, primary_payload_type);
+}
+
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 // This test fixture tests various error conditions that makes the

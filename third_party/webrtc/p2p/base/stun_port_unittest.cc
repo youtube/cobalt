@@ -221,11 +221,12 @@ class StunPortTestBase : public ::testing::Test {
       stun_port_->set_stun_keepalive_lifetime(*stun_keepalive_lifetime_);
     }
     stun_port_->SubscribePortComplete(
-        [this](Port* port) { OnPortComplete(port); });
-    stun_port_->SubscribePortError([this](Port* port) { OnPortError(port); });
+        this, [this](Port* port) { OnPortComplete(port); });
+    stun_port_->SubscribePortError(this,
+                                   [this](Port* port) { OnPortError(port); });
 
     stun_port_->SubscribeCandidateError(
-        [this](Port* port, const IceCandidateErrorEvent& event) {
+        this, [this](Port* port, const IceCandidateErrorEvent& event) {
           OnCandidateError(port, event);
         });
   }
@@ -262,8 +263,9 @@ class StunPortTestBase : public ::testing::Test {
     ASSERT_TRUE(stun_port_ != nullptr);
     stun_port_->SetIceTiebreaker(kTiebreakerDefault);
     stun_port_->SubscribePortComplete(
-        [this](Port* port) { OnPortComplete(port); });
-    stun_port_->SubscribePortError([this](Port* port) { OnPortError(port); });
+        this, [this](Port* port) { OnPortComplete(port); });
+    stun_port_->SubscribePortError(this,
+                                   [this](Port* port) { OnPortError(port); });
   }
 
   void PrepareAddress() { stun_port_->PrepareAddress(); }

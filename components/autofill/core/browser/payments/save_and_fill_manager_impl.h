@@ -4,6 +4,7 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_IMPL_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_IMPL_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
 #include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
@@ -124,6 +125,10 @@ class SaveAndFillManagerImpl : public SaveAndFillManager {
   void OnDidCreateCard(base::TimeTicks request_sent_timestamp,
                        PaymentsAutofillClient::PaymentsRpcResult result,
                        const std::string& instrument_id);
+
+  void OnPendingDialogCanceled(CardSaveAndFillDialogUserDecision user_decision,
+                               const UserProvidedCardSaveAndFillDetails&
+                                   user_provided_card_save_and_fill_details);
 
   // Function invoked when the flow ends. This resets the state variables in
   // this class.

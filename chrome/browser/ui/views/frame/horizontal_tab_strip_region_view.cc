@@ -152,10 +152,11 @@ class TabSearchPositionMetricsLogger {
   void LogMetrics() {
     const tabs::TabSearchPosition position =
         tabs::GetTabSearchPosition(profile_);
-    if (position != tabs::TabSearchPosition::kToolbarButton) {
+    if (position == tabs::TabSearchPosition::kLeadingHorizontalTabstrip ||
+        position == tabs::TabSearchPosition::kTrailingHorizontalTabstrip) {
       base::UmaHistogramEnumeration(
           "Tabs.TabSearch.PositionInTabstrip2",
-          position == tabs::TabSearchPosition::kTrailingTabstrip
+          position == tabs::TabSearchPosition::kTrailingHorizontalTabstrip
               ? HorizontalTabStripRegionView::TabSearchPositionEnum::kTrailing
               : HorizontalTabStripRegionView::TabSearchPositionEnum::kLeading);
     }
@@ -196,7 +197,7 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
                    : nullptr),
       render_tab_search_before_tab_strip_(
           tabs::GetTabSearchPosition(profile_) ==
-          tabs::TabSearchPosition::kLeadingTabstrip),
+          tabs::TabSearchPosition::kLeadingHorizontalTabstrip),
       tab_search_position_metrics_logger_(
           std::make_unique<TabSearchPositionMetricsLogger>(profile_)) {
   views::SetCascadingColorProviderColor(
@@ -401,10 +402,6 @@ bool HorizontalTabStripRegionView::IsPositionInWindowCaption(
   return IsRectInWindowCaption(gfx::Rect(point, gfx::Size(1, 1)));
 }
 
-views::Button* HorizontalTabStripRegionView::GetNewTabButton() {
-  return new_tab_button_;
-}
-
 views::View::Views HorizontalTabStripRegionView::GetChildrenInZOrder() {
   views::View::Views children;
 
@@ -554,8 +551,8 @@ views::View* HorizontalTabStripRegionView::GetDefaultFocusableChild() {
 bool HorizontalTabStripRegionView::IsTabStripEditable() const {
   return tab_strip_->IsTabStripEditable();
 }
-void HorizontalTabStripRegionView::SetTabStripNotEditableForTesting() const {
-  tab_strip_->SetTabStripNotEditableForTesting();  // IN-TEST
+void HorizontalTabStripRegionView::DisableTabStripEditingForTesting() const {
+  tab_strip_->DisableTabStripEditingForTesting();  // IN-TEST
 }
 
 bool HorizontalTabStripRegionView::IsTabStripCloseable() const {

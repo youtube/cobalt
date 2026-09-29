@@ -516,7 +516,7 @@
     ]
   },
   {
-    "prefix": "customizable-select-in-page-disabled",
+    "prefix": "customizable-select-listbox-disabled",
     "platforms": [
       "Linux"
     ],
@@ -525,7 +525,7 @@
       "wpt_internal/html/semantics/forms/the-select-element"
     ],
     "args": [
-      "--disable-features=CustomizableSelectInPage"
+      "--disable-features=CustomizableSelectListbox"
     ],
     "expires": "Aug 1, 2026",
     "owners": [
@@ -1464,7 +1464,6 @@
   {
     "prefix": "fsa-incognito",
     "owners": [
-      "asully@chromium.org",
       "chrome-owp-storage@google.com"
     ],
     "platforms": [
@@ -2317,6 +2316,23 @@
     "expires": "Jul 1, 2025"
   },
   {
+    "prefix": "option-mutation-observer-improvement-disabled",
+    "platforms": [
+      "Linux"
+    ],
+    "bases": [
+      "fast/forms/select",
+      "external/wpt/html/semantics/forms/the-select-element"
+    ],
+    "args": [
+      "--disable-features=OptionMutationObserverImprovement"
+    ],
+    "owners": [
+      "jarhar@chromium.org"
+    ],
+    "expires": "Dec 1, 2026"
+  },
+  {
     "prefix": "orb-errors-for-all-fetches",
     "owners": [
       "vogelheim@chromium.org"
@@ -2353,6 +2369,27 @@
       "--stable-release-mode"
     ],
     "expires": "never"
+  },
+  {
+    "prefix": "overlay-disabled",
+    "platforms": [
+      "Linux"
+    ],
+    "bases": [
+      "external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-popover-overlay.html",
+      "external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-overlay-re-add-during-transition.html",
+      "external/wpt/html/semantics/popovers/chrome-392042073-crash.html",
+      "external/wpt/html/semantics/forms/the-select-element/customizable-select/select-popover-exit-animation.html",
+      "external/wpt/html/semantics/forms/the-select-element/customizable-select/select-picker-animations.html",
+      "external/wpt/html/semantics/forms/the-select-element/customizable-select/select-picker-exit-animation.html"
+    ],
+    "args": [
+      "--disable-features=OverlayProperty"
+    ],
+    "expires": "Dec 1, 2026",
+    "owners": [
+      "jarhar@chromium.org"
+    ]
   },
   "The overlay-scrollbar virtual suite is testing a feature that is enabled",
   "or not based on platform and settings, so it should not expire.",
@@ -2809,6 +2846,7 @@
       "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/scale.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-css-transform-on-div.html",
+      "wpt_internal/html/canvas/drawElementImage/webgl-ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-scaling.html",
       "wpt_internal/html/canvas/drawElementImage/get-element-transform.html",
       "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html"
@@ -2855,6 +2893,7 @@
       "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/scale.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-css-transform-on-div.html",
+      "wpt_internal/html/canvas/drawElementImage/webgl-ink-overflow.html",
       "wpt_internal/html/canvas/drawElementImage/webgl-scaling.html",
       "wpt_internal/html/canvas/drawElementImage/get-element-transform.html",
       "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html"
@@ -4681,7 +4720,8 @@
   {
     "prefix": "threaded-preload-scanner",
     "owners": [
-      "cduvall@chromium.org"
+      "nhiroki@chromium.org",
+      "chrome-loading@google.com"
     ],
     "platforms": [
       "Linux",
@@ -4696,7 +4736,7 @@
     "args": [
       "--enable-features=ThreadedPreloadScanner,PrecompileInlineScripts"
     ],
-    "expires": "Dec 5, 2025"
+    "expires": "Jun 5, 2026"
   },
   {
     "prefix": "trust-tokens",
@@ -5297,7 +5337,6 @@
     "owners": [
       "rafael.cintron@microsoft.com",
       "ningxin.hu@intel.com",
-      "asully@chromium.org",
       "kbr@chromium.org",
       "phillis@chromium.org",
       "reillyg@chromium.org"
@@ -5567,7 +5606,6 @@
     "owners": [
       "rafael.cintron@microsoft.com",
       "ningxin.hu@intel.com",
-      "asully@chromium.org",
       "kbr@chromium.org",
       "phillis@chromium.org",
       "reillyg@chromium.org"
@@ -5839,7 +5877,6 @@
     "owners": [
       "rafael.cintron@microsoft.com",
       "ningxin.hu@intel.com",
-      "asully@chromium.org",
       "kbr@chromium.org",
       "phillis@chromium.org",
       "reillyg@chromium.org"

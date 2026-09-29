@@ -76,29 +76,12 @@ class AsyncDomStorageDatabase {
           memory_dump_id,
       StatusCallback callback);
 
-  // Represents a batch of changes from a single commit source. There will be
-  // zero to one of these per registered Committer when a commit is initiated.
-  struct Commit {
-    Commit();
-    ~Commit();
-    Commit(Commit&&);
-    Commit(const Commit&) = delete;
-    Commit operator=(Commit&) = delete;
-
-    DomStorageDatabase::Key prefix;
-    bool clear_all_first;
-
-    std::vector<DomStorageDatabase::KeyValuePair> entries_to_add;
-    std::vector<DomStorageDatabase::Key> keys_to_delete;
-    std::optional<DomStorageDatabase::Key> copy_to_prefix;
-    std::vector<base::TimeTicks> timestamps;
-  };
-
   // An interface that represents a source of commits. Practically speaking,
   // this is a `StorageAreaImpl`.
   class Committer {
    public:
-    virtual std::optional<Commit> CollectCommit() = 0;
+    virtual std::optional<DomStorageDatabase::MapBatchUpdate>
+    CollectCommit() = 0;
     virtual base::OnceCallback<void(DbStatus)> GetCommitCompleteCallback() = 0;
   };
 
@@ -111,9 +94,18 @@ class AsyncDomStorageDatabase {
   // The functions below use `RunDatabaseTask()` to read and write `database_`
   // through the `DomStorageDatabase` interface. See function comments in
   // `dom_storage_database.h` for more details.
+  using ReadMapKeyValuesCallback = base::OnceCallback<void(
+      StatusOr<std::map<DomStorageDatabase::Key, DomStorageDatabase::Value>>)>;
+  void ReadMapKeyValues(DomStorageDatabase::MapLocator map_locator,
+                        ReadMapKeyValuesCallback callback);
+  void CloneMap(DomStorageDatabase::MapLocator source_map,
+                DomStorageDatabase::MapLocator target_map,
+                StatusCallback callback);
+
   using ReadAllMetadataCallback =
       base::OnceCallback<void(StatusOr<DomStorageDatabase::Metadata>)>;
   void ReadAllMetadata(ReadAllMetadataCallback callback);
+
   void PutMetadata(DomStorageDatabase::Metadata metadata,
                    StatusCallback callback);
   void DeleteStorageKeysFromSession(

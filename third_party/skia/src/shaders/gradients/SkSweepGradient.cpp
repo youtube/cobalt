@@ -116,7 +116,7 @@ sk_sp<SkShader> SkShaders::SweepGradient(SkPoint center, float startAngle, float
                 srcColors.front(), srcColors.front(), srcColors.back()
             };
             SkGradient::Colors newColors = {
-                reColors, clampPos, colors.tileMode(), std::move(colors.colorSpace())
+                reColors, clampPos, colors.tileMode(), colors.colorSpace()
             };
             return SkShaders::SweepGradient(center, 0, endAngle, {newColors, interp}, lm);
         } else {
@@ -130,7 +130,7 @@ sk_sp<SkShader> SkShaders::SweepGradient(SkPoint center, float startAngle, float
     }
 
     const SkGradient newGrad {
-        {colors.colors(), colors.positions(), mode, std::move(colors.colorSpace())},
+        {colors.colors(), colors.positions(), mode, colors.colorSpace()},
         interp
     };
 
@@ -171,8 +171,8 @@ sk_sp<SkShader> SkGradientShader::MakeSweep(SkScalar cx, SkScalar cy,
                                             SkScalar endAngle,
                                             uint32_t flags,
                                             const SkMatrix* localMatrix) {
-    SkColorConverter converter(colors, colorCount);
-    return MakeSweep(cx, cy, converter.fColors4f.begin(), nullptr, pos, colorCount,
+    SkColorConverter converter({colors, SkToSizeT(colorCount)});
+    return MakeSweep(cx, cy, converter.colors4f().data(), nullptr, pos, colorCount,
                      mode, startAngle, endAngle, flags, localMatrix);
 }
 #endif

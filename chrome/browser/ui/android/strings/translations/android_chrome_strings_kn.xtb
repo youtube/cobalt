@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ ಡೇಟಾವನ್ನು ಸೇವ್‌ ಮಾಡಿ</translation>
 <translation id="1414919006379339073">ಪ್ರಸ್ತುತ ವಿಂಡೋವನ್ನು ಮುಚ್ಚಿ</translation>
 <translation id="1416550906796893042">ಅಪ್ಲಿಕೇಶನ್ ಆವೃತ್ತಿ</translation>
-<translation id="1419753403124156396">Chrome ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಬೇಕೆ?</translation>
 <translation id="1428770807407000502">ಸಿಂಕ್‌ ಆಫ್‌ ಮಾಡಬೇಕೆ?</translation>
 <translation id="1430915738399379752">ಮುದ್ರಿಸು</translation>
 <translation id="1435593198351412143">PDF ಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ತೆರೆಯಿರಿ</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">ನಿಮ್ಮ ಸಂಸ್ಥೆಯು ವರ್ಧಿತ ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್ ಅನ್ನು ಆನ್ ಮಾಡಿದೆ</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ಡೌನ್‌ಲೋಡ್‌ ವಿಫಲವಾಗಿದೆ}one{# ಡೌನ್‌ಲೋಡ್‌ಗಳು ವಿಫಲವಾಗಿವೆ}other{# ಡೌನ್‌ಲೋಡ್‌ಗಳು ವಿಫಲವಾಗಿವೆ}}</translation>
 <translation id="2067805253194386918">ಪಠ್ಯ</translation>
-<translation id="2072027001582274150">ಬಳಕೆಯಾಗದ ಅಥವಾ ನಕಲಿ ಟ್ಯಾಬ್‌ಗಳು</translation>
 <translation id="2079545284768500474">ರದ್ದುಮಾಡಿ</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> ರಲ್ಲಿ <ph name="RESULT_NUMBER" /> ಫಲಿತಾಂಶಗಳು</translation>
-<translation id="2088833076121753253">ಆಟೋಫಿಲ್ ಸೆಟಪ್ ಮಾಡುವುದನ್ನು ಪೂರ್ಣಗೊಳಿಸಲು, ಈಗ Chrome ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ. ನಿಮ್ಮ ಟ್ಯಾಬ್‌ಗಳು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪುನಃ ತೆರೆಯುತ್ತವೆ.</translation>
 <translation id="2091863218454846791">ಕಾಂಪ್ಯಾಕ್ಟ್ ವೀಕ್ಷಣೆಯನ್ನು ತೋರಿಸಲಾಗುತ್ತಿದೆ</translation>
 <translation id="2093731487903423814">ಹಿಂದಿನ 15 ನಿಮಿಷಗಳು</translation>
 <translation id="2096577711562668473">ಆಟೋಫಿಲ್ ಸೇವೆಯನ್ನು ಬದಲಾಯಿಸಬೇಕೆ?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">ಅಜ್ಞಾತ ಮೋಡ್‌ಗೆ ಬದಲಾಯಿಸಲು ಸ್ಪರ್ಶಿಸಿ ಮತ್ತು ಒತ್ತಿ ಹಿಡಿಯಿರಿ</translation>
 <translation id="2860954141821109167">ಈ ಸಾಧನದಲ್ಲಿ ಫೋನ್ ಆ್ಯಪ್‌ ಒಂದನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ</translation>
 <translation id="2861923151411510142">ಕೆಲವು Chrome ವೈಶಿಷ್ಟ್ಯಗಳು ಇನ್ನು ಮುಂದೆ ಲಭ್ಯವಿರುವುದಿಲ್ಲ</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> ಮತ್ತು ಇತರ 1 ಟ್ಯಾಬ್}one{<ph name="URL" /> ಮತ್ತು ಇತರ <ph name="TAB_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳು}other{<ph name="URL" /> ಮತ್ತು ಇತರ <ph name="TAB_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳು}}</translation>
 <translation id="2869430948265924908">ನಿಮ್ಮ ಗೌಪ್ಯ ವಿಷಯವನ್ನು ಕಾರ್‌ನಲ್ಲಿ ಸುರಕ್ಷಿತವಾಗಿಡಲು, ನೀವು ಕಾರ್ ಪ್ರೊಫೈಲ್ ಲಾಕ್ ಅನ್ನು ರಚಿಸಬೇಕು.  ನೀವು ಪಿನ್, ಕೋಡ್ ಅಥವಾ ಪಾಸ್‌ವರ್ಡ್ ಬಳಸಿ ಅದನ್ನು ರಚಿಸಬಹುದು.</translation>
 <translation id="2870560284913253234">ಸೈಟ್</translation>
 <translation id="2871733351037274014">ಪುಟಗಳನ್ನು ಮುಂಚಿತವಾಗಿ ಲೋಡ್ ಮಾಡಿ</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">ಟ್ಯಾಬ್ ಅನ್ನು ಹಂಚಿಕೊಳ್ಳಬೇಕಾದ ಸಾಧನಗಳ ಪಟ್ಟಿಯನ್ನು ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
 <translation id="2908243544703713905">ಓದದಿರುವ ಸ್ಟೋರಿಗಳು ಸಿದ್ಧವಾಗಿವೆ</translation>
 <translation id="2909615210195135082">Google ಅಧಿಸೂಚನೆಗಳು ಪ್ಲ್ಯಾಟ್‌ಫಾರ್ಮ್</translation>
+<translation id="2912247081180973411">ವಿಂಡೋಗಳನ್ನು ಮುಚ್ಚಿ</translation>
 <translation id="2912345083818861431">ತೆರೆದ ಅಜ್ಞಾತ ಟ್ಯಾಬ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸಲು ಸ್ಕ್ರೀನ್ ಲಾಕ್ ಬಳಸಿ</translation>
 <translation id="2918484639460781603">ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಗೆ ಹೋಗಿ</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, ಮ್ಯೂಟ್ ಆಗಿರುವ ಟ್ಯಾಬ್</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ನಿರ್ಬಂಧಿಸಲಾದ ಖಾತೆಗಳ ಕುರಿತು ತಿಳಿಯಿರಿ</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, ಹೊಸ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ತೆರೆಯುತ್ತದೆ</translation>
 <translation id="3166827708714933426">ಟ್ಯಾಬ್ ಮತ್ತು ವಿಂಡೋ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು</translation>
-<translation id="316694332262407393">Chrome ಈಗಾಗಲೇ ರನ್ ಆಗುತ್ತಿದೆ.</translation>
 <translation id="3167258285411721858">ನೀವು <ph name="HOST_NAME" /> ಗಾಗಿ ಮೊಬೈಲ್ ಸೈಟ್ ಅನ್ನು ವಿನಂತಿಸಬಹುದು</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, ಬಹು ಆಯ್ಕೆಮಾಡಿದ ಪಿನ್ ಮಾಡಲಾದ ಮ್ಯೂಟ್ ಆಗಿರುವ ಅಜ್ಞಾತ ಟ್ಯಾಬ್</translation>
@@ -850,7 +848,6 @@
 <translation id="468924408576231679">ವೆಬ್‌ಪುಟ <ph name="PAGE_TITLE" /> ಗೆ ಲಿಂಕ್ ಅನ್ನು ಕಾಪಿ ಮಾಡಿ. ಮೂಲ: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">ಉತ್ತಮ ಕಂಟೆಂಟ್‌ ಅನ್ನು ಪಡೆಯಿರಿ</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 ಮತ್ತು ಇನ್ನೂ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 ಮತ್ತು ಇನ್ನೂ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 ಮತ್ತು ಇನ್ನೂ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
-<translation id="4698061626562952596">ನಿಮ್ಮ ನಿಷ್ಕ್ರಿಯ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಇಲ್ಲಿ ಪರಿಶೀಲಿಸಿ</translation>
 <translation id="4698757800236023795"><ph name="ITEM_COUNT" /> ಸಕ್ರಿಯವಾಗಿದೆ</translation>
 <translation id="4699172675775169585">ಸಂಗ್ರಹಿಸಲಾಗಿರುವ ಚಿತ್ರಗಳು ಮತ್ತು ಫೈಲ್‌ಗಳು</translation>
 <translation id="4710167854527459075">ಹೊಸದರಿಂದ ವಿಂಗಡಿಸಿ</translation>
@@ -949,6 +946,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> ಟ್ಯಾಬ್ - <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳು - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> ಟ್ಯಾಬ್‌ಗಳು - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">ಗೌಪ್ಯತೆ</translation>
 <translation id="504456571576643789">ಪರಿಗಣಿಸಬೇಕಾದ ಸಂಗತಿಗಳು</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> ವಿಂಡೋ ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ}one{<ph name="WINDOW_COUNT_NORMAL" /> ವಿಂಡೋಗಳನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ}other{<ph name="WINDOW_COUNT_NORMAL" /> ವಿಂಡೋಗಳನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ}}</translation>
 <translation id="5056587122125565772">ಚಿತ್ರವನ್ನು ರಚಿಸಿ</translation>
 <translation id="506254248375231072">ಯಾವುದೇ ಟ್ಯಾಬ್‌ಗಳಿಲ್ಲ</translation>
 <translation id="5075939510584558547">ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಇಲ್ಲದೆ ಸೇವ್ ಮಾಡಿ</translation>
@@ -965,7 +963,6 @@
 <translation id="5123685120097942451">ಅದೃಶ್ಯ ಟ್ಯಾಬ್‌</translation>
 <translation id="5142281402488957685">ಹೊಸ ಸ್ಟೋರಿಗಳಿಗಾಗಿ, ರಿಫ್ರೆಶ್ ಮಾಡಲು ಕೆಳಗೆ ಎಳೆಯಿರಿ</translation>
 <translation id="5144385790872094440">ನೀವು ಭೇಟಿ ನೀಡುವ ಕೆಲವು ಪುಟಗಳು ಪ್ರಿಲೋಡ್ ಆಗಿರುತ್ತವೆ. Google ಸೈಟ್ ಅಥವಾ ಆ್ಯಪ್‌ನಿಂದ ಲಿಂಕ್ ಮಾಡಿದಾಗ, ಪುಟಗಳನ್ನು Google ಸರ್ವರ್‌ಗಳ ಮೂಲಕ ಪ್ರಿಲೋಡ್ ಮಾಡಬಹುದು.</translation>
-<translation id="5145887002054615868">ನಕಲಿ ಟ್ಯಾಬ್‌ಗಳು ಅಥವಾ <ph name="DAYS_INACTIVE" /> ದಿನಗಳವರೆಗೆ ಬಳಸದ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಇಲ್ಲಿಗೆ ಸರಿಸಲಾಗುತ್ತದೆ<ph name="AUTODELETE_SECTION" />. ನೀವು ಇದನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ <ph name="DECLUTTER_SETTINGS_TITLE" /> ನಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</translation>
 <translation id="5152843274749979095">ಯಾವುದೇ ಬೆಂಬಲಿತ ಅಪ್ಲಿಕೇಶನ್‌ಗಳನ್ನು ಸ್ಥಾಪಿಸಲಾಗಿಲ್ಲ</translation>
 <translation id="5161254044473106830">ಶೀರ್ಷಿಕೆ ಅಗತ್ಯವಿದೆ</translation>
 <translation id="5161262286013276579">ಪಾಸ್‌ಕೀ ದೃಢೀಕರಣ ಪುಟವನ್ನು ತೆರೆಯಲಾಗಿದೆ</translation>
@@ -1040,6 +1037,7 @@
 <translation id="5469852975082458401">ಪಠ್ಯದ ಕರ್ಸರ್ ಮೂಲಕ ನೀವು ಪುಟಗಳನ್ನು ನ್ಯಾವಿಗೇಟ್ ಮಾಡಬಹುದು. ಆಫ್ ಮಾಡಲು F7 ಒತ್ತಿರಿ.</translation>
 <translation id="5471273988133666918">ಟ್ಯಾಬ್ <ph name="TAB_TITLE" /> ಅನ್ನು ಸರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
 <translation id="548278423535722844">ನಕ್ಷೆಗಳ ಅಪ್ಲಿಕೇಶನ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ</translation>
+<translation id="5494920125229734069">ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆ ಮಾಡಿ</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> ಎಂಬುದಾಗಿ ಸೇರಿಕೊಳ್ಳಿ</translation>
 <translation id="5517326820028369152">ಇತ್ತೀಚಿನ ಚಟುವಟಿಕೆಯ ಕೆಳಭಾಗದ ಶೀಟ್‌</translation>
 <translation id="5526281268548144413">ಅನೇಕ ವಿಂಡೋಗಳಾದ್ಯಂತ ಮುಚ್ಚಲಾಗುವುದಿಲ್ಲ</translation>
@@ -1148,6 +1146,7 @@
 <translation id="5958275228015807058">ಡೌನ್‌ಲೋಡ್‌ಗಳಲ್ಲಿ ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಮತ್ತು ಪುಟಗಳನ್ನು ಹುಡುಕಿ</translation>
 <translation id="5962718611393537961">ಕುಗ್ಗಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
 <translation id="5964869237734432770">ಚಿತ್ರ ವಿವರಣೆಗಳನ್ನು ನಿಲ್ಲಿಸಿ</translation>
+<translation id="5972844218283131174">ಎಲ್ಲಾ ಆಯ್ಕೆಯನ್ನು ರದ್ದುಮಾಡಿ</translation>
 <translation id="5975083100439434680">ಝೂಮ್ ಔಟ್</translation>
 <translation id="5977976211062815271">ಈ ಸಾಧನದಲ್ಲಿರುವವು</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಯಲ್ಲಿನ 1 ಪುಟ}one{ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಯಲ್ಲಿನ # ಪುಟಗಳು}other{ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಯಲ್ಲಿನ # ಪುಟಗಳು}}</translation>
@@ -1192,7 +1191,7 @@
 <translation id="6142183503755612900">ನಿಮ್ಮ ಡೀಫಾಲ್ಟ್ ಸರ್ಚ್ ಎಂಜಿನ್‌ ಅನ್ನು ನೀವು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಯಾವಾಗ ಬೇಕಾದರೂ ಬದಲಾಯಿಸಬಹುದು</translation>
 <translation id="6146563240635539929">ವೀಡಿಯೊಗಳು</translation>
 <translation id="614890671148262506">ಈ ಸೈಟ್‌ನಿಂದ ಯಾವಾಗಲೂ ಅಧಿಸೂಚನೆಗಳನ್ನು ಅನುಮತಿಸಿ</translation>
-<translation id="6150320133806434356">ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ</translation>
+<translation id="6150320133806434356">ಬುಕ್‌ಮಾರ್ಕ್‌ ಅನ್ನು ಸೇವ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="6150706324143004339">ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ Chrome ಡೇಟಾವನ್ನು ಬಳಸಲು ಮತ್ತು ಸೇವ್ ಮಾಡಲು, Chrome ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಿ</translation>
 <translation id="6154478581116148741">ಈ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಂದ ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ರಫ್ತುಮಾಡಲು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಸ್ಕ್ರೀನ್ ಲಾಕ್ ಅನ್ನು ಆನ್ ಮಾಡಿ</translation>
 <translation id="6156323911414505561">ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳ ಪಟ್ಟಿಯನ್ನು ತೋರಿಸಿ</translation>
@@ -1720,12 +1719,14 @@
 <translation id="8137562778192957619">ನೀವು ಈ ಪಾಸ್‌ವರ್ಡ್ ನೆನಪಿಟ್ಟುಕೊಳ್ಳುವ ಅಗತ್ಯವಿಲ್ಲ. ಅದನ್ನು Google Password Manager ನಲ್ಲಿ ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ</translation>
 <translation id="8152331954420209374">Lens ಗೆ ಹೋಗಿ</translation>
 <translation id="8153206878708357851">ಕೆರೆಟ್ ಬ್ರೌಸಿಂಗ್ ಅನ್ನು ಟಾಗಲ್ ಮಾಡಿ</translation>
+<translation id="8154784523622173959">ಈ ಪುಟದ ಹಿನ್ನೆಲೆಯನ್ನು ವೈಯಕ್ತೀಕರಿಸಿ</translation>
 <translation id="8163820386638255770">ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಬಳಸಲು ಮತ್ತು ಸೇವ್ ಮಾಡಲು, ಇದು ನೀವೇ ಎಂದು ದೃಢೀಕರಿಸಿ</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) ನಿಷ್ಕ್ರಿಯ ಐಟಂ}one{(#) ನಿಷ್ಕ್ರಿಯ ಐಟಂಗಳು}other{(#) ನಿಷ್ಕ್ರಿಯ ಐಟಂಗಳು}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> ಬಾಕಿ ಉಳಿದಿರುವ ಫೈಲ್‌ಗಳು</translation>
 <translation id="8190358571722158785">1 ದಿನ ಉಳಿದಿದೆ</translation>
 <translation id="8192765420340770300">ಸೈನ್ ಇನ್ ಮಾಡುವ ಕೆಳಭಾಗದ ಶೀಟ್ ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆದಿದೆ</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />ನಿಮ್ಮ ಸಾಧನಗಳು<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">ಹುಡುಕಾಟದ ಪ್ರಶ್ನೆಯನ್ನು ತೆರವುಗೊಳಿಸಿ</translation>
 <translation id="820568752112382238">ಹೆಚ್ಚು ಭೇಟಿ ನೀಡಿರುವ ಸೈಟ್‌ಗಳು</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> ಮತ್ತು <ph name="NUMBER_OF_OTHER_MEMBERS" /> ಇತರ ಸದಸ್ಯರೊಂದಿಗೆ ಟ್ಯಾಬ್ ಗುಂಪನ್ನು ಸೇರಿಕೊಳ್ಳಿ}one{<ph name="OWNER_FIRST_NAME" /> ಮತ್ತು <ph name="NUMBER_OF_OTHER_MEMBERS" /> ಇತರ ಸದಸ್ಯರೊಂದಿಗೆ ಟ್ಯಾಬ್ ಗುಂಪಿಗೆ ಸೇರಿಕೊಳ್ಳಿ}other{<ph name="OWNER_FIRST_NAME" /> ಮತ್ತು <ph name="NUMBER_OF_OTHER_MEMBERS" /> ಇತರ ಸದಸ್ಯರೊಂದಿಗೆ ಟ್ಯಾಬ್ ಗುಂಪಿಗೆ ಸೇರಿಕೊಳ್ಳಿ}}</translation>
 <translation id="8209050860603202033">ಚಿತ್ರವನ್ನು ತೆರೆಯಿರಿ</translation>

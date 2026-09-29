@@ -365,21 +365,21 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
 
   void ConnectSignals() {
     turn_port_->SubscribePortComplete(
-        [this](Port* port) { OnTurnPortComplete(port); });
+        this, [this](Port* port) { OnTurnPortComplete(port); });
     turn_port_->SubscribePortError(
-        [this](Port* port) { OnTurnPortError(port); });
+        this, [this](Port* port) { OnTurnPortError(port); });
     turn_port_->SubscribeCandidateError(
-        [this](Port* port, const IceCandidateErrorEvent& event) {
+        this, [this](Port* port, const IceCandidateErrorEvent& event) {
           OnCandidateError(port, event);
         });
     turn_port_->SubscribeUnknownAddress(
-        [this](PortInterface* port, const SocketAddress& address,
-               ProtocolType proto, IceMessage* stun_msg, const std::string& rf,
-               bool port_muxed) {
+        this, [this](PortInterface* port, const SocketAddress& address,
+                     ProtocolType proto, IceMessage* stun_msg,
+                     const std::string& rf, bool port_muxed) {
           OnTurnUnknownAddress(port, address, proto, stun_msg, rf, port_muxed);
         });
     turn_port_->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnTurnPortDestroyed(port); });
+        this, [this](PortInterface* port) { OnTurnPortDestroyed(port); });
     turn_port_->SetCallbacksForTest(this);
   }
 
@@ -397,7 +397,7 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
     udp_port_->SetIceRole(ICEROLE_CONTROLLED);
     udp_port_->SetIceTiebreaker(kTiebreakerDefault);
     udp_port_->SubscribePortComplete(
-        [this](Port* port) { OnUdpPortComplete(port); });
+        this, [this](Port* port) { OnUdpPortComplete(port); });
     udp_port_->SetOption(Socket::OPT_RECV_ECN, 1);
   }
 

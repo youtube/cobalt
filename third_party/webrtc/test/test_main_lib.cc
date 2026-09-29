@@ -89,6 +89,14 @@ ABSL_FLAG(bool, test_launcher_bot_mode, false, "Intentionally ignored flag.");
 #endif
 
 ABSL_FLAG(std::string,
+          webrtc_test_metrics_output_path,
+          "",
+          "Path where the test perf metrics should be stored using "
+          "api/test/metrics/metric.proto proto format. File will contain "
+          "MetricsSet as a root proto. On iOS, this MUST be a file name "
+          "and the file will be stored under NSDocumentDirectory.");
+
+ABSL_FLAG(std::string,
           isolated_script_test_output,
           "",
           "Path to output an empty JSON file which Chromium infra requires.");

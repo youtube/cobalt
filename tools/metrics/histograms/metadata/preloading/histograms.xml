@@ -266,7 +266,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Preloading.Prefetch.PrefetchStatus"
-    enum="PrefetchProxyPrefetchStatus" expires_after="2026-04-12">
+    enum="PrefetchProxyPrefetchStatus" expires_after="2026-06-14">
   <owner>adithyas@chromium.org</owner>
   <owner>portals-team@google.com</owner>
   <summary>
@@ -410,6 +410,24 @@ chromium-metrics-reviews@google.com.
     matching.
 
     Recorded when {PreloadServingMetricsPrefix}.
+  </summary>
+  <token key="PreloadServingMetricsPrefix"
+      variants="PreloadServingMetricsPrefix"/>
+</histogram>
+
+<histogram
+    name="{PreloadServingMetricsPrefix}.PrefetchMatchMetrics.ExistsPaopThen.PotentialCandidateCollectResultAndServableStateAndMatcherAction"
+    units="code" expires_after="2026-11-12">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    The combination of `PrefetchPotentialCandidateCollectResult`,
+    `PrefetchServableState`, and `PrefetchMatchResolverAction`. See
+    `GetCodeOfPotentialCandidateCollectResultAndServableStateAndMatcherAction()`
+    for the details of the value.
+
+    Recorded when {PreloadServingMetricsPrefix} and a prefetch ahead of
+    prerender exisited.
   </summary>
   <token key="PreloadServingMetricsPrefix"
       variants="PreloadServingMetricsPrefix"/>

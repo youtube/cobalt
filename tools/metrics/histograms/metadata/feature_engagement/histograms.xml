@@ -386,6 +386,9 @@ chromium-metrics-reviews@google.com.
       summary="showing the Whats New Promo on iOS"/>
   <variant name="IPH_iOSPullToRefreshFeature"
       summary="the full screen IPH for pull to refresh"/>
+  <variant name="IPH_iOSReaderModeLargeOmniboxEntrypointFeature"
+      summary="the eligibility of the expanded omnibox entrypoint for Reading
+               Mode on iOS"/>
   <variant name="IPH_iOSReaderModeOptionsFeature"
       summary="the IPH for Reader Mode options"/>
   <variant name="IPH_iOSReminderNotificationsOverflowMenuBubbleFeature"
@@ -440,6 +443,9 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_NewTab" summary="new tab"/>
   <variant name="IPH_NewTabPageHomeButton"
       summary="(obsolete) new tab page button"/>
+  <variant name="IPH_NewTabPageThemeCustomization"
+      summary="informing user of customizing new tab page theme via NTP
+               customization option in the App menu"/>
   <variant name="IPH_NewTabTip" summary="new tab tip"/>
   <variant name="IPH_PageInfo" summary="opening PageInfo"/>
   <variant name="IPH_PageInfoStoreInfo" summary="PageInfoStoreInfo feature"/>
@@ -784,7 +790,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2026-04-05">
+    enum="InProductHelpDismissalReason" expires_after="2026-06-21">
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
@@ -915,7 +921,7 @@ In the future, Desktop IPH may be completely moved to the user_education folder.
 </histogram>
 
 <histogram name="UserEducation.MessageNotShown.TimeInQueue.{IPHFeature}"
-    units="ms" expires_after="2026-04-12">
+    units="ms" expires_after="2026-06-21">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>

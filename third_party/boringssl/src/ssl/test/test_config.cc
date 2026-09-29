@@ -365,6 +365,7 @@ const Flag<TestConfig> *FindFlag(const char *name) {
         IntVectorFlag("-expect-peer-verify-pref",
                       &TestConfig::expect_peer_verify_prefs),
         IntVectorFlag("-curves", &TestConfig::curves),
+        IntVectorFlag("-curves-flags", &TestConfig::curves_flags),
         OptionalIntVectorFlag("-key-shares", &TestConfig::key_shares),
         OptionalDefaultInitFlag("-no-key-shares", &TestConfig::key_shares),
         IntVectorFlag("-server-supported-groups-hint",
@@ -2527,9 +2528,18 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   if (!check_close_notify) {
     SSL_set_quiet_shutdown(ssl.get(), 1);
   }
-  if (!curves.empty() &&
-      !SSL_set1_group_ids(ssl.get(), curves.data(), curves.size())) {
-    return nullptr;
+  if (!curves.empty()) {
+    if (!curves_flags.empty()) {
+      if (curves.size() != curves_flags.size() ||
+          !SSL_set1_group_ids_with_flags(ssl.get(), curves.data(),
+                                         curves_flags.data(), curves.size())) {
+        return nullptr;
+      }
+    } else {
+      if (!SSL_set1_group_ids(ssl.get(), curves.data(), curves.size())) {
+        return nullptr;
+      }
+    }
   }
   if (key_shares.has_value() &&
       !SSL_set1_client_key_shares(ssl.get(), key_shares->data(),

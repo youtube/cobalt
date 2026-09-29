@@ -13,6 +13,7 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/strings/cstring_view.h"
 #include "base/win/access_control_list.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/sid.h"
@@ -230,6 +231,11 @@ class BASE_EXPORT AccessToken {
   // Get whether the token is elevated.
   bool IsElevated() const;
 
+  // Returns `true` if the token is a split UAC token. It will return true for
+  // both unelevated UAC and also elevated UAC. This function does not indicate
+  // whether the token is admin or not, merely that it is split.
+  bool IsSplitToken() const;
+
   // Checks if the sid is a member of the token's groups. The token must be
   // an impersonation token rather than a primary token. If the token is not an
   // impersonation token then it returns false and the Win32 last error will be
@@ -305,13 +311,13 @@ class BASE_EXPORT AccessToken {
   // |enable| specify whether to enable or disable the privilege.
   // Returns the previous enable state of the privilege, or nullopt if failed.
   // The token must be opened with TOKEN_ADJUST_PRIVILEGES access.
-  std::optional<bool> SetPrivilege(const std::wstring& name, bool enable);
+  std::optional<bool> SetPrivilege(wcstring_view name, bool enable);
 
   // Remove a privilege permanently from the token.
   // |name| the name of the privilege to remove.
   // Returns true if successfully removed the privilege.
   // The token must be opened with TOKEN_ADJUST_PRIVILEGES access.
-  bool RemovePrivilege(const std::wstring& name);
+  bool RemovePrivilege(wcstring_view name);
 
   // Permanently remove all privileges from the token.
   // Returns true if the operation was successful.

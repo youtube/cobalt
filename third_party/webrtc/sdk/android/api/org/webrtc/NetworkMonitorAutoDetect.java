@@ -778,7 +778,7 @@ public class NetworkMonitorAutoDetect extends BroadcastReceiver implements Netwo
       allNetworkCallback = new SimpleNetworkCallback("", availableNetworks);
       connectivityManagerDelegate.registerNetworkCallback(allNetworkCallback);
       if (ConnectivityManagerDelegate.checkFieldTrial(
-          fieldTrialsString, "unifiedCommunications", /* defaultValue= */ true)) {
+          fieldTrialsString, "unifiedCommunications", /* defaultValue= */ false)) {
         unifiedCommunicationsCb = new SimpleNetworkCallback("slice", availableNetworks);
         try {
           var request = connectivityManagerDelegate.createUnifiedCommunicationsNetworkRequest();

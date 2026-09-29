@@ -11,9 +11,9 @@ import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/guest_contents/common/buildflags.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
+import("//components/on_device_translation/buildflags/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//components/safe_browsing/buildflags.gni")
-import("//components/services/on_device_translation/buildflags/features.gni")
 import("//components/supervised_user/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
@@ -307,6 +307,7 @@ test("components_unittests") {
     "//components/plus_addresses/core/browser/webdata:unit_tests",
     "//components/policy/core/browser:unit_tests",
     "//components/policy/core/common:unit_tests",
+    "//components/policy/test_support:unittests",
     "//components/power_bookmarks/core:unit_tests",
     "//components/power_bookmarks/storage:unit_tests",
     "//components/power_metrics:unit_tests",
@@ -551,7 +552,6 @@ test("components_unittests") {
       "//components/session_proto_db:unit_tests",
       "//components/subresource_filter/content/browser:unit_tests",
       "//components/subresource_filter/content/renderer:unit_tests",
-      "//components/subresource_filter/content/shared/browser:unit_tests",
       "//components/touch_to_search/core/browser:unit_tests",
       "//components/tracing:unit_tests",
       "//components/translate/content/browser:unit_tests",
@@ -921,8 +921,8 @@ test("components_unittests") {
 
   if (enable_on_device_translation) {
     deps += [
-      "//components/services/on_device_translation:unit_tests",
-      "//components/services/on_device_translation/public/cpp:unit_tests",
+      "//components/on_device_translation:unit_tests",
+      "//components/on_device_translation/service:unit_tests",
     ]
   }
 

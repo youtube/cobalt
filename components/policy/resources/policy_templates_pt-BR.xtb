@@ -445,36 +445,8 @@ Se a política for definida como "Desativada" ou não for definida, as configura
       Se a política for definida como "Forçada" (2), o seletor de perfil não poderá ser suprimido pelos usuários. Ele será exibido mesmo quando houver apenas um perfil disponível.</translation>
 <translation id="1339174690935954950">Impedir que os usuários enviem feedback</translation>
 <translation id="1340053691042184658">Impedir logins em navegação como visitante</translation>
-<translation id="134154550994512097">Esta política controla se os usuários podem ativar o modo somente HTTPS (Sempre usar conexões seguras) nas Configurações. O HTTPS-Only Mode faz upgrade de todas as navegações para HTTPS.
-      Se esta configuração for deixada sem definição ou for permitida, os usuários poderão ativar o modo somente HTTPS.
-      Se ela não for permitida, os usuários não poderão ativar esse modo.
-      Se esta configuração for definida como "force_enabled", o modo somente HTTPS será ativado no modo estrito e não poderá ser desativado pelos usuários.
-      Se ela for definida como "force_balanced_enabled", o modo somente HTTPS será ativado no modo equilibrado e não poderá ser desativado pelos usuários.
-      A partir da versão M112, é possível usar force_enabled. A partir da versão M129, é possível usar force_balanced_enabled.
-      Se você definir essa política para um valor que não é compatível com a versão do Chrome que a recebe, o navegador vai usar a configuração permitida por padrão.
-
-A política <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> separada
-pode ser usada para evitar que determinados nomes de host ou padrões de nome de host sejam
-atualizados para HTTPS por esse recurso.</translation>
 <translation id="1342918903685430097">Configura a versão mínima permitida do <ph name="PRODUCT_OS_NAME" /> para o dispositivo.</translation>
 <translation id="1343128241903870688">Desativar relatórios de informações de apps do dispositivo</translation>
-<translation id="1345276795096570241">Desativar o Logon único usando o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> para os provedores de identidade listados.
-
-Ao adicionar o valor <ph name="POLICY_VALUE_ALL" />, todos os provedores de identidade para SSO compatíveis são desativados.
-
-Ao adicionar o valor <ph name="POLICY_VALUE_MICROSOFT" />, o logon único para o provedor de identidade na nuvem da Microsoft® no Chrome é desativado.
-
-Se esta política for deixada sem definição, todos os provedores de identidade compatíveis com o <ph name="PRODUCT_NAME" /> serão ativados.
-
-Para provedores de identidade ativados no <ph name="PRODUCT_NAME" /> e configurados no dispositivo pelo administrador, os usuários que fizerem login usando esse provedor em qualquer aplicativo compatível com o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> também poderão fazer login em propriedades da Web usando esse provedor de identidade automaticamente. As informações de autenticação do usuário são transmitidas ao provedor de identidade na nuvem para cada evento de autenticação.
-
-Observações:
-
-O <ph name="PRODUCT_NAME" /> não aceita Logon único usando o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> nos modos de navegação anônima ou convidado.
-
-O <ph name="PRODUCT_NAME" /> só é compatível com o Logon único usando o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> para os seguintes provedores de identidade: Microsoft.
-
-Esse recurso está disponível no <ph name="MAC_OS_NAME" /> 10.15.</translation>
 <translation id="1347198119056266798">Esta política está obsoleta. Use <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> e <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />. Esta política será ignorada se as políticas <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />, <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> ou <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> (obsoleta) estiverem definidas.
 
       Faz com que as consultas na Pesquisa Google na Web sejam feitas com o SafeSearch ativado e evita que usuários mudem essa configuração. Esta configuração também força o Modo restrito moderado no YouTube.
@@ -721,6 +693,7 @@ Se a política for ativada, o seletor de emojis vai oferecer suporte para emojis
 Se a política for desativada ou deixada sem definição, o seletor de emojis não vai oferecer suporte para emojis de GIF.
 Se esta política não for definida, o seletor de emojis será ativado para usuários normais, mas desativado para usuários gerenciados.</translation>
 <translation id="1494138678487405397">Desativar o alto contraste na tela de login</translation>
+<translation id="1496845825930059227">Especifica uma lista de domínios SaaS que serão incluídos nos relatórios sobre perfis gerenciados</translation>
 <translation id="1497797462580613666">O gerenciador de downloads terá a opção de salvar arquivos no <ph name="GOOGLE_DRIVE_NAME" />.</translation>
 <translation id="1499129134689253257">Controlar o novo comportamento de <ph name="OFFSET_PARENT" /></translation>
 <translation id="1501644502684303995">Usar logins on-line apenas na tela de login</translation>
@@ -1876,9 +1849,6 @@ Se for deixada sem definição ou desativada, a transferência de arquivos não 
       Esta política substitui <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />, <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />, <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> e as preferências do usuário.
 
       Ela afeta apenas o acesso aos dispositivos USB pela API Web Serial. Para conceder acesso a dispositivos USB pela API WebUSB, consulte a política <ph name="WEB_USB_ALLOW_DEVICES_FOR_URLS_POLICY_NAME" />.</translation>
-<translation id="2246450159673309951">Se a política <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> for definida, as páginas da Web que têm URLs proibidos não vão ser carregadas no modo de navegação anônima. Os administradores podem especificar a lista de padrões de URL a serem bloqueados. Se a política for deixada sem definição, nenhum URL será bloqueado no modo de navegação anônima. Até 1.000 exceções podem ser definidas na <ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" />. Confira como formatar um padrão de URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-A política afeta apenas o modo de navegação anônima. Se quiser bloquear URLs para todos os perfis de usuário, use a política <ph name="URL_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="2246565294817797392">Bloquear cookies truncados</translation>
 <translation id="2246621891161157804">Permitir que o Chrome bloqueie a navegação para protocolos externos no iframe dentro do sandbox</translation>
 <translation id="2246709168653295240">Permitir a detecção de inatividade nestes sites</translation>
@@ -5673,21 +5643,6 @@ Quando ela é desativada, a promoção da extensão do provedor de credenciais n
 
       Se não for definida, a tela inicial do Gemini será ignorada para usuários gerenciados por empresas e mostrada para usuários não gerenciados.</translation>
 <translation id="4783415902268741066">Permitir mostrar a página de resultados mais recente do mecanismo de pesquisa padrão em um painel lateral do navegador</translation>
-<translation id="4784457904946078535">Esta política controla o compartilhamento de conteúdo de páginas e arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> pelo painel lateral ou pelas guias do <ph name="PRODUCT_NAME" />.
-
-Ela não afeta o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> na web. Esta política só controla como os usuários podem compartilhar informações ao usar o <ph name="PRODUCT_NAME" />.
-
-Se ela definida como "0" ou deixada sem definição, os usuários poderão compartilhar conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
-
-Se ela for definida como "1", os usuários não poderão compartilhar conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Os pontos de entrada para compartilhar contexto serão desativados ou ocultados.
-
-Esta política será ignorada quando o <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> não for o mecanismo de pesquisa padrão dos usuários, já que o recurso está desativado.
-
-Esta política é independente da <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. A política <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> controla apenas os pontos de entrada na caixa de pesquisa da omnibox ou da página "Nova guia" (NTP, na sigla em inglês), enquanto esta política controla o compartilhamento de contexto pelo painel lateral ou pelas guias.
-
-Esta política também não controla a integração do <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, que pode ser desativada pelo <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="4786784434769279324">Ações a serem executadas quando o computador estiver inativo</translation>
 <translation id="4787763197941188108">Modifica o tamanho da página para impressão padrão.
 
@@ -6262,6 +6217,7 @@ Quando a política não está definida ou é desativada, os cookies e os dados p
 <translation id="5148753489738115745">Permite especificar os parâmetros adicionais que são usados quando o <ph name="PRODUCT_FRAME_NAME" /> inicia o <ph name="PRODUCT_NAME" />. Se essa política não for configurada, será usada a linha de comando padrão.</translation>
 <translation id="5151099177901233471">Ativar relatórios de informações de fuso horário do dispositivo</translation>
 <translation id="5151163911478747031">Desativar a atribuição de extensão no rodapé da página "Nova guia"</translation>
+<translation id="5151850599880109339">Ativar o modo somente HTTPS no modo equilibrado</translation>
 <translation id="5152393033264257734">Permitir verificações de interceptação de DNS e barras de informações oferecendo "http://intranetsite/" como alternativa.</translation>
 <translation id="5152787786897382519">O Chromium e o Google Chrome têm alguns grupos de políticas que dependem umas das outras para oferecer controle sobre um recurso. Esses conjuntos são representados pelos seguintes grupos de políticas. Como essas políticas podem ter diversas fontes, apenas os valores da fonte de maior prioridade serão aplicados. Os valores de uma fonte de menor prioridade presente no mesmo grupo serão ignorados. A ordem da prioridade está definida em <ph name="POLICY_PRIORITY_DOC_URL" />.</translation>
 <translation id="5153187201534281749">Ícone dos experimentos do navegador na barra de ferramentas</translation>
@@ -6590,34 +6546,6 @@ Observação: esta política não se aplica a HSTS Upgrades.</translation>
 
 Se a política for desativada, o histórico de navegação e o de downloads não poderão ser excluídos. Mesmo que a política esteja desativada, não há garantia de que o histórico de navegação e o de downloads serão preservados. Os usuários poderão editar ou excluir os arquivos de banco de dados de histórico diretamente, e o próprio navegador poderá expirar ou arquivar todo ou qualquer item de histórico a qualquer momento.</translation>
 <translation id="5322649594584715998">Carrega totalmente a bateria na velocidade padrão. Esse modo desativa o carregamento adaptável e limitado.</translation>
-<translation id="5322726025747768984">A definição desta política configura regras que selecionam qual proxy o navegador usa, dependendo do URL de destino e de outras condições. Esta política terá precedência sobre as configurações de proxy definidas pela política <ph name="PROXY_SETTINGS_POLICY_NAME" />, pela API de extensão <ph name="PROXY_SETTINGS_EXTENSION_API" /> ou pelas configurações manuais do usuário, se alguma delas estiver definida.
-
-Se a política não for definida, isso não vai afetar outras políticas de proxy ou configurações do usuário.
-
-Quando o navegador precisa decidir qual proxy usar, as entradas da política <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> são avaliadas em sequência até que uma delas satisfaça todos os pontos a seguir:
-  * Pelo menos um dos padrões de URL em <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> é correspondente.
-  * Nenhum dos padrões de URL em <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> é correspondente.
-  * Se <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> for especificado e for uma lista não vazia, todas as condições representadas pelas entradas serão satisfeitas.
-O valor em <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> será usado como proxy para essa correspondência. Se nenhuma correspondência for encontrada, as configurações de proxy vão voltar para o que está definido na política <ph name="PROXY_SETTINGS_POLICY_NAME" />.
-
-Os padrões de URL compatíveis com <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> e <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> estão documentados em https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
-
-As entradas do campo <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> correspondem a valores de string de arquivos PAC, como:
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-Como alternativa, especificadores de proxy semelhantes a URLs podem ser usados diretamente para especificar o proxy, por exemplo:
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-A primeira entrada acessível na lista será usada como proxy. As entradas inválidas na lista são ignoradas.
-
-O campo <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> tem uma lista de condições que precisam ser atendidas para que a regra de substituição seja usada para decidir o proxy. Se for deixado sem definição, a entrada será usada desde que tenha correspondência com pelo menos um host em <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
-
-A condição <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> verifica se o <ph name="PROXY_OVERRIDE_RULES_HOST" /> DNS fornecido pode ser resolvido para um endereço IP. Se o valor de <ph name="PROXY_OVERRIDE_RULES_RESULT" /> for "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />", a condição será considerada atendida. Se o valor for definido como <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, a condição será considerada atendida se a resolução falhar.</translation>
 <translation id="5323200200131319468">Ativar a resposta falada na tela de login.</translation>
 <translation id="5323271643727095577">Não mostrar a caixa de diálogo de cancelamento quando event.preventDefault() for chamado para o evento beforeunload. Mostrar a caixa de diálogo de cancelamento quando beforeunload event.returnValue for a string vazia para o evento beforeunload.</translation>
 <translation id="5324430722441910403">Configurações da pesquisa no site</translation>
@@ -6766,6 +6694,7 @@ os atalhos baseados em pesquisa vão funcionar como padrão.</translation>
 
           Se ela for definida como "Desativada", o recurso será desativado à força.
           </translation>
+<translation id="5433139124622290129">Especifica uma lista de domínios SaaS que serão incluídos nos relatórios sobre navegadores gerenciados</translation>
 <translation id="5433865420958136693">Usar aceleração gráfica quando disponível</translation>
 <translation id="5435888298115339571">Ativar o compartilhamento da área de trabalho na omnibox e no menu de três pontos</translation>
 <translation id="5435967860403961472">Controla se as extensões removidas por violações que não são de malware ainda podem ser instaladas à força em ambientes de baixa confiança.
@@ -7016,15 +6945,6 @@ Consulte também https://wiki.samba.org/index.php/Samba_4.6_Features_added/chang
 <translation id="5561811616825571914">Seleciona certificados de cliente automaticamente para esses sites na tela de login</translation>
 <translation id="5561893881195372931">Desativar o alto contraste</translation>
 <translation id="5563240289883266691">Ativar os relatórios de uso de apps Linux</translation>
-<translation id="5564424694465792000">Esta política controla o comportamento de login do navegador. Ela permite especificar se o usuário pode fazer login no <ph name="PRODUCT_NAME" /> com a conta dele e usar serviços relacionados à conta, como a Sincronização do <ph name="PRODUCT_NAME" />.
-
-      Se a política for definida como "Desativar login no navegador", o usuário não poderá fazer login no navegador e usar os serviços da conta. Nesse caso, recursos do navegador como a Sincronização do <ph name="PRODUCT_NAME" /> não poderão ser usados e não estarão disponíveis. No <ph name="IOS_NAME" />, se o usuário já estiver com a conta conectada e a política for desativada, a conta será imediatamente desconectada. Em outras plataformas, a conta será desconectada na próxima vez que o <ph name="PRODUCT_NAME" /> for executado. Em todas as outras plataformas, os dados locais do perfil, como favoritos, senhas etc., serão mantidos e poderão ser usados. O usuário ainda poderá fazer login e usar serviços da Web do Google, como o Gmail.
-
-      Se a política for definida como "Ativar login no navegador", o usuário poderá fazer login. Em todas as plataformas, exceto no <ph name="IOS_NAME" />, a conta do usuário será conectada automaticamente no navegador quando ele fizer login nos serviços da Web do Google, como o Gmail. Estar conectado significa que as informações da conta do usuário serão mantidas pelo navegador. Entretanto, isso não significa que a Sincronização do <ph name="PRODUCT_NAME" /> será ativada por padrão. O usuário precisará ativar esse recurso separadamente. A ativação desta política vai impedir que o usuário desative a configuração que permite o login no navegador. Para controlar a disponibilidade da Sincronização do <ph name="PRODUCT_NAME" />, use a política <ph name="SYNC_POLICY_NAME" />.
-
-      Se ela estiver definida como "Forçar o login no navegador", o usuário verá uma caixa de diálogo de seleção de contas. Ele precisará escolher uma e fazer login para usar o navegador. Isso garante que, para as contas gerenciadas, as políticas associadas à conta sejam aplicadas. O valor padrão da <ph name="GUEST_MODE_POLICY_NAME" /> será definido como "Desativado". Os perfis não conectados serão bloqueados e ficarão inacessíveis após a ativação dessa política. Para mais informações, consulte o artigo da Central de Ajuda: https://support.google.com/chrome/a/answer/7572556. Essa opção não está disponível para <ph name="LINUX_OS_NAME" /> ou <ph name="ANDROID_NAME" />. Nesses dispositivos, ela será substituída por "Ativar login no navegador", caso seja usada.
-
-      Se a política for deixada sem definição, o usuário poderá decidir se quer ativar o login no navegador nas configurações do <ph name="PRODUCT_NAME" /> e usar esse recurso da maneira que achar melhor.</translation>
 <translation id="5565178130821694365">É necessário digitar a senha a cada dois dias (48 horas)</translation>
 <translation id="5566210228171064229">Permitir impressão com e sem PIN</translation>
 <translation id="5569504149646180067">Configura o login automático de usuários em contas protegidas por um provedor de identidade na nuvem da Microsoft®.
@@ -8804,11 +8724,6 @@ Mudanças na política são aplicadas apenas enquanto o ARC não está em execu�
 
       - Se esta política for desativada, os administradores precisarão informar isso para os usuários finais do dispositivo.</translation>
 <translation id="6605778633186421420">Ativar o suporte ao transporte do dicionário por compactação</translation>
-<translation id="6605903339716787410">A definição da política concede acesso aos URLs listados no modo de navegação anônima, como exceções a <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />. Por exemplo, se <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> for definida como *, todas as solicitações serão bloqueadas no modo de navegação anônima, e você poderá usar a política para permitir o acesso a uma lista limitada de URLs. Ela pode abrir exceções para alguns esquemas, subdomínios de outros domínios, portas ou caminhos específicos usando o formato especificado em (https://support.google.com/chrome/a?p=url_blocklist_filter_format). A política <ph name="INCOGNITO_MODE_ALLOWLIST_POLICY_NAME" /> tem precedência sobre <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" />. Essa política tem um limite de 1.000 entradas.
-
-Se a política não for definida, nenhuma exceção a <ph name="INCOGNITO_MODE_BLOCKLIST_POLICY_NAME" /> será permitida.
-
-A política afeta apenas o modo de navegação anônima. Se quiser permitir URLs para todos os perfis de usuário, use a política <ph name="URL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="6607983779935460461">Suporte ao URL dos dados para SVGUseElement.</translation>
 <translation id="660893824005096050">Permita que docentes enviem a transcrição para estudantes.</translation>
 <translation id="6609867253856597039">Definir a experiência do usuário com recursos desativados</translation>
@@ -8914,6 +8829,23 @@ Quando ativada, a atualização do recurso de dicas de cliente HTTP do user agen
 <translation id="6682305153467826752">Ativar relatórios sobre informações de identificação da máquina</translation>
 <translation id="6684842561251679182">Por quantas versões principais as atualizações de chave do kernel são adiadas</translation>
 <translation id="6685903773201985073">Ativar a autenticação pelo SO em sessões normais e de visitante.</translation>
+<translation id="668721405120274587">Esta política controla o compartilhamento do conteúdo de páginas e arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> pelo painel lateral ou pelas guias do <ph name="PRODUCT_NAME" />.
+
+Ela não afeta o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> na web. Esta política só controla como os usuários podem compartilhar informações com esse recurso ao usar o <ph name="PRODUCT_NAME" />.
+
+Se ela definida como "0" ou não for definida, os usuários poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+Se for definida como "1", os usuários não poderão compartilhar o conteúdo de páginas ou arquivos com o <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Os pontos de entrada para compartilhar contexto serão desativados ou ocultados.
+
+Esta política será ignorada quando o <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> não for o mecanismo de pesquisa padrão dos usuários, já que o recurso está desativado.
+
+Esta política é independente da <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. A política <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> controla apenas os pontos de entrada na caixa de pesquisa da omnibox ou da página "Nova guia". Já esta política controla o compartilhamento de contexto pelo painel lateral ou pelas guias.
+
+Esta política também não controla a integração do <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, que pode ser desativada pela <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Se esta política não for definida, o comportamento dela será determinado pela <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Saiba mais sobre o tratamento de dados para recursos de IA generativa em https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6687291630099400188">Não mostrar informações do sistema na tela de login</translation>
 <translation id="6689343802305995925">Nenhuma ação acontece.</translation>
 <translation id="6689792153960219308">Informar status de hardware</translation>
@@ -9240,6 +9172,15 @@ O uso de <ph name="DEVICE_POWER_ADAPTIVE_CHARGING_ENABLED_POLICY_NAME" /> será 
 <translation id="6908640907898649429">Configura o provedor de pesquisa padrão. É possível especificar o provedor de pesquisa padrão que será usado ou escolhido pelo usuário para desativar a pesquisa padrão.</translation>
 <translation id="6910715067772088598">Desativar registros do aplicativo de quiosque</translation>
 <translation id="6913068954484253496">Permitir que o <ph name="PRODUCT_NAME" /> conecte-se a dispositivos de transmissão em todos os endereços IP.</translation>
+<translation id="691374293559164968">Esta política controla o comportamento de login do navegador. Com ela, você especifica se o usuário pode fazer login no <ph name="PRODUCT_NAME" /> com a conta dele e usar serviços relacionados à conta, como a Sincronização do <ph name="PRODUCT_NAME" />.
+
+      Se a política for definida como "Desativar login no navegador", o usuário não poderá fazer login no navegador e usar os serviços da conta. Nesse caso, recursos do navegador, como a Sincronização do <ph name="PRODUCT_NAME" />, não poderão ser usados e não vão estar disponíveis. No <ph name="IOS_NAME" />, se o usuário já estiver com a conta conectada e a política for desativada, a conta será imediatamente desconectada. Em outras plataformas, a conta será desconectada na próxima vez que o <ph name="PRODUCT_NAME" /> for executado. Em todas as outras plataformas, os dados locais do perfil, como favoritos, senhas etc., serão mantidos e poderão ser usados. O usuário ainda poderá fazer login e usar serviços da web do Google, como o Gmail.
+
+      Se a política for definida como "Ativar login no navegador", o usuário poderá fazer login. Em todas as plataformas, exceto no <ph name="IOS_NAME" />, a conta do usuário será conectada automaticamente no navegador quando ele fizer login em serviços da web do Google, como o Gmail. Estar conectado significa que as informações da conta do usuário serão mantidas pelo navegador. Entretanto, isso não significa que a Sincronização do <ph name="PRODUCT_NAME" /> será ativada por padrão. O usuário precisará ativar esse recurso de forma separada. A ativação desta política vai impedir que o usuário desative a configuração que permite o login no navegador. Para controlar a disponibilidade da Sincronização do <ph name="PRODUCT_NAME" />, use a política <ph name="SYNC_POLICY_NAME" />.
+
+      Se ela estiver definida como "Forçar o login no navegador", o usuário verá uma caixa de diálogo de seleção de contas. Ele precisará escolher uma e fazer login para usar o navegador. Isso garante que, para as contas gerenciadas, as políticas associadas à conta sejam aplicadas. O valor padrão da <ph name="GUEST_MODE_POLICY_NAME" /> será definido como desativado. Os perfis existentes não conectados serão bloqueados e vão ficar inacessíveis após a ativação dessa política. Para mais informações, consulte o artigo da Central de Ajuda: https://support.google.com/chrome/?p=force_browser_signin. Essa opção não está disponível para <ph name="PRODUCT_OS_NAME" /> ou <ph name="ANDROID_NAME" />. Nesses dispositivos, ela será substituída por "Ativar login no navegador", caso seja usada.
+
+      Se a política não for definida, o usuário poderá decidir se quer ativar o login no navegador nas configurações do <ph name="PRODUCT_NAME" /> e usar esse recurso como achar melhor.</translation>
 <translation id="6915493311660114995">Se a política for ativada, o <ph name="PRODUCT_NAME" /> vai permitir
 solicitações de autenticação da Web em sites que tenham certificados TLS com
 erros, ou seja, sites considerados não seguros.
@@ -9450,6 +9391,7 @@ a otimização do JavaScript será ativada.</translation>
 <translation id="7016587686120059767">Desativar o modo visitante</translation>
 <translation id="7019805045859631636">Rápida</translation>
 <translation id="7021590945154530517">Ativar o monitoramento de integridade do dispositivo</translation>
+<translation id="7021952112057614674">Desativar o modo somente HTTPS</translation>
 <translation id="7025153290982655996">Reverter para o comportamento do escopo legado dos cookies</translation>
 <translation id="7025332601572838001">Como configurar o comportamento dos TOS durante a primeira execução do CCT</translation>
 <translation id="7026351325994257733">Permitir que as configurações de rede Wi-Fi sejam sincronizadas entre dispositivos <ph name="PRODUCT_OS_NAME" /> e um smartphone Android conectado.</translation>
@@ -9628,6 +9570,23 @@ APIs de acessibilidade.</translation>
 
       Observação: no momento, o recurso de digitalização está desativado por padrão por uma flag de recurso. Se o usuário ativar o recurso pela flag, ele ainda poderá ser desativado por essa política.</translation>
 <translation id="7115684775550072082">Manter apenas espaços em branco para Tipos MIME de texto e XML</translation>
+<translation id="7116098886490965998">Desativar o Logon único usando o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> para os provedores de identidade listados.
+
+Ao adicionar o valor <ph name="POLICY_VALUE_ALL" />, todos os provedores de identidade para SSO compatíveis são desativados.
+
+Ao adicionar o valor <ph name="POLICY_VALUE_MICROSOFT" />, o logon único para o provedor de identidade na nuvem da Microsoft® no Chrome é desativado.
+
+Se esta política for deixada sem definição, todos os provedores de identidade compatíveis com o <ph name="PRODUCT_NAME" /> serão ativados.
+
+Para provedores de identidade ativados no <ph name="PRODUCT_NAME" /> e configurados no dispositivo pelo administrador, os usuários que fizerem login usando esse provedor em qualquer aplicativo compatível com o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> também poderão fazer login em propriedades da web usando esse provedor de identidade automaticamente. As informações de autenticação do usuário são transmitidas ao provedor de identidade na nuvem para cada evento de autenticação.
+
+Observações:
+
+O <ph name="PRODUCT_NAME" /> não aceita logon único usando <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> nos modos de navegação anônima ou de convidado.
+
+O <ph name="PRODUCT_NAME" /> só é compatível com o Logon único usando o <ph name="EXTENSIBLE_ENTERPRISE_SSO_PRODUCT_NAME" /> para os seguintes provedores de identidade: Microsoft e Okta.
+
+Esse recurso está disponível no <ph name="MAC_OS_NAME" /> 10.15.</translation>
 <translation id="7119538491527883595">Armazenamento local de dados do usuário</translation>
 <translation id="7121046543122812054">Esta política foi descontinuada. Use a <ph name="BROWSER_SIGNIN_POLICY_NAME" />.
 
@@ -10246,6 +10205,19 @@ Consulte <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />, <ph name="DIR
 
       Se a política for deixada sem definição ou for definida como falsa, os pacotes de criptografia RC4 no TLS não vão ser ativados. Caso contrário, ela pode ser definida como verdadeira para manter a compatibilidade com um servidor desatualizado. Essa é uma medida provisória, e o servidor deve ser reconfigurado.</translation>
 <translation id="751615601677744094">Desativado: comportamento normal para eventos de mutação, o que significa não disparar esses eventos após a data de remoção.</translation>
+<translation id="7518736413346509172">Se esta política for ativada, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" />
+só vão mostrar avisos no <ph name="CHROME_DEVTOOLS_NAME" /> devido a falhas nas verificações de <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Se ela for desativada ou não for definida, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" /> vão usar o
+gerenciamento padrão.
+
+Consulte as restrições de <ph name="LOCAL_NETWORK_ACCESS" /> em https://wicg.github.io/local-network-access/ (página em inglês).
+
+Esta política corporativa é temporária e será removida após a versão M152.
+
+A longo prazo, a política <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" />
+pode ser usada para permitir padrões de URL que devem receber automaticamente
+a permissão <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7519218194072744342">O URL do gerenciador de protocolos.</translation>
 <translation id="7519251620064708155">Permitir a geração de chaves nesses sites</translation>
 <translation id="7521864460386999758">Impedir que código de terceiros seja injetado no Chrome</translation>
@@ -10347,6 +10319,21 @@ Se a política não tiver definição, <ph name="DEFAULT_WEB_PRINTING_SETTING_PO
 Os padrões de URL não podem entrar em conflito com <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Nenhuma política terá precedência se um URL tiver correspondência com ambas.
 
 Para saber mais sobre padrões de URL válidos, consulte https://chromeenterprise.google/policies/url-patterns. <ph name="WILDCARD_VALUE" /> não é um valor aceitável para esta política.</translation>
+<translation id="7615612213075471065">Esta política controla os relatórios do <ph name="PRODUCT_NAME" /> sobre visitas a domínios SaaS e transferências de conteúdo para um navegador gerenciado.
+
+Quando a política for definida, os URLs correspondentes aos domínios SaaS serão usados para gerar relatórios e enviados por upload. Os URLs sem correspondência serão ignorados.
+
+Quando a política for configurada como uma lista vazia ou não for definida, nenhum relatório será gerado.
+
+Os padrões de correspondência usam um formato semelhante aos da política <ph name="URL_BLOCKLIST_POLICY_NAME" />, que estão documentados em https://support.google.com/chrome/a?p=url_blocklist_filter_format. Com algumas exceções abaixo:
+
+ * O host do URL precisa corresponder ao nome do host ou ser um subdomínio do nome do host de um dos domínios da lista de sites SaaS.
+
+ * O caminho do URL precisa começar com o caminho da entrada da lista de sites SaaS correspondente.
+
+ O esquema de URL, a porta e a consulta são desconsiderados durante o processo de correspondência.
+
+Esse valor de política é preenchido pela infraestrutura de políticas de nuvem, e os admins não podem defini-lo diretamente.</translation>
 <translation id="7616631530432070402">Os pacotes de criptografia 3DES serão ativados em TLS</translation>
 <translation id="761788785484453836">Exigir o isolamento de todos os sites</translation>
 <translation id="7620869951155758729">Esta política especifica a configuração que é usada para gerar e verificar o código de acesso do familiar responsável.
@@ -10508,7 +10495,6 @@ Quando ela for deixada sem definição, o renderizador de PDF será escolhido pe
       Observação: veja uma lista com as variáveis que podem ser usadas: https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables (link em inglês).</translation>
 <translation id="7719808201797990069">Exceções ao padrão de URL para descarte de guias</translation>
 <translation id="7721944091689270995">ID do usuário do <ph name="PLUGIN_VM_NAME" /></translation>
-<translation id="7725010277314676939">Forçar a ativação do modo somente HTTPS no modo estrito</translation>
 <translation id="7728486978686128364">Não usar letra maiúscula para os métodos de solicitação, exceto em DELETE/GET/HEAD/OPTIONS/POST/PUT</translation>
 <translation id="7731026922044991970">Reverter para o comportamento <ph name="ATTRIBUTE_SAMESITE_NAME" /> legado para os cookies em todos os sites</translation>
 <translation id="7732907212083471072">Políticas removidas</translation>
@@ -10731,6 +10717,14 @@ Para saber mais sobre padrões de <ph name="URL_LABEL" /> válidos, consulte htt
 <translation id="7891884447851425349">Se a <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> estiver ativada, definir <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> especificará o URL do mecanismo de pesquisa usado na pesquisa padrão. O URL precisa incluir a string <ph name="SEARCH_TERM_MARKER" />, que é substituída na consulta pelos termos de pesquisa do usuário.
 
       É possível especificar o URL de pesquisa do Google como: <ph name="GOOGLE_SEARCH_URL" />.</translation>
+<translation id="7893719068404928632">Se esta política for ativada, a solicitação principal será bloqueada sempre que um aviso precisar ser
+mostrado no <ph name="CHROME_DEVTOOLS_NAME" />
+devido a falhas nas verificações de <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Se ela for desativada ou não for definida, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" /> vão usar o
+gerenciamento padrão.
+
+Consulte as restrições de <ph name="LOCAL_NETWORK_ACCESS" /> em https://wicg.github.io/local-network-access/ (página em inglês).</translation>
 <translation id="7894185046683379696">Se a política for definida, será especificado o tempo em milissegundos sem entrada do usuário para que a tela seja bloqueada quando o dispositivo estiver funcionando com energia CA ou bateria. Os valores são ajustados para serem menores que o intervalo de inatividade em <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
       Quando a política é definida como zero, o <ph name="PRODUCT_OS_NAME" /> não bloqueia a tela quando o usuário fica inativo. Se a política não for definida, o período padrão será usado.
@@ -11524,6 +11518,7 @@ configurados.</translation>
       Se a política não for definida, o <ph name="PRODUCT_NAME" /> permitirá que os usuários controlem se ele será o padrão ou não e, caso não seja, se as notificações do usuário serão exibidas.
 
       Observação: para administradores do <ph name="MS_WIN_NAME" />, a ativação dessa configuração só funciona em máquinas com o Windows 7. Para versões mais recentes, é necessário implantar um arquivo de "associações de aplicativo padrão", que torna o <ph name="PRODUCT_NAME" /> o gerenciador dos protocolos <ph name="HTTPS_PROTOCOL" /> e <ph name="HTTP_PROTOCOL" /> e, opcionalmente, o protocolo <ph name="FTP_PROTOCOL" /> e outros formatos de arquivo. Consulte a Ajuda do Google Chrome (https://support.google.com/chrome?p=make_chrome_default_win).</translation>
+<translation id="8437147918598002525">Ativar o modo somente HTTPS no modo estrito</translation>
 <translation id="8437836857126992452">Permite especificar quais extensões os usuários NÃO podem instalar. As extensões já instaladas serão desativadas se estiverem bloqueadas, sem a opção de o usuário ativá-las novamente. Quando uma extensão que tiver sido desativada devido à lista de bloqueios for removida da lista, ela será reativada automaticamente.
 
           Um valor "*" da lista de bloqueio significa que todas as extensões estão bloqueadas por padrão. As extensões que estão explicitamente na lista de permissões só são permitidas se estiverem assinadas (empacotadas). Todas as extensões descompactadas estão bloqueadas.
@@ -11845,6 +11840,23 @@ Para o <ph name="PRODUCT_OS_NAME" />, ela sempre é eficaz.</translation>
 <translation id="8631437968147930597">A lista de apps de anotação permitidos na tela de bloqueio do <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="8633550872001751090">Permitir que os dados do <ph name="PRODUCT_NAME" /> sejam incluídos em backups</translation>
 <translation id="8634062512783775032">Usar <ph name="AES_KL_NAME" /> como o algoritmo para a criptografia de armazenamento do usuário, se compatível</translation>
+<translation id="8635783478441936474">Esta política controla os relatórios do <ph name="PRODUCT_NAME" /> sobre visitas a domínios SaaS e transferências de conteúdo para um perfil gerenciado.
+
+Quando a política for definida, os URLs correspondentes aos domínios SaaS serão usados para gerar relatórios e enviados por upload. Os URLs sem correspondência serão ignorados.
+
+Quando a política for configurada como uma lista vazia ou não for definida, nenhum relatório será gerado.
+
+Os padrões de correspondência usam um formato semelhante aos da política <ph name="URL_BLOCKLIST_POLICY_NAME" />, que estão documentados em https://support.google.com/chrome/a?p=url_blocklist_filter_format. Com algumas exceções abaixo:
+
+ * O host do URL precisa corresponder ao nome do host ou ser um subdomínio do nome do host de um dos domínios da lista de sites SaaS.
+
+ * O caminho do URL precisa começar com o caminho da entrada da lista de sites SaaS correspondente.
+
+ O esquema de URL, a porta e a consulta são desconsiderados durante o processo de correspondência.
+
+Ela só pode ser definida como uma política do usuário de nuvem.
+
+Esse valor de política é preenchido pela infraestrutura de políticas de nuvem, e os admins não podem defini-lo diretamente.</translation>
 <translation id="8637566476051166626">Portas de rede explicitamente permitidas</translation>
 <translation id="8643838501942693770">Permitir cookies de terceiros, mas deixar os usuários mudarem essa configuração</translation>
 <translation id="864611373241249369">Depois que o <ph name="LACROS_NAME" /> é desativado, tentamos migrar todos os dados.</translation>
@@ -12655,7 +12667,6 @@ Para mais informações sobre contextos seguros, acesse https://www.w3.org/TR/se
       Ela é uma medida temporária e será removida em versões futuras do <ph name="PRODUCT_NAME" />. Após a remoção da política, o <ph name="PRODUCT_NAME" /> sempre poderá consultar outros tipos de DNS.</translation>
 <translation id="9167719789236691545">Desativar o Drive no app Arquivos do <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="9171359005568194889">Ativar o salvamento de chaves de acesso no gerenciador de senhas</translation>
-<translation id="9172648973829444124">Forçar a ativação do modo somente HTTPS no modo equilibrado</translation>
 <translation id="9172911925443428317">Não permitir que a promoção de avaliação da App Store seja mostrada</translation>
 <translation id="9173133289347070466">Pesquisas do <ph name="PRODUCT_NAME" /> no produto coletam feedback de usuários sobre o navegador. As respostas das pesquisas não estão associadas a contas de usuário.
 Se a política for ativada ou deixada sem definição, as pesquisas no produto poderão ser mostradas aos usuários.
@@ -12667,7 +12678,6 @@ A política não terá efeito se a <ph name="METRICS_REPORTING_ENABLED_POLICY_NA
 <translation id="9180108183162961002">Permitir logins em navegação como visitante</translation>
 <translation id="9185963199234034321">Ativar o alto contraste na tela de login e permitir que o usuário o desative temporariamente</translation>
 <translation id="9187743794267626640">Desativa a montagem de armazenamento externo</translation>
-<translation id="9189737595688383533">Não permitir que os usuários ativem o modo somente HTTPS</translation>
 <translation id="9190022798664427644">Ativar áudio mono</translation>
 <translation id="9190456586252617675">Esta política controla o modo da experiência de integração do Assistente.
 
@@ -12686,12 +12696,34 @@ O padrão é RollbackDisabled.</translation>
 <translation id="9206472508136116830">Não permitir a detecção de compartilhamento do NetBIOS</translation>
 <translation id="9207596996305971030">Não informar eventos de login/logout</translation>
 <translation id="9210647066889383361">Permitir que os usuários façam login no próprio dispositivo com o Smart Lock</translation>
+<translation id="9212598607138782107">Provedor de identidade na nuvem da Okta®</translation>
 <translation id="9213751049772256263">Desativar todas as variações</translation>
 <translation id="9217154963008402249">Frequência de pacotes de monitoramento de rede</translation>
 <translation id="9220314833408124365">Usar uma política de referenciador padrão de no-referrer-when-downgrade</translation>
 <translation id="922160134042190462">Não ativar a <ph name="DESK_API_NAME" /> para o controle do <ph name="PRODUCT_OS_NAME" /> de terceiros</translation>
 <translation id="9221827710437832530">Permitir acesso à geolocalização na tela de login.</translation>
 <translation id="922540222991413931">Configurar extensão, aplicativo e origens de instalação do script do usuário</translation>
+<translation id="924360639456783890">Esta política controla se os usuários podem ativar o modo somente HTTPS (Sempre usar conexões seguras) nas Configurações. O modo somente HTTPS faz upgrade de todas as navegações para HTTPS.
+
+Se esta configuração for deixada sem definição ou definida como "permitida", os usuários poderão ativar o modo somente HTTPS.
+
+Se ela for definida como "não permitida", o modo somente HTTPS será desativado.
+
+Se ela for definida como "force_enabled", o modo somente HTTPS será ativado no modo estrito.
+
+Se ela for definida como "force_balanced_enabled", o modo somente HTTPS será ativado no modo equilibrado.
+
+A opção "force_enabled" está disponível a partir da versão M112, enquanto "force_balanced_enabled" está disponível a partir da M129.
+
+Também é possível recomendar "force_enabled" e "force_balanced_enabled" aos usuários.
+Inicialmente, o modo somente HTTPS será definido como "estrito" ou "equilibrado", mas os usuários poderão
+mudar a configuração.
+
+Se você definir essa política para um valor que não é compatível com a versão do Chrome que a recebe, o navegador vai usar a configuração permitida por padrão.
+
+A política <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> separada
+pode ser usada para evitar que determinados nomes de host ou padrões de nome do host sejam
+atualizados para HTTPS por esse recurso.</translation>
 <translation id="924557436754151212">Importar senhas salvas do navegador padrão na primeira execução</translation>
 <translation id="925379810778921867">Um SharedWorker do URL do blob herda um controlador.</translation>
 <translation id="927384371566552478">Se a política for definida como "Ativada" ou não for definida, a interface de exportação/importação ficará disponível para o usuário. Se a política for definida como "Desativada", a interface de exportação/importação não ficará disponível para o usuário.</translation>

@@ -11,7 +11,9 @@
 #include <optional>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/safe_browsing/notification_telemetry/notification_telemetry_store.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -34,6 +36,10 @@ class SharedURLLoaderFactory;
 class SimpleURLLoader;
 
 }  // namespace network
+
+namespace net {
+class HttpResponseHeaders;
+}
 
 namespace safe_browsing {
 
@@ -125,7 +131,7 @@ class NotificationTelemetryService
       bool allowlisted);
 
   // Used for logging after an upload.
-  void UploadComplete(std::optional<std::string> response_body);
+  void UploadComplete(scoped_refptr<net::HttpResponseHeaders> headers);
 
   // Check if a notifications service worker ID matches any of the stored
   // service worker origins.

@@ -172,6 +172,7 @@ if (rtc_include_tests) {
         "../../svc:scalability_mode_util",
         "../../svc:scalability_structures",
         "../../svc:scalable_video_controller",
+        "../../svc:svc_rate_allocator",
       ]
     }
   }

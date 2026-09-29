@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/file_system_access/file_system_access_manager.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -11,9 +12,8 @@
 namespace blink {
 
 // static
-const unsigned FileSystemAccessManager::kSupplementIndex =
-    static_cast<unsigned>(
-        ExecutionContext::Supplements::kFileSystemAccessManager);
+const char FileSystemAccessManager::kSupplementName[] =
+    "FileSystemAccessManager";
 
 // static
 FileSystemAccessManager& FileSystemAccessManager::From(

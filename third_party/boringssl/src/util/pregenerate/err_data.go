@@ -248,6 +248,8 @@ func (t *ErrDataTask) Run() ([]byte, error) {
 
 #include <assert.h>
 
+
+BSSL_NAMESPACE_BEGIN
 `)
 
 	for i, name := range libraryNames {
@@ -257,5 +259,9 @@ func (t *ErrDataTask) Run() ([]byte, error) {
 	out.WriteString("\n")
 
 	e.reasons.WriteTo(&out, "Reason")
+
+	out.WriteString(`
+BSSL_NAMESPACE_END
+`)
 	return out.Bytes(), nil
 }

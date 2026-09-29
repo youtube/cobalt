@@ -17,16 +17,12 @@ import {findRef, toHTMLElement} from '../../base/dom_utils';
 import {assertExists} from '../../base/logging';
 import {Icons} from '../../base/semantic_icons';
 import {QueryResponse} from '../../components/query_table/queries';
+import {DataGrid, renderCell} from '../../components/widgets/datagrid/datagrid';
 import {
   CellRenderer,
-  ColumnDefinition,
-  DataGridDataSource,
-} from '../../components/widgets/datagrid/common';
-import {
-  DataGrid,
-  renderCell,
-  columnsToSchema,
-} from '../../components/widgets/datagrid/datagrid';
+  ColumnSchema,
+  SchemaRegistry,
+} from '../../components/widgets/datagrid/datagrid_schema';
 import {InMemoryDataSource} from '../../components/widgets/datagrid/in_memory_data_source';
 import {QueryHistoryComponent} from '../../components/widgets/query_history';
 import {Trace} from '../../public/trace';
@@ -41,6 +37,10 @@ import {Stack, StackAuto} from '../../widgets/stack';
 import {CopyToClipboardButton} from '../../widgets/copy_to_clipboard_button';
 import {Anchor} from '../../widgets/anchor';
 import {getSliceId, isSliceish} from '../../components/query_table/query_table';
+import {DataSource} from '../../components/widgets/datagrid/data_source';
+import {PopupMenu} from '../../widgets/menu';
+import {PopupPosition} from '../../widgets/popup';
+import {AddDebugTrackMenu} from '../../components/tracks/add_debug_track_menu';
 
 const HIDE_PERFETTO_SQL_AGENT_BANNER_KEY = 'hidePerfettoSqlAgentBanner';
 
@@ -56,7 +56,7 @@ export interface QueryPageAttrs {
 }
 
 export class QueryPage implements m.ClassComponent<QueryPageAttrs> {
-  private dataSource?: DataGridDataSource;
+  private dataSource?: DataSource;
   private editorHeight: number = 0;
   private editorElement?: HTMLElement;
 
@@ -203,7 +203,7 @@ export class QueryPage implements m.ClassComponent<QueryPageAttrs> {
   private renderQueryResult(
     trace: Trace,
     queryResult: QueryResponse,
-    dataSource: DataGridDataSource,
+    dataSource: DataSource,
   ) {
     const queryTimeString = `${queryResult.durationMs.toFixed(1)} ms`;
     if (queryResult.error) {
@@ -222,43 +222,45 @@ export class QueryPage implements m.ClassComponent<QueryPageAttrs> {
             ]),
           ]),
         (() => {
-          const columnDefs: ColumnDefinition[] = queryResult.columns.map(
-            (column) => {
-              const cellRenderer: CellRenderer | undefined =
-                column === 'id'
-                  ? (value, row) => {
-                      const sliceId = getSliceId(row);
-                      const cell = renderCell(value, column);
-                      if (sliceId !== undefined && isSliceish(row)) {
-                        return m(
-                          Anchor,
-                          {
-                            title: 'Go to slice on the timeline',
-                            icon: Icons.UpdateSelection,
-                            onclick: () => {
-                              // Navigate to the timeline page
-                              trace.navigate('#!/viewer');
-                              trace.selection.selectSqlEvent('slice', sliceId, {
-                                switchToCurrentSelectionTab: false,
-                                scrollToSelection: true,
-                              });
-                            },
+          // Build schema directly
+          const columnSchema: ColumnSchema = {};
+          for (const column of queryResult.columns) {
+            const cellRenderer: CellRenderer | undefined =
+              column === 'id'
+                ? (value, row) => {
+                    const sliceId = getSliceId(row);
+                    const cell = renderCell(value, column);
+                    if (sliceId !== undefined && isSliceish(row)) {
+                      return m(
+                        Anchor,
+                        {
+                          title: 'Go to slice on the timeline',
+                          icon: Icons.UpdateSelection,
+                          onclick: () => {
+                            // Navigate to the timeline page
+                            trace.navigate('#!/viewer');
+                            trace.selection.selectSqlEvent('slice', sliceId, {
+                              switchToCurrentSelectionTab: false,
+                              scrollToSelection: true,
+                            });
                           },
-                          cell,
-                        );
-                      } else {
-                        return renderCell(value, column);
-                      }
+                        },
+                        cell,
+                      );
+                    } else {
+                      return renderCell(value, column);
                     }
-                  : undefined;
-              return {
-                name: column,
-                cellRenderer,
-              };
-            },
-          );
+                  }
+                : undefined;
+            columnSchema[column] = {cellRenderer};
+          }
+          const schema: SchemaRegistry = {data: columnSchema};
+          const lastStatement = queryResult.lastStatementSql;
+
           return m(DataGrid, {
-            ...columnsToSchema(columnDefs),
+            schema,
+            rootSchema: 'data',
+            initialColumns: queryResult.columns.map((col) => ({field: col})),
             className: 'pf-query-page__results',
             data: dataSource,
             showExportButton: true,
@@ -266,11 +268,29 @@ export class QueryPage implements m.ClassComponent<QueryPageAttrs> {
               'span.pf-query-page__results-summary',
               `Returned ${queryResult.totalRowCount.toLocaleString()} rows in ${queryTimeString}`,
             ),
-            toolbarItemsRight: m(CopyToClipboardButton, {
-              textToCopy: queryResult.query,
-              title: 'Copy executed query to clipboard',
-              label: 'Copy Query',
-            }),
+            toolbarItemsRight: [
+              m(
+                PopupMenu,
+                {
+                  trigger: m(Button, {label: 'Add debug track'}),
+                  position: PopupPosition.Top,
+                },
+                m(AddDebugTrackMenu, {
+                  trace,
+                  query: lastStatement,
+                  availableColumns: queryResult.columns,
+                  onAdd: () => {
+                    // Navigate to the tracks page
+                    trace.navigate('#!/viewer');
+                  },
+                }),
+              ),
+              m(CopyToClipboardButton, {
+                textToCopy: queryResult.query,
+                title: 'Copy executed query to clipboard',
+                label: 'Copy Query',
+              }),
+            ],
           });
         })(),
       ];

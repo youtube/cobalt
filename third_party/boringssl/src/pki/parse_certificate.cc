@@ -501,12 +501,11 @@ bool ParseTbsCertificate(der::Input tbs_tlv,
   }
 
   //        validity             Validity,
-  der::Input validity_tlv;
-  if (!tbs_parser.ReadRawTLV(&validity_tlv)) {
+  if (!tbs_parser.ReadRawTLV(&out->validity_tlv)) {
     errors->AddError(kFailedReadingValidity);
     return false;
   }
-  if (!ParseValidity(validity_tlv, &out->validity_not_before,
+  if (!ParseValidity(out->validity_tlv, &out->validity_not_before,
                      &out->validity_not_after)) {
     errors->AddError(kFailedParsingValidity);
     return false;
@@ -523,6 +522,8 @@ bool ParseTbsCertificate(der::Input tbs_tlv,
     errors->AddError(kFailedReadingSpki);
     return false;
   }
+
+  out->bytes_after_spki = tbs_parser.RemainingBytes();
 
   //        issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
   //                             -- If present, version MUST be v2 or v3

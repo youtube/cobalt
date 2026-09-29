@@ -107,7 +107,7 @@ struct CORE_EXPORT PaintLayerScrollableAreaRareData final
   // [1]https://drafts.csswg.org/selectors/#the-target-pseudo
   std::optional<cc::ElementId> targeted_snap_area_id_;
   Vector<gfx::Rect> tickmarks_override_;
-  // ScrollSnapshotClient for keeping track of snapped targets in both
+  // PostLayoutSnapshotClient for keeping track of snapped targets in both
   // directions used for matching snapped @container queries.
   Member<SnappedQueryScrollSnapshot> snapped_query_snapshot_;
 };
@@ -560,6 +560,12 @@ class CORE_EXPORT PaintLayerScrollableArea final
   CompositorElementId GetScrollElementId() const override;
 
   bool VisualViewportSuppliesScrollbars() const override;
+  bool ShouldAvoidHidingOverlayScrollbars() const override;
+
+  bool ShouldSupplyScrollbarsForVisualViewport(
+      ScrollbarOrientation orientation) const;
+
+  void DidUpdateVisualViewport() override;
 
   bool HasHorizontalOverflow() const;
   bool HasVerticalOverflow() const;

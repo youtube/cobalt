@@ -3320,7 +3320,9 @@ void BufferPool::destroy(Renderer *renderer, bool orphanNonEmptyBufferBlock)
         else
         {
             // When orphan is not allowed, all BufferBlocks must be empty.
-            ASSERT(orphanNonEmptyBufferBlock);
+            // If Device is lost due to errors then add non-empty BufferBlocks
+            // to the orphan list to be freed towards end.
+            ASSERT(renderer->isDeviceLost() || orphanNonEmptyBufferBlock);
             renderer->addBufferBlockToOrphanList(block.release());
         }
     }
@@ -4823,6 +4825,8 @@ angle::Result BufferHelper::initializeNonZeroMemory(ErrorContext *context,
 
         commandBuffer.copyBuffer(stagingBuffer.getBuffer(), getBuffer(), 1, &copyRegion);
 
+        renderer->insertSubmitDebugMarkerInCommandBuffer(commandBuffer,
+                                                         QueueSubmitReason::InitNonZeroMemory);
         ANGLE_VK_TRY(context, commandBuffer.end());
 
         QueueSerial queueSerial;
@@ -5646,6 +5650,9 @@ angle::Result ImageHelper::copyToBufferOneOff(ErrorContext *context,
                             &acquireNextImageSemaphore);
     commandBuffer.copyBufferToImage(stagingBuffer->getBuffer().getHandle(), getImage(),
                                     getCurrentLayout(renderer), 1, &copyRegion);
+
+    renderer->insertSubmitDebugMarkerInCommandBuffer(commandBuffer,
+                                                     QueueSubmitReason::CopyBufferToImageOneOff);
     ANGLE_VK_TRY(context, commandBuffer.end());
 
     QueueSerial submitQueueSerial;
@@ -6178,6 +6185,8 @@ angle::Result ImageHelper::initializeNonZeroMemory(ErrorContext *context,
         }
     }
 
+    renderer->insertSubmitDebugMarkerInCommandBuffer(commandBuffer,
+                                                     QueueSubmitReason::InitNonZeroMemory);
     ANGLE_VK_TRY(context, commandBuffer.end());
 
     QueueSerial queueSerial;
@@ -10630,6 +10639,8 @@ angle::Result ImageHelper::copySurfaceImageToBuffer(DisplayVk *displayVk,
     primaryCommandBuffer.copyImageToBuffer(mImage, getCurrentLayout(renderer),
                                            bufferHelper->getBuffer().getHandle(), 1, &region);
 
+    renderer->insertSubmitDebugMarkerInCommandBuffer(primaryCommandBuffer,
+                                                     QueueSubmitReason::CopySurfaceImageToBuffer);
     ANGLE_VK_TRY(displayVk, primaryCommandBuffer.end());
 
     QueueSerial submitQueueSerial;
@@ -10679,6 +10690,8 @@ angle::Result ImageHelper::copyBufferToSurfaceImage(DisplayVk *displayVk,
     commandBuffer.copyBufferToImage(bufferHelper->getBuffer().getHandle(), mImage,
                                     getCurrentLayout(renderer), 1, &region);
 
+    renderer->insertSubmitDebugMarkerInCommandBuffer(commandBuffer,
+                                                     QueueSubmitReason::CopyBufferToSurfaceImage);
     ANGLE_VK_TRY(displayVk, commandBuffer.end());
 
     QueueSerial submitQueueSerial;
@@ -11277,7 +11290,7 @@ angle::Result ImageHelper::readPixelsImpl(ContextVk *contextVk,
     ANGLE_VK_PERF_WARNING(contextVk, GL_DEBUG_SEVERITY_HIGH, "GPU stall due to ReadPixels");
 
     // Triggers a full finish.
-    ANGLE_TRY(contextVk->finishImpl(RenderPassClosureReason::GLReadPixels));
+    ANGLE_TRY(contextVk->finishImpl(QueueSubmitReason::GLReadPixels));
     // invalidate must be called after wait for finish.
     ANGLE_TRY(stagingBuffer->invalidate(renderer));
 

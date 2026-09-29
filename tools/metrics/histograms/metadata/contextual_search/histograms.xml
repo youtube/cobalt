@@ -83,8 +83,22 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="ContextualSearch.ContextAdded.ContextAddedMethod.{ContextualSearchSource}"
+    enum="ContextAddedMethod" expires_after="2026-06-10">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the total number of times a context addition method was used.
+    Recorded once every time a file or files are added using a certain context
+    addition method. i.e. Recorded once for copy and paste, drag and drop,
+    context menu add, etc.
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
     name="ContextualSearch.ContextMenuEntry.Clicked.{ContextualSearchSource}"
-    enum="BooleanOccurred" expires_after="2026-03-29">
+    enum="BooleanOccurred" expires_after="2026-06-21">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -284,7 +298,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContextualSearch.Session.File.Browser.UploadSuccessCount.{ContextualSearchFileTypes}.{ContextualSearchSource}"
-    units="count" expires_after="2026-03-22">
+    units="count" expires_after="2026-06-21">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -301,7 +315,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContextualSearch.Session.File.Browser.UploadSuccessCount.{ContextualSearchSource}"
-    units="count" expires_after="2026-03-22">
+    units="count" expires_after="2026-06-21">
   <owner>wenhuc@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -403,7 +417,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextualSearch.Session.QueryCount.{ContextualSearchSource}"
-    units="count" expires_after="2026-03-22">
+    units="count" expires_after="2026-06-21">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>

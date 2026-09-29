@@ -30,10 +30,12 @@ class URLPattern;
 // See;
 // https://github.com/WICG/declarative-partial-updates?tab=readme-ov-file#part-2-route-matching
 class CORE_EXPORT RouteMap final : public ScriptWrappable,
-                                   public GarbageCollectedMixin {
+                                   public Supplement<Document> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static const char kSupplementName[];
+
   struct ParseResult final {
     // TODO(crbug.com/436805487): Error reporting needs to be specced.
     enum Status {
@@ -75,12 +77,14 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   static RouteMap& Ensure(Document&);
 
   Document& GetDocument() const {
-    DCHECK(document_);
-    return *document_;
+    Document* document = GetSupplementable();
+    DCHECK(document);
+    return *document;
   }
 
   ParseResult ParseAndApplyRoutes(const String& route_map_text);
 
+  void AddRouteFromRule(const String& dashed_ident, URLPattern*);
   void AddAnonymousRoute(URLPattern*);
 
   const Route* FindRoute(const String& route_name) const;
@@ -109,12 +113,16 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
     UpdateActiveRoutes();
   }
 
+  // Return the "from" URL of the current navigation, if any.
+  KURL GetFromURL() const { return previous_url_; }
+
+  // Return the "from" URL of the current navigation, if any.
+  KURL GetToURL() const { return next_url_; }
+
  private:
   ParseResult AddPatternToRoute(Route&, const JSONValue&);
   bool UpdateMatchStatus(Route&,
                          HeapVector<Member<Route>>* routes_needing_event);
-
-  Member<Document> document_;
 
   HeapHashMap<String, Member<Route>> routes_;
   HeapHashMap<String, Member<Route>> anonymous_routes_;

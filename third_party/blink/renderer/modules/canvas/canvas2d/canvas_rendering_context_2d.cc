@@ -707,7 +707,14 @@ CanvasRenderingContext2D::PaintRenderingResultsToResource(
   if (!IsResourceProviderValid()) {
     return nullptr;
   }
-  return resource_provider_->ProduceCanvasResource(reason);
+
+  // Only CRPSI can produce CanvasResources.
+  auto* si_provider = resource_provider_->AsSharedImageProvider();
+  if (!si_provider) {
+    return nullptr;
+  }
+
+  return si_provider->ProduceCanvasResource(reason);
 }
 
 const std::optional<cc::PaintRecord>&
@@ -748,6 +755,7 @@ ImageData* CanvasRenderingContext2D::getImageDataInternal(
       "Blink.Canvas.GetImageData.WillReadFrequently",
       CreationAttributes().will_read_frequently ==
           CanvasContextCreationAttributesCore::WillReadFrequently::kTrue);
+  TRACE_EVENT0("blink", "GetImageData");
   return BaseRenderingContext2D::getImageDataInternal(
       sx, sy, sw, sh, image_data_settings, exception_state);
 }
@@ -855,6 +863,8 @@ DOMMatrix* CanvasRenderingContext2D::DrawElementInternal(
   if (!GetOrCreatePaintCanvas()) {
     return nullptr;
   }
+
+  TRACE_EVENT0("blink", "DrawElementImage");
 
   element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kCanvasDrawElementImage);

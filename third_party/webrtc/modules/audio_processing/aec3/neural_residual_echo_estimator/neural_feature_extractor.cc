@@ -87,14 +87,14 @@ bool TimeDomainFeatureExtractor::ReadyForInference() const {
 }
 
 void TimeDomainFeatureExtractor::UpdateBuffers(
-    ArrayView<const ArrayView<const float, kBlockSize>> all_frames,
+    ArrayView<const ArrayView<const float, kBlockSize>> all_channels,
     ModelInputEnum input_type) {
   if (!RequiredInput(input_type)) {
     return;
   }
   std::vector<float>& input_buffer =
       input_buffer_[static_cast<size_t>(input_type)];
-  std::array<float, kBlockSize> summed_block = AverageAllChannels(all_frames);
+  std::array<float, kBlockSize> summed_block = AverageAllChannels(all_channels);
   input_buffer.insert(input_buffer.end(), summed_block.cbegin(),
                       summed_block.cend());
 }
@@ -150,6 +150,7 @@ bool FrequencyDomainFeatureExtractor::ReadyForInference() const {
   }
   return true;
 }
+
 void FrequencyDomainFeatureExtractor::ComputeAndAddPowerSpectra(
     ArrayView<const float> frame,
     std::unique_ptr<PffftState>& pffft_state,
@@ -179,16 +180,16 @@ void FrequencyDomainFeatureExtractor::ComputeAndAddPowerSpectra(
 }
 
 void FrequencyDomainFeatureExtractor::UpdateBuffers(
-    ArrayView<const ArrayView<const float, kBlockSize>> all_frames,
+    ArrayView<const ArrayView<const float, kBlockSize>> all_channels,
     ModelInputEnum input_type) {
   if (!RequiredInput(input_type)) {
     return;
   }
   std::vector<std::vector<float>>& input_buffer =
       input_buffer_[static_cast<size_t>(input_type)];
-  input_buffer.resize(all_frames.size());
-  for (size_t ch = 0; ch < all_frames.size(); ++ch) {
-    const ArrayView<const float, kBlockSize>& frame_in = all_frames[ch];
+  input_buffer.resize(all_channels.size());
+  for (size_t ch = 0; ch < all_channels.size(); ++ch) {
+    const ArrayView<const float, kBlockSize>& frame_in = all_channels[ch];
     std::vector<float>& input_buffer_ch = input_buffer[ch];
     input_buffer_ch.insert(input_buffer_ch.end(), frame_in.cbegin(),
                            frame_in.cend());
@@ -209,7 +210,8 @@ void FrequencyDomainFeatureExtractor::PrepareModelInput(
   pffft_states_channels.resize(input_buffer.size());
   for (size_t ch = 0; ch < input_buffer.size(); ++ch) {
     ComputeAndAddPowerSpectra(input_buffer[ch], pffft_states_channels[ch],
-                              input_buffer.size(), model_input);
+                              static_cast<int>(input_buffer.size()),
+                              model_input);
     input_buffer[ch].clear();
   }
 

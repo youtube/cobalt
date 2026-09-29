@@ -77,7 +77,9 @@ base::android::ScopedJavaLocalRef<jobject> TestTabModel::GetJavaObject() const {
 
 void TestTabModel::CreateTab(TabAndroid* parent,
                              content::WebContents* web_contents,
-                             bool select) {}
+                             int index,
+                             bool select,
+                             bool should_pin) {}
 
 void TestTabModel::HandlePopupNavigation(TabAndroid* parent,
                                          NavigateParams* params) {}
@@ -141,6 +143,10 @@ int TestTabModel::GetTabCountNavigatedInTimeWindow(
 void TestTabModel::CloseTabsNavigatedInTimeWindow(const base::Time& begin_time,
                                                   const base::Time& end_time) {}
 
+void TestTabModel::ActivateTab(tabs::TabHandle tab) {
+  NOTIMPLEMENTED();
+}
+
 tabs::TabInterface* TestTabModel::OpenTab(const GURL& url, int index) {
   NOTIMPLEMENTED();
   return nullptr;
@@ -189,6 +195,16 @@ void TestTabModel::PinTab(tabs::TabHandle tab) {
 
 void TestTabModel::UnpinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
+}
+
+bool TestTabModel::ContainsTabGroup(tab_groups::TabGroupId group_id) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+std::vector<tab_groups::TabGroupId> TestTabModel::ListTabGroups() {
+  NOTIMPLEMENTED();
+  return {};
 }
 
 std::optional<tab_groups::TabGroupId> TestTabModel::AddTabsToGroup(
@@ -323,12 +339,17 @@ void OwningTestTabModel::CloseTabAt(int index) {
 
 void OwningTestTabModel::CreateTab(TabAndroid* parent,
                                    content::WebContents* web_contents,
-                                   bool select) {
+                                   int index,
+                                   bool select,
+                                   bool should_pin) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  size_t insertion_index =
+      (index == TabModel::kInvalidIndex) ? owned_tabs_.size() : index;
 
   // Take ownership of the WebContents.
   AddTabFromWebContents(std::unique_ptr<content::WebContents>(web_contents),
-                        owned_tabs_.size(), select,
+                        insertion_index, select,
                         TabModel::TabLaunchType::FROM_RESTORE);
 }
 
@@ -383,6 +404,10 @@ void OwningTestTabModel::CloseTabsNavigatedInTimeWindow(
   NOTIMPLEMENTED();
 }
 
+void OwningTestTabModel::ActivateTab(tabs::TabHandle tab) {
+  NOTIMPLEMENTED();
+}
+
 tabs::TabInterface* OwningTestTabModel::OpenTab(const GURL& url, int index) {
   NOTIMPLEMENTED();
   return nullptr;
@@ -431,6 +456,16 @@ void OwningTestTabModel::PinTab(tabs::TabHandle tab) {
 
 void OwningTestTabModel::UnpinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
+}
+
+bool OwningTestTabModel::ContainsTabGroup(tab_groups::TabGroupId group_id) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+std::vector<tab_groups::TabGroupId> OwningTestTabModel::ListTabGroups() {
+  NOTIMPLEMENTED();
+  return {};
 }
 
 std::optional<tab_groups::TabGroupId> OwningTestTabModel::AddTabsToGroup(

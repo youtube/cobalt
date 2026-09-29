@@ -74,7 +74,7 @@ class SSLAdapterTestDummy {
 
     ssl_adapter_->SubscribeReadEvent(
         this, [this](Socket* socket) { OnSSLAdapterReadEvent(socket); });
-    ssl_adapter_->SubscribeCloseEvent([this](Socket* socket, int error) {
+    ssl_adapter_->SubscribeCloseEvent(this, [this](Socket* socket, int error) {
       OnSSLAdapterCloseEvent(socket, error);
     });
     ssl_adapter_->SetRole(role);

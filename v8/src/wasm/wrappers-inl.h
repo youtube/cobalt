@@ -91,21 +91,20 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     // Function reference. Extract the external function.
     ScopedVar<Object> result(this, OpIndex::Invalid());
     if (type.is_nullable()) {
-      IF (__ TaggedEqual(ret,
-                         __ template LoadRootWasm<RootIndex::kWasmNull>())) {
-        result = __ template LoadRootWasm<RootIndex::kNullValue>();
+      IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
+        result = __ template LoadRoot<RootIndex::kNullValue>();
       } ELSE{
         V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-            __ LoadTrustedPointerField(ret, LoadOp::Kind::TaggedBase(),
-                                       kWasmInternalFunctionIndirectPointerTag,
-                                       WasmFuncRef::kTrustedInternalOffset));
+            __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
+                                  kWasmInternalFunctionIndirectPointerTag,
+                                  WasmFuncRef::kTrustedInternalOffset));
         V<Object> maybe_external =
             __ Load(internal, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::AnyTagged(),
                     WasmInternalFunction::kExternalOffset);
         IF (__ TaggedEqual(
                 maybe_external,
-                __ template LoadRootWasm<RootIndex::kUndefinedValue>())) {
+                __ template LoadRoot<RootIndex::kUndefinedValue>())) {
           result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
               Builtin::kWasmInternalFunctionCreateExternal,
               Operator::kNoProperties, internal, context);
@@ -116,14 +115,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     } else {
       // Non-nullable funcref.
       V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-          __ LoadTrustedPointerField(ret, LoadOp::Kind::TaggedBase(),
-                                     kWasmInternalFunctionIndirectPointerTag,
-                                     WasmFuncRef::kTrustedInternalOffset));
+          __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
+                                kWasmInternalFunctionIndirectPointerTag,
+                                WasmFuncRef::kTrustedInternalOffset));
       result = __ Load(internal, LoadOp::Kind::TaggedBase(),
                        MemoryRepresentation::TaggedPointer(),
                        WasmInternalFunction::kExternalOffset);
-      IF (__ TaggedEqual(
-              result, __ template LoadRootWasm<RootIndex::kUndefinedValue>())) {
+      IF (__ TaggedEqual(result,
+                         __ template LoadRoot<RootIndex::kUndefinedValue>())) {
         result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
             Builtin::kWasmInternalFunctionCreateExternal,
             Operator::kNoProperties, internal, context);
@@ -135,16 +134,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   // Cases that are never or always null:
   if (!type.is_nullable()) return ret;
   if (!type.use_wasm_null()) return ret;
-  if (type.is_none_type())
-    return __ template LoadRootWasm<RootIndex::kNullValue>();
+  if (type.is_none_type()) return __ template LoadRoot<RootIndex::kNullValue>();
 
   // Nullable reference. Convert WasmNull if needed.
   ScopedVar<Object> result(this, OpIndex::Invalid());
-  IF_NOT (__ TaggedEqual(ret,
-                         __ template LoadRootWasm<RootIndex::kWasmNull>())) {
+  IF_NOT (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
     result = ret;
   } ELSE{
-    result = __ template LoadRootWasm<RootIndex::kNullValue>();
+    result = __ template LoadRoot<RootIndex::kNullValue>();
   }
   return result;
 }
@@ -316,11 +313,10 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
       __ Load(js_closure, LoadOp::Kind::TaggedBase().Immutable(),
               MemoryRepresentation::TaggedPointer(),
               JSFunction::kSharedFunctionInfoOffset);
-  V<WasmFunctionData> function_data =
-      V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
-          sfi, LoadOp::Kind::TaggedBase().Immutable(),
-          kWasmFunctionDataIndirectPointerTag,
-          SharedFunctionInfo::kTrustedFunctionDataOffset));
+  V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
+      __ LoadTrustedPointer(sfi, LoadOp::Kind::TaggedBase().Immutable(),
+                            kWasmFunctionDataIndirectPointerTag,
+                            SharedFunctionInfo::kTrustedFunctionDataOffset));
   // If we are not inlining the Wasm body, we don't need the Wasm instance.
 
   V<WasmTrustedInstanceData> instance_data =
@@ -391,7 +387,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   }
 
   V<Undefined> undefined_node =
-      __ template LoadRootWasm<RootIndex::kUndefinedValue>();
+      __ template LoadRoot<RootIndex::kUndefinedValue>();
   int pushed_count = std::max(expected_arity, wasm_count);
   // 5 extra arguments: receiver, new target, arg count, dispatch handle and
   // context.
@@ -425,7 +421,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     if (v8_flags.stress_wasm_stack_switching) {
       V<Word32> for_stress_testing = __ TaggedEqual(
           __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
-          __ template LoadRootWasm<RootIndex::kUndefinedValue>());
+          __ template LoadRoot<RootIndex::kUndefinedValue>());
       IF (for_stress_testing) {
         __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
                            native_context);
@@ -570,11 +566,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
               StackMemory::func_ref_offset());
   AbortIfNot(__ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE),
              AbortReason::kUnexpectedInstanceType);
-  V<WasmInternalFunction> internal_function =
-      V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
-          func_ref, LoadOp::Kind::TaggedBase().Immutable(),
-          kWasmInternalFunctionIndirectPointerTag,
-          WasmFuncRef::kTrustedInternalOffset));
+  V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
+      __ LoadTrustedPointer(func_ref, LoadOp::Kind::TaggedBase().Immutable(),
+                            kWasmInternalFunctionIndirectPointerTag,
+                            WasmFuncRef::kTrustedInternalOffset));
   auto [target, instance] =
       this->BuildFunctionTargetAndImplicitArg(internal_function);
 
@@ -650,11 +645,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   V<Object> function_node =
       __ LoadTaggedField(incoming_params[0], WasmImportData::kCallableOffset);
   V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
-  V<WasmFunctionData> function_data =
-      V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
-          shared, LoadOp::Kind::TaggedBase(),
-          kWasmFunctionDataIndirectPointerTag,
-          SharedFunctionInfo::kTrustedFunctionDataOffset));
+  V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
+      __ LoadTrustedPointer(shared, LoadOp::Kind::TaggedBase(),
+                            kWasmFunctionDataIndirectPointerTag,
+                            SharedFunctionInfo::kTrustedFunctionDataOffset));
   V<Object> host_data_foreign = __ LoadTaggedField(
       function_data, WasmCapiFunctionData::kEmbedderDataOffset);
 

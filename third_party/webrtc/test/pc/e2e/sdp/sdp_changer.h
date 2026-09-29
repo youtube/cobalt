@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/jsep.h"
 #include "api/rtp_parameters.h"
@@ -91,7 +92,7 @@ class SignalingInterceptor {
   // Contains information about simulcast section, that is required to perform
   // modified offer/answer and ice candidates exchange.
   struct SimulcastSectionInfo {
-    SimulcastSectionInfo(const std::string& mid,
+    SimulcastSectionInfo(absl::string_view mid,
                          MediaProtocolType media_protocol_type,
                          const std::vector<RidDescription>& rids_desc);
 

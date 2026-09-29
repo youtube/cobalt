@@ -30,6 +30,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static int rsa_pss_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                       void *exarg) {
   if (operation == ASN1_OP_FREE_PRE) {
@@ -105,8 +107,7 @@ int x509_rsa_ctx_to_pss(EVP_MD_CTX *ctx, X509_ALGOR *algor) {
   if (!rsa_marshal_pss_params(&cbb, params)) {
     return 0;
   }
-  bssl::UniquePtr<ASN1_STRING> params_str(
-      ASN1_STRING_type_new(V_ASN1_SEQUENCE));
+  UniquePtr<ASN1_STRING> params_str(ASN1_STRING_type_new(V_ASN1_SEQUENCE));
   if (params_str == nullptr ||
       !ASN1_STRING_set(params_str.get(), CBB_data(&cbb), CBB_len(&cbb))) {
     return 0;

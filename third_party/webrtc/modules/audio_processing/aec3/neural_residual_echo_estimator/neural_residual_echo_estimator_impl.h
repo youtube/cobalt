@@ -47,7 +47,8 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
     virtual int StepSize() const = 0;
     virtual ArrayView<float> GetInput(
         FeatureExtractor::ModelInputEnum input_enum) = 0;
-    virtual ArrayView<const float> GetOutputEchoMask() = 0;
+    virtual ArrayView<const float> GetOutput(
+        FeatureExtractor::ModelOutputEnum output_enum) = 0;
     virtual const audioproc::ReeModelMetadata& GetMetadata() const = 0;
     virtual bool Invoke() = 0;
   };

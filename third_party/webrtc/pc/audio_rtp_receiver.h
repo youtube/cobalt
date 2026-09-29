@@ -54,16 +54,22 @@ class AudioRtpReceiver : public ObserverInterface,
   AudioRtpReceiver(Thread* worker_thread,
                    absl::string_view receiver_id,
                    std::vector<std::string> stream_ids,
-                   bool is_unified_plan,
                    VoiceMediaReceiveChannelInterface* voice_channel = nullptr);
+  // Note: This is a PlanB-only constructor.
   // TODO(https://crbug.com/webrtc/9480): Remove this when streams() is removed.
   AudioRtpReceiver(
       Thread* worker_thread,
       absl::string_view receiver_id,
       const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
-      bool is_unified_plan,
+      bool is_unified_plan,  // must always be set to false.
       VoiceMediaReceiveChannelInterface* media_channel = nullptr);
-  virtual ~AudioRtpReceiver();
+  // TODO(https://crbug.com/webrtc/9480): Remove this when streams() is removed.
+  AudioRtpReceiver(
+      Thread* worker_thread,
+      absl::string_view receiver_id,
+      const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+      VoiceMediaReceiveChannelInterface* media_channel = nullptr);
+  ~AudioRtpReceiver() override;
 
   // ObserverInterface implementation
   void OnChanged() override;
@@ -119,6 +125,13 @@ class AudioRtpReceiver : public ObserverInterface,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
  private:
+  AudioRtpReceiver(
+      Thread* worker_thread,
+      absl::string_view receiver_id,
+      const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+      VoiceMediaReceiveChannelInterface* media_channel,
+      RemoteAudioSource::OnAudioChannelGoneAction source_gone_action);
+
   void RestartMediaChannel(std::optional<uint32_t> ssrc)
       RTC_RUN_ON(&signaling_thread_checker_);
   void RestartMediaChannel_w(std::optional<uint32_t> ssrc,

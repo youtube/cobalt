@@ -342,7 +342,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.AutoFraming.EnabledCount" units="times"
-    expires_after="2026-04-19">
+    expires_after="2026-06-21">
   <owner>kamesan@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -418,7 +418,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.ConfigureStreamsLatency" units="microseconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -791,7 +791,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.Camera.Jpeg.Latency.{JpegProcessMethod}.{JpegProcessType}"
-    units="microseconds" expires_after="2026-04-12">
+    units="microseconds" expires_after="2026-06-21">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -905,7 +905,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.OpenDeviceLatency" units="microseconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>
@@ -951,7 +951,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Camera.SessionDuration" units="seconds"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>beckerh@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <summary>Records the session duration in Chrome OS camera service.</summary>
@@ -1236,17 +1236,6 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     A count of successes and various failure modes related to the parsing of
     logical CPU frequencies on Chrome OS. Recorded when the browser process
     starts.
-  </summary>
-</histogram>
-
-<histogram name="ChromeOS.CWP.ParseLacrosPath" enum="ChromeOSParseLacrosPath"
-    expires_after="2024-11-03">
-  <owner>shantuo@google.com</owner>
-  <owner>cwp-team@google.com</owner>
-  <summary>
-    A count of various locations gotten from parsing a Lacros binary path. This
-    is used to monitor any change to the Lacros path. Recorded when a Lacros
-    binary path was found when CWP collects browser processes.
   </summary>
 </histogram>
 
@@ -2074,7 +2063,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.AttachmentForm.{Type}" enum="AttachmentForm"
-    expires_after="2026-04-19">
+    expires_after="2026-06-21">
   <owner>wmahon@google.com</owner>
   <owner>chromeos-tango@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
@@ -3314,7 +3303,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SAML.{LoginOrUnlock}.SamlRedirectUsage"
-    enum="SamlRedirectEvent" expires_after="2026-01-25">
+    enum="SamlRedirectEvent" expires_after="2027-01-25">
   <owner>andreydav@google.com</owner>
   <owner>cros-3pidp@google.com</owner>
   <summary>
@@ -4041,7 +4030,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.Settings.Device.Touchpad.{TouchpadType}.{TouchpadSpeedSettings}.Initial"
-    enum="PointerSensitivity" expires_after="2026-03-22">
+    enum="PointerSensitivity" expires_after="2026-06-21">
   <owner>jimmyxgong@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -4751,7 +4740,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.CableSpeed" enum="CableSpeedMetric"
-    expires_after="2026-05-10">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4774,7 +4763,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.ModeEntry" enum="ModeEntryMetric"
-    expires_after="2026-01-01">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4785,7 +4774,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.PartnerLocation" enum="PartnerLocationMetric"
-    expires_after="2026-01-01">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4799,7 +4788,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.PartnerType" enum="PartnerTypeMetric"
-    expires_after="2026-05-10">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4810,7 +4799,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.PowerSourceLocation"
-    enum="PowerSourceLocationMetric" expires_after="2026-01-01">
+    enum="PowerSourceLocationMetric" expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4824,7 +4813,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.TypeC.WrongConfiguration"
-    enum="WrongConfigurationMetric" expires_after="2026-05-10">
+    enum="WrongConfigurationMetric" expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4838,7 +4827,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.USB.DeviceAttached.{Status}.{USBDeviceClass}"
-    enum="ChromeOSUsbEventTiming" expires_after="2026-04-19">
+    enum="ChromeOSUsbEventTiming" expires_after="2027-01-01">
   <owner>allenwebb@chromium.org</owner>
   <owner>jorgelo@chromium.org</owner>
   <owner>mnissler@chromium.org</owner>
@@ -4877,7 +4866,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.USB.DeviceError" enum="ChromeOSUsbDeviceError"
-    expires_after="2026-01-01">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4888,7 +4877,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 
 <histogram
     name="ChromeOS.USB.ExternalDeviceAttached.{USBDeviceRecognized}.{USBDeviceClass}"
-    enum="ChromeOSUsbEventTiming" expires_after="2026-01-01">
+    enum="ChromeOSUsbEventTiming" expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>allenwebb@chromium.org</owner>
   <owner>chromeos-usb@google.com</owner>
@@ -4931,7 +4920,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.USB.ExternalDeviceAttached.{USBPortType}.DeviceClass"
-    enum="ChromeOSUsbDeviceClass" expires_after="2026-05-10">
+    enum="ChromeOSUsbDeviceClass" expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4946,7 +4935,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.USB.ExternalDeviceAttached.{USBPortType}.DeviceSpeed"
-    enum="ChromeOSUsbDeviceSpeed" expires_after="2026-05-10">
+    enum="ChromeOSUsbDeviceSpeed" expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>
@@ -4961,7 +4950,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.USB.UnboundInterface" enum="ChromeOSUsbDeviceClass"
-    expires_after="2026-05-10">
+    expires_after="2027-01-01">
   <owner>jthies@google.com</owner>
   <owner>chromeos-usb@google.com</owner>
   <summary>

@@ -218,7 +218,7 @@ BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOverscrollEffectOnNonRootScrollers,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -267,5 +267,7 @@ BASE_FEATURE(kUnlockDuringGpuImageOperations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMainIdleBypassScheduler, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

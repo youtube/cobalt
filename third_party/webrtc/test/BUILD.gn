@@ -608,7 +608,6 @@ if (rtc_include_tests) {
     }
 
     rtc_library("test_main_lib") {
-      visibility = [ "*" ]
       testonly = true
       sources = [
         "test_main_lib.cc",
@@ -1302,25 +1301,13 @@ if (!build_with_chromium) {
     ]
   }
 
-  rtc_library("test_flags_tmp") {
-    testonly = true
-    sources = [
-      "test_flags_tmp.cc",
-      "test_flags_tmp.h",
-    ]
-    deps = [ "//third_party/abseil-cpp/absl/flags:flag" ]
-  }
-
   rtc_library("test_flags") {
     testonly = true
     sources = [
       "test_flags.cc",
       "test_flags.h",
     ]
-    deps = [
-      ":test_flags_tmp",
-      "//third_party/abseil-cpp/absl/flags:flag",
-    ]
+    deps = [ "//third_party/abseil-cpp/absl/flags:flag" ]
   }
 
   rtc_library("test_common") {

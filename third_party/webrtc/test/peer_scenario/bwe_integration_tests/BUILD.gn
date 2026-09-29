@@ -29,6 +29,7 @@ if (rtc_include_tests) {
         "stats_utilities.cc",
         "stats_utilities.h",
       ]
+
       deps = [
         "..:peer_scenario",
         "../..:create_frame_generator_capturer",

@@ -74,23 +74,25 @@ ProxyBinding::ProxyBinding(AsyncProxyServerSocket* int_socket,
       out_buffer_(kBufferSize),
       in_buffer_(kBufferSize) {
   int_socket_->SubscribeConnectRequest(
-      [this](AsyncProxyServerSocket* socket, const SocketAddress& addr) {
+      this, [this](AsyncProxyServerSocket* socket, const SocketAddress& addr) {
         OnConnectRequest(socket, addr);
       });
   int_socket_->SubscribeReadEvent(
       this, [this](Socket* socket) { OnInternalRead(socket); });
   int_socket_->SubscribeWriteEvent(
       this, [this](Socket* socket) { OnInternalWrite(socket); });
-  int_socket_->SubscribeCloseEvent(
-      [this](Socket* socket, int error) { OnInternalClose(socket, error); });
+  int_socket_->SubscribeCloseEvent(this, [this](Socket* socket, int error) {
+    OnInternalClose(socket, error);
+  });
   ext_socket_->SubscribeConnectEvent(
-      [this](Socket* socket) { OnExternalConnect(socket); });
+      this, [this](Socket* socket) { OnExternalConnect(socket); });
   ext_socket_->SubscribeReadEvent(
       this, [this](Socket* socket) { OnExternalRead(socket); });
   ext_socket_->SubscribeWriteEvent(
       this, [this](Socket* socket) { OnExternalWrite(socket); });
-  ext_socket_->SubscribeCloseEvent(
-      [this](Socket* socket, int error) { OnExternalClose(socket, error); });
+  ext_socket_->SubscribeCloseEvent(this, [this](Socket* socket, int error) {
+    OnExternalClose(socket, error);
+  });
 }
 
 ProxyBinding::~ProxyBinding() = default;

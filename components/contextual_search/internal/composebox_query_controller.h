@@ -79,8 +79,9 @@ class ComposeboxQueryController
 
   // ContextualSearchContextController:
   void InitializeIfNeeded() override;
-  GURL CreateSearchUrl(std::unique_ptr<CreateSearchUrlRequestInfo>
-                           search_url_request_info) override;
+  void CreateSearchUrl(std::unique_ptr<CreateSearchUrlRequestInfo>
+                           search_url_request_info,
+                       base::OnceCallback<void(GURL)> callback) override;
   lens::ClientToAimMessage CreateClientToAimRequest(
       std::unique_ptr<CreateClientToAimRequestInfo>
           create_client_to_aim_request_info) override;
@@ -414,6 +415,7 @@ class ComposeboxQueryController
   // Creates the encoded visual search interaction log data and attaches it to
   // the url param list.
   void AddEncodedVisualSearchInteractionLogDataParam(
+      const FileInfo* file_info,
       const std::optional<std::string>& query_text,
       std::optional<lens::LensOverlaySelectionType> lens_overlay_selection_type,
       std::map<std::string, std::string>& url_params_map);
@@ -499,6 +501,10 @@ class ComposeboxQueryController
 
   // The number of files that are sent in the AIM request.
   int num_files_in_request_ = 0;
+
+  // The latest pending search URL request that was not sent due to waiting on
+  // cluster info.
+  base::OnceClosure pending_search_url_request_;
 
   base::WeakPtrFactory<ComposeboxQueryController> weak_ptr_factory_{this};
 };

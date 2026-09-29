@@ -9,8 +9,8 @@
 
 #import <memory>
 
-#import "base/gtest_prod_util.h"
 #import "base/memory/raw_ptr.h"
+#import "base/memory/weak_ptr.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/device_sharing/model/device_sharing_manager.h"
 
@@ -41,6 +41,8 @@ class DeviceSharingManagerImpl : public DeviceSharingManager {
 
   void UpdateHandoffManager();
 
+  bool IsActiveBrowser(Browser* browser);
+
   raw_ptr<ProfileIOS> profile_ = nullptr;
 
   // Registrar for pref change notifications to the active profile.
@@ -50,7 +52,7 @@ class DeviceSharingManagerImpl : public DeviceSharingManager {
   __strong HandoffManager* handoff_manager_;
 
   // The current active browser.
-  raw_ptr<Browser, DanglingUntriaged> active_browser_ = nullptr;
+  base::WeakPtr<Browser> active_browser_;
 };
 
 #endif  // IOS_CHROME_BROWSER_DEVICE_SHARING_MODEL_DEVICE_SHARING_MANAGER_IMPL_H_

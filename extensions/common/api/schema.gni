@@ -14,7 +14,7 @@ extensions_api_schema_files_ = [
   "dns.webidl",
   "events.json",
   "extension_types.json",
-  "file_handlers.idl",
+  "file_handlers.webidl",
   "icon_variants.idl",
   "i18n.json",
   "idle.json",
@@ -22,7 +22,7 @@ extensions_api_schema_files_ = [
   "metrics_private.json",
   "offscreen.idl",
   "power.idl",
-  "protocol_handlers.idl",
+  "protocol_handlers.webidl",
   "runtime.json",
   "storage.json",
   "system_cpu.webidl",
@@ -38,16 +38,16 @@ extensions_api_schema_files_ = [
 # In many cases, this includes schemas used to generate types used in manifest
 # parsing.
 extensions_types_only_schema_files_ = [
-  "chrome_url_overrides.idl",
+  "chrome_url_overrides.webidl",
   "content_scripts.idl",
-  "cross_origin_isolation.idl",
+  "cross_origin_isolation.webidl",
   "extensions_manifest_types.json",
   "incognito.json",
-  "oauth2.idl",
+  "oauth2.webidl",
   "requirements.json",
-  "shared_module.idl",
-  "web_accessible_resources_mv2.idl",
-  "web_accessible_resources.idl",
+  "shared_module.webidl",
+  "web_accessible_resources_mv2.webidl",
+  "web_accessible_resources.webidl",
 ]
 
 # APIs that are not currently supported on the experimental desktop-android.

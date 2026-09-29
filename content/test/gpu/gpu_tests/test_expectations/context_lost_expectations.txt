@@ -66,6 +66,7 @@
 #         mesa_ge_23.2
 #         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
+#         nvidia_ge_32.0.15.8180 nvidia_lt_32.0.15.8180
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
 # tags: [ asan no-asan ]
@@ -202,8 +203,7 @@ crbug.com/524808 [ win8 nvidia ] ContextLost_WebGLContextLostFromSelectElement [
 # Non-"Skip" expectations go here to suppress regular flakes/failures.
 
 # Very flaky on Pixel 2 and Samsung A13 Android bots
-crbug.com/444480419 [ android android-pixel-2 ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
-crbug.com/444480419 [ android android-pixel-4 ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
+crbug.com/444480419 [ android android-pixel-2 no-clang-coverage ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
 crbug.com/444480419 [ android android-sm-a137f ] ContextLost_WebGLContextLostInHiddenTab [ Failure ]
 
 # Fails with Graphite on Windows and Mac

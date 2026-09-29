@@ -6,6 +6,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
@@ -36,6 +37,7 @@ void SetScrollViewProperties(views::ScrollView* scroll_view) {
 
 VerticalTabStripView::VerticalTabStripView(TabCollectionNode* collection_node) {
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
+  SetProperty(views::kElementIdentifierKey, kTabStripElementId);
 
   pinned_tabs_scroll_view_ = AddChildView(std::make_unique<views::ScrollView>(
       views::ScrollView::ScrollWithLayers::kEnabled));
@@ -115,20 +117,13 @@ views::ProposedLayout VerticalTabStripView::CalculateProposedLayout(
   return layouts;
 }
 
-VerticalPinnedTabContainerView*
-VerticalTabStripView::GetPinnedTabsContainerForTesting() {
-  if (views::View* contents = pinned_tabs_scroll_view_->contents()) {
-    return static_cast<VerticalPinnedTabContainerView*>(contents);
-  }
-  return nullptr;
+VerticalPinnedTabContainerView* VerticalTabStripView::GetPinnedTabsContainer() {
+  return pinned_tabs_container_view_;
 }
 
 VerticalUnpinnedTabContainerView*
-VerticalTabStripView::GetUnpinnedTabsContainerForTesting() {
-  if (views::View* contents = unpinned_tabs_scroll_view_->contents()) {
-    return static_cast<VerticalUnpinnedTabContainerView*>(contents);
-  }
-  return nullptr;
+VerticalTabStripView::GetUnpinnedTabsContainer() {
+  return unpinned_tabs_container_view_;
 }
 
 void VerticalTabStripView::SetCollapsedState(bool is_collapsed) {
@@ -139,12 +134,17 @@ void VerticalTabStripView::SetCollapsedState(bool is_collapsed) {
 
 views::View* VerticalTabStripView::AddScrollViewContents(
     std::unique_ptr<views::View> view) {
-  if (views::IsViewClass<VerticalUnpinnedTabContainerView>(view.get())) {
+  if (auto* container =
+          views::AsViewClass<VerticalUnpinnedTabContainerView>(view.get())) {
+    unpinned_tabs_container_view_ = container;
     return unpinned_tabs_scroll_view_->SetContents(std::move(view));
   }
   // |view| should only ever be VerticalUnpinnedTabContainerView or
   // VerticalPinnedTabContainerView.
-  CHECK(views::IsViewClass<VerticalPinnedTabContainerView>(view.get()));
+  auto* container =
+      views::AsViewClass<VerticalPinnedTabContainerView>(view.get());
+  CHECK(container);
+  pinned_tabs_container_view_ = container;
   return pinned_tabs_scroll_view_->SetContents(std::move(view));
 }
 

@@ -827,6 +827,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns the object for `key` in NSUserDefault.
 - (id)userDefaultsObjectForKey:(NSString*)key;
 
+// Creates a `AppGroupCommand` based on the provided text and writes it the
+// shared NSUserDefaults.
+- (void)setAppGroupCommandToSearchText:(NSString*)text;
+
 #pragma mark - Pref Utilities (EG2)
 
 // Commit synchronously the pending user prefs write. Waits until the disk write
@@ -993,6 +997,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Taps the element with `buttonText` within the activity sheet. A GREYAssert
 // is induced on failure.
 - (void)tapButtonInActivitySheetWithID:(NSString*)buttonText;
+
+// Taps the `more` button in the activity sheet that allows users to expand the
+// sheet to see all available actions on iOS 26+. Example:
+// https://screenshot.googleplex.com/8QGvXx4q2LNYoVJ
+- (void)tapMoreOptionButtonInActivitySheet;
 
 #pragma mark - First Run Utilities
 

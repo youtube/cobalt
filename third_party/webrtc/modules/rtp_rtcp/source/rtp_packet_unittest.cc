@@ -41,6 +41,7 @@ using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
+using ::testing::Not;
 
 constexpr int8_t kPayloadType = 100;
 constexpr uint32_t kSsrc = 0x12345678;
@@ -433,6 +434,26 @@ TEST(RtpPacketTest, SetReservedExtensionsAfterPayload) {
       AudioLevel(kVoiceActive, kAudioLevel)));
   // Unless reserved.
   EXPECT_TRUE(packet.SetExtension<TransmissionOffset>(kTimeOffset));
+}
+
+TEST(RtpPacketTest, SetEmptyPayload) {
+  ArrayView<const uint8_t> empty_payload;
+  RtpPacket packet;
+  packet.SetPayload(empty_payload);
+
+  EXPECT_THAT(packet.payload(), IsEmpty());
+}
+
+TEST(RtpPacketTest, SetEmptyPayloadOverwritesExistingPayload) {
+  const uint8_t payload[] = {1, 2, 3, 4, 2, 0, 42};
+  ArrayView<const uint8_t> empty_payload;
+  RtpPacket packet;
+
+  packet.SetPayload(payload);
+  EXPECT_THAT(packet.payload(), Not(IsEmpty()));
+
+  packet.SetPayload(empty_payload);
+  EXPECT_THAT(packet.payload(), IsEmpty());
 }
 
 TEST(RtpPacketTest, SetPayload) {

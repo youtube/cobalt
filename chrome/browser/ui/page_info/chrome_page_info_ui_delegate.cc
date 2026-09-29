@@ -12,7 +12,6 @@
 #include "chrome/browser/page_info/page_info_features.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
 #include "chrome/browser/permissions/system/system_permission_settings.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -25,12 +24,10 @@
 #include "components/page_info/core/about_this_site_service.h"
 #include "components/page_info/core/features.h"
 #include "components/page_info/core/merchant_trust_service.h"
-#include "components/page_info/core/pref_names.h"
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_manager.h"
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_service.h"
-#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_descriptor_util.h"
@@ -343,11 +340,6 @@ void ChromePageInfoUiDelegate::GetMerchantTrustInfo(
     service->GetMerchantTrustInfo(web_contents_->GetVisibleURL(),
                                   std::move(callback));
   }
-}
-
-void ChromePageInfoUiDelegate::RecordPageInfoWithMerchantTrustOpenTime() {
-  GetProfile()->GetPrefs()->SetTime(prefs::kMerchantTrustPageInfoLastOpenTime,
-                                    clock_->Now());
 }
 
 void ChromePageInfoUiDelegate::RecordMerchantTrustButtonShown() {

@@ -16,12 +16,18 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
       --composebox-height: ${this.composeboxHeight_}px;
       --composebox-dropdown-height: ${this.composeboxDropdownHeight_}px;"
       >
+    ${this.showOnboardingTooltip_ ? html`
+      <contextual-tasks-onboarding-tooltip id="onboardingTooltip"
+          @onboarding-tooltip-dismissed="${this.onTooltipDismissed_}">
+      </contextual-tasks-onboarding-tooltip>` : ''}
     <cr-composebox
       id="composebox"
       ?autofocus="${false}"
       carousel-on-top_
       lens-button-disabled_$="${false}"
       entrypoint-name="ContextualTasks"
+      searchbox-layout-mode="TallBottomContext"
+      .tabSuggestions="${this.tabSuggestions_}"
     >
     </cr-composebox>
   </div>

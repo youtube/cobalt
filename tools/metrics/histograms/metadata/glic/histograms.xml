@@ -209,6 +209,7 @@ chromium-metrics-reviews@google.com.
     <variant name="SetMaximumNumberOfPinnedTabs"/>
     <variant name="SetMicrophonePermissionState"/>
     <variant name="SetMinimumWidgetSize"/>
+    <variant name="SetOnboardingCompleted"/>
     <variant name="SetSyntheticExperimentState"/>
     <variant name="SetTabContextPermissionState"/>
     <variant name="SetWindowDraggableAreas"/>
@@ -217,6 +218,7 @@ chromium-metrics-reviews@google.com.
     <variant name="SubscribeToCaptureRegion"/>
     <variant name="SubscribeToPageMetadata"/>
     <variant name="SubscribeToPinCandidates"/>
+    <variant name="SubscribeToTabData"/>
     <variant name="SwitchConversation"/>
     <variant name="UninterruptActorTask"/>
     <variant name="UnpinAllTabs"/>
@@ -787,6 +789,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Instance.MemoryUsageAtThreshold" units="MB"
+    expires_after="2026-12-16">
+  <owner>birnie@google.com</owner>
+  <owner>bryantchandler@google.com</owner>
+  <summary>
+    Records the private memory footprint of the Glic instance (sum of WebUI +
+    WebClient) when the hibernation memory threshold is exceeded.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Instance.Metrics.Error{Cause}"
     enum="GlicInstanceMetricsError" expires_after="2026-11-12">
   <owner>birnie@google.com</owner>
@@ -1351,7 +1363,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.PageContextFetcher.GetEncodedScreenshot.TimeoutAgnostic"
-    units="ms" expires_after="2026-04-12">
+    units="ms" expires_after="2026-06-21">
   <owner>cfredric@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <summary>

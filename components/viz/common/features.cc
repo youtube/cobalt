@@ -34,13 +34,6 @@
 namespace features {
 
 #if BUILDFLAG(IS_ANDROID)
-// If this flag is enabled, only the composited progress bar will be visible,
-// and load progress updates will be animated instead of directly snapping to
-// the new position. The animation is done in the same manner as BCIV, where
-// OffsetTags and OffstTagValues will enable viz to move the progress bar.
-BASE_FEATURE(kAndroidAnimatedProgressBarInViz,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // During a scroll, enable viz to move browser controls according to the
 // offsets provided by the embedded renderer, circumventing browser main
 // involvement. For now, this applies only to top controls.
@@ -170,20 +163,16 @@ BASE_FEATURE(kUseSurfaceLayerForVideoDefault, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebViewNewInvalidateHeuristic, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled and the device's SOC manufacturer satisifes the allowlist and
-// blocklist rules, WebView reports the set of threads involved in frame
-// production to HWUI, and they're included in the HWUI ADPF session.
+// If enabled and the device's SOC manufacturer is in the allowlist, WebView
+// reports the set of threads involved in frame production to HWUI, and they're
+// included in the HWUI ADPF session.
 // If disabled, WebView never uses ADPF.
-// The allowlist takes precedence - i.e. if the allowlist is non-empty, the
-// soc must be in the allowlist for WebView to use ADPF, and the blocklist is
-// ignored. If there's no allowlist, the soc must be absent from the blocklist.
 BASE_FEATURE(kWebViewEnableADPF, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// The allowlist format is a "|" separated string, e.g. "A|B|XY" for allowing
+// SoC manufacturers A, B, and XY.
 const base::FeatureParam<std::string> kWebViewADPFSocManufacturerAllowlist{
     &kWebViewEnableADPF, "webview_soc_manufacturer_allowlist", "Google"};
-
-const base::FeatureParam<std::string> kWebViewADPFSocManufacturerBlocklist{
-    &kWebViewEnableADPF, "webview_soc_manufacturer_blocklist", ""};
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -239,18 +228,12 @@ BASE_FEATURE(kOnBeginFrameThrottleVideo,
 );
 
 // If enabled, Chrome uses ADPF(Android Dynamic Performance Framework) if the
-// device's SOC manufacturer satisifes the allowlist and blocklist rules.
+// device's SOC manufacturer is in the allowlist.
 // If disabled, Chrome never uses ADPF.
-// The allowlist takes precedence - i.e. if the allowlist is non-empty, the
-// soc must be in the allowlist for Chrome to use ADPF, and the blocklist is
-// ignored. If there's no allowlist, the soc must be absent from the blocklist.
 BASE_FEATURE(kAdpf, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kADPFSocManufacturerAllowlist{
     &kAdpf, "soc_manufacturer_allowlist", "Google"};
-
-const base::FeatureParam<std::string> kADPFSocManufacturerBlocklist{
-    &kAdpf, "soc_manufacturer_blocklist", ""};
 
 // If enabled, Chrome includes the Renderer Main thread(s) into the
 // ADPF(Android Dynamic Performance Framework) hint session.
@@ -292,6 +275,14 @@ const base::FeatureParam<AdpfEfficiencyMode> kAdpfEfficiencyModeParam{
 // sending a timing report with a fake actual duration > target duration.
 // Supported only on Android >= 16.
 BASE_FEATURE(kEnableADPFWorkloadReset, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, Chrome excludes Renderer Main threads from the
+// ADPF(Android Dynamic Performance Framework) hint session during scrolls.
+// TODO(https://crbug.com/466116123): If this causes scroll regressions,
+// experiment with keeping CrRendererMain in the session for main thread
+// scrolls.
+BASE_FEATURE(kEnableADPFScrollNoRendererMain,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, we immediately send acks to clients when a viz surface
 // activates. This effectively removes back-pressure. This can result in wasted
@@ -533,11 +524,6 @@ bool ShouldRemoveRedirectionBitmap() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-bool IsAndroidAnimatedProgressBarInVizEnabled() {
-  return base::FeatureList::IsEnabled(
-      features::kAndroidAnimatedProgressBarInViz);
-}
-
 bool IsBcivBottomControlsEnabled() {
   return base::FeatureList::IsEnabled(features::kAndroidBcivBottomControls);
 }
@@ -547,19 +533,9 @@ bool IsBrowserControlsInVizEnabled() {
 }
 
 bool ShouldUseAdpfForSoc(std::string_view soc_allowlist,
-                         std::string_view soc_blocklist,
                          std::string_view soc) {
   std::vector<std::string_view> allowlist = base::SplitStringPiece(
       soc_allowlist, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  std::string blocklist_param = features::kADPFSocManufacturerBlocklist.Get();
-  std::vector<std::string_view> blocklist = base::SplitStringPiece(
-      soc_blocklist, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  // If there's no allowlist, soc must be absent from the blocklist.
-  if (allowlist.empty()) {
-    return !base::Contains(blocklist, soc);
-  }
-  // If there's an allowlist, soc must be in the allowlist.
-  // Blocklist is ignored in this case.
   return base::Contains(allowlist, soc);
 }
 #endif  // BUILDFLAG(IS_ANDROID)

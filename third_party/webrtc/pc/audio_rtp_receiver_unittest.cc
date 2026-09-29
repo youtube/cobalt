@@ -41,10 +41,10 @@ class AudioRtpReceiverTest : public ::testing::Test {
  protected:
   AudioRtpReceiverTest()
       : worker_(Thread::Current()),
-        receiver_(make_ref_counted<AudioRtpReceiver>(worker_,
-                                                     std::string(),
-                                                     std::vector<std::string>(),
-                                                     false)) {
+        receiver_(
+            make_ref_counted<AudioRtpReceiver>(worker_,
+                                               std::string(),
+                                               std::vector<std::string>())) {
     EXPECT_CALL(receive_channel_, SetRawAudioSink(kSsrc, _));
     EXPECT_CALL(receive_channel_, SetBaseMinimumPlayoutDelayMs(kSsrc, _));
   }
@@ -109,9 +109,8 @@ TEST(AudioRtpReceiver, OnChangedNotificationsAfterConstruction) {
   test::RunLoop loop;
   auto* thread = Thread::Current();  // Points to loop's thread.
   MockVoiceMediaReceiveChannelInterface receive_channel;
-  auto receiver = make_ref_counted<AudioRtpReceiver>(thread, std::string(),
-                                                     std::vector<std::string>(),
-                                                     true, &receive_channel);
+  auto receiver = make_ref_counted<AudioRtpReceiver>(
+      thread, std::string(), std::vector<std::string>(), &receive_channel);
 
   EXPECT_CALL(receive_channel, SetDefaultRawAudioSink(_)).Times(1);
   EXPECT_CALL(receive_channel, SetDefaultOutputVolume(kDefaultVolume)).Times(1);

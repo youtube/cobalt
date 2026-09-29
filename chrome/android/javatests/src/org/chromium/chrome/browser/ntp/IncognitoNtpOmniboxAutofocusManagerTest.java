@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ntp;
 
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
+
 import android.view.View;
 
 import androidx.test.espresso.Espresso;
@@ -45,7 +47,6 @@ import org.chromium.chrome.test.transit.page.TabSwitcherActionMenuFacility;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.DeviceRestriction;
@@ -68,6 +69,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(ChromeRenderTestRule.Component.UI_BROWSER_INCOGNITO)
+                    .setRevision(2)
                     .build();
 
     @Rule
@@ -91,7 +93,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @MediumTest
     @EnableFeatures(ChromeFeatureList.OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP)
     public void whenRegularNtpOpened_autofocusFails() {
-        mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, false);
+        mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), false);
 
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, null);
     }
@@ -102,7 +104,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @Restriction(DeviceFormFactor.PHONE)
     public void whenReturnedAfterNavigating_autofocusFails_phone() {
         // Open an incognito NTP.
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
 
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
 
@@ -116,7 +119,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, null);
 
         // Return to NTP after navigating.
-        mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
+        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
         NewTabPageTestUtils.waitForNtpLoaded(incognitoNtpTab);
 
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, null);
@@ -142,7 +145,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         // Return to NTP after navigating.
         ntpPage =
                 webPage.loadPageProgrammatically(
-                        UrlConstants.NTP_URL, IncognitoNewTabPageStation.newBuilder());
+                        getOriginalNativeNtpUrl(), IncognitoNewTabPageStation.newBuilder());
         verifyNonPhoneOmniboxFocusAndKeyboardVisibility(false, ntpPage);
     }
 
@@ -157,7 +160,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, null);
 
         // Navigate to the NTP.
-        mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
+        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
         NewTabPageTestUtils.waitForNtpLoaded(incognitoNtpTab);
 
         // The omnibox should not be focused, as this tab was not opened as an NTP first.
@@ -179,7 +182,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         // Navigate to the NTP.
         ntpPage =
                 nonNtpPage.loadPageProgrammatically(
-                        UrlConstants.NTP_URL, IncognitoNewTabPageStation.newBuilder());
+                        getOriginalNativeNtpUrl(), IncognitoNewTabPageStation.newBuilder());
 
         // The omnibox should not be focused, as this tab was not opened as an NTP first.
         verifyNonPhoneOmniboxFocusAndKeyboardVisibility(false, ntpPage);
@@ -200,7 +203,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         // Open a new incognito NTP.
         final Tab incognitoNtpTab =
                 mActivityTestRule.loadUrlInNewTab(
-                        UrlConstants.NTP_URL, true, TabLaunchType.FROM_TAB_SWITCHER_UI);
+                        getOriginalNativeNtpUrl(), true, TabLaunchType.FROM_TAB_SWITCHER_UI);
 
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
     }
@@ -240,7 +243,7 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
             final boolean isFirstTab = i == 0;
 
             final Tab incognitoNtpTab =
-                    mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+                    mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
             verifyPhoneOmniboxFocusAndKeyboardVisibility(!isFirstTab, incognitoNtpTab);
 
             clearOmniboxFocusOnIncognitoNtp();
@@ -278,7 +281,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     public void whenNotEnoughSpaceWithPrediction_autofocusFails_phone() {
         IncognitoNtpOmniboxAutofocusManager.setAutofocusAllowedWithPredictionForTesting(false);
 
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, incognitoNtpTab);
     }
 
@@ -300,7 +304,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     public void whenEnoughSpaceWithPrediction_autofocusSucceeds_phone() {
         IncognitoNtpOmniboxAutofocusManager.setAutofocusAllowedWithPredictionForTesting(true);
 
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
     }
 
@@ -325,7 +330,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
             whenHardwareKeyboardAttached_andWithHardwareKeyboardEnabled_autofocusSucceeds_phone() {
         IncognitoNtpOmniboxAutofocusManager.setIsHardwareKeyboardAttachedForTesting(true);
 
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
     }
 
@@ -352,7 +358,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
             whenHardwareKeyboardNotAttached_andWithHardwareKeyboardEnabled_autofocusFails_phone() {
         IncognitoNtpOmniboxAutofocusManager.setIsHardwareKeyboardAttachedForTesting(false);
 
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, incognitoNtpTab);
     }
 
@@ -381,7 +388,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
         IncognitoNtpOmniboxAutofocusManager.setAutofocusAllowedWithPredictionForTesting(true);
 
         // Open the first incognito tab. With the not_first_tab feature, it should not autofocus.
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
 
         // Omnibox should be autofocused, because it triggers if any of conditions are met.
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
@@ -412,21 +420,24 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @Restriction(DeviceFormFactor.PHONE)
     public void whenAccessibilityToggled_autofocusBehaviorChanges_phone() {
         // By default, accessibility is disabled. Autofocus should work.
-        final Tab incognitoNtpTab1 = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab1 =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab1);
 
         // Enable accessibility.
         setAccessibilityEnabled(true);
 
         // Open another incognito NTP. Autofocus should be disabled.
-        final Tab incognitoNtpTab2 = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab2 =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(false, incognitoNtpTab2);
 
         // Disable accessibility again.
         setAccessibilityEnabled(false);
 
         // Open a third incognito NTP. Autofocus should be enabled again.
-        final Tab incognitoNtpTab3 = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab3 =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab3);
     }
 
@@ -461,7 +472,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @Restriction(DeviceFormFactor.PHONE)
     public void whenAutofocusManagerInitializedWithExistingTab_autofocusSucceeds_phone() {
         // Autofocus works on a new launched Incognito tab.
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
         clearOmniboxFocusOnIncognitoNtp();
 
@@ -504,11 +516,8 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_TOOLBAR_V2)
     @Restriction(DeviceFormFactor.PHONE)
     public void testRender_incognitoNtpWithOmniboxAutofocus_toolbarTop() throws Exception {
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
-        verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
-
-        View view = mActivityTestRule.getActivity().findViewById(android.R.id.content);
-        mRenderTestRule.render(view, "incognito_ntp_omnibox_autofocus_toolbar_top");
+        loadAndRenderIncognitoNtpWithOmniboxAutofocus(
+                "incognito_ntp_omnibox_autofocus_toolbar_top");
     }
 
     @Test
@@ -520,11 +529,27 @@ public class IncognitoNtpOmniboxAutofocusManagerTest {
     })
     @Restriction(DeviceFormFactor.PHONE)
     public void testRender_incognitoNtpWithOmniboxAutofocus_toolbarBottom() throws Exception {
-        final Tab incognitoNtpTab = mActivityTestRule.loadUrlInNewTab(UrlConstants.NTP_URL, true);
+        loadAndRenderIncognitoNtpWithOmniboxAutofocus(
+                "incognito_ntp_omnibox_autofocus_toolbar_bottom");
+    }
+
+    private void loadAndRenderIncognitoNtpWithOmniboxAutofocus(String goldenId) throws Exception {
+        final Tab incognitoNtpTab =
+                mActivityTestRule.loadUrlInNewTab(getOriginalNativeNtpUrl(), true);
         verifyPhoneOmniboxFocusAndKeyboardVisibility(true, incognitoNtpTab);
 
+        // Disable scrollbar to avoid screenshot diffs due to fading animation.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    View ntpScrollView =
+                            mActivityTestRule.getActivity().findViewById(R.id.ntp_scrollview);
+                    if (ntpScrollView != null) {
+                        ntpScrollView.setVerticalScrollBarEnabled(false);
+                    }
+                });
+
         View view = mActivityTestRule.getActivity().findViewById(android.R.id.content);
-        mRenderTestRule.render(view, "incognito_ntp_omnibox_autofocus_toolbar_bottom");
+        mRenderTestRule.render(view, goldenId);
     }
 
     private void verifyPhoneOmniboxFocusAndKeyboardVisibility(boolean enabled, @Nullable Tab tab) {

@@ -220,7 +220,7 @@ func main() {
 			}
 		}
 
-		if len(fuzzer) != 0 {
+		if fuzzer != "" {
 			hash := sha1.Sum(b)
 			path := filepath.Join(fuzzerDir, fuzzer+"_corpus", hex.EncodeToString(hash[:]))
 			if err := os.WriteFile(path, b, 0666); err != nil {

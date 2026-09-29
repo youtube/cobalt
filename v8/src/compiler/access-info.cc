@@ -1105,7 +1105,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
       StringRef name_str = name.AsString();
       SharedStringAccessGuardIfNeeded access_guard(
-          broker()->local_isolate_or_isolate(), *name_str.object());
+          *name_str.object(), broker()->local_isolate_or_isolate());
       if (IsSpecialIndex(*name_str.object(), access_guard)) return Invalid();
     }
 
@@ -1114,7 +1114,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (access_mode == AccessMode::kStoreInLiteral ||
         access_mode == AccessMode::kDefine) {
       PropertyAttributes attrs = NONE;
-      if (name.object()->IsPrivate()) {
+      if (name.object()->IsAnyPrivate()) {
         // When PrivateNames are added to an object, they are by definition
         // non-enumerable.
         attrs = DONT_ENUM;
@@ -1123,7 +1123,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Don't lookup private symbols on the prototype chain.
-    if (name.object()->IsPrivate()) {
+    if (name.object()->IsAnyPrivate()) {
       return Invalid();
     }
 
@@ -1378,14 +1378,17 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
           TryCast<JSFunction>(maybe_getter, &getter)) {
         if (getter->shared()->HasBuiltinId() &&
             getter->shared()->builtin_id() ==
-                Builtin::kTypedArrayPrototypeLength &&
-            broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
-          dependencies()->DependOnStablePrototypeChain(
-              receiver_map, kStartAtPrototype, holder);
-          // TODO(388844115): If we cannot depend on the detaching protector,
-          // add a different kind of TypedArrayLength operator which checks for
-          // detached before reading the byte_length.
-          return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+                Builtin::kTypedArrayPrototypeLength) {
+          if (v8_flags.turbolev ||
+              broker_->dependencies()
+                  ->DependOnArrayBufferDetachingProtector()) {
+            // Maglev and Turbolev will add the ArrayBufferDetachingProtector
+            // dependency themselves and handle the case where they cannot do
+            // so. Turbofan doesn't.
+            dependencies()->DependOnStablePrototypeChain(
+                receiver_map, kStartAtPrototype, holder);
+            return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+          }
         }
       }
     }

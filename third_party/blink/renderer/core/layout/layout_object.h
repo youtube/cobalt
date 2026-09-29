@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
@@ -810,7 +811,8 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
 
   bool IsPseudoElement() const {
     NOT_DESTROYED();
-    return GetNode() && GetNode()->IsPseudoElement();
+    const Node* node = GetNode();
+    return node && node->IsPseudoElement();
   }
 
   virtual bool IsBoxModelObject() const {
@@ -1047,6 +1049,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   inline bool IsScrollButtonOrMarkerContent() const;
   inline bool IsBeforeOrAfterContent() const;
   inline bool IsInterestHintContent() const;
+  inline bool IsPseudo(PseudoId id) const;
   static inline bool IsAfterContent(const LayoutObject* obj) {
     return obj && obj->IsAfterContent();
   }
@@ -1132,6 +1135,19 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   void SetIsInsideMulticol(bool b) {
     NOT_DESTROYED();
     bitfields_.SetIsInsideMulticol(b);
+  }
+
+  // Return true if this LayoutObject is inside a ::column pseudo-element
+  // that is not the active column in a scroll-marker-group with tabs mode.
+  // This is used by accessibility code to efficiently determine which content
+  // should be hidden without having to walk the fragment tree repeatedly.
+  bool InsideInactiveColumnTab() const {
+    NOT_DESTROYED();
+    return bitfields_.InsideInactiveColumnTab();
+  }
+  void SetInsideInactiveColumnTab(bool b) {
+    NOT_DESTROYED();
+    bitfields_.SetInsideInactiveColumnTab(b);
   }
 
   // Return true if this object might be inside a fragmentation context, or
@@ -1495,6 +1511,17 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     return bitfields_.HasNonVisibleOverflow();
   }
   bool HasClipRelatedProperty() const;
+
+  // Both scroll containers that host overscroll area parent pseudo-elements and
+  // overscroll area parent pseudo elements are overcroll containers.
+  // TODO(crbug.com/468055741): See if we can remove the overscroll-area-parent
+  // pseudo check after they can host scrollable overflow.
+  bool IsOverscrollContainer() const {
+    NOT_DESTROYED();
+    return StyleRef().HasOverscrollArea() ||
+           IsPseudo(kPseudoIdOverscrollAreaParent);
+  }
+
   bool IsScrollContainer() const {
     NOT_DESTROYED();
     // Replaced elements don't support scrolling. If overflow is non visible,
@@ -2477,7 +2504,8 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   //
   // The ancestor can be nullptr which, if |this| is not the root view, will map
   // the rect to the main frame's space which includes the root view's scroll
-  // and clip. This is even true if the main frame is remote.
+  // and clip. This is even true if the main frame is remote; the GeometryMapper
+  // fast path is used when possible.
   //
   // If VisualRectFlags has the kEdgeInclusive bit set, clipping operations will
   // use PhysicalRect::InclusiveIntersect, and the return value of
@@ -2585,6 +2613,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // document is cleared. We use this as a hook to detect the case of document
   // destruction and don't waste time doing unnecessary work.
   bool DocumentBeingDestroyed() const;
+  bool DocumentBeingDestroyedActual() const;
 
   void DestroyAndCleanupAnonymousWrappers(bool performing_reattach);
 
@@ -3450,8 +3479,10 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // (see documentation of return value of MapToVisualRectInAncestorSpace).
   //
   // The return value of this method is whether the fast path could be used.
+  // If ancestor_or_null is null, map the rect to the viewport space.
+  friend class VisualRectMappingTest_MapToVisualRectFastPathMapsToViewport_Test;
   bool MapToVisualRectInAncestorSpaceInternalFastPath(
-      const LayoutBoxModelObject* ancestor,
+      const LayoutBoxModelObject* ancestor_or_null_for_viewport,
       gfx::RectF&,
       VisualRectFlags,
       bool& intersects) const;
@@ -3742,6 +3773,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
           can_contain_fixed_position_objects_(false),
           ever_had_layout_(false),
           is_inside_multicol_(false),
+          inside_inactive_column_tab_(false),
           subtree_change_listener_registered_(false),
           notified_of_subtree_change_(false),
           consumes_subtree_change_notification_(false),
@@ -3929,6 +3961,12 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     ADD_BOOLEAN_BITFIELD(ever_had_layout_, EverHadLayout);
 
     ADD_BOOLEAN_BITFIELD(is_inside_multicol_, IsInsideMulticol);
+
+    // True if this LayoutObject is inside a ::column pseudo-element that is
+    // not currently the active (selected) column in a scroll-marker-group
+    // with tabs mode. Used for accessibility to efficiently determine which
+    // content should be hidden.
+    ADD_BOOLEAN_BITFIELD(inside_inactive_column_tab_, InsideInactiveColumnTab);
 
     ADD_BOOLEAN_BITFIELD(subtree_change_listener_registered_,
                          SubtreeChangeListenerRegistered);
@@ -4209,6 +4247,13 @@ DEFINE_COMPARISON_OPERATORS_WITH_REFERENCES(LayoutObject)
 
 inline bool LayoutObject::DocumentBeingDestroyed() const {
   NOT_DESTROYED();
+  if (RuntimeEnabledFeatures::DisableDocumentBeingDestroyedEnabled()) {
+    return false;
+  }
+  return GetDocument().Lifecycle().GetState() >= DocumentLifecycle::kStopping;
+}
+inline bool LayoutObject::DocumentBeingDestroyedActual() const {
+  NOT_DESTROYED();
   return GetDocument().Lifecycle().GetState() >= DocumentLifecycle::kStopping;
 }
 
@@ -4278,6 +4323,12 @@ inline bool LayoutObject::IsInterestHintContent() const {
 inline bool LayoutObject::IsBeforeOrAfterContent() const {
   NOT_DESTROYED();
   return IsBeforeContent() || IsAfterContent();
+}
+
+inline bool LayoutObject::IsPseudo(PseudoId id) const {
+  NOT_DESTROYED();
+  PseudoElement* pseudo = DynamicTo<PseudoElement>(GetNode());
+  return pseudo && pseudo->GetPseudoId() == id;
 }
 
 inline void LayoutObject::ClearNeedsLayoutWithoutPaintInvalidation() {

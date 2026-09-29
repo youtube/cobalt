@@ -16,6 +16,7 @@
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
+#include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/loader/navigation_url_loader_impl.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/prefetch/prefetch_cookie_listener.h"
@@ -289,7 +290,8 @@ PrefetchContainer::PrefetchContainer(
       CalculateIsLikelyAheadOfPrerender(request_->preload_pipeline_info());
 
   redirect_chain_.push_back(std::make_unique<PrefetchSingleRedirectHop>(
-      *this, GetURL(), IsCrossSiteRequest(url::Origin::Create(GetURL()))));
+      *this, GetURL(), IsCrossSiteRequest(url::Origin::Create(GetURL())),
+      request_->preload_pipeline_info().GetFlow()));
 
   // Disallow prefetching ServiceWorker-controlled responses for isolated
   // network contexts.
@@ -776,7 +778,8 @@ void PrefetchContainer::OnEligibilityCheckComplete(
   }
 }
 
-void PrefetchContainer::AddRedirectHop(const net::RedirectInfo& redirect_info) {
+void PrefetchContainer::UpdateResourceRequest(
+    const net::RedirectInfo& redirect_info) {
   CHECK(resource_request_);
 
   // There are sometimes other headers that are modified during navigation
@@ -847,10 +850,13 @@ void PrefetchContainer::AddRedirectHop(const net::RedirectInfo& redirect_info) {
   resource_request_->referrer_policy = redirect_info.new_referrer_policy;
 
   AddXClientDataHeader(*resource_request_.get());
+}
 
+void PrefetchContainer::AddRedirectHop(const net::RedirectInfo& redirect_info) {
   redirect_chain_.push_back(std::make_unique<PrefetchSingleRedirectHop>(
       *this, redirect_info.new_url,
-      IsCrossSiteRequest(url::Origin::Create(redirect_info.new_url))));
+      IsCrossSiteRequest(url::Origin::Create(redirect_info.new_url)),
+      request_->preload_pipeline_info().GetFlow()));
 }
 
 bool PrefetchContainer::IsCrossSiteRequest(const url::Origin& origin) const {
@@ -1454,8 +1460,8 @@ bool PrefetchContainer::IsProxyRequiredForURL(const GURL& url) const {
 }
 
 void PrefetchContainer::MakeResourceRequest() {
-  // |AddRedirectHop| updates this request later on. Anything here that should
-  // be changed on redirect should happen there.
+  // `UpdateResourceRequest()` updates this request later on. Anything here that
+  // should be changed on redirect should happen there.
 
   const GURL& url = GetURL();
   url::Origin origin = url::Origin::Create(url);

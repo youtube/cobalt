@@ -22,7 +22,6 @@
 #include "base/notimplemented.h"
 #include "base/state_transitions.h"
 #include "base/trace_event/trace_event.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
 #include "chrome/browser/actor/actor_features.h"
@@ -55,6 +54,7 @@
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -177,8 +177,8 @@ std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
 ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   RecordActorNavigationGatingListSize(
-      allowed_navigation_origins_.size(),
-      user_confirmed_blocklisted_origins_.size());
+      allowed_navigation_origins_->size(),
+      user_confirmed_blocklisted_origins_->size());
 
   RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
 }
@@ -311,6 +311,19 @@ void ExecutionEngine::LogNavigationGating(
 ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
     const GURL& source_url,
     const GURL& destination_url) const {
+  // If enterprise policy allows the destination, do not gate.
+  // Note that it is not necessary to have an equivalent check for the
+  // enterprise policy blocklist, as we would already have blocked the
+  // navigation before reaching this gating logic.
+  const EnterprisePolicyBlockReason enterprise_reason =
+      ActorKeyedService::Get(profile_)
+          ->GetPolicyChecker()
+          .EvaluateEnterprisePolicyForUrl(destination_url);
+  if (enterprise_reason == EnterprisePolicyBlockReason::kExplicitlyAllowed) {
+    return GatingDecision::kAllowByStaticList;
+  }
+  DCHECK_NE(enterprise_reason, EnterprisePolicyBlockReason::kExplicitlyBlocked);
+
   url::Origin destination_origin = url::Origin::Create(destination_url);
   const SafetyListManager& safety_list_manager =
       *SafetyListManager::GetInstance();
@@ -352,7 +365,7 @@ void ExecutionEngine::CheckNavigationBlocklist(
   // Check previously confirmed origins on the sensitive blocklist. If the user
   // has previously confirmed the origin is allowed, we should proceed and not
   // double prompt.
-  for (const auto& origin : user_confirmed_blocklisted_origins_) {
+  for (const auto& origin : *user_confirmed_blocklisted_origins_) {
     if (origin.IsSameOriginWith(navigation_url)) {
       OnNavigationBlocklistDecision(initiator_origin, navigation_url,
                                     skip_prompt, std::move(callback),
@@ -394,7 +407,7 @@ void ExecutionEngine::OnNavigationBlocklistDecision(
       return;
     }
 
-    for (const auto& origin : allowed_navigation_origins_) {
+    for (const auto& origin : *allowed_navigation_origins_) {
       if (IsSameForNewOriginNavigationGating(origin, navigation_url)) {
         LogNavigationGating(initiator_origin, navigation_url,
                             /*applied_gate=*/false);
@@ -476,7 +489,7 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
     UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
                           permission_granted);
     if (permission_granted) {
-      allowed_navigation_origins_.insert(std::move(navigation_origin));
+      allowed_navigation_origins_->insert(std::move(navigation_origin));
     }
     std::move(callback).Run(permission_granted);
     return;
@@ -514,13 +527,13 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
       // See the comment on `OriginOrPrecursorIfOpaque` for why we do not store
       // `navigation_origin` directly here and for the confirmed blocklist
       // origins.
-      allowed_navigation_origins_.insert(
+      allowed_navigation_origins_->insert(
           OriginOrPrecursorIfOpaque(navigation_origin));
       // We update both lists in the `for_blocklisted_origin` case so that we do
       // not have to double-confirm this origin when we invoke
       // ExecutionEngine::HandleNavigationToNewOrigin.
       if (for_blocklisted_origin) {
-        user_confirmed_blocklisted_origins_.insert(
+        user_confirmed_blocklisted_origins_->insert(
             OriginOrPrecursorIfOpaque(navigation_origin));
       }
     }
@@ -631,7 +644,7 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
       if (std::optional<url::Origin> maybe_origin =
               action->AssociatedOriginGrant();
           maybe_origin) {
-        allowed_navigation_origins_.insert(maybe_origin.value());
+        allowed_navigation_origins_->insert(maybe_origin.value());
       }
     }
   }
@@ -730,6 +743,7 @@ void ExecutionEngine::OnMayActOnTabDecision(
     case MayActOnUrlBlockReason::kTabIsErrorDocument:
     case MayActOnUrlBlockReason::kUrlNotInAllowlist:
     case MayActOnUrlBlockReason::kWrongScheme:
+    case MayActOnUrlBlockReason::kEnterprisePolicy:
       DidFinishAsyncSafetyChecks(evaluated_origin, /*may_act=*/false);
   }
 }
@@ -930,6 +944,14 @@ favicon::FaviconService* ExecutionEngine::GetFaviconService() {
       profile_, ServiceAccessType::EXPLICIT_ACCESS);
 }
 
+void ExecutionEngine::IsAcceptableNavigationDestination(
+    const GURL& url,
+    DecisionCallbackWithReason callback) {
+  ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnUrl(
+      url, /*allow_insecure_http=*/true, profile_, *journal_, task_->id(),
+      std::move(callback));
+}
+
 Profile& ExecutionEngine::GetProfile() {
   return *profile_;
 }
@@ -976,7 +998,8 @@ void ExecutionEngine::SetUserSelectedCredential(
   // permission for sites that do not have the exact same origin but are
   // strongly affiliated.
   if (base::FeatureList::IsEnabled(
-          actor::kActorLoginPermissionsUseStrongAffiliations) &&
+          password_manager::features::
+              kActorLoginPermissionsUseStrongAffiliations) &&
       affiliation_service) {
     affiliation_service->GetAffiliationsAndBranding(
         affiliations::FacetURI::FromPotentiallyInvalidSpec(
@@ -1022,7 +1045,8 @@ ExecutionEngine::GetUserSelectedCredential(
   }
 
   if (base::FeatureList::IsEnabled(
-          actor::kActorLoginPermissionsUseStrongAffiliations)) {
+          password_manager::features::
+              kActorLoginPermissionsUseStrongAffiliations)) {
     // Check if the current origin is affiliated with a previously encountered
     // one within the current task.
     auto aff_it = affiliated_origin_map_.find(request_origin);
@@ -1065,14 +1089,14 @@ void ExecutionEngine::UninterruptFromTool() {
 }
 
 void ExecutionEngine::AddWritableMainframeOrigins(
-    const ExecutionEngine::AllowedOriginSet& added_writable_mainframe_origins) {
+    const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins) {
   if (!IsNavigationGatingEnabled()) {
     return;
   }
   for (const auto& origin : added_writable_mainframe_origins) {
     // Intentionally storing a copy of the origin so that ExecutionEngine owns
     // the url::Origin's stored in allowed_navigation_origins_.
-    allowed_navigation_origins_.insert(url::Origin(origin));
+    allowed_navigation_origins_->insert(url::Origin(origin));
   }
 }
 

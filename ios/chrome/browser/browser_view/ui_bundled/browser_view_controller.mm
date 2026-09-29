@@ -28,9 +28,9 @@
 #import "ios/chrome/browser/browser_view/ui_bundled/safe_area_provider.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/default_promo_non_modal_presentation_delegate.h"
+#import "ios/chrome/browser/default_browser/promo/non_modal/coordinator/default_promo_non_modal_presentation_delegate.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
-#import "ios/chrome/browser/first_run/ui_bundled/first_run_util.h"
+#import "ios/chrome/browser/first_run/public/first_run_util.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_reason.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
@@ -49,8 +49,8 @@
 #import "ios/chrome/browser/ntp/ui_bundled/logo_animation_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_coordinator.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/feature_flags.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_coordinator.h"
+#import "ios/chrome/browser/popup_menu/coordinator/popup_menu_coordinator.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
@@ -295,7 +295,8 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 @property(nonatomic, strong) TabStripCoordinator* tabStripCoordinator;
 // A weak reference to the view of the tab strip on tablet.
 @property(nonatomic, weak) UIView* tabStripView;
-
+// Constraint for the top of the tab strip view.
+@property(nonatomic, strong) NSLayoutConstraint* tabStripTopConstraint;
 // Returns the header views, all the chrome on top of the page, including the
 // ones that cannot be scrolled off screen by full screen.
 @property(nonatomic, strong, readonly) NSArray<HeaderDefinition*>* headerViews;
@@ -986,7 +987,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   // Update the tab strip placement.
   if (self.tabStripView) {
-    [self showTabStripView:self.tabStripView];
+    self.tabStripTopConstraint.constant = self.headerOffset;
   }
 }
 
@@ -1488,13 +1489,19 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
         self.tabStripView = tabStripViewController.view;
         [self.view addSubview:self.tabStripView];
         [tabStripViewController didMoveToParentViewController:self];
-        CGRect tabStripFrame =
-            CGRectMake(0, self.headerOffset, self.view.bounds.size.width,
-                       TabStripCollectionViewConstants.height);
-        self.tabStripView.frame = tabStripFrame;
-        self.tabStripView.autoresizingMask =
-            (UIViewAutoresizingFlexibleWidth |
-             UIViewAutoresizingFlexibleBottomMargin);
+        self.tabStripView.translatesAutoresizingMaskIntoConstraints = NO;
+        self.tabStripTopConstraint = [self.tabStripView.topAnchor
+            constraintEqualToAnchor:self.view.topAnchor
+                           constant:self.headerOffset];
+        [NSLayoutConstraint activateConstraints:@[
+          self.tabStripTopConstraint,
+          [self.tabStripView.leadingAnchor
+              constraintEqualToAnchor:self.view.leadingAnchor],
+          [self.tabStripView.trailingAnchor
+              constraintEqualToAnchor:self.view.trailingAnchor],
+          [self.tabStripView.heightAnchor
+              constraintEqualToConstant:TabStripCollectionViewConstants.height],
+        ]];
       }
       [self.view insertSubview:primaryToolbarView
                   aboveSubview:self.tabStripView];
@@ -1847,8 +1854,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   // Update the tab strip visibility.
   if (self.tabStripView) {
-    [self showTabStripView:self.tabStripView];
-    [self.tabStripView layoutSubviews];
     const bool canShowTabStrip = CanShowTabStrip(self);
     [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
     _fakeStatusBarView.hidden = !canShowTabStrip;
@@ -1866,25 +1871,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   [self setNeedsStatusBarAppearanceUpdate];
 
   self.fullscreenController->BrowserTraitCollectionChangedEnd();
-}
-
-// Shows the `tabStripView`.
-- (void)showTabStripView:(UIView*)tabStripView {
-  DCHECK([self isViewLoaded]);
-  DCHECK(tabStripView);
-  self.tabStripView = tabStripView;
-  CGRect tabStripFrame = [self.tabStripView frame];
-  tabStripFrame.origin = CGPointZero;
-  // TODO(crbug.com/41023322): Move the origin.y below to -setUpViewLayout.
-  // because the CGPointZero above will break reset the offset, but it's not
-  // clear what removing that will do.
-  tabStripFrame.origin.y = self.headerOffset;
-  tabStripFrame.size.width = CGRectGetWidth([self view].bounds);
-  [self.tabStripView setFrame:tabStripFrame];
-
-  UIView* primaryToolbar =
-      self.toolbarCoordinator.primaryToolbarViewController.view;
-  [self.view insertSubview:tabStripView belowSubview:primaryToolbar];
 }
 
 // On iOS 26, returns the top inset with corner adapation, otherwise returns 0.
@@ -2618,6 +2604,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   ForegroundTabAnimationView* animatedView =
       [[ForegroundTabAnimationView alloc] initWithFrame:frame];
   animatedView.contentView = newPage;
+  animatedView.backgroundView =
+      [self.contentArea snapshotViewAfterScreenUpdates:NO];
+
   __weak UIView* weakAnimatedView = animatedView;
   auto completionBlock = ^() {
     [weakAnimatedView removeFromSuperview];

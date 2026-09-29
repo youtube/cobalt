@@ -474,8 +474,17 @@ static inline void constant_time_conditional_memxor(void *dst, const void *src,
 
 #else
 
-#define CONSTTIME_SECRET(ptr, len)
-#define CONSTTIME_DECLASSIFY(ptr, len)
+// Just disable unused warnings for those.
+#define CONSTTIME_SECRET(ptr, len) \
+  do {                             \
+    (void)(ptr);                   \
+    (void)(len);                   \
+  } while (false)
+#define CONSTTIME_DECLASSIFY(ptr, len) \
+  do {                                 \
+    (void)(ptr);                       \
+    (void)(len);                       \
+  } while (false)
 
 #endif  // BORINGSSL_CONSTANT_TIME_VALIDATION
 

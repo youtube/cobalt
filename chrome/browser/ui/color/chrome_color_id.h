@@ -26,6 +26,10 @@
   E_CPONLY(kColorAppMenuExpandedForegroundPrimary) \
   E_CPONLY(kColorAppMenuChipInkDropHover) \
   E_CPONLY(kColorAppMenuChipInkDropRipple) \
+  /* Actor UI colors.*/ \
+  E_CPONLY(kColorActorUiHandoffButtonBorder) \
+  E_CPONLY(kColorActorUiOverlayBorder) \
+  E_CPONLY(kColorActorUiOverlayBorderGlow) \
   /* Content settings activity indicators popup dialog colors */ \
   E_CPONLY(kColorActivityIndicatorForeground) \
   E_CPONLY(kColorActivityIndicatorSubtitleForeground) \
@@ -574,6 +578,15 @@
   E_CPONLY(kColorReadAnythingForegroundLowContrast) \
   E_CPONLY(kColorReadAnythingForegroundSepiaLight) \
   E_CPONLY(kColorReadAnythingForegroundSepiaDark) \
+  E_CPONLY(kColorReadAnythingLineFocus) \
+  E_CPONLY(kColorReadAnythingLineFocusBlue) \
+  E_CPONLY(kColorReadAnythingLineFocusDark) \
+  E_CPONLY(kColorReadAnythingLineFocusLight) \
+  E_CPONLY(kColorReadAnythingLineFocusYellow) \
+  E_CPONLY(kColorReadAnythingLineFocusHighContrast) \
+  E_CPONLY(kColorReadAnythingLineFocusLowContrast) \
+  E_CPONLY(kColorReadAnythingLineFocusSepiaLight) \
+  E_CPONLY(kColorReadAnythingLineFocusSepiaDark) \
   E_CPONLY(kColorReadAnythingSeparator) \
   E_CPONLY(kColorReadAnythingSeparatorBlue) \
   E_CPONLY(kColorReadAnythingSeparatorDark) \

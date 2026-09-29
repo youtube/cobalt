@@ -165,6 +165,13 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     // The name with which to refer to the resource in frames submitted to the
     // display compositor.
     viz::ResourceId resource_id_for_export;
+
+    // The size of the shared_image of this UI Resource
+    //
+    // When UIResourceData is created using
+    // LayerTreeHostImpl::CreateUIResourceFromImportedResource shared_image
+    // is not set, so we store the size separately.
+    gfx::Size size;
   };
 
   static std::unique_ptr<LayerTreeHostImpl> Create(
@@ -211,6 +218,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool OnlyExpandTopControlsAtPageTop() const override;
   bool HaveRootScrollNode() const override;
   void SetNeedsCommit() override;
+  base::TimeDelta CurrentFrameInterval() const override;
 
   // ImageAnimationController::Client implementation.
   void RequestBeginFrameForAnimatedImages() override;
@@ -356,6 +364,9 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void SetPrefersReducedMotion(bool prefers_reduced_motion);
 
   void SetMayThrottleIfUndrawnFrames(bool may_throttle_if_undrawn_frames);
+  bool may_throttle_if_undrawn_frames() const {
+    return may_throttle_if_undrawn_frames_;
+  }
 
   // Analogous to a commit, this function is used to create a sync tree and
   // add impl-side invalidations to it.
@@ -723,6 +734,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
                                 const UIResourceBitmap& bitmap);
   virtual void CreateUIResourceFromImportedResource(UIResourceId uid,
                                                     viz::ResourceId resource_id,
+                                                    const gfx::Size& size,
                                                     bool is_opaque);
 
   // Deletes a UI resource.  May safely be called more than once.
@@ -733,6 +745,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool EvictedUIResourcesExist() const;
 
   virtual viz::ResourceId ResourceIdForUIResource(UIResourceId uid) const;
+
+  virtual gfx::Size GetUIResourceSize(UIResourceId uid) const;
 
   virtual bool IsUIResourceOpaque(UIResourceId uid) const;
 

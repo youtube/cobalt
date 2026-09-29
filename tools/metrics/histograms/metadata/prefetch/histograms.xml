@@ -314,7 +314,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.PrefetchMatchMissedToPrefetchStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-12-21">
+    units="ms" expires_after="2026-03-21">
   <owner>wbjacksonjr@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -490,6 +490,18 @@ chromium-metrics-reviews@google.com.
     `PrefetchProxy.AfterClick.PrefetchMatchingBlockedNavigationWithPrefetch.*`
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
+
+<histogram
+    name="Prefetch.PrefetchMatchResolver.ExistsPaopThen.PrefetchPotentialCandidateCollectResult"
+    enum="PrefetchPotentialCandidateCollectResult" expires_after="2026-11-12">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records `PrefetchPotentialCandidateCollectResult` when a prerender that
+    triggered prefetch ahead of prerender, tried to use prefetch but there is no
+    prefetch candidate in `PrefetchMatchResolver`.
+  </summary>
 </histogram>
 
 <histogram
@@ -745,7 +757,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.TimeUntilFailure.{PrefetchProxyCanaryCheckerClient}"
-    units="ms" expires_after="2026-03-15">
+    units="ms" expires_after="2026-06-21">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -827,7 +839,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RespCode"
-    enum="HttpResponseCode" expires_after="2026-04-19">
+    enum="HttpResponseCode" expires_after="2026-06-21">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

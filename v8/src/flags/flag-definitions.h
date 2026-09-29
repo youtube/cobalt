@@ -2111,7 +2111,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     wasm_lazy_validation,
     "enable lazy validation for lazily compiled wasm functions")
 DEFINE_WEAK_IMPLICATION(wasm_lazy_validation, wasm_lazy_compilation)
-DEFINE_BOOL(wasm_simd_ssse3_codegen, false, "allow wasm SIMD SSSE3 codegen")
+DEFINE_EXPERIMENTAL_FEATURE(wasm_simd_ssse3_codegen,
+                            "allow wasm SIMD SSSE3 codegen")
 
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
@@ -2520,10 +2521,8 @@ DEFINE_BOOL_READONLY(verify_heap, false,
 DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
                      "verify skipped write barriers")
 #undef V8_VERIFY_WRITE_BARRIERS_BOOL
-#if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
-            "Bump QOS class for running threads to reach safepoint")
-#endif
+            "Bump priority for running threads to reach safepoint")
 DEFINE_BOOL(memory_reducer_respects_frozen_state, false,
             "don't schedule another GC when we are frozen")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
@@ -2917,6 +2916,7 @@ DEFINE_BOOL(interpreter_dumping, false,
 DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
 DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
               "File to save the frame dumps to")
+DEFINE_INT(dumpling_depth, 3, "depth used in dumpling")
 // Dumpling flags end.
 #endif  // V8_DUMPLING
 
@@ -3923,6 +3923,14 @@ DEFINE_UINT(proto_assign_seq_opt_count, 2,
             "The minimum number of consecutive property assignments on the "
             "prototype object for replacing it with a single byte code")
 DEFINE_NEG_IMPLICATION(proto_assign_seq_opt_count == 0, proto_assign_seq_opt)
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    proto_assign_seq_lazy_func_opt,
+    "Functions bulk assigned to prototype via SetPrototypeProperties "
+    "will remain in SharedFunctionInfo (Rather than JSFunction) State "
+    "until first access")
+DEFINE_WEAK_IMPLICATION(experimental_fuzzing, proto_assign_seq_lazy_func_opt)
+DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

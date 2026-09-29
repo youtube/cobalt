@@ -11,6 +11,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 import android.view.ViewStub;
@@ -388,6 +389,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
      * @param initializeUiWithIncognitoColors Whether to initialize the UI with incognito colors.
      * @param backPressManager The {@link BackPressManager} handling back press.
      * @param savedInstanceState The saved bundle for the last recorded state.
+     * @param persistentState The persistent bundle for the last recorded state.
      * @param multiInstanceManager Manages multi-instance mode.
      * @param overviewColorSupplier Notifies when the overview color changes.
      * @param manualFillingComponentSupplier Supplies the {@link ManualFillingComponent} for
@@ -444,6 +446,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             boolean initializeUiWithIncognitoColors,
             @NonNull BackPressManager backPressManager,
             @Nullable Bundle savedInstanceState,
+            @Nullable PersistableBundle persistentState,
             @Nullable MultiInstanceManager multiInstanceManager,
             @NonNull ObservableSupplier<Integer> overviewColorSupplier,
             @NonNull ObservableSupplier<ManualFillingComponent> manualFillingComponentSupplier,
@@ -491,12 +494,14 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 initializeUiWithIncognitoColors,
                 backPressManager,
                 savedInstanceState,
+                persistentState,
                 overviewColorSupplier,
                 edgeToEdgeManager,
                 xrSpaceModeObservableSupplier,
                 initAppHeaderCoordinator(
                         activity,
                         savedInstanceState,
+                        persistentState,
                         edgeToEdgeManager.getEdgeToEdgeStateProvider(),
                         browserControlsManager,
                         insetObserver,
@@ -1307,7 +1312,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                         .getTabCreator(/* incognito= */ false)
                                         .launchUrl(
                                                 NewTabPageUtils.encodeNtpUrl(
-                                                        NewTabPageLaunchOrigin.WEB_FEED),
+                                                        profile, NewTabPageLaunchOrigin.WEB_FEED),
                                                 TabLaunchType.FROM_CHROME_UI);
                             },
                             mModalDialogManagerSupplier.get(),
@@ -1550,6 +1555,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private static @Nullable AppHeaderCoordinator initAppHeaderCoordinator(
             AppCompatActivity activity,
             Bundle savedInstanceState,
+            PersistableBundle persistentState,
             EdgeToEdgeStateProvider edgeToEdgeStateProvider,
             BrowserControlsManager browserControlsManager,
             InsetObserver insetObserver,
@@ -1567,6 +1573,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 insetObserver,
                 activityLifecycleDispatcher,
                 savedInstanceState,
+                persistentState,
                 edgeToEdgeStateProvider);
     }
 
@@ -2042,6 +2049,16 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mActivity.setTitle(title);
         } else {
             mActivity.setTitle(title + ": " + subTitle);
+        }
+    }
+
+    /**
+     * Called after a daily refresh theme collection has been applied to the NTP. Triggers fetching
+     * the next image for the theme collection to be used for the following day's refresh.
+     */
+    public void onDailyRefreshThemeCollectionApplied() {
+        if (mNtpSyncedThemeManager != null) {
+            mNtpSyncedThemeManager.fetchNextThemeCollectionImageAfterDailyRefreshApplied();
         }
     }
 }

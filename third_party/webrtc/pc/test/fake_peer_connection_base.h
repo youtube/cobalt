@@ -61,6 +61,7 @@
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
@@ -378,7 +379,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   bool IsClosed() const override { return false; }
   bool IsUnifiedPlan() const override { return true; }
   bool ValidateBundleSettings(const SessionDescription* desc,
-                              const std::map<std::string, const ContentGroup*>&
+                              const flat_map<std::string, const ContentGroup*>&
                                   bundle_groups_by_mid) override {
     return false;
   }

@@ -18,8 +18,8 @@
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
 #include "chrome/browser/enterprise/connectors/common.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/common/chrome_paths.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/service_provider_config.h"
 #include "components/enterprise/obfuscation/core/download_obfuscator.h"
@@ -34,8 +34,11 @@ namespace safe_browsing {
 
 namespace {
 
+using ::enterprise_connectors::BinaryUploadRequest;
+using ::enterprise_connectors::BinaryUploadService;
+
 // Helper to cast base::DoNothing.
-BinaryUploadService::ContentAnalysisCallback DoNothingConnector() {
+BinaryUploadRequest::ContentAnalysisCallback DoNothingConnector() {
   return base::DoNothing();
 }
 
@@ -76,7 +79,7 @@ class FileAnalysisRequestTest : public testing::Test {
   void GetResultsForFileContents(
       const std::string& file_contents,
       enterprise_connectors::ScanRequestUploadResult* out_result,
-      BinaryUploadService::Request::Data* out_data) {
+      BinaryUploadRequest::Data* out_data) {
     base::ScopedTempDir temp_dir;
     ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
     base::FilePath file_path = temp_dir.GetPath().AppendASCII("normal.doc");
@@ -86,12 +89,12 @@ class FileAnalysisRequestTest : public testing::Test {
                                /*delay_opening_file*/ false);
 
     base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                           BinaryUploadService::Request::Data>
+                           BinaryUploadRequest::Data>
         future;
     request->GetRequestData(future.GetCallback());
 
     *out_result = future.Get<enterprise_connectors::ScanRequestUploadResult>();
-    *out_data = future.Get<BinaryUploadService::Request::Data>();
+    *out_data = future.Get<BinaryUploadRequest::Data>();
     EXPECT_EQ(file_path, out_data->path);
     EXPECT_TRUE(out_data->contents.empty());
   }
@@ -111,7 +114,7 @@ TEST_F(FileAnalysisRequestTest, InvalidFiles) {
         MakeRequest(path, path.BaseName(), /*delay_opening_file*/ false);
 
     base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                           BinaryUploadService::Request::Data>
+                           BinaryUploadRequest::Data>
         future;
     request->GetRequestData(future.GetCallback());
 
@@ -131,7 +134,7 @@ TEST_F(FileAnalysisRequestTest, InvalidFiles) {
         MakeRequest(path, path.BaseName(), /*delay_opening_file*/ false);
 
     base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                           BinaryUploadService::Request::Data>
+                           BinaryUploadRequest::Data>
         future;
     request->GetRequestData(future.GetCallback());
 
@@ -151,7 +154,7 @@ TEST_F(FileAnalysisRequestTest, InvalidFiles) {
         MakeRequest(path, path.BaseName(), /*delay_opening_file*/ false);
 
     base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                           BinaryUploadService::Request::Data>
+                           BinaryUploadRequest::Data>
         future;
     request->GetRequestData(future.GetCallback());
 
@@ -168,7 +171,7 @@ TEST_F(FileAnalysisRequestTest, NormalFiles) {
   base::test::TaskEnvironment task_environment;
 
   enterprise_connectors::ScanRequestUploadResult result;
-  BinaryUploadService::Request::Data data;
+  BinaryUploadRequest::Data data;
 
   std::string normal_contents = "Normal file contents";
   GetResultsForFileContents(normal_contents, &result, &data);
@@ -199,7 +202,7 @@ TEST_F(FileAnalysisRequestTest, NormalFilesDataControls) {
   base::test::TaskEnvironment task_environment;
 
   enterprise_connectors::ScanRequestUploadResult result;
-  BinaryUploadService::Request::Data data;
+  BinaryUploadRequest::Data data;
 
   file_access::MockScopedFileAccessDelegate scoped_files_access_delegate;
 
@@ -238,7 +241,7 @@ TEST_F(FileAnalysisRequestTest, LargeFiles) {
   base::test::TaskEnvironment task_environment;
 
   enterprise_connectors::ScanRequestUploadResult result;
-  BinaryUploadService::Request::Data data;
+  BinaryUploadRequest::Data data;
 
   std::string large_file_contents(BinaryUploadService::kMaxUploadSizeBytes + 1,
                                   'a');
@@ -279,7 +282,7 @@ TEST_F(FileAnalysisRequestTest, NewFileLimitSet) {
   base::test::TaskEnvironment task_environment;
 
   enterprise_connectors::ScanRequestUploadResult result;
-  BinaryUploadService::Request::Data data;
+  BinaryUploadRequest::Data data;
 
   // Lower than the new limit of 100MB.
   std::string small_file_contents(100 * 1024 * 1024 - 1, 'a');
@@ -320,8 +323,7 @@ TEST_F(FileAnalysisRequestTest, PopulatesDigest) {
   base::RunLoop run_loop;
   request->GetRequestData(
       base::IgnoreArgs<enterprise_connectors::ScanRequestUploadResult,
-                       BinaryUploadService::Request::Data>(
-          run_loop.QuitClosure()));
+                       BinaryUploadRequest::Data>(run_loop.QuitClosure()));
   run_loop.Run();
 
   // printf "Normal file contents" | sha256sum |  tr '[:lower:]' '[:upper:]'
@@ -346,8 +348,7 @@ TEST_F(FileAnalysisRequestTest, PopulatesFilename) {
   base::RunLoop run_loop;
   request->GetRequestData(
       base::IgnoreArgs<enterprise_connectors::ScanRequestUploadResult,
-                       BinaryUploadService::Request::Data>(
-          run_loop.QuitClosure()));
+                       BinaryUploadRequest::Data>(run_loop.QuitClosure()));
   run_loop.Run();
 
   EXPECT_EQ(request->filename(), file_path.AsUTF8Unsafe());
@@ -366,7 +367,7 @@ TEST_F(FileAnalysisRequestTest, CachesResults) {
                              /*delay_opening_file*/ false);
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   request->GetRequestData(future.GetCallback());
 
@@ -396,7 +397,7 @@ TEST_F(FileAnalysisRequestTest, CachesResultsWithKnownMimetype) {
                              /*delay_opening_file*/ false, "fake/mimetype");
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   request->GetRequestData(future.GetCallback());
 
@@ -432,7 +433,7 @@ TEST_F(FileAnalysisRequestTest, DelayedFileOpening) {
   request->GetRequestData(base::BindLambdaForTesting(
       [&run_loop, &file_contents](
           enterprise_connectors::ScanRequestUploadResult result,
-          BinaryUploadService::Request::Data data) {
+          BinaryUploadRequest::Data data) {
         run_loop.Quit();
 
         EXPECT_EQ(result,
@@ -471,7 +472,7 @@ TEST_F(FileAnalysisRequestTest, SuccessWithCorrectPassword) {
   request->set_password("12345");
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   request->GetRequestData(future.GetCallback());
 
@@ -494,7 +495,7 @@ TEST_F(FileAnalysisRequestTest, FileEncryptedWithIncorrectPassword) {
   request->set_password("67890");
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   request->GetRequestData(future.GetCallback());
 
@@ -534,7 +535,7 @@ TEST_P(FileAnalysisRequestZipTest, Encrypted) {
       MakeRequest(test_zip, test_zip.BaseName(), /*delay_opening_file*/ false);
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   request->GetRequestData(future.GetCallback());
 
@@ -582,7 +583,7 @@ TEST_F(FileAnalysisRequestTest, ObfuscatedFile) {
                                         /*mime_type=*/"",
                                         /*is_obfuscated=*/true);
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   obfuscated_request->GetRequestData(future.GetCallback());
   auto [result, data] = future.Take();
@@ -633,7 +634,7 @@ TEST_F(FileAnalysisRequestTest, ObfuscatedEncryptedZipFile) {
   obfuscated_request->set_password("67890");  // Incorrect password
 
   base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
-                         BinaryUploadService::Request::Data>
+                         BinaryUploadRequest::Data>
       future;
   obfuscated_request->GetRequestData(future.GetCallback());
   auto [result, data] = future.Take();
@@ -643,6 +644,66 @@ TEST_F(FileAnalysisRequestTest, ObfuscatedEncryptedZipFile) {
             enterprise_connectors::ScanRequestUploadResult::kFileEncrypted);
   // Check if size has been updated to use the calculated unobfuscated content
   // size.
+  EXPECT_EQ(data.size, original_contents.size());
+}
+
+class FileAnalysisRequestRarTest : public FileAnalysisRequestTest,
+                                   public testing::WithParamInterface<bool> {
+ public:
+  bool is_obfuscated() const { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(, FileAnalysisRequestRarTest, testing::Bool());
+
+TEST_P(FileAnalysisRequestRarTest, EncryptedRarFile) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  if (is_obfuscated()) {
+    scoped_feature_list.InitWithFeatures(
+        {enterprise_obfuscation::kEnterpriseFileObfuscation,
+         enterprise_obfuscation::kEnterpriseFileObfuscationArchiveAnalyzer},
+        {});
+  }
+
+  content::BrowserTaskEnvironment browser_task_environment;
+  content::InProcessUtilityThreadHelper in_process_utility_thread_helper;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath test_rar;
+  EXPECT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_rar));
+  test_rar = test_rar.AppendASCII("safe_browsing")
+                 .AppendASCII("rar")
+                 .AppendASCII("passwd1234.rar");
+
+  std::string original_contents;
+  ASSERT_TRUE(base::ReadFileToString(test_rar, &original_contents));
+
+  base::FilePath file_path = test_rar;
+  if (is_obfuscated()) {
+    // Obfuscate the file contents and write to file.
+    enterprise_obfuscation::DownloadObfuscator obfuscator;
+    auto obfuscation_result =
+        obfuscator.ObfuscateChunk(base::as_byte_span(original_contents), true);
+
+    ASSERT_TRUE(obfuscation_result.has_value());
+    file_path = temp_dir.GetPath().AppendASCII("obfuscated.rar");
+    ASSERT_TRUE(base::WriteFile(file_path, obfuscation_result.value()));
+  }
+
+  auto request = MakeRequest(file_path, file_path.BaseName(),
+                             /*delay_opening_file=*/false,
+                             /*mime_type=*/"application/x-rar-compressed",
+                             /*is_obfuscated=*/is_obfuscated());
+  request->set_password("67890");  // Incorrect password
+
+  base::test::TestFuture<enterprise_connectors::ScanRequestUploadResult,
+                         BinaryUploadRequest::Data>
+      future;
+  request->GetRequestData(future.GetCallback());
+  auto [result, data] = future.Take();
+
+  EXPECT_EQ(result,
+            enterprise_connectors::ScanRequestUploadResult::kFileEncrypted);
   EXPECT_EQ(data.size, original_contents.size());
 }
 

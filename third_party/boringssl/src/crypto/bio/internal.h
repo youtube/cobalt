@@ -35,10 +35,6 @@ typedef int socklen_t;
 #endif
 #endif  // !OPENSSL_NO_SOCK
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 
 struct bio_method_st {
   int type;
@@ -79,6 +75,8 @@ struct bio_st {
   uint64_t num_read, num_write;
 };
 
+BSSL_NAMESPACE_BEGIN
+
 #if !defined(OPENSSL_NO_SOCK)
 
 // bio_ip_and_port_to_socket_and_addr creates a socket and fills in |*out_addr|
@@ -112,9 +110,7 @@ int bio_socket_should_retry(int return_value);
 // and |errno| indicates that it's non-fatal.
 int bio_errno_should_retry(int return_value);
 
+BSSL_NAMESPACE_END
 
-#if defined(__cplusplus)
-}  // extern C
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_BIO_INTERNAL_H

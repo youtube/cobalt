@@ -77,10 +77,6 @@ class InputMethod;
 class LocatedEvent;
 }
 
-namespace viz {
-struct CopyOutputBitmapWithMetadata;
-}  // namespace viz
-
 namespace wm {
 class ScopedTooltipDisabler;
 }
@@ -98,11 +94,12 @@ class RenderFrameHostImpl;
 class RenderWidgetHostView;
 class TouchSelectionControllerClientAura;
 
-// For use in conditional Arabic digit substitution. See comment in InsertChar.
+// For use in conditional Arabic-Indic digit input. See comment above
+// ShouldInputArabicIndicDigits.
 inline constexpr char16_t kArabicIndicZero = u'\u0660';
 
 #if BUILDFLAG(IS_WIN)
-CONTENT_EXPORT void ResetArabicDigitSubStateForTesting();
+CONTENT_EXPORT void ResetArabicIndicDigitInputStateForTesting();
 #endif  // BUILDFLAG(IS_WIN)
 
 // RenderWidgetHostView class hierarchy described in render_widget_host_view.h.
@@ -171,8 +168,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   void CopyFromSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
-      base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
-          callback) override;
+      base::OnceCallback<void(const content::CopyFromSurfaceResult&)> callback)
+      override;
   ui::FilteredGestureProvider* GetFilteredGestureProviderForTesting() override;
   void EnsureSurfaceSynchronizedForWebTest() override;
   void TransformPointToRootSurface(gfx::PointF* point) override;
@@ -740,6 +737,9 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   void OnFocusHandwritingTarget(
       const gfx::Rect& focus_screen_rect_in_dips,
       const gfx::Size& tolerance_screen_distance_in_dips);
+
+  void ForwardArabicIndicCharEventWithLatencyInfo(const ui::KeyEvent& event,
+                                                  char16_t ascii_char);
 #endif  // BUILDFLAG(IS_WIN)
 
   raw_ptr<aura::Window> window_;

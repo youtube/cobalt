@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "base/byte_size.h"
 #include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/elf_reader.h"
@@ -85,8 +86,8 @@ base::FilePath GetProcPidDir(base::ProcessId pid) {
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(base::ProcessHandle handle,
-                    base::ByteCount* pss,
-                    base::ByteCount* swap_pss) {
+                    base::ByteSize* pss,
+                    base::ByteSize* swap_pss) {
   std::string content;
   bool use_mock = false;
   {
@@ -105,22 +106,22 @@ void GetSmapsRollup(base::ProcessHandle handle,
                                             : base::NumberToString(handle)) +
         "/smaps_rollup";
     if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-      *pss = base::ByteCount(0);
-      *swap_pss = base::ByteCount(0);
+      *pss = base::ByteSize(0);
+      *swap_pss = base::ByteSize(0);
       return;
     }
   }
 
   if (content.empty()) {
-    *pss = base::ByteCount(0);
-    *swap_pss = base::ByteCount(0);
+    *pss = base::ByteSize(0);
+    *swap_pss = base::ByteSize(0);
     return;
   }
 
   auto value = base::debug::ParseSmapsRollup(content);
   if (!value) {
-    *pss = base::ByteCount(0);
-    *swap_pss = base::ByteCount(0);
+    *pss = base::ByteSize(0);
+    *swap_pss = base::ByteSize(0);
     return;
   }
   *pss = value->pss;
@@ -128,11 +129,11 @@ void GetSmapsRollup(base::ProcessHandle handle,
 }
 #else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // Get values from smaps_rollup for the current process.
-void GetSmapsRollup(base::ByteCount* pss, base::ByteCount* swap_pss) {
+void GetSmapsRollup(base::ByteSize* pss, base::ByteSize* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
-    *pss = base::ByteCount(0);
-    *swap_pss = base::ByteCount(0);
+    *pss = base::ByteSize(0);
+    *swap_pss = base::ByteSize(0);
     return;
   }
   *pss = value->pss;
@@ -862,7 +863,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-    base::ByteCount pss, swap_pss;
+    base::ByteSize pss, swap_pss;
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     GetSmapsRollup(handle, &pss, &swap_pss);
 #else
@@ -1053,7 +1054,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   }
 
   // Validate against smaps_rollup.
-  base::ByteCount rollup_pss, rollup_swap_pss;
+  base::ByteSize rollup_pss, rollup_swap_pss;
   GetSmapsRollup(handle, &rollup_pss, &rollup_swap_pss);
 
   uint64_t total_pss_kb = 0;

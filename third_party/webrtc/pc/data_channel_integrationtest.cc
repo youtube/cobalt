@@ -1640,6 +1640,74 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
       IsRtcOk());
 }
 
+TEST_F(DataChannelIntegrationTestUnifiedPlan, ReducingMaxChannelsAtCaller) {
+  const int stream_count = 2;
+  RTCConfiguration caller_config;
+  caller_config.always_negotiate_data_channels = true;
+  caller_config.max_sctp_streams = stream_count;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(
+      caller_config, PeerConnectionInterface::RTCConfiguration()));
+  ConnectFakeSignaling();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  scoped_refptr<SctpTransportInterface> caller_transport =
+      caller()->pc()->GetSctpTransport();
+  ASSERT_THAT(caller_transport, NotNull());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller_transport->Information().state() ==
+                           SctpTransportState::kConnected;
+                  },
+                  IsTrue()),
+              IsRtcOk());
+  scoped_refptr<SctpTransportInterface> callee_transport =
+      callee()->pc()->GetSctpTransport();
+  ASSERT_THAT(callee_transport, NotNull());
+  std::optional<int> caller_channels =
+      caller_transport->Information().MaxChannels();
+  std::optional<int> callee_channels =
+      callee_transport->Information().MaxChannels();
+  ASSERT_TRUE(caller_channels.has_value());
+  ASSERT_TRUE(callee_channels.has_value());
+  EXPECT_THAT(caller_channels.value(), Eq(stream_count));
+  EXPECT_THAT(callee_channels.value(), Eq(stream_count));
+}
+TEST_F(DataChannelIntegrationTestUnifiedPlan, ReducingMaxChannelsAtCallee) {
+  const int stream_count = 2;
+  RTCConfiguration caller_config;
+  caller_config.always_negotiate_data_channels = true;
+  RTCConfiguration callee_config;
+  callee_config.max_sctp_streams = stream_count;
+  ASSERT_TRUE(
+      CreatePeerConnectionWrappersWithConfig(caller_config, callee_config));
+  ConnectFakeSignaling();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  scoped_refptr<SctpTransportInterface> caller_transport =
+      caller()->pc()->GetSctpTransport();
+  ASSERT_THAT(caller_transport, NotNull());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller_transport->Information().state() ==
+                           SctpTransportState::kConnected;
+                  },
+                  IsTrue()),
+              IsRtcOk());
+  scoped_refptr<SctpTransportInterface> callee_transport =
+      callee()->pc()->GetSctpTransport();
+  ASSERT_THAT(callee_transport, NotNull());
+  std::optional<int> caller_channels =
+      caller_transport->Information().MaxChannels();
+  std::optional<int> callee_channels =
+      callee_transport->Information().MaxChannels();
+  ASSERT_TRUE(caller_channels.has_value());
+  ASSERT_TRUE(callee_channels.has_value());
+  EXPECT_THAT(caller_channels.value(), Eq(stream_count));
+  EXPECT_THAT(callee_channels.value(), Eq(stream_count));
+}
+
 class DataChannelIntegrationTestUnifiedPlanFieldTrials
     : public DataChannelIntegrationTestUnifiedPlan,
       public ::testing::WithParamInterface<std::tuple<

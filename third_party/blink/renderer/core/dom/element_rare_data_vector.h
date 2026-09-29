@@ -105,8 +105,9 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
     kDisplayAdElementMonitor = 40,
     kOverscrollAreaTracker = 41,
     kAltContentData = 42,
+    kOverscrollContainer = 43,
 
-    kNumFields = 43,
+    kNumFields = 44,
   };
 
   ElementRareDataField* GetField(FieldId field_id) const;
@@ -188,9 +189,11 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   ColumnPseudoElement* GetColumnPseudoElement(wtf_size_t idx) const;
   void ClearColumnPseudoElements(wtf_size_t to_keep);
 
-  void AddOverscrollPseudoElement(PseudoElement&);
-  const OverscrollPseudoElementData* GetOverscrollPseudoElementData() const;
-  void ClearOverscrollPseudoElements();
+  void AddOverscrollAreaParentPseudoElement(IndexedPseudoElement&);
+  const OverscrollAreaParentPseudoElementsVector*
+  GetOverscrollAreaParentPseudoElements() const;
+  IndexedPseudoElement* GetOverscrollPseudoElement(wtf_size_t idx) const;
+  void ClearOverscrollPseudoElements(wtf_size_t to_keep);
 
   CSSStyleDeclaration& EnsureInlineCSSStyleDeclaration(Element* owner_element);
 
@@ -391,6 +394,10 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   Element* GetFocusgroupLastFocused() const;
   void ClearFocusgroupLastFocused() { SetFocusgroupLastFocused(nullptr); }
 
+  void SetOverscrollContainer(Element* element);
+  Element* GetOverscrollContainer() const;
+  void ClearOverscrollContainer() { SetOverscrollContainer(nullptr); }
+
   void SetAffectedByStartingStyles() {
     fields_.affected_by_starting_styles = true;
   }
@@ -482,6 +489,13 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   ContentData* GetAltContentData() const;
   void SetAltContentData(ContentData* content_data);
 
+  bool WasLastFocusFromUserGesture() const {
+    return fields_.was_last_focus_from_user_gesture;
+  }
+  void SetWasLastFocusFromUserGesture(bool value) {
+    fields_.was_last_focus_from_user_gesture = value;
+  }
+
   OverscrollAreaTracker& EnsureOverscrollAreaTracker(Element*);
   OverscrollAreaTracker* OverscrollAreaTracker() const;
 
@@ -501,10 +515,15 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
     unsigned has_counters_styles : 1 = false;
     unsigned has_been_explicitly_scrolled : 1 = false;
     unsigned may_be_implicit_anchor : 1 = false;
+    unsigned affected_by_starting_styles : 1 = false;
+    // This records the last type of a focus on this element via `SetFocused`
+    // (or more accurately, the only derived value we need from that).
+    // For more see:
+    // https://explainers-by-googlers.github.io/user-dictionary-leaks/
+    unsigned was_last_focus_from_user_gesture : 1 = false;
     HasInvalidationFlags has_invalidation_flags;
     FocusgroupBehavior focusgroup_behavior = FocusgroupBehavior::kNoBehavior;
     FocusgroupFlags focusgroup_flags = FocusgroupFlags::kNone;
-    unsigned affected_by_starting_styles : 1 = false;
   };
   Fields fields_;
 };

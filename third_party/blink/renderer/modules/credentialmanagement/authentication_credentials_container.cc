@@ -11,6 +11,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "device/fido/public/fido_constants.h"
 #include "mojo/public/mojom/base/values.mojom-blink.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/features.h"
@@ -575,9 +576,8 @@ void OnGetComplete(std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
   UseCounter::Count(resolver->GetExecutionContext(),
                     WebFeature::kCredentialManagerGetReturnedCredential);
   if (mediation == Mediation::IMMEDIATE) {
-    UseCounter::Count(
-        resolver->GetExecutionContext(),
-        WebFeature::kCredentialsGetImmediateMediationPasswordSuccess);
+    UseCounter::Count(resolver->GetExecutionContext(),
+                      WebFeature::kCredentialsGetImmediateMediationPasswordSuccess);
   }
   resolver->Resolve(mojo::ConvertTo<Credential*>(std::move(credential_info)));
 }
@@ -795,9 +795,8 @@ void OnGetAssertionComplete(
       UseCounter::Count(resolver->GetExecutionContext(),
                         WebFeature::kWebAuthnConditionalUiGetSuccess);
     } else if (mediation == Mediation::IMMEDIATE) {
-      UseCounter::Count(
-          resolver->GetExecutionContext(),
-          WebFeature::kCredentialsGetImmediateMediationPublicKeySuccess);
+      UseCounter::Count(resolver->GetExecutionContext(),
+                        WebFeature::kCredentialsGetImmediateMediationPublicKeySuccess);
     }
 
     auto* authenticator_response =
@@ -862,8 +861,7 @@ void OnAuthenticatorGetCredentialComplete(
   auto password_response =
       std::move(get_credential_response->get_password_response());
   OnGetComplete(std::move(scoped_resolver), RequiredOriginType::kSecure,
-                mediation, CredentialManagerError::SUCCESS,
-                std::move(password_response));
+                mediation, CredentialManagerError::SUCCESS, std::move(password_response));
 }
 
 void OnSmsReceive(ScriptPromiseResolver<IDLNullable<Credential>>* resolver,
@@ -974,10 +972,9 @@ bool IsPaymentExtensionValid(const CredentialCreationOptions* options,
 
 const char* validatePRFInputs(
     const blink::AuthenticationExtensionsPRFValues& values) {
-  constexpr size_t kMaxInputSize = 256;
-  if (DOMArrayPiece(values.first()).ByteLength() > kMaxInputSize ||
-      (values.hasSecond() &&
-       DOMArrayPiece(values.second()).ByteLength() > kMaxInputSize)) {
+  if (DOMArrayPiece(values.first()).ByteLength() > device::kMaxPRFInputSize ||
+      (values.hasSecond() && DOMArrayPiece(values.second()).ByteLength() >
+                                 device::kMaxPRFInputSize)) {
     return "'prf' extension contains excessively large input";
   }
   return nullptr;
@@ -1130,9 +1127,8 @@ void LogResidentKeyRequirement(PublicKeyCredentialCreationOptions* public_key) {
 
 }  // namespace
 
-const unsigned AuthenticationCredentialsContainer::kSupplementIndex =
-    static_cast<unsigned>(
-        Navigator::Supplements::kAuthenticationCredentialsContainer);
+const char AuthenticationCredentialsContainer::kSupplementName[] =
+    "AuthenticationCredentialsContainer";
 
 DOMException* AuthenticatorStatusToDOMException(
     AuthenticatorStatus status,

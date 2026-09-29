@@ -10,7 +10,9 @@
 
 #include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "absl/memory/memory.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -18,8 +20,10 @@
 namespace webrtc {
 
 RtcEventRtpPacketIncoming::RtcEventRtpPacketIncoming(
-    const RtpPacketReceived& packet)
-    : packet_(packet) {}
+    const RtpPacketReceived& packet,
+    std::optional<uint16_t> rtx_original_sequence_number)
+    : packet_(packet),
+      rtx_original_sequence_number_(rtx_original_sequence_number) {}
 
 RtcEventRtpPacketIncoming::~RtcEventRtpPacketIncoming() = default;
 

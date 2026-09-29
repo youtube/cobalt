@@ -613,7 +613,8 @@ class ProfilePickerCreationFlowBrowserTest
     // Simulate the Dice "ENABLE_SYNC" header parameter.
     auto process_dice_header_delegate_impl =
         ProcessDiceHeaderDelegateImpl::Create(contents);
-    process_dice_header_delegate_impl->EnableSync(account_info);
+    process_dice_header_delegate_impl->CompleteChromeSignInAfterGaiaSignin(
+        account_info);
   }
 
   AccountInfo FinishDiceSignIn(
@@ -2751,7 +2752,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   WaitForLoadStop(GURL("chrome://profile-picker"));
 
   // Close the browser window.
-  BrowserList::GetInstance()->CloseAllBrowsersWithProfile(browser()->profile());
+  chrome::CloseAllBrowsersWithProfile(browser()->profile());
   ui_test_utils::WaitForBrowserToClose(browser());
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(0u, chrome::GetTotalBrowserCount());
@@ -3232,7 +3233,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   const SigninUIError& error =
       LoginUIServiceFactory::GetForProfile(profile_being_created)
           ->GetLastLoginError();
-  EXPECT_EQ(error.type(), SigninUIError::Type::kOther);
+  EXPECT_EQ(error.type(), SigninUIError::Type::kSigninCookiesDisallowed);
   EXPECT_EQ(base::UTF16ToUTF8(error.email()), "joe.consumer@gmail.com");
 }
 

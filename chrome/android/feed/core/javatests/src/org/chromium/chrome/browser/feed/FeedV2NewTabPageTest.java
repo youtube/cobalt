@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 import static org.chromium.ui.test.util.ViewUtils.VIEW_NULL;
 import static org.chromium.ui.test.util.ViewUtils.waitForView;
 
@@ -71,6 +72,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.feed.sections.SectionHeaderListProperties;
@@ -96,8 +98,8 @@ import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.chrome.test.util.browser.suggestions.SuggestionsDependenciesRule;
 import org.chromium.chrome.test.util.browser.suggestions.mostvisited.FakeMostVisitedSites;
-import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.externalauth.ExternalAuthUtils;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.Coordinates;
@@ -224,7 +226,7 @@ public class FeedV2NewTabPageTest {
     }
 
     private void openNewTabPage() {
-        mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
+        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
         mTab = mActivityTestRule.getActivityTab();
         NewTabPageTestUtils.waitForNtpLoaded(mTab);
 
@@ -385,6 +387,7 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testSignInPromo_AccountsNotReady() {
         try (var unused = mSigninTestRule.blockGetAccountsUpdate(false)) {
             openNewTabPage();
@@ -398,6 +401,19 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void testSignInPromo_AccountsNotReady_SeamlessSignin() {
+        try (var unused = mSigninTestRule.blockGetAccountsUpdate(false)) {
+            openNewTabPage();
+            // Check that the sign-in promo is not shown if accounts are not ready.
+            onView(withId(R.id.signin_promo_view_container)).check(doesNotExist());
+        }
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"FeedNewTabPage"})
+    @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testSignInPromo_AccountsReady() {
         openNewTabPage();
         // Check that the sign-in promo is displayed this time.
@@ -409,6 +425,17 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void testSignInPromo_AccountsReady_SeamlessSignin() {
+        openNewTabPage();
+        // Check that the sign-in promo is displayed this time.
+        onView(withId(R.id.signin_promo_view_container)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"FeedNewTabPage"})
+    @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testSignInPromo_NotShownAfterSignIn() {
         openNewTabPage();
         // Check that the sign-in promo is displayed.
@@ -426,12 +453,42 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void testSignInPromo_NotShownAfterSignIn_SeamlessSignin() {
+        openNewTabPage();
+        // Check that the sign-in promo is displayed.
+        onView(withId(R.id.signin_promo_view_container)).check(matches(isDisplayed()));
+
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+
+        onView(withId(R.id.signin_promo_view_container))
+                .check(matches(withEffectiveVisibility(Visibility.GONE)));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"FeedNewTabPage"})
+    @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testSignInPromoWhenDefaultAccountCannotShowHistorySyncWithoutMinorRestrictions() {
         mSigninTestRule.addAccount(TestAccounts.AADC_MINOR_ACCOUNT);
 
         openNewTabPage();
         onView(withId(R.id.feed_stream_recycler_view))
                 .perform(RecyclerViewActions.scrollToPosition(SIGNIN_PROMO_POSITION));
+
+        // Check that the sign-in promo is displayed.
+        onView(withId(R.id.signin_promo_view_container)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"FeedNewTabPage"})
+    @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void
+            testSignInPromoWhenDefaultAccountCannotShowHistorySyncWithoutMinorRestrictionsSeamlessSignin() {
+        mSigninTestRule.addAccount(TestAccounts.AADC_MINOR_ACCOUNT);
+
+        openNewTabPage();
 
         // Check that the sign-in promo is displayed.
         onView(withId(R.id.signin_promo_view_container)).check(matches(isDisplayed()));

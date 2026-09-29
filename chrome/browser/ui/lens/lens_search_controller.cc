@@ -506,9 +506,9 @@ bool LensSearchController::IsClosing() {
 }
 
 bool LensSearchController::IsHandshakeComplete() {
-  const auto& suggest_inputs =
-      lens_searchbox_controller_->GetLensSuggestInputs();
-  return AreLensSuggestInputsReady(suggest_inputs);
+  auto suggest_inputs = query_router_->GetSuggestInputs();
+  return suggest_inputs.has_value() &&
+         AreLensSuggestInputsReady(*suggest_inputs);
 }
 
 tabs::TabInterface* LensSearchController::GetTabInterface() {
@@ -604,6 +604,16 @@ LensSearchController::lens_session_metrics_logger() {
   return lens_session_metrics_logger_.get();
 }
 
+lens::LensOverlayGen204Controller* LensSearchController::gen204_controller() {
+  CheckInitialized(initialized_);
+  return gen204_controller_.get();
+}
+
+std::optional<lens::LensOverlayInvocationSource>
+LensSearchController::invocation_source() {
+  return invocation_source_;
+}
+
 std::unique_ptr<LensOverlayController>
 LensSearchController::CreateLensOverlayController(
     tabs::TabInterface* tab,
@@ -623,7 +633,6 @@ LensSearchController::CreateLensQueryController(
     lens::LensOverlayFullImageResponseCallback full_image_callback,
     lens::LensOverlayUrlResponseCallback url_callback,
     lens::LensOverlayInteractionResponseCallback interaction_callback,
-    lens::LensOverlaySuggestInputsCallback suggest_inputs_callback,
     lens::LensOverlayThumbnailCreatedCallback thumbnail_created_callback,
     lens::UploadProgressCallback upload_progress_callback,
     variations::VariationsClient* variations_client,
@@ -634,8 +643,7 @@ LensSearchController::CreateLensQueryController(
     lens::LensOverlayGen204Controller* gen204_controller) {
   return std::make_unique<lens::LensOverlayQueryController>(
       std::move(full_image_callback), std::move(url_callback),
-      std::move(interaction_callback), std::move(suggest_inputs_callback),
-      std::move(thumbnail_created_callback),
+      std::move(interaction_callback), std::move(thumbnail_created_callback),
       std::move(upload_progress_callback), variations_client, identity_manager,
       profile, invocation_source, use_dark_mode, gen204_controller);
 }
@@ -674,8 +682,6 @@ LensSearchController::CreateLensQueryController(
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(&LensSearchController::HandleInteractionResponse,
                           weak_ptr_factory_.GetWeakPtr()),
-      base::BindRepeating(&LensSearchController::HandleSuggestInputsResponse,
-                          weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(&LensSearchController::HandleThumbnailCreated,
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(
@@ -691,11 +697,15 @@ void LensSearchController::StartLensSession(
     lens::LensOverlayInvocationSource invocation_source,
     bool suppress_contextualization) {
   state_ = State::kInitializing;
+  invocation_source_ = invocation_source;
 
   // Create the query controller to be used for the current invocation.
   CHECK(!lens_overlay_query_controller_);
   lens_overlay_query_controller_ = CreateLensQueryController(invocation_source);
   query_router_ = std::make_unique<lens::LensQueryFlowRouter>(this);
+  query_router_->SetSuggestInputsReadyCallback(
+      base::BindRepeating(&LensSearchController::OnSuggestInputsReady,
+                          weak_ptr_factory_.GetWeakPtr()));
 
   // Start the current metrics logger session.
   lens_session_metrics_logger_->OnSessionStart(invocation_source,
@@ -711,6 +721,7 @@ void LensSearchController::StartLensSession(
 
   // Reset session state.
   hats_triggered_in_session_ = false;
+  is_handshake_complete_ = false;
 }
 
 bool LensSearchController::RunLensEligibilityChecks(
@@ -789,6 +800,7 @@ void LensSearchController::CloseLensPart2(
   // dangling ptrs.
   lens_overlay_query_controller_.reset();
   query_router_.reset();
+  invocation_source_.reset();
 
   // Record end of session metrics.
   lens_session_metrics_logger_->RecordEndOfSessionMetrics(dismissal_source);
@@ -880,10 +892,31 @@ void LensSearchController::HandleInteractionResponse(
   lens_overlay_controller_->HandleInteractionResponse(std::move(text));
 }
 
-void LensSearchController::HandleSuggestInputsResponse(
-    lens::proto::LensOverlaySuggestInputs suggest_inputs) {
-  lens_searchbox_controller_->HandleSuggestInputsResponse(suggest_inputs);
-  lens_composebox_controller_->UpdateSuggestInputs(suggest_inputs);
+void LensSearchController::OnSuggestInputsReady() {
+  if (IsOff()) {
+    return;
+  }
+
+  auto suggest_inputs = query_router_->GetSuggestInputs();
+  if (suggest_inputs.has_value()) {
+    lens_searchbox_controller_->NotifySuggestInputsReady(*suggest_inputs);
+  }
+
+  // If the handshake was already complete, without the new suggest inputs,
+  // exit early so that LensOverlayController::OnHandshakeComplete() isn't
+  // called multiple times.
+  if (is_handshake_complete_) {
+    return;
+  }
+
+  // Check if the handshake with the server has been completed with the new
+  // inputs. If so, this is the first time the suggest inputs satisfy the
+  // handshake criteria, so notify the overlay that the handshake is complete.
+  if (IsHandshakeComplete()) {
+    is_handshake_complete_ = true;
+    // Notify the overlay that it is now safe to query autocomplete.
+    lens_overlay_controller()->OnHandshakeComplete();
+  }
 }
 
 void LensSearchController::HandlePageContentUploadProgress(uint64_t position,

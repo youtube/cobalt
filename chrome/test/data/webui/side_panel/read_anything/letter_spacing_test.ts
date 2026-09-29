@@ -6,10 +6,10 @@ import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js'
 
 import {ReadAnythingSettingsChange, ToolbarEvent} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import type {LetterSpacingMenuElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {assertEquals, assertNotEquals} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {assertCheckMarksForDropdown, mockMetrics} from './common.js';
+import {assertCheckMarksForDropdown, assertHeadersForDropdown, mockMetrics, stubAnimationFrame} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
@@ -30,6 +30,11 @@ suite('LetterSpacing', () => {
 
   test('has checkmarks', () => {
     assertCheckMarksForDropdown(letterSpacingMenu);
+  });
+
+  test('does not have headers', () => {
+    assertHeadersForDropdown(
+        letterSpacingMenu.$.menu, /*shouldHaveHeaders=*/ false);
   });
 
   test('spacing change', async () => {
@@ -66,6 +71,7 @@ suite('LetterSpacing', () => {
       speechRate: 0,
       font: '',
       highlightGranularity: 0,
+      lineFocus: 0,
     };
     await microtasksFinished();
 
@@ -83,9 +89,18 @@ suite('LetterSpacing', () => {
       speechRate: 103,
       font: 'font',
       highlightGranularity: 103,
+      lineFocus: 104,
     };
     await microtasksFinished();
 
     assertEquals(startingIndex, letterSpacingMenu.$.menu.currentSelectedIndex);
+  });
+
+  test('can be closed programatically', () => {
+    stubAnimationFrame();
+    letterSpacingMenu.open(document.body);
+    assertTrue(letterSpacingMenu.$.menu.$.lazyMenu.get().open);
+    letterSpacingMenu.close();
+    assertFalse(letterSpacingMenu.$.menu.$.lazyMenu.get().open);
   });
 });

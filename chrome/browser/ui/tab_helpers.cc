@@ -159,6 +159,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "chrome/browser/android/oom_intervention/oom_intervention_tab_helper.h"
+#include "chrome/browser/android/persisted_tab_data/language_persisted_tab_data_android.h"
 #include "chrome/browser/android/persisted_tab_data/sensitivity_persisted_tab_data_android.h"
 #include "chrome/browser/android/policy/policy_auditor_bridge.h"
 #include "chrome/browser/banners/android/chrome_app_banner_manager_android.h"
@@ -171,6 +172,7 @@
 #include "chrome/browser/plugins/plugin_observer_android.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_android.h"
+#include "components/content_capture/common/content_capture_features.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/sensitive_content/android/android_sensitive_content_client.h"
@@ -380,6 +382,37 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
 #endif
   ChromeSecurityStateTabHelper::CreateForWebContents(web_contents);
   ChromeTranslateClient::CreateForWebContents(web_contents);
+#if BUILDFLAG(IS_ANDROID)
+  // Register LanguagePersistedTabDataAndroid for non-incognito tabs to
+  // persist language details.
+  if (!profile->IsOffTheRecord() &&
+      content_capture::features::ShouldSendMetadataForDataShare()) {
+    if (auto* tab = TabAndroid::FromWebContents(web_contents); tab) {
+      LanguagePersistedTabDataAndroid::From(
+          tab,
+          base::BindOnce(
+              [](base::WeakPtr<content::WebContents> web_contents,
+                 PersistedTabDataAndroid* persisted_tab_data) {
+                if (!web_contents) {
+                  return;
+                }
+                ChromeTranslateClient* chrome_translate_client =
+                    ChromeTranslateClient::FromWebContents(web_contents.get());
+
+                if (!chrome_translate_client) {
+                  return;
+                }
+
+                auto* language_persisted_tab_data_android =
+                    static_cast<LanguagePersistedTabDataAndroid*>(
+                        persisted_tab_data);
+                language_persisted_tab_data_android->RegisterTranslateDriver(
+                    chrome_translate_client->translate_driver());
+              },
+              web_contents->GetWeakPtr()));
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   client_hints::ClientHintsWebContentsObserver::CreateForWebContents(
       web_contents);
   commerce::CommerceTabHelper::CreateForWebContents(
@@ -471,9 +504,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
 #if BUILDFLAG(IS_ANDROID)
       nullptr;
 #else
-      base::FeatureList::IsEnabled(features::kSideBySide)
-          ? tabs::TabInterface::MaybeGetFromContents(web_contents)
-          : nullptr;
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
 #endif  // BUILDFLAG(IS_ANDROID)
   permissions::PermissionRequestManager::CreateForWebContents(
       web_contents, desktop_tab_interface);
@@ -689,11 +720,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
           features::kHappinessTrackingSurveysForDesktopDemo) ||
       base::FeatureList::IsEnabled(features::kTrustSafetySentimentSurvey) ||
       base::FeatureList::IsEnabled(features::kTrustSafetySentimentSurveyV2) ||
-      PerformanceControlsHatsServiceFactory::IsAnySurveyFeatureEnabled() ||
-      base::FeatureList::IsEnabled(
-          page_info::kMerchantTrustEvaluationControlSurvey) ||
-      base::FeatureList::IsEnabled(
-          page_info::kMerchantTrustEvaluationExperimentSurvey)) {
+      PerformanceControlsHatsServiceFactory::IsAnySurveyFeatureEnabled()) {
     HatsHelper::CreateForWebContents(web_contents);
   }
   SharedHighlightingPromo::CreateForWebContents(web_contents);

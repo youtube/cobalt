@@ -8,7 +8,7 @@ import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mix
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {SettingsPrefs} from '../content/read_anything_types.js';
+import type {SettingsPrefs, ShowAtConfigPrefs} from '../content/read_anything_types.js';
 import {ReadAnythingSettingsChange} from '../shared/metrics_browser_proxy.js';
 import {ReadAnythingLogger} from '../shared/read_anything_logger.js';
 
@@ -46,6 +46,7 @@ export class LineSpacingMenuElement extends LineSpacingMenuElementBase {
     speechRate: 0,
     font: '',
     highlightGranularity: 0,
+    lineFocus: 0,
   };
 
   protected options_: Array<MenuStateItem<number>> = [
@@ -68,8 +69,12 @@ export class LineSpacingMenuElement extends LineSpacingMenuElementBase {
 
   private logger_: ReadAnythingLogger = ReadAnythingLogger.getInstance();
 
-  open(anchor: HTMLElement) {
-    this.$.menu.open(anchor);
+  open(anchor: HTMLElement, showAtConfig?: ShowAtConfigPrefs) {
+    this.$.menu.open(anchor, showAtConfig);
+  }
+
+  close() {
+    this.$.menu.close();
   }
 
   protected restoredLineSpacingIndex_(): number {

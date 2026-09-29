@@ -231,6 +231,9 @@ CHAR_LIMIT guidelines:
       <message name="IDS_SEARCH_IN_SETTINGS_NO_MATCH" desc='Guide message when there is no match for search in settings. [CHAR_LIMIT=32]'>
         No results found
       </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_CLEAR_QUERY" desc='Label for the icon clearing the query text of settings. [CHAR_LIMIT=32]'>
+        Clear search query
+      </message>
       <message name="IDS_SEARCH_IN_SETTINGS_HELP_CENTER" desc='Message suggesting user search help center when there is no match in search. [CHAR_LIMIT=32]'>
         Try searching the help center
       </message>
@@ -625,14 +628,8 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_AUTOFILL_OPTIONS_CONFIRM_RESTART" desc="Description below switch toggling the use of third-party autofill in Chrome." formatter_data="android_java">
         Restart Chrome
       </message>
-      <message name="IDS_AUTOFILL_OPTIONS_RESTART_PROMPT_TITLE" desc="Title of the dialog prompting the user to restart to apply the new Autofill settings." formatter_data="android_java">
-        Restart Chrome?
-      </message>
       <message name="IDS_AUTOFILL_OPTIONS_CHANGE_AUTOFILL_SERVICE_TITLE" desc="Title of the dialog prompting the user to restart to apply the new Autofill settings." formatter_data="android_java">
         Change autofill service?
-      </message>
-      <message name="IDS_AUTOFILL_OPTIONS_RESTART_PROMPT_TEXT" desc="Title of the dialog prompting the user to restart to apply the new Autofill settings." formatter_data="android_java">
-        To finish setting up autofill, restart Chrome now. Your tabs will automatically reopen.
       </message>
       <message name="IDS_AUTOFILL_OPTIONS_RESTART_PROMPT_PARAGRAPH_1_TEXT" desc="Title of the dialog prompting the user to restart to apply the new Autofill settings." formatter_data="android_java">
         After Chrome restarts, your info saved from your new provider will be used to autofill passwords, passkeys, addresses, payment methods, and other info.
@@ -3031,11 +3028,14 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SEPIA_MODE" desc="Title of button that will change theme of distilled pages to sepia mode.">
         Sepia
       </message>
-      <message name="IDS_SANS_SERIF" desc="Title of the selector button that will change the typeface of distilled pages to use a SansSerif font.">
+      <message name="IDS_SANS_SERIF" desc="Title of the selector button that will change the typeface of distilled pages to use a Sans Serif font.">
         Sans Serif
       </message>
       <message name="IDS_SANS_SERIF_LOWERCASE" desc="Title of the font style selection button in reader mode preferences. Differs in capitalization from IDS_SANS_SERIF. No translation needed since this is a proper noun.">
         Sans serif
+      </message>
+      <message name="IDS_LEXEND" desc="Title of the selector button that will change the typeface of distilled pages to use a Lexend font.">
+        Lexend
       </message>
       <message name="IDS_SERIF" desc="Title of the selector button that will change the typeface of distilled pages to use a Serif font.">
         Serif
@@ -3940,6 +3940,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_FEED_MANAGE_INTERESTS_DESCRIPTION" desc="Content description to manage interested sites.">
         Manage content you follow and suggested topics and searches
+      </message>
+      <message name="IDS_NEW_TAB_PAGE_THEME_CUSTOMIZATION_IPH" desc="In-product help that points at the app menu 3-dot icon in new tab page to make users aware of the ntp theme customization.">
+        Personalize the background of this page
       </message>
       <message name="IDS_FOLLOW_MANAGE_FOLLOWING" desc="Header for Following Management activity.">
         Following
@@ -5835,6 +5838,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_INSTANCE_SWITCHER_HEADER" desc="The header of multi-instance switcher dialog.">
         Manage windows
       </message>
+      <message name="IDS_INSTANCE_SWITCHER_WINDOWS_SELECTED_HEADER" desc="The header of multi-instance switcher dialog when at least one window is selected.">
+        {WINDOW_COUNT, plural,
+          =1 {<ph name="WINDOW_COUNT_ONE">%1$s</ph> Window Selected}
+          other {<ph name="WINDOW_COUNT_NORMAL">%1$s<ex>2</ex></ph> Windows Selected}}
+      </message>
       <message name="IDS_INSTANCE_SWITCHER_TITLE_INCOGNITO_WINDOW" desc="Title of an instance entry that has incognito tabs in it.">
         Incognito window
       </message>
@@ -5871,17 +5879,23 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
        <message name="IDS_INSTANCE_SWITCHER_NAME_WINDOW_CONFIRM_HEADER" desc="The header of multi-instance switcher dialog confirming to name the selected window.">
         Name this window
       </message>
+      <message name="IDS_INSTANCE_SWITCHER_SELECT_ALL" desc="The menu item for the 3-dot more button to select all instances.">
+        Select all
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_DESELECT_ALL" desc="The menu item for the 3-dot more button to deselect all instances.">
+        Deselect all
+      </message>
       <message name="IDS_INSTANCE_SWITCHER_CLOSE_WINDOW" desc="The menu item for the 3-dot more button to close the instance.">
         Close window
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_CLOSE_WINDOWS" desc="The menu item for the 3-dot more button to close all selected instances.">
+        Close windows
       </message>
       <message name="IDS_INSTANCE_SWITCHER_CURRENT_WINDOW" desc="The description for an instance entry saying that it is the entry for the current window.">
         Current
       </message>
       <message name="IDS_INSTANCE_SWITCHER_ADJACENT_WINDOW" desc="The description for an instance entry running in the foreground.">
         Window is open
-      </message>
-      <message name="IDS_INSTANCE_SWITCHER_ALREADY_RUNNING_FOREGROUND" desc="Toast message to show when user tries to switch to a window that is already running in the foreground.">
-        Chrome is already running here.
       </message>
       <message name="IDS_TARGET_SELECTOR_MOVE" desc="The message in the button in target selector dialog that starts moving a tab.">
         Move tab

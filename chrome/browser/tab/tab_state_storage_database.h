@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -95,7 +96,7 @@ class TabStateStorageDatabase {
 
   // Loads all nodes from the database.
   std::unique_ptr<StorageLoadedData> LoadAllNodes(
-      const std::string& window_tag,
+      std::string_view window_tag,
       bool is_off_the_record,
       std::unique_ptr<StorageLoadedData::Builder> builder);
 
@@ -103,7 +104,23 @@ class TabStateStorageDatabase {
   void ClearAllNodes();
 
   // Clears all nodes for a given window from the database.
-  void ClearWindow(const std::string& window_tag);
+  void ClearWindow(std::string_view window_tag);
+
+#if defined(NDEBUG)
+  // Dumps the entire state of the database to the log for debugging. Do not use
+  // in production.
+  //
+  // Because `StorageId` tokens are randomly generated and difficult to visually
+  // parse, this method maps them to sequential, temporary integers
+  // (e.g., 1, 2, 3...) for the duration of the dump.
+  //
+  // The output consists of:
+  // 1. A list of all nodes, using the temporary integers for `id` and
+  // `children`.
+  // 2. A legend mapping each temporary integer back to its original `StorageId`
+  // token.
+  void PrintAll();
+#endif
 
  private:
   base::FilePath profile_path_;

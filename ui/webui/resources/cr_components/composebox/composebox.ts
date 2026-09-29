@@ -43,6 +43,21 @@ import type {ContextualEntrypointAndCarouselElement} from './contextual_entrypoi
 import {ComposeboxMode} from './contextual_entrypoint_and_carousel.js';
 import type {ErrorScrimElement} from './error_scrim.js';
 
+export enum VoiceSearchAction {
+  ACTIVATE = 0,
+  QUERY_SUBMITTED = 1,
+}
+
+const DEBOUNCE_TIMEOUT_MS: number = 20;
+
+function debounce(context: Object, func: () => void, delay: number) {
+  let timeout: number;
+  return function(...args: []) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+}
+
 export interface ComposeboxElement {
   $: {
     cancelIcon: CrIconButtonElement,
@@ -133,16 +148,29 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      showContextMenuDescription_: {type: Boolean},
       lensButtonDisabled_: {
         reflect: true,
         type: Boolean,
       },
+      /**
+       * Feature flag for New Tab Page Realbox Next.
+       */
       ntpRealboxNextEnabled: {
+        type: Boolean,
+        // NOTE: Do not reflect this property. For shared UI, use
+        // `searchboxNextEnabled`. For NTP-specific styling, use CSS from the
+        // embedding component (e.g., `new_tab_page/app.css`).
+      },
+      /**
+       * Generic flag indicating a "Next" searchbox (Realbox Next, Omnibox Next,
+       * etc.). Used for all styling and behavior shared across 'Next' searchbox
+       * implementations.
+       */
+      searchboxNextEnabled: {
         type: Boolean,
         reflect: true,
       },
-      tabSuggestions_: {type: Array},
+      tabSuggestions: {type: Array},
       errorScrimVisible_: {type: Boolean},
       contextFilesSize_: {
         type: Number,
@@ -163,16 +191,20 @@ export class ComposeboxElement extends I18nMixinLit
       transcript_: {type: String},
       receivedSpeech_: {type: Boolean},
       maxSuggestions: {type: Number},
+      disableVoiceSearchAnimation: {type: Boolean},
     };
   }
 
   accessor maxSuggestions: number|null = null;
   accessor ntpRealboxNextEnabled: boolean = false;
+  accessor searchboxNextEnabled: boolean = false;
   accessor searchboxLayoutMode: string = '';
   accessor carouselOnTop_: boolean = false;
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
   accessor entrypointName: string = '';
+  accessor disableVoiceSearchAnimation: boolean = false;
+  accessor tabSuggestions: TabInfo[] = [];
   protected composeboxNoFlickerSuggestionsFix_: boolean =
       loadTimeData.getBoolean('composeboxNoFlickerSuggestionsFix');
   // If isCollapsible is set to true, the composebox will be a pill shape until
@@ -201,9 +233,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor showFileCarousel_: boolean = false;
   protected accessor inCreateImageMode_: boolean = false;
   protected accessor inDeepSearchMode_: boolean = false;
-  protected accessor showContextMenuDescription_: boolean = true;
   protected accessor lensButtonDisabled_: boolean = false;
-  protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor errorScrimVisible_: boolean = false;
   protected accessor contextFilesSize_: number = 0;
   protected accessor transcript_: string = '';
@@ -225,10 +255,15 @@ export class ComposeboxElement extends I18nMixinLit
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   private searchboxListenerIds: number[] = [];
+  private resizeObservers_: ResizeObserver[] = [];
   private composeboxCloseByEscape_: boolean =
       loadTimeData.getBoolean('composeboxCloseByEscape');
   private dragAndDropEnabled_: boolean =
       loadTimeData.getBoolean('composeboxContextDragAndDropEnabled');
+  private clearAllInputsWhenSubmittingQuery_: boolean =
+      loadTimeData.valueExists('clearAllInputsWhenSubmittingQuery') ?
+      loadTimeData.getBoolean('clearAllInputsWhenSubmittingQuery') :
+      false;
   protected accessor inVoiceSearchMode_: boolean = false;
   private selectedMatch_: AutocompleteMatch|null = null;
   // Whether the composebox is actively waiting for an autocomplete response. If
@@ -278,14 +313,19 @@ export class ComposeboxElement extends I18nMixinLit
           this.submitEnabled_ = this.computeSubmitEnabled_();
         });
     this.eventTracker_.add(
+        this.$.context, 'carousel-resize',
+        (e: CustomEvent<{height: number}>) => {
+          this.fire('composebox-resize', {carouselHeight: e.detail.height});
+        });
+    this.eventTracker_.add(
         this.$.context, 'add-file_context',
         (e: CustomEvent<{file: ComposeboxFile}>) => {
           this.$.context.onFileContextAdded(e.detail.file);
         });
     this.focusInput();
-    // For realbox next, the zps autocomplete query is triggered after
-    // the state has been initialized.
-    if (this.showZps && !this.ntpRealboxNextEnabled) {
+    // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
+    // autocomplete query is triggered after the state has been initialized.
+    if (this.showZps && !this.searchboxNextEnabled) {
       this.queryAutocomplete(/* clearMatches= */ false);
     }
 
@@ -297,6 +337,25 @@ export class ComposeboxElement extends I18nMixinLit
         initializeComposeboxState: this.initializeState_.bind(this),
       });
     }
+
+    this.setupResizeObservers_();
+  }
+
+  private setupResizeObservers_() {
+    const composeboxResizeObserver = new ResizeObserver(debounce(this, () => {
+      this.fire('composebox-resize', {height: this.offsetHeight});
+    }, DEBOUNCE_TIMEOUT_MS));
+    this.resizeObservers_.push(composeboxResizeObserver);
+    composeboxResizeObserver.observe(this);
+
+    const composeboxDropdownResizeObserver =
+        new ResizeObserver(debounce(this, () => {
+          this.fire(
+              'composebox-resize',
+              {dropdownHeight: this.$.matches.offsetHeight});
+        }, DEBOUNCE_TIMEOUT_MS));
+    this.resizeObservers_.push(composeboxDropdownResizeObserver);
+    composeboxDropdownResizeObserver.observe(this.$.matches);
   }
 
   override disconnectedCallback() {
@@ -310,6 +369,11 @@ export class ComposeboxElement extends I18nMixinLit
     this.searchboxListenerIds = [];
 
     this.eventTracker_.removeAll();
+
+    for (const observer of this.resizeObservers_) {
+      observer.disconnect();
+    }
+    this.resizeObservers_ = [];
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -422,6 +486,10 @@ export class ComposeboxElement extends I18nMixinLit
     return this.$.matches;
   }
 
+  getHasAutomaticActiveTabChipToken() {
+    return this.$.context.hasAutomaticActiveTabChipToken();
+  }
+
   protected initializeState_(
       text: string = '', files: ContextualUpload[] = [],
       mode: ComposeboxMode = ComposeboxMode.DEFAULT) {
@@ -502,6 +570,10 @@ export class ComposeboxElement extends I18nMixinLit
     const isExpanded = this.showDropdown_ || this.contextFilesSize_ > 0;
     return isExpanded ? this.showVoiceSearchInExpandedComposebox_ :
                         this.showVoiceSearchInSteadyComposebox_;
+  }
+
+  protected shouldShowVoiceSearchAnimation_(): boolean {
+    return !this.disableVoiceSearchAnimation && this.shouldShowVoiceSearch_();
   }
 
   protected onFileValidationError_(e: CustomEvent<{errorMessage: string}>) {
@@ -645,13 +717,13 @@ export class ComposeboxElement extends I18nMixinLit
 
     if (fileList.length > 0) {
       event.preventDefault();
-      this.$.context.addFiles(fileList);
+      this.$.context.addPastedFiles(fileList);
     }
   }
 
   protected async refreshTabSuggestions_() {
     const {tabs} = await this.searchboxHandler_.getRecentTabs();
-    this.tabSuggestions_ = [...tabs];
+    this.tabSuggestions = [...tabs];
   }
 
   protected async getTabPreview_(e: CustomEvent<{
@@ -669,7 +741,10 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
+    e.stopPropagation();
     this.voiceSearchEndCleanup_();
+    this.fire(
+        'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
     this.searchboxHandler_.submitQuery(
         e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
         /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
@@ -678,6 +753,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected openAimVoiceSearch_() {
     this.inVoiceSearchMode_ = true;
     this.animationState = GlowAnimationState.LISTENING;
+    this.fire('voice-search-action', {value: VoiceSearchAction.ACTIVATE});
     this.$.voiceSearch.start();
   }
 
@@ -689,7 +765,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected onCancelClick_() {
     if (this.hasContent_()) {
       this.resetModes();
-      this.clearAllInputs();
+      this.clearAllInputs(/* querySubmitted= */ false);
       this.focusInput();
       this.queryAutocomplete(/* clearMatches= */ true);
     } else {
@@ -700,7 +776,7 @@ export class ComposeboxElement extends I18nMixinLit
   handleEscapeKeyLogic(): void {
     if (!this.composeboxCloseByEscape_ && this.hasContent_()) {
       this.resetModes();
-      this.clearAllInputs();
+      this.clearAllInputs(/* querySubmitted= */ false);
       this.focusInput();
       this.queryAutocomplete(/* clearMatches= */ true);
     } else {
@@ -1005,8 +1081,11 @@ export class ComposeboxElement extends I18nMixinLit
 
     // If the composebox is expandable, collapse it and clear the input after
     // submitting.
+    if (this.isCollapsible || this.clearAllInputsWhenSubmittingQuery_) {
+      this.clearAllInputs(/* querySubmitted= */ true);
+    }
+
     if (this.isCollapsible) {
-      this.clearAllInputs();
       this.submitEnabled_ = false;
       this.$.input.blur();
     }
@@ -1191,12 +1270,16 @@ export class ComposeboxElement extends I18nMixinLit
     this.searchboxHandler_.queryAutocomplete(this.input_, false);
   }
 
-  clearAllInputs() {
+  clearAllInputs(querySubmitted: boolean) {
     this.clearInput();
     this.$.context.resetContextFiles();
     this.contextFilesSize_ = 0;
     this.smartComposeInlineHint_ = '';
-    this.searchboxHandler_.clearFiles();
+    if (!querySubmitted) {
+      // If the query was submitted, the searchbox handler will clear its own
+      // uploaded file state when the query submission is handled.
+      this.searchboxHandler_.clearFiles();
+    }
     this.submitEnabled_ = false;
   }
 

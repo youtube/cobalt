@@ -148,11 +148,10 @@ using ::testing::SizeIs;
 using ::testing::StrNe;
 using ::testing::Values;
 using ::testing::WithArg;
-using ::webrtc::CreateTestFieldTrials;
-using ::webrtc::FieldTrials;
-using ::webrtc::test::FrameForwarder;
-using ::webrtc::test::FunctionVideoDecoderFactory;
-using ::webrtc::test::RtcpPacketParser;
+// Types already in webrtc:
+using test::FrameForwarder;
+using test::FunctionVideoDecoderFactory;
+using test::RtcpPacketParser;
 
 constexpr uint8_t kRedRtxPayloadType = 125;
 
@@ -9168,7 +9167,7 @@ TEST_F(WebRtcVideoChannelWithMixedCodecSimulcastTest,
       send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters).ok());
   rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
   rtp_parameters.encodings[2].scalability_mode = "L2T1";
-  webrtc::RTCError error =
+  RTCError error =
       send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
   EXPECT_FALSE(error.ok());
   EXPECT_EQ(RTCErrorType::UNSUPPORTED_OPERATION, error.type());

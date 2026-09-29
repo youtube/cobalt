@@ -224,7 +224,7 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
 // static
 Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
                                               bool is_define) {
-  DCHECK(it->GetName()->IsPrivateName());
+  DCHECK(it->GetName()->IsAnyPrivateName());
   Isolate* isolate = it->isolate();
   DirectHandle<String> name_string(
       Cast<String>(Cast<Symbol>(it->GetName())->description()), isolate);
@@ -959,7 +959,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   if (IsJSProxy(*it->GetReceiver())) {
     if (it->state() != LookupIterator::NOT_FOUND) {
       DCHECK_EQ(LookupIterator::DATA, it->state());
-      DCHECK(it->name()->IsPrivate());
+      DCHECK(it->name()->IsAnyPrivate());
       it->Delete();
     }
     return Just(true);
@@ -1253,9 +1253,9 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
 
   DirectHandle<JSAny> result;
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedGetter(interceptor, it->array_index());
+    result = args.CallIndexedGetter(isolate, interceptor, it->array_index());
   } else {
-    result = args.CallNamedGetter(interceptor, it->name());
+    result = args.CallNamedGetter(isolate, interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, kNullMaybeHandle);
@@ -1287,9 +1287,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedQuery(interceptor, it->array_index());
+      result = args.CallIndexedQuery(isolate, interceptor, it->array_index());
     } else {
-      result = args.CallNamedQuery(interceptor, it->name());
+      result = args.CallNamedQuery(isolate, interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1312,9 +1312,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedGetter(interceptor, it->array_index());
+      result = args.CallIndexedGetter(isolate, interceptor, it->array_index());
     } else {
-      result = args.CallNamedGetter(interceptor, it->name());
+      result = args.CallNamedGetter(isolate, interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1351,10 +1351,11 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedSetter(interceptor, it->array_index(), value)
-          : args.CallNamedSetter(interceptor, it->name(), value);
+          ? args.CallIndexedSetter(isolate, interceptor, it->array_index(),
+                                   value)
+          : args.CallNamedSetter(isolate, interceptor, it->name(), value);
 
-  return args.GetBooleanReturnValue(intercepted, "Setter");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Setter");
 }
 
 Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
@@ -1418,10 +1419,12 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
-          : args.CallNamedDefiner(interceptor, it->name(), *descriptor);
+          ? args.CallIndexedDefiner(isolate, interceptor, it->array_index(),
+                                    *descriptor)
+          : args.CallNamedDefiner(isolate, interceptor, it->name(),
+                                  *descriptor);
 
-  return args.GetBooleanReturnValue(intercepted, "Definer");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Definer");
 }
 
 }  // namespace
@@ -1828,7 +1831,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(it->GetReceiver());
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   Isolate* isolate = it->isolate();
-  DCHECK(it->GetName()->IsPrivateName());
+  DCHECK(it->GetName()->IsAnyPrivateName());
   DirectHandle<Symbol> symbol = Cast<Symbol>(it->GetName());
 
   switch (it->state()) {
@@ -1919,9 +1922,10 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                  Just(kDontThrow));
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedDescriptor(interceptor, it->array_index());
+    result =
+        args.CallIndexedDescriptor(isolate, interceptor, it->array_index());
   } else {
-    result = args.CallNamedDescriptor(interceptor, it->name());
+    result = args.CallNamedDescriptor(isolate, interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
@@ -3687,7 +3691,7 @@ void JSObject::AddProperty(Isolate* isolate, DirectHandle<JSObject> object,
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   DCHECK(!it.IsFound());
-  DCHECK(object->map()->is_extensible() || name->IsPrivate());
+  DCHECK(object->map()->is_extensible() || name->IsAnyPrivate());
 #endif
   CHECK(Object::AddDataProperty(&it, value, attributes,
                                 Just(ShouldThrow::kThrowOnError),
@@ -4200,10 +4204,10 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedDeleter(interceptor, it->array_index())
-          : args.CallNamedDeleter(interceptor, it->name());
+          ? args.CallIndexedDeleter(isolate, interceptor, it->array_index())
+          : args.CallNamedDeleter(isolate, interceptor, it->name());
 
-  return args.GetBooleanReturnValue(intercepted, "Deleter");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Deleter");
 }
 
 Maybe<bool> JSObject::CreateDataProperty(Isolate* isolate,
@@ -4261,7 +4265,7 @@ bool TestFastPropertiesIntegrityLevel(Tagged<Map> map,
 
   Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    if (descriptors->GetKey(i)->IsPrivate()) continue;
+    if (descriptors->GetKey(i)->IsAnyPrivate()) continue;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == PropertyKind::kData &&
@@ -4994,6 +4998,15 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
   DCHECK(IsJSObjectThatCanBeTrackedAsPrototype(*object));
   if (IsJSGlobalObject(*object)) return;
   Isolate* isolate = Isolate::Current();
+
+  DirectHandle<PrototypeSharedClosureInfo> closure_info;
+  if (v8_flags.proto_assign_seq_lazy_func_opt) {
+    if (Tagged<PrototypeSharedClosureInfo> tagged_closure_info;
+        object->map()->TryGetPrototypeSharedClosureInfo(&tagged_closure_info)) {
+      closure_info = direct_handle(tagged_closure_info, isolate);
+    }
+  }
+
   if (object->map()->is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
@@ -5074,6 +5087,14 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
         make_constant(object->property_dictionary_swiss());
       } else {
         make_constant(object->property_dictionary());
+      }
+    }
+  }
+  if (v8_flags.proto_assign_seq_lazy_func_opt) {
+    if (!closure_info.is_null()) {
+      if (Tagged<PrototypeInfo> proto_info; TryCast<PrototypeInfo>(
+              object->map()->prototype_info(), &proto_info)) {
+        proto_info->set_prototype_shared_closure_info(*closure_info);
       }
     }
   }

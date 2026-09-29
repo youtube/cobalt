@@ -4706,9 +4706,9 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
       v8::Local<v8::Value> obj2 =
           context->Global()->Get(context, v8_str("obj2")).ToLocalChecked();
       CHECK(obj2->IsObject());
-      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kNullTag>(
                             isolate, obj1.As<v8::Object>()));
-      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kNullTag>(
                             isolate, obj2.As<v8::Object>()));
       CHECK_EQ(special_objects_encountered, 0);
     }
@@ -6620,6 +6620,7 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
 namespace {
 void CheckObjectsAreInSharedHeap(Isolate* isolate) {
   Heap* heap = isolate->heap();
+  SetCurrentIsolateScope isolate_scope(isolate);
   SetCurrentLocalHeapScope local_heap_scope(isolate);
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;

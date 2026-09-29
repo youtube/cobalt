@@ -20,13 +20,11 @@
 #include "chrome/common/actor/task_id.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
-#include "ui/views/widget/widget.h"
 
 namespace actor {
 class ActorTaskDelegate;
 }  // namespace actor
 
-class SkRegion;
 class Profile;
 namespace content {
 class WebContents;
@@ -57,7 +55,6 @@ class Host : public GlicSharingManagerProvider {
     // Sets the areas of the view from which it should be draggable.
     virtual void SetDraggableAreas(
         const std::vector<gfx::Rect>& draggable_areas) = 0;
-    virtual void SetDraggableRegion(const SkRegion& draggable_region) = 0;
     // Allows the user to manually resize the widget by dragging. If the widget
     // hasn't been created yet, apply this setting when it is created. No effect
     // if the widget doesn't exist or the feature flag is disabled.
@@ -184,9 +181,10 @@ class Host : public GlicSharingManagerProvider {
     PanelWillOpenOptions(PanelWillOpenOptions&&);
     PanelWillOpenOptions& operator=(PanelWillOpenOptions&&);
 
-    // The ID of the conversation to open. If unset, the web client will open a
-    // new conversation.
-    std::optional<std::string> conversation_id;
+    // The conversation to open. If conversation_id is unset/empty, the web
+    // client will open a new conversation.
+    glic::mojom::ConversationInfoPtr conversation_info =
+        glic::mojom::ConversationInfo::New();
     // If set, the textbox for user input will be populated with the given
     // string before the panel opens.
     std::optional<std::string> prompt_suggestion;
@@ -278,13 +276,13 @@ class Host : public GlicSharingManagerProvider {
   void NotifyZeroStateSuggestion(mojom::ZeroStateSuggestionsV2Ptr suggestions,
                                  mojom::ZeroStateSuggestionsOptions options);
 
-  // Sends a ViewChangeRequest to the primary client.
-  void SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request);
-
   void NotifyInstanceActivationChanged(bool is_active);
 
   // Informs the web client that additional context is available.
   void NotifyAdditionalContext(mojom::AdditionalContextPtr context);
+
+  // Returns the RenderProcessHost for the WebClient, or nullptr if none.
+  content::RenderProcessHost* GetWebClientRenderProcessHost() const;
 
   // Returns the current view (conversation or actuation) in the floaty.
   mojom::CurrentView GetPrimaryCurrentView();
@@ -341,7 +339,6 @@ class Host : public GlicSharingManagerProvider {
   // Sets the areas of the view from which it should be draggable.
   void SetPanelDraggableAreas(GlicPageHandler* page_handler,
                               const std::vector<gfx::Rect>& draggable_areas);
-  void SetPanelDraggableRegion(const SkRegion& draggable_region);
 
   // Sets the minimum widget size that the widget will allow the user to resize
   // to.
@@ -470,7 +467,6 @@ class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
               base::OnceClosure callback) override;
   void SetDraggableAreas(
       const std::vector<gfx::Rect>& draggable_areas) override {}
-  void SetDraggableRegion(const SkRegion& region) override {}
   void EnableDragResize(bool enabled) override {}
   void Attach() override {}
   void Detach() override {}

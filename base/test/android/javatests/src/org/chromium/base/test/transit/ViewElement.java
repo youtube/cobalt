@@ -20,6 +20,7 @@ import androidx.test.espresso.Espresso;
 import androidx.test.espresso.Root;
 import androidx.test.espresso.ViewAction;
 import androidx.test.espresso.ViewAssertion;
+import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.action.ViewActions;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -27,12 +28,12 @@ import org.hamcrest.Matcher;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.test.transit.ViewConditions.DisplayedCondition;
-import org.chromium.base.test.transit.ViewConditions.NotDisplayedAnymoreCondition;
 import org.chromium.base.test.util.ForgivingClickAction;
 import org.chromium.base.test.util.KeyUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+
+import java.util.function.Supplier;
 
 /**
  * Represents a {@link ViewSpec} added to a {@link ConditionalState}.
@@ -46,7 +47,7 @@ import org.chromium.build.annotations.Nullable;
  * @param <ViewT> the type of the View.
  */
 @NullMarked
-public class ViewElement<ViewT extends View> extends Element<ViewT> {
+public class ViewElement<ViewT extends View> extends Element<ViewT> implements ViewInterface {
     private static final String TAG = "Transit";
 
     /**
@@ -75,19 +76,36 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
 
     @Override
     public @Nullable ConditionWithResult<ViewT> createEnterCondition() {
-        Matcher<View> viewMatcher = mViewSpec.getViewMatcher();
+        // Delay calculating the root spec because the owner state isn't set yet.
+        Supplier<RootSpec> rootSpecSupplier = () -> calculateRootSpec(mOptions, mOwner);
         DisplayedCondition.Options conditionOptions =
-                newDisplayedConditionOptions(mOptions).build();
+                calculateDisplayedConditionOptions(mOptions).build();
         return new DisplayedCondition<>(
-                viewMatcher,
+                mViewSpec.getViewMatcher(),
                 mViewSpec.getViewClass(),
-                mOwner::determineActivityElement,
+                rootSpecSupplier,
                 conditionOptions);
     }
 
-    static DisplayedCondition.Options.Builder newDisplayedConditionOptions(Options options) {
+    static RootSpec calculateRootSpec(Options options, ConditionalState owner) {
+        if (options.mRootSpec != null) {
+            // If a RootSpec is specified, use it.
+            return options.mRootSpec;
+        } else {
+            // By default, expect the owner to supply an ActivityElement.
+            ActivityElement<?> activityElement = owner.determineActivityElement();
+            if (activityElement == null) {
+                // Search everywhere if no RootSpec is specified and the owner does not have an
+                // ActivityElement.
+                return RootSpec.anyRoot();
+            } else {
+                return RootSpec.activityOrDialogRoot(activityElement);
+            }
+        }
+    }
+
+    static DisplayedCondition.Options.Builder calculateDisplayedConditionOptions(Options options) {
         return DisplayedCondition.newOptions()
-                .withInDialogRoot(options.mInDialog)
                 .withExpectEnabled(options.mExpectEnabled)
                 .withExpectDisabled(options.mExpectDisabled)
                 .withDisplayingAtLeast(options.mDisplayedPercentageRequired)
@@ -134,11 +152,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
         return mViewSpec.ancestor(viewClass, viewMatcher);
     }
 
-    /**
-     * Start a Transition by clicking this View.
-     *
-     * <p>Requires the View to be >90% displayed.
-     */
+    @Override
     public TripBuilder clickTo() {
         if (mOptions.mDisplayedPercentageRequired > 90) {
             return performViewActionTo(ViewActions.click());
@@ -147,21 +161,12 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
         }
     }
 
-    /** Start a Transition by long pressing this View. */
+    @Override
     public TripBuilder longPressTo() {
         return performViewActionTo(ViewActions.longClick());
     }
 
-    /**
-     * Start a Transition by clicking this View even if partially occluded.
-     *
-     * <p>Does not require the View to be >90% displayed like {@link #clickTo()}.
-     */
-    public TripBuilder clickEvenIfPartiallyOccludedTo() {
-        return performViewActionTo(ForgivingClickAction.forgivingClick());
-    }
-
-    /** Start a Transition by typing |text| into this View char by char. */
+    @Override
     public TripBuilder typeTextTo(String text) {
         return new TripBuilder()
                 .withContext(this)
@@ -174,7 +179,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
                                         text));
     }
 
-    /** Start a Transition by performing an Espresso ViewAction on this View. */
+    @Override
     public TripBuilder performViewActionTo(ViewAction action) {
         return new TripBuilder()
                 .withContext(this)
@@ -232,10 +237,10 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
                         instrumentationThreadCondition(
                                 "Root has window focus",
                                 () -> whether(rootMatched.getDecorView().hasWindowFocus())))
-                .pickUpCarryOn(new ViewSettledCarryOn(activityElement, this));
+                .pickUpCarryOn(new ViewSettledCarryOn(activity, this));
     }
 
-    /** Trigger an Espresso ViewAssertion on this View. */
+    @Override
     public void check(ViewAssertion assertion) {
         Root rootMatched = getDisplayedCondition().getRootMatched();
         assert rootMatched != null;
@@ -266,15 +271,25 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
         return (DisplayedCondition<ViewT>) mEnterCondition;
     }
 
+    @Deprecated
+    @Override
+    public ViewInteraction onView() {
+        Root rootMatched = getDisplayedCondition().getRootMatched();
+        assert rootMatched != null;
+
+        return Espresso.onView(mViewSpec.getViewMatcher())
+                .inRoot(withDecorView(is(rootMatched.getDecorView())));
+    }
+
     /** Extra options for declaring ViewElements. */
     public static class Options {
         static final Options DEFAULT = new Options();
         protected boolean mScoped = true;
-        protected boolean mInDialog;
         protected boolean mExpectEnabled = true;
         protected boolean mExpectDisabled;
         protected int mDisplayedPercentageRequired = ViewElement.MIN_DISPLAYED_PERCENT;
         protected int mInitialSettleTimeMs;
+        protected @Nullable RootSpec mRootSpec;
 
         protected Options() {}
 
@@ -291,8 +306,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
 
             /** Expect the View to be in a dialog root. */
             public Builder inDialog() {
-                mInDialog = true;
-                return this;
+                return rootSpec(RootSpec.dialogRoot());
             }
 
             /**
@@ -333,14 +347,20 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
                 return this;
             }
 
+            /** Restricts search to root filtered by the supplied RootSpec. */
+            public Builder rootSpec(RootSpec rootSpec) {
+                mRootSpec = rootSpec;
+                return this;
+            }
+
             /** Copy |optionsToClose|'s options into this instance. */
             public Builder initFrom(Options optionsToClone) {
                 mScoped = optionsToClone.mScoped;
-                mInDialog = optionsToClone.mInDialog;
                 mExpectDisabled = optionsToClone.mExpectDisabled;
                 mExpectEnabled = optionsToClone.mExpectEnabled;
                 mDisplayedPercentageRequired = optionsToClone.mDisplayedPercentageRequired;
                 mInitialSettleTimeMs = optionsToClone.mInitialSettleTimeMs;
+                mRootSpec = optionsToClone.mRootSpec;
                 return this;
             }
         }
@@ -369,5 +389,10 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
     /** Convenience {@link Options} setting displayingAtLeast(). */
     public static Options displayingAtLeastOption(int percentage) {
         return newOptions().displayingAtLeast(percentage).build();
+    }
+
+    /** Convenience {@link Options} setting rootSpec(). */
+    public static Options rootSpecOption(RootSpec rootSpec) {
+        return newOptions().rootSpec(rootSpec).build();
     }
 }

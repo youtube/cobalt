@@ -14,6 +14,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -494,8 +495,6 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private static final BnplIssuerTosDetail BNPL_ISSUER_TOS_DETAIL_AFFIRM =
             new BnplIssuerTosDetail(
                     /* issuerId= */ "affirm",
-                    /* headerIconDrawableId= */ R.drawable.bnpl_icon_generic,
-                    /* headerIconDarkDrawableId= */ R.drawable.bnpl_icon_generic,
                     /* isLinkedIssuer= */ false,
                     /* issuerName= */ "Affirm",
                     /* legalMessageLines= */ Arrays.asList(
@@ -503,8 +502,6 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private static final BnplIssuerTosDetail BNPL_ISSUER_TOS_DETAIL_ZIP =
             new BnplIssuerTosDetail(
                     /* issuerId= */ "zip",
-                    /* headerIconDrawableId= */ R.drawable.bnpl_icon_generic,
-                    /* headerIconDarkDrawableId= */ R.drawable.bnpl_icon_generic,
                     /* isLinkedIssuer= */ false,
                     /* issuerName= */ "Zip",
                     /* legalMessageLines= */ Arrays.asList(
@@ -512,8 +509,6 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private static final BnplIssuerTosDetail BNPL_ISSUER_TOS_DETAIL_KLARNA =
             new BnplIssuerTosDetail(
                     /* issuerId= */ "klarna",
-                    /* headerIconDrawableId= */ R.drawable.bnpl_icon_generic,
-                    /* headerIconDarkDrawableId= */ R.drawable.bnpl_icon_generic,
                     /* isLinkedIssuer= */ false,
                     /* issuerName= */ "Klarna",
                     /* legalMessageLines= */ Arrays.asList(
@@ -521,8 +516,6 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private static final BnplIssuerTosDetail BNPL_ISSUER_TOS_DETAIL_UNKNOWN =
             new BnplIssuerTosDetail(
                     /* issuerId= */ "test",
-                    /* headerIconDrawableId= */ R.drawable.bnpl_icon_generic,
-                    /* headerIconDarkDrawableId= */ R.drawable.bnpl_icon_generic,
                     /* isLinkedIssuer= */ false,
                     /* issuerName= */ "Test",
                     /* legalMessageLines= */ Arrays.asList(
@@ -565,6 +558,8 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 .thenReturn(R.drawable.ic_globe_24dp);
         when(mBottomSheetController.requestShowContent(any(BottomSheetContent.class), anyBoolean()))
                 .thenReturn(true);
+        when(mResourceProvider.getBnplIssuerTosDrawableId(anyString(), anyBoolean()))
+                .thenReturn(R.drawable.bnpl_icon_generic);
         mCoordinator = new TouchToFillPaymentMethodCoordinator();
         mCoordinator.initialize(
                 mActivity,

@@ -2290,6 +2290,9 @@ pki_test_data = [
     "pki/testdata/path_builder_unittest/key_id_prioritization/int_no_ski_c.pem",
     "pki/testdata/path_builder_unittest/key_id_prioritization/root.pem",
     "pki/testdata/path_builder_unittest/key_id_prioritization/target.pem",
+    "pki/testdata/path_builder_unittest/mtc/leaf.pem",
+    "pki/testdata/path_builder_unittest/mtc/mtc-ica.pem",
+    "pki/testdata/path_builder_unittest/mtc/mtc-leaf.pem",
     "pki/testdata/path_builder_unittest/multi-root-A-by-B.pem",
     "pki/testdata/path_builder_unittest/multi-root-B-by-C.pem",
     "pki/testdata/path_builder_unittest/multi-root-B-by-F.pem",
@@ -2806,6 +2809,10 @@ pki_test_data = [
     "pki/testdata/verify_unittest/lencr-root-x1-cross-signed.der",
     "pki/testdata/verify_unittest/lencr-root-x1.der",
     "pki/testdata/verify_unittest/mozilla_roots.der",
+    "pki/testdata/verify_unittest/mtc-leaf-b.pem",
+    "pki/testdata/verify_unittest/mtc-leaf-bitflip.pem",
+    "pki/testdata/verify_unittest/mtc-leaf-c.pem",
+    "pki/testdata/verify_unittest/mtc-leaf.pem",
     "pki/testdata/verify_unittest/self-issued.pem",
 ]
 

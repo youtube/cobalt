@@ -18,6 +18,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/engagement/site_engagement_service_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager.h"
 #include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
@@ -187,7 +188,7 @@ RevokedPermissionsService::RevokedPermissionsService(
           features::kSafetyHubDisruptiveNotificationRevocation)) {
     disruptive_notification_manager_ =
         std::make_unique<DisruptiveNotificationPermissionsManager>(
-            hcsm(),
+            browser_context, hcsm(),
             site_engagement::SiteEngagementServiceFactory::GetForProfile(
                 browser_context_),
             notification_display_manager);

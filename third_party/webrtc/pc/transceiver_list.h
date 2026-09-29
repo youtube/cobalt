@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_direction.h"
@@ -118,7 +119,7 @@ class TransceiverList {
   }
   RtpTransceiverProxyRefPtr FindBySender(
       scoped_refptr<RtpSenderInterface> sender) const;
-  RtpTransceiverProxyRefPtr FindByMid(const std::string& mid) const;
+  RtpTransceiverProxyRefPtr FindByMid(absl::string_view mid) const;
   RtpTransceiverProxyRefPtr FindByMLineIndex(size_t mline_index) const;
 
   // Find or create the stable state for a transceiver.

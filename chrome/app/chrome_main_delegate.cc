@@ -165,6 +165,7 @@
 #include "base/android/java_exception_reporter.h"
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "chrome/browser/android/flags/chrome_cached_flags.h"
+#include "chrome/browser/android/initialize_feature_list_android.h"
 #include "chrome/browser/android/metrics/uma_session_stats.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/common/chrome_descriptors_android.h"
@@ -1719,12 +1720,7 @@ void ChromeMainDelegate::InitializeMemorySystem() {
 
 bool ChromeMainDelegate::IsInitFeatureListEarly() {
 #if BUILDFLAG(IS_ANDROID)
-  return base::CommandLine::ForCurrentProcess()
-             ->GetSwitchValueASCII(switches::kProcessType)
-             .empty() &&
-         chrome::android::IsJavaDrivenFeatureEnabled(
-             chrome::android::kLoadNativeEarly) &&
-         chrome::android::IsInitFeatureListEarlyFeatureParamEnabled();
+  return variations::android::DidInitFeatureListEarly();
 #else
   return false;
 #endif

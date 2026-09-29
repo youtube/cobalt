@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">บันทึกข้อมูลไว้ในบัญชี Google</translation>
 <translation id="1414919006379339073">ปิดหน้าต่างปัจจุบัน</translation>
 <translation id="1416550906796893042">เวอร์ชันของแอปพลิเคชัน</translation>
-<translation id="1419753403124156396">รีสตาร์ท Chrome ไหม</translation>
 <translation id="1428770807407000502">ปิดการซิงค์ใช่ไหม</translation>
 <translation id="1430915738399379752">พิมพ์</translation>
 <translation id="1435593198351412143">เปิด PDF โดยอัตโนมัติ</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">องค์กรเปิด Google Safe Browsing พร้อมการปกป้องที่ดียิ่งขึ้นไว้</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{ดาวน์โหลด 1 รายการไม่สำเร็จ}other{ดาวน์โหลด # รายการไม่สำเร็จ}}</translation>
 <translation id="2067805253194386918">ข้อความ</translation>
-<translation id="2072027001582274150">แท็บที่ไม่ได้ใช้งานหรือซ้ำกัน</translation>
 <translation id="2079545284768500474">เลิกทำ</translation>
 <translation id="2082238445998314030">ผลลัพธ์ <ph name="RESULT_NUMBER" /> จาก <ph name="TOTAL_RESULTS" /> รายการ</translation>
-<translation id="2088833076121753253">โปรดรีสตาร์ท Chrome ตอนนี้เลยเพื่อตั้งค่าการป้อนข้อความอัตโนมัติให้เสร็จ แท็บจะเปิดขึ้นอีกครั้งโดยอัตโนมัติ</translation>
 <translation id="2091863218454846791">กำลังแสดงมุมมองแบบอัดแน่น</translation>
 <translation id="2093731487903423814">15 นาทีที่ผ่านมา</translation>
 <translation id="2096577711562668473">เปลี่ยนบริการป้อนข้อความอัตโนมัติไหม</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">แตะค้างไว้เพื่อเปลี่ยนไปใช้โหมดไม่ระบุตัวตน</translation>
 <translation id="2860954141821109167">ตรวจสอบว่ามีการเปิดใช้แอปโทรศัพท์ในอุปกรณ์นี้แล้ว</translation>
 <translation id="2861923151411510142">ฟีเจอร์บางอย่างของ Chrome จะใช้ไม่ได้อีกต่อไป</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> และอีก 1 แท็บ}other{<ph name="URL" /> และอีก <ph name="TAB_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="2869430948265924908">หากต้องการปกป้องเนื้อหาที่ละเอียดอ่อนในรถ คุณต้องสร้างการล็อกโปรไฟล์รถยนต์  ซึ่งทำได้โดยใช้ PIN, รหัส หรือรหัสผ่าน</translation>
 <translation id="2870560284913253234">เว็บไซต์</translation>
 <translation id="2871733351037274014">โหลดหน้าเว็บล่วงหน้า</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">รายการอุปกรณ์ที่จะแชร์แท็บด้วยเปิดอยู่ที่ระดับความสูงเต็มหน้าจอ</translation>
 <translation id="2908243544703713905">เรื่องราวที่ยังไม่อ่านพร้อมแล้ว</translation>
 <translation id="2909615210195135082">แพลตฟอร์มการแจ้งเตือนของ Google</translation>
+<translation id="2912247081180973411">ปิดหน้าต่าง</translation>
 <translation id="2912345083818861431">ใช้การล็อกหน้าจอเพื่อดูแท็บที่ไม่ระบุตัวตนที่เปิดไว้</translation>
 <translation id="2918484639460781603">ไปที่การตั้งค่า</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, แท็บที่ปิดเสียง</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ดูข้อมูลเกี่ยวกับบัญชีที่ถูกบล็อก</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" /> เปิดในแท็บใหม่</translation>
 <translation id="3166827708714933426">แป้นพิมพ์ลัดสำหรับแท็บและหน้าต่าง</translation>
-<translation id="316694332262407393">Chrome ทำงานอยู่แล้วที่นี่</translation>
 <translation id="3167258285411721858">คุณขอเว็บไซต์เวอร์ชันมือถือสำหรับ <ph name="HOST_NAME" /> ได้</translation>
 <translation id="3169472444629675720">สำรวจ</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, แท็บที่ไม่ระบุตัวตนที่ปักหมุดซึ่งเลือกไว้หลายแท็บและปิดเสียง</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">คัดลอกลิงก์ไปยังหน้าเว็บ <ph name="PAGE_TITLE" /> แหล่งที่มา: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">รับเนื้อหาที่ดีขึ้น</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 และอีก <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ตัวเลือก}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 และอีก <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ตัวเลือก}}</translation>
-<translation id="4698061626562952596">ตรวจสอบแท็บที่ไม่ได้ใช้งานที่นี่</translation>
 <translation id="4698757800236023795">ใช้งานอยู่ (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">รูปภาพและไฟล์ที่แคชไว้</translation>
 <translation id="4710167854527459075">จัดเรียงจากใหม่ที่สุด</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> แท็บ - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> แท็บ - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">ความเป็นส่วนตัว</translation>
 <translation id="504456571576643789">สิ่งที่ควรพิจารณา</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{เลือกหน้าต่าง <ph name="WINDOW_COUNT_ONE" /> รายการไว้}other{เลือกหน้าต่าง <ph name="WINDOW_COUNT_NORMAL" /> รายการไว้}}</translation>
 <translation id="5056587122125565772">สร้างรูปภาพ</translation>
 <translation id="506254248375231072">ไม่มีแท็บ</translation>
 <translation id="5075939510584558547">บันทึกโดยไม่เข้ารหัส</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">แท็บที่ไม่ระบุตัวตน</translation>
 <translation id="5142281402488957685">สำหรับเรื่องราวใหม่ๆ ให้ดึงลงเพื่อรีเฟรช</translation>
 <translation id="5144385790872094440">ระบบจะโหลดหน้าเว็บบางหน้าที่คุณเข้าชมไว้ล่วงหน้า ระบบอาจโหลดหน้าเว็บล่วงหน้าผ่านเซิร์ฟเวอร์ของ Google เมื่อลิงก์จากเว็บไซต์หรือแอป Google</translation>
-<translation id="5145887002054615868">แท็บที่ซ้ำกันหรือไม่ได้ใช้งานเป็นเวลา <ph name="DAYS_INACTIVE" /> วันจะย้ายมาที่นี่<ph name="AUTODELETE_SECTION" /> คุณเปลี่ยนตัวเลือกนี้ได้ทุกเมื่อใน<ph name="DECLUTTER_SETTINGS_TITLE" /></translation>
 <translation id="5152843274749979095">ไม่มีแอปที่รองรับติดตั้งอยู่</translation>
 <translation id="5161254044473106830">ต้องระบุชื่อ</translation>
 <translation id="5161262286013276579">ชีตการยืนยันพาสคีย์เปิดอยู่</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">คุณไปยังส่วนต่างๆ ของหน้าได้ด้วยเคอร์เซอร์ข้อความ กด F7 เพื่อปิด</translation>
 <translation id="5471273988133666918">ย้ายแท็บ <ph name="TAB_TITLE" /> ไม่ได้</translation>
 <translation id="548278423535722844">เปิดในแอปแผนที่</translation>
+<translation id="5494920125229734069">เลือกทั้งหมด</translation>
 <translation id="549660026907543296">เข้าร่วมในชื่อ <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Bottom Sheet กิจกรรมล่าสุด</translation>
 <translation id="5526281268548144413">ปิดในหลายหน้าต่างไม่ได้</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">หาไฟล์และหน้าในโฟลเดอร์ดาวน์โหลด</translation>
 <translation id="5962718611393537961">แตะเพื่อยุบ</translation>
 <translation id="5964869237734432770">หยุดรับคำอธิบายรูปภาพ</translation>
+<translation id="5972844218283131174">ยกเลิกการเลือกทั้งหมด</translation>
 <translation id="5975083100439434680">ย่อ</translation>
 <translation id="5977976211062815271">ในอุปกรณ์นี้</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 หน้าในเรื่องรออ่านของคุณ}other{# หน้าในเรื่องรออ่านของคุณ}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">คุณไม่ต้องจำรหัสผ่านนี้ เพราะระบบจะบันทึกไว้ในเครื่องมือจัดการรหัสผ่านบน Google</translation>
 <translation id="8152331954420209374">ไปที่ Lens</translation>
 <translation id="8153206878708357851">เปิด/ปิดการเรียกดูด้วยแป้นพิมพ์</translation>
+<translation id="8154784523622173959">ปรับเปลี่ยนพื้นหลังของหน้านี้ในแบบของคุณ</translation>
 <translation id="8163820386638255770">โปรดยืนยันว่าเป็นคุณเพื่อใช้และบันทึกรหัสผ่านในบัญชี Google</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{รายการที่ไม่ได้ใช้งาน 1 รายการ}other{รายการที่ไม่ได้ใช้งาน # รายการ}}</translation>
 <translation id="8186512483418048923">เหลืออีก <ph name="FILES" /> ไฟล์</translation>
 <translation id="8190358571722158785">เหลือ 1 วัน</translation>
 <translation id="8192765420340770300">Bottom Sheet การลงชื่อเข้าใช้เปิดแบบเต็มหน้า</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />อุปกรณ์ของคุณ<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">ล้างคำค้นหา</translation>
 <translation id="820568752112382238">เว็บไซต์ที่เข้าชมบ่อยที่สุด</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{เข้าร่วมกลุ่มแท็บกับ <ph name="OWNER_FIRST_NAME" /> และอีก <ph name="NUMBER_OF_OTHER_MEMBERS" /> คน}other{เข้าร่วมกลุ่มแท็บกับ <ph name="OWNER_FIRST_NAME" /> และอีก <ph name="NUMBER_OF_OTHER_MEMBERS" /> คน}}</translation>
 <translation id="8209050860603202033">เปิดรูปภาพ</translation>

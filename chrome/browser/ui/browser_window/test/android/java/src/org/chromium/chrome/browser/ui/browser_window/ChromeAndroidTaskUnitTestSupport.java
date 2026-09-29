@@ -12,6 +12,8 @@ import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.AppTask;
@@ -215,18 +217,23 @@ public final class ChromeAndroidTaskUnitTestSupport {
         var mockAndroidBrowserWindowNatives =
                 mockNatives ? createMockAndroidBrowserWindowNatives() : null;
 
-        ChromeAndroidTask chromeAndroidTask =
+        var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerImpl.getInstance();
+        var chromeAndroidTask =
                 isPendingTask
-                        ? new ChromeAndroidTaskImpl(createPendingTaskInfo())
-                        : new ChromeAndroidTaskImpl(
-                                BrowserWindowType.NORMAL, activityScopedObjects);
+                        ? chromeAndroidTaskTracker.createPendingTask(
+                                createPendingTaskInfo().mCreateParams, null)
+                        : chromeAndroidTaskTracker.obtainTask(
+                                BrowserWindowType.NORMAL,
+                                activityScopedObjects,
+                                /* pendingId= */ null);
+        assertNonNull(chromeAndroidTask);
+        ResettersForTesting.register(chromeAndroidTaskTracker::removeAllForTesting);
 
         var mockAppTask = mock(AppTask.class);
         AndroidTaskUtils.setAppTaskForTesting(mockAppTask);
 
         var mockApiDelegate = mock(AconfigFlaggedApiDelegate.class);
         AconfigFlaggedApiDelegate.setInstanceForTesting(mockApiDelegate);
-        when(mockApiDelegate.isTaskMoveAllowedOnDisplay(any(), anyInt())).thenReturn(true);
         when(mockApiDelegate.moveTaskToWithPromise(any(), anyInt(), any()))
                 .thenReturn(Promise.fulfilled(Pair.create(-1, new Rect())));
 

@@ -114,7 +114,6 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="1413446866325418126">Деректерді Google аккаунтыңызға сақтаңыз</translation>
 <translation id="1414919006379339073">Ағымдағы терезені жабу</translation>
 <translation id="1416550906796893042">Қолданба нұсқасы</translation>
-<translation id="1419753403124156396">Chrome браузерін қайта іске қосу керек пе?</translation>
 <translation id="1428770807407000502">Синхрондау өшірілсін бе?</translation>
 <translation id="1430915738399379752">Басып шығару</translation>
 <translation id="1435593198351412143">PDF файлдарын автоматты түрде ашу</translation>
@@ -247,10 +246,8 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2063047797624276601">Ұйымыңыз күшейтілген Safe Browsing функциясын қосты.</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 файл жүктеп алынбады}other{# файл жүктеп алынбады}}</translation>
 <translation id="2067805253194386918">мәтін</translation>
-<translation id="2072027001582274150">Қолданылмаған немесе қайталанатын қойындылар</translation>
 <translation id="2079545284768500474">Қайтару</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> ішінен <ph name="RESULT_NUMBER" /> нәтиже</translation>
-<translation id="2088833076121753253">Автотолтыру функциясын реттеуді аяқтау үшін Chrome браузерін қазір қайта іске қосыңыз. Қойындыларыңыз автоматты түрде қайта ашылады.</translation>
 <translation id="2091863218454846791">Шағын көрініс таңдалды</translation>
 <translation id="2093731487903423814">соңғы 15 минут</translation>
 <translation id="2096577711562668473">Автотолтыру қызметін өзгерту қажет пе?</translation>
@@ -428,6 +425,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2854916915045135148">Инкогнито режиміне ауысу үшін түртіп, басып тұрыңыз.</translation>
 <translation id="2860954141821109167">Бұл құрылғыда телефон қолданбасы қосулы екенін тексеріңіз.</translation>
 <translation id="2861923151411510142">Кейбір Chrome функциясы қолжетімсіз болады.</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> және тағы 1 қойынды}other{<ph name="URL" /> және тағы <ph name="TAB_COUNT_MANY" /> қойынды}}</translation>
 <translation id="2869430948265924908">Көліктегі шетін контентті қорғау үшін көліктің профиль құлпын жасауыңыз керек.  Оны PIN кодымен, кодпен немесе құпия сөзбен жасауға болады.</translation>
 <translation id="2870560284913253234">Сайт</translation>
 <translation id="2871733351037274014">Беттерді алдын ала жүктеу</translation>
@@ -446,6 +444,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2904414404539560095">Қойынды жіберілетін құрылғылар тізімі толық экранға ашылған.</translation>
 <translation id="2908243544703713905">Оқылмаған сюжеттер бар.</translation>
 <translation id="2909615210195135082">Google Notifications Platform</translation>
+<translation id="2912247081180973411">Терезелерді жабу</translation>
 <translation id="2912345083818861431">Экран құлпын пайдаланып, ашылған инкогнито қойындыларын көру</translation>
 <translation id="2918484639460781603">Параметрлерге өту</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, дыбысы өшірілген қойынды</translation>
@@ -503,7 +502,6 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="3159335509547415276">Блокталған аккаунттар туралы ақпарат</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" /> жаңа қойындыда ашылады</translation>
 <translation id="3166827708714933426">Қойынды мен терезенің пернелер тіркесімі</translation>
-<translation id="316694332262407393">Chrome жұмыс істеп тұр.</translation>
 <translation id="3167258285411721858"><ph name="HOST_NAME" /> мобильдік сайтын сұрауға болады</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, көп рет таңдалған, бекітілген, дыбысы өшірілген инкогнито қойындысы</translation>
@@ -851,7 +849,6 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="468924408576231679"><ph name="PAGE_TITLE" /> веб-бетінің сілтемесін бөліседі. Дереккөз: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Жақсырақ контент алыңыз</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 және тағы <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 және тағы <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
-<translation id="4698061626562952596">Әрекетсіз қойындыларды осы жерден қарауға болады.</translation>
 <translation id="4698757800236023795">Белсенді (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Кэштелген кескіндер мен файлдар</translation>
 <translation id="4710167854527459075">Ең жаңасы бойынша сұрыптау</translation>
@@ -950,6 +947,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> қойынды – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> қойынды – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Құпиялық</translation>
 <translation id="504456571576643789">Ескеретін жайттар</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> терезе таңдалды}other{<ph name="WINDOW_COUNT_NORMAL" /> терезе таңдалды}}</translation>
 <translation id="5056587122125565772">Сурет жасау</translation>
 <translation id="506254248375231072">Қойындылар жоқ.</translation>
 <translation id="5075939510584558547">Шифрламай сақтау</translation>
@@ -966,7 +964,6 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="5123685120097942451">Инкогнито қойындысы</translation>
 <translation id="5142281402488957685">Соңғы жаңалықтарды көру үшін төмен сырғытып, жаңартыңыз.</translation>
 <translation id="5144385790872094440">Сіз кіретін беттердің кейбірі алдын ала жүктеледі. Сілтеме Google платформасындағы сайт немесе қолданба арқылы жасалған жағдайда, беттер Google серверлері арқылы алдын ала жүктелуі мүмкін.</translation>
-<translation id="5145887002054615868">Қайталанатын немесе <ph name="DAYS_INACTIVE" /> күн бойы қолданылмаған қойындылар осы жерге көшіріледі <ph name="AUTODELETE_SECTION" />. Мұны <ph name="DECLUTTER_SETTINGS_TITLE" /> бөлімінде кез келген уақытта өзгерте аласыз.</translation>
 <translation id="5152843274749979095">Қолдауға ие қолданбалар орнатылмаған</translation>
 <translation id="5161254044473106830">Тақырып қою қажет</translation>
 <translation id="5161262286013276579">Кіру кілтін растау парағы ашылды.</translation>
@@ -1041,6 +1038,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="5469852975082458401">Мәтін курсорымен бір беттен екінші бетке өте аласыз. Оны өшіру үшін F7 пернесін басыңыз.</translation>
 <translation id="5471273988133666918"><ph name="TAB_TITLE" /> қойындысын жылжыту мүмкін емес.</translation>
 <translation id="548278423535722844">Maps қолданбасында ашу</translation>
+<translation id="5494920125229734069">Барлығын таңдау</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> ретінде қосылу</translation>
 <translation id="5517326820028369152">"Соңғы іс-әрекеттер" төменгі парақшасы</translation>
 <translation id="5526281268548144413">Бірнеше терезеде жабу мүмкін емес.</translation>
@@ -1149,6 +1147,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="5958275228015807058">"Жүктеп алулар" ішінен файлдар мен беттерді табыңыз</translation>
 <translation id="5962718611393537961">Жию үшін түртіңіз</translation>
 <translation id="5964869237734432770">Сурет сипаттамаларын алмау</translation>
+<translation id="5972844218283131174">Барлығын алып тастау</translation>
 <translation id="5975083100439434680">Кішірейту</translation>
 <translation id="5977976211062815271">Осы құрылғыда</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{Оқу тізіміндегі 1 бет}other{Оқу тізіміндегі # бет}}</translation>
@@ -1721,12 +1720,14 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="8137562778192957619">Бұл құпия сөзді есте сақтаудың қажеті жоқ. Ол Google Password Manager қызметіне сақталады.</translation>
 <translation id="8152331954420209374">Lens-ге өту</translation>
 <translation id="8153206878708357851">Белсенді курсор режимін қосу/өшіру</translation>
+<translation id="8154784523622173959">Осы беттің фонын жекелендіру</translation>
 <translation id="8163820386638255770">Құпия сөздерді Google аккаунтыңызда пайдалану және сақтау үшін жеке басыңызды растаңыз.</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{Әрекетсіз (1) элемент}other{Әрекетсіз (#) элемент}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> файл қалды</translation>
 <translation id="8190358571722158785">1 күн қалды</translation>
 <translation id="8192765420340770300">Аккаунтқа кірудің төменгі парақшасы толық ашылды</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Құрылғыларыңыз<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Іздеу сұрауын тазалау</translation>
 <translation id="820568752112382238">Көп кіретін сайттар</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> және тағы <ph name="NUMBER_OF_OTHER_MEMBERS" /> адам қосылған қойындылар тобына қосылыңыз}other{<ph name="OWNER_FIRST_NAME" /> және тағы <ph name="NUMBER_OF_OTHER_MEMBERS" /> адам қосылған қойындылар тобына қосылыңыз}}</translation>
 <translation id="8209050860603202033">Кескінді ашу</translation>

@@ -213,6 +213,9 @@ class OPENSSL_EXPORT Parser {
   // read something.
   bool Advance();
 
+  // Returns the remaining bytes in the input. Does not advance the input.
+  Span<const uint8_t> RemainingBytes();
+
  private:
   CBS cbs_;
   size_t advance_len_ = 0;

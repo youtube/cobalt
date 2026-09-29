@@ -331,6 +331,10 @@
       status: "test"
     },
     {
+      name: "AIPageContentIncludeSVGSubtree",
+      status: "test"
+    },
+    {
       name: "AIPageContentPaidContentAnnotation",
       status: "stable"
     },
@@ -767,6 +771,12 @@
     {
       name: "BlinkExtensionWebViewMediaIntegrity",
       public: true,
+    },
+    // Whether MapToVisualRectInAncestorSpace() with a null ancestor can
+    // use the geometry mapper fast path.
+    {
+      name: "BlinkGeometryMapperViewportFastPath",
+      status: "stable",
     },
     {
       name: "BlinkLifecycleScriptForbidden",
@@ -1730,7 +1740,7 @@
     {
       // crbug.com/40321528
       name: "CssTextJustify",
-      status: "experimental",
+      status: "stable",
       depends_on: ["JustifyWithoutLineText"],
     },
     {
@@ -1771,15 +1781,15 @@
     {
       // appearance:base-select for <select multiple> and <select size=n>
       // https://issues.chromium.org/issues/357649033
-      name: "CustomizableSelectInPage",
-      status: "experimental",
+      name: "CustomizableSelectListbox",
+      status: "stable",
       depends_on: ["SelectMobileDesktopParity"],
     },
     {
       // appearance:base-select for <select multiple size=1> with a picker.
       name: "CustomizableSelectMultiplePopup",
       status: "experimental",
-      depends_on: ["CustomizableSelectInPage"],
+      depends_on: ["CustomizableSelectListbox"],
     },
     // see crbug.com/341313078
     {
@@ -1935,6 +1945,10 @@
       origin_trial_feature_name: "DisableDifferentOriginSubframeDialogSuppression",
       origin_trial_type: "deprecation",
       origin_trial_allows_insecure: true,
+    },
+    {
+      name: "DisableDocumentBeingDestroyed",
+      status: "stable",
     },
     {
       name: "DisableReduceAcceptLanguage",
@@ -2144,6 +2158,12 @@
       // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
       name: "ElementInternalsDotType",
       status: "experimental",
+    },
+    {
+      name: "EmailVerificationProtocol",
+      public: true,
+      status: "test",
+      base_feature: "none",
     },
     {
       // crbug.com/447267214
@@ -2608,12 +2628,6 @@
     },
     {
       name: "FluentOverlayScrollbars",
-      // The associated base feature is defined in
-      // ui/native_theme/features/native_theme_features.cc.
-      base_feature: "none",
-    },
-    {
-      name: "FluentScrollbars",
       // The associated base feature is defined in
       // ui/native_theme/features/native_theme_features.cc.
       base_feature: "none",
@@ -3117,8 +3131,6 @@
         "Android": "test",
         "default": "",
       },
-      origin_trial_feature_name: "LanguageDetectionAPI",
-      origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },
@@ -3139,6 +3151,11 @@
     },
     {
       name: "LayoutImageEmptyNaturalSizeBeforeSizeAvailable",
+      status: "stable",
+    },
+    {
+      name: "LayoutMergeAnonymousFix",
+      depends_on: ["DisableDocumentBeingDestroyed"],
       status: "stable",
     },
     {
@@ -3200,6 +3217,15 @@
       // It's controlled by network::features::kLocalNetworkAccessChecks which
       // needs to be enabled to make the whole feature work (see
       // crbug.com/394009026).
+    },
+    {
+      name: "LocalNetworkAccessSplitPermissions",
+      base_feature: "none",
+      // No status because this blink runtime feature doesn't work by itself.
+      // It's controlled by
+      // network::features::kLocalNetworkAccessChecksSplitPermissions which
+      // needs to be enabled to make the whole feature work (see
+      // crbug.com/465491626).
     },
     {
       name: "LocalNetworkAccessWebRTC",
@@ -3503,7 +3529,7 @@
     },
     {
       name: "NavigationTransitionDestination",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "NavigatorContentUtils",
@@ -3611,6 +3637,12 @@
       // This will be shipped in M142, and it can be removed in M144.
       // See https://issues.chromium.org/issues/443031270.
       name: "OpenPopoverInvokerRestrictToSameTreeScope",
+      status: "stable",
+    },
+    {
+      // Improves the performance of the option element's MutationObserver.
+      // Enabled in M145, can be removed in M147.
+      name: "OptionMutationObserverImprovement",
       status: "stable",
     },
     {
@@ -3758,6 +3790,13 @@
       status: "stable",
     },
     {
+      // Enables the CSS overlay property. When this flag is disabled, top
+      // layer exit animations will work without the need for using the overlay
+      // property.
+      name: "OverlayProperty",
+      status: "stable",
+    },
+    {
       name: "OverscrollCustomization",
       status: "experimental",
     },
@@ -3865,8 +3904,7 @@
     },
     {
       name: "PerformanceNavigationTimingConfidence",
-      origin_trial_feature_name: "PerformanceNavigationTimingConfidence",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "PeriodicBackgroundSync",
@@ -3921,6 +3959,7 @@
     {
       // Flag for enabling the pointer lock API on Android
       name: "PointerLockOnAndroid",
+      "status": "stable",
     },
     {
       // https://crbug.com/404479704
@@ -4187,13 +4226,6 @@
     {
       name: "ReduceUserAgentMinorVersion",
       status: "stable",
-    },
-    {
-      // If enabled, the platform and oscpu of the User-Agent string will be
-      // reduced.
-      name: "ReduceUserAgentPlatformOsCpu",
-      depends_on: ["ReduceUserAgentMinorVersion"],
-      status: {"Android": "", "default": "stable"},
     },
     {
       public: true,
@@ -4761,6 +4793,10 @@
       status: "stable",
     },
     {
+      name: "SetHTMLCanRunScripts",
+      status: "experimental",
+    },
+    {
       name: "SetSequentialFocusStartingPoint",
       status: "experimental",
     },
@@ -4928,9 +4964,6 @@
     // can be removed in M142.
     {
       name: "SpecialRulesForNestedH1Elements",
-    },
-    {
-      name: "SpeculationRulesPrefetchWithSubresources",
     },
     {
       name: "SplitTextNotCleanupDummySpans",
@@ -5120,7 +5153,7 @@
       // When checking the shadow tree during invoke(),
       // use the invocationTargetInShadowTree saved before
       // calling the listener.
-      // This was added in M142 and can be removed after M144.
+      // This was added in M142 and can be removed after M147.
       // https://issues.chromium.org/issues/41408360
       name: "TargetInShadowDeterminedBeforeListener",
       status: "stable",
@@ -5251,6 +5284,10 @@
       // https://crbug.com/41492459
       name: "TextOverflowString",
       status: "test",
+    },
+    {
+      name: "TextScaleMetaTag",
+      status: "experimental",
     },
     {
       // crbug.com/431660829
@@ -5904,6 +5941,13 @@
       implied_by: ["WebGPUExperimentalFeatures"],
     },
     {
+      // Allows handling of WebGPU related commands from the GPU process to
+      // happen on a separate thread. This is a pre-requisite for emulation of
+      // serialized asynchronous APIs, i.e. mapSync.
+      name: "WebGPUMultithreadDawnWireOnWorkers",
+      status: "experimental",
+    },
+    {
       name: "WebHID",
       status: {"Android": "", "default": "stable"},
     },
@@ -6155,7 +6199,20 @@
       name: "XMLNoExternalEntities",
     },
     {
-      name: "XMLParsingRust",
+      // Switches from XML parsing through libxml2 to parsing XML using the
+      // Rust xml crate. This makes parsing memory safe but breaks XSLT
+      // as the Rust XML parsing code paths is incompatible with libxslt.
+      // https://crbug.com/441911594
+      name: "XMLParsingRust"
+    },
+    {
+      // Enables the Rust XML parser for situations where we know
+      // no XSLT processing will be required. This covers usage of
+      // JS DOMParser API to parse XML, and usage of XMLHttpRequest
+      // with its responseXML document.
+      // https://crbug.com/466303347
+      name: "XMLRustForNonXslt",
+      status: "experimental",
     },
     {
       name: "XMLSerializerConsistentDefaultNsDeclMatching",

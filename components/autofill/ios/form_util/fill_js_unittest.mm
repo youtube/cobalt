@@ -16,15 +16,21 @@
 #import "components/autofill/ios/browser/test_autofill_java_script_feature_container.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/common/javascript_feature_util.h"
-#import "components/autofill/ios/form_util/autofill_renderer_id_java_script_feature.h"
-#import "components/autofill/ios/form_util/form_util_java_script_feature.h"
+#import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
 #import "ios/web/public/js_messaging/content_world.h"
+#import "ios/web/public/js_messaging/java_script_feature.h"
 #import "ios/web/public/test/js_test_util.h"
 #import "ios/web/public/test/web_test_with_web_state.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 
 namespace autofill {
+
+// Struct for stringify() test data.
+struct TestScriptAndExpectedValue {
+  NSString* test_script;
+  id expected_value;
+};
 
 // Creates a JavaScriptFeature that injects fill util functions used in tests.
 web::JavaScriptFeature::FeatureScript GetFillTestScript() {
@@ -75,10 +81,9 @@ class FillJsTest : public web::WebTestWithWebState {
 
   void SetUp() override {
     web::WebTestWithWebState::SetUp();
-    OverrideJavaScriptFeatures({FormUtilJavaScriptFeature::GetInstance(),
-                                renderer_id_java_script_feature(),
-                                GetDummyPageContentWorldFeature(),
-                                GetDummyIsolatedWorldFeature()});
+    OverrideJavaScriptFeatures(
+        {AutofillFormFeaturesJavaScriptFeature::GetInstance(),
+         GetDummyPageContentWorldFeature(), GetDummyIsolatedWorldFeature()});
   }
 
   void TearDown() override {
@@ -88,13 +93,9 @@ class FillJsTest : public web::WebTestWithWebState {
     web::WebTestWithWebState::TearDown();
   }
 
-  AutofillRendererIDJavaScriptFeature* renderer_id_java_script_feature() {
-    return feature_container_.autofill_renderer_id_java_script_feature();
-  }
-
  protected:
   // Returns the chrome-set renderer ID for the element with ID `element_id`.
-  // Runs gCrWeb.fill.getUniqueID in the given content world.
+  // Runs getUniqueID from fill_test_api API in the given content world.
   NSString* GetUniqueID(NSString* element_id, web::ContentWorld content_world) {
     NSString* script = [NSString
         stringWithFormat:
@@ -142,7 +143,7 @@ TEST_F(FillJsTest, GetCanonicalActionForForm) {
        TestData{@"data:abc", @"data:abc"},
        TestData{@"javascript:login()", @"javascript:login()"}});
 
-  for (size_t i = 0; i < test_data.size(); i++) {
+  for (size_t i = 0; i < test_data.size(); ++i) {
     const TestData& data = test_data[i];
     NSString* html_action =
         data.html_action == nil
@@ -155,7 +156,8 @@ TEST_F(FillJsTest, GetCanonicalActionForForm) {
 
     LoadHtml(html);
     id result = ExecuteJavaScriptInAutofillContentWorld(
-        @"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('getCanonicalActionForForm')(document.body.children[0])");
+        @"__gCrWeb.getRegisteredApi('fill_test_api')."
+        @"getFunction('getCanonicalActionForForm')(document.body.children[0])");
     NSString* base_url = base::SysUTF8ToNSString(BaseUrl());
     NSString* expected_action =
         [data.expected_action stringByReplacingOccurrencesOfString:@"baseurl/"
@@ -318,8 +320,8 @@ TEST_F(FillJsTest, GetAriaDescriptionInvalid) {
   EXPECT_NSEQ(result, expected_result);
 }
 
-// Tests that gCrWeb.fill.getUniqueID returns the ID of an element from all
-// JavaScript content worlds.
+// Tests that getUniqueID from fill_test_api API returns the ID of an element
+// from all JavaScript content worlds.
 TEST_F(FillJsTest, DISABLED_GetUniqueIDInAllJavaScriptContentWorlds) {
   LoadHtml(@"<html><body>"
             "<form id='form'>"
@@ -329,9 +331,11 @@ TEST_F(FillJsTest, DISABLED_GetUniqueIDInAllJavaScriptContentWorlds) {
   // Set IDs for form and input in the content world for Autofill features.
   ExecuteJavaScriptInAutofillContentWorld(
       @"var form = document.getElementById('form');"
-       "__gCrWeb.fill.setUniqueIDIfNeeded(form);"
+       "__gCrWeb.getRegisteredApi('fill_test_api')."
+       "getFunction('setUniqueIDIfNeeded')(form);"
        "var input = document.getElementById('input');"
-       "__gCrWeb.fill.setUniqueIDIfNeeded(input);");
+       "__gCrWeb.getRegisteredApi('fill_test_api')."
+       "getFunction('setUniqueIDIfNeeded')(input);");
 
   // Verify the ID retrieval in all content worlds.
   for (auto content_world : {web::ContentWorld::kIsolatedWorld,
@@ -350,8 +354,8 @@ TEST_F(FillJsTest, DISABLED_GetUniqueIDInAllJavaScriptContentWorlds) {
   }
 }
 
-// Tests that gCrWeb.fill.getUniqueID returns the null ID when an invalid value
-// is stored in the DOM.
+// Tests that getUniqueID from fill_test_api API returns the null ID when an
+// invalid value is stored in the DOM.
 TEST_F(FillJsTest, DISABLED_GetUniqueIDReturnsNotSetWhenInvalidIDInDOM) {
   LoadHtml(@"<html><body>"
             "<form id='form'/>"
@@ -360,7 +364,8 @@ TEST_F(FillJsTest, DISABLED_GetUniqueIDReturnsNotSetWhenInvalidIDInDOM) {
   // Set IDs for form and input in the content world for Autofill features.
   ExecuteJavaScriptInAutofillContentWorld(
       @"var form = document.getElementById('form');"
-       "__gCrWeb.fill.setUniqueIDIfNeeded(form);");
+       "__gCrWeb.getRegisteredApi('fill_test_api')."
+       "getFunction('setUniqueIDIfNeeded');");
 
   std::vector<NSString*> invalid_ids = {@"''", @"'word'", @"null",
                                         @"undefined"};
@@ -392,6 +397,130 @@ TEST_F(FillJsTest, DISABLED_GetUniqueIDReturnsNotSetWhenInvalidIDInDOM) {
       EXPECT_NSEQ(form_id, is_autofill_world ? @"1" : @"0");
     }
   }
+}
+
+// Tests stringify TS function.
+TEST_F(FillJsTest, Stringify) {
+  const auto kTestData = std::to_array<TestScriptAndExpectedValue>({
+      // Stringify a string that contains various characters that must
+      // be escaped.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')('a\\u000a\\t\\b\\\\\\\"Z')",
+       @"\"a\\n\\t\\b\\\\\\\"Z\""},
+      // Stringify a number.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')(77.7)",
+       @"77.7"},
+      // Stringify an array.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')(['a','b'])",
+       @"[\"a\",\"b\"]"},
+      // Stringify an object.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')({'a':'b','c':'d'})",
+       @"{\"a\":\"b\",\"c\":\"d\"}"},
+      // Stringify a hierarchy of objects and arrays.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')([{'a':['b','c'],'d':'e'},'f'])",
+       @"[{\"a\":[\"b\",\"c\"],\"d\":\"e\"},\"f\"]"},
+      // Stringify null.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api')."
+       @"getFunction('stringify')(null)",
+       @"null"},
+      // Stringify an object with a toJSON function.
+      {@"temp = [1,2];"
+        "temp.toJSON = function (key) {return undefined};"
+        "__gCrWeb.getRegisteredApi('fill_test_api').getFunction('stringify')("
+        "temp)",
+       @"[1,2]"},
+      // Stringify an object with a toJSON property that is not a function.
+      {@"temp = [1,2];"
+        "temp.toJSON = 42;"
+        "__gCrWeb.getRegisteredApi('fill_test_api').getFunction('stringify')("
+        "temp)",
+       @"[1,2]"},
+      // Stringify an undefined object.
+      {@"__gCrWeb.getRegisteredApi('fill_test_api').getFunction('stringify')("
+       @"undefined)",
+       @"undefined"},
+  });
+
+  for (const TestScriptAndExpectedValue& data : kTestData) {
+    // Load a sample HTML page. As a side-effect, loading HTML via
+    // `webController_` will also inject web_bundle.js.
+    LoadHtml(@"<p>");
+    id result = ExecuteJavaScriptInAutofillContentWorld(data.test_script);
+    EXPECT_NSEQ(data.expected_value, result)
+        << " with input: " << base::SysNSStringToUTF8(data.test_script);
+  }
+}
+
+// Tests that stringify works correctly even if JSON.stringify is overridden.
+TEST_F(FillJsTest, StringifyJSONGlobalOverride) {
+  LoadHtml(@"<p>");
+  // Override JSON.stringify to return a random value.
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"JSON.stringify = function() { return 'broken'; }");
+
+  id result = ExecuteJavaScriptInAutofillContentWorld(
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('stringify')({'a':'b'})");
+  EXPECT_NSEQ(result, @"{\"a\":\"b\"}");
+}
+
+// Tests that stringify ignores toJSON properties on Object.prototype and
+// Array.prototype.
+TEST_F(FillJsTest, StringifyPrototypeToJSON) {
+  LoadHtml(@"<p>");
+  // Object.prototype.toJSON override.
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"Object.prototype.toJSON = function() { return 'hacked object'; }");
+
+  id obj_result = ExecuteJavaScriptInAutofillContentWorld(
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('stringify')({'a':'b'})");
+  EXPECT_NSEQ(obj_result, @"{\"a\":\"b\"}");
+
+  // Array.prototype.toJSON override.
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"Array.prototype.toJSON = function() { return 'hacked array'; }");
+
+  id arr_result = ExecuteJavaScriptInAutofillContentWorld(
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('stringify')(['a','b'])");
+  EXPECT_NSEQ(arr_result, @"[\"a\",\"b\"]");
+}
+
+// Tests that stringify restores the original toJSON method on the prototype
+// after execution, even if it was overridden.
+TEST_F(FillJsTest, StringifyRestoresPrototypeToJSON) {
+  LoadHtml(@"<p>");
+
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"Array.prototype.toJSON = function() { return 'hacked array'; }");
+
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('stringify')(['a','b'])");
+
+  id result = ExecuteJavaScriptInAutofillContentWorld(
+      @"Array.prototype.toJSON.call([])");
+  EXPECT_NSEQ(result, @"hacked array");
+}
+
+// Tests that stringify restores the original toJSON method on the object
+// own property after execution.
+TEST_F(FillJsTest, StringifyRestoresOwnToJSON) {
+  LoadHtml(@"<p>");
+
+  ExecuteJavaScriptInAutofillContentWorld(
+      @"var obj = { 'a': 'b' };"
+      @"obj.toJSON = function() { return 'own toJSON'; };"
+      @"__gCrWeb.getRegisteredApi('fill_test_api')."
+      @"getFunction('stringify')(obj)");
+
+  id result = ExecuteJavaScriptInAutofillContentWorld(@"obj.toJSON()");
+  EXPECT_NSEQ(result, @"own toJSON");
 }
 
 }  // namespace autofill

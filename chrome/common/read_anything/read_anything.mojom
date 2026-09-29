@@ -35,6 +35,18 @@ enum ErrorCode {
   [MinVersion=2] kNotReached = 6,
 };
 
+// Represents who owns the Reading Mode WebUI
+enum ReadAnythingPresentationState {
+    kUndefined = 0, // The WebUI doesn't exist yet.
+    kInactive = 1,  // The WebUI exists but is hosted by the
+                    // ReadAnythingController, not by a view.
+    kInSidePanel = 2, // The WebUI is hosted by the Side Panel. Does not mean
+                      // that it's necessarily showing yet in the Side Panel.
+    kInImmersiveOverlay = 3, // The WebUI is hosted by the ImmersiveOverlay.
+                             // Does not mean that it's necessarily showing yet
+                             // in the overlay.
+};
+
 union VoicePackInstallationState {
   InstallationState installation_state;
   ErrorCode error_code;
@@ -112,6 +124,23 @@ enum HighlightGranularity {
   [MinVersion=1] kSentence = 4
 };
 
+[Extensible]
+// LINT.IfChange(LineFocus)
+// Line focus options.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum LineFocus {
+  [Default]kOff = 0,
+  // Line focus window modes of different line heights. i.e. a window of size
+  // one line, three lines, or 5 lines.
+  kWindow1 = 1,
+  kWindow3 = 2,
+  kWindow5 = 3,
+  kLineStatic = 4,
+  kLineCursor = 5,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingLineFocus)
+
 // LINT.IfChange(DistillationStatus)
 // Distillation status after a page has been opened with reading mode. Used for
 // metrics logging.
@@ -129,6 +158,11 @@ interface UntrustedPageHandler {
   // phrase-based highlighting. May be null if the model file could not be
   // loaded.
   GetDependencyParserModel() => (mojo_base.mojom.File? model_file);
+
+  // Called by the renderer to get the current ReadingMode state from
+  // ReadAnythingController. The response for this call comes via
+  // UntrustedPage::OnGetPresentationState.
+  GetPresentationState();
 
   // Called by the renderer to see if a voice is installed, or being installed.
   // The response for this call comes via UntrustedPage::OnGetVoicePackInfo.
@@ -198,6 +232,10 @@ interface UntrustedPageHandler {
   // the highlight that follows along with speech via the webui toolbar.
   OnHighlightGranularityChanged(read_anything.mojom.HighlightGranularity granularity);
 
+  // Informs the browser controller that the user updated the granularity of
+  // the highlight that follows along with speech via the webui toolbar.
+  OnLineFocusChanged(read_anything.mojom.LineFocus granularity);
+
   // Informs the browser controller whether audio for read aloud is currently
   // playing.
   OnReadAloudAudioStateChange(bool playing);
@@ -244,6 +282,11 @@ interface UntrustedPageHandler {
   // TODO (b/358169090): Create a cpp typemap to use the ui::AXNodeID type
   // instead of int32
   ScrollToTargetNode(ax.mojom.AXTreeID target_tree_id, int32 target_node_id);
+
+  // Informs the browser that the user clicked the close button. This is
+  // only used by the immersive reading mode, because the Side Panel
+  // has its own close button that handles closing itself.
+  CloseUI();
 };
 
 // Untrusted WebUI-side handler for requests from the browser.
@@ -254,6 +297,10 @@ interface UntrustedPage {
   AccessibilityEventReceived(ax.mojom.AXTreeID tree_id,
                              array<ax.mojom.AXTreeUpdate> updates,
                              array<ax.mojom.AXEvent> events);
+
+  // Send ReadAnything Presentation state to the WebUI. We can then adjust the
+  // UI based on received presentation state.
+  OnGetPresentationState(ReadAnythingPresentationState presentation_state);
 
   // Send a voice pack status change notification to the WebUI. The WebUI can
   // then show informational or error messages depending on the status.
@@ -310,7 +357,8 @@ interface UntrustedPage {
                            double speech_rate,
                            mojo_base.mojom.DictionaryValue voices,
                            mojo_base.mojom.ListValue languages_enabled_in_pref,
-                           read_anything.mojom.HighlightGranularity granularity);
+                           read_anything.mojom.HighlightGranularity granularity,
+                           read_anything.mojom.LineFocus line_focus);
 
   // Notifies the WebUI that the ScreenAI service is ready on this device.
   ScreenAIServiceReady();

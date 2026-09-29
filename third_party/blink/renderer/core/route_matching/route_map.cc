@@ -23,15 +23,15 @@ namespace {
 
 }  // anonymous namespace
 
-RouteMap::RouteMap(Document& document) : document_(document) {}
-RouteMap::RouteMap() {
+RouteMap::RouteMap(Document& document) : Supplement<Document>(document) {}
+RouteMap::RouteMap() : Supplement<Document>(nullptr) {
   CHECK_IS_TEST();
 }
 
 void RouteMap::Trace(Visitor* v) const {
-  v->Trace(document_);
   v->Trace(routes_);
   v->Trace(anonymous_routes_);
+  Supplement<Document>::Trace(v);
   ScriptWrappable::Trace(v);
 }
 
@@ -45,25 +45,27 @@ Route* RouteMap::get(const String& route_name) {
 
 // BEGIN Supplement support:
 
+const char RouteMap::kSupplementName[] = "RouteMap";
+
 const RouteMap* RouteMap::Get(const Document* document) {
   if (!document) {
     return nullptr;
   }
-  return document->GetRouteMap();
+  return Supplement<Document>::From<RouteMap>(*document);
 }
 
 RouteMap* RouteMap::Get(Document* document) {
   if (!document) {
     return nullptr;
   }
-  return document->GetRouteMap();
+  return Supplement<Document>::From<RouteMap>(*document);
 }
 
 RouteMap& RouteMap::Ensure(Document& document) {
   RouteMap* route_map = Get(&document);
   if (!route_map) {
     route_map = MakeGarbageCollected<RouteMap>(document);
-    document.SetRouteMap(route_map);
+    Supplement<Document>::ProvideTo<RouteMap>(document, route_map);
   }
   return *route_map;
 }
@@ -103,6 +105,16 @@ RouteMap::ParseResult RouteMap::ParseAndApplyRoutes(
       if (!input_route->GetString("name", &name)) {
         return ParseResult(ParseResult::kTypeError,
                            "Invalid data type or missing name entry for route");
+      }
+
+      if (name.StartsWith("--")) {
+        // Don't clash with CSS @route rules.
+        //
+        // TODO(crbug.com/436805487): Add a test for this (if support for
+        // <script type="routemap"> (this code) actually won't end up getting
+        // removed).
+        return ParseResult(ParseResult::kTypeError,
+                           "Route names cannot start with '--'");
       }
 
       auto it = routes_.find(name);
@@ -147,6 +159,20 @@ RouteMap::ParseResult RouteMap::ParseAndApplyRoutes(
   }
 
   return ParseResult(ParseResult::kSuccess);
+}
+
+void RouteMap::AddRouteFromRule(const String& dashed_ident,
+                                URLPattern* url_pattern) {
+  DCHECK(dashed_ident.StartsWith("--"));
+
+  if (routes_.find(dashed_ident) != routes_.end()) {
+    // TODO(crbug.com/436805487): Handle route modificiation and removal.
+    return;
+  }
+  Route* route = MakeGarbageCollected<Route>(GetDocument());
+  route->AddPattern(url_pattern);
+  routes_.insert(dashed_ident, route);
+  route->UpdateMatchStatus(previous_url_, next_url_);
 }
 
 void RouteMap::AddAnonymousRoute(URLPattern* pattern) {

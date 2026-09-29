@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_METRICS_PRIVATE_METRICS_PUMA_SERVICE_H_
 #define COMPONENTS_METRICS_PRIVATE_METRICS_PUMA_SERVICE_H_
 
+#include "base/gtest_prod_util.h"
 #include "components/metrics/metrics_rotation_scheduler.h"
 #include "components/metrics/metrics_service_client.h"
 #include "components/metrics/private_metrics/private_metrics_reporting_service.h"
@@ -41,9 +42,10 @@ class PumaService {
   // LINT.IfChange(PumaReportStoringOutcome)
   enum class ReportStoringOutcome {
     kStored = 0,
-    kNotStoredNoReport = 1,
-    kNotStoredSerializationFailed = 1,
-    kMaxValue = kNotStoredSerializationFailed,
+    // kNotStoredNoReportOrSerializationFailed = 1,
+    kNotStoredSerializationFailed = 2,
+    kNotStoredNoReport = 3,
+    kMaxValue = kNotStoredNoReport,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/private_metrics/enums.xml:PumaReportStoringOutcome)
 

@@ -31,7 +31,8 @@ import androidx.preference.PreferenceScreen;
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
@@ -202,6 +203,10 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                 return "file_system_write_guard_permission_list";
             case ContentSettingsType.LOCAL_NETWORK_ACCESS:
                 return "local_network_access";
+            case ContentSettingsType.LOCAL_NETWORK:
+                return "local_network";
+            case ContentSettingsType.LOOPBACK_NETWORK:
+                return "loopback_network";
             case ContentSettingsType.WINDOW_MANAGEMENT:
                 return "window_management_permission_list";
             default:
@@ -271,7 +276,8 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     // A boolean to configure whether the requested notifications permission should be shown.
     private boolean mHasRequestedNotificationsPermission;
 
-    private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
+    private final SettableObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
 
     private class SingleWebsitePermissionsPopulator
             implements WebsitePermissionsFetcher.WebsitePermissionsCallback {

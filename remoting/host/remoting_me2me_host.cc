@@ -118,6 +118,7 @@
 #include "remoting/protocol/session_config.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/transport_context.h"
+#include "remoting/signaling/corp_messaging_constants.h"
 #include "remoting/signaling/corp_signal_strategy.h"
 #include "remoting/signaling/ftl_host_device_id_provider.h"
 #include "remoting/signaling/ftl_signal_strategy.h"
@@ -870,6 +871,14 @@ bool HostProcess::CheckAccessPermission(std::string_view user_email_view) {
     return false;
   }
 
+  auto [username, domain] = *email_parts;
+  if (domain == kCorpSignalingDomain) {
+    // Corp signaling does not rely on enterprise policies for authz and does
+    // not use real email addresses anyway so skip the policy checks.
+    LOG(INFO) << "Corp signaling user detected: " << username;
+    return true;
+  }
+
   if (!host_owner_emails_.contains(canonical_email)) {
     LOG(ERROR) << canonical_email << " does not have access to this machine.";
     return false;
@@ -880,7 +889,6 @@ bool HostProcess::CheckAccessPermission(std::string_view user_email_view) {
     return true;
   }
 
-  auto [_, domain] = *email_parts;
   bool allowed_by_policy = IsInAllowlist(domain, client_domain_list_);
   LOG_IF(ERROR, !allowed_by_policy) << canonical_email << " has a domain which "
                                     << "is not in the client domain allowlist.";
@@ -1758,16 +1766,11 @@ void HostProcess::InitializeSignaling() {
 #if BUILDFLAG(IS_LINUX)
   // TODO: joedow - Remove Linux scope after this codepath has been stabilized.
   const base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
-  if (is_corp_host_ && cmd_line->HasSwitch(kEnableCorpMessaging)) {
-    // TODO: joedow - Add a config value for username rather than extracting
-    // username from the email address.
-    std::string username(
-        base::SplitStringOnce(*host_owner_emails_.begin(), '@')->first);
-    // TODO: joedow - For now, just create a Corp messaging channel and let it
-    // run. We'll hook it into JingleSession in a later CL.
+  if (cmd_line->HasSwitch(kEnableCorpMessaging)) {
     corp_signal_strategy_ = std::make_unique<CorpSignalStrategy>(
         context_->url_loader_factory(),
-        context_->create_client_cert_store_callback(), username, key_pair_);
+        context_->create_client_cert_store_callback(), GetUsername(),
+        key_pair_);
     corp_signaling_connector_ =
         std::make_unique<CorpSignalingConnector>(corp_signal_strategy_.get());
     corp_signaling_connector_->Start();
@@ -1923,6 +1926,9 @@ void HostProcess::StartHost() {
     protocol_config->DisableAudioChannel();
   }
   protocol_config->set_webrtc_supported(true);
+  if (corp_session_manager) {
+    corp_session_manager->set_protocol_config(protocol_config->Clone());
+  }
   session_manager->set_protocol_config(std::move(protocol_config));
 
   if (is_corp_host_) {

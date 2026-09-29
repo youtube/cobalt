@@ -15,13 +15,21 @@ namespace contextual_tasks {
 
 BASE_DECLARE_FEATURE(kContextualTasks);
 BASE_DECLARE_FEATURE(kContextualTasksContext);
+BASE_DECLARE_FEATURE(kContextualTasksContextLibrary);
 BASE_DECLARE_FEATURE(kContextualTasksContextLogging);
+BASE_DECLARE_FEATURE(kContextualTasksShowOnboardingTooltip);
 
 // Enables context menu settings for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksContextMenu);
 
 // Enables context menu settings for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksSuggestionsEnabled);
+
+// Force the application locale to US and the gl query parameter to us.
+BASE_DECLARE_FEATURE(kContextualTasksForceCountryCodeUS);
+
+// Force the context id migration to be enabled.
+extern const base::FeatureParam<bool> kForceContextIdMigration;
 
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
@@ -54,6 +62,10 @@ extern const base::FeatureParam<EntryPointOption, true> kShowEntryPoint;
 // the side panel only affects the current tab.
 extern const base::FeatureParam<bool> kTaskScopedSidePanel;
 
+// Whether to open side panel when an external link is clicked on the contextual
+// task page.
+extern const base::FeatureParam<bool> kOpenSidePanelOnLinkClicked;
+
 // Whether the context menu is enabled for Nextbox.
 extern bool GetIsContextualTasksNextboxContextMenuEnabled();
 
@@ -74,6 +86,19 @@ extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileCount;
 // The user agent suffix to use for requests from the contextual tasks UI.
 extern const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix;
 
+// The maximum number of times the onboarding tooltip can be shown to the user
+// before it no longer shows up.
+extern const base::FeatureParam<std::string>
+    kContextualTasksOnboardingTooltipHelpUrl;
+
+// The maximum number of times the onboarding tooltip can be shown to the user
+// in a single session before it no longer shows up.
+extern int GetContextualTasksShowOnboardingTooltipSessionImpressionCap();
+
+// The maximum number of times the onboarding tooltip can be dismissed by the
+// user before it no longer shows up.
+extern int GetContextualTasksOnboardingTooltipDismissedCap();
+
 // Returns if voice search is allowed in expanded composebox.
 extern bool GetIsExpandedComposeboxVoiceSearchEnabled();
 
@@ -82,6 +107,10 @@ extern bool GetIsSteadyComposeboxVoiceSearchEnabled();
 
 // Returns the base URL for the AI page.
 extern std::string GetContextualTasksAiPageUrl();
+
+// Returns the host that all URLs loaded in the embedded page in the Contextual
+// Tasks WebUi should be routed to.
+extern std::string GetForcedEmbeddedPageHost();
 
 // Returns the domains for the sign in page.
 extern std::vector<std::string> GetContextualTasksSignInDomains();
@@ -98,17 +127,27 @@ extern bool GetEnableLensInContextualTasks();
 // panel UI unless the gsc=2 param is set.
 extern bool ShouldForceGscInTabMode();
 
+// Returns whether the country code should be forced to US.
+extern bool ShouldForceCountryCodeUS();
+
+// Returns whether the context id migration should be forced.
+extern bool ShouldForceContextIdMigration();
+
 // Returns the user agent suffix to use for requests.
 extern std::string GetContextualTasksUserAgentSuffix();
 
 // Whether the contextual tasks context quality should be logged.
 extern bool ShouldLogContextualTasksContextQuality();
 
+// Returns the help URL for the onboarding tooltip.
+extern std::string GetContextualTasksOnboardingTooltipHelpUrl();
+
 namespace flag_descriptions {
 
 extern const char kContextualTasksName[];
 extern const char kContextualTasksDescription[];
-
+extern const char kContextualTasksContextLibraryName[];
+extern const char kContextualTasksContextLibraryDescription[];
 extern const char kContextualTasksContextName[];
 extern const char kContextualTasksContextDescription[];
 extern const char kContextualTasksSuggestionsEnabledName[];

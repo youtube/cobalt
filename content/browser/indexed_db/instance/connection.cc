@@ -25,14 +25,12 @@
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "base/unguessable_token.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_id.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/callback_helpers.h"
-#include "content/browser/indexed_db/instance/cursor.h"
 #include "content/browser/indexed_db/instance/database_callbacks.h"
 #include "content/browser/indexed_db/instance/lock_request_data.h"
 #include "content/browser/indexed_db/instance/transaction.h"
@@ -183,7 +181,7 @@ void Connection::DisallowInactiveClient(
     return;
   }
 
-  size_t reason_index = base::to_underlying(reason);
+  size_t reason_index = std::to_underlying(reason);
 
   if (client_keep_active_remotes_[reason_index].is_bound()) {
     // Since the keep_active remote is found in client_keep_active_remotes_,
@@ -223,8 +221,7 @@ void Connection::RemoveTransaction(int64_t id) {
   // alive.
   for (const auto& [_, transaction] : transactions_) {
     if (transaction->state() == Transaction::State::STARTED &&
-        transaction->IsTransactionBlockingOtherClients(
-            /*consider_priority=*/true)) {
+        transaction->IsTransactionBlockingOtherClients()) {
       can_go_inactive = false;
       break;
     }
@@ -372,9 +369,7 @@ void Connection::Get(int64_t transaction_id,
       ->ScheduleTask(
           "GetRecord",
           BindWeakOperation(&Database::GetOperation, database_, object_store_id,
-                            index_id, std::move(key_range),
-                            key_only ? indexed_db::CursorType::kKeyOnly
-                                     : indexed_db::CursorType::kKeyAndValue,
+                            index_id, std::move(key_range), key_only,
                             std::move(aborting_callback)),
           Transaction::ObjectStoreAndIndexMustExist(object_store_id,
                                                     IndexIsOptional(index_id)));
@@ -449,14 +444,21 @@ void Connection::OpenCursor(
     return;
   }
 
+  if (task_type == blink::mojom::IDBTaskType::Preemptive &&
+      (index_id != IndexedDBIndexMetadata::kInvalidId || key_only)) {
+    receiver_->ReportBadMessage(
+        "OpenCursor with |Preemptive| task type can only be called when "
+        "iterating over object store values (to populate an index).");
+    return;
+  }
+
   std::unique_ptr<Database::OpenCursorOperationParams> params(
       std::make_unique<Database::OpenCursorOperationParams>());
   params->object_store_id = object_store_id;
   params->index_id = index_id;
   params->key_range = std::move(key_range);
   params->direction = direction;
-  params->cursor_type = key_only ? indexed_db::CursorType::kKeyOnly
-                                 : indexed_db::CursorType::kKeyAndValue;
+  params->key_only = key_only;
   params->task_type = task_type;
   params->callback = std::move(aborting_callback);
   (*transaction)
@@ -820,35 +822,6 @@ Status Connection::AbortAllTransactions(const DatabaseError& error) {
     }
   }
   return Status::OK();
-}
-
-// static
-bool Connection::HasHigherPriorityThan(const PartitionedLockHolder* this_one,
-                                       const PartitionedLockHolder& other) {
-  if (!base::FeatureList::IsEnabled(
-          features::kIdbPrioritizeForegroundClients)) {
-    return false;
-  }
-
-  auto* this_lock_request_data = static_cast<LockRequestData*>(
-      this_one->GetUserData(LockRequestData::kKey));
-  if (!this_lock_request_data) {
-    return false;
-  }
-
-  auto* other_lock_request_data =
-      static_cast<LockRequestData*>(other.GetUserData(LockRequestData::kKey));
-  if (!other_lock_request_data) {
-    return false;
-  }
-
-  if (this_lock_request_data->client_token ==
-      other_lock_request_data->client_token) {
-    return false;
-  }
-
-  return this_lock_request_data->scheduling_priority <
-         other_lock_request_data->scheduling_priority;
 }
 
 bool Connection::IsHoldingLocks(

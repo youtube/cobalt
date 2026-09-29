@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -559,6 +559,17 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicBrowserSetOnboardingCompleted: {
+    backgroundAllowed: true,
+  },
+  glicBrowserSubscribeToTabData: {
+    request: {
+      tabId: string,
+      observationId: number,
+      cancel: boolean,
+    },
+    backgroundAllowed: true,
+  },
 }>;
 
 // Types of requests to the GlicWebClient.
@@ -696,12 +707,6 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
-  glicWebClientNotifyTabDataChanged: {
-    request: {
-      tabData: TabDataPrivate,
-    },
-    backgroundAllowed: true,
-  },
   glicWebClientPageMetadataChanged: {
     request: {
       tabId: string,
@@ -758,6 +763,20 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     response: {
       response: SelectAutofillSuggestionsDialogResponsePrivate,
+    },
+    backgroundAllowed: true,
+  },
+  glicWebClientOnboardingCompletedChanged: {
+    request: {
+      completed: boolean,
+    },
+    backgroundAllowed: true,
+  },
+  glicWebClientTabDataChanged: {
+    request: {
+      // If not present, the tab no longer exists and no more updates will be
+      // received.
+      tabData?: TabDataPrivate, observationId: number,
     },
     backgroundAllowed: true,
   },
@@ -855,6 +874,8 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         CreateActorTab: 77,
         OpenPasswordManagerSettingsPage: 78,
         LoadAndExtractContent: 79,
+        SetOnboardingCompleted: 80,
+        SubscribeToTabData: 81,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();
@@ -940,6 +961,7 @@ export type WebClientInitialStatePrivate =
     ReplaceProperties<WebClientInitialState, {
       panelState: PanelState,
       chromeVersion: ChromeVersion,
+      platform: Platform,
       focusedTabData: FocusedTabDataPrivate,
       loggingEnabled: boolean,
       enableZeroStateSuggestions: boolean,

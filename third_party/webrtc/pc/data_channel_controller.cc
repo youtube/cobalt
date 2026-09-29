@@ -91,12 +91,13 @@ RTCError DataChannelController::SendData(StreamId sid,
   return result;
 }
 
-void DataChannelController::AddSctpDataStream(StreamId sid,
-                                              PriorityValue priority) {
+RTCError DataChannelController::AddSctpDataStream(StreamId sid,
+                                                  PriorityValue priority) {
   RTC_DCHECK_RUN_ON(network_thread());
   if (data_channel_transport_) {
-    data_channel_transport_->OpenChannel(sid.stream_id_int(), priority);
+    return data_channel_transport_->OpenChannel(sid.stream_id_int(), priority);
   }
+  return RTCError::OK();
 }
 
 void DataChannelController::RemoveSctpDataStream(StreamId sid) {
@@ -392,13 +393,16 @@ DataChannelController::CreateDataChannel(absl::string_view label,
       weak_factory_.GetWeakPtr(), label, data_channel_transport_ != nullptr,
       config, signaling_thread(), network_thread());
   RTC_DCHECK(channel);
-  sctp_data_channels_n_.push_back(channel);
 
   // If we have an id already, notify the transport.
-  if (sid.has_value())
-    AddSctpDataStream(*sid,
-                      config.priority.value_or(PriorityValue(Priority::kLow)));
-
+  if (sid.has_value()) {
+    RTCError error = AddSctpDataStream(
+        *sid, config.priority.value_or(PriorityValue(Priority::kLow)));
+    if (!error.ok()) {
+      return error;
+    }
+  }
+  sctp_data_channels_n_.push_back(channel);
   return channel;
 }
 
@@ -409,8 +413,7 @@ DataChannelController::InternalCreateDataChannelWithProxy(
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!pc_->IsClosed());
   if (!config.IsValid()) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
-                         "Invalid DataChannelInit");
+    return LOG_ERROR(RTCError::InvalidParameter() << "Invalid DataChannelInit");
   }
 
   bool ready_to_send = false;

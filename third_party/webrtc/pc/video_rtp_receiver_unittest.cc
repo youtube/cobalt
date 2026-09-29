@@ -81,7 +81,7 @@ class VideoRtpReceiverTest : public testing::Test {
         channel_(VideoOptions()),
         receiver_(make_ref_counted<VideoRtpReceiver>(
             worker_thread_.get(),
-            std::string("receiver"),
+            "receiver",
             std::vector<std::string>({"stream"}))) {
     worker_thread_->Start();
     SetMediaChannel(&channel_);

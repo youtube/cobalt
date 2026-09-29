@@ -29,6 +29,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static void rand_nonzero(uint8_t *out, size_t len) {
   RAND_bytes(out, len);
 
@@ -112,11 +114,12 @@ out:
   return ret;
 }
 
-int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *out, size_t *out_len,
-                                      size_t max_out, const uint8_t *from,
-                                      size_t from_len, const uint8_t *param,
-                                      size_t param_len, const EVP_MD *md,
-                                      const EVP_MD *mgf1md) {
+int bssl::RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *out, size_t *out_len,
+                                            size_t max_out, const uint8_t *from,
+                                            size_t from_len,
+                                            const uint8_t *param,
+                                            size_t param_len, const EVP_MD *md,
+                                            const EVP_MD *mgf1md) {
   uint8_t *db = nullptr;
 
   {
@@ -354,12 +357,12 @@ int RSA_encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
     return 0;
   }
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return 0;
   }
 
-  bssl::BN_CTXScope scope(ctx.get());
+  BN_CTXScope scope(ctx.get());
   BIGNUM *f = BN_CTX_get(ctx.get());
   BIGNUM *result = BN_CTX_get(ctx.get());
   uint8_t *buf = reinterpret_cast<uint8_t *>(OPENSSL_malloc(rsa_size));

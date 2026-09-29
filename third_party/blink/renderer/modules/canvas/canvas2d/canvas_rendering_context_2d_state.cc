@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/paint/filter_effect_builder.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/filter_operations.h"
+#include "third_party/blink/renderer/core/style/shadow_data.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_filter.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d.h"
@@ -647,11 +648,15 @@ sk_sp<cc::DrawLooper>& CanvasRenderingContext2DState::EmptyDrawLooper() const {
   return empty_draw_looper_;
 }
 
+float CanvasRenderingContext2DState::ShadowBlurAsSigma() const {
+  return ShadowData::BlurRadiusToStdDev(ClampTo<float>(shadow_blur_));
+}
+
 sk_sp<cc::DrawLooper>& CanvasRenderingContext2DState::ShadowOnlyDrawLooper()
     const {
   if (!shadow_only_draw_looper_) {
     DrawLooperBuilder draw_looper_builder;
-    draw_looper_builder.AddShadow(shadow_offset_, ClampTo<float>(shadow_blur_),
+    draw_looper_builder.AddShadow(shadow_offset_, ShadowBlurAsSigma(),
                                   shadow_color_,
                                   DrawLooperBuilder::kShadowIgnoresTransforms,
                                   DrawLooperBuilder::kShadowRespectsAlpha);
@@ -664,7 +669,7 @@ sk_sp<cc::DrawLooper>&
 CanvasRenderingContext2DState::ShadowAndForegroundDrawLooper() const {
   if (!shadow_and_foreground_draw_looper_) {
     DrawLooperBuilder draw_looper_builder;
-    draw_looper_builder.AddShadow(shadow_offset_, ClampTo<float>(shadow_blur_),
+    draw_looper_builder.AddShadow(shadow_offset_, ShadowBlurAsSigma(),
                                   shadow_color_,
                                   DrawLooperBuilder::kShadowIgnoresTransforms,
                                   DrawLooperBuilder::kShadowRespectsAlpha);
@@ -678,7 +683,7 @@ sk_sp<PaintFilter>& CanvasRenderingContext2DState::ShadowOnlyImageFilter()
     const {
   using ShadowMode = DropShadowPaintFilter::ShadowMode;
   if (!shadow_only_image_filter_) {
-    const auto sigma = BlurRadiusToStdDev(shadow_blur_);
+    const auto sigma = ShadowBlurAsSigma();
     shadow_only_image_filter_ = sk_make_sp<DropShadowPaintFilter>(
         shadow_offset_.x(), shadow_offset_.y(), sigma, sigma,
         shadow_color_.toSkColor4f(), ShadowMode::kDrawShadowOnly, nullptr);
@@ -690,7 +695,7 @@ sk_sp<PaintFilter>&
 CanvasRenderingContext2DState::ShadowAndForegroundImageFilter() const {
   using ShadowMode = DropShadowPaintFilter::ShadowMode;
   if (!shadow_and_foreground_image_filter_) {
-    const auto sigma = BlurRadiusToStdDev(shadow_blur_);
+    const auto sigma = ShadowBlurAsSigma();
     // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
     shadow_and_foreground_image_filter_ = sk_make_sp<DropShadowPaintFilter>(
         shadow_offset_.x(), shadow_offset_.y(), sigma, sigma,

@@ -2,7 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//components/autofill/ios/form_util/resources/create_fill_namespace.js';
+// Add type extensions needed for other scripts defining the fill namespace.
+declare global {
+  // Defines an additional property, `angular`, on the Window object.
+  // The code below assumes that this property exists within the object.
+  interface Window {
+    angular: any;
+  }
+
+  // Extends the Document object to add the ability to access its
+  // properties via the [] notation and defines a property that is
+  // assumed to exist within the object.
+  interface Document {
+    [key: symbol]: number;
+    __gCrElementMap: Map<any, any>;
+    __gCrWasEditedByUserMap: WeakMap<any, any>;
+    __gCrWebURLNormalizer: HTMLAnchorElement;
+
+    /**
+     * Registry that tracks the forms that were submitted during the frame's
+     * lifetime. Elements that are garbage collected will be removed from the
+     * registry so this can't memory leak. In the worst case the registry will
+     * get as big as the number of submitted forms that aren't yet deleted and
+     * we don't expect a lot of those.
+     */
+    __gCrFormSubmissionRegistry: WeakSet<any>;
+  }
+}
 
 export declare type FormControlElement =
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;

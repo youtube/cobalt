@@ -293,6 +293,29 @@ static bool DiffAffectsScrollAnimations(const ComputedStyle& old_style,
   return false;
 }
 
+static bool DiffNeedsFullLayoutForAnimationTriggers(
+    const ComputedStyle& old_style,
+    const ComputedStyle& new_style) {
+  const CSSAnimationData* old_animations = old_style.Animations();
+  const CSSAnimationData* new_animations = new_style.Animations();
+  if (old_animations && new_animations) {
+    return (old_animations != new_animations) &&
+           !old_animations->AnimationsMatchForStyleRecalc(*new_animations);
+  } else if (old_animations || new_animations) {
+    // If one of the ComputedStyles didn't have CSSAnimationData and the other
+    // did, the other is only meaningfully different if it declared a named
+    // trigger.
+    const CSSAnimationData* animations =
+        new_animations ? new_animations : old_animations;
+    return std::any_of(animations->TimelineTriggerNameList().begin(),
+                       animations->TimelineTriggerNameList().end(),
+                       [](Member<const ScopedCSSName> trigger_name) {
+                         return trigger_name.Get();
+                       });
+  }
+  return false;
+}
+
 bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
                                             const ComputedStyle* old_style,
                                             const ComputedStyle* new_style) {
@@ -472,13 +495,13 @@ ComputedStyle::ComputeDifferenceIgnoringInheritedFirstLineStyle(
 StyleSelfAlignmentData ResolvedSelfAlignment(
     const StyleSelfAlignmentData& value,
     const StyleSelfAlignmentData& normal_value_behavior,
-    bool has_out_of_flow_position) {
+    bool has_anchor_center_offset) {
   if (value.GetPosition() == ItemPosition::kLegacy ||
       value.GetPosition() == ItemPosition::kNormal ||
       value.GetPosition() == ItemPosition::kAuto) {
     return normal_value_behavior;
   }
-  if (!has_out_of_flow_position &&
+  if (!has_anchor_center_offset &&
       value.GetPosition() == ItemPosition::kAnchorCenter) {
     return {ItemPosition::kCenter, value.Overflow(), value.PositionType()};
   }
@@ -492,12 +515,13 @@ StyleSelfAlignmentData ComputedStyle::ResolvedAlignSelf(
   // of each layout model.
   if (!parent_style || AlignSelf().GetPosition() != ItemPosition::kAuto) {
     return ResolvedSelfAlignment(AlignSelf(), normal_value_behavior,
-                                 HasOutOfFlowPosition());
+                                 AnchorCenterOffset().has_value());
   }
 
   // The 'auto' keyword computes to the parent's align-items computed value.
   return ResolvedSelfAlignment(parent_style->AlignItems(),
-                               normal_value_behavior, HasOutOfFlowPosition());
+                               normal_value_behavior,
+                               AnchorCenterOffset().has_value());
 }
 
 StyleSelfAlignmentData ComputedStyle::ResolvedJustifySelf(
@@ -507,12 +531,13 @@ StyleSelfAlignmentData ComputedStyle::ResolvedJustifySelf(
   // of each layout model.
   if (!parent_style || JustifySelf().GetPosition() != ItemPosition::kAuto) {
     return ResolvedSelfAlignment(JustifySelf(), normal_value_behavior,
-                                 HasOutOfFlowPosition());
+                                 AnchorCenterOffset().has_value());
   }
 
   // The auto keyword computes to the parent's justify-items computed value.
   return ResolvedSelfAlignment(parent_style->JustifyItems(),
-                               normal_value_behavior, HasOutOfFlowPosition());
+                               normal_value_behavior,
+                               AnchorCenterOffset().has_value());
 }
 
 bool ComputedStyle::operator==(const ComputedStyle& o) const {
@@ -1006,6 +1031,10 @@ bool ComputedStyle::DiffNeedsFullLayout(const Document& document,
         row_rule_style_changed_from_none) {
       return true;
     }
+  }
+
+  if (DiffNeedsFullLayoutForAnimationTriggers(*this, other)) {
+    return true;
   }
 
   return false;
@@ -3066,8 +3095,10 @@ bool ComputedStyle::GapRuleColorIsTransparent(
 }
 
 bool ComputedStyle::IsRenderedInTopLayer(const Element& element) const {
-  return (element.IsInTopLayer() && Overlay() == EOverlay::kAuto) ||
-         StyleType() == kPseudoIdBackdrop;
+  return StyleType() == kPseudoIdBackdrop ||
+         (element.IsInTopLayer() &&
+          (!RuntimeEnabledFeatures::OverlayPropertyEnabled() ||
+           Overlay() == EOverlay::kAuto));
 }
 
 bool ComputedStyle::ApplyControlFixedSize(const Node* node) const {

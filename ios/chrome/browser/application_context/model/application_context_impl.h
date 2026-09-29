@@ -81,6 +81,8 @@ class ApplicationContextImpl : public ApplicationContext {
   variations::VariationsService* GetVariationsService() override;
   net::NetLog* GetNetLog() override;
   net_log::NetExportFileWriter* GetNetExportFileWriter() override;
+  network_time::NetworkTimeTracker* GetNetworkTimeTrackerMaybeUninitialized()
+      override;
   network_time::NetworkTimeTracker* GetNetworkTimeTracker() override;
   IOSChromeIOThread* GetIOSChromeIOThread() override;
   gcm::GCMDriver* GetGCMDriver() override;
@@ -113,9 +115,6 @@ class ApplicationContextImpl : public ApplicationContext {
   // Helper method to implement the work required when transitioning between
   // application states.
   void OnAppEnterState(AppState app_state);
-
-  // TODO(crbug.com/414379493): Remove this method.
-  void SetApplicationLocale(const std::string& locale);
 
   // Create the local state.
   void CreateLocalState();

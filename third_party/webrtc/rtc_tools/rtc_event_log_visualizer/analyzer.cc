@@ -73,6 +73,7 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_tools/rtc_event_log_visualizer/analyze_audio.h"
 #include "rtc_tools/rtc_event_log_visualizer/analyzer_common.h"
+#include "rtc_tools/rtc_event_log_visualizer/log_scream_simulation.h"
 #include "rtc_tools/rtc_event_log_visualizer/log_simulation.h"
 #include "rtc_tools/rtc_event_log_visualizer/plot_base.h"
 #include "system_wrappers/include/clock.h"
@@ -613,6 +614,15 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   });
   plots_.RegisterPlot("simulated_goog_cc", [this](Plot* plot) {
     this->CreateGoogCcSimulationGraph(plot);
+  });
+  plots_.RegisterPlot("simulated_scream_bitrates", [this](Plot* plot) {
+    this->CreateScreamSimulationBitrateGraph(plot);
+  });
+  plots_.RegisterPlot("simulated_scream_ref_window", [this](Plot* plot) {
+    this->CreateScreamSimulationRefWindowGraph(plot);
+  });
+  plots_.RegisterPlot("simulated_scream_ratios", [this](Plot* plot) {
+    this->CreateScreamSimulationRatiosGraph(plot);
   });
   plots_.RegisterPlot("outgoing_loss", [this](Plot* plot) {
     this->CreateOutgoingLossRateGraph(plot);
@@ -1544,6 +1554,91 @@ void EventLogAnalyzer::CreateGoogCcSimulationGraph(Plot* plot) const {
                  "Time (s)", kLeftMargin, kRightMargin);
   plot->SetSuggestedYAxis(0, 10, "Bitrate (kbps)", kBottomMargin, kTopMargin);
   plot->SetTitle("Simulated BWE behavior");
+}
+
+void EventLogAnalyzer::CreateScreamSimulationBitrateGraph(Plot* plot) const {
+  TimeSeries target_rate_series("Target rate", LineStyle::kStep);
+  TimeSeries pacing_rate_series("Pacing rate", LineStyle::kStep);
+  TimeSeries send_rate_series("Send rate", LineStyle::kStep);
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    target_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.target_rate.bps() / 1000);
+    pacing_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.pacing_rate.bps() / 1000);
+    send_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                         state.send_rate.bps() / 1000);
+  }
+  plot->AppendTimeSeries(std::move(target_rate_series));
+  plot->AppendTimeSeries(std::move(pacing_rate_series));
+  plot->AppendTimeSeries(std::move(send_rate_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 100, "Kbps", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream rates");
+}
+
+void EventLogAnalyzer::CreateScreamSimulationRefWindowGraph(Plot* plot) const {
+  TimeSeries ref_window_series("RefWindow", LineStyle::kStep);
+  TimeSeries ref_window_i_series("RefWindowI", LineStyle::kStep);
+  TimeSeries max_data_in_flight("Max allowed data in flight", LineStyle::kStep);
+  TimeSeries data_in_flight("Data in flight", LineStyle::kStep);
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    ref_window_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                          state.ref_window.bytes());
+    ref_window_i_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                            state.ref_window_i.bytes());
+    max_data_in_flight.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.max_data_in_flight.bytes());
+    data_in_flight.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                       state.data_in_flight.bytes());
+  }
+  plot->AppendTimeSeries(std::move(ref_window_series));
+  plot->AppendTimeSeries(std::move(ref_window_i_series));
+  plot->AppendTimeSeries(std::move(max_data_in_flight));
+  plot->AppendTimeSeries(std::move(data_in_flight));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 10, "Bytes", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream RefWindow");
+}
+
+void EventLogAnalyzer::CreateScreamSimulationRatiosGraph(Plot* plot) const {
+  TimeSeries queue_delay_dev_norm_series("QueueDelayDevNorm", LineStyle::kStep);
+  TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
+  TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    queue_delay_dev_norm_series.points.emplace_back(
+        config_.GetCallTimeSec(state.time), state.queue_delay_dev_norm);
+    l4s_alpha_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                         state.l4s_alpha);
+    l4s_alpha_v_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.l4s_alpha_v);
+  }
+  plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
+  plot->AppendTimeSeries(std::move(l4s_alpha_series));
+  plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 1, "Ratios", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream Ratios");
 }
 
 void EventLogAnalyzer::CreateOutgoingEcnFeedbackGraph(Plot* plot) const {

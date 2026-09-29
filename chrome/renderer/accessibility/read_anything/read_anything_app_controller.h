@@ -142,10 +142,14 @@ class ReadAnythingAppController
       double speech_rate,
       base::Value::Dict voices,
       base::Value::List languages_enabled_in_pref,
-      read_anything::mojom::HighlightGranularity granularity) override;
+      read_anything::mojom::HighlightGranularity granularity,
+      read_anything::mojom::LineFocus line_focus) override;
   void SetLanguageCode(const std::string& code) override;
   void SetDefaultLanguageCode(const std::string& code) override;
   void ScreenAIServiceReady() override;
+  void OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState presentation_state)
+      override;
   void OnGetVoicePackInfo(
       read_anything::mojom::VoicePackInfoPtr voice_pack_info) override;
   void OnReadingModeHidden(bool tab_active) override;
@@ -196,6 +200,7 @@ class ReadAnythingAppController
   int LineSpacing() const;
   int ColorTheme() const;
   int HighlightGranularity() const;
+  int LineFocus() const;
   bool IsHighlightOn();
   int StandardLineSpacing() const;
   int LooseLineSpacing() const;
@@ -223,6 +228,12 @@ class ReadAnythingAppController
   int EngineErrorStopSource() const;
   int ContentFinishedStopSource() const;
   int UnexpectedUpdateContentStopSource() const;
+  int LineFocusOff() const;
+  int LineFocusOneLineWindow() const;
+  int LineFocusThreeLineWindow() const;
+  int LineFocusFiveLineWindow() const;
+  int LineFocusStaticLine() const;
+  int LineFocusCursorLine() const;
   int MaxLineWidth() const;
   std::string GetStoredVoice() const;
   std::vector<std::string> GetLanguagesEnabledInPref() const;
@@ -235,6 +246,9 @@ class ReadAnythingAppController
   std::string GetTextDirection(ui::AXNodeID ax_node_id) const;
   std::string GetUrl(ui::AXNodeID ax_node_id) const;
   std::string GetAltText(ui::AXNodeID ax_node_id) const;
+  // Will only return a state if IsImmersiveReadAnythingEnabled() is true.
+  // Returns the presentation through the OnGetPresentationState callback.
+  void SendGetPresentationStateRequest() const;
   // The results of these are sent back via UntrustedPage::OnGetVoicePackInfo.
   void SendGetVoicePackInfoRequest(const std::string& language) const;
   void SendInstallVoicePackRequest(const std::string& language) const;
@@ -272,6 +286,7 @@ class ReadAnythingAppController
   void OnLanguagePrefChange(const std::string& lang, bool enabled);
   bool RequiresDistillation();
   void OnHighlightGranularityChanged(int granularity);
+  void OnLineFocusChanged(int line_focus);
   double GetLineSpacingValue(int line_spacing) const;
   double GetLetterSpacingValue(int letter_spacing) const;
   std::vector<std::string> GetSupportedFonts();
@@ -287,6 +302,7 @@ class ReadAnythingAppController
   void UpdateWordsSeen(int words_seen);
   void UpdateWordsHeard(int words_heard);
   void LogEmptyState();
+  void CloseUI();
 
   // The language code that should be used to determine which voices are
   // supported for speech.
@@ -429,6 +445,14 @@ class ReadAnythingAppController
   void IncrementMetricCount(const std::string& metric);
 
   void LogSpeechStop(int source);
+
+  // Methods for logging line focus session info.
+  void StartLineFocusSession();
+  void LogLineFocusSession();
+  void AddLineFocusScrollDistance(int distance);
+  void AddLineFocusMouseDistance(int distance);
+  void IncrementLineFocusKeyboardLines();
+  void IncrementLineFocusSpeechLines();
 
   void OnUrlInformationSet();
 

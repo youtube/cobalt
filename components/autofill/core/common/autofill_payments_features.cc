@@ -167,11 +167,6 @@ BASE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication,
 #endif
 
 
-// When enabled, virtual card downstream enrollment will support multiple
-// requests at a time.
-BASE_FEATURE(kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, the card benefits toggle in settings will show updated text.
 BASE_FEATURE(kAutofillEnableNewCardBenefitsToggleText,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -181,10 +176,6 @@ BASE_FEATURE(kAutofillEnableNewCardBenefitsToggleText,
 BASE_FEATURE(kAutofillEnableNewFopDisplayAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-// When enabled, card and IBAN autofill will be shown in new FOP style.
-BASE_FEATURE(kAutofillEnableNewFopDisplayDesktop,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, offers will be displayed in the Clank keyboard accessory during
 // downstream.

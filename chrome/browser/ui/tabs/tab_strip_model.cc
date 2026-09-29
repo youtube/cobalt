@@ -576,7 +576,7 @@ std::unique_ptr<DetachedTabCollection>
 TabStripModel::DetachSplitTabForInsertion(
     const split_tabs::SplitTabId split_id) {
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
-  CHECK(base::FeatureList::IsEnabled(features::kSideBySide));
+
   CHECK(GetSplitData(split_id));
 
   std::vector<std::pair<tabs::TabInterface*, int>> tabs_in_split =
@@ -687,7 +687,7 @@ tabs::TabModel* TabStripModel::GetTabModelAtIndex(int index) const {
 
 void TabStripModel::OnChange(const TabStripModelChange& change,
                              const TabStripSelectionChange& selection) {
-  ValidateTabStripModel();
+  CompleteModelUpdateTransaction();
   OnActiveTabChanged(selection);
 
   for (auto& observer : observers_) {
@@ -1929,7 +1929,6 @@ void TabStripModel::UpdateTabInSplit(tabs::TabInterface* split_tab,
                                      int update_index,
                                      SplitUpdateType update_type) {
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
-  CHECK(base::FeatureList::IsEnabled(features::kSideBySide));
 
   tabs::TabInterface* update_tab = GetTabAtIndex(update_index);
 
@@ -1998,7 +1997,6 @@ void TabStripModel::RestoreSplit(split_tabs::SplitTabId split_id,
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
   CHECK(std::ranges::is_sorted(indices));
   CHECK_EQ(indices.size(), 2u);
-  CHECK(features::IsRestoringSplitViewEnabled());
 
   // Ideally these are consecutive indices from the restore flow and the pivot
   // index does not matter. However, given there are numerous steps in restore
@@ -2006,6 +2004,8 @@ void TabStripModel::RestoreSplit(split_tabs::SplitTabId split_id,
   // changes.
   AddToSplitImpl(split_id, indices, indices[0], visual_data,
                  SplitTabChange::SplitTabAddReason::kNewSplitTabAdded);
+
+  CompleteModelUpdateTransaction();
 }
 
 tab_groups::TabGroupId TabStripModel::AddToNewGroup(
@@ -2131,6 +2131,8 @@ void TabStripModel::RemoveSplit(split_tabs::SplitTabId split_id) {
 
   RemoveSplitImpl(split_id,
                   SplitTabChange::SplitTabRemoveReason::kSplitTabRemoved);
+
+  CompleteModelUpdateTransaction();
 }
 
 // Returns the ID of the group that is focused. If no group is focused,
@@ -2500,6 +2502,10 @@ bool TabStripModel::IsContextMenuCommandEnabled(
       return true;
     case CommandGlicStopShare:
       return true;
+    case CommandGlicShare:
+      return true;
+    case CommandGlicCreateNewChat:
+      return true;
 #endif
 
     case CommandAddToNewComparisonTable:
@@ -2761,7 +2767,7 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       base::UmaHistogramCounts1000(
           "Tab.ContextMenu.AddToSplit.SelectedTabsCount",
           selection_model().selected_indices().size());
-      CHECK(base::FeatureList::IsEnabled(features::kSideBySide));
+
       std::vector<int> indices = GetIndicesForCommand(context_index);
       // There are three cases for adding to a split.
       // 1. Selecting an inactive tab and making it a split with the active.
@@ -2884,12 +2890,8 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       TabOrganizationService* const service =
           TabOrganizationServiceFactory::GetForProfile(profile_);
       CHECK(service);
-      UMA_HISTOGRAM_BOOLEAN("Tab.Organization.AllEntrypoints.Clicked", true);
-      UMA_HISTOGRAM_BOOLEAN("Tab.Organization.TabContextMenu.Clicked", true);
 
-      service->RestartSessionAndShowUI(
-          browser, TabOrganizationEntryPoint::kTabContextMenu,
-          GetTabAtIndex(context_index));
+      service->RestartSessionAndShowUI(browser, GetTabAtIndex(context_index));
       break;
     }
 
@@ -2946,6 +2948,14 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       } else {
         CHECK(delegate_->GlicUnpinTabs(tab_handles));
       }
+      break;
+    }
+    case CommandGlicShare:
+      // Do nothing. The submenu's delegate will invoke the correct subcommand
+      // later.
+      break;
+    case CommandGlicCreateNewChat: {
+      // TODO: Implement command execution.
       break;
     }
 #endif
@@ -3637,6 +3647,7 @@ void TabStripModel::CloseTabs(base::span<content::WebContents* const> items,
   if (!ref) {
     return;
   }
+
   if (closing_all) {
     // CloseAllTabsStopped is sent with reason kCloseAllCompleted if
     // closed_all; otherwise kCloseAllCanceled is sent.
@@ -4504,16 +4515,17 @@ void TabStripModel::MoveTabToIndexImpl(
 
   TabStripSelectionChange selection(GetActiveTab(),
                                     selection_model().ToListSelectionModel());
+  // TODO(crbug.com/469501104): Make MoveTabRecursive support splits, then
+  // replace ReverseSplit with it.
   if (move_within_split) {
-    int index_of_first_tab_in_split = initial_split_tabs[0].second;
-    CHECK(final_index >= index_of_first_tab_in_split);
-    contents_data_->GetSplitTabCollection(tab->GetSplit().value())
-        ->MoveTab(tab, final_index - index_of_first_tab_in_split);
+    contents_data_->ReverseSplit(tab->GetSplit().value());
   } else {
     contents_data_->MoveTabRecursive(initial_index, final_index, group, pin);
   }
 
   UpdateSelectionModelForMove(initial_index, final_index, select_after_move);
+
+  CompleteModelUpdateTransaction();
 
   selection.new_model = selection_model().ToListSelectionModel();
   selection.new_tab = GetActiveTab();
@@ -4541,7 +4553,6 @@ void TabStripModel::MoveTabToIndexImpl(
       TabGroupStateChanged(final_index, tab, initial_group, tab->GetGroup());
     }
   }
-
 }
 
 void TabStripModel::MoveTabsToIndexImpl(
@@ -4607,7 +4618,7 @@ void TabStripModel::TabGroupStateChanged(
       NotifyTabGroupClosed(initial_group.value());
       group_model_->RemoveTabGroup(initial_group.value(),
                                    base::PassKey<TabStripModel>());
-      ValidateTabStripModel();
+      CompleteModelUpdateTransaction();
       contents_data_->CloseDetachedTabGroup(initial_group.value());
     }
   }
@@ -4649,7 +4660,7 @@ void TabStripModel::AddTabToGroupModel(const tab_groups::TabGroupId& group) {
   tab_group->AddTab();
 }
 
-void TabStripModel::ValidateTabStripModel() {
+void TabStripModel::CompleteModelUpdateTransaction() {
   contents_data_->ValidateData();
 
   // Send the notifications for the root collection.
@@ -4944,7 +4955,7 @@ void TabStripModel::MoveTabsWithNotifications(
 
   UpdateSelectionModelForMoves(tab_indices, destination_index);
 
-  ValidateTabStripModel();
+  CompleteModelUpdateTransaction();
 
   for (const auto& notification : notifications) {
     const int final_index = GetIndexOfTab(notification.tab);

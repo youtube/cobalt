@@ -66,6 +66,7 @@ if (!build_with_chromium) {
         "modules/video_capture:video_capture_internal_impl",
         "modules/video_coding:video_codec_perf_tests",
         "net/dcsctp:dcsctp_unittests",
+        "p2p:dtls_ice_integration_bench",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "pc:slow_peer_connection_unittests",

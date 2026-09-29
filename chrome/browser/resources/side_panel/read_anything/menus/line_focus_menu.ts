@@ -5,14 +5,16 @@
 import './simple_action_menu.js';
 
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {SettingsPrefs} from '../content/read_anything_types.js';
-import {LineFocusType} from '../content/read_anything_types.js';
-import type {LineFocus} from '../content/read_anything_types.js';
+import type {SettingsPrefs, ShowAtConfigPrefs} from '../content/read_anything_types.js';
+import {ReadAnythingSettingsChange} from '../shared/metrics_browser_proxy.js';
+import {ReadAnythingLogger} from '../shared/read_anything_logger.js';
 
 import {getHtml} from './line_focus_menu.html.js';
 import type {MenuStateItem} from './menu_util.js';
+import {getIndexOfSetting} from './menu_util.js';
 import type {SimpleActionMenuElement} from './simple_action_menu.js';
 
 export interface LineFocusMenuElement {
@@ -44,44 +46,55 @@ export class LineFocusMenuElement extends LineFocusMenuElementBase {
     speechRate: 0,
     font: '',
     highlightGranularity: 0,
+    lineFocus: 0,
   };
 
-  // TODO(crbug.com/467778823): Internationalize these strings once finalized.
-  protected options_: Array<MenuStateItem<LineFocus>> = [
+  protected options_: Array<MenuStateItem<number>> = [
     {
-      title: 'Off',
-      data: {type: LineFocusType.NONE, lines: 0},
+      title: loadTimeData.getString('lineFocusOffTitle'),
+      data: chrome.readingMode.lineFocusOff,
     },
     {
-      title: 'Highlight 1 line',
-      data: {type: LineFocusType.WINDOW, lines: 1},
+      title: loadTimeData.getString('lineFocusOneLineTitle'),
+      data: chrome.readingMode.lineFocusOneLineWindow,
+      header: loadTimeData.getString('lineFocusWindowHeading'),
     },
     {
-      title: 'Highlight 3 lines',
-      data: {type: LineFocusType.WINDOW, lines: 3},
+      title: loadTimeData.getString('lineFocusThreeLineTitle'),
+      data: chrome.readingMode.lineFocusThreeLineWindow,
     },
     {
-      title: 'Highlight 5 lines',
-      data: {type: LineFocusType.WINDOW, lines: 5},
+      title: loadTimeData.getString('lineFocusFiveLineTitle'),
+      data: chrome.readingMode.lineFocusFiveLineWindow,
     },
     {
-      title: 'Line',
-      data: {type: LineFocusType.LINE, lines: 1},
+      title: loadTimeData.getString('lineFocusStaticLineTitle'),
+      data: chrome.readingMode.lineFocusStaticLine,
+      header: loadTimeData.getString('lineFocusLineHeading'),
+    },
+    {
+      title: loadTimeData.getString('lineFocusCursorLineTitle'),
+      data: chrome.readingMode.lineFocusCursorLine,
     },
   ];
+  private logger_: ReadAnythingLogger = ReadAnythingLogger.getInstance();
 
-  open(anchor: HTMLElement) {
-    this.$.menu.open(anchor);
+  open(anchor: HTMLElement, showAtConfig?: ShowAtConfigPrefs) {
+    this.$.menu.open(anchor, showAtConfig);
+  }
+
+  close() {
+    this.$.menu.close();
   }
 
   protected restoredLineFocusIndex_(): number {
-    // TODO(crbug.com/447427066): Retrieve this value from prefs.
-    return 0;
+    return getIndexOfSetting(this.options_, this.settingsPrefs['lineFocus']);
   }
 
-  protected onLineFocusChange_(_event: CustomEvent<{data: number}>) {
-    // TODO(crbug.com/447427066): Implement this to log the change and store
-    // it in prefs.
+  protected onLineFocusChange_(event: CustomEvent<{data: number}>) {
+    chrome.readingMode.onLineFocusChanged(event.detail.data);
+    this.logger_.logTextSettingsChange(
+        ReadAnythingSettingsChange.LINE_FOCUS_CHANGE);
   }
 }
 

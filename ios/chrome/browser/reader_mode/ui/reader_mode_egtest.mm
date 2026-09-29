@@ -8,6 +8,7 @@
 #import "components/dom_distiller/core/dom_distiller_features.h"
 #import "components/dom_distiller/core/mojom/distilled_page_prefs.mojom.h"
 #import "components/dom_distiller/core/pref_names.h"
+#import "components/feature_engagement/public/event_constants.h"
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
 #import "components/translate/core/browser/translate_pref_names.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
@@ -16,7 +17,7 @@
 #import "ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_constants.h"
 #import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_constants.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
+#import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/test/reader_mode_app_interface.h"
@@ -151,6 +152,9 @@ id<GREYMatcher> ContextualPanelEntrypointImageViewMatcher() {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
+
+  config.iph_feature_enabled =
+      feature_engagement::kIPHiOSReaderModeLargeOmniboxEntrypointFeature.name;
 
   if ([self isRunningTest:@selector(testReadabilityEnabled)]) {
     config.features_enabled_and_params.push_back(

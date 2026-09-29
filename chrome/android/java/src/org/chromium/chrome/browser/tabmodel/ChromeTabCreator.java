@@ -25,8 +25,6 @@ import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingDelegateFact
 import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTask;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -53,7 +51,6 @@ import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
-import java.util.Collections;
 import java.util.function.Supplier;
 
 /** This class creates various kinds of new tabs and adds them to the right {@link TabModel}. */
@@ -72,7 +69,6 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
     protected final AsyncTabParamsManager mAsyncTabParamsManager;
     private final Supplier<TabModelSelector> mTabModelSelectorSupplier;
     private final Supplier<CompositorViewHolder> mCompositorViewHolderSupplier;
-    private final @Nullable MultiInstanceManager mMultiInstanceManager;
 
     private TabModel mTabModel;
     private TabModelOrderController mOrderController;
@@ -85,8 +81,7 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
             boolean incognito,
             AsyncTabParamsManager asyncTabParamsManager,
             Supplier<TabModelSelector> tabModelSelectorSupplier,
-            Supplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @Nullable MultiInstanceManager multiInstanceManager) {
+            Supplier<CompositorViewHolder> compositorViewHolderSupplier) {
         mActivity = activity;
         mNativeWindow = nativeWindow;
         mTabDelegateFactorySupplier = tabDelegateFactory;
@@ -95,7 +90,6 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
         mAsyncTabParamsManager = asyncTabParamsManager;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mCompositorViewHolderSupplier = compositorViewHolderSupplier;
-        mMultiInstanceManager = multiInstanceManager;
     }
 
     /**
@@ -474,11 +468,6 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
                 creationState = TabCreationState.LIVE_IN_BACKGROUND;
             }
             mTabModel.addTab(tab, position, type, creationState);
-            if (type == TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW
-                    && mMultiInstanceManager != null) {
-                mMultiInstanceManager.moveTabsToNewWindow(
-                        Collections.singletonList(tab), NewWindowAppSource.MENU);
-            }
             return tab;
         }
     }
@@ -490,6 +479,7 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
             WebContents webContents,
             @TabLaunchType int type,
             GURL url,
+            int position,
             boolean addTabToModel) {
         assert webContents != null;
 
@@ -500,10 +490,11 @@ public class ChromeTabCreator implements TabCreator, NeedsTabModel, NeedsTabMode
         // Measure tab creation duration for different launch types to understand tab creation
         // performance using an existing WebContents.
         try (TraceEvent te = TraceEvent.scoped("ChromeTabCreator.createTabWithWebContents")) {
-            // If parent is in the same tab model, place the new tab next to it.
-            int position = TabModel.INVALID_TAB_INDEX;
-            int index = TabModelUtils.getTabIndexById(mTabModel, parentId);
-            if (index != TabModel.INVALID_TAB_INDEX) position = index + 1;
+            if (position == TabModel.INVALID_TAB_INDEX) {
+                int index = TabModelUtils.getTabIndexById(mTabModel, parentId);
+                // If parent is in the same tab model, place the new tab next to it.
+                if (index != TabModel.INVALID_TAB_INDEX) position = index + 1;
+            }
 
             boolean openInForeground = mOrderController.willOpenInForeground(type, mIncognito);
             TabDelegateFactory delegateFactory =

@@ -2691,7 +2691,7 @@ class MachineLoweringReducer : public Next {
       auto new_string = __ template Allocate<SeqOneByteString>(
           size, AllocationType::kYoung, kTaggedAligned);
       __ InitializeField(new_string, AccessBuilderTS::ForMap(),
-                         __ LoadRoot(RootIndex::kSeqOneByteStringMap));
+                         __ SeqOneByteStringMapConstant());
       __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
                          __ Word32Constant(Name::kEmptyHashField));
       __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
@@ -3552,9 +3552,9 @@ class MachineLoweringReducer : public Next {
     return V<None>::Invalid();
   }
 
-  V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
-    return __ BitcastWordPtrToTagged(__ template LoadField<WordPtr>(
-        offset, AccessBuilder::ForExternalIntPtr()));
+  V<Object> REDUCE(LoadMessage)(V<WordPtr> addr) {
+    return __ LoadOffHeap(addr,
+                          MemoryRepresentation::UncompressedTaggedPointer());
   }
 
   V<None> REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {

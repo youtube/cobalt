@@ -878,6 +878,8 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
 
   g_browser_process->platform_part()->InitializeSchedulerConfigurationManager();
   arc_service_launcher_ = std::make_unique<arc::ArcServiceLauncher>(
+      g_browser_process->local_state(),
+      g_browser_process->GetFeatures()->application_locale_storage(),
       g_browser_process->platform_part()->scheduler_configuration_manager());
 
   // This should be created after ArcServiceLauncher creation.
@@ -1073,6 +1075,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   user_login_permission_tracker_ =
       std::make_unique<ash::UserLoginPermissionTracker>(
           ash::CrosSettings::Get());
+
+  browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
 
   // NOTE: Calls ChromeBrowserMainParts::PreProfileInit() which calls
   // ChromeBrowserMainExtraPartsAsh::PreProfileInit() which initializes
@@ -1289,9 +1293,6 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
     // Create cros_healthd data collector.
     cros_healthd_data_collector_ =
         std::make_unique<cros_healthd::internal::DataCollector>();
-
-    // Create the BrowserController instance.
-    browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
 
     // Create the service connection to CrosHealthd platform service instance.
     cros_healthd::ServiceConnection::GetInstance();

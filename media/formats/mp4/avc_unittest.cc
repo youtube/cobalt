@@ -253,8 +253,7 @@ INSTANTIATE_TEST_SUITE_P(AVCConversionTestValues,
                          ::testing::Values(1, 2, 4));
 
 TEST_F(AVCConversionTest, AnalyzeSEI) {
-  base::test::ScopedFeatureList scoped_sei_flag(
-      kTreatSEIRecoveryPointAsKeyframe);
+  base::test::ScopedFeatureList scoped_sei_flag(kParseSEIRecoveryPoints);
   constexpr auto kStream = std::to_array<const uint8_t>({
       // First NALU Start code.
       0x00,
@@ -290,13 +289,13 @@ TEST_F(AVCConversionTest, AnalyzeSEI) {
 
   auto result = AVC::AnalyzeAnnexB(kStream, {});
   EXPECT_TRUE(result.is_conformant);
-  EXPECT_TRUE(result.is_keyframe.has_value());
-  EXPECT_TRUE(result.is_keyframe.value());
+  EXPECT_FALSE(result.is_keyframe.has_value());
+  EXPECT_TRUE(result.is_sei_recovery_point.has_value());
+  EXPECT_TRUE(result.is_sei_recovery_point.value());
 }
 
 TEST_F(AVCConversionTest, AnalyzeSEICorruptionNonFatal) {
-  base::test::ScopedFeatureList scoped_sei_flag(
-      kTreatSEIRecoveryPointAsKeyframe);
+  base::test::ScopedFeatureList scoped_sei_flag(kParseSEIRecoveryPoints);
   constexpr auto kStream = std::to_array<const uint8_t>({
       // First NALU Start code.
       0x00,
@@ -318,6 +317,7 @@ TEST_F(AVCConversionTest, AnalyzeSEICorruptionNonFatal) {
   auto result = AVC::AnalyzeAnnexB(kStream, {});
   EXPECT_TRUE(result.is_conformant);
   EXPECT_FALSE(result.is_keyframe.has_value());
+  EXPECT_FALSE(result.is_sei_recovery_point.has_value());
 }
 
 TEST_F(AVCConversionTest, ConvertConfigToAnnexB) {

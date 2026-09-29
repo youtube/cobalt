@@ -187,11 +187,12 @@ class RTC_EXPORT NetworkManager : public DefaultLocalAddressProvider,
 
   // The implementation of the Subscribe methods is in the .cc file due
   // to linking issues with Chrome.
-  void SubscribeNetworksChanged(absl::AnyInvocable<void()> callback);
+  [[deprecated]] void SubscribeNetworksChanged(
+      absl::AnyInvocable<void()> callback);
   void SubscribeNetworksChanged(void* tag, absl::AnyInvocable<void()> callback);
   void UnsubscribeNetworksChanged(void* tag);
   void NotifyNetworksChanged() { networks_changed_callbacks_.Send(); }
-  void SubscribeError(absl::AnyInvocable<void()> callback);
+  [[deprecated]] void SubscribeError(absl::AnyInvocable<void()> callback);
   void SubscribeError(void* tag, absl::AnyInvocable<void()> callback);
   void UnsubscribeError(void* tag);
   void NotifyError() { error_callbacks_.Send(); }
@@ -231,7 +232,8 @@ class RTC_EXPORT Network {
   std::unique_ptr<Network> Clone() const;
 
   // This signal is fired whenever type() or underlying_type_for_vpn() changes.
-  void SubscribeTypeChanged(absl::AnyInvocable<void(const Network*)> callback) {
+  [[deprecated]] void SubscribeTypeChanged(
+      absl::AnyInvocable<void(const Network*)> callback) {
     type_changed_callbacks_.AddReceiver(std::move(callback));
   }
   void SubscribeTypeChanged(void* tag,
@@ -246,9 +248,17 @@ class RTC_EXPORT Network {
   }
 
   // This signal is fired whenever network preference changes.
-  void SubscribeNetworkPreferenceChanged(
+  [[deprecated]] void SubscribeNetworkPreferenceChanged(
       absl::AnyInvocable<void(const Network*)> callback) {
     network_preference_changed_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeNetworkPreferenceChanged(
+      void* tag,
+      absl::AnyInvocable<void(const Network*)> callback) {
+    network_preference_changed_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeNetworkPreferenceChanged(void* tag) {
+    network_preference_changed_callbacks_.RemoveReceivers(tag);
   }
   void NotifyNetworkPreferenceChanged(Network* network) {
     network_preference_changed_callbacks_.Send(network);

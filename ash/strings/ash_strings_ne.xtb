@@ -342,6 +342,7 @@
 <translation id="2201071101391734388">हालसालैका <ph name="TOTAL_COUNT" /> वटा फोटोमध्ये <ph name="INDEX" /> औँ फोटो।</translation>
 <translation id="2201687081523799384">Google Tasks कोल्याप्स गर्नुहोस्</translation>
 <translation id="2208323208084708176">एकीकृत डेस्कटप मोड</translation>
+<translation id="2210311543574621570">तपाईंले Ctrl + V थिचिराख्नुभयो भने तपाईं क्लिपबोर्ड देख्नु हुने छ। तपाईं chrome://flags मा गई #clipboard-history-longpress फ्ल्याग अफ गरेर यो सर्टकट अफ गर्न सक्नुहुन्छ।</translation>
 <translation id="2215920961700443347">इन्टरनेट कनेक्ट गरिएको छैन। इन्टरनेट कनेक्ट गर्नुहोस् र फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="2222841058024245321">डेस्क ७</translation>
 <translation id="2223384056430485343">स्प्लिट स्क्रिनमा</translation>
@@ -858,7 +859,7 @@
 <translation id="3927049937406914450">लोकेसन एक्सेस अफ गरिएकाले Weather उपलब्ध छैन। तपाईं सेटिङमा गई यो कुरा परिवर्तन गर्न सक्नुहुन्छ।</translation>
 <translation id="3932043219784172185">कुनै पनि डिभाइस कनेक्ट गरिएको छैन</translation>
 <translation id="3934456833412894880">एड्याप्टिभ चार्जिङ अन छ। तपाईंको डिभाइसको ब्याट्रीको आयु बढाउन ब्याट्री ८०% चार्ज भएर बस्ने छ र तपाईंलाई आवश्यक पर्दा ब्याट्री फुल चार्ज हुने छ।</translation>
-<translation id="3943857333388298514">टाँस्नुहोस्</translation>
+<translation id="3943857333388298514">पेस्ट गर्नुहोस्</translation>
 <translation id="394485226368336402">अडियो सम्बन्धी सेटिङहरू</translation>
 <translation id="3945319193631853098">सेटअप गर्ने प्रक्रिया पूरा गर्न ट्याप गर्नुहोस्</translation>
 <translation id="3945867833895287237">हटस्पटमा कनेक्ट गरिँदै छ...</translation>
@@ -874,6 +875,7 @@
 <translation id="397105322502079400">हिसाब गर्दै...</translation>
 <translation id="397726367135689299">ब्याट्री राम्रोसँग चार्ज नहुन सक्छ।</translation>
 <translation id="3977512764614765090">ब्याट्री <ph name="PERCENTAGE" />% छ र चार्ज हुँदै छ।</translation>
+<translation id="3978162107953847778">आफ्नो ब्राउजिङ हिस्ट्री र Google Drive जस्ता ठाउँबाट लिंकहरू हाल्नुहोस्। तपाईं लिंक, फोटो फाइल र अन्य कुरा पनि हाल्न सक्नुहुन्छ। <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="3982013579989864579">अडियो आउटपुट बदल्ने हो?</translation>
 <translation id="3984536049089846927">अर्को पेज</translation>
 <translation id="3986082989454912832">कल उठाउनुहोस्</translation>
@@ -1024,7 +1026,6 @@
 <translation id="4449692009715125625">{NUM_NOTIFICATIONS,plural, =1{एउटा महत्त्वपूर्ण सूचना}other{# वटा महत्त्वपूर्ण सूचना}}</translation>
 <translation id="4450893287417543264">फेरि नदेखाउनुहोस्</translation>
 <translation id="4451374464530248585">Alt + डाउन एरो किबोर्ड सर्टकट परिवर्तन गरिएको छ। Page Down की प्रयोग गर्न <ph name="LAUNCHER_KEY_NAME" /> की + डाउन एरो की थिच्नुहोस्।</translation>
-<translation id="4453876312474547652">Ctrl + V थिचिराख्दा क्लिपबोर्ड देखाइन्छ। तपाईं chrome://flags मा गई (वा Lacros प्रयोग गर्दै हुनुहुन्छ भने os://flags मा गई) #clipboard-history-longpress फ्ल्याग अफ गरेर यो सर्टकट अफ गर्न सक्नुहुन्छ।</translation>
 <translation id="445765352722456792">सुझावहरू कस्टमाइज गर्नुहोस्</translation>
 <translation id="4458688154122353284">स्क्रिन रेकर्ड गर्न छोड्नुहोस्</translation>
 <translation id="445923051607553918">Wi-Fi सञ्जालमा संयोग गर्नुहोस्</translation>
@@ -1600,6 +1601,7 @@
 <translation id="6260038345397266744"><ph name="TITLE" />। <ph name="DESCRIPTION" /></translation>
 <translation id="6267036997247669271"><ph name="NAME" />: सक्रिय गर्दै...</translation>
 <translation id="6274202259872570803">स्क्रिनकास्ट</translation>
+<translation id="6274422179279280249">लिंक, इमोजी र अन्य कुरा हाल्नुहोस्। तपाईं Google AI प्रयोग गरी लेखनमा पनि सहायता प्राप्त गर्न सक्नुहुन्छ। <ph name="LINK_TO_LEARN_MORE" /></translation>
 <translation id="6276708887952587684">पृष्ठको स्रोत हेर्नुहोस्</translation>
 <translation id="6285871695023807425">पात्रोमा हाल्नुहोस्</translation>
 <translation id="6288235558961782912">अभिभावकको अनुमति लिएर <ph name="USER_EMAIL_ADDRESS" /> पछि पुनः थप्न सकिन्छ।</translation>
@@ -2024,7 +2026,7 @@
 <translation id="7721132362314201794">डेस्कको नाम</translation>
 <translation id="7723389094756330927">{NUM_NOTIFICATIONS,plural, =1{१ सूचना}other{# सूचनाहरू}}</translation>
 <translation id="7723703419796509666">डेभलपर टुल कन्सोल देखाउनुहोस् वा लुकाउनुहोस्</translation>
-<translation id="7724603315864178912">काट्नुहोस्</translation>
+<translation id="7724603315864178912">कट गर्नुहोस्</translation>
 <translation id="7725108879223146004">हटस्पटसम्बन्धी विवरणहरू देखाउनुहोस्। हटस्पट अफ हुँदै छ।</translation>
 <translation id="7726391492136714301">आफ्नो फोनका सूचना तथा एपहरू हेर्नुहोस्</translation>
 <translation id="7727952505535211425">एड्रेस बारमा हालिएको वेबसाइट नयाँ ट्याबमा खोल्नुहोस्</translation>
@@ -2376,7 +2378,7 @@
 <translation id="8926951137623668982">सेल्फ सधैँ लुकेको हुन्छ</translation>
 <translation id="8929566928381252430">क्याप्स लक की प्रयोग गर्न खोज्दै हुनुहुन्छ? निम्न कीहरू थिच्नुहोस्:</translation>
 <translation id="8929623844713377237">कन्ट्याक्ट बनाइएको छ</translation>
-<translation id="8934418770423095813">Google कागजात प्रयोग गरी डकुमेन्ट बनाउनुहोस्</translation>
+<translation id="8934418770423095813">Google Docs प्रयोग गरी डकुमेन्ट बनाउनुहोस्</translation>
 <translation id="8934926665751933910">{NUM_FILES,plural, =1{एउटा फाइल}other{# वटा फाइल}}</translation>
 <translation id="8936501819958976551">निष्क्रिय पारियो</translation>
 <translation id="8938800817013097409">USB-C यन्त्र (पछाडिको दायाँ पोर्ट)</translation>
@@ -2445,7 +2447,7 @@
 <translation id="9168436347345867845">यो कार्य पछि गर्नुहोस्‌</translation>
 <translation id="9178475906033259337"><ph name="QUERY" /> सम्बन्धी १ परिणाम देखाउँदै</translation>
 <translation id="9179259655489829027">यस सुविधाले तपाईंलाई पासवर्ड प्रविष्ट नगरिकनै साइन इन भएका जुनसुकै प्रयोगकर्तामाथि द्रुत रूपमा पहुँच राख्न दिन्छ।आफूले विश्वास गर्ने खाताहरूमा मात्र यो सुविधाको प्रयोग गर्नुहोस्।</translation>
-<translation id="9183302530794969518">Google कागजात</translation>
+<translation id="9183302530794969518">Google Docs</translation>
 <translation id="9183456764293710005">फुल स्क्रिन म्याग्निफायर</translation>
 <translation id="9192133205265227850">"<ph name="DEVICE_NAME" />" प्रयोग गर्नुहोस्</translation>
 <translation id="9193626018745640770">कुनै अज्ञात प्रापकमा cast गर्दै</translation>

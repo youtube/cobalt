@@ -466,13 +466,13 @@ class P2PTransportChannelTestBase : public ::testing::Test {
     ep1_.cd1_.ch_->MaybeStartGathering();
     ep2_.cd1_.ch_->MaybeStartGathering();
     ep1_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
-        [this](PortAllocatorSession* allocator_session,
-               IceRegatheringReason reason) {
+        this, [this](PortAllocatorSession* allocator_session,
+                     IceRegatheringReason reason) {
           ep1_.OnIceRegathering(allocator_session, reason);
         });
     ep2_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
-        [this](PortAllocatorSession* allocator_session,
-               IceRegatheringReason reason) {
+        this, [this](PortAllocatorSession* allocator_session,
+                     IceRegatheringReason reason) {
           ep2_.OnIceRegathering(allocator_session, reason);
         });
   }
@@ -499,6 +499,7 @@ class P2PTransportChannelTestBase : public ::testing::Test {
                                     OnReadyToSend(transport);
                                   });
     channel->SubscribeCandidateGathered(
+        this,
         [this](IceTransportInternal* transport, const Candidate& candidate) {
           OnCandidateGathered(transport, candidate);
         });
@@ -512,6 +513,7 @@ class P2PTransportChannelTestBase : public ::testing::Test {
           OnReadPacket(transport, packet);
         });
     channel->SubscribeRoleConflict(
+        this,
         [this](IceTransportInternal* transport) { OnRoleConflict(transport); });
     channel->SubscribeNetworkRouteChanged(
         this, [this](std::optional<NetworkRoute> network_route) {
@@ -1014,7 +1016,7 @@ class P2PTransportChannelTestBase : public ::testing::Test {
 
   void ConnectSignalNominated(Connection* conn) {
     conn->SubscribeNominated(
-        [this](Connection* connection) { OnNominated(connection); });
+        this, [this](Connection* connection) { OnNominated(connection); });
   }
 
   void OnNominated(Connection* conn) { nominated_ = true; }
@@ -3609,7 +3611,7 @@ class P2PTransportChannelPingTest : public ::testing::Test {
       OnReadyToSend(transport);
     });
     ch->SubscribeIceTransportStateChanged(
-        [this](IceTransportInternal* transport) {
+        this, [this](IceTransportInternal* transport) {
           OnChannelStateChanged(transport);
         });
     ch->SetCandidatePairChangeCallback(
@@ -7176,7 +7178,7 @@ class P2PTransportChannelRegatheringTest : public P2PTransportChannelPingTest {
     EXPECT_TRUE(connection_ != nullptr);
 
     channel_->allocator_session()->SubscribeIceRegathering(
-        [this](PortAllocatorSession*, IceRegatheringReason reason) {
+        this, [this](PortAllocatorSession*, IceRegatheringReason reason) {
           regathering_counts_[reason]++;
         });
   }

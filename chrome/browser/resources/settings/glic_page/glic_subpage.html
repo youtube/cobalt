@@ -395,7 +395,12 @@
               <ul class="icon-bulleted-list">
                 <li>
                   <cr-icon aria-hidden="true"
+<if expr="not _google_chrome">
                       icon="settings20:arrow-selector-tool">
+</if>
+<if expr="_google_chrome">
+                      icon="settings-internal:arrow-selector-spark">
+</if>
                   </cr-icon>
                   <div class="secondary">
                     $i18n{glicWebActuationToggleWhenOn1}
@@ -450,11 +455,17 @@
           label="$i18n{glicExtensionsButton}"
           sub-label="$i18n{glicExtensionsButtonSublabel}" external>
       </cr-link-row>
-      <cr-link-row id="geminiPersonalContextLink" class="hr"
+      <cr-link-row id="geminiPersonalContextLink"
           hidden="[[!showGlicPersonalContextLink_]]"
           on-click="onGeminiPersonalContextClick_"
-          label="$i18n{glicPersonalContextSettingLabel}"
+          label="$i18n{glicPersonalContextSettingButton}"
           sub-label="$i18n{glicPersonalContextSettingSublabel}" external>
+      </cr-link-row>
+      <cr-link-row id="InstructionLink"
+          hidden="[[!showGlicInstructionLink_]]"
+          on-click="onGeminiPersonalContextClick_"
+          label="$i18n{glicInstructionsSettingButton}"
+          sub-label="$i18n{glicInstructionsSettingSublabel}" external>
       </cr-link-row>
     </template>
   </div>

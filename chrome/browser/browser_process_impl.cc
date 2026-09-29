@@ -125,8 +125,8 @@
 #include "components/safe_browsing/content/browser/safe_browsing_service_interface.h"
 #include "components/sessions/core/session_id_generator.h"
 #include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
+#include "components/subresource_filter/content/browser/ruleset_service.h"
 #include "components/subresource_filter/content/browser/safe_browsing_ruleset_publisher.h"
-#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
 #include "components/subresource_filter/core/common/constants.h"
 #include "components/translate/core/browser/translate_download_manager.h"
@@ -425,7 +425,7 @@ void BrowserProcessImpl::Init() {
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-  web_app::InitializeIsolatedWebAppRuntime();
+  web_app::InitializeIsolatedWebAppRuntime(base::PassKey<BrowserProcessImpl>());
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1231,10 +1231,6 @@ GlobalFeatures* BrowserProcessImpl::GetFeatures() {
   return features_.get();
 }
 
-void BrowserProcessImpl::CreateGlobalFeaturesForTesting() {
-  NOTIMPLEMENTED();
-}
-
 DownloadRequestLimiter* BrowserProcessImpl::download_request_limiter() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!download_request_limiter_.get()) {
@@ -1352,7 +1348,7 @@ void BrowserProcessImpl::PreCreateThreads() {
   // chrome-extension:// URLs are safe to request anywhere, but may only
   // commit (including in iframes) in extension processes.
   ChildProcessSecurityPolicy::GetInstance()->RegisterWebSafeIsolatedScheme(
-      extensions::kExtensionScheme, true);
+      extensions::kExtensionScheme);
 #endif
 
   battery_metrics_ = std::make_unique<BatteryMetrics>();

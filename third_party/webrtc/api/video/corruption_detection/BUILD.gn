@@ -73,6 +73,33 @@ rtc_library("frame_instrumentation_evaluation") {
   ]
 }
 
+rtc_library("frame_instrumentation_generator_factory") {
+  visibility = [ "*" ]
+  sources = [
+    "frame_instrumentation_generator_factory.cc",
+    "frame_instrumentation_generator_factory.h",
+  ]
+  deps = [
+    ":frame_instrumentation_generator_header",
+    "../:video_frame",
+    "../../../video/corruption_detection:frame_instrumentation_generator_impl",
+    "../../video_codecs:video_codecs_api",
+  ]
+}
+
+rtc_library("frame_instrumentation_generator_header") {
+  visibility = [ "*" ]
+  sources = [ "frame_instrumentation_generator.h" ]
+  deps = [
+    ":frame_instrumentation_data",
+    "../:encoded_image",
+    "../:video_frame",
+    "../../video_codecs:video_codecs_api",
+  ]
+}
+
+# Legacy target including both header and implementation.
+# TODO: bugs.webrtc.org/358039777 - Remove once downstream usage is gone.
 rtc_library("frame_instrumentation_generator") {
   visibility = [ "*" ]
   sources = [
@@ -80,22 +107,12 @@ rtc_library("frame_instrumentation_generator") {
     "frame_instrumentation_generator.h",
   ]
   deps = [
-    ":filter_settings",
     ":frame_instrumentation_data",
+    ":frame_instrumentation_generator_factory",
+    ":frame_instrumentation_generator_header",
     "../:encoded_image",
     "../:video_frame",
-    "../:video_frame_type",
-    "../../../modules:module_api_public",
-    "../../../modules/video_coding:video_coding_utility",
-    "../../../rtc_base:checks",
-    "../../../rtc_base:logging",
-    "../../../rtc_base:macromagic",
-    "../../../rtc_base/synchronization:mutex",
-    "../../../video/corruption_detection:generic_mapping_functions",
-    "../../../video/corruption_detection:halton_frame_sampler",
-    "../../../video/corruption_detection:utils",
     "../../video_codecs:video_codecs_api",
-    "//third_party/abseil-cpp/absl/algorithm:container",
   ]
 }
 
@@ -143,24 +160,6 @@ if (rtc_include_tests) {
       "../:video_rtp_headers",
       "../../:scoped_refptr",
       "../../../test:test_support",
-    ]
-  }
-
-  rtc_library("frame_instrumentation_generator_unittest") {
-    testonly = true
-    sources = [ "frame_instrumentation_generator_unittest.cc" ]
-    deps = [
-      ":filter_settings",
-      ":frame_instrumentation_data",
-      ":frame_instrumentation_generator",
-      "../:encoded_image",
-      "../:video_frame",
-      "../:video_frame_type",
-      "../../../api:make_ref_counted",
-      "../../../api:scoped_refptr",
-      "../../../rtc_base:refcount",
-      "../../../test:test_support",
-      "../../../video/corruption_detection:utils",
     ]
   }
 }

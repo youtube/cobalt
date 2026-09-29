@@ -26,6 +26,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/fpu.h"
 #include "src/base/hashmap.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -103,6 +104,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
@@ -1364,6 +1366,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
     StackFrame* frame = it.frame();
     switch (frame->type()) {
       case StackFrame::API_CALLBACK_EXIT:
+      case StackFrame::API_CONSTRUCT_EXIT:
       case StackFrame::BUILTIN_EXIT:
       case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
@@ -1388,15 +1391,14 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
           visitor->SetPrevFrameAsConstructCall();
         }
         skipped_last_frame = true;
-        for (auto summary = summaries.frames.rbegin();
-             summary != summaries.frames.rend(); ++summary) {
+        for (auto& summary : base::Reversed(summaries.frames)) {
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-              !summary->native_context()->HasSameSecurityTokenAs(
+              !summary.native_context()->HasSameSecurityTokenAs(
                   isolate->context())) {
             continue;
           }
-          if (!visitor->Visit(*summary)) return;
+          if (!visitor->Visit(summary)) return;
           skipped_last_frame = false;
         }
         break;
@@ -1833,6 +1835,108 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
     accumulator->PrintMentionedObjectCache(this);
   }
   accumulator->Add("=====================\n\n");
+}
+
+namespace {
+
+class MinimalStackPrinter {
+ public:
+  MinimalStackPrinter() = default;
+
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    if (summary.IsJavaScript()) {
+      const FrameSummary::JavaScriptFrameSummary& js_summary =
+          summary.AsJavaScript();
+      Tagged<String> name = js_summary.function()->shared()->Name();
+      if (name->length() == 0) {
+        out_ << "<none>";
+      } else {
+        Append(name);
+      }
+
+      PrintScript(js_summary.script());
+
+      if (js_summary.AreSourcePositionsAvailable()) {
+        int offset = summary.AsJavaScript().SourcePosition();
+        out_ << ":" << offset;
+      }
+
+      out_ << "\n";
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (summary.IsWasm()) {
+      const FrameSummary::WasmFrameSummary& wasm_summary = summary.AsWasm();
+      PrintWasmFrame(wasm_summary.function_index(), wasm_summary.script(),
+                     wasm_summary.SourcePosition());
+    } else if (summary.IsWasmInlined()) {
+      const FrameSummary::WasmInlinedFrameSummary& wasm_inlined_summary =
+          summary.AsWasmInlined();
+      PrintWasmFrame(wasm_inlined_summary.function_index(),
+                     wasm_inlined_summary.script(),
+                     wasm_inlined_summary.SourcePosition());
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+
+    return true;
+  }
+
+  void PrintWasmFrame(int function_index, Handle<Object> script,
+                      int source_position) {
+    out_ << "wasm[" << function_index << "]";
+
+    PrintScript(script);
+
+    out_ << ":" << source_position;
+    out_ << "\n";
+  }
+
+  void PrintScript(Handle<Object> script) {
+    if (IsScript(*script)) {
+      Tagged<Object> name_or_url = Cast<Script>(script)->GetNameOrSourceURL();
+      if (IsString(name_or_url)) {
+        out_ << " in ";
+        Append(Cast<String>(name_or_url));
+      }
+    }
+  }
+
+  void Append(Tagged<String> value) {
+    auto buffer = value->ToCString();
+    out_ << buffer.get();
+  }
+
+  std::string Build() { return out_.str(); }
+
+ private:
+  std::stringstream out_;
+};
+
+}  // namespace
+
+std::string Isolate::BuildMinimalStack() {
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(this);
+
+  MinimalStackPrinter printer;
+  VisitStack(this, &printer);
+  return printer.Build();
+}
+
+void Isolate::PrintMinimalStack(FILE* out) {
+  std::string stack = BuildMinimalStack();
+  std::fputs(stack.c_str(), out);
+}
+
+void Isolate::ReportStackAsCrashKey() {
+  if (!HasCrashKeyStringCallbacks()) {
+    return;
+  }
+
+  std::string stack = BuildMinimalStack();
+  AddCrashKeyString("v8-oom-stack", CrashKeySize::Size1024, stack);
 }
 
 void Isolate::SetFailedAccessCheckCallback(
@@ -5047,7 +5151,8 @@ void Isolate::NotifyExceptionPropagationCallback() {
   DCHECK(!it.done());
   StackFrame::Type frame_type = it.frame()->type();
   switch (frame_type) {
-    case StackFrame::API_CALLBACK_EXIT: {
+    case StackFrame::API_CALLBACK_EXIT:
+    case StackFrame::API_CONSTRUCT_EXIT: {
       ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
       DirectHandle<JSReceiver> receiver(Cast<JSReceiver>(frame->receiver()),
                                         this);
@@ -5055,8 +5160,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
           frame->GetFunctionTemplateInfo();
 
       v8::ExceptionContext callback_kind =
-          frame->IsConstructor() ? v8::ExceptionContext::kConstructor
-                                 : v8::ExceptionContext::kOperation;
+          frame_type == StackFrame::API_CONSTRUCT_EXIT
+              ? v8::ExceptionContext::kConstructor
+              : v8::ExceptionContext::kOperation;
       ReportExceptionFunctionCallback(receiver, function_template_info,
                                       callback_kind);
       return;
@@ -5525,7 +5631,7 @@ void Isolate::VerifyStaticRoots() {
                   V8HeapCompressionScheme::CompressObject(map.ptr()) >=
                       InstanceTypeChecker::kNonJsReceiverMapLimit);
     CHECK(InstanceTypeChecker::kNonJsReceiverMapLimit <
-          read_only_heap()->read_only_space()->Size());
+          read_only_heap()->read_only_space()->Capacity());
 
     if (InstanceTypeChecker::IsString(map->instance_type())) {
       CHECK_EQ(InstanceTypeChecker::IsString(map),
@@ -5689,6 +5795,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data_.uses_shared_heap_flag_ = has_shared_space();
 
   isolate_data_.stress_deopt_count_ = v8_flags.deopt_every_n_times;
+
+  isolate_data_.has_lazy_closures_ = v8_flags.proto_assign_seq_lazy_func_opt;
 
   if (use_shared_space_isolate && !is_shared_space_isolate() &&
       use_shared_space_isolate->heap()
@@ -7127,8 +7235,7 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
        frame_it.Advance()) {
     std::vector<Handle<SharedFunctionInfo>> infos;
     frame_it.frame()->GetFunctions(&infos);
-    for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
-      DirectHandle<SharedFunctionInfo> info = *it;
+    for (DirectHandle<SharedFunctionInfo> info : base::Reversed(infos)) {
       if (info->HasBuiltinId()) {
         // We should not report PromiseThen and PromiseCatch which is called
         // indirectly, e.g. Promise.all calls Promise.then internally.

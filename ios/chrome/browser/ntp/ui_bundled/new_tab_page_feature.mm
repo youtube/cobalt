@@ -24,14 +24,14 @@ BASE_FEATURE(kOverrideFeedSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebFeedFeedbackReroute, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableiPadFeedGhostCards, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kFeedSwipeInProductHelp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseFeedEligibilityService, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMostVisitedTilesCustomizationIOS,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kConsistentLogoDoodleHeight, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #pragma mark - Feature parameters
 
@@ -77,10 +77,6 @@ bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service) {
 
 bool IsWebFeedFeedbackRerouteEnabled() {
   return base::FeatureList::IsEnabled(kWebFeedFeedbackReroute);
-}
-
-bool IsiPadFeedGhostCardsEnabled() {
-  return base::FeatureList::IsEnabled(kEnableiPadFeedGhostCards);
 }
 
 FeedSwipeIPHVariation GetFeedSwipeIPHVariation() {
@@ -148,4 +144,8 @@ bool ShouldEnlargeNTPFakeboxForMIA() {
 
 bool IsContentSuggestionsCustomizable() {
   return base::FeatureList::IsEnabled(kMostVisitedTilesCustomizationIOS);
+}
+
+bool IsConsistentLogoDoodleHeightEnabled() {
+  return base::FeatureList::IsEnabled(kConsistentLogoDoodleHeight);
 }

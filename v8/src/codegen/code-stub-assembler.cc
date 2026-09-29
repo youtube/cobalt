@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "include/v8-internal.h"
+#include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
@@ -156,7 +157,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 
   BIND(&not_ok);
   std::vector<FileAndLine> file_and_line = GetMacroSourcePositionStack();
-  if (loc.FileName()) {
+  if (loc) {
     file_and_line.push_back({loc.FileName(), static_cast<size_t>(loc.Line())});
   }
   FailAssert(message, file_and_line, extra_nodes);
@@ -217,9 +218,9 @@ void CodeStubAssembler::FailAssert(
   DCHECK_NOT_NULL(message);
   base::EmbeddedVector<char, 1024> chars;
   std::stringstream stream;
-  for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend(); ++it) {
-    if (it->first != nullptr) {
-      stream << " [" << it->first << ":" << it->second << "]";
+  for (const auto& [file, line] : base::Reversed(files_and_lines)) {
+    if (file != nullptr) {
+      stream << " [" << file << ":" << line << "]";
 #ifndef DEBUG
       // To limit the size of these strings in release builds, we include only
       // the innermost macro's file name and line number.
@@ -1422,7 +1423,7 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
                             Uint32Constant(kExecutableAndTrustedMask))));
   Goto(&done);
   Bind(&done);
-  // LINT.ThenChange(src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
+  // LINT.ThenChange(/src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 
@@ -8722,16 +8723,32 @@ void CodeStubAssembler::GotoIfLargeBigInt(TNode<BigInt> bigint,
   Bind(&false_label);
 }
 
+void CodeStubAssembler::GotoIfLazyClosure(
+    TNode<JSAnyOrSharedFunctionInfo> value, Label* if_true) {
+  Label not_lazy_closure(this);
+  TNode<Uint8T> has_lazy_closures =
+      Load<Uint8T>(IsolateField(IsolateFieldId::kHasLazyClosures));
+  GotoIfNot(has_lazy_closures, &not_lazy_closure);
+  GotoIf(TaggedIsSmi(value), &not_lazy_closure);
+
+  TNode<HeapObject> heap_object = CAST(value);
+  GotoIf(IsSharedFunctionInfo(heap_object), if_true);
+  Goto(&not_lazy_closure);
+  BIND(&not_lazy_closure);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
     TNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_PRIMITIVE_HEAP_OBJECT_TYPE));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPrivateName(TNode<Symbol> symbol) {
+TNode<BoolT> CodeStubAssembler::IsAnyPrivateName(TNode<Symbol> symbol) {
   TNode<Uint32T> flags =
       LoadObjectField<Uint32T>(symbol, offsetof(Symbol, flags_));
-  return IsSetWord32<Symbol::IsPrivateNameBit>(flags);
+  return Int32GreaterThanOrEqual(
+      DecodeWord32<Symbol::PrivateSymbolKindBits>(flags),
+      Int32Constant(static_cast<int>(PrivateSymbolKind::kFieldName)));
 }
 
 TNode<BoolT> CodeStubAssembler::IsHashTable(TNode<HeapObject> object) {
@@ -19971,54 +19988,44 @@ void CodeStubAssembler::SharedValueBarrier(
   // The fast paths should be kept in sync with Object::Share.
 
   TNode<Object> value = var_shared_value->value();
-  Label check_in_shared_heap(this), slow(this), skip_barrier(this), done(this);
+  Label done(this);
 
   // Fast path: Smis are trivially shared.
   GotoIf(TaggedIsSmi(value), &done);
+
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Fast path: RO values.
+  TNode<Word32T> object_as_word32 =
+      TruncateIntPtrToInt32(BitcastTaggedToWord(value));
+  GotoIf(Uint32LessThan(object_as_word32,
+                        Int32Constant(kContiguousReadOnlyReservationSize)),
+         &done);
+  // Fast path: Values are already shared.
   TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
   GotoIf(WordNotEqual(
-             WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),
+             WordAnd(page_flags, IntPtrConstant(MemoryChunk::kInSharedHeap)),
              IntPtrConstant(0)),
-         &skip_barrier);
-
-  // Fast path: Check if the HeapObject is already shared.
-  TNode<Uint16T> value_instance_type =
-      LoadMapInstanceType(LoadMap(CAST(value)));
-  GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
-  GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(value_instance_type),
-         &skip_barrier);
-  GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
-  Goto(&slow);
-
-  BIND(&check_in_shared_heap);
-  {
-    Branch(WordNotEqual(
-               WordAnd(page_flags,
-                       IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-               IntPtrConstant(0)),
-           &skip_barrier, &slow);
-  }
+         &done);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Fast path: Bail out of RO values and already shared values.
+  TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
+  GotoIf(WordNotEqual(
+             WordAnd(page_flags,
+                     IntPtrConstant(MemoryChunk::kIsReadOnlyOrSharedHeapMask)),
+             IntPtrConstant(0)),
+         &done);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   // Slow path: Call out to runtime to share primitives and to throw on
   // non-shared JS objects.
-  BIND(&slow);
-  {
-    *var_shared_value =
-        CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
-    Goto(&skip_barrier);
-  }
-
-  BIND(&skip_barrier);
-  {
-    CSA_DCHECK(
-        this,
-        WordNotEqual(
-            WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
-                    IntPtrConstant(MemoryChunk::READ_ONLY_HEAP |
-                                   MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-            IntPtrConstant(0)));
-    Goto(&done);
-  }
+  *var_shared_value =
+      CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
+  CSA_DCHECK(this,
+             WordNotEqual(
+                 WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
+                         IntPtrConstant(MemoryChunk::kInSharedHeap)),
+                 IntPtrConstant(0)));
+  Goto(&done);
 
   BIND(&done);
 }

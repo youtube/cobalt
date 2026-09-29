@@ -150,6 +150,10 @@ RequestTypeForUma PermissionUtil::GetUmaValueForRequestType(
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case RequestType::kLocalNetworkAccess:
       return RequestTypeForUma::PERMISSION_LOCAL_NETWORK_ACCESS;
+    case RequestType::kLocalNetwork:
+      return RequestTypeForUma::PERMISSION_LOCAL_NETWORK;
+    case RequestType::kLoopbackNetwork:
+      return RequestTypeForUma::PERMISSION_LOOPBACK_NETWORK;
     case RequestType::kGeolocation:
       return RequestTypeForUma::PERMISSION_GEOLOCATION;
     case RequestType::kHandTracking:
@@ -359,6 +363,12 @@ bool PermissionUtil::GetPermissionType(ContentSettingsType type,
     case ContentSettingsType::LOCAL_NETWORK_ACCESS:
       *out = PermissionType::LOCAL_NETWORK_ACCESS;
       break;
+    case ContentSettingsType::LOCAL_NETWORK:
+      *out = PermissionType::LOCAL_NETWORK;
+      break;
+    case ContentSettingsType::LOOPBACK_NETWORK:
+      *out = PermissionType::LOOPBACK_NETWORK;
+      break;
     default:
       return false;
   }
@@ -463,6 +473,7 @@ ContentSettingsType PermissionUtil::PermissionTypeToContentSettingsTypeSafe(
     case PermissionType::NOTIFICATIONS:
       return ContentSettingsType::NOTIFICATIONS;
     case PermissionType::GEOLOCATION:
+    case PermissionType::GEOLOCATION_APPROXIMATE:
       return base::FeatureList::IsEnabled(
                  content_settings::features::kApproximateGeolocationPermission)
                  ? ContentSettingsType::GEOLOCATION_WITH_OPTIONS
@@ -538,6 +549,10 @@ ContentSettingsType PermissionUtil::PermissionTypeToContentSettingsTypeSafe(
       return ContentSettingsType::WEB_APP_INSTALLATION;
     case PermissionType::LOCAL_NETWORK_ACCESS:
       return ContentSettingsType::LOCAL_NETWORK_ACCESS;
+    case PermissionType::LOCAL_NETWORK:
+      return ContentSettingsType::LOCAL_NETWORK;
+    case PermissionType::LOOPBACK_NETWORK:
+      return ContentSettingsType::LOOPBACK_NETWORK;
     case PermissionType::NUM:
       break;
   }

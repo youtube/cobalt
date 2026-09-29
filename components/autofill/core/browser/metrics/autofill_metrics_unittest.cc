@@ -28,7 +28,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
@@ -56,7 +55,7 @@
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test_credit_card_save_manager.h"
-#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
@@ -3235,9 +3234,9 @@ TEST_F(AutofillMetricsSeamlessnessTest, CreditCardFormRecordOnIFrames) {
          Collapse(CalculateFieldSignatureForField(form_.fields()[i])).value()},
         {UFIT::kAutofillSkippedStatusName, skipped_status_vector.data()[0]},
         {UFIT::kFormControlType2Name,
-         base::to_underlying(FormControlType::kInputText)},
+         std::to_underlying(FormControlType::kInputText)},
         {UFIT::kAutocompleteStateName,
-         base::to_underlying(AutofillMetrics::AutocompleteState::kNone)},
+         std::to_underlying(AutofillMetrics::AutocompleteState::kNone)},
         {UFIT::kAutofillStatusVectorName, autofill_status_vector.data()[0]},
         {UFIT::kOverallTypeName, field_types[i]},
         {UFIT::kSectionIdName, 1},

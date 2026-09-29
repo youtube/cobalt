@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_group_theme.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_network_state.h"
@@ -49,6 +50,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
@@ -84,6 +86,7 @@
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/compositor/compositor.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/image/image.h"
@@ -199,9 +202,9 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
 
   // Walk the model, calling our insertion observer method for each item within
   // it.
-  std::vector<std::pair<WebContents*, int>> tabs_to_add;
+  std::vector<std::pair<tabs::TabInterface*, int>> tabs_to_add;
   for (int i = 0; i < model_->count(); ++i) {
-    tabs_to_add.emplace_back(model_->GetWebContentsAt(i), i);
+    tabs_to_add.emplace_back(model_->GetTabAtIndex(i), i);
   }
   AddTabs(tabs_to_add);
 }
@@ -744,10 +747,10 @@ void BrowserTabStripController::OnTabStripModelChanged(
     const TabStripSelectionChange& selection) {
   switch (change.type()) {
     case TabStripModelChange::kInserted: {
-      std::vector<std::pair<WebContents*, int>> tabs_to_add;
+      std::vector<std::pair<tabs::TabInterface*, int>> tabs_to_add;
       for (const auto& contents : change.GetInsert()->contents) {
         DCHECK(model_->ContainsIndex(contents.index));
-        tabs_to_add.emplace_back(contents.contents, contents.index);
+        tabs_to_add.emplace_back(contents.tab, contents.index);
       }
       AddTabs(tabs_to_add);
       break;
@@ -974,6 +977,20 @@ void BrowserTabStripController::OnTabGroupFocusChanged(
     std::optional<tab_groups::TabGroupId> new_group_id,
     std::optional<tab_groups::TabGroupId> old_group_id) {
   tabstrip_->OnTabGroupFocusChanged(new_group_id);
+
+  std::optional<SkColor> color;
+  if (new_group_id.has_value()) {
+    const TabGroup* group =
+        model_->group_model()->GetTabGroup(new_group_id.value());
+    const tab_groups::TabGroupVisualData* visual_data = group->visual_data();
+    const auto* color_provider = tabstrip_->GetColorProvider();
+    color = color_provider->GetColor(
+        GetTabGroupDialogColorId(visual_data->color()));
+  }
+
+  browser_view_->browser_widget()->SetUserColorOverride(color);
+  browser_view_->browser_widget()->ThemeChanged();
+  browser_view_->GetWidget()->non_client_view()->frame_view()->SchedulePaint();
 }
 
 BrowserFrameView* BrowserTabStripController::GetFrameView() {
@@ -991,14 +1008,16 @@ void BrowserTabStripController::SetTabDataAt(content::WebContents* web_contents,
 }
 
 void BrowserTabStripController::AddTabs(
-    std::vector<std::pair<WebContents*, int>> contents_list) {
+    std::vector<std::pair<tabs::TabInterface*, int>> contents_list) {
   // Cancel any pending tab transition.
   hover_tab_selector_.CancelTabTransition();
 
-  std::vector<std::pair<int, TabRendererData>> tabs_data;
-  for (const auto& [contents, index] : contents_list) {
-    tabs_data.emplace_back(index,
-                           TabRendererData::FromTabInModel(model_, index));
+  std::vector<TabStrip::AddTabData> tabs_data;
+  for (const auto& [tab, index] : contents_list) {
+    tabs_data.push_back(
+        {.index = index,
+         .handle = tab->GetHandle(),
+         .data = TabRendererData::FromTabInModel(model_, index)});
   }
 
   tabstrip_->AddTabsAt(std::move(tabs_data));

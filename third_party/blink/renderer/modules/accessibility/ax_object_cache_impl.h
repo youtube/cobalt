@@ -106,6 +106,16 @@ struct TextChangedOperation {
   ax::mojom::blink::Command op;
 };
 
+// Represents the current IME (Input Method Editor) state for a given AXObject
+// associated with a text field.
+// This struct is used to track whether a text field has an active composition
+// or any text committed by the IME, which is crucial for providing accurate
+// accessibility feedback for text changes.
+struct ImeState {
+  bool has_composition = false;
+  int committed_text_length = 0;
+};
+
 // This class should only be used from inside the accessibility directory.
 class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
  public:
@@ -185,6 +195,7 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
     if (--frozen_count_ == 0) {
       ax_tree_source_->Thaw();
       ClearCachedNodesOnLine();
+      radio_group_name_to_node_ids_.clear();
     }
   }
   bool IsFrozen() const override { return frozen_count_; }
@@ -337,6 +348,9 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // stored for the given object, returns an empty `AriaNotifications`.
   AriaNotifications RetrieveAriaNotifications(const AXObject*) override;
 
+  void HandleSetComposition(Node* node) override;
+  void HandleCommitText(Node* node, int committed_text_length) override;
+
   void SetCanvasObjectBounds(HTMLCanvasElement*,
                              Element*,
                              const PhysicalRect&) override;
@@ -373,6 +387,8 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
 
   // Called when the scroll offset changes.
   void HandleScrollPositionChanged(LayoutObject*) override;
+
+  void HandleScrollMarkerTabSelectionChanged(Element* scroller) override;
 
   void HandleScrolledToAnchor(const Node* anchor_node) override;
 
@@ -446,7 +462,7 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   void MarkAXObjectDirtyWithCleanLayout(AXObject*);
 
   void MarkAXSubtreeDirtyWithCleanLayout(AXObject*);
-  void MarkSubtreeDirty(Node*);
+  void MarkSubtreeDirty(Node*) override;
   void NotifySubtreeDirty(AXObject* obj);
 
   // Set the parent of the AXObject associated with |child|. If no parent is
@@ -663,6 +679,13 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // Clears the map after each call, should be called after each serialization.
   void ClearTextOperationInNodeIdMap();
 
+  // Returns the `ImeState` for a given AXObject. Returns nullptr if the given
+  // AXObject's id is not equal to `ime_state_axid_`.
+  ImeState* GetImeState(const AXObject* obj);
+
+  // Clears stored IME state. It should be called after each serialization.
+  void ClearImeState();
+
   // Adds an event to the list of pending_events_ and mark the object as dirty
   // via AXObjectCache::AddDirtyObjectToSerializationQueue. If
   // immediate_serialization is set, it schedules a serialization to be done at
@@ -758,6 +781,10 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // map, skips the computation. Also see Next|PreviousOnLine() for where this
   // information is used.
   void ComputeNodesOnLine(const LayoutObject* layout_object);
+
+  // Returns the radio button group members for the given radio button.
+  HeapVector<Member<AXObject>> GetRadioButtonGroupMembers(
+      HTMLInputElement* radio_button);
 
   bool HasCachedDataForNodesOnLine() const {
     return !processed_blocks_.empty();
@@ -1242,6 +1269,28 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   HashMap<AXID, WebAXAutofillSuggestionAvailability>
       autofill_suggestion_availability_map_;
 
+  struct RadioButtonGroup : public GarbageCollected<RadioButtonGroup> {
+    RadioButtonGroup(HTMLFormElement* form,
+                     TreeScope* tree_scope,
+                     Vector<AXID> members)
+        : form_(form), tree_scope_(tree_scope), members_(std::move(members)) {}
+
+    void Trace(Visitor* visitor) const;
+
+    WeakMember<HTMLFormElement> form_;
+    WeakMember<TreeScope> tree_scope_;
+    Vector<AXID> members_;
+  };
+
+  RadioButtonGroup* GetCachedRadioButtonGroup(HTMLInputElement* radio_button);
+  void RemoveFromRadioButtonGroupCache(AXID id);
+  RadioButtonGroup* ComputeAndCacheRadioButtonGroup(
+      HTMLInputElement* radio_button,
+      AXObject* ax_object);
+
+  HeapHashMap<String, HeapVector<Member<RadioButtonGroup>>>
+      radio_group_name_to_node_ids_;
+
   // The set of node IDs whose bounds has changed since the last time
   // SerializeLocationChanges was called.
   HashSet<AXID> changed_bounds_ids_;
@@ -1273,6 +1322,13 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
 
   // A set of ARIA notifications that have yet to be added to `ax_tree_data`.
   HashMap<AXID, AriaNotifications> aria_notifications_;
+
+  // Stores the AXID of the object currently undergoing IME composition or
+  // commit. This is kInvalidAXID if no active ime state.
+  AXID ime_state_axid_ = ui::AXNodeData::kInvalidAXID;
+  // Stores the IME state details for the object identified by
+  // `ime_state_axid_`.
+  ImeState ime_state_;
 
   // The source of the event that is currently being handled.
   ax::mojom::blink::EventFrom active_event_from_ =

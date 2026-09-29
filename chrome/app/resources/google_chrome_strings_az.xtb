@@ -116,6 +116,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2216543877350048334">Google Hesabını Chrome-dan silmək üçün çıxın</translation>
 <translation id="2236949375853147973">Fəaliyyətim</translation>
 <translation id="22791603784558743">Gemini-ı Chrome Dev-də bağlayın</translation>
+<translation id="2284380654876659752">Sayta daxil olduqda Chrome IP ünvanını gizlədən məxfilik mərkəzi vasitəsilə URL-in gizli hissəsini <ph name="BEGIN_LINK" />Google Güvənli Baxışa<ph name="END_LINK" /> göndərir. Sayt şübhəli nəsə edərsə, tam URL-lər və səhifə kontentinin bəzi hissələri də göndərilir.</translation>
 <translation id="2290014774651636340">Google API açarları çatışmır. Google Chrome'un bəzi funksionallığı deaktiv ediləcək.</translation>
 <translation id="2290095356545025170">Google Chrome'u silmək istəyirsiniz?</translation>
 <translation id="2301513536169703857">Parolları, əlfəcinləri və s. datanı bütün cihazlarınızda əldə etmək üçün Chrome-a daxil olun</translation>
@@ -200,6 +201,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3112458742631356345">Bu fayl adətən endirilmədiyi və təhlükəli ola biləcəyi üçün Chrome endirməni blokladı</translation>
 <translation id="3114643501466072395">Digər parollarınızın data pozuntuları və digər güvənlik məsələlərinə qarşı güvəndə olduğunu yoxlamaq üçün <ph name="BEGIN_LINK" />Chrome'a daxil olun<ph name="END_LINK" />.</translation>
 <translation id="3119573284443908657">Chrome bu endirməni blokladı. Çünki arxiv faylına zərərli proqram gizlədə biləcək digər fayllar daxildir</translation>
+<translation id="3124332159330678621">Brauzerə yeni görünüş tətbiq etmək üçün Chrome-u fərdiləşdirin</translation>
 <translation id="3130333203120345554">Yeni axtarış</translation>
 <translation id="3135560418014806498">Chrome profili əlavə edin</translation>
 <translation id="3137969841538672700">Sürüşdürərək axtarın</translation>
@@ -266,6 +268,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3885770153807205175">Dil seçicisi</translation>
 <translation id="3889417619312448367">Google Chrome'u sistemdən silin</translation>
 <translation id="3892148308691398805">Mətni kopyalayın</translation>
+<translation id="3906096710440765802">Parolları, əlfəcinləri və daha çoxunu bütün cihazlarda əldə etmək üçün Chrome-a daxil olun</translation>
 <translation id="3941890832296813527">Quraşdırma xətası: Quraşdırıcı fayl adı yanlışdır və ya dəstəklənmir.</translation>
 <translation id="395904275706073188">Qorunan səhifələri oxumaq mümkün deyil. Fərqli səhifə yoxlayın.</translation>
 <translation id="3968962723676998462">Chrome datasını hesabınızda (<ph name="ACCOUNT_EMAIL" />) istifadə etmək və yadda saxlamaq üçün parol ifadəsini daxil edin</translation>
@@ -488,6 +491,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6288580400488258237">Chrome-u defolt brauzer kimi ayarlayın və tapşırıqlar panelinə bərkidin</translation>
 <translation id="6291089322031436445">Chrome Dev Tətbiqləri</translation>
 <translation id="6291549208091401781">Google Chrome kompüterinizdəki bütün istifadəçilər üçün artıq quraşdırılıb.</translation>
+<translation id="6311220991371174222">Profilinizi açarkən xəta baş verdiyi üçün Chrome'u işə salmaq olmadı. Chrome'u yenidən başlatmağa çalışın.</translation>
 <translation id="6319856120645568262">Chrome ətrafın xəritəsini çəkmək və əllərinizi izləmək üçün icazə tələb edir</translation>
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" artırması Chrome-a daxil olmağınızı istəyir</translation>
 <translation id="6326175484149238433">Chrome'dan silin</translation>
@@ -616,9 +620,11 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="7655472416356262023">Hesabı Chrome-dan silin</translation>
 <translation id="7658239707568436148">Ləğv edin</translation>
 <translation id="7670287553302121848">Chrome hesabı təkrar doğrulama tələb edir</translation>
+<translation id="7675756456029023637">Chrome-dan soruşun</translation>
 <translation id="769538538642757151">Nəzərdən keçirilməli məqam olsa, Chrome sizə bildirəcək</translation>
 <translation id="769906121737764913">Gemini-ı Chrome Beta-da bağlayın</translation>
 <translation id="7716950018788545737">Tapşırıq(lar) sonlandırıldı.</translation>
+<translation id="7723388585204724670">Defolt Chrome-a sıfırlayın</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" /> üçün sistem izləmə xidmətləri təqdim edir. Bu xidmət deaktiv edilərsə, brauzer tərəfindən yaradılan performans izlərinə kontekst keçidi və hazır mövzu tədbirləri kimi sistem miqyaslı tədbirlər daxil olmayacaq.</translation>
 <translation id="7736869414036750079">Təşkilatınız Chrome-a daxil olmağınızı tələb edir</translation>
 <translation id="7747138024166251722">Quraşdırıcı müvəqqəti direktoriya yarada bilmədi. Proqramı quraşdırmaq üçün boş disk yeri və icazə tapın.</translation>

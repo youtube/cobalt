@@ -2132,6 +2132,101 @@ TEST(SSLTest, AddClientCA) {
   EXPECT_EQ(0, X509_NAME_cmp(sk_X509_NAME_value(list, 2), name1));
 }
 
+TEST(SSLTest, SetGroupIdsWithEqualPreference) {
+  const struct {
+    const char *description;
+    std::vector<uint16_t> groups;
+    std::vector<uint32_t> flags;
+    bool expected_success;
+  } kTests[] = {
+      {
+          "Empty groups / default.",
+          {},
+          {},
+          true,
+      },
+      {
+          "Single group.",
+          {SSL_GROUP_X25519},
+          {0},
+          true,
+      },
+      {
+          "Multiple groups with equal preference.",
+          {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024},
+          {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0},
+          true,
+      },
+      {
+          "Singleton followed by multiple groups with equal preference.",
+          {SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024},
+          {0, SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0},
+          true,
+      },
+      {
+          "Multiple groups with equal preference followed by singleton.",
+          {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024, SSL_GROUP_SECP256R1},
+          {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0, 0},
+          true,
+      },
+      {
+          "Config error (last group has equal preference flag).",
+          {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024},
+          {0, SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT},
+          false,
+      },
+  };
+
+  for (const auto &t : kTests) {
+    SCOPED_TRACE(t.description);
+    ASSERT_EQ(t.groups.size(), t.flags.size()) << "Test setup error.";
+    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    ASSERT_TRUE(ctx);
+    EXPECT_EQ(t.expected_success,
+              SSL_CTX_set1_group_ids_with_flags(
+                  ctx.get(), t.groups.data(), t.flags.data(), t.groups.size()));
+    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
+    ASSERT_TRUE(ssl);
+    EXPECT_EQ(t.expected_success,
+              SSL_set1_group_ids_with_flags(ssl.get(), t.groups.data(),
+                                            t.flags.data(), t.groups.size()));
+  }
+}
+
+// Test that the SSL group flags are defaulted to zero when zero groups are set
+// (i.e. using the default groups).
+TEST(SSLTest, SetGroupIdsWithFlags_DefaultGroups) {
+  const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+                                     SSL_GROUP_SECP384R1};
+  const uint32_t kBogusFlags[] = {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT,
+                                  SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0};
+  bssl::UniquePtr<SSL_CTX> server_ctx =
+      CreateContextWithTestCertificate(TLS_method());
+  ASSERT_TRUE(server_ctx);
+  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
+  ASSERT_TRUE(client_ctx);
+  bssl::UniquePtr<SSL> client, server;
+  CreateClientAndServer(&client, &server, client_ctx.get(), server_ctx.get());
+
+  // Should set the default groups, and corresponding default (zero) flags.
+  EXPECT_TRUE(
+      SSL_set1_group_ids_with_flags(server.get(), nullptr, kBogusFlags, 0));
+  EXPECT_THAT(server->config->supported_group_list,
+              ElementsAreArray(kDefaultGroups));
+
+  // Set up and run the handshake to show that the bogus "equal preference with
+  // next" flags aren't used, and we simply use the default groups with default
+  // flags configured on the server side.
+  SSL_set_options(server.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
+  const uint16_t kClientGroups[] = {SSL_GROUP_SECP384R1, SSL_GROUP_SECP256R1,
+                                    SSL_GROUP_X25519};
+  EXPECT_TRUE(SSL_set1_group_ids(client.get(), kClientGroups,
+                                 std::size(kClientGroups)));
+
+  ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
+  EXPECT_EQ(SSL_get_group_id(client.get()), SSL_GROUP_X25519);
+}
+
 struct ECHConfigParams {
   uint16_t version = TLSEXT_TYPE_encrypted_client_hello;
   uint16_t config_id = 1;
@@ -8574,9 +8669,11 @@ TEST_F(QUICMethodTest, QuicCodePointDefault) {
   ASSERT_TRUE(CompleteHandshakesForQUIC());
 }
 
-extern "C" {
-int BORINGSSL_enum_c_type_test(void);
-}
+}  // namespace
+
+extern "C" int BORINGSSL_enum_c_type_test(void);
+
+namespace {
 
 TEST(SSLTest, EnumTypes) {
   EXPECT_EQ(sizeof(int), sizeof(ssl_private_key_result_t));

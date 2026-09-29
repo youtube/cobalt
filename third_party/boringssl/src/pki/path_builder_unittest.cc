@@ -15,22 +15,29 @@
 #include "path_builder.h"
 
 #include <algorithm>
+#include <memory>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <openssl/pool.h>
+#include <openssl/pki/verify.h>
 
 #include "cert_error_params.h"
+#include "cert_issuer_source.h"
 #include "cert_issuer_source_static.h"
+#include "certificate_policies.h"
 #include "common_cert_errors.h"
 #include "input.h"
 #include "mock_signature_verify_cache.h"
 #include "parsed_certificate.h"
 #include "simple_path_builder_delegate.h"
+#include "string_util.h"
 #include "test_helpers.h"
+#include "trust_store.h"
 #include "trust_store_collection.h"
 #include "trust_store_in_memory.h"
 #include "verify_certificate_chain.h"
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-#include <openssl/pool.h>
 
 BSSL_NAMESPACE_BEGIN
 
@@ -2408,7 +2415,6 @@ TEST_F(PathBuilderCheckPathAfterVerificationTest, AddsErrorToOtherErrors) {
       << error.DiagnosticString();
 }
 
-
 TEST_F(PathBuilderCheckPathAfterVerificationTest, NoopToAlreadyInvalidPath) {
   StrictMock<MockPathBuilderDelegate> delegate;
   // Just verify that the hook is called (on an invalid path).
@@ -2444,6 +2450,131 @@ TEST_F(PathBuilderCheckPathAfterVerificationTest, SetsDelegateData) {
       result.GetBestValidPath()->delegate_data.get());
 
   EXPECT_EQ(0xB33F, data->value);
+}
+
+class PathBuilderMTCTest : public PathBuilderSimpleChainTest {
+ public:
+  PathBuilderMTCTest() = default;
+
+ protected:
+  void SetUp() override {
+    PathBuilderSimpleChainTest::SetUp();
+
+    // Set up the MTCAnchor.
+    std::string subtree_hash;
+    ASSERT_TRUE(string_util::Base64Decode(
+        "o9uCKHX3WFXsKIDjYje8p+ktZajJMnnKvDAyLBgDg14=", &subtree_hash));
+    TrustedSubtree subtree;
+    ASSERT_EQ(subtree_hash.size(), subtree.hash.size());
+    memcpy(subtree.hash.data(), subtree_hash.data(), subtree_hash.size());
+    subtree.range.start = 0;
+    subtree.range.end = 11;
+    std::vector<TrustedSubtree> subtrees = {std::move(subtree)};
+    static const uint8_t log_id[] = {0x81, 0xfd, 0x59, 0x01};
+    mtc_anchor_ =
+        std::make_shared<MTCAnchor>(MakeSpan(log_id), MakeSpan(subtrees));
+  }
+
+  CertPathBuilder::Result RunPathBuilder(
+      const std::shared_ptr<const ParsedCertificate> &leaf,
+      TrustStoreInMemory *trust_store, CertIssuerSource *intermediates,
+      CertPathBuilderDelegate *delegate) {
+    SimplePathBuilderDelegate default_delegate(
+        2048, SimplePathBuilderDelegate::DigestPolicy::kStrong);
+    if (!delegate) {
+      delegate = &default_delegate;
+    }
+
+    CertPathBuilder path_builder(
+        leaf, trust_store, delegate, leaf->tbs().validity_not_before,
+        KeyPurpose::ANY_EKU, InitialExplicitPolicy::kFalse,
+        {der::Input(kAnyPolicyOid)}, InitialPolicyMappingInhibit::kFalse,
+        InitialAnyPolicyInhibit::kFalse);
+    if (intermediates) {
+      path_builder.AddCertIssuerSource(intermediates);
+    }
+    return path_builder.Run();
+  }
+
+  std::shared_ptr<MTCAnchor> mtc_anchor_;
+};
+
+TEST_F(PathBuilderMTCTest, CheckPathAfterVerification) {
+  // Set up MTC leaf and its trust anchor.
+  std::shared_ptr<const ParsedCertificate> mtc_leaf;
+  ASSERT_TRUE(ReadTestCert("mtc/mtc-leaf.pem", &mtc_leaf));
+  TrustStoreInMemory in_memory;
+  ASSERT_TRUE(in_memory.AddMTCTrustAnchor(mtc_anchor_));
+
+  // Check that the path is valid with no delegate.
+  CertPathBuilder::Result result =
+      RunPathBuilder(mtc_leaf, &in_memory, nullptr, nullptr);
+  ASSERT_TRUE(result.HasValidPath());
+
+  // Check that verification fails when the delegate adds an error.
+  AddOtherErrorPathBuilderDelegate delegate;
+  result = RunPathBuilder(mtc_leaf, &in_memory, nullptr, &delegate);
+  ASSERT_FALSE(result.HasValidPath());
+
+  ASSERT_LT(result.best_result_index, result.paths.size());
+  const CertPathBuilderResultPath *failed_path =
+      result.paths[result.best_result_index].get();
+  ASSERT_TRUE(failed_path);
+
+  // An error should have been added to other errors
+  const CertErrors *other_errors = failed_path->errors.GetOtherErrors();
+  ASSERT_TRUE(other_errors);
+  EXPECT_TRUE(other_errors->ContainsError(kErrorFromDelegate));
+
+  // The newly defined delegate error should map to VERIFICATION_FAILURE
+  // since the error is not associated to a certificate.
+  VerifyError error = result.GetBestPathVerifyError();
+  ASSERT_EQ(error.Code(), VerifyError::StatusCode::VERIFICATION_FAILURE)
+      << error.DiagnosticString();
+}
+
+TEST_F(PathBuilderMTCTest, PathLength) {
+  std::shared_ptr<const ParsedCertificate> leaf;
+  ASSERT_TRUE(ReadTestCert("mtc/leaf.pem", &leaf));
+  std::shared_ptr<const ParsedCertificate> ica;
+  ASSERT_TRUE(ReadTestCert("mtc/mtc-ica.pem", &ica));
+
+  // Test that verifying leaf succeeds using ica as the trusted root.
+  {
+    TrustStoreInMemory in_memory;
+    in_memory.AddTrustAnchor(ica);
+    CertPathBuilder::Result result =
+        RunPathBuilder(leaf, &in_memory, nullptr, nullptr);
+    EXPECT_TRUE(result.HasValidPath());
+  }
+
+  // Test that verifying ica (as a leaf) succeeds using the MTC trust anchor.
+  {
+    TrustStoreInMemory in_memory;
+    ASSERT_TRUE(in_memory.AddMTCTrustAnchor(mtc_anchor_));
+    CertPathBuilder::Result result =
+        RunPathBuilder(ica, &in_memory, nullptr, nullptr);
+    EXPECT_TRUE(result.HasValidPath());
+  }
+
+  // Test that verifying leaf fails when using the MTC trust anchor.
+  {
+    TrustStoreInMemory in_memory;
+    ASSERT_TRUE(in_memory.AddMTCTrustAnchor(mtc_anchor_));
+    CertIssuerSourceStatic intermediates;
+    intermediates.AddCert(ica);
+    CertPathBuilder::Result result =
+        RunPathBuilder(leaf, &in_memory, &intermediates, nullptr);
+    EXPECT_FALSE(result.HasValidPath());
+    VerifyError error = result.GetBestPathVerifyError();
+    EXPECT_EQ(error.Code(), VerifyError::StatusCode::PATH_NOT_FOUND)
+        << error.DiagnosticString();
+    const auto &path = *result.GetBestPathPossiblyInvalid();
+    ASSERT_EQ(3u, path.certs.size());
+    EXPECT_EQ(leaf, path.certs[0]);
+    EXPECT_EQ(ica, path.certs[1]);
+    EXPECT_EQ(mtc_anchor_->AsCert(), path.certs[2]);
+  }
 }
 
 TEST(PathBuilderPrioritizationTest, DatePrioritization) {

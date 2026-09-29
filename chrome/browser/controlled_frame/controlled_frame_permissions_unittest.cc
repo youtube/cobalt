@@ -195,6 +195,8 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case ContentSettingsType::CONTROLLED_FRAME:
       case ContentSettingsType::REVOKED_DISRUPTIVE_NOTIFICATION_PERMISSIONS:
       case ContentSettingsType::LOCAL_NETWORK_ACCESS:
+      case ContentSettingsType::LOCAL_NETWORK:
+      case ContentSettingsType::LOOPBACK_NETWORK:
       case ContentSettingsType::
           ON_DEVICE_SPEECH_RECOGNITION_LANGUAGES_DOWNLOADED:
       case ContentSettingsType::INITIALIZED_TRANSLATIONS:
@@ -226,6 +228,7 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case blink::PermissionType::MIDI_SYSEX:
       case blink::PermissionType::NOTIFICATIONS:
       case blink::PermissionType::GEOLOCATION:
+      case blink::PermissionType::GEOLOCATION_APPROXIMATE:
       case blink::PermissionType::PROTECTED_MEDIA_IDENTIFIER:
       case blink::PermissionType::MIDI:
       case blink::PermissionType::DURABLE_STORAGE:
@@ -260,6 +263,8 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case blink::PermissionType::HAND_TRACKING:
       case blink::PermissionType::WEB_APP_INSTALLATION:
       case blink::PermissionType::LOCAL_NETWORK_ACCESS:
+      case blink::PermissionType::LOCAL_NETWORK:
+      case blink::PermissionType::LOOPBACK_NETWORK:
         break;
 
       default:

@@ -9,8 +9,8 @@
 #import "base/ios/ios_util.h"
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/feature_flags.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
+#import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
@@ -69,32 +69,15 @@ NSString* const kEGOpenExtension = @"EGOpenExtension";
 
     [ChromeEarlGrey verifyActivitySheetVisible];
 
-    if (@available(iOS 19.0, *)) {
-      // On iOS26 an additional click on "More" button needs to be performed.
-      // Clicking on Activity Sheet doesn't work with EG if there are multiple
-      // buttons with the same identifier, use XCUI directly.
-      XCUIApplication* app = [[XCUIApplication alloc] init];
-      XCUIElementQuery* more_buttons =
-          [[app staticTexts] matchingIdentifier:@"More"];
-      if (more_buttons.count == 2) {
-        // There are two "More" buttons, select the one at the bottom.
-        XCUIElement* more_button_0 = [more_buttons elementBoundByIndex:0];
-        XCUIElement* more_button_1 = [more_buttons elementBoundByIndex:1];
-        XCUIElement* more_button =
-            more_button_0.frame.origin.x > more_button_1.frame.origin.x
-                ? more_button_0
-                : more_button_1;
-        [more_button tap];
-      } else if (more_buttons.count == 1) {
-         XCUIElement* more_button = [more_buttons elementBoundByIndex:0];
-         [more_button tap];
-      }
+    if (@available(iOS 26.0, *)) {
+      [ChromeEarlGrey tapMoreOptionButtonInActivitySheet];
 
       // TODO(crbug.com/432223861): Revisit using
       // `tapButtonInActivitySheetWithID` if it can be fixed to work better on
       // iOS 26, or if Apple fixes a bug that caused the item to not be
       // hittable.
       [ChromeEarlGrey verifyTextVisibleInActivitySheetWithID:kEGOpenExtension];
+      XCUIApplication* app = [[XCUIApplication alloc] init];
       XCUIElement* button = app.otherElements[@"ActivityListView"]
                                 .staticTexts[kEGOpenExtension]
                                 .firstMatch;

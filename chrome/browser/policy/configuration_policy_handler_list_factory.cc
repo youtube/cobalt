@@ -94,6 +94,7 @@
 #include "components/ntp_tiles/enterprise/ntp_shortcuts_policy_handler.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
@@ -113,7 +114,6 @@
 #include "components/policy/core/common/schema.h"
 #include "components/policy/policy_constants.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
-#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/proxy_config/proxy_override_rules_policy_handler.h"
 #include "components/proxy_config/proxy_policy_handler.h"
 #include "components/safe_browsing/buildflags.h"
@@ -123,7 +123,6 @@
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/security_interstitials/core/https_only_mode_policy_handler.h"
 #include "components/security_interstitials/core/pref_names.h"
-#include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "components/sharing_message/buildflags.h"
 #include "components/sharing_message/pref_names.h"
 #include "components/signin/public/base/signin_buildflags.h"
@@ -158,6 +157,7 @@
 #include "chrome/browser/policy/local_sync_policy_handler.h"
 #include "chrome/browser/policy/managed_account_policy_handler.h"
 #include "chrome/browser/web_applications/policy/web_app_settings_policy_handler.h"
+#include "components/contextual_search/search_content_sharing_policy_handler.h"
 #include "components/headless/policy/headless_mode_policy_handler.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/media_router/common/pref_names.h"
@@ -411,9 +411,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kHttpAllowlist,
     prefs::kHttpAllowlist,
     base::Value::Type::LIST },
-  { key::kPrivacySandboxFingerprintingProtectionEnabled,
-    prefs::kFingerprintingProtectionEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kHttpsUpgradesEnabled,
     prefs::kHttpsUpgradesEnabled,
     base::Value::Type::BOOLEAN },
@@ -471,11 +468,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kServiceWorkerAutoPreloadEnabled,
     prefs::kServiceWorkerAutoPreloadEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kIncognitoModeBlocklist,
-    policy_prefs::kIncognitoModeBlocklist,
+  { key::kIncognitoModeUrlBlocklist,
+    policy_prefs::kIncognitoModeUrlBlocklist,
     base::Value::Type::LIST },
-  { key::kIncognitoModeAllowlist,
-    policy_prefs::kIncognitoModeAllowlist,
+  { key::kIncognitoModeUrlAllowlist,
+    policy_prefs::kIncognitoModeUrlAllowlist,
     base::Value::Type::LIST },
   { key::kStaticStorageQuotaEnabled,
     prefs::kStaticStorageQuotaEnabled,
@@ -515,6 +512,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kListenToThisPageEnabled,
     prefs::kListenToThisPageEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kSearchContentSharingSettings,
+    contextual_search::kSearchContentSharingSettings,
+    base::Value::Type::INTEGER },
 #else // !BUILDFLAG(IS_ANDROID)
   { key::kAbusiveExperienceInterventionEnforce,
     blocked_content::prefs::kAbusiveExperienceInterventionEnforce,
@@ -716,12 +716,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kIsolateOrigins,
     prefs::kIsolateOrigins,
     base::Value::Type::STRING },
-  { key::kLensDesktopNTPSearchEnabled,
-    prefs::kLensDesktopNTPSearchEnabled,
-    base::Value::Type::BOOLEAN },
-  { key::kLensRegionSearchEnabled,
-    prefs::kLensRegionSearchEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kLocalFontsAllowedForUrls,
     prefs::kManagedLocalFontsAllowedForUrls,
     base::Value::Type::LIST },
@@ -2081,9 +2075,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kShowAppsShortcutInBookmarkBar,
     bookmarks::prefs::kShowAppsShortcutInBookmarkBar,
     base::Value::Type::BOOLEAN },
-  { key::kCloudPrintProxyEnabled,
-    prefs::kCloudPrintProxyEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kDiskCacheSize,
     prefs::kDiskCacheSize,
     base::Value::Type::INTEGER },
@@ -2436,12 +2427,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::INTEGER },
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
-#if !BUILDFLAG(IS_ANDROID)
-  { key::kLensOverlaySettings,
-    lens::prefs::kLensOverlaySettings,
-    base::Value::Type::INTEGER},
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS)
   { key::kDeviceAuthenticationFlowAutoReloadInterval,
     ash::prefs::kAuthenticationFlowAutoReloadInterval,
@@ -2472,9 +2457,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   { key::kAIModeSettings,
     omnibox::kAIModeSettings,
-    base::Value::Type::INTEGER },
-  { key::kSearchContentSharingSettings,
-    contextual_search::kSearchContentSharingSettings,
     base::Value::Type::INTEGER },
 #if BUILDFLAG(ENABLE_GLIC)
   { key::kGeminiActOnWebSettings,
@@ -2866,9 +2848,9 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<ForceYouTubeSafetyModePolicyHandler>());
   handlers->AddHandler(std::make_unique<HomepageLocationPolicyHandler>());
   handlers->AddHandler(std::make_unique<proxy_config::ProxyPolicyHandler>());
-  handlers->AddHandler(
+  handlers->AddHandler(std::make_unique<CloudOnlyPolicyChecker>(
       std::make_unique<proxy_config::ProxyOverrideRulesPolicyHandler>(
-          chrome_schema));
+          chrome_schema)));
   handlers->AddHandler(std::make_unique<SecureDnsPolicyHandler>());
   handlers->AddHandler(std::make_unique<SimpleSchemaValidatingPolicyHandler>(
       key::kCertificateTransparencyEnforcementDisabledForUrls,
@@ -3505,9 +3487,32 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #if !BUILDFLAG(IS_ANDROID)
   gen_ai_default_policies.emplace_back(
       key::kLensOverlaySettings, lens::prefs::kLensOverlaySettings,
+      key::kSearchContentSharingSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
-#endif
+
+  handlers->AddHandler(std::make_unique<SimpleDeprecatingPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(key::kLensOverlaySettings,
+                                            lens::prefs::kLensOverlaySettings,
+                                            base::Value::Type::INTEGER),
+      std::make_unique<contextual_search::SearchContentSharingPolicyHandler>(
+          lens::prefs::kLensOverlaySettings,
+          /* convert_policy_value_to_enabled_boolean= */ false)));
+  handlers->AddHandler(std::make_unique<SimpleDeprecatingPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(key::kLensDesktopNTPSearchEnabled,
+                                            prefs::kLensDesktopNTPSearchEnabled,
+                                            base::Value::Type::BOOLEAN),
+      std::make_unique<contextual_search::SearchContentSharingPolicyHandler>(
+          prefs::kLensDesktopNTPSearchEnabled,
+          /* convert_policy_value_to_enabled_boolean= */ true)));
+  handlers->AddHandler(std::make_unique<SimpleDeprecatingPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(key::kLensRegionSearchEnabled,
+                                            prefs::kLensRegionSearchEnabled,
+                                            base::Value::Type::BOOLEAN),
+      std::make_unique<contextual_search::SearchContentSharingPolicyHandler>(
+          prefs::kLensRegionSearchEnabled,
+          /* convert_policy_value_to_enabled_boolean= */ true)));
+#endif  // !BUILDFLAG(IS_ANDROID)
   gen_ai_default_policies.emplace_back(
       key::kAIModeSettings, omnibox::kAIModeSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
@@ -3526,6 +3531,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<GeminiActOnWebSettingsPolicyHandler>(
       std::make_unique<GenAiDefaultSettingsPolicyHandler>(
           std::move(gen_ai_default_policies))));
+  handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
+      key::kGeminiActOnWebAllowedForURLs,
+      glic::prefs::kGlicActuationOnWebAllowedForURLs));
+  handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
+      key::kGeminiActOnWebBlockedForURLs,
+      glic::prefs::kGlicActuationOnWebBlockedForURLs));
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(

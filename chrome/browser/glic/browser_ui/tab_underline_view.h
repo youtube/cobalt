@@ -18,7 +18,6 @@
 #include "ui/views/view.h"
 
 class Browser;
-class Tab;
 
 namespace gfx {
 class Canvas;
@@ -38,7 +37,7 @@ class TabUnderlineView : public AnimatedEffectView {
     static std::unique_ptr<TabUnderlineView> Create(
         std::unique_ptr<TabUnderlineViewController> controller,
         Browser* browser,
-        Tab* tab);
+        tabs::TabHandle tab_handle);
     static void set_factory(Factory* factory) { factory_ = factory; }
 
    protected:
@@ -49,7 +48,7 @@ class TabUnderlineView : public AnimatedEffectView {
     virtual std::unique_ptr<TabUnderlineView> CreateUnderlineView(
         std::unique_ptr<TabUnderlineViewController> controller,
         Browser* browser,
-        Tab* tab) = 0;
+        tabs::TabHandle tab) = 0;
 
    private:
     static Factory* factory_;
@@ -61,7 +60,7 @@ class TabUnderlineView : public AnimatedEffectView {
 
   // Returns the TabInterface corresponding to `underline_view_`, if it is
   // valid.
-  base::WeakPtr<tabs::TabInterface> GetTabInterface();
+  tabs::TabInterface* GetTabInterface();
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicTabUnderlineElementId);
 
@@ -70,13 +69,14 @@ class TabUnderlineView : public AnimatedEffectView {
   explicit TabUnderlineView(
       std::unique_ptr<TabUnderlineViewController> controller,
       Browser* browser,
-      Tab* tab,
+      tabs::TabHandle tab_handle,
       std::unique_ptr<Tester> tester);
 
  private:
   // `AnimatedEffectView`:
   bool IsCycleDone(base::TimeTicks timestamp) override;
   base::TimeDelta GetTotalDuration() const override;
+  std::vector<SkColor> GetEffectColors() override;
   void PopulateShaderUniforms(
       std::vector<cc::PaintShader::FloatUniform>& float_uniforms,
       std::vector<cc::PaintShader::Float2Uniform>& float2_uniforms,
@@ -84,13 +84,16 @@ class TabUnderlineView : public AnimatedEffectView {
       std::vector<cc::PaintShader::IntUniform>& int_uniforms) const override;
   void DrawEffect(gfx::Canvas* canvas, const cc::PaintFlags& flags) override;
 
+  // `views::View`:
+  void OnThemeChanged() override;
+
   int ComputeWidth();
 
   // The controller responsible for notifying the view about various browser
   // UI status changes that affect showing and animating of the tab underlines.
   const std::unique_ptr<TabUnderlineViewController> controller_;
 
-  raw_ptr<Tab> tab_ = nullptr;
+  tabs::TabHandle tab_handle_;
 };
 
 BEGIN_VIEW_BUILDER(, TabUnderlineView, AnimatedEffectView)

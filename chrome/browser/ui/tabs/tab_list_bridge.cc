@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "components/tabs/public/tab_group.h"
@@ -81,22 +82,37 @@ tabs::TabInterface* TabListBridge::GetActiveTab() {
   return tab_strip_->GetActiveTab();
 }
 
+void TabListBridge::ActivateTab(tabs::TabHandle tab) {
+  const int index = GetIndexOfTab(tab);
+  CHECK_NE(index, TabStripModel::kNoTab);
+  tab_strip_->ActivateTabAt(index);
+}
+
 tabs::TabInterface* TabListBridge::OpenTab(const GURL& url, int index) {
-  NOTIMPLEMENTED();
-  return nullptr;
+  // If `index` is specified as `TabStripModel::kNoTab`, then the tab is added
+  // to the end of the tab strip.
+  CHECK(index == TabStripModel::kNoTab || tab_strip_->ContainsIndex(index));
+
+  // TODO(crbug.com/460650221): It's a bit of a code smell to reach in and grab
+  // the delegate from TabStripModel, but it avoids introducing new dependencies
+  // here.
+  TabStripModelDelegate* delegate = tab_strip_->delegate();
+  delegate->AddTabAt(url, index, /*foreground=*/true);
+  int index_to_retrieve =
+      index == TabStripModel::kNoTab ? tab_strip_->count() - 1 : index;
+  return tab_strip_->GetTabAtIndex(index_to_retrieve);
 }
 
 void TabListBridge::DiscardTab(tabs::TabHandle tab) {}
 
 tabs::TabInterface* TabListBridge::DuplicateTab(tabs::TabHandle tab) {
-  // TODO(dpenning): It's a bit of a code smell to reach in and grab the
-  // delegate from TabStripModel, but it avoids introducing new dependencies
-  // here.
-  TabStripModelDelegate* delegate = tab_strip_->delegate();
-
   const int index = GetIndexOfTab(tab);
   CHECK_NE(index, TabStripModel::kNoTab);
 
+  // TODO(crbug.com/460650221): It's a bit of a code smell to reach in and grab
+  // the delegate from TabStripModel, but it avoids introducing new dependencies
+  // here.
+  TabStripModelDelegate* delegate = tab_strip_->delegate();
   if (!delegate->CanDuplicateContentsAt(index)) {
     return nullptr;
   }
@@ -173,6 +189,22 @@ void TabListBridge::UnpinTab(tabs::TabHandle tab) {
   CHECK_NE(index, TabStripModel::kNoTab)
       << "Trying to unpin a tab that doesn't exist in this tab list.";
   tab_strip_->SetTabPinned(index, false);
+}
+
+bool TabListBridge::ContainsTabGroup(tab_groups::TabGroupId group_id) {
+  // Not all browsers support tab groups.
+  if (!tab_strip_->group_model()) {
+    return false;
+  }
+  return tab_strip_->group_model()->ContainsTabGroup(group_id);
+}
+
+std::vector<tab_groups::TabGroupId> TabListBridge::ListTabGroups() {
+  // Not all browsers support tab groups.
+  if (!tab_strip_->group_model()) {
+    return {};
+  }
+  return tab_strip_->group_model()->ListTabGroups();
 }
 
 std::optional<tab_groups::TabGroupId> TabListBridge::AddTabsToGroup(

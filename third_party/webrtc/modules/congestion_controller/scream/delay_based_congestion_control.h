@@ -74,8 +74,9 @@ class DelayBasedCongestionControl {
 
   double queue_delay_dev_norm() const { return queue_delay_dev_norm_; }
 
-  // Smoothed RTT as measured in last TransportPacketsFeedback.
   TimeDelta rtt() const { return last_smoothed_rtt_; }
+
+  double l4s_alpha_v() const;
 
  private:
   TimeDelta min_base_delay() const {

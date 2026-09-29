@@ -33,7 +33,6 @@
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_constants.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/themes/test/theme_service_changed_waiter.h"
 #include "chrome/browser/themes/theme_helper.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -53,7 +52,6 @@
 #include "components/sync/protocol/theme_types.pb.h"
 #include "components/sync/test/fake_sync_change_processor.h"
 #include "components/sync/test/sync_change_processor_wrapper_for_test.h"
-#include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/themes/pref_names.h"
@@ -243,8 +241,7 @@ class FakeThemeService : public ThemeService {
 class ThemeSyncableServiceTest : public testing::Test,
                                  public ThemeSyncableService::Observer {
  protected:
-  ThemeSyncableServiceTest() : fake_theme_service_(nullptr) {}
-
+  ThemeSyncableServiceTest() = default;
   ~ThemeSyncableServiceTest() override = default;
 
   void SetUp() override {
@@ -271,7 +268,10 @@ class ThemeSyncableServiceTest : public testing::Test,
   }
 
   void TearDown() override {
+    theme_extension_.reset();
+    fake_change_processor_.reset();
     theme_sync_service_.reset();
+    fake_theme_service_ = nullptr;
     profile_.reset();
     base::RunLoop().RunUntilIdle();
   }
@@ -332,7 +332,7 @@ class ThemeSyncableServiceTest : public testing::Test,
 #endif
 
   std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<FakeThemeService, DanglingUntriaged> fake_theme_service_;
+  raw_ptr<FakeThemeService> fake_theme_service_ = nullptr;
   scoped_refptr<extensions::Extension> theme_extension_;
   std::unique_ptr<ThemeSyncableService> theme_sync_service_;
   std::unique_ptr<syncer::FakeSyncChangeProcessor> fake_change_processor_;
@@ -869,7 +869,12 @@ class RealThemeSyncableServiceTest
     ThemeService::DisableThemePackForTesting();
 
     extensions::ExtensionServiceTestBase::SetUp();
-    InitializeExtensionService(ExtensionServiceInitParams());
+    // Avoid using the real SyncService instance, to avoid triggering sync
+    // startup notifications, specifically clearing of existing account data
+    // upon startup when there is no sync metadata.
+    ExtensionServiceInitParams params;
+    params.use_test_sync_service = true;
+    InitializeExtensionService(std::move(params));
     service()->Init();
 
     theme_service_ = ThemeServiceFactory::GetForProfile(profile());
@@ -891,6 +896,14 @@ class RealThemeSyncableServiceTest
     ASSERT_EQ(1u, extensions::ExtensionRegistry::Get(profile())
                       ->enabled_extensions()
                       .size());
+  }
+
+  void TearDown() override {
+    theme_extension_.reset();
+    fake_change_processor_.reset();
+    theme_sync_service_ = nullptr;
+    theme_service_ = nullptr;
+    extensions::ExtensionServiceTestBase::TearDown();
   }
 
   ThemeService* theme_service() { return theme_service_; }
@@ -3558,17 +3571,12 @@ class ThemeSyncableServiceTestForThemeExtension
     pending_extension_manager_ =
         extensions::PendingExtensionManager::Get(profile());
     extension_registry_ = extensions::ExtensionRegistry::Get(profile());
+  }
 
-    // Avoid using the real SyncService instance, to avoid triggering sync
-    // startup notifications, specifically clearing of existing account data
-    // upon startup when there is no sync metadata.
-    // TODO(crbug.com/425913203): Remove once usage of TestSyncService is
-    // simplified.
-    SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-        profile(), base::BindRepeating([](content::BrowserContext* context)
-                                           -> std::unique_ptr<KeyedService> {
-          return std::make_unique<syncer::TestSyncService>();
-        }));
+  void TearDown() override {
+    extension_registry_ = nullptr;
+    pending_extension_manager_ = nullptr;
+    ThemeSyncableServiceTestWithAccountThemesSeparation::TearDown();
   }
 
   void InstallExtension() {

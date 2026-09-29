@@ -182,6 +182,8 @@ class WTF_EXPORT StringView {
 
   bool IsLowerASCII() const;
   bool ContainsOnlyASCIIOrEmpty() const;
+  // Returns true if the string is empty or contains only Latin-1 characters.
+  bool ContainsOnlyLatin1OrEmpty() const;
 
   bool SubstringContainsOnlyWhitespaceOrEmpty(unsigned from, unsigned to) const;
 
@@ -273,6 +275,9 @@ class WTF_EXPORT StringView {
   // Find characters. Returns the index of the match, or `kNotFound`.
   wtf_size_t Find(CharacterMatchFunctionPtr match_function,
                   wtf_size_t start = 0) const;
+
+  // Returns `true` if this StringView contains the specified character.
+  bool contains(UChar ch) const;
 
   template <bool isSpecialCharacter(UChar)>
   bool IsAllSpecialCharacters() const;

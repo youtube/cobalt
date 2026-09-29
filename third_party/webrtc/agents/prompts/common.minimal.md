@@ -32,7 +32,7 @@ single agentic tool.
 ## Testing
 
 Unless otherwise instructed, run tests with:
-`tools/autotest.py --quiet --run-all -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
+`tools/autotest.py --quiet --run-all --no-try-android-wrappers --no-fast-local-dev -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
 
 When using `tools/autotest.py`:
 * Do not invoke `autoninja` beforehand because `autotest.py` automatically

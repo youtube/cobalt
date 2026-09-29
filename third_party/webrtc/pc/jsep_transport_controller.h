@@ -16,7 +16,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -199,15 +198,15 @@ class JsepTransportController final {
   // Get transports to be used for the provided `mid`. If bundling is enabled,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(absl::string_view mid) const;
-  DtlsTransportInternal* GetDtlsTransport(const std::string& mid);
+  DtlsTransportInternal* GetDtlsTransport(absl::string_view mid);
   // Gets the externally sharable version of the DtlsTransport.
   scoped_refptr<DtlsTransport> LookupDtlsTransportByMid_n(
-      const std::string& mid);
-  scoped_refptr<DtlsTransport> LookupDtlsTransportByMid(const std::string& mid);
-  scoped_refptr<SctpTransport> GetSctpTransport(const std::string& mid) const;
+      absl::string_view mid);
+  scoped_refptr<DtlsTransport> LookupDtlsTransportByMid(absl::string_view mid);
+  scoped_refptr<SctpTransport> GetSctpTransport(absl::string_view mid) const;
 
   DataChannelTransportInterface* GetDataChannelTransport(
-      const std::string& mid) const;
+      absl::string_view mid) const;
 
   /*********************
    * ICE-related methods
@@ -225,13 +224,13 @@ class JsepTransportController final {
   // bundling, returns false.
   //
   // Must be called on the signaling thread.
-  bool NeedsIceRestart(const std::string& mid) const;
+  bool NeedsIceRestart(absl::string_view mid) const;
   // Start gathering candidates for any new transports, or transports doing an
   // ICE restart.
   //
   // Must be called on the signaling thread.
   void MaybeStartGathering();
-  RTCError AddRemoteCandidates(const std::string& mid,
+  RTCError AddRemoteCandidates(absl::string_view mid,
                                const std::vector<Candidate>& candidates);
   // Must be called on the signaling thread.
   bool RemoveRemoteCandidate(const IceCandidate* candidate);
@@ -245,15 +244,15 @@ class JsepTransportController final {
   // Must be called on the signaling thread.
   bool SetLocalCertificate(const scoped_refptr<RTCCertificate>& certificate);
   scoped_refptr<RTCCertificate> GetLocalCertificate(
-      const std::string& mid) const;
+      absl::string_view mid) const;
   // Caller owns returned certificate chain. This method mainly exists for
   // stats reporting.
   std::unique_ptr<SSLCertChain> GetRemoteSSLCertChain(
-      const std::string& mid) const;
+      absl::string_view mid) const;
   // Get negotiated role, if one has been negotiated.
   //
   // Must be called on the signaling thread.
-  std::optional<SSLRole> GetDtlsRole(const std::string& mid) const;
+  std::optional<SSLRole> GetDtlsRole(absl::string_view mid) const;
 
   bool GetStats(absl::string_view transport_name, TransportStats* stats) const;
 
@@ -274,7 +273,7 @@ class JsepTransportController final {
       RTC_RUN_ON(network_thread_);
 
   // Always called via a blocking call from the signaling thread.
-  bool NeedsIceRestart_n(const std::string& mid) const
+  bool NeedsIceRestart_n(absl::string_view mid) const
       RTC_RUN_ON(network_thread_);
 
   // Always called via a blocking call from the signaling thread.
@@ -333,10 +332,6 @@ class JsepTransportController final {
   // destroyed because of BUNDLE, it would return the transport which other
   // transports are bundled on (In current implementation, it is the first
   // content in the BUNDLE group).
-  const JsepTransport* GetJsepTransportForMid(const std::string& mid) const
-      RTC_RUN_ON(network_thread_);
-  JsepTransport* GetJsepTransportForMid(const std::string& mid)
-      RTC_RUN_ON(network_thread_);
   const JsepTransport* GetJsepTransportForMid(absl::string_view mid) const
       RTC_RUN_ON(network_thread_);
   JsepTransport* GetJsepTransportForMid(absl::string_view mid)
@@ -371,21 +366,21 @@ class JsepTransportController final {
       const ContentInfo& content_info,
       bool rtcp);
   scoped_refptr<IceTransportInterface> CreateIceTransport(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       bool rtcp);
   std::unique_ptr<RtpTransport> CreateUnencryptedRtpTransport(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       std::unique_ptr<PacketTransportInternal> rtp_packet_transport,
       std::unique_ptr<PacketTransportInternal> rtcp_packet_transport);
 
   // Creates a DTLS SRTP transport.
   std::unique_ptr<DtlsSrtpTransport> CreateDtlsSrtpTransport(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
       std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport);
 
   std::unique_ptr<RtpTransport> CreateRtpTransport(
-      const std::string& transport_name,
+      absl::string_view transport_name,
       std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
       std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport);
 

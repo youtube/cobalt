@@ -255,11 +255,11 @@ bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
 
 bool IsPublicSymbol(Tagged<Object> obj) {
   Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && !symbol->is_private();
+  return TryCast<Symbol>(obj, &symbol) && !symbol->is_any_private();
 }
 bool IsPrivateSymbol(Tagged<Object> obj) {
   Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && symbol->is_private();
+  return TryCast<Symbol>(obj, &symbol) && symbol->is_any_private();
 }
 
 bool IsNoSharedNameSentinel(Tagged<Object> obj) {
@@ -441,9 +441,8 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
   // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
-  static_assert(kLastStaticRootPage <=
-                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
-  return obj < kLastStaticRootPage;
+  static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
+  return obj < kContiguousReadOnlyReservationSize;
 #else
   return false;
 #endif
@@ -819,11 +818,11 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
   DCHECK(!IsPropertyCell(obj));
   if (filter == PRIVATE_NAMES_ONLY) {
     if (!IsSymbol(obj)) return true;
-    return !Cast<Symbol>(obj)->is_private_name();
+    return !Cast<Symbol>(obj)->is_any_private_name();
   } else if (IsSymbol(obj)) {
     if (filter & SKIP_SYMBOLS) return true;
 
-    if (Cast<Symbol>(obj)->is_private()) return true;
+    if (Cast<Symbol>(obj)->is_any_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;
   }

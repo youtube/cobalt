@@ -1313,12 +1313,13 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
-  TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
-                  argc, c_function,    // register arguments
-                  TheHoleConstant(),   // additional stack argument 1 (padding)
-                  SmiFromInt32(argc),  // additional stack argument 2
-                  target,              // additional stack argument 3
-                  new_target);         // additional stack argument 4
+  TailCallBuiltin(centry, context,   // standard arguments for TailCallBuiltin
+                  argc, c_function,  // register arguments
+                  // additional stack arguments
+                  new_target,          // sp[0]
+                  target,              // sp[1]
+                  SmiFromInt32(argc),  // sp[2]
+                  TheHoleConstant());  // sp[3]
 }
 
 TF_BUILTIN(AdaptorWithBuiltinExitFrame0, CppBuiltinsAdaptorAssembler) {
@@ -1490,6 +1491,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
                           &var_value, next_holder, if_bailout,
                           kExpectingJSReceiver);
         BIND(&if_found);
+        GotoIfLazyClosure(CAST(var_value.value()), if_bailout);
         Return(var_value.value());
       };
 

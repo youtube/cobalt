@@ -163,7 +163,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &feature_engagement::kIPHTabSwitcherButtonFeature,
     &features::kAbortNavigationsFromTabClosures,
     &features::kAndroidAnimatedProgressBarInBrowser,
-    &features::kAndroidAnimatedProgressBarInViz,
     &features::kAndroidBcivBottomControls,
     &features::kAndroidBrowserControlsInViz,
     &features::kAndroidWebAppLaunchHandler,
@@ -197,7 +196,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &feed::kFeedNoViewCache,
     &feed::kFeedPerformanceStudy,
     &feed::kFeedRecyclerBinderUnmountOnDetach,
-    &feed::kFeedShowSignInCommand,
     &feed::kFeedSignedOutViewDemotion,
     &feed::kInterestFeedV2,
     &feed::kWebFeedAwareness,
@@ -232,6 +230,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidProgressBarVisualUpdate,
     &kAndroidSearchInSettings,
     &kAndroidSettingsContainment,
+    &kAndroidSetupList,
     &kAndroidSurfaceColorUpdate,
     &kAndroidTabDeclutterDedupeTabIdsKillSwitch,
     &kAndroidTabHighlighting,
@@ -255,10 +254,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAutomotiveBackButtonBarStreamline,
     &kAuxiliarySearchDonation,
     &kAuxiliarySearchHistoryDonation,
+    &kAvoidDoubleMultiwindowChanges,
     &kBlockIntentsWhileLocked,
     &kBookmarkPaneAndroid,
     &kBrowserControlsDebugging,
     &kBrowserControlsEarlyResize,
+    &kBrowserControlsPersistsOnCvh,
     &kBrowserControlsRenderDrivenShowConstraint,
     &kCCTAdaptiveButton,
     &kCCTAdaptiveButtonTestSwitch,
@@ -276,6 +277,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTGoogleBottomBarVariantLayouts,
     &kCCTIncognitoAvailableToThirdParty,
     &kCCTMinimizedEnabledByDefault,
+    &kCCTMultipleParallelRequests,
     &kCCTNavigationMetrics,
     &kCCTNavigationalPrefetch,
     &kCCTNestedSecurityIcon,
@@ -323,6 +325,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kEducationalTipDefaultBrowserPromoCard,
     &kEmptyTabListAnimationKillSwitch,
     &kEnableEscapeHandlingForSecondaryActivities,
+    &kEnableSwipeToSwitchPane,
     &kEnableXAxisActivityTransition,
     &kEscCancelDrag,
     &kExperimentsForAgsa,
@@ -336,9 +339,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kHeadlessTabModel,
     &kHistoryPaneAndroid,
     &kHomeModulePrefRefactor,
-    &kHomepageIsNewTabPagePolicyAndroid,
     &kHubBackButton,
-    &kHubSlideAnimation,
     &kIncognitoNtpSmallIcon,
     &kIncognitoScreenshot,
     &kIncognitoThemeOverlayTesting,
@@ -391,6 +392,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kReadAloudPlayback,
     &kReadAloudTapToSeek,
     &kRecentlyClosedTabsAndWindows,
+    &kRecordIncognitoNtpTimeToFirstNavigationMetric,
     &kRecordSuppressionMetrics,
     &kReengagementNotification,
     &kRelatedSearchesAllLanguage,
@@ -410,7 +412,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kShareCustomActionsInCCT,
     &kShortCircuitUnfocusAnimation,
     &kShowCloseAllIncognitoTabsButton,
-    &kShowHomeButtonPolicyAndroid,
     &kShowNewTabAnimations,
     &kShowTabListAnimations,
     &kSmallerTabStripTitleLimit,
@@ -420,7 +421,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kSuppressToolbarCapturesAtGestureEnd,
     &kTabClosureMethodRefactor,
     &kTabFreezingUsesDiscard,
-    &kTabGroupAndroidVisualDataCleanup,
     &kTabModelInitFixes,
     &kTabStorageSqlitePrototype,
     &kTabStripAutoSelectOnCloseChange,
@@ -432,7 +432,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabWindowManagerReportIndicesMismatch,
     &kTestDefaultDisabled,
     &kTestDefaultEnabled,
-    &kThirdPartyDisableChromeAutofillSettingsScreen,
     &kTinkerTankBottomSheet,
     &kToolbarPhoneAnimationRefactor,
     &kToolbarSnapshotRefactor,
@@ -458,6 +457,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &media::kContextMenuPictureInPictureAndroid,
     &net::features::kVerifyQWACs,
     &network::features::kLocalNetworkAccessChecks,
+    &network::features::kLocalNetworkAccessChecksSplitPermissions,
     &notifications::features::kUseChimeAndroidSdk,
     &page_info::kPageInfoAboutThisSiteMoreLangs,
     &paint_preview::kPaintPreviewDemo,
@@ -479,6 +479,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &privacy_sandbox::kRelatedWebsiteSetsUi,
     &privacy_sandbox::kRollBackModeB,
     &safe_browsing::kAutoRevokeSuspiciousNotification,
+    &safe_browsing::kExtendedReportingRemovePrefDependency,
     &safe_browsing::kHashPrefixRealTimeLookups,
     &safe_browsing::kMaliciousApkDownloadCheck,
     &safe_browsing::kReportNotificationContentDetectionData,
@@ -542,7 +543,7 @@ BASE_FEATURE(kAndroidBookmarkBarFastFollow, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBottomToolbarV2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidComposeplate, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidComposeplateAllLocales, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidComposeplateLFF, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidComposeplateLFF, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidComposeplateLFFAllLocales, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidContextMenuDuplicateTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidDataImporterService, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -560,6 +561,7 @@ BASE_FEATURE(kAndroidPinnedTabsTabletTabStrip, base::FEATURE_DISABLED_BY_DEFAULT
 BASE_FEATURE(kAndroidProgressBarVisualUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSearchInSettings,"SearchInSettings", base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSettingsContainment, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidSetupList, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSurfaceColorUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidTabDeclutterDedupeTabIdsKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidTabHighlighting, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -583,10 +585,12 @@ BASE_FEATURE(kAsyncNotificationManagerForDownload, base::FEATURE_DISABLED_BY_DEF
 BASE_FEATURE(kAutomotiveBackButtonBarStreamline, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAuxiliarySearchDonation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAuxiliarySearchHistoryDonation, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAvoidDoubleMultiwindowChanges, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBlockIntentsWhileLocked, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBookmarkPaneAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsDebugging, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsEarlyResize, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBrowserControlsPersistsOnCvh, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsRenderDrivenShowConstraint, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTAdaptiveButton, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTAdaptiveButtonTestSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -604,6 +608,7 @@ BASE_FEATURE(kCCTGoogleBottomBar, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTGoogleBottomBarVariantLayouts, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTIncognitoAvailableToThirdParty, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTMinimizedEnabledByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kCCTMultipleParallelRequests, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTNavigationMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTNavigationalPrefetch, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTNestedSecurityIcon, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -645,6 +650,7 @@ BASE_FEATURE(kDesktopUAOnConnectedDisplay, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDeviceAuthenticatorAndroidx, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDisableInstanceLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDiscardPageWithCrashedSubframePolicy, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDiscardPageWithCrashedSubframeRelaxedEligibility, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDontAutoHideBrowserControls, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDrawChromePagesEdgeToEdge, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEdgeToEdgeBottomChin, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -655,6 +661,7 @@ BASE_FEATURE(kEdgeToEdgeUseBackupNavbarInsets, base::FEATURE_ENABLED_BY_DEFAULT)
 BASE_FEATURE(kEducationalTipDefaultBrowserPromoCard, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEmptyTabListAnimationKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableEscapeHandlingForSecondaryActivities, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableSwipeToSwitchPane, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableXAxisActivityTransition, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEscCancelDrag, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kExperimentsForAgsa, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -668,9 +675,7 @@ BASE_FEATURE(kGroupNewTabWithParent, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHeadlessTabModel, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHistoryPaneAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kHomeModulePrefRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kHomepageIsNewTabPagePolicyAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHubBackButton, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kHubSlideAnimation, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoNtpSmallIcon, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoScreenshot, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoThemeOverlayTesting, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -730,6 +735,7 @@ BASE_FEATURE(kReadAloudPlayback, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kReadAloudServerExperiments, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kReadAloudTapToSeek, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kRecentlyClosedTabsAndWindows, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRecordIncognitoNtpTimeToFirstNavigationMetric, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kRecordSuppressionMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kReengagementNotification, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kRelatedSearchesAllLanguage, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -749,7 +755,6 @@ BASE_FEATURE(kSettingsSingleActivity, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShareCustomActionsInCCT, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShortCircuitUnfocusAnimation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShowCloseAllIncognitoTabsButton, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kShowHomeButtonPolicyAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kShowNewTabAnimations, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShowTabListAnimations, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSmallerTabStripTitleLimit, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -759,7 +764,6 @@ BASE_FEATURE(kSubmenusTabContextMenuLffTabStrip, base::FEATURE_DISABLED_BY_DEFAU
 BASE_FEATURE(kSuppressToolbarCapturesAtGestureEnd, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabClosureMethodRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabFreezingUsesDiscard, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kTabGroupAndroidVisualDataCleanup, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabModelInitFixes, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStorageSqlitePrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStripAutoSelectOnCloseChange, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -771,11 +775,6 @@ BASE_FEATURE(kTabSwitcherGroupSuggestionsTestModeAndroid, base::FEATURE_DISABLED
 BASE_FEATURE(kTabWindowManagerReportIndicesMismatch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTestDefaultDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTestDefaultEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
-// If the user configured Chrome to use 3P autofill and this feature is enabled,
-// Chrome will disable the preferences in the "Payment methods" and "Addresses
-// and more" screen in the Chrome settings that don't apply in third party mode
-// and would confuse the user.
-BASE_FEATURE(kThirdPartyDisableChromeAutofillSettingsScreen, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTinkerTankBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarPhoneAnimationRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarSnapshotRefactor, base::FEATURE_DISABLED_BY_DEFAULT);

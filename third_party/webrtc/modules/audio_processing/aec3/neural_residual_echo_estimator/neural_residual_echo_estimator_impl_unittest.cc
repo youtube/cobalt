@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -75,7 +77,7 @@ class MockModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   int StepSize() const override { return constants_.step_size; }
 
-  webrtc::ArrayView<float> GetInput(ModelInputEnum input_enum) override {
+  ArrayView<float> GetInput(ModelInputEnum input_enum) override {
     switch (input_enum) {
       case ModelInputEnum::kMic:
         return webrtc::ArrayView<float>(input_mic_.data(),
@@ -93,9 +95,18 @@ class MockModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
     }
   }
 
-  webrtc::ArrayView<const float> GetOutputEchoMask() override {
-    return webrtc::ArrayView<const float>(output_echo_mask_.data(),
-                                          constants_.frame_size_by_2_plus_1);
+  ArrayView<const float> GetOutput(ModelOutputEnum output_enum) override {
+    switch (output_enum) {
+      case ModelOutputEnum::kEchoMask:
+        return ArrayView<const float>(output_echo_mask_.data(),
+                                      constants_.frame_size_by_2_plus_1);
+      case ModelOutputEnum::kModelState:
+        // Mock model state output if needed, for now return empty
+        return ArrayView<const float>();
+      default:
+        RTC_CHECK(false);
+        return ArrayView<float>();
+    }
   }
 
   const audioproc::ReeModelMetadata& GetMetadata() const override {
@@ -315,6 +326,86 @@ TEST(NeuralResidualEchoEstimatorWithRealModelTest,
       }
     }
   }
+}
+
+// Verifies that LoadTfLiteModel returns nullptr if the model's metadata version
+// is unsupported. This is done by loading a test model with a valid version,
+// modifying the version in the metadata to an unsupported value, and then
+// checking that the model fails to load.
+TEST(NeuralResidualEchoEstimatorWithRealModelTest, WrongModelVersion) {
+  std::string model_path = test::ResourcePath(
+      "audio_processing/aec3/noop_ml_aec_model_for_testing", "tflite");
+
+  // 1. Load the model from file.
+  auto original_model =
+      tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
+  ASSERT_TRUE(original_model != nullptr);
+
+  // 2. Get the raw buffer and size from the loaded model.
+  const tflite::Allocation* allocation = original_model->allocation();
+  const char* original_buffer_data =
+      static_cast<const char*>(allocation->base());
+  size_t original_buffer_size = allocation->bytes();
+
+  // 3. Read the metadata
+  const tflite::Model* model_obj = original_model->GetModel();
+  ASSERT_TRUE(model_obj != nullptr);
+  int32_t metadata_buffer_index = -1;
+  if (model_obj->metadata()) {
+    for (const auto* meta : *model_obj->metadata()) {
+      if (meta->name() && meta->name()->str() == "REE_METADATA") {
+        metadata_buffer_index = meta->buffer();
+        break;
+      }
+    }
+  }
+  ASSERT_NE(metadata_buffer_index, -1) << "Metadata not found";
+
+  // 4. Get the metadata buffer details from the model structure.
+  const tflite::Buffer* ree_metadata_buffer =
+      model_obj->buffers()->Get(metadata_buffer_index);
+  ASSERT_TRUE(ree_metadata_buffer != nullptr);
+  ASSERT_TRUE(ree_metadata_buffer->data() != nullptr);
+  const char* metadata_data_ptr =
+      reinterpret_cast<const char*>(ree_metadata_buffer->data()->data());
+  size_t metadata_data_size = ree_metadata_buffer->data()->size();
+  ASSERT_LT(metadata_data_ptr, original_buffer_data + original_buffer_size);
+
+  // 5. Deserialize the metadata from the buffer copy, check original version.
+  audioproc::ReeModelMetadata metadata_proto;
+  ASSERT_TRUE(
+      metadata_proto.ParseFromArray(metadata_data_ptr, metadata_data_size));
+  ASSERT_EQ(metadata_proto.version(), 2);
+
+  // 6. Modify the version.
+  metadata_proto.set_version(3);
+
+  // 7. Serialize the modified metadata.
+  std::string modified_metadata_str;
+  ASSERT_TRUE(metadata_proto.SerializeToString(&modified_metadata_str));
+
+  // 8. Ensure the size hasn't changed, then overwrite the bytes in the buffer
+  // copy.
+  ASSERT_EQ(modified_metadata_str.size(), metadata_data_size)
+      << "Serialized metadata size changed, direct overwrite not possible.";
+  std::vector<char> modified_buffer(
+      original_buffer_data, original_buffer_data + original_buffer_size);
+
+  std::memcpy(
+      modified_buffer.data() + (metadata_data_ptr - original_buffer_data),
+      modified_metadata_str.data(), modified_metadata_str.size());
+
+  // 9. Build the modified model from the updated buffer.
+  auto modified_model = tflite::FlatBufferModel::BuildFromBuffer(
+      modified_buffer.data(), modified_buffer.size());
+  ASSERT_TRUE(modified_model != nullptr);
+
+  // 13. Attempt to load the model and expect failure due to version mismatch.
+  tflite::ops::builtin::BuiltinOpResolver op_resolver;
+  std::unique_ptr<NeuralResidualEchoEstimatorImpl::ModelRunner>
+      tflite_model_runner = NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
+          modified_model.get(), op_resolver);
+  EXPECT_TRUE(tflite_model_runner == nullptr);
 }
 
 }  // namespace

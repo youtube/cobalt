@@ -7,14 +7,15 @@ package org.chromium.base.test.transit;
 import android.view.View;
 
 import androidx.test.espresso.ViewAction;
-
-import org.hamcrest.Matcher;
+import androidx.test.espresso.ViewAssertion;
+import androidx.test.espresso.ViewInteraction;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Represents a lazily-checked {@link ViewElement}.
@@ -32,7 +33,8 @@ import java.util.List;
  * @param <ViewT> the type of the View.
  */
 @NullMarked
-public class OptionalViewElement<ViewT extends View> extends Element<ViewT> {
+public class OptionalViewElement<ViewT extends View> extends Element<ViewT>
+        implements ViewInterface {
     private final ViewSpec<ViewT> mViewSpec;
     private final ViewElement.Options mOptions;
     private final List<ViewCarryOn<ViewT>> mCarryOns = new ArrayList<>();
@@ -56,8 +58,15 @@ public class OptionalViewElement<ViewT extends View> extends Element<ViewT> {
     }
 
     private ViewCarryOn<ViewT> createViewCarryOn() {
+        ActivityElement<?> activityElement = mOwner.determineActivityElement();
+        RootSpec rootSpec =
+                activityElement == null
+                        ? RootSpec.anyRoot()
+                        : RootSpec.activityOrDialogRoot(activityElement);
         ViewCarryOn<ViewT> carryOn =
-                new ViewCarryOn<>(mOwner.determineActivityElement(), mViewSpec, mOptions);
+                new ViewCarryOn<>(
+                        mViewSpec,
+                        ViewElement.newOptions().initFrom(mOptions).rootSpec(rootSpec).build());
         mCarryOns.add(carryOn);
         return carryOn;
     }
@@ -75,41 +84,52 @@ public class OptionalViewElement<ViewT extends View> extends Element<ViewT> {
         mOwner.noopTo().waitFor(absent());
     }
 
+    @Override
+    public void check(ViewAssertion assertion) {
+        waitForView().check(assertion);
+    }
+
+    @Override
     public TripBuilder performViewActionTo(ViewAction action) {
-        return waitForView().viewElement.performViewActionTo(action).withContext(mOwner);
+        return waitForView().performViewActionTo(action).withContext(mOwner);
     }
 
+    @Override
     public TripBuilder clickTo() {
-        return waitForView().viewElement.clickTo().withContext(mOwner);
+        return waitForView().clickTo().withContext(mOwner);
     }
 
+    @Override
     public TripBuilder longPressTo() {
-        return waitForView().viewElement.longPressTo().withContext(mOwner);
+        return waitForView().longPressTo().withContext(mOwner);
     }
 
-    public TripBuilder clickEvenIfPartiallyOccludedTo() {
-        return waitForView().viewElement.clickEvenIfPartiallyOccludedTo().withContext(mOwner);
-    }
-
+    @Override
     public TripBuilder typeTextTo(String text) {
-        return waitForView().viewElement.typeTextTo(text).withContext(mOwner);
+        return waitForView().typeTextTo(text).withContext(mOwner);
+    }
+
+    @Override
+    public ViewInteraction onView() {
+        return waitForView().onView();
     }
 
     /** Create a Condition fulfilled when this OptionalViewElement is present. */
     public ConditionWithResult<ViewT> present() {
-        Matcher<View> viewMatcher = mViewSpec.getViewMatcher();
-        ViewConditions.DisplayedCondition.Options conditionOptions =
-                ViewElement.newDisplayedConditionOptions(mOptions).build();
-        return new ViewConditions.DisplayedCondition<>(
-                viewMatcher,
+        // Delay calculating the root spec because the owner state might not be set yet.
+        Supplier<RootSpec> rootSpecSupplier = () -> ViewElement.calculateRootSpec(mOptions, mOwner);
+        DisplayedCondition.Options conditionOptions =
+                ViewElement.calculateDisplayedConditionOptions(mOptions).build();
+        return new DisplayedCondition<>(
+                mViewSpec.getViewMatcher(),
                 mViewSpec.getViewClass(),
-                mOwner::determineActivityElement,
+                rootSpecSupplier,
                 conditionOptions);
     }
 
     /** Create a Condition fulfilled when this OptionalViewElement is absent. */
     public Condition absent() {
-        return new ViewConditions.NotDisplayedAnymoreCondition(
+        return new NotDisplayedAnymoreCondition(
                 /* viewElement= */ null, mViewSpec.getViewMatcher());
     }
 

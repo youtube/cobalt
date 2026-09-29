@@ -68,6 +68,7 @@
 #include "third_party/blink/renderer/core/css/css_timing_function_value.h"
 #include "third_party/blink/renderer/core/css/css_unset_value.h"
 #include "third_party/blink/renderer/core/css/css_uri_value.h"
+#include "third_party/blink/renderer/core/css/css_url_pattern_value.h"
 #include "third_party/blink/renderer/core/css/css_value.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
@@ -107,7 +108,9 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/animation/keyframe/timing_function.h"
 #include "ui/gfx/color_utils.h"
 
@@ -1800,9 +1803,41 @@ cssvalue::CSSURIValue* ConsumeUrl(CSSParserTokenStream& stream,
   return MakeGarbageCollected<cssvalue::CSSURIValue>(
       *CollectUrlData(url.Value(), context));
 }
+CSSURLPatternValue* ConsumeUrlPattern(CSSParserTokenStream& stream,
+                                      const CSSParserContext& context) {
+  wtf_size_t value_start_offset = stream.LookAheadOffset();
+  stream.EnsureLookAhead();
+
+  CSSParserToken token = stream.Peek();
+  if (token.GetType() != kFunctionToken ||
+      token.FunctionId() != CSSValueID::kUrlPattern) {
+    return nullptr;
+  }
+
+  {
+    CSSParserTokenStream::RestoringBlockGuard guard(stream);
+    stream.ConsumeWhitespace();
+    token = stream.ConsumeIncludingWhitespace();
+    if (token.GetType() == kBadStringToken || !stream.AtEnd()) {
+      return nullptr;
+    }
+    guard.Release();
+  }
+  DCHECK_EQ(token.GetType(), kStringToken);
+  stream.ConsumeWhitespace();
+
+  wtf_size_t value_end_offset = stream.LookAheadOffset();
+  if (stream.IsAttrTainted(value_start_offset, value_end_offset)) {
+    return nullptr;
+  }
+
+  return MakeGarbageCollected<CSSURLPatternValue>(AtomicString(token.Value()));
+}
 
 struct ColorInterpolationSpace {
-  Color::ColorSpace color_space = Color::ColorSpace::kNone;
+  // Per CSS Color 5, the default interpolation space is oklab with shorter hue.
+  // https://drafts.csswg.org/css-color-5/#color-mix-space
+  Color::ColorSpace color_space = Color::ColorSpace::kOklab;
   Color::HueInterpolationMethod hue_interpolation =
       Color::HueInterpolationMethod::kShorter;
   // For web feature counting purpose and to distinguish between explicit and
@@ -1976,9 +2011,10 @@ static CSSValue* ConsumeColorMixFunction(
     }
     auto& [color_space, hue_interpolation_method, user_specified] =
         *consume_color_interpolation_space_result;
-    (void)user_specified;  // unused
 
-    if (!ConsumeCommaIncludingWhitespace(stream)) {
+    // Only expect comma if user explicitly specified "in <colorspace>".
+    // When omitted, the default oklab is used and no comma follows.
+    if (user_specified && !ConsumeCommaIncludingWhitespace(stream)) {
       return nullptr;
     }
 
@@ -2250,8 +2286,10 @@ bool SystemAccentColorAllowed(const CSSParserContext& context) {
   // contexts because it could be read back by the page and used for
   // fingerprinting.
   if (const auto* document = context.GetDocument()) {
-    if (document->GetPage()->GetChromeClient().IsIsolatedSVGChromeClient()) {
-      return false;
+    if (Page* page = document->GetPage()) {
+      if (page->GetChromeClient().IsIsolatedSVGChromeClient()) {
+        return false;
+      }
     }
   }
 
@@ -3919,7 +3957,21 @@ const CSSValue* ParseLonghand(CSSPropertyID unresolved_property,
   const CSSValue* result =
       To<Longhand>(CSSProperty::Get(property_id))
           .ParseSingleValue(stream, context, local_context);
-  return result;
+
+  if (!result) {
+    return nullptr;
+  }
+
+  CSSPropertyName property_name =
+      CSSProperty::Get(property_id).GetCSSPropertyName();
+  wtf_size_t property_value_index = 0;
+  if (current_shorthand != CSSPropertyID::kInvalid) {
+    property_name = CSSProperty::Get(current_shorthand).GetCSSPropertyName();
+    property_value_index = static_cast<int>(property_id);
+  }
+
+  return result->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+      property_name, property_value_index);
 }
 
 bool ConsumeShorthandVia2Longhands(
@@ -5466,10 +5518,10 @@ CSSValue* ConsumeGapDecorationPropertyValue(
         return ConsumeIdent(stream);
       }
       return nullptr;
-    case CSSGapDecorationPropertyType::kEdgeEndInset:
-    case CSSGapDecorationPropertyType::kEdgeStartInset:
-    case CSSGapDecorationPropertyType::kInteriorEndInset:
-    case CSSGapDecorationPropertyType::kInteriorStartInset:
+    case CSSGapDecorationPropertyType::kEdgeInsetEnd:
+    case CSSGapDecorationPropertyType::kEdgeInsetStart:
+    case CSSGapDecorationPropertyType::kInteriorInsetEnd:
+    case CSSGapDecorationPropertyType::kInteriorInsetStart:
       return nullptr;
   }
 }
@@ -8723,12 +8775,13 @@ CSSValue* ConsumeTransitionProperty(CSSParserTokenStream& stream,
       token.ParseAsUnresolvedCSSPropertyID(execution_context);
   if (unresolved_property != CSSPropertyID::kInvalid &&
       unresolved_property != CSSPropertyID::kVariable) {
-#if DCHECK_IS_ON()
-    DCHECK(CSSProperty::Get(ResolveCSSPropertyID(unresolved_property))
-               .IsWebExposed(execution_context));
-#endif
-    stream.ConsumeIncludingWhitespace();
-    return MakeGarbageCollected<CSSCustomIdentValue>(unresolved_property);
+    const CSSProperty& property =
+        CSSProperty::Get(ResolveCSSPropertyID(unresolved_property));
+    if (property.IsProperty()) {
+      DCHECK(property.IsWebExposed(execution_context));
+      stream.ConsumeIncludingWhitespace();
+      return MakeGarbageCollected<CSSCustomIdentValue>(unresolved_property);
+    }
   }
   return ConsumeCustomIdent(stream, context);
 }

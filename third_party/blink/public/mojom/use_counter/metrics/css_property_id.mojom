@@ -48,6 +48,8 @@ enum CSSSampleId {
     kInternalForcedVisitedColor = 0,
     kInternalOverflowBlock = 0,
     kInternalOverflowInline = 0,
+    kInternalOverscrollArea = 0,
+    kInternalOverscrollPosition = 0,
 
     // This CSSSampleId represents page load for CSS histograms. It is recorded once
     // per page visit for each CSS histogram being logged on the blink side and the
@@ -952,17 +954,25 @@ enum CSSSampleId {
     kRuleInset = 888,
     kColumnRuleVisibilityItems = 889,
     kRowRuleVisibilityItems = 890,
-    kColumnRuleEdgeStartInset = 891,
-    kColumnRuleEdgeEndInset = 892,
-    kColumnRuleInteriorStartInset = 893,
-    kColumnRuleInteriorEndInset = 894,
-    kRowRuleEdgeStartInset = 895,
-    kRowRuleEdgeEndInset = 896,
-    kRowRuleInteriorStartInset = 897,
-    kRowRuleInteriorEndInset = 898,
+    kColumnRuleEdgeInsetStart = 891,
+    kColumnRuleEdgeInsetEnd = 892,
+    kColumnRuleInteriorInsetStart = 893,
+    kColumnRuleInteriorInsetEnd = 894,
+    kRowRuleEdgeInsetStart = 895,
+    kRowRuleEdgeInsetEnd = 896,
+    kRowRuleInteriorInsetStart = 897,
+    kRowRuleInteriorInsetEnd = 898,
     kTimelineTriggerRange = 899,
     kTimelineTriggerExitRange = 900,
     kTriggerScope = 901,
+    kProtocol = 902,
+    kHostname = 903,
+    kPort = 904,
+    kPathname = 905,
+    kSearch = 906,
+    kHash = 907,
+    kBaseUrl = 908,
+    kPattern = 909,
 
     // 1. Add new features above this line (don't change the assigned numbers of
     //    the existing items).

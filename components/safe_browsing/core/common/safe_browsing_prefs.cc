@@ -85,6 +85,11 @@ SecuritySettingsBundleSetting GetSecurityBundleSetting(
               : SecuritySettingsBundleSetting::STANDARD);
 }
 
+void SetSecurityBundleSetting(PrefService& prefs,
+                              SecuritySettingsBundleSetting bundle) {
+  prefs.SetInteger(prefs::kSecuritySettingsBundle, static_cast<int>(bundle));
+}
+
 SafeBrowsingState GetSafeBrowsingState(const PrefService& prefs) {
   if (IsEnhancedProtectionEnabled(prefs)) {
     return SafeBrowsingState::ENHANCED_PROTECTION;
@@ -122,7 +127,6 @@ void EnableSafeBrowsingSettingSetLocallyPref(PrefService* prefs) {
 
 void SetSafeBrowsingState(PrefService* prefs,
                           SafeBrowsingState state,
-
                           bool is_esb_enabled_by_account_integration) {
   bool tailored_security_pref_registered =
       prefs->FindPreference(
@@ -245,6 +249,8 @@ void RecordExtendedReportingMetrics(const PrefService& prefs) {
 
 void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(
+      ::prefs::kBundledSettingsCheckedMigrateUserToEnhancedBundle, false);
+  registry->RegisterBooleanPref(
       prefs::kJavascriptOptimizerBlockedForUnfamiliarSites, false);
   // TODO(crbug.com/422747384): Implement correct logic to set bundle level
   // based on user's safe browsing status.
@@ -252,6 +258,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
       prefs::kSecuritySettingsBundle,
       static_cast<int>(SecuritySettingsBundleSetting::STANDARD));
   registry->RegisterListPref(prefs::kSafeBrowsingCsdPingTimestamps);
+  registry->RegisterListPref(prefs::kSafeBrowsingCsdIntelligentScanTimestamps);
   registry->RegisterBooleanPref(prefs::kSafeBrowsingScoutReportingEnabled,
                                 false);
   registry->RegisterBooleanPref(

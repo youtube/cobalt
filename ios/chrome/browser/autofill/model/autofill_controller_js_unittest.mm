@@ -16,7 +16,6 @@
 #import "components/autofill/ios/browser/autofill_util.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
-#import "components/autofill/ios/form_util/form_util_java_script_feature.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/web/model/chrome_web_client.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -822,8 +821,6 @@ class AutofillControllerJsTest : public web::JavascriptTest {
 
     AddGCrWebScript();
     AddCommonScript();
-    AddUserScript(@"fill");
-    AddUserScript(@"form");
     AddUserScript(@"autofill_form_features");
     AddUserScript(@"fill_util_test");
 
@@ -851,9 +848,10 @@ class AutofillControllerJsTest : public web::JavascriptTest {
       base::span<const ElementByName> elements_with_true_expected);
 
   // Helper method that EXPECTs
-  // `__gCrWeb.fill.webFormControlElementToFormField`. This method applies
-  // `__gCrWeb.fill.webFormControlElementToFormField` on each element in
-  // `test_data` with all possible extract masks and verify the results.
+  // `webFormControlElementToFormField` method from fill_test_api API. This
+  // method applies `webFormControlElementToFormField` method from fill_test_api
+  // API on each element in `test_data` with all possible extract masks and
+  // verify the results.
   void TestWebFormControlElementToFormField(NSArray* test_data,
                                             NSString* tag_name);
 
@@ -874,7 +872,8 @@ class AutofillControllerJsTest : public web::JavascriptTest {
       NSString* expected_result,
       NSString* verifying_javascripts);
 
-  // EXPECTs `__gCrWeb.fill.webFormElementToFormData` on all the test data.
+  // EXPECTs `webFormElementToFormData` method from fill_test_api API on all the
+  // test data.
   void TestWebFormElementToFormData(NSArray* test_items);
 
   // EXPECTs `extractNewForms` function from autofill API on `html`.

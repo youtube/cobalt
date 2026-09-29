@@ -40,6 +40,12 @@ bool ShouldForceUploadFailure() {
   return kForceUploadFailure.Get();
 }
 
+BASE_FEATURE(kComposeboxCloseButtonTopAlign, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool AlignComposeboxCloseButtonToInputPlateTop() {
+  return base::FeatureList::IsEnabled(kComposeboxCloseButtonTopAlign);
+}
+
 BASE_FEATURE(kComposeboxCompactMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxCompactModeEnabled() {
@@ -66,7 +72,7 @@ bool IsComposeboxMenuTitleEnabled() {
 }
 
 BASE_FEATURE(kComposeboxFetchContextualSuggestionsForImage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsComposeboxFetchContextualSuggestionsForImageEnabled() {
   return base::FeatureList::IsEnabled(

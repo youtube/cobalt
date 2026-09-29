@@ -45,7 +45,7 @@
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
+#include "components/subresource_filter/content/browser/ruleset_service.h"
 #include "content/public/browser/network_service_instance.h"
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
@@ -185,15 +185,16 @@ TestingBrowserProcess::~TestingBrowserProcess() {
   DCHECK_EQ(static_cast<BrowserProcess*>(nullptr), g_browser_process);
 }
 
-std::unique_ptr<TestingProfileManager>
+raw_ptr<TestingProfileManager>
 TestingBrowserProcess::SetUpGlobalFeaturesForTesting(bool profile_manager) {
   CreateGlobalFeaturesPreProfileManager();
 
-  std::unique_ptr<TestingProfileManager> testing_profile_manager;
+  raw_ptr<TestingProfileManager> testing_profile_manager = nullptr;
   if (profile_manager) {
-    testing_profile_manager = std::make_unique<TestingProfileManager>(
+    testing_profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
-    CHECK(testing_profile_manager->SetUp());
+    CHECK(testing_profile_manager_->SetUp());
+    testing_profile_manager = testing_profile_manager_.get();
   }
 
   CreateGlobalFeaturesPostProfileManager();
@@ -201,12 +202,11 @@ TestingBrowserProcess::SetUpGlobalFeaturesForTesting(bool profile_manager) {
   return testing_profile_manager;
 }
 
-void TestingBrowserProcess::TearDownGlobalFeaturesForTesting(
-    std::unique_ptr<TestingProfileManager> profile_manager) {
+void TestingBrowserProcess::TearDownGlobalFeaturesForTesting() {
   CHECK(features_);
   features_->PostMainMessageLoopRun();
 
-  profile_manager.reset();
+  testing_profile_manager_.reset();
 
   // ResourceCoordinatorParts owns TabLifecycleUnitSource, which depends on a
   // Global Feature (GlobalBrowserCollection). Thus, we need to make sure
@@ -262,7 +262,8 @@ void TestingBrowserProcess::Init() {
   ChromePermissionsClient::GetInstance();
 
 #if !BUILDFLAG(IS_ANDROID)
-  web_app::InitializeIsolatedWebAppRuntime();
+  web_app::InitializeIsolatedWebAppRuntime(
+      base::PassKey<TestingBrowserProcess>());
   KeepAliveRegistry::GetInstance()->SetIsShuttingDown(false);
 #if BUILDFLAG(IS_CHROMEOS)
   hid_system_tray_icon_ = std::make_unique<HidPinnedNotification>();
@@ -623,11 +624,6 @@ BuildState* TestingBrowserProcess::GetBuildState() {
 
 GlobalFeatures* TestingBrowserProcess::GetFeatures() {
   return features_.get();
-}
-
-void TestingBrowserProcess::CreateGlobalFeaturesForTesting() {
-  CreateGlobalFeaturesPreProfileManager();
-  CreateGlobalFeaturesPostProfileManager();
 }
 
 void TestingBrowserProcess::CreateGlobalFeaturesPreProfileManager() {

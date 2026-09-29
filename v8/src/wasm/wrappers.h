@@ -243,13 +243,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     auto done = __ NewBlock();
     auto type_error = __ NewBlock();
     ScopedVar<Object> result(this,
-                             __ template LoadRootWasm<RootIndex::kWasmNull>());
+                             __ template LoadRoot<RootIndex::kWasmNull>());
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = __ NewBlock();
       __ GotoIfNot(
-          __ TaggedEqual(input,
-                         __ template LoadRootWasm<RootIndex::kNullValue>()),
+          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
           not_null);
       __ Goto(done);
       __ Bind(not_null);
@@ -287,7 +286,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
       IF (LIKELY(__ TaggedEqual(
-              __ template LoadRootWasm<RootIndex::kHeapNumberMap>(), map))) {
+              __ template LoadRoot<RootIndex::kHeapNumberMap>(), map))) {
         result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
       } ELSE {
         result = __ TruncateFloat64ToFloat32(
@@ -320,7 +319,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
       IF (LIKELY(__ TaggedEqual(
-              __ template LoadRootWasm<RootIndex::kHeapNumberMap>(), map))) {
+              __ template LoadRoot<RootIndex::kHeapNumberMap>(), map))) {
         result = HeapNumberToFloat64(value);
       } ELSE {
         result = frame_state.valid()
@@ -432,8 +431,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         case GenericKind::kExtern: {
           if (type.is_non_nullable()) {
             IF (UNLIKELY(__ TaggedEqual(
-                    input,
-                    __ template LoadRootWasm<RootIndex::kNullValue>()))) {
+                    input, __ template LoadRoot<RootIndex::kNullValue>()))) {
               __ WasmCallRuntime(__ phase_zone(),
                                  Runtime::kWasmThrowJSTypeError, {}, context);
               __ Unreachable();
@@ -441,21 +439,36 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
           }
           if (v8_flags.experimental_wasm_shared && type.is_shared()) {
             Label<Object> done(&Asm());
-            IF_NOT (__ IsSmi(input)) {
-              V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
-              V<WordPtr> shared_or_read_only = __ WordPtrBitwiseAnd(
-                  flags,
-                  static_cast<uintptr_t>(MemoryChunk::IN_WRITABLE_SHARED_SPACE |
-                                         MemoryChunk::READ_ONLY_HEAP));
-              IF (UNLIKELY(__ WordPtrEqual(shared_or_read_only, 0))) {
-                // If it isn't shared, yet, use the runtime function.
-                std::initializer_list<const OpIndex> inputs = {
-                    input, __ IntPtrConstant(IntToSmi(
-                               static_cast<int>(type.raw_bit_field())))};
-                GOTO(done, __ WasmCallRuntime(__ phase_zone(),
-                                              Runtime::kWasmJSToWasmObject,
-                                              inputs, context));
-              }
+            IF (__ IsSmi(input)) {
+              GOTO(done, input);
+            }
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            // Bail out for read-only objects.
+            V<Word32> lower32 = __ TruncateWordPtrToWord32(
+                __ BitcastTaggedToWordPtr(V<HeapObject>::Cast(input)));
+            IF (__ Uint32LessThan(lower32,
+                                  __ Word32Constant(static_cast<uint32_t>(
+                                      kContiguousReadOnlyReservationSize)))) {
+              GOTO(done, input);
+            }
+            // Bail out for already-shared objects.
+            V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+            V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
+                flags, static_cast<uintptr_t>(MemoryChunk::kInSharedHeap));
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+            V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
+                flags, static_cast<uintptr_t>(
+                           MemoryChunk::kIsReadOnlyOrSharedHeapMask));
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            IF (UNLIKELY(__ WordPtrEqual(page_flags, 0))) {
+              // If it isn't shared, yet, use the runtime function.
+              std::initializer_list<const OpIndex> inputs = {
+                  input, __ IntPtrConstant(
+                             IntToSmi(static_cast<int>(type.raw_bit_field())))};
+              GOTO(done, __ WasmCallRuntime(__ phase_zone(),
+                                            Runtime::kWasmJSToWasmObject,
+                                            inputs, context));
             }
             GOTO(done, input);
             BIND(done, result);
@@ -610,7 +623,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         GetBuiltinCallDescriptor(Builtin::kPerformPromiseThen, __ graph_zone());
     base::SmallVector<OpIndex, 16> args{
         promise, on_fulfilled, on_rejected,
-        __ template LoadRootWasm<RootIndex::kUndefinedValue>(), native_context};
+        __ template LoadRoot<RootIndex::kUndefinedValue>(), native_context};
     __ Call(promise_then, OpIndex::Invalid(), base::VectorOf(args),
             then_call_desc);
 

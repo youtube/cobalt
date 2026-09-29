@@ -179,7 +179,7 @@ func setWorkingDirectory() {
 }
 
 func detectOptionsFromCMake() error {
-	if len(*ndkPath) != 0 && len(*abi) != 0 && *apiLevel != 0 {
+	if *ndkPath != "" && *abi != "" && *apiLevel != 0 {
 		// No need to parse options from CMake.
 		return nil
 	}

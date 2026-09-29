@@ -118,6 +118,8 @@
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/ime/input_method_controller.h"
+#include "third_party/blink/renderer/core/editing/markers/document_marker.h"
+#include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
 #include "third_party/blink/renderer/core/editing/serializers/create_markup_options.h"
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
@@ -149,6 +151,7 @@
 #include "third_party/blink/renderer/core/frame/pausable_script_executor.h"
 #include "third_party/blink/renderer/core/frame/performance_monitor.h"
 #include "third_party/blink/renderer/core/frame/picture_in_picture_controller.h"
+#include "third_party/blink/renderer/core/frame/post_layout_snapshot_client.h"
 #include "third_party/blink/renderer/core/frame/remote_frame.h"
 #include "third_party/blink/renderer/core/frame/remote_frame_owner.h"
 #include "third_party/blink/renderer/core/frame/report.h"
@@ -209,7 +212,6 @@
 #include "third_party/blink/renderer/core/paint/timing/first_meaningful_paint_detector.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
-#include "third_party/blink/renderer/core/scroll/scroll_snapshot_client.h"
 #include "third_party/blink/renderer/core/svg/svg_document_extensions.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/platform/back_forward_cache_utils.h"
@@ -261,6 +263,17 @@
 namespace blink {
 
 namespace {
+
+std::vector<gfx::Range> ExtractMisspellingRangesFromDocumentMarkerVector(
+    const DocumentMarkerVector& markers) {
+  std::vector<gfx::Range> ranges;
+  for (auto& marker : markers) {
+    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling) {
+      ranges.emplace_back(marker->StartOffset(), marker->EndOffset());
+    }
+  }
+  return ranges;
+}
 
 // Max size in bytes of the Vector used in ForceSynchronousDocumentInstall to
 // buffer data before sending it to the HTML parser.
@@ -379,9 +392,9 @@ mojom::blink::StorageTypeAccessed ToMojoStorageType(
   }
 }
 
-HeapVector<Member<ScrollSnapshotClient>> CopyClients(
-    const HeapHashSet<WeakMember<ScrollSnapshotClient>>& clients) {
-  HeapVector<Member<ScrollSnapshotClient>> copy;
+HeapVector<Member<PostLayoutSnapshotClient>> CopyClients(
+    const HeapHashSet<WeakMember<PostLayoutSnapshotClient>>& clients) {
+  HeapVector<Member<PostLayoutSnapshotClient>> copy;
   copy.ReserveInitialCapacity(clients.size());
   copy.AppendRange(clients.begin(), clients.end());
   return copy;
@@ -524,7 +537,7 @@ void LocalFrame::Trace(Visitor* visitor) const {
   visitor->Trace(frame_color_overlay_);
   visitor->Trace(mojo_handler_);
   visitor->Trace(text_fragment_handler_);
-  visitor->Trace(scroll_snapshot_clients_);
+  visitor->Trace(post_layout_snapshot_clients_);
   visitor->Trace(saved_scroll_offsets_);
   visitor->Trace(background_color_paint_image_generator_);
   visitor->Trace(box_shadow_paint_image_generator_);
@@ -535,7 +548,7 @@ void LocalFrame::Trace(Visitor* visitor) const {
   visitor->Trace(frame_visibility_observers_);
   visitor->Trace(window_controls_overlay_changed_delegate_);
   Frame::Trace(visitor);
-  Supplementable::Trace(visitor);
+  Supplementable<LocalFrame>::Trace(visitor);
 }
 
 bool LocalFrame::IsLocalRoot() const {
@@ -816,7 +829,7 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
 
   probe::FrameDetachedFromParent(this, type);
 
-  std::fill(supplements_.begin(), supplements_.end(), nullptr);
+  supplements_.clear();
   frame_scheduler_.reset();
   mojo_handler_->DidDetachFrame();
   WeakIdentifierMap<LocalFrame>::NotifyObjectDestroyed(this);
@@ -1174,6 +1187,12 @@ void LocalFrame::HookBackForwardCacheEviction() {
   // the frame must not be mutated e.g., by JavaScript execution, then the
   // frame must be evicted in such cases.
   DCHECK(RuntimeEnabledFeatures::BackForwardCacheEnabled());
+  if (base::FeatureList::IsEnabled(
+          features::kBackForwardCachePauseMicrotasks)) {
+    if (LocalDOMWindow* window = DomWindow()) {
+      microtasks_pauser_ = window->GetAgent()->event_loop()->PauseMicrotasks();
+    }
+  }
   static_cast<LocalWindowProxyManager*>(GetWindowProxyManager())
       ->SetAbortScriptExecution(
           [](v8::Isolate* isolate, v8::Local<v8::Context> context) {
@@ -1212,6 +1231,7 @@ void LocalFrame::RemoveBackForwardCacheEviction() {
   // for any reason. Change the deferring state from |kBufferIncoming| to
   // |kStrict| so that network related eviction cannot happen.
   GetDocument()->Fetcher()->SetDefersLoading(LoaderFreezeMode::kStrict);
+  microtasks_pauser_.reset();
 }
 
 void LocalFrame::SetTextDirection(base::i18n::TextDirection direction) {
@@ -1770,8 +1790,8 @@ void LocalFrame::ViewportSegmentsChanged(
   // "horizontal-viewport-segments" and "vertical-viewport-segments" features).
   MediaQueryAffectingValueChangedForLocalSubtree(MediaValueChange::kOther);
 
-  // Fullscreen element has its own document and uses the viewport media
-  // queries, so we need to make sure the media queries are re-evaluated.
+  // Fullscreen element has its own document and uses the viewport media queries,
+  // so we need to make sure the media queries are re-evaluated.
   if (Element* fullscreen = Fullscreen::FullscreenElementFrom(*GetDocument())) {
     GetDocument()->GetStyleEngine().MarkAllElementsForStyleRecalc(
         StyleChangeReasonForTracing::Create(style_change_reason::kFullscreen));
@@ -2288,7 +2308,7 @@ bool LocalFrame::CanNavigate(const Frame& target_frame,
     if (!target_domain.empty() && !destination_domain.empty() &&
         target_domain == destination_domain &&
         (target_frame.GetSecurityContext()->GetSecurityOrigin()->Protocol() ==
-         destination_url.Protocol())) {
+             destination_url.Protocol())) {
       return true;
     }
 
@@ -3094,6 +3114,7 @@ bool LocalFrame::SwapIn() {
   // Swap in `this`, which is a provisional frame to an existing frame.
   Frame* provisional_owner_frame = GetProvisionalOwnerFrame();
 
+
   // First, check if there's a previous main frame to be used for a main frame
   // LocalFrame <-> LocalFrame swap.
   Frame* previous_local_main_frame =
@@ -3223,8 +3244,7 @@ void LocalFrame::RequestExecuteScript(
 
   ScriptState* script_state = ToScriptState(this, *world);
   // TODO(https://crbug.com/435149285): Remove this block and revert back to
-  // CHECK(script_state) once the crash associated with the crbug above is
-  // resolved.
+  // CHECK(script_state) once the crash associated with the crbug above is resolved.
   if (!script_state) {
     SCOPED_CRASH_KEY_STRING256(
         "Blink", "request_execute_script_script",
@@ -4072,36 +4092,36 @@ void LocalFrame::SetNavigationConfidence(
       std::make_pair(randomized_trigger_rate, confidence));
 }
 
-void LocalFrame::AddScrollSnapshotClient(ScrollSnapshotClient& client) {
-  scroll_snapshot_clients_.insert(&client);
+void LocalFrame::AddPostLayoutSnapshotClient(PostLayoutSnapshotClient& client) {
+  post_layout_snapshot_clients_.insert(&client);
 }
 
-void LocalFrame::UpdateScrollSnapshotClientsForServiceAnimations() {
-  for (auto& client : CopyClients(scroll_snapshot_clients_)) {
+void LocalFrame::UpdatePostLayoutSnapshotClientsForServiceAnimations() {
+  for (auto& client : CopyClients(post_layout_snapshot_clients_)) {
     client->UpdateSnapshotForServiceAnimations();
   }
 }
 
-bool LocalFrame::UpdateScrollSnapshotClients() {
+bool LocalFrame::UpdatePostLayoutSnapshotClients() {
   bool valid = true;
   // Any calls that update style and layout may create scroll snapshot
   // clients. As such, we can't iterate over the live clients directly.
   // See https://crbug.com/421471058 for details.
-  for (auto& client : CopyClients(scroll_snapshot_clients_)) {
+  for (auto& client : CopyClients(post_layout_snapshot_clients_)) {
     valid &= !client->UpdateSnapshot();
   }
   return valid;
 }
 
-void LocalFrame::ClearScrollSnapshotClients() {
-  scroll_snapshot_clients_.clear();
+void LocalFrame::ClearPostLayoutSnapshotClients() {
+  post_layout_snapshot_clients_.clear();
 }
 
-void LocalFrame::ScheduleNextServiceForScrollSnapshotClients() {
+void LocalFrame::ScheduleNextServiceForPostLayoutSnapshotClients() {
   // Any calls that update style and layout may create scroll snapshot
   // clients. As such, we can't iterate over the live clients directly.
   // See https://crbug.com/421471058 for details.
-  for (auto& client : CopyClients(scroll_snapshot_clients_)) {
+  for (auto& client : CopyClients(post_layout_snapshot_clients_)) {
     if (client->ShouldScheduleNextService()) {
       View()->ScheduleAnimation();
       return;
@@ -4110,7 +4130,7 @@ void LocalFrame::ScheduleNextServiceForScrollSnapshotClients() {
 }
 
 void LocalFrame::CheckPositionAnchorsForCssVisibilityChanges() {
-  for (auto& client : scroll_snapshot_clients_) {
+  for (auto& client : post_layout_snapshot_clients_) {
     if (AnchorPositionScrollData* scroll_data =
             DynamicTo<AnchorPositionScrollData>(client.Get())) {
       if (auto* observer = scroll_data->GetAnchorPositionVisibilityObserver()) {
@@ -4122,7 +4142,7 @@ void LocalFrame::CheckPositionAnchorsForCssVisibilityChanges() {
 
 void LocalFrame::CheckPositionAnchorsForChainedVisibilityChanges() {
   AnchorPositionVisibilityObserver::UpdateForChainedAnchorVisibility(
-      scroll_snapshot_clients_);
+      post_layout_snapshot_clients_);
 }
 
 bool LocalFrame::IsSameOrigin() {
@@ -4263,7 +4283,11 @@ void LocalFrame::PerformSpellCheck() {
 
   const EphemeralRange range(Position(container_node, 0),
                              Position::LastPositionInNode(*container_node));
-  GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(range);
+  GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(
+      range,
+      ExtractMisspellingRangesFromDocumentMarkerVector(
+          GetDocument()->Markers().Markers()),
+      /*request_num=*/0, /*should_force_refresh=*/false);
 }
 
 }  // namespace blink

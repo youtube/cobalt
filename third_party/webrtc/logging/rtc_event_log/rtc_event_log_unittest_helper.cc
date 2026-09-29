@@ -606,7 +606,12 @@ std::unique_ptr<RtcEventRtpPacketIncoming> EventGenerator::NewRtpPacketIncoming(
   RandomizeRtpPacket(payload_size, padding_size, ssrc, extension_map,
                      &rtp_packet, all_configured_exts);
 
-  return Create<RtcEventRtpPacketIncoming>(rtp_packet);
+  std::optional<uint16_t> rtx_osn = std::nullopt;
+  if (prng_.Rand(0, 9) == 0) {
+    rtx_osn = prng_.Rand(
+        0u, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()));
+  }
+  return Create<RtcEventRtpPacketIncoming>(rtp_packet, rtx_osn);
 }
 
 std::unique_ptr<RtcEventRtpPacketOutgoing> EventGenerator::NewRtpPacketOutgoing(
@@ -636,7 +641,13 @@ std::unique_ptr<RtcEventRtpPacketOutgoing> EventGenerator::NewRtpPacketOutgoing(
                      &rtp_packet, all_configured_exts);
 
   int probe_cluster_id = prng_.Rand(0, 100000);
-  return Create<RtcEventRtpPacketOutgoing>(rtp_packet, probe_cluster_id);
+  std::optional<uint16_t> rtx_osn = std::nullopt;
+  if (prng_.Rand(0, 9) == 0) {
+    rtx_osn = prng_.Rand(
+        0u, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()));
+  }
+  return Create<RtcEventRtpPacketOutgoing>(rtp_packet, probe_cluster_id,
+                                           rtx_osn);
 }
 
 RtpHeaderExtensionMap EventGenerator::NewRtpHeaderExtensionMap(
@@ -1069,6 +1080,10 @@ void EventVerifier::VerifyLoggedRtpPacketIncoming(
   VerifyLoggedRtpHeader(original_event, logged_event.rtp.header);
   VerifyLoggedDependencyDescriptor(
       original_event, logged_event.rtp.dependency_descriptor_wire_format);
+  if (encoding_type_ == RtcEventLog::EncodingType::NewFormat) {
+    EXPECT_EQ(original_event.rtx_original_sequence_number(),
+              logged_event.rtp.rtx_original_sequence_number);
+  }
 }
 
 void EventVerifier::VerifyLoggedRtpPacketOutgoing(
@@ -1093,6 +1108,10 @@ void EventVerifier::VerifyLoggedRtpPacketOutgoing(
   VerifyLoggedRtpHeader(original_event, logged_event.rtp.header);
   VerifyLoggedDependencyDescriptor(
       original_event, logged_event.rtp.dependency_descriptor_wire_format);
+  if (encoding_type_ == RtcEventLog::EncodingType::NewFormat) {
+    EXPECT_EQ(original_event.rtx_original_sequence_number(),
+              logged_event.rtp.rtx_original_sequence_number);
+  }
 }
 
 void EventVerifier::VerifyLoggedRtcpPacketIncoming(

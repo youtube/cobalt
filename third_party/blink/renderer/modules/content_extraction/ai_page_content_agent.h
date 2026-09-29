@@ -33,9 +33,10 @@ class LocalFrame;
 class MODULES_EXPORT AIPageContentAgent final
     : public GarbageCollected<AIPageContentAgent>,
       public mojom::blink::AIPageContentAgent,
+      public Supplement<Document>,
       public LocalFrameView::LifecycleNotificationObserver {
  public:
-  static const unsigned kSupplementIndex;
+  static const char kSupplementName[];
   static AIPageContentAgent* From(Document&);
   static void BindReceiver(
       LocalFrame* frame,
@@ -132,9 +133,8 @@ class MODULES_EXPORT AIPageContentAgent final
     void AddMetaData(
         const LocalFrame& frame,
         Vector<mojom::blink::AIPageContentMetaPtr>& meta_data) const;
-    void AddNodeGeometry(
-        const LayoutObject& object,
-        mojom::blink::AIPageContentAttributes& attributes) const;
+    void AddNodeGeometry(const LayoutObject& object,
+                         mojom::blink::AIPageContentAttributes& attributes);
     void AddAnnotatedRoles(const LayoutObject& object,
                            Vector<mojom::blink::AIPageContentAnnotatedRole>&
                                annotated_roles) const;
@@ -155,6 +155,13 @@ class MODULES_EXPORT AIPageContentAgent final
     void ComputeHitTestableNodesInViewport(const LocalFrame& frame);
 
     void UpdateLifecycle(Document& document);
+
+    void TrackPasswordRedactionIfNeeded(
+        const LayoutObject& object,
+        mojom::blink::AIPageContentAttributes& attributes,
+        std::optional<gfx::Rect> visible_bounding_box = std::nullopt);
+
+    Vector<gfx::Rect> visible_bounding_box_for_passwords_;
 
     // The set of nodes which are involved in a user interaction and must
     // produce a ContentNode.
@@ -179,7 +186,6 @@ class MODULES_EXPORT AIPageContentAgent final
   void Bind(mojo::PendingReceiver<mojom::blink::AIPageContentAgent> receiver);
   void EnsureLifecycleObserverRegistered();
 
-  Member<Document> document_;
   HeapMojoReceiverSet<mojom::blink::AIPageContentAgent, AIPageContentAgent>
       receiver_set_;
   // Already registered for lifetime notifications.

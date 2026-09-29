@@ -189,6 +189,9 @@ enum LayoutConstant {
   // The height of a vertical tab.
   VERTICAL_TAB_HEIGHT,
 
+  // The minimum possible width for a vertical tab.
+  VERTICAL_TAB_MIN_WIDTH,
+
   // The width of the border stroke around pinned tabs in a vertical tab strip.
   VERTICAL_TAB_PINNED_BORDER_THICKNESS,
 
@@ -196,9 +199,16 @@ enum LayoutConstant {
   // content.
   VERTICAL_TAB_STRIP_HORIZONTAL_PADDING,
 
+  // The icon size of top buttons in the vertical tab strip.
+  VERTICAL_TAB_STRIP_TOP_BUTTON_ICON_SIZE,
+
   // The horiziontal padding between the two buttons in the bottom container of
   // the vertical tab strip when it is uncollapsed.
   VERTICAL_TAB_STRIP_BOTTOM_BUTTON_PADDING,
+
+  // The default height of the top container for the vertical tab strip when
+  // uncollapsed.
+  VERTICAL_TAB_STRIP_TOP_BUTTON_CONTAINER_HEIGHT,
 
   // The size of the app menu button in a web app browser window.
   WEB_APP_MENU_BUTTON_SIZE,

@@ -67,6 +67,19 @@ ReadAnythingUntrustedUI::ReadAnythingUntrustedUI(content::WebUI* web_ui)
       {"phraseHighlightTitle", IDS_READING_MODE_PHRASE_HIGHLIGHT_LABEL},
       {"sentenceHighlightTitle", IDS_READING_MODE_SENTENCE_HIGHLIGHT_LABEL},
       {"noHighlightTitle", IDS_READING_MODE_OFF_HIGHLIGHT_LABEL},
+      {"lineFocusWindowHeading", IDS_READING_MODE_LINE_FOCUS_WINDOW_HEADING},
+      {"lineFocusOneLineTitle",
+       IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_1_LINE_LABEL},
+      {"lineFocusThreeLineTitle",
+       IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_3_LINE_LABEL},
+      {"lineFocusFiveLineTitle",
+       IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_5_LINE_LABEL},
+      {"lineFocusLineHeading", IDS_READING_MODE_LINE_FOCUS_LINE_HEADING},
+      {"lineFocusStaticLineTitle",
+       IDS_READING_MODE_LINE_FOCUS_STATIC_LINE_LABEL},
+      {"lineFocusCursorLineTitle",
+       IDS_READING_MODE_LINE_FOCUS_CURSOR_LINE_LABEL},
+      {"lineFocusOffTitle", IDS_READING_MODE_LINE_FOCUS_OFF_LABEL},
       {"turnHighlightOff", IDS_READING_MODE_TURN_HIGHLIGHT_OFF},
       {"turnHighlightOn", IDS_READING_MODE_TURN_HIGHLIGHT_ON},
       {"lineSpacingStandardTitle", IDS_READING_MODE_SPACING_COMBOBOX_STANDARD},
@@ -156,6 +169,7 @@ ReadAnythingUntrustedUI::ReadAnythingUntrustedUI(content::WebUI* web_ui)
       {"fullScreenLabel", IDS_READING_MODE_FULL_SCREEN_LABEL},
       {"fullPageLabel", IDS_READING_MODE_VIEW_FULL_PAGE_LABEL},
       {"viewLabel", IDS_READING_MODE_VIEW_LABEL},
+      {"linksLabel", IDS_READING_MODE_LINKS_LABEL},
   };
   for (const auto& str : kLocalizedStrings) {
     webui::AddLocalizedString(source, str.name, str.id);

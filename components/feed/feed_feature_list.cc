@@ -31,7 +31,6 @@ BASE_FEATURE(kXsurfaceMetricsReporting, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFeedLoadingPlaceholder, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFeedImageMemoryCacheSizePercentage,
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kFeedStamp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebFeedAwareness, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -51,8 +50,6 @@ signin::ConsentLevel GetConsentLevelNeededForPersonalizedFeed() {
 }
 
 BASE_FEATURE(kFeedNoViewCache, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kFeedShowSignInCommand, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFeedPerformanceStudy, base::FEATURE_DISABLED_BY_DEFAULT);
 

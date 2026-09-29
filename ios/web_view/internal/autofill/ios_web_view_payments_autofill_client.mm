@@ -215,16 +215,13 @@ IOSWebViewPaymentsAutofillClient::GetPaymentsNetworkInterface() {
 
 MultipleRequestPaymentsNetworkInterface*
 IOSWebViewPaymentsAutofillClient::GetMultipleRequestPaymentsNetworkInterface() {
-  if (GetPrefService()->GetBoolean(ios_web_view::kCWVAutofillVCNUsageEnabled)) {
-    if (!multiple_request_payments_network_interface_) {
-      multiple_request_payments_network_interface_ =
-          std::make_unique<payments::MultipleRequestPaymentsNetworkInterface>(
-              client_->GetURLLoaderFactory(), *client_->GetIdentityManager(),
-              web_state_->GetBrowserState()->IsOffTheRecord());
-    }
-    return multiple_request_payments_network_interface_.get();
+  if (!multiple_request_payments_network_interface_) {
+    multiple_request_payments_network_interface_ =
+        std::make_unique<payments::MultipleRequestPaymentsNetworkInterface>(
+            client_->GetURLLoaderFactory(), *client_->GetIdentityManager(),
+            web_state_->GetBrowserState()->IsOffTheRecord());
   }
-  return nullptr;
+  return multiple_request_payments_network_interface_.get();
 }
 
 void IOSWebViewPaymentsAutofillClient::ShowAutofillErrorDialog(
@@ -268,19 +265,10 @@ VirtualCardEnrollmentManager*
 IOSWebViewPaymentsAutofillClient::GetVirtualCardEnrollmentManager() {
   if (GetPrefService()->GetBoolean(ios_web_view::kCWVAutofillVCNUsageEnabled)) {
     if (!virtual_card_enrollment_manager_) {
-      PaymentsNetworkInterfaceVariation payments_network_interface;
-      if (base::FeatureList::IsEnabled(
-              features::
-                  kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment)) {
-        payments_network_interface =
-            GetMultipleRequestPaymentsNetworkInterface();
-      } else {
-        payments_network_interface = GetPaymentsNetworkInterface();
-      }
       virtual_card_enrollment_manager_ =
           std::make_unique<VirtualCardEnrollmentManager>(
               &client_->GetPersonalDataManager().payments_data_manager(),
-              payments_network_interface, &client_.get());
+              GetMultipleRequestPaymentsNetworkInterface(), &client_.get());
     }
     return virtual_card_enrollment_manager_.get();
   }
@@ -324,6 +312,10 @@ bool IOSWebViewPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable()
 }
 
 bool IOSWebViewPaymentsAutofillClient::IsMandatoryReauthEnabled() {
+  return false;
+}
+
+bool IOSWebViewPaymentsAutofillClient::IsUsingCustomCardIconEnabled() const {
   return false;
 }
 
@@ -457,8 +449,8 @@ void IOSWebViewPaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
     const LegalMessageLines& legal_message_lines,
     CardSaveAndFillDialogCallback callback) {}
 
-void IOSWebViewPaymentsAutofillClient::
-    ShowCreditCardSaveAndFillPendingDialog() {}
+void IOSWebViewPaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog(
+    CardSaveAndFillDialogCallback callback) {}
 
 void IOSWebViewPaymentsAutofillClient::HideCreditCardSaveAndFillDialog() {}
 

@@ -450,7 +450,7 @@
     "includes": [4000],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/glic/resources.grd": {
-    "META": {"sizes": {"includes": [30]}},
+    "META": {"sizes": {"includes": [60]}},
     "includes": [4010],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/glic/fre/resources.grd": {
@@ -662,7 +662,7 @@
     "includes": [4860],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/side_panel/read_anything/resources.grd": {
-    "META": {"sizes": {"includes": [75],}},
+    "META": {"sizes": {"includes": [80],}},
     "includes": [4880],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/side_panel/reading_list/code_cache_resources.grd": {
@@ -781,7 +781,7 @@
     "includes": [5270],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/updater/resources.grd": {
-    "META": {"sizes": {"includes": [30]}},
+    "META": {"sizes": {"includes": [60]}},
     "includes": [5280],
   },
   # END chrome/ WebUI resources section

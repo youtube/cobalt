@@ -159,8 +159,6 @@ void MultiCaptureUsageIndicatorService::MultiCaptureStarted(
   RefreshNotifications();
 }
 
-// TODO(crbug.com/428895438): Trigger this function when the capturing window is
-// closed.
 void MultiCaptureUsageIndicatorService::MultiCaptureStopped(
     const std::string& label) {
   if (!label_to_app_id_.contains(label)) {
@@ -284,7 +282,6 @@ MultiCaptureUsageIndicatorService::CreateActiveCaptureNotification(
           kNotifierType, notifier_id,
           ash::NotificationCatalogName::kPrivacyIndicators),
       optional_fields,
-      // TODO(crbug.com/424104858): Make the notification do nothing on click.
       /*delegate=*/
       base::MakeRefCounted<message_center::NotificationDelegate>());
   notification.set_system_notification_warning_level(

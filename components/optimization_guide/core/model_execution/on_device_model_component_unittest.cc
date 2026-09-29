@@ -14,12 +14,12 @@
 #include "base/run_loop.h"
 #include "base/scoped_add_feature_flags.h"
 #include "base/task/current_thread.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "components/optimization_guide/core/model_execution/model_broker_state.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -30,12 +30,12 @@
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
-#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/prefs/testing_pref_service.h"
 #include "services/on_device_model/public/cpp/cpu.h"
 #include "services/on_device_model/public/cpp/features.h"
 #include "services/on_device_model/public/cpp/test_support/fake_service.h"
-#include "services/on_device_model/public/mojom/on_device_model.mojom-data-view.h"
+#include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -67,14 +67,15 @@ std::vector<proto::OnDeviceModelPerformanceHint> AllHints() {
 
 class StubObserver : public OnDeviceModelComponentStateManager::Observer {
  public:
-  void StateChanged(const OnDeviceModelComponentState* state) override {
-    state_ = state;
+  void StateChanged(MaybeOnDeviceModelComponentState state) override {
+    state_ = std::move(state);
   }
 
-  const OnDeviceModelComponentState* GetState() { return state_; }
+  const MaybeOnDeviceModelComponentState& GetState() { return state_; }
 
  private:
-  raw_ptr<const OnDeviceModelComponentState> state_;
+  MaybeOnDeviceModelComponentState state_ =
+      base::unexpected(OnDeviceModelStatus::kNotReadyForUnknownReason);
 };
 
 class OnDeviceModelComponentTest : public testing::Test {
@@ -497,7 +498,10 @@ TEST_F(OnDeviceModelComponentTest, SetReady) {
 
   EXPECT_FALSE(state->GetInstallDirectory().empty());
   EXPECT_EQ(state->GetComponentVersion(), base::Version("0.0.1"));
-  ASSERT_EQ(observer.GetState(), state);
+
+  ASSERT_OK_AND_ASSIGN(const OnDeviceModelComponentState& observer_state,
+                       observer.GetState());
+  EXPECT_EQ(&observer_state, state);
 }
 
 TEST_F(OnDeviceModelComponentTest, InstallAfterEligibleFeatureWasUsed) {

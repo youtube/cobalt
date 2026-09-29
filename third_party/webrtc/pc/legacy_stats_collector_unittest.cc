@@ -67,6 +67,8 @@ namespace webrtc {
 using ::testing::_;
 using ::testing::AtMost;
 using ::testing::Eq;
+using ::testing::IsNull;
+using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
@@ -740,9 +742,11 @@ static scoped_refptr<MockRtpSenderInternal> CreateMockSender(
           Return(track->kind() == MediaStreamTrackInterface::kAudioKind
                      ? MediaType::AUDIO
                      : MediaType::VIDEO));
-  EXPECT_CALL(*sender, SetMediaChannel(_)).Times(AtMost(2));
-  EXPECT_CALL(*sender, SetTransceiverAsStopped()).Times(AtMost(1));
-  EXPECT_CALL(*sender, Stop());
+  EXPECT_CALL(*sender, SetMediaChannel(NotNull())).Times(AtMost(1));
+  EXPECT_CALL(*sender, SetMediaChannel(IsNull())).WillRepeatedly(Return());
+  EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
   return sender;
 }
 

@@ -38,6 +38,7 @@ import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -150,6 +151,7 @@ public class NewTabPage
                 VoiceRecognitionHandler.Observer,
                 ModuleDelegateHost {
     private static final String TAG = "NewTabPage";
+    public static final String AFTER_FIRST_RUN_QUERY_PARAMETER = "afterFirstRun";
 
     // Key for the scroll position data that may be stored in a navigation entry.
     public static final String CONTEXT_MENU_USER_ACTION_PREFIX = "Suggestions";
@@ -200,7 +202,7 @@ public class NewTabPage
     private final TabModelSelector mTabModelSelector;
     private final TemplateUrlService mTemplateUrlService;
     private final ObservableSupplier<TabContentManager> mTabContentManagerSupplier;
-    private final ObservableSupplier<Integer> mTabStripHeightSupplier;
+    private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
 
     private @Nullable SingleTabSwitcherCoordinator mSingleTabSwitcherCoordinator;
     private @Nullable ViewGroup mSingleTabCardContainer;
@@ -542,7 +544,7 @@ public class NewTabPage
             Supplier<Toolbar> toolbarSupplier,
             @Nullable HomeSurfaceTracker homeSurfaceTracker,
             ObservableSupplier<TabContentManager> tabContentManagerSupplier,
-            ObservableSupplier<Integer> tabStripHeightSupplier,
+            NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
@@ -836,12 +838,8 @@ public class NewTabPage
                             boolean fromInitialization,
                             @NtpBackgroundImageType int oldType,
                             @NtpBackgroundImageType int newType) {
-                        mUseLightIconTint = true;
-                        if (NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(oldType)) {
-                            return;
-                        }
-                        mNewTabPageLayout.onCustomizedBackgroundChanged(
-                                /* applyWhiteBackgroundOnSearchBox= */ true);
+                        onBackgroundChangedImpl(
+                                oldType, /* applyWhiteBackgroundOnSearchBox= */ true);
                     }
 
                     @Override
@@ -851,18 +849,29 @@ public class NewTabPage
                             boolean fromInitialization,
                             @NtpBackgroundImageType int oldType,
                             @NtpBackgroundImageType int newType) {
-                        mUseLightIconTint = false;
+                        onBackgroundChangedImpl(
+                                oldType, /* applyWhiteBackgroundOnSearchBox= */ false);
+                    }
 
-                        if (!NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(oldType)) {
-                            return;
-                        }
-                        // Resets the fake search box's background.
-                        mNewTabPageLayout.onCustomizedBackgroundChanged(
-                                /* applyWhiteBackgroundOnSearchBox= */ false);
+                    @Override
+                    public void onBackgroundReset(@NtpBackgroundImageType int oldType) {
+                        onBackgroundChangedImpl(
+                                oldType, /* applyWhiteBackgroundOnSearchBox= */ false);
                     }
                 };
         NtpCustomizationConfigManager.getInstance()
                 .addListener(mHomepageStateListener, mContext, /* skipNotify= */ false);
+    }
+
+    private void onBackgroundChangedImpl(
+            @NtpBackgroundImageType int oldType, boolean applyWhiteBackgroundOnSearchBox) {
+        mUseLightIconTint = applyWhiteBackgroundOnSearchBox;
+
+        if (!NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(oldType)) {
+            return;
+        }
+
+        mNewTabPageLayout.onCustomizedBackgroundChanged(applyWhiteBackgroundOnSearchBox);
     }
 
     /** Initializes whether to use a light tint color on icons of toolbar and status bar. */

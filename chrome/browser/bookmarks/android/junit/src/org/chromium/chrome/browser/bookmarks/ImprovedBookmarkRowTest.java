@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.bookmarks;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -44,8 +45,10 @@ import org.chromium.base.Callback;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.ImprovedBookmarkRowProperties.ImageVisibility;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.listmenu.ListMenuDelegate;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -343,5 +346,56 @@ public class ImprovedBookmarkRowTest {
 
         mModel.set(ImprovedBookmarkRowProperties.IS_LOCAL_BOOKMARK, false);
         assertEquals(View.GONE, localBookmarkImageView.getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR_FAST_FOLLOW)
+    public void testDragShadowVisuals_FeatureEnabled_Visual() {
+        ImprovedBookmarkRow row = ImprovedBookmarkRow.buildView(mActivity, /* isVisual= */ true);
+
+        assertFalse(
+                "ClipToOutline should be false to allow shadow drawing.", row.getClipToOutline());
+        assertNotNull(
+                "OutlineProvider should be set when feature is enabled.", row.getOutlineProvider());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR_FAST_FOLLOW)
+    public void testDragShadowVisuals_FeatureEnabled_Compact() {
+        ImprovedBookmarkRow row = ImprovedBookmarkRow.buildView(mActivity, /* isVisual= */ false);
+
+        assertFalse("Compact rows should also allow shadow drawing.", row.getClipToOutline());
+        assertNotNull("Compact rows should have an outline provider.", row.getOutlineProvider());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR_FAST_FOLLOW)
+    public void testDragHandleVisibility() {
+        // Create a new View object to re-run onFinishInflate when the flag is enabled.
+        mImprovedBookmarkRow = ImprovedBookmarkRow.buildView(mActivity, /* isVisual= */ true);
+
+        // Re-bind the binder to use the new View object.
+        PropertyModelChangeProcessor.create(
+                mModel, mImprovedBookmarkRow, ImprovedBookmarkRowViewBinder::bind);
+
+        View dragHandle = mImprovedBookmarkRow.findViewById(R.id.drag_handle);
+
+        assertNotNull("Drag handle should be inflated.", dragHandle);
+
+        mModel.set(ImprovedBookmarkRowProperties.SELECTED, false);
+        // There is an item that is selected in the list but this item is not selected.
+        mModel.set(ImprovedBookmarkRowProperties.SELECTION_ACTIVE, true);
+
+        assertEquals(
+                "Drag handle should be GONE when the item is unselected.",
+                View.GONE,
+                dragHandle.getVisibility());
+
+        mModel.set(ImprovedBookmarkRowProperties.IS_DRAG_ENABLED, true);
+        mModel.set(ImprovedBookmarkRowProperties.SELECTED, true);
+        assertEquals(
+                "Drag handle should be VISIBLE when the item is selected and drag is enabled.",
+                View.VISIBLE,
+                dragHandle.getVisibility());
     }
 }

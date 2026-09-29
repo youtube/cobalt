@@ -19,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -88,6 +89,7 @@
 #include "pc/transceiver_list.h"
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
@@ -408,7 +410,7 @@ class PeerConnection : public PeerConnectionInternal,
     return is_unified_plan_;
   }
   bool ValidateBundleSettings(const SessionDescription* desc,
-                              const std::map<std::string, const ContentGroup*>&
+                              const flat_map<std::string, const ContentGroup*>&
                                   bundle_groups_by_mid) override;
 
   bool CreateDataChannelTransport(absl::string_view mid) override;
@@ -489,7 +491,8 @@ class PeerConnection : public PeerConnectionInternal,
   JsepTransportController* InitializeNetworkThread(
       const ServerAddresses& stun_servers,
       const std::vector<RelayServerConfig>& turn_servers);
-  void CloseOnNetworkThread();
+  void CloseOnNetworkThread(
+      std::vector<absl::AnyInvocable<void() &&>>& network_tasks);
   JsepTransportController* InitializeTransportController_n(
       std::unique_ptr<JsepTransportController> controller,
       const RTCConfiguration& configuration) RTC_RUN_ON(network_thread());
@@ -594,7 +597,8 @@ class PeerConnection : public PeerConnectionInternal,
 
   // Invoked when TransportController connection completion is signaled.
   // Reports stats for all transports in use.
-  void ReportTransportStats(std::vector<RtpTransceiverProxyRefPtr> transceivers)
+  void ReportTransportStats(
+      std::vector<std::pair<std::string, MediaType>> transceiver_info)
       RTC_RUN_ON(network_thread());
 
   // Gather the usage of IPv4/IPv6 as best connection.

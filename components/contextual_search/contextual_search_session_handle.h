@@ -17,6 +17,7 @@
 #include "mojo/public/cpp/base/big_buffer.h"
 
 class GURL;
+class PrefService;
 
 namespace lens {
 enum class MimeType;
@@ -25,6 +26,7 @@ namespace proto {
 class LensOverlaySuggestInputs;
 }  // namespace proto
 }  // namespace lens
+class SessionID;
 
 namespace contextual_search {
 using SessionId = base::UnguessableToken;
@@ -54,7 +56,7 @@ class ContextualSearchSessionHandle {
 
   // Returns the ContextualSearchContextController reference held by this
   // handle or nullptr if the session is not valid.
-  ContextualSearchContextController* GetController() const;
+  virtual ContextualSearchContextController* GetController() const;
 
   // Returns the ContextualSearchMetricsRecorder reference held by this handle
   // or nullptr if the session is not valid.
@@ -66,8 +68,15 @@ class ContextualSearchSessionHandle {
   // Notifies the session handle that the session has been abandoned.
   void NotifySessionAbandoned();
 
+  // Checks the SearchContentSharingSettings policy. Returns true if sharing is
+  // allowed, false otherwise. Clients MUST call this method at least once
+  // during the lifetime of the session handle before uploading any context, to
+  // indicate that the policy has been checked.
+  bool CheckSearchContentSharingSettings(const PrefService* prefs);
+
   // Returns the suggest inputs for the current session.
-  std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs() const;
+  virtual std::optional<lens::proto::LensOverlaySuggestInputs>
+  GetSuggestInputs() const;
 
   // Adds a file to the context controller and starts the file upload flow.
   void AddFileContext(std::string file_mime_type,
@@ -82,7 +91,7 @@ class ContextualSearchSessionHandle {
   // contextual input data.
   // TODO(crbug.com/461869881): Pass more metadata than just the tab id for
   //  being able to return the list of attached tabs.
-  void AddTabContext(int32_t tab_id, AddTabContextCallback callback);
+  virtual void AddTabContext(int32_t tab_id, AddTabContextCallback callback);
 
   // Starts the tab context upload flow for the given file token using the
   // tab context stored in the contextual input data.
@@ -101,9 +110,10 @@ class ContextualSearchSessionHandle {
   void ClearFiles();
 
   // Returns the search url for a new query for opening.
-  virtual GURL CreateSearchUrl(
+  virtual void CreateSearchUrl(
       std::unique_ptr<contextual_search::ContextualSearchContextController::
-                          CreateSearchUrlRequestInfo> search_url_request_info);
+                          CreateSearchUrlRequestInfo> search_url_request_info,
+      base::OnceCallback<void(GURL)> callback);
 
   // Returns the client to aim message for a new query for posting.
   lens::ClientToAimMessage CreateClientToAimRequest(
@@ -140,6 +150,9 @@ class ContextualSearchSessionHandle {
   // confirmation that they are available on the server.
   std::vector<FileInfo> GetSubmittedContextFileInfos() const;
 
+  // Returns whether the current session_id is part of the uploaded context.
+  bool IsTabInContext(SessionID session_id) const;
+
  private:
   friend class ContextualSearchService;
   friend class MockContextualSearchSessionHandle;
@@ -158,6 +171,9 @@ class ContextualSearchSessionHandle {
   // instance of the session handle, meaning that it is unique per instance of
   // the contextual tasks ui.
   std::vector<base::UnguessableToken> submitted_context_tokens_;
+
+  // Whether the SearchContentSharingSettings policy has been checked.
+  bool policy_checked_ = false;
 
   // The service that vended this handle. This is a weak pointer because a
   // handle may outlive the service.

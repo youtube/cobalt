@@ -67,6 +67,9 @@ class InputManager;
 class OutputSurfaceProvider;
 class SharedImageInterfaceProvider;
 struct VideoCaptureTarget;
+#if BUILDFLAG(IS_MAC)
+class ExternalBeginFrameSourceMojoMac;
+#endif
 
 // FrameSinkManagerImpl manages BeginFrame hierarchy. This is the implementation
 // detail for FrameSinkManagerImpl.
@@ -141,6 +144,12 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
                               const std::string& debug_label) override;
   void CreateRootCompositorFrameSink(
       mojom::RootCompositorFrameSinkParamsPtr params) override;
+
+#if BUILDFLAG(IS_MAC)
+  void CreateCompositorDisplayLink(
+      mojom::CompositorDisplayLinkParamsPtr params) override;
+#endif
+
   void CreateFrameSinkBundle(
       const FrameSinkBundleId& bundle_id,
       mojo::PendingReceiver<mojom::FrameSinkBundle> receiver,
@@ -405,6 +414,14 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
 
   GpuServiceImpl* GetGpuService();
 
+#if BUILDFLAG(IS_MAC)
+  // This is called after SetSupportedDisplayLinkId() in the browser process.
+  // This function will force ExternalDisplayLinkMac in every
+  // RootCompositorFrameSink to check whether we need to get a new
+  // DisplayLinkMac when a display is added or removed.
+  void UpdateVSyncDisplays();
+#endif
+
  private:
   void OnViewTransitionResourcesCaptured(
       const blink::ViewTransitionToken& transition_token);
@@ -622,6 +639,12 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   mojo::Receiver<mojom::FrameSinkManagerTestApi> test_api_receiver_{this};
 
   base::ObserverList<FrameSinkObserver>::Unchecked observer_list_;
+
+#if BUILDFLAG(IS_MAC)
+  // Only one ExternalBeginFrameSourceMojoMac object is created and is
+  // shared by all RootCompositorFrameSinks.
+  std::unique_ptr<ExternalBeginFrameSourceMojoMac> external_begin_frame_source_;
+#endif
 
   // Counts frames for test.
   std::optional<FrameCounter> frame_counter_;

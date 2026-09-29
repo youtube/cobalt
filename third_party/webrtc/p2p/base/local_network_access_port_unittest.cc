@@ -133,8 +133,9 @@ class LocalNetworkAccessPortTest
     // port_ready_ or port_error_ becomes true. If neither happens, the test
     // will fail after a timeout.
     turn_port->SubscribePortComplete(
-        [this](Port* port) { OnPortComplete(port); });
-    turn_port->SubscribePortError([this](Port* port) { OnPortError(port); });
+        this, [this](Port* port) { OnPortComplete(port); });
+    turn_port->SubscribePortError(this,
+                                  [this](Port* port) { OnPortError(port); });
 
     return turn_port;
   }
@@ -155,8 +156,9 @@ class LocalNetworkAccessPortTest
     auto stun_port = StunPort::Create(
         params, 0, 0, {SocketAddress(server_address, 5000)}, std::nullopt);
     stun_port->SubscribePortComplete(
-        [this](Port* port) { OnPortComplete(port); });
-    stun_port->SubscribePortError([this](Port* port) { OnPortError(port); });
+        this, [this](Port* port) { OnPortComplete(port); });
+    stun_port->SubscribePortError(this,
+                                  [this](Port* port) { OnPortError(port); });
 
     return stun_port;
   }

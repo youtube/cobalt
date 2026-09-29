@@ -241,8 +241,7 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
 
             order_state = kBeforeFirstVCL;
 
-            if (base::FeatureList::IsEnabled(
-                    kTreatSEIRecoveryPointAsKeyframe)) {
+            if (base::FeatureList::IsEnabled(kParseSEIRecoveryPoints)) {
               H264SEI sei;
               if (parser.ParseSEI(&sei) != H264Parser::kOk) {
                 // This is non-fatal for historical compliance.
@@ -257,10 +256,12 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
                            sei_recovery_msg->recovery_frame_cnt == 0;
                   });
 
-              // Treat SEI recovery points with a recovery_frame_cnt of zero as
-              // key frames. This is generally well supported by our decoders.
+              // SEI recovery points generally function as key frames. However
+              // we don't mark them as such since `is_keyframe` is used to
+              // insert parameter sets -- which can cause decoding errors when
+              // done to non-IDR frames. See https://crbug.com/464062740.
               if (is_sei_recovery_point) {
-                result.is_keyframe = true;
+                result.is_sei_recovery_point = true;
               }
             }
 

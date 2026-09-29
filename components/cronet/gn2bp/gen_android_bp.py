@@ -283,6 +283,42 @@ android_protobuf_src = 'external/protobuf/src'
 # put all args on a new line for better diffs.
 NEWLINE = ' " +\n         "'
 
+# Compiler flags which are passed through to the blueprint.
+cflag_allowlist = [
+    # needed for zlib:zlib
+    "-mpclmul",
+    # needed for zlib:zlib
+    "-mssse3",
+    # needed for zlib:zlib
+    "-msse3",
+    # needed for zlib:zlib
+    "-msse4.2",
+    # flags to reduce binary size
+    "-O1",
+    "-O2",
+    "-O3",
+    "-Oz",
+    "-g1",
+    "-g2",
+    "-fdata-sections",
+    "-ffunction-sections",
+    "-fvisibility=hidden",
+    "-fvisibility-inlines-hidden",
+    "-fstack-protector",
+    "-mno-outline",
+    "-mno-outline-atomics",
+    "-fno-asynchronous-unwind-tables",
+    "-fno-unwind-tables",
+]
+
+# Linker flags which are passed through to the blueprint.
+ldflag_allowlist = [
+    # flags to reduce binary size
+    "-Wl,--as-needed",
+    "-Wl,--gc-sections",
+    "-Wl,--icf=all",
+]
+
 
 def get_linker_script_ldflag(script_path):
   return f'-Wl,--script,{tree_path}/{script_path}'
@@ -2462,6 +2498,23 @@ def get_bindgen_flags(args: List[str]) -> List[str]:
   return bindgen_flags
 
 
+def _create_extract_rust_files_target(bindgen_module, blueprint):
+  module = Module("cc_genrule", bindgen_module.name + "__extract_rust_files",
+                  f"Extract rust files from {bindgen_module.name}")
+  module.srcs = [f":{bindgen_module.name}"]
+  module.cmd = [
+      f'for f in $(locations :{bindgen_module.name}); do',
+      'if [[ "$$f" == *.rs ]]; then', 'cp "$$f" $(out);', 'fi;', 'done'
+  ]
+  module.out = [f"{bindgen_module.source_stem}.rs"]
+  module.device_supported = bindgen_module.device_supported
+  module.host_supported = bindgen_module.host_supported
+  module.host_cross_supported = bindgen_module.host_cross_supported
+  module.target['host'].compile_multilib = '64'
+  module.apex_available = [tethering_apex]
+  blueprint.add_module(module)
+  return module
+
 def create_bindgen_module(blueprint: Blueprint, target,
                           module_name: str) -> Module:
   module = Module("rust_bindgen", "lib" + module_name, target.name)
@@ -2581,47 +2634,8 @@ def create_jni_zero_proxy_only_module(jni_zero_generator_module):
   return proxy_only_module
 
 
-def _is_cflag_allowed(cflag):
-  if cflag.startswith("-Wno-"):
-    # Allow all -Wno- flags as those demote errors to warning.
-    return True
-  return all(not cflag.startswith(denied_prefix) for denied_prefix in [
-      # Soong handles this according to the module's attributes.
-      "--sysroot=",
-      # Soong handles this according to the architecture.
-      "--target=",
-      "--warning-suppression-mappings=",
-      # Remove all promotions of warning to errors. The code is developed in
-      # chromium, and the checks should be there.
-      "-W",
-      # Soong handles this according to the module's attributes.
-      "-isystem",
-      # Best handled by Soong according to the build configuration.
-      '-fcrash-diagnostics-dir=',
-      # Enabled by default in Soong.
-      '-flto',
-      # Enabled by default in Soong.
-      '-fsplit-lto-unit',
-      # Enabled by a special attribute instead.
-      '-fwhole-program-vtables',
-      # LLVM in AOSP fails when this is added. It's mostly used to warn
-      # against non-standard compiler extensions. It's forbidden by Soong as it's
-      # in the list of the IllegalFlags: http://ac/build/soong/cc/config/global.go?l=405-413
-      '-pedantic',
-      # Same as above.
-      '-w',
-      # This is used by a clang-plugin to show errors / warning for unsafe buffers during
-      # compilation. We don't care about static analysis errors / warnings as they're
-      # shown on the Chromium side. The reason why we're excluding this flag is because
-      # it introduces build breakages as clang's toolchain does not understand the
-      # pragma enabled by this define.
-      '-DUNSAFE_BUFFERS_BUILD',
-      '-Wunsafe-buffer-usage',
-      '-Wno-error=unsafe-buffer-usage',
-  ])
-
 def _get_cflags(cflags, defines):
-  cflags = [flag for flag in cflags if _is_cflag_allowed(flag)]
+  cflags = [flag for flag in cflags if flag in cflag_allowlist]
 
   # Android _may_ set a platform default for _LIBCPP_HARDENING_MODE. If that
   # conflicts with the level specified on this target, we'll get build errors.
@@ -2657,78 +2671,12 @@ def _get_cpp_std(cflags: List[str]) -> Union[str, None]:
   return None
 
 
-def _extract_linker_script(ldflags):
-  new_ldflags = []
-  linker_script = None
-  for flag in ldflags:
-    if flag.startswith("-Wl,--version-script="):
-      # Everything after the = is the path and delete all leading ../
-      linker_path = re.sub('^(\.\./)+', '', flag.split("=", maxsplit=2)[1])
-      assert linker_script is None, f"Found two different linker script for a single target! First script: {linker_script}, Second script: {linker_path}"
-      linker_script = linker_path
-    else:
-      new_ldflags.append(flag)
-  return new_ldflags, linker_script
-
-
-def _create_linker_script_filegroup(linker_script_path):
-  filegroup_name = linker_script_path.replace('/', '_').replace('.', '_')
-  filegroup_module = Module("filegroup", f"{filegroup_name}_filegroup",
-                            f"Created to reference {linker_script_path}")
-  filegroup_module.srcs = [linker_script_path]
-  # TODO(aymanm): Change the default for build_file_path to be top-level.
-  filegroup_module.build_file_path = ""
-  return filegroup_module
-
-
-def _is_allowed_ldflag(flag):
-  return all(not flag.startswith(denied_prefix) for denied_prefix in [
-      # Already applied by Soong according to module's attributes.
-      "--sysroot=",
-      # Already applied by Soong.
-      "--target=",
-      # Throws an error for some unknown reason?
-      "--unwindlib=",
-      # Tries to write to disk which is disallowed by Soong. It also
-      # simply controls the caching behaviour of thinLTO which is
-      # not essential.
-      "-Wl,--thinlto-cache-dir=",
-      # Controls the caching behaviour of thinLTO which is
-      # not essential.
-      "-Wl,--thinlto-cache-policy=",
-      # Controls the threading behaviour of thinLTO which is
-      # not essential.
-      "-Wl,--thinlto-jobs=",
-      # Applied by Soong by default
-      "-flto=",
-      # Throws an error currently because GNU_PROPERTY_AARCH64_FEATURE_1_BTI is
-      # not defined in some object files. This requires further investigation
-      # to enable. It's fine to disable for now as it has never been enabled in
-      # HttpEngine.
-      "-Wl,-z,force-bti",
-      # Soong handles this automatically based on the lunch options.
-      "-Wl,-z,max-page-size=",
-      # Let Soong handle the stripping of debug library according to the
-      # lunch configuration.
-      "-Wl,--strip-debug",
-      # Android is experimenting with XOM(crbug.com/379071663) which conflicts with
-      # rosegment flag. Disable this flag until XOM has landed, and we have
-      # an attribute which we can use to enable --no-rosegment.
-      "-Wl,--no-rosegment",
+def configure_cc_module(module, cflags, defines, ldflags, libs, main_module):
+  module.cflags.extend(_get_cflags(cflags, defines))
+  module.ldflags.extend([
+      flag for flag in ldflags
+      if flag in ldflag_allowlist or flag.startswith("-Wl,-wrap,")
   ])
-
-
-def configure_cc_module(module, cflags, defines, ldflags, libs, main_module,
-                        blueprint):
-  module.cflags = _get_cflags(cflags, defines)
-  ldflags, linker_script = _extract_linker_script(ldflags)
-  module.ldflags = [flag for flag in ldflags if _is_allowed_ldflag(flag)]
-  if linker_script:
-    # Unfortunately, Soong does not allow accessing linker scripts from parent
-    # path. So create a filegroup at the top-level Android.bp and reference it instead.
-    filegroup_module = _create_linker_script_filegroup(linker_script)
-    blueprint.add_module(filegroup_module)
-    module.version_script = f":{filegroup_module.name}"
   _set_linker_script(module, libs)
   for lib in libs:
     # Generally library names should be mangled as 'libXXX', unless they
@@ -2983,13 +2931,13 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
     if target.type in gn_utils.LINKER_UNIT_TYPES:
       configure_cc_module(module, target.cflags, target.defines, target.ldflags,
-                          target.libs, module, blueprint)
+                          target.libs, module)
       set_module_include_dirs(module, target.cflags, target.include_dirs)
       # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
       for arch_name, arch in target.get_archs().items():
         # TODO(aymanm): Make libs arch-specific.
         configure_cc_module(module.target[arch_name], arch.cflags, arch.defines,
-                            arch.ldflags, arch.libs, module, blueprint)
+                            arch.ldflags, arch.libs, module)
         # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
         # Flags which does not start with '-' could not be in the cflags so enabling MTE by
         # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
@@ -3152,7 +3100,20 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
                 f"Cannot add {dep_module.name} ({dep_module.type}) to {module.name} ({module.type})"
             )
         elif dep_module.type == "rust_bindgen":
-          module.srcs.add(":" + dep_module.name)
+          if module.type.startswith("rust"):
+            # Soong does not support using `rust_bindgen` modules directly as an input because
+            # it produces more than a single output (b/467420029). Create an intermediate
+            # genrule that copies that rust file and use it instead.
+            intermediate_target = _create_extract_rust_files_target(
+                dep_module, blueprint).name
+            module.srcs.add(":" + intermediate_target)
+            if module.crate_root and module.crate_root.startswith("out/"):
+              # Sometimes the crate_root is an output of another module which is indicated
+              # by a path starting with "out/". The only case where this happens at the moment
+              # is when a rust_library is created for the rust_bindgen output.
+              module.crate_root = f":{intermediate_target}"
+          else:
+            module.srcs.add(":" + dep_module.name)
           if module_target.type == "cc_library_static":
             # This is a bindgen _static_fns GN target. We need to translate that
             # to the Soong rust_bindgen "static inline library" concept.

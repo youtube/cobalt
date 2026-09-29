@@ -45,11 +45,15 @@ DECLARE_STATE_IDENTIFIER_VALUE(GlicFreShowingDialogObserver,
                                kGlicFreShowingDialogState);
 
 // Observes `controller` for changes to state().
+// When `tab` is not null, it will return a GlicWindowController::State inferred
+// by the IsShowing() method of the instance for the given tab. Otherwise, it
+// will return the state() from the controller.
 class GlicWindowControllerStateObserver
     : public ui::test::PollingStateObserver<GlicWindowController::State> {
  public:
   explicit GlicWindowControllerStateObserver(
-      const GlicWindowController& controller);
+      const GlicWindowController& controller,
+      tabs::TabInterface* tab = nullptr);
   ~GlicWindowControllerStateObserver() override;
 };
 
@@ -118,25 +122,6 @@ class WebUiStateObserver : public ui::test::StateObserver<mojom::WebUiState>,
 };
 
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(WebUiStateObserver, kWebUiState);
-
-class OnViewChangedObserver
-    : public ui::test::StateObserver<mojom::CurrentView>,
-      public Host::Observer {
- public:
-  explicit OnViewChangedObserver(Host* host);
-
-  ~OnViewChangedObserver() override;
-
-  mojom::CurrentView GetStateObserverInitialState() const override;
-
-  void OnViewChanged(mojom::CurrentView state) override;
-
- private:
-  base::ScopedObservation<Host, Host::Observer> observation_{this};
-  raw_ptr<Host> host_;
-};
-
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(OnViewChangedObserver, kFloatyViewState);
 
 }  // namespace internal
 

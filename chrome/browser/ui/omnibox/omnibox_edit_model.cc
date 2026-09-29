@@ -503,10 +503,16 @@ ui::ImageModel OmniboxEditModel::GetSuperGIcon(int image_size,
 }
 
 bool OmniboxEditModel::ShouldShowAddContextButton() const {
-  return controller_->client()->IsAimPopupEnabled() &&
-         omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get() ==
-             omnibox::AddContextButtonVariant::kInline &&
-         controller_->IsPopupOpen();
+  const bool aim_button_pref =
+      GetPrefService()->GetBoolean(omnibox::kShowAiModeOmniboxButton);
+  const bool is_aim_popup_enabled = controller_->client()->IsAimPopupEnabled();
+  const bool is_variant_inline =
+      omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get() ==
+      omnibox::AddContextButtonVariant::kInline;
+  const bool is_popup_open = controller_->IsPopupOpen();
+
+  return aim_button_pref && is_aim_popup_enabled && is_variant_inline &&
+         is_popup_open;
 }
 
 ui::ImageModel OmniboxEditModel::GetAddContextIcon(int image_size) const {
@@ -764,7 +770,10 @@ void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
           : u"";
   RecordAiModeMetrics(query_text, /*activated=*/true, via_keyboard);
 
-  if (controller_->client()->IsAimPopupEnabled()) {
+  bool force_navigation_to_aim =
+      !via_context_menu &&
+      base::FeatureList::IsEnabled(omnibox::kAiModeEntryPointAlwaysNavigates);
+  if (!force_navigation_to_aim && controller_->client()->IsAimPopupEnabled()) {
     // In general, adding a context will always open the AIM popup, while the
     // AIM button will prefer to navigate to the AI page with a query
     // prepopulated.
@@ -802,6 +811,17 @@ void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
                    omnibox::DESKTOP_CHROME_OMNIBOX_KEYWORD_ENTRY_POINT,
                    /*query_start_time=*/base::Time::Now(), query_text);
   controller_->client()->OpenUrl(ai_mode_url);
+}
+
+void OmniboxEditModel::OpenLensSearch() {
+  if (auto* provider =
+          autocomplete_controller()->contextual_search_provider()) {
+    OpenMatch(
+        OmniboxPopupSelection(OmniboxPopupSelection::kNoMatch),
+        provider->CreateLensEntrypointMatch(autocomplete_controller()->input()),
+        WindowOpenDisposition::CURRENT_TAB, GURL(), std::u16string(),
+        base::TimeTicks::Now());
+  }
 }
 
 void OmniboxEditModel::OpenSelection(OmniboxPopupSelection selection,
@@ -1326,6 +1346,7 @@ void OmniboxEditModel::OnPopupDataChanged(
     if (view_) {
       view_->OnKeywordPlaceholderTextChange();
     }
+    observers_.Notify(&Observer::OnKeywordStateChanged, is_keyword_hint);
 
     // |is_keyword_hint_| should always be false if |keyword_| is empty.
     DCHECK(!keyword_.empty() || !is_keyword_hint_);
@@ -1601,8 +1622,14 @@ void OmniboxEditModel::GetInfoForCurrentText(AutocompleteMatch* match,
     } else if (controller_->IsPopupOpen() &&
                GetPopupSelection().line != OmniboxPopupSelection::kNoMatch) {
       const OmniboxPopupSelection selection = GetPopupSelection();
-      *match = autocomplete_controller()->result().match_at(selection.line);
-      found_match_for_text = true;
+      // TODO(crbug.com/468047546): https://crrev.com/c/7191448 introduced a
+      // change in events that makes it possible for the selection to be out of
+      // bounds here. Follow up to figure out why this is and fix in a wholistic
+      // way.
+      if (selection.line < autocomplete_controller()->result().size()) {
+        *match = autocomplete_controller()->result().match_at(selection.line);
+        found_match_for_text = true;
+      }
     }
     if (found_match_for_text && alternate_nav_url &&
         (!popup_view_ || IsPopupSelectionOnInitialLine())) {
@@ -1767,22 +1794,29 @@ gfx::Image OmniboxEditModel::GetMatchIconIfExtension(
 std::u16string OmniboxEditModel::GetSuggestionGroupHeaderText(
     const std::optional<omnibox::GroupId>& suggestion_group_id) const {
   if (suggestion_group_id.has_value()) {
+    const auto& input = autocomplete_controller()->input();
     bool force_hide_row_header =
         OmniboxFieldTrial::IsHideSuggestionGroupHeadersEnabledInContext(
-            autocomplete_controller()->input().current_page_classification());
+            input.current_page_classification());
     auto header_text =
         autocomplete_controller()->result().GetHeaderForSuggestionGroup(
             suggestion_group_id.value());
 
-    // Show contextual search suggestion group header if the Lens action has
-    // been moved to the Omnibox toolbelt.
     bool has_toolbelt_lens_action =
         autocomplete_controller()->contextual_search_provider() &&
         autocomplete_controller()
             ->contextual_search_provider()
             ->HasToolbeltLensAction();
+    const auto* client =
+        autocomplete_controller()->autocomplete_provider_client();
+    bool has_lens_search_chip =
+        client->IsOmniboxNextLensSearchChipEnabled() &&
+        ContextualSearchProvider::LensEntrypointEligible(input, client);
+    // Show contextual search suggestion group header if the Lens action has
+    // been moved to the Omnibox toolbelt OR the "Omnibox Next" Lens search chip
+    // is currently active.
     if (suggestion_group_id.value() == omnibox::GROUP_CONTEXTUAL_SEARCH &&
-        has_toolbelt_lens_action) {
+        (has_toolbelt_lens_action || has_lens_search_chip)) {
       // TODO(khalidpeer): Make direct use of `header_text` once we start
       //     receiving a non-empty contextual search header from the server.
       return header_text.empty()
@@ -2932,12 +2966,7 @@ std::u16string OmniboxEditModel::GetText() const {
 }
 
 void OmniboxEditModel::SetKeyword(const std::u16string& keyword) {
-  const bool old_keyword_selected = is_keyword_selected();
   keyword_ = keyword;
-  const bool new_keyword_selected = is_keyword_selected();
-  if (old_keyword_selected != new_keyword_selected) {
-    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
-  }
 }
 
 void OmniboxEditModel::SetKeywordPlaceholder(

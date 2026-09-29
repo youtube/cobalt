@@ -261,6 +261,11 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, RateMenu) {
   RunSidePanelTest("side_panel/read_anything/rate_menu_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, SettingsMenu) {
+  RunSidePanelTest("side_panel/read_anything/settings_menu_test.js",
+                   "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, ToolbarOverflow) {
   RunSidePanelTest("side_panel/read_anything/toolbar_overflow_test.js",
                    "mocha.run()");
@@ -275,6 +280,12 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest,
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, ReadAloudHighlight) {
   RunSidePanelTest("side_panel/read_anything/read_aloud_highlighting_test.js",
+                   "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest,
+                       LineFocusController) {
+  RunSidePanelTest("side_panel/read_anything/line_focus_controller_test.js",
                    "mocha.run()");
 }
 

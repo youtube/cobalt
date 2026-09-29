@@ -17,9 +17,10 @@ class FileSystemFileHandle;
 
 class MojoFileSystemAccess final
     : public GarbageCollected<MojoFileSystemAccess>,
-      public GarbageCollectedMixin {
+      public Supplement<Mojo> {
  public:
-  MojoFileSystemAccess() = default;
+  static const char kSupplementName[];
+  explicit MojoFileSystemAccess(Mojo&);
   static MojoFileSystemAccess& From(Mojo&);
 
   // IDL interface methods:

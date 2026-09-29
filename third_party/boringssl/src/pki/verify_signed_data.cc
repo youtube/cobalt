@@ -234,6 +234,9 @@ bool VerifySignedData(SignatureAlgorithm algorithm, der::Input signed_data,
       cache_algorithm_name = "RsaPssSha512";
       is_rsa_pss = true;
       break;
+    case SignatureAlgorithm::kMtcProofDraftDavidben08:
+      // This function can't verify MTC proofs.
+      return false;
   }
 
   if (expected_pkey_id != EVP_PKEY_id(public_key)) {

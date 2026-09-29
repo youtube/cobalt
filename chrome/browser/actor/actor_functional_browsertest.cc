@@ -83,14 +83,14 @@ class ActorFunctionalBrowserTest : public glic::test::InteractiveGlicTest {
     // TODO(crbug.com/453696965): Broken in multi-instance.
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{actor::kActorBindCreatedTabToTask},
-        /*disabled_features=*/{features::kGlicMultiInstance});
+        /*disabled_features=*/{});
   }
   ~ActorFunctionalBrowserTest() override = default;
 
  protected:
   void SetUpOnMainThread() override {
     glic::test::InteractiveGlicTest::SetUpOnMainThread();
-    actor_keyed_service()->GetPolicyChecker().SetActOnWebForTesting(true);
+    actor_keyed_service()->GetPolicyChecker().set_act_on_web_for_testing(true);
     // TODO(crbug.com/461825458): Add support for kAttached window mode in test.
     RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached));
   }

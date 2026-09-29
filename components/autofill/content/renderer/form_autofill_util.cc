@@ -917,7 +917,7 @@ std::optional<InferredLabel> InferLabelFromTableRow(const WebNode& cell) {
       }
       prev_row_it = prev_row_it.NextSibling();
     }
-    if ((cell_count == prev_row_count) && matching_cell) {
+    if (cell_count == prev_row_count && matching_cell) {
       if (auto r = InferredLabel::BuildIfValid(FindChildText(matching_cell),
                                                LabelSource::kTdTag)) {
         return r;
@@ -1479,7 +1479,7 @@ void MatchLabelsAndFields(const WebDocument& root,
                  CompareByRendererId>
       field_set = [&] {
         std::vector<std::pair<FormFieldData*, ShadowFieldData>> items;
-        for (size_t i = 0; i < fields.size(); i++) {
+        for (size_t i = 0; i < fields.size(); ++i) {
           items.emplace_back(&fields[i], std::move(shadow_fields[i]));
         }
         return items;
@@ -2517,7 +2517,7 @@ FindFormAndFieldForFormControlElement(
   SCOPED_CRASH_KEY_STRING64("Autofill", "elem_tag_name", element.TagName().Utf8());
   SCOPED_CRASH_KEY_STRING64("Autofill", "elem_id", get_id(element));
   SCOPED_CRASH_KEY_STRING64("Autofill", "elem_form_attr", element.GetAttribute("form").Utf8());
-  SCOPED_CRASH_KEY_NUMBER("Autofill", "elem_form_control_type", base::to_underlying(element.FormControlType()));  // nocheck
+  SCOPED_CRASH_KEY_NUMBER("Autofill", "elem_form_control_type", std::to_underlying(element.FormControlType()));  // nocheck
 
   SCOPED_CRASH_KEY_BOOL("Autofill", "elem_autofillable", IsAutofillableElement(element));
   SCOPED_CRASH_KEY_BOOL("Autofill", "elem_document", !!document);
@@ -2647,8 +2647,8 @@ std::vector<std::pair<FieldRendererId, WebAutofillState>> ApplyFieldsAction(
     if (!element) {
       continue;
     }
-    if ((action_type == mojom::FormActionType::kFill &&
-         ShouldSkipFillField(field, element))) {
+    if (action_type == mojom::FormActionType::kFill &&
+        ShouldSkipFillField(field, element)) {
       continue;
     }
     if (element.Focused()) {

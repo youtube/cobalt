@@ -798,6 +798,11 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
+    if (base::EqualsCaseInsensitiveASCII(expression, "'trusted-types-eval'")) {
+      directive->allow_trusted_types_eval = true;
+      continue;
+    }
+
 #if BUILDFLAG(IS_COBALT)
     if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-local-network'")) {
       directive->cobalt_insecure_local_network = true;

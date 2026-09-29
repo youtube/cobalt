@@ -956,7 +956,14 @@ void HTMLSelectElement::SelectOption(HTMLOptionElement* element,
   if (element) {
     if (!element->Selected())
       should_update_popup = true;
-    element->SetSelectedState(true);
+    // skip_mutation_observer_update is set to true here because
+    // last_on_change_option_ isn't set to the new option element yet, which
+    // results in a DCHECK being hit in MenuListSelectType::OptionToBeShown when
+    // copying the option's text content to this select element's InnerElement
+    // which requires that SelectedOption() matches last_on_change_option_.
+    // Instead, UpdateMutationObserver is explicitly called after
+    // DidSelectOption later in this method.
+    element->SetSelectedState(true, /*skip_mutation_observer_update=*/true);
     if (flags & kMakeOptionDirtyFlag)
       element->SetDirty(true);
   }
@@ -972,6 +979,13 @@ void HTMLSelectElement::SelectOption(HTMLOptionElement* element,
   // Note that DidSelectOption fires change events, which can invoke script
   // and then change the selected option again.
   select_type_->DidSelectOption(element, flags, should_update_popup);
+
+  if (element) {
+    // Now that last_on_change_option_ has been updated by DidSelectOption, we
+    // can update the select's MutationObserver and update text.
+    element->UpdateMutationObserver(/*in_style_recalc=*/false);
+  }
+
   NotifyFormStateChanged();
   if (GetDocument().IsActive()) {
     GetDocument()
@@ -1339,7 +1353,7 @@ void HTMLSelectElement::TypeAheadFind(const KeyboardEvent& event) {
   const bool customizable_select_popup =
       select_type_->IsAppearanceBasePicker() && select_type_->PopupIsVisible();
   const bool customizable_select_in_page =
-      RuntimeEnabledFeatures::CustomizableSelectInPageEnabled() &&
+      RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
       !UsesMenuList() && IsAppearanceBase();
 
   if (customizable_select_popup || customizable_select_in_page) {
@@ -1956,7 +1970,7 @@ FocusableState HTMLSelectElement::SupportsFocus(
   // if appropriate, which we will make use of here.
   FocusableState superclass_focusable =
       HTMLFormControlElementWithState::SupportsFocus(update_behavior);
-  if (RuntimeEnabledFeatures::CustomizableSelectInPageEnabled() &&
+  if (RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
       !UsesMenuList() && IsAppearanceBase()) {
     // In this case, the child option elements are focusable and keyboard
     // navigating to this element should just go straight to the options. Call
@@ -1989,7 +2003,7 @@ bool HTMLSelectElement::SupportsBaseAppearanceInternal(
   if (RuntimeEnabledFeatures::CustomizableSelectMultiplePopupEnabled()) {
     return true;
   }
-  if (RuntimeEnabledFeatures::CustomizableSelectInPageEnabled()) {
+  if (RuntimeEnabledFeatures::CustomizableSelectListboxEnabled()) {
     if (UsesMenuList() && IsMultiple()) {
       return false;
     }

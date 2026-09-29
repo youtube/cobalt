@@ -779,6 +779,8 @@ class TabStripModel {
     CommandGlicShareLimit,
     CommandGlicStartShare,
     CommandGlicStopShare,
+    CommandGlicShare,
+    CommandGlicCreateNewChat,
 #endif
     CommandLast
   };
@@ -1270,7 +1272,7 @@ class TabStripModel {
 
   // Checks if the `contents_data_` is in a valid order. This checks for
   // pinned tabs placement, group contiguity and selected tabs validity.
-  void ValidateTabStripModel();
+  void CompleteModelUpdateTransaction();
 
   void SendMoveNotificationForTab(
       int index,

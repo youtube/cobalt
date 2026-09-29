@@ -73,6 +73,7 @@
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/page_state/page_state.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -108,7 +109,6 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
-#include "third_party/blink/renderer/core/css/css_selector_watch.h"
 #include "third_party/blink/renderer/core/css/css_style_declaration.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/cssom/caret_position.h"
@@ -235,7 +235,6 @@
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/document_all_name_collection.h"
 #include "third_party/blink/renderer/core/html/document_name_collection.h"
-#include "third_party/blink/renderer/core/html/fenced_frame/document_fenced_frames.h"
 #include "third_party/blink/renderer/core/html/forms/email_input_type.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
@@ -327,7 +326,6 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/timing/first_meaningful_paint_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
-#include "third_party/blink/renderer/core/patching/patch_supplement.h"
 #include "third_party/blink/renderer/core/permissions_policy/dom_feature_policy.h"
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_parser.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -355,8 +353,6 @@
 #include "third_party/blink/renderer/core/view_transition/page_reveal_event.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
-#include "third_party/blink/renderer/core/xml/document_xpath_evaluator.h"
-#include "third_party/blink/renderer/core/xml/document_xslt.h"
 #include "third_party/blink/renderer/core/xml/parser/xml_document_parser.h"
 #include "third_party/blink/renderer/core/xml/parser/xml_document_parser_rs.h"
 #include "third_party/blink/renderer/core/xml_names.h"
@@ -3636,6 +3632,13 @@ DocumentParser* Document::CreateParser() {
     return MakeGarbageCollected<HTMLDocumentParser>(*html_document,
                                                     parser_sync_policy_);
   }
+
+  // Use the Rust XML parser for situations like XMLHttpRequests and
+  // JS DOMParser, where no dom_window_ is available.
+  if (!GetFrame() && RuntimeEnabledFeatures::XMLRustForNonXsltEnabled()) {
+    return MakeGarbageCollected<XMLDocumentParserRs>(*this, View());
+  }
+
   // FIXME: this should probably pass the frame instead
   if (RuntimeEnabledFeatures::XMLParsingRustEnabled()) {
     return MakeGarbageCollected<XMLDocumentParserRs>(*this, View());
@@ -8334,6 +8337,37 @@ void Document::ResponsiveEmbeddedSizingChanged() {
   }
 }
 
+bool Document::TextScaleMetaTagPresent() const {
+  return RuntimeEnabledFeatures::TextScaleMetaTagEnabled() &&
+         text_scale_meta_tag_present_;
+}
+
+void Document::SetTextScaleMetaTagPresent(bool present) {
+  if (text_scale_meta_tag_present_ == present) {
+    return;
+  }
+  text_scale_meta_tag_present_ = present;
+  if (present) {
+    UseCounter::CountWebDXFeature(this, WebDXFeature::kDRAFT_MetaTextScale);
+  }
+  GetStyleEngine().InitialStyleChanged();
+}
+
+void Document::TextScaleMetaChanged() {
+  if (const auto* root_element = documentElement()) {
+    for (const HTMLMetaElement& meta_element :
+         Traversal<HTMLMetaElement>::DescendantsOf(*root_element)) {
+      if (EqualIgnoringASCIICase(meta_element.GetName(), "text-scale")) {
+        SetTextScaleMetaTagPresent(
+            EqualIgnoringASCIICase(meta_element.Content(), "scale"));
+        // We only look at the first <meta name="text-scale"> tag.
+        return;
+      }
+    }
+  }
+  SetTextScaleMetaTagPresent(false);
+}
+
 void Document::SupportsReducedMotionMetaChanged() {
   auto* root_element = documentElement();
   if (!root_element)
@@ -8625,8 +8659,12 @@ void Document::RemoveFinishedTopLayerElements() {
   HeapVector<Member<Element>> to_remove;
   for (const auto& pending_removal : top_layer_elements_pending_removal_) {
     Element* element = pending_removal->element;
-    const ComputedStyle* style = element->GetComputedStyle();
-    if (!style || style->Overlay() == EOverlay::kNone) {
+    const ComputedStyle* style =
+        RuntimeEnabledFeatures::OverlayPropertyEnabled()
+            ? element->GetComputedStyle()
+            : ComputedStyle::NullifyEnsured(element->GetComputedStyle());
+    if (!style || (RuntimeEnabledFeatures::OverlayPropertyEnabled() &&
+                   style->Overlay() == EOverlay::kNone)) {
       to_remove.push_back(element);
     }
   }
@@ -9539,33 +9577,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(payment_link_handler_);
 #endif  // BUILDFLAG(IS_ANDROID)
   visitor->Trace(view_transitions_);
-  visitor->Trace(ai_page_content_agent_);
-  visitor->Trace(anchor_element_metrics_sender_);
-  visitor->Trace(anchor_element_viewport_position_tracker_);
-  visitor->Trace(annotation_agent_container_impl_);
-  visitor->Trace(browsing_topics_document_supplement_);
-  visitor->Trace(css_selector_watch_);
-  visitor->Trace(credential_metrics_);
-  visitor->Trace(disabled_acceleration_counter_supplement_);
-  visitor->Trace(document_fenced_frames_);
-  visitor->Trace(document_metadata_server_);
-  visitor->Trace(document_parser_timing_);
-  visitor->Trace(document_speculation_rules_);
-  visitor->Trace(document_storage_access_);
-  visitor->Trace(document_xpath_evaluator_);
-  visitor->Trace(document_xslt_);
-  visitor->Trace(font_face_set_document_);
-  visitor->Trace(frame_metadata_observer_registry_);
-  visitor->Trace(inner_html_agent_);
-  visitor->Trace(inner_text_agent_);
-  visitor->Trace(interactive_detector_);
-  visitor->Trace(paint_timing_);
-  visitor->Trace(patch_supplement_);
-  visitor->Trace(picture_in_picture_controller_);
-  visitor->Trace(rtc_peer_connection_controller_);
-  visitor->Trace(render_blocking_metrics_reporter_);
-  visitor->Trace(route_map_);
-  visitor->Trace(transfer_to_gpu_texture_invoked_supplement_);
+  Supplementable<Document>::Trace(visitor);
   TreeScope::Trace(visitor);
   ContainerNode::Trace(visitor);
 }
@@ -10314,6 +10326,24 @@ CustomElementRegistry* Document::EffectiveGlobalCustomElementRegistry() const {
     return registry;
   }
   return nullptr;
+}
+
+void Document::AddOverscrollCommandTarget(const AtomicString& target) {
+  auto result = overscroll_command_targets_.insert(target);
+  if (result.is_new_entry) {
+    if (auto* element = getElementById(target)) {
+      element->OverscrollTargetStateChanged();
+    }
+  }
+}
+
+void Document::RemoveOverscrollCommandTarget(const AtomicString& target) {
+  bool erased_last = overscroll_command_targets_.erase(target);
+  if (erased_last) {
+    if (auto* element = getElementById(target)) {
+      element->OverscrollTargetStateChanged();
+    }
+  }
 }
 
 template class CORE_TEMPLATE_EXPORT Supplement<Document>;

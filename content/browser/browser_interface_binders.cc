@@ -941,19 +941,17 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   }
 
 #if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](RenderFrameHostImpl* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetBrowserContext(), &host->document_associated_data(),
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](RenderFrameHostImpl* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetBrowserContext(), &host->document_associated_data(),
+                std::move(receiver));
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 }
 
@@ -1422,19 +1420,17 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](DedicatedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](DedicatedWorkerHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetProcessHost()->GetBrowserContext(), host,
+                std::move(receiver));
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 }
 
@@ -1546,19 +1542,17 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](SharedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](SharedWorkerHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetProcessHost()->GetBrowserContext(), host,
+                std::move(receiver));
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1734,22 +1728,19 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(blink::features::kLanguageDetectionAPI)) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](ServiceWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              if (auto* process_host = static_cast<RenderProcessHostImpl*>(
-                      RenderProcessHost::FromID(host->worker_process_id()))) {
-                GetContentClient()->browser()->BindLanguageDetectionDriver(
-                    process_host->GetBrowserContext(), host,
-                    std::move(receiver));
-              }
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](ServiceWorkerHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            if (auto* process_host = static_cast<RenderProcessHostImpl*>(
+                    RenderProcessHost::FromID(host->worker_process_id()))) {
+              GetContentClient()->browser()->BindLanguageDetectionDriver(
+                  process_host->GetBrowserContext(), host, std::move(receiver));
+            }
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 
   // RenderProcessHost binders

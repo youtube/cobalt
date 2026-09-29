@@ -23,8 +23,6 @@
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
-#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-data-view.h"
-#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-forward.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_mojo_test_utils.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/fake_tab_id_generator.h"
@@ -46,6 +44,7 @@
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/omnibox_proto/groups.pb.h"
 #include "url/gurl.h"
 namespace {
 using ::action_chips::RemoteSuggestionsServiceSimple;
@@ -82,11 +81,16 @@ struct SuggestResultFields {
 };
 
 SearchSuggestionParser::SuggestResult MakeResult(
-    const SuggestResultFields& fields) {
-  return SearchSuggestionParser::SuggestResult(
+    const SuggestResultFields& fields,
+    std::optional<omnibox::GroupId> group_id = std::nullopt) {
+  auto result = SearchSuggestionParser::SuggestResult(
       fields.suggestion, fields.type, fields.suggest_type, fields.subtypes,
       fields.from_keyword, fields.navigational_intent, fields.relevance,
       fields.relevance_from_server, fields.input_text);
+  if (group_id.has_value()) {
+    result.set_suggestion_group_id(group_id.value());
+  }
+  return result;
 }
 
 class MockRemoteSuggestionsServiceSimple
@@ -521,7 +525,9 @@ TEST_P(ActionChipsGeneratorDeepDiveTest, GenerateChips) {
                  callback) {
             std::move(callback).Run(SearchSuggestionParser::SuggestResults{
                 MakeResult({.suggestion = u"Test suggestion 1"}),
-                MakeResult({.suggestion = u"Test suggestion 2"})});
+                MakeResult({.suggestion = u"Test suggestion 2"},
+                           omnibox::GroupId::GROUP_PERSONALIZED_ZERO_SUGGEST),
+                MakeResult({.suggestion = u"Test suggestion 3"})});
             return nullptr;
           }));
 
@@ -552,7 +558,7 @@ TEST_P(ActionChipsGeneratorDeepDiveTest, GenerateChips) {
   ActionChipPtr deep_dive_chip_1 =
       CreateStaticDeepDiveChip(tab_info->Clone(), "Test suggestion 1");
   ActionChipPtr deep_dive_chip_2 =
-      CreateStaticDeepDiveChip(tab_info->Clone(), "Test suggestion 2");
+      CreateStaticDeepDiveChip(tab_info->Clone(), "Test suggestion 3");
 
   EXPECT_THAT(actual,
               testing::Conditional(
@@ -640,133 +646,6 @@ TEST(ActionChipGeneratorTest,
               ElementsAre(Eq(std::cref(most_resent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
-}
-
-struct ActionChipsGeneratorDeepDiveBackfillTestCase {
-  std::string test_name;
-  // Response from the remote.
-  SearchSuggestionParser::SuggestResults response;
-  // Whether the user is eligible for each AIM tools. When the value is
-  // std::nullopt, it means that no call is made to the corresponding method.
-  // When a non-empty value is set, the method is called and its return value
-  // is its content.
-  std::optional<bool> is_deepsearch_eligible_call = true;
-  std::optional<bool> is_create_images_eligible_call = true;
-  // The functions that generate additional chips. This, together with the
-  // static tab context chip and the deep dive chips from suggestions, forms
-  // the expected output.
-  std::vector<base::FunctionRef<const ActionChipPtr&()>>
-      additional_static_chips;
-};
-
-using ActionChipGeneratorDeepDiveBackfillTest =
-    testing::TestWithParam<ActionChipsGeneratorDeepDiveBackfillTestCase>;
-
-INSTANTIATE_TEST_SUITE_P(
-    ActionChipGeneratorTests,
-    ActionChipGeneratorDeepDiveBackfillTest,
-    ::testing::ValuesIn({
-        ActionChipsGeneratorDeepDiveBackfillTestCase{
-            .test_name = "FullyEligibleAndNoSuggestionAvailable",
-            .additional_static_chips = {&GetStaticDeepSearchChip,
-                                        &GetStaticImageGenerationChip},
-        },
-        {
-            .test_name = "EligibleOnlyForDeepSearchAndNoSuggestionAvailable",
-            .is_create_images_eligible_call = false,
-            .additional_static_chips = {&GetStaticDeepSearchChip},
-        },
-        {
-            .test_name = "EligibleOnlyForCreateImagesAndNoSuggestionAvailable",
-            .is_deepsearch_eligible_call = false,
-            .additional_static_chips = {&GetStaticImageGenerationChip},
-        },
-        {
-            .test_name = "FullyEligibleAndSingleSuggestionAvailable",
-            .response = {MakeResult({.suggestion = u"Test suggestion 1"})},
-            // fully eligible but no call is made
-            .is_create_images_eligible_call = std::nullopt,
-            .additional_static_chips = {&GetStaticDeepSearchChip},
-        },
-        {
-            .test_name =
-                "EligibleOnlyForDeepSearchAndSingleSuggestionAvailable",
-            .response = {MakeResult({.suggestion = u"Test suggestion 1"})},
-            .is_create_images_eligible_call = std::nullopt,
-            .additional_static_chips = {&GetStaticDeepSearchChip},
-        },
-        {
-            .test_name =
-                "EligibleOnlyForImageCreationAndSingleSuggestionAvailable",
-            .response = {MakeResult({.suggestion = u"Test suggestion 1"})},
-            .is_deepsearch_eligible_call = false,
-            .additional_static_chips = {&GetStaticImageGenerationChip},
-        },
-    }),
-    [](const testing::TestParamInfo<
-        ActionChipsGeneratorDeepDiveBackfillTestCase>& param) {
-      return param.param.test_name;
-    });
-
-TEST_P(
-    ActionChipGeneratorDeepDiveBackfillTest,
-    DeepDiveChipsGenerationAddsStaticOnesWithEligibilityConsideredIfNecessary) {
-  EnvironmentFixture env;
-  const GURL page_url("https://en.wikipedia.org/wiki/Mathematics");
-  const std::u16string page_title(u"Mathematics - Wikipedia");
-  TabFixture tab_fixture(page_url, page_title);
-  GeneratorFixture generator_fixture;
-  generator_fixture.MakeOptimizationGuidePermissive();
-
-  EXPECT_CALL(generator_fixture.mock_service(),
-              GetActionChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
-      .WillOnce(WithArg<2>(
-          [](base::OnceCallback<void(
-                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
-                 callback) {
-            std::move(callback).Run(GetParam().response);
-            return nullptr;
-          }));
-  EXPECT_CALL(generator_fixture.mock_aim_eligibility_service(),
-              IsDeepSearchEligible())
-      .Times(GetParam().is_deepsearch_eligible_call.has_value() ? 1 : 0)
-      .WillOnce(Return(GetParam().is_deepsearch_eligible_call.value_or(false)));
-  EXPECT_CALL(generator_fixture.mock_aim_eligibility_service(),
-              IsCreateImagesEligible())
-      .Times(GetParam().is_create_images_eligible_call.has_value() ? 1 : 0)
-      .WillOnce(
-          Return(GetParam().is_create_images_eligible_call.value_or(false)));
-
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeatureWithParameters(
-      ntp_features::kNtpNextFeatures,
-      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
-       {ntp_features::kNtpNextShowDeepDiveSuggestionsParam.name, "true"}});
-
-  base::RunLoop run_loop;
-  std::vector<ActionChipPtr> actual;
-  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
-                                        actual);
-  run_loop.Run();
-
-  ActionChipPtr most_resent_tab_chip =
-      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
-  std::vector<Matcher<ActionChipPtr>> expected;
-  expected.push_back(Eq(std::cref(most_resent_tab_chip)));
-  std::vector<ActionChipPtr> deep_dive_chips;
-  for (const SearchSuggestionParser::SuggestResult& suggestion :
-       GetParam().response) {
-    deep_dive_chips.push_back(
-        CreateStaticDeepDiveChip(CreateTabInfo(&tab_fixture.mock_tab()),
-                                 base::UTF16ToUTF8(suggestion.suggestion())));
-    expected.push_back(Eq(std::cref(deep_dive_chips.back())));
-  }
-  for (const base::FunctionRef<const ActionChipPtr&()> generator :
-       GetParam().additional_static_chips) {
-    expected.push_back(Eq(std::cref(generator())));
-  }
-
-  EXPECT_THAT(actual, ElementsAreArray(expected));
 }
 
 struct SimplifiedUIParamTestCase {

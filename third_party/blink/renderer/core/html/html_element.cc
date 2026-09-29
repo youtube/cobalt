@@ -850,6 +850,35 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
     return;
   }
 
+  if (params.name == html_names::kCommandAttr) {
+    bool old_is_overscroll = IsOverscrollCommand(
+        GetCommandEventType(params.old_value, GetExecutionContext()));
+    bool new_is_overscroll = IsOverscrollCommand(
+        GetCommandEventType(params.new_value, GetExecutionContext()));
+    const AtomicString& command_for =
+        FastGetAttribute(html_names::kCommandforAttr);
+    if (old_is_overscroll != new_is_overscroll && !command_for.empty()) {
+      if (new_is_overscroll) {
+        GetDocument().AddOverscrollCommandTarget(command_for);
+      } else {
+        CHECK(old_is_overscroll);
+        GetDocument().RemoveOverscrollCommandTarget(command_for);
+      }
+    }
+  } else if (params.name == html_names::kCommandforAttr) {
+    if (IsOverscrollCommand(
+            GetCommandEventType(FastGetAttribute(html_names::kCommandAttr),
+                                GetExecutionContext())) &&
+        params.old_value != params.new_value) {
+      if (!params.old_value.empty()) {
+        GetDocument().RemoveOverscrollCommandTarget(params.old_value);
+      }
+      if (!params.new_value.empty()) {
+        GetDocument().AddOverscrollCommandTarget(params.new_value);
+      }
+    }
+  }
+
   if (params.reason != AttributeModificationReason::kDirectly)
     return;
   // adjustedFocusedElementInTreeScope() is not trivial. We should check
@@ -1408,7 +1437,7 @@ void MarkPopoverInvokersDirty(const HTMLElement& popover) {
   }
   for (auto* invoker_candidate :
        *popover.GetTreeScope().RootNode().CommandInvokers()) {
-    auto* invoker = To<HTMLButtonElement>(invoker_candidate);
+    auto* invoker = To<HTMLElement>(invoker_candidate);
     if (popover == invoker->commandForElement()) {
       cache->MarkElementDirty(invoker);
     }
@@ -2224,7 +2253,16 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 4. A custom element button with `ElementInternals.type=button`
+        // Case 4. A select element whose picker is a popover.
+        if (auto* select = DynamicTo<HTMLSelectElement>(test_node)) {
+          if (auto* popover_picker = select->PopoverPickerElement()) {
+            if (RuntimeEnabledFeatures::LightDismissFromClickEnabled()) {
+              return popover_picker;
+            }
+          }
+        }
+
+        // Case 5. A custom element button with `ElementInternals.type=button`
         // with the `popovertarget` attribute or the `commandfor` attribute.
         if (auto* html_element = DynamicTo<HTMLElement>(test_node);
             html_element &&
@@ -2444,16 +2482,6 @@ void HTMLElement::HandlePopoverLightDismissForClick(
   auto* pointer_down_popover = FindTopmostRelatedPopover(pointer_down_target);
   auto* pointer_up_popover = FindTopmostRelatedPopover(pointer_up_target);
   if (pointer_down_popover == pointer_up_popover) {
-    for (Node& ancestor :
-         FlatTreeTraversal::InclusiveAncestorsOf(pointer_down_target)) {
-      if (IsA<HTMLSelectElement>(ancestor)) {
-        // The customizable select popover is opened on mousedown instead of
-        // click. In order to prevent it from being opened and then light
-        // dismissed from one click, this is necessary.
-        return;
-      }
-    }
-
     HideAllPopoversUntil(
         pointer_up_popover, pointer_down_target.GetDocument(),
         HidePopoverFocusBehavior::kNone,
@@ -2680,9 +2708,10 @@ void HTMLElement::setCommand(const AtomicString& type) {
   setAttribute(html_names::kCommandAttr, type);
 }
 
+// static
 CommandEventType HTMLElement::GetCommandEventType(
     const AtomicString& action,
-    ExecutionContext* execution_context) const {
+    ExecutionContext* execution_context) {
   if (action.IsNull() || action.empty()) {
     return CommandEventType::kNone;
   }
@@ -2808,6 +2837,11 @@ CommandEventType HTMLElement::GetCommandEventType(
     if (EqualIgnoringASCIICase(action, keywords::kPageInlineEnd)) {
       return CommandEventType::kPageInlineEnd;
     }
+  }
+
+  if (RuntimeEnabledFeatures::CSSOverscrollGesturesEnabled() &&
+      EqualIgnoringASCIICase(action, keywords::kToggleOverscroll)) {
+    return CommandEventType::kToggleOverscroll;
   }
 
   return CommandEventType::kNone;

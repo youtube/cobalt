@@ -17,6 +17,7 @@
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
@@ -1663,21 +1664,20 @@ TEST_F(OmniboxEditModelPopupTest, KeywordStateObserver) {
   TestObserver observer;
   model()->AddObserver(&observer);
 
+  auto changed = [this](std::u16string keyword, bool is_keyword_hint) {
+    model()->OnPopupDataChanged(std::u16string(), false, std::u16string(),
+                                keyword, std::u16string(), is_keyword_hint,
+                                std::u16string(), {});
+  };
+
   // Entering keyword mode should notify observers.
   EXPECT_CALL(observer, OnKeywordStateChanged(true));
-  model()->SetKeyword(u"keyword");
-  model()->SetIsKeywordHint(false);
-  testing::Mock::VerifyAndClearExpectations(&observer);
-
-  // Switching to another keyword should not notify observers.
-  EXPECT_CALL(observer, OnKeywordStateChanged(_)).Times(0);
-  model()->SetKeyword(u"keyword2");
-  model()->SetIsKeywordHint(false);
+  changed(u"keyword", true);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
   // Leaving keyword mode should notify observers.
   EXPECT_CALL(observer, OnKeywordStateChanged(false));
-  model()->SetKeyword(u"");
+  changed(u"", false);
   testing::Mock::VerifyAndClearExpectations(&observer);
 
   model()->RemoveObserver(&observer);
@@ -1728,6 +1728,49 @@ TEST_F(OmniboxEditModelPopupTest, AimPopupEnabledPopupOpened) {
       "Omnibox.AimEntrypoint.Activated.ViaKeyboard", true, 1);
   histogram_tester.ExpectBucketCount(
       "Omnibox.AimEntrypoint.Activated.UserTextPresent", false, 1);
+}
+
+TEST_F(OmniboxEditModelPopupTest, AimPopupEnabled_ForcedNavigationDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(omnibox::kAiModeEntryPointAlwaysNavigates);
+
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(0);
+
+  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/true);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            controller()->popup_state_manager()->popup_state());
+
+  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/false);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            controller()->popup_state_manager()->popup_state());
+}
+
+TEST_F(OmniboxEditModelPopupTest, AimPopupEnabled_ForcedNavigationEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kAiModeEntryPointAlwaysNavigates);
+  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(1);
+
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/false);
+
+  EXPECT_EQ(OmniboxPopupState::kNone,
+            controller()->popup_state_manager()->popup_state());
+
+  testing::Mock::VerifyAndClearExpectations(client());
+  EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*client(), OpenUrl(_)).Times(0);
+
+  model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/true);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            controller()->popup_state_manager()->popup_state());
 }
 
 // Test observer that clears results when OnContentsChanged is called,

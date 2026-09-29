@@ -1499,7 +1499,7 @@ TEST_P(SearchEngineChoiceServiceDeviceRestoreTest, RepromptOnRestoreDetection) {
       SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
 #else
       GetParam().expect_invalidation_timestamp
-          ? SearchEngineChoiceScreenConditions::kEligible
+          ? SearchEngineChoiceScreenConditions::kEligibleForRestore
           : SearchEngineChoiceScreenConditions::kAlreadyCompleted;
 #endif
   histogram_tester_.ExpectUniqueSample(
@@ -1843,11 +1843,6 @@ INSTANTIATE_TEST_SUITE_P(
              ExpectHistogramUnique(FunnelStage::kNotEligible)},
         {.test_suffix = "ControlledByPolicy",
          .condition = SearchEngineChoiceScreenConditions::kControlledByPolicy,
-         .expected_if_static = ExpectHistogramUnique(FunnelStage::kNotEligible),
-         .expected_if_dynamic =
-             ExpectHistogramUnique(FunnelStage::kNotEligible)},
-        {.test_suffix = "ProfileOutOfScope",
-         .condition = SearchEngineChoiceScreenConditions::kProfileOutOfScope,
          .expected_if_static = ExpectHistogramUnique(FunnelStage::kNotEligible),
          .expected_if_dynamic =
              ExpectHistogramUnique(FunnelStage::kNotEligible)},

@@ -43,7 +43,7 @@
 #include "extensions/browser/pref_names.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 #include "chrome/browser/glic/glic_pref_names.h"
 #endif
 
@@ -288,7 +288,7 @@ enum {
   kGrayscaleThemeEnabled = 100221,
   kUserColor = 100222,
   kBlockAll3pcToggleEnabled = 100223,
-  kTrackingProtectionLevel = 100224,
+  // kTrackingProtectionLevel = 100224, (deprecated)
   kUserSpeakOnMuteDetectionEnabled = 100225,
   kShouldShowSpeakOnMuteOptInNudge = 100226,
   kSpeakOnMuteOptInNudgeShownCount = 100227,
@@ -313,7 +313,7 @@ enum {
   // kAccessibilityReadAnythingOmniboxIconLabelShownCount = 100246, (deprecated)
   kApplicationLocale = 100247,
   kListenToThisPageEnabled = 100248,
-  kIpProtectionEnabled = 100249,
+  // kIpProtectionEnabled = 100249, (deprecated)
   kAccessibilityReadAnythingLinksEnabled = 100250,
   kProfileContentSettingsPartitionedExceptionsAntiAbuse = 100251,
   kProfileContentSettingsPartitionedExceptionsAutomaticDownloads = 100252,
@@ -436,6 +436,7 @@ enum {
   kClassManagementToolsKioskReceiverCodes = 100368,
   kPinContextualTaskButton = 100369,
   kAccessibilityReadAnythingOmniboxChipIgnoredCount = 100370,
+  kAccessibilityReadAnythingLineFocus = 100371,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -546,6 +547,10 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kAccessibilityReadAnythingOmniboxChipIgnoredCount,
      {syncable_prefs_ids::kAccessibilityReadAnythingOmniboxChipIgnoredCount,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {prefs::kAccessibilityReadAnythingLineFocus,
+     {syncable_prefs_ids::kAccessibilityReadAnythingLineFocus,
       syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kLensRegionSearchEnabled,
@@ -1798,14 +1803,6 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
      {syncable_prefs_ids::kBlockAll3pcToggleEnabled, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
-    {prefs::kTrackingProtectionLevel,
-     {syncable_prefs_ids::kTrackingProtectionLevel, syncer::PREFERENCES,
-      sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
-    {prefs::kIpProtectionEnabled,
-     {syncable_prefs_ids::kIpProtectionEnabled, syncer::PREFERENCES,
-      sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
     {prefs::kHttpsFirstModeIncognito,
      {syncable_prefs_ids::kHttpsFirstModeIncognito, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
@@ -1871,12 +1868,12 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
      {syncable_prefs_ids::kDesktopToiOSLensPromoOptOut, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
     {glic::prefs::kGlicRolloutEligibility,
      {syncable_prefs_ids::kGlicRolloutEligibility, syncer::PRIORITY_PREFERENCES,
       sync_preferences::PrefSensitivity::kExemptFromUserControlWhileSignedIn,
       sync_preferences::MergeBehavior::kNone}},
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#endif  // BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
     {subscription_eligibility::prefs::kAiSubscriptionTier,
      {syncable_prefs_ids::kSubscriptionEligibilityAiSubscriptionTier,
       syncer::PRIORITY_PREFERENCES,

@@ -165,10 +165,11 @@ bool CSPSourceListIsNone(
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network &&
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval &&
+         !source_list.cobalt_insecure_local_network &&
          !source_list.cobalt_insecure_private_range;
 #else
-         !source_list.hashes.size();
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
 #endif
 }
 
@@ -180,9 +181,10 @@ bool CSPSourceListIsSelf(
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval &&
+         !source_list.cobalt_insecure_local_network;
 #else
-         !source_list.hashes.size();
+         !source_list.hashes.size() && !source_list.allow_trusted_types_eval;
 #endif
 }
 

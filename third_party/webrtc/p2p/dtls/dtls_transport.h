@@ -128,6 +128,11 @@ class StreamInterfaceChannel : public StreamInterface {
 // as the constructor.
 class DtlsTransportInternalImpl : public DtlsTransportInternal {
  public:
+  // See https://datatracker.ietf.org/doc/html/rfc9147#section-5.8.2,
+  // the RFC specifies 400ms...but in ComputeRetransmissionTimeout
+  // the RTT estimate is multiplied by 2, so the first timeout will be 400 ms.
+  static constexpr int kDefaultHandshakeEstimateRttMs = 200;
+
   // For testing purposes only.
   using SslStreamFactory = std::function<std::unique_ptr<SSLStreamAdapter>(
       std::unique_ptr<StreamInterface>,
@@ -279,6 +284,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   bool HandleDtlsPacket(ArrayView<const uint8_t> payload);
   void OnDtlsHandshakeError(SSLHandshakeError error);
   void ConfigureHandshakeTimeout();
+  void UpdateHandshakeTimeout();
 
   void set_receiving(bool receiving);
   void set_writable(bool writable);

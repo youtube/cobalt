@@ -80,7 +80,13 @@ struct OPENSSL_EXPORT CertPathBuilderResultPath {
   // For result paths where |IsValid()|, the final certificate is trusted.
   // However for failed or partially constructed paths the final certificate may
   // not be a trust anchor.
+  //
+  // This field is deprecated, use |trust_anchor.CertTrust()| instead.
   CertificateTrust last_cert_trust;
+
+  // Contains information about the trust anchor of the certificate chain,
+  // including whether or not it is trusted.
+  TrustAnchor trust_anchor;
 
   // The set of policies that the certificate is valid for (of the
   // subset of policies user requested during verification).
@@ -133,6 +139,11 @@ class OPENSSL_EXPORT CertPathBuilderDelegate
 //
 // WARNING: This implementation is currently experimental.  Consult an OWNER
 // before using it.
+//
+// When used to verify a Merkle Tree Certificate
+// (draft-davidben-tls-merkle-tree-certs-08), this does not perform the
+// revocation check of section 7.2 step 3. The caller is responsible for
+// checking whether an MTC's serial number is in a revoked range.
 class OPENSSL_EXPORT CertPathBuilder {
  public:
   // Provides the overall result of path building. This includes the paths that

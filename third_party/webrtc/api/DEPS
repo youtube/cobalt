@@ -173,6 +173,7 @@ specific_include_rules = {
 
   "rtc_error\.h": [
     "+rtc_base/logging.h",
+    "+rtc_base/strings/string_builder.h",
     "+absl/strings/has_absl_stringify.h",
     "+absl/strings/str_format.h",
   ],
@@ -217,6 +218,10 @@ specific_include_rules = {
 
   "priority\.h": [
     "+rtc_base/strong_alias.h",
+  ],
+
+  "sctp_transport_interface\.h": [
+    "+absl/strings/str_format.h",
   ],
 
   "simulated_network\.h": [

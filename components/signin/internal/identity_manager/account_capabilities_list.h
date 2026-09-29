@@ -16,6 +16,14 @@
 // expanded differently in some places. The macro has the following signature:
 // ACCOUNT_CAPABILITY(cpp_label, java_label, name).
 
+// To define a new account capability that is flag-guarded, add a
+// ACCOUNT_CAPABILITY_F(cpp_label, java_label, name, feature_flag) macro
+// instead of ACCOUNT_CAPABILITY. This allows the capability to be submitted
+// before it is fully rolled out server-side.
+// - This is currently not supported for capabilities exposed on Android
+// - The #include for the feature flag must be added to account_capabilities.cc
+//   and not to this file
+
 // Here we rely on build_config.h to not introduce any symbols that can be
 // textually inserted in the code. If that changes in the future, this header
 // should be removed from this file and included transitively instead.
@@ -118,5 +126,12 @@ ACCOUNT_CAPABILITY(kIsSubjectToEnterprisePoliciesCapabilityName,
 ACCOUNT_CAPABILITY(kIsSubjectToParentalControlsCapabilityName,
                    IS_SUBJECT_TO_PARENTAL_CONTROLS_CAPABILITY_NAME,
                    "accountcapabilities/guydolldmfya")
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(kCanUseGeminiInChromeCapabilityName,
+                     CAN_USE_GEMINI_IN_CHROME_CAPABILITY_NAME,
+                     "accountcapabilities/giytmnrnmnqxa",
+                     switches::kGlicEligibilitySeparateAccountCapability)
+#endif
 
 // keep-sorted end

@@ -38,6 +38,8 @@ public interface ModuleDelegate {
         ModuleType.QUICK_DELETE_PROMO,
         ModuleType.HISTORY_SYNC_PROMO,
         ModuleType.TIPS_NOTIFICATIONS_PROMO,
+        ModuleType.ENHANCED_SAFE_BROWSING_PROMO,
+        ModuleType.ADDRESS_BAR_PLACEMENT_PROMO,
         ModuleType.NUM_ENTRIES
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -54,7 +56,9 @@ public interface ModuleDelegate {
         int QUICK_DELETE_PROMO = 9;
         int HISTORY_SYNC_PROMO = 10;
         int TIPS_NOTIFICATIONS_PROMO = 11;
-        int NUM_ENTRIES = 12;
+        int ENHANCED_SAFE_BROWSING_PROMO = 12;
+        int ADDRESS_BAR_PLACEMENT_PROMO = 13;
+        int NUM_ENTRIES = 14;
     }
 
     // LINT.ThenChange(//chrome/browser/ntp_customization/java/src/org/chromium/chrome/browser/ntp_customization/ntp_cards/NtpCardsMediator.java:HomeModuleTypes)

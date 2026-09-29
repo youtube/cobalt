@@ -55,6 +55,7 @@
 using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::IsNull;
 using ::testing::NiceMock;
 using ::testing::Optional;
 using ::testing::Property;
@@ -111,7 +112,7 @@ class RtpTransceiverTest : public testing::Test {
 TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   const std::string content_name("my_mid");
   auto transceiver = make_ref_counted<RtpTransceiver>(
-      env(), MediaType::AUDIO, context(), codec_lookup_helper());
+      env(), MediaType::AUDIO, context(), codec_lookup_helper(), nullptr);
   transceiver->set_mid(content_name);
   auto channel1 = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel1, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
@@ -146,7 +147,7 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
 TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
   const std::string content_name("my_mid");
   auto transceiver = make_ref_counted<RtpTransceiver>(
-      env(), MediaType::VIDEO, context(), codec_lookup_helper());
+      env(), MediaType::VIDEO, context(), codec_lookup_helper(), nullptr);
   transceiver->set_mid(content_name);
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::VIDEO));
@@ -212,7 +213,6 @@ TEST_F(RtpTransceiverUnifiedPlanTest, StopSetsDirection) {
   scoped_refptr<MockRtpSenderInternal> sender = MockSender(MediaType::AUDIO);
   scoped_refptr<RtpTransceiver> transceiver =
       CreateTransceiver(sender, receiver);
-
 
   EXPECT_EQ(RtpTransceiverDirection::kInactive, transceiver->direction());
   EXPECT_FALSE(transceiver->current_direction());
@@ -590,7 +590,8 @@ class RtpTransceiverTestForHeaderExtensions
             /* on_negotiation_needed= */ [] {})) {}
 
   void ClearChannel() {
-    EXPECT_CALL(*sender_.get(), SetMediaChannel(_));
+    EXPECT_CALL(*sender_.get(), SetMediaChannel(IsNull()))
+        .WillRepeatedly(Return());
     transceiver_->ClearChannel();
   }
 
@@ -869,15 +870,17 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   };
 
   // Default is stopped.
-  auto sender = make_ref_counted<NiceMock<MockRtpSenderInternal>>();
+  auto sender = MockSender(MediaType::VIDEO);
+  auto receiver = MockReceiver(MediaType::VIDEO);
   auto transceiver = make_ref_counted<RtpTransceiver>(
       env(),
       RtpSenderProxyWithInternal<RtpSenderInternal>::Create(Thread::Current(),
                                                             sender),
       RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
-          Thread::Current(), Thread::Current(), receiver_),
+          Thread::Current(), Thread::Current(), receiver),
       context(), codec_lookup_helper(), extensions,
       /* on_negotiation_needed= */ [] {});
+  ASSERT_EQ(sender->media_type(), MediaType::VIDEO);
   std::vector<RtpHeaderExtensionCapability> header_extensions =
       transceiver->GetHeaderExtensionsToNegotiate();
   ASSERT_EQ(header_extensions.size(), 2u);
@@ -889,7 +892,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   // Simulcast, i.e. more than one encoding.
   RtpParameters simulcast_parameters;
   simulcast_parameters.encodings.resize(2);
-  auto simulcast_sender = make_ref_counted<NiceMock<MockRtpSenderInternal>>();
+  auto simulcast_sender = MockSender(MediaType::VIDEO);
   EXPECT_CALL(*simulcast_sender, GetParametersInternal())
       .WillRepeatedly(Return(simulcast_parameters));
   auto simulcast_transceiver = make_ref_counted<RtpTransceiver>(
@@ -897,7 +900,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
       RtpSenderProxyWithInternal<RtpSenderInternal>::Create(Thread::Current(),
                                                             simulcast_sender),
       RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
-          Thread::Current(), Thread::Current(), receiver_),
+          Thread::Current(), Thread::Current(), receiver),
       context(), codec_lookup_helper(), extensions,
       /* on_negotiation_needed= */ [] {});
   auto simulcast_extensions =
@@ -917,7 +920,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   svc_parameters.encodings.resize(1);
   svc_parameters.encodings[0].scalability_mode = "L3T3";
 
-  auto svc_sender = make_ref_counted<NiceMock<MockRtpSenderInternal>>();
+  auto svc_sender = MockSender(MediaType::VIDEO);
   EXPECT_CALL(*svc_sender, GetParametersInternal())
       .WillRepeatedly(Return(svc_parameters));
   auto svc_transceiver = make_ref_counted<RtpTransceiver>(
@@ -925,7 +928,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
       RtpSenderProxyWithInternal<RtpSenderInternal>::Create(Thread::Current(),
                                                             svc_sender),
       RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
-          Thread::Current(), Thread::Current(), receiver_),
+          Thread::Current(), Thread::Current(), receiver),
       context(), codec_lookup_helper(), extensions,
       /* on_negotiation_needed= */ [] {});
   std::vector<RtpHeaderExtensionCapability> svc_extensions =

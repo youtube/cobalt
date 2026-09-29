@@ -5,7 +5,7 @@
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
 import type {AppElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {BrowserProxy, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceLanguageController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {BrowserProxy, LineFocusType, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceLanguageController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {hasStyle, microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
@@ -197,6 +197,76 @@ suite('AppReceivesToolbarChanges', () => {
     assertFontsEqual(containerFont(), font2);
   });
 
+  test('line focus change updates line focus', async () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    const lineFocus =
+        app.$.containerParent.querySelector<HTMLElement>('#lineFocus');
+    assertTrue(!!lineFocus);
+
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS,
+        {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+    await microtasksFinished();
+    assertEquals('block', window.getComputedStyle(lineFocus).display);
+
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS,
+        {detail: {data: chrome.readingMode.lineFocusOff}});
+    await microtasksFinished();
+    assertEquals('none', window.getComputedStyle(lineFocus).display);
+  });
+
+  test('line focus change does nothing with flag disabled', async () => {
+    chrome.readingMode.isLineFocusEnabled = false;
+    const lineFocus =
+        app.$.containerParent.querySelector<HTMLElement>('#lineFocus');
+    assertTrue(!!lineFocus);
+
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS,
+        {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+    await microtasksFinished();
+    assertEquals(
+        '',
+        window.getComputedStyle(lineFocus).getPropertyValue(
+            '--line-focus-display'));
+  });
+
+  test('font size change updates line focus line height', async () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS,
+        {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+    await microtasksFinished();
+    const startingHeight = app.style.getPropertyValue('--line-focus-height');
+
+    chrome.readingMode.fontSize = 4;
+    emitEvent(app, ToolbarEvent.FONT_SIZE);
+    await microtasksFinished();
+
+    const newHeight = app.style.getPropertyValue('--line-focus-height');
+    assertEquals('8px', newHeight);
+    assertNotEquals(startingHeight, newHeight);
+  });
+
+  test(
+      'font size change does not change line focus window height', async () => {
+        chrome.readingMode.isLineFocusEnabled = true;
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS,
+            {detail: {data: {type: LineFocusType.WINDOW, lines: 1}}});
+        await microtasksFinished();
+        const startingHeight =
+            app.style.getPropertyValue('--line-focus-height');
+
+        chrome.readingMode.fontSize = 4;
+        emitEvent(app, ToolbarEvent.FONT_SIZE);
+        await microtasksFinished();
+
+        const newHeight = app.style.getPropertyValue('--line-focus-height');
+        assertEquals(startingHeight, newHeight);
+      });
+
   suite('on language toggle', () => {
     function emitLanguageToggle(lang: string) {
       emitEvent(app, ToolbarEvent.LANGUAGE_TOGGLE, {detail: {language: lang}});
@@ -254,7 +324,16 @@ suite('AppReceivesToolbarChanges', () => {
 
     const speechRates =
         speech.getArgs('speak').map(utterance => utterance.rate);
+
+    // The 4x speech rate is capped on non-ChromeOS
+
+    // <if expr="not is_chromeos">
+    assertArrayEquals([1, 2, 0.5, 2], speechRates);
+    // </if>
+
+    // <if expr="is_chromeos">
     assertArrayEquals([1, 2, 0.5, 4], speechRates);
+    // </if>
   });
 
   test('on voice selected, current voice updated', () => {

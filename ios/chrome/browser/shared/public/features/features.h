@@ -314,14 +314,6 @@ BASE_DECLARE_FEATURE(kRemoveExcessNTPs);
 // Feature flag / Kill Switch for TCRex.
 BASE_DECLARE_FEATURE(kTCRexKillSwitch);
 
-// When this flag is enabled, the tab grid will show an empty thumbnail for
-// tabs that don't have one.
-BASE_DECLARE_FEATURE(kTabGridEmptyThumbnail);
-
-// Returns YES when the tab grid should show an empty thumbnail for
-// tabs that don't have one.
-bool IsTabGridEmptyThumbnailUIEnabled();
-
 // When enabled uses new transitions in the TabGrid.
 BASE_DECLARE_FEATURE(kTabGridNewTransitions);
 
@@ -1138,5 +1130,17 @@ BASE_DECLARE_FEATURE(kCloseOtherTabs);
 
 // Returns true if the CloseOtherTabs feature is enabled.
 bool IsCloseOtherTabsEnabled();
+
+// Enables the AssistantSheet feature.
+BASE_DECLARE_FEATURE(kAssistantSheet);
+
+// Returns true if the AssistantSheet feature is enabled.
+bool IsAssistantSheetEnabled();
+
+// Enables the ComposeboxIpad feature.
+BASE_DECLARE_FEATURE(kComposeboxIpad);
+
+// Returns true if the ComposeboxIpad feature is enabled.
+bool IsComposeboxIpadEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -130,14 +130,11 @@ void NetworkFetcher::PostRequest(
       base::BindOnce(
           [](const network::SimpleURLLoader* simple_url_loader,
              PostRequestCompleteCallback post_request_complete_callback,
-             std::unique_ptr<std::string> response_body) {
+             std::optional<std::string> response_body) {
             LOG(INFO) << "post_request_complete_callback, response_body="
                       << (response_body ? response_body->c_str() : "null");
-            std::optional<std::string> optional_body =
-                response_body ? std::make_optional(std::move(*response_body))
-                              : std::nullopt;
             std::move(post_request_complete_callback)
-                .Run(std::move(optional_body), simple_url_loader->NetError(),
+                .Run(std::move(response_body), simple_url_loader->NetError(),
                      GetStringHeader(simple_url_loader, kHeaderEtag),
                      GetStringHeader(simple_url_loader, kHeaderXCupServerProof),
                      GetStringHeader(simple_url_loader, kHeaderCookie),
@@ -184,7 +181,7 @@ void NetworkFetcher::DownloadToString(
 
 void NetworkFetcher::OnDownloadToStringComplete(
     DownloadToStringCompleteCallback download_to_string_complete_callback,
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   if (!response_body) {
     LOG(ERROR) << "DownloadToString failed to get response from a string";
     dst_str_->clear();

@@ -27,6 +27,10 @@
 #include "printing/printing_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "components/dbus/thread_linux/dbus_thread_linux.h"
+#endif
+
 #if BUILDFLAG(ENTERPRISE_LOCAL_CONTENT_ANALYSIS)
 #include "chrome/browser/enterprise/connectors/test/fake_content_analysis_sdk_manager.h"  // nogncheck
 #endif
@@ -135,7 +139,7 @@ class TestPagePrintRequestHandler
   static std::unique_ptr<PagePrintRequestHandler> Create(
       ContentAnalysisResponse::Result::TriggeredRule::Action action,
       enterprise_connectors::ContentAnalysisInfo* content_analysis_info,
-      safe_browsing::BinaryUploadService* upload_service,
+      enterprise_connectors::BinaryUploadService* upload_service,
       Profile* profile,
       GURL url,
       const std::string& printer_name,
@@ -208,6 +212,9 @@ class PrintContentAnalysisUtilsTest
         ->SetBrowserCloudPolicyClientForTesting(nullptr);
     SetDMTokenForTesting(policy::DMToken::CreateEmptyToken());
     enterprise_connectors::PagePrintRequestHandler::ResetFactoryForTesting();
+#if BUILDFLAG(IS_LINUX)
+    dbus_thread_linux::ShutdownOnDBusThreadAndBlock();
+#endif
     PrintPreviewTest::TearDown();
   }
 

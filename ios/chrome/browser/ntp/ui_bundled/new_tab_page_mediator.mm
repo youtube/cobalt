@@ -348,11 +348,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 - (void)setUp {
   self.templateURLService->Load();
   [self updateModuleVisibilityForConsumer];
-  SearchEngineLogoState logoState =
-      search::DefaultSearchProviderIsGoogle(self.templateURLService)
-          ? SearchEngineLogoState::kLogo
-          : SearchEngineLogoState::kNone;
-  [self.headerConsumer setSearchEngineLogoState:logoState];
   [self.headerConsumer
       setVoiceSearchIsEnabled:ios::provider::IsVoiceSearchEnabled()];
 
@@ -483,11 +478,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   _defaultSearchEngine = updatedDefaultSearchEngine;
   // AIM availability must be updated before default search engine.
   [self updateAIMAvailability];
-  SearchEngineLogoState logoState =
-      search::DefaultSearchProviderIsGoogle(self.templateURLService)
-          ? SearchEngineLogoState::kLogo
-          : SearchEngineLogoState::kNone;
-  [self.headerConsumer setSearchEngineLogoState:logoState];
   [self.feedControlDelegate updateFeedForDefaultSearchEngineChanged];
 
   NSString* dseName =
@@ -638,11 +628,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 }
 
 - (void)updateAccountErrorBadge {
-  if (!base::FeatureList::IsEnabled(
-          switches::kEnableErrorBadgeOnIdentityDisc) &&
-      !base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError)) {
-    return;
-  }
   BOOL primaryIdentityHasError =
       _signedInIdentity && _syncService->GetUserActionableError() !=
                                syncer::SyncService::UserActionableError::kNone;

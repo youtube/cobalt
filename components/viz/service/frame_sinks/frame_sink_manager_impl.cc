@@ -46,6 +46,12 @@
 #include "services/viz/privileged/mojom/compositing/frame_sink_manager.mojom.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "components/viz/service/frame_sinks/external_begin_frame_source_mojo_mac.h"
+#include "ui/display/display_features.h"
+#include "ui/display/mac/vsync_provider_mac.h"
+#endif
+
 namespace viz {
 
 FrameSinkManagerImpl::InitParams::InitParams(
@@ -107,6 +113,16 @@ FrameSinkManagerImpl::FrameSinkManagerImpl(const InitParams& params)
   if (input::InputUtils::IsTransferInputToVizSupported()) {
     input_manager_ = std::make_unique<InputManager>(this);
   }
+
+#if BUILDFLAG(IS_MAC)
+  // The VSyncProviderMac must execute on the Viz thread.
+  // As VSyncProviderMac::GetInstance() can be invoked from either the Viz
+  // thread or the GPU thread, it is called here to ensure the Viz task runner
+  // is saved for VSyncProviderMac.
+  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+    ui::VSyncProviderMac::GetInstance();
+  }
+#endif
 }
 
 FrameSinkManagerImpl::~FrameSinkManagerImpl() {
@@ -268,6 +284,30 @@ void FrameSinkManagerImpl::CreateRootCompositorFrameSink(
 
   MaybeAddHitTestQuery(frame_sink_id);
 }
+
+#if BUILDFLAG(IS_MAC)
+void FrameSinkManagerImpl::CreateCompositorDisplayLink(
+    mojom::CompositorDisplayLinkParamsPtr params) {
+  auto update_vsync_displays_cb = base::BindRepeating(
+      &FrameSinkManagerImpl::UpdateVSyncDisplays, weak_factory_.GetWeakPtr());
+
+  external_begin_frame_source_ =
+      std::make_unique<ExternalBeginFrameSourceMojoMac>(
+          std::move(params->external_begin_frame_controller),
+          std::move(params->external_begin_frame_controller_client),
+          update_vsync_displays_cb);
+}
+
+void FrameSinkManagerImpl::UpdateVSyncDisplays() {
+  for (auto& root_frame_sink : root_sink_map_) {
+    if (root_frame_sink.second->external_begin_frame_source()) {
+      root_frame_sink.second->external_begin_frame_source()
+          ->UpdateVSyncDisplay();
+    }
+  }
+}
+
+#endif
 
 void FrameSinkManagerImpl::CreateFrameSinkBundle(
     const FrameSinkBundleId& bundle_id,

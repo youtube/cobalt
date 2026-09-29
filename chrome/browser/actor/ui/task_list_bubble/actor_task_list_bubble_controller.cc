@@ -9,12 +9,13 @@
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
+#include "chrome/grit/generated_resources.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -72,7 +73,7 @@ ActorTaskListBubbleController::CreateRowButtonParamsForTaskState(
   return ActorTaskListBubbleRowButtonParams{
       .title = base::UTF8ToUTF16(task_state.title),
       .subtitle = l10n_util::GetStringUTF16(
-          IDR_ACTOR_TASK_LIST_BUBBLE_CHECK_TASK_SUBTITLE),
+          IDR_ACTOR_TASK_LIST_BUBBLE_ROW_CHECK_TASK_SUBTITLE),
       .on_click_callback = base::BindRepeating(
           &ActorTaskListBubbleController::GetOnTaskRowClickCallback,
           base::Unretained(this), task_state.task_id),
@@ -125,9 +126,9 @@ void ActorTaskListBubbleController::GetOnTaskRowClickCallback(
                              glic::mojom::InvocationSource::kActorTaskIcon);
     }
   }
-  // Regardless of tab navigation, remove the row and close the bubble when
+  // Regardless of tab navigation, process the row and close the bubble when
   // done.
-  icon_manager->RemoveRowFromTaskListBubble(task_id);
+  icon_manager->ProcessRowInTaskListBubble(task_id);
   if (bubble_widget_) {
     bubble_widget_->Close();
   }

@@ -27,7 +27,6 @@
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/resource_coordinator/tab_load_tracker.h"
-#include "chrome/browser/resource_coordinator/tab_manager_features.h"
 #include "chrome/browser/resource_coordinator/test_lifecycle_unit.h"
 #include "chrome/browser/resource_coordinator/time.h"
 #include "chrome/browser/resource_coordinator/utils.h"
@@ -114,7 +113,8 @@ class TabLifecycleUnitTest : public ChromeRenderViewHostTestHarness {
   TabLifecycleUnitTest& operator=(const TabLifecycleUnitTest&) = delete;
 
   void SetUp() override {
-    TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
+    TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
+        /*profile_manager=*/false);
     ChromeRenderViewHostTestHarness::SetUp();
     pm_helper_.SetUp();
 
@@ -163,12 +163,14 @@ class TabLifecycleUnitTest : public ChromeRenderViewHostTestHarness {
   }
 
   void TearDown() override {
-    while (!tab_strip_model_->empty())
+    while (!tab_strip_model_->empty()) {
       tab_strip_model_->DetachAndDeleteWebContentsAt(0);
+    }
     tab_strip_model_.reset();
     metrics::DesktopSessionDurationTracker::CleanupForTesting();
     pm_helper_.TearDown();
     ChromeRenderViewHostTestHarness::TearDown();
+    TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
   }
 
   // Create a new test WebContents and append it to the tab strip to allow

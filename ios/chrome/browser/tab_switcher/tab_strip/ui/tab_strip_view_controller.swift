@@ -7,13 +7,10 @@ import ios_chrome_browser_shared_ui_util_util_swift
 import ios_chrome_browser_tab_switcher_tab_strip_ui_swift_constants
 
 /// View Controller displaying the TabStrip.
-// TODO(crbug.com/427169284): Replace @preconcurrency with @MainActor when all test bots
-// support this new syntax. @preconcurrency tells the Swift 6 compiler to do concurrency
-// chencking during the run-time instead of the compile time.
 @MainActor
 @objcMembers
 class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTabButtonDelegate,
-  @preconcurrency TabStripGroupCellDelegate, @preconcurrency TabStripTabCellDelegate
+  @MainActor TabStripGroupCellDelegate, @MainActor TabStripTabCellDelegate
 {
 
   // The enum used by the data source to manage the sections.
@@ -61,11 +58,6 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
 
   /// `true` if a drop animation is in progress.
   private var dropAnimationInProgress: Bool = false
-
-  /// Targeted scroll offset, used on iOS 16 only.
-  /// On iOS 16, the scroll animation after opening a new tab is delayed.
-  /// This variable ensures that the most recent scroll event is processed.
-  private var targetedScrollOffsetiOS16: CGFloat = 0
 
   /// `true` if the user is in incognito.
   public var isIncognito: Bool = false
@@ -270,13 +262,6 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
       }
     }
     self.itemData.setDictionary(itemData)
-
-    // TODO(crbug.com/325415449): Update this when #unavailable is rocognized by
-    // the formatter.
-    if #available(iOS 17.0, *) {
-    } else {
-      layout.cellAnimatediOS16 = true
-    }
 
     // To make the animation smoother, try to select the item if it's already
     // present in the collection view.
@@ -495,7 +480,6 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
     _ scrollView: UIScrollView,
     willDecelerate decelerate: Bool
   ) {
-    layout.cellAnimatediOS16 = false
     UserMetricsUtils.recordAction("MobileTabStripScrollDidEnd")
   }
 
@@ -520,17 +504,9 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
     animatingDifferences: Bool = false,
     numberOfVisibleItemsChanged: Bool = false
   ) {
-    if #available(iOS 17.0, *) {
-      if numberOfVisibleItemsChanged {
-        layout.needsSizeUpdate = true
-      }
-    } else {
-      /// On iOS 16, the layout fails to invalidate when it should.
-      /// To fix this, we set `needsSizeUpdate` to `true` whenever a snapshot
-      /// is applied.
+    if numberOfVisibleItemsChanged {
       layout.needsSizeUpdate = true
     }
-
     dataSource.apply(snapshot, to: .tabs, animatingDifferences: animatingDifferences)
     layout.needsSizeUpdate = false
 
@@ -748,19 +724,6 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
     return "\(TabStripConstants.CollectionView.tabStripGroupCellPrefixIdentifier)\(index)"
   }
 
-  /// Scrolls the collection view to the given horizontal `offset`.
-  func scrollToContentOffset(_ offset: CGFloat) {
-    // TODO(crbug.com/325415449): Update this when #unavailable is recognized by
-    // the formatter.
-    if #available(iOS 17.0, *) {
-    } else {
-      if offset != targetedScrollOffsetiOS16 { return }
-    }
-    self.collectionView.setContentOffset(
-      CGPoint(x: offset, y: 0),
-      animated: !UIAccessibility.isReduceMotionEnabled)
-  }
-
   /// Ensures `collectionView.indexPathsForSelectedItems` is consistent with
   /// `self.selectedItem`.
   func ensureSelectedItemIsSelected() {
@@ -793,27 +756,9 @@ class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTab
     if insertedLast {
       let offset = collectionView.contentSize.width - collectionView.frame.width
       if offset > 0 {
-        if #available(iOS 17.0, *) {
-          scrollToContentOffset(offset)
-        } else {
-          // On iOS 16, when the scroll animation and the insert animation
-          // occur simultaneously, the resulting animation lacks of
-          // smoothness.
-          #if swift(>=6.2.3)
-            weak let weakSelf = self
-          #else
-            weak var weakSelf = self
-          #endif
-
-          targetedScrollOffsetiOS16 = offset
-          DispatchQueue.main.asyncAfter(
-            deadline: .now() + TabStripConstants.CollectionView.scrollDelayAfterInsert
-          ) {
-            weakSelf?.scrollToContentOffset(offset)
-          }
-        }
-      } else {
-        layout.cellAnimatediOS16 = false
+        collectionView.setContentOffset(
+          CGPoint(x: offset, y: 0),
+          animated: !UIAccessibility.isReduceMotionEnabled)
       }
     }
   }

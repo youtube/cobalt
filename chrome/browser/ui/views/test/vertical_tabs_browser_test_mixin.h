@@ -44,8 +44,8 @@ class VerticalTabsBrowserTestMixin : public T {
   }
 
   void SetUpOnMainThread() override {
-    T::SetUpOnMainThread();
     EnterVerticalTabsMode();
+    T::SetUpOnMainThread();
   }
 
   TabStripModel* tab_strip_model() { return T::browser()->tab_strip_model(); }
@@ -55,20 +55,23 @@ class VerticalTabsBrowserTestMixin : public T {
   }
 
   VerticalTabStripController* vertical_tab_strip_controller() {
-    return T::browser()
-        ->GetBrowserView()
-        .vertical_tab_strip_region_view()
-        ->GetVerticalTabStripController();
+    VerticalTabStripRegionView* const region_view =
+        T::browser()
+            ->GetBrowserView()
+            .vertical_tab_strip_region_view_for_testing();
+    return region_view ? region_view->GetVerticalTabStripController() : nullptr;
   }
 
   void EnterVerticalTabsMode() {
     T::browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
                                                     true);
+    T::RunScheduledLayouts();
   }
 
   void ExitVerticalTabsMode() {
     T::browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
                                                     false);
+    T::RunScheduledLayouts();
   }
 
   tabs_api::TabStripService* tab_strip_service() {

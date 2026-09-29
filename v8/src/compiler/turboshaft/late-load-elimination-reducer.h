@@ -385,7 +385,7 @@ class MemoryContentTable
       if (index.valid()) {
         // {index} could be anything, so we invalidate everything.
         TRACE(">> Invalidating everything because of valid index");
-        return InvalidateMaybeAliasing();
+        return InvalidateMaybeAliasing(base);
       }
 
       // Invalidating all of the values with valid Index.
@@ -411,15 +411,29 @@ class MemoryContentTable
   }
 
   // Invalidates all Keys that are not known as non-aliasing.
-  void InvalidateMaybeAliasing() {
+  void InvalidateMaybeAliasing(
+      OptionalOpIndex base = OptionalOpIndex::Nullopt()) {
     TRACE(">> InvalidateMaybeAliasing");
+    MapMaskAndOr base_maps =
+        base.has_value() ? object_maps_.Get(base.value()) : MapMaskAndOr{};
     // We find current active keys through {base_keys_} so that we can bail out
     // for whole buckets non-aliasing bases (if we had gone through
     // {offset_keys_} instead, then for each key we would've had to check
     // whether it was non-aliasing or not).
     for (auto& base_keys : base_keys_) {
-      OpIndex base = base_keys.first;
-      if (non_aliasing_objects_.Get(base)) continue;
+      OpIndex other_base = base_keys.first;
+      if (non_aliasing_objects_.Get(other_base)) {
+        TRACE(">>> Not invalidating at base " << other_base
+                                              << " because it's non-aliasing");
+        continue;
+      }
+      if (base.has_value() &&
+          !BasesCouldAlias(base.value(), base_maps, other_base)) {
+        TRACE(">>> Not invalidating at base "
+              << other_base << " because it can't alias with " << base
+              << " (based on its map)");
+        continue;
+      }
       for (auto it = base_keys.second.with_offsets.begin();
            it != base_keys.second.with_offsets.end();) {
         Key key = *it;
@@ -483,7 +497,7 @@ class MemoryContentTable
   }
 
 #if V8_ENABLE_SANDBOX
-  OpIndex Find(const LoadTrustedPointerFieldOp& load) {
+  OpIndex Find(const LoadTrustedPointerOp& load) {
     OpIndex base = ResolveBase(load.table());
     OptionalOpIndex index = load.handle();
     int32_t offset = 0;
@@ -496,7 +510,7 @@ class MemoryContentTable
     return Get(key->second);
   }
 
-  void Insert(const LoadTrustedPointerFieldOp& load, OpIndex load_idx) {
+  void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
     OpIndex base = ResolveBase(load.table());
     OptionalOpIndex index = load.handle();
     int32_t offset = 0;
@@ -613,11 +627,7 @@ class MemoryContentTable
         ++it;
         continue;
       }
-      MapMaskAndOr this_maps = key.data().mem.base == base
-                                   ? base_maps
-                                   : object_maps_.Get(key.data().mem.base);
-      if (!is_empty(base_maps) && !is_empty(this_maps) &&
-          !CouldHaveSameMap(base_maps, this_maps)) {
+      if (!BasesCouldAlias(base, base_maps, key)) {
         TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
               << key.data().mem);
         ++it;
@@ -627,6 +637,20 @@ class MemoryContentTable
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+  bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
+    return BasesCouldAlias(base, base_maps, other.data().mem.base);
+  }
+
+  bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, OpIndex other) {
+    if (is_empty(base_maps)) return true;
+
+    MapMaskAndOr other_maps =
+        other == base ? base_maps : object_maps_.Get(other);
+    if (is_empty(other_maps)) return true;
+
+    return CouldHaveSameMap(base_maps, other_maps);
   }
 
   OpIndex ResolveBase(OpIndex base) {
@@ -743,7 +767,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
 #if V8_ENABLE_SANDBOX
-  void ProcessTrustedLoad(OpIndex op_idx, const LoadTrustedPointerFieldOp& op);
+  void ProcessTrustedLoad(OpIndex op_idx, const LoadTrustedPointerOp& op);
 #endif
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
   void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
@@ -1025,8 +1049,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointerField)(
-      V<Object> ig_index, const LoadTrustedPointerFieldOp& load) {
+  V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointer)(
+      V<Object> ig_index, const LoadTrustedPointerOp& load) {
     if (v8_flags.turboshaft_trusted_load_elimination) {
       CHECK(v8_flags.turboshaft_load_elimination);
       Replacement replacement = analyzer_.GetReplacement(ig_index);
@@ -1036,7 +1060,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 #if DEBUG
         if (v8_flags.turboshaft_verify_load_elimination) {
           OpIndex actual_idx =
-              Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+              Next::ReduceInputGraphLoadTrustedPointer(ig_index, load);
           IF_NOT (__ TaggedEqual(actual_idx, replacement_idx)) {
             EmitReportLoadEliminationError();
           }
@@ -1045,7 +1069,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
         return replacement_idx;
       }
     }
-    return Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+    return Next::ReduceInputGraphLoadTrustedPointer(ig_index, load);
   }
 #endif
 

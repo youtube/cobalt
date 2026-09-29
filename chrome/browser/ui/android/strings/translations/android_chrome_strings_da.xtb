@@ -114,7 +114,6 @@ Du kan finde flere indstillinger, der bruger data til at forbedre din Chrome-opl
 <translation id="1413446866325418126">Gem data på din Google-konto</translation>
 <translation id="1414919006379339073">Luk det aktuelle vindue</translation>
 <translation id="1416550906796893042">Appversion</translation>
-<translation id="1419753403124156396">Vil du genstarte Chrome?</translation>
 <translation id="1428770807407000502">Vil du deaktivere synkronisering?</translation>
 <translation id="1430915738399379752">Udskriv</translation>
 <translation id="1435593198351412143">Åbn PDF-filer automatisk</translation>
@@ -247,10 +246,8 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="2063047797624276601">Din organisation har aktiveret Udvidet beskyttet browsing</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 download mislykkedes}one{# download mislykkedes}other{# downloads mislykkedes}}</translation>
 <translation id="2067805253194386918">tekst</translation>
-<translation id="2072027001582274150">Ubrugte faner eller dubletter af faner</translation>
 <translation id="2079545284768500474">Fortryd</translation>
 <translation id="2082238445998314030">Resultat <ph name="RESULT_NUMBER" /> af <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">Genstart Chrome nu for at afslutte konfigurationen af autofyld. Dine faner åbnes automatisk igen.</translation>
 <translation id="2091863218454846791">Meget tæt visning anvendes</translation>
 <translation id="2093731487903423814">de seneste 15 minutter</translation>
 <translation id="2096577711562668473">Vil du skifte tjeneste til autofyld?</translation>
@@ -428,6 +425,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="2854916915045135148">Hold fingeren nede for at skifte til Inkognito</translation>
 <translation id="2860954141821109167">Sørg for, at opkaldsappen er aktiveret på denne enhed</translation>
 <translation id="2861923151411510142">Visse Chrome-funktioner vil ikke længere være tilgængelige</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> og 1 anden fane}one{<ph name="URL" /> og <ph name="TAB_COUNT_MANY" /> anden fane}other{<ph name="URL" /> og <ph name="TAB_COUNT_MANY" /> andre faner}}</translation>
 <translation id="2869430948265924908">Du skal oprette en lås for din bilprofil for at beskytte dit følsomme indhold i bilen.  Du kan gøre dette med en pinkode, en kode eller en adgangskode.</translation>
 <translation id="2870560284913253234">Website</translation>
 <translation id="2871733351037274014">Forudindlæs sider</translation>
@@ -446,6 +444,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="2904414404539560095">Åben liste i fuld højde over enheder, der skal deles en fane med.</translation>
 <translation id="2908243544703713905">Ulæste historier er tilgængelige</translation>
 <translation id="2909615210195135082">Google Notifications Platform</translation>
+<translation id="2912247081180973411">Luk vinduer</translation>
 <translation id="2912345083818861431">Brug skærmlåsen til at se åbne inkognitofaner</translation>
 <translation id="2918484639460781603">Gå til indstillinger</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, fane med lyden slået fra</translation>
@@ -503,7 +502,6 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="3159335509547415276">Få flere oplysninger om blokerede konti</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" /> – åbnes på en ny fane</translation>
 <translation id="3166827708714933426">Genveje på faner og i vinduer</translation>
-<translation id="316694332262407393">Chrome kører allerede her.</translation>
 <translation id="3167258285411721858">Du kan anmode om mobilwebsitet for <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, fastgjort inkognitofane med multivalg og lyden slået fra</translation>
@@ -734,7 +732,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="4216511743389425832">Få oplæst denne side</translation>
 <translation id="4225725533026049334">Følger</translation>
 <translation id="4225895483398857530">Genvej til værktøjslinje</translation>
-<translation id="4232376164796433044">Adgangskoder og Autofyld</translation>
+<translation id="4232376164796433044">Adgangskoder og autofyld</translation>
 <translation id="4242533952199664413">Åbn Indstillinger</translation>
 <translation id="424864128008805179">Vil du logge ud af Chrome?</translation>
 <translation id="4249955472157341256">Sortér efter seneste</translation>
@@ -851,7 +849,6 @@ Din Google-konto kan have andre former for browserhistorik, f.eks. søgninger og
 <translation id="468924408576231679">Kopiér linket til websiden <ph name="PAGE_TITLE" />. Kilde: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Få bedre indhold</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 og <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> mere}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 og <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> mere}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 og <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> mere}}</translation>
-<translation id="4698061626562952596">Se dine inaktive faner her</translation>
 <translation id="4698757800236023795">Aktive (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Billeder og filer, der er gemt i cache</translation>
 <translation id="4710167854527459075">Sortér efter nyeste</translation>
@@ -950,6 +947,7 @@ Din Google-konto kan have andre former for browserhistorik, f.eks. søgninger og
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> fane – <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> fane – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> faner – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Privatliv</translation>
 <translation id="504456571576643789">Vigtige oplysninger</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> vindue er valgt}one{<ph name="WINDOW_COUNT_NORMAL" /> vindue er valgt}other{<ph name="WINDOW_COUNT_NORMAL" /> vinduer er valgt}}</translation>
 <translation id="5056587122125565772">Opret billede</translation>
 <translation id="506254248375231072">Der er ingen faner</translation>
 <translation id="5075939510584558547">Gem uden kryptering</translation>
@@ -966,7 +964,6 @@ Din Google-konto kan have andre former for browserhistorik, f.eks. søgninger og
 <translation id="5123685120097942451">Inkognitofane</translation>
 <translation id="5142281402488957685">Hvis du vil se nye historier, skal du trække nedad for at opdatere</translation>
 <translation id="5144385790872094440">Nogle af de sider, du besøger, er forudindlæst. Sider forudindlæses muligvis via Googles servere, når de er linket fra et Google-website eller en Google-app.</translation>
-<translation id="5145887002054615868">Dubletter af faner eller faner, der ikke er blevet brugt i <ph name="DAYS_INACTIVE" /> dage, flyttes hertil<ph name="AUTODELETE_SECTION" />. Du kan til enhver tid ændre dette i <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Der er ikke installeret nogen understøttede apps</translation>
 <translation id="5161254044473106830">Der skal angives en titel</translation>
 <translation id="5161262286013276579">Feltet til bekræftelse af adgangsnøgle er åbnet</translation>
@@ -1041,6 +1038,7 @@ Din Google-konto kan have andre former for browserhistorik, f.eks. søgninger og
 <translation id="5469852975082458401">Du kan navigere på sider med en tekstmarkør. Tryk på F7, eller deaktiver.</translation>
 <translation id="5471273988133666918">Fanen <ph name="TAB_TITLE" /> kan ikke flyttes</translation>
 <translation id="548278423535722844">Åbn i kortapp</translation>
+<translation id="5494920125229734069">Vælg alle</translation>
 <translation id="549660026907543296">Deltag som <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Felt i bunden med den seneste aktivitet</translation>
 <translation id="5526281268548144413">Kan ikke lukkes i flere vinduer</translation>
@@ -1149,6 +1147,7 @@ Din Google-konto kan have andre former for browserhistorik, f.eks. søgninger og
 <translation id="5958275228015807058">Find dine filer og sider i Downloads</translation>
 <translation id="5962718611393537961">Tryk for at skjule</translation>
 <translation id="5964869237734432770">Stop billedbeskrivelser</translation>
+<translation id="5972844218283131174">Fravælg alle</translation>
 <translation id="5975083100439434680">Zoom ud</translation>
 <translation id="5977976211062815271">På denne enhed</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 side på din læseliste}one{# side på din læseliste}other{# sider på din læseliste}}</translation>
@@ -1721,12 +1720,14 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="8137562778192957619">Du behøver ikke at huske denne adgangskode. Den gemmes i Google Adgangs­kode­admin­istrator.</translation>
 <translation id="8152331954420209374">Gå til Lens</translation>
 <translation id="8153206878708357851">Slå tastenavigation til/fra</translation>
+<translation id="8154784523622173959">Foretag personlig tilpasning af baggrunden på denne side</translation>
 <translation id="8163820386638255770">Verificer din identitet for at bruge og gemme adgangskoder på din Google-konto</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) inaktivt element}one{(#) inaktivt element}other{(#) inaktive elementer}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> filer tilbage</translation>
 <translation id="8190358571722158785">1 dag tilbage</translation>
 <translation id="8192765420340770300">Loginfeltet i bunden er åbnet i fuld højde</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Dine enheder<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Ryd søgeforespørgsel</translation>
 <translation id="820568752112382238">Mest besøgte websites</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Deltag i fanegruppen med <ph name="OWNER_FIRST_NAME" /> og <ph name="NUMBER_OF_OTHER_MEMBERS" /> anden}one{Deltag i fangegruppen med <ph name="OWNER_FIRST_NAME" /> og <ph name="NUMBER_OF_OTHER_MEMBERS" /> anden}other{Deltag i fangegruppen med <ph name="OWNER_FIRST_NAME" /> og <ph name="NUMBER_OF_OTHER_MEMBERS" /> andre}}</translation>
 <translation id="8209050860603202033">Åbn billede</translation>

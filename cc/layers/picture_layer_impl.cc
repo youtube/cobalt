@@ -285,7 +285,7 @@ void PictureLayerImpl::AppendQuadsSpecialization(
     float max_contents_scale) {
   // Keep track of the tilings that were used so that tilings that are
   // unused can be considered for removal.
-  last_append_quads_tilings_.clear();
+  ClearLastAppendQuadsScales();
 
   // Ignore missing tiles outside of viewport for tile priority. This is
   // normally the same as draw viewport but can be independently overridden by
@@ -443,10 +443,7 @@ void PictureLayerImpl::AppendQuadsSpecialization(
 
     produced_tile_last_append_quads_ = true;
 
-    if (last_append_quads_tilings_.empty() ||
-        last_append_quads_tilings_.back() != iter.CurrentTiling()) {
-      last_append_quads_tilings_.push_back(iter.CurrentTiling());
-    }
+    AddScaleToLastAppendQuadsScales(iter.CurrentTiling()->contents_scale_key());
   }
 
   if (missing_tile_count) {
@@ -457,11 +454,6 @@ void PictureLayerImpl::AppendQuadsSpecialization(
                          missing_tile_count);
   }
 
-  // Aggressively remove any tilings that are not seen to save memory. Note
-  // that this is at the expense of doing cause more frequent re-painting. A
-  // better scheme would be to maintain a tighter visible_layer_rect for the
-  // finer tilings.
-  CleanUpTilingsOnActiveLayer();
   SanityCheckTilingState();
 }
 
@@ -857,6 +849,17 @@ void PictureLayerImpl::NotifyTileStateChanged(const Tile* tile,
 
 gfx::Rect PictureLayerImpl::GetDamageRect() const {
   return damage_rect_;
+}
+
+void PictureLayerImpl::DidDraw(viz::ClientResourceProvider* resource_provider) {
+  LayerImpl::DidDraw(resource_provider);
+
+  // Aggressively remove any tilings that are not seen to save memory. Note
+  // that this is at the expense of doing cause more frequent re-painting. A
+  // better scheme would be to maintain a tighter visible_layer_rect for the
+  // finer tilings.
+  CleanUpTilingsOnActiveLayer();
+  SanityCheckTilingState();
 }
 
 void PictureLayerImpl::ResetChangeTracking() {
@@ -1594,15 +1597,16 @@ void PictureLayerImpl::CleanUpTilingsOnActiveLayer() {
          twin->GetIdealContentsScaleKey()});
   }
 
-  // TODO(crbug.com/7107398): Ideally |last_append_quads_tilings_| here should
+  // TODO(crbug.com/7107398): Ideally |last_append_quads_scales_| here should
   // be empty for TreesInViz mode since it's not populated in PictureLayerImpl
   // for that mode. But many cc_unittests currently calls AppendQuads() directly
   // on PictureLayerImpl via FakePictureLayerImpl resulting in non empty
-  // |last_append_quads_tilings_| in this mode. Hence not enabling the CHECK for
+  // |last_append_quads_scales_| in this mode. Hence not enabling the CHECK for
   // now. CHECK(!layer_tree_impl()->settings().TreesInVizInClientProcess() ||
-  //      last_append_quads_tilings_.empty());
+  //      last_append_quads_scales_.empty());
 
   std::vector<PictureLayerTiling*> to_remove;
+  bool needs_push = false;
   for (size_t i = 0; i < tilings_->num_tilings(); ++i) {
     PictureLayerTiling* tiling = tilings_->tiling_at(i);
     // Keep all tilings within the min/max scales.
@@ -1612,7 +1616,7 @@ void PictureLayerImpl::CleanUpTilingsOnActiveLayer() {
     }
 
     // Don't remove tilings that are required based on most recent draw.
-    if (base::Contains(last_append_quads_tilings_, tiling)) {
+    if (LastAppendQuadsScalesContains(tiling->contents_scale_key())) {
       continue;
     }
 
@@ -1621,12 +1625,16 @@ void PictureLayerImpl::CleanUpTilingsOnActiveLayer() {
     // sent to Viz to check if those are safe to delete.
     if (layer_tree_impl()->settings().TreesInVizInClientProcess()) {
       proposed_tiling_scales_for_deletion_.insert(tiling->contents_scale_key());
+      needs_push = true;
     } else {
       to_remove.push_back(tiling);
     }
   }
 
   if (layer_tree_impl()->settings().TreesInVizInClientProcess()) {
+    if (needs_push) {
+      SetNeedsPushProperties(kChangedGeneralProperty);
+    }
     return;
   }
 

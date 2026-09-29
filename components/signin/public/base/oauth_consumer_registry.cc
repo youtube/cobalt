@@ -5,6 +5,7 @@
 #include "components/signin/public/base/oauth_consumer_registry.h"
 
 #include "base/feature_list.h"
+#include "base/notreached.h"
 #include "google_apis/gaia/gaia_constants.h"
 
 namespace {
@@ -113,12 +114,26 @@ constexpr char kDevtoolsGdpName[] = "devtools_gdp_client";
 constexpr char kAshDriveIntegrationName[] = "ash_drive_integration";
 constexpr char kAshClassroomPageHandlerName[] = "ash_classroom_page_handler";
 constexpr char kAshScannerKeyedServiceName[] = "ash_scanner_keyed_service";
+constexpr char kAshAutotestPrivateApiName[] = "ash_autotest_private_api";
+constexpr char kSyncDeviceStatisticsMetricsName[] =
+    "sync_device_statistics_metrics";
 
 }  // namespace
 
 namespace signin {
 
 BASE_FEATURE(kWebHistoryUseSpecificScope, base::FEATURE_ENABLED_BY_DEFAULT);
+
+OAuthConsumer GetOAuthConsumerForDynamicScopes(
+    OAuthConsumerId oauth_consumer_id,
+    const signin::ScopeSet& scopes) {
+  switch (oauth_consumer_id) {
+    case OAuthConsumerId::kAshAutotestPrivateApi:
+      return OAuthConsumer(kAshAutotestPrivateApiName, scopes);
+    default:
+      NOTREACHED();
+  }
+}
 
 OAuthConsumerRegistry::OAuthConsumerRegistry() = default;
 OAuthConsumerRegistry::~OAuthConsumerRegistry() = default;
@@ -507,6 +522,14 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kAshScannerKeyedServiceName,
           /*scopes=*/{GaiaConstants::kContactsOAuth2Scope});
+    case OAuthConsumerId::kAshAutotestPrivateApi:
+      // This consumer id should be converted using
+      // GetOAuthConsumerForDynamicScopes().
+      NOTREACHED();
+    case OAuthConsumerId::kSyncDeviceStatisticsMetrics:
+      return OAuthConsumer(
+          /*name=*/kSyncDeviceStatisticsMetricsName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
   }
 }
 

@@ -35,11 +35,17 @@
 @property(nonatomic, weak) id<OmniboxPopupPresenterDelegate>
     proxiedPresenterDelegate;
 
+// Whether the close button should be hidden.
+@property(nonatomic, assign) BOOL hidesCloseButton;
+
 // The close button.
 @property(nonatomic, readonly) UIButton* closeButton;
 
 // Container for the omnibox popup.
 @property(nonatomic, readonly) UIView* omniboxPopupContainer;
+
+// The optional fallback incognito view.
+@property(nonatomic, readonly) UIView* incognitoView;
 
 // Adds the input view controller to this ViewController.
 - (void)addInputViewController:
@@ -47,6 +53,10 @@
 
 // Requests the input plate to expand beyond to full width when dismissing.
 - (void)expandInputPlateForDismissal;
+
+// Whether the system anticipates a clipboard suggestion causing the incognito
+// view to remain hidden.
+- (void)setExpectsClipboardSuggestion:(BOOL)expectsClipboardSuggestion;
 
 @end
 

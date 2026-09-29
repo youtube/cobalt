@@ -80,7 +80,7 @@ ExternalBeginFrameSourceMac::ExternalBeginFrameSourceMac(
         << "DisplayLinkMac ID is not available. "
            "Switch to DelayBasedTimeSource(Timer) for BeginFrameSource.";
   } else {
-    SetVSyncDisplayID(display_id);
+    SetVSyncDisplayID(display_id, /*force_update=*/false);
   }
 }
 
@@ -99,8 +99,32 @@ void ExternalBeginFrameSourceMac::CreateDelayBasedTimeSourceIfNeeded() {
   }
 }
 
-void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id) {
-  if (display_id_ == display_id) {
+// UpdateVSyncDisplay() is called only when using ExternalDisplayLinkMac which
+// is connected to a CADisplayLink created in the browser and there is a display
+// added/Removed or CADisplayLink error. For display additions and removals, the
+// sequence of calls between SetVSyncDisplayID() and
+// VSyncProviderMac::AddSupportedDisplayLinkId() is uncertain. Therefore,
+// UpdateVSyncDisplay() is called to guarantee that ExternalBeginFrameSourceMac
+// receives the displayLink for the current display.
+void ExternalBeginFrameSourceMac::UpdateVSyncDisplay() {
+  // Check whether the current display is still valid.
+  bool is_allowed = ui::DisplayLinkMac::IsDisplayLinkAllowed(display_id_);
+  if (is_allowed && display_link_mac_) {
+    return;
+  }
+
+  // Invalidate the display id first to force an update later in
+  // ImageTransportSurfaceOverlayMacEGL of this output surface.
+  // ImageTransportSurfaceOverlayMacEGL does not output an displaylink
+  // error or record the displaylink histogram.
+  output_surface_->SetVSyncDisplayID(display::kInvalidDisplayId);
+
+  SetVSyncDisplayID(display_id_, /*force_update=*/true);
+}
+
+void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
+                                                    bool force_update) {
+  if (display_id_ == display_id && !force_update) {
     return;
   }
 
@@ -118,9 +142,7 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id) {
   display_id_ = display_id;
 
   // Get DisplayLinkMac with the new CGDirectDisplayID.
-  if (display_id != display::kInvalidDisplayId) {
-    display_link_mac_ = ui::DisplayLinkMac::GetForDisplay(display_id);
-  }
+  display_link_mac_ = ui::DisplayLinkMac::GetForDisplay(display_id);
 
   // For debugging only. Use the timer for BeginFrameSource.
   if (base::FeatureList::IsEnabled(kForceMacVSyncTimerForDebugging)) {

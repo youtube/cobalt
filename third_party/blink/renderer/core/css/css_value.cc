@@ -73,6 +73,7 @@
 #include "third_party/blink/renderer/core/css/css_pending_system_font_value.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_progress_value.h"
+#include "third_party/blink/renderer/core/css/css_property_name.h"
 #include "third_party/blink/renderer/core/css/css_quad_value.h"
 #include "third_party/blink/renderer/core/css/css_ratio_value.h"
 #include "third_party/blink/renderer/core/css/css_ray_value.h"
@@ -96,6 +97,7 @@
 #include "third_party/blink/renderer/core/css/css_unresolved_color_value.h"
 #include "third_party/blink/renderer/core/css/css_unset_value.h"
 #include "third_party/blink/renderer/core/css/css_uri_value.h"
+#include "third_party/blink/renderer/core/css/css_url_pattern_value.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
 #include "third_party/blink/renderer/core/css/css_view_value.h"
@@ -322,6 +324,8 @@ bool CSSValue::operator==(const CSSValue& other) const {
         return CompareCSSValues<cssvalue::CSSUnicodeRangeValue>(*this, other);
       case kURIClass:
         return CompareCSSValues<cssvalue::CSSURIValue>(*this, other);
+      case kURLPatternClass:
+        return CompareCSSValues<CSSURLPatternValue>(*this, other);
       case kValueListClass:
         return CompareCSSValues<CSSValueList>(*this, other);
       case kValuePairClass:
@@ -499,6 +503,8 @@ String CSSValue::CssText() const {
       return To<cssvalue::CSSUnicodeRangeValue>(this)->CustomCSSText();
     case kURIClass:
       return To<cssvalue::CSSURIValue>(this)->CustomCSSText();
+    case kURLPatternClass:
+      return To<CSSURLPatternValue>(this)->CustomCSSText();
     case kValuePairClass:
       return To<CSSValuePair>(this)->CustomCSSText();
     case kValueListClass:
@@ -593,6 +599,7 @@ unsigned CSSValue::Hash() const {
     case kCounterContentClass:
     case kQuadClass:
     case kURIClass:
+    case kURLPatternClass:
     case kLightDarkValuePairClass:
     case kScrollClass:
     case kViewClass:
@@ -875,6 +882,9 @@ void CSSValue::Trace(Visitor* visitor) const {
     case kURIClass:
       To<cssvalue::CSSURIValue>(this)->TraceAfterDispatch(visitor);
       return;
+    case kURLPatternClass:
+      To<CSSURLPatternValue>(this)->TraceAfterDispatch(visitor);
+      return;
     case kValueListClass:
       To<CSSValueList>(this)->TraceAfterDispatch(visitor);
       return;
@@ -975,6 +985,8 @@ String CSSValue::ClassTypeToString() const {
       return "StringClass";
     case kURIClass:
       return "URIClass";
+    case kURLPatternClass:
+      return "URLPatternClass";
     case kValuePairClass:
       return "ValuePairClass";
     case kLightDarkValuePairClass:
@@ -1117,5 +1129,24 @@ String CSSValue::ClassTypeToString() const {
   NOTREACHED();
 }
 #endif
+
+const CSSValue* CSSValue::CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+    const CSSPropertyName& property_name,
+    wtf_size_t property_value_index) const {
+  if (IsMathFunctionValue()) {
+    return To<CSSMathFunctionValue>(this)
+        ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+            property_name, property_value_index);
+  }
+  if (IsBaseValueList()) {
+    return To<CSSValueList>(this)
+        ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+            property_name, property_value_index);
+  }
+  // TODO(crbug.com/413385732): CSS random() function values can be part of
+  // other CSS list values, like CSSAxisValue, CSSFunctionValue, etc. We need to
+  // pass property info there as well.
+  return this;
+}
 
 }  // namespace blink

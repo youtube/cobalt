@@ -10,6 +10,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/rand_util.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 
 namespace contextual_tasks {
 
@@ -18,6 +19,9 @@ BASE_FEATURE(kContextualTasks, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables relevant context determination for contextual tasks.
 BASE_FEATURE(kContextualTasksContext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables integration with the server side context library.
+BASE_FEATURE(kContextualTasksContextLibrary, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables quality logging for relevant context determination for contextual
 // tasks.
@@ -32,6 +36,18 @@ BASE_FEATURE(kContextualTasksContextMenu,
 BASE_FEATURE(kContextualTasksSuggestionsEnabled,
              "ContextualTasksSuggestionsEnabled",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
+             "ContextualTasksShowOnboardingTooltip",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Forces the country code to be US.
+BASE_FEATURE(kContextualTasksForceCountryCodeUS,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Forces the context id migration to be enabled.
+const base::FeatureParam<bool> kForceContextIdMigration{
+    &kContextualTasks, "ForceContextIdMigration", false};
 
 const base::FeatureParam<double> kMinEmbeddingSimilarityScore{
     &kContextualTasksContext, "ContextualTasksContextEmbeddingSimilarityScore",
@@ -55,12 +71,15 @@ const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
 
 // The base URL for the AI page.
 const base::FeatureParam<std::string> kContextualTasksAiPageUrl{
-    &kContextualTasksContext, "ai-page-url",
-    "https://www.google.com/search?udm=50"};
+    &kContextualTasks, "ai-page-url", "https://www.google.com/search?udm=50"};
+
+// The host that any URL loaded in the embedded WebUi page will be routed to.
+const base::FeatureParam<std::string> kContextualTasksForcedEmbeddedPageHost{
+    &kContextualTasks, "forced-embedded-page-host", ""};
 
 // The base domains for the sign in page.
 const base::FeatureParam<std::string> kContextualTasksSignInDomains{
-    &kContextualTasksContext, "sign-in-domains",
+    &kContextualTasks, "sign-in-domains",
     "accounts.google.com,login.corp.google.com"};
 
 constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
@@ -75,12 +94,17 @@ const base::FeatureParam<EntryPointOption> kShowEntryPoint(
     EntryPointOption::kNoEntryPoint,
     &kEntryPointOptions);
 
-const base::FeatureParam<bool> kTaskScopedSidePanel(&kContextualTasksContext,
-                                                     "TaskScopedSidePanel",
-                                                     true);
+const base::FeatureParam<bool> kTaskScopedSidePanel(&kContextualTasks,
+                                                    "TaskScopedSidePanel",
+                                                    true);
+
+const base::FeatureParam<bool> kOpenSidePanelOnLinkClicked(
+    &kContextualTasks,
+    "OpenSidePanelOnLinkClicked",
+    true);
 
 const base::FeatureParam<bool> kEnableLensInContextualTasks(
-    &kContextualTasksContext,
+    &kContextualTasks,
     "EnableLensInContextualTasks",
     true);
 
@@ -93,14 +117,44 @@ const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
     &kContextualTasks, "user-agent-suffix", "Cobrowsing/1.0"};
 
 const base::FeatureParam<bool> kEnableSteadyComposeboxVoiceSearch(
-    &kContextualTasksContext,
+    &kContextualTasks,
     "EnableSteadyComposeboxVoiceSearch",
     true);
 
 const base::FeatureParam<bool> kEnableExpandedComposeboxVoiceSearch(
-    &kContextualTasksContext,
+    &kContextualTasks,
     "EnableExpandedComposeboxVoiceSearch",
     true);
+
+const base::FeatureParam<std::string> kContextualTasksOnboardingTooltipHelpUrl(
+    &kContextualTasksShowOnboardingTooltip,
+    "ContextualTasksOnboardingTooltipHelpUrl",
+    "https://support.google.com/chrome?p=AI_tab_share");
+
+const base::FeatureParam<int>
+    kContextualTasksShowOnboardingTooltipSessionImpressionCap(
+        &kContextualTasksShowOnboardingTooltip,
+        "ContextualTasksShowOnboardingTooltipSessionImpressionCap",
+        3);
+
+const base::FeatureParam<int> kContextualTasksOnboardingTooltipDismissedCap(
+    &kContextualTasksShowOnboardingTooltip,
+    "ContextualTasksOnboardingTooltipDismissedCap",
+    3);
+
+int GetContextualTasksShowOnboardingTooltipSessionImpressionCap() {
+  if (!base::FeatureList::IsEnabled(kContextualTasksShowOnboardingTooltip)) {
+    return 0;
+  }
+  return kContextualTasksShowOnboardingTooltipSessionImpressionCap.Get();
+}
+
+int GetContextualTasksOnboardingTooltipDismissedCap() {
+  if (!base::FeatureList::IsEnabled(kContextualTasksShowOnboardingTooltip)) {
+    return 0;
+  }
+  return kContextualTasksOnboardingTooltipDismissedCap.Get();
+}
 
 bool GetIsExpandedComposeboxVoiceSearchEnabled() {
   return kEnableExpandedComposeboxVoiceSearch.Get();
@@ -114,8 +168,28 @@ bool ShouldForceGscInTabMode() {
   return kForceGscInTabMode.Get();
 }
 
+bool ShouldForceCountryCodeUS() {
+  return base::FeatureList::IsEnabled(kContextualTasksForceCountryCodeUS);
+}
+
+bool ShouldForceContextIdMigration() {
+  return kForceContextIdMigration.Get();
+}
+
 std::string GetContextualTasksAiPageUrl() {
   return kContextualTasksAiPageUrl.Get();
+}
+
+std::string GetForcedEmbeddedPageHost() {
+  std::string host = kContextualTasksForcedEmbeddedPageHost.Get();
+
+  // If there's a non-empty host, ensure that it is only ever going to a
+  // google.com domain. If not, return the default empty string.
+  if (!host.empty() && !base::EndsWith(host, ".google.com")) {
+    return kContextualTasksForcedEmbeddedPageHost.default_value;
+  }
+
+  return host;
 }
 
 std::vector<std::string> GetContextualTasksSignInDomains() {
@@ -164,6 +238,10 @@ bool ShouldLogContextualTasksContextQuality() {
   return base::RandDouble() <= kContextualTasksContextLoggingSampleRate.Get();
 }
 
+std::string GetContextualTasksOnboardingTooltipHelpUrl() {
+  return kContextualTasksOnboardingTooltipHelpUrl.Get();
+}
+
 namespace flag_descriptions {
 
 const char kContextualTasksName[] = "Contextual Tasks";
@@ -173,6 +251,11 @@ const char kContextualTasksDescription[] =
 const char kContextualTasksContextName[] = "Contextual Tasks Context";
 const char kContextualTasksContextDescription[] =
     "Enables relevant context determination for contextual tasks.";
+
+const char kContextualTasksContextLibraryName[] =
+    "Contextual Tasks Context Library";
+const char kContextualTasksContextLibraryDescription[] =
+    "Enables integration with the server side context library.";
 
 const char kContextualTasksSuggestionsEnabledName[] =
     "Contextual Tasks Suggestions Enabled";

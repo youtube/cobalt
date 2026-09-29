@@ -217,41 +217,7 @@ BASE_FEATURE_PARAM(int,
                    "drop_target_nudge_used_limit",
                    1);
 
-constexpr base::FeatureParam<MiniToolbarActiveConfiguration>::Option
-    kMiniToolbarActiveConfigurationOptions[] = {
-        {MiniToolbarActiveConfiguration::Hide, "hide"},
-        {MiniToolbarActiveConfiguration::ShowMenu, "showmenu"},
-        {MiniToolbarActiveConfiguration::ShowClose, "showclose"}};
-
-// The active configuration for the mini toolbar on active view of a split.
-BASE_FEATURE_ENUM_PARAM(MiniToolbarActiveConfiguration,
-                        kSideBySideMiniToolbarActiveConfiguration,
-                        &kSideBySide,
-                        "mini_toolbar_active_config",
-                        MiniToolbarActiveConfiguration::ShowMenu,
-                        &kMiniToolbarActiveConfigurationOptions);
-
-BASE_FEATURE_PARAM(int,
-                   kSideBySideSnapDistance,
-                   &kSideBySide,
-                   "snap_distance",
-                   15);
-
-BASE_FEATURE_PARAM(int,
-                   kSideBySideIphTabSwitchCount,
-                   &kSideBySide,
-                   "side_by_side_iph_tab_switch_count",
-                   3);
-
-bool IsRestoringSplitViewEnabled() {
-  return base::FeatureList::IsEnabled(features::kSideBySide);
-}
-
 BASE_FEATURE(kSideBySideLinkMenuNewBadge, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsSideBySideKeyboardShortcutEnabled() {
-  return base::FeatureList::IsEnabled(features::kSideBySide);
-}
 
 BASE_FEATURE(kSideBySideFocusClearing, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -274,9 +240,6 @@ BASE_FEATURE(kPopupBrowserUseNewLayout, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabbedBrowserUseNewLayout, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables buttons when scrolling the tabstrip https://crbug.com/951078
-BASE_FEATURE(kTabScrollingButtonPosition, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables tabs to be frozen when collapsed.
 // https://crbug.com/1110108

@@ -29,8 +29,8 @@
 #include "chrome/common/renderer_configuration.mojom.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/guest_view/buildflags/buildflags.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/safe_browsing/buildflags.h"
-#include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/digital_identity_provider.h"
@@ -281,6 +281,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::vector<url::Origin> GetOriginsRequiringDedicatedProcess() override;
   void WillComputeSiteForNavigation(content::BrowserContext* browser_context,
                                     const GURL& url) override;
+  bool IsAndroidAdvancedProtectionEnabled() override;
   bool ShouldEnableStrictSiteIsolation() override;
   std::optional<bool> GetOverrideValueForOriginKeyedProcesses() override;
   bool ShouldDisableSiteIsolation(
@@ -1001,10 +1002,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   std::unique_ptr<content::AnchorElementPreconnectDelegate>
   CreateAnchorElementPreconnectDelegate(
-      content::RenderFrameHost& render_frame_host) override;
-
-  std::unique_ptr<content::SpeculationHostDelegate>
-  CreateSpeculationHostDelegate(
       content::RenderFrameHost& render_frame_host) override;
 
   std::unique_ptr<content::PrefetchServiceDelegate>

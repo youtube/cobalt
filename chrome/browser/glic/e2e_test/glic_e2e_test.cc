@@ -89,8 +89,12 @@ GlicE2ETest::GlicE2ETest() {
                             features::kGlicRollout,
                             contextual_cueing::kContextualCueing,
                             mojom::features::kZeroStateSuggestionsV2},
-      /*disabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos,
-                             features::kGlicMultiInstance});
+      /*disabled_features=*/{
+          syncer::kReplaceSyncPromosWithSignInPromos,
+          // Don't disable glic based on country/locale.
+          features::kGlicCountryFiltering,
+          features::kGlicLocaleFiltering,
+      });
 }
 
 GlicE2ETest::~GlicE2ETest() = default;
@@ -246,7 +250,7 @@ GlicE2ETest::WaitForAndInstrumentGlic() {
       UninstrumentWebContents(kGlicHostElementId, false),
       InAnyContext(
           ObserveState(kGlicWindowControllerState,
-                       std::ref(window_controller())),
+                       std::ref(window_controller()), active_tab()),
           WaitForState(kGlicWindowControllerState,
                        GlicWindowController::State::kOpen),
           Steps(InstrumentNonTabWebView(kGlicHostElementId, kGlicViewElementId),
@@ -286,11 +290,17 @@ GlicKeyedService* GlicE2ETest::glic_service() {
 GlicWindowController& GlicE2ETest::window_controller() {
   return glic_service()->window_controller();
 }
+
 GlicFreController& GlicE2ETest::fre_controller() {
   return glic_service()->fre_controller();
 }
 WebPageReplayServerWrapper* GlicE2ETest::web_page_replay_server_wrapper() {
   return web_page_replay_server_wrapper_.get();
+}
+
+tabs::TabInterface* GlicE2ETest::active_tab() {
+  return tabs::TabInterface::GetFromContents(
+      browser()->tab_strip_model()->GetActiveWebContents());
 }
 
 void GlicE2ETest::ThrottleCurrentTabNetwork() {

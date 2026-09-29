@@ -19,6 +19,8 @@
 
 #include <assert.h>
 
+
+BSSL_NAMESPACE_BEGIN
 static_assert(ERR_LIB_NONE == 1, "library value changed");
 static_assert(ERR_LIB_SYS == 2, "library value changed");
 static_assert(ERR_LIB_BN == 3, "library value changed");
@@ -1540,3 +1542,5 @@ const char kOpenSSLReasonStringData[] =
     "USER_TOO_LONG\0"
     "";
 
+
+BSSL_NAMESPACE_END

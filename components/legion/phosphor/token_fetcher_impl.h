@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -54,7 +53,8 @@ class TokenFetcherImpl : public TokenFetcher {
     // Creates a `quiche::BlindSignAuthInterface` instance. Can be overridden
     // by tests to provide a mock.
     virtual std::unique_ptr<quiche::BlindSignAuthInterface> CreateBlindSignAuth(
-        scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+        std::unique_ptr<network::PendingSharedURLLoaderFactory>
+            pending_url_loader_factory);
   };
 
   explicit TokenFetcherImpl(

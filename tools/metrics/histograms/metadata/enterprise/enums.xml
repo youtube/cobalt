@@ -802,8 +802,8 @@ chromium-metrics-reviews@google.com.
   <int value="40" label="Registration/fetch: invalid response">
     Registration / policy fetch failed: can't decode DM server response.
   </int>
-  <int value="41" label="OAuth fetch: account not signed up">
-    OAuth token fetch failed: account not signed up.
+  <int value="41" label="OAuth fetch: account not found">
+    OAuth token fetch failed: account not found.
   </int>
   <int value="42" label="OAuth fetch: account deleted (unused)">
     UNUSED: OAuth token fetch failed: account deleted.
@@ -2323,8 +2323,8 @@ chromium-metrics-reviews@google.com.
   <int value="1389" label="AutoSignOutEnabled"/>
   <int value="1390" label="ExtensionInstallCloudPolicyChecksEnabled"/>
   <int value="1391" label="DevToolsGoogleDeveloperProgramProfileAvailability"/>
-  <int value="1392" label="IncognitoModeBlocklist"/>
-  <int value="1393" label="IncognitoModeAllowlist"/>
+  <int value="1392" label="IncognitoModeUrlBlocklist"/>
+  <int value="1393" label="IncognitoModeUrlAllowlist"/>
   <int value="1394" label="PreferSlowKexAlgorithms"/>
   <int value="1395"
       label="ExtensionForceInstallWithNonMalwareViolationsEnabled"/>
@@ -2352,6 +2352,8 @@ chromium-metrics-reviews@google.com.
   <int value="1417" label="StaticStorageQuotaEnabled"/>
   <int value="1418" label="SaaSReportDomainUrlsForBrowser"/>
   <int value="1419" label="SaaSReportDomainUrlsForProfile"/>
+  <int value="1420" label="GeminiActOnWebAllowedForURLs"/>
+  <int value="1421" label="GeminiActOnWebBlockedForURLs"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

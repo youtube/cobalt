@@ -42,7 +42,7 @@
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper_browser_presentation_provider.h"
-#import "ios/chrome/browser/app_store_rating/ui_bundled/features.h"
+#import "ios/chrome/browser/app_store_rating/model/features.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
@@ -94,11 +94,11 @@
 #import "ios/chrome/browser/contextual_panel/utils/contextual_panel_metrics.h"
 #import "ios/chrome/browser/credential_provider_promo/ui_bundled/credential_provider_promo_coordinator.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/default_browser_promo_non_modal_commands.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/default_browser_promo_non_modal_coordinator.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/default_promo_non_modal_presentation_delegate.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/generic/default_browser_generic_promo_commands.h"
-#import "ios/chrome/browser/default_promo/ui_bundled/generic/default_browser_generic_promo_coordinator.h"
+#import "ios/chrome/browser/default_browser/promo/generic/coordinator/default_browser_generic_promo_coordinator.h"
+#import "ios/chrome/browser/default_browser/promo/generic/public/default_browser_generic_promo_commands.h"
+#import "ios/chrome/browser/default_browser/promo/non_modal/coordinator/default_browser_promo_non_modal_coordinator.h"
+#import "ios/chrome/browser/default_browser/promo/non_modal/coordinator/default_promo_non_modal_presentation_delegate.h"
+#import "ios/chrome/browser/default_browser/promo/non_modal/public/default_browser_promo_non_modal_commands.h"
 #import "ios/chrome/browser/docking_promo/coordinator/docking_promo_coordinator.h"
 #import "ios/chrome/browser/download/coordinator/ar_quick_look_coordinator.h"
 #import "ios/chrome/browser/download/coordinator/auto_deletion/auto_deletion_coordinator.h"
@@ -117,7 +117,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_util.h"
 #import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_coordinator.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
-#import "ios/chrome/browser/first_run/ui_bundled/omnibox_position/omnibox_position_choice_coordinator.h"
+#import "ios/chrome/browser/first_run/omnibox_position/coordinator/omnibox_position_choice_coordinator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_reason.h"
 #import "ios/chrome/browser/google_one/coordinator/google_one_coordinator.h"
@@ -152,8 +152,8 @@
 #import "ios/chrome/browser/overlays/ui_bundled/overlay_container_coordinator.h"
 #import "ios/chrome/browser/overscroll_actions/model/overscroll_actions_tab_helper.h"
 #import "ios/chrome/browser/overscroll_actions/ui_bundled/overscroll_actions_controller.h"
-#import "ios/chrome/browser/page_info/ui_bundled/page_info_coordinator.h"
-#import "ios/chrome/browser/page_info/ui_bundled/requirements/page_info_presentation.h"
+#import "ios/chrome/browser/page_info/coordinator/page_info_coordinator.h"
+#import "ios/chrome/browser/page_info/requirements/page_info_presentation.h"
 #import "ios/chrome/browser/passwords/model/password_controller_delegate.h"
 #import "ios/chrome/browser/passwords/ui_bundled/bottom_sheet/credential_suggestion_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/passwords/ui_bundled/password_breach_coordinator.h"
@@ -163,17 +163,17 @@
 #import "ios/chrome/browser/phone_number/ui_bundled/add_contacts_coordinator.h"
 #import "ios/chrome/browser/phone_number/ui_bundled/country_code_picker_coordinator.h"
 #import "ios/chrome/browser/plus_addresses/coordinator/plus_address_bottom_sheet_coordinator.h"
-#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_coordinator.h"
+#import "ios/chrome/browser/popup_menu/coordinator/popup_menu_coordinator.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent_delegate.h"
 #import "ios/chrome/browser/presenters/ui_bundled/vertical_animation_container.h"
 #import "ios/chrome/browser/price_notifications/ui_bundled/price_notifications_view_coordinator.h"
 #import "ios/chrome/browser/print/coordinator/print_coordinator.h"
+#import "ios/chrome/browser/promos_manager/coordinator/promos_manager_coordinator.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
-#import "ios/chrome/browser/promos_manager/ui_bundled/promos_manager_coordinator.h"
+#import "ios/chrome/browser/push_notification/coordinator/notifications_opt_in_coordinator.h"
+#import "ios/chrome/browser/push_notification/coordinator/notifications_opt_in_coordinator_delegate.h"
 #import "ios/chrome/browser/push_notification/model/constants.h"
-#import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator.h"
-#import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator_delegate.h"
 #import "ios/chrome/browser/qr_scanner/coordinator/qr_scanner_legacy_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_blur_overlay_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_coordinator.h"
@@ -200,7 +200,7 @@
 #import "ios/chrome/browser/send_tab_to_self/coordinator/send_tab_to_self_coordinator_delegate.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_coordinator_delegate.h"
-#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/coordinator/quick_delete_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings/password_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings/password_settings_coordinator_delegate.h"
 #import "ios/chrome/browser/shared/coordinator/alert/repost_form_coordinator.h"
@@ -268,6 +268,7 @@
 #import "ios/chrome/browser/shared/public/commands/shared_tab_group_last_tab_closed_alert_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/commands/sync_presenter_commands.h"
 #import "ios/chrome/browser/shared/public/commands/synced_set_up_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
@@ -425,6 +426,7 @@ const char kChromeAppStoreUrl[] =
     SigninPresenter,
     SnapshotGeneratorDelegate,
     StoreKitCoordinatorDelegate,
+    SyncPresenterCommands,
     TrustedVaultReauthenticationCoordinatorDelegate,
     UnitConversionCommands,
     URLLoadingDelegate,
@@ -1273,6 +1275,7 @@ const char kChromeAppStoreUrl[] =
     @protocol(SaveToPhotosCommands),
     @protocol(SharedTabGroupLastTabAlertCommands),
     @protocol(SyncedSetUpCommands),
+    @protocol(SyncPresenterCommands),
     @protocol(TextZoomCommands),
     @protocol(WebContentCommands),
     @protocol(DefaultBrowserGenericPromoCommands),
@@ -2684,11 +2687,6 @@ const char kChromeAppStoreUrl[] =
   [_signinCoordinator start];
 }
 
-- (void)performReauthToRetrieveTrustedVaultKey:
-    (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger {
-  [self showTrustedVaultReauthForFetchKeysWithTrigger:trigger];
-}
-
 - (void)showComposeboxFromEntrypoint:(ComposeboxEntrypoint)entrypoint
                            withQuery:(NSString*)query {
   CHECK(base::FeatureList::IsEnabled(kComposeboxIOS));
@@ -2706,27 +2704,35 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)hideComposeboxImmediately:(BOOL)immediately {
-  if (!_composeboxCoordinator) {
+  [self hideComposeboxImmediately:immediately completion:nil];
+}
+
+- (void)hideComposeboxImmediately:(BOOL)immediately
+                       completion:(ProceduralBlock)completion {
+  if (!_composeboxCoordinator || immediately) {
+    [_composeboxCoordinator stop];
+    [self resetComposebox];
+    if (completion) {
+      completion();
+    }
     return;
   }
 
-  if (immediately) {
-    [_composeboxCoordinator stop];
-    [self resetComposebox];
-  } else {
-    __weak __typeof(self) weakSelf = self;
-    base::OnceClosure completion = base::BindOnce(^{
-      [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
-        [weakSelf resetComposebox];
-      }];
-    });
-    // Stop the prototoype on the next run loop as this might be called while
-    // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
-    // Remove this workaround once the omnibox can be safely dismissed while
-    // openMatch.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, std::move(completion));
-  }
+  __weak __typeof(self) weakSelf = self;
+  base::OnceClosure animationCompletion = base::BindOnce(^{
+    [weakSelf.composeboxCoordinator stopAnimatedWithCompletion:^{
+      [weakSelf resetComposebox];
+      if (completion) {
+        completion();
+      }
+    }];
+  });
+  // Stop the prototoype on the next run loop as this might be called while
+  // the prototype's omnibox is loading a query. TODO(crbug.com/454302076):
+  // Remove this workaround once the omnibox can be safely dismissed while
+  // openMatch.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, std::move(animationCompletion));
 }
 
 #pragma mark - ContextualPanelEntrypointIPHCommands
@@ -3155,13 +3161,13 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - BWGCommands
 
-- (void)startGeminiFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
+- (void)startGeminiFlowWithEntryPoint:(gemini::EntryPoint)entryPoint {
   [self startGeminiFlowWithImageAttachment:nil entryPoint:entryPoint];
 }
 
 - (void)startGeminiFlowWithImageAttachment:(UIImage*)image
-                                entryPoint:(bwg::EntryPoint)entryPoint {
-  if (entryPoint == bwg::EntryPoint::ImageContextMenu) {
+                                entryPoint:(gemini::EntryPoint)entryPoint {
+  if (entryPoint == gemini::EntryPoint::ImageContextMenu) {
     BwgBrowserAgent::FromBrowser(self.browser)
         ->StartGeminiFlow(self.viewController, image);
     return;
@@ -3187,7 +3193,7 @@ const char kChromeAppStoreUrl[] =
 - (void)showBWGPromoIfPageIsEligible {
   BwgService* BWGService = BwgServiceFactory::GetForProfile(self.profile);
   if (BWGService->IsBwgAvailableForWebState(self.activeWebState)) {
-    [self startGeminiFlowWithEntryPoint:bwg::EntryPoint::Promo];
+    [self startGeminiFlowWithEntryPoint:gemini::EntryPoint::Promo];
   }
 }
 
@@ -3484,7 +3490,7 @@ const char kChromeAppStoreUrl[] =
   // The view controller should have been created.
   DCHECK(self.viewController);
 
-  SyncErrorBrowserAgent::FromBrowser(self.browser)->SetUIProviders(self, self);
+  SyncErrorBrowserAgent::FromBrowser(self.browser)->SetUIProviders(self);
 
   WebStateDelegateBrowserAgent::FromBrowser(self.browser)
       ->SetUIProviders(self.contextMenuProvider,
@@ -3992,7 +3998,7 @@ const char kChromeAppStoreUrl[] =
   return self.browserContainerCoordinator.viewController.view;
 }
 
-#pragma mark - SyncPresenter (Public)
+#pragma mark - SyncPresenterCommands
 
 - (void)showPrimaryAccountReauth {
   if (_signinCoordinator.viewWillPersist) {
@@ -4053,7 +4059,7 @@ const char kChromeAppStoreUrl[] =
   [self showTrustedVaultReauthWithTrigger:trigger intent:intent];
 }
 
-#pragma mark - SyncPresenter helper
+#pragma mark - SyncPresenterCommands helper
 
 - (void)showTrustedVaultReauthWithTrigger:
             (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger

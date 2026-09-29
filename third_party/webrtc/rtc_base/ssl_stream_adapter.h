@@ -158,6 +158,7 @@ class SSLStreamAdapter : public StreamInterface {
   // increased.
   // This should only be called before StartSSL().
   virtual void SetInitialRetransmissionTimeout(int timeout_ms) = 0;
+  virtual void UpdateRetransmissionTimeout(int timeout_ms) {}
 
   // Set MTU to be used for next handshake flight.
   virtual void SetMTU(int mtu) = 0;

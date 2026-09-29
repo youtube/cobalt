@@ -46,6 +46,7 @@
 #include "pc/session_description.h"
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -116,7 +117,7 @@ class PeerConnectionSdpMethods {
   virtual bool IsUnifiedPlan() const = 0;
   virtual bool ValidateBundleSettings(
       const SessionDescription* desc,
-      const std::map<std::string, const ContentGroup*>&
+      const flat_map<std::string, const ContentGroup*>&
           bundle_groups_by_mid) = 0;
 
   // Internal implementation for AddTransceiver family of methods. If

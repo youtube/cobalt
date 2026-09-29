@@ -10,9 +10,13 @@
 namespace blink {
 
 // static
+const char SourceBufferTrackBaseSupplement::kSupplementName[] =
+    "SourceBufferTrackBaseSupplement";
+
+// static
 SourceBufferTrackBaseSupplement* SourceBufferTrackBaseSupplement::FromIfExists(
     TrackBase& track) {
-  return track.GetSourceBufferTrackBaseSupplement();
+  return Supplement<TrackBase>::From<SourceBufferTrackBaseSupplement>(track);
 }
 
 // static
@@ -20,8 +24,8 @@ SourceBufferTrackBaseSupplement& SourceBufferTrackBaseSupplement::From(
     TrackBase& track) {
   SourceBufferTrackBaseSupplement* supplement = FromIfExists(track);
   if (!supplement) {
-    supplement = MakeGarbageCollected<SourceBufferTrackBaseSupplement>();
-    track.SetSourceBufferTrackBaseSupplement(supplement);
+    supplement = MakeGarbageCollected<SourceBufferTrackBaseSupplement>(track);
+    Supplement<TrackBase>::ProvideTo(track, supplement);
   }
   return *supplement;
 }
@@ -34,6 +38,10 @@ SourceBuffer* SourceBufferTrackBaseSupplement::sourceBuffer(TrackBase& track) {
   return nullptr;
 }
 
+SourceBufferTrackBaseSupplement::SourceBufferTrackBaseSupplement(
+    TrackBase& track)
+    : Supplement(track) {}
+
 void SourceBufferTrackBaseSupplement::SetSourceBuffer(
     TrackBase& track,
     SourceBuffer* source_buffer) {
@@ -42,6 +50,7 @@ void SourceBufferTrackBaseSupplement::SetSourceBuffer(
 
 void SourceBufferTrackBaseSupplement::Trace(Visitor* visitor) const {
   visitor->Trace(source_buffer_);
+  Supplement<TrackBase>::Trace(visitor);
 }
 
 }  // namespace blink

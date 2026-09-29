@@ -37,6 +37,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 enum {
   BIO_CONN_S_BEFORE,
   BIO_CONN_S_BLOCKED_CONNECT,

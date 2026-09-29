@@ -6,7 +6,10 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
+#import "base/functional/callback_helpers.h"
+#import "base/ios/block_types.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/bind_post_task.h"
 #import "base/task/sequenced_task_runner.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/prefs/pref_service.h"
@@ -14,10 +17,11 @@
 #import "components/sync/service/sync_service.h"
 #import "components/user_data_importer/ios/ios_bookmark_parser.h"
 #import "components/user_data_importer/utility/safari_data_importer.h"
+#import "ios/chrome/browser/data_import/public/credential_import_item.h"
+#import "ios/chrome/browser/data_import/public/credential_import_item_favicon_data_source.h"
 #import "ios/chrome/browser/data_import/public/import_data_item.h"
 #import "ios/chrome/browser/data_import/public/import_data_item_consumer.h"
 #import "ios/chrome/browser/data_import/public/password_import_item.h"
-#import "ios/chrome/browser/data_import/public/password_import_item_favicon_data_source.h"
 #import "ios/chrome/browser/data_import/ui/data_import_import_stage_transition_handler.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/safari_data_import/model/ios_safari_data_import_client.h"
@@ -29,7 +33,7 @@
 #import "url/gurl.h"
 
 @interface SafariDataImportImportMediator () <
-    PasswordImportItemFaviconDataSource>
+    CredentialImportItemFaviconDataSource>
 
 @end
 
@@ -131,14 +135,19 @@
   _disconnected = YES;
 }
 
-#pragma mark - PasswordImportItemFaviconDataSource
+#pragma mark - CredentialImportItemFaviconDataSource
 
-- (BOOL)passwordImportItem:(PasswordImportItem*)item
-    loadFaviconAttributesWithUIHandler:(ProceduralBlock)UIHandler {
+- (BOOL)credentialImportItem:(CredentialImportItem*)item
+    loadFaviconAttributesWithUIHandler:(ProceduralBlock)handler {
+  // Make sure `handler` is run on the original sequence.
+  base::RepeatingClosure faviconLoadClosure =
+      base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                         base::BindRepeating(handler));
+  ProceduralBlock faviconLoadCompletion =
+      base::CallbackToBlock(faviconLoadClosure);
   auto faviconLoadedBlock = ^(FaviconAttributes* attributes, bool cached) {
     item.faviconAttributes = attributes;
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(UIHandler));
+    faviconLoadCompletion();
   };
   if (item.url) {
     _faviconLoader->FaviconForPageUrlOrHost(item.url.URL, gfx::kFaviconSize,

@@ -23,6 +23,16 @@ guide to determine which documents to consult.
 WebRTC types and functions live in the `webrtc` namespace. Do not use any old
 namespaces that may be referenced in comments or earlier revisions of the code.
 
+#### **Modernization**
+
+*   **Use Strong Time Types:** Prefer `webrtc::Timestamp` and `webrtc::TimeDelta`
+    over raw arithmetic types for time values.
+    See [issue 42223979](https://issues.webrtc.org/42223979).
+*   **Avoid AutoThread:** Do not use `AutoThread`. In tests, use `webrtc::test::RunLoop`.
+    See [issue 469327588](https://issues.webrtc.org/469327588).
+*   **Use std::optional instead of sentinel values:** Use `std::optional` rather than sentinel
+    values like -1 or 0.
+
 ### **Topic: Modifying BUILD.gn files**
 
 *   **For best practices and style in `BUILD.gn` files:**

@@ -83,6 +83,8 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:ContextMenuOptionDesktop) -->
 
+<!-- LINT.IfChange(DefaultBrowserInfoBarUserInteraction) -->
+
 <enum name="DefaultBrowserInfoBarUserInteraction">
   <int value="0" label="Accept">
     The user clicked the &quot;Set as default&quot; button.
@@ -91,10 +93,17 @@ chromium-metrics-reviews@google.com.
     The user clicked the &quot;Don't ask again&quot; button.
   </int>
   <int value="2" label="Ignore">
-    The user did not interact with the info bar.
+    (Obsolete) The user did not interact with the info bar. Deprecated in M145
+    due to it reporting one count per tab closed.
   </int>
   <int value="3" label="Dismiss">The user explicitly closed the infobar.</int>
+  <int value="4" label="IgnorePerSession">
+    The user did not interact with the info bar. Reports one count per browser
+    session.
+  </int>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.h:InfoBarUserInteraction) -->
 
 <enum name="DefaultBrowserState">
   <int value="0" label="Not Default"/>
@@ -347,6 +356,7 @@ chromium-metrics-reviews@google.com.
   <int value="155" label="IDC_CONTENT_CONTEXT_CLOSE_GLIC"/>
   <int value="156" label="IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW"/>
   <int value="157" label="IDC_CONTENT_CONTEXT_GLICSHAREIMAGE"/>
+  <int value="158" label="IDC_CONTENT_CONTEXT_ARCHIVE_GLIC"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -1138,7 +1148,8 @@ chromium-metrics-reviews@google.com.
   <int value="99" label="Identity docs"/>
   <int value="100" label="Travel"/>
   <int value="101" label="Contact info"/>
-  <int value="102" label="Show contextual tasks side panel"/>
+  <int value="102"
+      label="(Obsolete) Show contextual tasks side panel. Removed 12/18/25"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/ui/toolbar/app_menu_model.h:AppMenuAction) -->

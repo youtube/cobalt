@@ -8,53 +8,62 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "modules/congestion_controller/goog_cc_scream_network_controller/goog_cc_scream_network_controller.h"
-
-#include <utility>
+#include <memory>
 
 #include "api/environment/environment.h"
 #include "api/transport/ecn_marking.h"
+#include "api/transport/goog_cc_factory.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
-#include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
 #include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-GoogCcScreamNetworkController CreateController(Environment env) {
+std::unique_ptr<NetworkControllerInterface> CreateController(
+    Environment env,
+    bool rfc_8888_feedback_negotiated) {
   NetworkControllerConfig config(env);
   config.constraints.at_time = env.clock().CurrentTime();
   config.constraints.starting_rate = DataRate::KilobitsPerSec(100);
-  GoogCcConfig goog_cc_config;
-  return GoogCcScreamNetworkController(config, std::move(goog_cc_config));
+  GoogCcNetworkControllerFactory factory(
+      {.rfc_8888_feedback_negotiated = rfc_8888_feedback_negotiated});
+  return factory.Create(config);
 }
 
 TEST(GoogCcScreamNetworkControllerTest, CreateWithoutFieldTrial) {
   Environment env = CreateTestEnvironment();
-  GoogCcScreamNetworkController controller = CreateController(env);
-  EXPECT_EQ(controller.CurrentControllerType(), "GoogCC");
-  EXPECT_FALSE(controller.SupportsEcnAdaptation());
+  std::unique_ptr<NetworkControllerInterface> controller =
+      CreateController(env, /*rfc_8888_feedback_negotiated*/ true);
+  EXPECT_FALSE(controller->SupportsEcnAdaptation());
 }
 
 TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAlways) {
   Environment env = CreateTestEnvironment(
       {.field_trials = "WebRTC-Bwe-ScreamV2/mode:always/"});
   NetworkControllerConfig config(env);
-  GoogCcScreamNetworkController controller = CreateController(env);
-  EXPECT_EQ(controller.CurrentControllerType(), "ScreamV2");
-  EXPECT_TRUE(controller.SupportsEcnAdaptation());
+  std::unique_ptr<NetworkControllerInterface> controller =
+      CreateController(env, /*rfc_8888_feedback_negotiated*/ false);
+  EXPECT_TRUE(controller->SupportsEcnAdaptation());
+}
+
+TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAfterCeWithTwcc) {
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-Bwe-ScreamV2/mode:only_after_ce/"});
+  std::unique_ptr<NetworkControllerInterface> controller =
+      CreateController(env, /*rfc_8888_feedback_negotiated*/ false);
+  EXPECT_FALSE(controller->SupportsEcnAdaptation());
 }
 
 TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAfterCe) {
   Environment env = CreateTestEnvironment(
       {.field_trials = "WebRTC-Bwe-ScreamV2/mode:only_after_ce/"});
-  GoogCcScreamNetworkController controller = CreateController(env);
-  EXPECT_EQ(controller.CurrentControllerType(), "GoogCC");
-  EXPECT_TRUE(controller.SupportsEcnAdaptation());
+  std::unique_ptr<NetworkControllerInterface> controller =
+      CreateController(env, /*rfc_8888_feedback_negotiated*/ true);
+  EXPECT_TRUE(controller->SupportsEcnAdaptation());
 
   // Send a feedback with ECN CE.
   TransportPacketsFeedback feedback;
@@ -66,18 +75,17 @@ TEST(GoogCcScreamNetworkControllerTest, CreateWithScreamAfterCe) {
   packet_result.receive_time = env.clock().CurrentTime();
   packet_result.ecn = EcnMarking::kCe;
   feedback.packet_feedbacks.push_back(packet_result);
-  controller.OnTransportPacketsFeedback(feedback);
+  auto ignore = controller->OnTransportPacketsFeedback(feedback);
 
-  EXPECT_EQ(controller.CurrentControllerType(), "ScreamV2");
-  EXPECT_TRUE(controller.SupportsEcnAdaptation());
+  EXPECT_TRUE(controller->SupportsEcnAdaptation());
 }
 
 TEST(GoogCcScreamNetworkControllerTest, CreateWithGoogCcWithEct1) {
   Environment env = CreateTestEnvironment(
       {.field_trials = "WebRTC-Bwe-ScreamV2/mode:goog_cc_with_ect1/"});
-  GoogCcScreamNetworkController controller = CreateController(env);
-  EXPECT_EQ(controller.CurrentControllerType(), "GoogCC");
-  EXPECT_TRUE(controller.SupportsEcnAdaptation());
+  std::unique_ptr<NetworkControllerInterface> controller =
+      CreateController(env, /*rfc_8888_feedback_negotiated*/ true);
+  EXPECT_TRUE(controller->SupportsEcnAdaptation());
 
   // Send a feedback with ECN CE.
   TransportPacketsFeedback feedback;
@@ -89,10 +97,9 @@ TEST(GoogCcScreamNetworkControllerTest, CreateWithGoogCcWithEct1) {
   packet_result.receive_time = env.clock().CurrentTime();
   packet_result.ecn = EcnMarking::kCe;
   feedback.packet_feedbacks.push_back(packet_result);
-  controller.OnTransportPacketsFeedback(feedback);
+  auto ignore = controller->OnTransportPacketsFeedback(feedback);
 
-  EXPECT_EQ(controller.CurrentControllerType(), "GoogCC");
-  EXPECT_FALSE(controller.SupportsEcnAdaptation());
+  EXPECT_FALSE(controller->SupportsEcnAdaptation());
 }
 
 }  // namespace

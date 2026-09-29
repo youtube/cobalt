@@ -5,6 +5,7 @@
 import 'chrome://contextual-tasks/app.js';
 
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
@@ -216,5 +217,77 @@ suite('ContextualTasksWebviewTest', function() {
     assertTrue(
         userAgentHeader.value.includes('Cobrowsing/'),
         'User-Agent header does not contain our custom user agent');
+  });
+
+  test('webview replaces host when set', async () => {
+    loadTimeData.overrideValues({forcedEmbeddedPageHost: 'corp.google.com'});
+
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    proxy.handler.setIsShownInTab(true);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    const threadFrame = appElement.$.threadFrame;
+    assertTrue(!!threadFrame, 'Thread frame not found');
+
+    const completionPromise = new Promise<void>(resolve => {
+      const listener = (details: any) => {
+        threadFrame.request.onBeforeSendHeaders.removeListener(listener);
+        const url = new URL(details.url);
+        assertEquals('corp.google.com', url.host);
+        resolve();
+        return {};
+      };
+
+      threadFrame.request.onBeforeSendHeaders.addListener(
+          listener, {urls: ['<all_urls>']}, ['requestHeaders']);
+    });
+
+    threadFrame.src = 'https://www.google.com/';
+    await completionPromise;
+  });
+
+  test('webview adds viewport size params', async () => {
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    // Set a size to ensure getBoundingClientRect returns non-zero values.
+    appElement.style.display = 'block';
+    appElement.style.width = '800px';
+    appElement.style.height = '600px';
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    const threadFrame =
+        appElement.shadowRoot.querySelector<chrome.webviewTag.WebView>(
+            '#threadFrame');
+    assertTrue(!!threadFrame, 'Thread frame not found');
+
+    const completionPromise = new Promise<void>(resolve => {
+      const listener = (details: any) => {
+        threadFrame.request.onBeforeSendHeaders.removeListener(listener);
+        const url = new URL(details.url);
+        assertTrue(url.searchParams.has('biw'), 'biw param should be set');
+        assertTrue(url.searchParams.has('bih'), 'bih param should be set');
+        assertTrue(
+            parseInt(url.searchParams.get('biw')!) > 0,
+            'biw should be greater than 0');
+        assertTrue(
+            parseInt(url.searchParams.get('bih')!) > 0,
+            'bih should be greater than 0');
+        resolve();
+        return {};
+      };
+
+      threadFrame.request.onBeforeSendHeaders.addListener(
+          listener, {urls: ['<all_urls>']}, ['requestHeaders']);
+    });
+
+    threadFrame.src = 'https://www.google.com/';
+    await completionPromise;
   });
 });

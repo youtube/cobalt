@@ -617,7 +617,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioSetDeviceId.{Direction}.{Result}"
-    enum="AndroidAudioDeviceType" expires_after="2026-03-22">
+    enum="AndroidAudioDeviceType" expires_after="2026-06-21">
   <owner>mjel@google.com</owner>
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -745,7 +745,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.DetectedMissingCallbacks"
-    enum="BooleanMissingCallbacks" expires_after="2026-01-25">
+    enum="BooleanMissingCallbacks" expires_after="2026-05-24">
   <owner>guidou@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1151,7 +1151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.CrasInputStreamOpenSuccess"
-    enum="CrasInputStreamOpenSuccess" expires_after="2026-04-12">
+    enum="CrasInputStreamOpenSuccess" expires_after="2026-06-21">
   <owner>peah@chromium.org</owner>
   <owner>hychao@chromium.org</owner>
   <owner>olka@chromium.org</owner>
@@ -1202,6 +1202,17 @@ chromium-metrics-reviews@google.com.
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
     Logged at each call to CrasUnifiedStream::Start to indicate any errors.
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.DecoderType" enum="AudioDecoderType"
+    expires_after="2026-06-30">
+  <owner>jophba@chromium.org</owner>
+  <owner>dalecurtis@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the audio decoder type used for a playback session. Recorded when
+    the metrics provider is destructed.
   </summary>
 </histogram>
 
@@ -1295,7 +1306,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Mac.CatapAudioInputStream.ChannelCountMismatch"
-    units="count" expires_after="2026-02-15">
+    units="count" expires_after="2026-06-21">
   <owner>kron@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -1709,7 +1720,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Render.OutputDeviceStartTime2" units="ms"
-    expires_after="2026-04-13">
+    expires_after="2026-06-21">
   <owner>dalecurtis@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>tguilbert@chromium.org</owner>
@@ -1863,7 +1874,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.{Type}.Glitches2" units="glitches"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>olka@chromium.org</owner>
   <owner>saza@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1954,7 +1965,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioCapturerDroppedData10sIntervals" units="drops"
-    expires_after="2026-05-11">
+    expires_after="2026-05-24">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1969,7 +1980,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioCapturerDroppedDataBelow10s" units="drops"
-    expires_after="2026-05-11">
+    expires_after="2026-05-24">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1982,7 +1993,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioCapturerMissedReadDeadline10sIntervals"
-    units="misses" expires_after="2026-01-18">
+    units="misses" expires_after="2026-05-24">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1997,7 +2008,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioCapturerMissedReadDeadlineBelow10s" units="misses"
-    expires_after="2026-01-04">
+    expires_after="2026-05-24">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -2354,7 +2365,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AudioService.AudioManagerStartupTime" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -2672,7 +2683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AutoPictureInPicture.PromptResultV2"
-    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-04-19">
+    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-06-21">
   <owner>steimel@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -3882,12 +3893,48 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Media.EME.MediaFoundationService.HardwareContextReset.DoesGpuMatchWithDisplayOnMultiGpu"
+    enum="Boolean" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not the active GPU matches with the display GPU on multi-GPU
+    devices when a HardwareContextReset event happened in the
+    MediaFoundationService process. Reported whenever such an event happens.
+  </summary>
+</histogram>
+
+<histogram
     name="Media.EME.MediaFoundationService.HardwareContextReset.GpuCount"
     enum="GpuOrDisplayCount" expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
     The number of GPUs when a HardwareContextReset event happened in the
+    MediaFoundationService process. Reported whenever such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationService.HardwareContextReset.MultiGpuNvidiaActiveWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has NVIDIA active GPU associated with an
+    external displays when a HardwareContextReset event happened in the
+    MediaFoundationService process. Reported whenever such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationService.HardwareContextReset.MultiGpuWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has an active GPU associated with an
+    external displays when a HardwareContextReset event happened in the
     MediaFoundationService process. Reported whenever such an event happens.
   </summary>
 </histogram>
@@ -4956,7 +5003,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.EnumerateDevices.Latency" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -4968,7 +5015,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.EnumerateDevices.Result"
-    enum="EnumerateDevicesResult" expires_after="2026-04-12">
+    enum="EnumerateDevicesResult" expires_after="2026-06-21">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -5066,7 +5113,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.Latency" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -5222,6 +5269,104 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.ActiveGpuDisplayInfo"
+    enum="ActiveGpuDisplayInfo" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Active GPU's display information whether likely built-in or external when
+    the MediaFoundationRenderer starts a playback. Reported only once such an
+    event happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.ActiveGpuInfo"
+    enum="ActiveGpuInfo" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Active and non-active GPU vendor information when the
+    MediaFoundationRenderer starts a playback. Reported only once such an event
+    happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.ActiveGpuVendorId"
+    enum="GpuVendorId" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Active GPU vendor ID when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.DisplayCount"
+    enum="GpuOrDisplayCount" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    The number of displays when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.MediaFoundationRenderer.MultiGpu.DoesGpuMatchWithDisplayOnMultiGpu"
+    enum="Boolean" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not the active GPU matches with the display GPU on multi-GPU
+    devices when the MediaFoundationRenderer starts a playback. Reported only
+    once such an event happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.GpuCount"
+    enum="GpuOrDisplayCount" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    The number of GPUs when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.MediaFoundationRenderer.MultiGpu.MultiGpuNvidiaActiveWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has NVIDIA active GPU associated with an
+    external displays when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.MediaFoundationRenderer.MultiGpu.MultiGpuWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has an active GPU associated with an
+    external displays when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaFoundationRenderer.MultiGpu.NonActiveGpuVendorId"
+    enum="GpuVendorId" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Non-active GPU vendor ID when the MediaFoundationRenderer starts a playback.
+    Reported only once such an event happens.
+  </summary>
+</histogram>
+
 <histogram name="Media.MediaFoundationRenderer.PlaybackError" enum="Hresult"
     expires_after="2026-12-09">
   <owner>xhwang@chromium.org</owner>
@@ -5275,12 +5420,48 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Media.MediaFoundationRenderer.PlaybackError.DoesGpuMatchWithDisplayOnMultiGpu"
+    enum="Boolean" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not the active GPU matches with the display GPU on multi-GPU
+    devices when the MediaFoundationRenderer hits a playback error. Reported
+    whenever such an event happens.
+  </summary>
+</histogram>
+
 <histogram name="Media.MediaFoundationRenderer.PlaybackError.GpuCount"
     enum="GpuOrDisplayCount" expires_after="2026-12-09">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
     The number of GPUs when the MediaFoundationRenderer hits a playback error.
+    Reported whenever such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.MediaFoundationRenderer.PlaybackError.MultiGpuNvidiaActiveWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has NVIDIA active GPU associated with an
+    external displays when the MediaFoundationRenderer hits a playback error.
+    Reported whenever such an event happens.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.MediaFoundationRenderer.PlaybackError.MultiGpuWithExternalDisplay"
+    enum="Boolean" expires_after="2026-04-05">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether or not a multi-GPU device has an active GPU associated with an
+    external displays when the MediaFoundationRenderer hits a playback error.
     Reported whenever such an event happens.
   </summary>
 </histogram>
@@ -5342,7 +5523,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaPlaybackWhileNotVisible.InterruptionType"
-    enum="MediaPlaybackInterruptionType" expires_after="2026-04-19">
+    enum="MediaPlaybackInterruptionType" expires_after="2026-06-21">
   <owner>dalecurtis@chromium.org</owner>
   <owner>gabrielbrito@microsoft.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -5840,7 +6021,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Network.TotalBytesReceived.SRC" units="bytes"
-    expires_after="2026-04-19">
+    expires_after="2026-06-21">
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6679,7 +6860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.ScreenCaptureKit.SCContentSharingPicker2"
-    enum="ScreenCaptureKitSCContentSharingPicker" expires_after="2026-01-04">
+    enum="ScreenCaptureKitSCContentSharingPicker" expires_after="2027-01-04">
   <owner>tovep@chromium.org</owner>
   <owner>kron@chromium.org</owner>
   <owner>eladalon@chromium.org</owner>
@@ -6715,7 +6896,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Session.PictureInPicture.TotalTimeForSession" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-21">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6730,7 +6911,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Session.PictureInPicture.TotalTimeForSessionV2"
-    units="ms" expires_after="2026-04-12">
+    units="ms" expires_after="2026-06-21">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6875,7 +7056,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Ui.GetDisplayMedia.BasicFlow.AudioToggleState.{Type}"
-    enum="GetDisplayMediaAudioToggleStatus" expires_after="2026-04-19">
+    enum="GetDisplayMediaAudioToggleStatus" expires_after="2026-06-21">
   <owner>eladalon@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>tovep@chromium.org</owner>
@@ -7242,7 +7423,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Capture.Mac.CameraSystemPermission.UserMedia"
-    enum="SystemMediaCapturePermission" expires_after="2026-04-12">
+    enum="SystemMediaCapturePermission" expires_after="2026-06-21">
   <owner>toprice@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>
@@ -7857,6 +8038,18 @@ chromium-metrics-reviews@google.com.
     regardless of clock resolution.
   </summary>
   <token key="DbOperation" variants="DbOperation"/>
+</histogram>
+
+<histogram
+    name="Media.VideoEncode.MFVEA.KeyFrameRequestFullfilled.{VideoCodec}"
+    enum="Boolean" expires_after="2026-05-31">
+  <owner>eugene@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records if the MediaFoundation {VideoCodec} encoder returns a delta frame on
+    an explicit key frame request. Recorded on every key frame request.
+  </summary>
+  <token key="VideoCodec" variants="VideoCodec"/>
 </histogram>
 
 <histogram name="Media.VideoEncoder.D3D12VEA.EncodeStatus.{VideoCodec}"
@@ -8770,7 +8963,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.CastStreaming.Session.Length" units="ms"
-    expires_after="2026-04-19">
+    expires_after="2026-06-21">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>

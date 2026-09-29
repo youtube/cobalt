@@ -506,7 +506,7 @@
 <translation id="6447842834002726250">کوکی‌ها</translation>
 <translation id="6452138246455930388">کاهش قیمت در زبانه باز، از <ph name="OLD_PRICE" /> به <ph name="NEW_PRICE" />، <ph name="PRODUCT_NAME" />، <ph name="DOMAIN_NAME" /></translation>
 <translation id="6500423977866688905">وقتی پنجره باریک است، نمای تلفن همراه درخواست شود</translation>
-<translation id="6527303717912515753">اشتراک‌گذاری</translation>
+<translation id="6527303717912515753">هم‌رسانی</translation>
 <translation id="6530703012083415527">هرگاه روشن باشد، سایت‌ها می‌توانند از بالاپرها و هدایت کردن استفاده کنند. هرگاه خاموش باشد، سایت‌ها نمی‌توانند از بالاپرها و هدایت کردن استفاده کنند.</translation>
 <translation id="6540488083026747005">کوکی‌های طرف سوم را برای این سایت مجاز کرده‌اید</translation>
 <translation id="6542770556219257399">{NUM_WEEKS,plural, =1{‫<ph name="NUM_WEEKS_ONE" /> هفته پیش}one{‫<ph name="NUM_WEEKS_MANY" /> هفته پیش}other{‫<ph name="NUM_WEEKS_MANY" /> هفته پیش}}</translation>
@@ -560,6 +560,7 @@
 <translation id="7055552182600664515">برای پخش محتوایی که با حق نشر محافظت می‌شود، ممکن است لازم باشد سایت‌ها از سرویس محافظت محتوا استفاده کنند. <ph name="BEGIN_LINK" />بیشتر بدانید<ph name="END_LINK" /></translation>
 <translation id="7066151586745993502">{NUM_SELECTED,plural, =1{۱ مورد انتخاب شد}one{# مورد انتخاب شد}other{# مورد انتخاب شد}}</translation>
 <translation id="708014373017851679">«<ph name="APP_NAME" />» قدیمی است. لطفاً برنامه را به‌روزرسانی کنید.</translation>
+<translation id="7084115944294706056">انتخاب کردن موقعیت نوار نشانی</translation>
 <translation id="7087918508125750058"><ph name="ITEM_COUNT" /> مورد انتخاب شد.  گزینه‌ها در نزدیکی بالای صفحه دردسترس است</translation>
 <translation id="7141896414559753902">مسدود کردن نمایش پنجره‌های بازشو و هدایت‌ها در سایت‌ها (توصیه می‌شود)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> کیلوبایت</translation>
@@ -682,7 +683,7 @@
 <translation id="8471525937465764768">‏سایت‌ها معمولاً برای ارائه ویژگی‌هایی مانند چاپ سند یا ذخیره در دستگاه ذخیره‌سازی به دستگاه‌های USB متصل می‌شوند</translation>
 <translation id="8473055640493819707">«<ph name="APP_NAME" />» قدیمی است. لطفاً این برنامه را دوباره نصب کنید.</translation>
 <translation id="847433688444405067">پیمایش بین دستگاه‌ها</translation>
-<translation id="8487700953926739672">امکان دسترسی به صورت آفلاین</translation>
+<translation id="8487700953926739672">دردسترس در حالت آفلاین</translation>
 <translation id="848952951823693243">همیشه سایت ویژه تلفن همراه درخواست شود</translation>
 <translation id="8492822722330266509">سایت‌ها می‌توانند بالاپر ارسال کنند و از هدایت‌ها استفاده کنند</translation>
 <translation id="8493548450030356203">پنجره بزرگ‌نمایی بالاپر</translation>

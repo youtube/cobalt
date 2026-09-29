@@ -417,6 +417,15 @@ void GPUCanvasContext::configure(const GPUCanvasConfiguration* descriptor,
     return;
   }
 
+  const wgpu::TextureUsage usage =
+      AsDawnFlags<wgpu::TextureUsage>(descriptor->usage());
+  if (RuntimeEnabledFeatures::WebGPUExperimentalFeaturesEnabled() &&
+      usage & wgpu::TextureUsage::TransientAttachment) {
+    exception_state.ThrowTypeError(
+        String::Format("Unsupported TransientAttachment texture usage"));
+    return;
+  }
+
   // As soon as the validation for extensions for usage and formats passes, the
   // canvas is "configured" and calls to getNextTexture() will return GPUTexture
   // objects (valid or invalid) and not throw.
@@ -429,7 +438,7 @@ void GPUCanvasContext::configure(const GPUCanvasConfiguration* descriptor,
   // GPUCanvasContext.[[texture_descriptor]] in the WebGPU spec.
   texture_descriptor_ = {
       // Set the values from the configuration descriptor
-      .usage = AsDawnFlags<wgpu::TextureUsage>(descriptor->usage()),
+      .usage = usage,
       .dimension = wgpu::TextureDimension::e2D,
       .size = {static_cast<uint32_t>(host_size.width()),
                static_cast<uint32_t>(host_size.height())},
@@ -918,8 +927,9 @@ bool GPUCanvasContext::CopyTextureToResourceProvider(
       wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::RenderAttachment;
   std::unique_ptr<gpu::WebGPUTextureScopedAccess> scoped_access =
       dst_client_si->BeginWebGPUTextureAccess(
-          webgpu, sync_token, device_->GetHandle(), wgpu::TextureDescriptor(),
-          static_cast<uint64_t>(usage), gpu::webgpu::WEBGPU_MAILBOX_NONE);
+          webgpu, sync_token, device_->GetHandle(),
+          wgpu::TextureDescriptor{.usage = usage}, 0,
+          gpu::webgpu::WEBGPU_MAILBOX_NONE);
   wgpu::TexelCopyTextureInfo source = {
       .texture = texture,
       .aspect = wgpu::TextureAspect::All,

@@ -6,8 +6,10 @@
 
 #include "base/command_line.h"
 #include "base/strings/strcat.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/new_tab_page/modules/modules_constants.h"
 #include "chrome/browser/new_tab_page/modules/modules_switches.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -319,6 +321,98 @@ std::set<ntp_tiles::TileType> GetEnabledTileTypes(Profile* profile) {
     enabled_types.insert(ntp_tiles::TileType::kEnterpriseShortcuts);
   }
   return enabled_types;
+}
+
+// Updates the staleness info for shortcuts
+void UpdateShortcutsStaleness(Profile* profile) {
+  // Do not update staleness if shortcuts auto removal is disabled.
+  if (profile->GetPrefs()->GetBoolean(
+          ntp_prefs::kNtpShortcutsAutoRemovalDisabled)) {
+    return;
+  }
+
+  // Do not update staleness if shortcuts are not visible.
+  if (!profile->GetPrefs()->GetBoolean(ntp_prefs::kNtpShortcutsVisible)) {
+    return;
+  }
+
+  // Update the last update time if it is null.
+  base::Time prev_update_time =
+      profile->GetPrefs()->GetTime(ntp_prefs::kNtpLastShortcutsStalenessUpdate);
+  if (prev_update_time.is_null()) {
+    profile->GetPrefs()->SetTime(ntp_prefs::kNtpLastShortcutsStalenessUpdate,
+                                 base::Time::Now());
+    return;
+  }
+
+  // Update the staleness info if time delta is above the threshold.
+  const base::Time shortcuts_load_time = base::Time::Now();
+  const base::TimeDelta time_since_last_update =
+      shortcuts_load_time - prev_update_time;
+  const base::TimeDelta staleness_threshold =
+      ntp_features::kShortcutsMinStalenessUpdateTimeInterval.Get();
+  if (time_since_last_update <= staleness_threshold) {
+    return;
+  }
+
+  const int staleness_count =
+      profile->GetPrefs()->GetInteger(ntp_prefs::kNtpShortcutsStalenessCount);
+  profile->GetPrefs()->SetTime(ntp_prefs::kNtpLastShortcutsStalenessUpdate,
+                               shortcuts_load_time);
+  profile->GetPrefs()->SetInteger(ntp_prefs::kNtpShortcutsStalenessCount,
+                                  staleness_count + 1);
+}
+
+void UpdateModulesStaleness(Profile* profile,
+                            const std::vector<std::string>& module_ids) {
+  // (1) If it's the first update, do not update the staleness counters.
+  base::Time module_load_time = base::Time::Now();
+  base::Time prev_update_time =
+      profile->GetPrefs()->GetTime(ntp_prefs::kNtpLastModuleStalenessUpdate);
+  if (prev_update_time.is_null()) {
+    profile->GetPrefs()->SetTime(ntp_prefs::kNtpLastModuleStalenessUpdate,
+                                 module_load_time);
+    return;
+  }
+
+  // (2) Do not update the staleness if time delta is below the threshold.
+  const base::TimeDelta time_since_last_update =
+      module_load_time - prev_update_time;
+  const base::TimeDelta staleness_threshold =
+      ntp_features::kModuleMinStalenessUpdateTimeInterval.Get();
+  if (time_since_last_update <= staleness_threshold) {
+    return;
+  }
+
+  // (3) Do not update staleness if feature is disabled for all modules.
+  const base::Value::Dict& auto_removal_disabled_dict =
+      profile->GetPrefs()->GetDict(
+          ntp_prefs::kNtpModulesAutoRemovalDisabledDict);
+  const bool is_disabled_for_all_modules =
+      auto_removal_disabled_dict.FindBool(ntp_modules::kAllModulesId)
+          .value_or(false);
+  if (is_disabled_for_all_modules) {
+    return;
+  }
+
+  // The staleness update time is updated as long as both conditions
+  // (2) and (3) are met.
+  profile->GetPrefs()->SetTime(ntp_prefs::kNtpLastModuleStalenessUpdate,
+                               module_load_time);
+
+  // (4) Do not update staleness if feature is disabled for the module.
+  const base::Value::Dict& staleness_counts_dict =
+      profile->GetPrefs()->GetDict(ntp_prefs::kNtpModuleStalenessCountDict);
+  ScopedDictPrefUpdate update(profile->GetPrefs(),
+                              ntp_prefs::kNtpModuleStalenessCountDict);
+  for (const std::string& module_id : module_ids) {
+    const bool is_disabled_for_module =
+        auto_removal_disabled_dict.FindBool(module_id).value_or(false);
+    if (!is_disabled_for_module) {
+      std::optional<int> prev_count = staleness_counts_dict.FindInt(module_id);
+      update->Set(module_id, prev_count.value_or(0) + 1);
+    }
+  }
 }
 
 void DisableShortcutsAutoRemoval(Profile* profile) {

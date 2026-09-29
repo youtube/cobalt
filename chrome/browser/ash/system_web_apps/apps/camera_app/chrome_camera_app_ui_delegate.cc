@@ -13,6 +13,7 @@
 #include "ash/webui/camera_app_ui/pdf_builder.mojom.h"
 #include "ash/webui/camera_app_ui/url_constants.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "base/check_deref.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -31,6 +32,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
+#include "chrome/browser/ash/policy/skyvault/policy_utils.h"
 #include "chrome/browser/ash/system_web_apps/apps/camera_app/camera_app_survey_handler.h"
 #include "chrome/browser/ash/system_web_apps/apps/camera_app/chrome_camera_app_ui_constants.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
@@ -52,6 +54,7 @@
 #include "chrome/services/pdf/public/mojom/pdf_progressive_searchifier.mojom.h"
 #include "chrome/services/pdf/public/mojom/pdf_service.mojom.h"
 #include "chrome/services/pdf/public/mojom/pdf_thumbnailer.mojom.h"
+#include "chromeos/ash/experiences/camera/camera_save_handler.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/constants/devicetype.h"
 #include "chromeos/ui/base/window_properties.h"
@@ -74,6 +77,7 @@
 #include "ui/chromeos/styles/cros_styles.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/image/image.h"
 #include "ui/gfx/native_ui_types.h"
 #include "url/gurl.h"
 
@@ -508,13 +512,26 @@ void ChromeCameraAppUIDelegate::PopulateLoadTimeData(
   source->AddBoolean("super_res", base::FeatureList::IsEnabled(
                                       ash::features::kCameraSuperResSupported));
 
-  const PrefService* prefs = Profile::FromWebUI(web_ui_)->GetPrefs();
+  Profile* profile = Profile::FromWebUI(web_ui_);
+  const PrefService* prefs = profile->GetPrefs();
   GURL cca_url = GURL(ash::kChromeUICameraAppURL);
   bool url_allowed = policy::IsOriginInAllowlist(
       cca_url, prefs, prefs::kVideoCaptureAllowedUrls);
   source->AddBoolean(
       "cca_disallowed",
       !prefs->GetBoolean(prefs::kVideoCaptureAllowed) && !url_allowed);
+  source->AddString("path_relative_to_root",
+                    CHECK_DEREF(CameraSaveHandler::Get(*profile))
+                        .GetWritablePathRelativeToRoot()
+                        .value());
+  auto camera_destination =
+      policy::local_user_files::GetCameraDestination(profile);
+  source->AddBoolean(
+      "cloud_destination",
+      camera_destination ==
+              policy::local_user_files::FileSaveDestination::kGoogleDrive ||
+          camera_destination ==
+              policy::local_user_files::FileSaveDestination::kOneDrive);
 
   const char kChromeOSReleaseTrack[] = "CHROMEOS_RELEASE_TRACK";
   const char kTestImageRelease[] = "testimage-channel";
@@ -583,7 +600,10 @@ std::string ChromeCameraAppUIDelegate::GetFilePathInArcByName(
       !arc_url_out.is_valid()) {
     return std::string();
   }
-  if (requires_sharing) {
+  if (requires_sharing &&
+      policy::local_user_files::GetCameraDestination(
+          Profile::FromWebUI(web_ui_)) ==
+          policy::local_user_files::FileSaveDestination::kNotSpecified) {
     NOTREACHED()
         << "File path should be in MyFiles and not require any sharing";
   }
@@ -619,6 +639,14 @@ void ChromeCameraAppUIDelegate::MonitorFileDeletion(
           &ChromeCameraAppUIDelegate::MonitorFileDeletionOnFileThread,
           weak_factory_.GetWeakPtr(), file_monitor_.get(), std::move(file_path),
           std::move(callback_on_current_thread)));
+}
+
+void ChromeCameraAppUIDelegate::UploadFile(
+    const std::string& name,
+    const gfx::Image& thumbnail,
+    base::OnceCallback<void(bool)> callback) {
+  CHECK_DEREF(CameraSaveHandler::Get(*Profile::FromWebUI(web_ui_)))
+      .UploadFile(name, thumbnail, std::move(callback));
 }
 
 void ChromeCameraAppUIDelegate::MaybeTriggerSurvey() {
@@ -676,7 +704,9 @@ base::FilePath ChromeCameraAppUIDelegate::GetFilePathByName(
     return base::FilePath();
   }
 
-  return GetMyFilesFolder().Append("Camera").Append(name_component);
+  return CHECK_DEREF(CameraSaveHandler::Get(*Profile::FromWebUI(web_ui_)))
+      .GetFinalPath()
+      .Append(name_component);
 }
 
 void ChromeCameraAppUIDelegate::OnFileMonitorInitialized(

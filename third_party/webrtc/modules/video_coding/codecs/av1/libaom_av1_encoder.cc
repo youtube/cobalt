@@ -433,6 +433,7 @@ int LibaomAv1Encoder::InitEncode(const VideoCodec* codec_settings,
   if (encoder_speed_experiment_.IsDynamicSpeedEnabled()) {
     LibaomSpeedConfigFactory speed_config_factory(
         codec_settings->GetVideoEncoderComplexity(), codec_settings->mode);
+    RTC_DCHECK(speed_controllers_.empty());
 
     if (SvcEnabled()) {
       for (int si = 0; si < svc_params_->number_spatial_layers; ++si) {
@@ -659,6 +660,7 @@ int32_t LibaomAv1Encoder::Release() {
     }
     inited_ = false;
   }
+  speed_controllers_.clear();
   rates_configured_ = false;
   return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -742,6 +744,8 @@ TimeDelta LibaomAv1Encoder::GetFrameInterval(int spatial_index) const {
   if (!SvcEnabled()) {
     return frame_interval;
   }
+
+  RTC_DCHECK_LT(spatial_index, svc_params_->number_spatial_layers);
 
   // Allocate a time slice for each spatial layer, proportional to the
   // fraction of pixels allocated for that layer.

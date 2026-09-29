@@ -17,6 +17,7 @@
 #include "components/supervised_user/core/browser/supervised_user_metrics_service.h"
 #include "components/supervised_user/core/browser/supervised_user_pref_store.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
 #include "components/sync/base/data_type.h"
@@ -196,7 +197,7 @@ SupervisedUserTestEnvironment::SupervisedUserTestEnvironment(
 namespace {
 std::unique_ptr<ContentFiltersObserverBridge> MakeContentFiltersObserverBridge(
     std::string_view setting_name,
-    const PrefService& user_prefs,
+    const PrefService* user_prefs,
     InitialSupervisionState initial_state) {
   std::unique_ptr<ContentFiltersObserverBridge> bridge =
       std::make_unique<FakeContentFiltersObserverBridge>(setting_name,
@@ -231,16 +232,19 @@ SupervisedUserTestEnvironment::SupervisedUserTestEnvironment(
 #if BUILDFLAG(IS_ANDROID)
           ,
       MakeContentFiltersObserverBridge(kBrowserContentFiltersSettingName,
-                                       *pref_store_environment_.pref_service(),
+                                       pref_store_environment_.pref_service(),
                                        initial_state),
       MakeContentFiltersObserverBridge(kSearchContentFiltersSettingName,
-                                       *pref_store_environment_.pref_service(),
+                                       pref_store_environment_.pref_service(),
                                        initial_state)
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
+  url_filtering_service_ = std::make_unique<SupervisedUserUrlFilteringService>(
+      *service_.get(), *pref_store_environment_.settings_service());
   metrics_service_ = std::make_unique<SupervisedUserMetricsService>(
       pref_store_environment_.pref_service(), *service_.get(),
+      *url_filtering_service_.get(),
       std::make_unique<SupervisedUserMetricsServiceExtensionDelegateFake>(),
       std::move(metrics_service_accessor_delegate));
 }
@@ -328,6 +332,10 @@ SupervisedUserURLFilter* SupervisedUserTestEnvironment::url_filter() const {
 SupervisedUserService* SupervisedUserTestEnvironment::service() const {
   return service_.get();
 }
+SupervisedUserUrlFilteringService*
+SupervisedUserTestEnvironment::url_filtering_service() const {
+  return url_filtering_service_.get();
+}
 PrefService* SupervisedUserTestEnvironment::pref_service() {
   return pref_store_environment_.pref_service();
 }
@@ -344,7 +352,7 @@ SupervisedUserTestEnvironment::url_checker_client() {
 #if BUILDFLAG(IS_ANDROID)
 FakeContentFiltersObserverBridge::FakeContentFiltersObserverBridge(
     std::string_view setting_name,
-    const PrefService& pref_service)
+    const PrefService* pref_service)
     : ContentFiltersObserverBridge(setting_name, pref_service) {}
 FakeContentFiltersObserverBridge::~FakeContentFiltersObserverBridge() = default;
 

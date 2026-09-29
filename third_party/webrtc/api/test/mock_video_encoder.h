@@ -32,6 +32,12 @@ class MockEncodedImageCallback : public EncodedImageCallback {
               (const EncodedImage&, const CodecSpecificInfo*),
               (override));
   MOCK_METHOD(void, OnDroppedFrame, (DropReason reason), (override));
+  MOCK_METHOD(void,
+              OnFrameDropped,
+              (uint32_t rtp_timestamp,
+               int spatial_id,
+               bool is_end_of_temporal_unit),
+              (override));
 };
 
 class MockVideoEncoder : public VideoEncoder {

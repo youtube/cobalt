@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">Зачувувајте податоци во вашата сметка на Google</translation>
 <translation id="1414919006379339073">Затворете го тековниот прозорец</translation>
 <translation id="1416550906796893042">Верзија на апликација</translation>
-<translation id="1419753403124156396">Да се рестартира Chrome?</translation>
 <translation id="1428770807407000502">Да се исклучи синхронизацијата?</translation>
 <translation id="1430915738399379752">Печати</translation>
 <translation id="1435593198351412143">Отворај ги PDF-датотеките автоматски</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">Вашата организација вклучи „Подобреното безбедно прелистување“</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 неуспешно преземање}one{# неуспешно преземање}other{# неуспешни преземања}}</translation>
 <translation id="2067805253194386918">текст</translation>
-<translation id="2072027001582274150">Некористени или дупликат картички</translation>
 <translation id="2079545284768500474">Врати</translation>
 <translation id="2082238445998314030">Резултат <ph name="RESULT_NUMBER" /> од <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">За да го довршите поставувањето „Автоматско пополнување“, рестартирајте го Chrome сега. Вашите картички ќе се отворат автоматски повторно</translation>
 <translation id="2091863218454846791">Избран е „Компактен приказ“</translation>
 <translation id="2093731487903423814">минатите 15 минути</translation>
 <translation id="2096577711562668473">Да се промени услугата за автоматско пополнување?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">Допрете и задржете за да префрлите на „Инкогнито“</translation>
 <translation id="2860954141821109167">Проверете дали е овозможена апликација за телефон на уредов</translation>
 <translation id="2861923151411510142">Некои функции на Chrome веќе нема да бидат достапни</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> и уште 1 картичка}one{<ph name="URL" /> и уште <ph name="TAB_COUNT_MANY" /> картичка}other{<ph name="URL" /> и уште <ph name="TAB_COUNT_MANY" /> картички}}</translation>
 <translation id="2869430948265924908">За да ги заштитите чувствителните содржини во автомобилот, мора да создадете „Заклучување на профилот“ во автомобилот.  Тоа може да го направите со PIN, код или лозинка.</translation>
 <translation id="2870560284913253234">Локација</translation>
 <translation id="2871733351037274014">Вчитување на страниците однапред</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">Списокот со уреди за споделување картичка е отворен на цел екран.</translation>
 <translation id="2908243544703713905">Непрочитаните стории се спремни</translation>
 <translation id="2909615210195135082">Платформа за известувања на Google</translation>
+<translation id="2912247081180973411">Затвори ги прозорците</translation>
 <translation id="2912345083818861431">Користете заклучување екран за да ги гледате отворените картички „Инкогнито“</translation>
 <translation id="2918484639460781603">Одете во поставките</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, картичка со исклучен звук</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">Дознајте повеќе за блокираните сметки</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, се отвора во нова картичка</translation>
 <translation id="3166827708714933426">Кратенки за картичката и прозорецот</translation>
-<translation id="316694332262407393">Chrome веќе работи тука.</translation>
 <translation id="3167258285411721858">Можете да го побарате сајтот за мобилен за <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Откриј</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, повеќекратно избрана прикачена картичка „Инкогнито“ со исклучен звук</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">Копирајте го линкот до веб-страницата <ph name="PAGE_TITLE" />. Извор: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Добивајте подобри содржини</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />… и уште <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}one{<ph name="SHIPPING_OPTION_PREVIEW" />… и уште <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />… и уште <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
-<translation id="4698061626562952596">Прегледајте ги неактивните картички овде</translation>
 <translation id="4698757800236023795">Активни (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Кеширани слики и датотеки</translation>
 <translation id="4710167854527459075">Подредување по најнови</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> картичка – <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> картичка – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> картички – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Приватност</translation>
 <translation id="504456571576643789">Нешта што треба да се земат предвид</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{Избран е <ph name="WINDOW_COUNT_ONE" /> прозорец}one{Избрани се <ph name="WINDOW_COUNT_NORMAL" /> прозорец}other{Избрани се <ph name="WINDOW_COUNT_NORMAL" /> прозорци}}</translation>
 <translation id="5056587122125565772">Создавање слика</translation>
 <translation id="506254248375231072">Нема картички</translation>
 <translation id="5075939510584558547">Зачувувајте без шифрирање</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">Картичка инкогнито</translation>
 <translation id="5142281402488957685">За нови стории, повлечете надолу за да освежите</translation>
 <translation id="5144385790872094440">Некои од страниците што ги отворате се вчитани однапред. Страниците може да се вчитани однапред преку серверите на Google кога се поврзани од сајт или апликација на Google.</translation>
-<translation id="5145887002054615868">Дупликат картичките или оние што не се користеле <ph name="DAYS_INACTIVE" /> дена се преместуваат овде<ph name="AUTODELETE_SECTION" />. Ова може да го промените кога сакате во <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Не се инсталирани поддржани апликации</translation>
 <translation id="5161254044473106830">Потребен е наслов</translation>
 <translation id="5161262286013276579">Листот за потврдување на криптографскиот клуч е отворен</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">Може да се движите низ страниците со курсорот за текст. Притиснете F7 за да исклучите.</translation>
 <translation id="5471273988133666918">Картичката <ph name="TAB_TITLE" /> не може да се премести</translation>
 <translation id="548278423535722844">Отвори во апликацијата „Карти“</translation>
+<translation id="5494920125229734069">Избери сè</translation>
 <translation id="549660026907543296">Придружете се како <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Долен лист на неодамнешна активност</translation>
 <translation id="5526281268548144413">Не може да се затворат во повеќе прозорци</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">Вашите датотеки и страници ќе ги најдете во „Преземања“</translation>
 <translation id="5962718611393537961">Допрете за да се собере</translation>
 <translation id="5964869237734432770">Сопри описи на слики</translation>
+<translation id="5972844218283131174">Поништи го изборот на сите</translation>
 <translation id="5975083100439434680">Одзумирај</translation>
 <translation id="5977976211062815271">На уредов</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 страница во вашиот „Список за читање“}one{# страница во вашиот „Список за читање“}other{# страници во вашиот „Список за читање“}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">Не треба да ја памтите лозинкава. Ќе се зачува во Google Password Manager.</translation>
 <translation id="8152331954420209374">Одете на Lens</translation>
 <translation id="8153206878708357851">Вклучи/исклучи „Прелистување со курсор“</translation>
+<translation id="8154784523622173959">Персонализирајте ја заднината на страницава</translation>
 <translation id="8163820386638255770">За да користите и зачувувате лозинки во вашата сметка на Google, потврдете го вашиот идентитет</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) неактивна ставка}one{(#) неактивна ставка}other{(#) неактивни ставки}}</translation>
 <translation id="8186512483418048923">Преостануваат <ph name="FILES" /> датотеки</translation>
 <translation id="8190358571722158785">Остана 1 ден</translation>
 <translation id="8192765420340770300">Долниот лист за најавување е отворен на целосна висина</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Вашите уреди<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Избриши го поимот за пребарување</translation>
 <translation id="820568752112382238">Најпосетувани веб-сајтови</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Придружете се во групата картички со <ph name="OWNER_FIRST_NAME" /> и уште <ph name="NUMBER_OF_OTHER_MEMBERS" />}one{Придружете се во групата картички со <ph name="OWNER_FIRST_NAME" /> и уште <ph name="NUMBER_OF_OTHER_MEMBERS" />}other{Придружете се во групата картички со <ph name="OWNER_FIRST_NAME" /> и уште <ph name="NUMBER_OF_OTHER_MEMBERS" />}}</translation>
 <translation id="8209050860603202033">отвори слика</translation>

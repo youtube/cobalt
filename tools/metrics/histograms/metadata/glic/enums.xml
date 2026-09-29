@@ -270,7 +270,7 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicGetContextFromTabError) -->
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_enums.h:GlicGetContextFromTabError) -->
 
 <!-- LINT.IfChange(GlicHostApiRequestType) -->
 
@@ -354,6 +354,8 @@ chromium-metrics-reviews@google.com.
   <int value="77" label="CreateActorTab"/>
   <int value="78" label="OpenPasswordManagerSettingsPage"/>
   <int value="79" label="LoadAndExtractContent"/>
+  <int value="80" label="SetOnboardingCompleted"/>
+  <int value="81" label="SubscribeToTabData"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->

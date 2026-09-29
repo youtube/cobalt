@@ -20,6 +20,7 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/command_updater.h"
@@ -231,6 +232,14 @@ LocationBarView::LocationBarView(Browser* browser,
       profile_(profile),
       delegate_(delegate),
       is_popup_mode_(is_popup_mode) {
+  if (browser_) {
+    pref_registrar_ = std::make_unique<PrefChangeRegistrar>();
+    pref_registrar_->Init(browser_->GetProfile()->GetPrefs());
+    pref_registrar_->Add(omnibox::kShowAiModeOmniboxButton,
+                         base::BindRepeating(&LocationBarView::OnChanged,
+                                             base::Unretained(this)));
+  }
+
   run_omnibox_context_menu_callback_ =
       base::BindRepeating([](OmniboxContextMenu* menu, gfx::Point point) {
         menu->RunMenuAt(point, ui::mojom::MenuSourceType::kMouse);
@@ -1778,6 +1787,14 @@ void LocationBarView::OnPopupStateChanged(OmniboxPopupState old_state,
                      weak_factory_.GetWeakPtr()),
       base::Milliseconds(100));
 
+  if (browser_ && base::FeatureList::IsEnabled(
+                      features::kGlicHandoffButtonHideWhenOmniboxPopupOpened)) {
+    if (auto* window_controller = ActorUiWindowController::From(browser_)) {
+      window_controller->OnOmniboxPopupStateChanged(new_state !=
+                                                    OmniboxPopupState::kNone);
+    }
+  }
+
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   if (new_state != OmniboxPopupState::kNone) {
     // Close any overlapping user education bubbles when any popup opens.
@@ -1997,13 +2014,15 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
       GetOmniboxController()->edit_model()->ShouldShowAddContextButton()) {
     if (!omnibox_popup_aim_presenter_ ||
         !omnibox_popup_aim_presenter_->GetWebUIContent() ||
-        !omnibox_popup_aim_presenter_->GetWebUIContent()->GetWebContents()) {
+        !omnibox_popup_aim_presenter_->GetWebUIContent()
+             ->GetWrappedWebContents()) {
       return;
     }
 
     omnibox_context_menu_ = std::make_unique<OmniboxContextMenu>(
         GetWidget(), omnibox_popup_file_selector_.get(),
-        omnibox_popup_aim_presenter_->GetWebUIContent()->GetWebContents());
+        omnibox_popup_aim_presenter_->GetWebUIContent()
+            ->GetWrappedWebContents());
     gfx::Point point(0, location_icon_view_->height());
     views::View::ConvertPointToScreen(location_icon_view_, &point);
     run_omnibox_context_menu_callback_.Run(omnibox_context_menu_.get(), point);

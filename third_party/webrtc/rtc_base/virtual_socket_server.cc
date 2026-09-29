@@ -113,10 +113,11 @@ VirtualSocket::VirtualSocket(VirtualSocketServer* server, int family, int type)
       bound_(false),
       was_any_(false) {
   RTC_DCHECK((type_ == SOCK_DGRAM) || (type_ == SOCK_STREAM));
-  server->SubscribeReadyToSend([this] { OnSocketServerReadyToSend(); });
+  server->SubscribeReadyToSend(this, [this] { OnSocketServerReadyToSend(); });
 }
 
 VirtualSocket::~VirtualSocket() {
+  // TODO: issues.webrtc.org/465197113 - consider if it's worth unsubscribing.
   Close();
 }
 

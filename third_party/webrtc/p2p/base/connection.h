@@ -135,9 +135,15 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   // populated (default value false).
   ConnectionInfo stats();
 
+  [[deprecated("Use SubscribeStateChange(void* tag, ...)")]]
   void SubscribeStateChange(
       absl::AnyInvocable<void(Connection* connection)> callback) {
     state_change_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeStateChange(
+      void* tag,
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    state_change_callbacks_.AddReceiver(tag, std::move(callback));
   }
   // Sent when the connection has decided that it is no longer of value.  It
   // will delete itself immediately after this call.
@@ -166,9 +172,15 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
           received_packet_callback);
   void DeregisterReceivedPacketCallback();
 
+  [[deprecated("Use SubscribeReadyToSend(void* tag, ...)")]]
   void SubscribeReadyToSend(
       absl::AnyInvocable<void(Connection* connection)> callback) {
     ready_to_send_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeReadyToSend(
+      void* tag,
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    ready_to_send_callbacks_.AddReceiver(tag, std::move(callback));
   }
   // Called when a packet is received on this connection.
   void OnReadPacket(const ReceivedIpPacket& packet);
@@ -280,9 +292,16 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   // This signal will be fired if this connection is nominated by the
   // controlling side.
+  [[deprecated("Use SubscribeNominated(void* tag, ...)")]]
   void SubscribeNominated(
       absl::AnyInvocable<void(Connection* connection)> callback) {
     nominated_callbacks_.AddReceiver(std::move(callback));
+  }
+
+  void SubscribeNominated(
+      void* tag,
+      absl::AnyInvocable<void(Connection* connection)> callback) {
+    nominated_callbacks_.AddReceiver(tag, std::move(callback));
   }
   IceCandidatePairState state() const;
 
@@ -392,6 +411,8 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   void NotifyNominatedForTesting(Connection* connection) {
     NotifyNominated(connection);
   }
+
+  bool set_writable_for_fake_ice_lite() const;
 
  protected:
   // A ConnectionRequest is a simple STUN ping used to determine writability.

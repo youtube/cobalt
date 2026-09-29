@@ -180,16 +180,6 @@ gn_args.config(
 )
 
 gn_args.config(
-    name = "arm_no_neon",
-    args = {
-        "arm_use_neon": False,
-    },
-    configs = [
-        "arm",
-    ],
-)
-
-gn_args.config(
     name = "asan",
     args = {
         "is_asan": True,
@@ -1553,6 +1543,13 @@ gn_args.config(
     name = "xctest",
     args = {"enable_run_ios_unittests_with_xctest": True},
     configs = ["ios"],
+)
+
+gn_args.config(
+    name = "ios_chrome_enable_profile_altering_tests",
+    args = {
+        "ios_chrome_enable_profile_altering_tests": True,
+    },
 )
 
 gn_args.config(

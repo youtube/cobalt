@@ -250,6 +250,8 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     i_isolate->heap()->RecordStats(&heap_stats);
     i_isolate->heap()->ReportStatsAsCrashKeys(heap_stats);
 
+    i_isolate->ReportStackAsCrashKey();
+
     if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(heap_stats.last_few_messages, '\n');
       if (first_newline == nullptr || first_newline[1] == '\0')
@@ -827,7 +829,7 @@ bool Data::IsValue() const {
   i::Tagged<i::HeapObject> heap_object = i::Cast<i::HeapObject>(self);
   DCHECK(!IsTheHole(heap_object));
   if (i::IsSymbol(heap_object)) {
-    return !i::Cast<i::Symbol>(heap_object)->is_private();
+    return !i::Cast<i::Symbol>(heap_object)->is_any_private();
   }
   return IsPrimitiveHeapObject(heap_object) || IsJSReceiver(heap_object);
 }
@@ -3941,7 +3943,7 @@ void v8::Symbol::CheckCast(v8::Data* that) {
 
 void v8::Private::CheckCast(v8::Data* that) {
   auto obj = Utils::OpenDirectHandle(that);
-  Utils::ApiCheck(IsSymbol(*obj) && i::Cast<i::Symbol>(obj)->is_private(),
+  Utils::ApiCheck(IsSymbol(*obj) && i::Cast<i::Symbol>(obj)->is_any_private(),
                   "v8::Private::Cast", "Value is not a Private");
 }
 
@@ -6104,7 +6106,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
-  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
+  DCHECK_LE(tag_range.first, tag_range.last);
   return i::CppHeapObjectWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
@@ -7324,7 +7326,7 @@ Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,
 
 void* CppHeapExternal::ValueImpl(v8::Isolate* isolate,
                                  CppHeapPointerTagRange tag_range) const {
-  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
+  DCHECK_LE(tag_range.first, tag_range.last);
   auto self = Utils::OpenDirectHandle(this);
   return i::CppHeapObjectWrapper(*self).GetCppHeapWrappable(
       reinterpret_cast<i::Isolate*>(isolate), tag_range);
@@ -7335,7 +7337,8 @@ namespace {
 
 inline int StringLength(const char* string) {
   size_t len = strlen(string);
-  CHECK_GE(i::kMaxInt, len);
+  CHECK_GE(String::kMaxLength, len);
+  static_assert(String::kMaxLength <= i::kMaxInt);
   return static_cast<int>(len);
 }
 
@@ -7346,7 +7349,8 @@ inline int StringLength(const uint8_t* string) {
 inline int StringLength(const uint16_t* string) {
   size_t length = 0;
   while (string[length] != '\0') length++;
-  CHECK_GE(i::kMaxInt, length);
+  CHECK_GE(String::kMaxLength, length);
+  static_assert(String::kMaxLength <= i::kMaxInt);
   return static_cast<int>(length);
 }
 

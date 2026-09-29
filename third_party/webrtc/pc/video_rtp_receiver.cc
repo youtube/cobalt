@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/frame_transformer_interface.h"
@@ -40,19 +41,24 @@
 
 namespace webrtc {
 
-VideoRtpReceiver::VideoRtpReceiver(Thread* worker_thread,
-                                   std::string receiver_id,
-                                   std::vector<std::string> stream_ids)
+VideoRtpReceiver::VideoRtpReceiver(
+    Thread* worker_thread,
+    absl::string_view receiver_id,
+    std::vector<std::string> stream_ids,
+    VideoMediaReceiveChannelInterface* media_channel)
     : VideoRtpReceiver(worker_thread,
                        receiver_id,
-                       CreateStreamsFromIds(std::move(stream_ids))) {}
+                       CreateStreamsFromIds(std::move(stream_ids)),
+                       media_channel) {}
 
 VideoRtpReceiver::VideoRtpReceiver(
     Thread* worker_thread,
-    const std::string& receiver_id,
-    const std::vector<scoped_refptr<MediaStreamInterface>>& streams)
+    absl::string_view receiver_id,
+    const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+    VideoMediaReceiveChannelInterface* media_channel)
     : worker_thread_(worker_thread),
       id_(receiver_id),
+      media_channel_(media_channel),
       source_(make_ref_counted<VideoRtpTrackSource>(&source_callback_)),
       track_(VideoTrackProxyWithInternal<VideoTrack>::Create(
           Thread::Current(),

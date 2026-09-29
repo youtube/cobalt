@@ -11,12 +11,10 @@
 #include "base/cancelable_callback.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/resource_coordinator/tab_manager_features.h"
 
 namespace content {
 class WebContents;

@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "base/bit_cast.h"
+#include "base/byte_size.h"
 #include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
@@ -128,6 +129,7 @@
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider_external_bitmap.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/image_extractor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -5694,8 +5696,8 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   }
 
   CHECK(snapshot_provider->IsExternalBitmapProvider());
-  CanvasResourceProviderExternalBitmap* snapshot_provider_bitmap =
-      static_cast<CanvasResourceProviderExternalBitmap*>(snapshot_provider);
+  CanvasSnapshotProviderExternalBitmap* snapshot_provider_bitmap =
+      static_cast<CanvasSnapshotProviderExternalBitmap*>(snapshot_provider);
 
   return snapshot_provider_bitmap->DoExternalDrawAndSnapshot(
       [&](MemoryManagedPaintCanvas& canvas) {
@@ -6685,6 +6687,37 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
                     element, exception_state);
 }
 
+void WebGLRenderingContextBase::texElement2D(GLenum target,
+                                             GLint level,
+                                             GLint internalformat,
+                                             GLfloat sx,
+                                             GLfloat sy,
+                                             GLfloat swidth,
+                                             GLfloat sheight,
+                                             GLenum format,
+                                             GLenum type,
+                                             Element* element,
+                                             ExceptionState& exception_state) {
+  texElementImage2D(target, level, internalformat, sx, sy, swidth, sheight,
+                    format, type, element, exception_state);
+}
+
+void WebGLRenderingContextBase::texElement2D(GLenum target,
+                                             GLint level,
+                                             GLint internalformat,
+                                             GLfloat sx,
+                                             GLfloat sy,
+                                             GLfloat swidth,
+                                             GLfloat sheight,
+                                             GLsizei width,
+                                             GLsizei height,
+                                             GLenum format,
+                                             GLenum type,
+                                             Element* element,
+                                             ExceptionState& exception_state) {
+  texElementImage2D(target, level, internalformat, sx, sy, swidth, sheight,
+                    width, height, format, type, element, exception_state);
+}
 void WebGLRenderingContextBase::texElementImage2D(
     GLenum target,
     GLint level,
@@ -6693,9 +6726,11 @@ void WebGLRenderingContextBase::texElementImage2D(
     GLenum type,
     Element* element,
     ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat, std::nullopt,
-                            std::nullopt, format, type, element,
-                            exception_state);
+  TexElementImage2DInternal(target, level, internalformat,
+                            /*sx*/ std::nullopt, /*sy*/ std::nullopt,
+                            /*swidth*/ std::nullopt, /*sheight*/ std::nullopt,
+                            /*width*/ std::nullopt, /*height*/ std::nullopt,
+                            format, type, element, exception_state);
 }
 
 void WebGLRenderingContextBase::texElementImage2D(
@@ -6708,14 +6743,58 @@ void WebGLRenderingContextBase::texElementImage2D(
     GLenum type,
     Element* element,
     ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat, width, height,
+  TexElementImage2DInternal(target, level, internalformat,
+                            /*sx*/ std::nullopt, /*sy*/ std::nullopt,
+                            /*swidth*/ std::nullopt, /*sheight*/ std::nullopt,
+                            width, height, format, type, element,
+                            exception_state);
+}
+
+void WebGLRenderingContextBase::texElementImage2D(
+    GLenum target,
+    GLint level,
+    GLint internalformat,
+    GLfloat sx,
+    GLfloat sy,
+    GLfloat swidth,
+    GLfloat sheight,
+    GLenum format,
+    GLenum type,
+    Element* element,
+    ExceptionState& exception_state) {
+  TexElementImage2DInternal(target, level, internalformat, sx, sy, swidth,
+                            sheight,
+                            /*width*/ std::nullopt, /*height*/ std::nullopt,
                             format, type, element, exception_state);
+}
+
+void WebGLRenderingContextBase::texElementImage2D(
+    GLenum target,
+    GLint level,
+    GLint internalformat,
+    GLfloat sx,
+    GLfloat sy,
+    GLfloat swidth,
+    GLfloat sheight,
+    GLsizei width,
+    GLsizei height,
+    GLenum format,
+    GLenum type,
+    Element* element,
+    ExceptionState& exception_state) {
+  TexElementImage2DInternal(target, level, internalformat, sx, sy, swidth,
+                            sheight, width, height, format, type, element,
+                            exception_state);
 }
 
 void WebGLRenderingContextBase::TexElementImage2DInternal(
     GLenum target,
     GLint level,
     GLint internalformat,
+    std::optional<GLfloat> sx,
+    std::optional<GLfloat> sy,
+    std::optional<GLfloat> swidth,
+    std::optional<GLfloat> sheight,
     std::optional<GLsizei> width,
     std::optional<GLsizei> height,
     GLenum format,
@@ -6732,8 +6811,9 @@ void WebGLRenderingContextBase::TexElementImage2DInternal(
     return;
   }
 
-  scoped_refptr<Image> image = GetElementImage(
-      element, width, height, "texElementImage2D()", exception_state);
+  scoped_refptr<Image> image =
+      GetElementImage(element, sx, sy, swidth, sheight, width, height,
+                      "texElementImage2D()", exception_state);
   if (!image) {
     return;
   }
@@ -8838,7 +8918,7 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
     temp = CreateSnapshotProviderForVideoFrame(
         size, format, alpha_type, color_space, raster_context_provider);
   } else {
-    temp = CanvasResourceProvider::CreateExternalBitmapProvider(
+    temp = CanvasSnapshotProviderExternalBitmap::Create(
         size, format, alpha_type, color_space);
   }
 
@@ -9066,11 +9146,11 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   CanvasRenderingContext::Trace(visitor);
 }
 
-base::ByteCount WebGLRenderingContextBase::AllocatedBufferSize() const {
+base::ByteSize WebGLRenderingContextBase::AllocatedBufferSize() const {
   if (!Host() || isContextLost()) {
-    return base::ByteCount();
+    return base::ByteSize();
   }
-  base::ByteCount result = GetDrawingBuffer()->EstimatedSizeInBytes();
+  base::ByteSize result = GetDrawingBuffer()->EstimatedSizeInBytes();
 
   auto* provider = resource_provider_.get();
   if (provider) {

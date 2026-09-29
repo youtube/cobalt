@@ -12,10 +12,58 @@ class UpdaterBrowserTest : public WebUIMochaBrowserTest {
 };
 
 typedef UpdaterBrowserTest UpdaterAppTest;
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, AppDialogTest) {
+  RunTest("updater/event_list/filter_dialog/app_dialog_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, DateDialogTest) {
+  RunTest("updater/event_list/filter_dialog/date_dialog_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EventDialogTest) {
+  RunTest("updater/event_list/filter_dialog/event_dialog_test.js",
+          "mocha.run();");
+}
+
 IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EventHistoryTest) {
   RunTest("updater/event_history_test.js", "mocha.run();");
 }
 
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EventListItemTest) {
+  RunTest("updater/event_list/event_list_item_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EventListTest) {
+  RunTest("updater/event_list/event_list_test.js", "mocha.run();");
+}
+
 IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterBarTest) {
   RunTest("updater/event_list/filter_bar_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterSettingsTest) {
+  RunTest("updater/event_list/filter_settings_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterDialogFooterTest) {
+  RunTest("updater/event_list/filter_dialog/filter_dialog_footer_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterDialogTest) {
+  RunTest("updater/event_list/filter_dialog/filter_dialog_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, OutcomeDialogTest) {
+  RunTest("updater/event_list/filter_dialog/outcome_dialog_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, TypeDialogTest) {
+  RunTest("updater/event_list/filter_dialog/type_dialog_test.js",
+          "mocha.run();");
 }

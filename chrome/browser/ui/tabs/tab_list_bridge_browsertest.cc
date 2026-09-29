@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -17,6 +18,7 @@
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
@@ -139,6 +141,28 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetActiveIndex) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  EXPECT_EQ(1, tab_list_interface->GetActiveIndex());
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, ActivateTab) {
+  const GURL url("http://one.example");
+
+  TabListInterface* tab_list_interface = TabListBridge::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  // Add a second tab, which should be active (it opens in the foreground).
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  EXPECT_EQ(2, tab_list_interface->GetTabCount());
+  EXPECT_EQ(1, tab_list_interface->GetActiveIndex());
+
+  // Focus the first tab.
+  tab_list_interface->ActivateTab(tab_list_interface->GetTab(0)->GetHandle());
+  EXPECT_EQ(0, tab_list_interface->GetActiveIndex());
+
+  // (Re)-Focus the second tab.
+  tab_list_interface->ActivateTab(tab_list_interface->GetTab(1)->GetHandle());
   EXPECT_EQ(1, tab_list_interface->GetActiveIndex());
 }
 
@@ -498,25 +522,31 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, HighlightTabs) {
   EXPECT_TRUE(tab_strip_model->IsTabSelected(3));
 }
 
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest,
+                       ContainsTabGroupWhenTabGroupsNotSupported) {
+  // App windows don't allow tab groups.
+  Browser::CreateParams params = Browser::CreateParams::CreateForApp(
+      "some app", /*trusted_source=*/false, gfx::Rect(), browser()->profile(),
+      /*user_gesture=*/true);
+  // params.window = window2.release();
+  Browser* browser2 = Browser::Create(params);
+  BrowserList::SetLastActive(browser2);
+
+  ASSERT_FALSE(browser2->tab_strip_model()->SupportsTabGroups());
+
+  TabListInterface* tab_list_interface = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list_interface);
+
+  // No crash when querying a tab strip that doesn't support groups.
+  EXPECT_FALSE(tab_list_interface->ContainsTabGroup(
+      tab_groups::TabGroupId::CreateEmpty()));
+}
+
 IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, AddTabsToGroup) {
-  // Create three tabs.
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("about:blank"), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  SetupTabs(browser(), 3);
+
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(tab_strip_model);
-
-  // Set the WebContents ID for all three tabs to their respective indices.
-  SetID(tab_strip_model->GetWebContentsAt(0), 0);
-  SetID(tab_strip_model->GetWebContentsAt(1), 1);
-  SetID(tab_strip_model->GetWebContentsAt(2), 2);
-
   EXPECT_EQ("0 1 2",
             GetTabStripStateString(tab_strip_model, /*annotate_groups=*/true));
 
@@ -791,4 +821,35 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest,
   tab_list_interface->MoveGroupTo(*group_id, 3);
   EXPECT_EQ("0 1g0 2g0 3g0 6g1 7g1 8g1 4 5 9",
             GetTabStripStateString(tab_strip_model, /*annotate_groups=*/true));
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, OpenTab) {
+  const GURL url1("about:blank?q=1");
+  const GURL url2("about:blank?q=2");
+  const GURL url3("about:blank?q=3");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url1, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(tab_strip_model);
+
+  TabListInterface* tab_list_interface = TabListInterface::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  // Open a tab at the start of the tab strip.
+  tab_list_interface->OpenTab(url2, 0);
+  EXPECT_EQ(0, tab_list_interface->GetActiveIndex());
+  EXPECT_TRUE(content::WaitForLoadStop(tab_strip_model->GetWebContentsAt(0)));
+  EXPECT_THAT(tab_list_interface->GetAllTabs(),
+              testing::ElementsAre(MatchesTab(url2), MatchesTab(url1)));
+
+  // Open a tab at the end of the tab strip by specifying -1 as the index.
+  tab_list_interface->OpenTab(url3, -1);
+  EXPECT_EQ(2, tab_list_interface->GetActiveIndex());
+  EXPECT_TRUE(content::WaitForLoadStop(tab_strip_model->GetWebContentsAt(2)));
+  EXPECT_THAT(tab_list_interface->GetAllTabs(),
+              testing::ElementsAre(MatchesTab(url2), MatchesTab(url1),
+                                   MatchesTab(url3)));
 }

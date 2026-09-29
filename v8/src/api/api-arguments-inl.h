@@ -19,21 +19,12 @@
 namespace v8 {
 namespace internal {
 
-CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
-    : Relocatable(isolate) {}
-
 template <typename T>
-CustomArguments<T>::~CustomArguments() {
-  slot_at(kReturnValueIndex).store(Tagged<Object>(kHandleZapValue));
-}
-
-template <typename T>
-template <typename V>
-Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
+Handle<T> PropertyCallbackArguments::GetReturnValue() const {
   // Check the ReturnValue.
   FullObjectSlot slot = slot_at(kReturnValueIndex);
   DCHECK(Is<JSAny>(*slot));
-  return Cast<V>(Handle<Object>(slot.location()));
+  return Cast<T>(Handle<Object>(slot.location()));
 }
 
 inline DirectHandle<JSObject> PropertyCallbackArguments::holder() const {
@@ -46,7 +37,7 @@ inline DirectHandle<Object> PropertyCallbackArguments::receiver() const {
 
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \
   DCHECK(interceptor->is_named());                \
-  DCHECK(!name->IsPrivate());                     \
+  DCHECK(!name->IsAnyPrivate());                  \
   DCHECK_IMPLIES(IsSymbol(*name), interceptor->can_intercept_symbols());
 
 #define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,            \
@@ -74,23 +65,90 @@ inline DirectHandle<Object> PropertyCallbackArguments::receiver() const {
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F),                  \
                                    EXCEPTION_CONTEXT, &callback_info);
 
+template <typename ArgT>
 FunctionCallbackArguments::FunctionCallbackArguments(
     Isolate* isolate, Tagged<FunctionTemplateInfo> target,
-    Tagged<HeapObject> new_target, Address* argv, int argc)
-    : Super(isolate), argv_(argv), argc_(argc) {
-  slot_at(T::kTargetIndex).store(target);
-  slot_at(T::kUnusedIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  slot_at(T::kNewTargetIndex).store(new_target);
-  slot_at(T::kIsolateIndex)
-      .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
-  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  slot_at(T::kContextIndex).store(isolate->context());
-  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
+    Tagged<Object> receiver, const base::Vector<const ArgT> args)
+    : Relocatable(isolate) {
+  Initialize<false>(isolate, target, Smi::zero(), receiver, args);
 }
 
-DirectHandle<Object> FunctionCallbackArguments::CallOrConstruct(
-    Tagged<FunctionTemplateInfo> function, bool is_construct) {
-  Isolate* isolate = this->isolate();
+template <typename ArgT>
+FunctionCallbackArguments::FunctionCallbackArguments(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<HeapObject> new_target, Tagged<Object> receiver,
+    const base::Vector<const ArgT> args)
+    : Relocatable(isolate) {
+  Initialize<true>(isolate, target, new_target, receiver, args);
+}
+
+template <bool is_construct, typename ArgT>
+  requires(std::is_same_v<ArgT, DirectHandle<Object>> ||
+           std::is_same_v<ArgT, Address>)
+void FunctionCallbackArguments::Initialize(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<Object> new_target, Tagged<Object> receiver,
+    const base::Vector<const ArgT> args) {
+  uint32_t argc = static_cast<uint32_t>(args.size());
+  values_.resize(argc + T::kArgsLength + T::kOptionalArgsLength);
+
+  Address* values = &values_.data()[T::kOptionalArgsLength];
+
+  // Initialize frame part.
+  values[T::kNewTargetIndex] = is_construct ? new_target.ptr() : 0;
+  values[T::kArgcIndex] = argc;
+  values[T::kFrameTypeIndex] =
+      Smi::FromInt(is_construct ? StackFrame::API_CONSTRUCT_EXIT
+                                : StackFrame::API_CALLBACK_EXIT)
+          .ptr();
+
+  if (DEBUG_BOOL) {
+    // These values are not supposed to be looked at.
+    values[T::kFrameSPIndex] = kHandleZapValue;
+    values[T::kFrameConstantPoolIndex] = kHandleZapValue;
+    values[T::kFrameFPIndex] = kHandleZapValue;
+    values[T::kFramePCIndex] = kHandleZapValue;
+  }
+
+  // Initialize Api arguments part.
+  values[T::kTargetIndex] = target.ptr();
+  values[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
+  values[T::kReturnValueIndex] = ReadOnlyRoots(isolate).undefined_value().ptr();
+  values[T::kContextIndex] = isolate->context().ptr();
+  DCHECK(HAS_SMI_TAG(values[T::kIsolateIndex]));
+
+  // Initialize JS arguments part.
+  values[T::kReceiverIndex] = receiver.ptr();
+  for (uint32_t i = 0; i < argc; ++i) {
+    if constexpr (std::is_same_v<ArgT, Address>) {
+      values[T::kFirstJSArgumentIndex + i] = args[i];
+    } else {
+      values[T::kFirstJSArgumentIndex + i] = (*args[i]).ptr();
+    }
+  }
+}
+
+FunctionCallbackArguments::~FunctionCallbackArguments() {
+  if (DEBUG_BOOL) {
+    // Make sure the result handle located inside this structure is not used
+    // after this object dies.
+    values_.data()[T::kReturnValueIndex] = kHandleZapValue;
+  }
+}
+
+void FunctionCallbackArguments::IterateInstance(RootVisitor* v) {
+  // Visit newTargetSlot which is located in the frame.
+  v->VisitRootPointer(Root::kRelocatable, nullptr, slot_at(T::kNewTargetIndex));
+
+  // Visit all slots above "pc" in this artificial Api callback frame object.
+  v->VisitRootPointers(Root::kRelocatable, nullptr,
+                       slot_at(T::kFirstApiArgumentIndex),
+                       FullObjectSlot(values_.end()));
+}
+
+Tagged<JSAny> FunctionCallbackArguments::CallOrConstruct(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> function,
+    bool is_construct) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
       reinterpret_cast<v8::FunctionCallback>(function->callback(isolate));
@@ -99,19 +157,25 @@ DirectHandle<Object> FunctionCallbackArguments::CallOrConstruct(
           handle(function, isolate))) {
     return {};
   }
-  FunctionCallbackInfo<v8::Value> info(values_, argv_, argc_);
+  // v8::FunctionCallbackInfo structure might start at different positions in
+  // values_ array depending on whether it's a construct call or not.
+  auto info =
+      reinterpret_cast<FunctionCallbackInfo<v8::Value>*>(slot_at(0).location());
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f),
                                    is_construct ? ExceptionContext::kConstructor
                                                 : ExceptionContext::kOperation,
-                                   &info);
-  f(info);
-  return GetReturnValue<Object>(isolate);
+                                   info);
+  f(*info);
+
+  Tagged<Object> result = *slot_at(T::kReturnValueIndex);
+  DCHECK(Is<JSAny>(result));
+  return Cast<JSAny>(result);
 }
 
 PropertyCallbackArguments::PropertyCallbackArguments(
     Isolate* isolate, Tagged<Object> self, Tagged<JSObject> holder,
     Maybe<ShouldThrow> should_throw)
-    : Super(isolate)
+    : Relocatable(isolate)
 #ifdef DEBUG
       ,
       javascript_execution_counter_(isolate->javascript_execution_counter())
@@ -141,19 +205,19 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 
 PropertyCallbackArguments::~PropertyCallbackArguments(){
 #ifdef DEBUG
-// TODO(chromium:1310062): enable this check.
-// if (javascript_execution_counter_) {
-//   CHECK_WITH_MSG(javascript_execution_counter_ ==
-//                      isolate()->javascript_execution_counter(),
-//                  "Unexpected side effect detected");
-// }
+  // TODO(chromium:1310062): enable this check.
+  // if (javascript_execution_counter_) {
+  //   CHECK_WITH_MSG(javascript_execution_counter_ ==
+  //                      isolate()->javascript_execution_counter(),
+  //                  "Unexpected side effect detected");
+  // }
+  slot_at(T::kReturnValueIndex).store(Tagged<Object>(kHandleZapValue));
 #endif  // DEBUG
 }
 
 Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
-    v8::Intercepted intercepted, const char* callback_kind_for_error_message,
-    bool ignore_return_value) {
-  Isolate* isolate = this->isolate();
+    Isolate* isolate, v8::Intercepted intercepted,
+    const char* callback_kind_for_error_message, bool ignore_return_value) {
   if (isolate->has_exception()) {
     // TODO(ishell, 328490288): fix Node.js which has Setter/Definer
     // interceptor callbacks not returning v8::Intercepted::kYes on exceptions.
@@ -176,7 +240,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
 
   if (ignore_return_value) return Just(InterceptorResult::kTrue);
 
-  bool result = IsTrue(*GetReturnValue<Boolean>(isolate), isolate);
+  bool result = IsTrue(*GetReturnValue<Boolean>(), isolate);
   return Just(result ? InterceptorResult::kTrue : InterceptorResult::kFalse);
 }
 
@@ -185,17 +249,17 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
 
 DirectHandle<JSObjectOrUndefined>
 PropertyCallbackArguments::CallNamedEnumerator(
-    DirectHandle<InterceptorInfo> interceptor) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor) {
   DCHECK(interceptor->is_named());
-  RCS_SCOPE(isolate(), RuntimeCallCounterId::kNamedEnumeratorCallback);
-  return CallPropertyEnumerator(interceptor);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedEnumeratorCallback);
+  return CallPropertyEnumerator(isolate, interceptor);
 }
 
 // TODO(ishell): return std::optional<PropertyAttributes>.
 DirectHandle<Object> PropertyCallbackArguments::CallNamedQuery(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedQueryCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -206,13 +270,13 @@ DirectHandle<Object> PropertyCallbackArguments::CallNamedQuery(
                                     ExceptionContext::kNamedQuery);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<Object>(isolate);
+  return GetReturnValue<Object>();
 }
 
 DirectHandle<JSAny> PropertyCallbackArguments::CallNamedGetter(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -223,13 +287,13 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallNamedGetter(
                                     ExceptionContext::kNamedGetter);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<JSAny>(isolate);
+  return GetReturnValue<JSAny>();
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDescriptorCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -241,14 +305,13 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
                                     ExceptionContext::kNamedDescriptor);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<JSAny>(isolate);
+  return GetReturnValue<JSAny>();
 }
 
 v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name,
-    DirectHandle<Object> value) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name, DirectHandle<Object> value) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedSetterCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -264,10 +327,9 @@ v8::Intercepted PropertyCallbackArguments::CallNamedSetter(
 }
 
 v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name,
-    const v8::PropertyDescriptor& desc) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name, const v8::PropertyDescriptor& desc) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDefinerCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -284,9 +346,9 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDefiner(
 }
 
 v8::Intercepted PropertyCallbackArguments::CallNamedDeleter(
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDeleterCallback);
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(*name);
@@ -306,17 +368,17 @@ v8::Intercepted PropertyCallbackArguments::CallNamedDeleter(
 
 DirectHandle<JSObjectOrUndefined>
 PropertyCallbackArguments::CallIndexedEnumerator(
-    DirectHandle<InterceptorInfo> interceptor) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor) {
   DCHECK(!interceptor->is_named());
-  RCS_SCOPE(isolate(), RuntimeCallCounterId::kIndexedEnumeratorCallback);
-  return CallPropertyEnumerator(interceptor);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedEnumeratorCallback);
+  return CallPropertyEnumerator(isolate, interceptor);
 }
 
 // TODO(ishell): return std::optional<PropertyAttributes>.
 DirectHandle<Object> PropertyCallbackArguments::CallIndexedQuery(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedQueryCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -329,13 +391,13 @@ DirectHandle<Object> PropertyCallbackArguments::CallIndexedQuery(
                                     ExceptionContext::kIndexedQuery);
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<Object>(isolate);
+  return GetReturnValue<Object>();
 }
 
 DirectHandle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -348,13 +410,13 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
                                     ExceptionContext::kIndexedGetter);
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<JSAny>(isolate);
+  return GetReturnValue<JSAny>();
 }
 
 Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDescriptorCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -367,14 +429,13 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
                                     ExceptionContext::kIndexedDescriptor);
   v8::Intercepted intercepted = f(index, callback_info);
   if (intercepted == v8::Intercepted::kNo) return {};
-  return GetReturnValue<JSAny>(isolate);
+  return GetReturnValue<JSAny>();
 }
 
 v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index,
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor, uint32_t index,
     DirectHandle<Object> value) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedSetterCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -392,10 +453,9 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedSetter(
 }
 
 v8::Intercepted PropertyCallbackArguments::CallIndexedDefiner(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index,
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor, uint32_t index,
     const v8::PropertyDescriptor& desc) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDefinerCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -412,9 +472,9 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDefiner(
 }
 
 v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
-    DirectHandle<InterceptorInfo> interceptor, uint32_t index) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+    uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDeleterCallback);
   index_ = index;
   slot_at(kCallbackInfoIndex).store(*interceptor);
@@ -431,11 +491,10 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
 
 DirectHandle<JSObjectOrUndefined>
 PropertyCallbackArguments::CallPropertyEnumerator(
-    DirectHandle<InterceptorInfo> interceptor) {
+    Isolate* isolate, DirectHandle<InterceptorInfo> interceptor) {
   // Named and indexed enumerator callbacks have same signatures.
   static_assert(std::is_same_v<NamedPropertyEnumeratorCallback,
                                IndexedPropertyEnumeratorCallback>);
-  Isolate* isolate = this->isolate();
   slot_at(kCallbackInfoIndex).store(*interceptor);
   slot_at(kPropertyKeyIndex).store(Smi::zero());  // not relevant
   // Enumerator callback's return value is initialized with undefined even
@@ -454,7 +513,7 @@ PropertyCallbackArguments::CallPropertyEnumerator(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Array, interceptor,
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
-  DirectHandle<JSAny> result = GetReturnValue<JSAny>(isolate);
+  DirectHandle<JSAny> result = GetReturnValue<JSAny>();
   DCHECK(IsUndefined(*result) || IsJSObject(*result));
   return Cast<JSObjectOrUndefined>(result);
 }
@@ -463,8 +522,8 @@ PropertyCallbackArguments::CallPropertyEnumerator(
 // Accessors
 
 DirectHandle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
-    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Name> name) {
-  Isolate* isolate = this->isolate();
+    Isolate* isolate, DirectHandle<AccessorInfo> accessor_info,
+    DirectHandle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
   // Unlike interceptor callbacks we know that the property exists, so
   // the callback is allowed to have side effects.
@@ -479,13 +538,12 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
                                  receiver(), ACCESSOR_GETTER,
                                  ExceptionContext::kAttributeGet);
   f(v8::Utils::ToLocal(name), callback_info);
-  return GetReturnValue<JSAny>(isolate);
+  return GetReturnValue<JSAny>();
 }
 
 bool PropertyCallbackArguments::CallAccessorSetter(
-    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Name> name,
-    DirectHandle<Object> value) {
-  Isolate* isolate = this->isolate();
+    Isolate* isolate, DirectHandle<AccessorInfo> accessor_info,
+    DirectHandle<Name> name, DirectHandle<Object> value) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorSetterCallback);
   // Unlike interceptor callbacks we know that the property exists, so
   // the callback is allowed to have side effects.
@@ -521,7 +579,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // v8::AccessorNameSetterCallback or AccessorNameBooleanSetterCallback
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
-  DirectHandle<Boolean> result = GetReturnValue<Boolean>(isolate);
+  DirectHandle<Boolean> result = GetReturnValue<Boolean>();
   return IsTrue(*result, isolate);
 }
 

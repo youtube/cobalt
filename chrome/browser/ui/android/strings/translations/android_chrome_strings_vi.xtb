@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">Lưu dữ liệu vào Tài khoản Google của bạn</translation>
 <translation id="1414919006379339073">Đóng cửa sổ hiện tại</translation>
 <translation id="1416550906796893042">Phiên bản ứng dụng</translation>
-<translation id="1419753403124156396">Khởi động lại Chrome?</translation>
 <translation id="1428770807407000502">Tắt tính năng đồng bộ hoá?</translation>
 <translation id="1430915738399379752">In</translation>
 <translation id="1435593198351412143">Tự động mở tệp PDF</translation>
@@ -247,10 +246,8 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2063047797624276601">Tổ chức của bạn đã bật tính năng Duyệt web an toàn có tăng cường bảo vệ</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 tệp tải xuống không thành công}other{# tệp tải xuống không thành công}}</translation>
 <translation id="2067805253194386918">văn bản</translation>
-<translation id="2072027001582274150">Thẻ không dùng đến hoặc trùng lặp</translation>
 <translation id="2079545284768500474">Huỷ</translation>
 <translation id="2082238445998314030">Kết quả <ph name="RESULT_NUMBER" /> trong tổng số <ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">Để hoàn tất quy trình thiết lập tính năng tự động điền, hãy khởi động lại Chrome ngay. Các thẻ của bạn sẽ tự động mở lại.</translation>
 <translation id="2091863218454846791">Đang hiển thị chế độ xem thu gọn</translation>
 <translation id="2093731487903423814">15 phút qua</translation>
 <translation id="2096577711562668473">Thay đổi dịch vụ tự động điền?</translation>
@@ -428,6 +425,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2854916915045135148">Chạm và giữ để chuyển sang chế độ Ẩn danh</translation>
 <translation id="2860954141821109167">Hãy đảm bảo bạn đã bật ứng dụng điện thoại trên thiết bị này</translation>
 <translation id="2861923151411510142">Một số tính năng của Chrome sẽ không dùng được nữa</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> và 1 thẻ khác}other{<ph name="URL" /> và <ph name="TAB_COUNT_MANY" /> thẻ khác}}</translation>
 <translation id="2869430948265924908">Để bảo vệ nội dung nhạy cảm của bạn trong ô tô, bạn phải tạo một khoá hồ sơ cho ô tô.  Bạn có thể tạo khoá bằng mã PIN, mã hoặc mật khẩu.</translation>
 <translation id="2870560284913253234">Trang web</translation>
 <translation id="2871733351037274014">Tải trước các trang</translation>
@@ -446,6 +444,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2904414404539560095">Danh sách các thiết bị mà bạn có thể chia sẻ một thẻ đã mở trên toàn màn hình.</translation>
 <translation id="2908243544703713905">Có tin bài chưa đọc</translation>
 <translation id="2909615210195135082">Nền tảng thông báo của Google</translation>
+<translation id="2912247081180973411">Đóng cửa sổ</translation>
 <translation id="2912345083818861431">Dùng phương thức khóa màn hình để xem các thẻ ẩn danh đang mở</translation>
 <translation id="2918484639460781603">Chuyển đến phần cài đặt</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, Thẻ đã tắt tiếng</translation>
@@ -503,7 +502,6 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="3159335509547415276">Tìm hiểu về tài khoản bị chặn</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" /> sẽ mở trong một thẻ mới</translation>
 <translation id="3166827708714933426">Lối tắt cho thẻ và cửa sổ</translation>
-<translation id="316694332262407393">Chrome hiện đang chạy trên trang này.</translation>
 <translation id="3167258285411721858">Bạn có thể yêu cầu trang web dành cho thiết bị di động cho <ph name="HOST_NAME" /></translation>
 <translation id="3169472444629675720">Khám phá</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, Thẻ ẩn danh đã tắt tiếng, được ghim và được chọn cùng với nhiều thẻ khác</translation>
@@ -851,7 +849,6 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="468924408576231679">Sao chép đường liên kết đến trang web <ph name="PAGE_TITLE" />. Nguồn: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">Nhận nội dung phù hợp hơn</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 và <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> tùy chọn khác}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 và <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> tùy chọn khác}}</translation>
-<translation id="4698061626562952596">Xem các thẻ không hoạt động tại đây</translation>
 <translation id="4698757800236023795">Đang hoạt động (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Tệp và hình ảnh được lưu trong bộ nhớ đệm</translation>
 <translation id="4710167854527459075">Mới nhất xếp trước</translation>
@@ -950,6 +947,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> thẻ – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> thẻ – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Quyền riêng tư</translation>
 <translation id="504456571576643789">Những yếu tố cần xem xét</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{Đã chọn <ph name="WINDOW_COUNT_ONE" /> cửa sổ}other{Đã chọn <ph name="WINDOW_COUNT_NORMAL" /> cửa sổ}}</translation>
 <translation id="5056587122125565772">Tạo hình ảnh</translation>
 <translation id="506254248375231072">Không có thẻ nào</translation>
 <translation id="5075939510584558547">Lưu mà không mã hoá</translation>
@@ -966,7 +964,6 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5123685120097942451">Thẻ ẩn danh</translation>
 <translation id="5142281402488957685">Để xem thêm những câu chuyện mới, hãy kéo xuống để làm mới trang</translation>
 <translation id="5144385790872094440">Một số trang bạn truy cập đã được tải trước. Những trang này có thể được tải trước thông qua các máy chủ của Google khi được liên kết từ ứng dụng Google hoặc trang web tạo bằng Google Sites.</translation>
-<translation id="5145887002054615868">Các thẻ trùng lặp hoặc không dùng đến trong <ph name="DAYS_INACTIVE" /> ngày sẽ được chuyển đến đây<ph name="AUTODELETE_SECTION" />. Bạn có thể thay đổi chế độ này bất cứ lúc nào trong phần <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="5152843274749979095">Chưa cài đặt ứng dụng được hỗ trợ nào</translation>
 <translation id="5161254044473106830">Cần có tiêu đề</translation>
 <translation id="5161262286013276579">Đã mở trang xác nhận khoá truy cập</translation>
@@ -1041,6 +1038,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5469852975082458401">Bạn có thể di chuyển giữa các trang bằng con trỏ văn bản. Hãy nhấn F7 để tắt.</translation>
 <translation id="5471273988133666918">Không thể di chuyển thẻ <ph name="TAB_TITLE" /></translation>
 <translation id="548278423535722844">Mở trong ứng dụng bản đồ</translation>
+<translation id="5494920125229734069">Chọn tất cả</translation>
 <translation id="549660026907543296">Tham gia dưới tên <ph name="MEMBER_FULL_NAME" /></translation>
 <translation id="5517326820028369152">Bảng hoạt động gần đây ở dưới cùng</translation>
 <translation id="5526281268548144413">Không đóng được trên nhiều cửa sổ</translation>
@@ -1149,6 +1147,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5958275228015807058">Tìm tệp và trang của bạn trong Tệp đã tải xuống</translation>
 <translation id="5962718611393537961">Nhấn để thu gọn</translation>
 <translation id="5964869237734432770">Dừng lấy nội dung mô tả hình ảnh</translation>
+<translation id="5972844218283131174">Bỏ chọn tất cả</translation>
 <translation id="5975083100439434680">Thu nhỏ</translation>
 <translation id="5977976211062815271">Trên thiết bị này</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 trang trên danh sách đọc của bạn}other{# trang trên danh sách đọc của bạn}}</translation>
@@ -1721,12 +1720,14 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="8137562778192957619">Bạn không cần ghi nhớ mật khẩu này. Mật khẩu này sẽ được lưu vào Trình quản lý mật khẩu của Google.</translation>
 <translation id="8152331954420209374">Chuyển đến Ống kính</translation>
 <translation id="8153206878708357851">Bật/tắt tính năng duyệt web bằng con nháy</translation>
+<translation id="8154784523622173959">Cá nhân hoá nền của trang này</translation>
 <translation id="8163820386638255770">Xác minh danh tính của bạn để lưu mật khẩu vào Tài khoản Google và sử dụng các mật khẩu đó</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) mục không hoạt động}other{(#) mục không hoạt động}}</translation>
 <translation id="8186512483418048923">Còn lại <ph name="FILES" /> tệp</translation>
 <translation id="8190358571722158785">Còn 1 ngày</translation>
 <translation id="8192765420340770300">Bảng đăng nhập ở dưới cùng đã mở trên toàn màn hình</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Thiết bị của bạn<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">Xoá cụm từ tìm kiếm</translation>
 <translation id="820568752112382238">Các trang web truy cập nhiều nhất</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{Tham gia nhóm thẻ cùng với <ph name="OWNER_FIRST_NAME" /> và <ph name="NUMBER_OF_OTHER_MEMBERS" /> người khác}other{Tham gia nhóm thẻ cùng với <ph name="OWNER_FIRST_NAME" /> và <ph name="NUMBER_OF_OTHER_MEMBERS" /> người khác}}</translation>
 <translation id="8209050860603202033">Mở ảnh</translation>

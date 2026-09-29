@@ -211,7 +211,8 @@ base::Value::Dict NetLogPathBuilderResultPath(
     const bssl::CertPathBuilderResultPath& result_path) {
   base::Value::Dict dict;
   dict.Set("is_valid", result_path.IsValid());
-  dict.Set("last_cert_trust", result_path.last_cert_trust.ToDebugString());
+  dict.Set("last_cert_trust",
+           result_path.trust_anchor.CertTrust().ToDebugString());
   dict.Set("certificates", PEMCertValueList(result_path.certs));
   // TODO(crbug.com/40479281): netlog user_constrained_policy_set.
   std::string errors_string =
@@ -347,6 +348,10 @@ class CertVerifyProcTrustStore {
     return system_trust_store_->IsKnownRoot(trust_anchor);
   }
 
+  bool IsKnownMtcAnchor(const bssl::MTCAnchor* anchor) const {
+    return system_trust_store_->IsKnownMtcAnchor(anchor);
+  }
+
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
   base::span<const ChromeRootCertConstraints> GetChromeRootConstraints(
       const bssl::ParsedCertificate* cert) const {
@@ -469,19 +474,24 @@ class PathBuilderDelegateImpl : public bssl::SimplePathBuilderDelegate {
     PathBuilderDelegateDataImpl* delegate_data =
         PathBuilderDelegateDataImpl::GetOrCreate(path);
 
-    // TODO(https://crbug.com/1211074, https://crbug.com/848277): making a
-    // temporary X509Certificate just to pass into CTVerifier and
-    // CTPolicyEnforcer is silly, refactor so they take CRYPTO_BUFFER or
-    // ParsedCertificate or something.
-    std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates;
-    if (path->certs.size() > 1) {
-      intermediates.push_back(bssl::UpRef(path->certs[1]->cert_buffer()));
+    scoped_refptr<X509Certificate> cert_for_ct_verify;
+    // Only check CT if the path ends in a traditional (non-MTC) anchor.
+    if (!path->trust_anchor.MTCAnchor()) {
+      // TODO(https://crbug.com/1211074, https://crbug.com/848277): making a
+      // temporary X509Certificate just to pass into CTVerifier and
+      // CTPolicyEnforcer is silly, refactor so they take CRYPTO_BUFFER or
+      // ParsedCertificate or something.
+      std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates;
+      if (path->certs.size() > 1) {
+        intermediates.push_back(bssl::UpRef(path->certs[1]->cert_buffer()));
+      }
+      cert_for_ct_verify = X509Certificate::CreateFromBuffer(
+          bssl::UpRef(path->certs[0]->cert_buffer()), std::move(intermediates));
+      ct_verifier_->Verify(cert_for_ct_verify.get(),
+                           stapled_leaf_ocsp_response_,
+                           sct_list_from_tls_extension_, current_time_,
+                           &delegate_data->scts, *net_log_);
     }
-    auto cert_for_ct_verify = X509Certificate::CreateFromBuffer(
-        bssl::UpRef(path->certs[0]->cert_buffer()), std::move(intermediates));
-    ct_verifier_->Verify(cert_for_ct_verify.get(), stapled_leaf_ocsp_response_,
-                         sct_list_from_tls_extension_, current_time_,
-                         &delegate_data->scts, *net_log_);
 
     // Check any extra constraints that might exist outside of the certificates.
     CheckExtraConstraints(path->certs, &path->errors);
@@ -525,6 +535,13 @@ class PathBuilderDelegateImpl : public bssl::SimplePathBuilderDelegate {
       case CRLSet::Result::UNKNOWN:
         // CRLSet was inconclusive.
         break;
+    }
+
+    if (path->trust_anchor.MTCAnchor()) {
+      // MTCs don't use traditional revocation checks or certificate
+      // transparency.
+      // TODO(crbug.com/452986180): use MTC revoked_indices
+      return;
     }
 
     if (policy.check_revocation) {
@@ -1388,8 +1405,13 @@ int AssignVerifyResult(
 
   const bssl::ParsedCertificate* trusted_cert = partial_path.GetTrustedCert();
   if (trusted_cert) {
-    verify_result->is_issued_by_known_root =
-        trust_store->IsKnownRoot(trusted_cert);
+    if (partial_path.trust_anchor.MTCAnchor()) {
+      verify_result->is_issued_by_known_root = trust_store->IsKnownMtcAnchor(
+          partial_path.trust_anchor.MTCAnchor().get());
+    } else {
+      verify_result->is_issued_by_known_root =
+          trust_store->IsKnownRoot(trusted_cert);
+    }
   }
 
   if (path_is_valid && (verification_type == VerificationType::kEV)) {

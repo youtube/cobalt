@@ -107,6 +107,31 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Compositing.BeginMainFrame.TimeUs" units="microseconds"
+    expires_after="2026-06-30">
+  <owner>lizeb@chromium.org</owner>
+  <owner>jonross@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the duration of BeginMainFrame, at a subsampled rate. This is
+    intended to understand the cost of a BeginMainFrame on the critical path.
+    Only reported for platforms supporting high resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Compositing.BeginMainFrame.TimeUs.NoUpdate"
+    units="microseconds" expires_after="2026-06-30">
+  <owner>lizeb@chromium.org</owner>
+  <owner>jonross@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the duration of BeginMainFrame, at a subsampled rate. This is
+    intended to understand the cost of a BeginMainFrame on the critical path.
+    This version is recorded if the result was FinishedNoUpdates. Only reported
+    for platforms supporting high resolution clocks.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.Browser.BeginFrame.Produced.Duration.Subsampled"
     units="microseconds" expires_after="2026-05-10">
   <owner>acondor@chromium.org</owner>
@@ -313,7 +338,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.Draw.AverageOverdraw2" units="units"
-    expires_after="2026-04-19">
+    expires_after="2026-06-21">
   <owner>zoraiznaeem@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -658,7 +683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Renderer.CALayerResult" enum="CALayerResult"
-    expires_after="2026-03-22">
+    expires_after="2026-06-21">
   <owner>ccameron@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -840,12 +865,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.TileManager.RasterTasksDuration"
-    units="microseconds" expires_after="2026-04-19">
+    units="microseconds" expires_after="2026-06-21">
   <owner>lizeb@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
     Total duration (in us) for all raster tasks to execute. Recorded when raster
-    tasks are scheduled, at a downsampled rate.
+    tasks are scheduled, at a downsampled rate. Only reported for platforms
+    supporting high resolution clocks.
   </summary>
 </histogram>
 
@@ -1054,7 +1080,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.CheckerboardingNeedRecord4.AllSequences"
-    units="%" expires_after="2026-04-12">
+    units="%" expires_after="2026-06-21">
   <owner>wangxianzhu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1102,7 +1128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.Checkerboarding{Version}.{Sequence}"
-    units="%" expires_after="2026-04-12">
+    units="%" expires_after="2026-06-21">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1126,7 +1152,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Graphics.Smoothness.Checkerboarding{Version}.{Thread}{Sequence}"
-    units="%" expires_after="2026-04-19">
+    units="%" expires_after="2026-06-21">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1256,7 +1282,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.PercentDroppedFrames3.{Sequence}"
-    units="%" expires_after="2026-04-12">
+    units="%" expires_after="2026-06-14">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1310,7 +1336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.PercentDroppedFrames3.{Thread}{Sequence}"
-    units="%" expires_after="2026-04-12">
+    units="%" expires_after="2026-06-14">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

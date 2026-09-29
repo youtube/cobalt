@@ -327,6 +327,7 @@ TEST(TimeDomainFeatureExtractorTest, BasicTest) {
       EXPECT_FLOAT_EQ(model_input[i], i * kScaling);
     }
   }
+  EXPECT_FALSE(extractor.ReadyForInference());
 }
 
 }  // namespace

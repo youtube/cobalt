@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -61,8 +62,8 @@ void VerifyDatabaseVersionEntry(
 }
 
 // Return "_<storage key>\x00<script key>".
-DomStorageDatabase::Key CreateMapDataKey(const blink::StorageKey& storage_key,
-                                         std::string script_key) {
+DomStorageDatabase::Key CreateMapEntryKey(const blink::StorageKey& storage_key,
+                                          std::string script_key) {
   DomStorageDatabase::Key map_data_key =
       LocalStorageLevelDB::GetMapPrefix(storage_key);
 
@@ -78,6 +79,12 @@ class LocalStorageLevelDBTest : public testing::Test {
   ~LocalStorageLevelDBTest() override = default;
 
   void OpenInMemory(std::unique_ptr<LocalStorageLevelDB>* result);
+
+  // Uses `DomStorageDatabase::UpdateMaps()` to write `metadata_to_update` to
+  // the database.  Afterwards, verifies with `ReadAllMetadata()`.
+  void UpdateMapWithMetadata(
+      LocalStorageLevelDB& database,
+      const DomStorageDatabase::MapMetadata& metadata_to_update);
 
   base::test::TaskEnvironment task_environment_;
 
@@ -125,6 +132,35 @@ void LocalStorageLevelDBTest::OpenInMemory(
 
   ASSERT_TRUE(status.ok()) << status.ToString();
   *result = std::move(instance);
+}
+
+void LocalStorageLevelDBTest::UpdateMapWithMetadata(
+    LocalStorageLevelDB& database,
+    const DomStorageDatabase::MapMetadata& metadata_to_update) {
+  // Write the map usage metadata to the database.
+  std::vector<DomStorageDatabase::MapBatchUpdate> map_update;
+  map_update.emplace_back(metadata_to_update.map_locator.Clone());
+  map_update.back().map_usage = DomStorageDatabase::MapBatchUpdate::Usage();
+
+  if (metadata_to_update.last_accessed) {
+    map_update.back().map_usage->SetLastAccessed(
+        *metadata_to_update.last_accessed);
+  }
+
+  if (metadata_to_update.last_modified) {
+    map_update.back().map_usage->SetLastModifiedAndTotalSize(
+        *metadata_to_update.last_modified, *metadata_to_update.total_size);
+  }
+
+  DbStatus status = database.UpdateMaps(std::move(map_update));
+  EXPECT_TRUE(status.ok()) << status.ToString();
+
+  // Read back the map usage metadata from the database.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       database.ReadAllMetadata());
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
+  ExpectEqualsMapMetadataSpan(all_metadata.map_metadata,
+                              base::span_from_ref(metadata_to_update));
 }
 
 TEST_F(LocalStorageLevelDBTest, CreateAccessMetaDataKey) {
@@ -292,12 +328,10 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithEmpty) {
   std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
-
-  EXPECT_EQ(all_metadata->map_metadata.size(), 0u);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
+  EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithInvalid) {
@@ -312,12 +346,10 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithInvalid) {
                                                },
                                            }));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
-
-  EXPECT_EQ(all_metadata->map_metadata.size(), 0u);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
+  EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithAccessMetadata) {
@@ -333,9 +365,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithAccessMetadata) {
           },
       }));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
 
   const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
       {
@@ -343,8 +374,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithAccessMetadata) {
           .last_accessed{kMapLastAccessed},
       },
   };
-  ExpectEqualsMapMetadataSpan(all_metadata->map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteMetadata) {
@@ -361,9 +392,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteMetadata) {
           },
       }));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
 
   const DomStorageDatabase::MapMetadata kExpectedMapMetadata[]{
       {
@@ -372,8 +402,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteMetadata) {
           .total_size{kMapTotalSize},
       },
   };
-  ExpectEqualsMapMetadataSpan(all_metadata->map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteAndAccessMetadata) {
@@ -394,9 +424,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteAndAccessMetadata) {
           },
       }));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
 
   const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
       {
@@ -406,8 +435,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithWriteAndAccessMetadata) {
           .total_size{kMapTotalSize},
       },
   };
-  ExpectEqualsMapMetadataSpan(all_metadata->map_metadata, kExpectedMapMetadata);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  ExpectEqualsMapMetadataSpan(all_metadata.map_metadata, kExpectedMapMetadata);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 // Combine all previous tests into a single test using four storage
@@ -455,9 +484,8 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithMultipleStorageKeys) {
           },
       }));
 
-  StatusOr<DomStorageDatabase::Metadata> all_metadata =
-      local_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(all_metadata.has_value()) << all_metadata.error().ToString();
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
 
   const DomStorageDatabase::MapMetadata kExpectedAllMapMetadata[] = {
       {
@@ -482,9 +510,9 @@ TEST_F(LocalStorageLevelDBTest, ReadAllMetadataWithMultipleStorageKeys) {
           .last_accessed{kFourthLastAccessed},
       },
   };
-  ExpectEqualsMapMetadataSpan(all_metadata->map_metadata,
+  ExpectEqualsMapMetadataSpan(all_metadata.map_metadata,
                               kExpectedAllMapMetadata);
-  EXPECT_EQ(all_metadata->next_map_id, std::nullopt);
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
 }
 
 TEST_F(LocalStorageLevelDBTest, PutMetadataWithEmpty) {
@@ -493,27 +521,6 @@ TEST_F(LocalStorageLevelDBTest, PutMetadataWithEmpty) {
 
   // Write the metadata.
   DbStatus status = local_storage_leveldb->PutMetadata({});
-  EXPECT_TRUE(status.ok()) << status.ToString();
-
-  // Verify the contents in the database, which includes the "VERSION" entry.
-  ASSERT_OK_AND_ASSIGN(
-      std::vector<DomStorageDatabase::KeyValuePair> all_entries,
-      local_storage_leveldb->GetLevelDB().GetPrefixed({}));
-  ASSERT_EQ(all_entries.size(), 1u);
-
-  VerifyDatabaseVersionEntry(all_entries[0]);
-}
-
-TEST_F(LocalStorageLevelDBTest, PutMetadataWithNoUsage) {
-  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
-  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
-
-  // Write the metadata.
-  DomStorageDatabase::Metadata metadata;
-  metadata.map_metadata.push_back({
-      .map_locator{kLocalStorageSessionId, kFakeUrlStorageKey},
-  });
-  DbStatus status = local_storage_leveldb->PutMetadata(std::move(metadata));
   EXPECT_TRUE(status.ok()) << status.ToString();
 
   // Verify the contents in the database, which includes the "VERSION" entry.
@@ -641,10 +648,6 @@ TEST_F(LocalStorageLevelDBTest, PutMetadataWithMultipleMaps) {
       .last_modified{kThirdLastModified},
       .total_size{kThirdTotalSize},
   });
-  // Add a map with no usage metadata, which must not write anything to LevelDB.
-  metadata.map_metadata.push_back({
-      .map_locator{kLocalStorageSessionId, kFourthStorageKey},
-  });
 
   // Write the metadata.
   DbStatus status = local_storage_leveldb->PutMetadata(std::move(metadata));
@@ -764,11 +767,11 @@ TEST_F(LocalStorageLevelDBTest, DeleteStorageKeysFromSessionWithMapKeyValues) {
       WriteEntries(*local_storage_leveldb,
                    {
                        {
-                           CreateMapDataKey(kFakeUrlStorageKey, "key_1"),
+                           CreateMapEntryKey(kFakeUrlStorageKey, "key_1"),
                            ToBytes("value_1"),
                        },
                        {
-                           CreateMapDataKey(kFakeUrlStorageKey, "key_2"),
+                           CreateMapEntryKey(kFakeUrlStorageKey, "key_2"),
                            ToBytes("value_2"),
                        },
                    }));
@@ -802,27 +805,27 @@ TEST_F(LocalStorageLevelDBTest,
       {
           // Add map key value pairs.
           {
-              CreateMapDataKey(kFakeUrlStorageKey, "key_1"),
+              CreateMapEntryKey(kFakeUrlStorageKey, "key_1"),
               ToBytes("value_1"),
           },
           {
-              CreateMapDataKey(kFakeUrlStorageKey, "key_2"),
+              CreateMapEntryKey(kFakeUrlStorageKey, "key_2"),
               ToBytes("value_2"),
           },
           {
-              CreateMapDataKey(kSecondStorageKey, "key_3"),
+              CreateMapEntryKey(kSecondStorageKey, "key_3"),
               ToBytes("value_3"),
           },
           {
-              CreateMapDataKey(kThirdStorageKey, "key_1"),
+              CreateMapEntryKey(kThirdStorageKey, "key_1"),
               ToBytes("value_4"),
           },
           {
-              CreateMapDataKey(kThirdStorageKey, "key_2"),
+              CreateMapEntryKey(kThirdStorageKey, "key_2"),
               ToBytes("value_5"),
           },
           {
-              CreateMapDataKey(kThirdStorageKey, "key_3"),
+              CreateMapEntryKey(kThirdStorageKey, "key_3"),
               ToBytes("value_5"),
           },
           // Add "METAACCESS:" entries.
@@ -892,7 +895,7 @@ TEST_F(LocalStorageLevelDBTest,
   VerifyDatabaseVersionEntry(all_entries[2]);
 
   // Verify the map key/value paris for the second storage key.
-  EXPECT_EQ(all_entries[3].key, CreateMapDataKey(kSecondStorageKey, "key_3"));
+  EXPECT_EQ(all_entries[3].key, CreateMapEntryKey(kSecondStorageKey, "key_3"));
   EXPECT_EQ(all_entries[3].value, ToBytes("value_3"));
 
   // Erase all the storage keys.
@@ -921,6 +924,169 @@ TEST_F(LocalStorageLevelDBTest,
   ASSERT_EQ(all_entries.size(), 1u);
 
   VerifyDatabaseVersionEntry(all_entries[0]);
+}
+
+TEST_F(LocalStorageLevelDBTest, ReadMapKeyValuesWithEmpty) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  // An empty database must have no key/value pairs.
+  DomStorageDatabase::MapLocator map_locator{kLocalStorageSessionId,
+                                             kFakeUrlStorageKey};
+  ASSERT_OK_AND_ASSIGN(
+      (std::map<DomStorageDatabase::Key, DomStorageDatabase::Value> entries),
+      local_storage_leveldb->ReadMapKeyValues(std::move(map_locator)));
+  EXPECT_EQ(entries.size(), 0u);
+}
+
+TEST_F(LocalStorageLevelDBTest, ReadMapKeyValues) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  // Add two key/value pairs to a single map.
+  constexpr const char kScriptKey1[] = "key_1";
+  constexpr const char kScriptKey2[] = "key_2";
+  const DomStorageDatabase::Value kValue1 = ToBytes("value_1");
+  const DomStorageDatabase::Value kValue2 = ToBytes("value_2");
+
+  ASSERT_NO_FATAL_FAILURE(
+      WriteEntries(*local_storage_leveldb,
+                   {
+                       {
+                           CreateMapEntryKey(kFakeUrlStorageKey, kScriptKey1),
+                           kValue1,
+                       },
+                       {
+                           CreateMapEntryKey(kFakeUrlStorageKey, kScriptKey2),
+                           kValue2,
+                       },
+                   }));
+
+  // Read the two key/value pairs from the database.
+  DomStorageDatabase::MapLocator map_locator{kLocalStorageSessionId,
+                                             kFakeUrlStorageKey};
+  ASSERT_OK_AND_ASSIGN(
+      (std::map<DomStorageDatabase::Key, DomStorageDatabase::Value> entries),
+      local_storage_leveldb->ReadMapKeyValues(std::move(map_locator)));
+
+  ASSERT_EQ(entries.size(), 2u);
+  EXPECT_EQ(entries[ToBytes(kScriptKey1)], kValue1);
+  EXPECT_EQ(entries[ToBytes(kScriptKey2)], kValue2);
+}
+
+TEST_F(LocalStorageLevelDBTest, ReadMapKeyValuesWithMultipleMaps) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  // Create two maps, adding a key/value pair to each map.
+  constexpr const char kScriptKey1[] = "key_1";
+  constexpr const char kScriptKey2[] = "key_2";
+  const DomStorageDatabase::Value kValue1 = ToBytes("value_1");
+  const DomStorageDatabase::Value kValue2 = ToBytes("value_2");
+
+  ASSERT_NO_FATAL_FAILURE(
+      WriteEntries(*local_storage_leveldb,
+                   {
+                       {
+                           CreateMapEntryKey(kFakeUrlStorageKey, kScriptKey1),
+                           kValue1,
+                       },
+                       {
+                           CreateMapEntryKey(kSecondStorageKey, kScriptKey2),
+                           kValue2,
+                       },
+                   }));
+
+  // Read the first map's key/value pair.
+  DomStorageDatabase::MapLocator map_locator{kLocalStorageSessionId,
+                                             kFakeUrlStorageKey};
+  ASSERT_OK_AND_ASSIGN(
+      (std::map<DomStorageDatabase::Key, DomStorageDatabase::Value> entries),
+      local_storage_leveldb->ReadMapKeyValues(std::move(map_locator)));
+
+  ASSERT_EQ(entries.size(), 1u);
+  EXPECT_EQ(entries[ToBytes(kScriptKey1)], kValue1);
+
+  // Read the second map's key/value pair.
+  DomStorageDatabase::MapLocator other_map_locator{kLocalStorageSessionId,
+                                                   kSecondStorageKey};
+  ASSERT_OK_AND_ASSIGN(entries, local_storage_leveldb->ReadMapKeyValues(
+                                    std::move(other_map_locator)));
+
+  ASSERT_EQ(entries.size(), 1u);
+  EXPECT_EQ(entries[ToBytes(kScriptKey2)], kValue2);
+}
+
+TEST_F(LocalStorageLevelDBTest, UpdateMaps) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  DomStorageDatabase::MapLocator map1_locator{kLocalStorageSessionId,
+                                              kFakeUrlStorageKey};
+
+  DomStorageDatabase::MapLocator map2_locator{kLocalStorageSessionId,
+                                              kSecondStorageKey};
+
+  ASSERT_NO_FATAL_FAILURE(
+      TestUpdateMaps(*local_storage_leveldb, map1_locator, map2_locator));
+}
+
+TEST_F(LocalStorageLevelDBTest, UpdateMapsWithAccessMetadata) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata{
+      .map_locator{kLocalStorageSessionId, kFakeUrlStorageKey},
+      .last_accessed{kMapLastAccessed},
+  };
+  ASSERT_NO_FATAL_FAILURE(
+      UpdateMapWithMetadata(*local_storage_leveldb, kExpectedMapMetadata));
+}
+
+TEST_F(LocalStorageLevelDBTest, UpdateMapsWithWriteMetadata) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata{
+      .map_locator{kLocalStorageSessionId, kFakeUrlStorageKey},
+      .last_modified{kMapLastModified},
+      .total_size{kMapTotalSize},
+  };
+  ASSERT_NO_FATAL_FAILURE(
+      UpdateMapWithMetadata(*local_storage_leveldb, kExpectedMapMetadata));
+}
+
+TEST_F(LocalStorageLevelDBTest, UpdateMapsClearsMetadata) {
+  std::unique_ptr<LocalStorageLevelDB> local_storage_leveldb;
+  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&local_storage_leveldb));
+
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata{
+      .map_locator{kLocalStorageSessionId, kFakeUrlStorageKey},
+      .last_accessed{kMapLastAccessed},
+      .last_modified{kMapLastModified},
+      .total_size{kMapTotalSize},
+  };
+  ASSERT_NO_FATAL_FAILURE(
+      UpdateMapWithMetadata(*local_storage_leveldb, kExpectedMapMetadata));
+
+  // Use `UpdateMaps()` to delete the map metadata from the database.
+  std::vector<DomStorageDatabase::MapBatchUpdate> delete_metadata_update;
+  delete_metadata_update.emplace_back(kExpectedMapMetadata.map_locator.Clone());
+
+  delete_metadata_update.back().map_usage =
+      DomStorageDatabase::MapBatchUpdate::Usage();
+  delete_metadata_update.back().map_usage->DeleteAllUsage();
+
+  DbStatus status =
+      local_storage_leveldb->UpdateMaps(std::move(delete_metadata_update));
+  EXPECT_TRUE(status.ok()) << status.ToString();
+
+  // Verify no metadata exists.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata all_metadata,
+                       local_storage_leveldb->ReadAllMetadata());
+
+  EXPECT_EQ(all_metadata.next_map_id, std::nullopt);
+  EXPECT_EQ(all_metadata.map_metadata.size(), 0u);
 }
 
 }  // namespace storage

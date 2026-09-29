@@ -51,6 +51,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "chrome/browser/ui/tabs/glic_tab_sub_menu_model.h"
 #endif
 
 using base::UserMetricsAction;
@@ -147,17 +148,6 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   }
   SetElementIdentifierAt(GetItemCount() - 1, kAddNewTabAdjacentMenuItem);
 
-  // Reading list is moved lower when Split View is enabled.
-  if (tab_strip->delegate()->SupportsReadLater() &&
-      !base::FeatureList::IsEnabled(features::kSideBySide)) {
-    AddItem(
-        TabStripModel::CommandAddToReadLater,
-        l10n_util::GetPluralStringFUTF16(IDS_TAB_CXMENU_READ_LATER, num_tabs));
-    SetEnabledAt(GetItemCount() - 1,
-                 tab_strip->IsReadLaterSupportedForAny(indices));
-  }
-
-  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
     if (!tab_strip->GetSplitForTab(index).has_value()) {
       if (tab_strip->GetActiveTab()->IsSplit()) {
         swap_with_split_submenu_ =
@@ -196,7 +186,6 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
     SetIsNewFeatureAt(GetItemCount() - 1,
                       UserEducationService::MaybeShowNewBadge(
                           tab_strip->profile(), features::kSideBySide));
-  }
 
   if (ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
           tab_strip, index, tab_menu_model_delegate_)) {
@@ -293,9 +282,7 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
                     : l10n_util::GetPluralStringFUTF16(
                           IDS_TAB_CXMENU_SOUND_UNMUTE_SITE, num_tabs));
 
-  const bool display_read_later =
-      tab_strip->delegate()->SupportsReadLater() &&
-      base::FeatureList::IsEnabled(features::kSideBySide);
+  const bool display_read_later = tab_strip->delegate()->SupportsReadLater();
   const bool display_send_to_self = send_tab_to_self::ShouldDisplayEntryPoint(
       tab_strip->GetWebContentsAt(index));
 #if BUILDFLAG(ENABLE_GLIC)
@@ -321,7 +308,16 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
-  if (display_share_with_glic) {
+  if (glic::GlicEnabling::IsReadyForProfile(tab_strip->profile()) &&
+      glic::GlicEnabling::IsMultiInstanceEnabled() &&
+      base::FeatureList::IsEnabled(features::kGlicMITabContextMenu)) {
+    glic_tab_sub_menu_model_ =
+        std::make_unique<glic::GlicTabSubMenuModel>(tab_strip, index);
+    AddSubMenu(TabStripModel::CommandGlicShare,
+               l10n_util::GetPluralStringFUTF16(IDS_TAB_CXMENU_GLIC_START_SHARE,
+                                                num_tabs),
+               glic_tab_sub_menu_model_.get());
+  } else if (display_share_with_glic) {
     auto* service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
         tab_strip->profile());
     bool start_sharing = false;

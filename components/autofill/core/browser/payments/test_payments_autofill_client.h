@@ -166,6 +166,9 @@ class TestPaymentsAutofillClient : public PaymentsAutofillClient {
   TestCreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator() override;
   bool IsRiskBasedAuthEffectivelyAvailable() const override;
   bool IsMandatoryReauthEnabled() override;
+#if BUILDFLAG(IS_IOS)
+  bool IsUsingCustomCardIconEnabled() const override;
+#endif  // BUILDFLAG(IS_IOS)
   void ShowMandatoryReauthOptInPrompt(
       base::OnceClosure accept_mandatory_reauth_callback,
       base::OnceClosure cancel_mandatory_reauth_callback,
@@ -223,7 +226,8 @@ class TestPaymentsAutofillClient : public PaymentsAutofillClient {
   void ShowCreditCardUploadSaveAndFillDialog(
       const LegalMessageLines& legal_message_lines,
       CardSaveAndFillDialogCallback callback) override;
-  void ShowCreditCardSaveAndFillPendingDialog() override;
+  void ShowCreditCardSaveAndFillPendingDialog(
+      CardSaveAndFillDialogCallback callback) override;
   void HideCreditCardSaveAndFillDialog() override;
   bool IsTabModalPopupDeprecated() const override;
   BnplStrategy* GetBnplStrategy() override;

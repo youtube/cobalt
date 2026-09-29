@@ -112,7 +112,10 @@ gpu.ci.linux_builder(
             "gpu_dawn_common_isolated_scripts",
         ],
         mixins = [
+            "gpu-swarming-pool",
             "linux-jammy",
+            "no_gpu",
+            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -2659,9 +2662,9 @@ ci.thin_tester(
         # should be running the same test_suites as
         # 'Dawn Win10 x64 Release (NVIDIA)'
         targets = [
+            "dawn_chromium_isolated_scripts",
+            "gpu_common_gtests_passthrough",
             "gpu_dawn_telemetry_win_x64_tests",
-            "gpu_dawn_integration_gtests_passthrough_win_x64",
-            "gpu_dawn_isolated_scripts",
         ],
         mixins = [
             "limited_capacity_bot",

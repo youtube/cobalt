@@ -12,6 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -40,19 +41,24 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIUpdaterHost);
   source->AddLocalizedStrings({
-      {"viewRawDetails", IDS_UPDATER_VIEW_RAW_DETAILS},
+      {"activationFailed", IDS_UPDATER_ACTIVATION_FAILED},
+      {"activationSucceeded", IDS_UPDATER_ACTIVATION_SUCCEEDED},
       {"addFilter", IDS_UPDATER_ADD_FILTER},
       {"app", IDS_UPDATER_APP},
       {"appNameOrId", IDS_UPDATER_APP_NAME_OR_ID},
       {"apply", IDS_UPDATER_APPLY},
       {"cancel", IDS_UPDATER_CANCEL},
       {"clearAllFilters", IDS_UPDATER_CLEAR_ALL_FILTERS},
+      {"collapseAll", IDS_UPDATER_COLLAPSE_ALL},
+      {"commandLine", IDS_UPDATER_COMMAND_LINE},
+      {"commandOutcome", IDS_UPDATER_COMMAND_OUTCOME},
       {"common", IDS_UPDATER_COMMON},
       {"date", IDS_UPDATER_DATE},
       {"dateFilterAfter", IDS_UPDATER_DATE_FILTER_AFTER},
       {"dateFilterBefore", IDS_UPDATER_DATE_FILTER_BEFORE},
       {"dateFilterRange", IDS_UPDATER_DATE_FILTER_RANGE},
       {"endDate", IDS_UPDATER_END_DATE},
+      {"errorDetails", IDS_UPDATER_ERROR_DETAILS},
       {"eventType", IDS_UPDATER_EVENT_TYPE},
       {"eventTypeACTIVATE", IDS_UPDATER_EVENT_TYPE_ACTIVATE},
       {"eventTypeAPP_COMMAND", IDS_UPDATER_EVENT_TYPE_APP_COMMAND},
@@ -64,18 +70,44 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"eventTypeUNINSTALL", IDS_UPDATER_EVENT_TYPE_UNINSTALL},
       {"eventTypeUPDATE", IDS_UPDATER_EVENT_TYPE_UPDATE},
       {"eventTypeUPDATER_PROCESS", IDS_UPDATER_EVENT_TYPE_UPDATER_PROCESS},
+      {"expandAll", IDS_UPDATER_EXPAND_ALL},
       {"filterChipApp", IDS_UPDATER_FILTER_CHIP_APP},
       {"filterChipDate", IDS_UPDATER_FILTER_CHIP_DATE},
       {"filterChipEventType", IDS_UPDATER_FILTER_CHIP_EVENT_TYPE},
       {"filterChipUpdateOutcome", IDS_UPDATER_FILTER_CHIP_UPDATE_OUTCOME},
+      {"installSummary", IDS_UPDATER_INSTALL_SUMMARY},
+      {"internal", IDS_UPDATER_INTERNAL},
+      {"nextVersion", IDS_UPDATER_NEXT_VERSION},
+      {"noUpdate", IDS_UPDATER_NO_UPDATE},
+      {"omahaRequest", IDS_UPDATER_OMAHA_REQUEST},
+      {"omahaResponse", IDS_UPDATER_OMAHA_RESPONSE},
       {"other", IDS_UPDATER_OTHER},
+      {"outcome", IDS_UPDATER_OUTCOME},
+      {"outcomeUnknown", IDS_UPDATER_OUTCOME_UNKNOWN},
+      {"persistedDataSummary", IDS_UPDATER_PERSISTED_DATA_SUMMARY},
+      {"processSummary", IDS_UPDATER_PROCESS_SUMMARY},
+      {"qualificationFailed", IDS_UPDATER_QUALIFICATION_FAILED},
+      {"qualificationSucceeded", IDS_UPDATER_QUALIFICATION_SUCCEEDED},
       {"removeFilter", IDS_UPDATER_REMOVE_FILTER},
       {"startDate", IDS_UPDATER_START_DATE},
+      {"uninstallSummary", IDS_UPDATER_UNINSTALL_SUMMARY},
+      {"updateError", IDS_UPDATER_UPDATE_ERROR},
       {"updateOutcome", IDS_UPDATER_UPDATE_OUTCOME},
       {"updateOutcomeNO_UPDATE", IDS_UPDATER_UPDATE_OUTCOME_NO_UPDATE},
       {"updateOutcomeUPDATED", IDS_UPDATER_UPDATE_OUTCOME_UPDATED},
       {"updateOutcomeUPDATE_ERROR", IDS_UPDATER_UPDATE_OUTCOME_UPDATE_ERROR},
+      {"updatedTo", IDS_UPDATER_UPDATED_TO},
+      {"updaterVersion", IDS_UPDATER_UPDATER_VERSION},
+      {"viewRawDetails", IDS_UPDATER_VIEW_RAW_DETAILS},
   });
+
+  // Add a handler to provide pluralized strings.
+  auto plural_string_handler = std::make_unique<PluralStringHandler>();
+  plural_string_handler->AddLocalizedString("parseErrorEvents",
+                                            IDS_UPDATER_PARSE_ERROR_EVENTS);
+  plural_string_handler->AddLocalizedString("undatedEvents",
+                                            IDS_UPDATER_UNDATED_EVENTS);
+  web_ui->AddMessageHandler(std::move(plural_string_handler));
 
   int32_t num_known_apps = 0;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

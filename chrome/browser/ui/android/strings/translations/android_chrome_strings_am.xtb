@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">በGoogle መለያዎ ውስጥ ውሂብ ያስቀምጡ</translation>
 <translation id="1414919006379339073">የአሁኑን መስኮት ዝጋ</translation>
 <translation id="1416550906796893042">የመተግበሪያ ስሪት</translation>
-<translation id="1419753403124156396">Chrome ዳግም ያስጀምራሉ?</translation>
 <translation id="1428770807407000502">ስምረት ይጥፋ?</translation>
 <translation id="1430915738399379752">አትም</translation>
 <translation id="1435593198351412143">PDFዎችን በራስ-ሰር ክፈት</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">ድርጅትዎ የተሻሻለ የደህንነት አሰሳን አብርቷል</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 ማውረድ አልተሳካም}one{# ማውረዶች አልተሳኩም}other{# ማውረዶች አልተሳኩም}}</translation>
 <translation id="2067805253194386918">ጽሁፍ</translation>
-<translation id="2072027001582274150">ጥቅም ላይ ያልዋሉ ወይም የተባዙ ትሮች</translation>
 <translation id="2079545284768500474">ቀልብስ</translation>
 <translation id="2082238445998314030">ውጤት <ph name="RESULT_NUMBER" /> ከ<ph name="TOTAL_RESULTS" /></translation>
-<translation id="2088833076121753253">ራስ-ሙላን አዋቅሮ ለመጨረስ አሁን Chromeን እንደገና ያስጀምሩ። ትሮችዎ በራስ-ሰር እንደገና ይከፈታሉ።</translation>
 <translation id="2091863218454846791">ውሱን ዕይታን በማሳየት ላይ</translation>
 <translation id="2093731487903423814">ካለፉት 15 ደቂቃዎች</translation>
 <translation id="2096577711562668473">የራስ-ሙላ አገልግሎት ይለወጥ?</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">ወደ ማንነት የማያሳውቅ ለመቀየር ይንኩ እና ይያዙ</translation>
 <translation id="2860954141821109167">በዚህ መሣሪያ ላይ የስልክ መተግበሪያ እንደነቃ ያረጋግጡ</translation>
 <translation id="2861923151411510142">የተወሰኑ የChrome ባህሪዎች ከአሁን በኋላ \u2019 አይገኙም</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> እና 1 ሌላ ትር}one{<ph name="URL" /> እና <ph name="TAB_COUNT_MANY" /> ሌላ ትር}other{<ph name="URL" /> እና <ph name="TAB_COUNT_MANY" /> ሌሎች ትሮች}}</translation>
 <translation id="2869430948265924908">በመኪናው ውስጥ ልዩ ጥንቃቄ የሚያስፈልገው ይዘት ለመጠበቅ የመኪና የመገለጫ መቆለፊያ መፍጠር አለብዎት።  ይህን በፒን፣ ኮድ ወይም የይለፍ ቃል ማከናወን ይችላሉ።</translation>
 <translation id="2870560284913253234">ጣቢያ</translation>
 <translation id="2871733351037274014">ገጾችን ቅድሚያ ጫን</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">በሙሉ ቁመቱ ላይ የተከፈተ ትር የሚጋሩ የመሣሪያዎች ዝርዝር።</translation>
 <translation id="2908243544703713905">ያልተነበቡ ታሪኮች ተዘጋጅተዋል</translation>
 <translation id="2909615210195135082">የGoogle ማሳወቂያዎች መሣሪያ ስርዓት</translation>
+<translation id="2912247081180973411">መስኮቶችን ዝጋ</translation>
 <translation id="2912345083818861431">ክፍት ማንነት የማያሳውቁ ትሮችን ለማየት ማያ ገፅ መቆለፊያ ይጠቀሙ</translation>
 <translation id="2918484639460781603">ወደ ቅንብሮች ይሂዱ</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />፣ ድምፀ-ከል የተደረገ ትር</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">ስለ የታገዱ መለያዎች የበለጠ ይወቁ</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />፣ በአዲስ ትር ውስጥ ይከፍታል</translation>
 <translation id="3166827708714933426">የትር እና የመስኮት አቋራጮች</translation>
-<translation id="316694332262407393">Chrome አስቀድሞ እዚህ በማሄድ ላይ ነው።</translation>
 <translation id="3167258285411721858">የ<ph name="HOST_NAME" />ን የተንቀሳቃሽ ስልክ ጣቢያ መጠየቅ ይችላሉ</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />፣ ብዙ የተመረጠ ፒን የተደረገ ድምፀ-ከል የተደረገ ማንነት የማያሳውቅ ትር</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">አገናኝን ወደ ድረ-ገጽ <ph name="PAGE_TITLE" /> ቅዳ። ምንጭ፦ <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">የተሻለ ይዘት ያግኙ</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 እና <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ተጨማሪ}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 እና <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ተጨማሪ}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 እና <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> ተጨማሪ}}</translation>
-<translation id="4698061626562952596">የቦዘኑ ትሮችዎን እዚህ ይገምግሙ</translation>
 <translation id="4698757800236023795">ገቢር (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">የተሸጎጡ ምስሎች እና ፋይሎች</translation>
 <translation id="4710167854527459075">በአዲሶች ደርድር</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> ትር - <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> ትር - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> ትሮች - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">ግላዊነት</translation>
 <translation id="504456571576643789">ከግምት ውስጥ መግባት ያለባቸው ነገሮች</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> መስኮት ተመርጧል}one{<ph name="WINDOW_COUNT_NORMAL" /> መስኮት ተመርጧል}other{<ph name="WINDOW_COUNT_NORMAL" /> መስኮቶች ተመርጠዋል}}</translation>
 <translation id="5056587122125565772">ምስል ፍጠር</translation>
 <translation id="506254248375231072">ምንም ትሮች የሉም</translation>
 <translation id="5075939510584558547">ያለምስጠራ ያስቀምጡ</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">ማንነት የማያሳውቅ ትር</translation>
 <translation id="5142281402488957685">ለአዳዲስ ታሪኮች ለማደስ ወደ ታች ይጎትቱ</translation>
 <translation id="5144385790872094440">የሚጎበኟቸው አንዳንድ ገፆች ቅድሚያ የተጫኑ ናቸው። ገፆች ከGoogle ጣቢያ ወይም መተግበሪያ ላይ ከተገናኙ በGoogle አገልጋዮች በኩል ቅድሚያ ሊጫኑ ይችላሉ።</translation>
-<translation id="5145887002054615868">የተባዙ ትሮች ወይም ለ<ph name="DAYS_INACTIVE" /> ቀናት ጥቅም ላይ ያልዋሉ ትሮች ወደዚህ<ph name="AUTODELETE_SECTION" /> ይንቀሳቀሳሉ። ይህን በማንኛውም ጊዜ በ<ph name="DECLUTTER_SETTINGS_TITLE" /> ውስጥ መለወጥ ይችላሉ።</translation>
 <translation id="5152843274749979095">ምንም የሚደገፉ መተግበሪያዎች አልተጫኑም</translation>
 <translation id="5161254044473106830">ርዕስ ያስፈልጋል</translation>
 <translation id="5161262286013276579">የይለፍ ቁልፍ ማረጋገጫ ሉህ ተከፍቷል</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">ገጾችን በጽሑፍ ጠቋሚ አማካኝነት ማሰስ ይችላሉ። ለማጥፋት F7ን ይጫኑ።</translation>
 <translation id="5471273988133666918">ትር <ph name="TAB_TITLE" /> መንቀሳቀስ አይችልም</translation>
 <translation id="548278423535722844">በካርታዎች መተግበሪያ ውስጥ ይክፈቱ</translation>
+<translation id="5494920125229734069">ሁሉንም ይመርጣል</translation>
 <translation id="549660026907543296">እንደ <ph name="MEMBER_FULL_NAME" /> ይቀላቀሉ</translation>
 <translation id="5517326820028369152">የቅርብ ጊዜ እንቅስቃሴ የግርጌ ሉህ</translation>
 <translation id="5526281268548144413">በብዙ መስኮቶች ላይ መዝጋት አልተቻለም</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">የእርስዎን ፋይሎች እና ገጾች በውርዶች ውስጥ ያግኙ</translation>
 <translation id="5962718611393537961">ለመሰብሰብ መታ ያድርጉ</translation>
 <translation id="5964869237734432770">የምስል መግለጫዎችን አቁም</translation>
+<translation id="5972844218283131174">ሁሉንም አትምረጥ</translation>
 <translation id="5975083100439434680">አሳንስ</translation>
 <translation id="5977976211062815271">በዚህ መሣሪያ ላይ</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{በንባብ ዝርዝርዎ ላይ 1 ገፅ}one{በንባብ ዝርዝርዎ ላይ # ገፅ}other{በንባብ ዝርዝርዎ ላይ # ገፆች}}</translation>
@@ -1721,12 +1720,14 @@
 <translation id="8137562778192957619">ይህን የይለፍ ቃል ማስታወስ አያስፈልግዎትም። በGoogle የይለፍ ቃል አስተዳዳሪ ላይ ይቀመጣል።</translation>
 <translation id="8152331954420209374">ወደ ሌንስ ሂድ</translation>
 <translation id="8153206878708357851">የጽሑፍ ጠቋሚ አሰሳን ቀያይር</translation>
+<translation id="8154784523622173959">የዚህን ገጽ ዳራ ግላዊ ያድርጉ</translation>
 <translation id="8163820386638255770">በGoogle መለያዎ ውስጥ የይለፍ ቃላትን ለመጠቀም እና ለማስቀመጥ እርስዎ መሆንዎን ያረጋግጡ</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) የቦዘነ ንጥል}one{(#) የቦዘነ ንጥል}other{(#) የቦዘኑ ንጥሎች}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> ፋይሎች ይቀራሉ</translation>
 <translation id="8190358571722158785">1 ቀን ይቀራል</translation>
 <translation id="8192765420340770300">የመግቢያ ግርጌ ሉህ በሙሉ ቁመት ተከፍቷል</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />የእርስዎ መሣሪያዎች<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">የፍለጋ መጠይቅን አጽዳ</translation>
 <translation id="820568752112382238">በብዛት የተጎበኙ ጣቢያዎች</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{ከ<ph name="OWNER_FIRST_NAME" /> እና <ph name="NUMBER_OF_OTHER_MEMBERS" /> ሌላ ጋር የትር ቡድን ይቀላቀላሉ}one{ከ<ph name="OWNER_FIRST_NAME" /> እና <ph name="NUMBER_OF_OTHER_MEMBERS" /> ሌላ ጋር የትር ቡድን ይቀላቀላሉ}other{ከ<ph name="OWNER_FIRST_NAME" /> እና <ph name="NUMBER_OF_OTHER_MEMBERS" /> ሌሎች ጋር የትር ቡድን ይቀላቀላሉ}}</translation>
 <translation id="8209050860603202033">ምስል ክፈት</translation>

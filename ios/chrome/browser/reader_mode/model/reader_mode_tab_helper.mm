@@ -254,23 +254,24 @@ void ReaderModeTabHelper::ReaderModeContentDidLoadData(
                                               reader_mode_web_state_.get());
   }
 
-  infobars::InfoBarManager* manager =
-      InfoBarManagerImpl::FromWebState(web_state_.get());
-  if (manager) {
-    manager->RemoveAllInfoBars(/*animate=*/false);
-  }
+  // Ensure that any infobars created outside Reading Mode state are removed
+  // prior to creating new ones attached to the Reader mode web page.
+  RemoveTranslateInfobarIfExists(web_state_.get());
 
   // Apply translation to the page if it was applied on the original page.
   if (IsReaderModeTranslationAvailable()) {
-    InfobarOverlayRequestInserter::FromWebState(web_state_.get())
-        ->SuppressNextInfobarOfType(InfobarType::kInfobarTypeTranslate);
+    InfobarOverlayRequestInserter* infobar_overlay_request_inserter =
+        InfobarOverlayRequestInserter::FromWebState(web_state_.get());
+    if (infobar_overlay_request_inserter) {
+      infobar_overlay_request_inserter->SuppressNextInfobarOfType(
+          InfobarType::kInfobarTypeTranslate);
+    }
+
     if (source_translation_state_.is_original_source_translated) {
       reader_mode_content_tab_helper->ActivateTranslateOnPage(
           source_translation_state_.source_code,
           source_translation_state_.target_code);
     } else if (IsReaderModeBadgeSupportEnabled()) {
-      // TODO(crbug.com/463917509): Do not support auto-translate in Reading
-      // Mode if the user has explicitly disabled the setting.
       language::IOSLanguageDetectionTabHelper::FromWebState(
           reader_mode_web_state_.get())
           ->StartLanguageDetection();

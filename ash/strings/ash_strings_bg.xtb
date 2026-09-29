@@ -342,6 +342,7 @@
 <translation id="2201071101391734388">Скорошна снимка <ph name="INDEX" /> от <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Свиване на Google Tasks</translation>
 <translation id="2208323208084708176">Режим на обединен работен плот</translation>
+<translation id="2210311543574621570">Буферната памет ще се показва при натискане и задържане на Ctrl + V. Можете да изключите клавишната комбинация, като деактивирате флага #clipboard-history-longpress в chrome://flags.</translation>
 <translation id="2215920961700443347">Не сте онлайн. Свържете се с интернет и опитайте отново.</translation>
 <translation id="2222841058024245321">Работен кът 7</translation>
 <translation id="2223384056430485343">При разделен екран</translation>
@@ -1025,7 +1026,6 @@
 <translation id="4449692009715125625">{NUM_NOTIFICATIONS,plural, =1{1 важно известие}other{# важни известия}}</translation>
 <translation id="4450893287417543264">Да не се показва отново</translation>
 <translation id="4451374464530248585">Клавишната комбинация Alt + стрелка надолу се промени. За да използвате клавиша Page Down, натиснете клавиша „<ph name="LAUNCHER_KEY_NAME" />“ + стрелката надолу.</translation>
-<translation id="4453876312474547652">Буферната памет ще се показва при натискане и задържане на Ctrl + V. Можете да изключите клавишната комбинация, като деактивирате флага #clipboard-history-longpress в chrome://flags (os://flags, ако използвате Lacros).</translation>
 <translation id="445765352722456792">Персонализиране на предложенията</translation>
 <translation id="4458688154122353284">Спиране на записа на екрана</translation>
 <translation id="445923051607553918">Присъединяване към Wi-Fi мрежа</translation>

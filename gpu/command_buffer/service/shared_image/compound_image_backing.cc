@@ -519,6 +519,33 @@ class WrappedWebNNTensorCompoundImageRepresentation
   std::unique_ptr<WebNNTensorRepresentation> wrapped_;
 };
 
+class WrappedMemoryCompoundImageRepresentation
+    : public MemoryImageRepresentation {
+ public:
+  WrappedMemoryCompoundImageRepresentation(
+      SharedImageManager* manager,
+      SharedImageBacking* backing,
+      MemoryTypeTracker* tracker,
+      std::unique_ptr<MemoryImageRepresentation> wrapped)
+      : MemoryImageRepresentation(manager, backing, tracker),
+        wrapped_(std::move(wrapped)) {
+    CHECK(wrapped_);
+  }
+
+  CompoundImageBacking* compound_backing() {
+    return static_cast<CompoundImageBacking*>(backing());
+  }
+
+  SkPixmap BeginReadAccess() override {
+    compound_backing()->NotifyBeginAccess(wrapped_->backing(),
+                                          AccessMode::kRead);
+    return wrapped_->BeginReadAccess();
+  }
+
+ private:
+  std::unique_ptr<MemoryImageRepresentation> wrapped_;
+};
+
 // static
 bool CompoundImageBacking::IsValidSharedMemoryBufferFormat(
     const gfx::Size& size,
@@ -940,9 +967,31 @@ void CompoundImageBacking::MarkForDestruction() {
 }
 
 gfx::GpuMemoryBufferHandle CompoundImageBacking::GetGpuMemoryBufferHandle() {
-  auto& element = GetShmElement();
+  // A GpuMemoryBufferHandle corresponds to the shared memory or native buffer
+  // (like an IOSurface, AHardwareBuffer, or DXGI Handle) that backs the image.
+  //
+  // Per this backing's design:
+  // 1. Any CPU-mappable backing including SharedMemoryImageBacking is always
+  // created only at initialization time and never allocated dynamically during
+  // runtime. Hence it is guaranteed to be at elements_[0].
+  // 2. |elements_| always contains at least one element.
+  CHECK(!elements_.empty());
+  auto& element = elements_[0];
   CHECK(element.backing);
   return element.backing->GetGpuMemoryBufferHandle();
+}
+
+scoped_refptr<gfx::NativePixmap> CompoundImageBacking::GetNativePixmap() {
+  // The purpose of this function is to get NativePixmap for overlay testing,
+  // so it needs be the same NativePixmap that we would later get from the
+  // ProduceOverlay representation. Hence using Overlay stream backing here.
+  for (const auto& element : elements_) {
+    if (element.access_streams.Has(SharedImageAccessStream::kOverlay) &&
+        element.backing) {
+      return element.backing->GetNativePixmap();
+    }
+  }
+  return nullptr;
 }
 
 std::unique_ptr<DawnImageRepresentation> CompoundImageBacking::ProduceDawn(
@@ -1084,6 +1133,23 @@ CompoundImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
   }
 
   return std::make_unique<WrappedWebNNTensorCompoundImageRepresentation>(
+      manager, this, tracker, std::move(real_rep));
+}
+
+std::unique_ptr<MemoryImageRepresentation> CompoundImageBacking::ProduceMemory(
+    SharedImageManager* manager,
+    MemoryTypeTracker* tracker) {
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kMemory);
+  if (!backing) {
+    return nullptr;
+  }
+
+  auto real_rep = backing->ProduceMemory(manager, tracker);
+  if (!real_rep) {
+    return nullptr;
+  }
+
+  return std::make_unique<WrappedMemoryCompoundImageRepresentation>(
       manager, this, tracker, std::move(real_rep));
 }
 

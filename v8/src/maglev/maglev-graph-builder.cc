@@ -5098,6 +5098,17 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
     GET_VALUE_OR_ABORT(
         load_source,
         BuildLoadTaggedField(load_source, JSReceiver::kPropertiesOrHashOffset));
+    if (is_turbolev()) {
+      // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
+      // we just loaded a property array, which means that it can't alias with
+      // anything that isn't a property array itself.
+      // TODO(dmercadier): also record from which object this property array
+      // came from, since 2 property array maps for objects with different maps
+      // cannot alias.
+      RETURN_IF_ABORT(AddNewNode<AssumeMap>(
+          {load_source},
+          compiler::ZoneRefSet<Map>(broker()->property_array_map())));
+    }
   }
 
   // Do the load.
@@ -5213,6 +5224,9 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
   if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
     return GetConstant(fast_closure->feedback_cell());
   }
+  if (auto slow_closure = closure->TryCast<CreateClosure>()) {
+    return GetConstant(slow_closure->feedback_cell());
+  }
   return BuildLoadTaggedField(closure, JSFunction::kFeedbackCellOffset);
 }
 
@@ -5221,6 +5235,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
   if (auto constant = TryGetConstant<JSFunction>(closure)) {
     return GetConstant(constant->context(broker()));
+  }
+  if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
+    return fast_closure->ContextInput().node();
+  }
+  if (auto slow_closure = closure->TryCast<CreateClosure>()) {
+    return slow_closure->ContextInput().node();
   }
   return BuildLoadTaggedField(closure, JSFunction::kContextOffset,
                               LoadType::kContext);
@@ -5426,6 +5446,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
         // This should never occur in any realistic code, so we can deopt here
         // instead of implementing special handling for it.
         return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+      }
+      if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+        RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
+            {lookup_start_object}, TypedArrayAccessMode::kRead));
       }
       return BuildLoadTypedArrayLength(lookup_start_object,
                                        access_info.elements_kind());
@@ -5869,7 +5893,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
   return AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildLoadElements(
+    ValueNode* object, std::optional<ElementsKind> kind) {
   ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
       object, PropertyKey::Elements());
   if (known_elements) {
@@ -5885,6 +5910,19 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
                      BuildLoadTaggedField(object, JSObject::kElementsOffset));
   RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
                       compiler::AccessMode::kLoad);
+  if (is_turbolev() && kind.has_value()) {
+    // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
+    // we just loaded a FixedArray array, which means that it can't alias with
+    // anything that isn't a property array itself.
+    // TODO(dmercadier): also record from which object this elements array came
+    // from, since 2 elements arrays for objects with different maps cannot
+    // alias.
+    RETURN_IF_ABORT(AddNewNode<AssumeMap>(
+        {elements},
+        compiler::ZoneRefSet<Map>(IsDoubleElementsKind(kind.value())
+                                      ? broker()->fixed_double_array_map()
+                                      : broker()->fixed_array_map())));
+  }
   return elements;
 }
 
@@ -6144,7 +6182,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
   ValueNode* elements_array;
-  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object));
+  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object, elements_kind));
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   ValueNode* length;
@@ -6280,7 +6318,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
   // Get the elements array.
   ValueNode* elements_array;
-  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object));
+  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object, elements_kind));
   GET_VALUE_OR_ABORT(value, ConvertForStoring(value, elements_kind));
   ValueNode* index = nullptr;
 
@@ -8913,7 +8951,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // element = array.elements[index]
   // ```
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver));
+  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
   ValueNode* element;
   if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
     GET_VALUE_OR_ABORT(element,
@@ -9250,7 +9288,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
   }
 
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver));
+  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
 
   return Select(
       [&](BranchBuilder& builder) {
@@ -14063,13 +14101,13 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     index++;
   }
 
-  // Fill slack at the end of the boilerplate object with filler maps.
+  // Fill inobject_properties with undefined.
   for (; index < inobject_properties; ++index) {
     DCHECK(!V8_MAP_PACKING_BOOL);
     // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
     // enabled.
     int offset = boilerplate_map.GetInObjectPropertyOffset(index);
-    fast_literal->set(offset, GetRootConstant(RootIndex::kOnePointerFillerMap));
+    fast_literal->set(offset, GetRootConstant(RootIndex::kUndefinedValue));
   }
 
   DCHECK_EQ(JSObject::kElementsOffset, JSArray::kElementsOffset);
@@ -14191,6 +14229,15 @@ VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSObject::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
+
+  // Initialize all in-object property slots to undefined.
+  if (map.GetInObjectProperties() > 0) {
+    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
+    for (int i = 0; i < map.GetInObjectProperties(); i++) {
+      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
+    }
+  }
+
   return vobj;
 }
 
@@ -14270,6 +14317,12 @@ VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSObject::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
+  if (prediction.inobject_property_count() != 0) {
+    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
+    for (int i = 0; i < prediction.inobject_property_count(); i++) {
+      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
+    }
+  }
   return vobj;
 }
 
@@ -14565,6 +14618,7 @@ ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
   SmallZoneVector<ValueAndDesc, 8> values(zone());
   bool result =
       vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
+        CHECK_NE(node, VirtualObject::kUninitializedSlotValue);
         if (node->Is<VirtualObject>()) {
           VirtualObject* nested = node->Cast<VirtualObject>();
           ReduceResult result = BuildInlinedAllocation(nested, allocation_type);
@@ -16706,6 +16760,7 @@ BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
                   is_tracing_enabled())) {
     std::cout << "== New empty block ==" << std::endl;
     PrintVirtualObjects();
+    known_node_aspects().PrintLoadedProperties();
   }
   DCHECK_NULL(current_block());
   set_current_block(zone()->New<BasicBlock>(nullptr, zone()));
@@ -16961,6 +17016,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
                 << compilation_unit()->shared_function_info().object()
                 << "==" << std::endl;
       PrintVirtualObjects();
+      known_node_aspects().PrintLoadedProperties();
     }
 
     if (V8_UNLIKELY(merge_state->is_exception_handler())) {
@@ -17602,6 +17658,7 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
                 << *compilation_unit_->shared_function_info().object()
                 << "==" << std::endl;
       PrintVirtualObjects();
+      known_node_aspects().PrintLoadedProperties();
     }
     StartNewBlock(next_block_offset, predecessor);
   } else {

@@ -4,11 +4,14 @@
 
 #include "third_party/blink/renderer/modules/ai/ai_interface_proxy.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
+
+const char AIInterfaceProxy::kSupplementName[] = "AIInterfaceProxy";
 
 // TODO(crbug.com/406770758): Consider refactoring to have this class own the
 // execution context as a member.

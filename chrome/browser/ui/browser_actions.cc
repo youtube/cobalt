@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "base/check_deref.h"
 #include "base/check_op.h"
@@ -55,6 +56,7 @@
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
@@ -421,9 +423,14 @@ void BrowserActions::InitializeBrowserActions() {
             .SetTooltipText(l10n_util::GetStringUTF16(
                 IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP))
             .SetImage(ui::ImageModel::FromVectorIcon(
-                // TODO(crbug.com/457422266): Use v8 icon.
-                vector_icons::kCodeIcon, ui::kColorIcon,
-                ui::SimpleMenuModel::kDefaultIconSize))
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+                vector_icons::kV8OffIcon,
+#else
+                // TODO(crbug.com/457422266): Figure out which icon to use for
+                // non-branded builds.
+                vector_icons::kCodeIcon,
+#endif
+                ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetEnabled(true)
             .Build());
   }
@@ -640,6 +647,21 @@ void BrowserActions::InitializeBrowserActions() {
                 l10n_util::GetStringUTF16(IDS_COLLAPSE_VERTICAL_TABS)))
             .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
                 l10n_util::GetStringUTF16(IDS_COLLAPSE_VERTICAL_TABS)))
+            .Build());
+  }
+
+  if (tabs::IsProjectsPanelFeatureEnabled()) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  auto* controller = ProjectsPanelStateController::From(bwi);
+                  controller->SetProjectsVisible(
+                      !controller->IsProjectsPanelVisible());
+                },
+                bwi))
+            .SetActionId(kActionToggleProjectsPanel)
             .Build());
   }
 
@@ -1137,7 +1159,7 @@ void BrowserActions::InitializeBrowserActions() {
                   if ((page_action_trigger !=
                        page_actions::kInvalidPageActionTrigger) &&
                       page_action_trigger ==
-                          base::to_underlying(
+                          std::to_underlying(
                               page_actions::PageActionTrigger::kKeyboard)) {
                     via_keyboard = true;
                   }

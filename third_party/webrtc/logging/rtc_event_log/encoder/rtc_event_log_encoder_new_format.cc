@@ -486,6 +486,14 @@ void RtcEventLogEncoderNewFormat::EncodeRtpPacket(const Batch& batch,
     }
   }
 
+  std::optional<uint64_t> base_rtx_osn;
+  if (std::optional<uint16_t> rtx_osn =
+          base_event->rtx_original_sequence_number();
+      rtx_osn.has_value()) {
+    base_rtx_osn = static_cast<uint64_t>(*rtx_osn);
+    proto_batch->set_rtx_original_sequence_number(*base_rtx_osn);
+  }
+
   if (batch.size() == 1) {
     return;
   }
@@ -675,6 +683,21 @@ void RtcEventLogEncoderNewFormat::EncodeRtpPacket(const Batch& batch,
   encoded_deltas = EncodeDeltas(base_voice_activity, values);
   if (!encoded_deltas.empty()) {
     proto_batch->set_voice_activity_deltas(encoded_deltas);
+  }
+
+  // RTX original sequence number.
+  for (size_t i = 0; i < values.size(); ++i) {
+    const EventType* event = batch[i + 1];
+    if (std::optional<uint16_t> rtx_osn = event->rtx_original_sequence_number();
+        rtx_osn.has_value()) {
+      values[i] = static_cast<uint64_t>(*rtx_osn);
+    } else {
+      values[i].reset();
+    }
+  }
+  encoded_deltas = EncodeDeltas(base_rtx_osn, values);
+  if (!encoded_deltas.empty()) {
+    proto_batch->set_rtx_original_sequence_number_deltas(encoded_deltas);
   }
 }
 

@@ -421,6 +421,7 @@ class CORE_EXPORT Node : public EventTarget {
   virtual bool IsScrollMarkerPseudoElement() const { return false; }
   virtual bool IsScrollMarkerGroupPseudoElement() const { return false; }
   virtual bool IsScrollButtonPseudoElement() const { return false; }
+  virtual bool IsIndexedPseudoElement() const { return false; }
   virtual bool IsInterestHintPseudoElement() const { return false; }
   virtual bool IsMediaControlElement() const { return false; }
   virtual bool IsMediaControls() const { return false; }
@@ -1219,9 +1220,14 @@ class CORE_EXPORT Node : public EventTarget {
     // ContainerTiming events.
     kSelfOrAncestorHasContainerTiming = 1u << 30,
 
+    // Whether this node is an Element that is a shadow host.
+    // Used to speed up GetShadowRoot(). This bit can be freed up if
+    // GetShadowRoot() can be inlined by the compiler; see crbug.com/465839474.
+    kHasShadowRootFlag = 1u << 31,
+
     kDefaultNodeFlags = kIsFinishedParsingChildrenFlag,
 
-    // 1 bit(s) remaining.
+    // 0 bit(s) remaining.
   };
 
   ALWAYS_INLINE bool GetFlag(NodeFlags mask) const {
@@ -1306,6 +1312,9 @@ class CORE_EXPORT Node : public EventTarget {
   void SetIsFinishedParsingChildren(bool value) {
     SetFlag(value, kIsFinishedParsingChildrenFlag);
   }
+
+  void SetHasShadowRoot() { SetFlag(kHasShadowRootFlag); }
+  bool HasShadowRoot() const { return GetFlag(kHasShadowRootFlag); }
 
   void InvalidateIfHasEffectiveAppearance() const;
 

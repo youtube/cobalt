@@ -40,6 +40,7 @@ class PacketStash {
   void Prune(const absl::flat_hash_set<uint32_t>& packet_hashes);
   void Prune(uint32_t max_size);
   ArrayView<const uint8_t> GetNext();
+  std::vector<ArrayView<const uint8_t>> GetAll() const;
 
   void clear() {
     packets_.clear();

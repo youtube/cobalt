@@ -151,11 +151,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // low-memory scenarios.
   feature_overrides.EnableFeature(chrome::android::kChangeUnfocusedPriority);
 
-  // Enables media capture (tab+window+screen sharing).
-  // TODO(crbug.com/352187279): Remove when tablet rollout is complete.
-  feature_overrides.EnableFeature(kAndroidMediaPicker);
-  feature_overrides.EnableFeature(features::kUserMediaScreenCapturing);
-
   // Enable desktop tab management features.
   // TODO(crbug.com/422902625): Remove when rollout is complete to all form
   // factors.
@@ -220,8 +215,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/444486763): Remove when rollout is complete to all form
   // factors.
   feature_overrides.EnableFeature(chrome::android::kAndroidTabHighlighting);
-  // TODO(b/441672693): Remove when the feature is stable on other form factors.
-  feature_overrides.EnableFeature(features::kAndroidAudioDeviceListener);
   // Enable by default for desktop platforms, pending a tablet rollout using the
   // same flag.
   // TODO(crbug.com/445475304): Remove when tablet rollout is complete.
@@ -265,12 +258,10 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // stable on desktop Android.
   feature_overrides.EnableFeature(chrome::android::kChromeNativeUrlOverriding);
 
-  // Enable desktop full screen feature flags by default for desktop platforms.
-  // This includes: Display Edge to Edge fullscreen and full screen to any
-  // screen
+  // Enable desktop full screen to a screen feature flag by default for desktop
+  // platforms.
   // TODO(crbug.com/417426218) Remove once feature is launched to 100% on all
   // form factors.
-  feature_overrides.EnableFeature(features::kDisplayEdgeToEdgeFullscreen);
   feature_overrides.EnableFeature(
       features::kEnableFullscreenToAnyScreenAndroid);
 

@@ -1511,8 +1511,8 @@ class ServiceWorkerNavigationPreloadTest : public ServiceWorkerBrowserTest {
     void SendResponse(base::WeakPtr<net::test_server::HttpResponseDelegate>
                           delegate) override {
       delegate->SendHeadersContentAndFinish(
-          code_, reason_.value_or(net::GetHttpReasonPhrase(code_)), headers_,
-          content_);
+          code_, reason_.value_or(std::string(net::GetHttpReasonPhrase(code_))),
+          headers_, content_);
     }
 
    private:
@@ -5168,6 +5168,8 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
     return std::get<0>(GetParam());
   }
 
+  bool IsProcessHtmlDataImmediatelyEnabled() { return std::get<1>(GetParam()); }
+
  private:
   void RegisterRequestHandlerForSlowResponsePage(
       net::EmbeddedTestServer* test_server) {
@@ -6266,7 +6268,24 @@ class ServiceWorkerAutoPreloadBrowserTest
   static constexpr char kSwScriptUrl[] = "/service_worker/auto_preload.js";
 
   ServiceWorkerAutoPreloadBrowserTest() {
-    feature_list_.InitWithFeatures({{features::kServiceWorkerAutoPreload}}, {});
+    // We excplitly enable/disable `ProcessHtmlDataImmediately`. Because the
+    // `ProcessHtmlDataImmediately` changes the scheduling of processing HTML
+    // tokenizer in the renderer, and the `ServiceWorkerAutoPreload` should
+    // guarantee that the response data is successfully delivered to the
+    // renderer regardless of it's timing. See crbug.com/468821930 fore more
+    // details.
+    if (IsProcessHtmlDataImmediatelyEnabled()) {
+      feature_list_.InitWithFeatures(
+          {{features::kServiceWorkerAutoPreload},
+           {blink::features::kProcessHtmlDataImmediately}},
+          {});
+    } else {
+      feature_list_.InitWithFeatures(
+          {
+              {features::kServiceWorkerAutoPreload},
+          },
+          {{blink::features::kProcessHtmlDataImmediately}});
+    }
     RaceNetworkRequestWriteBufferManager::SetDataPipeCapacityBytesForTesting(
         1024);
   }
@@ -6336,10 +6355,15 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadBrowserTest, PassThrough) {
   // Request count should be 1. RaceNetworkRequest + pass through request from
   // fetch handler but the fetch handler request will reuse the response from
   // RaceNetworkRequest.
-  while (GetRequestCount(relative_url) != 1) {
+  while (GetRequestCount(relative_url) < 1) {
     base::RunLoop().RunUntilIdle();
   }
   EXPECT_EQ(1, GetRequestCount(relative_url));
+  // Check the response body is processed correctly to ensure if the request
+  // initiated by the ServiceWorkerAutoPreload is dispatched, and the response
+  // is delivered to the renderer.
+  EXPECT_EQ("[ServiceWorkerRaceNetworkRequest] Response from the network",
+            GetInnerText());
 }
 
 IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadBrowserTest,
@@ -6698,60 +6722,6 @@ IN_PROC_BROWSER_TEST_P(
             GetInnerText());
   EXPECT_EQ("fetch-handler",
             observer.GetNormalizedResponseHeader("X-Response-From"));
-}
-
-class ServiceWorkerAutoPreloadAllowListBrowserTest
-    : public ServiceWorkerAutoPreloadBrowserTest {
- public:
-  ServiceWorkerAutoPreloadAllowListBrowserTest() {
-    feature_list_.InitWithFeaturesAndParameters(
-        {{features::kServiceWorkerAutoPreload, {{"use_allowlist", "true"}}},
-         {features::kServiceWorkerBypassFetchHandlerHashStrings,
-          {{"script_checksum_to_bypass",
-            ShouldUseValidChecksum() ? kValidChecksum : kInvalidChecksum}}}},
-        {});
-  }
-  ~ServiceWorkerAutoPreloadAllowListBrowserTest() override = default;
-
-  WebContents* web_contents() const { return shell()->web_contents(); }
-
-  RenderFrameHost* GetPrimaryMainFrame() {
-    return web_contents()->GetPrimaryMainFrame();
-  }
-
- protected:
-  bool ShouldUseValidChecksum() { return std::get<1>(GetParam()); }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-  static constexpr char kValidChecksum[] =
-      "E3F7EBC59086064254D833F18B01BAAE4B9DB5F5321E271AC345F2648518324A";
-  static constexpr char kInvalidChecksum[] = "";
-};
-
-INSTANTIATE_TEST_SUITE_P(ALL,
-                         ServiceWorkerAutoPreloadAllowListBrowserTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
-
-IN_PROC_BROWSER_TEST_P(ServiceWorkerAutoPreloadAllowListBrowserTest,
-                       EnableAutoPreloadIfScriptIsAllowed) {
-  SetupAndRegisterServiceWorker();
-  const std::string relative_url = "/service_worker/mock_response?sw_respond";
-  const GURL test_url = embedded_test_server()->GetURL(relative_url);
-  NavigationHandleObserver observer(web_contents(), test_url);
-  WorkerRunningStatusObserver service_worker_running_status_observer(
-      public_context());
-  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
-  EXPECT_TRUE(observer.has_committed());
-  service_worker_running_status_observer.WaitUntilRunning();
-
-  // The final response comes from the fetch handler, which returns a custom
-  // response without requiring network request. Expect the network request by
-  // the AutoPrealod feature only when the script checksum is in the allowlist.
-  base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(ShouldUseValidChecksum() ? 1 : 0, GetRequestCount(relative_url));
-  EXPECT_EQ("[ServiceWorkerRaceNetworkRequest] Response from the fetch handler",
-            GetInnerText());
 }
 
 class ServiceWorkerAutoPreloadOptOutBrowserTest

@@ -81,7 +81,6 @@ class AnchorEvaluator;
 class ComputedStyleBuilder;
 class CounterStyle;
 class CounterStyleMap;
-class StyleContainmentScopeTree;
 class CSSFontSelector;
 class CSSPropertyValueSet;
 class CSSStyleSheet;
@@ -91,6 +90,7 @@ class ElementRuleCollector;
 class Font;
 class FontSelector;
 class HTMLBodyElement;
+class LayoutQuote;
 class MediaQueryEvaluator;
 class MediaQuerySet;
 class Node;
@@ -115,6 +115,10 @@ class ViewportStyleResolver;
 class SelectorFilter;
 struct LogicalSize;
 struct MixinMap;
+
+template <typename T>
+class OrderedScopeTree;
+using StyleContainmentScopeTree = OrderedScopeTree<LayoutQuote>;
 
 enum InvalidationScope { kInvalidateCurrentScope, kInvalidateAllScopes };
 
@@ -783,7 +787,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   // Call when @navigation rules may need to be re-evaluated, because the
   // current URL has changed.
-  void NavigationsMayHaveChanged() { SetNeedsActiveStyleUpdate(GetDocument()); }
+  void NavigationsMayHaveChanged();
 
   // Returns a random base value for CSS random() function.
   // @param random_value_sharing <random-value-sharing> parameter of CSS
@@ -797,10 +801,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // functions in the same property value. Only used if
   // RandomValueSharing::isAuto() returns true.
   // https://drafts.csswg.org/css-values-5/#random-caching
-  double GetCachedRandomBaseValue(RandomValueSharing random_value_sharing,
-                                  const Element* element,
-                                  AtomicString property_name,
-                                  size_t property_value_index);
+  double GetCachedRandomBaseValue(
+      const RandomValueSharing& random_value_sharing,
+      const Element* element);
 
  private:
   void UpdateCounters(const Element& element,

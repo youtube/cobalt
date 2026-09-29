@@ -114,7 +114,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1413446866325418126">Google アカウントにデータを保存する</translation>
 <translation id="1414919006379339073">現在のウィンドウを閉じる</translation>
 <translation id="1416550906796893042">アプリケーションのバージョン</translation>
-<translation id="1419753403124156396">Chrome を再起動しますか？</translation>
 <translation id="1428770807407000502">同期を OFF にしますか？</translation>
 <translation id="1430915738399379752">印刷</translation>
 <translation id="1435593198351412143">PDF を自動的に開く</translation>
@@ -247,10 +246,8 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2063047797624276601">セーフ ブラウジング保護強化機能は組織によってオンにされています</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 件のダウンロードが失敗しました}other{# 件のダウンロードが失敗しました}}</translation>
 <translation id="2067805253194386918">テキスト</translation>
-<translation id="2072027001582274150">未使用または重複しているタブ</translation>
 <translation id="2079545284768500474">元に戻す</translation>
 <translation id="2082238445998314030">結果 <ph name="TOTAL_RESULTS" /> 件中 <ph name="RESULT_NUMBER" /> 件目</translation>
-<translation id="2088833076121753253">自動入力の設定を完了するには、Chrome を今すぐ再起動してください。タブは自動的に再度開きます。</translation>
 <translation id="2091863218454846791">コンパクト表示を表示しています</translation>
 <translation id="2093731487903423814">過去 15 分間</translation>
 <translation id="2096577711562668473">自動入力サービスを変更しますか？</translation>
@@ -428,6 +425,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2854916915045135148">シークレット モードに切り替えるには長押しします</translation>
 <translation id="2860954141821109167">このデバイスで通話アプリが有効になっていることを確認してください</translation>
 <translation id="2861923151411510142">Chrome の一部の機能は使用できなくなります</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" />、他 1 個のタブ}other{<ph name="URL" />、他 <ph name="TAB_COUNT_MANY" /> 個のタブ}}</translation>
 <translation id="2869430948265924908">車内で機密性の高いコンテンツを保護するには、車のプロフィールのロックを作成する必要があります。ロックには PIN、コード、パスワードを使用できます。</translation>
 <translation id="2870560284913253234">ウェブサイト</translation>
 <translation id="2871733351037274014">ページをプリロードする</translation>
@@ -446,6 +444,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2904414404539560095">タブを共有するデバイスのリストが画面全体に表示されました。</translation>
 <translation id="2908243544703713905">未読の記事があります</translation>
 <translation id="2909615210195135082">Google 通知プラットフォーム</translation>
+<translation id="2912247081180973411">ウィンドウを閉じる</translation>
 <translation id="2912345083818861431">画面ロックを使用して、開いているシークレット タブを表示します</translation>
 <translation id="2918484639460781603">設定に移動</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />、ミュート中のタブ</translation>
@@ -503,7 +502,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3159335509547415276">アカウントのブロックに関する詳細</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />、新しいタブで開く</translation>
 <translation id="3166827708714933426">タブとウィンドウのショートカット</translation>
-<translation id="316694332262407393">Chrome はここですでに実行中です。</translation>
 <translation id="3167258285411721858"><ph name="HOST_NAME" /> のモバイルサイトをリクエストできます</translation>
 <translation id="3169472444629675720">Discover</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />、複数選択されたミュート中の固定のシークレット タブ</translation>
@@ -851,7 +849,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="468924408576231679">ウェブページ「<ph name="PAGE_TITLE" />」へのリンクをコピーします。ソース: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">関連性の高いコンテンツを表示</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 他 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 件}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 他 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 件}}</translation>
-<translation id="4698061626562952596">ここでアクティブでないタブを確認できます</translation>
 <translation id="4698757800236023795">アクティブ（<ph name="ITEM_COUNT" />）</translation>
 <translation id="4699172675775169585">キャッシュされた画像とファイル</translation>
 <translation id="4710167854527459075">新しい順に並べ替え</translation>
@@ -950,6 +947,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> 個のタブ - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> 個のタブ - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">プライバシー</translation>
 <translation id="504456571576643789">留意事項</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> 個のウィンドウを選択しました}other{<ph name="WINDOW_COUNT_NORMAL" /> 個のウィンドウを選択しました}}</translation>
 <translation id="5056587122125565772">画像を作成</translation>
 <translation id="506254248375231072">タブはありません</translation>
 <translation id="5075939510584558547">暗号化せずに保存</translation>
@@ -966,7 +964,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5123685120097942451">シークレット タブ</translation>
 <translation id="5142281402488957685">新しい記事を表示するには、下にスワイプして更新します</translation>
 <translation id="5144385790872094440">アクセスしたページの一部はプリロードされます。ページが Google サイトまたはアプリからリンクされている場合、Google サーバーを介してプリロードされる可能性があります。</translation>
-<translation id="5145887002054615868">重複しているタブや <ph name="DAYS_INACTIVE" /> 日間使用していないタブはここに移動され、<ph name="AUTODELETE_SECTION" />。これは [<ph name="DECLUTTER_SETTINGS_TITLE" />] でいつでも変更できます。</translation>
 <translation id="5152843274749979095">サポートされているアプリがインストールされていません</translation>
 <translation id="5161254044473106830">タイトルが必要です</translation>
 <translation id="5161262286013276579">パスキー確認シートを開きました</translation>
@@ -1041,6 +1038,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5469852975082458401">テキスト カーソルを使ってページ間を移動できます。オフにするには F7 キーを押します。</translation>
 <translation id="5471273988133666918">タブ <ph name="TAB_TITLE" /> を移動できません</translation>
 <translation id="548278423535722844">マップアプリで開く</translation>
+<translation id="5494920125229734069">すべて選択</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> として参加</translation>
 <translation id="5517326820028369152">最近のアクティビティのボトムシート</translation>
 <translation id="5526281268548144413">複数のウィンドウでタブを閉じることはできません</translation>
@@ -1149,6 +1147,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5958275228015807058">[ダウンロード] で自分のファイルやページを探すことができます</translation>
 <translation id="5962718611393537961">タップして折りたたむ</translation>
 <translation id="5964869237734432770">画像の説明文の取得を停止する</translation>
+<translation id="5972844218283131174">すべての選択を解除</translation>
 <translation id="5975083100439434680">縮小する</translation>
 <translation id="5977976211062815271">保存先: このデバイス</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{リーディング リストの 1 件のページ}other{リーディング リストの # 件のページ}}</translation>
@@ -1721,12 +1720,14 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8137562778192957619">このパスワードを覚えておく必要はありません。パスワードは Google パスワード マネージャーに保存されます。</translation>
 <translation id="8152331954420209374">レンズに移動</translation>
 <translation id="8153206878708357851">カーソル ブラウジングを切り替える</translation>
+<translation id="8154784523622173959">このページの背景をカスタマイズ</translation>
 <translation id="8163820386638255770">Google アカウントでパスワードを使用、保存するには、本人確認を行ってください</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{（1 個）非アクティブ アイテム}other{（# 個）非アクティブ アイテム}}</translation>
 <translation id="8186512483418048923">残り <ph name="FILES" /> ファイル</translation>
 <translation id="8190358571722158785">残り 1 日</translation>
 <translation id="8192765420340770300">ログインのボトムシートが画面全体に表示されています</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />あなたのデバイス<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">検索クエリをクリア</translation>
 <translation id="820568752112382238">よくアクセスするサイト</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> さんと他 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人のタブグループに参加}other{<ph name="OWNER_FIRST_NAME" /> さんと他 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人のタブグループに参加}}</translation>
 <translation id="8209050860603202033">画像を開く</translation>

@@ -286,7 +286,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
     [self.viewController
         addChildViewController:self.locationBarBadgeCoordinator.viewController];
-    // TODO(crbug.com/450006763): After migration, refactor to
+    // TODO(crbug.com/469528076): After migration, refactor to
     // setLocationBarBadgeView and set it in LocationBarSteadyView.
     [self.viewController
         setContextualPanelEntrypointView:self.locationBarBadgeCoordinator
@@ -609,10 +609,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)cancelOmniboxEdit {
+  [self cancelOmniboxEditWithCompletion:nil];
+}
+
+- (void)cancelOmniboxEditWithCompletion:(ProceduralBlock)completion {
   if (IsComposeboxIOSEnabled()) {
     id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-    [commands hideComposeboxImmediately:NO];
+    [commands hideComposeboxImmediately:NO completion:completion];
     return;
   }
   if (self.isCancellingOmniboxEdit) {
@@ -621,6 +625,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   self.isCancellingOmniboxEdit = YES;
   [self.omniboxCoordinator endEditing];
   self.isCancellingOmniboxEdit = NO;
+  if (completion) {
+    completion();
+  }
 }
 
 #pragma mark - LocationBarModelDelegateWebStateProvider
@@ -775,6 +782,12 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
 - (void)updateLocationText:(NSString*)text clipTail:(BOOL)clipTail {
   [self.omniboxCoordinator updateOmniboxState];
+  if (IsComposeboxIOSEnabled() && _locationBarModel) {
+    [self.viewController
+        updateOmniboxTextHiddenLabel:base::SysUTF16ToNSString(
+                                         _locationBarModel
+                                             ->GetFormattedFullURL())];
+  }
   [self.viewController updateLocationText:text clipTail:clipTail];
   [self.viewController updateForNTP:NO];
   [self.mediator locationUpdated];

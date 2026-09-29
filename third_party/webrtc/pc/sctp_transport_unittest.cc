@@ -45,9 +45,9 @@ using ::testing::ElementsAre;
 
 namespace {
 
-class FakeCricketSctpTransport : public SctpTransportInternal {
+class FakeSctpTransportInternal : public SctpTransportInternal {
  public:
-  explicit FakeCricketSctpTransport(DtlsTransportInternal* transport)
+  explicit FakeSctpTransportInternal(DtlsTransportInternal* transport)
       : transport_(transport) {}
 
   void SetOnConnectedCallback(std::function<void()> callback) override {
@@ -143,22 +143,22 @@ class SctpTransportTest : public ::testing::Test {
           dtls_transport_->OnInternalDtlsState(transport);
         });
 
-    auto cricket_sctp_transport = absl::WrapUnique(
-        new FakeCricketSctpTransport(internal_transport_.get()));
+    auto sctp_transport_internal = absl::WrapUnique(
+        new FakeSctpTransportInternal(internal_transport_.get()));
     transport_ = make_ref_counted<SctpTransport>(
-        std::move(cricket_sctp_transport), dtls_transport_);
+        std::move(sctp_transport_internal), dtls_transport_);
   }
 
   void CompleteSctpHandshake() {
     // The computed MaxChannels shall be the minimum of the outgoing
     // and incoming # of streams.
-    CricketSctpTransport()->set_max_outbound_streams(kTestMaxSctpStreams);
-    CricketSctpTransport()->set_max_inbound_streams(kTestMaxSctpStreams + 1);
-    CricketSctpTransport()->SendSignalAssociationChangeCommunicationUp();
+    MySctpTransportInternal()->set_max_outbound_streams(kTestMaxSctpStreams);
+    MySctpTransportInternal()->set_max_inbound_streams(kTestMaxSctpStreams + 1);
+    MySctpTransportInternal()->SendSignalAssociationChangeCommunicationUp();
   }
 
-  FakeCricketSctpTransport* CricketSctpTransport() {
-    return static_cast<FakeCricketSctpTransport*>(transport_->internal());
+  FakeSctpTransportInternal* MySctpTransportInternal() {
+    return static_cast<FakeSctpTransportInternal*>(transport_->internal());
   }
 
   AutoThread main_thread_;
@@ -175,10 +175,10 @@ TEST(SctpTransportSimpleTest, CreateClearDelete) {
   scoped_refptr<DtlsTransport> dtls_transport =
       make_ref_counted<DtlsTransport>(internal_transport.get());
 
-  std::unique_ptr<SctpTransportInternal> fake_cricket_sctp_transport =
-      absl::WrapUnique(new FakeCricketSctpTransport(internal_transport.get()));
+  std::unique_ptr<SctpTransportInternal> fake_sctp_transport_internal =
+      absl::WrapUnique(new FakeSctpTransportInternal(internal_transport.get()));
   scoped_refptr<SctpTransport> sctp_transport = make_ref_counted<SctpTransport>(
-      std::move(fake_cricket_sctp_transport), dtls_transport);
+      std::move(fake_sctp_transport_internal), dtls_transport);
   ASSERT_TRUE(sctp_transport->internal());
   ASSERT_EQ(SctpTransportState::kConnecting,
             sctp_transport->Information().state());

@@ -9,12 +9,11 @@ import static android.view.WindowInsetsController.APPEARANCE_TRANSPARENT_CAPTION
 
 import static org.chromium.build.NullUtil.assertNonNull;
 
-import static java.lang.Boolean.FALSE;
-
 import android.app.Activity;
 import android.graphics.Rect;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.view.View;
 import android.view.WindowInsetsController;
 
@@ -104,6 +103,8 @@ public class AppHeaderCoordinator
      *     SaveInstanceStateObserver#onSaveInstanceState(Bundle)} events observed by this class.
      * @param savedInstanceState The saved instance state {@link Bundle} holding UI state
      *     information for restoration on startup.
+     * @param persistentState The persistent state {@link PersistableBundle} holding UI state
+     *     information for restoration after a device reboot or app update.
      * @param edgeToEdgeStateProvider The {@link EdgeToEdgeStateProvider} to determine the
      *     edge-to-edge state.
      */
@@ -114,6 +115,7 @@ public class AppHeaderCoordinator
             InsetObserver insetObserver,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             Bundle savedInstanceState,
+            PersistableBundle persistentState,
             EdgeToEdgeStateProvider edgeToEdgeStateProvider) {
         mActivity = activity;
         mEdgeToEdgeStateProvider = edgeToEdgeStateProvider;
@@ -125,10 +127,16 @@ public class AppHeaderCoordinator
         mActivityLifecycleDispatcher.register(this);
         // Whether the app started in an unfocused desktop window, so that relevant UI state can be
         // restored.
-        mIsInUnfocusedDesktopWindow =
+        boolean savedUnfocusedDesktopWindowState =
                 savedInstanceState != null
                         && savedInstanceState.getBoolean(
                                 INSTANCE_STATE_KEY_IS_APP_IN_UNFOCUSED_DW, false);
+        boolean persistedUnfocusedDesktopWindowState =
+                persistentState != null
+                        && persistentState.getBoolean(
+                                INSTANCE_STATE_KEY_IS_APP_IN_UNFOCUSED_DW, false);
+        mIsInUnfocusedDesktopWindow =
+                savedUnfocusedDesktopWindowState || persistedUnfocusedDesktopWindowState;
 
         mDesktopWindowTopResumedActivitySupplier =
                 new ObservableSupplierImpl<Boolean>(!mIsInUnfocusedDesktopWindow);
@@ -208,6 +216,12 @@ public class AppHeaderCoordinator
     @Override
     public void onSaveInstanceState(Bundle outState) {
         outState.putBoolean(INSTANCE_STATE_KEY_IS_APP_IN_UNFOCUSED_DW, mIsInUnfocusedDesktopWindow);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+        outPersistentState.putBoolean(
+                INSTANCE_STATE_KEY_IS_APP_IN_UNFOCUSED_DW, mIsInUnfocusedDesktopWindow);
     }
 
     /* Returns true if app header is customized. */
@@ -321,7 +335,7 @@ public class AppHeaderCoordinator
         int rootViewBottomPadding = mRootView.getPaddingBottom();
         // Pad the root view with IME bottom insets only if E2E is active.
         int bottomInset =
-                FALSE.equals(mEdgeToEdgeStateProvider.get())
+                !mEdgeToEdgeStateProvider.isEdgeToEdgeEnabled()
                         ? 0
                         : Math.max(mKeyboardInset, mNavBarInset);
 

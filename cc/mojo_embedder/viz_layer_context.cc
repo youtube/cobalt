@@ -883,6 +883,11 @@ void SerializeLayer(LayerImpl& layer,
     wire.rare_properties = std::move(rare_properties);
   }
   switch (layer.GetLayerType()) {
+    case mojom::LayerType::kLayer: {
+      // This is intentionally empty, as there are no extra properties
+      // to serialize.
+      break;
+    }
     case mojom::LayerType::kHeadsUpDisplay: {
       // For Viz, this should look like a Texture layer.
       wire.type = mojom::LayerType::kTexture;
@@ -1012,6 +1017,10 @@ void SerializeLayer(LayerImpl& layer,
     }
     default:
       // TODO(zmo): handle other types of LayerImpl.
+      // Unhandled layer types: set it to SolidColor. This is because
+      // viz side defaults to SolidColor. Avoid a layer type mismatch
+      // in LayerContextImpl which leads to mojo error and test failure.
+      wire.type = mojom::LayerType::kSolidColor;
       break;
   }
 }
@@ -1331,6 +1340,8 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     const gfx::Rect& viewport_damage_rect,
     const viz::LocalSurfaceId& target_local_surface_id,
     bool frame_has_damage) {
+  TRACE_EVENT0("viz", "VizLayerContext::UpdateDisplayTreeFrom");
+
   auto& property_trees = *tree.property_trees();
   auto update = viz::mojom::LayerTreeUpdate::New();
   update->begin_frame_args = tree.CurrentBeginFrameArgs();
@@ -1370,6 +1381,13 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   update->page_scale_transform = property_ids.page_scale_transform;
   update->display_transform_hint = tree.display_transform_hint();
   update->is_handling_interaction = host_impl_->IsHandlingInteraction();
+  if (tree.delegated_ink_metadata()) {
+    update->delegated_ink_metadata =
+        std::make_unique<gfx::DelegatedInkMetadata>(
+            *tree.delegated_ink_metadata());
+  }
+  update->may_throttle_if_undrawn_frames =
+      host_impl_->may_throttle_if_undrawn_frames();
   update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->browser_controls_params = tree.browser_controls_params();
   update->browser_controls_offset_tag_modifications =
@@ -1407,62 +1425,71 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   // active tree during activation, implying that at least one layer addition or
   // removal happened since our last update. In this case only, we push the full
   // ordered list of layer IDs.
-  if (tree.needs_full_tree_sync() || needs_full_sync_) {
-    update->layer_order.emplace();
-    update->layer_order->reserve(tree.NumLayers());
-    for (LayerImpl* layer : tree) {
-      update->layer_order->push_back(layer->id());
+  {
+    TRACE_EVENT0("viz", "Serialize Layer Updates");
+
+    if (tree.needs_full_tree_sync() || needs_full_sync_) {
+      update->layer_order.emplace();
+      update->layer_order->reserve(tree.NumLayers());
+      for (LayerImpl* layer : tree) {
+        update->layer_order->push_back(layer->id());
+      }
+      tree.set_needs_full_tree_sync(false);
     }
-    tree.set_needs_full_tree_sync(false);
+
+    if (needs_full_sync_) {
+      for (LayerImpl* layer : tree) {
+        SerializeLayer(*layer, resource_provider, shared_image_interface,
+                       *update,
+                       /*needs_full_sync=*/true);
+      }
+    } else {
+      for (LayerImpl* layer : tree.LayersThatShouldPushProperties()) {
+        SerializeLayer(*layer, resource_provider, shared_image_interface,
+                       *update,
+                       /*needs_full_sync=*/false);
+      }
+    }
+    tree.ClearLayersThatShouldPushProperties();
   }
 
-  if (needs_full_sync_) {
-    for (LayerImpl* layer : tree) {
-      SerializeLayer(*layer, resource_provider, shared_image_interface, *update,
-                     /*needs_full_sync=*/true);
+  {
+    TRACE_EVENT0("viz", "Serialize PropertyTree Updates");
+
+    // TODO(rockot): Granular change tracking for property trees, so we aren't
+    // diffing every time.
+    if (needs_full_sync_) {
+      last_committed_property_trees_.clear();
     }
-  } else {
-    for (LayerImpl* layer : tree.LayersThatShouldPushProperties()) {
-      SerializeLayer(*layer, resource_provider, shared_image_interface, *update,
-                     /*needs_full_sync=*/false);
-    }
+    PropertyTrees& old_trees = last_committed_property_trees_;
+    ComputePropertyTreeUpdate(
+        old_trees.transform_tree(), property_trees.transform_tree(),
+        update->transform_nodes, update->num_transform_nodes);
+    ComputePropertyTreeUpdate(old_trees.clip_tree(), property_trees.clip_tree(),
+                              update->clip_nodes, update->num_clip_nodes);
+    ComputeEffectTreeUpdate(old_trees.effect_tree(),
+                            property_trees.effect_tree_mutable(),
+                            update->effect_nodes, update->num_effect_nodes);
+    ComputePropertyTreeUpdate(old_trees.scroll_tree(),
+                              property_trees.scroll_tree(),
+                              update->scroll_nodes, update->num_scroll_nodes);
+    update->transform_tree_update = ComputeTransformTreePropertiesUpdate(
+        old_trees.transform_tree(), property_trees.transform_tree());
+
+    update->scroll_tree_update = ComputeScrollTreePropertiesUpdate(
+        old_trees.scroll_tree(), property_trees.scroll_tree());
+
+    last_committed_property_trees_ = property_trees;
+
+    // Some deltas are normally not copied when adopting a new pending tree.
+    // See details in ScrollTree::operator=(const ScrollTree& from).
+    // However, we want to remember the last updates committed to viz.
+    last_committed_property_trees_.scroll_tree_mutable()
+        .synced_scroll_offset_map() =
+        property_trees.scroll_tree().synced_scroll_offset_map();
+    last_committed_property_trees_.scroll_tree_mutable().elastic_overscroll() =
+        property_trees.scroll_tree().elastic_overscroll();
   }
-  tree.ClearLayersThatShouldPushProperties();
-
-  // TODO(rockot): Granular change tracking for property trees, so we aren't
-  // diffing every time.
-  if (needs_full_sync_) {
-    last_committed_property_trees_.clear();
-    pushed_animation_timelines_.clear();
-  }
-  PropertyTrees& old_trees = last_committed_property_trees_;
-  ComputePropertyTreeUpdate(
-      old_trees.transform_tree(), property_trees.transform_tree(),
-      update->transform_nodes, update->num_transform_nodes);
-  ComputePropertyTreeUpdate(old_trees.clip_tree(), property_trees.clip_tree(),
-                            update->clip_nodes, update->num_clip_nodes);
-  ComputeEffectTreeUpdate(old_trees.effect_tree(),
-                          property_trees.effect_tree_mutable(),
-                          update->effect_nodes, update->num_effect_nodes);
-  ComputePropertyTreeUpdate(old_trees.scroll_tree(),
-                            property_trees.scroll_tree(), update->scroll_nodes,
-                            update->num_scroll_nodes);
-  update->transform_tree_update = ComputeTransformTreePropertiesUpdate(
-      old_trees.transform_tree(), property_trees.transform_tree());
-
-  update->scroll_tree_update = ComputeScrollTreePropertiesUpdate(
-      old_trees.scroll_tree(), property_trees.scroll_tree());
-
-  last_committed_property_trees_ = property_trees;
-
-  // Some deltas are normally not copied when adopting a new pending tree.
-  // See details in ScrollTree::operator=(const ScrollTree& from).
-  // However, we want to remember the last updates committed to viz.
-  last_committed_property_trees_.scroll_tree_mutable()
-      .synced_scroll_offset_map() =
-      property_trees.scroll_tree().synced_scroll_offset_map();
-  last_committed_property_trees_.scroll_tree_mutable().elastic_overscroll() =
-      property_trees.scroll_tree().elastic_overscroll();
 
   if (tree.needs_surface_ranges_sync() || needs_full_sync_) {
     update->surface_ranges.emplace();
@@ -1488,7 +1515,10 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   }
 
   base::TimeTicks time_sent_to_service = base::TimeTicks::Now();
-  service_->UpdateDisplayTree(std::move(update));
+  {
+    TRACE_EVENT0("viz", "Send UpdateDisplayTree");
+    service_->UpdateDisplayTree(std::move(update));
+  }
 
   needs_full_sync_ = false;
   return time_sent_to_service;
@@ -1548,6 +1578,9 @@ void VizLayerContext::SerializeAnimationUpdates(
 
   animation_host->ResetNeedsPushProperties();
 
+  if (needs_full_sync_) {
+    pushed_animation_timelines_.clear();
+  }
   const auto& current_timelines = animation_host->timelines();
   auto& pushed_timelines = pushed_animation_timelines_;
   std::vector<int32_t> removed_timelines;

@@ -43,7 +43,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/resource_coordinator/session_restore_policy.h"
-#include "chrome/browser/resource_coordinator/tab_manager_features.h"
 #include "chrome/browser/sessions/app_session_service.h"
 #include "chrome/browser/sessions/app_session_service_factory.h"
 #include "chrome/browser/sessions/app_session_service_test_helper.h"
@@ -73,6 +72,7 @@
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -180,18 +180,22 @@ GURL GetUrl3() {
       base::FilePath().AppendASCII("bot3.html"));
 }
 
-bool WaitForTabToLoad(Browser* browser, int index) {
-  if (index >= browser->tab_strip_model()->count())
+bool WaitForTabToLoad(BrowserWindowInterface* browser, int index) {
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  if (index >= tab_list->GetTabCount()) {
     return false;
-  content::WebContents* contents =
-      browser->tab_strip_model()->GetWebContentsAt(index);
+  }
+  content::WebContents* contents = tab_list->GetTab(index)->GetContents();
   contents->GetController().LoadIfNecessary();
   return content::WaitForLoadStop(contents);
 }
 
-void WaitForTabsToLoad(Browser* browser) {
-  for (int i = 0; i < browser->tab_strip_model()->count(); ++i)
+void WaitForTabsToLoad(BrowserWindowInterface* browser) {
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  ASSERT_TRUE(tab_list);
+  for (int i = 0; i < tab_list->GetTabCount(); ++i) {
     EXPECT_TRUE(WaitForTabToLoad(browser, i));
+  }
 }
 
 // Verifies that the given NavigationController has exactly two
@@ -927,20 +931,21 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreForeignSession) {
   window.tabs.push_back(std::make_unique<sessions::SessionTab>());
 
   session.push_back(static_cast<const sessions::SessionWindow*>(&window));
-  std::vector<Browser*> browsers = SessionRestore::RestoreForeignSessionWindows(
-      profile, session.begin(), session.end());
+  std::vector<BrowserWindowInterface*> browsers =
+      SessionRestore::RestoreForeignSessionWindows(profile, session.begin(),
+                                                   session.end());
   ASSERT_EQ(1u, browsers.size());
-  Browser* new_browser = browsers[0];
+  BrowserWindowInterface* new_browser = browsers[0];
   ASSERT_TRUE(new_browser);
   EXPECT_NE(new_browser, browser());
-  EXPECT_EQ(new_browser->profile(), browser()->profile());
+  EXPECT_EQ(new_browser->GetProfile(), browser()->profile());
   ASSERT_EQ(2u, chrome::GetTotalBrowserCount());
-  ASSERT_EQ(2, new_browser->tab_strip_model()->count());
+  TabListInterface* tab_list = TabListInterface::From(new_browser);
+  ASSERT_TRUE(tab_list);
+  ASSERT_EQ(2, tab_list->GetTabCount());
 
-  content::WebContents* web_contents_1 =
-      new_browser->tab_strip_model()->GetWebContentsAt(0);
-  content::WebContents* web_contents_2 =
-      new_browser->tab_strip_model()->GetWebContentsAt(1);
+  content::WebContents* web_contents_1 = tab_list->GetTab(0)->GetContents();
+  content::WebContents* web_contents_2 = tab_list->GetTab(1)->GetContents();
   ASSERT_EQ(url1, web_contents_1->GetURL());
   ASSERT_EQ(url2, web_contents_2->GetURL());
 
@@ -987,21 +992,23 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreInvalidPageState) {
 
   // Restore the session in a new window.
   session.push_back(static_cast<const sessions::SessionWindow*>(&window));
-  std::vector<Browser*> browsers = SessionRestore::RestoreForeignSessionWindows(
-      profile, session.begin(), session.end());
+  std::vector<BrowserWindowInterface*> browsers =
+      SessionRestore::RestoreForeignSessionWindows(profile, session.begin(),
+                                                   session.end());
   ASSERT_EQ(1u, browsers.size());
-  Browser* new_browser = browsers[0];
+  BrowserWindowInterface* new_browser = browsers[0];
   ASSERT_TRUE(new_browser);
   WaitForTabsToLoad(new_browser);
   EXPECT_NE(new_browser, browser());
-  EXPECT_EQ(new_browser->profile(), browser()->profile());
+  EXPECT_EQ(new_browser->GetProfile(), browser()->profile());
   ASSERT_EQ(2u, chrome::GetTotalBrowserCount());
-  ASSERT_EQ(1, new_browser->tab_strip_model()->count());
+  TabListInterface* tab_list = TabListInterface::From(new_browser);
+  ASSERT_TRUE(tab_list);
+  ASSERT_EQ(1, tab_list->GetTabCount());
 
   // The URL should still successfully commit, even though the rest of the
   // previous PageState was lost.
-  content::WebContents* web_contents_1 =
-      new_browser->tab_strip_model()->GetWebContentsAt(0);
+  content::WebContents* web_contents_1 = tab_list->GetTab(0)->GetContents();
   EXPECT_EQ(GetUrl1(), web_contents_1->GetLastCommittedURL());
   EXPECT_EQ(GetUrl1(),
             web_contents_1->GetPrimaryMainFrame()->GetLastCommittedURL());
@@ -4832,4 +4839,41 @@ IN_PROC_BROWSER_TEST_F(SavedTabGroupSessionRestoreTest,
   EXPECT_EQ(u"Group2", local_group2->visual_data()->title());
   EXPECT_EQ(tab_groups::TabGroupColorId::kBlue,
             local_group2->visual_data()->color());
+}
+
+IN_PROC_BROWSER_TEST_F(SessionRestoreTest, PinnedAndSplitTabsRestored) {
+  // Open two tabs.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl1()));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl2(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  // Pin them.
+  browser()->tab_strip_model()->SetTabPinned(0, true);
+  browser()->tab_strip_model()->SetTabPinned(1, true);
+  ASSERT_TRUE(browser()->tab_strip_model()->IsTabPinned(0));
+  ASSERT_TRUE(browser()->tab_strip_model()->IsTabPinned(1));
+
+  // Split them.
+  browser()->tab_strip_model()->ActivateTabAt(
+      0, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kTabContextMenu);
+  ASSERT_TRUE(browser()->tab_strip_model()->GetSplitForTab(0).has_value());
+  ASSERT_TRUE(browser()->tab_strip_model()->GetSplitForTab(1).has_value());
+
+  // Restore.
+  Browser* new_browser = QuitBrowserAndRestore(browser());
+
+  // Verify state.
+  ASSERT_EQ(2, new_browser->tab_strip_model()->count());
+  EXPECT_TRUE(new_browser->tab_strip_model()->IsTabPinned(0));
+  EXPECT_TRUE(new_browser->tab_strip_model()->IsTabPinned(1));
+  EXPECT_TRUE(new_browser->tab_strip_model()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(new_browser->tab_strip_model()->GetSplitForTab(1).has_value());
+  EXPECT_EQ(new_browser->tab_strip_model()->GetSplitForTab(0),
+            new_browser->tab_strip_model()->GetSplitForTab(1));
 }

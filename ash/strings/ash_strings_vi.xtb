@@ -342,6 +342,7 @@
 <translation id="2201071101391734388">Ảnh gần đây <ph name="INDEX" /> trong tổng số <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Thu gọn Google Tasks</translation>
 <translation id="2208323208084708176">Chế độ màn hình đồng nhất</translation>
+<translation id="2210311543574621570">Bạn sẽ thấy bảng nhớ tạm khi nhấn và giữ Ctrl + V. Bạn có thể tắt lối tắt này bằng cách vô hiệu hoá cờ #clipboard-history-longpress trong chrome://flags.</translation>
 <translation id="2215920961700443347">Không có Internet. Vui lòng kết nối Internet rồi thử lại.</translation>
 <translation id="2222841058024245321">Không gian làm việc 7</translation>
 <translation id="2223384056430485343">Ở chế độ chia đôi màn hình</translation>
@@ -1025,7 +1026,6 @@ Một số tính năng bị hạn chế nhằm tăng thời lượng pin.</trans
 <translation id="4449692009715125625">{NUM_NOTIFICATIONS,plural, =1{1 thông báo quan trọng}other{# thông báo quan trọng}}</translation>
 <translation id="4450893287417543264">Không hiện lại</translation>
 <translation id="4451374464530248585">Phím tắt Alt + Mũi tên xuống đã thay đổi. Để sử dụng phím Page Down, hãy nhấn tổ hợp phím <ph name="LAUNCHER_KEY_NAME" /> + Mũi tên xuống.</translation>
-<translation id="4453876312474547652">Bạn sẽ thấy bảng nhớ tạm khi nhấn và giữ Ctrl + V. Bạn có thể tắt phím tắt này bằng cách vô hiệu hoá cờ #clipboard-history-longpress trong chrome://flags (os://flags nếu sử dụng Lacros).</translation>
 <translation id="445765352722456792">Tuỳ chỉnh đề xuất</translation>
 <translation id="4458688154122353284">Dừng ghi màn hình</translation>
 <translation id="445923051607553918">Tham gia mạng Wi-Fi</translation>

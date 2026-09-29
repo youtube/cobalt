@@ -1,7 +1,10 @@
 .text
 .file 1 "inserted_by_delocate.c"
 .loc 1 1 0
+.globl BORINGSSL_bcm_text_start
+.hidden BORINGSSL_bcm_text_start
 BORINGSSL_bcm_text_start:
+.LBORINGSSL_bcm_text_start_local_target:
 	# .text stays in .text
 	.text
 	movq %rax, %rax
@@ -46,7 +49,10 @@ foo:
 	.long	.L3
 .text
 .loc 1 2 0
+.globl BORINGSSL_bcm_text_end
+.hidden BORINGSSL_bcm_text_end
 BORINGSSL_bcm_text_end:
+.LBORINGSSL_bcm_text_end_local_target:
 .type BORINGSSL_bcm_text_hash, @object
 .size BORINGSSL_bcm_text_hash, 32
 BORINGSSL_bcm_text_hash:

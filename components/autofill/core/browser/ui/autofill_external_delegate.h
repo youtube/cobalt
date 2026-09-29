@@ -13,7 +13,6 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -28,6 +27,7 @@
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
+#include "components/device_reauth/device_authenticator.h"
 
 namespace gfx {
 class Rect;
@@ -231,6 +231,16 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   base::WeakPtr<AutofillExternalDelegate> GetWeakPtr();
 
+  // Called when biometric authentication is completed.
+  // Triggers the `callback` if `auth_succeeded` is true.
+  void OnReauthCompleted(base::OnceClosure callback, bool auth_succeeded);
+
+  // Authenticates the user and runs `callback` is the authentication is
+  // completed. `reauth_message` specified the string displayed in the re-auth
+  // dialog.
+  void MaybeAuthenticateBeforeFilling(const std::u16string reauth_message,
+                                      base::OnceClosure callback);
+
   // If non-negative, OnSuggestionsReturned() passes one of the suggestions
   // directly to DidAcceptSuggestion(). See ScopedSuggestionSelectionShortcut
   // for details.
@@ -251,6 +261,9 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   // The caret position of the focused field.
   gfx::Rect caret_bounds_;
+
+  // Used to re-authenticate the user before filling.
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator_;
 
   base::WeakPtrFactory<AutofillExternalDelegate> weak_ptr_factory_{this};
 };

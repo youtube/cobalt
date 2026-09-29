@@ -33,6 +33,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static int parse_integer(CBS *cbs, BIGNUM **out) {
   assert(*out == nullptr);
   *out = BN_new();
@@ -210,21 +212,21 @@ int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len,
 }
 
 RSA *d2i_RSAPublicKey(RSA **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, RSA_parse_public_key);
+  return D2IFromCBS(out, inp, len, RSA_parse_public_key);
 }
 
 int i2d_RSAPublicKey(const RSA *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return RSA_marshal_public_key(cbb, in); });
 }
 
 RSA *d2i_RSAPrivateKey(RSA **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, RSA_parse_private_key);
+  return D2IFromCBS(out, inp, len, RSA_parse_private_key);
 }
 
 int i2d_RSAPrivateKey(const RSA *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/512, outp,
       [&](CBB *cbb) -> bool { return RSA_marshal_private_key(cbb, in); });
 }
@@ -272,7 +274,7 @@ static const uint8_t kPSSParamsSHA512[] = {
     0x08, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
     0x04, 0x02, 0x03, 0x05, 0x00, 0xa2, 0x03, 0x02, 0x01, 0x40};
 
-const EVP_MD *rsa_pss_params_get_md(rsa_pss_params_t params) {
+const EVP_MD *bssl::rsa_pss_params_get_md(rsa_pss_params_t params) {
   switch (params) {
     case rsa_pss_none:
       return nullptr;
@@ -286,8 +288,8 @@ const EVP_MD *rsa_pss_params_get_md(rsa_pss_params_t params) {
   abort();
 }
 
-int rsa_marshal_pss_params(CBB *cbb, rsa_pss_params_t params) {
-  bssl::Span<const uint8_t> bytes;
+int bssl::rsa_marshal_pss_params(CBB *cbb, rsa_pss_params_t params) {
+  Span<const uint8_t> bytes;
   switch (params) {
     case rsa_pss_none:
       OPENSSL_PUT_ERROR(RSA, ERR_R_INTERNAL_ERROR);
@@ -310,8 +312,8 @@ int rsa_marshal_pss_params(CBB *cbb, rsa_pss_params_t params) {
 static const uint8_t kMGF1OID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
                                    0x0d, 0x01, 0x01, 0x08};
 
-int rsa_parse_pss_params(CBS *cbs, rsa_pss_params_t *out,
-                         int allow_explicit_trailer) {
+int bssl::rsa_parse_pss_params(CBS *cbs, rsa_pss_params_t *out,
+                               int allow_explicit_trailer) {
   // See RFC 4055, section 3.1.
   //
   // hashAlgorithm, maskGenAlgorithm, and saltLength all have DEFAULTs
@@ -328,7 +330,7 @@ int rsa_parse_pss_params(CBS *cbs, rsa_pss_params_t *out,
       !CBS_get_asn1(&mask_wrapper, &mask_alg, CBS_ASN1_SEQUENCE) ||
       !CBS_get_asn1(&mask_alg, &mask_oid, CBS_ASN1_OBJECT) ||
       // We only support MGF-1.
-      bssl::Span<const uint8_t>(mask_oid) != kMGF1OID ||
+      Span<const uint8_t>(mask_oid) != kMGF1OID ||
       // The remainder of |mask_alg| will be parsed below.
       CBS_len(&mask_wrapper) != 0 ||
       !CBS_get_asn1(&params, &salt_wrapper,

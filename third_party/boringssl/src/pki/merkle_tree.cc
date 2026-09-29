@@ -14,14 +14,38 @@
 
 #include "merkle_tree.h"
 
+#include <cassert>
 #include <algorithm>
 #include <optional>
 
 #include <openssl/mem.h>
 #include <openssl/span.h>
-#include "openssl/sha2.h"
+#include <openssl/sha2.h>
 
 BSSL_NAMESPACE_BEGIN
+
+namespace {
+
+std::optional<TreeHashConstSpan> NextProofHash(Span<const uint8_t> *proof) {
+  if (proof->size() < SHA256_DIGEST_LENGTH) {
+    return std::nullopt;
+  }
+  auto ret = proof->first<SHA256_DIGEST_LENGTH>();
+  *proof = proof->subspan(SHA256_DIGEST_LENGTH);
+  return ret;
+}
+
+// TODO(crbug.com/404286922): Use std::countr_one when we have C++20.
+size_t TrailingOnes(uint64_t n) {
+  size_t count = 0;
+  while (n & 1) {
+    n >>= 1;
+    count++;
+  }
+  return count;
+}
+
+}  // namespace
 
 // Computes HASH(0x01 || left || right) and saves the result to |out|.
 void HashNode(TreeHashConstSpan left, TreeHashConstSpan right,
@@ -35,18 +59,14 @@ void HashNode(TreeHashConstSpan left, TreeHashConstSpan right,
   SHA256_Final(out.data(), &ctx);
 }
 
-namespace {
-
-std::optional<TreeHashConstSpan> NextProofHash(Span<const uint8_t> *proof) {
-  if (proof->size() < SHA256_DIGEST_LENGTH) {
-    return std::nullopt;
-  }
-  auto ret = proof->first<SHA256_DIGEST_LENGTH>();
-  *proof = proof->subspan(SHA256_DIGEST_LENGTH);
-  return ret;
+void HashLeaf(Span<const uint8_t> entry, TreeHashSpan out) {
+  static const uint8_t header = 0x00;
+  SHA256_CTX ctx;
+  SHA256_Init(&ctx);
+  SHA256_Update(&ctx, &header, 1);
+  SHA256_Update(&ctx, entry.data(), entry.size());
+  SHA256_Final(out.data(), &ctx);
 }
-
-}  // namespace
 
 std::optional<TreeHash> EvaluateMerkleSubtreeConsistencyProof(
     uint64_t n, const Subtree &subtree, Span<const uint8_t> proof,
@@ -213,6 +233,114 @@ std::optional<TreeHash> EvaluateMerkleSubtreeInclusionProof(
   index -= subtree.start;
   return EvaluateMerkleSubtreeConsistencyProof(
       subtree.Size(), {index, index + 1}, inclusion_proof, entry_hash);
+}
+
+TreeHash MerkleTree::SubtreeHash(const Subtree &subtree) const {
+  BSSL_CHECK(subtree.IsValid());
+  BSSL_CHECK(subtree.end <= Size());
+
+  // Start at the largest complete subtree on the right edge.
+  uint64_t start = subtree.start, last = subtree.end - 1;
+  size_t level = TrailingOnes(last - start);
+  start = start >> level;
+  last = last >> level;
+  TreeHash ret = GetNode(level, last);
+
+  // Invariants:
+  // * `start <= last`
+  // * `subtree.start` is `start << level` (The subtree invariant implies we
+  //   only shift away zero bits from `start`.)
+  // * `ret` is `SubtreeHash({last << level, end})`.
+  while (start < last) {
+    if (last & 1) {
+      // Hash in the left neighbor.
+      HashNode(GetNode(level, last - 1), ret, ret);
+    }
+    level++;
+    start >>= 1;
+    last >>= 1;
+  }
+
+  return ret;
+}
+
+std::vector<uint8_t> MerkleTree::SubtreeInclusionProof(
+    uint64_t index, const Subtree &subtree) const {
+  BSSL_CHECK(subtree.IsValid());
+  BSSL_CHECK(subtree.end <= Size());
+  BSSL_CHECK(subtree.Contains(index));
+
+  // The inclusion proof consists of the neighbors of `index` at each level.
+  std::vector<uint8_t> proof;
+  uint64_t start = subtree.start, last = subtree.end - 1;
+  size_t level = 0;
+  // Invariant: `proof` contains the inclusion proof of the original `index`
+  // parameter in `Subtree{index << level, min((index + 1) << level, end)}}`.
+  while (start < last) {
+    // Append the neighbor node, if it exists.
+    uint64_t neighbor = index ^ 1;
+    if (neighbor < last) {
+      // The neighbor is complete, so we can look it up directly.
+      const TreeHash &h = GetNode(level, neighbor);
+      proof.insert(proof.end(), h.begin(), h.end());
+    } else if (neighbor == last) {
+      // The neighbor is on the right edge and may not be complete.
+      TreeHash h = SubtreeHash({last << level, subtree.end});
+      proof.insert(proof.end(), h.begin(), h.end());
+    }
+    level++;
+    start >>= 1;
+    index >>= 1;
+    last >>= 1;
+  }
+  return proof;
+}
+
+MerkleTreeInMemory::MerkleTreeInMemory() { levels_.emplace_back(); }
+
+MerkleTreeInMemory::MerkleTreeInMemory(
+    Span<const std::vector<uint8_t>> entries) {
+  // Compute the leaf nodes.
+  std::vector<TreeHash> level;
+  level.resize(entries.size());
+  for (size_t i = 0; i < entries.size(); i++) {
+    HashLeaf(entries[i], level[i]);
+  }
+  levels_.push_back(std::move(level));
+
+  UpdateLevels();
+}
+
+uint64_t MerkleTreeInMemory::Size() const { return levels_[0].size(); }
+
+TreeHash MerkleTreeInMemory::GetNode(size_t level, uint64_t index) const {
+  BSSL_CHECK(level < levels_.size());
+  BSSL_CHECK(index < levels_[level].size());
+  return levels_[level][index];
+}
+
+void MerkleTreeInMemory::Append(Span<const uint8_t> entry) {
+  TreeHash h;
+  HashLeaf(entry, h);
+  levels_[0].push_back(h);
+  UpdateLevels();
+}
+
+void MerkleTreeInMemory::UpdateLevels() {
+  assert(!levels_.empty());
+  for (size_t level = 1, n = Size() / 2; n != 0; level++, n /= 2) {
+    // Ensure level `level` exists and has `n` elements.
+    if (level == levels_.size()) {
+      levels_.emplace_back();
+    }
+    levels_[level].reserve(n);
+    while (levels_[level].size() < n) {
+      size_t i = levels_[level].size();
+      TreeHash h;
+      HashNode(levels_[level - 1][2 * i], levels_[level - 1][2 * i + 1], h);
+      levels_[level].push_back(h);
+    }
+  }
 }
 
 BSSL_NAMESPACE_END

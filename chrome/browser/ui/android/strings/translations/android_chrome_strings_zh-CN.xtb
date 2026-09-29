@@ -114,7 +114,6 @@
 <translation id="1413446866325418126">将数据保存到您的 Google 账号中</translation>
 <translation id="1414919006379339073">关闭当前窗口</translation>
 <translation id="1416550906796893042">应用版本</translation>
-<translation id="1419753403124156396">重启 Chrome？</translation>
 <translation id="1428770807407000502">关闭同步功能？</translation>
 <translation id="1430915738399379752">打印</translation>
 <translation id="1435593198351412143">自动打开 PDF 文件</translation>
@@ -247,10 +246,8 @@
 <translation id="2063047797624276601">您的组织已开启“增强型安全浏览”功能</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 项下载失败}other{# 项下载失败}}</translation>
 <translation id="2067805253194386918">文本</translation>
-<translation id="2072027001582274150">未使用或重复的标签页</translation>
 <translation id="2079545284768500474">撤消</translation>
 <translation id="2082238445998314030">第 <ph name="RESULT_NUMBER" /> 条结果，共 <ph name="TOTAL_RESULTS" /> 条</translation>
-<translation id="2088833076121753253">如需完成自动填充设置，请立即重启 Chrome。您的标签页将会自动重新打开。</translation>
 <translation id="2091863218454846791">当前显示的是精简视图</translation>
 <translation id="2093731487903423814">过去 15 分钟</translation>
 <translation id="2096577711562668473">要更改自动填充服务吗？</translation>
@@ -428,6 +425,7 @@
 <translation id="2854916915045135148">轻触并按住即可切换到无痕模式</translation>
 <translation id="2860954141821109167">请确保已在此设备上启用了一款电话应用</translation>
 <translation id="2861923151411510142">部分 Chrome 功能将不再可用</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> 及另外 1 个标签页}other{<ph name="URL" /> 及另外 <ph name="TAB_COUNT_MANY" /> 个标签页}}</translation>
 <translation id="2869430948265924908">为了保护您在车载系统上存放的敏感内容，您必须设置一种车载系统个人资料锁定方式。为此，您可以使用 PIN 码、验证码或密码。</translation>
 <translation id="2870560284913253234">网站</translation>
 <translation id="2871733351037274014">预加载网页</translation>
@@ -446,6 +444,7 @@
 <translation id="2904414404539560095">要与之分享标签页的设备的列表已全屏打开。</translation>
 <translation id="2908243544703713905">有未读内容</translation>
 <translation id="2909615210195135082">Google 通知平台</translation>
+<translation id="2912247081180973411">关闭所有窗口</translation>
 <translation id="2912345083818861431">需要使用解锁凭证才能查看打开的无痕式标签页</translation>
 <translation id="2918484639460781603">前往“设置”</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />，已设为静音的标签页</translation>
@@ -482,7 +481,7 @@
 <translation id="3035527385626181784"><ph name="TAB_TITLE" />，已选择的标签页，正在共享内容</translation>
 <translation id="3036750288708366620"><ph name="BEGIN_LINK" />获取帮助<ph name="END_LINK" /></translation>
 <translation id="3037177537145227281">正在跟踪价格</translation>
-<translation id="3037517125981011456">显示让用户登录 Chrome 的提示</translation>
+<translation id="3037517125981011456">显示 Chrome 登录提示</translation>
 <translation id="3038272154009688107">查看所有网站</translation>
 <translation id="3060635849835183725">{BOOKMARKS_COUNT,plural, =1{<ph name="BOOKMARKS_COUNT_ONE" /> 个书签}other{<ph name="BOOKMARKS_COUNT_MANY" /> 个书签}}</translation>
 <translation id="3062802207422175757">Chrome 可提供您感兴趣的报道</translation>
@@ -503,7 +502,6 @@
 <translation id="3159335509547415276">了解被屏蔽的账号</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />，在新标签页中打开</translation>
 <translation id="3166827708714933426">标签页和窗口快捷键</translation>
-<translation id="316694332262407393">Chrome 已在此处运行。</translation>
 <translation id="3167258285411721858">您可以请求访问 <ph name="HOST_NAME" /> 的移动网站</translation>
 <translation id="3169472444629675720">探索</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />，已选择的多个固定无痕式标签页之一，已设为静音</translation>
@@ -851,7 +849,6 @@
 <translation id="468924408576231679">复制指向“<ph name="PAGE_TITLE" />”网页的链接。来源：<ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">获得更合乎需求的内容</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026以及另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 种送货方式}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026以及另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 种送货方式}}</translation>
-<translation id="4698061626562952596">在此处查看闲置标签页</translation>
 <translation id="4698757800236023795">活跃（<ph name="ITEM_COUNT" /> 个）</translation>
 <translation id="4699172675775169585">缓存的图片和文件</translation>
 <translation id="4710167854527459075">按从新到旧排序</translation>
@@ -950,6 +947,7 @@
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> 个标签页 - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> 个标签页 - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">隐私权</translation>
 <translation id="504456571576643789">注意事项</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{已选择 <ph name="WINDOW_COUNT_ONE" /> 个窗口}other{已选择 <ph name="WINDOW_COUNT_NORMAL" /> 个窗口}}</translation>
 <translation id="5056587122125565772">创建图片</translation>
 <translation id="506254248375231072">没有任何标签页</translation>
 <translation id="5075939510584558547">直接保存，不加密</translation>
@@ -966,7 +964,6 @@
 <translation id="5123685120097942451">无痕式标签页</translation>
 <translation id="5142281402488957685">若要获取新报道，请下拉页面进行刷新</translation>
 <translation id="5144385790872094440">预加载您访问的部分网页。从 Google 网站或应用链接到的网页可能会通过 Google 服务器预加载。</translation>
-<translation id="5145887002054615868">重复的标签页或已闲置 <ph name="DAYS_INACTIVE" /> 天的标签页会移至此处，<ph name="AUTODELETE_SECTION" />。您随时可在<ph name="DECLUTTER_SETTINGS_TITLE" />中更改此设置。</translation>
 <translation id="5152843274749979095">尚未安装任何支持的应用</translation>
 <translation id="5161254044473106830">必须提供标题</translation>
 <translation id="5161262286013276579">已打开通行密钥确认工作表</translation>
@@ -1041,6 +1038,7 @@
 <translation id="5469852975082458401">您可以使用文本光标浏览网页。按 F7 可关闭。</translation>
 <translation id="5471273988133666918">无法移动标签页“<ph name="TAB_TITLE" />”</translation>
 <translation id="548278423535722844">在地图应用中打开</translation>
+<translation id="5494920125229734069">全选</translation>
 <translation id="549660026907543296">以<ph name="MEMBER_FULL_NAME" />的身份加入</translation>
 <translation id="5517326820028369152">显示近期活动的底部动作条</translation>
 <translation id="5526281268548144413">无法在多个窗口中关闭</translation>
@@ -1149,6 +1147,7 @@
 <translation id="5958275228015807058">在“下载内容”中查找您的文件和网页</translation>
 <translation id="5962718611393537961">点按即可收起</translation>
 <translation id="5964869237734432770">停止获取图片说明</translation>
+<translation id="5972844218283131174">取消全选</translation>
 <translation id="5975083100439434680">缩小</translation>
 <translation id="5977976211062815271">在这部设备上</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{您的阅读清单中有 1 个页面}other{您的阅读清单中有 # 个页面}}</translation>
@@ -1164,7 +1163,7 @@
 <translation id="6039379616847168523">跳转到下一个标签页</translation>
 <translation id="6040143037577758943">关闭</translation>
 <translation id="604124094241169006">自动</translation>
-<translation id="6042308850641462728">展开</translation>
+<translation id="6042308850641462728">更多</translation>
 <translation id="604996488070107836">出现未知错误，未能下载 <ph name="FILE_NAME" />。</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">在此处控制您的报道和活动</translation>
@@ -1719,12 +1718,14 @@
 <translation id="8137562778192957619">您不需要记住此密码。系统会将它保存到 Google 密码管理工具中。</translation>
 <translation id="8152331954420209374">开启智能镜头</translation>
 <translation id="8153206878708357851">切换光标浏览模式</translation>
+<translation id="8154784523622173959">为此页面设置个性化的背景</translation>
 <translation id="8163820386638255770">如要将密码保存在您的 Google 账号中并使用这些密码，请验证是您本人在操作</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) 个闲置标签页}other{(#) 个闲置标签页}}</translation>
 <translation id="8186512483418048923">还剩 <ph name="FILES" /> 个文件</translation>
 <translation id="8190358571722158785">还剩 1 天</translation>
 <translation id="8192765420340770300">已打开用于选择登录账号的底部动作条，并以最大高度显示</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />您的设备<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">清空搜索查询</translation>
 <translation id="820568752112382238">最常访问的网站</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{加入<ph name="OWNER_FIRST_NAME" />和另外 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人所在的标签页分组}other{加入<ph name="OWNER_FIRST_NAME" />和另外 <ph name="NUMBER_OF_OTHER_MEMBERS" /> 人所在的标签页分组}}</translation>
 <translation id="8209050860603202033">打开图片</translation>

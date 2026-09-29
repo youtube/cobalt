@@ -42,6 +42,8 @@ class VerticalTabView : public views::View,
 
   void UpdateHovered(bool hovered);
 
+  void OnTabDragOver();
+
   TabIcon* icon_for_testing() { return icon_; }
   AlertIndicatorButton* alert_indicator_for_testing() {
     return alert_indicator_;
@@ -62,11 +64,13 @@ class VerticalTabView : public views::View,
   bool OnMousePressed(const ui::MouseEvent& event) override;
   void OnMouseReleased(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
+  bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnPaint(gfx::Canvas* canvas) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   void OnThemeChanged() override;
 
   // views::LayoutDelegate
@@ -113,8 +117,6 @@ class VerticalTabView : public views::View,
 
   const tabs::TabInterface* GetTabInterface() const;
 
-  int GetTabInset() const;
-
   raw_ptr<TabCollectionNode> collection_node_ = nullptr;
 
   const raw_ptr<const TabStyle> tab_style_;
@@ -131,6 +133,8 @@ class VerticalTabView : public views::View,
   bool active_ = false;
   bool selected_ = false;
   bool hovered_ = false;
+  bool split_ = false;
+  bool pinned_ = false;
   bool shift_pressed_on_mouse_down_ = false;
 
   std::unique_ptr<GlowHoverController> hover_controller_;

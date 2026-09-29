@@ -1931,4 +1931,20 @@ int ProxyConnection::GetError() {
   return error_;
 }
 
+// This method is used by the FakeIceLiteAgent
+// to pretend that a Connection is writable so
+// P2PTransportChannel/FakeIceLiteAgent can be used
+// to simulate a ICE Lite agent.
+bool Connection::set_writable_for_fake_ice_lite() const {
+  if (write_state() != STATE_WRITABLE) {
+    Timestamp now = env_.clock().CurrentTime();
+    auto con = const_cast<Connection*>(this);
+    con->UpdateReceiving(now);
+    con->set_write_state(STATE_WRITABLE);
+    con->set_state(IceCandidatePairState::SUCCEEDED);
+    return true;
+  }
+  return false;
+}
+
 }  // namespace webrtc

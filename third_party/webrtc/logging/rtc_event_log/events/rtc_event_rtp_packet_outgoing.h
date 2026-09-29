@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,8 +35,10 @@ class RtcEventRtpPacketOutgoing final : public RtcEvent {
  public:
   static constexpr Type kType = Type::RtpPacketOutgoing;
 
-  RtcEventRtpPacketOutgoing(const RtpPacketToSend& packet,
-                            int probe_cluster_id);
+  RtcEventRtpPacketOutgoing(
+      const RtpPacketToSend& packet,
+      int probe_cluster_id,
+      std::optional<uint16_t> rtx_original_sequence_number = std::nullopt);
   ~RtcEventRtpPacketOutgoing() override;
 
   Type GetType() const override { return kType; }
@@ -70,6 +73,9 @@ class RtcEventRtpPacketOutgoing final : public RtcEvent {
   size_t header_length() const { return packet_.headers_size(); }
   size_t padding_length() const { return packet_.padding_size(); }
   int probe_cluster_id() const { return probe_cluster_id_; }
+  std::optional<uint16_t> rtx_original_sequence_number() const {
+    return rtx_original_sequence_number_;
+  }
 
   static std::string Encode(ArrayView<const RtcEvent*> /* batch */) {
     // TODO(terelius): Implement
@@ -90,6 +96,7 @@ class RtcEventRtpPacketOutgoing final : public RtcEvent {
   const RtpPacket packet_;
   // TODO(eladalon): Delete `probe_cluster_id_` along with legacy encoding.
   const int probe_cluster_id_;
+  const std::optional<uint16_t> rtx_original_sequence_number_;
 };
 
 }  // namespace webrtc

@@ -15,6 +15,7 @@ import '../../controls/settings_toggle_button.js';
 import '../../settings_page/settings_section.js';
 import '../../settings_page/settings_subpage.js';
 import './security_page_feature_row.js';
+import './secure_dns_v2.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {CrSettingsPrefs} from '/shared/settings/prefs/prefs_types.js';
@@ -36,8 +37,8 @@ import {RouteObserverMixin, Router} from '../../router.js';
 import {SettingsViewMixin} from '../../settings_page/settings_view_mixin.js';
 import type {HatsBrowserProxy} from '../hats_browser_proxy.js';
 import {HatsBrowserProxyImpl, SecurityPageV2Interaction} from '../hats_browser_proxy.js';
-import {SafeBrowsingSetting} from '../safe_browsing_types.js';
 
+import {SafeBrowsingSetting} from './safe_browsing_types.js';
 import type {SecurityPageFeatureRowElement} from './security_page_feature_row.js';
 import {getTemplate} from './security_page_v2.html.js';
 
@@ -333,10 +334,12 @@ export class SettingsSecurityPageV2Element extends
 
     const bundleSetting = this.getBundleSetting_();
 
+    // LINT.IfChange
     const prefsToCheck = [{
       prefKey: 'generated.safe_browsing',
       defaultValue: this.getDefaultSafeBrowsingValue_(bundleSetting),
     }];
+    // LINT.ThenChange(//chrome/browser/safe_browsing/safe_browsing_service.cc,//chrome/browser/safe_browsing/metrics/bundled_settings_metrics_provider.cc)
     for (const prefToCheck of prefsToCheck) {
       const pref = this.getPref(prefToCheck.prefKey);
       if (pref.value !== prefToCheck.defaultValue &&

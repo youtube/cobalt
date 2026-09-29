@@ -65,6 +65,7 @@ struct TestConfig {
   std::vector<uint16_t> verify_prefs;
   std::vector<uint16_t> expect_peer_verify_prefs;
   std::vector<uint16_t> curves;
+  std::vector<uint32_t> curves_flags;
   std::optional<std::vector<uint16_t>> key_shares;
   std::vector<uint16_t> server_supported_groups_hint;
   std::string key_file;

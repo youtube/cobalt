@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_GLIC_GLIC_PREF_NAMES_H_
 #define CHROME_BROWSER_GLIC_GLIC_PREF_NAMES_H_
 
+#include "build/build_config.h"
+
 class PrefRegistrySimple;
 namespace user_prefs {
 class PrefRegistrySyncable;
@@ -18,6 +20,7 @@ namespace glic::prefs {
 // Boolean pref that enables or disables the launcher.
 inline constexpr char kGlicLauncherEnabled[] = "glic.launcher_enabled";
 
+#if !BUILDFLAG(IS_ANDROID)
 // String pref that keeps track of the non-localized version of the registered
 // hotkey for Glic.
 inline constexpr char kGlicLauncherHotkey[] = "glic.launcher_hotkey";
@@ -25,6 +28,7 @@ inline constexpr char kGlicLauncherHotkey[] = "glic.launcher_hotkey";
 // String pref that keeps track of the non-localized version of the registered
 // hotkey for toggling focus between Glic and the browser window.
 inline constexpr char kGlicFocusToggleHotkey[] = "glic.focus_toggle_hotkey";
+#endif
 
 // String pref that keeps track of whether any loaded profile is, or has ever
 // been, of a subscription tier that should enable multi-instance.
@@ -114,6 +118,13 @@ enum class GlicActuationOnWebPolicyState {
 };
 // This perf is only applicable to enterprise accounts.
 inline constexpr char kGlicActuationOnWeb[] = "glic.actuation_on_web";
+
+// List prefs for allow/blocklists of URLs for more granular control than
+// `kGlicActuationOnWeb`.
+inline constexpr char kGlicActuationOnWebAllowedForURLs[] =
+    "glic.actuation_on_web_allowed_for_urls";
+inline constexpr char kGlicActuationOnWebBlockedForURLs[] =
+    "glic.actuation_on_web_blocked_for_urls";
 
 // Boolean pref for the user enabled actuation on web setting.
 inline constexpr char kGlicUserEnabledActuationOnWeb[] =

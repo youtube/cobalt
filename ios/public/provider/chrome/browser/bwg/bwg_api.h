@@ -13,7 +13,7 @@
 #import "services/network/public/cpp/resource_request.h"
 
 class AuthenticationService;
-@class BWGConfiguration;
+@class GeminiConfiguration;
 @class GeminiPageContext;
 @class GeminiSettingsMetadata;
 @protocol BWGGatewayProtocol;
@@ -79,7 +79,7 @@ enum class BWGPageContextAttachmentState {
 };
 
 // Starts the overlay experience with the given configuration.
-void StartBwgOverlay(BWGConfiguration* bwg_configuration);
+void StartBwgOverlay(GeminiConfiguration* gemini_configuration);
 
 // Gets the portion of the PageContext script that checks whether PageContext
 // should be detached from the request.
@@ -109,6 +109,12 @@ void UpdatePageContext(GeminiPageContext* gemini_page_context);
 // Returns the Gemini settings that the user is eligible for.
 NSArray<GeminiSettingsMetadata*>* GetEligibleSettings(
     AuthenticationService* auth_service);
+
+// Updates Gemini overlay offset. A positive `offset` will move the overlay
+// towards the top of the viewport while a negative `offset` will move the
+// overlay towards the bottom and even below the viewport.
+void UpdateOverlayOffset(CGFloat offset);
+
 }  // namespace ios::provider
 
 #endif  // IOS_PUBLIC_PROVIDER_CHROME_BROWSER_BWG_BWG_API_H_
