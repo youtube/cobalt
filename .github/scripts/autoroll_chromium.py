@@ -205,8 +205,9 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
 
     if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
       remove_angle_from_recursedeps()
-      lib.run(
-          ['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
+      lib.run([
+          'git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'
+      ])
 
     if not verify_chromium_commit(sha):
       raise RuntimeError(
