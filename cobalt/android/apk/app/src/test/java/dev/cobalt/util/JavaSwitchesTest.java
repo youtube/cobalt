@@ -239,7 +239,6 @@ public class JavaSwitchesTest {
   @Test
   public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
     switches.put(JavaSwitches.ENABLE_QUIC, "1");
     switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
     switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
@@ -273,7 +272,6 @@ public class JavaSwitchesTest {
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
 
     assertThat(args).doesNotContain("--disable-quic");
-    assertThat(args).contains("--enable-features=DomStorageSmartFlushing");
     assertThat(args).contains("--disable-gpu-memory-buffer-compositor-resources");
     assertThat(args).contains("--force-gpu-mem-available-mb=256");
     assertThat(args).contains("--cc-image-cache-limit-items=500");
@@ -317,7 +315,6 @@ public class JavaSwitchesTest {
   @Test
   public void testGetExtraCommandLineArgs_ExperimentsNotAllowed_DisablesAllExperiments() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
     switches.put(JavaSwitches.ENABLE_QUIC, "1");
     switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
     switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
@@ -354,7 +351,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
 
     // None of the experiment features or switches should be present
-    assertThat(args).doesNotContain("--enable-features=DomStorageSmartFlushing");
     assertThat(args).doesNotContain("--disable-gpu-memory-buffer-compositor-resources");
     assertThat(args).doesNotContain("--force-gpu-mem-available-mb=256");
     assertThat(args).doesNotContain("--cc-image-cache-limit-items=500");

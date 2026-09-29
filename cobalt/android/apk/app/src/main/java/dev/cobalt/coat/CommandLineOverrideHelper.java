@@ -93,6 +93,9 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
     paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
+    // Commit localStorage/sessionStorage writes at the end of the JS task that
+    // made them so recent writes survive process termination.
+    paramOverrides.add("DomStorageSmartFlushing");
 
     return paramOverrides;
   }

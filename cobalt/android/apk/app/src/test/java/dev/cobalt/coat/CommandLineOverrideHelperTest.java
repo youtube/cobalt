@@ -52,6 +52,7 @@ public class CommandLineOverrideHelperTest {
     String overrides = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     assertThat(overrides.contains("LogJsConsoleMessages")).isTrue();
     assertThat(overrides.contains("LimitImageDecodeCacheSize:mb/24")).isTrue();
+    assertThat(overrides.contains("DomStorageSmartFlushing")).isTrue();
   }
 
   @Test
