@@ -1,5 +1,5 @@
 {
-  "comment": "PosixIsattyTest tests are flaky",
+  "comment": "AOSP nplb exclusions.",
   "failing_tests": [
     "*MaximumPlayerConfigurationExplorer*",
     "*MultiplePlayer*",
@@ -7,11 +7,8 @@
     "*SbPlayer*",
     "*VerticalVideoTest*",
     "CrashpadConfigTest.VerifyUploadCert",
-    "LoaderAppMetricsTest.VerifyLoaderAppMetricsExtension",
     "NativeStabilityTest.VerifyNativeStabilityExtension",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
-    "PosixIsattyTest.HandlesStdout",
-    "PosixIsattyTest.HandlesStderr",
     "PosixLinkTest.SuccessfulCreation",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/12",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/14",

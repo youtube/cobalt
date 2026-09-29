@@ -53,6 +53,8 @@ is_gold = build_type == "gold"
 # is_debug = true for debug builds
 # assert(is_debug || is_devel || is_qa || is_gold)
 
+# Convenience variable to use in the few places where default_toolchain would be
+# the empty string because BUILDCONFIG.gn is still being evaluated.
 if (default_toolchain != "") {
   cobalt_toolchain = default_toolchain
 } else {

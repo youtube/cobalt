@@ -125,7 +125,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    const std::string& max_video_resolution)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info),
       player_(player),
@@ -136,7 +137,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      max_video_resolution_(max_video_resolution) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);

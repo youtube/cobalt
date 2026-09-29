@@ -45,8 +45,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
 
   // List of toggleable default switches.
   static const std::vector<const char*> kCobaltToggleSwitches{
-      // Enable Blink to work in overlay video mode
-      ::switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       ::switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU
@@ -56,9 +54,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // disabled.
       ::switches::kNoZygote,
       sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory
-      // (ZeroCopyRasterBufferProvider).
-      blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of
       // the known regressions is 4444 textures, which are then disabled
@@ -122,8 +117,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
        "--no-decommit-pooled-pages "
-       // Enable memory saving mode with little v8 performance tradeoff.
-       "--optimize-for-size "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
   };
