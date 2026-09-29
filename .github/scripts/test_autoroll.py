@@ -86,6 +86,31 @@ class TestAutorollLib(unittest.TestCase):
     self.assertEqual(lib.get_pr_labels(100), {'cp-27.lts', 'bug'})
     self.assertEqual(lib.get_pr_labels(101), {'kokoro:run'})
 
+  @patch('builtins.open')
+  @patch('os.path.exists')
+  def test_load_pr_labels_from_file(self, mock_exists, mock_open):
+    mock_exists.return_value = True
+    prs_data = [
+        {
+            'number': 123,
+            'labels': [{
+                'name': 'cp-27.lts'
+            }, {
+                'name': 'feature'
+            }]
+        },
+        {
+            'number': 456,
+            'labels': []
+        },
+    ]
+    mock_open.return_value.__enter__.return_value = io.StringIO(
+        json.dumps(prs_data))
+
+    lib.load_pr_labels_from_file('/fake/path/open_prs.json')
+    self.assertEqual(lib.get_pr_labels(123), {'cp-27.lts', 'feature'})
+    self.assertEqual(lib.get_pr_labels(456), set())
+
   @patch('autoroll_lib.get_out')
   def test_get_pr_labels_fallback_on_uncached(self, mock_get_out):
     mock_get_out.return_value = 'cp-27.lts\ncustom-label\n'
@@ -152,6 +177,8 @@ class TestAutorollMain(unittest.TestCase):
         '10',
         '--existing-pr-sha',
         '',
+        '--mode',
+        'label',
     ]
 
     captured_out = io.StringIO()
@@ -167,6 +194,60 @@ class TestAutorollMain(unittest.TestCase):
 
     output = captured_out.getvalue().strip()
     self.assertEqual(output, '- #101\n- #104')
+
+  @patch('autoroll.cherry_pick')
+  @patch('autoroll_lib.get_start_sha')
+  @patch('autoroll_lib.get_commits')
+  @patch('autoroll_lib.get_rolled_source_shas')
+  @patch('autoroll_lib.load_pr_labels_from_file')
+  @patch('autoroll_lib.get_cherry_pick_metadata')
+  def test_full_mode_rolls_all_commits_regardless_of_labels(
+      self, mock_metadata, mock_load_labels, mock_rolled_shas, mock_get_commits,
+      mock_start_sha, mock_cherry_pick):
+    mock_start_sha.side_effect = ['sha0', 'sha0']
+    mock_rolled_shas.return_value = set()
+    mock_get_commits.return_value = [
+        ('sha1', 'Title 1', '101'),  # unlabeled
+        ('sha2', 'Direct commit without PR', None),  # no PR
+        ('sha3', 'Title 3', '103'),  # unlabeled
+    ]
+    mock_metadata.side_effect = [
+        ('date1', 'author1', 'msg1'),
+        ('date2', 'author2', 'msg2'),
+        ('date3', 'author3', 'msg3'),
+    ]
+    mock_cherry_pick.return_value = (lib.CommitStatus.SUCCESS, None)
+
+    test_args = [
+        'autoroll.py',
+        '--source-branch',
+        'main',
+        '--target-branch',
+        'staging',
+        '--autoroll-file',
+        '.github/AUTOROLL',
+        '--max-commits',
+        '10',
+        '--existing-pr-sha',
+        '',
+        '--mode',
+        'full',
+    ]
+
+    captured_out = io.StringIO()
+    with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+      autoroll.main()
+
+    # All 3 commits should be cherry-picked in full mode
+    self.assertEqual(mock_cherry_pick.call_count, 3)
+    cherry_picked_shas = [
+        call.args[0] for call in mock_cherry_pick.call_args_list
+    ]
+    self.assertEqual(cherry_picked_shas, ['sha1', 'sha2', 'sha3'])
+    mock_load_labels.assert_not_called()
+
+    output = captured_out.getvalue().strip()
+    self.assertEqual(output, '- #101\n- sha2\n- #103')
 
   @patch('autoroll.cherry_pick')
   @patch('autoroll_lib.get_start_sha')
@@ -208,6 +289,8 @@ class TestAutorollMain(unittest.TestCase):
         '10',
         '--existing-pr-sha',
         '',
+        '--mode',
+        'label',
     ]
 
     captured_out = io.StringIO()
@@ -256,6 +339,8 @@ class TestAutorollMain(unittest.TestCase):
         '2',
         '--existing-pr-sha',
         '',
+        '--mode',
+        'label',
     ]
 
     captured_out = io.StringIO()

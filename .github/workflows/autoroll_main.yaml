@@ -29,8 +29,8 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10},
-          {source: main, target: staging, autoroll: .github/AUTOROLL, max_commits: 50},
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10, mode: label},
+          {source: main, target: staging, autoroll: .github/AUTOROLL, max_commits: 50, mode: full},
         ]
     steps:
       - name: Checkout code
@@ -78,6 +78,14 @@ jobs:
           FIRST_SHA=$(gh pr list --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=${FIRST_SHA}" >> "${GITHUB_OUTPUT}"
 
+      - name: Fetch Open PRs with Labels
+        if: matrix.branch.mode == 'label'
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+        run: |
+          gh pr list --state open --limit 1000 --json number,labels > "${RUNNER_TEMP}/open_prs.json"
+
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
@@ -85,6 +93,7 @@ jobs:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
           TARGET_BRANCH: ${{ matrix.branch.target }}
           AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
+          ROLL_MODE: ${{ matrix.branch.mode || 'full' }}
           FIRST_SHA: ${{ steps.pr_info.outputs.first_sha }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
@@ -97,7 +106,9 @@ jobs:
             --target-branch "${TARGET_BRANCH}" \
             --autoroll-file "${AUTOROLL_FILE}" \
             --max-commits "${MAX_COMMITS}" \
-            --existing-pr-sha "${FIRST_SHA}")
+            --existing-pr-sha "${FIRST_SHA}" \
+            --mode "${ROLL_MODE}" \
+            --prs-json "${RUNNER_TEMP}/open_prs.json")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "${GITHUB_OUTPUT}"

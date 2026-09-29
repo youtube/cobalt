@@ -17,6 +17,15 @@ def main():
   p.add_argument('--autoroll-file', required=True)
   p.add_argument('--max-commits', type=int, required=True)
   p.add_argument('--existing-pr-sha', required=True)
+  p.add_argument(
+      '--mode',
+      choices=['full', 'label'],
+      default='full',
+      help='Roll mode: "full" rolls all commits, "label" rolls only PRs with '
+      'the target cherry-pick label.')
+  p.add_argument(
+      '--prs-json',
+      help='Path to JSON file containing pre-fetched PRs and labels.')
   args = p.parse_args()
 
   target_start = lib.get_start_sha(args.target_branch, args.autoroll_file)
@@ -39,8 +48,12 @@ def main():
   commits_to_target = lib.get_commits(args.source_branch, target_start)
   already_rolled_shas = lib.get_rolled_source_shas(args.target_branch)
 
-  pr_nums = [pr_num for _, _, pr_num in commits_to_target if pr_num]
-  lib.prefetch_pr_labels(pr_nums)
+  if args.mode == 'label':
+    if args.prs_json:
+      lib.load_pr_labels_from_file(args.prs_json)
+    else:
+      pr_nums = [pr_num for _, _, pr_num in commits_to_target if pr_num]
+      lib.prefetch_pr_labels(pr_nums)
 
   target_label = f'cp-{args.target_branch}'
   commits_added = []
@@ -53,13 +66,13 @@ def main():
       commits_added.append(identifier)
       continue
 
-    # Only migrate PRs that have the cherry pick label for target branch applied
-    if not pr_num:
-      continue
-
-    labels = lib.get_pr_labels(pr_num)
-    if target_label not in labels:
-      continue
+    # In label mode, only migrate PRs that have the cherry pick label applied
+    if args.mode == 'label':
+      if not pr_num:
+        continue
+      labels = lib.get_pr_labels(pr_num)
+      if target_label not in labels:
+        continue
 
     if len(commits_added) >= args.max_commits:
       lib.log(f'Reached commit limit ({args.max_commits}).')
