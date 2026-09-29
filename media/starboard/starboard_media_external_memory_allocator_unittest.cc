@@ -88,5 +88,96 @@ TEST_F(StarboardMediaExternalMemoryAllocatorTest,
             initial_allocated);
 }
 
+TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromMultipleParts) {
+  StarboardMediaExternalMemoryAllocator allocator;
+
+  // Deliberately odd sizes, so that every part but the first lands on an
+  // unaligned offset within the block.
+  std::vector<uint8_t> part1 = {0x01, 0x02, 0x03};
+  std::vector<uint8_t> part2 = {0x04};
+  std::vector<uint8_t> part3(1021, 0xCD);
+
+  std::vector<base::span<const uint8_t>> parts = {part1, part2, part3};
+  std::vector<uint8_t> expected;
+  for (const auto& part : parts) {
+    expected.insert(expected.end(), part.begin(), part.end());
+  }
+
+  auto ext_mem = allocator.CopyFrom(parts, DemuxerStream::VIDEO);
+  ASSERT_NE(ext_mem, nullptr);
+
+  base::span<const uint8_t> span = ext_mem->Span();
+  ASSERT_EQ(span.size(), expected.size());
+  EXPECT_TRUE(std::equal(span.begin(), span.end(), expected.begin()));
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromSinglePart) {
+  StarboardMediaExternalMemoryAllocator allocator;
+  std::vector<uint8_t> input = {0x10, 0x20, 0x30, 0x40, 0x50};
+
+  std::vector<base::span<const uint8_t>> parts = {input};
+
+  auto ext_mem = allocator.CopyFrom(parts, DemuxerStream::AUDIO);
+  ASSERT_NE(ext_mem, nullptr);
+
+  base::span<const uint8_t> span = ext_mem->Span();
+  ASSERT_EQ(span.size(), input.size());
+  EXPECT_TRUE(std::equal(span.begin(), span.end(), input.begin()));
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromPartsWithEmptyPart) {
+  StarboardMediaExternalMemoryAllocator allocator;
+  std::vector<uint8_t> part1 = {0xAA, 0xBB};
+  std::vector<uint8_t> empty;
+  std::vector<uint8_t> part3 = {0xCC};
+
+  std::vector<base::span<const uint8_t>> parts = {part1, empty, part3};
+  const std::vector<uint8_t> expected = {0xAA, 0xBB, 0xCC};
+
+  auto ext_mem = allocator.CopyFrom(parts, DemuxerStream::AUDIO);
+  ASSERT_NE(ext_mem, nullptr);
+
+  base::span<const uint8_t> span = ext_mem->Span();
+  ASSERT_EQ(span.size(), expected.size());
+  EXPECT_TRUE(std::equal(span.begin(), span.end(), expected.begin()));
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       CopyFromPartsOfZeroTotalSize) {
+  StarboardMediaExternalMemoryAllocator allocator;
+  std::vector<uint8_t> empty1;
+  std::vector<uint8_t> empty2;
+
+  std::vector<base::span<const uint8_t>> parts = {empty1, empty2};
+
+  auto ext_mem = allocator.CopyFrom(parts, DemuxerStream::AUDIO);
+  ASSERT_NE(ext_mem, nullptr);
+  EXPECT_TRUE(ext_mem->Span().empty());
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromPartsReclaimsMemory) {
+  StarboardMediaExternalMemoryAllocator allocator;
+  std::vector<uint8_t> part1(1024, 0xAA);
+  std::vector<uint8_t> part2(2048, 0xBB);
+
+  std::vector<base::span<const uint8_t>> parts = {part1, part2};
+  const size_t total_size = part1.size() + part2.size();
+
+  size_t initial_allocated =
+      DecoderBufferAllocator::Get()->GetAllocatedMemory();
+
+  auto ext_mem = allocator.CopyFrom(parts, DemuxerStream::VIDEO);
+  ASSERT_NE(ext_mem, nullptr);
+  EXPECT_EQ(ext_mem->Span().size(), total_size);
+
+  // The gathered frame is accounted for in the pool.
+  EXPECT_GE(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
+            initial_allocated + total_size);
+
+  ext_mem.reset();
+  EXPECT_EQ(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
+            initial_allocated);
+}
+
 }  // namespace
 }  // namespace media
