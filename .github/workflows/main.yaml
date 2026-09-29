@@ -196,6 +196,13 @@ jobs:
           set -x
           test_device_family=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_device_family // empty')
           echo "test_device_family=${test_device_family}" >> "${GITHUB_OUTPUT}"
+      - name: Set test artifact name
+        id: set-test-artifact-name
+        shell: bash
+        run: |
+          set -x
+          test_artifact_name=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_artifact_name // "Cobalt.apk"')
+          echo "test_artifact_name=${test_artifact_name}" >> "${GITHUB_OUTPUT}"
       - name: Set Browser test targets
         id: set-browser-test-targets
         shell: bash
@@ -350,6 +357,7 @@ jobs:
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
+      test_artifact_name: ${{ steps.set-test-artifact-name.outputs.test_artifact_name }}
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
       run_browser_tests: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
       browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
@@ -630,7 +638,7 @@ jobs:
           test_type: 'e2e_test'
           test_targets_json: ${{ steps.parse-e2e-targets.outputs.test_targets_json }}
           cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-          artifact_name: 'Cobalt.apk'
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -681,7 +689,7 @@ jobs:
           test_type: 'yts_test'
           test_targets_json: ${{ steps.parse-yts-targets.outputs.test_targets_json }}
           cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-          artifact_name: 'Cobalt.apk'
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -726,7 +734,7 @@ jobs:
           test_type: 'yts_playback_test'
           test_targets_json: ${{ steps.parse-yts-playback-targets.outputs.test_targets_json }}
           cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-          artifact_name: 'Cobalt.apk'
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -807,7 +815,7 @@ jobs:
           test_type: 'yts_wpt_test'
           test_targets_json: ${{ steps.parse-yts-wpt-targets.outputs.test_targets_json }}
           cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-          artifact_name: 'Cobalt.apk'
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -857,7 +865,7 @@ jobs:
           test_type: 'yts_finch_test'
           test_targets_json: ${{ steps.parse-yts-finch-targets.outputs.test_targets_json }}
           cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-          artifact_name: 'Cobalt.apk'
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'

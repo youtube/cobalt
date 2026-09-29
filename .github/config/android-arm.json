@@ -15,6 +15,7 @@
   "test_yts_wpt": true,
   "test_yts_finch": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
+  "test_artifact_name": "Cobalt.apk",
   "test_dimensions": {
     "device_type": "arm_devices",
     "device_pool": "maneki"
