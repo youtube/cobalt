@@ -90,7 +90,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles, "
-       "WebAudioRemoveAudioDestinationResampler"},
+       "WebAudioRemoveAudioDestinationResampler, "
+       "DomStorageSmartFlushing"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
