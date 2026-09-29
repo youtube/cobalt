@@ -18,8 +18,11 @@
 
 #include <atomic>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
 
@@ -88,6 +91,11 @@ size_t GetDemuxerStreamVideoMemoryLimit(
 
   std::optional<int> reduction_pct =
       g_video_buffer_size_reduction_percent.load();
+#if !BUILDFLAG(IS_ANDROIDTV)
+  if (base::FeatureList::IsEnabled(kCobaltVideoBufferSizeReductionPercent)) {
+    reduction_pct = kCobaltVideoBufferSizeReductionPercentValue.Get();
+  }
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
   if (!reduction_pct.has_value()) {
     return limit;
   }
