@@ -580,7 +580,6 @@ TEST_F(HostFrameSinkManagerTest, RegisterWithExistingClient) {
   FlushHostAndVerifyExpectations();
 }
 
-<<<<<<< HEAD
 TEST_F(HostFrameSinkManagerTest, OnConnectionLostResetsVizTouchState) {
   // Simulate Viz sending the shared memory region.
   base::MappedReadOnlyRegion mapped_region =
@@ -601,7 +600,7 @@ TEST_F(HostFrameSinkManagerTest, OnConnectionLostResetsVizTouchState) {
   // The mapping should now be invalid.
   EXPECT_FALSE(host().GetVizTouchStatePtr());
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 TEST_F(HostFrameSinkManagerTest, DestroyCompositorFrameSinkKeepsRegistration) {
   EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkParent1,
@@ -645,6 +644,5 @@ TEST_F(HostFrameSinkManagerTest, DestroyCompositorFrameSinkKeepsRegistration) {
   FlushHostAndVerifyExpectations();
 }
 #endif
->>>>>>> f4fe15be277 (cobalt: Fix ordering of eglDestroySurface and SbWindowDestroy (#12943))
 
 }  // namespace viz

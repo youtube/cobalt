@@ -43,11 +43,6 @@ class GL_EXPORT GLContextEGL : public GLContextReal {
 
  private:
   void Destroy();
-<<<<<<< HEAD
-#endif
-=======
-  void ReleaseBackpressureFences();
->>>>>>> f4fe15be277 (cobalt: Fix ordering of eglDestroySurface and SbWindowDestroy (#12943))
 
   EGLContext context_ = nullptr;
   raw_ptr<GLDisplayEGL> gl_display_ = nullptr;
