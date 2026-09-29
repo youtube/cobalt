@@ -80,7 +80,11 @@ template("modular_apk") {
 
   android_apk(target_name) {
     forward_variables_from(invoker, [ "testonly" ])
-    apk_name = _name
+    if (_name == "cobalt") {
+      apk_name = "Cobalt"
+    } else {
+      apk_name = _name
+    }
 
     # Test apks are emitted at the Chromium native-test convention path
     # (<out>/<suite>_apk/<suite>-debug.apk) so build/android/test_runner.py

@@ -14,7 +14,7 @@ This guide provides an overview of the supported platforms, their target hardwar
 | Platform / Tooling | Type | Target Architecture & Hardware | Primary Purpose & Intended Use | Setup Guide |
 | :--- | :--- | :--- | :--- | :--- |
 | **Linux** | Target OS | **x86_64 Desktop** (Ubuntu / X11 / Wayland) | **Developer Workstation Environment**. Provides the fastest compile-and-debug iteration cycle for core logic, Web APIs, and Starboard verification (`nplb`), without requiring embedded TV hardware. | [setup-linux.md](setup-linux.md) |
-| **AOSP** | Target OS | **ARM / ARM64** (Android Reference Hardware, AOSP) | **AOSP Evergreen Reference Target**. Compiles the thin Cobalt Loader (`cobalt_loader`, `cobalt.apk`) to dynamically load Cobalt Core (`libcobalt.so` / `libcobalt.lz4`) from Evergreen packages. | [setup-aosp.md](setup-aosp.md) |
+| **AOSP** | Target OS | **ARM / ARM64** (Android Reference Hardware, AOSP) | **AOSP Evergreen Reference Target**. Compiles the thin Cobalt Loader (`cobalt_loader`, `Cobalt.apk`) to dynamically load Cobalt Core (`libcobalt.so` / `libcobalt.lz4`) from Evergreen packages. | [setup-aosp.md](setup-aosp.md) |
 | **RDK** | Target OS | **ARM / ARM64** (Pay-TV Set-Top Boxes, STB reference hardware) | **Pay-TV & STB Platform Target**. Integrates Starboard for RDK (`evergreen-arm-hardfp-rdk`) for operator-managed set-top box deployments. | [setup-rdk.md](setup-rdk.md) |
 | **Docker** | Host Tooling | **Linux x86_64 Host** (Containerized Builder) | **Build Environment Consistency**. Containerized build host tool that standardizes dependencies and tools across developer workstations to avoid host OS version conflicts. | [setup-docker.md](setup-docker.md) |
 

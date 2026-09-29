@@ -54,7 +54,7 @@ Because Evergreen support is required for certification, partners deploy officia
    autoninja -C out/evergreen-arm-softfp-aosp_qa cobalt_loader
    ```
 
-   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk`.
+   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_qa/apks/Cobalt.apk`.
 
 3. Download the official prebuilt CRX file from [GitHub Releases](https://github.com/youtube/cobalt/releases):
 
@@ -79,7 +79,7 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
+   zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/Cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
    ```
 
 5. Deploy and launch on an AOSP device or emulator:
@@ -89,7 +89,7 @@ Because Evergreen support is required for certification, partners deploy officia
    Install the compiled APK:
 
    ```bash
-   adb install -r out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk
+   adb install -r out/evergreen-arm-softfp-aosp_qa/apks/Cobalt.apk
    ```
 
    Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
@@ -131,7 +131,7 @@ Because Evergreen support is required for certification, partners deploy officia
    autoninja -C out/evergreen-arm-softfp-aosp_devel cobalt_loader
    ```
 
-   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_devel/apks/cobalt.apk`.
+   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_devel/apks/Cobalt.apk`.
 
 3. Deploy and launch on an AOSP device or emulator:
 
@@ -140,7 +140,7 @@ Because Evergreen support is required for certification, partners deploy officia
    Install the compiled APK:
 
    ```bash
-   adb install -r out/evergreen-arm-softfp-aosp_devel/apks/cobalt.apk
+   adb install -r out/evergreen-arm-softfp-aosp_devel/apks/Cobalt.apk
    ```
 
    Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
