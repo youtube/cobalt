@@ -11,11 +11,8 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
 #include "base/time/time.h"
-=======
 #include "media/base/eme_constants.h"
->>>>>>> 15fd9c39f14 (tvos: Wire encrypted init data to fire EME encrypted event (#12950))
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
