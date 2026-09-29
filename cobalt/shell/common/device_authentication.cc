@@ -185,22 +185,4 @@ std::string ComputeMessage(const std::string& cert_scope,
          BuildMessageFragment("start_time", start_time);
 }
 
-<<<<<<< HEAD
-void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
-                                               const std::string& base64_key,
-                                               uint8_t* signature,
-                                               size_t signature_size_in_bytes) {
-  CHECK_GE(signature_size_in_bytes, 32U);
-
-  std::string key;
-  base::Base64Decode(base64_key, &key);
-
-  // Generate signature from message using HMAC-SHA256.
-  const auto digest = crypto::hmac::SignSha256(base::as_byte_span(key),
-                                               base::as_byte_span(message));
-  std::ranges::copy(digest, signature);
-}
-
-=======
->>>>>>> bf3bda83b2f (cobalt: Remove ComputeHMACSHA256SignatureWithProvidedKey from device authentication code (#12936))
 }  // namespace content
