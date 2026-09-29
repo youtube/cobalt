@@ -59,6 +59,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
   void RenderThreadStarted() override;
+  void SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() override;
 
   // Thread safety: The following media capability query methods can be called
   // from any thread (main thread or worker threads, e.g., when MSE is used in
