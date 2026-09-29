@@ -426,9 +426,9 @@ SbAudioSink TvosAudioSinkType::Create(
   }
   {
     std::lock_guard lock(audio_thread_mutex_);
+    audio_sink->set_registered();
     sinks_to_add_.push_back(audio_sink.get());
   }
-  audio_sink->set_registered();
   audio_thread_condition_.notify_one();
   return audio_sink.release();
 }

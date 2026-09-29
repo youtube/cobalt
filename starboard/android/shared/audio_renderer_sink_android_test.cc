@@ -14,7 +14,9 @@
 
 #include "starboard/android/shared/audio_renderer_sink_android.h"
 
+#include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/audio_sink_android.h"

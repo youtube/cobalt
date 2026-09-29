@@ -146,6 +146,8 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
       audio_sample_type == audio_sample_type_) {
     SB_LOG(INFO) << "Audio sink is already started with the same config, "
                  << "skipping Start().";
+    // |audio_sink_| is always an AudioSinkAndroid (an AudioTrackAudioSink by
+    // default), so the static_cast below (and in Reset()) is safe.
     auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
     android_sink->SetStartTime(media_start_time);
     // Explicitly set the playback rate and volume because HasStarted()

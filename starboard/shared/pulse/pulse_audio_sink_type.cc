@@ -81,6 +81,8 @@ class PulseAudioSink : public SbAudioSinkImpl {
 
   bool Initialize(pa_context* context);
   bool WriteFrameIfNecessary(pa_context* context);
+  // Called by PulseAudioSinkType once the sink is added to its sink list.
+  void set_registered() { registered_ = true; }
 
  private:
   PulseAudioSink(const PulseAudioSink&) = delete;
@@ -116,6 +118,7 @@ class PulseAudioSink : public SbAudioSinkImpl {
   std::atomic<double> volume_{1.0};
   std::atomic_bool volume_updated_{true};
   std::atomic_bool is_paused_{false};
+  bool registered_ = false;
 };
 
 class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
@@ -188,7 +191,9 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
-  type_->RemoveSink(this);
+  if (registered_) {
+    type_->RemoveSink(this);
+  }
   if (stream_) {
     type_->DestroyStream(stream_);
   }
@@ -399,6 +404,7 @@ SbAudioSink PulseAudioSinkType::Create(
     return kSbAudioSinkInvalid;
   }
   std::lock_guard lock(mutex_);
+  audio_sink->set_registered();
   sinks_.push_back(audio_sink);
   return audio_sink;
 }
@@ -406,12 +412,10 @@ SbAudioSink PulseAudioSinkType::Create(
 void PulseAudioSinkType::RemoveSink(PulseAudioSink* pulse_audio_sink) {
   std::lock_guard lock(mutex_);
   auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-  // |pulse_audio_sink| isn't registered if Create() failed.
-  if (it == sinks_.end()) {
-    return;
+  SB_DCHECK(it != sinks_.end());
+  if (it != sinks_.end()) {
+    sinks_.erase(it);
   }
-
-  sinks_.erase(it);
 }
 
 bool PulseAudioSinkType::Initialize() {

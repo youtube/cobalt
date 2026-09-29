@@ -29,7 +29,6 @@
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/audio_sink.h"
-#include "starboard/common/log.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"

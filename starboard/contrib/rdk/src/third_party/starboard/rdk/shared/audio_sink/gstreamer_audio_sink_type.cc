@@ -48,6 +48,7 @@
 #include <mutex>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
