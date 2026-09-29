@@ -7,7 +7,6 @@
     "*SbPlayer*",
     "*VerticalVideoTest*",
     "CrashpadConfigTest.VerifyUploadCert",
-    "NativeStabilityTest.VerifyNativeStabilityExtension",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/12",
