@@ -37,13 +37,18 @@ namespace starboard {
 // thread.
 class AudioRendererSinkAndroid final : public AudioRendererSinkImpl {
  public:
+  struct Options {
+    std::optional<int> tunnel_mode_audio_session_id;
+    bool allow_audio_writing_on_pause = false;
+    bool enable_video_renderer_vsp_adjustment = false;
+    bool allow_flush_during_seek = false;
+    bool pause_using_audio_track_state = false;
+    bool enable_ndk_audio_pull_sink = false;
+  };
+
   AudioRendererSinkAndroid(
       const AudioStreamInfo& audio_stream_info,
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool allow_audio_writing_on_pause,
-      bool enable_video_renderer_vsp_adjustment,
-      bool allow_flush_during_seek,
-      bool pause_using_audio_track_state,
+      const Options& options,
       CreateAudioSinkFunc create_audio_sink_func = CreateAudioSinkFunc());
 
   bool AllowOverflowAudioSamples() const override;
