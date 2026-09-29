@@ -69,9 +69,6 @@ public final class CommandLineOverrideHelper {
   public static StringJoiner getDefaultJsFlagOverridesList() {
     StringJoiner paramOverrides = new StringJoiner(",");
 
-    // Trades a little V8 performance for significant memory savings.
-    paramOverrides.add("--optimize-for-size");
-
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
 
