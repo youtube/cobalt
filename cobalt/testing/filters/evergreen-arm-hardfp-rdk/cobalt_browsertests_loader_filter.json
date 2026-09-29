@@ -49,6 +49,7 @@
     "EncryptedMediaTest.*",
     "MediaSessionBrowserTest.*",
     "MediaTest.*",
+    "CustomMimeTypeBrowserTest.*",
     "WebRtcGetUserMediaBrowserTest.*"
   ]
 }
