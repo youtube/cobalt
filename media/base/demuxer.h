@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "media/base/container_names.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
@@ -38,9 +37,6 @@ enum class DemuxerType {
   kFrameInjectingDemuxer = 5,
   kStreamProviderDemuxer = 6,
   kManifestDemuxer = 7,
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  kUrlPlayerDemuxer = 8,  // URL player placeholder demuxer.
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 class MEDIA_EXPORT DemuxerHost {
