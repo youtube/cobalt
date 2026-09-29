@@ -1,0 +1,163 @@
+name: Golden Workspace Snapshot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'DEPS'
+  schedule:
+    # Refresh snapshots weekly so GCS bucket lifecycle rules (14d devel / 21d prod) do not expire them.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: 'Rebuild and upload snapshot even if DEPS hash already exists in GCS.'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: golden-workspace-publisher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CI_ESSENTIALS: |
+    .github
+    cobalt/docker
+
+jobs:
+  docker-build-image:
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Set Docker files checksum
+        id: set-docker-hash
+        env:
+          DOCKER_FILES: cobalt/docker docker-compose.yaml
+        shell: bash
+        run: |
+          set -x
+          read -r -a docker_files <<< "${DOCKER_FILES}"
+          docker_content_sha=$(find "${docker_files[@]}" -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
+          echo "docker_content_sha=${docker_content_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: linux
+          is_pr: false
+          docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
+
+  publish-golden-workspace:
+    needs: [docker-build-image]
+    permissions:
+      contents: read
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    timeout-minutes: 120
+    container:
+      image: ${{ needs.docker-build-image.outputs.docker_tag }}
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
+      volumes:
+        - /runner-cache:/runner-cache
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+
+      - name: Authenticate with GoB
+        uses: ./.github/actions/gob_auth
+        with:
+          use_gcloud: 'true'
+
+      - name: Sync and Publish Golden Workspace
+        shell: bash
+        env:
+          FORCE_REFRESH: ${{ inputs.force_refresh || 'false' }}
+        run: |
+          set -euo pipefail
+          LOWER_DIR="/runner-cache/golden-workspace"
+          LOCK_FILE="/runner-cache/.golden-workspace.lock"
+
+          PROJECT_NAME=$(gcloud config get-value project 2>/dev/null || true)
+          if [ -z "${PROJECT_NAME}" ] || [ "${PROJECT_NAME}" = "(unset)" ]; then
+            PROJECT_NAME=$(curl -s -f --retry 5 --retry-delay 2 --retry-connrefused \
+              -H "Metadata-Flavor: Google" \
+              "http://metadata.google.internal/computeMetadata/v1/project/project-id" || echo "cobalt-actions-prod")
+          fi
+
+          LATEST_ARCHIVE="gs://${PROJECT_NAME}-test-artifacts/golden-workspace/golden-workspace-latest.tar.zst"
+
+          exec 9>"${LOCK_FILE}"
+          chmod 0666 "${LOCK_FILE}" 2>/dev/null || true
+          flock 9
+
+          echo "Restoring or updating golden workspace in ${LOWER_DIR}..."
+          if [ ! -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+            mkdir -p "${LOWER_DIR}"
+            gcloud storage cp "${LATEST_ARCHIVE}" - | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${LOWER_DIR}" 2>/dev/null || true
+          fi
+
+          (
+            cd "${LOWER_DIR}"
+            if [ ! -d "src/.git" ]; then
+              rm -rf src
+              git clone "${{ github.server_url }}/${{ github.repository }}.git" src
+            fi
+            git -C src fetch origin "${{ github.sha }}"
+            git -C src checkout -f "${{ github.sha }}"
+
+            if [ ! -d "depot_tools/.git" ]; then
+              rm -rf depot_tools
+              git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
+            fi
+            if ! git -C depot_tools cat-file -e "4a978d8f1f3567d5bd729aec018bfc345a14e1cd^{commit}" 2>/dev/null; then
+              git -C depot_tools fetch origin 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+            fi
+            git -C depot_tools checkout -f 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+
+            export PATH="${LOWER_DIR}/depot_tools:${PATH}"
+            source "${LOWER_DIR}/depot_tools/bootstrap_python3" && bootstrap_python3
+
+            gclient config \
+              --name=src \
+              --custom-var="rbe_instance=\"projects/${PROJECT_NAME}/instances/default_instance\"" "${{ github.server_url }}/${{ github.repository }}.git"
+            echo "target_os=['android', 'linux']" >> .gclient
+            echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
+            gclient sync -D --no-history --force --delete_unversioned_trees --jobs=8 --retry=3
+          )
+
+          git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision"
+          sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256"
+          touch "${LOWER_DIR}/.runner_cache_ready"
+          chown -R 1000:1000 "${LOWER_DIR}" 2>/dev/null || true
+
+          echo "Publishing stream directly to ${LATEST_ARCHIVE}..."
+          tar --exclude='./.runner_cache_ready' --use-compress-program="zstd -T0 -3" -cf - -C "${LOWER_DIR}" . \
+            | gcloud storage cp - "${LATEST_ARCHIVE}"
+
+          flock -u 9
+          echo "Golden workspace snapshot published successfully."
