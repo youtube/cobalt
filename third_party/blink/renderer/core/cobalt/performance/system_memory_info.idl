@@ -48,6 +48,12 @@ dictionary SystemMemoryInfo {
     // GPU memory used by the process, or null if unsupported on the platform.
     unsigned long long? usedGpuMemory = null;
 
+    // Amount of memory used by the decoded image cache in bytes.
+    unsigned long long decodedImageCacheMemory;
+
+    // Peak memory used by the decoded image cache in bytes.
+    unsigned long long decodedImageCachePeakMemory;
+
     // The portion of the heap currently used by JavaScript objects.
     unsigned long long? usedJSHeapSize = null;
 
