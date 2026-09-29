@@ -580,6 +580,7 @@ TEST_F(HostFrameSinkManagerTest, RegisterWithExistingClient) {
   FlushHostAndVerifyExpectations();
 }
 
+<<<<<<< HEAD
 TEST_F(HostFrameSinkManagerTest, OnConnectionLostResetsVizTouchState) {
   // Simulate Viz sending the shared memory region.
   base::MappedReadOnlyRegion mapped_region =
@@ -600,5 +601,50 @@ TEST_F(HostFrameSinkManagerTest, OnConnectionLostResetsVizTouchState) {
   // The mapping should now be invalid.
   EXPECT_FALSE(host().GetVizTouchStatePtr());
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+TEST_F(HostFrameSinkManagerTest, DestroyCompositorFrameSinkKeepsRegistration) {
+  EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkParent1,
+                                          true /* report_activation */));
+  RegisterFrameSinkIdWithFakeClient(kFrameSinkParent1,
+                                    ReportFirstSurfaceActivation::kYes);
+
+  RootCompositorFrameSinkData root_data1;
+  EXPECT_CALL(impl(), MockCreateRootCompositorFrameSink(kFrameSinkParent1));
+  host().CreateRootCompositorFrameSink(
+      root_data1.BuildParams(kFrameSinkParent1),
+      true /* maybe_wait_on_destruction */);
+  FlushHostAndVerifyExpectations();
+
+  // Destroying the CompositorFrameSink when releasing the accelerated widget
+  // should invoke DestroyCompositorFrameSink while keeping the FrameSinkId
+  // registered for a subsequent resume.
+  EXPECT_CALL(impl(), MockDestroyCompositorFrameSink(kFrameSinkParent1));
+  host().DestroyCompositorFrameSink(kFrameSinkParent1);
+  EXPECT_TRUE(host().IsFrameSinkIdRegistered(kFrameSinkParent1));
+  FlushHostAndVerifyExpectations();
+
+  // Recreating the RootCompositorFrameSink on resume should not call
+  // DestroyCompositorFrameSink again because it was already destroyed.
+  RootCompositorFrameSinkData root_data2;
+  EXPECT_CALL(impl(), MockDestroyCompositorFrameSink(kFrameSinkParent1))
+      .Times(0);
+  EXPECT_CALL(impl(), MockCreateRootCompositorFrameSink(kFrameSinkParent1));
+  host().CreateRootCompositorFrameSink(
+      root_data2.BuildParams(kFrameSinkParent1),
+      true /* maybe_wait_on_destruction */);
+  FlushHostAndVerifyExpectations();
+
+  // Destroying again on conceal and then invalidating on shutdown should only
+  // call DestroyCompositorFrameSink once.
+  EXPECT_CALL(impl(), MockDestroyCompositorFrameSink(kFrameSinkParent1))
+      .Times(1);
+  host().DestroyCompositorFrameSink(kFrameSinkParent1);
+  EXPECT_CALL(impl(), InvalidateFrameSinkId(kFrameSinkParent1));
+  host().InvalidateFrameSinkId(kFrameSinkParent1, &host_client_);
+  FlushHostAndVerifyExpectations();
+}
+#endif
+>>>>>>> f4fe15be277 (cobalt: Fix ordering of eglDestroySurface and SbWindowDestroy (#12943))
 
 }  // namespace viz
