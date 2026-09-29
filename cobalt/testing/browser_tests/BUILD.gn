@@ -226,6 +226,7 @@ test("cobalt_browsertests") {
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/cache_storage_browsertest.cc",
+    "//cobalt/browser/custom_mime_type_browsertest.cc",
     "//cobalt/browser/experiments/experiment_config_browsertest.cc",
     "//cobalt/browser/h5vcc_memory_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
