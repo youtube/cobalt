@@ -517,25 +517,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_GT(parsed_pid, 0);
 }
 
-class TileMemoryMetricsBrowserTest : public content::ContentBrowserTest {
- public:
-  TileMemoryMetricsBrowserTest() = default;
-  ~TileMemoryMetricsBrowserTest() override = default;
-};
-
-// TODO: b/489836051 - Investigate memory metrics recording failures on
-// Starboard.
-#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
-#define MAYBE_EmitsTileMemoryHistograms DISABLED_EmitsTileMemoryHistograms
-#define MAYBE_SurfacesTileMemoryInPerformanceApi \
-  DISABLED_SurfacesTileMemoryInPerformanceApi
-#else
-#define MAYBE_EmitsTileMemoryHistograms EmitsTileMemoryHistograms
-#define MAYBE_SurfacesTileMemoryInPerformanceApi \
-  SurfacesTileMemoryInPerformanceApi
-#endif
-IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
-                       MAYBE_EmitsTileMemoryHistograms) {
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, TileMemoryEmitsHistograms) {
   auto* features = GlobalFeatures::GetInstance();
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
@@ -567,8 +549,8 @@ IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
               tile_memory_hist->SnapshotSamples()->TotalCount() > 0);
 }
 
-IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
-                       MAYBE_SurfacesTileMemoryInPerformanceApi) {
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       TileMemorySurfacesInPerformanceApi) {
   std::string html_content = R"(
     <html>
     <body style="width: 2000px; height: 2000px; background: linear-gradient(red, blue);">
