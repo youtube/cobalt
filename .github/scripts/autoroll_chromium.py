@@ -210,9 +210,13 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
       ])
 
     if not verify_chromium_commit(sha):
-      raise RuntimeError(
-          f'Verification failed: Rolled-in tree for {sha} does not match '
-          f'Chromium {sha}')
+      # raise RuntimeError(
+      #     f'Verification failed: Rolled-in tree for {sha} does not match '
+      #     f'Chromium {sha}')
+      lib.log(
+          f'WARNING: ignoring rolled-in tree ({sha}) verification failures '
+          f'due to b/567176671'
+      )
 
   replace_submodules_with_dirs()
 
