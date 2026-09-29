@@ -141,13 +141,13 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
-  const bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
-  if (allow_flush_during_seek_ && is_android_sink && channels == channels_ &&
+  if (allow_flush_during_seek_ && audio_sink_ && channels == channels_ &&
       sampling_frequency_hz == sampling_frequency_hz_ &&
       audio_sample_type == audio_sample_type_) {
     SB_LOG(INFO) << "Audio sink is already started with the same config, "
                  << "skipping Start().";
+    // |audio_sink_| is always an AudioSinkAndroid (an AudioTrackAudioSink by
+    // default), so the static_cast below (and in Reset()) is safe.
     auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
     android_sink->SetStartTime(media_start_time);
     // Explicitly set the playback rate and volume because HasStarted()
@@ -175,9 +175,7 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
 }
 
 void AudioRendererSinkAndroid::Reset() {
-  bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
-  if (allow_flush_during_seek_ && is_android_sink) {
+  if (allow_flush_during_seek_ && audio_sink_) {
     auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
     if (android_sink->Flush()) {
       SB_LOG(INFO) << "Flushing audio sink.";

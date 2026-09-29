@@ -32,7 +32,6 @@
 #ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_AUDIO_SINK_GSTREAMER_AUDIO_SINK_TYPE_H_
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_AUDIO_SINK_GSTREAMER_AUDIO_SINK_TYPE_H_
 
-#include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
@@ -51,18 +50,7 @@ class GStreamerAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (!IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-    instance_count--;
-  }
+  void OnSinkDestroyed() { instance_count--; }
 
   static GStreamerAudioSinkType* CreateInstance();
   static void DestroyInstance(GStreamerAudioSinkType* instance);
