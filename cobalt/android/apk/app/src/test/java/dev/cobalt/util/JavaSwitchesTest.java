@@ -257,7 +257,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
@@ -283,7 +282,6 @@ public class JavaSwitchesTest {
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
     assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--max-http-cache-size=50000000");
     assertThat(args).contains("--avoid-cc-reuse-resource");
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
     assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
@@ -331,7 +329,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
@@ -355,7 +352,6 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
     assertThat(args).doesNotContain("--enable-scaling-clipped-images");
     assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--max-http-cache-size=50000000");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
     assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
 
@@ -398,7 +394,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, null);
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, null);
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, null);
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, null);
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -414,7 +409,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "abc");
     switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, "none");
     switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, "xyz");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "unlimited");
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -423,7 +417,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
     assertThat(args).doesNotContain("--force-gpu-mem-available-mb=");
     assertThat(args).doesNotContain("--cc-image-cache-limit-items=");
-    assertThat(args).doesNotContain("--max-http-cache-size=");
   }
 
   @Test
