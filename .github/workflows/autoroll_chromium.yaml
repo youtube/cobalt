@@ -67,6 +67,15 @@ jobs:
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
+      - name: Set Up GitHub CLI
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            GH_VERSION="2.67.0"
+            curl -sSL --fail "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+              | tar -xz -C "${RUNNER_TEMP}"
+            echo "${RUNNER_TEMP}/gh_${GH_VERSION}_linux_amd64/bin" >> "${GITHUB_PATH}"
+          fi
+
       - name: Get Existing PR Info
         id: pr_info
         env:
