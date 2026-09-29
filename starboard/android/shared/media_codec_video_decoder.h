@@ -272,6 +272,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool transition_eos_pending_ = false;
   InputBuffers pending_transition_buffers_;
   std::atomic_bool awaiting_first_frame_after_transition_{false};  // DEMO
+  // True until the first input after a reset (e.g. a seek). The codec holds
+  // nothing to drain then, so a color transition rebuilds it immediately.
+  bool awaiting_first_input_after_reset_ = false;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
