@@ -536,6 +536,18 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
+  if (awaiting_first_input_after_reset_) {
+    const bool needs_transition = input_buffer_written_ > 0 &&
+                                  NeedsCodecTransition(input_buffers.front());
+    if (needs_transition) {
+      SB_LOG(INFO) << "Video color metadata changed at "
+                   << input_buffers.front()->timestamp()
+                   << " after a reset; rebuilding the codec without draining.";
+      TeardownCodecAndReset();
+    }
+    awaiting_first_input_after_reset_ = false;
+  }
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -1311,6 +1323,7 @@ void MediaCodecVideoDecoder::ResetDecoderState() {
   transition_eos_received_.store(false);
   transition_eos_pending_ = false;
   pending_transition_buffers_.clear();
+  awaiting_first_input_after_reset_ = true;
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
