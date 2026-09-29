@@ -377,6 +377,9 @@ android_apk("cobalt_apk") {
   shared_libraries = [ ":libchrobalt" ]
   srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
+
+  # Keep dex compressed; min SDK >= 28 would store it uncompressed and grow the APK.
+  uncompress_dex = false
 }
 
 robolectric_binary("cobalt_coat_junit_tests") {
