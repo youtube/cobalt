@@ -37,8 +37,6 @@ def remove_angle_from_recursedeps():
   See b/565697787 for more information.
   """
   lib.run(['sed', '-i', r"/'src\/third_party\/angle',/s/^/\#/", 'DEPS'])
-  lib.run(
-      ['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
 
 
 def get_submodule_root_dirs():
@@ -179,6 +177,8 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   lib.run(['git', 'checkout', previous_sha, '--', '.'])
 
   if previous_sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
+    # Just remove it from DEPS but do not commit the change, otherwise it will
+    # also add a lot of other changes made by the git checkout call above.
     remove_angle_from_recursedeps()
 
   replace_submodules_with_dirs()
@@ -205,6 +205,8 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
 
     if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
       remove_angle_from_recursedeps()
+      lib.run(
+          ['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
 
     if not verify_chromium_commit(sha):
       raise RuntimeError(
