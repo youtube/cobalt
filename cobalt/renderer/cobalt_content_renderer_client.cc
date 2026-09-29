@@ -52,6 +52,9 @@
 
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/starboard/url_player_demuxer.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#include "cobalt/internal/cobalt/components/cdm/renderer/starboard/platform_drm_key_system_info.h"
+#endif  // defined(COBALT_INTERNAL_BUILD)
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
@@ -224,6 +227,11 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -263,6 +271,16 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  key_system_infos->push_back(std::make_unique<cdm::PlatformDrmKeySystemInfo>(
+      codecs,                                        // Regular codecs.
+      kEncryptionSchemes,                            // Encryption schemes.
+      codecs,                                        // Hardware secure codecs.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                     // identifier.
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
 std::unique_ptr<::media::KeySystemSupportRegistration>
@@ -346,15 +364,21 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   }
   renderer_factory_traits->experimental_features = experimental_features;
 
-  // For experimental purposes, we check both command-line feature flags and
-  // H5vcc settings here so web apps can toggle external memory pooling
-  // dynamically. Once this feature is finalized and enabled by default, this
-  // initialization should be moved back to
+  // The feature is enabled by default; H5vcc settings still take precedence
+  // when the web app explicitly sets the key, so external memory pooling can
+  // be toggled dynamically (e.g. for a holdback experiment). When the key is
+  // unset, fall back to the command-line/default feature state.
+  // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
+  // initialization back to
   // CobaltContentRendererClient::RenderThreadStarted().
+  // The external memory pool routes allocations to DecoderBufferAllocator;
+  // disable it when DecoderBufferAllocator is disabled for PartitionAlloc.
   const bool enable_external_pool =
-      base::FeatureList::IsEnabled(
-          ::media::kCobaltUseExternalMediaMemoryPool) ||
-      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
+      !base::FeatureList::IsEnabled(
+          ::media::kCobaltDisableDecoderBufferAllocator) &&
+      experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
+          .value_or(base::FeatureList::IsEnabled(
+              ::media::kCobaltUseExternalMediaMemoryPool));
   {
     base::AutoLock scoped_lock(media_allocator_lock_);
     is_external_memory_pool_enabled_ = enable_external_pool;

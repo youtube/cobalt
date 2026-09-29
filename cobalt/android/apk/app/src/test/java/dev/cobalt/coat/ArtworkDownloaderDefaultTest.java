@@ -65,7 +65,7 @@ public class ArtworkDownloaderDefaultTest {
     ArtworkLoader artworkLoader =
         new ArtworkLoader(mock(ArtworkLoader.Callback.class), mDownloader) {
           @Override
-          public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
+          public void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
             super.onDownloadFinished(urlBitmapPair);
             // In this test, the download is expected to fail, so the bitmap should be null.
             // In this test environment, the download fails because the URL is not accessible,

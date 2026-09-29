@@ -23,6 +23,20 @@
 
 namespace cobalt {
 
+// Returns the total size in bytes of all .pma files in |metrics_dir|.
+int64_t GetTotalStabilityMetricsPmaDirSizeBytes(
+    const base::FilePath& metrics_dir);
+
+// Ensures that the total size of .pma files in |metrics_dir| plus
+// |bytes_to_add| does not exceed |max_total_bytes|. If the budget is exceeded,
+// prunes the oldest .pma files (and any invalid .pma files) until the budget is
+// satisfied. Returns true if the budget is satisfied, or false if it cannot be
+// met.
+bool EnsurePmaDirectoryBudget(const base::FilePath& metrics_dir,
+                              const std::string& expected_allocator_name,
+                              int64_t max_total_bytes,
+                              int64_t bytes_to_add);
+
 // Extracts process IDs of prior sessions from persistent memory allocator
 // (.pma) files located in |metrics_dir| matching |expected_allocator_name|.
 // Ignores non-.pma files, files where ParseFilePath fails, files with
@@ -32,6 +46,16 @@ std::vector<base::ProcessId> ExtractPriorSessionPids(
     const base::FilePath& metrics_dir,
     const std::string& expected_allocator_name,
     base::ProcessId current_pid);
+
+// Reads all persistent memory allocator (.pma) files in |metrics_dir|
+// matching |expected_allocator_name| (excluding |current_pid|) into memory by
+// merging their histogram deltas into the global StatisticsRecorder, and then
+// removes them from disk. Also removes any corrupt, invalid, or mismatched
+// .pma files, while preserving active files matching |current_pid|.
+void ClearOtherStabilityMetricsPmaFiles(
+    const base::FilePath& metrics_dir,
+    const std::string& expected_allocator_name,
+    base::ProcessId current_pid = base::kNullProcessId);
 
 }  // namespace cobalt
 

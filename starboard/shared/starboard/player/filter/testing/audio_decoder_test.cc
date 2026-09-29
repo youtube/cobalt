@@ -944,8 +944,8 @@ INSTANTIATE_TEST_SUITE_P(
     AudioDecoderTests,
     AudioDecoderTest,
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
-                                                6,
-                                                "audiopassthrough=false")),
+                                                /*max_channels=*/6,
+                                                kExcludePassthrough)),
             Bool()),
     GetAudioDecoderTestConfigName);
 

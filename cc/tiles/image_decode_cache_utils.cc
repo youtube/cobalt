@@ -11,6 +11,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_number_conversions.h"
 #include "cc/base/switches.h"
 #endif
@@ -81,19 +82,33 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
 #if BUILDFLAG(IS_COBALT)
 // static
 size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
-  static const size_t cobalt_decoded_image_persistent_cache_budget_count = []() {
-    size_t budget = 2000; // kNormalMaxItemsInCacheForGpu default
-    auto* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
-      std::string value = command_line->GetSwitchValueASCII(
-          switches::kCCImageCacheLimitItems);
-      int parsed_value;
-      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
-        budget = static_cast<size_t>(parsed_value);
-      }
-    }
-    return budget;
-  }();
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count =
+      []() {
+        auto* command_line = base::CommandLine::ForCurrentProcess();
+        if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+          std::string value = command_line->GetSwitchValueASCII(
+              switches::kCCImageCacheLimitItems);
+          int parsed_value;
+          if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+            return static_cast<size_t>(parsed_value);
+          }
+        }
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltCCImageCacheLimitItems)) {
+          int items = base::features::kCobaltCCImageCacheLimitItemsCount.Get();
+          if (items >= 0) {
+            return static_cast<size_t>(items);
+          }
+        }
+#if BUILDFLAG(IS_STARBOARD)
+        // Cache 15 decoded images. Scroll FPS doubles once 13 are cached;
+        // 15 adds margin and costs ~1 MB of GPU memory. See b/562624433.
+        return static_cast<size_t>(15);
+#else
+        return static_cast<size_t>(
+            2000);  // kNormalMaxItemsInCacheForGpu default
+#endif
+      }();
   return cobalt_decoded_image_persistent_cache_budget_count;
 }
 

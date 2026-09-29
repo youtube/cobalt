@@ -83,6 +83,7 @@
   ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
+// Deprecated: Use C++17 static_assert instead.
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)

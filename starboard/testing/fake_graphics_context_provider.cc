@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "build/build_config.h"
 #include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"
@@ -97,7 +98,9 @@ namespace starboard {
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
-      context_(EGL_NO_CONTEXT) {
+      context_(EGL_NO_CONTEXT),
+      window_(kSbWindowInvalid) {
+  InitializeWindow();
   InitializeEGL();
 }
 
@@ -110,6 +113,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   }
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
+  SbWindowDestroy(window_);
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
@@ -160,6 +164,16 @@ void FakeGraphicsContextProvider::RunLoop() {
     }
     functor();
   }
+}
+
+void FakeGraphicsContextProvider::InitializeWindow() {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  window_ = SbWindowCreate(&window_options);
+#if BUILDFLAG(IS_STARBOARD)
+  SB_CHECK(SbWindowIsValid(window_));
+#endif
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {

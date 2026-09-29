@@ -72,6 +72,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
   ]
 
   if (!use_evergreen) {
@@ -183,12 +184,12 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
-    "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/AssetLoader.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
+    "apk/app/src/main/java/dev/cobalt/util/DeviceUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
@@ -281,7 +282,7 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
-  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_sources = [ "$root_out_dir/fonts/fonts.xml" ]
   renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
   deps = [
@@ -364,6 +365,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/BaseStarboardBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltPictureInPictureActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
@@ -374,6 +376,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/media/AudioOutputManagerTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DisplayUtilTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]

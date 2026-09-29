@@ -147,11 +147,6 @@ std::string MapScriptToModifier(const char* script) {
 // Check to see if the given locale is supported by ICU. If it isn't, we try
 // to see if the locale's parent is supported.
 bool IsSupportedThroughFallback(const char* canonical_name) {
-  // TODO: b/462446756 - Properly address the "as_IN" locale.
-  if (strcmp(canonical_name, "as_IN") == 0) {
-    return true;
-  }
-
   UErrorCode status = U_ZERO_ERROR;
   char current[ULOC_FULLNAME_CAPACITY];
   char parent[ULOC_FULLNAME_CAPACITY];

@@ -618,10 +618,16 @@ bool ClientImageTransferCacheEntry::SerializeInProcess(
   auto* payload = new InProcessImageTransferCachePayload();
   if (IsYuv()) {
     const int num_pixmaps = NumPixmapsForYUVConfig(image_.yuv_plane_config);
+    sk_sp<SkColorSpace> color_space =
+        image_.color_space ? sk_ref_sp(image_.color_space.get()) : nullptr;
     for (int i = 0; i < num_pixmaps; ++i) {
       if (image_.pixmaps[i]) {
+        SkPixmap pixmap = *image_.pixmaps[i];
+        if (color_space) {
+          pixmap.setColorSpace(color_space);
+        }
         payload->yuv_planes.push_back(
-            SkImages::RasterFromPixmap(*image_.pixmaps[i], nullptr, nullptr));
+            SkImages::RasterFromPixmap(pixmap, nullptr, nullptr));
       }
     }
     if (!payload->yuv_planes.empty() && image_.pixmaps[0]) {
@@ -629,8 +635,8 @@ bool ClientImageTransferCacheEntry::SerializeInProcess(
           image_.pixmaps[0]->dimensions(), image_.yuv_plane_config,
           image_.yuv_subsampling, image_.yuv_color_space);
     }
-    if (image_.color_space) {
-      payload->yuv_color_space = sk_ref_sp(image_.color_space.get());
+    if (color_space) {
+      payload->yuv_color_space = std::move(color_space);
     }
   } else {
     if (image_.pixmaps[0]) {
@@ -972,6 +978,11 @@ bool ServiceImageTransferCacheEntry::DeserializeInProcess(
       DLOG(ERROR) << "Failed to make YUV image from uploaded planes";
       return false;
     }
+    yuva_info_ = payload->yuva_info;
+    plane_images_ = std::move(uploaded_planes);
+    for (const auto& plane_image : plane_images_) {
+      plane_sizes_.push_back(plane_image->textureSize());
+    }
   } else {
     image_ = UploadImageInProcess(gr_context, payload->image,
                                   mip_mapped_for_upload);
@@ -1009,6 +1020,11 @@ bool ServiceImageTransferCacheEntry::DeserializeInProcess(
       DLOG(ERROR) << "Failed image color conversion.";
       return false;
     }
+
+    // Color conversion converts to RGBA. Remove all YUV state.
+    yuva_info_ = std::nullopt;
+    plane_images_.clear();
+    plane_sizes_.clear();
   }
 
   size_ = image_->textureSize();

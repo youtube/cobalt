@@ -4,7 +4,9 @@
 
 #include "build/build_config.h"
 
-
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_command_line.h"
+#endif
 
 #include "third_party/blink/renderer/platform/fonts/font_fallback_iterator.h"
 
@@ -53,6 +55,9 @@ TEST_P(TestReset, TestResetWithFallbackPriority) {
 class FontFallbackIteratorTest : public FontTestBase {};
 
 TEST_F(FontFallbackIteratorTest, MissingFontFallbackDoesNotCrash) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      "use-custom-android-fonts-xml");
 
   FontDescription font_description;
   font_description.SetGenericFamily(FontDescription::kSerifFamily);

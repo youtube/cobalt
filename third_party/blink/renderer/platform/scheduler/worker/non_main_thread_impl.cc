@@ -56,14 +56,14 @@ NonMainThreadImpl::NonMainThreadImpl(const ThreadCreationParams& params)
   options.thread_type = params.base_thread_type;
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
-  // helper threads is reduced to 256KB to save virtual memory. Worker backing
-  // threads host their own V8 isolate, and V8Initializer::InitializeWorker()
-  // tells that isolate it has kWorkerMaxStackSize (500KB) available below the
-  // entry point. With a 256KB stack the isolate's stack guard would sit past
-  // the real stack bottom, turning a catchable RangeError into a SIGSEGV.
-  // Exclude all NonMainThreads from the reduction, matching the carve-outs in
-  // RenderProcessHostImpl and GpuProcessHost.
+  // The default stack size for helper threads is reduced to 256KB to save
+  // virtual memory. Worker backing threads host their own V8 isolate, and
+  // V8Initializer::InitializeWorker() tells that isolate it has
+  // kWorkerMaxStackSize (500KB) available below the entry point. With a 256KB
+  // stack the isolate's stack guard would sit past the real stack bottom,
+  // turning a catchable RangeError into a SIGSEGV. Exclude all NonMainThreads
+  // from the reduction, matching the carve-outs in RenderProcessHostImpl and
+  // GpuProcessHost.
   options.stack_size = 1024 * 1024;
 #endif
 

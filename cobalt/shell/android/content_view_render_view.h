@@ -56,7 +56,6 @@ class ContentViewRenderView : public content::CompositorClient {
 
   // CompositorClient implementation
   void UpdateLayerTreeHost() override;
-  void DidSwapFrame(int pending_frames) override;
 
  private:
   ~ContentViewRenderView() override;

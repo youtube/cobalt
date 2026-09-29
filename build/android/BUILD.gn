@@ -218,7 +218,7 @@ group("test_runner_device_support") {
 
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    if (!is_component_build) {
+    if (!is_component_build && !is_starboard) {
       data_deps += [ "//tools/android/forwarder2" ]
     }
     data += [ "//tools/android/avd/proto/" ]

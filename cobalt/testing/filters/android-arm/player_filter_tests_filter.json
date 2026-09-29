@@ -4,7 +4,6 @@
     "*PlayerComponentsTest*",
     "*AdaptiveAudioDecoderTest*",
     "*AudioDecoderTest*",
-    "*VideoDecoderTest*",
-    "*AudioRendererTest*"
+    "*VideoDecoderTest*"
   ]
 }

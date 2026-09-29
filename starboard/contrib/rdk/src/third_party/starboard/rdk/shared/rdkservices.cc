@@ -22,6 +22,7 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -76,6 +77,7 @@ const char kNetworkCallsign[] = "org.rdk.Network.1";
 const char kTTSCallsign[] = "org.rdk.TextToSpeech.1";
 const char kAuthServiceCallsign[] = "org.rdk.AuthService.1";
 const char kUserSetingsCallsign[] = "org.rdk.UserSettings.1";
+const char kUserPreferencesCallsign[] = "org.rdk.UserPreferences.1";
 const char kDeviceInfoCallsign[] = "DeviceInfo.1";
 const char kBluetoothCallsign[] = "org.rdk.Bluetooth.1";
 
@@ -1423,6 +1425,7 @@ private:
   std::vector<std::string> subscriptions_ { };
   bool needs_refresh_ { true };
   ServiceLink link_ { kUserSetingsCallsign };
+  std::string presentation_language_;
 
   struct StateChangedInfo : public Core::JSON::Container {
     StateChangedInfo()
@@ -1439,6 +1442,12 @@ private:
 
     Core::JSON::Boolean Enabled;
   };
+
+  void OnPresentationLanguageChanged(const Core::JSON::String& info) {
+    std::lock_guard lock(mutex_);
+    presentation_language_ = info.Value();
+    SB_LOG(INFO) << "User setting changed. presentation language = " << presentation_language_;
+  }
 
   void OnVoiceGuidanceChanged(const StateChangedInfo& info) {
     bool is_voice_guidance_enabled = info.Enabled.Value();
@@ -1499,6 +1508,15 @@ private:
       subscriptions_.push_back(name);
     }
 
+    if (std::find(subscriptions_.begin(), subscriptions_.end(), "onPresentationLanguageChanged")
+        == subscriptions_.end()) {
+      rc = link_.Subscribe<Core::JSON::String>(
+        kDefaultTimeoutMs, "onPresentationLanguageChanged", &UserSettingsImpl::OnPresentationLanguageChanged, this);
+      if (Core::ERROR_NONE == rc || Core::ERROR_DUPLICATE_KEY == rc) {
+        subscriptions_.push_back("onPresentationLanguageChanged");
+      }
+    }
+
     return true;
   }
 
@@ -1538,6 +1556,13 @@ public:
       }
     }
 
+    Core::JSON::String lang_info;
+    uint32_t lang_rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", lang_info);
+    if (Core::ERROR_NONE == lang_rc && lang_info.IsSet() && !lang_info.Value().empty()) {
+      presentation_language_ = lang_info.Value();
+      SB_LOG(INFO) << "User setting: getPresentationLanguage = " << presentation_language_;
+    }
+
     needs_refresh_ = false;
 
     auto *accessibility = GetAccessibility();
@@ -1546,17 +1571,132 @@ public:
     accessibility->SetHighContrastEnabled(is_highcontrast_enabled, false);
   }
 
+  bool GetPresentationLanguage(std::string& out_lang) {
+    Refresh();
+    {
+      std::lock_guard lock(mutex_);
+      if (!presentation_language_.empty()) {
+        out_lang = presentation_language_;
+        return true;
+      }
+    }
+
+    Core::JSON::String info;
+    uint32_t rc = link_.Get(kDefaultTimeoutMs, "getPresentationLanguage", info);
+    if (Core::ERROR_NONE == rc && info.IsSet() && !info.Value().empty()) {
+      std::lock_guard lock(mutex_);
+      presentation_language_ = info.Value();
+      out_lang = presentation_language_;
+      return true;
+    }
+
+    std::lock_guard lock(mutex_);
+    if (!presentation_language_.empty()) {
+      out_lang = presentation_language_;
+      return true;
+    }
+    return false;
+  }
+
   void Teardown() {
     std::lock_guard lock(mutex_);
     for (const auto& subscription : subscriptions_)
       link_.Unsubscribe(kDefaultTimeoutMs, subscription.c_str());
     link_.Teardown();
     needs_refresh_ = true;
+    presentation_language_.clear();
     subscriptions_.clear();
   }
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(UserSettingsImpl, GetUserSettings);
+
+struct UserPreferencesImpl {
+private:
+  static constexpr auto kUILanguageCacheTTL = std::chrono::seconds(2);
+
+  std::mutex mutex_;
+  ServiceLink link_ { kUserPreferencesCallsign };
+  std::string ui_language_;
+  std::chrono::steady_clock::time_point last_query_time_;
+  bool subscribed_ { false };
+
+  void OnUILanguageChanged(const Core::JSON::String& info) {
+    std::lock_guard lock(mutex_);
+    ui_language_ = info.Value();
+    last_query_time_ = std::chrono::steady_clock::now();
+    SB_LOG(INFO) << "User preference changed. ui language = " << ui_language_;
+  }
+
+  struct UILanguageInfo : public Core::JSON::Container {
+    UILanguageInfo()
+      : Core::JSON::Container()
+      , UILanguage()
+      , Success(false) {
+      Add(_T("ui_language"), &UILanguage);
+      Add(_T("success"), &Success);
+    }
+    UILanguageInfo(const UILanguageInfo& other)
+      : Core::JSON::Container()
+      , UILanguage(other.UILanguage)
+      , Success(other.Success) {
+      Add(_T("ui_language"), &UILanguage);
+      Add(_T("success"), &Success);
+    }
+    UILanguageInfo& operator=(const UILanguageInfo&) = delete;
+
+    Core::JSON::String UILanguage;
+    Core::JSON::Boolean Success;
+  };
+
+public:
+  bool GetUILanguage(std::string& out_lang) {
+    {
+      std::lock_guard lock(mutex_);
+      if (!subscribed_) {
+        link_.Subscribe<Core::JSON::String>(
+            kDefaultTimeoutMs, "onUILanguageChanged",
+            &UserPreferencesImpl::OnUILanguageChanged, this);
+        subscribed_ = true;
+      }
+
+      auto now = std::chrono::steady_clock::now();
+      if (!ui_language_.empty() && (now - last_query_time_ < kUILanguageCacheTTL)) {
+        out_lang = ui_language_;
+        return true;
+      }
+    }
+
+    UILanguageInfo info;
+    uint32_t rc = link_.Get(kDefaultTimeoutMs, "getUILanguage", info);
+    if (Core::ERROR_NONE == rc && info.Success.Value() && info.UILanguage.IsSet() && !info.UILanguage.Value().empty()) {
+      std::lock_guard lock(mutex_);
+      ui_language_ = info.UILanguage.Value();
+      last_query_time_ = std::chrono::steady_clock::now();
+      out_lang = ui_language_;
+      return true;
+    }
+
+    std::lock_guard lock(mutex_);
+    if (!ui_language_.empty()) {
+      out_lang = ui_language_;
+      return true;
+    }
+    return false;
+  }
+
+  void Teardown() {
+    std::lock_guard lock(mutex_);
+    if (subscribed_) {
+      link_.Unsubscribe(kDefaultTimeoutMs, "onUILanguageChanged");
+      subscribed_ = false;
+    }
+    link_.Teardown();
+    ui_language_.clear();
+  }
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(UserPreferencesImpl, GetUserPreferences);
 
 void TeardownJSONRPCLink() {
   GetDisplayInfo()->Teardown();
@@ -1564,6 +1704,7 @@ void TeardownJSONRPCLink() {
   GetNetworkInfo()->Teardown();
   GetDeviceInfo()->Teardown();
   GetUserSettings()->Teardown();
+  GetUserPreferences()->Teardown();
 }
 
 }  // namespace
@@ -1574,6 +1715,14 @@ void Accessibility::SetSettings(const std::string& json, bool notify_app) {
 
 bool Accessibility::GetSettings(std::string& out_json) {
   return GetAccessibility()->GetSettings(out_json);
+}
+
+bool UserPreferences::GetUILanguage(std::string& out_lang) {
+  return GetUserPreferences()->GetUILanguage(out_lang);
+}
+
+bool UserSettings::GetPresentationLanguage(std::string& out_lang) {
+  return GetUserSettings()->GetPresentationLanguage(out_lang);
 }
 
 namespace platform {

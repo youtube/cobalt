@@ -41,6 +41,11 @@ enum HeaacOption {
   kExcludeHeaac,
 };
 
+enum PassthroughOption {
+  kIncludePassthrough,
+  kExcludePassthrough,
+};
+
 // The function doesn't free the buffer, it assumes that the lifetime of the
 // buffer is actually managed by other code.  It can be used in the places where
 // SbPlayerDeallocateSampleFunc is expected.
@@ -51,7 +56,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,
-    const char* extra_mime_attributes = "");
+    PassthroughOption passthrough_option = kIncludePassthrough);
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(

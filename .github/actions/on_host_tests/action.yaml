@@ -38,15 +38,12 @@ runs:
         git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
-    - name: Download Artifacts
-      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+    - name: Download and Extract Test Artifacts from GCS
+      uses: ./.github/actions/download_test_artifacts
       with:
-        name: ${{ inputs.test_artifacts_key }}
-    - name: Extract Artifacts
-      shell: bash
-      run: |
-        set -x
-        tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: test_artifacts.tar.zstd
+        extract: "true"
     - name: Prepare Test Filters
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters
@@ -144,19 +141,18 @@ runs:
             echo "Skipped due to test filter." > "${log_path}"
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' > "${xml_path}"
           else
+            test_exit_code=0
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 "${ENTRYPOINT}" \
                 --single-process-tests \
                 --gtest_shard_index="${gtest_shard_index}" \
                 --gtest_total_shards="${gtest_total_shards}" \
                 --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee "${log_path}" || {
-              failed_suites="${failed_suites} ${test_executable}"
-            }
+                --gtest_filter="${test_filter}" 2>&1 | tee "${log_path}" || test_exit_code=$?
 
-            if [[ ! -f "${xml_path}" ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              if [ -f "${log_path}" ]; then
+            if [[ "${test_exit_code}" -ne 0 ]]; then
+              failed_suites="${failed_suites} ${test_executable}"
+              if [[ -f "${log_path}" ]]; then
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
               fi
             fi

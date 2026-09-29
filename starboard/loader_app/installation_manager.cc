@@ -24,17 +24,15 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/loader_app/installation_store.pb.h"
-#if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
-#endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/common/check_op.h"
-#include "starboard/common/once.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 
 namespace loader_app {
@@ -596,9 +594,7 @@ bool InstallationManager::SaveInstallationStore() {
   std::vector<char> buf(buf_size, 0);
 
   int result = installation_store_.roll_forward_to_installation();
-#if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
   loader_app::SetPendingRestart(result != -1);
-#endif
 
   installation_store_.SerializeToArray(buf.data(),
                                        installation_store_.ByteSizeLong());

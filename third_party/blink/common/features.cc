@@ -464,6 +464,19 @@ BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
              "CobaltBypassResourceLoadScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
+// devices so that shelf tracks and carousels are promoted to dedicated
+// hardware-composited cc::PictureLayers rather than triggering CPU repaints.
+// Enabled by default on Starboard, disabled by default on Android.
+BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
+             "CobaltPreserveTrivial3DTransform",
+#if BUILDFLAG(IS_STARBOARD)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",
@@ -1980,7 +1993,9 @@ BASE_FEATURE(kMixedContentAutoupgrade,
 BASE_FEATURE(kMemoryCacheStrongReference,
              "MemoryCacheStrongReference",
 // Finch study showed no improvement on Android for strong memory cache.
-#if BUILDFLAG(IS_ANDROID)
+// Starboard (Cobalt) opts out for the same reason, and to keep the memory
+// footprint down on constrained TV devices.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT

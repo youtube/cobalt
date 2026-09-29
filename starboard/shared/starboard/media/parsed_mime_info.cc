@@ -62,12 +62,6 @@ std::optional<ParsedMimeInfo> ParsedMimeInfo::Create(
     return std::nullopt;
   }
 
-  // Read "disablecache".
-  if (!mime_type->ValidateBoolParameter("disablecache")) {
-    return std::nullopt;
-  }
-  bool disable_cache = mime_type->GetParamBoolValue("disablecache", false);
-
   // We only support audio or video type.
   if (mime_type->type() != "audio" && mime_type->type() != "video") {
     return std::nullopt;
@@ -95,8 +89,7 @@ std::optional<ParsedMimeInfo> ParsedMimeInfo::Create(
     return std::nullopt;
   }
 
-  return ParsedMimeInfo(std::move(*mime_type), disable_cache, audio_info,
-                        video_info);
+  return ParsedMimeInfo(std::move(*mime_type), audio_info, video_info);
 }
 
 ParsedMimeInfo ParsedMimeInfo::WithBitrate(int bitrate) const {
@@ -106,15 +99,13 @@ ParsedMimeInfo ParsedMimeInfo::WithBitrate(int bitrate) const {
   audio_info.bitrate = bitrate;
   video_info.bitrate = bitrate;
 
-  return ParsedMimeInfo(mime_type_, disable_cache_, audio_info, video_info);
+  return ParsedMimeInfo(mime_type_, audio_info, video_info);
 }
 
 ParsedMimeInfo::ParsedMimeInfo(MimeType mime_type,
-                               bool disable_cache,
                                AudioCodecInfo audio_info,
                                VideoCodecInfo video_info)
     : mime_type_(std::move(mime_type)),
-      disable_cache_(disable_cache),
       audio_info_(audio_info),
       video_info_(video_info) {}
 

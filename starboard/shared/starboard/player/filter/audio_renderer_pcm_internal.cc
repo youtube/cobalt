@@ -581,9 +581,8 @@ void AudioRendererPcm::OnFirstOutput(
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
-  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32 and
-  // kSbMediaAudioFrameStorageTypeInterleaved, so we resample the audio to that
-  // format to avoid unnecessary extra conversion.
+  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32, so we
+  // resample the audio to that format to avoid unnecessary extra conversion.
   if (decoded_sample_rate != destination_sample_rate ||
       decoded_sample_type != kSbMediaAudioSampleTypeFloat32) {
     resampler_ = AudioResampler::Create(
@@ -594,10 +593,8 @@ void AudioRendererPcm::OnFirstOutput(
     resampler_.reset(new IdentityAudioResampler);
   }
 
-  // TODO: Support planar only audio sink.
   audio_renderer_sink_->Start(
       seeking_to_time_, channels_, destination_sample_rate, sink_sample_type_,
-      kSbMediaAudioFrameStorageTypeInterleaved,
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
       max_cached_frames_, this);
   if (!audio_renderer_sink_->HasStarted()) {

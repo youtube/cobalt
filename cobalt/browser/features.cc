@@ -86,6 +86,13 @@ const base::FeatureParam<int> kCpuMetricsIntervalParam{
 const base::FeatureParam<int> kMemoryMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
 
+BASE_FEATURE(kCobaltVirtualAddressSpaceMetrics,
+             "CobaltVirtualAddressSpaceMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kVirtualAddressSpaceSampleProbabilityParam{
+    &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.01};
+
 BASE_FEATURE(kCobaltMemoryAttributionManager,
              "CobaltMemoryAttributionManager",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -124,6 +131,10 @@ BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kDisableNetworkDialogDismissButton,
+             "DisableNetworkDialogDismissButton",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCobaltNativeMemoryAblation,
              "CobaltNativeMemoryAblation",

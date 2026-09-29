@@ -65,6 +65,10 @@ runs:
           git clone "${REPO_URL}" src
           # Clone depot_tools
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
+          # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+          # `--end-of-options` to `git checkout`. Need to update git on runners.
+          git -C depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+          echo "DEPOT_TOOLS_UPDATE=0" >> "$GITHUB_ENV"
           export PATH="${LOWER_DIR}/depot_tools:${PATH}"
 
           gclient config \

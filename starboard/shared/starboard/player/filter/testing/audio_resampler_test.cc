@@ -35,7 +35,7 @@ SbMediaAudioSampleType kSampleTypesToTest[] = {
     kSbMediaAudioSampleTypeFloat32,
 };
 int kSampleRatesToTest[] = {22050, 44100, 48000};
-int kChannelsToTest[] = {1, 2, 6};
+int kChannelsToTest[] = {1, 2, 6, 8};
 
 const char* ConvertSampleTypeToString(SbMediaAudioSampleType sample_type) {
   if (sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {

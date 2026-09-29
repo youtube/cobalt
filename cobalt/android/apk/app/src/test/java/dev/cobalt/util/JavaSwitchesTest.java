@@ -40,12 +40,14 @@ public class JavaSwitchesTest {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
     clearConfigFiles();
     JavaSwitches.setOverrideForTesting(null);
+    DeviceUtil.resetForTesting();
   }
 
   @After
   public void tearDown() {
     JavaSwitches.setOverrideForTesting(null);
     clearConfigFiles();
+    DeviceUtil.resetForTesting();
   }
 
   private void clearConfigFiles() {
@@ -217,6 +219,24 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_EnabledByDefault() {
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
+    assertThat(args).contains("--enable-low-end-device-mode");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_NotForcedByExperiment() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+
+    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // physical memory threshold. Devices at or below it stay low-end.
+    assertThat(args).doesNotContain("--enable-low-end-device-mode");
+  }
+
+  @Test
   public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
@@ -238,15 +258,11 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
-    switches.put(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE, "1");
-    switches.put(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING, "1");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
     switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.SURFACE_VIEW_UI_RENDERING, "1");
     switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
@@ -270,15 +286,11 @@ public class JavaSwitchesTest {
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
     assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--enable-gpu-shader-disk-cache");
     assertThat(args).contains("--max-http-cache-size=50000000");
-    assertThat(args).contains("--enable-css-and-wasm-for-http-cache");
-    assertThat(args).contains("--enable-http-and-v8-cache-tuning");
     assertThat(args).contains("--avoid-cc-reuse-resource");
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
     assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
     assertThat(args).contains("--enable-features=CobaltMmapFontCache");
-    assertThat(args).contains("--use-surface-view-for-ui");
     assertThat(args).contains("--enable-features=AreaBasedVideoBufferBudget");
     assertThat(args).contains("--allow-critical-memory-pressure-handling-in-foreground");
     assertThat(args).contains("--enable-features=EvictMemoryCacheOnCriticalMemoryPressure");
@@ -324,15 +336,11 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
     switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
-    switches.put(JavaSwitches.ENABLE_CSS_AND_WASM_FOR_HTTP_CACHE, "1");
-    switches.put(JavaSwitches.ENABLE_HTTP_AND_V8_CACHE_TUNING, "1");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
     switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.SURFACE_VIEW_UI_RENDERING, "1");
     switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
@@ -354,12 +362,8 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
     assertThat(args).doesNotContain("--enable-scaling-clipped-images");
     assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--enable-gpu-shader-disk-cache");
     assertThat(args).doesNotContain("--max-http-cache-size=50000000");
-    assertThat(args).doesNotContain("--enable-css-and-wasm-for-http-cache");
-    assertThat(args).doesNotContain("--enable-http-and-v8-cache-tuning");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
-    assertThat(args).doesNotContain("--use-surface-view-for-ui");
     assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
     assertThat(args).doesNotContain("--disable-back-forward-cache");
 
@@ -376,6 +380,17 @@ public class JavaSwitchesTest {
 
     // Default JS flags should still be present
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
+    assertThat(args).contains("--force-device-scale-factor=1");
+  }
+
+  @Test
+  public void testGetDefaultCommandLineArgs() {
+    List<String> args = JavaSwitches.getDefaultCommandLineArgs();
+    assertThat(args).contains("--disable-quic");
+    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
+    assertThat(args).contains("--force-device-scale-factor=1");
+    // Safe mode / no experiment config must not silently flip low-end mode off.
+    assertThat(args).contains("--enable-low-end-device-mode");
   }
 
   @Test
@@ -417,5 +432,63 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--force-gpu-mem-available-mb=");
     assertThat(args).doesNotContain("--cc-image-cache-limit-items=");
     assertThat(args).doesNotContain("--max-http-cache-size=");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_DefaultScaleFactor() {
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(null);
+    assertThat(args).contains("--force-device-scale-factor=1");
+    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_1GbAnd1080p() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
+
+    DeviceUtil.setIs1GbDeviceForTesting(true);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    assertThat(args).contains("--force-device-scale-factor=1.5");
+    assertThat(args).doesNotContain("--force-device-scale-factor=1");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_1GbAnd720p() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
+
+    DeviceUtil.setIs1GbDeviceForTesting(true);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(false);
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    assertThat(args).contains("--force-device-scale-factor=1");
+    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_2GbAnd1080p() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
+
+    DeviceUtil.setIs1GbDeviceForTesting(false);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    assertThat(args).contains("--force-device-scale-factor=1");
+    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_SwitchAbsent() {
+    Map<String, String> switches = new HashMap<>();
+
+    DeviceUtil.setIs1GbDeviceForTesting(true);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    assertThat(args).contains("--force-device-scale-factor=1");
+    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
   }
 }

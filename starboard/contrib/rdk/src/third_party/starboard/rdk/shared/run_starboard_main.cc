@@ -30,6 +30,8 @@
 // limitations under the License.
 
 #include <gst/gst.h>
+
+#include <malloc.h>
 #include <signal.h>
 #include <sys/resource.h>
 
@@ -93,6 +95,10 @@ static void UninstallStopSignalHandlers() {
 }  // namespace starboard
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+
+  // Set M_ARENA_MAX to 2 to limit fragmentation without single-arena lock contention.
+  mallopt(M_ARENA_MAX, 2);
+
   tzset();
 
   rlimit stack_size;

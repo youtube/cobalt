@@ -28,8 +28,10 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -277,6 +279,16 @@ TEST(DecoderBufferAllocatorNonParameterizedTest,
     histogram_tester.ExpectBucketCount(
         "Cobalt.Media.IsBufferPoolAllocateOnDemand", false, 1);
   }
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest, DisabledViaFeatureFlag) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      media::kCobaltDisableDecoderBufferAllocator);
+
+  DecoderBufferAllocator allocator;
+  EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
 }
 
 }  // namespace
