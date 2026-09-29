@@ -822,6 +822,28 @@ TEST_F(ResourcePoolTest, TileMemoryAndPeakMetrics) {
   resource_pool_->ReleaseResource(std::move(resource2));
 }
 
+TEST_F(ResourcePoolTest, GlobalTileMemoryGetters) {
+  uint64_t initial_total = ResourcePool::GetGlobalTotalTileMemoryUsageBytes();
+  uint64_t initial_peak = ResourcePool::GetGlobalPeakTileMemoryUsageBytes();
+
+  gfx::Size size(1000, 1000);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  ResourcePool::InUsePoolResource resource =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+
+  size_t resource_size = resource.memory_usage();
+  EXPECT_EQ(initial_total + resource_size,
+            ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+  EXPECT_GE(ResourcePool::GetGlobalPeakTileMemoryUsageBytes(), initial_peak);
+
+  resource_pool_->ReleaseResource(std::move(resource));
+  resource_pool_->SetResourceUsageLimits(0, 0);
+
+  EXPECT_EQ(initial_total, ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+}
+
 TEST_F(ResourcePoolTest, TileMemoryAndPeakMetricsCustomInterval) {
   resource_pool_.reset();
 

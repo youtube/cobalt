@@ -28,6 +28,8 @@ struct SystemMemoryInfo {
   uint64? used_gpu_memory;
   uint64? decoded_image_cache_memory;
   uint64? decoded_image_cache_peak_memory;
+  uint64? used_tile_memory;
+  uint64? peak_tile_memory;
 };
 
 interface CobaltPerformance {
@@ -95,6 +97,14 @@ interface CobaltPerformance {
   // Get the peak decoded image cache memory in bytes.
   [Sync]
   MeasureDecodedImagesPeakMemory() => (uint64 bytes);
+
+  // Get the amount of tile texture memory used by the compositor, in bytes.
+  [Sync]
+  MeasureUsedTileMemory() => (uint64 bytes);
+
+  // Get the peak tile texture memory used by the compositor, in bytes.
+  [Sync]
+  MeasurePeakTileMemory() => (uint64 bytes);
 
   // Get the application startup timestamp in microseconds (us).
   [Sync]

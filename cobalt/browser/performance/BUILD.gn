@@ -20,6 +20,7 @@ source_set("performance") {
 
   deps = [
     "//base",
+    "//cc",
     "//cobalt/browser/performance/public/mojom",
     "//content/public/browser",
     "//gpu/command_buffer/service:gles2",

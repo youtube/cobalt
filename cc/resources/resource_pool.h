@@ -314,6 +314,8 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   size_t GetPeakMemoryUsageForTesting() const {
     return peak_memory_usage_bytes_;
   }
+  static uint64_t GetGlobalTotalTileMemoryUsageBytes();
+  static uint64_t GetGlobalPeakTileMemoryUsageBytes();
 #endif
 
  private:

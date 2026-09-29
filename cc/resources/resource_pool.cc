@@ -36,8 +36,19 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+std::atomic<uint64_t> g_total_tile_memory_usage_bytes{0};
+std::atomic<uint64_t> g_peak_tile_memory_usage_bytes{0};
+}  // namespace
+#endif
 
 namespace cc {
 
@@ -403,6 +414,15 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
 #if BUILDFLAG(IS_COBALT)
   peak_memory_usage_bytes_ =
       std::max(peak_memory_usage_bytes_, total_memory_usage_bytes_);
+  g_total_tile_memory_usage_bytes.fetch_add(size, std::memory_order_relaxed);
+  uint64_t current_global =
+      g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+  uint64_t prev_peak =
+      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+  while (current_global > prev_peak &&
+         !g_peak_tile_memory_usage_bytes.compare_exchange_weak(
+             prev_peak, current_global, std::memory_order_relaxed)) {
+  }
 #endif
 }
 
@@ -595,6 +615,10 @@ bool ResourcePool::ResourceUsageTooHigh() {
 void ResourcePool::DeleteResource(std::unique_ptr<PoolResource> resource) {
   DCHECK_GE(total_memory_usage_bytes_, resource->memory_usage());
   total_memory_usage_bytes_ -= resource->memory_usage();
+#if BUILDFLAG(IS_COBALT)
+  g_total_tile_memory_usage_bytes.fetch_sub(resource->memory_usage(),
+                                            std::memory_order_relaxed);
+#endif
   --total_resource_count_;
   if (flush_evicted_resources_deadline_ == base::TimeTicks::Max()) {
     flush_evicted_resources_deadline_ =
@@ -756,6 +780,14 @@ void ResourcePool::RecordTileMemoryMetrics() {
   peak_memory_usage_bytes_ = total_memory_usage_bytes_;
 
   ScheduleRecordTileMemoryMetrics();
+}
+
+uint64_t ResourcePool::GetGlobalTotalTileMemoryUsageBytes() {
+  return g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+
+uint64_t ResourcePool::GetGlobalPeakTileMemoryUsageBytes() {
+  return g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
 }
 #endif
 
