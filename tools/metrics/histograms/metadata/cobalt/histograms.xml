@@ -970,6 +970,25 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.GPU.DecodedImages" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Current decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages.Peak" units="MB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Peak decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache, updated once per minute.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>

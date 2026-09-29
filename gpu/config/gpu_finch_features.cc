@@ -62,6 +62,18 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
 #else   // BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// When enabled, periodically records decoded image memory metrics
+// (Memory.GPU.DecodedImages and Memory.GPU.DecodedImages.Peak) for
+// ServiceTransferCache.
+BASE_FEATURE(kCobaltDecodedImagesMetrics,
+             "CobaltDecodedImagesMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDecodedImagesMetricsInterval,
+                   &kCobaltDecodedImagesMetrics,
+                   "interval",
+                   base::Minutes(1));
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not
