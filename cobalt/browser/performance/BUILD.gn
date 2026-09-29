@@ -22,6 +22,7 @@ source_set("performance") {
     "//base",
     "//cobalt/browser/performance/public/mojom",
     "//content/public/browser",
+    "//gpu/command_buffer/service:gles2",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
     "//starboard/common",

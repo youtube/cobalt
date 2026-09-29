@@ -26,6 +26,8 @@ struct SystemMemoryInfo {
   uint64 application_limit_memory;
   uint64 application_usage_memory;
   uint64? used_gpu_memory;
+  uint64 decoded_image_cache_memory;
+  uint64 decoded_image_cache_peak_memory;
 };
 
 interface CobaltPerformance {
@@ -85,6 +87,14 @@ interface CobaltPerformance {
   // Get the amount of GPU memory used by the application, in bytes.
   [Sync]
   MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
+
+  // Get the decoded image cache memory in bytes.
+  [Sync]
+  MeasureDecodedImagesMemory() => (uint64 bytes);
+
+  // Get the peak decoded image cache memory in bytes.
+  [Sync]
+  MeasureDecodedImagesPeakMemory() => (uint64 bytes);
 
   // Get the application startup timestamp in microseconds (us).
   [Sync]
