@@ -523,8 +523,19 @@ class TileMemoryMetricsBrowserTest : public content::ContentBrowserTest {
   ~TileMemoryMetricsBrowserTest() override = default;
 };
 
+// TODO: b/489836051 - Investigate memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_EmitsTileMemoryHistograms DISABLED_EmitsTileMemoryHistograms
+#define MAYBE_SurfacesTileMemoryInPerformanceApi \
+  DISABLED_SurfacesTileMemoryInPerformanceApi
+#else
+#define MAYBE_EmitsTileMemoryHistograms EmitsTileMemoryHistograms
+#define MAYBE_SurfacesTileMemoryInPerformanceApi \
+  SurfacesTileMemoryInPerformanceApi
+#endif
 IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
-                       EmitsTileMemoryHistograms) {
+                       MAYBE_EmitsTileMemoryHistograms) {
   auto* features = GlobalFeatures::GetInstance();
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
@@ -557,7 +568,7 @@ IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(TileMemoryMetricsBrowserTest,
-                       SurfacesTileMemoryInPerformanceApi) {
+                       MAYBE_SurfacesTileMemoryInPerformanceApi) {
   std::string html_content = R"(
     <html>
     <body style="width: 2000px; height: 2000px; background: linear-gradient(red, blue);">
