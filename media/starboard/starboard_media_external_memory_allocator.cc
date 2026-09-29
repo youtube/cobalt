@@ -98,11 +98,10 @@ StarboardMediaExternalMemoryAllocator::
 std::unique_ptr<DecoderBuffer::ExternalMemory>
 StarboardMediaExternalMemoryAllocator::CopyFrom(
     base::span<const uint8_t> span) {
-  // In Starboard builds, stream parsers (e.g., mp4_stream_parser.cc) should
-  // always invoke the 2-parameter overload CopyFrom(span, type) so that media
-  // pool strategies receive the exact DemuxerStream::Type. This 1-parameter
-  // implementation exists to satisfy the pure virtual vtable contract and acts
-  // as a fallback for generic or legacy tests.
+  // Called by StreamParserBuffer::CopyFrom() (used by most stream parsers)
+  // and directly by MP4StreamParser. The stream type is not needed, since
+  // BidirectionalFitDecoderBufferAllocatorStrategy, the only
+  // DecoderBufferAllocator strategy, ignores it.
   return CopyFrom(span, DemuxerStream::UNKNOWN);
 }
 
