@@ -69,14 +69,27 @@ public class MainActivity extends BaseCobaltActivity {
     // Spawns the loader thread, whose main() runs the app loader.
     void startLoader();
 
+    // Tells if the Starboard thread has already been started
+    boolean isLoaderStarted();
+
+    // Tells if Android currently has a surface for the app's window
+    boolean hasSurface();
+
     void nativeOnSurfaceCreated(Surface surface);
 
+    // Blocks until the engine has let go of the surface
     void nativeOnSurfaceDestroyed();
 
     boolean nativeSendKeyEvent(int keyCode, int action, int unicodeChar, int metaState);
-  }
 
-  private boolean mStarboardStarted;
+    void nativeSendBlurEvent();
+
+    void nativeSendFocusEvent();
+
+    void nativeSendFreezeEvent();
+
+    void nativeSendStopEvent();
+  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -120,12 +133,15 @@ public class MainActivity extends BaseCobaltActivity {
             // holder, so the translucent PixelFormat needs to be set again
             holder.setFormat(PixelFormat.TRANSLUCENT);
             MainActivityJni.get().nativeOnSurfaceCreated(holder.getSurface());
-            if (coldStart && !mStarboardStarted) {
-              mStarboardStarted = true;
+            if (!MainActivityJni.get().isLoaderStarted()) {
               // Spawn the loader thread.
               MainActivityJni.get().startLoader();
               // Required for CI test automation to detect browser process initialization.
               Log.i(TAG, "Browser process init succeeded");
+            } else {
+              // Coming back from background. Reveal and focus only after the new
+              // surface is in place
+              MainActivityJni.get().nativeSendFocusEvent();
             }
           }
 
@@ -139,6 +155,15 @@ public class MainActivity extends BaseCobaltActivity {
 
           @Override
           public void surfaceDestroyed(SurfaceHolder holder) {
+            // From the SurfaceHolder surfaceDestroyed() callback:
+            // "This is called immediately before a surface is being destroyed.
+            // After returning from this call, you should no longer try to access
+            // this surface.  If you have a rendering thread that directly accesses
+            // the surface, you must ensure that thread is no longer touching the
+            // Surface before returning from this function."
+            //
+            // The native side blocks until the engine has released the surface,
+            // so nothing touches it after this returns.
             MainActivityJni.get().nativeOnSurfaceDestroyed();
           }
 
@@ -167,6 +192,46 @@ public class MainActivity extends BaseCobaltActivity {
     }
     argsWithLink[argsLength] = "--link=" + deepLink;
     return argsWithLink;
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    // When the Activity is only partially obscured (a dialog or a translucent Activity on
+    // top) Android pauses and resumes it without destroying the surface, so surfaceCreated()
+    // never runs and this is the only place the focus event can come from. A resume that lost
+    // its surface is focused by surfaceCreated() instead.
+    if (MainActivityJni.get().hasSurface()) {
+      MainActivityJni.get().nativeSendFocusEvent();
+    }
+  }
+
+  @Override
+  protected void onPause() {
+    // Blurred, not concealed, the surface is still alive.
+    MainActivityJni.get().nativeSendBlurEvent();
+    super.onPause();
+  }
+
+  @Override
+  protected void onStop() {
+    // The app is no longer visible, so freeze it. Starboard first conceals it
+    // if surfaceDestroyed() hasn't already done so, which covers stopping
+    // without dropping the surface. Coming back, the focus event sent once a
+    // surface is available unfreezes and reveals it again.
+    MainActivityJni.get().nativeSendFreezeEvent();
+    super.onStop();
+  }
+
+  @Override
+  protected void onDestroy() {
+    // The Activity may be destroyed and re-created, for instance on
+    // configuration change events. Only tear down the starboard process if
+    // the activity is really being closed.
+    if (isFinishing()) {
+      MainActivityJni.get().nativeSendStopEvent();
+    }
+    super.onDestroy();
   }
 
   @Override
