@@ -132,6 +132,60 @@ class TestConvertJsonToJunitXml(unittest.TestCase):
     self.assertIsNotNone(fail_el)
     self.assertIn("embedded ]]> tag", fail_el.text)
 
+  def test_convert_sanitizes_disallowed_xml_characters(self):
+    data = {
+        "tests": [
+            {
+                "test_title": "test_control_chars",
+                "class_name": "ControlCharTest",
+                "result": "FAIL",
+                "errors": ["Error with \x00 null and \x08 backspace and \x1b escape, but keep \t and \n"],
+            }
+        ]
+    }
+    json_path = self.dir_path / "control_chars.json"
+    xml_path = self.dir_path / "control_chars.xml"
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    convert(str(json_path), str(xml_path))
+    self.assertTrue(xml_path.is_file())
+
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    fail_el = root.find(".//failure")
+    self.assertIsNotNone(fail_el)
+    self.assertNotIn("\x00", fail_el.text)
+    self.assertNotIn("\x08", fail_el.text)
+    self.assertNotIn("\x1b", fail_el.text)
+    self.assertIn("\t", fail_el.text)
+    self.assertIn("\n", fail_el.text)
+
+  def test_convert_chromium_format_with_null_elapsed_time(self):
+    chromium_data = {
+        "per_iteration_data": [
+            {
+                "MyClass#TestMethod": [
+                    {
+                        "status": "failure",
+                        "elapsed_time_ms": None,
+                        "output_snippet": "Failure with null elapsed time"
+                    }
+                ]
+            }
+        ]
+    }
+    json_path = self.dir_path / "chromium_null_time.json"
+    xml_path = self.dir_path / "chromium_null_time.xml"
+    json_path.write_text(json.dumps(chromium_data), encoding="utf-8")
+
+    convert(str(json_path), str(xml_path))
+    self.assertTrue(xml_path.is_file())
+
+    tree = ET.parse(xml_path)
+    case_el = tree.find(".//testcase")
+    self.assertIsNotNone(case_el)
+    self.assertEqual(case_el.attrib["time"], "0.000")
+
 
 if __name__ == "__main__":
   unittest.main()

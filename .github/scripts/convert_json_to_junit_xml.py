@@ -20,6 +20,24 @@ import sys
 import xml.etree.ElementTree as ET
 
 
+# Characters disallowed by XML 1.0 (excluding valid whitespace \t, \n, \r):
+# Disallowed: 0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F-0x84, 0x86-0x9F
+_DISALLOWED_CODEPOINTS = (
+    set(range(0x00, 0x09))
+    | {0x0B, 0x0C}
+    | set(range(0x0E, 0x20))
+    | set(range(0x7F, 0x85))
+    | set(range(0x86, 0xA0))
+)
+_XML_CLEAN_TABLE = dict.fromkeys(_DISALLOWED_CODEPOINTS, None)
+
+
+def _sanitize_xml_string(s):
+  if not s:
+    return ''
+  return str(s).translate(_XML_CLEAN_TABLE)
+
+
 def _normalize_status(raw_status):
   status_str = str(raw_status).upper()
   if 'FAIL' in status_str:
@@ -64,13 +82,19 @@ def _extract_cases(data):
     for iteration in data.get('per_iteration_data', []):
       for test_key, results in iteration.items():
         for res in results:
+          if not isinstance(res, dict):
+            continue
           classname, _, method = test_key.partition('#')
           if not method:
             classname, method = 'UnknownClass', classname
+          try:
+            elapsed_time = float(res.get('elapsed_time_ms') or 0) / 1000.0
+          except (ValueError, TypeError):
+            elapsed_time = 0.0
           suites[classname].append({
               'name': method.split('[')[0],
-              'status': res.get('status', 'SUCCESS'),
-              'time': res.get('elapsed_time_ms', 0) / 1000.0,
+              'status': _normalize_status(res.get('status', 'SUCCESS')),
+              'time': elapsed_time,
               'output': res.get('output_snippet', '')
           })
     return suites
@@ -121,11 +145,11 @@ def convert(json_path, xml_path):
       if case['status'] in ('FAILURE', 'FAIL'):
         fail_el = ET.SubElement(case_el, 'failure')
         fail_el.set('message', 'Test failed')
-        fail_el.text = case['output']
+        fail_el.text = _sanitize_xml_string(case['output'])
       elif case['status'] in ('CRASH', 'TIMEOUT', 'ERROR'):
         err_el = ET.SubElement(case_el, 'error')
         err_el.set('message', 'Test ' + case['status'])
-        err_el.text = case['output']
+        err_el.text = _sanitize_xml_string(case['output'])
       elif case['status'] in ('SKIPPED', 'SKIP'):
         ET.SubElement(case_el, 'skipped')
 
