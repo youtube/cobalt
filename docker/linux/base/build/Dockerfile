@@ -30,19 +30,19 @@ RUN apt update -qqy \
 
 # === Get Nodejs pinned LTS version via NVM
 ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"
-ARG NVM_URL="https://cobalt.googlesource.com/third_party/nvm/+/refs/tags/v0.35.3/install.sh?format=TEXT"
+ARG NVM_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh"
 ENV NVM_DIR=${HOME}/.nvm
 ENV NODE_VERSION 16.19.1
 
-RUN curl --silent -o- ${NVM_URL} \
-  | base64 -d > /tmp/install.sh \
+RUN curl --fail --silent --location --output /tmp/install.sh ${NVM_URL} \
    && echo ${NVM_SHA256SUM} | sha256sum --check \
-   && . /tmp/install.sh
+   && METHOD=script . /tmp/install.sh
 
 # === Pinned Node version to v16, as this is latest one that will work on
 # legacy Debian systems
 ARG LTS_VERSION=v16
 RUN . $NVM_DIR/nvm.sh \
+   && nvm_install_source() { nvm_err "Binary install failed; skipping source build."; return 1; } \
    && nvm install --lts ${LTS_VERSION} \
    && nvm alias default ${LTS_VERSION}/* \
    && nvm use default
@@ -75,7 +75,7 @@ RUN cd /tmp && mkdir ${HOME}/ccache
 ARG SCCACHE=sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
 ARG SCCACHE_SHA256=e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
 RUN cd /tmp \
-    && curl -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
+    && curl --fail -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
     && echo "${SCCACHE_SHA256} *${SCCACHE}" | sha256sum -c - \
     && tar xvzf ${SCCACHE} -C /usr/local/bin --strip-components=1 \
     && chmod +x /usr/local/bin/sccache \

@@ -35,4 +35,7 @@ RUN apt update -qqy \
         curl xz-utils \
     && /opt/clean-after-apt.sh
 
+# === Configure curl retries for transient network errors across concurrent builds
+RUN printf "retry = 5\nretry-delay = 2\nretry-all-errors\n" > /root/.curlrc
+
 CMD ["/usr/bin/python3","--version"]
