@@ -68,6 +68,7 @@ class ApplicationRdk : public QueueApplication {
   int GetWindowWidth() const { return window_width_; }
   int GetWindowHeight() const { return window_height_; }
   void DisplayInfoChanged();
+  void OnPlayerDestroyed();
 
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
@@ -111,6 +112,7 @@ class ApplicationRdk : public QueueApplication {
   static EssSettingsListener settingsListener;
 
   EssCtx *ctx_ { nullptr };
+  EssCtx *wayland_keepalive_ctx_ { nullptr };
   std::unique_ptr<EssInput> input_handler_ { nullptr };
   SbWindow window_ { kSbWindowInvalid };
   NativeWindowType native_window_ { 0 };

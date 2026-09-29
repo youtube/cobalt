@@ -39,6 +39,7 @@ struct SB_EXPORT Player {
 
 void ForceStop();
 void AudioConfigurationChanged();
+void NotifyPlayerDestroyed();
 
 }  // namespace starboard
 

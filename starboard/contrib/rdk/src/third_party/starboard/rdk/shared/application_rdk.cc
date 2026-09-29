@@ -125,6 +125,10 @@ ApplicationRdk::~ApplicationRdk() {
     }
     native_window_ = 0;
   }
+  if (wayland_keepalive_ctx_) {
+    EssContextDestroy(wayland_keepalive_ctx_);
+    wayland_keepalive_ctx_ = nullptr;
+  }
   if (ctx_) {
     EssContextDestroy(ctx_);
     ctx_ = nullptr;
@@ -333,6 +337,11 @@ void ApplicationRdk::OnSuspend() {
     setTimerInterval(ess_timer_fd_, 0s);
   }
 
+  if (wayland_keepalive_ctx_) {
+    EssContextDestroy(wayland_keepalive_ctx_);
+    wayland_keepalive_ctx_ = nullptr;
+  }
+
   if (ctx_) {
     // Unset the Essos terminate listener to prevent callback loops
     // when the window is destroyed during suspend.
@@ -406,6 +415,41 @@ void ApplicationRdk::DisplayInfoChanged() {
   data->size = window_size;
   data->window = window_;
   WindowSizeChanged(data, &ApplicationRdk::DeleteDestructor<SbEventWindowSizeChangedData>);
+}
+
+void ApplicationRdk::OnPlayerDestroyed() {
+  if (state() != kStateStarted) {
+    return;
+  }
+
+  // On RDK, GStreamer's westerossink connects its own secondary Wayland client
+  // to the application's nested Wayland display (Cobalt/wst-YouTube). When a
+  // video pipeline transitions to GST_STATE_NULL during player destruction,
+  // westerossink disconnects that client. WPEFramework's Westeros server treats
+  // any client disconnect on Cobalt/wst-YouTube as the application
+  // disconnecting and emits RDKShell onApplicationDisconnected. If Cobalt
+  // navigates back to a static UI screen without starting a new video player,
+  // no new westerossink connects to emit onApplicationConnected. Initializing a
+  // lightweight Essos context binds wl_compositor on Cobalt/wst-YouTube so
+  // Westeros immediately emits onApplicationConnected, and DisplayInfoChanged()
+  // forces a full compositor redraw once the hardware video plane turns off.
+  if (wayland_keepalive_ctx_) {
+    EssContextDestroy(wayland_keepalive_ctx_);
+    wayland_keepalive_ctx_ = nullptr;
+  }
+  wayland_keepalive_ctx_ = EssContextCreate();
+  if (wayland_keepalive_ctx_ && !EssContextInit(wayland_keepalive_ctx_)) {
+    EssContextDestroy(wayland_keepalive_ctx_);
+    wayland_keepalive_ctx_ = nullptr;
+  }
+
+  DisplayInfoChanged();
+}
+
+void NotifyPlayerDestroyed() {
+  if (ApplicationRdk::Get()) {
+    ApplicationRdk::Get()->OnPlayerDestroyed();
+  }
 }
 
 void ApplicationRdk::BuildEssosContext() {

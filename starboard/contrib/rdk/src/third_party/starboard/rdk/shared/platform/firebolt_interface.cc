@@ -128,6 +128,17 @@ void FireboltInterface::FireboltDevice::set_hdr_format(HDRFormat hdr_format) {
   hdr_format_ = hdr_format;
   lock.unlock();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+  // When the platform HDMI transmitter transitions between HDR and SDR (for
+  // example, when a hardware video plane turns off and the HDMI driver stops
+  // sending HDR InfoFrames after a frame-mute delay), the display compositor
+  // may remain blank if Cobalt's UI is static and no new EGL buffers are being
+  // swapped. Scheduling DisplayInfoChanged() forces a compositor damage/redraw
+  // once the HDMI HDR state change completes.
+  SbEventSchedule([](void* /*data*/) {
+    if (Application::Get()) {
+      Application::Get()->DisplayInfoChanged();
+    }
+  }, nullptr, 0);
 }
 
 std::optional<bool> FireboltInterface::FireboltDevice::audio_configuration(
