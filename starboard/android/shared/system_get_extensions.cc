@@ -43,6 +43,11 @@
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/loader_app_metrics.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
   // Extensions the loader app injects into the Evergreen binary, such as the
