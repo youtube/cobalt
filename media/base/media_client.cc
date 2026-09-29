@@ -5,7 +5,9 @@
 #include "media/base/media_client.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/media_switches.h"
 #endif
 
 namespace media {
@@ -26,7 +28,9 @@ MediaClient::~MediaClient() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void MediaClient::InstallDecoderBufferAllocator() {
-  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+  if (!base::FeatureList::IsEnabled(kCobaltDisableDecoderBufferAllocator)) {
+    DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+  }
 }
 
 // static

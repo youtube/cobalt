@@ -366,7 +366,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
   // initialization back to
   // CobaltContentRendererClient::RenderThreadStarted().
+  // The external memory pool routes allocations to DecoderBufferAllocator;
+  // disable it when DecoderBufferAllocator is disabled for PartitionAlloc.
   const bool enable_external_pool =
+      !base::FeatureList::IsEnabled(
+          ::media::kCobaltDisableDecoderBufferAllocator) &&
       experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
           .value_or(base::FeatureList::IsEnabled(
               ::media::kCobaltUseExternalMediaMemoryPool));
