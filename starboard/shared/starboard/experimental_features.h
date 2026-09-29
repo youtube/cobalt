@@ -170,82 +170,150 @@ const void* GetExperimentalFeaturesConfigurationApi();
 // Starboard platform implementation layer. For Chromium media layer settings,
 // see media/base/starboard/experimental_features.h.
 // keep-sorted start by_regex=k\w+ newline_separated=yes
+// Allows writing audio samples while paused to reduce resume latency.
+// Feature bug: b/500811542
+// Experiment bug: b/512923901
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
+// Enables AV1 video startup latency optimizations on Android.
+// Feature bug: b/486980027
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
+// Dynamically enables flushing decoders during seek operations.
+// Feature bug: b/474454335
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 
+// Enables resetting the audio decoder during seek operations.
+// Feature bug: b/474454335
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
 
+// Enables SIMD-accelerated audio sample format conversion in `DecodedAudio`.
+// Feature bug: b/518861272
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableSimdBasedAudioFormatSwitching(
         "Media.EnableSimdBasedAudioFormatSwitching");
 
+// Enables steady-state playback optimizations in `VideoRendererImpl` (e.g.,
+// pre-checking seek state before atomic ops, splicing decoded frame lists).
+// Feature bug: b/514758473
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
 
+// Enables Video Synchronization Point (VSP) timestamp adjustment in the video
+// renderer to smooth frame pacing on Android.
+// Feature bug: b/311422213, b/454305379
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
-// To check the regression of the fix for the bug that pending frame grows
-// 2000+. For details, see http://b/517914191.
+// Prevents video pipeline backpressure leak on Android where pending frames
+// grow unbounded (2000+).
+// Feature bug: b/515102461, b/517914191
+// Experiment bug: b/539672039
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
 
+// Forces flushing the Android `AudioTrack` during seek or reset operations.
+// Feature bug: b/330793785
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
+// Forces dual threads (`VidDecIn` and `VidDecOut`) for video decoding on
+// multi-core platforms.
+// Feature bug: b/329686979
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
     "Media.ForceDualThreads");
 
-// Decode-To-Texture (used by WebGL video shaders) may use this.
-// Main tracking bug: b/490474392, DRM exploration: b/494037632
+// Forces the use of software video decoders instead of hardware decoders.
+// Feature bug: b/545881570, b/490474392
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceSoftwareVideoDecoder(
     "Media.ForceSoftwareVideoDecoder");
 
+// Discards stale `MediaCodec` callbacks queued before or during `flush()` to
+// prevent inconsistent decoder state.
+// Feature bug: b/497004556
+// Experiment bug: b/524642946
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing",
         true);
 
+// Ignores stale rendered frame callbacks after a seek operation before the
+// first post-seek frame is processed, preventing false-positive dropped frame
+// counts.
+// Feature bug: b/401790323, b/534774024
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
+// Uses Android NDK-based `AAudio` / `AudioTrack` instead of Java `AudioTrack`
+// to reduce JNI overhead.
+// Feature bug: b/428008986
+// Experiment bug: b/543131997
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
     "Media.NdkAudioTrack");
 
+// Uses Android NDK `AMediaCodec` APIs (`NdkMediaCodec`) instead of Java
+// `MediaCodec` for non-secure, non-tunneled video decoding to reduce JNI
+// overhead.
+// Feature bug: b/515461431, b/531404834
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
+// Uses `AudioTrack` state when pausing playback to prevent media time drift
+// upon resume.
+// Feature bug: b/349854301, b/544962204
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
+// Enables seamless PCM audio device transitions (e.g. Bluetooth A2DP connect
+// or disconnect) without tearing down and recreating the player pipeline.
+// Feature bug: b/523148108
+// Experiment bug: b/556764997
 inline constexpr ExperimentalFeatureKey<bool> kMediaSeamlessAudioSwitching(
     "Media.SeamlessAudioSwitching");
 
+// Skips internal `MediaCodec.flush()` when tearing down the video decoder to
+// reduce player destruction overhead.
+// Feature bug: b/492971394
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
+// Skips frames exceeding 60fps to work around video stuttering on Android
+// devices with high operating rates.
+// Feature bug: b/506257255
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
     "Media.SkipVideoFramesOver60Fps");
 
+// Customizes the initial number of video frames the decoder buffers (prerolls)
+// before starting playback.
+// Feature bug: b/487097162
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
 
+// Controls the maximum number of pending input buffers allowed in the video
+// decoder queue (default: 128).
+// Feature bug: b/517914191
+// Experiment bug: b/539672039
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderMaxPendingInputsSize(
         "Media.VideoDecoderMaxPendingInputsSize");
 
+// Controls the minimum number of decoded video frames required in
+// `VideoRendererImpl` before playback starts.
+// Feature bug: b/485225923
+// Experiment bug: b/491104896
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 
+// Controls the minimum number of input buffers required in `VideoRendererImpl`
+// before playback starts.
+// Feature bug: b/485225923
+// Experiment bug: b/491104896
 inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
     "Media.VideoRendererMinInputBuffers");
 // keep-sorted end
