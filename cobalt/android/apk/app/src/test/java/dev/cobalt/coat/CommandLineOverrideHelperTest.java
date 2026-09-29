@@ -39,6 +39,7 @@ public class CommandLineOverrideHelperTest {
   public void testDefaultCommandLineOverridesList() {
     List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
     assertThat(overrides.contains("--use-custom-android-fonts-xml")).isTrue();
+    assertThat(overrides.contains("--max-http-cache-size=26214400")).isTrue();
   }
 
   @Test
@@ -81,6 +82,8 @@ public class CommandLineOverrideHelperTest {
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml"));
+    Assert.assertEquals(
+        "26214400", CommandLine.getInstance().getSwitchValue("max-http-cache-size"));
 
     String expected = "no-user-gesture-required";
     String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");

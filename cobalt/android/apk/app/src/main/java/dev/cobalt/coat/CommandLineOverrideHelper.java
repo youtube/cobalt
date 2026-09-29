@@ -62,6 +62,8 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--hide-scrollbars");
     // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
     paramOverrides.add("--use-custom-android-fonts-xml");
+    // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
+    paramOverrides.add("--max-http-cache-size=26214400");
 
     return paramOverrides;
   }
