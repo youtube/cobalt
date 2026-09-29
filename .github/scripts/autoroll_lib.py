@@ -2,6 +2,8 @@
 """Library for autoroller scripts."""
 from collections import defaultdict
 import enum
+import json
+import os
 import re
 import shutil
 import subprocess
@@ -31,7 +33,10 @@ def get_out(cmd):
 
 def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
+  try:
+    start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
+  except subprocess.CalledProcessError:
+    start = get_out(['git', 'show', f'origin/{branch}:{autoroll_file}']).strip()
 
   if start.startswith('CONFLICTED:'):
     return None
@@ -44,9 +49,15 @@ def get_commits(branch, start):
   Starting from the non-inclusive start, the commits are represented as a
   (sha, title, pr_num) tuple.
   """
+  ref = branch
+  res = subprocess.run(['git', 'rev-parse', '--verify', ref],
+                       capture_output=True,
+                       check=False)
+  if res.returncode != 0:
+    ref = f'origin/{branch}'
   cmd = [
       'git', 'rev-list', '--oneline', '--no-abbrev-commit', '--reverse',
-      f'{start}..{branch}'
+      f'{start}..{ref}'
   ]
   lines = get_out(cmd).splitlines()
 
@@ -58,6 +69,84 @@ def get_commits(branch, start):
     if match:
       commits.append(match.groups())
   return commits
+
+
+def get_rolled_source_shas(target_branch):
+  """Returns a set of source commit SHAs already cherry-picked into HEAD."""
+  ref = target_branch
+  res = subprocess.run(['git', 'rev-parse', '--verify', ref],
+                       capture_output=True,
+                       check=False)
+  if res.returncode != 0:
+    ref = f'origin/{target_branch}'
+  output = get_out(['git', 'log', f'{ref}..HEAD', '--format=%b'])
+  return set(
+      re.findall(r'\(cherry picked from commit ([0-9a-fA-F]+)\)', output))
+
+
+_PR_LABELS_CACHE = {}
+
+
+def prefetch_pr_labels(pr_nums):
+  """Pre-fetches labels for a collection of PR numbers via GraphQL batch."""
+  needed = [int(n) for n in pr_nums if int(n) not in _PR_LABELS_CACHE]
+  if not needed:
+    return
+
+  repo = os.environ.get('GITHUB_REPOSITORY')
+  if not repo:
+    try:
+      repo = get_out([
+          'gh', 'repo', 'view', '--json', 'nameWithOwner', '--jq',
+          '.nameWithOwner'
+      ]).strip()
+    except Exception:  # pylint: disable=broad-except
+      return
+
+  if '/' not in repo:
+    return
+  owner, name = repo.split('/', 1)
+
+  chunk_size = 50
+  for i in range(0, len(needed), chunk_size):
+    chunk = needed[i:i + chunk_size]
+    field_template = ('pr_{num}: pullRequest(number: {num}) '
+                      '{{ labels(first: 20) {{ nodes {{ name }} }} }}')
+    fields = ' '.join(field_template.format(num=num) for num in chunk)
+    query = (f'query {{ repository(owner: "{owner}", name: "{name}") '
+             f'{{ {fields} }} }}')
+    try:
+      out = get_out(['gh', 'api', 'graphql', '-f', f'query={query}'])
+      data = json.loads(out).get('data', {}).get('repository', {})
+      for num in chunk:
+        pr_data = data.get(f'pr_{num}')
+        if pr_data and 'labels' in pr_data:
+          nodes = pr_data['labels'].get('nodes', [])
+          _PR_LABELS_CACHE[num] = {
+              node['name'] for node in nodes if 'name' in node
+          }
+    except Exception as e:  # pylint: disable=broad-except
+      log('Warning: GraphQL prefetch failed, falling back to individual '
+          f'queries: {e}')
+
+
+def get_pr_labels(pr_num):
+  """Returns a set of label names for a PR number."""
+  pr_num = int(pr_num)
+  if pr_num in _PR_LABELS_CACHE:
+    return _PR_LABELS_CACHE[pr_num]
+
+  try:
+    output = get_out([
+        'gh', 'pr', 'view',
+        str(pr_num), '--json', 'labels', '--jq', '.labels[].name'
+    ])
+    labels = set(output.splitlines())
+    _PR_LABELS_CACHE[pr_num] = labels
+    return labels
+  except Exception as e:  # pylint: disable=broad-except
+    log(f'Warning: Failed to get labels for PR #{pr_num}: {e}')
+    return set()
 
 
 def get_cherry_pick_metadata(sha, title, pr_num):

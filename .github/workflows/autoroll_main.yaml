@@ -86,6 +86,8 @@ jobs:
           TARGET_BRANCH: ${{ matrix.branch.target }}
           AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
           FIRST_SHA: ${{ steps.pr_info.outputs.first_sha }}
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
         run: |
           set -x
 

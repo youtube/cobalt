@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Script to automatically roll branch."""
 import argparse
-import autoroll_lib as lib
 import sys
+import autoroll_lib as lib
 
 
 def cherry_pick(sha, metadata, first_commit, autoroll_metadata):
@@ -37,24 +37,33 @@ def main():
 
   # Commits in source but not in target
   commits_to_target = lib.get_commits(args.source_branch, target_start)
-  # Commits in source but not in autoroll
-  commits_to_autoroll = lib.get_commits(args.source_branch, autoroll_start)
-  # SHAs in source but not in autoroll
-  shas_to_autoroll = {sha for sha, _, _ in commits_to_autoroll}
+  already_rolled_shas = lib.get_rolled_source_shas(args.target_branch)
 
+  pr_nums = [pr_num for _, _, pr_num in commits_to_target if pr_num]
+  lib.prefetch_pr_labels(pr_nums)
+
+  target_label = f'cp-{args.target_branch}'
   commits_added = []
 
   for sha, title, pr_num in commits_to_target:
-    if len(commits_added) >= args.max_commits:
-      lib.log(f'Reached commit limit ({args.max_commits}).')
-      break
-
     identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
 
     # Skip if already in autoroll
-    if sha not in shas_to_autoroll:
+    if sha in already_rolled_shas:
       commits_added.append(identifier)
       continue
+
+    # Only migrate PRs that have the cherry pick label for target branch applied
+    if not pr_num:
+      continue
+
+    labels = lib.get_pr_labels(pr_num)
+    if target_label not in labels:
+      continue
+
+    if len(commits_added) >= args.max_commits:
+      lib.log(f'Reached commit limit ({args.max_commits}).')
+      break
 
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
