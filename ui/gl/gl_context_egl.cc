@@ -476,14 +476,7 @@ bool GLContextEGL::CanShareTexturesWithContext(GLContext* other_context) {
 }
 
 bool GLContextEGL::MakeCurrentImpl(GLSurface* surface) {
-#if BUILDFLAG(IS_COBALT)
-  // In Cobalt, context_ can be explicitly destroyed upon context loss during
-  // background suspend while wrapper references remain active.
-  if (!context_)
-    return false;
-#else
   DCHECK(context_);
-#endif
   if (lost_) {
     LOG(ERROR) << "Failed to make context current since it is marked as lost";
     return false;
@@ -563,16 +556,9 @@ void GLContextEGL::ReleaseCurrent(GLSurface* surface) {
 }
 
 bool GLContextEGL::IsCurrent(GLSurface* surface) {
-#if BUILDFLAG(IS_COBALT)
-  // Dependent surfaces and presentation helpers may check if their context is
-  // current during teardown after context_ has already been destroyed.
-  if (!context_ || lost_)
-    return false;
-#else
   DCHECK(context_);
   if (lost_)
     return false;
-#endif
 
   bool native_context_is_current = context_ == eglGetCurrentContext();
 
