@@ -22,11 +22,10 @@ runs:
       with:
         use_gcloud: ${{ inputs.use_gcloud }}
 
-    - name: Prepare OverlayFS Workspace
+    - name: Check OverlayFS Cache
       id: prepare
       shell: bash
       env:
-        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
         INPUT_PATH: ${{ inputs.path }}
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
@@ -53,46 +52,66 @@ runs:
         # If the golden workspace does not exist or is corrupted (missing .runner_cache_ready), initialize it.
         # This will only happen once per node!
         if [ ! -f "${LOWER_DIR}/.runner_cache_ready" ]; then
-          IS_CACHE_HOT="false"
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
           echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
 
           # Aggressively clean up any corrupted state from previous bad runs
           rm -rf "${LOWER_DIR}"
           mkdir -p "${LOWER_DIR}"
-          cd "${LOWER_DIR}"
-
-          git clone "${REPO_URL}" src
-          # Clone depot_tools
-          for attempt in 1 2 3; do
-            if git clone --filter=blob:none https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools; then
-              break
-            fi
-            rm -rf depot_tools
-            if [ "${attempt}" -eq 3 ]; then
-              exit 1
-            fi
-            sleep $((attempt * 2))
-          done
-          # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
-          # `--end-of-options` to `git checkout`. Need to update git on runners.
-          git -C depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
-          echo "DEPOT_TOOLS_UPDATE=0" >> "$GITHUB_ENV"
-          export PATH="${LOWER_DIR}/depot_tools:${PATH}"
-
-          gclient config \
-            --name=src \
-            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "${REPO_URL}"
-          echo "target_os=['android', 'linux']" >> .gclient
-          echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
-          gclient sync -D --no-history
-
-          # Create marker file to indicate the cache is fully populated and valid
-          touch "${LOWER_DIR}/.runner_cache_ready"
         else
-          IS_CACHE_HOT="true"
           echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
         fi
+
+    - name: Clone Cobalt into Golden Workspace
+      if: steps.prepare.outputs.cache_hit == 'false'
+      uses: ./.github/actions/checkout
+      with:
+        repository: ${{ github.server_url }}/${{ github.repository }}.git
+        ref: main
+        fetch_depth: 0
+        path: /runner-cache/golden-workspace/src
+
+    - name: Clone Depot Tools into Golden Workspace
+      if: steps.prepare.outputs.cache_hit == 'false'
+      uses: ./.github/actions/checkout
+      with:
+        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+        # `--end-of-options` to `git checkout`. Need to update git on runners.
+        ref: 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+        fetch_depth: 0
+        path: /runner-cache/golden-workspace/depot_tools
+
+    - name: Sync Golden Workspace
+      if: steps.prepare.outputs.cache_hit == 'false'
+      shell: bash
+      working-directory: /runner-cache/golden-workspace
+      env:
+        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+      run: |
+        echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
+        export PATH="/runner-cache/golden-workspace/depot_tools:${PATH}"
+
+        gclient config \
+          --name=src \
+          --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "${REPO_URL}"
+        echo "target_os=['android', 'linux']" >> .gclient
+        echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
+        gclient sync -D --no-history
+
+        # Create marker file to indicate the cache is fully populated and valid
+        touch /runner-cache/golden-workspace/.runner_cache_ready
+
+    - name: Mount OverlayFS Workspace
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        IS_CACHE_HOT: ${{ steps.prepare.outputs.cache_hit }}
+      run: |
+        LOWER_DIR="/runner-cache/golden-workspace"
+        UPPER_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/upper"
+        WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
+        MERGED_DIR="${GITHUB_WORKSPACE}/${INPUT_PATH}"
 
         echo "Logging workspace cache status to Cloud Logging..."
         LOG_PAYLOAD=$(jq -n \
