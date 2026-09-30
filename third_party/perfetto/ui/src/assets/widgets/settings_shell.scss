@@ -1,0 +1,135 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+.pf-settings-shell {
+  overflow: auto;
+  height: 100%;
+
+  &__header {
+    position: sticky;
+    top: 0;
+    padding-bottom: 10px;
+    padding-top: 12px;
+    z-index: 1;
+    background-color: var(--pf-color-background);
+
+    &--stuck {
+      box-shadow: 0px 2px 5px var(--pf-color-box-shadow);
+    }
+  }
+
+  &__centred {
+    max-width: 900px;
+    min-width: 300px;
+    margin-inline: auto;
+    padding-inline: 8px;
+  }
+
+  &__content {
+    margin-block: 16px;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: 500;
+    padding-bottom: 12px;
+    padding-top: 24px;
+    text-transform: uppercase;
+  }
+}
+
+.pf-settings-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 16px;
+
+  &.pf-intent-primary {
+    border-left: solid 5px var(--pf-color-primary);
+  }
+
+  &.pf-intent-success {
+    border-left: solid 5px var(--pf-color-success);
+  }
+
+  &.pf-intent-warning {
+    border-left: solid 5px var(--pf-color-warning);
+  }
+
+  &.pf-intent-danger {
+    border-left: solid 5px var(--pf-color-danger);
+  }
+
+  &:hover {
+    .pf-settings-card__link {
+      visibility: visible;
+    }
+  }
+
+  // Highlight the focused flag when navigating directly to it
+  &--focused {
+    background-color: color-mix(
+      in srgb,
+      var(--pf-color-highlight) 70%,
+      transparent
+    );
+    animation: highlight-flash 1s ease-out;
+  }
+
+  &__details {
+    overflow: hidden;
+  }
+
+  &__id {
+    font-family: var(--pf-font-monospace);
+    font-size: 0.7em;
+    color: var(--pf-color-text-muted);
+    word-break: break-all; // Allow breaking long flag IDs
+    margin-top: 2px;
+  }
+
+  &__description {
+    font-size: smaller;
+    white-space: pre-line;
+    margin-top: 10px;
+  }
+
+  &__link {
+    visibility: hidden;
+    margin-left: 4px;
+  }
+
+  &__footer {
+    margin-top: 12px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: center;
+  }
+}
+
+@keyframes highlight-flash {
+  0% {
+    background-color: transparent;
+  }
+  30% {
+    background-color: var(--pf-color-highlight);
+  }
+  100% {
+    background-color: color-mix(
+      in srgb,
+      var(--pf-color-highlight) 70%,
+      transparent
+    );
+  }
+}
