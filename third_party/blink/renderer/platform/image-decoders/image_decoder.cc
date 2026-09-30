@@ -47,17 +47,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
-<<<<<<< HEAD
-#if BUILDFLAG(ENABLE_AV1_DECODER)
-#include "third_party/blink/renderer/platform/image-decoders/avif/avif_image_decoder.h"
-#endif
-
-#if BUILDFLAG(ENABLE_JXL_DECODER)
-#include "third_party/blink/renderer/platform/image-decoders/jxl/jxl_image_decoder.h"
-=======
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
-#include "third_party/blink/renderer/platform/image-decoders/avif/crabbyavif_image_decoder.h"
->>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 namespace blink {
@@ -217,13 +206,6 @@ String SniffMimeTypeInternal(scoped_refptr<SegmentReader> reader) {
   if (MatchesBMPSignature(contents)) {
     return "image/bmp";
   }
-<<<<<<< HEAD
-#if BUILDFLAG(ENABLE_AV1_DECODER)
-  if (AVIFImageDecoder::MatchesAVIFSignature(fast_reader)) {
-=======
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
-  if (CrabbyAVIFImageDecoder::MatchesAVIFSignature(fast_reader)) {
->>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return "image/avif";
   }
 #endif
@@ -334,16 +316,6 @@ std::unique_ptr<ImageDecoder> ImageDecoder::CreateByMimeType(
     decoder = std::make_unique<ICOImageDecoder>(alpha_option, color_behavior,
                                                 max_decoded_bytes);
   } else if (mime_type == "image/bmp" || mime_type == "image/x-xbitmap") {
-<<<<<<< HEAD
-    decoder =
-        CreateBmpImageDecoder(alpha_option, high_bit_depth_decoding_option,
-                              color_behavior, max_decoded_bytes);
-#if BUILDFLAG(ENABLE_AV1_DECODER)
-=======
-    decoder = std::make_unique<BMPImageDecoder>(alpha_option, color_behavior,
-                                                max_decoded_bytes);
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
->>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (mime_type == "image/avif") {
     decoder = std::make_unique<AVIFImageDecoder>(
         alpha_option, high_bit_depth_decoding_option, color_behavior, aux_image,

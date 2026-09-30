@@ -70,22 +70,6 @@ void MidiHost::BindReceiver(
     midi::MidiService* midi_service,
     mojo::PendingReceiver<midi::mojom::MidiSessionProvider> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt-specific: embedders are permitted to skip creating a MidiService
-  // (Cobalt does not; see the IS_COBALT carve-out in
-  // content/browser/browser_main_loop.cc), in which case `midi_service` is
-  // null and the MidiHost constructor's CHECK() would abort the browser
-  // process. Drop the receiver instead; the renderer observes a closed pipe.
-  // See b/563468674.
-  if (!midi_service) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-  // NOTE: This is not the correct sequence to call RenderFrameHost::GetProcess
-  //       hence, we have the render_process_id passed in separately.
->>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   mojo::MakeSelfOwnedReceiver(
       base::WrapUnique(new MidiHost(render_process_id, midi_service)),
       std::move(receiver));

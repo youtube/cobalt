@@ -19,16 +19,6 @@ using ChromeAcceptHeaderTest = InProcessBrowserTest;
 namespace {
 std::string GetOptionalImageCodecs() {
   std::string result;
-<<<<<<< HEAD
-#if BUILDFLAG(ENABLE_JXL_DECODER)
-  if (base::FeatureList::IsEnabled(blink::features::kJXLImageFormat)) {
-    result.append("image/jxl,");
-  }
-#endif
-#if BUILDFLAG(ENABLE_AV1_DECODER)
-=======
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
->>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   result.append("image/avif,");
 #endif
   return result;
