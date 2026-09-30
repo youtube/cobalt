@@ -57,8 +57,20 @@ bool ShouldEnableAndroidSurfaceControl(const base::CommandLine& cmd_line) {
 #if !BUILDFLAG(IS_ANDROID)
   return false;
 #else
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // With kCobaltSinglePlaneVideoPassthrough, skip
+  // PreferRGB565ResourcesForDisplay(): it returns true under the low-end device
+  // mode Cobalt enables by default (simulated 512MB RAM), which would disable
+  // the SurfaceControl path.
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltSinglePlaneVideoPassthrough) &&
+      viz::PreferRGB565ResourcesForDisplay()) {
+    return false;
+  }
+#else
   if (viz::PreferRGB565ResourcesForDisplay())
     return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return features::IsAndroidSurfaceControlEnabled();
 #endif
 }

@@ -386,9 +386,27 @@ void DirectRenderer::DrawFrame(
     DrawRenderPassAndExecuteCopyRequests(pass.get());
   }
 
+  bool skip_root_for_removed_plane = false;
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  const bool output_surface_plane_removed =
+      !current_frame()->output_surface_plane &&
+      output_surface_->capabilities().renderer_allocates_images;
+  // The primary plane buffers are released while the plane is removed, so the
+  // root render pass must be fully redrawn on the frame the plane returns.
+  // BufferQueue recreates its buffers lazily, so no Reshape() is needed.
+  if (output_surface_plane_removed_last_frame_ &&
+      !output_surface_plane_removed) {
+    needs_full_frame_redraw = true;
+  }
+  output_surface_plane_removed_last_frame_ = output_surface_plane_removed;
+  skip_root_for_removed_plane =
+      output_surface_plane_removed && root_render_pass->copy_requests.empty();
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
   bool skip_drawing_root_render_pass =
-      current_frame()->root_damage_rect.IsEmpty() && use_partial_swap_ &&
-      !needs_full_frame_redraw;
+      skip_root_for_removed_plane ||
+      (current_frame()->root_damage_rect.IsEmpty() && use_partial_swap_ &&
+       !needs_full_frame_redraw);
 
   // If partial swap is not used, and the frame can not be skipped, the whole
   // frame has to be redrawn.
