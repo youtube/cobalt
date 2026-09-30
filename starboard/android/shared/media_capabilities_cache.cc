@@ -258,17 +258,6 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
 
 bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
                                                          int fps) const {
-  if (!(j_video_capabilities_.is_null())) {
-    JNIEnv* env = AttachCurrentThread();
-    if (!size.IsEmpty() && fps != 0) {
-      return Java_MediaCodecUtil_areSizeAndRateSupported(
-          env, j_video_capabilities_, size.width, size.height,
-          static_cast<jdouble>(fps));
-    } else if (!size.IsEmpty()) {
-      return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
-                                                 size.width, size.height);
-    }
-  }
   if (size.width != 0 && !supported_widths_.Contains(size.width)) {
     return false;
   }
@@ -277,6 +266,16 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
   }
   if (fps != 0 && !supported_frame_rates_.Contains(fps)) {
     return false;
+  }
+  if (!size.IsEmpty() && !j_video_capabilities_.is_null()) {
+    JNIEnv* env = AttachCurrentThread();
+    if (fps != 0) {
+      return Java_MediaCodecUtil_areSizeAndRateSupported(
+          env, j_video_capabilities_, size.width, size.height,
+          static_cast<jdouble>(fps));
+    }
+    return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
+                                               size.width, size.height);
   }
   return true;
 }
@@ -474,12 +473,12 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     if (must_support_hdr && !video_capability->is_hdr_capable()) {
       continue;
     }
-    // Reject if resolution or frame rate is not supported.
-    if (!video_capability->AreResolutionAndRateSupported(frame_size, fps)) {
-      continue;
-    }
     // Reject if bitrate is not supported.
     if (bitrate != 0 && !video_capability->IsBitrateSupported(bitrate)) {
+      continue;
+    }
+    // Reject if resolution or frame rate is not supported.
+    if (!video_capability->AreResolutionAndRateSupported(frame_size, fps)) {
       continue;
     }
 
