@@ -18,6 +18,9 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/sys_utils.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace base {
 namespace {
@@ -199,6 +202,14 @@ bool DetectLowEndDevice() {
   }
 
   int ram_size_mb = SysInfo::AmountOfPhysicalMemoryMB();
+#if BUILDFLAG(IS_ANDROID)
+  if (FeatureList::GetInstance() == nullptr) {
+    int threshold_mb = base::android::GetCachedLowMemoryDeviceThresholdMb();
+    if (threshold_mb > 0) {
+      return ram_size_mb > 0 && ram_size_mb <= threshold_mb;
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return ram_size_mb > 0 &&
          static_cast<unsigned>(ram_size_mb) <= features::kLowMemoryDeviceThresholdMB.Get();
   // LINT.ThenChange(//base/android/java/src/org/chromium/base/SysUtils.java)

@@ -42,6 +42,7 @@ import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
+import dev.cobalt.features.CobaltFeatureList;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
@@ -209,6 +210,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
+    // Apply feature params cached by the previous launch that must take effect before native code
+    // runs, e.g., the low-end device threshold used by base::SysInfo::IsLowEndDevice(), which is
+    // evaluated during library loading, before the FeatureList is initialized.
+    CobaltFeatureList.applyCachedValuesBeforeNative();
+
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -340,6 +346,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // browser client's feature list and field trials are initialized. The feature list and field
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
+
+    // Persist feature params (from Finch or --enable-features) for the next launch, see
+    // CobaltFeatureList.applyCachedValuesBeforeNative(). Like the call above, this must come after
+    // CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
+    CobaltFeatureList.cacheNativeValues();
 
     // Load an empty page to let shell create WebContents. Override Shell.java's
     // onWebContentsReady()
