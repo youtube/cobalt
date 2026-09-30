@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
@@ -16,6 +17,10 @@
 #include "components/viz/service/display/overlay_candidate_factory.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/config/gpu_finch_features.h"
+#endif
 
 namespace viz {
 
@@ -68,9 +73,20 @@ void OverlayStrategyUnderlayStarboard::Propose(
     }
   }
 
-  if (overlay_iter != quad_list.end()) {
-    candidates->emplace_back(overlay_iter, candidate, this);
+  if (overlay_iter == quad_list.end()) {
+    // No video hole this frame, so Attempt() won't be called. Reset the state
+    // here so the logs stay accurate when the video stops.
+    if (is_using_overlay_) {
+      is_using_overlay_ = false;
+      LOG(INFO) << "Overlay deactivated";
+    }
+    if (is_single_plane_mode_) {
+      is_single_plane_mode_ = false;
+      LOG(INFO) << "Single-plane video passthrough deactivated";
+    }
+    return;
   }
+  candidates->emplace_back(overlay_iter, candidate, this);
 }
 
 bool OverlayStrategyUnderlayStarboard::Attempt(
@@ -91,6 +107,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
   QuadList& quad_list = render_pass->quad_list;
   bool found_underlay = false;
   gfx::Rect content_rect;
+#if BUILDFLAG(IS_ANDROID)
+  gfx::Rect underlay_rect;
+#endif  // BUILDFLAG(IS_ANDROID)
   OverlayCandidateFactory::OverlayContext context;
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
@@ -131,6 +150,14 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 
     if (is_underlay) {
       content_rect.Subtract(quad_rect);
+#if BUILDFLAG(IS_ANDROID)
+      // The video view is placed at the unclipped rect and the UI plane masks
+      // the area outside clip_rect, so only the clipped part counts as covered.
+      underlay_rect = quad_rect;
+      if (quad->shared_quad_state->clip_rect) {
+        underlay_rect.Intersect(*quad->shared_quad_state->clip_rect);
+      }
+#endif  // BUILDFLAG(IS_ANDROID)
     } else {
       content_rect.Union(quad_rect);
     }
@@ -140,6 +167,24 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     is_using_overlay_ = found_underlay;
     LOG(INFO) << (found_underlay ? "Overlay activated" : "Overlay deactivated");
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  // Drop the UI plane only when nothing visible is left above the video and
+  // the video hole covers the whole output. Black solid-color quads below the
+  // video are skipped above, so without the coverage check a non-fullscreen
+  // video on a black background would lose its black surroundings.
+  const bool single_plane_mode =
+      features::IsAndroidSurfaceControlEnabled() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltSinglePlaneVideoPassthrough) &&
+      found_underlay && content_rect.IsEmpty() &&
+      underlay_rect.Contains(render_pass->output_rect);
+  if (is_single_plane_mode_ != single_plane_mode) {
+    is_single_plane_mode_ = single_plane_mode;
+    LOG(INFO) << "Single-plane video passthrough "
+              << (single_plane_mode ? "activated" : "deactivated");
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (found_underlay) {
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
@@ -189,6 +234,10 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
   if (output_surface_plane) {
     output_surface_plane->enable_blending = true;
   }
+}
+
+bool OverlayStrategyUnderlayStarboard::RemoveOutputSurfaceAsOverlay() {
+  return is_single_plane_mode_;
 }
 
 OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {

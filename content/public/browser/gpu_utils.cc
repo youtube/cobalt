@@ -57,8 +57,13 @@ bool ShouldEnableAndroidSurfaceControl(const base::CommandLine& cmd_line) {
 #if !BUILDFLAG(IS_ANDROID)
   return false;
 #else
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard media: SurfaceControl buffers use the display color space
+  // format (not RGB565), and RGB565 is only applied to non-SurfaceControl GL
+  // surfaces, so the RGB565 preference doesn't conflict with SurfaceControl.
   if (viz::PreferRGB565ResourcesForDisplay())
     return false;
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   return features::IsAndroidSurfaceControlEnabled();
 #endif
 }

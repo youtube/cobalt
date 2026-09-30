@@ -79,6 +79,15 @@ class CONTENT_EXPORT Compositor {
       bool can_be_used_with_surface_control,
       const base::android::JavaRef<jobject>& host_input_token) = 0;
 
+#if BUILDFLAG(IS_COBALT)
+  // Sets the android.view.SurfaceControl (a child of the Activity window's root
+  // SurfaceControl) that the display compositor attaches its SurfaceControl
+  // layers to on Android 12+. Must be called before SetSurface(); pass null to
+  // clear it.
+  virtual void SetWindowSurfaceControl(
+      const base::android::JavaRef<jobject>& surface_control) = 0;
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Set the background color used by the layer tree host.
   virtual void SetBackgroundColor(int color) = 0;
 
