@@ -4360,9 +4360,6 @@ SkColorType test_color_types[] = {kN32_SkColorType, kARGB_4444_SkColorType,
 INSTANTIATE_TEST_SUITE_P(
     GpuImageDecodeCacheTests,
     GpuImageDecodeCacheTest,
-<<<<<<< HEAD
-    testing::Combine(testing::ValuesIn(test_color_types),
-=======
     testing::Combine(
         testing::ValuesIn(test_color_types),
         testing::Values(false) /* use_transfer_cache */,
@@ -4859,7 +4856,6 @@ INSTANTIATE_TEST_SUITE_P(
     GpuImageDecodeCacheWithAcceleratedDecodesFlagsTest,
     testing::Combine(testing::Values(kN32_SkColorType),
                      testing::Values(true) /* use_transfer_cache */,
->>>>>>> d0ee097a7b7 (cobalt: Enable memory optimization features on 3P (#12996))
                      testing::Bool() /* do_yuv_decode */,
                      testing::Values(false) /* enable_clipped_image_scaling */,
                      testing::Values(false) /* no_discardable_memory */));
