@@ -215,7 +215,6 @@ MediaCodecBridge::CreateVideoMediaCodec(
       platform_options.max_input_size,
       platform_options.enable_frame_renderer_listener,
       platform_options.skip_video_frames_over_60_fps,
-      platform_options.ignore_mediacodec_callbacks_during_flushing,
       j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
