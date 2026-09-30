@@ -300,6 +300,8 @@ void InitIOSRunHook(RunTestSuiteCallback callback) {
 
 void InitIOSArgs(int argc, char* argv[]) {
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
+  // TODO(b/567997722): Revisit moving relative --gtest_output fallback into
+  // TestLauncher / TestResultsTracker::Init.
   static base::NoDestructor<std::vector<std::string>> rewritten_args;
   FilePath cache_dir;
   if (PathService::Get(DIR_CACHE, &cache_dir)) {
