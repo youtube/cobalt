@@ -138,7 +138,7 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${PLATFORM}"
-        gsutil -q cp -r "${GCS_RESULTS_PATH}/"* "${test_output}/${PLATFORM}/" || true
+        gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
         # Check for missing result xml files.
         target_failed=0
