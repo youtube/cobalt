@@ -2526,22 +2526,8 @@ void NavigationRequest::BeginNavigation() {
       ->MaybeSendFencedFrameAutomaticReportingBeacon(
           *this, blink::mojom::AutomaticBeaconType::kTopNavigationStart);
 
-<<<<<<< HEAD
-=======
-  // Log a histogram for a top-level navigation that initiates from a fenced
-  // frame or URN iframe.
-  if (GetInitiatorDocumentRenderFrameHost() &&
-      GetInitiatorDocumentRenderFrameHost()
-          ->frame_tree_node()
-          ->GetFencedFrameProperties()
-          .has_value() &&
-      IsInOutermostMainFrame()) {
-    base::UmaHistogramEnumeration(blink::kFencedFrameTopNavigationHistogram,
-                                  blink::FencedFrameNavigationState::kBegin);
-  }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
->>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   BeginNavigationImpl();
 }
 
