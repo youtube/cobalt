@@ -11,6 +11,7 @@
   ],
   "test_on_device": true,
   "test_device_family": "android",
+  "test_artifact_name": "cobalt.apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
     "device_pool": "maneki"
