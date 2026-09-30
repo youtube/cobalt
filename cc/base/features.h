@@ -305,6 +305,14 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMainIdleBypassScheduler);
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, allows the compositor scheduler to send the next
+// BeginMainFrame before the previous commit has activated on the impl tree
+// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
+// frame production with pending tree rasterization and activation.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace features
 
 #endif  // CC_BASE_FEATURES_H_
