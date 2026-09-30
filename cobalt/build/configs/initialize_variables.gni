@@ -23,8 +23,6 @@ declare_args() {
 
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
-  using_old_compiler = false
-
   # Whether the build uses two separate toolchains for libcobalt.so and
   # starboard, or a single shared toolchain.
   build_with_separate_cobalt_toolchain =
