@@ -1429,7 +1429,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of fc3a72111ef (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 49fbf673b82 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](DedicatedWorkerHost* host,
@@ -1563,7 +1563,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of fc3a72111ef (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 49fbf673b82 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](SharedWorkerHost* host,
@@ -1763,7 +1763,7 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
         base::Unretained(host)));
   }
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of fc3a72111ef (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 49fbf673b82 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](ServiceWorkerHost* host,
