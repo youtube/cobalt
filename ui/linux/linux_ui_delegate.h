@@ -13,7 +13,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "ui/gfx/native_widget_types.h"  // nogncheck
+#include "ui/gfx/native_ui_types.h"  // nogncheck
 #else
 namespace gfx {
 using AcceleratedWidget = uint32_t;
