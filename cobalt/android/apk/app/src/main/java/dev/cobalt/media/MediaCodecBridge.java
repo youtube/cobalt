@@ -70,7 +70,6 @@ class MediaCodecBridge {
   // execution environment and avoiding potential race conditions with the native layer.
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private volatile boolean mIsFlushing = false;
-  private final boolean mEnableIgnoreCallbacksDuringFlushing;
 
   private final MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
@@ -276,8 +275,7 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String codecName,
       int tunnelModeAudioSessionId,
-      boolean enableFrameRendererListener,
-      boolean enableIgnoreCallbacksDuringFlushing) {
+      boolean enableFrameRendererListener) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -286,7 +284,6 @@ class MediaCodecBridge {
     mCodecName = codecName != null ? codecName : "unknown";
     mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mEnableFrameRendererListener = enableFrameRendererListener;
-    mEnableIgnoreCallbacksDuringFlushing = enableIgnoreCallbacksDuringFlushing;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -355,11 +352,7 @@ class MediaCodecBridge {
           }
         };
 
-    if (mEnableIgnoreCallbacksDuringFlushing) {
-      mMediaCodec.get().setCallback(mCallback, mMainHandler);
-    } else {
-      mMediaCodec.get().setCallback(mCallback);
-    }
+    mMediaCodec.get().setCallback(mCallback, mMainHandler);
 
     if (mEnableFrameRendererListener) {
       mFrameRendererListener =
@@ -376,11 +369,7 @@ class MediaCodecBridge {
               }
             }
           };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
-      } else {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
-      }
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
     } else {
       mFrameRendererListener = null;
     }
@@ -419,7 +408,6 @@ class MediaCodecBridge {
       int maxVideoInputSize,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
-      boolean ignoreCodecCallbacksDuringFlushing,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -474,8 +462,7 @@ class MediaCodecBridge {
             mediaCodec,
             decoderName,
             tunnelModeAudioSessionId,
-            enableFrameRendererListener,
-            ignoreCodecCallbacksDuringFlushing);
+            enableFrameRendererListener);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
@@ -701,10 +688,8 @@ class MediaCodecBridge {
     // mIsFlushing to true here to discard them. Then we post a runnable to the main
     // looper queue which will reset mIsFlushing to false once all prior pending
     // callbacks have been sequentialized and discarded.
-    if (mEnableIgnoreCallbacksDuringFlushing) {
-      synchronized (mNativeBridgeLock) {
-        mIsFlushing = true;
-      }
+    synchronized (mNativeBridgeLock) {
+      mIsFlushing = true;
     }
     try {
       mMediaCodec.get().flush();
@@ -719,14 +704,12 @@ class MediaCodecBridge {
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMainHandler.post(
-            () -> {
-              synchronized (mNativeBridgeLock) {
-                mIsFlushing = false;
-              }
-            });
-      }
+      mMainHandler.post(
+          () -> {
+            synchronized (mNativeBridgeLock) {
+              mIsFlushing = false;
+            }
+          });
     }
     return MediaCodecStatus.OK;
   }
@@ -1092,13 +1075,9 @@ class MediaCodecBridge {
               }
             }
           };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec
-            .get()
-            .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
-      } else {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
-      }
+      mMediaCodec
+          .get()
+          .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,
