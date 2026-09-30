@@ -1,0 +1,44 @@
+name: Download Test Results
+description: Downloads test result artifacts across attempts and merges them sequentially so later attempts overwrite earlier ones.
+inputs:
+  pattern:
+    description: "Artifact name pattern to download."
+    required: true
+  path:
+    description: "Destination directory for merged test results."
+    required: false
+    default: "results"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clean Raw Results Directory
+      run: rm -rf raw_results
+      shell: bash
+    - name: Download Test Result Artifacts
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      continue-on-error: true
+      with:
+        pattern: ${{ inputs.pattern }}
+        path: raw_results
+    - name: Merge Test Results Across Attempts
+      env:
+        RESULTS_PATH: ${{ inputs.path }}
+      run: |
+        set -euxo pipefail
+        shopt -s globstar nullglob
+        mkdir -p "${RESULTS_PATH}"
+        for (( attempt=1; attempt<=GITHUB_RUN_ATTEMPT; attempt++ )); do
+          for dir in raw_results/*_"${attempt}"; do
+            [[ "${dir}" == *_retry_filter_* ]] && continue
+            dest="${RESULTS_PATH}/$(basename "${dir}" "_${attempt}")"
+            mkdir -p "${dest}"
+            for xml in "${dir}"/**/*.xml; do
+              rel_xml="${xml#"${dir}/"}"
+              rm -f "${dest}/${rel_xml%.xml}.crash"
+            done
+            cp -r "${dir}/." "${dest}/"
+          done
+        done
+        rm -rf raw_results
+      shell: bash

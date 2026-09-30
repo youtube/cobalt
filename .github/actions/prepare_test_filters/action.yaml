@@ -42,12 +42,14 @@ runs:
         cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
 
         # Overwrite with retry filters if they exist and not retrying all tests.
-        # Process filter directories in version-sorted order (sort -V) so that newer
-        # attempts (e.g. _2) overwrite older ones (_1) for re-run targets while
-        # preserving retry filters from earlier attempts for targets that were not re-run.
+        # Copy retry filters sequentially by attempt (1..GITHUB_RUN_ATTEMPT) so
+        # later attempts overwrite earlier attempts in place.
         if [ "${RETRY_ALL}" != "true" ] && [ -d "${GITHUB_WORKSPACE}/previous_results" ]; then
-          while IFS= read -r filter_dir; do
-            [ -n "${filter_dir}" ] && cp -r "${filter_dir}/." "${RESOLVED_FILTER_DIR}/" || true
-          done < <(find "${GITHUB_WORKSPACE}/previous_results" -type d -name "retry_filters" | sort -V)
+          shopt -s nullglob
+          for (( attempt=1; attempt<=GITHUB_RUN_ATTEMPT; attempt++ )); do
+            for filter_dir in "${GITHUB_WORKSPACE}/previous_results"/*_"${attempt}"/retry_filters; do
+              cp -r "${filter_dir}/." "${RESOLVED_FILTER_DIR}/"
+            done
+          done
         fi
       shell: bash

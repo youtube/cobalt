@@ -1008,9 +1008,9 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*_${{ github.run_attempt }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
         id: test-results
@@ -1073,10 +1073,10 @@ jobs:
         run: echo "test_target=${test_target_with_path#*:}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Download Test Results
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         continue-on-error: true
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*_${{ github.run_attempt }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
         uses: ./.github/actions/process_test_results
@@ -1129,7 +1129,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Test Results
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*
@@ -1147,22 +1147,11 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
-          # Sort XML files by version/attempt so that retried attempts (e.g. _2) sort after
-          # earlier attempts (e.g. _1).
-          readarray -t xml_files < <(printf '%s\n' results/**/*.xml | sort -V)
+          xml_files=(results/**/*.xml)
           test_failures='{}'
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
-            # Deduplicate XML files across workflow run attempts:
-            # - Suffixing artifacts with _<run_attempt> extracts into 'results/<artifact>_<run_attempt>/...'.
-            # - Trimming 'results/*/' yields the relative test path within the artifact (e.g. 'shard_0/...').
-            # - Keying by this relative path ensures shards are not collided, while later run attempts
-            #   naturally overwrite results from earlier attempts for the same shard/target.
-            declare -A latest_xmls
-            for xml in "${xml_files[@]}"; do
-              latest_xmls["${xml#results/*/}"]="${xml}"
-            done
             test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
-              "${latest_xmls[@]}" || true)
+              "${xml_files[@]}" || true)
             if [[ -z "${test_failures}" ]]; then
               test_failures='{}'
             fi
