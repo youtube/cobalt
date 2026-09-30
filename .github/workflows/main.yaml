@@ -518,6 +518,53 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Warm Golden Workspace Cache
+        if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' && !contains(matrix.platform, 'tvos') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOWER_DIR="/runner-cache/golden-workspace"
+
+          if [ ! -w "/runner-cache" ]; then
+            echo "Runner cache directory is not writable, skipping cache warming."
+            exit 0
+          fi
+
+          if [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+            echo "Golden workspace cache is already warm."
+            exit 0
+          fi
+
+          SERVICE_ACCOUNT=$(curl -s -f -m 2 -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || true)
+          if [ -n "${SERVICE_ACCOUNT}" ]; then
+            gcloud config set account "${SERVICE_ACCOUNT}" 2>/dev/null || true
+          fi
+
+          PROJECT_NAME=$(gcloud config get-value project 2>/dev/null || true)
+          if [ -z "${PROJECT_NAME}" ] || [ "${PROJECT_NAME}" = "(unset)" ]; then
+            PROJECT_NAME=$(curl -s -f --retry 5 --retry-delay 2 --retry-connrefused \
+              -H "Metadata-Flavor: Google" \
+              "http://metadata.google.internal/computeMetadata/v1/project/project-id" 2>/dev/null || echo "cobalt-actions-prod")
+          fi
+
+          LATEST_ARCHIVE="gs://${PROJECT_NAME}-test-artifacts/golden-workspace/golden-workspace-latest.tar.zst"
+          STAGING_DIR="${LOWER_DIR}.staging"
+
+          echo "Pulling and preparing golden workspace from ${LATEST_ARCHIVE}..."
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+
+          if gcloud storage cp "${LATEST_ARCHIVE}" - | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
+            rm -rf "${LOWER_DIR}"
+            mv "${STAGING_DIR}" "${LOWER_DIR}"
+            touch "${LOWER_DIR}/.runner_cache_ready"
+            chown -R 1000:1000 "${LOWER_DIR}" 2>/dev/null || true
+            echo "Golden workspace cache prepared successfully."
+          else
+            echo "Failed to pull or extract golden workspace archive. Proceeding with un-warmed cache."
+            rm -rf "${STAGING_DIR}"
+          fi
       - name: Apply Golden Workspace
         if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' && !contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/overlay_workspace
@@ -905,6 +952,53 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Warm Golden Workspace Cache
+        if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOWER_DIR="/runner-cache/golden-workspace"
+
+          if [ ! -w "/runner-cache" ]; then
+            echo "Runner cache directory is not writable, skipping cache warming."
+            exit 0
+          fi
+
+          if [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+            echo "Golden workspace cache is already warm."
+            exit 0
+          fi
+
+          SERVICE_ACCOUNT=$(curl -s -f -m 2 -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || true)
+          if [ -n "${SERVICE_ACCOUNT}" ]; then
+            gcloud config set account "${SERVICE_ACCOUNT}" 2>/dev/null || true
+          fi
+
+          PROJECT_NAME=$(gcloud config get-value project 2>/dev/null || true)
+          if [ -z "${PROJECT_NAME}" ] || [ "${PROJECT_NAME}" = "(unset)" ]; then
+            PROJECT_NAME=$(curl -s -f --retry 5 --retry-delay 2 --retry-connrefused \
+              -H "Metadata-Flavor: Google" \
+              "http://metadata.google.internal/computeMetadata/v1/project/project-id" 2>/dev/null || echo "cobalt-actions-prod")
+          fi
+
+          LATEST_ARCHIVE="gs://${PROJECT_NAME}-test-artifacts/golden-workspace/golden-workspace-latest.tar.zst"
+          STAGING_DIR="${LOWER_DIR}.staging"
+
+          echo "Pulling and preparing golden workspace from ${LATEST_ARCHIVE}..."
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+
+          if gcloud storage cp "${LATEST_ARCHIVE}" - | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
+            rm -rf "${LOWER_DIR}"
+            mv "${STAGING_DIR}" "${LOWER_DIR}"
+            touch "${LOWER_DIR}/.runner_cache_ready"
+            chown -R 1000:1000 "${LOWER_DIR}" 2>/dev/null || true
+            echo "Golden workspace cache prepared successfully."
+          else
+            echo "Failed to pull or extract golden workspace archive. Proceeding with un-warmed cache."
+            rm -rf "${STAGING_DIR}"
+          fi
       - name: Apply Golden Workspace
         if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' }}
         uses: ./.github/actions/overlay_workspace
