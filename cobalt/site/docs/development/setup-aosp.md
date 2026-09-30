@@ -195,6 +195,14 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest_shuffle
    ```
 
+Every test target is built and run the same way, so an upstream test suite only
+needs its own `<suite>_loader` target:
+
+```bash
+autoninja -C out/evergreen-arm-softfp-aosp_devel zlib_unittests_loader
+out/evergreen-arm-softfp-aosp_devel/bin/run_zlib_unittests_loader
+```
+
 ## Debugging
 
 To monitor log output, watch logcat with a filter for Starboard and Cobalt messages:

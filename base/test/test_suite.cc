@@ -577,6 +577,7 @@ void TestSuite::Initialize() {
 
 #if BUILDFLAG(IS_STARBOARD)
   InitStarboardTestMessageLoop();
+  InitStarboardTestPaths();
 #endif
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)

@@ -18,14 +18,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.cobalt.coat">
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
     <application android:requestLegacyExternalStorage="true">
-        <activity android:name="dev.cobalt.app.NplbActivity"
+        <meta-data android:name="dev.cobalt.testing.EvergreenLibrary"
+                   android:value="{{evergreen_library}}"/>
+        <meta-data android:name="dev.cobalt.testing.EvergreenContent"
+                   android:value="{{evergreen_content}}"/>
+
+        <activity android:name="dev.cobalt.testing.CobaltTestActivity"
                   android:process=":test_process"
                   android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
                   android:exported="true">
         </activity>
     </application>
-    <instrumentation android:name="dev.cobalt.app.NplbInstrumentationTestRunner"
+    <instrumentation android:name="dev.cobalt.testing.CobaltInstrumentationTestRunner"
         android:targetPackage="dev.cobalt.coat"
-        android:label="NPLB gtest instrumentation entry point" />
+        android:label="Cobalt gtest instrumentation entry point" />
 </manifest>
