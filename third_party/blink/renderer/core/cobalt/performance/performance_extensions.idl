@@ -46,6 +46,12 @@
     // Returns the amount of GPU memory used by the Cobalt process in bytes.
     [CallWith=ScriptState, RaisesException] unsigned long long measureUsedGpuMemory();
 
+    // Returns the amount of tile texture memory used by the compositor in bytes.
+    [CallWith=ScriptState] unsigned long long measureUsedTileMemory();
+
+    // Returns the peak tile texture memory used by the compositor in bytes.
+    [CallWith=ScriptState] unsigned long long measurePeakTileMemory();
+
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
 };

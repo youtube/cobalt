@@ -24,6 +24,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "cc/resources/resource_pool.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <unistd.h>
@@ -149,6 +150,11 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
           }
         }
 #endif
+
+        info->used_tile_memory =
+            cc::ResourcePool::GetGlobalTotalTileMemoryUsageBytes();
+        info->peak_tile_memory =
+            cc::ResourcePool::GetGlobalPeakTileMemoryUsageBytes();
 
         return info;
       }),
@@ -387,6 +393,18 @@ void PerformanceImpl::MeasureUsedGpuMemory(
 #else
   std::move(callback).Run(false, 0);
 #endif
+}
+
+void PerformanceImpl::MeasureUsedTileMemory(
+    MeasureUsedTileMemoryCallback callback) {
+  std::move(callback).Run(
+      cc::ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+}
+
+void PerformanceImpl::MeasurePeakTileMemory(
+    MeasurePeakTileMemoryCallback callback) {
+  std::move(callback).Run(
+      cc::ResourcePool::GetGlobalPeakTileMemoryUsageBytes());
 }
 
 void PerformanceImpl::GetAppStartupTimeStamp(

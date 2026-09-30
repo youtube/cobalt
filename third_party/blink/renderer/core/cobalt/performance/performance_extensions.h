@@ -54,6 +54,8 @@ class CORE_EXPORT PerformanceExtensions final {
   static uint64_t measureUsedGpuMemory(ScriptState*,
                                        const Performance&,
                                        ExceptionState&);
+  static uint64_t measureUsedTileMemory(ScriptState*, const Performance&);
+  static uint64_t measurePeakTileMemory(ScriptState*, const Performance&);
   static ScriptPromise<IDLDouble> getAppStartupTimeStamp(ScriptState*,
                                                          const Performance&,
                                                          ExceptionState&);

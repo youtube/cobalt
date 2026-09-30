@@ -26,6 +26,8 @@ struct SystemMemoryInfo {
   uint64 application_limit_memory;
   uint64 application_usage_memory;
   uint64? used_gpu_memory;
+  uint64? used_tile_memory;
+  uint64? peak_tile_memory;
 };
 
 interface CobaltPerformance {
@@ -85,6 +87,14 @@ interface CobaltPerformance {
   // Get the amount of GPU memory used by the application, in bytes.
   [Sync]
   MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
+
+  // Get the amount of tile texture memory used by the compositor, in bytes.
+  [Sync]
+  MeasureUsedTileMemory() => (uint64 bytes);
+
+  // Get the peak tile texture memory used by the compositor, in bytes.
+  [Sync]
+  MeasurePeakTileMemory() => (uint64 bytes);
 
   // Get the application startup timestamp in microseconds (us).
   [Sync]

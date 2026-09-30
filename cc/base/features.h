@@ -254,6 +254,15 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kCubicBezierY2);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kMaxAnimtionDuration);
 
+#if BUILDFLAG(IS_COBALT)
+// Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
+
+// Interval between tile memory metric emissions (default: 1 minute).
+CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kCobaltTileMemoryMetricsInterval;
+#endif
+
 }  // namespace features
 
 #endif  // CC_BASE_FEATURES_H_

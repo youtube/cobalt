@@ -22,6 +22,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "cc/cc_export.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/resource_sizes.h"
@@ -308,6 +309,14 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   void SetClockForTesting(const base::TickClock* clock) { clock_ = clock; }
   int tracing_id() const { return tracing_id_; }
 
+#if BUILDFLAG(IS_COBALT)
+  size_t GetPeakMemoryUsageForTesting() const {
+    return peak_memory_usage_bytes_;
+  }
+  static uint64_t GetGlobalTotalTileMemoryUsageBytes();
+  static uint64_t GetGlobalPeakTileMemoryUsageBytes();
+#endif
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ResourcePoolTest, ReuseResource);
   FRIEND_TEST_ALL_PREFIXES(ResourcePoolTest, ExactRequestsRespected);
@@ -490,6 +499,13 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   base::TimeTicks flush_evicted_resources_deadline_;
 
   raw_ptr<const base::TickClock> clock_;
+
+#if BUILDFLAG(IS_COBALT)
+  void ScheduleRecordTileMemoryMetrics();
+  void RecordTileMemoryMetrics();
+
+  size_t peak_memory_usage_bytes_ = 0;
+#endif
 
   base::WeakPtrFactory<ResourcePool> weak_ptr_factory_{this};
 };

@@ -877,11 +877,10 @@ Always run the pretty print utility on this file after editing:
     Percentage of free virtual address (VA) space that lies outside the single
     largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
     free address space is one contiguous block, 50% means the largest block
-    holds half of it.
-    This measures how concentrated the free space is, not how much
-    of it there is, so a low value on its own does not imply headroom; read it
-    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
-    on 32-bit Android, where the ~3GB user address space is exhaustible.
+    holds half of it. This measures how concentrated the free space is, not how
+    much of it there is, so a low value on its own does not imply headroom; read
+    it alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted on 32-bit
+    Android, where the ~3GB user address space is exhaustible.
   </summary>
 </histogram>
 
@@ -917,6 +916,23 @@ Always run the pretty print utility on this file after editing:
     Guards against reaching the kernel vm.max_map_count limit and tracks virtual
     address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
     user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.TileMemory" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Current tile texture memory usage tracked from cc::ResourcePool.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.TileMemory.Peak" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Peak tile texture memory usage tracked from cc::ResourcePool, updated once
+    per minute.
   </summary>
 </histogram>
 

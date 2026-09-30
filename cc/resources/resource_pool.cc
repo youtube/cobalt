@@ -18,6 +18,7 @@
 #include "base/containers/contains.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -25,6 +26,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
+#include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
@@ -34,8 +36,19 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+std::atomic<uint64_t> g_total_tile_memory_usage_bytes{0};
+std::atomic<uint64_t> g_peak_tile_memory_usage_bytes{0};
+}  // namespace
+#endif
 
 namespace cc {
 
@@ -191,6 +204,9 @@ ResourcePool::ResourcePool(
   memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
       FROM_HERE, base::BindRepeating(&ResourcePool::OnMemoryPressure,
                                      weak_ptr_factory_.GetWeakPtr()));
+#if BUILDFLAG(IS_COBALT)
+  ScheduleRecordTileMemoryMetrics();
+#endif
 }
 
 ResourcePool::~ResourcePool() {
@@ -395,6 +411,18 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
   total_memory_usage_bytes_ += size;
   if (resource->state() == PoolResource::kUnused)
     unused_memory_usage_bytes_ += size;
+#if BUILDFLAG(IS_COBALT)
+  peak_memory_usage_bytes_ =
+      std::max(peak_memory_usage_bytes_, total_memory_usage_bytes_);
+  g_total_tile_memory_usage_bytes.fetch_add(size, std::memory_order_relaxed);
+  uint64_t current_global =
+      g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+  if (current_global >
+      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed)) {
+    g_peak_tile_memory_usage_bytes.store(current_global,
+                                         std::memory_order_relaxed);
+  }
+#endif
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,
@@ -586,6 +614,10 @@ bool ResourcePool::ResourceUsageTooHigh() {
 void ResourcePool::DeleteResource(std::unique_ptr<PoolResource> resource) {
   DCHECK_GE(total_memory_usage_bytes_, resource->memory_usage());
   total_memory_usage_bytes_ -= resource->memory_usage();
+#if BUILDFLAG(IS_COBALT)
+  g_total_tile_memory_usage_bytes.fetch_sub(resource->memory_usage(),
+                                            std::memory_order_relaxed);
+#endif
   --total_resource_count_;
   if (flush_evicted_resources_deadline_ == base::TimeTicks::Max()) {
     flush_evicted_resources_deadline_ =
@@ -722,6 +754,41 @@ void ResourcePool::OnMemoryPressure(
       break;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void ResourcePool::ScheduleRecordTileMemoryMetrics() {
+  if (!task_runner_ ||
+      !base::FeatureList::IsEnabled(features::kCobaltTileMemoryMetrics)) {
+    return;
+  }
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&ResourcePool::RecordTileMemoryMetrics,
+                     weak_ptr_factory_.GetWeakPtr()),
+      features::kCobaltTileMemoryMetricsInterval.Get());
+}
+
+void ResourcePool::RecordTileMemoryMetrics() {
+  constexpr int kMiB = 1024 * 1024;
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.TileMemory",
+      static_cast<int>(total_memory_usage_bytes_ / kMiB));
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.TileMemory.Peak",
+      static_cast<int>(peak_memory_usage_bytes_ / kMiB));
+  peak_memory_usage_bytes_ = total_memory_usage_bytes_;
+
+  ScheduleRecordTileMemoryMetrics();
+}
+
+uint64_t ResourcePool::GetGlobalTotalTileMemoryUsageBytes() {
+  return g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+
+uint64_t ResourcePool::GetGlobalPeakTileMemoryUsageBytes() {
+  return g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+#endif
 
 ResourcePool::PoolResource::PoolResource(ResourcePool* resource_pool,
                                          size_t unique_id,
