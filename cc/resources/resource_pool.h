@@ -310,7 +310,6 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   int tracing_id() const { return tracing_id_; }
 
 #if BUILDFLAG(IS_COBALT)
-  static constexpr base::TimeDelta kTileMemoryMetricsInterval = base::Minutes(1);
   size_t GetPeakMemoryUsageForTesting() const {
     return peak_memory_usage_bytes_;
   }

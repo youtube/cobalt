@@ -417,11 +417,10 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
   g_total_tile_memory_usage_bytes.fetch_add(size, std::memory_order_relaxed);
   uint64_t current_global =
       g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
-  uint64_t prev_peak =
-      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
-  while (current_global > prev_peak &&
-         !g_peak_tile_memory_usage_bytes.compare_exchange_weak(
-             prev_peak, current_global, std::memory_order_relaxed)) {
+  if (current_global >
+      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed)) {
+    g_peak_tile_memory_usage_bytes.store(current_global,
+                                         std::memory_order_relaxed);
   }
 #endif
 }
