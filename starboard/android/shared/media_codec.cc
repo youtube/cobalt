@@ -193,8 +193,6 @@ std::ostream& operator<<(std::ostream& os,
   return os << "{max_input_size=" << options.max_input_size
             << ", skip_video_frames_over_60_fps="
             << ToString(options.skip_video_frames_over_60_fps)
-            << ", ignore_mediacodec_callbacks_during_flushing="
-            << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
             << ToString(options.enable_frame_renderer_listener)
             << ", require_secured_decoder="

@@ -34,7 +34,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
-#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -168,7 +167,9 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
-    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+    : media_memory_allocator_(
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>()),
+      h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -275,6 +276,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   const base::flat_set<::media::CdmSessionType> kSessionTypes = {
       ::media::CdmSessionType::kTemporary};
 
+#if !BUILDFLAG(IS_IOS_TVOS)
   key_system_infos->push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
       codecs,                        // Regular codecs.
       kEncryptionSchemes,            // Encryption schemes.
@@ -286,6 +288,8 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       Robustness::HW_SECURE_ALL,     // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 
   key_system_infos->push_back(std::make_unique<CobaltWidevineL3KeySystemInfo>(
       codecs,                                        // Regular codecs.
@@ -353,9 +357,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
 
 ::media::ExternalMemoryAllocator*
 CobaltContentRendererClient::GetMediaAllocator() {
-  base::AutoLock scoped_lock(media_allocator_lock_);
-  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
-                                          : nullptr;
+  // The external memory pool allocates from DecoderBufferAllocator, which is
+  // not installed when kCobaltDisableDecoderBufferAllocator is enabled.
+  return ::media::DecoderBuffer::Allocator::Get()
+             ? media_memory_allocator_.get()
+             : nullptr;
 }
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
@@ -393,30 +399,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // The feature is enabled by default; H5vcc settings still take precedence
-  // when the web app explicitly sets the key, so external memory pooling can
-  // be toggled dynamically (e.g. for a holdback experiment). When the key is
-  // unset, fall back to the command-line/default feature state.
-  // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
-  // initialization back to
-  // CobaltContentRendererClient::RenderThreadStarted().
-  // The external memory pool routes allocations to DecoderBufferAllocator;
-  // disable it when DecoderBufferAllocator is disabled for PartitionAlloc.
-  const bool enable_external_pool =
-      !base::FeatureList::IsEnabled(
-          ::media::kCobaltDisableDecoderBufferAllocator) &&
-      experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
-          .value_or(base::FeatureList::IsEnabled(
-              ::media::kCobaltUseExternalMediaMemoryPool));
-  {
-    base::AutoLock scoped_lock(media_allocator_lock_);
-    is_external_memory_pool_enabled_ = enable_external_pool;
-    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
-      media_memory_allocator_ =
-          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
-    }
-  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
