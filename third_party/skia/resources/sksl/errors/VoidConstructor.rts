@@ -1,7 +1,0 @@
-void func() {
-    void();
-}
-
-/*%%*
-cannot construct 'void'
-*%%*/
