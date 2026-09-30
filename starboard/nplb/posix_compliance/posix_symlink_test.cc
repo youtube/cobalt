@@ -90,12 +90,10 @@ TEST(PosixSymlinkTest, CanCreateDanglingLink) {
 }
 
 TEST(PosixSymlinkTest, FailsWithEmptyOldPath) {
-  ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.IsValid());
-  std::string link_path = temp_dir.path() + "/empty_oldpath_link";
+  const char* link_path = "empty_oldpath_link.tmp";
 
   // The target of a symlink cannot be an empty string.
-  EXPECT_EQ(symlink("", link_path.c_str()), -1);
+  EXPECT_EQ(symlink("", link_path), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
@@ -118,14 +116,12 @@ TEST(PosixSymlinkTest, FailsIfPathIsTooLong) {
 }
 
 TEST(PosixSymlinkTest, FailsWithNullOldPath) {
-  ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.IsValid());
-  std::string link_path = temp_dir.path() + "/null_oldpath_link";
+  const char* link_path = "null_oldpath_link.tmp";
 
   // A NULL oldpath should result in a "Bad address" error.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(symlink(nullptr, link_path.c_str()), -1);
+  EXPECT_EQ(symlink(nullptr, link_path), -1);
 #pragma clang diagnostic pop
   EXPECT_EQ(errno, EFAULT);
 }
