@@ -15,6 +15,13 @@ inputs:
     default: 'false'
   sccache_gcs_key:
     description: GCS SA key to read/write to bucket
+  dry_run:
+    description: "Skip all compilation. Used to exercise CI orchestration quickly."
+    default: 'false'
+outputs:
+  skip_ninja:
+    description: "'true' when no compilation was performed."
+    value: ${{ inputs.dry_run == 'true' && 'true' || 'false' }}
 runs:
   using: "composite"
   steps:
@@ -128,7 +135,7 @@ runs:
           name: ${{ matrix.platform }}_test_targets_json
           path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 && inputs.dry_run != 'true' }}
         id: build-test-targets
         working-directory: cobalt/src
         env:
@@ -141,6 +148,7 @@ runs:
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
+        if: inputs.dry_run != 'true'
         working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -156,7 +164,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
+        if: inputs.dry_run != 'true' && (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }} APKs
