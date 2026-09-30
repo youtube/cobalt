@@ -27,21 +27,6 @@ LinuxUiDelegate::~LinuxUiDelegate() {
   instance_ = nullptr;
 }
 
-<<<<<<< HEAD
-=======
-bool LinuxUiDelegate::ExportWindowHandle(
-#if BUILDFLAG(IS_COBALT)
-    gfx::AcceleratedWidget parent_widget,
-#else
-    uint32_t parent_widget,
-#endif
-    base::OnceCallback<void(const std::string&)> callback) {
-  // This function should not be called when using a platform that doesn't
-  // implement it.
-  NOTREACHED();
-}
-
->>>>>>> 384c4288cde (ozone: Support 64-bit AcceleratedWidget in Cobalt (#12932))
 void LinuxUiDelegate::SetTransientWindowForParent(
     gfx::AcceleratedWidget parent,
     gfx::AcceleratedWidget transient) {

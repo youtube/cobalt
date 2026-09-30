@@ -230,12 +230,8 @@ constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
 using AcceleratedWidget = uintptr_t;
 #else
 using AcceleratedWidget = uint32_t;
-<<<<<<< HEAD:ui/gfx/native_ui_types.h
-inline constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
-=======
 #endif
-constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
->>>>>>> 384c4288cde (ozone: Support 64-bit AcceleratedWidget in Cobalt (#12932)):ui/gfx/native_widget_types.h
+inline constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 #else
 #error unknown platform
 #endif

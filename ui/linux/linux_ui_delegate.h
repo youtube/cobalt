@@ -37,18 +37,6 @@ class COMPONENT_EXPORT(LINUX_UI) LinuxUiDelegate {
 
   virtual LinuxUiBackend GetBackend() const = 0;
 
-<<<<<<< HEAD
-=======
-  // Only implemented on Wayland.
-  virtual bool ExportWindowHandle(
-#if BUILDFLAG(IS_COBALT)
-      gfx::AcceleratedWidget parent_widget,
-#else
-      uint32_t parent_widget,
-#endif
-      base::OnceCallback<void(const std::string&)> callback);
-
->>>>>>> 384c4288cde (ozone: Support 64-bit AcceleratedWidget in Cobalt (#12932))
   // Only implemented on X11.
   virtual void SetTransientWindowForParent(gfx::AcceleratedWidget parent,
                                            gfx::AcceleratedWidget transient);
