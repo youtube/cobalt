@@ -7,6 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "base/feature_list.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif
+#include "base/run_loop.h"
 #include "base/timer/lap_timer.h"
 #include "cc/paint/draw_image.h"
 #include "cc/paint/paint_image_builder.h"
@@ -73,6 +78,19 @@ class GpuImageDecodeCachePerfTest
 #endif
         nullptr);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  void TearDown() override {
+    if (!base::FeatureList::IsEnabled(
+            base::features::kCobaltInProcessImageTransferCache)) {
+      return;
+    }
+    // Let pending in-process image transfer unref tasks run while |cache_| is
+    // still alive.
+    context_provider_->RasterInterface()->Finish();
+    base::RunLoop().RunUntilIdle();
+  }
+#endif
 
  protected:
   size_t MaxTextureSize() const {
