@@ -210,11 +210,6 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceSoftwareVideoDecoder(
     "Media.ForceSoftwareVideoDecoder");
 
 inline constexpr ExperimentalFeatureKey<bool>
-    kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-        "Media.IgnoreMediaCodecCallbacksDuringFlushing",
-        true);
-
-inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
