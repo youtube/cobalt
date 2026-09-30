@@ -414,6 +414,54 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration in milliseconds taken for startup milestone
+    {Milestone} since the previous milestone.
+  </summary>
+  <token key="Milestone">
+    <variant name="ActivityOnDestroy"/>
+    <variant name="ActivityOnPause"/>
+    <variant name="ActivityOnResume"/>
+    <variant name="ActivityOnStart"/>
+    <variant name="ActivityOnStop"/>
+    <variant name="ActivityWindowConfigured"/>
+    <variant name="ApplicationAndroidInitialize"/>
+    <variant name="DidFinishNavigation"/>
+    <variant name="DidStartNavigation"/>
+    <variant name="JavaActivityCreated"/>
+    <variant name="MainDelegateBasicStartupComplete"/>
+    <variant name="MainDelegatePostEarlyInitialization"/>
+    <variant name="MainDelegatePreSandboxStartup"/>
+    <variant name="PlatformErrorRaised"/>
+    <variant name="PostLibraryLoaderInit"/>
+    <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreCreateThreads"/>
+    <variant name="PreLibraryLoaderInit"/>
+    <variant name="PreStarboardBridgeInit"/>
+    <variant name="ShellCreateWindowNoSplash"/>
+    <variant name="ShellCreateWindowWithSplash"/>
+    <variant name="ShellDidFinishLoad"/>
+    <variant name="ShellDidFinishNavigationNonSplash"/>
+    <variant name="ShellDidStartLoading"/>
+    <variant name="ShellDidStartNavigationNonSplash"/>
+    <variant name="ShellDocumentElementAvailable"/>
+    <variant name="ShellRenderFrameCreated"/>
+    <variant name="SplashObserverDidFailLoad"/>
+    <variant name="SplashObserverDidFinishNavigation"/>
+    <variant name="SplashObserverDidStartLoading"/>
+    <variant name="SplashObserverDidStartNavigation"/>
+    <variant name="StarboardBridgeNativeInit"/>
+    <variant name="StartupGuardObserverDidFailLoad"/>
+    <variant name="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="StartupGuardObserverDidStartLoading"/>
+    <variant name="StartupGuardObserverDidStartNavigation"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -819,6 +867,57 @@ Always run the pretty print utility on this file after editing:
     <variant name=".4to8min" summary="4 to 8 minutes"/>
     <variant name=".8to16min" summary="8 to 16 minutes"/>
   </token>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.FragmentationRatio"
+    units="%" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Percentage of free virtual address (VA) space that lies outside the single
+    largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
+    free address space is one contiguous block, 50% means the largest block
+    holds half of it.
+    This measures how concentrated the free space is, not how much
+    of it there is, so a low value on its own does not imply headroom; read it
+    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
+    on 32-bit Android, where the ~3GB user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.LargestFreeGapMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Size in MB of the single largest contiguous unmapped gap between the lowest
+    and highest mapped regions of the process address space. Only emitted on
+    32-bit Android, where the ~3GB user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total size in MB of unmapped virtual address space, summed over every gap
+    between the lowest and highest mapped regions of the process address space.
+    Only emitted on 32-bit Android, where the ~3GB user address space is
+    exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.VmaCount" units="count"
+    expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
+    Guards against reaching the kernel vm.max_map_count limit and tracks virtual
+    address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
+    user address space is exhaustible.
+  </summary>
 </histogram>
 
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"

@@ -156,7 +156,7 @@ public class BaseStarboardBridge {
     mTtsHelper = null;
     mAudioOutputManager = new AudioOutputManager(appContext);
     mAudioPermissionRequester = null;
-    mResourceOverlay = null;
+    mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = null;
     mIsAmatiDevice = false;
     mNativeApp = 0;

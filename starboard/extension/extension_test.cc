@@ -18,7 +18,6 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/experimental_features.h"
-#include "starboard/extension/experimental/media_buffer_pool.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
@@ -432,6 +431,7 @@ TEST(ExtensionTest, PlayerSettings) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
+  EXPECT_NE(extension_api->SetMaxVideoResolutionForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
@@ -557,28 +557,6 @@ TEST(ExtensionTest, StarboardFeaturesExtension) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->InitializeStarboardFeatures, nullptr);
-
-  const ExtensionApi* second_extension_api =
-      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
-  EXPECT_EQ(second_extension_api, extension_api)
-      << "Extension struct should be a singleton";
-}
-
-TEST(ExtensionTest, StarboardMediaBufferPoolExtension) {
-  typedef StarboardExtensionMediaBufferPoolApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionMediaBufferPoolApiName;
-
-  const ExtensionApi* extension_api =
-      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
-  if (!extension_api) {
-    return;
-  }
-
-  EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
-  EXPECT_NE(extension_api->ShrinkToZero, nullptr);
-  EXPECT_NE(extension_api->ExpandTo, nullptr);
-  EXPECT_NE(extension_api->Write, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

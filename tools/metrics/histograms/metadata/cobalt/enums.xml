@@ -45,9 +45,43 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 </enum>
 
 <enum name="CobaltStartupMilestone">
+  <int value="1" label="JavaActivityCreated"/>
+  <int value="2" label="PreLibraryLoaderInit"/>
+  <int value="3" label="PostLibraryLoaderInit"/>
+  <int value="4" label="PreStarboardBridgeInit"/>
+  <int value="5" label="StarboardBridgeNativeInit"/>
+  <int value="6" label="ApplicationAndroidInitialize"/>
+  <int value="7" label="PostStarboardBridgeInit"/>
+  <int value="8" label="ActivityWindowConfigured"/>
+  <int value="9" label="ActivityOnStart"/>
+  <int value="10" label="ActivityOnResume"/>
+  <int value="11" label="ActivityOnPause"/>
+  <int value="12" label="ActivityOnStop"/>
+  <int value="13" label="ActivityOnDestroy"/>
+  <int value="14" label="MainDelegateBasicStartupComplete"/>
+  <int value="15" label="MainDelegatePreSandboxStartup"/>
+  <int value="16" label="MainDelegatePostEarlyInitialization"/>
   <int value="17" label="PreCreateThreads"/>
+  <int value="18" label="ShellCreateWindowNoSplash"/>
+  <int value="19" label="ShellCreateWindowWithSplash"/>
+  <int value="20" label="ShellRenderFrameCreated"/>
+  <int value="21" label="ShellDidStartLoading"/>
   <int value="22" label="DidStartNavigation"/>
+  <int value="23" label="SplashObserverDidStartNavigation"/>
+  <int value="24" label="SplashObserverDidStartLoading"/>
+  <int value="25" label="SplashObserverDidFailLoad"/>
   <int value="26" label="DidFinishNavigation"/>
+  <int value="27" label="ShellDocumentElementAvailable"/>
+  <int value="28" label="SplashObserverDidFinishNavigation"/>
+  <int value="29" label="ShellDidStartNavigationNonSplash"/>
+  <int value="30" label="ShellDidFinishNavigationNonSplash"/>
+  <int value="31" label="ShellDidFinishLoad"/>
+  <int value="32" label="StartupGuardObserverDidStartLoading"/>
+  <int value="33" label="StartupGuardObserverDidStartNavigation"/>
+  <int value="34" label="StartupGuardObserverDidFailLoad"/>
+  <int value="35" label="StartupGuardObserverDidFinishNavigation"/>
+  <int value="36" label="StartupGuardObserverDidRedirectNavigation"/>
+  <int value="37" label="PlatformErrorRaised"/>
 </enum>
 
 <enum name="FinchConfigOutcome">

@@ -34,7 +34,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
-#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -45,6 +44,7 @@
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -167,7 +167,9 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
-    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+    : media_memory_allocator_(
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>()),
+      h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -227,6 +229,40 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+}
+
+void CobaltContentRendererClient::
+    SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() {
+  // Cobalt deliberately skips construction of several Content services (see
+  // the IS_COBALT carve-outs in content/browser/browser_main_loop.cc). Any web
+  // API whose backing service is absent must also be hidden from script.
+  // Leaving the API visible makes feature detection report support that does
+  // not exist, and the resulting call reaches a browser-side handler that has
+  // no service behind it.
+  //
+  // SpeechRecognitionManagerImpl is not created for Cobalt, so hide the Web
+  // Speech *recognition* entry points. `webkitSpeechRecognition` is a
+  // LegacyWindowAlias gated on this feature, and the `SpeechRecognition`
+  // interface itself is [LegacyNoInterfaceObject], so disabling the feature
+  // removes the only way to construct one. Script then observes a catchable
+  // ReferenceError/TypeError, which is what callers that feature-detect expect.
+  //
+  // This is the only guard: SpeechRecognitionDispatcherHost is left unmodified
+  // and would dereference the null manager if a session were started. Command
+  // line switches are applied after this function, so
+  // --enable-blink-features=ScriptedSpeechRecognition would re-expose the API;
+  // Cobalt does not pass that switch, and release builds ignore intent-supplied
+  // command line arguments.
+  //
+  // Note this does not affect speech *synthesis* (ScriptedSpeechSynthesis),
+  // which Cobalt still supports.
+  blink::WebRuntimeFeatures::EnableFeatureFromString(
+      "ScriptedSpeechRecognition", /*enable=*/false);
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -318,9 +354,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
 
 ::media::ExternalMemoryAllocator*
 CobaltContentRendererClient::GetMediaAllocator() {
-  base::AutoLock scoped_lock(media_allocator_lock_);
-  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
-                                          : nullptr;
+  // The external memory pool allocates from DecoderBufferAllocator, which is
+  // not installed when kCobaltDisableDecoderBufferAllocator is enabled.
+  return ::media::DecoderBuffer::Allocator::Get()
+             ? media_memory_allocator_.get()
+             : nullptr;
 }
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
@@ -358,24 +396,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // For experimental purposes, we check both command-line feature flags and
-  // H5vcc settings here so web apps can toggle external memory pooling
-  // dynamically. Once this feature is finalized and enabled by default, this
-  // initialization should be moved back to
-  // CobaltContentRendererClient::RenderThreadStarted().
-  const bool enable_external_pool =
-      base::FeatureList::IsEnabled(
-          ::media::kCobaltUseExternalMediaMemoryPool) ||
-      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
-  {
-    base::AutoLock scoped_lock(media_allocator_lock_);
-    is_external_memory_pool_enabled_ = enable_external_pool;
-    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
-      media_memory_allocator_ =
-          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
-    }
-  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

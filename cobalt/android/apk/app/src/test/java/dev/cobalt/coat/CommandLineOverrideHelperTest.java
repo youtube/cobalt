@@ -38,14 +38,14 @@ public class CommandLineOverrideHelperTest {
   @Test
   public void testDefaultCommandLineOverridesList() {
     List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
-    assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
     assertThat(overrides.contains("--use-custom-android-fonts-xml")).isTrue();
+    assertThat(overrides.contains("--max-http-cache-size=26214400")).isTrue();
   }
 
   @Test
   public void testDefaultJsFlagOverridesList() {
     String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-    assertThat(overrides.contains("--optimize-for-size")).isTrue();
+    assertThat(overrides.contains("--no-decommit-pooled-pages")).isTrue();
   }
 
   @Test
@@ -53,6 +53,7 @@ public class CommandLineOverrideHelperTest {
     String overrides = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     assertThat(overrides.contains("LogJsConsoleMessages")).isTrue();
     assertThat(overrides.contains("LimitImageDecodeCacheSize:mb/24")).isTrue();
+    assertThat(overrides.contains("DomStorageSmartFlushing")).isTrue();
   }
 
   @Test
@@ -76,13 +77,13 @@ public class CommandLineOverrideHelperTest {
 
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml"));
+    Assert.assertEquals(
+        "26214400", CommandLine.getInstance().getSwitchValue("max-http-cache-size"));
 
     String expected = "no-user-gesture-required";
     String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");

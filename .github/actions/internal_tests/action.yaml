@@ -66,6 +66,11 @@ runs:
       run: |
         set -x
 
+        artifact_name="${ARTIFACT_NAME}"
+        if [[ "${PLATFORM}" == *aosp* && "${artifact_name}" == "Cobalt.apk" ]]; then
+          artifact_name="cobalt.apk"
+        fi
+
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
@@ -89,7 +94,7 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --label target_branch:${GITHUB_BASE_REF} \
           --dimensions "${TEST_DIMENSIONS}" \
-          --artifact_name "${ARTIFACT_NAME}" \
+          --artifact_name "${artifact_name}" \
           --device_family "${TEST_DEVICE_FAMILY}" \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."

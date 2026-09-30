@@ -3,7 +3,7 @@ Book: /youtube/cobalt/_book.yaml
 
 # Set up your environment - AOSP
 
-These instructions explain how to build and run Cobalt for the AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`).
+These instructions explain how to build and run Cobalt for the AOSP platform.
 
 Before following these instructions, make sure you have set up your workstation and source checkout as described in [Set up your environment - Linux](setup-linux.md).
 
@@ -24,12 +24,6 @@ Before following these instructions, make sure you have set up your workstation 
    gclient sync
    ```
 
-3. Set up an Android debug keystore required for signing development APKs:
-
-   ```bash
-   keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
-   ```
-
 ## Running in Evergreen Mode
 
 Because Evergreen support is required for certification, partners deploy official Google prebuilt `.crx` packages (available on [GitHub Releases](https://github.com/youtube/cobalt/releases)) into the Slot 0 directory structure, compile the `cobalt_loader` APK, and deploy to target hardware.
@@ -42,19 +36,19 @@ Because Evergreen support is required for certification, partners deploy officia
    export PATH="$HOME/depot_tools:$PATH"
 
    # For 32-bit ARM AOSP targets
-   cobalt/build/gn.py -p aosp-arm -c qa --no-rbe
+   cobalt/build/gn.py -p evergreen-arm-softfp-aosp -c qa --no-rbe
 
    # For 64-bit ARM AOSP targets
-   # cobalt/build/gn.py -p aosp-arm64 -c qa --no-rbe
+   cobalt/build/gn.py -p evergreen-arm64-aosp -c qa --no-rbe
    ```
 
 2. Build the application loader APK:
 
    ```bash
-   autoninja -C out/aosp-arm_qa cobalt_loader
+   autoninja -C out/evergreen-arm-softfp-aosp_qa cobalt_loader
    ```
 
-   This generates the application loader APK at `out/aosp-arm_qa/apks/cobalt.apk`.
+   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk`.
 
 3. Download the official prebuilt CRX file from [GitHub Releases](https://github.com/youtube/cobalt/releases):
 
@@ -79,7 +73,20 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   zip -u $OLDPWD/out/aosp-arm_qa/apks/cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
+   # zip -u does not recurse into subdirectories; use a file list so that
+   # content/ssl/certs/* and content/fonts/* are included
+   find assets -type f | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
+
+   # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore
+   cd $OLDPWD
+   APK="out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk"
+   BT=$(ls -d third_party/android_sdk/public/build-tools/* | tail -1)
+   $BT/zipalign -f -p 4 $APK $APK.aligned && mv $APK.aligned $APK
+   $BT/apksigner sign \
+     --ks build/android/chromium-debug.keystore \
+     --ks-key-alias chromiumdebugkey --ks-pass pass:chromium \
+     --in $APK --out $APK.signed && mv $APK.signed $APK
+   $BT/apksigner verify --verbose $APK
    ```
 
 5. Deploy and launch on an AOSP device or emulator:
@@ -89,7 +96,7 @@ Because Evergreen support is required for certification, partners deploy officia
    Install the compiled APK:
 
    ```bash
-   adb install -r out/aosp-arm_qa/apks/cobalt.apk
+   adb install -r out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk
    ```
 
    Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
@@ -117,21 +124,21 @@ Because Evergreen support is required for certification, partners deploy officia
 > [!CAUTION]
 > SoC and OEM partners are required to use official Google Prebuilt CRX packages for testing and certification. Compiling Cobalt Core (`libcobalt.so`) from source is intended only for core developers debugging internal engine changes.
 
-1. Configure the build directory for the target AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`) using `cobalt/build/gn.py`.
+1. Configure the build directory for the target AOSP platform using `cobalt/build/gn.py`.
 
    Use the `-c` flag to specify a `build_type` (`debug`, `devel`, `qa`, or `gold`).
 
    ```bash
-   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
+   cobalt/build/gn.py -p evergreen-arm-softfp-aosp -c devel --no-rbe
    ```
 
 2. Compile the `cobalt_loader` target using `autoninja`:
 
    ```bash
-   autoninja -C out/aosp-arm_devel cobalt_loader
+   autoninja -C out/evergreen-arm-softfp-aosp_devel cobalt_loader
    ```
 
-   This generates the application loader APK at `out/aosp-arm_devel/apks/cobalt.apk`.
+   This generates the application loader APK at `out/evergreen-arm-softfp-aosp_devel/apks/cobalt.apk`.
 
 3. Deploy and launch on an AOSP device or emulator:
 
@@ -140,7 +147,7 @@ Because Evergreen support is required for certification, partners deploy officia
    Install the compiled APK:
 
    ```bash
-   adb install -r out/aosp-arm_devel/apks/cobalt.apk
+   adb install -r out/evergreen-arm-softfp-aosp_devel/apks/cobalt.apk
    ```
 
    Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
@@ -168,32 +175,40 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
 1. Compile the NPLB test suite:
 
    ```bash
-   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
-   autoninja -C out/aosp-arm_devel nplb_loader
+   cobalt/build/gn.py -p evergreen-arm-softfp-aosp -c devel --no-rbe
+   autoninja -C out/evergreen-arm-softfp-aosp_devel nplb_loader
    ```
 
    This generates the test APK at
-   `out/aosp-arm_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
-   `out/aosp-arm_devel/bin/run_nplb_loader` wrapper that drives it.
+   `out/evergreen-arm-softfp-aosp_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
+   `out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader` wrapper that drives it.
 
 2. Run NPLB on the target device. The wrapper installs the APK, pushes the
    runtime dependencies and collects the results:
 
    ```bash
-   out/aosp-arm_devel/bin/run_nplb_loader
+   out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader
    ```
 
 3. Pass standard Google Test filtering arguments:
 
    ```bash
-   out/aosp-arm_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
+   out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
    ```
 
 4. Any other argument is forwarded to NPLB:
 
    ```bash
-   out/aosp-arm_devel/bin/run_nplb_loader --gtest_shuffle
+   out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest_shuffle
    ```
+
+Every test target is built and run the same way, so an upstream test suite only
+needs its own `<suite>_loader` target:
+
+```bash
+autoninja -C out/evergreen-arm-softfp-aosp_devel zlib_unittests_loader
+out/evergreen-arm-softfp-aosp_devel/bin/run_zlib_unittests_loader
+```
 
 ## Debugging
 
@@ -208,5 +223,5 @@ adb logcat -s "starboard:*" "Cobalt:*"
 To clean build artifacts:
 
 ```bash
-gn clean out/aosp-arm_devel
+gn clean out/evergreen-arm-softfp-aosp_devel
 ```

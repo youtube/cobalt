@@ -89,9 +89,6 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
-  if (!cl->HasSwitch("enable-gpu-shader-disk-cache")) {
-    cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
-  }
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 

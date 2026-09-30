@@ -219,9 +219,26 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_EnabledByDefault() {
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
+    assertThat(args).contains("--enable-low-end-device-mode");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_LowEndDeviceMode_NotForcedByExperiment() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+
+    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // physical memory threshold. Devices at or below it stay low-end.
+    assertThat(args).doesNotContain("--enable-low-end-device-mode");
+  }
+
+  @Test
   public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
     switches.put(JavaSwitches.ENABLE_QUIC, "1");
     switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
     switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
@@ -240,24 +257,19 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
     switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.SURFACE_VIEW_UI_RENDERING, "1");
     switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
     switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
-    switches.put(JavaSwitches.DISABLE_BACK_FORWARD_CACHE, "1");
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
 
     assertThat(args).doesNotContain("--disable-quic");
-    assertThat(args).contains("--enable-features=DomStorageSmartFlushing");
     assertThat(args).contains("--disable-gpu-memory-buffer-compositor-resources");
     assertThat(args).contains("--force-gpu-mem-available-mb=256");
     assertThat(args).contains("--cc-image-cache-limit-items=500");
@@ -270,18 +282,14 @@ public class JavaSwitchesTest {
     assertThat(args)
         .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
     assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--enable-gpu-shader-disk-cache");
-    assertThat(args).contains("--max-http-cache-size=50000000");
     assertThat(args).contains("--avoid-cc-reuse-resource");
     assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
     assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
     assertThat(args).contains("--enable-features=CobaltMmapFontCache");
-    assertThat(args).contains("--use-surface-view-for-ui");
     assertThat(args).contains("--enable-features=AreaBasedVideoBufferBudget");
     assertThat(args).contains("--allow-critical-memory-pressure-handling-in-foreground");
     assertThat(args).contains("--enable-features=EvictMemoryCacheOnCriticalMemoryPressure");
     assertThat(args).contains("--disable-features=LessAggressiveParkableString");
-    assertThat(args).contains("--disable-back-forward-cache");
 
     // Check js-flags
     boolean foundJsFlags = false;
@@ -303,7 +311,6 @@ public class JavaSwitchesTest {
   @Test
   public void testGetExtraCommandLineArgs_ExperimentsNotAllowed_DisablesAllExperiments() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING, "1");
     switches.put(JavaSwitches.ENABLE_QUIC, "1");
     switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
     switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
@@ -322,18 +329,14 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
     switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.ENABLE_GPU_SHADER_DISK_CACHE, "1");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "50000000");
     switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
     switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
     switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.SURFACE_VIEW_UI_RENDERING, "1");
     switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
     switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
     switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
     switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
-    switches.put(JavaSwitches.DISABLE_BACK_FORWARD_CACHE, "1");
 
     JavaSwitches.setOverrideForTesting(false);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -342,7 +345,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
 
     // None of the experiment features or switches should be present
-    assertThat(args).doesNotContain("--enable-features=DomStorageSmartFlushing");
     assertThat(args).doesNotContain("--disable-gpu-memory-buffer-compositor-resources");
     assertThat(args).doesNotContain("--force-gpu-mem-available-mb=256");
     assertThat(args).doesNotContain("--cc-image-cache-limit-items=500");
@@ -350,12 +352,8 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
     assertThat(args).doesNotContain("--enable-scaling-clipped-images");
     assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--enable-gpu-shader-disk-cache");
-    assertThat(args).doesNotContain("--max-http-cache-size=50000000");
     assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
-    assertThat(args).doesNotContain("--use-surface-view-for-ui");
     assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
-    assertThat(args).doesNotContain("--disable-back-forward-cache");
 
     for (String arg : args) {
       assertThat(arg).doesNotContain("CobaltDynamicMojoPipeSizing");
@@ -379,6 +377,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
     assertThat(args).contains("--force-device-scale-factor=1");
+    // Safe mode / no experiment config must not silently flip low-end mode off.
+    assertThat(args).contains("--enable-low-end-device-mode");
   }
 
   @Test
@@ -394,7 +394,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, null);
     switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, null);
     switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, null);
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, null);
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -410,7 +409,6 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "abc");
     switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, "none");
     switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, "xyz");
-    switches.put(JavaSwitches.MAX_HTTP_CACHE_SIZE, "unlimited");
 
     JavaSwitches.setOverrideForTesting(true);
     List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
@@ -419,7 +417,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
     assertThat(args).doesNotContain("--force-gpu-mem-available-mb=");
     assertThat(args).doesNotContain("--cc-image-cache-limit-items=");
-    assertThat(args).doesNotContain("--max-http-cache-size=");
   }
 
   @Test

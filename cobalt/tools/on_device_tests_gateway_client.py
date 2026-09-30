@@ -67,10 +67,6 @@ _DEPS_ARCH_MAP = {
 }
 _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 
-# This is needed because driver expects cobalt.apk, but we publish
-# Cobalt.apk
-_E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
-
 
 class OnDeviceTestsGatewayClient:
   """On-device tests Gateway Client class."""
@@ -259,6 +255,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
           '--single-process-tests',
+          '--num-retries=0',
       ]
       command_line_args = ' '.join(cmd_args)
       test_cmd_args = [f'command_line_args={command_line_args}']
@@ -284,7 +281,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_type = 'e2e_test'
         params = []
       else:
-        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+        yt_binary_name = os.path.splitext(os.path.basename(
+            args.artifact_name))[0]
+        params = [f'yt_binary_name={yt_binary_name}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
           params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
         else:
@@ -444,6 +443,7 @@ def main() -> int:
   e2e_test_group.add_argument(
       '--artifact_name',
       type=str,
+      default='Cobalt.apk',
       help=('Artifact name, used to specify the cobalt path in non-evergreen'
             ' workflows'),
   )
