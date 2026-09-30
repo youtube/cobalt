@@ -658,7 +658,7 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) && BUILDFLAG(IS_COBALT)
   InitIOSArgs(*argc, argv);
 #endif
 
@@ -666,6 +666,10 @@ void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
   testing::InitGoogleTest(argc, argv);
   testing::InitGoogleMock(argc, argv);
   MaybeInitFuzztest(*argc, argv);
+
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_COBALT)
+  InitIOSArgs(*argc, argv);
+#endif
 }
 
 int TestSuite::RunAllTests() {
