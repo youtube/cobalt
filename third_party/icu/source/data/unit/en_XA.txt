@@ -1,0 +1,2163 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/
+en_XA{
+    units{
+        acceleration{
+            g-force{
+                dnam{"[ĝ‐ƒöŕçé one two]"}
+                one{"[{0} ĝ‐ƒöŕçé one two]"}
+                other{"[{0} ĝ‐ƒöŕçé one two]"}
+            }
+            meter-per-square-second{
+                dnam{"[ɱéţéŕš þéŕ šéçöñð šǫûåŕéð one two three]"}
+                one{"[{0} ɱéţéŕ þéŕ šéçöñð šǫûåŕéð one two three four]"}
+                other{"[{0} ɱéţéŕš þéŕ šéçöñð šǫûåŕéð one two three four]"}
+            }
+        }
+        angle{
+            arc-minute{
+                dnam{"[åŕçɱîñûţéš one two]"}
+                one{"[{0} åŕçɱîñûţé one two]"}
+                other{"[{0} åŕçɱîñûţéš one two]"}
+            }
+            arc-second{
+                dnam{"[åŕçšéçöñðš one two]"}
+                one{"[{0} åŕçšéçöñð one two]"}
+                other{"[{0} åŕçšéçöñðš one two]"}
+            }
+            degree{
+                dnam{"[ðéĝŕééš one two]"}
+                one{"[{0} ðéĝŕéé one two]"}
+                other{"[{0} ðéĝŕééš one two]"}
+            }
+            radian{
+                dnam{"[ŕåðîåñš one two]"}
+                one{"[{0} ŕåðîåñ one two]"}
+                other{"[{0} ŕåðîåñš one two]"}
+            }
+            revolution{
+                dnam{"[ŕéṽöļûţîöñš one two]"}
+                one{"[{0} ŕéṽöļûţîöñ one two]"}
+                other{"[{0} ŕéṽöļûţîöñš one two three]"}
+            }
+        }
+        area{
+            acre{
+                dnam{"[åçŕéš one]"}
+                one{"[{0} åçŕé one two]"}
+                other{"[{0} åçŕéš one two]"}
+            }
+            dunam{
+                dnam{"[ðûñåɱš one]"}
+                one{"[{0} ðûñåɱ one two]"}
+                other{"[{0} ðûñåɱš one two]"}
+            }
+            hectare{
+                dnam{"[ĥéçţåŕéš one two]"}
+                one{"[{0} ĥéçţåŕé one two]"}
+                other{"[{0} ĥéçţåŕéš one two]"}
+            }
+            square-centimeter{
+                dnam{"[šǫûåŕé çéñţîɱéţéŕš one two three]"}
+                one{"[{0} šǫûåŕé çéñţîɱéţéŕ one two three]"}
+                other{"[{0} šǫûåŕé çéñţîɱéţéŕš one two three]"}
+                per{"[{0} þéŕ šǫûåŕé çéñţîɱéţéŕ one two three]"}
+            }
+            square-foot{
+                dnam{"[šǫûåŕé ƒééţ one two]"}
+                one{"[{0} šǫûåŕé ƒööţ one two three]"}
+                other{"[{0} šǫûåŕé ƒééţ one two three]"}
+            }
+            square-inch{
+                dnam{"[šǫûåŕé îñçĥéš one two]"}
+                one{"[{0} šǫûåŕé îñçĥ one two three]"}
+                other{"[{0} šǫûåŕé îñçĥéš one two three]"}
+                per{"[{0} þéŕ šǫûåŕé îñçĥ one two three]"}
+            }
+            square-kilometer{
+                dnam{"[šǫûåŕé ķîļöɱéţéŕš one two three]"}
+                one{"[{0} šǫûåŕé ķîļöɱéţéŕ one two three]"}
+                other{"[{0} šǫûåŕé ķîļöɱéţéŕš one two three]"}
+                per{"[{0} þéŕ šǫûåŕé ķîļöɱéţéŕ one two three]"}
+            }
+            square-meter{
+                dnam{"[šǫûåŕé ɱéţéŕš one two]"}
+                one{"[{0} šǫûåŕé ɱéţéŕ one two three]"}
+                other{"[{0} šǫûåŕé ɱéţéŕš one two three]"}
+                per{"[{0} þéŕ šǫûåŕé ɱéţéŕ one two three]"}
+            }
+            square-mile{
+                dnam{"[šǫûåŕé ɱîļéš one two]"}
+                one{"[{0} šǫûåŕé ɱîļé one two three]"}
+                other{"[{0} šǫûåŕé ɱîļéš one two three]"}
+                per{"[{0} þéŕ šǫûåŕé ɱîļé one two three]"}
+            }
+            square-yard{
+                dnam{"[šǫûåŕé ýåŕðš one two]"}
+                one{"[{0} šǫûåŕé ýåŕð one two three]"}
+                other{"[{0} šǫûåŕé ýåŕðš one two three]"}
+            }
+        }
+        compound{
+            1024p1{"[ķîƀî{0} one two]"}
+            1024p2{"[ɱéƀî{0} one two]"}
+            1024p3{"[ĝîƀî{0} one two]"}
+            1024p4{"[ţéƀî{0} one two]"}
+            1024p5{"[þéƀî{0} one two]"}
+            1024p6{"[éẋƀî{0} one two]"}
+            1024p7{"[žéƀî{0} one two]"}
+            1024p8{"[ýöƀî{0} one two]"}
+            10p-1{"[ðéçî{0} one two]"}
+            10p-12{"[þîçö{0} one two]"}
+            10p-15{"[ƒéɱţö{0} one two]"}
+            10p-18{"[åţţö{0} one two]"}
+            10p-2{"[çéñţî{0} one two]"}
+            10p-21{"[žéþţö{0} one two]"}
+            10p-24{"[ýöçţö{0} one two]"}
+            10p-27{"[ŕöñţö{0} one two]"}
+            10p-3{"[ɱîļļî{0} one two]"}
+            10p-30{"[ǫûéçţö{0} one two]"}
+            10p-6{"[ɱîçŕö{0} one two]"}
+            10p-9{"[ñåñö{0} one two]"}
+            10p1{"[ðéķå{0} one two]"}
+            10p12{"[ţéŕå{0} one two]"}
+            10p15{"[þéţå{0} one two]"}
+            10p18{"[éẋå{0} one]"}
+            10p2{"[ĥéçţö{0} one two]"}
+            10p21{"[žéţţå{0} one two]"}
+            10p24{"[ýöţţå{0} one two]"}
+            10p27{"[ŕöññå{0} one two]"}
+            10p3{"[ķîļö{0} one two]"}
+            10p30{"[ǫûéţţå{0} one two]"}
+            10p6{"[ɱéĝå{0} one two]"}
+            10p9{"[ĝîĝå{0} one two]"}
+            per{"[{0} þéŕ {1} one two]"}
+            power2{
+                one{
+                    _{
+                        _{"[šǫûåŕé {0} one two]"}
+                    }
+                }
+                other{
+                    _{
+                        _{"[šǫûåŕé {0} one two]"}
+                    }
+                }
+            }
+            power3{
+                one{
+                    _{
+                        _{"[çûƀîç {0} one two]"}
+                    }
+                }
+                other{
+                    _{
+                        _{"[çûƀîç {0} one two]"}
+                    }
+                }
+            }
+            times{"[{0}‐{1} one two]"}
+        }
+        concentr{
+            item{
+                dnam{"[îţéɱš one]"}
+                one{"[{0} îţéɱ one two]"}
+                other{"[{0} îţéɱš one two]"}
+            }
+            karat{
+                dnam{"[ķåŕåţš one]"}
+                one{"[{0} ķåŕåţ one two]"}
+                other{"[{0} ķåŕåţš one two]"}
+            }
+            milligram-ofglucose-per-deciliter{
+                dnam{"[ɱîļļîĝŕåɱš þéŕ ðéçîļîţéŕ one two three]"}
+                one{"[{0} ɱîļļîĝŕåɱ þéŕ ðéçîļîţéŕ one two three four]"}
+                other{"[{0} ɱîļļîĝŕåɱš þéŕ ðéçîļîţéŕ one two three four]"}
+            }
+            millimole-per-liter{
+                dnam{"[ɱîļļîɱöļéš þéŕ ļîţéŕ one two three]"}
+                one{"[{0} ɱîļļîɱöļé þéŕ ļîţéŕ one two three]"}
+                other{"[{0} ɱîļļîɱöļéš þéŕ ļîţéŕ one two three]"}
+            }
+            mole{
+                dnam{"[ɱöļéš one]"}
+                one{"[{0} ɱöļé one two]"}
+                other{"[{0} ɱöļéš one two]"}
+            }
+            percent{
+                dnam{"[þéŕçéñţ one two]"}
+                one{"[{0} þéŕçéñţ one two]"}
+                other{"[{0} þéŕçéñţ one two]"}
+            }
+            permille{
+                dnam{"[þéŕɱîļļé one two]"}
+                one{"[{0} þéŕɱîļļé one two]"}
+                other{"[{0} þéŕɱîļļé one two]"}
+            }
+            permillion{
+                dnam{"[þåŕţš þéŕ ɱîļļîöñ one two three]"}
+                one{"[{0} þåŕţ þéŕ ɱîļļîöñ one two three]"}
+                other{"[{0} þåŕţš þéŕ ɱîļļîöñ one two three]"}
+            }
+            permyriad{
+                dnam{"[þéŕɱýŕîåð one two]"}
+                one{"[{0} þéŕɱýŕîåð one two]"}
+                other{"[{0} þéŕɱýŕîåð one two]"}
+            }
+            portion-per-1e9{
+                dnam{"[þåŕţš þéŕ ƀîļļîöñ one two three]"}
+                one{"[{0} þåŕţ þéŕ ƀîļļîöñ one two three]"}
+                other{"[{0} þåŕţš þéŕ ƀîļļîöñ one two three]"}
+            }
+        }
+        consumption{
+            liter-per-100-kilometer{
+                dnam{"[ļîţéŕš þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three]"}
+                one{"[{0} ļîţéŕ þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three four]"}
+                other{"[{0} ļîţéŕš þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three four]"}
+            }
+            liter-per-kilometer{
+                dnam{"[ļîţéŕš þéŕ ķîļöɱéţéŕ one two three]"}
+                one{"[{0} ļîţéŕ þéŕ ķîļöɱéţéŕ one two three]"}
+                other{"[{0} ļîţéŕš þéŕ ķîļöɱéţéŕ one two three]"}
+            }
+            mile-per-gallon{
+                dnam{"[ɱîļéš þéŕ ĝåļļöñ one two three]"}
+                one{"[{0} ɱîļé þéŕ ĝåļļöñ one two three]"}
+                other{"[{0} ɱîļéš þéŕ ĝåļļöñ one two three]"}
+            }
+            mile-per-gallon-imperial{
+                dnam{"[ɱîļéš þéŕ Îɱþ· ĝåļļöñ one two three]"}
+                one{"[{0} ɱîļé þéŕ Îɱþ· ĝåļļöñ one two three]"}
+                other{"[{0} ɱîļéš þéŕ Îɱþ· ĝåļļöñ one two three]"}
+            }
+        }
+        coordinate{
+            dnam{"[çåŕðîñåļ ðîŕéçţîöñ one two three]"}
+            east{"[{0} éåšţ one two]"}
+            north{"[{0} ñöŕţĥ one two]"}
+            south{"[{0} šöûţĥ one two]"}
+            west{"[{0} ŵéšţ one two]"}
+        }
+        digital{
+            bit{
+                dnam{"[ƀîţš one]"}
+                one{"[{0} ƀîţ one two]"}
+                other{"[{0} ƀîţš one two]"}
+            }
+            byte{
+                dnam{"[ƀýţéš one]"}
+                one{"[{0} ƀýţé one two]"}
+                other{"[{0} ƀýţéš one two]"}
+            }
+            gigabit{
+                dnam{"[ĝîĝåƀîţš one two]"}
+                one{"[{0} ĝîĝåƀîţ one two]"}
+                other{"[{0} ĝîĝåƀîţš one two]"}
+            }
+            gigabyte{
+                dnam{"[ĝîĝåƀýţéš one two]"}
+                one{"[{0} ĝîĝåƀýţé one two]"}
+                other{"[{0} ĝîĝåƀýţéš one two]"}
+            }
+            kilobit{
+                dnam{"[ķîļöƀîţš one two]"}
+                one{"[{0} ķîļöƀîţ one two]"}
+                other{"[{0} ķîļöƀîţš one two]"}
+            }
+            kilobyte{
+                dnam{"[ķîļöƀýţéš one two]"}
+                one{"[{0} ķîļöƀýţé one two]"}
+                other{"[{0} ķîļöƀýţéš one two]"}
+            }
+            megabit{
+                dnam{"[ɱéĝåƀîţš one two]"}
+                one{"[{0} ɱéĝåƀîţ one two]"}
+                other{"[{0} ɱéĝåƀîţš one two]"}
+            }
+            megabyte{
+                dnam{"[ɱéĝåƀýţéš one two]"}
+                one{"[{0} ɱéĝåƀýţé one two]"}
+                other{"[{0} ɱéĝåƀýţéš one two]"}
+            }
+            petabyte{
+                dnam{"[þéţåƀýţéš one two]"}
+                one{"[{0} þéţåƀýţé one two]"}
+                other{"[{0} þéţåƀýţéš one two]"}
+            }
+            terabit{
+                dnam{"[ţéŕåƀîţš one two]"}
+                one{"[{0} ţéŕåƀîţ one two]"}
+                other{"[{0} ţéŕåƀîţš one two]"}
+            }
+            terabyte{
+                dnam{"[ţéŕåƀýţéš one two]"}
+                one{"[{0} ţéŕåƀýţé one two]"}
+                other{"[{0} ţéŕåƀýţéš one two]"}
+            }
+        }
+        duration{
+            century{
+                dnam{"[çéñţûŕîéš one two]"}
+                one{"[{0} çéñţûŕý one two]"}
+                other{"[{0} çéñţûŕîéš one two]"}
+            }
+            day{
+                dnam{"[ðåýš one]"}
+                one{"[{0} ðåý one two]"}
+                other{"[{0} ðåýš one two]"}
+                per{"[{0} þéŕ ðåý one two]"}
+            }
+            decade{
+                dnam{"[ðéçåðéš one two]"}
+                one{"[{0} ðéçåðé one two]"}
+                other{"[{0} ðéçåðéš one two]"}
+            }
+            hour{
+                dnam{"[ĥöûŕš one]"}
+                one{"[{0} ĥöûŕ one two]"}
+                other{"[{0} ĥöûŕš one two]"}
+                per{"[{0} þéŕ ĥöûŕ one two]"}
+            }
+            microsecond{
+                dnam{"[ɱîçŕöšéçöñðš one two]"}
+                one{"[{0} ɱîçŕöšéçöñð one two three]"}
+                other{"[{0} ɱîçŕöšéçöñðš one two three]"}
+            }
+            millisecond{
+                dnam{"[ɱîļļîšéçöñðš one two]"}
+                one{"[{0} ɱîļļîšéçöñð one two three]"}
+                other{"[{0} ɱîļļîšéçöñðš one two three]"}
+            }
+            minute{
+                dnam{"[ɱîñûţéš one two]"}
+                one{"[{0} ɱîñûţé one two]"}
+                other{"[{0} ɱîñûţéš one two]"}
+                per{"[{0} þéŕ ɱîñûţé one two]"}
+            }
+            month{
+                dnam{"[ɱöñţĥš one]"}
+                one{"[{0} ɱöñţĥ one two]"}
+                other{"[{0} ɱöñţĥš one two]"}
+                per{"[{0} þéŕ ɱöñţĥ one two]"}
+            }
+            nanosecond{
+                dnam{"[ñåñöšéçöñðš one two]"}
+                one{"[{0} ñåñöšéçöñð one two]"}
+                other{"[{0} ñåñöšéçöñðš one two three]"}
+            }
+            night{
+                dnam{"[ñîĝĥţš one]"}
+                one{"[{0} ñîĝĥţ one two]"}
+                other{"[{0} ñîĝĥţš one two]"}
+                per{"[{0} þéŕ ñîĝĥţ one two]"}
+            }
+            quarter{
+                dnam{"[ǫûåŕţéŕš one two]"}
+                one{"[{0} ǫûåŕţéŕ one two]"}
+                other{"[{0} ǫûåŕţéŕš one two]"}
+                per{"[{0}⁄ǫ one]"}
+            }
+            second{
+                dnam{"[šéçöñðš one two]"}
+                one{"[{0} šéçöñð one two]"}
+                other{"[{0} šéçöñðš one two]"}
+                per{"[{0} þéŕ šéçöñð one two]"}
+            }
+            week{
+                dnam{"[ŵééķš one]"}
+                one{"[{0} ŵééķ one two]"}
+                other{"[{0} ŵééķš one two]"}
+                per{"[{0} þéŕ ŵééķ one two]"}
+            }
+            year{
+                dnam{"[ýéåŕš one]"}
+                one{"[{0} ýéåŕ one two]"}
+                other{"[{0} ýéåŕš one two]"}
+                per{"[{0} þéŕ ýéåŕ one two]"}
+            }
+        }
+        electric{
+            ampere{
+                dnam{"[åɱþéŕéš one two]"}
+                one{"[{0} åɱþéŕé one two]"}
+                other{"[{0} åɱþéŕéš one two]"}
+            }
+            milliampere{
+                dnam{"[ɱîļļîåɱþéŕéš one two]"}
+                one{"[{0} ɱîļļîåɱþéŕé one two three]"}
+                other{"[{0} ɱîļļîåɱþéŕéš one two three]"}
+            }
+            ohm{
+                dnam{"[öĥɱš one]"}
+                one{"[{0} öĥɱ one two]"}
+                other{"[{0} öĥɱš one two]"}
+            }
+            volt{
+                dnam{"[ṽöļţš one]"}
+                one{"[{0} ṽöļţ one two]"}
+                other{"[{0} ṽöļţš one two]"}
+            }
+        }
+        energy{
+            british-thermal-unit{
+                dnam{"[Ɓŕîţîšĥ ţĥéŕɱåļ ûñîţš one two three]"}
+                one{"[{0} Ɓŕîţîšĥ ţĥéŕɱåļ ûñîţ one two three]"}
+                other{"[{0} Ɓŕîţîšĥ ţĥéŕɱåļ ûñîţš one two three]"}
+            }
+            calorie{
+                dnam{"[çåļöŕîéš one two]"}
+                one{"[{0} çåļöŕîé one two]"}
+                other{"[{0} çåļöŕîéš one two]"}
+            }
+            electronvolt{
+                dnam{"[éļéçţŕöñṽöļţš one two]"}
+                one{"[{0} éļéçţŕöñṽöļţ one two three]"}
+                other{"[{0} éļéçţŕöñṽöļţš one two three]"}
+            }
+            foodcalorie{
+                dnam{"[Çåļöŕîéš one two]"}
+                one{"[{0} Çåļöŕîé one two]"}
+                other{"[{0} Çåļöŕîéš one two]"}
+            }
+            joule{
+                dnam{"[ĵöûļéš one]"}
+                one{"[{0} ĵöûļé one two]"}
+                other{"[{0} ĵöûļéš one two]"}
+            }
+            kilocalorie{
+                dnam{"[ķîļöçåļöŕîéš one two]"}
+                one{"[{0} ķîļöçåļöŕîé one two three]"}
+                other{"[{0} ķîļöçåļöŕîéš one two three]"}
+            }
+            kilojoule{
+                dnam{"[ķîļöĵöûļéš one two]"}
+                one{"[{0} ķîļöĵöûļé one two]"}
+                other{"[{0} ķîļöĵöûļéš one two]"}
+            }
+            kilowatt-hour{
+                dnam{"[ķîļöŵåţţ‐ĥöûŕš one two]"}
+                one{"[{0} ķîļöŵåţţ ĥöûŕ one two three]"}
+                other{"[{0} ķîļöŵåţţ‐ĥöûŕš one two three]"}
+            }
+            therm-us{
+                dnam{"[ÛŠ ţĥéŕɱš one two]"}
+                one{"[{0} ÛŠ ţĥéŕɱ one two]"}
+                other{"[{0} ÛŠ ţĥéŕɱš one two]"}
+            }
+        }
+        force{
+            kilowatt-hour-per-100-kilometer{
+                dnam{"[ķîļöŵåţţ‐ĥöûŕš þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three four]"}
+                one{"[{0} ķîļöŵåţţ‐ĥöûŕ þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three four]"}
+                other{"[{0} ķîļöŵåţţ‐ĥöûŕš þéŕ ①⓪⓪ ķîļöɱéţéŕš one two three four five]"}
+            }
+            newton{
+                dnam{"[ñéŵţöñš one two]"}
+                one{"[{0} ñéŵţöñ one two]"}
+                other{"[{0} ñéŵţöñš one two]"}
+            }
+            pound-force{
+                dnam{"[þöûñðš öƒ ƒöŕçé one two three]"}
+                one{"[{0} þöûñð öƒ ƒöŕçé one two three]"}
+                other{"[{0} þöûñðš öƒ ƒöŕçé one two three]"}
+            }
+        }
+        frequency{
+            gigahertz{
+                dnam{"[ĝîĝåĥéŕţž one two]"}
+                one{"[{0} ĝîĝåĥéŕţž one two]"}
+                other{"[{0} ĝîĝåĥéŕţž one two]"}
+            }
+            hertz{
+                dnam{"[ĥéŕţž one]"}
+                one{"[{0} ĥéŕţž one two]"}
+                other{"[{0} ĥéŕţž one two]"}
+            }
+            kilohertz{
+                dnam{"[ķîļöĥéŕţž one two]"}
+                one{"[{0} ķîļöĥéŕţž one two]"}
+                other{"[{0} ķîļöĥéŕţž one two]"}
+            }
+            megahertz{
+                dnam{"[ɱéĝåĥéŕţž one two]"}
+                one{"[{0} ɱéĝåĥéŕţž one two]"}
+                other{"[{0} ɱéĝåĥéŕţž one two]"}
+            }
+        }
+        graphics{
+            dot{
+                dnam{"[ðöţš one]"}
+                one{"[{0} ðöţ one two]"}
+                other{"[{0} ðöţš one two]"}
+            }
+            dot-per-centimeter{
+                dnam{"[ðöţš þéŕ çéñţîɱéţéŕ one two three]"}
+                one{"[{0} ðöţ þéŕ çéñţîɱéţéŕ one two three]"}
+                other{"[{0} ðöţš þéŕ çéñţîɱéţéŕ one two three]"}
+            }
+            dot-per-inch{
+                dnam{"[ðöţš þéŕ îñçĥ one two]"}
+                one{"[{0} ðöţ þéŕ îñçĥ one two three]"}
+                other{"[{0} ðöţš þéŕ îñçĥ one two three]"}
+            }
+            em{
+                dnam{"[ţýþöĝŕåþĥîç éɱš one two three]"}
+                one{"[{0} éɱ one]"}
+                other{"[{0} éɱš one two]"}
+            }
+            megapixel{
+                dnam{"[ɱéĝåþîẋéļš one two]"}
+                one{"[{0} ɱéĝåþîẋéļ one two]"}
+                other{"[{0} ɱéĝåþîẋéļš one two]"}
+            }
+            pixel{
+                dnam{"[þîẋéļš one]"}
+                one{"[{0} þîẋéļ one two]"}
+                other{"[{0} þîẋéļš one two]"}
+            }
+            pixel-per-centimeter{
+                dnam{"[þîẋéļš þéŕ çéñţîɱéţéŕ one two three]"}
+                one{"[{0} þîẋéļ þéŕ çéñţîɱéţéŕ one two three]"}
+                other{"[{0} þîẋéļš þéŕ çéñţîɱéţéŕ one two three]"}
+            }
+            pixel-per-inch{
+                dnam{"[þîẋéļš þéŕ îñçĥ one two three]"}
+                one{"[{0} þîẋéļ þéŕ îñçĥ one two three]"}
+                other{"[{0} þîẋéļš þéŕ îñçĥ one two three]"}
+            }
+        }
+        length{
+            astronomical-unit{
+                dnam{"[åšţŕöñöɱîçåļ ûñîţš one two three]"}
+                one{"[{0} åšţŕöñöɱîçåļ ûñîţ one two three]"}
+                other{"[{0} åšţŕöñöɱîçåļ ûñîţš one two three]"}
+            }
+            centimeter{
+                dnam{"[çéñţîɱéţéŕš one two]"}
+                one{"[{0} çéñţîɱéţéŕ one two]"}
+                other{"[{0} çéñţîɱéţéŕš one two three]"}
+                per{"[{0} þéŕ çéñţîɱéţéŕ one two three]"}
+            }
+            decimeter{
+                dnam{"[ðéçîɱéţéŕš one two]"}
+                one{"[{0} ðéçîɱéţéŕ one two]"}
+                other{"[{0} ðéçîɱéţéŕš one two]"}
+            }
+            earth-radius{
+                dnam{"[éåŕţĥ ŕåðîûš one two]"}
+                one{"[{0} éåŕţĥ ŕåðîûš one two three]"}
+                other{"[{0} éåŕţĥ ŕåðîûš one two three]"}
+            }
+            fathom{
+                dnam{"[ƒåţĥöɱš one two]"}
+                one{"[{0} ƒåţĥöɱ one two]"}
+                other{"[{0} ƒåţĥöɱš one two]"}
+            }
+            foot{
+                dnam{"[ƒééţ one]"}
+                one{"[{0} ƒööţ one two]"}
+                other{"[{0} ƒééţ one two]"}
+                per{"[{0} þéŕ ƒööţ one two]"}
+            }
+            furlong{
+                dnam{"[ƒûŕļöñĝš one two]"}
+                one{"[{0} ƒûŕļöñĝ one two]"}
+                other{"[{0} ƒûŕļöñĝš one two]"}
+            }
+            inch{
+                dnam{"[îñçĥéš one]"}
+                one{"[{0} îñçĥ one two]"}
+                other{"[{0} îñçĥéš one two]"}
+                per{"[{0} þéŕ îñçĥ one two]"}
+            }
+            kilometer{
+                dnam{"[ķîļöɱéţéŕš one two]"}
+                one{"[{0} ķîļöɱéţéŕ one two]"}
+                other{"[{0} ķîļöɱéţéŕš one two]"}
+                per{"[{0} þéŕ ķîļöɱéţéŕ one two three]"}
+            }
+            light-year{
+                dnam{"[ļîĝĥţ ýéåŕš one two]"}
+                one{"[{0} ļîĝĥţ ýéåŕ one two]"}
+                other{"[{0} ļîĝĥţ ýéåŕš one two three]"}
+            }
+            meter{
+                dnam{"[ɱéţéŕš one]"}
+                one{"[{0} ɱéţéŕ one two]"}
+                other{"[{0} ɱéţéŕš one two]"}
+                per{"[{0} þéŕ ɱéţéŕ one two]"}
+            }
+            micrometer{
+                dnam{"[ɱîçŕöɱéţéŕš one two]"}
+                one{"[{0} ɱîçŕöɱéţéŕ one two]"}
+                other{"[{0} ɱîçŕöɱéţéŕš one two three]"}
+            }
+            mile{
+                dnam{"[ɱîļéš one]"}
+                one{"[{0} ɱîļé one two]"}
+                other{"[{0} ɱîļéš one two]"}
+            }
+            mile-scandinavian{
+                dnam{"[ɱîļéš‐šçåñðîñåṽîåñ one two three]"}
+                one{"[{0} ɱîļé‐šçåñðîñåṽîåñ one two three]"}
+                other{"[{0} ɱîļéš‐šçåñðîñåṽîåñ one two three]"}
+            }
+            millimeter{
+                dnam{"[ɱîļļîɱéţéŕš one two]"}
+                one{"[{0} ɱîļļîɱéţéŕ one two]"}
+                other{"[{0} ɱîļļîɱéţéŕš one two three]"}
+            }
+            nanometer{
+                dnam{"[ñåñöɱéţéŕš one two]"}
+                one{"[{0} ñåñöɱéţéŕ one two]"}
+                other{"[{0} ñåñöɱéţéŕš one two]"}
+            }
+            nautical-mile{
+                dnam{"[ñåûţîçåļ ɱîļéš one two]"}
+                one{"[{0} ñåûţîçåļ ɱîļé one two three]"}
+                other{"[{0} ñåûţîçåļ ɱîļéš one two three]"}
+            }
+            parsec{
+                dnam{"[þåŕšéçš one two]"}
+                one{"[{0} þåŕšéç one two]"}
+                other{"[{0} þåŕšéçš one two]"}
+            }
+            picometer{
+                dnam{"[þîçöɱéţéŕš one two]"}
+                one{"[{0} þîçöɱéţéŕ one two]"}
+                other{"[{0} þîçöɱéţéŕš one two]"}
+            }
+            point{
+                dnam{"[þöîñţš one]"}
+                one{"[{0} þöîñţ one two]"}
+                other{"[{0} þöîñţš one two]"}
+            }
+            solar-radius{
+                dnam{"[šöļåŕ ŕåðîî one two]"}
+                one{"[{0} šöļåŕ ŕåðîûš one two three]"}
+                other{"[{0} šöļåŕ ŕåðîî one two three]"}
+            }
+            yard{
+                dnam{"[ýåŕðš one]"}
+                one{"[{0} ýåŕð one two]"}
+                other{"[{0} ýåŕðš one two]"}
+            }
+        }
+        light{
+            candela{
+                dnam{"[çåñðéļå one two]"}
+                one{"[{0} çåñðéļå one two]"}
+                other{"[{0} çåñðéļå one two]"}
+            }
+            lumen{
+                dnam{"[ļûɱéñ one]"}
+                one{"[{0} ļûɱéñ one two]"}
+                other{"[{0} ļûɱéñ one two]"}
+            }
+            lux{
+                dnam{"[ļûẋ one]"}
+                one{"[{0} ļûẋ one two]"}
+                other{"[{0} ļûẋ one two]"}
+            }
+            solar-luminosity{
+                dnam{"[šöļåŕ ļûɱîñöšîţîéš one two three]"}
+                one{"[{0} šöļåŕ ļûɱîñöšîţý one two three]"}
+                other{"[{0} šöļåŕ ļûɱîñöšîţîéš one two three]"}
+            }
+        }
+        mass{
+            carat{
+                dnam{"[çåŕåţš one]"}
+                one{"[{0} çåŕåţ one two]"}
+                other{"[{0} çåŕåţš one two]"}
+            }
+            dalton{
+                dnam{"[ðåļţöñš one two]"}
+                one{"[{0} ðåļţöñ one two]"}
+                other{"[{0} ðåļţöñš one two]"}
+            }
+            earth-mass{
+                dnam{"[Éåŕţĥ ɱåššéš one two]"}
+                one{"[{0} Éåŕţĥ ɱåšš one two]"}
+                other{"[{0} Éåŕţĥ ɱåššéš one two three]"}
+            }
+            grain{
+                dnam{"[ĝŕåîñš one]"}
+                one{"[{0} ĝŕåîñ one two]"}
+                other{"[{0} ĝŕåîñš one two]"}
+            }
+            gram{
+                dnam{"[ĝŕåɱš one]"}
+                one{"[{0} ĝŕåɱ one two]"}
+                other{"[{0} ĝŕåɱš one two]"}
+                per{"[{0} þéŕ ĝŕåɱ one two]"}
+            }
+            kilogram{
+                dnam{"[ķîļöĝŕåɱš one two]"}
+                one{"[{0} ķîļöĝŕåɱ one two]"}
+                other{"[{0} ķîļöĝŕåɱš one two]"}
+                per{"[{0} þéŕ ķîļöĝŕåɱ one two three]"}
+            }
+            microgram{
+                dnam{"[ɱîçŕöĝŕåɱš one two]"}
+                one{"[{0} ɱîçŕöĝŕåɱ one two]"}
+                other{"[{0} ɱîçŕöĝŕåɱš one two]"}
+            }
+            milligram{
+                dnam{"[ɱîļļîĝŕåɱš one two]"}
+                one{"[{0} ɱîļļîĝŕåɱ one two]"}
+                other{"[{0} ɱîļļîĝŕåɱš one two]"}
+            }
+            ounce{
+                dnam{"[öûñçéš one]"}
+                one{"[{0} öûñçé one two]"}
+                other{"[{0} öûñçéš one two]"}
+                per{"[{0} þéŕ öûñçé one two]"}
+            }
+            ounce-troy{
+                dnam{"[ţŕöý öûñçéš one two]"}
+                one{"[{0} ţŕöý öûñçé one two]"}
+                other{"[{0} ţŕöý öûñçéš one two three]"}
+            }
+            pound{
+                dnam{"[þöûñðš one]"}
+                one{"[{0} þöûñð one two]"}
+                other{"[{0} þöûñðš one two]"}
+                per{"[{0} þéŕ þöûñð one two]"}
+            }
+            solar-mass{
+                dnam{"[šöļåŕ ɱåššéš one two]"}
+                one{"[{0} šöļåŕ ɱåšš one two]"}
+                other{"[{0} šöļåŕ ɱåššéš one two three]"}
+            }
+            stone{
+                dnam{"[šţöñéš one]"}
+                one{"[{0} šţöñé one two]"}
+                other{"[{0} šţöñéš one two]"}
+            }
+            ton{
+                dnam{"[ţöñš one]"}
+                one{"[{0} ţöñ one two]"}
+                other{"[{0} ţöñš one two]"}
+            }
+            tonne{
+                dnam{"[ɱéţŕîç ţöñš one two]"}
+                one{"[{0} ɱéţŕîç ţöñ one two]"}
+                other{"[{0} ɱéţŕîç ţöñš one two three]"}
+            }
+        }
+        power{
+            gigawatt{
+                dnam{"[ĝîĝåŵåţţš one two]"}
+                one{"[{0} ĝîĝåŵåţţ one two]"}
+                other{"[{0} ĝîĝåŵåţţš one two]"}
+            }
+            horsepower{
+                dnam{"[ĥöŕšéþöŵéŕ one two]"}
+                one{"[{0} ĥöŕšéþöŵéŕ one two]"}
+                other{"[{0} ĥöŕšéþöŵéŕ one two]"}
+            }
+            kilowatt{
+                dnam{"[ķîļöŵåţţš one two]"}
+                one{"[{0} ķîļöŵåţţ one two]"}
+                other{"[{0} ķîļöŵåţţš one two]"}
+            }
+            megawatt{
+                dnam{"[ɱéĝåŵåţţš one two]"}
+                one{"[{0} ɱéĝåŵåţţ one two]"}
+                other{"[{0} ɱéĝåŵåţţš one two]"}
+            }
+            milliwatt{
+                dnam{"[ɱîļļîŵåţţš one two]"}
+                one{"[{0} ɱîļļîŵåţţ one two]"}
+                other{"[{0} ɱîļļîŵåţţš one two]"}
+            }
+            watt{
+                dnam{"[ŵåţţš one]"}
+                one{"[{0} ŵåţţ one two]"}
+                other{"[{0} ŵåţţš one two]"}
+            }
+        }
+        pressure{
+            atmosphere{
+                dnam{"[åţɱöšþĥéŕéš one two]"}
+                one{"[{0} åţɱöšþĥéŕé one two]"}
+                other{"[{0} åţɱöšþĥéŕéš one two three]"}
+            }
+            bar{
+                dnam{"[ƀåŕš one]"}
+                one{"[{0} ƀåŕ one two]"}
+                other{"[{0} ƀåŕš one two]"}
+            }
+            gasoline-energy-density{
+                dnam{"[öƒ ĝåšöļîñé éǫûîṽåļéñţ one two three]"}
+                one{"[{0} öƒ ĝåšöļîñé éǫûîṽåļéñţ one two three]"}
+                other{"[{0} öƒ ĝåšöļîñé éǫûîṽåļéñţ one two three]"}
+            }
+            hectopascal{
+                dnam{"[ĥéçţöþåšçåļš one two]"}
+                one{"[{0} ĥéçţöþåšçåļ one two three]"}
+                other{"[{0} ĥéçţöþåšçåļš one two three]"}
+            }
+            inch-ofhg{
+                dnam{"[îñçĥéš öƒ ɱéŕçûŕý one two three]"}
+                one{"[{0} îñçĥ öƒ ɱéŕçûŕý one two three]"}
+                other{"[{0} îñçĥéš öƒ ɱéŕçûŕý one two three]"}
+            }
+            kilopascal{
+                dnam{"[ķîļöþåšçåļš one two]"}
+                one{"[{0} ķîļöþåšçåļ one two]"}
+                other{"[{0} ķîļöþåšçåļš one two three]"}
+            }
+            megapascal{
+                dnam{"[ɱéĝåþåšçåļš one two]"}
+                one{"[{0} ɱéĝåþåšçåļ one two]"}
+                other{"[{0} ɱéĝåþåšçåļš one two three]"}
+            }
+            millibar{
+                dnam{"[ɱîļļîƀåŕš one two]"}
+                one{"[{0} ɱîļļîƀåŕ one two]"}
+                other{"[{0} ɱîļļîƀåŕš one two]"}
+            }
+            millimeter-ofhg{
+                dnam{"[ɱîļļîɱéţéŕš öƒ ɱéŕçûŕý one two three]"}
+                one{"[{0} ɱîļļîɱéţéŕ öƒ ɱéŕçûŕý one two three]"}
+                other{"[{0} ɱîļļîɱéţéŕš öƒ ɱéŕçûŕý one two three]"}
+            }
+            pascal{
+                dnam{"[þåšçåļš one two]"}
+                one{"[{0} þåšçåļ one two]"}
+                other{"[{0} þåšçåļš one two]"}
+            }
+            pound-force-per-square-inch{
+                dnam{"[þöûñðš‐ƒöŕçé þéŕ šǫûåŕé îñçĥ one two three four]"}
+                one{"[{0} þöûñð‐ƒöŕçé þéŕ šǫûåŕé îñçĥ one two three four]"}
+                other{"[{0} þöûñðš‐ƒöŕçé þéŕ šǫûåŕé îñçĥ one two three four]"}
+            }
+        }
+        speed{
+            beaufort{
+                dnam{"[Ɓéåûƒöŕţ one two]"}
+                one{"[Ɓéåûƒöŕţ {0} one two]"}
+                other{"[Ɓéåûƒöŕţ {0} one two]"}
+            }
+            kilometer-per-hour{
+                dnam{"[ķîļöɱéţéŕš þéŕ ĥöûŕ one two three]"}
+                one{"[{0} ķîļöɱéţéŕ þéŕ ĥöûŕ one two three]"}
+                other{"[{0} ķîļöɱéţéŕš þéŕ ĥöûŕ one two three]"}
+            }
+            knot{
+                dnam{"[ķñöţš one]"}
+                one{"[{0} ķñöţ one two]"}
+                other{"[{0} ķñöţš one two]"}
+            }
+            light-speed{
+                dnam{"[ļîĝĥţ one]"}
+                one{"[{0} ļîĝĥţ one two]"}
+                other{"[{0} ļîĝĥţ one two]"}
+            }
+            meter-per-second{
+                dnam{"[ɱéţéŕš þéŕ šéçöñð one two three]"}
+                one{"[{0} ɱéţéŕ þéŕ šéçöñð one two three]"}
+                other{"[{0} ɱéţéŕš þéŕ šéçöñð one two three]"}
+            }
+            mile-per-hour{
+                dnam{"[ɱîļéš þéŕ ĥöûŕ one two]"}
+                one{"[{0} ɱîļé þéŕ ĥöûŕ one two three]"}
+                other{"[{0} ɱîļéš þéŕ ĥöûŕ one two three]"}
+            }
+        }
+        temperature{
+            celsius{
+                dnam{"[ðéĝŕééš Çéļšîûš one two three]"}
+                one{"[{0} ðéĝŕéé Çéļšîûš one two three]"}
+                other{"[{0} ðéĝŕééš Çéļšîûš one two three]"}
+            }
+            fahrenheit{
+                dnam{"[ðéĝŕééš Ƒåĥŕéñĥéîţ one two three]"}
+                one{"[{0} ðéĝŕéé Ƒåĥŕéñĥéîţ one two three]"}
+                other{"[{0} ðéĝŕééš Ƒåĥŕéñĥéîţ one two three]"}
+            }
+            generic{
+                dnam{"[ðéĝŕééš ţéɱþéŕåţûŕé one two three]"}
+                one{"[{0} ðéĝŕéé ţéɱþéŕåţûŕé one two three]"}
+                other{"[{0} ðéĝŕééš ţéɱþéŕåţûŕé one two three]"}
+            }
+            kelvin{
+                dnam{"[ķéļṽîñš one two]"}
+                one{"[{0} ķéļṽîñ one two]"}
+                other{"[{0} ķéļṽîñš one two]"}
+            }
+        }
+        torque{
+            newton-meter{
+                dnam{"[ñéŵţöñ‐ɱéţéŕš one two]"}
+                one{"[{0} ñéŵţöñ‐ɱéţéŕ one two three]"}
+                other{"[{0} ñéŵţöñ‐ɱéţéŕš one two three]"}
+            }
+            pound-force-foot{
+                dnam{"[þöûñð‐ƒöŕçé‐ƒééţ one two three]"}
+                one{"[{0} þöûñð‐ƒöŕçé‐ƒööţ one two three]"}
+                other{"[{0} þöûñð‐ƒöŕçé‐ƒééţ one two three]"}
+            }
+        }
+        volume{
+            acre-foot{
+                dnam{"[åçŕé‐ƒééţ one two]"}
+                one{"[{0} åçŕé‐ƒööţ one two]"}
+                other{"[{0} åçŕé‐ƒééţ one two]"}
+            }
+            barrel{
+                dnam{"[ƀåŕŕéļš one two]"}
+                one{"[{0} ƀåŕŕéļ one two]"}
+                other{"[{0} ƀåŕŕéļš one two]"}
+            }
+            bushel{
+                dnam{"[ƀûšĥéļš one two]"}
+                one{"[{0} ƀûšĥéļ one two]"}
+                other{"[{0} ƀûšĥéļš one two]"}
+            }
+            centiliter{
+                dnam{"[çéñţîļîţéŕš one two]"}
+                one{"[{0} çéñţîļîţéŕ one two]"}
+                other{"[{0} çéñţîļîţéŕš one two three]"}
+            }
+            cubic-centimeter{
+                dnam{"[çûƀîç çéñţîɱéţéŕš one two three]"}
+                one{"[{0} çûƀîç çéñţîɱéţéŕ one two three]"}
+                other{"[{0} çûƀîç çéñţîɱéţéŕš one two three]"}
+                per{"[{0} þéŕ çûƀîç çéñţîɱéţéŕ one two three]"}
+            }
+            cubic-foot{
+                dnam{"[çûƀîç ƒééţ one two]"}
+                one{"[{0} çûƀîç ƒööţ one two]"}
+                other{"[{0} çûƀîç ƒééţ one two]"}
+            }
+            cubic-inch{
+                dnam{"[çûƀîç îñçĥéš one two]"}
+                one{"[{0} çûƀîç îñçĥ one two]"}
+                other{"[{0} çûƀîç îñçĥéš one two three]"}
+            }
+            cubic-kilometer{
+                dnam{"[çûƀîç ķîļöɱéţéŕš one two three]"}
+                one{"[{0} çûƀîç ķîļöɱéţéŕ one two three]"}
+                other{"[{0} çûƀîç ķîļöɱéţéŕš one two three]"}
+            }
+            cubic-meter{
+                dnam{"[çûƀîç ɱéţéŕš one two]"}
+                one{"[{0} çûƀîç ɱéţéŕ one two three]"}
+                other{"[{0} çûƀîç ɱéţéŕš one two three]"}
+                per{"[{0} þéŕ çûƀîç ɱéţéŕ one two three]"}
+            }
+            cubic-mile{
+                dnam{"[çûƀîç ɱîļéš one two]"}
+                one{"[{0} çûƀîç ɱîļé one two]"}
+                other{"[{0} çûƀîç ɱîļéš one two three]"}
+            }
+            cubic-yard{
+                dnam{"[çûƀîç ýåŕðš one two]"}
+                one{"[{0} çûƀîç ýåŕð one two]"}
+                other{"[{0} çûƀîç ýåŕðš one two three]"}
+            }
+            cup{
+                dnam{"[çûþš one]"}
+                one{"[{0} çûþ one two]"}
+                other{"[{0} çûþš one two]"}
+            }
+            cup-metric{
+                dnam{"[ɱéţŕîç çûþš one two]"}
+                one{"[{0} ɱéţŕîç çûþ one two]"}
+                other{"[{0} ɱéţŕîç çûþš one two three]"}
+            }
+            deciliter{
+                dnam{"[ðéçîļîţéŕš one two]"}
+                one{"[{0} ðéçîļîţéŕ one two]"}
+                other{"[{0} ðéçîļîţéŕš one two]"}
+            }
+            dessert-spoon{
+                dnam{"[ðéššéŕţ šþööñš one two]"}
+                one{"[{0} ðéššéŕţ šþööñ one two three]"}
+                other{"[{0} ðéššéŕţ šþööñš one two three]"}
+            }
+            dessert-spoon-imperial{
+                dnam{"[Îɱþ· ðéššéŕţ šþööñš one two three]"}
+                one{"[{0} Îɱþ· ðéššéŕţ šþööñ one two three]"}
+                other{"[{0} Îɱþ· ðéššéŕţ šþööñš one two three]"}
+            }
+            dram{
+                dnam{"[ðŕåɱš one]"}
+                one{"[{0} ðŕåɱ one two]"}
+                other{"[{0} ðŕåɱš one two]"}
+            }
+            drop{
+                dnam{"[ðŕöþš one]"}
+                one{"[{0} ðŕöþ one two]"}
+                other{"[{0} ðŕöþš one two]"}
+            }
+            fluid-ounce{
+                dnam{"[ƒļûîð öûñçéš one two]"}
+                one{"[{0} ƒļûîð öûñçé one two three]"}
+                other{"[{0} ƒļûîð öûñçéš one two three]"}
+            }
+            fluid-ounce-imperial{
+                dnam{"[Îɱþ· ƒļûîð öûñçéš one two three]"}
+                one{"[{0} Îɱþ· ƒļûîð öûñçé one two three]"}
+                other{"[{0} Îɱþ· ƒļûîð öûñçéš one two three]"}
+            }
+            gallon{
+                dnam{"[ĝåļļöñš one two]"}
+                one{"[{0} ĝåļļöñ one two]"}
+                other{"[{0} ĝåļļöñš one two]"}
+                per{"[{0} þéŕ ĝåļļöñ one two]"}
+            }
+            gallon-imperial{
+                dnam{"[Îɱþ· ĝåļļöñš one two]"}
+                one{"[{0} Îɱþ· ĝåļļöñ one two three]"}
+                other{"[{0} Îɱþ· ĝåļļöñš one two three]"}
+                per{"[{0} þéŕ Îɱþ· ĝåļļöñ one two three]"}
+            }
+            hectoliter{
+                dnam{"[ĥéçţöļîţéŕš one two]"}
+                one{"[{0} ĥéçţöļîţéŕ one two]"}
+                other{"[{0} ĥéçţöļîţéŕš one two three]"}
+            }
+            jigger{
+                dnam{"[ĵîĝĝéŕš one two]"}
+                one{"[{0} ĵîĝĝéŕ one two]"}
+                other{"[{0} ĵîĝĝéŕš one two]"}
+            }
+            liter{
+                dnam{"[ļîţéŕš one]"}
+                one{"[{0} ļîţéŕ one two]"}
+                other{"[{0} ļîţéŕš one two]"}
+                per{"[{0} þéŕ ļîţéŕ one two]"}
+            }
+            megaliter{
+                dnam{"[ɱéĝåļîţéŕš one two]"}
+                one{"[{0} ɱéĝåļîţéŕ one two]"}
+                other{"[{0} ɱéĝåļîţéŕš one two]"}
+            }
+            milliliter{
+                dnam{"[ɱîļļîļîţéŕš one two]"}
+                one{"[{0} ɱîļļîļîţéŕ one two]"}
+                other{"[{0} ɱîļļîļîţéŕš one two three]"}
+            }
+            pinch{
+                dnam{"[þîñçĥéš one two]"}
+                one{"[{0} þîñçĥ one two]"}
+                other{"[{0} þîñçĥéš one two]"}
+            }
+            pint{
+                dnam{"[þîñţš one]"}
+                one{"[{0} þîñţ one two]"}
+                other{"[{0} þîñţš one two]"}
+            }
+            pint-metric{
+                dnam{"[ɱéţŕîç þîñţš one two]"}
+                one{"[{0} ɱéţŕîç þîñţ one two three]"}
+                other{"[{0} ɱéţŕîç þîñţš one two three]"}
+            }
+            quart{
+                dnam{"[ǫûåŕţš one]"}
+                one{"[{0} ǫûåŕţ one two]"}
+                other{"[{0} ǫûåŕţš one two]"}
+            }
+            quart-imperial{
+                dnam{"[Îɱþ· ǫûåŕţš one two]"}
+                one{"[{0} Îɱþ· ǫûåŕţ one two]"}
+                other{"[{0} Îɱþ· ǫûåŕţš one two three]"}
+            }
+            tablespoon{
+                dnam{"[ţåƀļéšþööñš one two]"}
+                one{"[{0} ţåƀļéšþööñ one two]"}
+                other{"[{0} ţåƀļéšþööñš one two three]"}
+            }
+            teaspoon{
+                dnam{"[ţéåšþööñš one two]"}
+                one{"[{0} ţéåšþööñ one two]"}
+                other{"[{0} ţéåšþööñš one two]"}
+            }
+        }
+    }
+    unitsShort{
+        acceleration{
+            g-force{
+                dnam{"[ĝ‐ƒöŕçé one two]"}
+                one{"[{0} Ĝ one]"}
+                other{"[{0} Ĝ one]"}
+            }
+            meter-per-square-second{
+                dnam{"[ɱéţéŕš⁄šéç² one two]"}
+                one{"[{0} ɱ⁄š² one two]"}
+                other{"[{0} ɱ⁄š² one two]"}
+            }
+        }
+        angle{
+            arc-minute{
+                dnam{"[åŕçɱîñš one two]"}
+                one{"[{0} åŕçɱîñ one two]"}
+                other{"[{0} åŕçɱîñš one two]"}
+            }
+            arc-second{
+                dnam{"[åŕçšéçš one two]"}
+                one{"[{0} åŕçšéç one two]"}
+                other{"[{0} åŕçšéçš one two]"}
+            }
+            degree{
+                dnam{"[ðéĝŕééš one two]"}
+                one{"[{0} ðéĝ one two]"}
+                other{"[{0} ðéĝ one two]"}
+            }
+            radian{
+                dnam{"[ŕåðîåñš one two]"}
+                one{"[{0} ŕåð one two]"}
+                other{"[{0} ŕåð one two]"}
+            }
+            revolution{
+                dnam{"[ŕéṽ one]"}
+                one{"[{0} ŕéṽ one two]"}
+                other{"[{0} ŕéṽ one two]"}
+            }
+        }
+        area{
+            acre{
+                dnam{"[åçŕéš one]"}
+                one{"[{0} åç one]"}
+                other{"[{0} åç one]"}
+            }
+            dunam{
+                dnam{"[ðûñåɱš one]"}
+                one{"[{0} ðûñåɱ one two]"}
+                other{"[{0} ðûñåɱ one two]"}
+            }
+            hectare{
+                dnam{"[ĥéçţåŕéš one two]"}
+                one{"[{0} ĥå one]"}
+                other{"[{0} ĥå one]"}
+            }
+            square-centimeter{
+                dnam{"[çɱ² one]"}
+                one{"[{0} çɱ² one two]"}
+                other{"[{0} çɱ² one two]"}
+                per{"[{0}⁄çɱ² one two]"}
+            }
+            square-foot{
+                dnam{"[šǫ ƒééţ one two]"}
+                one{"[{0} šǫ ƒţ one two]"}
+                other{"[{0} šǫ ƒţ one two]"}
+            }
+            square-inch{
+                dnam{"[îñçĥéš² one two]"}
+                one{"[{0} îñ² one two]"}
+                other{"[{0} îñ² one two]"}
+                per{"[{0}⁄îñ² one two]"}
+            }
+            square-kilometer{
+                dnam{"[ķɱ² one]"}
+                one{"[{0} ķɱ² one two]"}
+                other{"[{0} ķɱ² one two]"}
+                per{"[{0}⁄ķɱ² one two]"}
+            }
+            square-meter{
+                dnam{"[ɱéţéŕš² one two]"}
+                one{"[{0} ɱ² one]"}
+                other{"[{0} ɱ² one]"}
+                per{"[{0}⁄ɱ² one]"}
+            }
+            square-mile{
+                dnam{"[šǫ ɱîļéš one two]"}
+                one{"[{0} šǫ ɱî one two]"}
+                other{"[{0} šǫ ɱî one two]"}
+                per{"[{0}⁄ɱî² one two]"}
+            }
+            square-yard{
+                dnam{"[ýåŕðš² one]"}
+                one{"[{0} ýð² one two]"}
+                other{"[{0} ýð² one two]"}
+            }
+        }
+        compound{
+            1024p1{"[Ķî{0} one]"}
+            1024p2{"[Ṁî{0} one]"}
+            1024p3{"[Ĝî{0} one]"}
+            1024p4{"[Ţî{0} one]"}
+            1024p5{"[Þî{0} one]"}
+            1024p6{"[Éî{0} one]"}
+            1024p7{"[Žî{0} one]"}
+            1024p8{"[Ýî{0} one]"}
+            10p-1{"[ð{0} one]"}
+            10p-12{"[þ{0} one]"}
+            10p-15{"[ƒ{0} one]"}
+            10p-18{"[å{0} one]"}
+            10p-2{"[ç{0} one]"}
+            10p-21{"[ž{0} one]"}
+            10p-24{"[ý{0} one]"}
+            10p-27{"[ŕ{0} one]"}
+            10p-3{"[ɱ{0} one]"}
+            10p-30{"[ǫ{0} one]"}
+            10p-6{"[μ{0} one]"}
+            10p-9{"[ñ{0} one]"}
+            10p1{"[ðå{0} one]"}
+            10p12{"[Ţ{0} one]"}
+            10p15{"[Þ{0} one]"}
+            10p18{"[É{0} one]"}
+            10p2{"[ĥ{0} one]"}
+            10p21{"[Ž{0} one]"}
+            10p24{"[Ý{0} one]"}
+            10p27{"[Ŕ{0} one]"}
+            10p3{"[ķ{0} one]"}
+            10p30{"[Ǫ{0} one]"}
+            10p6{"[Ṁ{0} one]"}
+            10p9{"[Ĝ{0} one]"}
+            per{"[{0}⁄{1} one two]"}
+            power2{
+                one{
+                    _{
+                        _{"[{0}² one]"}
+                    }
+                }
+                other{
+                    _{
+                        _{"[{0}² one]"}
+                    }
+                }
+            }
+            power3{
+                one{
+                    _{
+                        _{"[{0}³ one]"}
+                    }
+                }
+                other{
+                    _{
+                        _{"[{0}³ one]"}
+                    }
+                }
+            }
+            times{"[{0}⋅{1} one two]"}
+        }
+        concentr{
+            item{
+                dnam{"[îţéɱ one]"}
+                one{"[{0} îţéɱ one two]"}
+                other{"[{0} îţéɱš one two]"}
+            }
+            karat{
+                dnam{"[ķåŕåţš one]"}
+                one{"[{0} ķţ one]"}
+                other{"[{0} ķţ one]"}
+            }
+            milligram-ofglucose-per-deciliter{
+                dnam{"[ɱĝ⁄ðĻ one]"}
+                one{"[{0} ɱĝ⁄ðĻ one two]"}
+                other{"[{0} ɱĝ⁄ðĻ one two]"}
+            }
+            millimole-per-liter{
+                dnam{"[ɱîļļîɱöļ⁄ļîţéŕ one two]"}
+                one{"[{0} ɱɱöļ⁄Ļ one two]"}
+                other{"[{0} ɱɱöļ⁄Ļ one two]"}
+            }
+            mole{
+                dnam{"[ɱöļé one]"}
+                one{"[{0} ɱöļ one two]"}
+                other{"[{0} ɱöļ one two]"}
+            }
+            percent{
+                dnam{"[þéŕçéñţ one two]"}
+                one{"[{0}‰ one]"}
+                other{"[{0}‰ one]"}
+            }
+            permille{
+                dnam{"[þéŕɱîļļé one two]"}
+                one{"[{0}‰ one]"}
+                other{"[{0}‰ one]"}
+            }
+            permillion{
+                dnam{"[þåŕţš⁄ɱîļļîöñ one two]"}
+                one{"[{0} þþɱ one two]"}
+                other{"[{0} þþɱ one two]"}
+            }
+            permyriad{
+                dnam{"[þéŕɱýŕîåð one two]"}
+                one{"[{0}‱ one]"}
+                other{"[{0}‱ one]"}
+            }
+            portion-per-1e9{
+                dnam{"[þåŕţš⁄ƀîļļîöñ one two]"}
+                one{"[{0} þþƀ one two]"}
+                other{"[{0} þþƀ one two]"}
+            }
+        }
+        consumption{
+            liter-per-100-kilometer{
+                dnam{"[Ļ⁄①⓪⓪ ķɱ one two]"}
+                one{"[{0} Ļ⁄①⓪⓪ ķɱ one two]"}
+                other{"[{0} Ļ⁄①⓪⓪ ķɱ one two]"}
+            }
+            liter-per-kilometer{
+                dnam{"[ļîţéŕš⁄ķɱ one two]"}
+                one{"[{0} Ļ⁄ķɱ one two]"}
+                other{"[{0} Ļ⁄ķɱ one two]"}
+            }
+            mile-per-gallon{
+                dnam{"[ɱîļéš⁄ĝåļ one two]"}
+                one{"[{0} ɱþĝ one two]"}
+                other{"[{0} ɱþĝ one two]"}
+            }
+            mile-per-gallon-imperial{
+                dnam{"[ɱîļéš⁄ĝåļ Îɱþ· one two]"}
+                one{"[{0} ɱþĝ Îɱþ· one two]"}
+                other{"[{0} ɱþĝ Îɱþ· one two]"}
+            }
+        }
+        coordinate{
+            dnam{"[ðîŕéçţîöñ one two]"}
+            east{"[{0} É one]"}
+            north{"[{0} Ñ one]"}
+            south{"[{0} Š one]"}
+            west{"[{0} Ŵ one]"}
+        }
+        digital{
+            bit{
+                dnam{"[ƀîţ one]"}
+                one{"[{0} ƀîţ one two]"}
+                other{"[{0} ƀîţ one two]"}
+            }
+            byte{
+                dnam{"[ƀýţé one]"}
+                one{"[{0} ƀýţé one two]"}
+                other{"[{0} ƀýţé one two]"}
+            }
+            gigabit{
+                dnam{"[Ĝƀîţ one]"}
+                one{"[{0} Ĝƀ one]"}
+                other{"[{0} Ĝƀ one]"}
+            }
+            gigabyte{
+                dnam{"[ĜƁýţé one]"}
+                one{"[{0} ĜƁ one]"}
+                other{"[{0} ĜƁ one]"}
+            }
+            kilobit{
+                dnam{"[ķƀîţ one]"}
+                one{"[{0} ķƀ one]"}
+                other{"[{0} ķƀ one]"}
+            }
+            kilobyte{
+                dnam{"[ķƁýţé one]"}
+                one{"[{0} ķƁ one]"}
+                other{"[{0} ķƁ one]"}
+            }
+            megabit{
+                dnam{"[Ṁƀîţ one]"}
+                one{"[{0} Ṁƀ one]"}
+                other{"[{0} Ṁƀ one]"}
+            }
+            megabyte{
+                dnam{"[ṀƁýţé one]"}
+                one{"[{0} ṀƁ one]"}
+                other{"[{0} ṀƁ one]"}
+            }
+            petabyte{
+                dnam{"[ÞƁýţé one]"}
+                one{"[{0} ÞƁ one]"}
+                other{"[{0} ÞƁ one]"}
+            }
+            terabit{
+                dnam{"[Ţƀîţ one]"}
+                one{"[{0} Ţƀ one]"}
+                other{"[{0} Ţƀ one]"}
+            }
+            terabyte{
+                dnam{"[ŢƁýţé one]"}
+                one{"[{0} ŢƁ one]"}
+                other{"[{0} ŢƁ one]"}
+            }
+        }
+        duration{
+            century{
+                dnam{"[ç one]"}
+                one{"[{0} ç one]"}
+                other{"[{0} ç one]"}
+            }
+            day{
+                dnam{"[ðåýš one]"}
+                one{"[{0} ðåý one two]"}
+                other{"[{0} ðåýš one two]"}
+                per{"[{0}⁄ð one]"}
+            }
+            decade{
+                dnam{"[ðéç one]"}
+                one{"[{0} ðéç one two]"}
+                other{"[{0} ðéç one two]"}
+            }
+            hour{
+                dnam{"[ĥöûŕš one]"}
+                one{"[{0} ĥŕ one]"}
+                other{"[{0} ĥŕ one]"}
+                per{"[{0}⁄ĥ one]"}
+            }
+            microsecond{
+                dnam{"[μšéçš one]"}
+                one{"[{0} μš one]"}
+                other{"[{0} μš one]"}
+            }
+            millisecond{
+                dnam{"[ɱîļļîšéçš one two]"}
+                one{"[{0} ɱš one]"}
+                other{"[{0} ɱš one]"}
+            }
+            minute{
+                dnam{"[ɱîñš one]"}
+                one{"[{0} ɱîñ one two]"}
+                other{"[{0} ɱîñ one two]"}
+                per{"[{0}⁄ɱîñ one two]"}
+            }
+            month{
+                dnam{"[ɱöñţĥš one]"}
+                one{"[{0} ɱţĥ one two]"}
+                other{"[{0} ɱţĥš one two]"}
+                per{"[{0}⁄ɱ one]"}
+            }
+            nanosecond{
+                dnam{"[ñåñöšéçš one two]"}
+                one{"[{0} ñš one]"}
+                other{"[{0} ñš one]"}
+            }
+            night{
+                dnam{"[ñîĝĥţš one]"}
+                one{"[{0} ñîĝĥţ one two]"}
+                other{"[{0} ñîĝĥţš one two]"}
+                per{"[{0}⁄ñîĝĥţ one two]"}
+            }
+            quarter{
+                dnam{"[ǫţŕ one]"}
+                one{"[{0} ǫţŕ one two]"}
+                other{"[{0} ǫţŕš one two]"}
+                per{"[{0}⁄ǫ one]"}
+            }
+            second{
+                dnam{"[šéçš one]"}
+                one{"[{0} šéç one two]"}
+                other{"[{0} šéç one two]"}
+                per{"[{0}⁄š one]"}
+            }
+            week{
+                dnam{"[ŵééķš one]"}
+                one{"[{0} ŵķ one]"}
+                other{"[{0} ŵķš one two]"}
+                per{"[{0}⁄ŵ one]"}
+            }
+            year{
+                dnam{"[ýéåŕš one]"}
+                one{"[{0} ýŕ one]"}
+                other{"[{0} ýŕš one two]"}
+                per{"[{0}⁄ý one]"}
+            }
+        }
+        electric{
+            ampere{
+                dnam{"[åɱþš one]"}
+                one{"[{0} Å one]"}
+                other{"[{0} Å one]"}
+            }
+            milliampere{
+                dnam{"[ɱîļļîåɱþš one two]"}
+                one{"[{0} ɱÅ one]"}
+                other{"[{0} ɱÅ one]"}
+            }
+            ohm{
+                dnam{"[öĥɱš one]"}
+                one{"[{0} Ω one]"}
+                other{"[{0} Ω one]"}
+            }
+            volt{
+                dnam{"[ṽöļţš one]"}
+                one{"[{0} Ṽ one]"}
+                other{"[{0} Ṽ one]"}
+            }
+        }
+        energy{
+            british-thermal-unit{
+                dnam{"[ƁŢÛ one]"}
+                one{"[{0} Ɓţû one two]"}
+                other{"[{0} Ɓţû one two]"}
+            }
+            calorie{
+                dnam{"[çåļ one]"}
+                one{"[{0} çåļ one two]"}
+                other{"[{0} çåļ one two]"}
+            }
+            electronvolt{
+                dnam{"[éļéçţŕöñṽöļţ one two]"}
+                one{"[{0} éṼ one]"}
+                other{"[{0} éṼ one]"}
+            }
+            foodcalorie{
+                dnam{"[Çåļ one]"}
+                one{"[{0} Çåļ one two]"}
+                other{"[{0} Çåļ one two]"}
+            }
+            joule{
+                dnam{"[ĵöûļéš one]"}
+                one{"[{0} Ĵ one]"}
+                other{"[{0} Ĵ one]"}
+            }
+            kilocalorie{
+                dnam{"[ķçåļ one]"}
+                one{"[{0} ķçåļ one two]"}
+                other{"[{0} ķçåļ one two]"}
+            }
+            kilojoule{
+                dnam{"[ķîļöĵöûļé one two]"}
+                one{"[{0} ķĴ one]"}
+                other{"[{0} ķĴ one]"}
+            }
+            kilowatt-hour{
+                dnam{"[ķŴ‐ĥöûŕ one two]"}
+                one{"[{0} ķŴĥ one two]"}
+                other{"[{0} ķŴĥ one two]"}
+            }
+            therm-us{
+                dnam{"[ÛŠ ţĥéŕɱ one two]"}
+                one{"[{0} ÛŠ ţĥéŕɱ one two]"}
+                other{"[{0} ÛŠ ţĥéŕɱš one two]"}
+            }
+        }
+        force{
+            kilowatt-hour-per-100-kilometer{
+                dnam{"[ķŴĥ⁄①⓪⓪ķɱ one two]"}
+                one{"[{0} ķŴĥ⁄①⓪⓪ķɱ one two]"}
+                other{"[{0} ķŴĥ⁄①⓪⓪ķɱ one two]"}
+            }
+            newton{
+                dnam{"[ñéŵţöñ one]"}
+                one{"[{0} Ñ one]"}
+                other{"[{0} Ñ one]"}
+            }
+            pound-force{
+                dnam{"[þöûñð‐ƒöŕçé one two]"}
+                one{"[{0} ļƀƒ one two]"}
+                other{"[{0} ļƀƒ one two]"}
+            }
+        }
+        frequency{
+            gigahertz{
+                dnam{"[ĜĤž one]"}
+                one{"[{0} ĜĤž one two]"}
+                other{"[{0} ĜĤž one two]"}
+            }
+            hertz{
+                dnam{"[Ĥž one]"}
+                one{"[{0} Ĥž one]"}
+                other{"[{0} Ĥž one]"}
+            }
+            kilohertz{
+                dnam{"[ķĤž one]"}
+                one{"[{0} ķĤž one two]"}
+                other{"[{0} ķĤž one two]"}
+            }
+            megahertz{
+                dnam{"[ṀĤž one]"}
+                one{"[{0} ṀĤž one two]"}
+                other{"[{0} ṀĤž one two]"}
+            }
+        }
+        graphics{
+            dot{
+                dnam{"[ðöţš one]"}
+                one{"[{0} ðöţ one two]"}
+                other{"[{0} ðöţš one two]"}
+            }
+            dot-per-centimeter{
+                dnam{"[ðþçɱ one]"}
+                one{"[{0} ðþçɱ one two]"}
+                other{"[{0} ðþçɱ one two]"}
+            }
+            dot-per-inch{
+                dnam{"[ðþî one]"}
+                one{"[{0} ðþî one two]"}
+                other{"[{0} ðþî one two]"}
+            }
+            em{
+                dnam{"[éɱ one]"}
+                one{"[{0} éɱ one]"}
+                other{"[{0} éɱ one]"}
+            }
+            megapixel{
+                dnam{"[ɱéĝåþîẋéļš one two]"}
+                one{"[{0} ṀÞ one]"}
+                other{"[{0} ṀÞ one]"}
+            }
+            pixel{
+                dnam{"[þîẋéļš one]"}
+                one{"[{0} þẋ one]"}
+                other{"[{0} þẋ one]"}
+            }
+            pixel-per-centimeter{
+                dnam{"[þþçɱ one]"}
+                one{"[{0} þþçɱ one two]"}
+                other{"[{0} þþçɱ one two]"}
+            }
+            pixel-per-inch{
+                dnam{"[þþî one]"}
+                one{"[{0} þþî one two]"}
+                other{"[{0} þþî one two]"}
+            }
+        }
+        length{
+            astronomical-unit{
+                dnam{"[åû one]"}
+                one{"[{0} åû one]"}
+                other{"[{0} åû one]"}
+            }
+            centimeter{
+                dnam{"[çɱ one]"}
+                one{"[{0} çɱ one]"}
+                other{"[{0} çɱ one]"}
+                per{"[{0}⁄çɱ one]"}
+            }
+            decimeter{
+                dnam{"[ðɱ one]"}
+                one{"[{0} ðɱ one]"}
+                other{"[{0} ðɱ one]"}
+            }
+            earth-radius{
+                dnam{"[éåŕţĥ ŕåðîûš one two]"}
+                one{"[{0} Ŕ⊕ one]"}
+                other{"[{0} Ŕ⊕ one]"}
+            }
+            fathom{
+                dnam{"[ƒåţĥöɱš one two]"}
+                one{"[{0} ƒţĥ one two]"}
+                other{"[{0} ƒţĥ one two]"}
+            }
+            foot{
+                dnam{"[ƒééţ one]"}
+                one{"[{0} ƒţ one]"}
+                other{"[{0} ƒţ one]"}
+                per{"[{0}⁄ƒţ one]"}
+            }
+            furlong{
+                dnam{"[ƒûŕļöñĝš one two]"}
+                one{"[{0} ƒûŕ one two]"}
+                other{"[{0} ƒûŕ one two]"}
+            }
+            inch{
+                dnam{"[îñçĥéš one]"}
+                one{"[{0} îñ one]"}
+                other{"[{0} îñ one]"}
+                per{"[{0}⁄îñ one]"}
+            }
+            kilometer{
+                dnam{"[ķɱ one]"}
+                one{"[{0} ķɱ one]"}
+                other{"[{0} ķɱ one]"}
+                per{"[{0}⁄ķɱ one]"}
+            }
+            light-year{
+                dnam{"[ļîĝĥţ ýŕš one two]"}
+                one{"[{0} ļý one]"}
+                other{"[{0} ļý one]"}
+            }
+            meter{
+                dnam{"[ɱ one]"}
+                one{"[{0} ɱ one]"}
+                other{"[{0} ɱ one]"}
+                per{"[{0}⁄ɱ one]"}
+            }
+            micrometer{
+                dnam{"[μɱéţéŕš one two]"}
+                one{"[{0} μɱ one]"}
+                other{"[{0} μɱ one]"}
+            }
+            mile{
+                dnam{"[ɱîļéš one]"}
+                one{"[{0} ɱî one]"}
+                other{"[{0} ɱî one]"}
+            }
+            mile-scandinavian{
+                dnam{"[šɱî one]"}
+                one{"[{0} šɱî one two]"}
+                other{"[{0} šɱî one two]"}
+            }
+            millimeter{
+                dnam{"[ɱɱ one]"}
+                one{"[{0} ɱɱ one]"}
+                other{"[{0} ɱɱ one]"}
+            }
+            nanometer{
+                dnam{"[ñɱ one]"}
+                one{"[{0} ñɱ one]"}
+                other{"[{0} ñɱ one]"}
+            }
+            nautical-mile{
+                dnam{"[ñɱî one]"}
+                one{"[{0} ñɱî one two]"}
+                other{"[{0} ñɱî one two]"}
+            }
+            parsec{
+                dnam{"[þåŕšéçš one two]"}
+                one{"[{0} þç one]"}
+                other{"[{0} þç one]"}
+            }
+            picometer{
+                dnam{"[þɱ one]"}
+                one{"[{0} þɱ one]"}
+                other{"[{0} þɱ one]"}
+            }
+            point{
+                dnam{"[þöîñţš one]"}
+                one{"[{0} þţ one]"}
+                other{"[{0} þţ one]"}
+            }
+            solar-radius{
+                dnam{"[šöļåŕ ŕåðîî one two]"}
+                one{"[{0} Ŕ☉ one]"}
+                other{"[{0} Ŕ☉ one]"}
+            }
+            yard{
+                dnam{"[ýåŕðš one]"}
+                one{"[{0} ýð one]"}
+                other{"[{0} ýð one]"}
+            }
+        }
+        light{
+            candela{
+                dnam{"[çåñðéļå one two]"}
+                one{"[{0} çð one]"}
+                other{"[{0} çð one]"}
+            }
+            lumen{
+                dnam{"[ļûɱéñ one]"}
+                one{"[{0} ļɱ one]"}
+                other{"[{0} ļɱ one]"}
+            }
+            lux{
+                dnam{"[ļûẋ one]"}
+                one{"[{0} ļẋ one]"}
+                other{"[{0} ļẋ one]"}
+            }
+            solar-luminosity{
+                dnam{"[šöļåŕ ļûɱîñöšîţîéš one two three]"}
+                one{"[{0} Ļ☉ one]"}
+                other{"[{0} Ļ☉ one]"}
+            }
+        }
+        mass{
+            carat{
+                dnam{"[çåŕåţš one]"}
+                one{"[{0} ÇÐ one]"}
+                other{"[{0} ÇÐ one]"}
+            }
+            dalton{
+                dnam{"[ðåļţöñš one two]"}
+                one{"[{0} Ðå one]"}
+                other{"[{0} Ðå one]"}
+            }
+            earth-mass{
+                dnam{"[Éåŕţĥ ɱåššéš one two]"}
+                one{"[{0} Ṁ⊕ one]"}
+                other{"[{0} Ṁ⊕ one]"}
+            }
+            grain{
+                dnam{"[ĝŕåîñš one]"}
+                one{"[{0} ĝŕ one]"}
+                other{"[{0} ĝŕ one]"}
+            }
+            gram{
+                dnam{"[ĝŕåɱš one]"}
+                one{"[{0} ĝ one]"}
+                other{"[{0} ĝ one]"}
+                per{"[{0}⁄ĝ one]"}
+            }
+            kilogram{
+                dnam{"[ķĝ one]"}
+                one{"[{0} ķĝ one]"}
+                other{"[{0} ķĝ one]"}
+                per{"[{0}⁄ķĝ one]"}
+            }
+            microgram{
+                dnam{"[μĝ one]"}
+                one{"[{0} μĝ one]"}
+                other{"[{0} μĝ one]"}
+            }
+            milligram{
+                dnam{"[ɱĝ one]"}
+                one{"[{0} ɱĝ one]"}
+                other{"[{0} ɱĝ one]"}
+            }
+            ounce{
+                dnam{"[öž one]"}
+                one{"[{0} öž one]"}
+                other{"[{0} öž one]"}
+                per{"[{0}⁄öž one]"}
+            }
+            ounce-troy{
+                dnam{"[öž ţŕöý one two]"}
+                one{"[{0} öž ţ one two]"}
+                other{"[{0} öž ţ one two]"}
+            }
+            pound{
+                dnam{"[þöûñðš one]"}
+                one{"[{0} ļƀ one]"}
+                other{"[{0} ļƀ one]"}
+                per{"[{0}⁄ļƀ one]"}
+            }
+            solar-mass{
+                dnam{"[šöļåŕ ɱåššéš one two]"}
+                one{"[{0} Ṁ☉ one]"}
+                other{"[{0} Ṁ☉ one]"}
+            }
+            stone{
+                dnam{"[šţöñéš one]"}
+                one{"[{0} šţ one]"}
+                other{"[{0} šţ one]"}
+            }
+            ton{
+                dnam{"[ţöñš one]"}
+                one{"[{0} ţñ one]"}
+                other{"[{0} ţñ one]"}
+            }
+            tonne{
+                dnam{"[ţ one]"}
+                one{"[{0} ţ one]"}
+                other{"[{0} ţ one]"}
+            }
+        }
+        power{
+            gigawatt{
+                dnam{"[ĜŴ one]"}
+                one{"[{0} ĜŴ one]"}
+                other{"[{0} ĜŴ one]"}
+            }
+            horsepower{
+                dnam{"[ĥþ one]"}
+                one{"[{0} ĥþ one]"}
+                other{"[{0} ĥþ one]"}
+            }
+            kilowatt{
+                dnam{"[ķŴ one]"}
+                one{"[{0} ķŴ one]"}
+                other{"[{0} ķŴ one]"}
+            }
+            megawatt{
+                dnam{"[ṀŴ one]"}
+                one{"[{0} ṀŴ one]"}
+                other{"[{0} ṀŴ one]"}
+            }
+            milliwatt{
+                dnam{"[ɱŴ one]"}
+                one{"[{0} ɱŴ one]"}
+                other{"[{0} ɱŴ one]"}
+            }
+            watt{
+                dnam{"[ŵåţţš one]"}
+                one{"[{0} Ŵ one]"}
+                other{"[{0} Ŵ one]"}
+            }
+        }
+        pressure{
+            atmosphere{
+                dnam{"[åţɱ one]"}
+                one{"[{0} åţɱ one two]"}
+                other{"[{0} åţɱ one two]"}
+            }
+            bar{
+                dnam{"[ƀåŕ one]"}
+                one{"[{0} ƀåŕ one two]"}
+                other{"[{0} ƀåŕ one two]"}
+            }
+            gasoline-energy-density{
+                dnam{"[ĝåš‐éǫûîṽ one two]"}
+                one{"[{0} ĝåš‐éǫûîṽ one two]"}
+                other{"[{0} ĝåš‐éǫûîṽ one two]"}
+            }
+            hectopascal{
+                dnam{"[ĥÞå one]"}
+                one{"[{0} ĥÞå one two]"}
+                other{"[{0} ĥÞå one two]"}
+            }
+            inch-ofhg{
+                dnam{"[îñĤĝ one]"}
+                one{"[{0} îñĤĝ one two]"}
+                other{"[{0} îñĤĝ one two]"}
+            }
+            kilopascal{
+                dnam{"[ķÞå one]"}
+                one{"[{0} ķÞå one two]"}
+                other{"[{0} ķÞå one two]"}
+            }
+            megapascal{
+                dnam{"[ṀÞå one]"}
+                one{"[{0} ṀÞå one two]"}
+                other{"[{0} ṀÞå one two]"}
+            }
+            millibar{
+                dnam{"[ɱƀåŕ one]"}
+                one{"[{0} ɱƀåŕ one two]"}
+                other{"[{0} ɱƀåŕ one two]"}
+            }
+            millimeter-ofhg{
+                dnam{"[ɱɱĤĝ one]"}
+                one{"[{0} ɱɱĤĝ one two]"}
+                other{"[{0} ɱɱĤĝ one two]"}
+            }
+            pascal{
+                dnam{"[Þå one]"}
+                one{"[{0} Þå one]"}
+                other{"[{0} Þå one]"}
+            }
+            pound-force-per-square-inch{
+                dnam{"[þšî one]"}
+                one{"[{0} þšî one two]"}
+                other{"[{0} þšî one two]"}
+            }
+        }
+        speed{
+            beaufort{
+                dnam{"[Ɓƒţ one]"}
+                one{"[Ɓ {0} one]"}
+                other{"[Ɓ {0} one]"}
+            }
+            kilometer-per-hour{
+                dnam{"[ķɱ⁄ĥöûŕ one two]"}
+                one{"[{0} ķɱ⁄ĥ one two]"}
+                other{"[{0} ķɱ⁄ĥ one two]"}
+            }
+            knot{
+                dnam{"[ķñ one]"}
+                one{"[{0} ķñ one]"}
+                other{"[{0} ķñ one]"}
+            }
+            light-speed{
+                dnam{"[ļîĝĥţ one]"}
+                one{"[{0} ļîĝĥţ one two]"}
+                other{"[{0} ļîĝĥţ one two]"}
+            }
+            meter-per-second{
+                dnam{"[ɱéţéŕš⁄šéç one two]"}
+                one{"[{0} ɱ⁄š one two]"}
+                other{"[{0} ɱ⁄š one two]"}
+            }
+            mile-per-hour{
+                dnam{"[ɱîļéš⁄ĥöûŕ one two]"}
+                one{"[{0} ɱþĥ one two]"}
+                other{"[{0} ɱþĥ one two]"}
+            }
+        }
+        temperature{
+            celsius{
+                dnam{"[ðéĝ· Ç one]"}
+                one{"[{0}°Ç one]"}
+                other{"[{0}°Ç one]"}
+            }
+            fahrenheit{
+                dnam{"[ðéĝ· Ƒ one]"}
+                one{"[{0}°Ƒ one]"}
+                other{"[{0}°Ƒ one]"}
+            }
+            generic{
+                dnam{"[ðéĝ· ţéɱþ· one two]"}
+                one{"[{0}° one]"}
+                other{"[{0}° one]"}
+            }
+            kelvin{
+                dnam{"[Ķ one]"}
+                one{"[{0} Ķ one]"}
+                other{"[{0} Ķ one]"}
+            }
+        }
+        torque{
+            newton-meter{
+                dnam{"[Ñ⋅ɱ one]"}
+                one{"[{0} Ñ⋅ɱ one two]"}
+                other{"[{0} Ñ⋅ɱ one two]"}
+            }
+            pound-force-foot{
+                dnam{"[ļƀƒ⋅ƒţ one]"}
+                one{"[{0} ļƀƒ⋅ƒţ one two]"}
+                other{"[{0} ļƀƒ⋅ƒţ one two]"}
+            }
+        }
+        volume{
+            acre-foot{
+                dnam{"[åçŕé ƒţ one two]"}
+                one{"[{0} åç ƒţ one two]"}
+                other{"[{0} åç ƒţ one two]"}
+            }
+            barrel{
+                dnam{"[ƀåŕŕéļ one]"}
+                one{"[{0} ƀƀļ one two]"}
+                other{"[{0} ƀƀļ one two]"}
+            }
+            bushel{
+                dnam{"[ƀûšĥéļš one two]"}
+                one{"[{0} ƀû one]"}
+                other{"[{0} ƀû one]"}
+            }
+            centiliter{
+                dnam{"[çĻ one]"}
+                one{"[{0} çĻ one]"}
+                other{"[{0} çĻ one]"}
+            }
+            cubic-centimeter{
+                dnam{"[çɱ³ one]"}
+                one{"[{0} çɱ³ one two]"}
+                other{"[{0} çɱ³ one two]"}
+                per{"[{0}⁄çɱ³ one two]"}
+            }
+            cubic-foot{
+                dnam{"[ƒééţ³ one]"}
+                one{"[{0} ƒţ³ one two]"}
+                other{"[{0} ƒţ³ one two]"}
+            }
+            cubic-inch{
+                dnam{"[îñçĥéš³ one two]"}
+                one{"[{0} îñ³ one two]"}
+                other{"[{0} îñ³ one two]"}
+            }
+            cubic-kilometer{
+                dnam{"[ķɱ³ one]"}
+                one{"[{0} ķɱ³ one two]"}
+                other{"[{0} ķɱ³ one two]"}
+            }
+            cubic-meter{
+                dnam{"[ɱ³ one]"}
+                one{"[{0} ɱ³ one]"}
+                other{"[{0} ɱ³ one]"}
+                per{"[{0}⁄ɱ³ one]"}
+            }
+            cubic-mile{
+                dnam{"[ɱî³ one]"}
+                one{"[{0} ɱî³ one two]"}
+                other{"[{0} ɱî³ one two]"}
+            }
+            cubic-yard{
+                dnam{"[ýåŕðš³ one]"}
+                one{"[{0} ýð³ one two]"}
+                other{"[{0} ýð³ one two]"}
+            }
+            cup{
+                dnam{"[çûþš one]"}
+                one{"[{0} ç one]"}
+                other{"[{0} ç one]"}
+            }
+            cup-metric{
+                dnam{"[ɱçûþ one]"}
+                one{"[{0} ɱç one]"}
+                other{"[{0} ɱç one]"}
+            }
+            deciliter{
+                dnam{"[ðĻ one]"}
+                one{"[{0} ðĻ one]"}
+                other{"[{0} ðĻ one]"}
+            }
+            dessert-spoon{
+                dnam{"[ðéššéŕţ šþööñš one two]"}
+                one{"[{0} ðšþ one two]"}
+                other{"[{0} ðšþ one two]"}
+            }
+            dessert-spoon-imperial{
+                dnam{"[Îɱþ· ðéššéŕţ šþööñš one two three]"}
+                one{"[{0} ðšþ‐Îɱþ· one two]"}
+                other{"[{0} ðšþ‐Îɱþ· one two]"}
+            }
+            dram{
+                dnam{"[ðŕåɱš one]"}
+                one{"[{0} ðŕåɱ one two]"}
+                other{"[{0} ðŕåɱš one two]"}
+            }
+            drop{
+                dnam{"[ðŕöþš one]"}
+                one{"[{0} ðŕ one]"}
+                other{"[{0} ðŕðŕöþš one two]"}
+            }
+            fluid-ounce{
+                dnam{"[ƒļ öž one]"}
+                one{"[{0} ƒļ öž one two]"}
+                other{"[{0} ƒļ öž one two]"}
+            }
+            fluid-ounce-imperial{
+                dnam{"[Îɱþ· ƒļ öž one two]"}
+                one{"[{0} ƒļ öž Îɱþ· one two]"}
+                other{"[{0} ƒļ öž Îɱþ· one two]"}
+            }
+            gallon{
+                dnam{"[ĝåļ one]"}
+                one{"[{0} ĝåļ one two]"}
+                other{"[{0} ĝåļ one two]"}
+                per{"[{0}⁄ĝåļ ÛŠ one two]"}
+            }
+            gallon-imperial{
+                dnam{"[Îɱþ· ĝåļ one two]"}
+                one{"[{0} ĝåļ Îɱþ· one two]"}
+                other{"[{0} ĝåļ Îɱþ· one two]"}
+                per{"[{0}⁄ĝåļÎɱþ one two]"}
+            }
+            hectoliter{
+                dnam{"[ĥĻ one]"}
+                one{"[{0} ĥĻ one]"}
+                other{"[{0} ĥĻ one]"}
+            }
+            jigger{
+                dnam{"[ĵîĝĝéŕš one two]"}
+                one{"[{0} ĵîĝĝéŕ one two]"}
+                other{"[{0} ĵîĝĝéŕš one two]"}
+            }
+            liter{
+                dnam{"[ļîţéŕš one]"}
+                one{"[{0} Ļ one]"}
+                other{"[{0} Ļ one]"}
+                per{"[{0}⁄Ļ one]"}
+            }
+            megaliter{
+                dnam{"[ṀĻ one]"}
+                one{"[{0} ṀĻ one]"}
+                other{"[{0} ṀĻ one]"}
+            }
+            milliliter{
+                dnam{"[ɱĻ one]"}
+                one{"[{0} ɱĻ one]"}
+                other{"[{0} ɱĻ one]"}
+            }
+            pinch{
+                dnam{"[þîñçĥéš one two]"}
+                one{"[{0} þñ one]"}
+                other{"[{0} þñ one]"}
+            }
+            pint{
+                dnam{"[þîñţš one]"}
+                one{"[{0} þţ one]"}
+                other{"[{0} þţ one]"}
+            }
+            pint-metric{
+                dnam{"[ɱþţ one]"}
+                one{"[{0} ɱþţ one two]"}
+                other{"[{0} ɱþţ one two]"}
+            }
+            quart{
+                dnam{"[ǫţš one]"}
+                one{"[{0} ǫţ one]"}
+                other{"[{0} ǫţ one]"}
+            }
+            quart-imperial{
+                dnam{"[Îɱþ· ǫûåŕţš one two]"}
+                one{"[{0} ǫţ‐Îɱþ· one two]"}
+                other{"[{0} ǫţ‐Îɱþ· one two]"}
+            }
+            tablespoon{
+                dnam{"[ţƀšþ one]"}
+                one{"[{0} ţƀšþ one two]"}
+                other{"[{0} ţƀšþ one two]"}
+            }
+            teaspoon{
+                dnam{"[ţšþ one]"}
+                one{"[{0} ţšþ one two]"}
+                other{"[{0} ţšþ one two]"}
+            }
+        }
+    }
+}
