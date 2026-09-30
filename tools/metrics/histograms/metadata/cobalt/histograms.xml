@@ -309,6 +309,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.Android.DecoderFramework"
+    enum="AndroidDecoderFramework" expires_after="never">
+  <owner>kjyoun@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Tracks whether the active Android hardware video decoder is running on
+    Codec2 (c2.*), OpenMAX (OMX.*), or an unknown framework. Recorded when a
+    video decoder is created in MediaCodecBridge.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
     expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -877,11 +888,10 @@ Always run the pretty print utility on this file after editing:
     Percentage of free virtual address (VA) space that lies outside the single
     largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
     free address space is one contiguous block, 50% means the largest block
-    holds half of it.
-    This measures how concentrated the free space is, not how much
-    of it there is, so a low value on its own does not imply headroom; read it
-    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
-    on 32-bit Android, where the ~3GB user address space is exhaustible.
+    holds half of it. This measures how concentrated the free space is, not how
+    much of it there is, so a low value on its own does not imply headroom; read
+    it alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted on 32-bit
+    Android, where the ~3GB user address space is exhaustible.
   </summary>
 </histogram>
 
