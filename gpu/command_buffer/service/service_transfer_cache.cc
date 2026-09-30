@@ -16,9 +16,16 @@
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "build/build_config.h"
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "gpu/command_buffer/service/service_discardable_manager.h"
 #include "gpu/config/gpu_finch_features.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+
+#include "base/metrics/histogram_functions.h"
+#endif
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
@@ -35,6 +42,11 @@ static size_t kMaxCacheEntries = 2000;
 
 constexpr base::TimeDelta kOldEntryCutoffTimeDelta = base::Seconds(25);
 constexpr base::TimeDelta kOldEntryPruneInterval = base::Seconds(30);
+
+#if BUILDFLAG(IS_COBALT)
+std::atomic<uint64_t> g_total_image_memory_usage_bytes{0};
+std::atomic<uint64_t> g_peak_image_memory_usage_bytes{0};
+#endif
 
 // Alias the image entry to its skia counterpart, taking ownership of the
 // memory and preventing double counting.
@@ -165,11 +177,20 @@ ServiceTransferCache::ServiceTransferCache(
         this, "gpu::ServiceTransferCache",
         base::SingleThreadTaskRunner::GetCurrentDefault());
   }
+#if BUILDFLAG(IS_COBALT)
+  ScheduleRecordDecodedImagesMetrics();
+#endif
 }
 
 ServiceTransferCache::~ServiceTransferCache() {
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
+#if BUILDFLAG(IS_COBALT)
+  if (total_image_size_ > 0) {
+    g_total_image_memory_usage_bytes.fetch_sub(total_image_size_,
+                                               std::memory_order_relaxed);
+  }
+#endif
 }
 
 bool ServiceTransferCache::CreateLockedEntry(
@@ -197,6 +218,20 @@ bool ServiceTransferCache::CreateLockedEntry(
   if (key.entry_type == cc::TransferCacheEntryType::kImage) {
     total_image_count_++;
     total_image_size_ += entry->CachedSize();
+#if BUILDFLAG(IS_COBALT)
+    peak_image_memory_usage_bytes_ =
+        std::max(peak_image_memory_usage_bytes_, total_image_size_);
+    g_total_image_memory_usage_bytes.fetch_add(entry->CachedSize(),
+                                               std::memory_order_relaxed);
+    uint64_t current_total =
+        g_total_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    uint64_t prev_peak =
+        g_peak_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    while (current_total > prev_peak &&
+           !g_peak_image_memory_usage_bytes.compare_exchange_weak(
+               prev_peak, current_total, std::memory_order_relaxed)) {
+    }
+#endif
   }
   entries_.Put(key, CacheEntryInternal(handle, std::move(entry)));
   EnforceLimits();
@@ -217,6 +252,20 @@ void ServiceTransferCache::CreateLocalEntry(
   if (key.entry_type == cc::TransferCacheEntryType::kImage) {
     total_image_count_++;
     total_image_size_ += entry->CachedSize();
+#if BUILDFLAG(IS_COBALT)
+    peak_image_memory_usage_bytes_ =
+        std::max(peak_image_memory_usage_bytes_, total_image_size_);
+    g_total_image_memory_usage_bytes.fetch_add(entry->CachedSize(),
+                                               std::memory_order_relaxed);
+    uint64_t current_total =
+        g_total_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    uint64_t prev_peak =
+        g_peak_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    while (current_total > prev_peak &&
+           !g_peak_image_memory_usage_bytes.compare_exchange_weak(
+               prev_peak, current_total, std::memory_order_relaxed)) {
+    }
+#endif
   }
 
   entries_.Put(key, CacheEntryInternal(std::nullopt, std::move(entry)));
@@ -246,6 +295,10 @@ Iterator ServiceTransferCache::ForceDeleteEntry(Iterator it) {
   if (it->first.entry_type == cc::TransferCacheEntryType::kImage) {
     total_image_count_--;
     total_image_size_ -= it->second.entry->CachedSize();
+#if BUILDFLAG(IS_COBALT)
+    g_total_image_memory_usage_bytes.fetch_sub(it->second.entry->CachedSize(),
+                                               std::memory_order_relaxed);
+#endif
   }
   return entries_.Erase(it);
 }
@@ -337,6 +390,10 @@ int ServiceTransferCache::RemoveOldEntriesUntil(
     if (it->first.entry_type == cc::TransferCacheEntryType::kImage) {
       total_image_count_--;
       total_image_size_ -= it->second.entry->CachedSize();
+#if BUILDFLAG(IS_COBALT)
+      g_total_image_memory_usage_bytes.fetch_sub(
+          it->second.entry->CachedSize(), std::memory_order_relaxed);
+#endif
     }
     it = entries_.Erase(it);
     removed_count++;
@@ -391,6 +448,20 @@ bool ServiceTransferCache::CreateLockedHardwareDecodedImageEntry(
   if (key.entry_type == cc::TransferCacheEntryType::kImage) {
     total_image_count_++;
     total_image_size_ += entry->CachedSize();
+#if BUILDFLAG(IS_COBALT)
+    peak_image_memory_usage_bytes_ =
+        std::max(peak_image_memory_usage_bytes_, total_image_size_);
+    g_total_image_memory_usage_bytes.fetch_add(entry->CachedSize(),
+                                               std::memory_order_relaxed);
+    uint64_t current_total =
+        g_total_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    uint64_t prev_peak =
+        g_peak_image_memory_usage_bytes.load(std::memory_order_relaxed);
+    while (current_total > prev_peak &&
+           !g_peak_image_memory_usage_bytes.compare_exchange_weak(
+               prev_peak, current_total, std::memory_order_relaxed)) {
+    }
+#endif
   }
   entries_.Put(key, CacheEntryInternal(handle, std::move(entry)));
   EnforceLimits();
@@ -464,5 +535,46 @@ ServiceTransferCache::EntryKey::EntryKey(int decoder_id,
                                          cc::TransferCacheEntryType entry_type,
                                          uint32_t entry_id)
     : decoder_id(decoder_id), entry_type(entry_type), entry_id(entry_id) {}
+
+#if BUILDFLAG(IS_COBALT)
+void ServiceTransferCache::ScheduleRecordDecodedImagesMetrics() {
+  if (!base::FeatureList::IsEnabled(features::kCobaltDecodedImagesMetrics)) {
+    return;
+  }
+  if (!base::SingleThreadTaskRunner::HasCurrentDefault()) {
+    return;
+  }
+  base::TimeDelta interval =
+      features::kCobaltDecodedImagesMetricsInterval.Get();
+  if (interval.is_positive()) {
+    decoded_images_metrics_timer_.Start(
+        FROM_HERE, interval, this,
+        &ServiceTransferCache::RecordDecodedImagesMetrics);
+  }
+}
+
+void ServiceTransferCache::RecordDecodedImagesMetrics() {
+  constexpr int kMiB = 1024 * 1024;
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.DecodedImages",
+      static_cast<int>(total_image_size_ / kMiB));
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.DecodedImages.Peak",
+      static_cast<int>(peak_image_memory_usage_bytes_ / kMiB));
+  peak_image_memory_usage_bytes_ = total_image_size_;
+
+  ScheduleRecordDecodedImagesMetrics();
+}
+
+// static
+uint64_t ServiceTransferCache::GetTotalImageMemoryUsageBytes() {
+  return g_total_image_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+
+// static
+uint64_t ServiceTransferCache::GetPeakImageMemoryUsageBytes() {
+  return g_peak_image_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+#endif
 
 }  // namespace gpu

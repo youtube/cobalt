@@ -877,11 +877,10 @@ Always run the pretty print utility on this file after editing:
     Percentage of free virtual address (VA) space that lies outside the single
     largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
     free address space is one contiguous block, 50% means the largest block
-    holds half of it.
-    This measures how concentrated the free space is, not how much
-    of it there is, so a low value on its own does not imply headroom; read it
-    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
-    on 32-bit Android, where the ~3GB user address space is exhaustible.
+    holds half of it. This measures how concentrated the free space is, not how
+    much of it there is, so a low value on its own does not imply headroom; read
+    it alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted on 32-bit
+    Android, where the ~3GB user address space is exhaustible.
   </summary>
 </histogram>
 
@@ -917,6 +916,23 @@ Always run the pretty print utility on this file after editing:
     Guards against reaching the kernel vm.max_map_count limit and tracks virtual
     address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
     user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Current decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages.Peak" units="MB"
+    expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Peak decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache, updated once per minute.
   </summary>
 </histogram>
 

@@ -67,6 +67,9 @@ SystemMemoryInfo* PerformanceExtensions::measureSystemMemoryInfo(
     if (info->used_gpu_memory.has_value()) {
       result->setUsedGpuMemory(info->used_gpu_memory.value());
     }
+    result->setDecodedImageCacheMemory(info->decoded_image_cache_memory);
+    result->setDecodedImageCachePeakMemory(
+        info->decoded_image_cache_peak_memory);
   }
 
   if (script_state && script_state->GetIsolate()) {
@@ -198,6 +201,24 @@ uint64_t PerformanceExtensions::measureUsedGpuMemory(
     return 0;
   }
   return used_gpu_memory;
+}
+
+uint64_t PerformanceExtensions::measureDecodedImagesMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t decoded_images_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureDecodedImagesMemory(&decoded_images_memory);
+  return decoded_images_memory;
+}
+
+uint64_t PerformanceExtensions::measureDecodedImagesPeakMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t decoded_images_peak_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureDecodedImagesPeakMemory(&decoded_images_peak_memory);
+  return decoded_images_peak_memory;
 }
 
 ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
