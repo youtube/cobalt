@@ -357,6 +357,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
+    "//cobalt/browser/metrics/cobalt_process_state_summary_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
