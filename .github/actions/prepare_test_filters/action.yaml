@@ -20,36 +20,20 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Prepare Base Filters
+      id: prepare-filters
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
+        mkdir -p "${RESOLVED_FILTER_DIR}"
+        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
+        echo "filter_dir=${RESOLVED_FILTER_DIR}" >> "${GITHUB_OUTPUT}"
     - name: Download Retry Filters
       if: ${{ inputs.retry_all != 'true' && inputs.retry_all != true && github.run_attempt > 1 }}
-      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      uses: ./.github/actions/download_test_results
       continue-on-error: true
       with:
         pattern: ${{ inputs.test_results_key }}*_retry_filter_*
-        path: previous_results
-    - name: Prepare Test Filters
-      id: prepare-filters
-      env:
-        PLATFORM: ${{ inputs.platform }}
-        RETRY_ALL: ${{ inputs.retry_all }}
-      run: |
-        # Prepare resolved filter directory.
-        set -ex
-        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
-        mkdir -p "${RESOLVED_FILTER_DIR}"
-        echo "filter_dir=${RESOLVED_FILTER_DIR}" >> "${GITHUB_OUTPUT}"
-
-        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
-
-        # Overwrite with retry filters if they exist and not retrying all tests.
-        # Copy retry filters sequentially by attempt (1..GITHUB_RUN_ATTEMPT) so
-        # later attempts overwrite earlier attempts in place.
-        if [ "${RETRY_ALL}" != "true" ] && [ -d "${GITHUB_WORKSPACE}/previous_results" ]; then
-          shopt -s nullglob
-          for (( attempt=1; attempt<=GITHUB_RUN_ATTEMPT; attempt++ )); do
-            for filter_dir in "${GITHUB_WORKSPACE}/previous_results"/*_"${attempt}"/retry_filters; do
-              cp -r "${filter_dir}/." "${RESOLVED_FILTER_DIR}/"
-            done
-          done
-        fi
-      shell: bash
+        path: ${{ steps.prepare-filters.outputs.filter_dir }}

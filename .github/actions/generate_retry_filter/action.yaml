@@ -27,8 +27,8 @@ runs:
       run: |
         set -ex
         TEST_TARGET="${TEST_TARGET#*:}"
-        FILTER_DIR="${GITHUB_WORKSPACE}/retry_filters_artifact/retry_filters"
-        rm -rf "${GITHUB_WORKSPACE}/retry_filters_artifact"
+        FILTER_DIR="${GITHUB_WORKSPACE}/retry_filters_artifact"
+        rm -rf "${FILTER_DIR}"
         mkdir -p "${FILTER_DIR}"
 
         generate_filter_json() {
