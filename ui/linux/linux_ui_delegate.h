@@ -10,10 +10,15 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
+#include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "ui/gfx/native_widget_types.h"  // nogncheck
+#else
 namespace gfx {
 using AcceleratedWidget = uint32_t;
 }
+#endif
 
 namespace ui {
 
@@ -32,6 +37,18 @@ class COMPONENT_EXPORT(LINUX_UI) LinuxUiDelegate {
 
   virtual LinuxUiBackend GetBackend() const = 0;
 
+<<<<<<< HEAD
+=======
+  // Only implemented on Wayland.
+  virtual bool ExportWindowHandle(
+#if BUILDFLAG(IS_COBALT)
+      gfx::AcceleratedWidget parent_widget,
+#else
+      uint32_t parent_widget,
+#endif
+      base::OnceCallback<void(const std::string&)> callback);
+
+>>>>>>> 384c4288cde (ozone: Support 64-bit AcceleratedWidget in Cobalt (#12932))
   // Only implemented on X11.
   virtual void SetTransientWindowForParent(gfx::AcceleratedWidget parent,
                                            gfx::AcceleratedWidget transient);

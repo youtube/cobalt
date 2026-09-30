@@ -226,8 +226,16 @@ inline constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 using AcceleratedWidget = ANativeWindow*;
 constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
 #elif BUILDFLAG(IS_OZONE)
+#if BUILDFLAG(IS_STARBOARD)
+using AcceleratedWidget = uintptr_t;
+#else
 using AcceleratedWidget = uint32_t;
+<<<<<<< HEAD:ui/gfx/native_ui_types.h
 inline constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
+=======
+#endif
+constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
+>>>>>>> 384c4288cde (ozone: Support 64-bit AcceleratedWidget in Cobalt (#12932)):ui/gfx/native_widget_types.h
 #else
 #error unknown platform
 #endif
