@@ -130,29 +130,27 @@ class SbPlayerBridgeSideDataTest : public testing::Test {
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
         .WillOnce(Return(reinterpret_cast<SbPlayer>(mock_player_.get())));
     EXPECT_CALL(mock_sbplayer_interface_, Destroy(_))
-        .WillRepeatedly(
-            Invoke([this](SbPlayer /*player*/) { mock_player_.reset(); }));
+        .WillRepeatedly([this](SbPlayer /*player*/) { mock_player_.reset(); });
 
     EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(_, _, _, _))
-        .WillRepeatedly(
-            Invoke([this](SbPlayer /*player*/, SbMediaType /*sample_type*/,
-                          const SbPlayerSampleInfo* sample_infos,
-                          int number_of_sample_infos) {
-              for (int i = 0; i < number_of_sample_infos; ++i) {
-                const SbPlayerSampleInfo& info = sample_infos[i];
-                CapturedSample captured;
-                captured.has_side_data_pointer = info.side_data != nullptr;
-                captured.side_data_count = info.side_data_count;
-                if (info.side_data && info.side_data_count > 0 &&
-                    info.side_data[0].data) {
-                  captured.side_data_type = info.side_data[0].type;
-                  captured.side_data.assign(
-                      info.side_data[0].data,
-                      info.side_data[0].data + info.side_data[0].size);
-                }
-                captured_samples_.push_back(std::move(captured));
-              }
-            }));
+        .WillRepeatedly([this](SbPlayer /*player*/, SbMediaType /*sample_type*/,
+                               const SbPlayerSampleInfo* sample_infos,
+                               int number_of_sample_infos) {
+          for (int i = 0; i < number_of_sample_infos; ++i) {
+            const SbPlayerSampleInfo& info = sample_infos[i];
+            CapturedSample captured;
+            captured.has_side_data_pointer = info.side_data != nullptr;
+            captured.side_data_count = info.side_data_count;
+            if (info.side_data && info.side_data_count > 0 &&
+                info.side_data[0].data) {
+              captured.side_data_type = info.side_data[0].type;
+              captured.side_data.assign(
+                  info.side_data[0].data,
+                  info.side_data[0].data + info.side_data[0].size);
+            }
+            captured_samples_.push_back(std::move(captured));
+          }
+        });
 
     // Declared out of line rather than brace-initialized in place: cpplint's
     // whitespace/braces check looks ahead past the closing brace for a
