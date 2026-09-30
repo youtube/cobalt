@@ -338,7 +338,6 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
           !clipboard_permission->allowWithoutSanitization());
     }
 
-<<<<<<< HEAD
     case V8PermissionName::Enum::kClipboardWrite: {
       ClipboardPermissionDescriptor* clipboard_permission =
           NativeValueTraits<ClipboardPermissionDescriptor>::NativeValue(
@@ -368,83 +367,6 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
         return nullptr;
       }
       return CreatePermissionDescriptor(PermissionName::SYSTEM_WAKE_LOCK);
-=======
-    ClipboardPermissionDescriptor* clipboard_permission =
-        NativeValueTraits<ClipboardPermissionDescriptor>::NativeValue(
-            script_state->GetIsolate(), raw_descriptor.V8Value(),
-            exception_state);
-    return CreateClipboardPermissionDescriptor(
-        permission_name,
-        /*has_user_gesture=*/!clipboard_permission->allowWithoutGesture(),
-        /*will_be_sanitized=*/
-        !clipboard_permission->allowWithoutSanitization());
-  }
-  if (name == V8PermissionName::Enum::kPaymentHandler) {
-    return CreatePermissionDescriptor(PermissionName::PAYMENT_HANDLER);
-  }
-  if (name == V8PermissionName::Enum::kBackgroundFetch) {
-    return CreatePermissionDescriptor(PermissionName::BACKGROUND_FETCH);
-  }
-  if (name == V8PermissionName::Enum::kIdleDetection) {
-    return CreatePermissionDescriptor(PermissionName::IDLE_DETECTION);
-  }
-  if (name == V8PermissionName::Enum::kPeriodicBackgroundSync) {
-    return CreatePermissionDescriptor(PermissionName::PERIODIC_BACKGROUND_SYNC);
-  }
-  if (name == V8PermissionName::Enum::kScreenWakeLock) {
-    return CreatePermissionDescriptor(PermissionName::SCREEN_WAKE_LOCK);
-  }
-  if (name == V8PermissionName::Enum::kSystemWakeLock) {
-    if (!RuntimeEnabledFeatures::SystemWakeLockEnabled(
-            ExecutionContext::From(script_state))) {
-      exception_state.ThrowTypeError("System Wake Lock is not enabled.");
-      return nullptr;
-    }
-    return CreatePermissionDescriptor(PermissionName::SYSTEM_WAKE_LOCK);
-  }
-  if (name == V8PermissionName::Enum::kNfc) {
-    if (!RuntimeEnabledFeatures::WebNFCEnabled(
-            ExecutionContext::From(script_state))) {
-      exception_state.ThrowTypeError("Web NFC is not enabled.");
-      return nullptr;
-    }
-    return CreatePermissionDescriptor(PermissionName::NFC);
-  }
-  if (name == V8PermissionName::Enum::kStorageAccess) {
-    return CreatePermissionDescriptor(PermissionName::STORAGE_ACCESS);
-  }
-  if (name == V8PermissionName::Enum::kTopLevelStorageAccess) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    TopLevelStorageAccessPermissionDescriptor*
-        top_level_storage_access_permission =
-            NativeValueTraits<TopLevelStorageAccessPermissionDescriptor>::
-                NativeValue(script_state->GetIsolate(),
-                            raw_descriptor.V8Value(), exception_state);
-    if (exception_state.HadException()) {
-      return nullptr;
-    }
-    KURL origin_as_kurl{top_level_storage_access_permission->requestedOrigin()};
-    if (!origin_as_kurl.IsValid()) {
-      exception_state.ThrowTypeError("The requested origin is invalid.");
-      return nullptr;
-    }
-
-    return CreateTopLevelStorageAccessPermissionDescriptor(origin_as_kurl);
-#else
-    exception_state.ThrowTypeError(
-        "Top-level storage access permission is not enabled.");
-    return nullptr;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  }
-  if (name == V8PermissionName::Enum::kWindowManagement) {
-    return CreatePermissionDescriptor(PermissionName::WINDOW_MANAGEMENT);
-  }
-  if (name == V8PermissionName::Enum::kLocalFonts) {
-    if (!RuntimeEnabledFeatures::FontAccessEnabled(
-            ExecutionContext::From(script_state))) {
-      exception_state.ThrowTypeError("Local Fonts Access API is not enabled.");
-      return nullptr;
->>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     case V8PermissionName::Enum::kStorageAccess:
@@ -464,6 +386,7 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
     }
 
     case V8PermissionName::Enum::kTopLevelStorageAccess: {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       TopLevelStorageAccessPermissionDescriptor*
           top_level_storage_access_permission =
               NativeValueTraits<TopLevelStorageAccessPermissionDescriptor>::
@@ -480,6 +403,11 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
       }
 
       return CreateTopLevelStorageAccessPermissionDescriptor(origin_as_kurl);
+#else
+      exception_state.ThrowTypeError(
+          "Top-level storage access permission is not enabled.");
+      return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     }
 
     case V8PermissionName::Enum::kCapturedSurfaceControl: {
