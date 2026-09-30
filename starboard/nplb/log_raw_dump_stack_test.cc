@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test doesn't test that the appropriate output was produced, but ensures
-// it compiles and runs without crashing.
+// Most of these tests don't test that the appropriate output was produced, but
+// ensure it compiles and runs without crashing.
+
+#include <stdlib.h>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/testing/no_inline.h"
@@ -48,6 +50,24 @@ TEST(SbLogRawDumpStackTest, SunnyDayDeeperStack) {
 
 TEST(SbLogRawDumpStackTest, SunnyDaySkip) {
   IShouldBeSkipped();
+}
+
+SB_TEST_FORCE_NO_INLINE void DumpStackThenDie() {
+  SbLogRawDumpStack(0);
+  abort();
+}
+
+// Ends with a call that never returns, so the address it returns to is the
+// first byte of whatever follows, and naming the frame after that one would be
+// wrong.
+SB_TEST_FORCE_NO_INLINE void EndWithACallThatDoesNotReturn() {
+  DumpStackThenDie();
+}
+
+TEST(SbLogRawDumpStackDeathTest, NamesTheFunctionThatMadeTheCall) {
+  EXPECT_DEATH_IF_SUPPORTED(EndWithACallThatDoesNotReturn(),
+                            "DumpStackThenDie\\(\\)[^\n]*\n[^\n]*"
+                            "EndWithACallThatDoesNotReturn\\(\\)");
 }
 
 }  // namespace
