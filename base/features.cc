@@ -75,9 +75,14 @@ BASE_FEATURE_PARAM(int,
 
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
+// Disabled by default on Android, enabled by default on other platforms.
 BASE_FEATURE(kCobaltInProcessImageTransferCache,
              "CobaltInProcessImageTransferCache",
+#if BUILDFLAG(IS_ANDROID)
              FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kCobaltCCImageCacheLimitItems,
              "CobaltCCImageCacheLimitItems",
@@ -88,6 +93,13 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltCCImageCacheLimitItems,
                    "cc_image_cache_limit_items",
                    0);
+
+// Negative value means no byte limit is applied.
+BASE_FEATURE_PARAM(int,
+                   kCobaltCCImageCacheLimitItemsMbs,
+                   &kCobaltCCImageCacheLimitItems,
+                   "cc_image_cache_limit_mbs",
+                   -1);
 
 BASE_FEATURE(kCobaltForceGpuMemAvailable,
              "CobaltForceGpuMemAvailable",

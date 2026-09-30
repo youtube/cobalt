@@ -15,11 +15,16 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/test/test_switches.h"
 #include "build/build_config.h"
 #include "cc/base/completion_event.h"
@@ -132,13 +137,35 @@ class OopPixelTest : public testing::Test,
 
   void SetUp() override { InitializeOOPContext(); }
 
+#if BUILDFLAG(IS_COBALT)
+  void TearDown() override { FlushInProcessImageTransfers(); }
+
+  // Lets pending in-process image transfer unref tasks run while
+  // |oop_image_cache_| is still alive.
+  void FlushInProcessImageTransfers() {
+    if (!base::FeatureList::IsEnabled(
+            base::features::kCobaltInProcessImageTransferCache)) {
+      return;
+    }
+    if (!oop_image_cache_ || !raster_context_provider_) {
+      return;
+    }
+    raster_context_provider_->RasterInterface()->Finish();
+    base::RunLoop().RunUntilIdle();
+  }
+#endif
+
   // gpu::raster::GrShaderCache::Client implementation.
   void StoreShader(const std::string& key, const std::string& shader) override {
   }
 
   void InitializeOOPContext() {
-    if (oop_image_cache_)
+    if (oop_image_cache_) {
+#if BUILDFLAG(IS_COBALT)
+      FlushInProcessImageTransfers();
+#endif
       oop_image_cache_.reset();
+    }
 
     raster_context_provider_ =
         base::MakeRefCounted<viz::TestInProcessContextProvider>(
@@ -1862,6 +1889,11 @@ TEST_F(OopPixelTest, ClearingTransparentInternalTile) {
   // result in no items being generated, in which case a clear should still
   // happen. See crbug.com/901897.
   auto display_item_list = base::MakeRefCounted<DisplayItemList>();
+#if BUILDFLAG(IS_COBALT)
+  // In-process direct raster calls DisplayItemList::Raster(), which requires a
+  // finalized list.
+  display_item_list->Finalize();
+#endif
 
   auto oop_result = Raster(display_item_list, options);
 

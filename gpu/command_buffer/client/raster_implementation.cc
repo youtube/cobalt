@@ -752,13 +752,21 @@ gpu::ContextResult RasterImplementation::Initialize(
 #if BUILDFLAG(IS_COBALT)
   // When in-process direct raster is enabled, PaintOp buffers are passed
   // directly via pointer payload. Reduce the initial transfer buffer size to
-  // 1 KB to minimize shared memory overhead.
+  // at most 1 KB to minimize shared memory overhead. The minimum size must be
+  // lowered as well, otherwise TransferBuffer clamps the allocation back up to
+  // it (and ImplementationBase::Initialize DCHECKs that min <= start <= max).
   if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster)) {
+    constexpr uint32_t kCobaltDirectRasterTransferBufferSize = 1024;
+    modified_limits.start_transfer_buffer_size =
+        std::min(limits.start_transfer_buffer_size,
+                 kCobaltDirectRasterTransferBufferSize);
+    modified_limits.min_transfer_buffer_size =
+        std::min(limits.min_transfer_buffer_size,
+                 modified_limits.start_transfer_buffer_size);
     LOG(INFO) << "RasterImplementation: CobaltInProcessDirectRaster enabled, "
                  "reducing initial transfer buffer size to "
-              << 1024 << " bytes (was " << limits.start_transfer_buffer_size
-              << " bytes)";
-    modified_limits.start_transfer_buffer_size = 1024;
+              << modified_limits.start_transfer_buffer_size << " bytes (was "
+              << limits.start_transfer_buffer_size << " bytes)";
   }
 #endif  // BUILDFLAG(IS_COBALT)
   auto result = ImplementationBase::Initialize(modified_limits);
