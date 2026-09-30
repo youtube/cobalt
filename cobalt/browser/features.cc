@@ -207,5 +207,17 @@ BASE_FEATURE(kCobaltFreezeOnBackground,
 const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
     &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltProcessStateSummary,
+             "CobaltProcessStateSummary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kProcessStateSummaryMinFlushIntervalParam,
+                   &kCobaltProcessStateSummary,
+                   "min_flush_interval",
+                   base::Seconds(15));
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace features
 }  // namespace cobalt
