@@ -28,7 +28,11 @@ LinuxUiDelegate::~LinuxUiDelegate() {
 }
 
 bool LinuxUiDelegate::ExportWindowHandle(
+#if BUILDFLAG(IS_COBALT)
+    gfx::AcceleratedWidget parent_widget,
+#else
     uint32_t parent_widget,
+#endif
     base::OnceCallback<void(const std::string&)> callback) {
   // This function should not be called when using a platform that doesn't
   // implement it.
