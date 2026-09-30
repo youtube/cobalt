@@ -280,10 +280,10 @@ TEST_F(AppEventDelegateTest, ConcealFromBlurredIsSynchronous) {
   ASSERT_TRUE(delegate_->IsVisible());
 
   bool conceal_called = false;
-  EXPECT_CALL(*runner_, DoConceal()).WillOnce(Invoke([&]() {
+  EXPECT_CALL(*runner_, DoConceal()).WillOnce([&]() {
     conceal_called = true;
     is_visible_ = false;
-  }));
+  });
 
   // Dispatch kSbEventTypeConceal without calling RunUntilIdle() afterwards.
   // Per the Starboard lifecycle contract, Conceal must complete synchronously
@@ -309,13 +309,11 @@ TEST_F(AppEventDelegateTest, ConcealFromStartedSynthesizesBlurSynchronously) {
   bool conceal_called = false;
   {
     InSequence s;
-    EXPECT_CALL(*runner_, DoBlur()).WillOnce(Invoke([&]() {
-      blur_called = true;
-    }));
-    EXPECT_CALL(*runner_, DoConceal()).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*runner_, DoBlur()).WillOnce([&]() { blur_called = true; });
+    EXPECT_CALL(*runner_, DoConceal()).WillOnce([&]() {
       conceal_called = true;
       is_visible_ = false;
-    }));
+    });
   }
 
   // Dispatch kSbEventTypeConceal directly from kStarted without calling
@@ -342,13 +340,11 @@ TEST_F(AppEventDelegateTest, BackToBackBlurAndConcealCompletesSynchronously) {
   bool conceal_called = false;
   {
     InSequence s;
-    EXPECT_CALL(*runner_, DoBlur()).WillOnce(Invoke([&]() {
-      blur_called = true;
-    }));
-    EXPECT_CALL(*runner_, DoConceal()).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*runner_, DoBlur()).WillOnce([&]() { blur_called = true; });
+    EXPECT_CALL(*runner_, DoConceal()).WillOnce([&]() {
       conceal_called = true;
       is_visible_ = false;
-    }));
+    });
   }
 
   // Reproduce starboard::Application::DispatchAndDelete when concealing from
