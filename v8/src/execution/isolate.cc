@@ -1841,7 +1841,7 @@ namespace {
 
 class MinimalStackPrinter {
  public:
-  MinimalStackPrinter() = default;
+  explicit MinimalStackPrinter(size_t max_length) : max_length_(max_length) {}
 
   void SetPrevFrameAsConstructCall() {
     // Nothing to do.
@@ -1880,7 +1880,8 @@ class MinimalStackPrinter {
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
 
-    return true;
+    // Stop iterating when we emitted too many characters.
+    return HasMoreSpace();
   }
 
   void PrintWasmFrame(int function_index, Handle<Object> script,
@@ -1910,18 +1911,29 @@ class MinimalStackPrinter {
 
   std::string Build() { return out_.str(); }
 
+  bool HasMoreSpace() {
+    size_t current = out_.tellp();
+    return current < max_length_;
+  }
+
  private:
   std::stringstream out_;
+  const size_t max_length_;
 };
 
 }  // namespace
 
-std::string Isolate::BuildMinimalStack() {
+std::string Isolate::BuildMinimalStack(size_t max_length) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(this);
 
-  MinimalStackPrinter printer;
-  VisitStack(this, &printer);
+  static constexpr v8::StackTrace::StackTraceOptions stackTraceOptions =
+      static_cast<v8::StackTrace::StackTraceOptions>(
+          v8::StackTrace::kDetailed |
+          v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
+
+  MinimalStackPrinter printer(max_length);
+  VisitStack(this, &printer, stackTraceOptions);
   return printer.Build();
 }
 
@@ -1935,7 +1947,8 @@ void Isolate::ReportStackAsCrashKey() {
     return;
   }
 
-  std::string stack = BuildMinimalStack();
+  constexpr size_t kMaximumStackLengthBytes = 1024;
+  std::string stack = BuildMinimalStack(kMaximumStackLengthBytes);
   AddCrashKeyString("v8-oom-stack", CrashKeySize::Size1024, stack);
 }
 
@@ -2767,6 +2780,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
               static_cast<int>(offset));
 
           Tagged<Code> code = *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
+#ifndef V8_ENABLE_RISCV_SHADOW_STACK
           // We subtract a frame from visited_frames because otherwise the
           // shadow stack will drop the underlying interpreter entry trampoline
           // in which the handler runs.
@@ -2778,6 +2792,11 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           return FoundHandler(iter, context, code->instruction_start(), 0,
                               code->constant_pool(), return_sp, frame->fp(),
                               visited_frames - 1);
+#else
+          return FoundHandler(iter, context, code->instruction_start(), 0,
+                              code->constant_pool(), return_sp, frame->fp(),
+                              visited_frames);
+#endif
         }
       }
 
@@ -5119,15 +5138,17 @@ void Isolate::NotifyExceptionPropagationCallback() {
 
         DirectHandle<Object> holder =
             Utils::OpenDirectHandle(*callback_info->HolderV2());
-        DirectHandle<Object> maybe_name =
-            PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
-        DirectHandle<Name> name =
-            IsSmi(*maybe_name)
-                ? factory()->SizeToString(
-                      PropertyCallbackArguments::GetPropertyIndex(
-                          *callback_info))
-                : Cast<Name>(maybe_name);
         DCHECK(IsJSReceiver(*holder));
+
+        using PCA = PropertyCallbackArguments;
+        DirectHandle<Name> name;
+        if (PCA::IsNamed(*callback_info)) {
+          name = PCA::GetPropertyName(*callback_info);
+        } else {
+          uint32_t index = PCA::GetPropertyIndex(*callback_info);
+          // TODO(ishell): consider just querying the cache without updating it.
+          name = factory()->SizeToString(index);
+        }
 
         // Currently we call only ApiGetters from JS code.
         ReportExceptionPropertyCallback(Cast<JSReceiver>(holder), name, kind);
@@ -5167,8 +5188,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
                                       callback_kind);
       return;
     }
-    case StackFrame::API_ACCESSOR_EXIT: {
-      ApiAccessorExitFrame* frame = ApiAccessorExitFrame::cast(it.frame());
+    case StackFrame::API_NAMED_ACCESSOR_EXIT: {
+      ApiNamedAccessorExitFrame* frame =
+          ApiNamedAccessorExitFrame::cast(it.frame());
 
       DirectHandle<Object> holder(frame->holder(), this);
       DirectHandle<Name> name(frame->property_name(), this);
@@ -5179,6 +5201,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
                                       v8::ExceptionContext::kAttributeGet);
       return;
     }
+    case StackFrame::API_INDEXED_ACCESSOR_EXIT:
+      // These frames are not created yet.
+      UNREACHABLE();
     case StackFrame::TURBOFAN_JS:
       // This must be a fast Api call.
       CHECK(it.frame()->InFastCCall());

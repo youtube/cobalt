@@ -18,6 +18,7 @@
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/ssl_stream_adapter.h"
 
 namespace webrtc {
 
@@ -64,6 +65,9 @@ class DataChannelSink {
  public:
   virtual ~DataChannelSink() = default;
 
+  // Callback issued when the transport is first connected.
+  virtual void OnTransportConnected() = 0;
+
   // Callback issued when data is received by the transport.
   virtual void OnDataReceived(int channel_id,
                               DataMessageType type,
@@ -86,9 +90,7 @@ class DataChannelSink {
   virtual void OnReadyToSend() = 0;
 
   // Callback issued when the data channel becomes unusable (closed).
-  // TODO(https://crbug.com/webrtc/10360): Make pure virtual when all
-  // consumers updated.
-  virtual void OnTransportClosed(RTCError /* error */) {}
+  virtual void OnTransportClosed(RTCError /* error */) = 0;
 
   // The data channel's buffered_amount has fallen to or below the threshold
   // set when calling `SetBufferedAmountLowThreshold`
@@ -122,13 +124,16 @@ class DataChannelTransportInterface {
   virtual void SetDataSink(DataChannelSink* sink) = 0;
 
   // Returns whether this data channel transport is ready to send.
-  // Note: the default implementation always returns false (as it assumes no one
-  // has implemented the interface).  This default implementation is temporary.
   virtual bool IsReadyToSend() const = 0;
 
   virtual size_t buffered_amount(int channel_id) const = 0;
   virtual size_t buffered_amount_low_threshold(int channel_id) const = 0;
   virtual void SetBufferedAmountLowThreshold(int channel_id, size_t bytes) = 0;
+
+  // These values are determined during the DTLS and SCTP negotiation.
+  // They are std::nullopt until decided, and don't change afterwards.
+  virtual std::optional<int> MaxChannels() = 0;
+  virtual std::optional<SSLRole> DtlsRole() = 0;
 };
 
 }  // namespace webrtc

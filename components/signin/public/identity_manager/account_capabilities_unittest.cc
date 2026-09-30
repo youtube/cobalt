@@ -134,6 +134,7 @@ TEST_F(AccountCapabilitiesTest,
       signin::Tribool::kFalse);
 }
 
+#if !BUILDFLAG(IS_IOS)
 TEST_F(AccountCapabilitiesTest, CanRunChromePrivacySandboxTrials) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_run_chrome_privacy_sandbox_trials(),
@@ -148,6 +149,7 @@ TEST_F(AccountCapabilitiesTest, CanRunChromePrivacySandboxTrials) {
   EXPECT_EQ(capabilities.can_run_chrome_privacy_sandbox_trials(),
             signin::Tribool::kFalse);
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(AccountCapabilitiesTest, IsOptedInToParentalSupervision) {
   AccountCapabilities capabilities;
@@ -164,6 +166,7 @@ TEST_F(AccountCapabilitiesTest, IsOptedInToParentalSupervision) {
             signin::Tribool::kFalse);
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountCapabilitiesTest, CanToggleAutoUpdates) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_toggle_auto_updates(), signin::Tribool::kUnknown);
@@ -175,22 +178,9 @@ TEST_F(AccountCapabilitiesTest, CanToggleAutoUpdates) {
   mutator.set_can_toggle_auto_updates(false);
   EXPECT_EQ(capabilities.can_toggle_auto_updates(), signin::Tribool::kFalse);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-TEST_F(AccountCapabilitiesTest, CanUseChromeIpProtection) {
-  AccountCapabilities capabilities;
-  EXPECT_EQ(capabilities.can_use_chrome_ip_protection(),
-            signin::Tribool::kUnknown);
-
-  AccountCapabilitiesTestMutator mutator(&capabilities);
-  mutator.set_can_use_chrome_ip_protection(true);
-  EXPECT_EQ(capabilities.can_use_chrome_ip_protection(),
-            signin::Tribool::kTrue);
-
-  mutator.set_can_use_chrome_ip_protection(false);
-  EXPECT_EQ(capabilities.can_use_chrome_ip_protection(),
-            signin::Tribool::kFalse);
-}
-
+#if !BUILDFLAG(IS_IOS)
 TEST_F(AccountCapabilitiesTest, CanUseDevToolsGenerativeAiFeatures) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_use_devtools_generative_ai_features(),
@@ -205,6 +195,7 @@ TEST_F(AccountCapabilitiesTest, CanUseDevToolsGenerativeAiFeatures) {
   EXPECT_EQ(capabilities.can_use_devtools_generative_ai_features(),
             signin::Tribool::kFalse);
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(AccountCapabilitiesTest, CanUseEduFeatures) {
   AccountCapabilities capabilities;

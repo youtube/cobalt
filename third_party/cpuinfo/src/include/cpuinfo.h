@@ -538,6 +538,8 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_saphira = 0x00400104,
 	/** Qualcomm Oryon. */
 	cpuinfo_uarch_oryon = 0x00400105,
+	/** Qualcomm Oryon V3. */
+	cpuinfo_uarch_oryon_v3 = 0x00400106,
 
 	/** Nvidia Denver. */
 	cpuinfo_uarch_denver = 0x00500100,
@@ -611,6 +613,11 @@ enum cpuinfo_uarch {
 	cpuinfo_uarch_tahiti_everest = 0x00700206,
 	/** Apple A18 pro processor (little cores). */
 	cpuinfo_uarch_tahiti_sawtooth = 0x00700207,
+
+	/** Apple M4 processor (big cores). */
+	cpuinfo_uarch_donan_everest = 0x00700308,
+	/** Apple M4 processor (little cores). */
+	cpuinfo_uarch_donan_sawtooth = 0x00700309,
 
 	/** Cavium ThunderX. */
 	cpuinfo_uarch_thunderx = 0x00800100,

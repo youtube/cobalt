@@ -104,11 +104,7 @@ namespace compiler {
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
   V(Arm64S64x2Reverse)                  \
-  V(Arm64S64x2Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
-  V(Arm64S32x2Shuffle)                  \
-  V(Arm64S16x2Shuffle)                  \
-  V(Arm64S8x2Shuffle)                   \
   V(Arm64S8x16Concat)                   \
   V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
@@ -141,12 +137,10 @@ namespace compiler {
   V(Arm64I32x4DotI16x8S)                \
   V(Arm64I16x8DotI8x16S)                \
   V(Arm64I32x4DotI8x16AddS)             \
-  V(Arm64I8x16Addv)                     \
-  V(Arm64I16x8Addv)                     \
-  V(Arm64I32x4Addv)                     \
-  V(Arm64I64x2AddPair)                  \
-  V(Arm64F32x4AddReducePairwise)        \
-  V(Arm64F64x2AddPair)                  \
+  V(Arm64IAddv)                         \
+  V(Arm64IAddpScalar)                   \
+  V(Arm64FAddp)                         \
+  V(Arm64FAddpScalar)                   \
   V(Arm64I32x4TruncSatF64x2SZero)       \
   V(Arm64I32x4TruncSatF64x2UZero)       \
   V(Arm64IExtractLaneU)                 \

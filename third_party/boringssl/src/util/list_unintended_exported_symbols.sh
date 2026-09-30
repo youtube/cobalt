@@ -27,6 +27,9 @@
 set -e
 set -o pipefail
 
+: ${workdir:=$PWD/build}
+mkdir -p "${workdir}"
+
 include_files() {
 	for file in "$@"; do
 		echo "#include <${file}>"
@@ -34,7 +37,10 @@ include_files() {
 }
 
 source_to_ast() {
+	# Note: for now not including any symbols defined by asm functions.
+	# The full story for those still needs to be figured out.
 	clang++ \
+		-DOPENSSL_NO_ASM \
 		-Iinclude \
 		-Ithird_party/benchmark/include \
 		-Ithird_party/googletest/googlemock/include \
@@ -52,8 +58,16 @@ c_source_to_identifiers() {
 	source_to_ast -x c -std=c17 "$@" | ast_to_identifiers --language=C
 }
 
+c_source_to_symbols() {
+	source_to_ast -x c -std=c17 "$@" | ast_to_identifiers --language=C --global_symbols_only
+}
+
 cc_source_to_identifiers() {
 	source_to_ast -x c++ -std=c++17 "$@" | ast_to_identifiers --language=C++
+}
+
+cc_source_to_symbols() {
+	source_to_ast -x c++ -std=c++17 "$@" | ast_to_identifiers --language=C++ --global_symbols_only
 }
 
 lib_sources() {
@@ -151,18 +165,22 @@ fix_c_cc_include_deltas() {
 }
 
 echo >&2 'Indexing C++ includes...'
-include_files $(public_cc_includes) | cc_source_to_identifiers - > include.cc.ids
+include_files $(public_cc_includes) | cc_source_to_identifiers - > "${workdir}"/include.cc.ids
+include_files $(public_cc_includes) | cc_source_to_symbols - > "${workdir}"/include.cc.syms
 echo >&2 'Indexing C includes...'
-include_files $(public_c_includes) | c_source_to_identifiers - > include.c.ids
+include_files $(public_c_includes) | c_source_to_identifiers - > "${workdir}"/include.c.ids
+include_files $(public_c_includes) | c_source_to_symbols - > "${workdir}"/include.c.syms
 echo >&2 'Indexing C includes as C++...'
-include_files $(public_c_includes) | cc_source_to_identifiers - > include.c_as_cc.ids
+include_files $(public_c_includes) | cc_source_to_identifiers - > "${workdir}"/include.c_as_cc.ids
+include_files $(public_c_includes) | cc_source_to_symbols - > "${workdir}"/include.c_as_cc.syms
+echo >&2 'Merging symbol lists...'
+cat "${workdir}"/include.c.syms "${workdir}"/include.cc.syms "${workdir}"/include.c_as_cc.syms | sort -u > "${workdir}"/include.syms
 
 # Check that the headers behave the same if included by C and C++ files, other
 # than for expected diffs.
 echo >&2 'Comparing C includes across including language...'
-fix_c_cc_include_deltas < include.c.ids > include.c.common.ids
-fix_c_cc_include_deltas < include.c_as_cc.ids > include.c_as_cc.common.ids
-diff -u include.c.common.ids include.c_as_cc.common.ids >&2
+fix_c_cc_include_deltas < "${workdir}"/include.c.ids > "${workdir}"/include.c.common.ids
+fix_c_cc_include_deltas < "${workdir}"/include.c_as_cc.ids > "${workdir}"/include.c_as_cc.common.ids
 
 # Check that no source file defines any public symbols that are not in the
 # public headers, namespaced or otherwise OK'd.
@@ -175,28 +193,29 @@ wait_jobs() {
 	done
 }
 for file in $(lib_sources); do
-	if ! [ -f "${file}.ids" ]; then
+	if ! [ -f "${workdir}/${file}.ids" ]; then
 		echo >&2 "Indexing ${file} (new)..."
-	elif [ "${file}" -nt "${file}.ids" ]; then
+	elif [ "${file}" -nt ${workdir}/"${file}.ids" ]; then
 		echo >&2 "Indexing ${file} (changed)..."
-		rm -f "${file}.ids"
+		rm -f "${workdir}/${file}.ids"
 	else
-		perl -nE 'm!// (\S+):! and say $1' "${file}.ids" |\
+		perl -nE 'm!// (\S+):! and say $1' "${workdir}/${file}.ids" |\
 			sort -u |\
 			while read -r dep; do
-				if [ "${dep}" -nt "${file}.ids" ]; then
+				if [ "${dep}" -nt "${workdir}/${file}.ids" ]; then
 					echo >&2 "Indexing ${file} (dependency ${dep} changed)..."
-					rm -f "${file}.ids"
+					rm -f "${workdir}/${file}.ids"
 					break
 				fi
 			done
-		if [ -f "${file}.ids" ]; then
+		if [ -f "${workdir}/${file}.ids" ]; then
 			continue
 		fi
 	fi
 	# NOTE: It'd be nice to only recompute ${file}.ids if ${file} _or_ one
 	# of its dependencies changed.
 	{
+		mkdir -p "${workdir}/${file%/*}"
 		case "$file" in
 			*.c)
 				c_source_to_identifiers "${file}"
@@ -205,10 +224,10 @@ for file in $(lib_sources); do
 				# This includes headers too.
 				cc_source_to_identifiers "${file}"
 				;;
-		esac > "${file}.ids.new"
-		mv "${file}.ids.new" "${file}.ids"
+		esac > "${workdir}/${file}.ids.new"
+		mv "${workdir}/${file}.ids.new" "${workdir}/${file}.ids"
 	} &
-	set -- "$@" "${file}.ids"
+	set -- "$@" "${workdir}/${file}.ids"
 	if [ $# -ge ${max_jobs} ]; then
 		wait_jobs "$@"
 		set --
@@ -218,5 +237,5 @@ wait_jobs "$@"
 
 echo >&2 'Comparing symbols...'
 for file in $(lib_sources); do
-	set_difference "${file}.ids" include.cc.ids | filter_difference
+	set_difference "${workdir}/${file}.ids" "${workdir}"/include.cc.ids | filter_difference
 done | sort -u | { ! grep .; }

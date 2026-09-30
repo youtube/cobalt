@@ -2521,8 +2521,10 @@ DEFINE_BOOL_READONLY(verify_heap, false,
 DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
                      "verify skipped write barriers")
 #undef V8_VERIFY_WRITE_BARRIERS_BOOL
+#if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
-            "Bump priority for running threads to reach safepoint")
+            "Bump QOS class for running threads to reach safepoint")
+#endif
 DEFINE_BOOL(memory_reducer_respects_frozen_state, false,
             "don't schedule another GC when we are frozen")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
@@ -2777,6 +2779,8 @@ DEFINE_BOOL(
 DEFINE_BOOL(sim_abort_on_shadowstack_mismatch, true,
             "Stop execution when shadowstack match fails in the "
             "riscv simulator.")
+DEFINE_BOOL(trace_shadowstack, false,
+            "Trace shadowstack operations in the riscv simulator.")
 #endif
 #endif
 

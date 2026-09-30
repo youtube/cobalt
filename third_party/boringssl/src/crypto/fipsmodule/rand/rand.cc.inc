@@ -23,6 +23,7 @@
 #include <openssl/chacha.h>
 #include <openssl/ctrdrbg.h>
 #include <openssl/mem.h>
+#include <openssl/rand.h>
 
 #include "../../bcm_support.h"
 #include "../bcm_interface.h"

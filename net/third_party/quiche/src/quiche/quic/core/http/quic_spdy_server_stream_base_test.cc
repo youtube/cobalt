@@ -60,7 +60,7 @@ TEST_F(QuicSpdyServerStreamBaseTest,
        SendQuicRstStreamNoErrorWithEarlyResponse) {
   stream_->StopReading();
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)))
@@ -80,19 +80,18 @@ TEST_F(QuicSpdyServerStreamBaseTest,
        DoNotSendQuicRstStreamNoErrorWithRstReceived) {
   EXPECT_FALSE(stream_->reading_stopped());
 
-  EXPECT_CALL(session_,
-              MaybeSendRstStreamFrame(
-                  _,
-                  QuicResetStreamError::FromInternal(
-                      VersionHasIetfQuicFrames(session_.transport_version())
-                          ? QUIC_STREAM_CANCELLED
-                          : QUIC_RST_ACKNOWLEDGEMENT),
-                  _))
+  EXPECT_CALL(session_, MaybeSendRstStreamFrame(
+                            _,
+                            QuicResetStreamError::FromInternal(
+                                VersionIsIetfQuic(session_.transport_version())
+                                    ? QUIC_STREAM_CANCELLED
+                                    : QUIC_RST_ACKNOWLEDGEMENT),
+                            _))
       .Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(session_.transport_version())) {
+  if (VersionIsIetfQuic(session_.transport_version())) {
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
@@ -133,7 +132,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnectProtocolFirst) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
-  if (!session_.version().UsesHttp3()) {
+  if (!session_.version().IsIetfQuic()) {
     return;
   }
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);

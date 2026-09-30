@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Mesec isteka</translation>
 <translation id="1150989369772528668">Kalendar</translation>
 <translation id="1161663161838091892">Sinhronizujte kartice i istoriju da biste nastavili</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} kreditna kartica}one{{count} kreditna kartica}few{{count} kreditne kartice}other{{count} kreditnih kartica}}</translation>
 <translation id="1164891049599601209">Uneto je na obmanjujućem sajtu</translation>
 <translation id="1165039591588034296">Greška</translation>
 <translation id="1172898394251786223">Sledeće polje</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Ne skrivaj</translation>
 <translation id="1456545332132818232">Recenzije proizvoda <ph name="PRODUCT_NAME" />, <ph name="STARS" /> od <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Uštedite vreme, kucajte manje</translation>
+<translation id="1466035273550360103">Nema otvorenih kartica</translation>
 <translation id="1469381646033328562">Nalogom upravlja roditelj.
 <ph name="BEGIN_LINK" />Saznaj više<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Promenjeno</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Otvorene kartice</translation>
 <translation id="1752547299766512813">Sačuvane lozinke</translation>
 <translation id="1764070164487214210">Putanja</translation>
+<translation id="1764511703783285459">Drugi menadžer lozinki ne deli lozinke ni pristupne ključeve</translation>
 <translation id="1767766085187034454">Google prevodilac</translation>
 <translation id="1771016937398045251">Meni Alatke</translation>
 <translation id="1772468122139624049">Ponovno učitavanje kartica nije uspelo</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Čuvanje promene nije uspelo.</translation>
 <translation id="3254806613790954367">Poslednja otvorena kartica na svim uređajima</translation>
 <translation id="325717987950204592">Dodirnite Privatnost i bezbednost</translation>
-<translation id="3266338926702638258">Prikaži istoriju cena za ovaj proizvod</translation>
 <translation id="3272527697863656322">Otkaži</translation>
 <translation id="3273510436356991673">Prilagodite početni ekran</translation>
 <translation id="3277021493514034324">Adresa sajta je kopirana</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{Izabrali ste 1 stavku}one{Izabrali ste # stavku}few{Izabrali ste # stavke}other{Izabrali ste # stavki}}</translation>
 <translation id="3668816008081204991">Lista za čitanje je skrivena</translation>
 <translation id="3670030362669914947">Broj</translation>
+<translation id="3672283986707092811">Izaberi sve</translation>
 <translation id="3679163990085797665">Izbriši pročitano</translation>
 <translation id="368329460027487650">Odjavljeni ste. Otvara opcije za prijavljivanje.</translation>
 <translation id="3695446226812920698">Saznajte kako</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Ime za prikaz</translation>
 <translation id="4375772272517383391">Zatvori sve kartice</translation>
 <translation id="4378154925671717803">Telefon</translation>
+<translation id="4380677808580146413">Izaberi</translation>
 <translation id="4389019817280890563">Dodirnite da biste promenili jezik</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Posle 1 dana}one{Posle {COUNT} dana}few{Posle {COUNT} dana}other{Posle {COUNT} dana}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 kartica}one{# kartica}few{# kartice}other{# kartica}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Sakrij Nedavne kartice</translation>
 <translation id="4578835633387306383">Uključi…</translation>
 <translation id="4580716718466706433">Idite u Menadžer lozinki</translation>
+<translation id="4585751637295612750">Otvorite novu karticu da biste je dodali u pitanje</translation>
 <translation id="4587589328781138893">Sajtovi</translation>
 <translation id="4592672037257622855">{count,plural, =1{Stranica je dodata na listu za čitanje}one{{count} stranica je dodata na listu za čitanje}few{{count} stranice su dodate na listu za čitanje}other{{count} stranica je dodato na listu za čitanje}}</translation>
 <translation id="459644946100970322">Želite da uključite obaveštenja o cenama?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Napomena premašuje 1000 znakova</translation>
 <translation id="5087098519049306025">Praćenje cena</translation>
 <translation id="5090832849094901128">Brisanjem ove lozinke nećete izbrisati nalog na <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Ništa nije uvezeno</translation>
 <translation id="5113960131843706315">Preuzimaju se stvari…</translation>
 <translation id="5118462200606189584">Dodaj nalog…</translation>
 <translation id="5118764316110575523">Isključeno</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Sačuvajte fajl</translation>
 <translation id="5355191726083956201">Poboljšana zaštita je uključena</translation>
 <translation id="536067926684072644">Prikaži obeleživače</translation>
+<translation id="5364647308446127983">{count,plural, =1{Uvoz {count} pristupnog ključa nije uspeo}one{Uvoz {count} pristupnog ključa nije uspeo}few{Uvoz {count} pristupna ključa nije uspeo}other{Uvoz {count} pristupnih ključeva nije uspeo}}</translation>
 <translation id="5371112366564891538">Povećajte veličinu teksta</translation>
+<translation id="5376135254804080693">Opozovi sve</translation>
 <translation id="537853552771686272">Upravljajte temama i sajtovima koji vas interesuju</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} zatvorena}one{{count} zatvorena}few{{count} zatvorene}other{{count} zatvorenih}}</translation>
 <translation id="5394975111793637642">Sakrijte karticu Recenzije proizvoda za vas</translation>
@@ -1445,6 +1453,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="6410390304316730527">Bezbedno pregledanje vas štiti od napadača koji mogu da vas navedu da uradite nešto opasno, na primer, da instalirate zlonamerni softver ili otkrijete lične podatke poput lozinki, brojeva telefona ili brojeva kreditnih kartica. Ako ga isključite, budite oprezni pri pregledanju nepoznatih ili nebezbednih sajtova.</translation>
 <translation id="6410883413783534063">Otvorite kartice da biste istovremeno posetili različite stranice</translation>
 <translation id="6418346271604475326">Priprema PDF datoteke</translation>
+<translation id="6420292512900923139">Problemi sa uvozom podataka</translation>
 <translation id="6421038304268477484">Prevedeni tekst</translation>
 <translation id="6429213933892582367">Otvorite Opcije lozinki</translation>
 <translation id="6435236283694032571">Dodaj na Listu za čitanje</translation>
@@ -1483,6 +1492,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Opcije</translation>
 <translation id="6550891580932862748">Ne štiti vas od opasnih veb-sajtova, preuzimanja i dodataka. To neće uticati na podešavanja Bezbednog pregledanja u drugim Google proizvodima.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Ponovi</translation>
 <translation id="6559301491397835130">{count,plural, =1{Obeleživač je sačuvan u: {title}. Čuva se samo na ovom uređaju.}one{Obeleživači su sačuvani u: {title}. Čuvaju se samo na ovom uređaju.}few{Obeleživači su sačuvani u: {title}. Čuvaju se samo na ovom uređaju.}other{Obeleživači su sačuvani u: {title}. Čuvaju se samo na ovom uređaju.}}</translation>
 <translation id="656065428026159829">Prikaži još</translation>
@@ -1559,6 +1569,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="6807287147325542056">Lozinke u drugim aplikacijama</translation>
 <translation id="681368974849482173">Stavka je napravljena</translation>
 <translation id="6825078212112407882">{count,plural, =1{Obeleživač je sačuvan na Google nalogu, {email}}one{{count} obeleživač je sačuvan na Google nalogu, {email}}few{{count} obeleživača su sačuvana na Google nalogu, {email}}other{{count} obeleživača je sačuvano na Google nalogu, {email}}}</translation>
+<translation id="6826004672264649705">Trenutno pratite ovaj proizvod. Otvorite da biste videli istoriju cena</translation>
 <translation id="6830728435402077660">Nije bezbedno</translation>
 <translation id="6831043979455480757">Prevedi</translation>
 <translation id="6842136130964845393">Da biste bili sigurni da uvek možete da pristupate sačuvanim lozinkama, potvrdite da ste to vi</translation>

@@ -52,6 +52,7 @@
 #include "call/payload_type_picker.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
+#include "pc/channel_interface.h"
 #include "pc/jsep_transport_controller.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/peer_connection_message_handler.h"
@@ -342,6 +343,8 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   bool GetSslRole(const std::string& content_name, SSLRole* role) override {
     return false;
   }
+  void OnTransportChanging(bool change_done) override {}
+
   const PeerConnectionInterface::RTCConfiguration* configuration()
       const override {
     return nullptr;

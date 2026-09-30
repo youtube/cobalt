@@ -62,6 +62,10 @@
 
 using ::testing::_;
 using ::testing::AtLeast;
+using ::testing::Eq;
+using ::testing::Ge;
+using ::testing::Gt;
+using ::testing::SizeIs;
 using ::testing::StrictMock;
 using ::testing::Values;
 
@@ -86,8 +90,10 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
         "callee", env_, &pss_, network_thread_.get(), worker_thread_.get());
     PeerConnectionInterface::IceServer ice_server;
     ice_server.uri = "stun:stun.l.google.com:19302";
-    config_.servers.push_back(ice_server);
-    config_.sdp_semantics = sdp_semantics;
+    caller_config_.servers.push_back(ice_server);
+    caller_config_.sdp_semantics = sdp_semantics;
+    callee_config_.servers.push_back(ice_server);
+    callee_config_.sdp_semantics = sdp_semantics;
 
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
@@ -98,9 +104,9 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
                  scoped_refptr<AudioDecoderFactory> audio_decoder_factory1,
                  scoped_refptr<AudioEncoderFactory> audio_encoder_factory2,
                  scoped_refptr<AudioDecoderFactory> audio_decoder_factory2) {
-    EXPECT_TRUE(caller_->CreatePc(config_, audio_encoder_factory1,
+    EXPECT_TRUE(caller_->CreatePc(caller_config_, audio_encoder_factory1,
                                   audio_decoder_factory1));
-    EXPECT_TRUE(callee_->CreatePc(config_, audio_encoder_factory2,
+    EXPECT_TRUE(callee_->CreatePc(callee_config_, audio_encoder_factory2,
                                   audio_decoder_factory2));
     PeerConnectionTestWrapper::Connect(caller_.get(), callee_.get());
 
@@ -182,16 +188,14 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
     EXPECT_THAT(
         WaitUntil(
             [&] { return CopyOnWriteBuffer(dc2_observer->last_message()); },
-            ::testing::Eq(buffer.data),
-            {.timeout = TimeDelta::Millis(kMaxWait)}),
+            Eq(buffer.data), {.timeout = TimeDelta::Millis(kMaxWait)}),
         IsRtcOk());
 
     EXPECT_TRUE(dc2->Send(buffer));
     EXPECT_THAT(
         WaitUntil(
             [&] { return CopyOnWriteBuffer(dc1_observer->last_message()); },
-            ::testing::Eq(buffer.data),
-            {.timeout = TimeDelta::Millis(kMaxWait)}),
+            Eq(buffer.data), {.timeout = TimeDelta::Millis(kMaxWait)}),
         IsRtcOk());
 
     EXPECT_EQ(1U, dc1_observer->received_message_count());
@@ -204,17 +208,17 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
                                  const DataChannelList& remote_dc_list,
                                  size_t remote_dc_index) {
     EXPECT_THAT(WaitUntil([&] { return local_dc->state(); },
-                          ::testing::Eq(DataChannelInterface::kOpen),
+                          Eq(DataChannelInterface::kOpen),
                           {.timeout = TimeDelta::Millis(kMaxWait)}),
                 IsRtcOk());
 
-    ASSERT_THAT(WaitUntil([&] { return remote_dc_list.size(); },
-                          ::testing::Gt(remote_dc_index),
-                          {.timeout = TimeDelta::Millis(kMaxWait)}),
-                IsRtcOk());
+    ASSERT_THAT(
+        WaitUntil([&] { return remote_dc_list.size(); }, Gt(remote_dc_index),
+                  {.timeout = TimeDelta::Millis(kMaxWait)}),
+        IsRtcOk());
     EXPECT_THAT(
         WaitUntil([&] { return remote_dc_list[remote_dc_index]->state(); },
-                  ::testing::Eq(DataChannelInterface::kOpen),
+                  Eq(DataChannelInterface::kOpen),
                   {.timeout = TimeDelta::Millis(kMaxWait)}),
         IsRtcOk());
     EXPECT_EQ(local_dc->id(), remote_dc_list[remote_dc_index]->id());
@@ -225,14 +229,18 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
                          size_t remote_dc_index) {
     local_dc->Close();
     EXPECT_THAT(WaitUntil([&] { return local_dc->state(); },
-                          ::testing::Eq(DataChannelInterface::kClosed),
+                          Eq(DataChannelInterface::kClosed),
                           {.timeout = TimeDelta::Millis(kMaxWait)}),
                 IsRtcOk());
     EXPECT_THAT(
         WaitUntil([&] { return remote_dc_list[remote_dc_index]->state(); },
-                  ::testing::Eq(DataChannelInterface::kClosed),
+                  Eq(DataChannelInterface::kClosed),
                   {.timeout = TimeDelta::Millis(kMaxWait)}),
         IsRtcOk());
+  }
+
+  void SetCalleeMaxSctpStreams(int count) {
+    callee_config_.max_sctp_streams = count;
   }
 
  protected:
@@ -245,7 +253,8 @@ class PeerConnectionEndToEndBaseTest : public ::testing::Test {
   scoped_refptr<PeerConnectionTestWrapper> callee_;
   DataChannelList caller_signaled_data_channels_;
   DataChannelList callee_signaled_data_channels_;
-  PeerConnectionInterface::RTCConfiguration config_;
+  PeerConnectionInterface::RTCConfiguration caller_config_;
+  PeerConnectionInterface::RTCConfiguration callee_config_;
 };
 
 class PeerConnectionEndToEndTest
@@ -651,16 +660,16 @@ TEST_P(PeerConnectionEndToEndTest,
   const std::string message_2 = "hello 2";
 
   caller_dc_1->Send(DataBuffer(message_1));
-  EXPECT_THAT(WaitUntil([&] { return dc_1_observer->last_message(); },
-                        ::testing::Eq(message_1),
-                        {.timeout = TimeDelta::Millis(kMaxWait)}),
-              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return dc_1_observer->last_message(); }, Eq(message_1),
+                {.timeout = TimeDelta::Millis(kMaxWait)}),
+      IsRtcOk());
 
   caller_dc_2->Send(DataBuffer(message_2));
-  EXPECT_THAT(WaitUntil([&] { return dc_2_observer->last_message(); },
-                        ::testing::Eq(message_2),
-                        {.timeout = TimeDelta::Millis(kMaxWait)}),
-              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return dc_2_observer->last_message(); }, Eq(message_2),
+                {.timeout = TimeDelta::Millis(kMaxWait)}),
+      IsRtcOk());
 
   EXPECT_EQ(1U, dc_1_observer->received_message_count());
   EXPECT_EQ(1U, dc_2_observer->received_message_count());
@@ -689,7 +698,7 @@ TEST_P(PeerConnectionEndToEndTest,
   // prematurely, and this caused issues; see bugs.webrtc.org/4453.
   caller_dc->Close();
   EXPECT_THAT(WaitUntil([&] { return caller_dc->state(); },
-                        ::testing::Eq(DataChannelInterface::kClosed),
+                        Eq(DataChannelInterface::kClosed),
                         {.timeout = TimeDelta::Millis(kMaxWait)}),
               IsRtcOk());
 
@@ -725,7 +734,7 @@ TEST_P(PeerConnectionEndToEndTest, CloseDataChannelRemotelyWhileNotReferenced) {
   callee_signaled_data_channels_.clear();
   caller_dc->Close();
   EXPECT_THAT(WaitUntil([&] { return caller_dc->state(); },
-                        ::testing::Eq(DataChannelInterface::kClosed),
+                        Eq(DataChannelInterface::kClosed),
                         {.timeout = TimeDelta::Millis(kMaxWait)}),
               IsRtcOk());
 
@@ -736,26 +745,43 @@ TEST_P(PeerConnectionEndToEndTest, CloseDataChannelRemotelyWhileNotReferenced) {
 
 // Test behavior of creating too many datachannels.
 TEST_P(PeerConnectionEndToEndTest, TooManyDataChannelsOpenedBeforeConnecting) {
+  constexpr int kReducedMaxSctpStreams = 4;
+  SetCalleeMaxSctpStreams(kReducedMaxSctpStreams);
   CreatePcs(MockAudioEncoderFactory::CreateEmptyFactory(),
             MockAudioDecoderFactory::CreateEmptyFactory());
 
   DataChannelInit init;
   std::vector<scoped_refptr<DataChannelInterface>> channels;
-  for (int i = 0; i <= kMaxSctpStreams / 2; i++) {
+  // Add datachannels that will be assigned 0, 2 and 4 or 1, 3 and 5
+  // depending on DTLS role.
+  for (int i = 0; i <= kReducedMaxSctpStreams / 2; i++) {
     scoped_refptr<DataChannelInterface> caller_dc(
         caller_->CreateDataChannel("data", init));
     channels.push_back(std::move(caller_dc));
   }
   Negotiate();
   WaitForConnection();
+  scoped_refptr<SctpTransportInterface> caller_transport =
+      caller_->pc()->GetSctpTransport();
+  scoped_refptr<SctpTransportInterface> callee_transport =
+      callee_->pc()->GetSctpTransport();
+  std::optional<int> caller_channels =
+      caller_transport->Information().MaxChannels();
+  std::optional<int> callee_channels =
+      callee_transport->Information().MaxChannels();
+  ASSERT_TRUE(caller_channels.has_value());
+  ASSERT_TRUE(callee_channels.has_value());
+  EXPECT_THAT(caller_channels.value(), Eq(kReducedMaxSctpStreams));
+  EXPECT_THAT(callee_channels.value(), Eq(kReducedMaxSctpStreams));
   EXPECT_THAT(WaitUntil([&] { return callee_signaled_data_channels_; },
-                        ::testing::SizeIs(kMaxSctpStreams / 2),
+                        SizeIs(Ge(kReducedMaxSctpStreams / 2)),
                         {.timeout = TimeDelta::Millis(kMaxWait)}),
               IsRtcOk());
+  // 0 and 2 should be open, 4 should be rejected as "ID too large".
   EXPECT_EQ(DataChannelInterface::kOpen,
-            channels[(kMaxSctpStreams / 2) - 1]->state());
+            channels[(kReducedMaxSctpStreams / 2) - 1]->state());
   EXPECT_EQ(DataChannelInterface::kClosed,
-            channels[kMaxSctpStreams / 2]->state());
+            channels[kReducedMaxSctpStreams / 2]->state());
 }
 
 #endif  // WEBRTC_HAVE_SCTP

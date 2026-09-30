@@ -1248,8 +1248,7 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
 
   DirectHandle<JSAny> result;
   if (it->IsElement(*holder)) {
@@ -1282,8 +1281,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
@@ -1919,8 +1917,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                Object::ConvertReceiver(isolate, receiver));
   }
 
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
   if (it->IsElement(*holder)) {
     result =
         args.CallIndexedDescriptor(isolate, interceptor, it->array_index());
@@ -2510,6 +2507,7 @@ static const char* NonAPIInstanceTypeToString(InstanceType instance_type) {
   UNREACHABLE();
 }
 
+// LINT.IfChange(get_header_size)
 int JSObject::GetHeaderSize(InstanceType type,
                             bool function_has_prototype_slot) {
   switch (type) {
@@ -2716,6 +2714,7 @@ int JSObject::GetHeaderSize(InstanceType type,
     }
   }
 }
+// LINT.ThenChange()
 
 MaybeHandle<JSAny> JSObject::GetPropertyWithFailedAccessCheck(
     LookupIterator* it) {

@@ -58,6 +58,8 @@ class LensSearchController {
   explicit LensSearchController(tabs::TabInterface* tab);
   virtual ~LensSearchController();
 
+  friend class LensSearchControllerTest;
+
   DECLARE_USER_DATA(LensSearchController);
   static LensSearchController* From(tabs::TabInterface* tab);
 
@@ -188,6 +190,10 @@ class LensSearchController {
   // Returns whether the handshake with the Lens backend is complete.
   bool IsHandshakeComplete();
 
+  // Returns whether the current Lens session should be routed to the contextual
+  // tasks side panel.
+  virtual bool should_route_to_contextual_tasks() const;
+
   // Returns the tab interface that owns this controller.
   tabs::TabInterface* GetTabInterface();
 
@@ -200,8 +206,25 @@ class LensSearchController {
   // Handles the creation of a new thumbnail from a bitmap.
   void HandleThumbnailCreatedBitmap(const SkBitmap& thumbnail);
 
+  // Callback used by the query flow router to pass the thumbnail bytes of a
+  // visual interaction request to the searchbox and composebox.
+  void HandleThumbnailCreated(const std::string& thumbnail_bytes,
+                              const SkBitmap& region_bitmap);
+
+  // Callback used by the query controller to notify the search controller of
+  // the response of an interaction request. If this is a visual interaction
+  // request, the response will contain the text container within that image.
+  virtual void HandleInteractionResponse(lens::mojom::TextPtr text);
+
   // Clears the visual selection thumbnail on the searchbox.
   void ClearVisualSelectionThumbnail();
+
+  // Sets a callback to be invoked when a thumbnail is created.
+  void SetThumbnailCreatedCallback(
+      base::RepeatingCallback<void(const std::string&)> callback);
+
+  // Whether the user has selected a region on the overlay.
+  bool HasRegionSelection();
 
   // Returns the weak pointer to this class.
   base::WeakPtr<LensSearchController> GetWeakPtr();
@@ -390,19 +413,9 @@ class LensSearchController {
   void HandleInteractionURLResponse(
       lens::proto::LensOverlayUrlResponse response);
 
-  // Callback used by the query controller to notify the search controller of
-  // the response of an interaction request. If this is a visual interaction
-  // request, the response will contain the text container within that image.
-  void HandleInteractionResponse(lens::mojom::TextPtr text);
-
   // Callback used by the query controller to notify the search controller when
   // the suggest inputs response is ready.
   void OnSuggestInputsReady();
-
-  // Callback used by the query controller to pass the thumbnail bytes of a
-  // visual interaction request to the searchbox and composebox.
-  void HandleThumbnailCreated(const std::string& thumbnail_bytes,
-                              const SkBitmap& region_bitmap);
 
   // Callback used by the query controller to notify the search controller of
   // the progress of the page content upload.
@@ -435,6 +448,11 @@ class LensSearchController {
 
   // Tracks the internal state machine.
   State state_ = State::kOff;
+
+  // Whether the current Lens session should be routed to the contextual tasks
+  // side panel. This is set when the Lens session is initialized and is used to
+  // determine whether to route the queries and results to the contextual tasks.
+  bool should_route_to_contextual_tasks_ = false;
 
   // Tracks the state of the Lens Search feature when the tab is backgrounded.
   // This state is used to restore the Lens Search feature to the same state
@@ -508,6 +526,9 @@ class LensSearchController {
 
   // Owned by Profile, and thus guaranteed to outlive this instance.
   raw_ptr<variations::VariationsClient> variations_client_;
+
+  // Callback to be invoked when a thumbnail is created.
+  base::RepeatingCallback<void(const std::string&)> thumbnail_created_callback_;
 
   // Unowned IdentityManager for fetching access tokens. Could be null for
   // incognito profiles.

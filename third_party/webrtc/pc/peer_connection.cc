@@ -608,7 +608,7 @@ PeerConnection::PeerConnection(
           worker_thread())),
       call_ptr_(call_.get()),
       legacy_stats_(std::make_unique<LegacyStatsCollector>(this, env_.clock())),
-      stats_collector_(RTCStatsCollector::Create(this, env_)),
+      stats_collector_(this, env_),
       // RFC 3264: The numeric value of the session id and version in the
       // o line MUST be representable with a "64 bit signed integer".
       // Due to this constraint session id `session_id_` is max limited to
@@ -676,37 +676,26 @@ PeerConnection::PeerConnection(
 PeerConnection::~PeerConnection() {
   TRACE_EVENT0("webrtc", "PeerConnection::~PeerConnection");
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_LOG_THREAD_BLOCK_COUNT();
 
-  if (sdp_handler_) {
-    sdp_handler_->PrepareForShutdown();
-  }
+  sdp_handler_->PrepareForShutdown();
 
   // In case `Close()` wasn't called, always make sure the controller cancels
   // potentially pending operations.
   data_channel_controller_.PrepareForShutdown();
 
-  // Need to stop transceivers before destroying the stats collector because
-  // AudioRtpSender has a reference to the LegacyStatsCollector it will update
-  // when stopping.
-  if (rtp_manager()) {
-    for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
-      transceiver->StopInternal();
-    }
-  }
-
-  legacy_stats_.reset(nullptr);
-  if (stats_collector_) {
-    stats_collector_->WaitForPendingRequest();
-    stats_collector_ = nullptr;
-  }
-
   std::vector<absl::AnyInvocable<void() &&>> network_tasks;
   std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
-  if (sdp_handler_) {
-    // Don't destroy BaseChannels until after stats has been cleaned up so that
-    // the last stats request can still read from the channels.
-    sdp_handler_->GetMediaChannelTeardownTasks(network_tasks, worker_tasks);
-  }
+
+  // Stop transceivers before destroying the stats collector because
+  // AudioRtpSender has a reference to the LegacyStatsCollector that it will
+  // update when stopping. The BaseChannels will eventually be deleted below
+  // when all the network and worker tasks are executed.
+  sdp_handler_->GetMediaChannelTeardownTasks(network_tasks, worker_tasks);
+
+  legacy_stats_.reset(nullptr);
+  network_tasks.push_back(
+      stats_collector_.CancelPendingRequestAndGetShutdownTask());
 
   CloseOnNetworkThread(network_tasks);
 
@@ -727,6 +716,10 @@ PeerConnection::~PeerConnection() {
   }
 
   data_channel_controller_.PrepareForShutdown();
+
+  // The expectation is that there will have been 1 blocking call for the worker
+  // thread and optionally 1 task for the network thread.
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
 JsepTransportController* PeerConnection::InitializeNetworkThread(
@@ -866,30 +859,33 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
 void PeerConnection::CloseOnNetworkThread(
     std::vector<absl::AnyInvocable<void() &&>>& network_tasks) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (!transport_controller_copy_) {
-    // If the transport has been torn down then there should not be any
-    // pending network tasks to run.
-    RTC_DCHECK(network_tasks.empty());
-    RTC_DCHECK(!sctp_mid_s_.has_value()) << "Should already be reset.";
-    return;
+  if (transport_controller_copy_ || !network_tasks.empty()) {
+    network_thread()->BlockingCall([&] {
+      RTC_DCHECK_RUN_ON(network_thread());
+      for (auto& task : network_tasks) {
+        std::move(task)();
+        task = nullptr;
+      }
+      if (network_thread_safety_->alive()) {
+        // port_allocator_ and transport_controller_ live on the network thread
+        // and must be destroyed there.
+        TeardownDataChannelTransport_n(RTCError::OK());
+        port_allocator_->DiscardCandidatePool();
+        transport_controller_.reset();
+        port_allocator_.reset();
+        network_thread_safety_->SetNotAlive();
+      }
+    });
   }
-  // port_allocator_ and transport_controller_ live on the network thread and
-  // should be destroyed there.
-  transport_controller_copy_ = nullptr;
-  network_thread()->BlockingCall([&] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    for (auto& task : network_tasks) {
-      std::move(task)();
-      task = nullptr;
-    }
-    TeardownDataChannelTransport_n(RTCError::OK());
-    port_allocator_->DiscardCandidatePool();
-    transport_controller_.reset();
-    port_allocator_.reset();
-    network_thread_safety_->SetNotAlive();
-  });
-  sctp_mid_s_.reset();
-  SetSctpTransportName("");
+
+  if (transport_controller_copy_) {
+    transport_controller_copy_ = nullptr;
+    sctp_mid_s_.reset();
+    SetSctpTransportName("");
+  } else {
+    RTC_DCHECK(!sctp_mid_s_);
+    RTC_DCHECK(sctp_transport_name_s_.empty());
+  }
 }
 
 JsepTransportController* PeerConnection::InitializeTransportController_n(
@@ -1344,7 +1340,6 @@ bool PeerConnection::GetStats(StatsObserver* observer,
     RTC_LOG(LS_ERROR) << "Legacy GetStats - observer is NULL.";
     return false;
   }
-
   RTC_LOG_THREAD_BLOCK_COUNT();
 
   legacy_stats_->UpdateStats(level);
@@ -1366,10 +1361,9 @@ bool PeerConnection::GetStats(StatsObserver* observer,
 void PeerConnection::GetStats(RTCStatsCollectorCallback* callback) {
   TRACE_EVENT0("webrtc", "PeerConnection::GetStats");
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_DCHECK(stats_collector_);
   RTC_DCHECK(callback);
   RTC_LOG_THREAD_BLOCK_COUNT();
-  stats_collector_->GetStatsReport(
+  stats_collector_.GetStatsReport(
       scoped_refptr<RTCStatsCollectorCallback>(callback));
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
@@ -1380,7 +1374,6 @@ void PeerConnection::GetStats(
   TRACE_EVENT0("webrtc", "PeerConnection::GetStats");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(callback);
-  RTC_DCHECK(stats_collector_);
   RTC_LOG_THREAD_BLOCK_COUNT();
   scoped_refptr<RtpSenderInternal> internal_sender;
   if (selector) {
@@ -1402,7 +1395,7 @@ void PeerConnection::GetStats(
   // PeerConnection). This means that "all the stats objects representing the
   // selector" is an empty set. Invoking GetStatsReport() with a null selector
   // produces an empty stats report.
-  stats_collector_->GetStatsReport(internal_sender, callback);
+  stats_collector_.GetStatsReport(internal_sender, callback);
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
@@ -1412,7 +1405,6 @@ void PeerConnection::GetStats(
   TRACE_EVENT0("webrtc", "PeerConnection::GetStats");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(callback);
-  RTC_DCHECK(stats_collector_);
   RTC_LOG_THREAD_BLOCK_COUNT();
   scoped_refptr<RtpReceiverInternal> internal_receiver;
   if (selector) {
@@ -1434,7 +1426,7 @@ void PeerConnection::GetStats(
   // the PeerConnection). This means that "all the stats objects representing
   // the selector" is an empty set. Invoking GetStatsReport() with a null
   // selector produces an empty stats report.
-  stats_collector_->GetStatsReport(internal_receiver, callback);
+  stats_collector_.GetStatsReport(internal_receiver, callback);
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
@@ -1931,9 +1923,7 @@ void PeerConnection::Close() {
   }
   // Ensure that all asynchronous stats requests are completed before destroying
   // the transport controller below.
-  if (stats_collector_) {
-    stats_collector_->WaitForPendingRequest();
-  }
+  stats_collector_.WaitForPendingRequest();
 
   // Don't destroy BaseChannels until after stats has been cleaned up so that
   // the last stats request can still read from the channels.
@@ -2310,8 +2300,7 @@ void PeerConnection::OnSctpDataChannelStateChanged(
     int channel_id,
     DataChannelInterface::DataState state) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (stats_collector_)
-    stats_collector_->OnSctpDataChannelStateChanged(channel_id, state);
+  stats_collector_.OnSctpDataChannelStateChanged(channel_id, state);
 }
 
 PeerConnection::InitializePortAllocatorResult
@@ -3084,6 +3073,38 @@ void PeerConnection::ReportNegotiatedCiphers(
   }
 }
 
+void PeerConnection::OnTransportChanging(bool change_done) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  std::vector<ChannelInterface*> channels;
+  if (!change_done) {
+    // Gather the currently active channels.
+    for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
+      ChannelInterface* channel = transceiver->internal()->channel();
+      if (channel && !channel->mid().empty()) {
+        channels.push_back(channel);
+      }
+    }
+  }
+
+  if (network_thread()->IsCurrent()) {
+    // This is a workaround for tests that configure the network and signaling
+    // threads as one and the same. The problem with that configuration is that
+    // the synchronous blocking call that results in a call to
+    // `OnTransportChanged()` to be issued, will me made directly, but tasks
+    // posted to what should be the `network` alias for the same thread, won't
+    // run before the blocking call. The tests need to be fixed to use a
+    // dedicated network thread.
+    RTC_DCHECK_RUN_ON(network_thread());
+    negotiated_channels_ = std::move(channels);
+    return;
+  }
+  network_thread()->PostTask(
+      SafeTask(network_thread_safety_, [this, channels = std::move(channels)] {
+        RTC_DCHECK_RUN_ON(network_thread());
+        negotiated_channels_ = channels;
+      }));
+}
+
 bool PeerConnection::OnTransportChanged(
     absl::string_view mid,
     RtpTransportInternal* rtp_transport,
@@ -3092,12 +3113,12 @@ bool PeerConnection::OnTransportChanged(
   RTC_DCHECK_RUN_ON(network_thread());
   bool ret = true;
   if (ConfiguredForMedia()) {
-    for (const auto& transceiver :
-         rtp_manager()->transceivers()->UnsafeList()) {
-      ChannelInterface* channel = transceiver->internal()->channel();
-      if (channel && channel->mid() == mid) {
-        ret = channel->SetRtpTransport(rtp_transport);
-      }
+    auto it = absl::c_find_if(negotiated_channels_,
+                              [&](const auto* c) { return c->mid() == mid; });
+    if (it != negotiated_channels_.end()) {
+      ret = (*it)->SetRtpTransport(rtp_transport);
+    } else {
+      // This is expected if the channel has been removed or not yet created.
     }
   }
 
@@ -3154,9 +3175,7 @@ void PeerConnection::ClearStatsCache() {
   if (legacy_stats_) {
     legacy_stats_->InvalidateCache();
   }
-  if (stats_collector_) {
-    stats_collector_->ClearCachedStatsReport();
-  }
+  stats_collector_.ClearCachedStatsReport();
 }
 
 bool PeerConnection::ShouldFireNegotiationNeededEvent(uint32_t event_id) {

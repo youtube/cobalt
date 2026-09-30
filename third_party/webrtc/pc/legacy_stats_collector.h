@@ -24,16 +24,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/legacy_stats_types.h"
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
-#include "api/scoped_refptr.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/port.h"
 #include "pc/legacy_stats_collector_interface.h"
 #include "pc/peer_connection_internal.h"
-#include "pc/rtp_transceiver.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/ssl_certificate.h"
@@ -142,6 +141,9 @@ class LegacyStatsCollector : public LegacyStatsCollectorInterface {
     std::map<std::string, std::string> transport_names_by_mid;
   };
 
+  // Overridden in unit tests to fake transport lookup.
+  virtual std::optional<std::string> GetTransportName(absl::string_view mid);
+
   // Overridden in unit tests to fake timing.
   virtual double GetTimeNow();
 
@@ -189,9 +191,7 @@ class LegacyStatsCollector : public LegacyStatsCollectorInterface {
   void UpdateTrackReports();
 
   SessionStats ExtractSessionInfo_n(
-      const std::vector<scoped_refptr<
-          RtpTransceiverProxyWithInternal<RtpTransceiver>>>& transceivers,
-      const std::map<RtpTransceiver*, std::string>& mids,
+      const std::vector<std::string>& mids,
       std::optional<std::string> sctp_transport_name,
       std::optional<std::string> sctp_mid);
   void ExtractSessionInfo_s(SessionStats& session_stats);

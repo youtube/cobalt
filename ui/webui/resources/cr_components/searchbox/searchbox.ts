@@ -258,6 +258,10 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
+      multiLineEnabled: {
+        type: Boolean,
+      },
+
       /** The aria description to include on the input element. */
       searchboxAriaDescription: {type: String},
 
@@ -415,6 +419,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor isDark: boolean = false;
   accessor matchSearchbox: boolean =
       loadTimeData.getBoolean('searchboxMatchSearchboxTheme');
+  accessor multiLineEnabled: boolean = false;
   accessor searchboxAriaDescription: string = '';
   accessor searchboxLensSearchEnabled: boolean =
       loadTimeData.getBoolean('searchboxLensSearch');
@@ -1246,7 +1251,9 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   protected computeShowRecentTabChip_(): boolean {
-    return loadTimeData.getBoolean('composeboxShowRecentTabChip') &&
+    // composeboxShowRecentTabChip is unavailable in the WebUI Browser.
+    return loadTimeData.valueExists('composeboxShowRecentTabChip') &&
+        loadTimeData.getBoolean('composeboxShowRecentTabChip') &&
         this.result_?.input.length === 0;
   }
 

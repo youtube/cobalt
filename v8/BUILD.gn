@@ -1004,6 +1004,8 @@ external_v8_defines = [
   "V8_TARGET_OS_MACOS",
   "V8_TARGET_OS_WIN",
   "V8_TARGET_OS_CHROMEOS",
+  "V8_TARGET_ARCH_ARM64",
+  "V8_TARGET_ARCH_PPC64",
 ]
 
 enabled_external_v8_defines = [
@@ -1084,6 +1086,18 @@ if (target_os == "android") {
 } else if (target_os == "chromeos") {
   enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
   enabled_external_v8_defines += [ "V8_TARGET_OS_CHROMEOS" ]
+}
+
+# Some V8_TARGET_ARCH_ defines that affect Api constants (see usages of
+# V8_TARGET_ARCH_* in v8-internal.h).
+# The target architecture may differ from host one e.g. in mksnapshot or in
+# msan builds.
+# TODO(ishell): support all target archs and add V8_HAVE_TARGET_ARCH similar
+# to V8_TARGET_OS_* and V8_HAVE_TARGET_OS defines.
+if (v8_current_cpu == "arm64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_ARM64" ]
+} else if (v8_current_cpu == "ppc64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_PPC64" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -1614,6 +1628,13 @@ config("toolchain") {
     if (riscv_use_rvv || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
+    }
+
+    if (riscv_use_zicfiss) {
+      defines += [ "V8_ENABLE_RISCV_SHADOW_STACK" ]
+    }
+    if (riscv_use_zicond) {
+      defines += [ "__riscv_zicond" ]
     }
     if (riscv_use_zba) {
       defines += [ "__riscv_zba" ]
@@ -4394,6 +4415,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/external-pointer-table-inl.h",
     "src/sandbox/external-pointer-table.h",
     "src/sandbox/external-pointer.h",
+    "src/sandbox/external-strings-cage.h",
     "src/sandbox/hardware-support.h",
     "src/sandbox/indirect-pointer-inl.h",
     "src/sandbox/indirect-pointer-tag.h",
@@ -4438,6 +4460,7 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/startup-serializer.h",
     "src/strings/char-predicates-inl.h",
     "src/strings/char-predicates.h",
+    "src/strings/owning-external-string-resource.h",
     "src/strings/string-builder-inl.h",
     "src/strings/string-builder.h",
     "src/strings/string-case.h",
@@ -5074,6 +5097,11 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       ]
     }
+
+    if (riscv_use_zicfiss) {
+      sources += [ "src/execution/riscv/shadow-stack-riscv.h" ]
+    }
+
     if (v8_enable_webassembly) {
       # Trap handling is enabled on riscv64 Linux and in simulators on
       # x64 on Linux.
@@ -5990,6 +6018,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/sandbox/code-pointer-table.cc",
     "src/sandbox/cppheap-pointer-table.cc",
     "src/sandbox/external-pointer-table.cc",
+    "src/sandbox/external-strings-cage.cc",
     "src/sandbox/hardware-support.cc",
     "src/sandbox/js-dispatch-table.cc",
     "src/sandbox/sandbox.cc",
@@ -6455,6 +6484,9 @@ v8_source_set("v8_base_without_compiler") {
       }
       if (current_cpu == "x64" && is_linux) {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
+      }
+      if (riscv_use_zicfiss) {
+        sources += [ "src/execution/riscv/shadow-stack-riscv.cc" ]
       }
     }
   } else if (v8_current_cpu == "riscv32") {

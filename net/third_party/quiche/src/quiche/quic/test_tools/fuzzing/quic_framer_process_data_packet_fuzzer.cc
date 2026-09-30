@@ -105,7 +105,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
   if (header.form == IETF_QUIC_LONG_HEADER_PACKET &&
       header.long_packet_type == ZERO_RTT_PROTECTED &&
       receiver_perspective == Perspective::IS_CLIENT &&
-      header.version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      !header.version.IsIetfQuic()) {
     for (size_t i = 0; i < header.nonce_storage.size(); ++i) {
       header.nonce_storage[i] = provider->ConsumeIntegral<char>();
     }
@@ -124,13 +124,13 @@ void SetupFramer(QuicFramer* framer, QuicFramerVisitorInterface* visitor) {
         ENCRYPTION_FORWARD_SECURE}) {
     framer->SetEncrypter(
         level, std::make_unique<NullEncrypter>(framer->perspective()));
-    if (framer->version().KnowsWhichDecrypterToUse()) {
+    if (framer->version().IsIetfQuic()) {
       framer->InstallDecrypter(
           level, std::make_unique<NullDecrypter>(framer->perspective()));
     }
   }
 
-  if (!framer->version().KnowsWhichDecrypterToUse()) {
+  if (!framer->version().IsIetfQuic()) {
     framer->SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
                                                  framer->perspective()));
   }

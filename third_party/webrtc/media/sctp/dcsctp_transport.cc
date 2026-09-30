@@ -571,11 +571,12 @@ void DcSctpTransport::OnConnected() {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DLOG(LS_INFO) << debug_name_ << "->OnConnected().";
   ready_to_send_data_ = true;
-  if (data_channel_sink_) {
-    data_channel_sink_->OnReadyToSend();
-  }
   if (on_connected_callback_) {
     on_connected_callback_();
+  }
+  if (data_channel_sink_) {
+    data_channel_sink_->OnTransportConnected();
+    data_channel_sink_->OnReadyToSend();
   }
 }
 

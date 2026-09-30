@@ -43,7 +43,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator, std::string name,
                             std::make_unique<quic::test::TaggingEncrypter>(
                                 ENCRYPTION_FORWARD_SECURE));
   connection_->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
-  if (connection_->version().KnowsWhichDecrypterToUse()) {
+  if (connection_->version().IsIetfQuic()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<quic::test::StrictTaggingDecrypter>(
@@ -82,7 +82,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator, std::string name,
       &error);
   QUICHE_DCHECK_EQ(error_code, QUIC_NO_ERROR)
       << "Configuration failed: " << error;
-  if (connection_->version().UsesTls()) {
+  if (connection_->version().IsIetfQuic()) {
     if (connection_->perspective() == Perspective::IS_CLIENT) {
       test::QuicConfigPeer::SetReceivedOriginalConnectionId(
           &config, connection_->connection_id());

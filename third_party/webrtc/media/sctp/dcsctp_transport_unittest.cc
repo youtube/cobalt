@@ -55,6 +55,7 @@ class MockDataChannelSink : public DataChannelSink {
   MOCK_METHOD(void, OnConnected, ());
 
   // DataChannelSink
+  MOCK_METHOD(void, OnTransportConnected, (), (override));
   MOCK_METHOD(void,
               OnDataReceived,
               (int, DataMessageType, const CopyOnWriteBuffer&));

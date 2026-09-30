@@ -298,8 +298,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   }
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
-      packet_info.version.IsKnown() &&
-      !packet_info.version.AllowsVariableLengthConnectionIds()) {
+      packet_info.version.IsKnown() && !packet_info.version.IsIetfQuic()) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
@@ -314,7 +313,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
           << "Invalid destination connection ID length for version";
       return;
     }
-    if (packet_info.version.SupportsClientConnectionIds() &&
+    if (packet_info.version.IsIetfQuic() &&
         !QuicUtils::IsConnectionIdValidForVersion(
             packet_info.source_connection_id,
             packet_info.version.transport_version)) {
@@ -438,7 +437,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
   if (packet_info.version_flag && packet_info.version.IsKnown() &&
       IsServerConnectionIdTooShort(server_connection_id)) {
     QUICHE_DCHECK(packet_info.version_flag);
-    QUICHE_DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
+    QUICHE_DCHECK(packet_info.version.IsIetfQuic());
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);
@@ -499,7 +498,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager_->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        packet_info.packet.length(), GetPerPacketContext());
+        packet_info.packet.length());
     return true;
   }
 
@@ -521,7 +520,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager()->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        packet_info.packet.length(), GetPerPacketContext());
+        packet_info.packet.length());
     OnNewConnectionRejected();
     return true;
   }
@@ -634,8 +633,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
           packet_info->self_address, packet_info->peer_address,
-          server_connection_id, packet_info->form, packet_info->packet.length(),
-          GetPerPacketContext());
+          server_connection_id, packet_info->form,
+          packet_info->packet.length());
 
       buffered_packets_.DiscardPackets(server_connection_id);
     } break;
@@ -648,7 +647,7 @@ QuicDispatcher::ExtractChloResult
 QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     const ReceivedPacketInfo& packet_info) {
   ExtractChloResult result;
-  if (packet_info.version.UsesTls()) {
+  if (packet_info.version.IsIetfQuic()) {
     bool has_full_tls_chlo = false;
     std::string sni;
     std::vector<uint16_t> supported_groups;
@@ -891,11 +890,6 @@ std::vector<std::shared_ptr<QuicSession>> QuicDispatcher::GetSessionsSnapshot()
     }
   }
   return snapshot;
-}
-
-std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
-    const {
-  return nullptr;
 }
 
 void QuicDispatcher::DeleteSessions() {
@@ -1161,8 +1155,7 @@ void QuicDispatcher::OnExpiredPackets(
       self_address, peer_address, early_arrived_packets.original_connection_id,
       early_arrived_packets.ietf_quic ? IETF_QUIC_LONG_HEADER_PACKET
                                       : GOOGLE_QUIC_Q043_PACKET,
-      /*version_flag=*/true,
-      early_arrived_packets.version.HasLengthPrefixedConnectionIds(),
+      /*version_flag=*/true, early_arrived_packets.version.IsIetfQuic(),
       early_arrived_packets.version, error_code,
       "Packets buffered for too long",
       quic::QuicTimeWaitListManager::SEND_STATELESS_RESET,
@@ -1487,7 +1480,7 @@ QuicDispatcher::HandleConnectionIdCollision(
   StatelesslyTerminateConnection(
       self_address, peer_address, original_connection_id,
       IETF_QUIC_LONG_HEADER_PACKET,
-      /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(), version,
+      /*version_flag=*/true, version.IsIetfQuic(), version,
       QUIC_HANDSHAKE_FAILED_CID_COLLISION,
       "Connection ID collision, please retry",
       QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS);
@@ -1542,8 +1535,7 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
   time_wait_list_manager()->SendPublicReset(
       packet_info.self_address, packet_info.peer_address,
       packet_info.destination_connection_id,
-      packet_info.form != GOOGLE_QUIC_Q043_PACKET, packet_info.packet.length(),
-      GetPerPacketContext());
+      packet_info.form != GOOGLE_QUIC_Q043_PACKET, packet_info.packet.length());
 }
 
 bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
@@ -1560,8 +1552,7 @@ bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
       packet_info.destination_connection_id, packet_info.source_connection_id,
       packet_info.form != GOOGLE_QUIC_Q043_PACKET,
       packet_info.use_length_prefix, GetSupportedVersions(),
-      packet_info.self_address, packet_info.peer_address,
-      GetPerPacketContext());
+      packet_info.self_address, packet_info.peer_address);
   return true;
 }
 

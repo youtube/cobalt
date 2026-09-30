@@ -41,9 +41,11 @@
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/port.h"
+#include "p2p/dtls/dtls_transport_internal.h"
 #include "pc/channel.h"
 #include "pc/channel_interface.h"
 #include "pc/data_channel_utils.h"
+#include "pc/jsep_transport_controller.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_receiver_proxy.h"
@@ -886,10 +888,10 @@ LegacyStatsCollector::ExtractSessionAndDataInfo() {
 
   StatsCollection::Container data_report_collection;
   auto transceivers = pc_->GetTransceiversInternal();
-  std::map<RtpTransceiver*, std::string> mids;
+  std::vector<std::string> mids;
   for (const auto& transceiver : transceivers) {
     if (transceiver->mid()) {
-      mids[transceiver->internal()] = *transceiver->mid();
+      mids.push_back(*transceiver->mid());
     }
   }
 
@@ -899,22 +901,36 @@ LegacyStatsCollector::ExtractSessionAndDataInfo() {
         StatsCollection data_reports;
         ExtractDataInfo_n(&data_reports);
         data_report_collection = data_reports.DetachCollection();
-        return ExtractSessionInfo_n(transceivers, mids,
-                                    std::move(sctp_transport_name),
+        return ExtractSessionInfo_n(mids, std::move(sctp_transport_name),
                                     std::move(sctp_mid));
       });
 
   reports_.MergeCollection(std::move(data_report_collection));
 
   ExtractSessionInfo_s(stats);
-
   return std::move(stats.transport_names_by_mid);
 }
 
+std::optional<std::string> LegacyStatsCollector::GetTransportName(
+    absl::string_view mid) {
+  RTC_DCHECK_RUN_ON(pc_->network_thread());
+  JsepTransportController* controller = pc_->transport_controller_n();
+  if (!controller) {
+    return std::nullopt;
+  }
+  DtlsTransportInternal* dtls_transport = controller->GetDtlsTransport(mid);
+  if (!dtls_transport) {
+    return std::nullopt;
+  }
+  IceTransportInternal* ice_transport = dtls_transport->ice_transport();
+  if (!ice_transport) {
+    return std::nullopt;
+  }
+  return ice_transport->transport_name();
+}
+
 LegacyStatsCollector::SessionStats LegacyStatsCollector::ExtractSessionInfo_n(
-    const std::vector<scoped_refptr<
-        RtpTransceiverProxyWithInternal<RtpTransceiver>>>& transceivers,
-    const std::map<RtpTransceiver*, std::string>& mids,
+    const std::vector<std::string>& mids,
     std::optional<std::string> sctp_transport_name,
     std::optional<std::string> sctp_mid) {
   TRACE_EVENT0("webrtc", "LegacyStatsCollector::ExtractSessionInfo_n");
@@ -922,14 +938,9 @@ LegacyStatsCollector::SessionStats LegacyStatsCollector::ExtractSessionInfo_n(
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
   SessionStats stats;
   stats.candidate_stats = pc_->GetPooledCandidateStats();
-  for (auto& transceiver : transceivers) {
-    ChannelInterface* channel = transceiver->internal()->channel();
-    if (channel) {
-      auto it = mids.find(transceiver->internal());
-      if (it != mids.end()) {
-        stats.transport_names_by_mid[it->second] =
-            std::string(channel->transport_name());
-      }
+  for (const std::string& mid : mids) {
+    if (std::optional<std::string> transport_name = GetTransportName(mid)) {
+      stats.transport_names_by_mid[mid] = *transport_name;
     }
   }
 
@@ -1240,8 +1251,10 @@ void LegacyStatsCollector::ExtractMediaInfo(
       if (transceiver->mid()) {
         gatherer->mid = *transceiver->mid();
       }
-      gatherer->transport_name = transport_names_by_mid.at(gatherer->mid);
-
+      auto it = transport_names_by_mid.find(gatherer->mid);
+      if (it != transport_names_by_mid.end()) {
+        gatherer->transport_name = it->second;
+      }
       for (const auto& sender : transceiver->internal()->senders()) {
         auto track = sender->track();
         std::string track_id = (track ? track->id() : "");

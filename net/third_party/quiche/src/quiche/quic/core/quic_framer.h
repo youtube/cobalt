@@ -99,11 +99,11 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
   // Called only when |perspective_| is IS_CLIENT and a retry packet has been
   // parsed. |new_connection_id| contains the value of the Source Connection
   // ID field, and |retry_token| contains the value of the Retry Token field.
-  // On versions where UsesTls() is false,
+  // On versions where IsIetfQuic() is false,
   // |original_connection_id| contains the value of the Original Destination
   // Connection ID field, and both |retry_integrity_tag| and
   // |retry_without_tag| are empty.
-  // On versions where UsesTls() is true,
+  // On versions where IsIetfQuic() is true,
   // |original_connection_id| is empty, |retry_integrity_tag| contains the
   // value of the Retry Integrity Tag field, and |retry_without_tag| contains
   // the entire RETRY packet except the Retry Integrity Tag field.
@@ -1108,7 +1108,7 @@ class QUICHE_EXPORT QuicFramer {
   // Determine whether the given QuicAckFrame should be serialized with a
   // IETF_ACK_RECEIVE_TIMESTAMPS frame type.
   bool UseIetfAckWithReceiveTimestamp(const QuicAckFrame& frame) const {
-    return VersionHasIetfQuicFrames(version_.transport_version) &&
+    return VersionIsIetfQuic(version_.transport_version) &&
            process_timestamps_ &&
            std::min<uint64_t>(max_receive_timestamps_per_ack_,
                               frame.received_packet_times.size()) > 0;

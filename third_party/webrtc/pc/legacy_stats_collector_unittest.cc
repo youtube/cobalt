@@ -20,6 +20,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/candidate.h"
@@ -585,12 +586,26 @@ void InitVoiceReceiverInfo(VoiceReceiverInfo* voice_receiver_info) {
 class LegacyStatsCollectorForTest : public LegacyStatsCollector {
  public:
   explicit LegacyStatsCollectorForTest(PeerConnectionInternal* pc, Clock& clock)
-      : LegacyStatsCollector(pc, clock), time_now_(19477) {}
+      : LegacyStatsCollector(pc, clock),
+        time_now_(19477),
+        pc_(static_cast<FakePeerConnectionForStats*>(pc)) {}
 
   double GetTimeNow() override { return time_now_; }
 
+  std::optional<std::string> GetTransportName(absl::string_view mid) override {
+    for (const auto& transceiver : pc_->GetTransceiversInternal()) {
+      if (transceiver->mid() == mid) {
+        if (auto* channel = transceiver->internal()->channel()) {
+          return std::string(channel->transport_name());
+        }
+      }
+    }
+    return std::nullopt;
+  }
+
  private:
   double time_now_;
+  FakePeerConnectionForStats* pc_;
 };
 
 class LegacyStatsCollectorTest : public ::testing::Test {

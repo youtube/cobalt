@@ -1040,13 +1040,13 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     }
   }
 
-  // TODO(https://crbug.com/431004500): Handle moving the tab to the new window
-  // on desktop android.
 #if !BUILDFLAG(IS_ANDROID)
   bool moved_tab = false;
+#endif
   // Move the tab into the created window only if it's an empty popup or it's
   // a tabbed window.
-  if (new_window->GetType() == Browser::TYPE_NORMAL || urls_.empty()) {
+  if (new_window->GetType() == BrowserWindowInterface::TYPE_NORMAL ||
+      urls_.empty()) {
     if (create_data_ && create_data_->tab_id) {
       std::string error;
       // -1 means "move tab to the end", which is what we want.
@@ -1056,10 +1056,11 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
               /*allow_other_window_types=*/true, &error) < 0) {
         return Error(std::move(error));
       }
+#if !BUILDFLAG(IS_ANDROID)
       moved_tab = true;
+#endif
     }
   }
-#endif
 
   // Create a new tab if the created window is still empty. Don't create a new
   // tab when it is intended to create an empty popup.
@@ -1072,11 +1073,15 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     chrome::NewTab(new_window->GetBrowserForMigrationOnly(),
                    NewTabTypes::kNewTabCommand);
   }
-  chrome::SelectNumberedTab(
-      new_window->GetBrowserForMigrationOnly(), 0,
-      TabStripUserGestureDetails(
-          TabStripUserGestureDetails::GestureType::kNone));
 #endif
+
+  // Select the first tab in the window, if there's at least one tab. There may
+  // be no tabs, since we allow the creation of an empty popup above.
+  TabListInterface* tab_list = TabListInterface::From(new_window);
+  CHECK(tab_list);
+  if (tab_list->GetTabCount() > 0) {
+    tab_list->ActivateTab(tab_list->GetTab(0)->GetHandle());
+  }
 
   bool focused = true;
   if (create_data_ && create_data_->focused) {
@@ -2127,13 +2132,16 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
   // Cache the original web contents.
   content::WebContents* original_contents = contents;
 
-  // TODO(https://crbug.com/447211263): Support on desktop android.
-#if !BUILDFLAG(IS_ANDROID)
   // Update the active (aka selected) tab.
-  if (!UpdateActiveTab(*params, tab_strip, tab_index, contents, error)) {
+  TabListInterface* tab_list =
+      TabListInterface::From(window->GetBrowserWindowInterface());
+  CHECK(tab_list);
+  if (!UpdateActiveTab(*params, *tab_list, tab_index, error)) {
     return RespondNow(Error(std::move(error)));
   }
 
+  // TODO(https://crbug.com/447211263): Support on desktop android.
+#if !BUILDFLAG(IS_ANDROID)
   // Update the highlighted tab.
   if (!UpdateHighlightedTab(*params, tab_strip, tab_index, error)) {
     return RespondNow(Error(std::move(error)));
@@ -2248,13 +2256,10 @@ bool TabsUpdateFunction::ComputeDefaultTabId(int& tab_id,
   return true;
 }
 
-// TODO(https://crbug.com/447211263): Support on desktop android.
-#if !BUILDFLAG(IS_ANDROID)
 bool TabsUpdateFunction::UpdateActiveTab(
     const api::tabs::Update::Params& params,
-    TabStripModel* tab_strip,
+    TabListInterface& tab_list,
     int tab_index,
-    const content::WebContents* contents,
     std::string& error) {
   bool active = false;
   // TODO(rafaelw): Setting |active| from js doesn't make much sense.
@@ -2280,13 +2285,16 @@ bool TabsUpdateFunction::UpdateActiveTab(
     return false;
   }
 
-  if (tab_strip->active_index() != tab_index) {
-    tab_strip->ActivateTabAt(tab_index);
-    DCHECK_EQ(contents, tab_strip->GetActiveWebContents());
+  CHECK_LT(tab_index, tab_list.GetTabCount());
+  if (tab_list.GetActiveIndex() != tab_index) {
+    tab_list.ActivateTab(tab_list.GetTab(tab_index)->GetHandle());
+    DCHECK_EQ(tab_index, tab_list.GetActiveIndex());
   }
   return true;
 }
 
+// TODO(https://crbug.com/447211263): Support on desktop android.
+#if !BUILDFLAG(IS_ANDROID)
 bool TabsUpdateFunction::UpdateHighlightedTab(
     const api::tabs::Update::Params& params,
     TabStripModel* tab_strip,

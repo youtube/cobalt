@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "api/dtls_transport_interface.h"
 #include "api/priority.h"
@@ -25,6 +26,7 @@
 #include "p2p/dtls/dtls_transport_internal.h"
 #include "pc/dtls_transport.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -58,6 +60,8 @@ class SctpTransport : public SctpTransportInterface,
   size_t buffered_amount(int channel_id) const override;
   size_t buffered_amount_low_threshold(int channel_id) const override;
   void SetBufferedAmountLowThreshold(int channel_id, size_t bytes) override;
+  std::optional<int> MaxChannels() override;
+  std::optional<SSLRole> DtlsRole() override;
 
   // Internal functions
   void Clear();

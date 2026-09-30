@@ -38,6 +38,7 @@
 #include "call/payload_type_picker.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
+#include "pc/channel_interface.h"
 #include "pc/data_channel_utils.h"
 #include "pc/jsep_transport_controller.h"
 #include "pc/peer_connection_message_handler.h"
@@ -138,6 +139,14 @@ class PeerConnectionSdpMethods {
                         .remote_port = remote_port,
                         .max_message_size = max_message_size});
   }
+
+  // Called on the signaling thread before applying transport changes to
+  // channels on the network thread. This is used to ensure safe access to
+  // channels during transport changes. This function is called in pairs:
+  // 1. `change_done == false`: Called before a transport change (e.g.
+  // SetRemoteDescription).
+  // 2. `change_done == true`: Transport change has been applied.
+  virtual void OnTransportChanging(bool change_done) = 0;
 
   // Asynchronously adds a remote candidate on the network thread.
   virtual void AddRemoteCandidate(absl::string_view mid,

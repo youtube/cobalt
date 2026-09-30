@@ -62,46 +62,10 @@ TEST(QuicVersionsTest, Features) {
   ParsedQuicVersion parsed_version_draft_29 = ParsedQuicVersion::Draft29();
 
   EXPECT_TRUE(parsed_version_q046.IsKnown());
-  EXPECT_FALSE(parsed_version_q046.KnowsWhichDecrypterToUse());
-  EXPECT_FALSE(parsed_version_q046.UsesInitialObfuscators());
-  EXPECT_FALSE(parsed_version_q046.AllowsLowFlowControlLimits());
-  EXPECT_FALSE(parsed_version_q046.HasHeaderProtection());
-  EXPECT_FALSE(parsed_version_q046.SupportsRetry());
-  EXPECT_FALSE(
-      parsed_version_q046.SendsVariableLengthPacketNumberInLongHeader());
-  EXPECT_FALSE(parsed_version_q046.AllowsVariableLengthConnectionIds());
-  EXPECT_FALSE(parsed_version_q046.SupportsClientConnectionIds());
-  EXPECT_FALSE(parsed_version_q046.HasLengthPrefixedConnectionIds());
-  EXPECT_FALSE(parsed_version_q046.SupportsAntiAmplificationLimit());
-  EXPECT_FALSE(parsed_version_q046.CanSendCoalescedPackets());
-  EXPECT_TRUE(parsed_version_q046.SupportsGoogleAltSvcFormat());
-  EXPECT_FALSE(parsed_version_q046.UsesHttp3());
-  EXPECT_FALSE(parsed_version_q046.HasLongHeaderLengths());
-  EXPECT_FALSE(parsed_version_q046.UsesCryptoFrames());
-  EXPECT_FALSE(parsed_version_q046.HasIetfQuicFrames());
-  EXPECT_FALSE(parsed_version_q046.UsesTls());
-  EXPECT_TRUE(parsed_version_q046.UsesQuicCrypto());
+  EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
-  EXPECT_TRUE(parsed_version_draft_29.KnowsWhichDecrypterToUse());
-  EXPECT_TRUE(parsed_version_draft_29.UsesInitialObfuscators());
-  EXPECT_TRUE(parsed_version_draft_29.AllowsLowFlowControlLimits());
-  EXPECT_TRUE(parsed_version_draft_29.HasHeaderProtection());
-  EXPECT_TRUE(parsed_version_draft_29.SupportsRetry());
-  EXPECT_TRUE(
-      parsed_version_draft_29.SendsVariableLengthPacketNumberInLongHeader());
-  EXPECT_TRUE(parsed_version_draft_29.AllowsVariableLengthConnectionIds());
-  EXPECT_TRUE(parsed_version_draft_29.SupportsClientConnectionIds());
-  EXPECT_TRUE(parsed_version_draft_29.HasLengthPrefixedConnectionIds());
-  EXPECT_TRUE(parsed_version_draft_29.SupportsAntiAmplificationLimit());
-  EXPECT_TRUE(parsed_version_draft_29.CanSendCoalescedPackets());
-  EXPECT_FALSE(parsed_version_draft_29.SupportsGoogleAltSvcFormat());
-  EXPECT_TRUE(parsed_version_draft_29.UsesHttp3());
-  EXPECT_TRUE(parsed_version_draft_29.HasLongHeaderLengths());
-  EXPECT_TRUE(parsed_version_draft_29.UsesCryptoFrames());
-  EXPECT_TRUE(parsed_version_draft_29.HasIetfQuicFrames());
-  EXPECT_TRUE(parsed_version_draft_29.UsesTls());
-  EXPECT_FALSE(parsed_version_draft_29.UsesQuicCrypto());
+  EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
 }
 
 TEST(QuicVersionsTest, ParseQuicVersionLabel) {
@@ -500,13 +464,13 @@ TEST(QuicVersionsTest, CurrentSupportedHttp3Versions) {
     bool version_is_h3 = false;
     for (auto& h3_version : h3_versions) {
       if (version == h3_version) {
-        EXPECT_TRUE(version.UsesHttp3());
+        EXPECT_TRUE(version.IsIetfQuic());
         version_is_h3 = true;
         break;
       }
     }
     if (!version_is_h3) {
-      EXPECT_FALSE(version.UsesHttp3());
+      EXPECT_FALSE(version.IsIetfQuic());
     }
   }
 }
@@ -519,7 +483,7 @@ TEST(QuicVersionsTest, ObsoleteSupportedVersions) {
 
 TEST(QuicVersionsTest, IsObsoleteSupportedVersion) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    bool is_obsolete = version.handshake_protocol != PROTOCOL_TLS1_3 ||
+    bool is_obsolete = !version.IsIetfQuic() ||
                        version.transport_version < QUIC_VERSION_IETF_RFC_V1;
     EXPECT_EQ(is_obsolete, IsObsoleteSupportedVersion(version));
   }

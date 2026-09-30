@@ -55,10 +55,7 @@
     + var(--composebox-margin-bottom));
 
   align-items: center;
-  background: linear-gradient(to top,
-    rgba(var(--search-background-color-rgb), 1)
-    var(--composebox-container-height), transparent);
-  height: calc(var(--composebox-container-height) + 36px);
+  height: var(--composebox-container-height);
   inset-block-end: 0;
   justify-content: flex-end;
   min-height: var(--composebox-collapsed-height);
@@ -100,6 +97,19 @@
   position: absolute;
   /* 100% - (24px right indent + left indent), up to max width. */
   width: calc(100% - (24px + var(--inset-start-indent_)));
+}
+
+#composebox::before {
+  content: '';
+  background: var(--search-background-color);
+  border-radius: 24px;
+  content: "";
+  display: block;
+  /* Expand past the bottom of the screen. */
+  height: 40vh;
+  display: block;
+  position: absolute;
+  width: 100%;
 }
 
 /* TODO(crbug.com/466201452): Check this logic
@@ -207,6 +217,11 @@
   transition: var(--icon-entry-transition);
 }
 
+#composebox[show-file-carousel_]::part(carousel-container) {
+  /* Give room for the close button in the top right. */
+  --context-carousel-inline-end-spacing: 52px;
+}
+
 #composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
   pointer-events: none;
 }
@@ -262,17 +277,19 @@
   --cr-icon-button-fill-color: var(--color-composebox-voice-lens-button);
   --cr-icon-button-icon-size: var(--icon-menu-icon-size);
   --cr-icon-button-size: var(--icon-menu-button-size);
+  /* Override the expanding fade in animation to make the icon appear instantly. */
+  animation: none;
   bottom: var(--composebox-icon-menu-bottom);
   display: block;
   inset-inline-end: var(--composebox-last-icon-inline-end);
   position: absolute;
+  transition: ease-out 100ms;
 }
 
 #composebox[show-submit_][submit-enabled_]::part(lens-icon) {
   inset-inline-end: calc(var(--composebox-submit-container-size)
       + var(--icon-menu-spacing)
       + var(--composebox-submit-container-inline-end));
-  transition: ease-out 100ms;
 }
 
 #composebox:not([expanding_])::part(cancel),
@@ -362,10 +379,16 @@
 
 #composebox[show-submit_][submit-enabled_]::part(voice-icon) {
   inset-inline-end: calc(var(--composebox-submit-container-size)
+      + var(--icon-menu-spacing)
+      + var(--composebox-submit-container-inline-end));
+}
+
+/* Lens is only shown in side panel, so adjust spacing. */
+:host([is-side-panel]) #composebox[show-submit_][submit-enabled_]::part(voice-icon) {
+  inset-inline-end: calc(var(--composebox-submit-container-size)
       + var(--icon-menu-button-size)
       + 2 * var(--icon-menu-spacing)
       + var(--composebox-submit-container-inline-end));
-  transition: ease-out 100ms;
 }
 
 #composebox::part(voice-icon) {
@@ -373,13 +396,18 @@
   --cr-icon-button-icon-size: var(--icon-menu-icon-size);
   --cr-icon-button-size: var(--icon-menu-button-size);
   bottom: var(--composebox-icon-menu-bottom);
+  inset-inline-end: var(--composebox-last-icon-inline-end);
+  position: absolute;
+  top: auto;
+  transition: ease-out 100ms;
+}
+
+/* Lens is only shown in side panel, so adjust spacing. */
+:host([is-side-panel]) #composebox::part(voice-icon) {
   inset-inline-end: calc(
       var(--icon-menu-button-size)
       + var(--icon-menu-spacing)
       + var(--composebox-last-icon-inline-end));
-  position: absolute;
-  top: auto;
-  transition: ease-out 100ms;
 }
 
 #composebox::part(voice-close-button) {

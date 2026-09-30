@@ -53,7 +53,7 @@
 #include "modulewrapper.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 namespace acvp {
 
 #if defined(OPENSSL_TRUSTY)
@@ -1594,7 +1594,7 @@ static bool StringEq(Span<const uint8_t> a, const char *b) {
   return a.size() == len && memcmp(a.data(), b, len) == 0;
 }
 
-static bssl::UniquePtr<EC_KEY> ECKeyFromName(Span<const uint8_t> name) {
+static UniquePtr<EC_KEY> ECKeyFromName(Span<const uint8_t> name) {
   int nid;
   if (StringEq(name, "P-224")) {
     nid = NID_secp224r1;
@@ -1650,8 +1650,8 @@ static bool ECDSAKeyGen(const Span<const uint8_t> args[],
                       Span<const uint8_t>(pub_key.second)});
 }
 
-static bssl::UniquePtr<BIGNUM> BytesToBIGNUM(Span<const uint8_t> bytes) {
-  bssl::UniquePtr<BIGNUM> bn(BN_new());
+static UniquePtr<BIGNUM> BytesToBIGNUM(Span<const uint8_t> bytes) {
+  UniquePtr<BIGNUM> bn(BN_new());
   BN_bin2bn(bytes.data(), bytes.size(), bn.get());
   return bn;
 }
@@ -1789,8 +1789,8 @@ static bool CMAC_AESVerify(const Span<const uint8_t> args[],
   return write_reply({Span<const uint8_t>(&ok, sizeof(ok))});
 }
 
-static std::map<unsigned, bssl::UniquePtr<RSA>> &CachedRSAKeys() {
-  static std::map<unsigned, bssl::UniquePtr<RSA>> keys;
+static std::map<unsigned, UniquePtr<RSA>> &CachedRSAKeys() {
+  static std::map<unsigned, UniquePtr<RSA>> keys;
   return keys;
 }
 
@@ -2540,4 +2540,4 @@ Handler FindHandler(Span<const Span<const uint8_t>> args) {
 }
 
 }  // namespace acvp
-}  // namespace bssl
+BSSL_NAMESPACE_END

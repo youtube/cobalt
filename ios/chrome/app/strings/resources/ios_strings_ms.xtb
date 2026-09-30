@@ -126,6 +126,7 @@
 <translation id="1455660774629812862">Jangan sembunyikan</translation>
 <translation id="1456545332132818232">Ulasan produk bagi <ph name="PRODUCT_NAME" />, <ph name="STARS" /> daripada <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Jimatkan masa, kurangkan menaip</translation>
+<translation id="1466035273550360103">Tiada tab terbuka</translation>
 <translation id="1469381646033328562">Akaun anda diuruskan oleh ibu/bapa anda.
 <ph name="BEGIN_LINK" />Ketahui lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Diubah</translation>
@@ -595,7 +596,6 @@
 <translation id="3245744387817103524">Perubahan anda tidak dapat disimpan.</translation>
 <translation id="3254806613790954367">Tab terakhir yang anda buka merentas semua peranti anda</translation>
 <translation id="325717987950204592">Ketik "Privasi dan Keselamatan"</translation>
-<translation id="3266338926702638258">Tunjukkan sejarah harga untuk produk ini</translation>
 <translation id="3272527697863656322">Batal</translation>
 <translation id="3273510436356991673">Sesuaikan skrin utama</translation>
 <translation id="3277021493514034324">Alamat tapak disalin</translation>
@@ -919,6 +919,7 @@
 <translation id="4568230126482344545">Sembunyikan tab Terbaharu</translation>
 <translation id="4578835633387306383">Hidupkan…</translation>
 <translation id="4580716718466706433">Akses "Password Manager"</translation>
+<translation id="4585751637295612750">Buka tab baharu untuk menambahkan imej pada soalan anda</translation>
 <translation id="4587589328781138893">Tapak</translation>
 <translation id="4592672037257622855">{count,plural, =1{Halaman ditambahkan pada senarai bacaan anda}other{{count} halaman ditambahkan pada senarai bacaan anda}}</translation>
 <translation id="459644946100970322">Hidupkan makluman harga?</translation>
@@ -1568,6 +1569,7 @@ Serah mestilah turut didayakan dalam bahagian Umum pada Tetapan dan peranti anda
 <translation id="6807287147325542056">Kata laluan dalam apl lain</translation>
 <translation id="681368974849482173">Item dibuat</translation>
 <translation id="6825078212112407882">{count,plural, =1{Penanda halaman disimpan dalam Google Account anda, {email}}other{{count} penanda halaman disimpan dalam Google Account anda, {email}}}</translation>
+<translation id="6826004672264649705">Sedang menjejaki produk ini. Buka untuk melihat sejarah harga</translation>
 <translation id="6830728435402077660">Tidak selamat</translation>
 <translation id="6831043979455480757">Terjemah</translation>
 <translation id="6842136130964845393">Untuk memastikan anda dapat mengakses kata laluan anda yang disimpan pada bila-bila masa, sahkan itu anda</translation>

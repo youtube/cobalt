@@ -1595,8 +1595,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                   Just(kDontThrow));
+    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
     DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
@@ -3997,6 +3996,9 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
             kRelaxedStore);
+#if TAGGED_SIZE_8_BYTES
+  set_optional_padding(0);
+#endif
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
 }

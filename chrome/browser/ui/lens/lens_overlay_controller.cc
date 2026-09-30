@@ -75,7 +75,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
-#include "components/contextual_tasks/public/features.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/lens/lens_features.h"
@@ -365,7 +364,9 @@ void LensOverlayController::CloseUI(
   // it gets cleaned up to prevent dangling ptrs. This needs to be done even
   // when the overlay state is kOff because the overlay may have been used for
   // contextual suggestions.
-  GetLensOverlayQueryController()->ResetPageContentData();
+  if (auto* query_controller = GetLensOverlayQueryController()) {
+    query_controller->ResetPageContentData();
+  }
 
   if (state_ == State::kOff) {
     return;
@@ -485,6 +486,17 @@ void LensOverlayController::BindOverlay(
 void LensOverlayController::SetInvocationTimeForWebUIBinding(
     base::TimeTicks invocation_time_for_webui_binding) {
   invocation_time_for_webui_binding_ = invocation_time_for_webui_binding;
+}
+
+void LensOverlayController::ClearRegionSelection() {
+  if (!IsOverlayActive()) {
+    return;
+  }
+  lens_search_controller_->ClearVisualSelectionThumbnail();
+  lens_selection_type_ = lens::UNKNOWN_SELECTION_TYPE;
+  initialization_data_->selected_region_.reset();
+  initialization_data_->selected_region_bitmap_.reset();
+  page_->ClearRegionSelection();
 }
 
 uint64_t LensOverlayController::GetInvocationTimeSinceEpoch() {
@@ -889,10 +901,6 @@ const std::string& LensOverlayController::GetThumbnailForTesting() {
   return GetLensSearchboxController()->GetThumbnail();
 }
 
-void LensOverlayController::ClearRegionSelectionForTesting() {
-  ClearRegionSelection();
-}
-
 void LensOverlayController::OnTextModifiedForTesting() {
   GetLensSearchboxController()->OnTextModified();
 }
@@ -1208,17 +1216,6 @@ void LensOverlayController::ClearTextSelection() {
   }
 }
 
-void LensOverlayController::ClearRegionSelection() {
-  if (!IsOverlayActive()) {
-    return;
-  }
-  lens_search_controller_->ClearVisualSelectionThumbnail();
-  lens_selection_type_ = lens::UNKNOWN_SELECTION_TYPE;
-  initialization_data_->selected_region_.reset();
-  initialization_data_->selected_region_bitmap_.reset();
-  page_->ClearRegionSelection();
-}
-
 void LensOverlayController::OnSearchboxFocusChanged(bool focused) {
   if (!focused) {
     return;
@@ -1271,6 +1268,7 @@ void LensOverlayController::IssueLensRequest(
         initialization_data_->additional_search_query_params_, region_bytes,
         invocation_source_);
   }
+
   MaybeOpenSidePanel();
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kRegionSelect);
@@ -1629,7 +1627,7 @@ void LensOverlayController::MaybeHideSharedOverlayView() {
 void LensOverlayController::MaybeOpenSidePanel() {
   // If Lens in contextual tasks is enabled, the side panel is opened by the
   // contextual tasks side panel UI service rather than the overlay controller.
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (lens_search_controller_->should_route_to_contextual_tasks()) {
     return;
   }
 
@@ -2180,11 +2178,23 @@ void LensOverlayController::AddBackgroundBlur() {
 }
 
 void LensOverlayController::CloseRequestedByOverlayCloseButton() {
+  if (lens_search_controller_->should_route_to_contextual_tasks()) {
+    lens_search_controller_->CloseLensAsync(
+        lens::LensOverlayDismissalSource::kOverlayCloseButton);
+    return;
+  }
+
   lens_search_controller_->HideOverlay(
       lens::LensOverlayDismissalSource::kOverlayCloseButton);
 }
 
 void LensOverlayController::CloseRequestedByOverlayBackgroundClick() {
+  if (lens_search_controller_->should_route_to_contextual_tasks()) {
+    lens_search_controller_->CloseLensAsync(
+        lens::LensOverlayDismissalSource::kOverlayBackgroundClick);
+    return;
+  }
+
   lens_search_controller_->HideOverlay(
       lens::LensOverlayDismissalSource::kOverlayBackgroundClick);
 }

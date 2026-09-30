@@ -2320,14 +2320,12 @@ class CEntryForCPPBuiltinDescriptor
                     kCFunction,                     // register argument
                     kNewTargetCopy,                 // sp[0]
                     kTargetCopy,                    // sp[1]
-                    kArgcSmi,                       // sp[2]
-                    kPadding)                       // sp[3] (just padding)
+                    kArgcSmi)                       // sp[2]
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
                          MachineType::Pointer(),    // kCFunction
                          MachineType::AnyTagged(),  // kNewTargetCopy
                          MachineType::AnyTagged(),  // kTargetCopy
-                         MachineType::AnyTagged(),  // kArgcSmi
-                         MachineType::AnyTagged())  // kPadding
+                         MachineType::AnyTagged())  // kArgcSmi
   DECLARE_DESCRIPTOR(CEntryForCPPBuiltinDescriptor)
 
   static constexpr auto registers();
@@ -2381,14 +2379,18 @@ class ApiGetterDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kReceiver, kHolder, kCallback)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
+  DEFINE_PARAMETERS(kCallback,
+                    // stack arguments
+                    kHolder,    // sp[0]
+                    kReceiver)  // sp[1]
+
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCallback
                          MachineType::AnyTagged(),  // kHolder
-                         MachineType::AnyTagged())  // kCallback
+                         MachineType::AnyTagged())  // kReceiver
   DECLARE_DESCRIPTOR(ApiGetterDescriptor)
 
-  static constexpr inline Register ReceiverRegister();
-  static constexpr inline Register HolderRegister();
   static constexpr inline Register CallbackRegister();
 
   static constexpr auto registers();

@@ -26,7 +26,7 @@
 
 // Version number for shader translation API.
 // It is incremented every time the API changes.
-#define ANGLE_SH_VERSION 388
+#define ANGLE_SH_VERSION 390
 
 enum ShShaderSpec
 {
@@ -114,6 +114,7 @@ enum class ShPixelLocalStorageFormat : uint8_t
     RGBA8I,
     RGBA8UI,
     R32F,
+    R32I,
     R32UI,
 };
 
@@ -399,6 +400,9 @@ struct ShCompileOptions
 
     // Always write explicit location layout qualifiers for fragment outputs.
     uint64_t explicitFragmentLocations : 1;
+
+    // Dithering is emulated by injecting code in the fragment shader
+    uint64_t emulateDithering : 1;
 
     // Add round() after applying dither.  This works around a Qualcomm quirk where values can get
     // ceil()ed instead.

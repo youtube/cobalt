@@ -23,11 +23,13 @@
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "pc/data_channel_utils.h"
 #include "pc/sctp_utils.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"  // For SSLRole
@@ -86,6 +88,13 @@ struct InternalDataChannelInit : public DataChannelInit {
 class SctpSidAllocator {
  public:
   SctpSidAllocator() = default;
+  void SetMaxSid(int max_sid) {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+    RTC_DCHECK(max_sid >= 0 && max_sid <= max_sid_)
+        << "max_sid can only be decreased, and can't be negative: changing from"
+        << max_sid_ << " to " << max_sid;
+    max_sid_ = max_sid;
+  }
   // Gets the first unused odd/even id based on the DTLS role. If `role` is
   // SSL_CLIENT, the allocated id starts from 0 and takes even numbers;
   // otherwise, the id starts from 1 and takes odd numbers.
@@ -99,6 +108,7 @@ class SctpSidAllocator {
   void ReleaseSid(StreamId sid);
 
  private:
+  int max_sid_ RTC_GUARDED_BY(&sequence_checker_) = kMaxSctpSid;
   flat_set<StreamId> used_sids_ RTC_GUARDED_BY(&sequence_checker_);
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
       SequenceChecker::kDetached};

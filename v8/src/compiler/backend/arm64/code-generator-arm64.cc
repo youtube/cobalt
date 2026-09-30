@@ -833,42 +833,6 @@ void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
 
-void Shuffle2Helper(MacroAssembler* masm, Arm64OperandConverter i,
-                    VectorFormat f) {
-  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
-  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
-  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
-  // Check for in-place shuffles, as we may need to use a temporary register
-  // to avoid overwriting an input.
-  if (dst == src0 || dst == src1) {
-    UseScratchRegisterScope scope(masm);
-    VRegister temp = scope.AcquireV(f);
-    masm->Mov(temp, dst);
-    if (dst == src0) {
-      src0 = temp;
-    } else {
-      DCHECK_EQ(dst, src1);
-      src1 = temp;
-    }
-  }
-  int32_t shuffle = i.InputInt32(2);
-  int32_t lane_count = LaneCountFromFormat(f);
-  int32_t max_src0_lane = lane_count - 1;
-  int32_t lane_mask = GetLaneMask(lane_count);
-
-  // Perform shuffle as a vmov per lane.
-  for (int i = 0; i < 2; i++) {
-    VRegister src = src0;
-    int lane = shuffle & lane_mask;
-    if (lane > max_src0_lane) {
-      src = src1;
-      lane &= max_src0_lane;
-    }
-    masm->Mov(dst, i, src, lane);
-    shuffle >>= 8;
-  }
-}
-
 void Shuffle4Helper(MacroAssembler* masm, Arm64OperandConverter i,
                     VectorFormat f) {
   VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
@@ -3286,32 +3250,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I32x4BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
-    case kArm64I8x16Addv: {
-      __ Addv(i.OutputSimd128Register().B(), i.InputSimd128Register(0).V16B());
+    case kArm64IAddv: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      VectorFormat dst_f = ScalarFormatFromLaneSize(lane_size);
+      VectorFormat src_f = VectorFormatFillQ(lane_size);
+      __ Addv(i.OutputSimd128Register().Format(dst_f),
+              i.InputSimd128Register(0).Format(src_f));
       break;
     }
-    case kArm64I16x8Addv: {
-      __ Addv(i.OutputSimd128Register().H(), i.InputSimd128Register(0).V8H());
-      break;
-    }
-    case kArm64I32x4Addv: {
-      __ Addv(i.OutputSimd128Register().S(), i.InputSimd128Register(0).V4S());
-      break;
-    }
-    case kArm64I64x2AddPair: {
+    case kArm64IAddpScalar: {
       __ Addp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
       break;
     }
-    case kArm64F32x4AddReducePairwise: {
-      UseScratchRegisterScope scope(masm());
-      VRegister tmp = scope.AcquireV(kFormat4S);
-      __ Faddp(tmp.V4S(), i.InputSimd128Register(0).V4S(),
-               i.InputSimd128Register(0).V4S());
-      __ Faddp(i.OutputSimd128Register().S(), tmp.V2S());
+    case kArm64FAddp: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      VectorFormat f = VectorFormatFillQ(lane_size);
+      __ Faddp(i.OutputSimd128Register().Format(f),
+               i.InputSimd128Register(0).Format(f),
+               i.InputSimd128Register(1).Format(f));
       break;
     }
-    case kArm64F64x2AddPair: {
-      __ Faddp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
+    case kArm64FAddpScalar: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      if (lane_size == 64) {
+        __ Faddp(i.OutputSimd128Register().D(),
+                 i.InputSimd128Register(0).V2D());
+      } else if (lane_size == 32) {
+        __ Faddp(i.OutputSimd128Register().S(),
+                 i.InputSimd128Register(0).V2S());
+      } else {
+        UNIMPLEMENTED();
+      }
       break;
     }
     case kArm64I32x4DotI16x8S: {
@@ -3631,24 +3600,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usra(dst, i.InputSimd128Register(1).Format(f), i.InputUint8(2) & mask);
       break;
     }
-    case kArm64S8x2Shuffle: {
-      Shuffle2Helper(masm(), i, kFormat16B);
-      break;
-    }
-    case kArm64S16x2Shuffle: {
-      Shuffle2Helper(masm(), i, kFormat8H);
-      break;
-    }
-    case kArm64S32x2Shuffle: {
-      Shuffle2Helper(masm(), i, kFormat4S);
-      break;
-    }
     case kArm64S32x4Shuffle: {
       Shuffle4Helper(masm(), i, kFormat4S);
-      break;
-    }
-    case kArm64S64x2Shuffle: {
-      Shuffle2Helper(masm(), i, kFormat2D);
       break;
     }
     case kArm64S64x2Reverse: {

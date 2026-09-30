@@ -26,7 +26,7 @@
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller+private.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/key_commands_provider.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/safe_area_provider.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
+#import "ios/chrome/browser/content_suggestions/public/ntp_home_constants.h"
 #import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
 #import "ios/chrome/browser/default_browser/promo/non_modal/coordinator/default_promo_non_modal_presentation_delegate.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
@@ -64,7 +64,6 @@
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/url_with_title.h"
@@ -83,12 +82,12 @@
 #import "ios/chrome/browser/tabs/ui_bundled/background_tab_animation_view.h"
 #import "ios/chrome/browser/tabs/ui_bundled/foreground_tab_animation_view.h"
 #import "ios/chrome/browser/tabs/ui_bundled/switch_to_tab_animation_view.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/accessory/toolbar_accessory_presenter.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_configuration.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/fullscreen/toolbars_size.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/fullscreen/toolbars_size_broadcasting_util.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/public/omnibox_position_util.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/toolbar_coordinator.h"
+#import "ios/chrome/browser/toolbar/coordinator/toolbar_coordinator.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/accessory/toolbar_accessory_presenter.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_configuration.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/fullscreen/toolbars_size.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/fullscreen/toolbars_size_broadcasting_util.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/omnibox_position_util.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/browser/voice/ui_bundled/voice_search_notification_names.h"
@@ -255,11 +254,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
   BOOL _lensOverlayVisible;
-
-  // TODO(crbug.com/429955447): Remove when diamond prototype is cleaned.
-  ToolbarType _diamondToolbarType;
-  NSArray<NSLayoutConstraint*>* _diamondToolbarTopConstraints;
-  NSArray<NSLayoutConstraint*>* _diamondToolbarBottomConstraints;
 }
 
 // Activates/deactivates the object. This will enable/disable the ability for
@@ -1369,9 +1363,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   if (!height) {
     return 0.0;
   }
-  if (IsDiamondPrototypeEnabled()) {
-    return kDiamondToolbarHeight;
-  }
 
   // Add the safe area inset to the toolbar height.
   CGFloat unsafeHeight = self.rootSafeAreaInsets.bottom;
@@ -1433,14 +1424,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   // The bottom toolbar can be constraint to the keyboard in some cases.
   self.secondaryToolbarHeightConstraint.priority = UILayoutPriorityRequired - 1;
   self.secondaryToolbarHeightConstraint.active = YES;
-  if (IsDiamondPrototypeEnabled()) {
-    AddSameConstraintsToSides(self.view, toolbarView,
-                              LayoutSides::kLeading | LayoutSides::kTrailing);
-  } else {
-    AddSameConstraintsToSides(
-        self.view, toolbarView,
-        LayoutSides::kBottom | LayoutSides::kLeading | LayoutSides::kTrailing);
-  }
+  AddSameConstraintsToSides(
+      self.view, toolbarView,
+      LayoutSides::kBottom | LayoutSides::kLeading | LayoutSides::kTrailing);
 }
 
 // Adds constraints to the primary and secondary toolbars, anchoring them to the
@@ -1545,27 +1531,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     UIView* secondaryToolbarView =
         self.toolbarCoordinator.secondaryToolbarViewController.view;
 
-    if (IsDiamondPrototypeEnabled()) {
-      _diamondToolbarTopConstraints = @[
-        [secondaryToolbarView.topAnchor
-            constraintEqualToAnchor:primaryToolbarView.topAnchor],
-        [secondaryToolbarView.bottomAnchor
-            constraintEqualToAnchor:primaryToolbarView.bottomAnchor],
-        [contentAreaGuide.bottomAnchor
-            constraintEqualToAnchor:self.view.bottomAnchor],
-      ];
-      _diamondToolbarBottomConstraints = @[
-        [secondaryToolbarView.bottomAnchor
-            constraintEqualToAnchor:self.view.bottomAnchor],
-        [contentAreaGuide.bottomAnchor
-            constraintEqualToAnchor:secondaryToolbarView.topAnchor],
-      ];
-      [self diamondToolbarTypeChanged:_diamondToolbarType];
-    } else {
-      [contentAreaGuide.bottomAnchor
-          constraintEqualToAnchor:secondaryToolbarView.topAnchor]
-          .active = YES;
-    }
+    [contentAreaGuide.bottomAnchor
+        constraintEqualToAnchor:secondaryToolbarView.topAnchor]
+        .active = YES;
 
     AddSameConstraintsToSides(self.view, contentAreaGuide, contentSides);
   }
@@ -2141,9 +2109,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   CGFloat height = self.toolbarCoordinator.collapsedSecondaryToolbarHeight;
   if (!height) {
     return 0.0;
-  }
-  if (IsDiamondPrototypeEnabled()) {
-    return kDiamondCollapsedToolbarHeight;
   }
   // Height is non-zero only when bottom omnibox is enabled.
   return self.rootSafeAreaInsets.bottom + height;
@@ -2926,23 +2891,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
                      [self.view layoutIfNeeded];
                    }
                    completion:nil];
-}
-
-- (void)diamondToolbarTypeChanged:(ToolbarType)type {
-  CHECK(IsDiamondPrototypeEnabled());
-  _diamondToolbarType = type;
-  switch (type) {
-    case ToolbarType::kPrimary:
-      [NSLayoutConstraint
-          deactivateConstraints:_diamondToolbarBottomConstraints];
-      [NSLayoutConstraint activateConstraints:_diamondToolbarTopConstraints];
-      break;
-
-    case ToolbarType::kSecondary:
-      [NSLayoutConstraint deactivateConstraints:_diamondToolbarTopConstraints];
-      [NSLayoutConstraint activateConstraints:_diamondToolbarBottomConstraints];
-      break;
-  }
 }
 
 #pragma mark - LogoAnimationControllerOwnerOwner (Public)

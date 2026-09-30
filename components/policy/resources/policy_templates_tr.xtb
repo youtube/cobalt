@@ -2483,6 +2483,11 @@ Politika, 2 - "Devre Dışı" değerine ayarlanırsa Google Developer Program'ı
 <translation id="2707733461906745082">Profil Ayırma</translation>
 <translation id="2707873794476722903">Güvenli Tarama standart modda etkin.</translation>
 <translation id="2709516037105925701">Otomatik doldurma</translation>
+<translation id="2713265653152900248">Politikanın ayarlanması <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> politikasına istisna olarak, Gizli modda listelenen URL'lere erişim sağlar. Örneğin, <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> politikasını * olarak ayarlamak Gizli moddaki tüm istekleri engeller. Bu durumda bu politikayı sınırlı bir URL listesine erişim izni vermek için kullanabilirsiniz. Bu ayarı, (https://support.google.com/chrome/a?p=url_blocklist_filter_format) adresinde belirtilen biçimi kullanarak belirli şemalar, diğer alan adlarının alt alan adları, bağlantı noktaları veya belirli yollara ilişkin istisnaları açmak için kullanın. <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> politikası, <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> politikasına göre daha önceliklidir. Bu politika 1.000 giriş ile sınırlıdır.
+
+Politika ayarlanmadan bırakılırsa <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> politikası için hiçbir istisnaya izin verilmez.
+
+Bu politika yalnızca Gizli modu etkiler. URL'lere tüm kullanıcı profillerinde izin vermek için lütfen <ph name="URL_ALLOWLIST_POLICY_NAME" /> politikasını kullanın.</translation>
 <translation id="2713913573196284609">Bu değerin desteği, M121 sürümünden itibaren sonlandırılmıştır. Değerler, M121 ve sonraki sürümlerde EnabledBelowThreshold olarak kabul edilir.</translation>
 <translation id="2713977837384407666">Google'a metrikleri her zaman gönderme</translation>
 <translation id="2714359695399346815">Politika, Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa STUN sunucularının kullanılmasına izin verilir. Uzak istemciler, bir güvenlik duvarıyla ayrılmış olsa bile bu makineyi keşfedip bağlanabilir.
@@ -2968,6 +2973,7 @@ Bu politika, kullanıcıların dosya seçim menüsündeki "Google Drive" işlemi
 <translation id="3030232909811556512">Bu politika devre dışı bırakılırsa yerel dosyalar, cihaz kamerası veya kullanıcının Google profili resmi kullanılarak kullanıcının <ph name="PRODUCT_OS_NAME" /> avatar resmi ayarlanamaz.
 
 Bu politika etkinleştirilir veya ayarlanmadan bırakılırsa kullanıcı bu kaynaklardan herhangi birini kullanarak avatar resmini ayarlayabilir.</translation>
+<translation id="3031370204150460535">Gemini uygulaması entegrasyonlarının belirtilen sitelerde doğrudan işlem yapmasını engelle</translation>
 <translation id="3031796805169553856">WebAssembly modüllerinin kaynaklar arasında gönderilmesine izin ver</translation>
 <translation id="3032322294267258117">Kimlik doğrulaması, SAML olmadan GAIA'ya göre yapılan kullanıcıların ayarlarını kontrol eder.</translation>
 <translation id="3034855514833090741">Politikanın Etkin değerine ayarlanması, ilk kurulum sırasında Google Asistan Voice Match akışının gösterilmesine olanak tanır. Politikanın Devre Dışı değerine ayarlanması Google Asistan'ın ilk kurulum sırasında Voice Match akışını göstermesini engeller.
@@ -4461,6 +4467,7 @@ Geçerli <ph name="URL_LABEL" /> kalıpları hakkında ayrıntılı bilgi için 
       Bu politika ayarlanmazsa <ph name="PRODUCT_OS_NAME" /> cihazlarda varsayılan süre olan 259.200.000 milisaniye (üç gün) kullanılır.
 
       Cihazda powerwash işlemi yapacak geri alma ve diğer <ph name="PRODUCT_OS_NAME" /> güncellemelerinde bu politikada ayarlanan değerden bağımsız olarak, güncelleme mevcut olduğunda kullanıcı her zaman anında bilgilendirilir.</translation>
+<translation id="4086132065708736174">Gemini uygulaması entegrasyonlarının belirtilen sitelerde doğrudan işlem yapmasına izin ver</translation>
 <translation id="4086150283035515220">Politika Etkin değerine ayarlanırsa kullanıcılara indirmeden önce her dosyanın nereye kaydedileceği sorulur. Politika Devre dışı değerine ayarlanırsa indirme işlemleri hemen başlar ve kullanıcılara dosyanın nereye kaydedileceği sorulmaz.
 
       Politika ayarlanmadan bırakılırsa kullanıcılar bu ayarı değiştirebilir.</translation>
@@ -8554,6 +8561,34 @@ Politikada yapılacak değişiklikler yalnızca ARC çalışmıyorken (ör. Chro
       Bu politika ayarlanmadan bırakılırsa hem kurumsal olarak yönetilen kullanıcılar hem de yönetilmeyen kullanıcılar için varsayılana izin verilir.</translation>
 <translation id="6640748114867542396">Yönetilen uzantıların Enterprise Hardware Platform API'yi kullanmasına izin verme</translation>
 <translation id="6641109870010271671">Sunucu kimlik doğrulaması için <ph name="PRODUCT_NAME" /> tarafından güvenilmesi gereken TLS sertifikaları</translation>
+<translation id="6641851832244467923">Bu politika ayarlandığında, hedef URL'ye ve diğer koşullara bağlı olarak tarayıcının kullanacağı proxy'yi belirleyen kurallar yapılandırılır. Bu politika; <ph name="PROXY_SETTINGS_POLICY_NAME" /> politikası, <ph name="PROXY_SETTINGS_EXTENSION_API" /> uzantı API'si veya manuel kullanıcı ayarları aracılığıyla belirlenen proxy ayarlarına göre öncelikli olur.
+
+Politika ayarlanmadan bırakılırsa diğer proxy politikaları veya kullanıcı ayarları etkilenmez.
+
+Tarayıcının, kullanacağı proxy'ye karar vermesi gerektiğinde aşağıdaki noktaların tümünü karşılayan bir giriş bulunana kadar <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> politikasının girişleri sırayla değerlendirilir:
+  *<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> içindeki URL kalıplarından en az biriyle eşleşir.
+  *<ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> içindeki hiçbir URL kalıbı eşleşmez.
+  *<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> belirtilmişse ve boş olmayan bir listeyse girişleri tarafından temsil edilen tüm koşullar karşılanır.
+Bu tür bir eşleşme için proxy olarak <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> içindeki değer kullanılır. Eşleşme bulunamazsa proxy ayarları, <ph name="PROXY_SETTINGS_POLICY_NAME" /> politikasında ayarlanan değerlere geri döner.
+
+<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> ve <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> tarafından desteklenen URL kalıplarını https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns adresinde bulabilirsiniz.
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> alan girişleri, PAC dosyalarının dize değerlerine karşılık gelir. Örneğin:
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+Alternatif olarak proxy'yi doğrudan belirtmek için URL benzeri proxy tanımlayıcıları kullanılabilir. Örneğin:
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+Listedeki ulaşılabilecek ilk giriş, proxy olarak kullanılır. Listedeki geçersiz girişler yoksayılır.
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> alanı, geçersiz kılma kuralı kullanılarak proxy'ye karar verilmesi için karşılanması gereken koşulların listesini içerir. Ayarlanmadan bırakılırsa <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> içinde en az bir ana makine eşleştiği sürece giriş kullanılır.
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> koşulu, sağlanan DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> öğesinin bir IP adresine çözümlenip çözümlenemediğini kontrol eder. Bir ana makine (ör. example.com) ve isteğe bağlı olarak bir şema veya bağlantı noktası (ör. https://example.com, example.com:123, https://example.com:123) içermelidir. Güvenli bir şema (ör. https) kullanılıyorsa DNS araması, HTTPS kaydını da isteyebilir (daha fazla bilgi için RFC 9460'a bakın). <ph name="PROXY_OVERRIDE_RULES_RESULT" /> değeri "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />" ise koşul karşılanmış kabul edilir. Değer bunun yerine <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" /> olarak ayarlanmışsa çözüm başarısız olduğunda koşul karşılanmış kabul edilir.</translation>
 <translation id="6641981670621198190">3D grafik API'ları için desteği devre dışı bırak</translation>
 <translation id="6646912445796087001">Dokunmatik klavyede çeşitli özellikleri açma veya kapama. Bu politika sadece "VirtualKeyboardEnabled" politikası etkinleştirildiğinde geçerlidir.
 
@@ -8918,6 +8953,9 @@ Politika, yanlış değerine ayarlanır veya ayarlanmadan bırakılırsa bu düz
 <translation id="6866755486434471318">Video kodu çözmek için paylaşılan resimlerin <ph name="PEPPER_NAME" /> tarafından kullanılmasına izin ver.</translation>
 <translation id="6878757724611298427">Kullanıcıların, ilişkili olmayan cihazlarda Android uygulamalarını kullanmasına izin ver</translation>
 <translation id="6881447940489194100">Verilerin on altılı kodlanmış SHA-256 karması.</translation>
+<translation id="688149562204519323"><ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> politikası ayarlanırsa yasaklı URL'leri olan web sayfalarının Gizli modda yüklenmesi durdurulur. Yöneticiler engellenecek URL kalıplarının listesini belirtebilir. Politika ayarlanmadan bırakılırsa Gizli modda hiçbir URL engellenmez. <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> politikasında en çok 1.000 istisna tanımlanabilir. URL kalıbının nasıl biçimlendirileceğine göz atın (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+Bu politika yalnızca Gizli modu etkiler. URL'leri tüm kullanıcı profillerinde engellemek için lütfen <ph name="URL_BLOCKLIST_POLICY_NAME" /> politikasını kullanın.</translation>
 <translation id="68818134518270542">Politikanın ayarlanması, kullanıcıların <ph name="PRODUCT_OS_NAME" /> kilit ekranında not alma uygulaması olarak açabilecekleri uygulamaları belirtir.
 
       Tercih edilen not alma uygulaması kilit ekranındaysa ekranda bu uygulamayı başlatan bir kullanıcı arayüzü öğesi görünür. Başlatıldığında uygulama, kilit ekranının üst kısmında bir pencere ve kilit ekranı bağlamında notlar oluşturabilir. Oturumun kilidi açık olduğunda uygulama, oluşturulan notları birincil kullanıcı oturumunda içe aktarabilir. Kilit ekranında yalnızca <ph name="PRODUCT_NAME" /> not alma uygulamaları desteklenir.
@@ -9718,6 +9756,13 @@ Geçerli URL kalıpları hakkında ayrıntılı bilgi için https://chromeenterp
 
           Bu politika ayarlanmadan bırakılırsa renk düzeltme özelliği başlangıçta devre dışı bırakılır, ancak kullanıcılar bunu istediği zaman etkinleştirebilir.</translation>
 <translation id="7323896582714668701"><ph name="PRODUCT_NAME" /> için ek komut satırı parametreleri</translation>
+<translation id="7324627441366994249">Gemini uygulaması entegrasyonlarının web sayfalarında doğrudan işlem yapamayacağı sitelerin belirtildiği URL kalıpları listesinin ayarlanmasına olanak tanır.
+
+İzin verilenler listesi veya engellenenler listesiyle eşleşmeyen URL'lerde <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" /> kullanılır.
+
+Hem izin verilenler hem de engellenenler listesiyle eşleşen URL'lere izin verilir.
+
+Geçerli url kalıpları hakkında ayrıntılı bilgi için https://support.google.com/chrome/a?p=url_blocklist_filter_format adresine bakabilirsiniz.</translation>
 <translation id="7325801934761922681">Chrome'un, korumalı alana alınmış iframe içerisindeki harici protokollerde gezinmeyi engellemesini önle</translation>
 <translation id="7326394567531622570">Wipe (2 değeri) seçeneğine benzer, ancak kullanıcının tekrar oturum açmak zorunda kalmaması için giriş jetonlarını saklar.</translation>
 <translation id="7331098674887251788">Gemini uygulaması entegrasyonlarının doğrudan web sayfalarında işlem yapmasına izin verir</translation>
@@ -10883,6 +10928,13 @@ Politika, Doğru değerine ayarlanır veya ayarlanmadan bırakılırsa cihazlar�
 Politika, Yanlış değerine ayarlanırsa yönetilen bir ağa bağlanmadan sınıfa katılabilirler.</translation>
 <translation id="8183108371184777472">Tarayıcı penceresini başlatmayı engelleme</translation>
 <translation id="8185312100223853315">Profil Etiketi</translation>
+<translation id="8186370194423312090">Gemini uygulaması entegrasyonlarının web sayfalarında doğrudan işlem yapabileceği sitelerin belirtildiği URL kalıpları listesinin ayarlanmasına olanak tanır.
+
+İzin verilenler listesi veya engellenenler listesiyle eşleşmeyen URL'lerde <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" /> kullanılır.
+
+Hem izin verilenler hem de engellenenler listesiyle eşleşen URL'lere izin verilir.
+
+Geçerli url kalıpları hakkında ayrıntılı bilgi için https://support.google.com/chrome/a?p=url_blocklist_filter_format adresine bakabilirsiniz.</translation>
 <translation id="8186911565834244165">Kullanıcı geri bildirimine izin ver</translation>
 <translation id="8195133650230097559">Güç yönetimi için uyanık kalma kilidi isteklerini yok say</translation>
 <translation id="8196558469954193908">Bu politika, istemci sertifikaları kullanımdayken HTTP/2 bağlantısının birleşmesine izin verir. Birleşme için hem potansiyel yeni bağlantı ana makine adının hem de mevcut bir bağlantının ana makine adının, bu politika tarafından açıklanan bir veya daha fazla kalıpla eşleşmesi gerekir. Bu politika, <ph name="URL_BLOCKLIST_POLICY_NAME" /> filtre biçiminin kullanıldığı bir ana makine listesidir: "example.com", "example.com" ve tüm alt alan adlarıyla (ör. "sub.example.com") eşleşirken, ".example.net" tam olarak "example.net" ile eşleşir.

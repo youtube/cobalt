@@ -45,6 +45,12 @@ NSArray<GeminiSettingsMetadata*>* GetEligibleSettings(
   return nil;
 }
 
-void UpdateOverlayOffset(CGFloat offset) {}
+GeminiSettingsAction* ActionForSettingsContext(GeminiSettingsContext context) {
+  return nil;
+}
+
+void UpdateOverlayOffsetWithOpacity(CGFloat offset, CGFloat opacity) {}
+
+void UpdateGeminiViewState(GeminiViewState view_state) {}
 
 }  // namespace ios::provider

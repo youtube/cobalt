@@ -2381,6 +2381,11 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 <translation id="2707733461906745082">設定檔區隔</translation>
 <translation id="2707873794476722903">已啟用標準模式中的安全瀏覽功能。</translation>
 <translation id="2709516037105925701">自動填入</translation>
+<translation id="2713265653152900248">如果設定這項政策，使用者可在無痕模式下存取許可清單中的網址，這些網址是 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 的例外項目。舉例來說，將 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 設為「*」，系統會封鎖無痕模式下的所有要求。你可以透過這項政策允許使用者存取有限的特定網址。請使用 https://support.google.com/chrome/a?p=url_blocklist_filter_format 頁面中指定的格式，透過這項政策將特定網路協定、其他網域的子網域、通訊埠或特定路徑設為例外項目。<ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> 政策的優先順序高於 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />。這項政策最多只能輸入 1,000 個項目。
+
+如果未設定這項政策，<ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 就不會有例外項目。
+
+這項政策只會影響無痕模式。如要允許所有使用者設定檔存取這些網址，請使用 <ph name="URL_ALLOWLIST_POLICY_NAME" /> 政策。</translation>
 <translation id="2713913573196284609">這個值已於 M121 淘汰。在 M121 和更高版本中，系統會將值視為 EnabledBelowThreshold。</translation>
 <translation id="2713977837384407666">一律傳送指標資料給 Google</translation>
 <translation id="2714359695399346815">如果將這項政策設為啟用或不設定，即可使用 STUN 伺服器，這樣即使遠端用戶端受到防火牆阻隔，也能偵測到這部裝置並建立連線。
@@ -2849,6 +2854,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 <translation id="3030232909811556512">如果停用這項政策，就無法將本機檔案圖片、裝置相機拍攝的相片或使用者 Google 個人資料相片設為使用者的 <ph name="PRODUCT_OS_NAME" /> 顯示圖片。
 
 如果政策已啟用或未設定，使用者可以透過上述選項設定顯示圖片。</translation>
+<translation id="3031370204150460535">禁止 Gemini 應用程式整合功能直接在指定網站執行動作</translation>
 <translation id="3031796805169553856">允許跨來源傳送 WebAssembly 模組</translation>
 <translation id="3032322294267258117">控管透過 GAIA 進行驗證 (未使用 SAML) 的使用者設定。</translation>
 <translation id="3034855514833090741">如果將這項政策設為 Enabled，初始設定期間就會顯示 Google 助理 Voice Match 流程。如果將這項政策設為 Disabled，初始設定期間就不會顯示 Google 助理 Voice Match 流程。
@@ -4273,6 +4279,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
       如未設定這項政策，<ph name="PRODUCT_OS_NAME" />裝置的預設時間範圍是 259200000 毫秒 (三天)。
 
       如果是系統復原和其他會執行裝置 Powerwash 的 <ph name="PRODUCT_OS_NAME" /> 更新，使用者一律會在可更新時立即收到通知，不受這項政策的值限制。</translation>
+<translation id="4086132065708736174">允許 Gemini 應用程式整合功能直接在指定網站執行動作</translation>
 <translation id="4086150283035515220">如果將這項政策設為啟用，系統下載每個檔案前，都會詢問使用者要儲存檔案的位置。如果將這項政策設為停用，下載作業會立即開始，系統不會詢問使用者要儲存檔案的位置。
 
       如果未設定這項政策，使用者可以自行變更這項設定。</translation>
@@ -8244,6 +8251,34 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果不設定這項政策，預設值是允許受企業管理以及非受管使用者執行這項功能。</translation>
 <translation id="6640748114867542396">不允許受管理的擴充功能使用 Enterprise Hardware Platform API</translation>
 <translation id="6641109870010271671">驗證伺服器時，<ph name="PRODUCT_NAME" /> 應信任的 TLS 憑證</translation>
+<translation id="6641851832244467923">透過這項政策設定規則，根據目的地網址和其他條件選取瀏覽器使用的 Proxy。這項政策的效力高於其他方式的 Proxy 設定，包括透過 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 擴充功能 API，以及使用者手動設定。
+
+如果未設定這項政策，其他 Proxy 政策或使用者設定都不會受到影響。
+
+瀏覽器必須決定要使用的 Proxy 時，會依序評估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的項目，直到有一個項目符合下列所有條件為止：
+  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的網址模式至少有一個相符。
+  * 與 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的網址模式均不相符。
+  * 如果指定了 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />，而且不是空白清單，則須符合該清單項目表示的所有條件。
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 的值會做為這類相符項目的 Proxy。如果找不到相符項目，就會回頭使用 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策指定的 Proxy 設定。
+
+如要瞭解 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 和 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 支援的網址模式，請參閱 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 欄位項目會對應到 PAC 檔案的字串值，例如：
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+或者，也可以直接用類似網址的 Proxy 指定碼來指定 Proxy，例如：
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+清單中第一個可連線的項目會做為 Proxy。系統會忽略清單中的無效項目。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 欄位內含條件清單；必須符合所有條件，才能使用覆寫規則決定要使用的 Proxy。如果未設定，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 有一個主機符合條件，系統就會使用該項目。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 條件會檢查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> 能否解析為 IP 位址。必須包含主機 (例如 example.com)，也可以選擇性加入通訊協定或通訊埠 (例如 https://example.com、example.com:123、https://example.com:123)。如果使用安全通訊協定 (例如 https)，DNS 查詢也可能會要求 HTTPS 記錄 (詳情請參閱 RFC 9460)。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值為「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」，就會判定符合條件。如果值改設為 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，則解析失敗時，系統會判定符合條件。</translation>
 <translation id="6641981670621198190">停止支援 3D 圖形 API</translation>
 <translation id="6646912445796087001">啟用或停用螢幕小鍵盤上的多項功能。這項政策只有在「VirtualKeyboardEnabled」政策已啟用時才會生效。
 
@@ -8600,6 +8635,9 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6866755486434471318">允許 <ph name="PEPPER_NAME" /> 使用分享的圖片解碼影片。</translation>
 <translation id="6878757724611298427">允許使用者在無關聯的裝置上使用 Android 應用程式</translation>
 <translation id="6881447940489194100">資料的十六進位編碼 SHA-256 雜湊。</translation>
+<translation id="688149562204519323">如果設定 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 政策，系統會停止在無痕模式下載入遭禁止網址的網頁。管理員可以指定要封鎖的網址模式清單。如果未設定，系統就不會在無痕模式下封鎖任何網址。<ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> 中最多可定義 1000 個例外網址。請前往 https://support.google.com/chrome/a?p=url_blocklist_filter_format，瞭解如何設定網址模式的格式。
+
+這項政策只會影響無痕模式。如要禁止所有使用者設定檔存取這些網址，請使用 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策。</translation>
 <translation id="68818134518270542">你可以透過這項政策指定應用程式，允許使用者在 <ph name="PRODUCT_OS_NAME" />螢幕鎖定畫面上以筆記應用程式的形式開啟。
 
       如果偏好的筆記應用程式已在螢幕鎖定畫面上，用來啟動該應用程式的 UI 元素就會顯示在畫面上。應用程式啟動後，將可在螢幕鎖定畫面的上方建立視窗，並在螢幕鎖定的情況下建立筆記。應用程式可在工作階段解鎖後，將已建立的筆記匯入主要使用者的工作階段。螢幕鎖定畫面上僅支援 <ph name="PRODUCT_NAME" /> 筆記應用程式。
@@ -9341,6 +9379,13 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 
           如果未設定這項政策，系統預設會停用色彩校正功能，但使用者隨時可以啟用。</translation>
 <translation id="7323896582714668701"><ph name="PRODUCT_NAME" /> 額外命令列參數</translation>
+<translation id="7324627441366994249">你可以設定網址模式清單，指定哪些網站不允許 Gemini 應用程式整合功能直接在網頁執行動作。
+
+如果網址既不符合許可清單也不符合封鎖清單，則會使用 <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />。
+
+如果網址同時符合許可清單和封鎖清單，系統會允許存取該網址。
+
+如要進一步瞭解有效的模式，請參閱 https://support.google.com/chrome/a?p=url_blocklist_filter_format。</translation>
 <translation id="7325801934761922681">禁止 Chrome 封鎖在沙箱 iframe 中瀏覽外部通訊協定的作業</translation>
 <translation id="7326394567531622570">與 Wipe (值 2) 類似，但會嘗試保留登入憑證，因此使用者不必重新登入。</translation>
 <translation id="7331098674887251788">允許 Gemini 應用程式整合功能直接在網頁執行動作</translation>
@@ -10446,6 +10491,13 @@ Gemini 啟動功能僅支援部分國家/地區和語言。設定這項政策無
 如果設為 False，使用者不必連上受管理的網路，也能加入課程。</translation>
 <translation id="8183108371184777472">禁止啟動瀏覽器視窗</translation>
 <translation id="8185312100223853315">設定檔標籤</translation>
+<translation id="8186370194423312090">你可以設定網址模式清單，指定 Gemini 應用程式整合功能可直接在哪些網站的網頁執行動作。
+
+如果網址既不符合許可清單也不符合封鎖清單，則會使用 <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />。
+
+如果網址同時符合許可清單和封鎖清單，系統會允許存取該網址。
+
+如要進一步瞭解有效的模式，請參閱 https://support.google.com/chrome/a?p=url_blocklist_filter_format。</translation>
 <translation id="8186911565834244165">允許使用者意見回饋功能</translation>
 <translation id="8195133650230097559">忽略電源管理的 Wake Lock 要求</translation>
 <translation id="8196558469954193908">這項政策可在用戶端憑證已有人使用的情況下，允許 HTTP/2 連線合併。如要合併，要建立新連線的主機名稱和現有連線的主機名稱必須與這項政策中的一或多個模式相符。這項政策所設定的主機清單採用「<ph name="URL_BLOCKLIST_POLICY_NAME" />」篩選器格式：「example.com」和其所有子網域 (例如「sub.example.com」) 均符合「example.com」這項篩選條件，而「.example.net」則與「example.net」完全相符。

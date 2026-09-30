@@ -308,7 +308,7 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
     static @DrawableRes int getIcon(@DialogOption int type) {
         switch (type) {
             case DialogOption.CLEAR_CACHE:
-                return R.drawable.ic_collections_grey;
+                return R.drawable.ic_photo_library_fill_24dp;
             case DialogOption.CLEAR_COOKIES_AND_SITE_DATA:
                 return R.drawable.permission_cookie;
             case DialogOption.CLEAR_FORM_DATA:
@@ -318,7 +318,7 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
             case DialogOption.CLEAR_PASSWORDS:
                 return R.drawable.ic_password_manager_key;
             case DialogOption.CLEAR_SITE_SETTINGS:
-                return R.drawable.ic_tv_options_input_settings_rotated_grey;
+                return R.drawable.ic_settings_applications_24dp;
             case DialogOption.CLEAR_TABS:
                 return R.drawable.ic_tab_icon_24dp;
             default:

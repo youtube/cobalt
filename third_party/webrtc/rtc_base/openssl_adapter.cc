@@ -388,6 +388,7 @@ int OpenSSLAdapter::ContinueSSL() {
   // Clear the DTLS timer
   timer_.reset();
 
+  ERR_clear_error();
   int code = (role_ == SSL_CLIENT) ? SSL_connect(ssl_) : SSL_accept(ssl_);
   switch (SSL_get_error(ssl_, code)) {
     case SSL_ERROR_NONE:
@@ -473,6 +474,7 @@ int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
   RTC_DCHECK(pending_data_.empty() || pv == pending_data_.data());
   RTC_DCHECK(error != nullptr);
 
+  ERR_clear_error();
   ssl_write_needs_read_ = false;
   int ret = SSL_write(ssl_, pv, checked_cast<int>(cb));
   *error = SSL_get_error(ssl_, ret);
@@ -605,6 +607,7 @@ int OpenSSLAdapter::Recv(void* pv, size_t cb, int64_t* timestamp) {
     return 0;
   }
 
+  ERR_clear_error();
   ssl_read_needs_write_ = false;
   int code = SSL_read(ssl_, pv, checked_cast<int>(cb));
   int error = SSL_get_error(ssl_, code);

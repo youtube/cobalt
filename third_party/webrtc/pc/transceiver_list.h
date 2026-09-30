@@ -98,11 +98,6 @@ class TransceiverList {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     return transceivers_;
   }
-  // As above, but does not check thread ownership. Unsafe.
-  // TODO(bugs.webrtc.org/12692): Refactor and remove
-  std::vector<RtpTransceiverProxyRefPtr> UnsafeList() const {
-    return transceivers_;
-  }
 
   // Returns a list of the internal() pointers of the currently active list
   // of transceivers. These raw pointers are not thread-safe, so need to
@@ -140,9 +135,8 @@ class TransceiverList {
 
  private:
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
-  std::vector<RtpTransceiverProxyRefPtr> transceivers_;
-  // TODO(bugs.webrtc.org/12692): Add RTC_GUARDED_BY(sequence_checker_);
-
+  std::vector<RtpTransceiverProxyRefPtr> transceivers_
+      RTC_GUARDED_BY(sequence_checker_);
   // Holds changes made to transceivers during applying descriptors for
   // potential rollback. Gets cleared once signaling state goes to stable.
   std::map<RtpTransceiverProxyRefPtr, TransceiverStableState>

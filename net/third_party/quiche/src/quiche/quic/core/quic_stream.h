@@ -36,6 +36,7 @@
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/session_notifier_interface.h"
@@ -322,10 +323,6 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Returns the version of QUIC being used for this stream.
   QuicTransportVersion transport_version() const;
 
-  // Returns the crypto handshake protocol that was used on this stream's
-  // connection.
-  HandshakeProtocol handshake_protocol() const;
-
   // Sets the sequencer to consume all incoming data itself and not call
   // OnDataAvailable().
   // When the FIN is received, the stream will be notified automatically (via
@@ -528,9 +525,9 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
 
   const QuicIntervalSet<QuicStreamOffset>& bytes_acked() const;
 
-  const QuicStreamSendBufferBase& send_buffer() const { return *send_buffer_; }
+  const QuicStreamSendBufferBase& send_buffer() const { return send_buffer_; }
 
-  QuicStreamSendBufferBase& send_buffer() { return *send_buffer_; }
+  QuicStreamSendBufferBase& send_buffer() { return send_buffer_; }
 
   // Called when the write side of the stream is closed, and all of the outgoing
   // data has been acknowledged.  This corresponds to the "Data Recvd" state of
@@ -649,7 +646,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
 
   // Send buffer of this stream. Send buffer is cleaned up when data gets acked
   // or discarded.
-  std::unique_ptr<QuicStreamSendBufferBase> send_buffer_;
+  QuicStreamSendBufferInlining send_buffer_;
 
   // Latched value of quic_buffered_data_threshold.
   const QuicByteCount buffered_data_threshold_;

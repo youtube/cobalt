@@ -210,7 +210,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
 
   MaybeSetExpirationAlarm();
 
-  if (is_ietf_initial_packet && version.UsesTls() &&
+  if (is_ietf_initial_packet && version.IsIetfQuic() &&
       !queue.HasAttemptedToReplaceConnectionId()) {
     queue.SetAttemptedToReplaceConnectionId(&connection_id_generator);
     std::optional<QuicConnectionId> replaced_connection_id =
@@ -589,7 +589,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_NE(tls_alert, nullptr);
-  QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+  QUICHE_DCHECK(version.IsIetfQuic());
 
   auto it = buffered_session_map_.find(connection_id);
   if (it == buffered_session_map_.end()) {

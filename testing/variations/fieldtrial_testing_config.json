@@ -14,6 +14,23 @@
             ]
         }
     ],
+    "AIFuseboxIOS": [
+        {
+            "platforms": [
+                "ios"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "ComposeboxCompactMode",
+                        "ComposeboxForceTop",
+                        "ComposeboxIOS"
+                    ]
+                }
+            ]
+        }
+    ],
     "AIMHintText": [
         {
             "platforms": [
@@ -746,6 +763,21 @@
                     },
                     "enable_features": [
                         "AndroidBottomToolbarV2"
+                    ]
+                }
+            ]
+        }
+    ],
+    "AndroidCaretBrowsing": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "AndroidCaretBrowsing"
                     ]
                 }
             ]
@@ -7095,7 +7127,6 @@
     "ContextualTasksContext": [
         {
             "platforms": [
-                "chromeos",
                 "linux",
                 "mac",
                 "windows"
@@ -7104,7 +7135,9 @@
                 {
                     "name": "Enabled",
                     "enable_features": [
-                        "ContextualTasksContext"
+                        "ContextualTasksContext",
+                        "ContextualTasksContextLogging",
+                        "ContextualTasksContextMqlsLogging"
                     ]
                 }
             ]
@@ -7153,8 +7186,6 @@
                         "version": "2"
                     },
                     "enable_features": [
-                        "AttributionDebugReportingCookieDeprecationTesting",
-                        "CookieDeprecationFacilitatedTesting",
                         "SkipTpcdMitigationsForAds",
                         "TPCDAdHeuristicSubframeRequestTagging"
                     ]
@@ -8932,25 +8963,6 @@
             ]
         }
     ],
-    "DisableCookieDeprecationFacilitatedTestingLabels": [
-        {
-            "platforms": [
-                "android",
-                "chromeos",
-                "linux",
-                "mac",
-                "windows"
-            ],
-            "experiments": [
-                {
-                    "name": "LabelsOff",
-                    "disable_features": [
-                        "CookieDeprecationFacilitatedTestingLabels"
-                    ]
-                }
-            ]
-        }
-    ],
     "DisableGeoLanguageModel": [
         {
             "platforms": [
@@ -9550,6 +9562,21 @@
                     "enable_features": [
                         "AutofillEnableSeparatePixPreferenceItem",
                         "FacilitatedPaymentsEnableA2APayment"
+                    ]
+                }
+            ]
+        }
+    ],
+    "EnableADPFScrollNoRendererMain": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "EnableADPFScrollNoRendererMain"
                     ]
                 }
             ]
@@ -16992,7 +17019,8 @@
                 {
                     "name": "Enabled",
                     "enable_features": [
-                        "EnableOAuthMultiloginStandardCookiesBinding"
+                        "EnableOAuthMultiloginStandardCookiesBinding",
+                        "UseUnexportableKeyServiceInBrowserProcess"
                     ]
                 }
             ]
@@ -20316,7 +20344,7 @@
             ]
         }
     ],
-    "ProfileExperimentsM1Usability": [
+    "ProfileExperimentsM1UsabilityHypothesis": [
         {
             "platforms": [
                 "linux",

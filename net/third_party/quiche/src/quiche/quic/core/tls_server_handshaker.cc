@@ -251,8 +251,7 @@ TlsServerHandshaker::TlsServerHandshaker(
   QUIC_DVLOG(1) << "TlsServerHandshaker:  client_cert_mode initial value: "
                 << client_cert_mode();
 
-  QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3,
-                   session->connection()->version().handshake_protocol);
+  QUICHE_DCHECK(session->connection()->version().IsIetfQuic());
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
@@ -538,13 +537,16 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersReceived(client_params);
-
-  if (client_params.legacy_version_information.has_value() &&
-      CryptoUtils::ValidateClientHelloVersion(
-          client_params.legacy_version_information->version,
-          session()->connection()->version(), session()->supported_versions(),
-          error_details) != QUIC_NO_ERROR) {
-    return false;
+  if (GetQuicRestartFlag(quic_stop_parsing_legacy_version_info)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_stop_parsing_legacy_version_info, 2, 3);
+  } else {
+    if (client_params.legacy_version_information.has_value() &&
+        CryptoUtils::ValidateClientHelloVersion(
+            client_params.legacy_version_information->version,
+            session()->connection()->version(), session()->supported_versions(),
+            error_details) != QUIC_NO_ERROR) {
+      return false;
+    }
   }
 
   if (client_params.version_information.has_value() &&
@@ -575,12 +577,16 @@ TlsServerHandshaker::SetTransportParameters() {
   QUICHE_DCHECK(!result.success);
 
   server_params_.perspective = Perspective::IS_SERVER;
-  server_params_.legacy_version_information =
-      TransportParameters::LegacyVersionInformation();
-  server_params_.legacy_version_information->supported_versions =
-      CreateQuicVersionLabelVector(session()->supported_versions());
-  server_params_.legacy_version_information->version =
-      CreateQuicVersionLabel(session()->connection()->version());
+  if (GetQuicRestartFlag(quic_stop_sending_legacy_version_info)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_stop_sending_legacy_version_info, 3, 4);
+  } else {
+    server_params_.legacy_version_information =
+        TransportParameters::LegacyVersionInformation();
+    server_params_.legacy_version_information->supported_versions =
+        CreateQuicVersionLabelVector(session()->supported_versions());
+    server_params_.legacy_version_information->version =
+        CreateQuicVersionLabel(session()->connection()->version());
+  }
   server_params_.version_information =
       TransportParameters::VersionInformation();
   server_params_.version_information->chosen_version =

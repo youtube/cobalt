@@ -260,6 +260,41 @@ BrowserWindowInterface* FindBrowserWithGroup(const tab_groups::TabGroupId& id) {
   return nullptr;
 }
 
+// Gets the window ID that the group belongs to.
+int GetWindowIdOfGroup(const tab_groups::TabGroupId& id) {
+  if (BrowserWindowInterface* const browser = FindBrowserWithGroup(id);
+      browser) {
+    return browser->GetSessionID().id();
+  }
+  return -1;
+}
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// Creates a tab MutedInfo object (see chrome/common/extensions/api/tabs.json)
+// with information about the mute state of a browser tab.
+api::tabs::MutedInfo CreateMutedInfo(content::WebContents* contents) {
+  DCHECK(contents);
+  api::tabs::MutedInfo info;
+  info.muted = contents->IsAudioMuted();
+  switch (GetTabAudioMutedReason(contents)) {
+    case TabMutedReason::kNone:
+      break;
+    case TabMutedReason::kAudioIndicator:
+    case TabMutedReason::kContentSetting:
+    case TabMutedReason::kContentSettingChrome:
+      info.reason = api::tabs::MutedInfoReason::kUser;
+      break;
+    case TabMutedReason::kExtension:
+      info.reason = api::tabs::MutedInfoReason::kExtension;
+      info.extension_id =
+          LastMuteMetadata::FromWebContents(contents)->extension_id;
+      DCHECK(!info.extension_id->empty());
+      break;
+  }
+  return info;
+}
+#endif
+
 }  // namespace
 
 WindowController* ExtensionTabUtil::GetControllerFromWindowID(
@@ -319,12 +354,6 @@ int ExtensionTabUtil::GetTabId(const WebContents* web_contents) {
 int ExtensionTabUtil::GetWindowIdOfTab(const WebContents* web_contents) {
   return sessions::SessionTabHelper::IdForWindowContainingTab(web_contents)
       .id();
-}
-
-// static
-std::string ExtensionTabUtil::GetBrowserWindowTypeText(
-    BrowserWindowInterface& browser) {
-  return WindowControllerFromBrowser(&browser)->GetWindowTypeText();
 }
 
 // static
@@ -459,30 +488,6 @@ base::Value::Dict ExtensionTabUtil::CreateWindowValueForExtension(
     mojom::ContextType context) {
   return WindowControllerFromBrowser(&browser)->CreateWindowValueForExtension(
       extension, populate_tab_behavior, context);
-}
-
-// static
-api::tabs::MutedInfo ExtensionTabUtil::CreateMutedInfo(
-    content::WebContents* contents) {
-  DCHECK(contents);
-  api::tabs::MutedInfo info;
-  info.muted = contents->IsAudioMuted();
-  switch (GetTabAudioMutedReason(contents)) {
-    case TabMutedReason::kNone:
-      break;
-    case TabMutedReason::kAudioIndicator:
-    case TabMutedReason::kContentSetting:
-    case TabMutedReason::kContentSettingChrome:
-      info.reason = api::tabs::MutedInfoReason::kUser;
-      break;
-    case TabMutedReason::kExtension:
-      info.reason = api::tabs::MutedInfoReason::kExtension;
-      info.extension_id =
-          LastMuteMetadata::FromWebContents(contents)->extension_id;
-      DCHECK(!info.extension_id->empty());
-      break;
-  }
-  return info;
 }
 
 // static
@@ -626,11 +631,6 @@ bool ExtensionTabUtil::GetTabStripModel(const WebContents* web_contents,
   return found;
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-content::WebContents* ExtensionTabUtil::GetActiveTab(
-    BrowserWindowInterface* browser) {
-  return WindowControllerFromBrowser(browser)->GetActiveTab();
-}
 
 // static
 bool ExtensionTabUtil::GetTabById(int tab_id,
@@ -782,15 +782,6 @@ int ExtensionTabUtil::GetGroupId(const tab_groups::TabGroupId& id) {
 int ExtensionTabUtil::GetSplitId(const split_tabs::SplitTabId& id) {
   uint32_t hash = base::PersistentHash(id.ToString());
   return std::abs(static_cast<int>(hash));
-}
-
-// static
-int ExtensionTabUtil::GetWindowIdOfGroup(const tab_groups::TabGroupId& id) {
-  if (BrowserWindowInterface* const browser = FindBrowserWithGroup(id);
-      browser) {
-    return browser->GetSessionID().id();
-  }
-  return -1;
 }
 
 // static

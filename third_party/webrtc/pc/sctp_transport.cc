@@ -29,6 +29,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -133,6 +134,29 @@ void SctpTransport::SetBufferedAmountLowThreshold(int channel_id,
                                                   size_t bytes) {
   RTC_DCHECK_RUN_ON(owner_thread_);
   internal_sctp_transport_->SetBufferedAmountLowThreshold(channel_id, bytes);
+}
+
+std::optional<int> SctpTransport::MaxChannels() {
+  RTC_DCHECK_RUN_ON(owner_thread_);
+  return info_.MaxChannels();
+}
+
+std::optional<SSLRole> SctpTransport::DtlsRole() {
+  RTC_DCHECK_RUN_ON(owner_thread_);
+  if (!dtls_transport_) {
+    return std::nullopt;
+  }
+  std::optional<DtlsTransportTlsRole> role =
+      dtls_transport_->Information().role();
+  if (!role.has_value()) {
+    return std::nullopt;
+  }
+  switch (*role) {
+    case DtlsTransportTlsRole::kServer:
+      return SSL_SERVER;
+    case DtlsTransportTlsRole::kClient:
+      return SSL_CLIENT;
+  }
 }
 
 scoped_refptr<DtlsTransportInterface> SctpTransport::dtls_transport() const {

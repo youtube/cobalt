@@ -46,9 +46,11 @@ namespace {
 using Message = DataChannelEventObserverInterface::Message;
 using ::testing::_;
 using ::testing::ElementsAreArray;
+using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::ReturnPointee;
 using ::testing::SizeIs;
 
 constexpr uint8_t kSomeData[] = {5, 4, 3, 2, 1};
@@ -79,6 +81,8 @@ class MockDataChannelTransport : public DataChannelTransportInterface {
               SetBufferedAmountLowThreshold,
               (int channel_id, size_t bytes),
               (override));
+  MOCK_METHOD(std::optional<int>, MaxChannels, (), (override));
+  MOCK_METHOD(std::optional<SSLRole>, DtlsRole, (), (override));
 };
 
 class MockDataChannelEventObserver : public DataChannelEventObserverInterface {
@@ -226,6 +230,34 @@ TEST_F(DataChannelControllerTest, RespectTransportFailureOnOpenChannel) {
   auto ret = dcc.InternalCreateDataChannelWithProxy(
       "label", InternalDataChannelInit(DataChannelInit()));
   EXPECT_FALSE(ret.ok());
+}
+
+// This scenario tests the case where the max message size is too small
+// for a DCEP open message. The expectation is that the channels
+// get closed when the DCEP message gets sent, and that the program
+// does not crash.
+TEST_F(DataChannelControllerTest, DcepFailureOnTooSmallMaxMessageSize) {
+  NiceMock<MockDataChannelTransport> transport;
+  // Reject all SendData with "message too large"
+  EXPECT_CALL(transport, SendData(_, _, _))
+      .Times(2)
+      .WillRepeatedly(
+          Return(RTCError(RTCErrorType::INVALID_RANGE, "Message too large")));
+  bool ready_to_send = false;
+  EXPECT_CALL(transport, IsReadyToSend())
+      .WillRepeatedly(ReturnPointee(&ready_to_send));
+  DataChannelControllerForTest dcc(pc_.get(), &transport);
+  auto ch1 = dcc.InternalCreateDataChannelWithProxy(
+      "ch1", InternalDataChannelInit(DataChannelInit()));
+  auto ch2 = dcc.InternalCreateDataChannelWithProxy(
+      "ch1", InternalDataChannelInit(DataChannelInit()));
+  ready_to_send = true;
+  pc_->network_thread()->BlockingCall(
+      [&] { dcc.AllocateSctpSids(SSL_CLIENT); });
+  // Let callbacks to the signaling thread run to completion.
+  run_loop_.Flush();
+  EXPECT_THAT(ch1.value()->state(), Eq(DataChannelInterface::kClosed));
+  EXPECT_THAT(ch2.value()->state(), Eq(DataChannelInterface::kClosed));
 }
 
 TEST_F(DataChannelControllerTest, BufferedAmountIncludesFromTransport) {

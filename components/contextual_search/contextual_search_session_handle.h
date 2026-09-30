@@ -79,10 +79,11 @@ class ContextualSearchSessionHandle {
   GetSuggestInputs() const;
 
   // Adds a file to the context controller and starts the file upload flow.
-  void AddFileContext(std::string file_mime_type,
-                      mojo_base::BigBuffer file_bytes,
-                      std::optional<lens::ImageEncodingOptions> image_options,
-                      AddFileContextCallback callback);
+  virtual void AddFileContext(
+      std::string file_mime_type,
+      mojo_base::BigBuffer file_bytes,
+      std::optional<lens::ImageEncodingOptions> image_options,
+      AddFileContextCallback callback);
 
   // Adds a tab context to the context controller, generating a token and adding
   // it to the list of uploaded context tokens. A followup call to
@@ -144,6 +145,10 @@ class ContextualSearchSessionHandle {
   // the session. This is intended to be invoked when the server has responded
   // that it has received the submitted context.
   void ClearSubmittedContextTokens();
+
+  // Sets the submitted context tokens.
+  void set_submitted_context_tokens(
+      const std::vector<base::UnguessableToken>& tokens);
 
   // Returns the list of submitted FileInfo for this particular instance
   // of the session. These are uploaded and submitted, but we have not received

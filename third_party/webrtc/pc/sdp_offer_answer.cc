@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -1952,10 +1953,6 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
     LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR, GetSessionErrorMsg());
   }
 
-  // If setting the description decided our SSL role, allocate any necessary
-  // SCTP sids.
-  AllocateSctpSids();
-
   // Validate SSRCs, we do not allow duplicates.
   if (ConfiguredForMedia()) {
     std::set<uint32_t> used_ssrcs;
@@ -2141,6 +2138,14 @@ RTCError SdpOfferAnswerHandler::ReplaceRemoteDescription(
 
   const auto* local = local_description();
 
+  // We need to update the negotiated channels on the network thread before
+  // the below blocking call, so that OnTransportChanged (which might be called
+  // during SetRemoteDescription) can access the channel map.
+  pc_->OnTransportChanging(/*change_done=*/false);
+  absl::Cleanup cleanup = [this] {
+    pc_->OnTransportChanging(/*change_done=*/true);
+  };
+
   // NOTE: This will perform a BlockingCall() to the network thread.
   return transport_controller_s()->SetRemoteDescription(
       sdp_type, local ? local->description() : nullptr, session_desc);
@@ -2221,10 +2226,6 @@ void SdpOfferAnswerHandler::ApplyRemoteDescription(
           PeerConnectionInterface::kIceConnectionNew) {
     pc_->SetIceConnectionState(PeerConnectionInterface::kIceConnectionChecking);
   }
-
-  // If setting the description decided our SSL role, allocate any necessary
-  // SCTP sids.
-  AllocateSctpSids();
 
   if (operation->unified_plan()) {
     ApplyRemoteDescriptionUpdateTransceiverState(operation->type());
@@ -3436,6 +3437,10 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
       transceiver->internal()->set_mline_index(stable_state.mline_index());
     }
   }
+  pc_->OnTransportChanging(/*change_done=*/false);
+  absl::Cleanup cleanup = [this] {
+    pc_->OnTransportChanging(/*change_done=*/true);
+  };
   RTCError e = transport_controller_s()->RollbackTransports();
   if (!e.ok()) {
     return e;
@@ -3586,31 +3591,6 @@ void SdpOfferAnswerHandler::UpdateNegotiationNeeded() {
   // is used in the task queued by the observer, this event will only fire
   // when the chain is empty.
   GenerateNegotiationNeededEvent();
-}
-
-void SdpOfferAnswerHandler::AllocateSctpSids() {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  if (!local_description() || !remote_description()) {
-    RTC_DLOG(LS_VERBOSE)
-        << "Local and Remote descriptions must be applied to get the "
-           "SSL Role of the SCTP transport.";
-    return;
-  }
-
-  std::optional<std::string> sctp_mid = pc_->sctp_mid();
-  std::optional<SSLRole> role =
-      sctp_mid ? transport_controller_s()->GetDtlsRole(*sctp_mid)
-               : std::nullopt;
-
-  std::optional<SSLRole> guessed_role = GuessSslRole();
-  network_thread()->BlockingCall(
-      [&, data_channel_controller = data_channel_controller()] {
-        RTC_DCHECK_RUN_ON(network_thread());
-        if (!role)
-          role = guessed_role;
-        if (role)
-          data_channel_controller->AllocateSctpSids(*role);
-      });
 }
 
 std::optional<SSLRole> SdpOfferAnswerHandler::GuessSslRole() const {
@@ -5298,6 +5278,11 @@ RTCError SdpOfferAnswerHandler::PushdownTransportDescription(
     SdpType type) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownTransportDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
+
+  pc_->OnTransportChanging(/*change_done=*/false);
+  absl::Cleanup cleanup = [this] {
+    pc_->OnTransportChanging(/*change_done=*/true);
+  };
 
   if (source == CS_LOCAL) {
     const SessionDescriptionInterface* sdesc = local_description();

@@ -151,10 +151,7 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
     }
 
     private int getValidPositionConsideringRelatedTabs(Tab newTab, int position) {
-        TabGroupModelFilter filter =
-                mTabModelSelector
-                        .getTabGroupModelFilterProvider()
-                        .getTabGroupModelFilter(newTab.isIncognito());
+        TabGroupModelFilter filter = mTabModelSelector.getTabGroupModelFilter(newTab.isIncognito());
         assumeNonNull(filter);
         return filter.getValidPosition(newTab, position);
     }
@@ -181,6 +178,16 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
 
     @Override
     public boolean willOpenInForeground(@TabLaunchType int type, boolean isNewTabIncognitoBranded) {
+        return willOpenInForeground(
+                type,
+                isNewTabIncognitoBranded,
+                mTabModelSelector.isIncognitoBrandedModelSelected());
+    }
+
+    public static boolean willOpenInForeground(
+            @TabLaunchType int type,
+            boolean isNewTabIncognitoBranded,
+            boolean isCurrentModelIncognitoBranded) {
         // Restore is handling the active index by itself.
         if (type == TabLaunchType.FROM_RESTORE
                 || type == TabLaunchType.FROM_BROWSER_ACTIONS
@@ -196,13 +203,7 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
                         && type != TabLaunchType.FROM_BOOKMARK_BAR_BACKGROUND
                         && type != TabLaunchType.FROM_REPARENTING_BACKGROUND
                         && type != TabLaunchType.FROM_HISTORY_NAVIGATION_BACKGROUND)
-                || isDifferentModel(isNewTabIncognitoBranded);
-    }
-
-    private boolean isDifferentModel(boolean isNewTabIncognitoBranded) {
-        return mTabModelSelector.isIncognitoBrandedModelSelected()
-                ? !isNewTabIncognitoBranded
-                : isNewTabIncognitoBranded;
+                || isCurrentModelIncognitoBranded != isNewTabIncognitoBranded;
     }
 
     /**

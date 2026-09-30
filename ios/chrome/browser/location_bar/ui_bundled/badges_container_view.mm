@@ -190,9 +190,6 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 
 - (void)setContextualPanelEntrypointView:
     (UIView*)contextualPanelEntrypointView {
-  if (IsDiamondPrototypeEnabled()) {
-    return;
-  }
   if (_contextualPanelEntrypointView) {
     return;
   }
@@ -212,9 +209,6 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 }
 
 - (void)setReaderModeChipView:(UIView*)readerModeChipView {
-  if (IsDiamondPrototypeEnabled()) {
-    return;
-  }
   if (_readerModeChipView) {
     return;
   }
@@ -234,9 +228,6 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 }
 
 - (void)setPlaceholderView:(UIView*)placeholderView {
-  if (IsDiamondPrototypeEnabled()) {
-    return;
-  }
   if (_placeholderView == placeholderView) {
     return;
   }
@@ -303,7 +294,8 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   if (IsProactiveSuggestionsFrameworkEnabled()) {
     // When framework enabled, reader mode chip visibility follows desired state
     // directly.
-    readerModeChipShouldBeVisibleFinal = _readerModeChipShouldBeVisible;
+    readerModeChipShouldBeVisibleFinal =
+        _readerModeChipShouldBeVisible && _incognito;
   } else {
     // The Reader mode chip (which wants to be visible when Reader mode is
     // active) should not be visible if the contextual panel is currently
@@ -314,14 +306,13 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
           _contextualPanelCurrentlyAnimating);
   }
 
+  // The badge view used by e.g. Translate, Permissions, etc, is visible if it
+  // wants to be visible.
+  badgeViewShouldBeVisibleFinal = _badgeViewShouldBeVisible;
+
   // Other badges can be visible only outside of Reader mode unless badge
   // support is explicitly enabled.
-  if (!readerModeChipShouldBeVisibleFinal ||
-      IsReaderModeBadgeSupportEnabled()) {
-    // The badge view used by e.g. Translate, Permissions, etc, is visible if it
-    // wants to be visible and `IsDiamondPrototypeEnabled()` returns false.
-    badgeViewShouldBeVisibleFinal =
-        _badgeViewShouldBeVisible && !IsDiamondPrototypeEnabled();
+  if (!_readerModeChipShouldBeVisible) {
     // The contextual panel entrypoint can only be visible if it wants to be
     // visible and if one of these conditions is verified:
     // 1. The contextual panel has a loud moment (animating to large entrypoint)
@@ -352,41 +343,43 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   SetViewHiddenIfNecessary(self.contextualPanelEntrypointView,
                            !contextualPanelEntrypointShouldBeVisibleFinal);
 
-  if (!_placeholderView ||
-      !!placeholderViewShouldBeVisibleFinal == !_placeholderView.hidden) {
-    return;
-  }
+  if (_placeholderView &&
+      !!placeholderViewShouldBeVisibleFinal != !_placeholderView.hidden) {
+    _placeholderView.hidden = !placeholderViewShouldBeVisibleFinal;
 
-  SetViewHiddenIfNecessary(_placeholderView,
-                           !placeholderViewShouldBeVisibleFinal);
-
-  // Records why the placeholder view is hidden. These are not mutually
-  // exclusive, price tracking will take precedence over messages.
-  if (!placeholderViewShouldBeVisibleFinal) {
-    if (contextualPanelEntrypointShouldBeVisibleFinal) {
-      if (_contextualPanelItemType) {
-        switch (_contextualPanelItemType.value()) {
-          case ContextualPanelItemType::PriceInsightsItem:
-            RecordLensEntrypointHidden(
-                IOSLocationBarLeadingIconType::kPriceTracking);
-            break;
-          case ContextualPanelItemType::ReaderModeItem:
-            RecordLensEntrypointHidden(
-                IOSLocationBarLeadingIconType::kReaderMode);
-            break;
-          default:
-            break;
+    // Records why the placeholder view is hidden. These are not mutually
+    // exclusive, price tracking will take precedence over messages.
+    if (!placeholderViewShouldBeVisibleFinal) {
+      if (contextualPanelEntrypointShouldBeVisibleFinal) {
+        if (_contextualPanelItemType) {
+          switch (_contextualPanelItemType.value()) {
+            case ContextualPanelItemType::PriceInsightsItem:
+              RecordLensEntrypointHidden(
+                  IOSLocationBarLeadingIconType::kPriceTracking);
+              break;
+            case ContextualPanelItemType::ReaderModeItem:
+              RecordLensEntrypointHidden(
+                  IOSLocationBarLeadingIconType::kReaderMode);
+              break;
+            default:
+              break;
+          }
         }
+      } else if (badgeViewShouldBeVisibleFinal) {
+        RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kMessage);
+      } else if (readerModeChipShouldBeVisibleFinal) {
+        RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kReaderMode);
       }
-    } else if (badgeViewShouldBeVisibleFinal) {
-      RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kMessage);
-    } else if (readerModeChipShouldBeVisibleFinal) {
-      RecordLensEntrypointHidden(IOSLocationBarLeadingIconType::kReaderMode);
     }
   }
+
   if (IsProactiveSuggestionsFrameworkEnabled()) {
     [self updateBackgroundVisibility];
     [self updateTapOverlayButtonVisibility];
+  }
+
+  if (IsProactiveSuggestionsFrameworkEnabled() && _incognito) {
+    _containerStackView.userInteractionEnabled = YES;
   }
 }
 
@@ -481,20 +474,11 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
     return;
   }
 
-  if ([self hasVisibleBadges]) {
-    _tapOverlayButton.hidden = NO;
-    return;
-  }
-
-  switch (_placeholderType) {
-    // Placeholder views that don't open AI Hub.
-    case LocationBarPlaceholderType::kNone:
-    case LocationBarPlaceholderType::kDefaultSearchEngineIcon:
-      _tapOverlayButton.hidden = YES;
-      break;
-    default:
-      _tapOverlayButton.hidden = NO;
-  }
+  // If there are no visible badges, the placeholder badge should be shown and
+  // we should use the default badge tap logic instead of the tap overlay.
+  BOOL hasVisibleBadges = ![self hasVisibleBadges];
+  _tapOverlayButton.hidden = hasVisibleBadges;
+  _containerStackView.userInteractionEnabled = hasVisibleBadges;
 }
 
 @end

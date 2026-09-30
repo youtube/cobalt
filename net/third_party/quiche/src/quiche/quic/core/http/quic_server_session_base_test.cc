@@ -160,8 +160,9 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_->Initialize();
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
+    EXPECT_CALL(owner_, OnConfigNegotiated(_));
     session_->OnConfigNegotiated();
-    if (version().SupportsAntiAmplificationLimit()) {
+    if (version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
   }
@@ -188,7 +189,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   // extra work to get a two-way (full) close where desired. Also sets up
   // expects needed to ensure that the STOP_SENDING worked as expected.
   void InjectStopSendingFrame(QuicStreamId stream_id) {
-    if (!VersionHasIetfQuicFrames(transport_version())) {
+    if (!VersionIsIetfQuic(transport_version())) {
       // Only needed for version 99/IETF QUIC. Noop otherwise.
       return;
     }
@@ -214,6 +215,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicMemoryCacheBackend memory_cache_backend_;
   std::unique_ptr<TestServerSession> session_;
   std::unique_ptr<CryptoHandshakeMessage> handshake_message_;
+  std::optional<QuicConfig> negotiated_config_;
 };
 
 // Compares CachedNetworkParameters.
@@ -252,7 +254,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
     EXPECT_CALL(*session_, WriteControlFrame(_, _));
@@ -281,7 +283,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
     EXPECT_CALL(*session_, WriteControlFrame(_, _));
@@ -321,7 +323,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                          GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
     EXPECT_CALL(*session_, WriteControlFrame(_, _));
@@ -355,8 +357,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // more than the negotiated stream limit to deal with rare cases where a
   // client FIN/RST is lost.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session_->OnConfigNegotiated();
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // The slightly increased stream limit is set during config negotiation.  It
     // is either an increase of 10 over negotiated limit, or a fixed percentage
     // scaling, whichever is larger. Test both before continuing.
@@ -380,7 +381,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     }
   }
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // Open more streams: server should accept slightly more than the limit.
     // Excess streams are for non-version-99 only.
     for (size_t i = 0; i < kMaxStreamsMinimumIncrement; ++i) {
@@ -392,7 +393,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // Now violate the server's internal stream limit.
   stream_id += QuicUtils::StreamIdDelta(transport_version());
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For non-version 99, QUIC responds to an attempt to exceed the stream
     // limit by resetting the stream.
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -413,6 +414,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   const size_t kAvailableStreamLimit =
       session_->MaxAvailableBidirectionalStreams();
@@ -425,7 +427,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   QuicStreamId next_id = QuicUtils::StreamIdDelta(transport_version());
   const int kLimitingStreamId =
       GetNthClientInitiatedBidirectionalId(kAvailableStreamLimit + 1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // This exceeds the stream limit. In versions other than 99
     // this is allowed. Version 99 hews to the IETF spec and does
     // not allow it.
@@ -447,10 +449,9 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
 
 TEST_P(QuicServerSessionBaseTest, GetEvenIncomingError) {
   // Incoming streams on the server session must be odd.
-  const QuicErrorCode expected_error =
-      VersionHasIetfQuicFrames(transport_version())
-          ? QUIC_HTTP_STREAM_WRONG_DIRECTION
-          : QUIC_INVALID_STREAM_ID;
+  const QuicErrorCode expected_error = VersionIsIetfQuic(transport_version())
+                                           ? QUIC_HTTP_STREAM_WRONG_DIRECTION
+                                           : QUIC_INVALID_STREAM_ID;
   EXPECT_CALL(*connection_, CloseConnection(expected_error, _, _));
   EXPECT_EQ(nullptr, QuicServerSessionBasePeer::GetOrCreateStream(
                          session_.get(),
@@ -507,11 +508,6 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
-  if (version().UsesTls() && !version().HasIetfQuicFrames()) {
-    // Skip the Txxx versions.
-    return;
-  }
-
   // Test that bandwidth estimate updates are sent to the client, only when
   // bandwidth resumption is enabled, the bandwidth estimate has changed
   // sufficiently, enough time has passed,
@@ -523,6 +519,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   copt.push_back(kBWID);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -533,14 +530,14 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   const std::string serving_region = "not a real region";
   session_->set_serving_region(serving_region);
 
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->UnregisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()));
   }
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
   MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
   MockTlsServerHandshaker* tls_server_stream = nullptr;
-  if (version().handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+  if (!version().IsIetfQuic()) {
     quic_crypto_stream = new MockQuicCryptoServerStream(
         &crypto_config_, &compressed_certs_cache_, session_.get(),
         &stream_helper_);
@@ -552,7 +549,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
     QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
                                                tls_server_stream);
   }
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true, QuicStreamPriority());
@@ -574,7 +571,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       &bandwidth_recorder, max_bandwidth_estimate_kbytes_per_second,
       max_bandwidth_estimate_timestamp);
   // Queue up some pending data.
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->MarkConnectionLevelWriteBlocked(
         QuicUtils::GetHeadersStreamId(transport_version()));
   } else {
@@ -649,11 +646,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
 }
 
 TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
-  if (version().UsesTls()) {
-    if (!version().HasIetfQuicFrames()) {
-      // Skip the Txxx versions.
-      return;
-    }
+  if (version().IsIetfQuic()) {
     // Avoid a QUIC_BUG in QuicSession::OnConfigNegotiated.
     connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   }
@@ -680,6 +673,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
 
   // No effect if no CachedNetworkParameters provided.
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // No effect if CachedNetworkParameters provided, but different serving
@@ -689,6 +683,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   cached_network_params.set_serving_region("different serving region");
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // Same serving region, but timestamp is too old, should have no effect.
@@ -696,6 +691,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   cached_network_params.set_timestamp(0);
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // Same serving region, and timestamp is recent: estimate is stored.
@@ -703,6 +699,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
       connection_->clock()->WallNow().ToUNIXSeconds());
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(1);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 }
 
@@ -715,6 +712,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
   copt.push_back(kBWMX);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -724,13 +722,14 @@ TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
 }
 
 TEST_P(QuicServerSessionBaseTest, OpenStreamLimitPerEventLoop) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // Only needed for version 99/IETF QUIC. Noop otherwise.
     return;
   }
@@ -740,6 +739,7 @@ TEST_P(QuicServerSessionBaseTest, OpenStreamLimitPerEventLoop) {
   EXPECT_CALL(*crypto_stream, encryption_established())
       .WillRepeatedly(testing::Return(true));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   size_t i = 0u;
@@ -819,7 +819,7 @@ INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests, StreamMemberLifetimeTest,
 // ProofSource::GetProof.  Delay the completion of the operation until after the
 // stream has been destroyed, and verify that there are no memory bugs.
 TEST_P(StreamMemberLifetimeTest, Basic) {
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     // This test depends on the QUIC crypto protocol, so it is disabled for the
     // TLS handshake.
     // TODO(nharper): Fix this test so it doesn't rely on QUIC crypto.

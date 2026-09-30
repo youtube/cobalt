@@ -6249,6 +6249,9 @@ bool v8::V8::Initialize(const int build_config) {
         kV8EnableChecks ? "ENABLED" : "DISABLED");
   }
 
+  // TODO(ishell, 455600234): check that V8_TARGET_ARCH_ARM64/PPC64 on embedder
+  // side matches the ones on V8 side.
+
   i::V8::Initialize();
   if (!cppgc::IsInitialized()) {
     // cppgc::InitializeProcess() has to becalled after V8::Initialize().
@@ -12290,8 +12293,12 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   END_ALLOW_USE_DEPRECATED()
   CHECK(info.HolderV2()->IsObject());
   CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
-  i::Tagged<i::Object> key = i::PropertyCallbackArguments::GetPropertyKey(info);
-  CHECK(i::IsSmi(key) || i::IsName(key));
+
+  if (i::PropertyCallbackArguments::IsNamed(info)) {
+    i::Tagged<i::Object> name =
+        *i::PropertyCallbackArguments::GetPropertyName(info);
+    CHECK(i::IsName(name));
+  }
   CHECK(info.Data()->IsValue());
   USE(info.ShouldThrowOnError());
   if (!std::is_same_v<T, void>) {
@@ -12450,6 +12457,13 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
   return CopyAndConvertArrayToCppBuffer<
       CTypeInfo(CTypeInfo::Type::kFloat64).GetId(), double>(src, dst,
                                                             max_length);
+}
+
+std::string SourceLocation::ToString() const {
+  if (!*this) return {};
+  return (std::ostringstream{} << loc_.function_name() << '@'
+                               << loc_.file_name() << ':' << loc_.line())
+      .str();
 }
 
 }  // namespace v8

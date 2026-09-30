@@ -1560,6 +1560,34 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
     EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
 }
 
+// Tests that queries for Midi permissions work after RenderProcessHost removal
+// until the corresponding Handles are gone. See https://crbug.com/471021577.
+TEST_P(ChildProcessSecurityPolicyTest, MidiAfterProcessRemoval) {
+  ChildProcessSecurityPolicyImpl* p =
+      ChildProcessSecurityPolicyImpl::GetInstance();
+  p->AddForTesting(kRendererProcess, browser_context());
+  auto handle = p->CreateHandle(kRendererProcess);
+
+  p->GrantSendMidiMessage(kRendererID);
+  EXPECT_TRUE(p->CanSendMidiMessage(kRendererProcess));
+  EXPECT_FALSE(p->CanSendMidiSysExMessage(kRendererProcess));
+  p->GrantSendMidiSysExMessage(kRendererID);
+  EXPECT_TRUE(p->CanSendMidiMessage(kRendererProcess));
+  EXPECT_TRUE(p->CanSendMidiSysExMessage(kRendererProcess));
+
+  // Simulate RenderProcessHost deletion while Handles still exist.
+  p->Remove(kRendererProcess);
+
+  // Queries should still succeed while the Handle exists.
+  EXPECT_TRUE(p->CanSendMidiMessage(kRendererProcess));
+  EXPECT_TRUE(p->CanSendMidiSysExMessage(kRendererProcess));
+
+  // Queries should no longer succeed after the Handle is invalidated.
+  handle = ChildProcessSecurityPolicyImpl::Handle();
+  EXPECT_FALSE(p->CanSendMidiMessage(kRendererProcess));
+  EXPECT_FALSE(p->CanSendMidiSysExMessage(kRendererProcess));
+}
+
 // Exercise the basic functionality of how MatchesCommittedOrigin() matches URLs
 // against origins that have committed in a process. This test simulates an
 // unlocked process that may commit origins from different sites (e.g., in a
@@ -1818,7 +1846,33 @@ TEST_P(ChildProcessSecurityPolicyTest, OriginGranting) {
   EXPECT_TRUE(p->CanCommitURL(kRendererID, url_foo2));
   EXPECT_FALSE(p->CanCommitURL(kRendererID, url_bar));
 
+  // Create a handle that extends the lifetime of the SecurityState beyond the
+  // RenderProcessHost's lifetime.
+  auto handle = p->CreateHandle(kRendererProcess);
   p->Remove(kRendererProcess);
+
+  // Queries should still succeed while the Handle exists.
+  EXPECT_TRUE(p->CanRequestURL(kRendererID, url_foo1));
+  EXPECT_TRUE(p->CanRequestURL(kRendererID, url_foo1));
+  EXPECT_FALSE(p->CanRequestURL(kRendererID, url_bar));
+  EXPECT_TRUE(p->CanRedirectToURL(url_foo1));
+  EXPECT_TRUE(p->CanRedirectToURL(url_foo2));
+  EXPECT_TRUE(p->CanRedirectToURL(url_bar));
+  EXPECT_TRUE(p->CanCommitURL(kRendererID, url_foo1));
+  EXPECT_TRUE(p->CanCommitURL(kRendererID, url_foo2));
+  EXPECT_FALSE(p->CanCommitURL(kRendererID, url_bar));
+
+  // Queries should no longer succeed after the Handle is invalidated.
+  handle = ChildProcessSecurityPolicyImpl::Handle();
+  EXPECT_FALSE(p->CanRequestURL(kRendererID, url_foo1));
+  EXPECT_FALSE(p->CanRequestURL(kRendererID, url_foo1));
+  EXPECT_FALSE(p->CanRequestURL(kRendererID, url_bar));
+  EXPECT_TRUE(p->CanRedirectToURL(url_foo1));
+  EXPECT_TRUE(p->CanRedirectToURL(url_foo2));
+  EXPECT_TRUE(p->CanRedirectToURL(url_bar));
+  EXPECT_FALSE(p->CanCommitURL(kRendererID, url_foo1));
+  EXPECT_FALSE(p->CanCommitURL(kRendererID, url_foo2));
+  EXPECT_FALSE(p->CanCommitURL(kRendererID, url_bar));
 }
 
 #define LOCKED_EXPECT_THAT(lock, value, matcher) \
@@ -3299,6 +3353,37 @@ TEST_P(ChildProcessSecurityPolicyTest, CannotLockUsedProcessToSite) {
 
   // We need to remove it otherwise other tests may fail.
   p->Remove(kRendererProcess);
+}
+
+// Tests that queries for GetProcessLock work after RenderProcessHost removal
+// until the corresponding Handles are gone. See https://crbug.com/470831168.
+TEST_P(ChildProcessSecurityPolicyTest, GetProcessLockAfterProcessRemoval) {
+  ChildProcessSecurityPolicyImpl* p =
+      ChildProcessSecurityPolicyImpl::GetInstance();
+  TestBrowserContext context;
+
+  scoped_refptr<SiteInstanceImpl> foo_instance =
+      SiteInstanceImpl::CreateForTesting(&context, GURL("https://foo.com"));
+
+  // Lock process to foo.com.
+  p->Add(kRendererProcess, &context);
+  p->LockProcess(foo_instance->GetIsolationContext(), kRendererProcess,
+                 /*is_process_used=*/false,
+                 ProcessLock::FromSiteInfo(foo_instance->GetSiteInfo()));
+  EXPECT_TRUE(p->GetProcessLock(kRendererProcess).IsLockedToSite());
+  EXPECT_FALSE(p->GetProcessLock(kRendererProcess).AllowsAnySite());
+
+  // Create a handle that extends the lifetime of the SecurityState beyond the
+  // RenderProcessHost's lifetime.
+  auto handle = p->CreateHandle(kRendererProcess);
+  p->Remove(kRendererProcess);
+
+  // Queries should still succeed while the Handle exists.
+  EXPECT_TRUE(p->GetProcessLock(kRendererProcess).IsLockedToSite());
+
+  // Queries should no longer succeed after the Handle is invalidated.
+  handle = ChildProcessSecurityPolicyImpl::Handle();
+  EXPECT_FALSE(p->GetProcessLock(kRendererProcess).IsLockedToSite());
 }
 
 // Test that

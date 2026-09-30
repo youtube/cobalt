@@ -286,18 +286,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="DOMStorage.CommitMeasuredDelay" units="ms"
-    expires_after="2025-12-14">
-  <owner>estade@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    The amount of time that a single `Put()` was deferred. This is different
-    from LevelDBWrapper.CommitDelay because that histogram only measures the
-    delay for the first commit of a batch. Recorded when the batch is pushed to
-    LevelDB.
-  </summary>
-</histogram>
-
 <histogram
     name="IndexedDB.BackendDuration.WriteBlobs.{IndexedDBBackingStoreType}"
     units="ms" expires_after="2026-10-01">
@@ -414,18 +402,6 @@ chromium-metrics-reviews@google.com.
     <variant name="SetIndexKeys"/>
     <variant name="WriteBlobs"/>
   </token>
-</histogram>
-
-<histogram name="IndexedDB.BackingStoreCloseDuration" units="ms"
-    expires_after="2025-12-14">
-  <owner>estade@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Logs the time it takes to close the IDB backing store. This is different
-    WebCore.IndexedDB.LevelDB.CloseTime because it includes the time taken for
-    in-flight tasks such as scope commit/rollback, and not just the time taken
-    for the leveldb::DB destructor.
-  </summary>
 </histogram>
 
 <histogram name="IndexedDB.CalculateBlockingStatusLongTimes" units="ms"

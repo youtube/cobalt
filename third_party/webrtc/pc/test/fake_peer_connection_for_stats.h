@@ -43,6 +43,7 @@
 #include "pc/channel.h"
 #include "pc/connection_context.h"
 #include "pc/data_channel_utils.h"
+#include "pc/rtc_stats_collector.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_receiver_proxy.h"
 #include "pc/rtp_sender.h"

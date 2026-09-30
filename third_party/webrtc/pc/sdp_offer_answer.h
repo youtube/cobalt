@@ -43,6 +43,7 @@
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/port_allocator.h"
+#include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
 #include "pc/data_channel_controller.h"

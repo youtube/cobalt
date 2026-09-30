@@ -4693,6 +4693,12 @@ angle::Result Renderer::createDeviceAndQueue(vk::ErrorContext *context, uint32_t
     // Log the memory heap stats when the device has been initialized (when debugging).
     mMemoryAllocationTracker.onDeviceInit();
 
+    // Synchronize the Vulkan pipeline cache to the blob cache every frame
+    if (mFeatures.syncPipelineCacheToBlobCacheEveryFrame.enabled)
+    {
+        mPipelineCacheVkUpdateTimeout = 1;
+    }
+
     return angle::Result::Continue;
 }
 
@@ -6699,16 +6705,14 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // http://anglebug.com/443302350
     // http://anglebug.com/443302625
     // Temporarily disable the feature on PowerVR while the above 2 bugs are under investigations
+    // http://anglebug.com/446159597
+    // Disable the feature on Samsung devices
     // https://b.corp.google.com/issues/446844410
-    // Disable on driver implementations other than ARM proprietary and Samsung until the
-    // performance impact on them is verified.
-    // Older Samsung drivers with version < 26.0.0 have a bug in float16 conversion support.
-    const bool samsungDeviceWithFloat16ConversionBugFixed =
-        isSamsung && driverVersion >= angle::VersionTriple(26, 0, 0);
+    // Disable on driver implementations other than ARM proprietary until the performance impact on
+    // them is verified.
     ANGLE_FEATURE_CONDITION(&mFeatures, convertLowpAndMediumpFloatUniformsTo16Bits,
                             mFeatures.supports16BitUniformAndStorageBuffer.enabled &&
-                                mFeatures.supportsShaderFloat16.enabled &&
-                                (isARMProprietary || samsungDeviceWithFloat16ConversionBugFixed));
+                                mFeatures.supportsShaderFloat16.enabled && isARMProprietary);
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsUnifiedImageLayouts,
                             mUnifiedImageLayoutsFeatures.unifiedImageLayouts == VK_TRUE);
@@ -6989,7 +6993,8 @@ angle::Result Renderer::syncPipelineCacheVk(const gl::Context *contextGL)
         return angle::Result::Continue;
     }
 
-    mPipelineCacheVkUpdateTimeout = kPipelineCacheVkUpdatePeriod;
+    mPipelineCacheVkUpdateTimeout =
+        mFeatures.syncPipelineCacheToBlobCacheEveryFrame.enabled ? 1 : kPipelineCacheVkUpdatePeriod;
 
     ContextVk *contextVk = vk::GetImpl(contextGL);
 

@@ -5,4 +5,7 @@ specific_include_rules = {
     "+rtc_base/net_helpers.h",
     "+rtc_base/socket_address.h",
   ],
+  "data_channel_transport_interface\.h": [
+    "+rtc_base/ssl_stream_adapter.h",
+  ],
 }

@@ -1463,7 +1463,8 @@ void Heap::HandleExternalMemoryInterrupt() {
   }
   if (v8_flags.external_memory_accounted_in_global_limit) {
     // Under `external_memory_accounted_in_global_limit`, external interrupt
-    // only triggers a check to allocation limits.
+    // only triggers a check to allocation limits. This limit is intentionally
+    // updated regardless of `is_external_memory_limit_updates_suspended_`.
     external_memory_.UpdateLimitForInterrupt(current);
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
@@ -1763,9 +1764,8 @@ void Heap::CollectGarbage(
     RecomputeLimits(collector);
   });
 
-  if ((collector == GarbageCollector::MARK_COMPACTOR) &&
-      ShouldOptimizeForLoadTime()) {
-    update_allocation_limits_after_loading_ = true;
+  if (IsLoadingInitialized() && !IsLoading()) {
+    NotifyLoadingEnded(LeaveHeapState::kReachedTimeout);
   }
 
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
@@ -2041,10 +2041,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   incremental_marking()->Start(collector, gc_reason, reason);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    DCHECK(incremental_marking()->IsMajorMarking());
-    RecomputeLimitsAfterLoadingIfNeeded();
-    DCHECK(!update_allocation_limits_after_loading_);
+  if (collector == GarbageCollector::MARK_COMPACTOR && IsLoadingInitialized()) {
+    // During loading we might overshoot the limit by a large amount. Ensure
+    // allocation limits are at least at or above current sizes to not finalize
+    // incremental marking prematurely.
+    EnsureAllocationLimitAboveCurrentSize();
   }
 
   if (isolate()->is_shared_space_isolate()) {
@@ -2740,15 +2741,10 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
-  if (!update_allocation_limits_after_loading_) {
-    return;
-  }
-
   if ((OldGenerationSpaceAvailable() > 0) && (GlobalMemoryAvailable() > 0)) {
     // Only recompute limits if memory accumulated during loading may lead to
     // atomic GC. If there is still room to allocate, keep the current limits.
     DCHECK(!AllocationLimitOvershotByLargeMargin());
-    update_allocation_limits_after_loading_ = false;
     return;
   }
 
@@ -2761,12 +2757,12 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
     return;
   }
 
-  update_allocation_limits_after_loading_ = false;
-
   UpdateOldGenerationAllocationCounter();
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
-  external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
+    external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  }
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
@@ -2828,6 +2824,8 @@ void Heap::MarkCompact() {
       static_cast<size_t>(promoted_objects_size_);
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
+  // The GC may call `UpdateLowSinceMarkCompact` even when
+  // `is_external_memory_limit_updates_suspended_` is true.
   external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   // Limits can now be computed based on estimate from MARK_COMPACT.
@@ -3212,6 +3210,41 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
   // Reset using_initial_limit() to prevent the sweeper from overwriting this
   // limit right after this operation.
   set_using_initial_limit(true);
+}
+
+void Heap::EnsureAllocationLimitAboveCurrentSize() {
+  if (OldGenerationSpaceAvailable() > 0 && GlobalMemoryAvailable() > 0) {
+    return;
+  }
+
+  base::MutexGuard guard(old_space()->mutex());
+  size_t new_old_generation_allocation_limit =
+      std::max(static_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
+               old_generation_allocation_limit());
+  new_old_generation_allocation_limit =
+      std::clamp(new_old_generation_allocation_limit, min_old_generation_size(),
+                 max_old_generation_size());
+
+  size_t current_global_bytes = GlobalConsumedBytes();
+  if (!v8_flags.external_memory_accounted_in_global_limit) {
+    // TODO(chromium:42203776): Without that flag external memory is added in
+    // OldGenerationAllocationLimitConsumedBytes() but not in
+    // GlobalConsumedBytes(). This can lead to cases where the allocation limit
+    // for the old generation is higher than for global memory. We fix this here
+    // by manually adding it.
+    current_global_bytes += AllocatedExternalMemorySinceMarkCompact();
+  }
+  size_t new_global_allocation_limit =
+      std::max(current_global_bytes, global_allocation_limit());
+  new_global_allocation_limit =
+      std::clamp(new_global_allocation_limit, min_global_memory_size_,
+                 max_global_memory_size_);
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
+  CHECK_LE(OldGenerationAllocationLimitConsumedBytes(),
+           old_generation_allocation_limit());
+  CHECK_LE(GlobalConsumedBytes(), global_allocation_limit());
+  set_using_initial_limit(false);
 }
 
 namespace {
@@ -5646,6 +5679,11 @@ bool Heap::IsLoading() const {
          MonotonicallyIncreasingTimeInMs() < load_start_time + kMaxLoadTimeMs;
 }
 
+bool Heap::IsLoadingInitialized() const {
+  return load_start_time_ms_.load(std::memory_order_relaxed) !=
+         kLoadTimeNotLoading;
+}
+
 // This predicate is called when an old generation space cannot allocated from
 // the free list and is about to add a new page. Returning false will cause a
 // major GC. It happens when the old generation allocation limit is reached and
@@ -7175,9 +7213,11 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
   uint64_t amount = external_memory_.UpdateAmount(delta);
-  uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
-  if (amount < low_since_mark_compact) {
-    external_memory_.UpdateLowSinceMarkCompact(amount);
+  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
+    uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
+    if (amount < low_since_mark_compact) {
+      external_memory_.UpdateLowSinceMarkCompact(amount);
+    }
   }
   return amount;
 }
@@ -7801,19 +7841,23 @@ void Heap::NotifyLoadingStarted() {
   }
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
                     loading_track_);
-  update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
   load_start_time_ms_.store(now_ms, std::memory_order_relaxed);
 }
 
-void Heap::NotifyLoadingEnded() {
+void Heap::NotifyLoadingEnded(LeaveHeapState context) {
   load_start_time_ms_.store(kLoadTimeNotLoading, std::memory_order_relaxed);
-  RecomputeLimitsAfterLoadingIfNeeded();
-  if (auto* job = incremental_marking()->incremental_marking_job()) {
-    // The task will start incremental marking (if needed not already started)
-    // and advance marking if incremental marking is active.
-    job->ScheduleTask();
+  if (context == LeaveHeapState::kNotify) {
+    RecomputeLimitsAfterLoadingIfNeeded();
+    if (auto* job = incremental_marking()->incremental_marking_job()) {
+      // The task will start incremental marking (if needed not already started)
+      // and advance marking if incremental marking is active.
+      job->ScheduleTask();
+    }
+  } else {
+    DCHECK_EQ(context, LeaveHeapState::kReachedTimeout);
+    // Nothing to do here because we only trigger this from a GC.
   }
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }
@@ -7963,6 +8007,24 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap) : heap_(heap) {
 ConservativePinningScope::~ConservativePinningScope() {
   DCHECK(heap_->selective_stack_scan_start_address_.has_value());
   heap_->selective_stack_scan_start_address_.reset();
+}
+
+SuspendExternalMemoryLimitsUpdates::SuspendExternalMemoryLimitsUpdates(
+    Heap* heap)
+    : heap_(heap) {
+  DCHECK(!heap_->is_external_memory_limit_updates_suspended_);
+  heap_->is_external_memory_limit_updates_suspended_ = true;
+}
+
+SuspendExternalMemoryLimitsUpdates::~SuspendExternalMemoryLimitsUpdates() {
+  DCHECK(heap_->is_external_memory_limit_updates_suspended_);
+  heap_->is_external_memory_limit_updates_suspended_ = false;
+  uint64_t current_external_memory = heap_->external_memory();
+  uint64_t low_since_mark_compact =
+      heap_->external_memory_.low_since_mark_compact();
+  if (current_external_memory < low_since_mark_compact) {
+    heap_->external_memory_.UpdateLowSinceMarkCompact(current_external_memory);
+  }
 }
 
 #include "src/objects/object-macros-undef.h"

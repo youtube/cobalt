@@ -110,6 +110,9 @@ class QUICHE_EXPORT QuicSession
 
     // Called when connection detected path degrading.
     virtual void OnPathDegrading() = 0;
+
+    // Called when the config has been negotiated.
+    virtual void OnConfigNegotiated(const QuicConfig& config) = 0;
   };
 
   // Does not take ownership of |connection| or |visitor|.
@@ -877,7 +880,7 @@ class QUICHE_EXPORT QuicSession
   }
 
   UberQuicStreamIdManager& ietf_streamid_manager() {
-    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
+    QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
     return ietf_streamid_manager_;
   }
 

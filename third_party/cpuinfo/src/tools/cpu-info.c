@@ -242,6 +242,8 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Saphira";
 		case cpuinfo_uarch_oryon:
 			return "Oryon";
+		case cpuinfo_uarch_oryon_v3:
+			return "Oryon V3";
 		case cpuinfo_uarch_denver:
 			return "Denver";
 		case cpuinfo_uarch_denver2:
@@ -304,6 +306,10 @@ static const char* uarch_to_string(enum cpuinfo_uarch uarch) {
 			return "Tahiti_Everest";
 		case cpuinfo_uarch_tahiti_sawtooth:
 			return "Tahiti_Sawtooth";
+		case cpuinfo_uarch_donan_everest:
+			return "Donan Everest";
+		case cpuinfo_uarch_donan_sawtooth:
+			return "Donan Sawtooth";
 		case cpuinfo_uarch_thunderx:
 			return "ThunderX";
 		case cpuinfo_uarch_thunderx2:

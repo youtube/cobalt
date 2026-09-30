@@ -53,7 +53,7 @@ std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
   for (const auto& version : AllSupportedVersions()) {
-    if (!VersionUsesHttp3(version.transport_version)) {
+    if (!VersionIsIetfQuic(version.transport_version)) {
       continue;
     }
     for (Perspective p : {Perspective::IS_SERVER, Perspective::IS_CLIENT}) {
@@ -75,7 +75,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection_->perspective()));
-    if (connection_->version().SupportsAntiAmplificationLimit()) {
+    if (connection_->version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(

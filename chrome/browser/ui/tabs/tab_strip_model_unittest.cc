@@ -379,16 +379,14 @@ class MockTabStripModelObserver : public TabStripModelObserver {
     return latest_selection_change_;
   }
 
-  void TabChangedAt(WebContents* contents,
-                    int index,
-                    TabChangeType change_type) override {
-    states_.emplace_back(contents, index, CHANGE);
+  void OnTabChangedAt(tabs::TabInterface* tab,
+                      int index,
+                      TabChangeType change_type) override {
+    states_.emplace_back(tab->GetContents(), index, CHANGE);
   }
 
-  void TabPinnedStateChanged(TabStripModel* tab_strip_model,
-                             WebContents* contents,
-                             int index) override {
-    states_.emplace_back(contents, index, PINNED);
+  void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override {
+    states_.emplace_back(tab->GetContents(), index, PINNED);
   }
 
   void WillCloseAllTabs(TabStripModel* tab_strip_model) override {
@@ -6619,7 +6617,7 @@ TEST_P(TabStripModelTest,
   EXPECT_EQ(tabstrip()->active_index(), 0);
 }
 
-TEST_P(TabStripModelTest, AddSelectionFromAnchorTo_NoAnchorAndSplit) {
+TEST_P(TabStripModelTest, AddSelectionFromAnchorTo_SplitTab) {
   // Create six tabs with a split containing tabs 0 and 1.
   ASSERT_NO_FATAL_FAILURE(
       PrepareTabstripForSelectionTest(tabstrip(), 6, 0, {0}));
@@ -6629,12 +6627,12 @@ TEST_P(TabStripModelTest, AddSelectionFromAnchorTo_NoAnchorAndSplit) {
 
   ui::ListSelectionModel selection_model;
   selection_model.AddIndexToSelection(3);
-  selection_model.set_anchor(std::nullopt);
+  selection_model.set_anchor(3);
   selection_model.set_active(3);
   tabstrip()->SetSelectionFromModel(selection_model);
   ExpectSelectionIsExactly(tabstrip(), {3});
   tabstrip()->AddSelectionFromAnchorTo(1);
-  ExpectSelectionIsExactly(tabstrip(), {0, 1});
+  ExpectSelectionIsExactly(tabstrip(), {0, 1, 2, 3});
 }
 
 TEST_P(TabStripModelTest, SelectTabAt_SplitTabs) {
@@ -6882,6 +6880,22 @@ TEST_P(TabStripModelTest, GetTabsAtIndices) {
       tabstrip()->GetTabAtIndex(1), tabstrip()->GetTabAtIndex(3),
       tabstrip()->GetTabAtIndex(4), tabstrip()->GetTabAtIndex(6)};
   EXPECT_EQ(tabs, tabstrip()->GetTabsAtIndices({1, 3, 4, 6}));
+}
+
+TEST_P(TabStripModelTest, TestSelectionModelAccessor) {
+  PrepareTabstripForSelectionTest(tabstrip(), /*tab_count*/ 10,
+                                  /*pinned_count*/ 0,
+                                  /*selected_tabs*/ {2, 4, 6, 8});
+
+  ui::ListSelectionModel expected_model;
+  expected_model.AddIndexToSelection(2);
+  expected_model.AddIndexToSelection(4);
+  expected_model.AddIndexToSelection(6);
+  expected_model.AddIndexToSelection(8);
+  expected_model.set_active(2);
+  expected_model.set_anchor(2);
+
+  EXPECT_EQ(expected_model, tabstrip()->selection_model());
 }
 
 INSTANTIATE_TEST_SUITE_P(SelectionWithPointers,

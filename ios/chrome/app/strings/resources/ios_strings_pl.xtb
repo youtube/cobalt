@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Miesiąc utraty ważności</translation>
 <translation id="1150989369772528668">Kalendarz</translation>
 <translation id="1161663161838091892">Aby kontynuować, zsynchronizuj karty i historię</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} karta kredytowa}few{{count} karty kredytowe}many{{count} kart kredytowych}other{{count} karty kredytowej}}</translation>
 <translation id="1164891049599601209">Wpisano na stronie wprowadzającej w błąd</translation>
 <translation id="1165039591588034296">Błąd</translation>
 <translation id="1172898394251786223">Następne pole</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Nie ukrywaj</translation>
 <translation id="1456545332132818232">Opinie o produkcie <ph name="PRODUCT_NAME" />, <ph name="STARS" /> na <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Oszczędzaj czas, pisz mniej</translation>
+<translation id="1466035273550360103">Brak otwartych kart</translation>
 <translation id="1469381646033328562">Twoim kontem zarządza rodzic.
 <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Zmieniono</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Otwarte karty</translation>
 <translation id="1752547299766512813">Zapisuj hasła</translation>
 <translation id="1764070164487214210">Trasa</translation>
+<translation id="1764511703783285459">Inny menedżer haseł nie udostępnił żadnych haseł ani kluczy dostępu</translation>
 <translation id="1767766085187034454">Tłumacz Google</translation>
 <translation id="1771016937398045251">Menu Narzędzia</translation>
 <translation id="1772468122139624049">Nie udało się ponownie wczytać kart</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Nie udało się zapisać zmiany.</translation>
 <translation id="3254806613790954367">Ostatnia otwarta karta na wszystkich Twoich urządzeniach</translation>
 <translation id="325717987950204592">Kliknij „Prywatność i bezpieczeństwo”</translation>
-<translation id="3266338926702638258">Pokaż historię cen tego produktu</translation>
 <translation id="3272527697863656322">Anuluj</translation>
 <translation id="3273510436356991673">Dostosuj ekran główny</translation>
 <translation id="3277021493514034324">Skopiowano adres strony</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{Wybrano 1}few{Wybrano #}many{Wybrano #}other{Wybrano #}}</translation>
 <translation id="3668816008081204991">Lista Do przeczytania jest ukryta</translation>
 <translation id="3670030362669914947">Numer</translation>
+<translation id="3672283986707092811">Zaznacz wszystko</translation>
 <translation id="3679163990085797665">Usuń przeczytane</translation>
 <translation id="368329460027487650">Wylogowano. Otwiera opcje logowania.</translation>
 <translation id="3695446226812920698">Instrukcje</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Wyświetlana nazwa</translation>
 <translation id="4375772272517383391">Zamknij wszystkie karty</translation>
 <translation id="4378154925671717803">Telefon</translation>
+<translation id="4380677808580146413">Zaznacz</translation>
 <translation id="4389019817280890563">Kliknij, by zmienić język.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Po 1 dniu}few{Po {COUNT} dniach}many{Po {COUNT} dniach}other{Po {COUNT} dnia}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 karta}few{# karty}many{# kart}other{# karty}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Ukryj opcję Ostatnie karty</translation>
 <translation id="4578835633387306383">Włącz…</translation>
 <translation id="4580716718466706433">Otwórz „Menedżera haseł”</translation>
+<translation id="4585751637295612750">Otwórz nową kartę, aby dodać ją do pytania</translation>
 <translation id="4587589328781138893">Witryny</translation>
 <translation id="4592672037257622855">{count,plural, =1{Dodano stronę do listy Do przeczytania}few{Dodano {count} strony do listy Do przeczytania}many{Dodano {count} stron do listy Do przeczytania}other{Dodano {count} strony do listy Do przeczytania}}</translation>
 <translation id="459644946100970322">Włączyć powiadomienia o cenie?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Notatka ma ponad 1000 znaków</translation>
 <translation id="5087098519049306025">Śledzenie cen</translation>
 <translation id="5090832849094901128">Usunięcie tego hasła nie spowoduje usunięcia Twojego konta w serwisie <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Nie zaimportowano żadnych elementów</translation>
 <translation id="5113960131843706315">Pobieram Twoje rzeczy…</translation>
 <translation id="5118462200606189584">Dodaj konto…</translation>
 <translation id="5118764316110575523">Wyłączono</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Zapisz plik</translation>
 <translation id="5355191726083956201">Włączona jest silniejsza ochrona</translation>
 <translation id="536067926684072644">Pokaż zakładki</translation>
+<translation id="5364647308446127983">{count,plural, =1{Nie udało się zaimportować {count} klucza dostępu}few{Nie udało się zaimportować {count} kluczy dostępu}many{Nie udało się zaimportować {count} kluczy dostępu}other{Nie udało się zaimportować {count} klucza dostępu}}</translation>
 <translation id="5371112366564891538">Zwiększ rozmiar tekstu</translation>
+<translation id="5376135254804080693">Odznacz wszystko</translation>
 <translation id="537853552771686272">Zarządzaj tematami i witrynami, które Cię interesują</translation>
 <translation id="5390458669633674385">{count,plural, =1{Zamknięto {count}}few{Zamknięto {count}}many{Zamknięto {count}}other{Zamknięto {count}}}</translation>
 <translation id="5394975111793637642">Ukryj opinie o produktach na swojej karcie</translation>
@@ -1445,6 +1453,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6410390304316730527">Bezpieczne przeglądanie chroni Cię przed osobami przeprowadzającymi ataki, które mogą podstępem nakłonić Cię do wykonania niebezpiecznych czynności, takich jak zainstalowanie oprogramowania czy ujawnienie danych osobowych (na przykład haseł, numerów telefonów lub danych kart kredytowych). Gdy wyłączasz tę funkcję, zachowaj ostrożność, przeglądając nieznane lub cieszące się złą sławą strony.</translation>
 <translation id="6410883413783534063">Otwórz karty, by odwiedzić jednocześnie wiele stron</translation>
 <translation id="6418346271604475326">Przygotowuję PDF</translation>
+<translation id="6420292512900923139">Podczas importowania danych wystąpił problem</translation>
 <translation id="6421038304268477484">Przetłumaczony tekst</translation>
 <translation id="6429213933892582367">Otwórz Opcje haseł</translation>
 <translation id="6435236283694032571">Dodaj do listy Do przeczytania</translation>
@@ -1483,6 +1492,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Opcje</translation>
 <translation id="6550891580932862748">Nie chroni przed niebezpiecznymi stronami, pobieranymi plikami ani rozszerzeniami. Nie wpływa na ustawienia Bezpiecznego przeglądania dostępne w innych usługach Google.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Ponów</translation>
 <translation id="6559301491397835130">{count,plural, =1{Zakładka została zapisana w folderze „{title}” tylko na tym urządzeniu.}few{Zakładki zostały zapisane w folderze „{title}” tylko na tym urządzeniu.}many{Zakładki zostały zapisane w folderze „{title}” tylko na tym urządzeniu.}other{Zakładki zostały zapisane w folderze „{title}” tylko na tym urządzeniu.}}</translation>
 <translation id="656065428026159829">Pokaż więcej</translation>
@@ -1559,6 +1569,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6807287147325542056">Hasła w innych aplikacjach</translation>
 <translation id="681368974849482173">Utworzono element</translation>
 <translation id="6825078212112407882">{count,plural, =1{Zakładka została zapisana na Twoim koncie Google {email}}few{{count} zakładki zostały zapisane na Twoim koncie Google {email}}many{{count} zakładek zostało zapisanych na Twoim koncie Google {email}}other{{count} zakładki zostało zapisane na Twoim koncie Google {email}}}</translation>
+<translation id="6826004672264649705">Obecnie śledzisz ten produkt. Otwórz, aby zobaczyć historię cen</translation>
 <translation id="6830728435402077660">Niezabezpieczona</translation>
 <translation id="6831043979455480757">Tłumacz</translation>
 <translation id="6842136130964845393">Aby zapewnić sobie stały dostęp do zapisanych haseł, potwierdź swoją tożsamość</translation>

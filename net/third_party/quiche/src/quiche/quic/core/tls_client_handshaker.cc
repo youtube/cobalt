@@ -265,7 +265,7 @@ bool TlsClientHandshaker::SetAlpn() {
   // Enable ALPS only for versions that use HTTP/3 frames.
   for (const std::string& alpn_string : alpns) {
     for (const ParsedQuicVersion& version : session()->supported_versions()) {
-      if (!version.UsesHttp3() || AlpnForVersion(version) != alpn_string) {
+      if (!version.IsIetfQuic() || AlpnForVersion(version) != alpn_string) {
         continue;
       }
       if (SSL_add_application_settings(
@@ -285,10 +285,14 @@ bool TlsClientHandshaker::SetAlpn() {
 bool TlsClientHandshaker::SetTransportParameters() {
   TransportParameters params;
   params.perspective = Perspective::IS_CLIENT;
-  params.legacy_version_information =
-      TransportParameters::LegacyVersionInformation();
-  params.legacy_version_information->version =
-      CreateQuicVersionLabel(session()->supported_versions().front());
+  if (GetQuicRestartFlag(quic_stop_sending_legacy_version_info)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_stop_sending_legacy_version_info, 4, 4);
+  } else {
+    params.legacy_version_information =
+        TransportParameters::LegacyVersionInformation();
+    params.legacy_version_information->version =
+        CreateQuicVersionLabel(session()->supported_versions().front());
+  }
   params.version_information = TransportParameters::VersionInformation();
   const QuicVersionLabel version = CreateQuicVersionLabel(session()->version());
   params.version_information->chosen_version = version;
@@ -343,20 +347,23 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersReceived(
       *received_transport_params_);
-
-  if (received_transport_params_->legacy_version_information.has_value()) {
-    if (received_transport_params_->legacy_version_information->version !=
-        CreateQuicVersionLabel(session()->connection()->version())) {
-      *error_details = "Version mismatch detected";
-      return false;
-    }
-    if (CryptoUtils::ValidateServerHelloVersions(
-            received_transport_params_->legacy_version_information
-                ->supported_versions,
-            session()->connection()->server_supported_versions(),
-            error_details) != QUIC_NO_ERROR) {
-      QUICHE_DCHECK(!error_details->empty());
-      return false;
+  if (GetQuicRestartFlag(quic_stop_parsing_legacy_version_info)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_stop_parsing_legacy_version_info, 1, 3);
+  } else {
+    if (received_transport_params_->legacy_version_information.has_value()) {
+      if (received_transport_params_->legacy_version_information->version !=
+          CreateQuicVersionLabel(session()->connection()->version())) {
+        *error_details = "Version mismatch detected";
+        return false;
+      }
+      if (CryptoUtils::ValidateServerHelloVersions(
+              received_transport_params_->legacy_version_information
+                  ->supported_versions,
+              session()->connection()->server_supported_versions(),
+              error_details) != QUIC_NO_ERROR) {
+        QUICHE_DCHECK(!error_details->empty());
+        return false;
+      }
     }
   }
   if (received_transport_params_->version_information.has_value()) {

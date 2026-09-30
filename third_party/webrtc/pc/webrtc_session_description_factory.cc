@@ -178,6 +178,7 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
 
 WebRtcSessionDescriptionFactory::~WebRtcSessionDescriptionFactory() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 
   // Fail any requests that were asked for before identity generation completed.
   FailPendingRequests(kFailedDueToSessionShutdown);

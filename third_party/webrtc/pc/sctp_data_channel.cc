@@ -26,7 +26,6 @@
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
-#include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/data_channel_transport_interface.h"
@@ -142,7 +141,7 @@ bool InternalDataChannelInit::IsValid() const {
 std::optional<StreamId> SctpSidAllocator::AllocateSid(SSLRole role) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   int potential_sid = (role == SSL_CLIENT) ? 0 : 1;
-  while (potential_sid <= static_cast<int>(kMaxSctpSid)) {
+  while (potential_sid <= max_sid_) {
     StreamId sid(potential_sid);
     if (used_sids_.insert(sid).second)
       return sid;

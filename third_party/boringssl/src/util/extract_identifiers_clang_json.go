@@ -39,10 +39,11 @@ import (
 )
 
 var (
-	dumpTree     = flag.Bool("dump_tree", false, "dump syntax tree while processing")
-	dumpFullTree = flag.Bool("dump_full_tree", false, "dump syntax tree while processing including system headers")
-	keepGoing    = flag.Bool("keep_going", false, "continue even after errors")
-	language     = flag.String("language", "C", "language to consider the source to be")
+	dumpTree          = flag.Bool("dump_tree", false, "dump syntax tree while processing")
+	dumpFullTree      = flag.Bool("dump_full_tree", false, "dump syntax tree while processing including system headers")
+	keepGoing         = flag.Bool("keep_going", false, "continue even after errors")
+	language          = flag.String("language", "C", "language to consider the source to be")
+	globalSymbolsOnly = flag.Bool("global_symbols_only", false, "only output a list of names that may become (part of) linker symbols and are not namespaced")
 )
 
 // node is a node from the Clang AST dump.
@@ -543,22 +544,25 @@ func (w walker) collectIdentifier(n *node, tag string, namespacing namespacing, 
 		case staticStorage:
 			linkage = "static "
 		default:
-			return fmt.Errorf("respecting storage, but storage not set for %v", fqn)
+			return fmt.Errorf("respecting linkage, but storage not set for %v", fqn)
 		}
 	}
 
-	var identifier string
+	var namespaced bool
 	switch namespacing {
 	case alwaysGlobal:
-		identifier = name
+		namespaced = false
 	case globalIfC:
-		if w.language == "C++" {
-			identifier = fqn
-		} else {
-			identifier = name
-		}
+		namespaced = w.language == "C++"
 	case alwaysNamespaced:
+		namespaced = true
+	}
+
+	var identifier string
+	if namespaced {
 		identifier = fqn
+	} else {
+		identifier = name
 	}
 
 	declaration := fmt.Sprintf("%s%s %s;", linkage, tag, identifier)
@@ -571,6 +575,13 @@ func (w walker) collectIdentifier(n *node, tag string, namespacing namespacing, 
 		return nil
 	}
 	w.seen[key] = declaration
+
+	if *globalSymbolsOnly {
+		if !namespaced && storage != staticStorage {
+			fmt.Printf("%s\n", identifier)
+		}
+		return nil
+	}
 
 	// Append some debug info.
 	// This might be used later to generate symbol renaming headers,

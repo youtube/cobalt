@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Месец на валидност</translation>
 <translation id="1150989369772528668">Календар</translation>
 <translation id="1161663161838091892">Синхронизирайте разделите и историята, за да продължите</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} кредитна карта}other{{count} кредитни карти}}</translation>
 <translation id="1164891049599601209">Въведена в измамнически сайт</translation>
 <translation id="1165039591588034296">Грешка</translation>
 <translation id="1172898394251786223">Следващото поле</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Без скриване</translation>
 <translation id="1456545332132818232">Отзиви за продукта за <ph name="PRODUCT_NAME" />, <ph name="STARS" /> от <ph name="MAX_STARS" /> в сайта <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Пестете време, въвеждайте по-малко</translation>
+<translation id="1466035273550360103">Няма отворени раздели</translation>
 <translation id="1469381646033328562">Профилът ви се управлява от родителя ви.
 <ph name="BEGIN_LINK" />Научете повече<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Променено</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Отворени раздели</translation>
 <translation id="1752547299766512813">Запазени пароли</translation>
 <translation id="1764070164487214210">Упътвания</translation>
+<translation id="1764511703783285459">Другият мениджър на пароли не сподели пароли или ключове за достъп</translation>
 <translation id="1767766085187034454">Google Преводач</translation>
 <translation id="1771016937398045251">Меню „Инструменти“</translation>
 <translation id="1772468122139624049">Разделите не могат да се презаредят</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Промяната ви не бе запазена.</translation>
 <translation id="3254806613790954367">Последно отвореният от вас раздел на всичките ви устройства</translation>
 <translation id="325717987950204592">Докоснете „Поверителност и сигурност“.</translation>
-<translation id="3266338926702638258">Показване на историята на цените за този продукт</translation>
 <translation id="3272527697863656322">Отказ</translation>
 <translation id="3273510436356991673">Персонализиране на началния екран</translation>
 <translation id="3277021493514034324">Адресът на сайта бе копиран</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{Избрахте 1}other{Избрахте #}}</translation>
 <translation id="3668816008081204991">Списъкът за четене е скрит</translation>
 <translation id="3670030362669914947">Номер</translation>
+<translation id="3672283986707092811">Избиране на всички</translation>
 <translation id="3679163990085797665">Изтриване на прочетените</translation>
 <translation id="368329460027487650">Не сте в профила си. Отваря опциите за вход.</translation>
 <translation id="3695446226812920698">Научете как</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Екранно име</translation>
 <translation id="4375772272517383391">Затваряне на всички раздели</translation>
 <translation id="4378154925671717803">Телефон</translation>
+<translation id="4380677808580146413">Избиране</translation>
 <translation id="4389019817280890563">Докоснете за смяна на езика.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{След 1 ден}other{След {COUNT} дни}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 раздел}other{# раздела}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Скриване на „Скорошни раздели“</translation>
 <translation id="4578835633387306383">Включване на…</translation>
 <translation id="4580716718466706433">Към Мениджър на пароли</translation>
+<translation id="4585751637295612750">Отворете нов раздел, за да го добавите към въпроса си</translation>
 <translation id="4587589328781138893">Сайтове</translation>
 <translation id="4592672037257622855">{count,plural, =1{Страницата бе добавена към списъка ви за четене}other{{count} страници бяха добавени към списъка ви за четене}}</translation>
 <translation id="459644946100970322">Искате ли да включите известията за цени?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Бележката съдържа повече от 1000 знака</translation>
 <translation id="5087098519049306025">Проследяване на цената</translation>
 <translation id="5090832849094901128">Изтриването на тази парола няма да премахне профила ви за <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Нищо не е импортирано</translation>
 <translation id="5113960131843706315">Получаване на нещата ви…</translation>
 <translation id="5118462200606189584">Добавяне на профил…</translation>
 <translation id="5118764316110575523">Изкл.</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Запазване на файла</translation>
 <translation id="5355191726083956201">Режимът за подобрена защита е включен</translation>
 <translation id="536067926684072644">Показване на отметките</translation>
+<translation id="5364647308446127983">{count,plural, =1{{count} ключ за достъп не бе импортиран}other{{count} ключа за достъп не бяха импортирани}}</translation>
 <translation id="5371112366564891538">Увеличаване на размера на текста</translation>
+<translation id="5376135254804080693">Премахване на избора от всички</translation>
 <translation id="537853552771686272">Управлявайте темите и сайтовете, които ви интересуват</translation>
 <translation id="5390458669633674385">{count,plural, =1{Затворихте {count}}other{Затворихте {count}}}</translation>
 <translation id="5394975111793637642">Скриване на картата „Подходящи за вас отзиви за продукт“</translation>
@@ -1445,6 +1453,7 @@
 <translation id="6410390304316730527">Функцията „Безопасно сърфиране“ ви защитава от хакери, които могат да ви подведат да направите нещо опасно, като например да инсталирате софтуер или да разкриете лична информация (напр. пароли, телефонни номера или кредитни карти). Ако я изключите, внимавайте, когато посещавате непознати или ненадеждни сайтове.</translation>
 <translation id="6410883413783534063">Отворете няколко раздела, за да посетите различни страници едновременно</translation>
 <translation id="6418346271604475326">PDF файлът се подготвя</translation>
+<translation id="6420292512900923139">При импортирането на данните ви възникна проблем</translation>
 <translation id="6421038304268477484">Преведен текст</translation>
 <translation id="6429213933892582367">Отворете „Опции за паролите“.</translation>
 <translation id="6435236283694032571">Добавяне към списъка за четене</translation>
@@ -1483,6 +1492,7 @@
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Опции</translation>
 <translation id="6550891580932862748">Няма защита срещу опасни уебсайтове, изтегляния и разширения. Настройките ви за Безопасно сърфиране в други продукти на Google няма да бъдат засегнати.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Възстановяване</translation>
 <translation id="6559301491397835130">{count,plural, =1{Отметката е запазена в(ъв) „{title}“. Тя е запазена само на това устройство.}other{Отметките са запазени в(ъв) „{title}“. Те са запазени само на това устройство.}}</translation>
 <translation id="656065428026159829">Вижте още</translation>
@@ -1559,6 +1569,7 @@
 <translation id="6807287147325542056">Пароли в други приложения</translation>
 <translation id="681368974849482173">Елементът е създаден</translation>
 <translation id="6825078212112407882">{count,plural, =1{Отметката е запазена в профила ви в Google {email}}other{{count} отметки са запазени в профила ви в Google {email}}}</translation>
+<translation id="6826004672264649705">Понастоящем проследявате този продукт. Отворете, за да видите историята на цената</translation>
 <translation id="6830728435402077660">Няма защита</translation>
 <translation id="6831043979455480757">Превод</translation>
 <translation id="6842136130964845393">Потвърдете, че сте вие, за да имате постоянен достъп до запазените си пароли</translation>

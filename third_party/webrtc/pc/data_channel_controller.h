@@ -66,6 +66,7 @@ class DataChannelController : public SctpDataChannelControllerInterface,
   void SetBufferedAmountLowThreshold(StreamId sid, size_t bytes) override;
 
   // Implements DataChannelSink.
+  void OnTransportConnected() override;
   void OnDataReceived(int channel_id,
                       DataMessageType type,
                       const CopyOnWriteBuffer& buffer) override;

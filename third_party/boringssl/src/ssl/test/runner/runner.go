@@ -1480,6 +1480,12 @@ func runTest(dispatcher *shimDispatcher, statusChan chan statusMsg, test *testCa
 		}
 	}()
 
+	// Make a copy of the testCase before modifying it in-place.
+	test = ptrTo(*test)
+	if test.resumeConfig != nil {
+		test.resumeConfig = ptrTo(*test.resumeConfig)
+	}
+
 	var flags []string
 	if len(*shimExtraFlags) > 0 {
 		flags = strings.Split(*shimExtraFlags, ";")
