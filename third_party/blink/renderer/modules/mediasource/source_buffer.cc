@@ -38,11 +38,8 @@
 #include <utility>
 
 #include "base/numerics/checked_math.h"
-<<<<<<< HEAD
 #include "base/task/single_thread_task_runner.h"
-=======
 #include "build/build_config.h"
->>>>>>> 7299a3953e5 (media: Plumb a release closure through MSE append path (#12846))
 #include "media/base/logging_override_if_enabled.h"
 #include "media/base/stream_parser_buffer.h"
 #include "partition_alloc/partition_alloc.h"
@@ -2056,14 +2053,9 @@ void SourceBuffer::AppendBufferInternal(
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
                                         ExceptionState& exception_state) {
-<<<<<<< HEAD
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   TRACE_EVENT_BEGIN("media", "SourceBuffer::appendBuffer",
                     perfetto::Track::FromPointer(this), "size", data.size());
-=======
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "SourceBuffer::appendBuffer",
-                                    TRACE_ID_LOCAL(this), "size", data.size());
->>>>>>> 7299a3953e5 (media: Plumb a release closure through MSE append path (#12846))
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
   //
@@ -2092,25 +2084,19 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
   // attachment is usable and underlying demuxer is protected from destruction
   // (applicable especially for MSE-in-Worker case). Note, we must have
   // |source_| and |source_| must have an attachment because !IsRemoved().
-<<<<<<< HEAD
-  if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
-          &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
-          data, Unretained(&exception_state)))) {
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Note `release_runner` is moved into the callback: if the attachment is
   // closing and the callback is never run, destroying it releases the retained
   // ArrayBuffer.
   if (!source_->RunUnlessElementGoneOrClosingUs(
-          WTF::BindOnce(&SourceBuffer::AppendBufferInternal_Locked,
+          blink::BindOnce(&SourceBuffer::AppendBufferInternal_Locked,
                         WrapPersistent(this), data, std::move(release_runner),
-                        WTF::Unretained(&exception_state)))) {
+                        Unretained(&exception_state)))) {
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
+  if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
-          data, WTF::Unretained(&exception_state)))) {
+          data, Unretained(&exception_state)))) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 7299a3953e5 (media: Plumb a release closure through MSE append path (#12846))
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(
