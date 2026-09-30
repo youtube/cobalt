@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.app;
+package dev.cobalt.testing;
 
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
+import dev.cobalt.app.MainActivity;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -27,14 +30,17 @@ import org.chromium.build.gtest_apk.NativeTestIntent;
 import org.chromium.test.reporter.TestStatusReporter;
 
 /**
- * A {@link MainActivity} for running nplb, handling the arguments passed by the instrumentation
- * runner.
+ * Activity that runs a gtest suite through the Evergreen loader.
+ *
+ * <p>This is shared by every test apk. The module library and content directory it runs with are
+ * passed as meta-data.
  */
-public class NplbActivity extends MainActivity {
-  private static final String TAG = "NplbInstrumentation";
+public class CobaltTestActivity extends MainActivity {
+  private static final String TAG = "CobaltTestInstrumentation";
 
-  private static final String EVERGREEN_LIBRARY_PATH = "app/cobalt/lib/libnplb.lz4";
-  private static final String EVERGREEN_CONTENT_PATH = "app/cobalt/content";
+  // Manifest meta-data holding this apk's loader arguments, written by modular_apk.gni.
+  private static final String META_DATA_LIBRARY = "dev.cobalt.testing.EvergreenLibrary";
+  private static final String META_DATA_CONTENT = "dev.cobalt.testing.EvergreenContent";
 
   private TestStatusReporter mReporter;
 
@@ -54,11 +60,36 @@ public class NplbActivity extends MainActivity {
   @Override
   protected String[] getArgs() {
     ArrayList<String> args = new ArrayList<>();
-    args.add("--evergreen_library=" + EVERGREEN_LIBRARY_PATH);
-    args.add("--evergreen_content=" + EVERGREEN_CONTENT_PATH);
+
+    Bundle metaData = getMetaData();
+    String library = metaData.getString(META_DATA_LIBRARY);
+    String content = metaData.getString(META_DATA_CONTENT);
+    assert library != null && content != null : "This apk declares no Evergreen module.";
+
+    args.add("--evergreen_library=" + library);
+    args.add("--evergreen_content=" + content);
+
+    // Suites running on base::TestLauncher spawn a child process per test, which Evergreen cannot
+    // do, so they have to run their tests in-process. nplb has its own main and ignores the flag.
+    args.add("--single-process-tests");
+
     args.addAll(gtestArgsFromIntent());
-    Log.i(TAG, "NPLB loader argv: " + args);
+    Log.i(TAG, "Test loader argv: " + args);
     return args.toArray(new String[0]);
+  }
+
+  /** Returns the application meta-data, or an empty bundle if it cannot be read. */
+  private Bundle getMetaData() {
+    try {
+      ApplicationInfo info =
+          getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
+      if (info.metaData != null) {
+        return info.metaData;
+      }
+    } catch (PackageManager.NameNotFoundException e) {
+      Log.e(TAG, "Failed to read the application meta-data", e);
+    }
+    return new Bundle();
   }
 
   private ArrayList<String> gtestArgsFromIntent() {

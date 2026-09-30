@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.app;
+package dev.cobalt.testing;
 
 import android.os.Bundle;
 import org.chromium.build.gtest_apk.NativeTestInstrumentationTestRunner;
 
 /**
- * Instrumentation entry point for nplb.apk. Reuses Chromium's {@link
- * NativeTestInstrumentationTestRunner} and defaults the launched activity to {@link NplbActivity}.
+ * Instrumentation entry point for the test apks. Reuses Chromium's {@link
+ * NativeTestInstrumentationTestRunner} and defaults the launched activity to {@link
+ * CobaltTestActivity}.
  */
-public class NplbInstrumentationTestRunner extends NativeTestInstrumentationTestRunner {
+public class CobaltInstrumentationTestRunner extends NativeTestInstrumentationTestRunner {
   private static final String EXTRA_NATIVE_TEST_ACTIVITY =
       "org.chromium.native_test.NativeTestInstrumentationTestRunner.NativeTestActivity";
-  private static final String TEST_ACTIVITY = "dev.cobalt.app.NplbActivity";
+  private static final String TEST_ACTIVITY = "dev.cobalt.testing.CobaltTestActivity";
 
   @Override
   public void onCreate(Bundle arguments) {
