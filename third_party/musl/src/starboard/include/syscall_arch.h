@@ -84,5 +84,6 @@
 // Define wrappers for unsupported syscalls that it called by code that can
 // handle unsupported syscall functions.
 #define libc_wrapper_SYS_memfd_create(name, flags) (errno = ENOSYS, -1)
+#define libc_wrapper_SYS_process_vm_readv(pid, lvec, lcnt, rvec, rcnt, flags) (errno = ENOSYS, -1)
 
 #endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_ARCH_H_
