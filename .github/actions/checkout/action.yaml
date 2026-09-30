@@ -44,7 +44,11 @@ runs:
               "${DEST_PATH}"; then
               break
             fi
-            rm -rf "${DEST_PATH}"
+            if [[ -n "${DEST_PATH}" && "${DEST_PATH}" != "." && "${DEST_PATH}" != "/" ]]; then
+              rm -rf "${DEST_PATH}"
+            else
+              rm -rf "${DEST_PATH}/.git"
+            fi
             if [ "${attempt}" -eq 3 ]; then
               exit 1
             fi
