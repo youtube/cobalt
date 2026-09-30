@@ -120,12 +120,6 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
-    {"cc/tile_memory",
-     "TileMemory",
-     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
-     "size",
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
-     {}},
     {"font_caches/shape_caches",
      "FontCaches",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
@@ -627,7 +621,6 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   uint64_t resident_set_total_kb = 0;
   uint64_t private_footprint_swap_total_kb = 0;
   uint64_t vm_size_total_kb = 0;
-  uint64_t tiles_total_memory = 0;
 
   for (const auto& pmd : global_dump_->process_dumps()) {
     HistogramProcessType ptype;
@@ -657,7 +650,6 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
 #endif  // !BUILDFLAG(IS_IOS_TVOS)
     vm_size_total_kb += pmd.os_dump().vm_size_kb;
-    tiles_total_memory += pmd.GetMetric("cc/tile_memory", "size").value_or(0);
 
     // Manually calculate fragmentation for individual processes as it may not
     // be present in the dump.
@@ -791,8 +783,6 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
-  UMA_HISTOGRAM_MEMORY_MEDIUM_MB("Memory.Total.TileMemory",
-                                 tiles_total_memory / kMiB);
 #if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
   if (ShouldSampleVirtualAddressSpace()) {
     // Walking /proc/self/maps blocks and visits every VMA in the process, so it
