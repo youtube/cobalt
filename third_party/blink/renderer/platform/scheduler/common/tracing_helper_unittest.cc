@@ -28,7 +28,6 @@ perfetto::StaticString SignOfInt(int value) {
 
 // TODO(kraynov): TraceableCounter tests.
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // TODO(crbug.com/408328552): Re-enable this test
 TEST(TracingHelperTest, DISABLED_TraceableState) {
   TraceableVariableController controller;
@@ -61,7 +60,6 @@ TEST(TracingHelperTest, DISABLED_TraceableState) {
                                      std::vector<std::string>{"positive"},
                                      std::vector<std::string>{"negative"}));
 }
-#endif
 
 TEST(TracingHelperTest, TraceableStateOperators) {
   TraceableVariableController controller;

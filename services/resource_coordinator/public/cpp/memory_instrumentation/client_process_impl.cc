@@ -14,7 +14,6 @@
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer_proto.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom-data-view.h"
@@ -194,13 +193,7 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
     result->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
 
-    if (!OSMetrics::FillOSMemoryDump(
-            handle, args.flags, result.get()
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-                                    ,
-            MemoryInstrumentation::GetInstance()->GetDetailedMetricsDelegate()
-#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-                )) {
+    if (!OSMetrics::FillOSMemoryDump(handle, args.flags, result.get())) {
       DLOG(ERROR) << "OS memory dump failed for pid " << pid
                   << " (FillOSMemoryDump)";
       outcome = mojom::RequestOutcome::kFillOsMemoryDumpFailed;

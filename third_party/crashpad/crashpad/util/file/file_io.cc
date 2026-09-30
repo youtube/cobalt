@@ -93,18 +93,8 @@ bool ReadExactly(
     bool can_log,
     void* buffer,
     size_t size) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-  const FileOperationResult result =
-      ReadUntil(
-          [read_function, can_log](void* buf, size_t sz) {
-            return read_function(can_log, buf, sz);
-          },
-          buffer,
-          size);
-#else
   const FileOperationResult result =
       ReadUntil(std::bind_front(read_function, can_log), buffer, size);
-#endif
   if (result < 0) {
     return false;
   }
@@ -140,61 +130,23 @@ bool WriteAllInternal::WriteAll(const void* buffer, size_t size) {
 }  // namespace internal
 
 bool ReadFileExactly(FileHandle file, void* buffer, size_t size) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-  return internal::ReadExactly(
-      [file](bool can_log, void* buf, size_t sz) {
-        return FileIORead(file, can_log, buf, sz);
-      },
-      false,
-      buffer,
-      size);
-#else
   return internal::ReadExactly(
       std::bind_front(&FileIORead, file), false, buffer, size);
-#endif
 }
 
 FileOperationResult ReadFileUntil(FileHandle file, void* buffer, size_t size) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-  return ReadUntil(
-      [file](void* buf, size_t sz) {
-        return FileIORead(file, false, buf, sz);
-      },
-      buffer,
-      size);
-#else
   return ReadUntil(std::bind_front(&FileIORead, file, false), buffer, size);
-#endif
 }
 
 bool LoggingReadFileExactly(FileHandle file, void* buffer, size_t size) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-  return internal::ReadExactly(
-      [file](bool can_log, void* buf, size_t sz) {
-        return FileIORead(file, can_log, buf, sz);
-      },
-      true,
-      buffer,
-      size);
-#else
   return internal::ReadExactly(
       std::bind_front(&FileIORead, file), true, buffer, size);
-#endif
 }
 
 FileOperationResult LoggingReadFileUntil(FileHandle file,
                                          void* buffer,
                                          size_t size) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
-  return ReadUntil(
-    [file](void* buf, size_t sz) {
-        return FileIORead(file, true, buf, sz);
-    },
-    buffer,
-    size);
-#else
   return ReadUntil(std::bind_front(&FileIORead, file, true), buffer, size);
-#endif
 }
 
 bool WriteFile(FileHandle file, const void* buffer, size_t size) {
