@@ -702,6 +702,8 @@ jobs:
         with:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
 
   yts-playback-test:
     needs: [initialize, build]
