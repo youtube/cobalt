@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Script to automatically roll Chromium branch."""
 import argparse
-import json
+import contextlib
 import os
 import re
-import ssl
-import urllib.error
-import urllib.request
+import sys
 import autoroll_lib as lib
+import gerrit_util
 
 _COBALT_SUBMODULE_DIRS = [
     'net/third_party/quiche/src',
@@ -37,8 +36,6 @@ def remove_angle_from_recursedeps():
   See b/565697787 for more information.
   """
   lib.run(['sed', '-i', r"/'src\/third_party\/angle',/s/^/\#/", 'DEPS'])
-  lib.run(
-      ['git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'])
 
 
 def get_submodule_root_dirs():
@@ -75,26 +72,11 @@ def replace_submodules_with_dirs():
 
 def fetch_chromium_tree(chromium_sha):
   """Fetches the root tree hash directly from Chromium's Gitiles API."""
-  url = (f'https://chromium.googlesource.com/chromium/src/+/{chromium_sha}'
-         '?format=JSON')
-  req = urllib.request.Request(url, headers={'User-Agent': 'cobalt-autoroller'})
-
-  ctx = ssl.create_default_context()
-  try:
-    with urllib.request.urlopen(req, context=ctx) as resp:
-      text = resp.read().decode('utf-8')
-  except (ssl.SSLCertVerificationError, urllib.error.URLError):
-    # pylint: disable=protected-access
-    unverified_ctx = ssl._create_unverified_context()
-    # pylint: enable=protected-access
-    with urllib.request.urlopen(req, context=unverified_ctx) as resp:
-      text = resp.read().decode('utf-8')
-
-  # Gitiles JSON API responses prepend a 4-char anti-XSSI security prefix: )]}'
-  if text.startswith(")]}'"):
-    text = text[4:].lstrip()
-
-  data = json.loads(text)
+  with contextlib.redirect_stdout(sys.stderr):
+    conn = gerrit_util.CreateHttpConn(
+        'chromium.googlesource.com',
+        f'chromium/src/+/{chromium_sha}?format=JSON')
+    data = gerrit_util.ReadHttpJsonResponse(conn)
   return data['tree']
 
 
@@ -179,6 +161,8 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   lib.run(['git', 'checkout', previous_sha, '--', '.'])
 
   if previous_sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
+    # Just remove it from DEPS but do not commit the change, otherwise it will
+    # also add a lot of other changes made by the git checkout call above.
     remove_angle_from_recursedeps()
 
   replace_submodules_with_dirs()
@@ -205,6 +189,9 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
 
     if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
       remove_angle_from_recursedeps()
+      lib.run([
+          'git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'
+      ])
 
     if not verify_chromium_commit(sha):
       raise RuntimeError(

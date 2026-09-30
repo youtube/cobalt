@@ -68,7 +68,8 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
                         "SmallerInterestArea, "
                         "ReclaimPrepaintTilesWhenIdle, "
                         "ReclaimOldPrepaintTiles, "
-                        "WebAudioRemoveAudioDestinationResampler"),
+                        "WebAudioRemoveAudioDestinationResampler, "
+                        "DomStorageSmartFlushing"),
             enabled_features);
 }
 
