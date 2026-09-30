@@ -33,10 +33,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMemoryPressureCooldownSeconds);
 
-// When enabled, gates the CC image decode cache items limit via Finch feature
-// and parameter.
+// When enabled, gates the CC image decode cache items limit and size limit (in
+// MB) via Finch feature and parameters.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsMbs);
 
 // When enabled, gates the GPU memory budget via Finch feature and parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);

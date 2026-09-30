@@ -54,9 +54,14 @@ BASE_FEATURE(kUseGles2ForOopR,
 #if BUILDFLAG(IS_COBALT)
 // Enables zero-copy, direct in-process rasterization for Cobalt by bypassing
 // PaintOp buffer serialization and transfer cache caching.
+// Disabled by default on Android, enabled by default on other platforms.
 BASE_FEATURE(kCobaltInProcessDirectRaster,
              "CobaltInProcessDirectRaster",
+#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not
