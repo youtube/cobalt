@@ -114,7 +114,7 @@ bool SanitizeInitData(media::EmeInitDataType init_data_type,
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     case media::EmeInitDataType::PLATFORM_DRM:
       // Platform DRM init data is passed through as-is to the CDM.
-      sanitized_init_data->assign(init_data, init_data + init_data_length);
+      sanitized_init_data->assign(init_data.begin(), init_data.end());
       return true;
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
   }
