@@ -154,7 +154,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
   EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
-  EXPECT_TRUE(check_histogram("Memory.Total.TileMemory"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
@@ -286,7 +285,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
   EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
-  EXPECT_TRUE(check_histogram("Memory.Total.TileMemory"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
@@ -515,38 +513,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_EQ(parsed_stamp.ToTimeT(), simulated_stamp.ToTimeT());
   EXPECT_EQ(parsed_pid, simulated_pid);
   EXPECT_GT(parsed_pid, 0);
-}
-
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, TileMemoryEmitsHistograms) {
-  auto* features = GlobalFeatures::GetInstance();
-  features->metrics_services_manager()->UpdateUploadPermissions(true);
-
-  auto* manager_client = features->metrics_services_manager_client();
-  ASSERT_TRUE(manager_client);
-  auto* client = manager_client->metrics_service_client();
-  ASSERT_TRUE(client);
-
-  std::string html_content = R"(
-    <html>
-    <body style="width: 2000px; height: 2000px; background: linear-gradient(red, blue);">
-      <div style="width: 1000px; height: 1000px; background: green;"></div>
-    </body>
-    </html>
-  )";
-  GURL url("data:text/html;charset=utf-8," + html_content);
-  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
-
-  base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)
-      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
-  run_loop.Run();
-
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
-
-  auto* tile_memory_hist =
-      base::StatisticsRecorder::FindHistogram("Memory.Total.TileMemory");
-  EXPECT_TRUE(tile_memory_hist &&
-              tile_memory_hist->SnapshotSamples()->TotalCount() > 0);
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
