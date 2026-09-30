@@ -275,6 +275,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   const base::flat_set<::media::CdmSessionType> kSessionTypes = {
       ::media::CdmSessionType::kTemporary};
 
+#if !BUILDFLAG(IS_IOS_TVOS)
   key_system_infos->push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
       codecs,                        // Regular codecs.
       kEncryptionSchemes,            // Encryption schemes.
@@ -286,6 +287,8 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       Robustness::HW_SECURE_ALL,     // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 
   key_system_infos->push_back(std::make_unique<CobaltWidevineL3KeySystemInfo>(
       codecs,                                        // Regular codecs.
