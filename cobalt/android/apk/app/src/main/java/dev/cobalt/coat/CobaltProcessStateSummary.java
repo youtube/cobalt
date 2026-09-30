@@ -27,6 +27,8 @@ import dev.cobalt.util.Log;
 import java.util.List;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.components.crash.browser.ProcessExitReasonFromSystem;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -97,12 +99,12 @@ public final class CobaltProcessStateSummary {
       return info.getReason();
     }
 
+    public static int getImportance(ApplicationExitInfo info) {
+      return info.getImportance();
+    }
+
     public static @Nullable Integer convertToExitReason(int systemReason) {
-      if (systemReason >= ApplicationExitInfo.REASON_EXIT_SELF
-          && systemReason <= ApplicationExitInfo.REASON_PACKAGE_UPDATED) {
-        return systemReason - 1;
-      }
-      return null;
+      return ProcessExitReasonFromSystem.convertToExitReason(systemReason);
     }
   }
 
@@ -267,6 +269,40 @@ public final class CobaltProcessStateSummary {
     }
   }
 
+  /**
+   * Queries the latest historical exit reason and records it to UMA if it was a foreground exit
+   * (importance <= IMPORTANCE_FOREGROUND).
+   *
+   * @param umaName The name of the UMA histogram to record to.
+   * @return The converted ExitReason enum value recorded, or -1 if no foreground exit reason was
+   *     recorded.
+   */
+  public static int recordLatestExitReasonToUma(String umaName) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return -1;
+    try {
+      ActivityManager am = getActivityManager();
+      if (am == null) return -1;
+      ApplicationExitInfo info = ApiHelperForR.getLatestApplicationExitInfo(am);
+      if (info == null) return -1;
+      if (ApiHelperForR.getImportance(info)
+          <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+        int systemReason = ApiHelperForR.getReason(info);
+        Integer exitReason = ApiHelperForR.convertToExitReason(systemReason);
+        if (exitReason != null) {
+          if (umaName != null && !umaName.isEmpty()) {
+            RecordHistogram.recordEnumeratedHistogram(
+                umaName, exitReason, ProcessExitReasonFromSystem.ExitReason.NUM_ENTRIES);
+          }
+          return exitReason;
+        }
+      }
+      return -1;
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to recordLatestExitReasonToUma: ", e);
+      return -1;
+    }
+  }
+
   /** Consolidates querying the latest exit reason and summary in a single Binder call. */
   @CalledByNative
   public static @Nullable byte[] recordLatestExitReasonAndGetSummary(
@@ -277,10 +313,19 @@ public final class CobaltProcessStateSummary {
       if (am == null) return null;
       ApplicationExitInfo info = ApiHelperForR.getLatestApplicationExitInfo(am);
       if (info == null) return null;
-      int systemReason = ApiHelperForR.getReason(info);
-      Integer exitReason = ApiHelperForR.convertToExitReason(systemReason);
-      if (exitReason != null && outExitReason != null && outExitReason.length > 0) {
-        outExitReason[0] = exitReason;
+      if (ApiHelperForR.getImportance(info)
+          <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+        int systemReason = ApiHelperForR.getReason(info);
+        Integer exitReason = ApiHelperForR.convertToExitReason(systemReason);
+        if (exitReason != null) {
+          if (umaName != null && !umaName.isEmpty()) {
+            RecordHistogram.recordEnumeratedHistogram(
+                umaName, exitReason, ProcessExitReasonFromSystem.ExitReason.NUM_ENTRIES);
+          }
+          if (outExitReason != null && outExitReason.length > 0) {
+            outExitReason[0] = exitReason;
+          }
+        }
       }
       return ApiHelperForR.getProcessStateSummary(info);
     } catch (Exception e) {

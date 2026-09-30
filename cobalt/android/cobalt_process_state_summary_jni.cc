@@ -23,10 +23,9 @@
 #include "base/android/jni_string.h"
 #include "base/containers/span.h"
 #include "base/hash/hash.h"
-#include "cobalt/android/app_event_bridge_jni/CobaltProcessStateSummary_jni.h"
+#include "cobalt/android/jni_headers/CobaltProcessStateSummary_jni.h"
 
 namespace cobalt {
-namespace android {
 
 jint JNI_CobaltProcessStateSummary_ComputePersistentHash(
     JNIEnv* env,
@@ -40,9 +39,11 @@ jint JNI_CobaltProcessStateSummary_ComputePersistentHash(
   if (data.empty() || static_cast<size_t>(length) > data.size()) {
     return 0;
   }
-  return static_cast<jint>(
-      base::PersistentHash(base::span(data).subspan(0, length)));
+  return static_cast<jint>(base::PersistentHash(
+      base::span(data).first(static_cast<size_t>(length))));
 }
+
+namespace android {
 
 void SetProcessStateSummary(base::span<const uint8_t> summary_bytes) {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -74,7 +75,7 @@ std::optional<std::vector<uint8_t>> RecordLatestExitReasonAndGetSummary(
   base::android::ScopedJavaLocalRef<jintArray> j_out_array;
   if (out_exit_reason) {
     int initial_val[1] = {-1};
-    j_out_array = base::android::ToJavaIntArray(env, initial_val, 1);
+    j_out_array = base::android::ToJavaIntArray(env, initial_val);
   }
 
   base::android::ScopedJavaLocalRef<jbyteArray> j_bytes =
