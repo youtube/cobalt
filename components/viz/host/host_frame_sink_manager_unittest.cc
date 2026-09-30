@@ -639,8 +639,8 @@ TEST_F(HostFrameSinkManagerTest, DestroyCompositorFrameSinkKeepsRegistration) {
   EXPECT_CALL(impl(), MockDestroyCompositorFrameSink(kFrameSinkParent1))
       .Times(1);
   host().DestroyCompositorFrameSink(kFrameSinkParent1);
-  EXPECT_CALL(impl(), InvalidateFrameSinkId(kFrameSinkParent1));
-  host().InvalidateFrameSinkId(kFrameSinkParent1, &host_client_);
+  EXPECT_CALL(impl(), MockInvalidateFrameSinkId(kFrameSinkParent1));
+  host().InvalidateFrameSinkId(kFrameSinkParent1, &host_client_, {});
   FlushHostAndVerifyExpectations();
 }
 #endif
