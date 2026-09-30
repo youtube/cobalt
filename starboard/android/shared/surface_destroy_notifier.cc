@@ -15,7 +15,6 @@
 #include "starboard/android/shared/surface_destroy_notifier.h"
 
 #include <chrono>
-#include <thread>
 #include <utility>
 
 #include "starboard/android/shared/video_window.h"
@@ -25,14 +24,20 @@
 namespace starboard {
 
 void SurfaceDestroyNotifier::Disconnect() {
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
+  if (state_ == State::kExecuting) {
+    // Disconnect() is only called on the decoder thread (via
+    // VideoSurfaceHolder::ReleaseVideoSurface() from TeardownCodec()), which is
+    // the same thread NotifyDestroyed() runs on. So if NotifyDestroyed() is
+    // executing, this must be a re-entrant call from within it, and we must
+    // not wait for it to finish.
+    SB_CHECK(job_queue_);
+    SB_CHECK(job_queue_->BelongsToCurrentThread());
+  } else {
+    state_ = State::kDone;
+  }
   holder_ = nullptr;
   job_queue_ = nullptr;
-  if (state_ != State::kExecuting) {
-    state_ = State::kDone;
-  } else if (executing_thread_id_ != std::this_thread::get_id()) {
-    cv_.wait(lock, [this] { return state_ == State::kDone; });
-  }
   cv_.notify_all();
 }
 
@@ -52,7 +57,9 @@ void SurfaceDestroyNotifier::Notify() {
     return;
   }
 
-  constexpr std::chrono::seconds kTeardownTimeout(5);
+  // Matches the legacy MediaCodecVideoDecoder::OnSurfaceDestroyed() timeout.
+  // This blocks the Android UI thread, so keep it short.
+  constexpr std::chrono::seconds kTeardownTimeout(1);
   if (!cv_.wait_for(lock, kTeardownTimeout,
                     [this] { return state_ == State::kDone; })) {
     SB_LOG(WARNING)
@@ -68,7 +75,6 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
       return;
     }
     state_ = State::kExecuting;
-    executing_thread_id_ = std::this_thread::get_id();
     holder_to_notify = holder_;
   }
   if (holder_to_notify && holder_to_notify->IsActiveNotifier(this)) {
@@ -78,7 +84,6 @@ void SurfaceDestroyNotifier::NotifyDestroyed() {
   {
     std::lock_guard lock(mutex_);
     state_ = State::kDone;
-    executing_thread_id_ = std::thread::id();
     holder_ = nullptr;
     job_queue_ = nullptr;
   }

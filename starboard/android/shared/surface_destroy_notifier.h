@@ -17,7 +17,6 @@
 
 #include <condition_variable>
 #include <mutex>
-#include <thread>
 
 #include "starboard/common/ref_counted.h"
 
@@ -66,12 +65,16 @@ class SurfaceDestroyNotifier
     kDone,       // completed or disconnected
   };
 
+  // Guards all members below.
   mutable std::mutex mutex_;
+  // Signalled whenever |state_| transitions to kDone.
   std::condition_variable cv_;
+  // Guarded by |mutex_|.
   State state_ = State::kIdle;
+  // Guarded by |mutex_|. Cleared on Disconnect() or after NotifyDestroyed().
   VideoSurfaceHolder* holder_ = nullptr;
+  // Guarded by |mutex_|. Cleared on Disconnect() or after NotifyDestroyed().
   JobQueue* job_queue_ = nullptr;
-  std::thread::id executing_thread_id_;
 };
 
 }  // namespace starboard
