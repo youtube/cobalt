@@ -188,4 +188,49 @@ public class StartupGuardTest {
             StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
                 + StartupGuard.MILESTONE_NAMES[StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT]));
   }
+
+  @Test
+  public void testGetStartupStatusAndHighestMilestone() {
+    assertEquals(0L, mStartupGuard.getStartupStatus());
+    assertEquals(0, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(1);
+    assertEquals(1L << 1, mStartupGuard.getStartupStatus());
+    assertEquals(1, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(10);
+    assertEquals((1L << 1) | (1L << 10), mStartupGuard.getStartupStatus());
+    assertEquals(10, mStartupGuard.getHighestMilestone());
+
+    mStartupGuard.setStartupMilestone(37);
+    assertEquals((1L << 1) | (1L << 10) | (1L << 37), mStartupGuard.getStartupStatus());
+    assertEquals(37, mStartupGuard.getHighestMilestone());
+  }
+
+  @Test
+  public void testPreCrashHook_executedBeforeForcedCrash() {
+    boolean[] hookExecuted = new boolean[] {false};
+    mStartupGuard.setPreCrashHook(() -> hookExecuted[0] = true);
+
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException expected) {
+      // Expected exception
+    }
+    assertTrue("Pre-crash hook should have executed before exception", hookExecuted[0]);
+  }
+
+  @Test
+  public void testPreCrashHook_exceptionHandledGracefully() {
+    mStartupGuard.setPreCrashHook(
+        () -> {
+          throw new RuntimeException("Hook failed");
+        });
+
+    try {
+      mStartupGuard.getCrashRunnable().run();
+    } catch (RuntimeException expected) {
+      assertTrue(expected.getMessage().contains("Application startup may not have succeeded"));
+    }
+  }
 }
