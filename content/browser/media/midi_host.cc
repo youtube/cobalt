@@ -85,7 +85,7 @@ void MidiHost::BindReceiver(
 #endif  // BUILDFLAG(IS_COBALT)
   // NOTE: This is not the correct sequence to call RenderFrameHost::GetProcess
   //       hence, we have the render_process_id passed in separately.
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   mojo::MakeSelfOwnedReceiver(
       base::WrapUnique(new MidiHost(render_process_id, midi_service)),
       std::move(receiver));

@@ -60,7 +60,7 @@ TEST_F(InspectorEmulationAgentTest, ModifiesAcceptHeader) {
       "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
 #endif
 
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   HashSet<String> disabled_types;
 
   EXPECT_EQ(InspectorEmulationAgent::OverrideAcceptImageHeader(&disabled_types),

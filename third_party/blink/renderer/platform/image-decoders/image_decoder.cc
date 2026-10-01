@@ -57,7 +57,7 @@
 =======
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
 #include "third_party/blink/renderer/platform/image-decoders/avif/crabbyavif_image_decoder.h"
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 namespace blink {
@@ -223,7 +223,7 @@ String SniffMimeTypeInternal(scoped_refptr<SegmentReader> reader) {
 =======
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
   if (CrabbyAVIFImageDecoder::MatchesAVIFSignature(fast_reader)) {
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return "image/avif";
   }
 #endif
@@ -343,7 +343,7 @@ std::unique_ptr<ImageDecoder> ImageDecoder::CreateByMimeType(
     decoder = std::make_unique<BMPImageDecoder>(alpha_option, color_behavior,
                                                 max_decoded_bytes);
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (mime_type == "image/avif") {
     decoder = std::make_unique<AVIFImageDecoder>(
         alpha_option, high_bit_depth_decoding_option, color_behavior, aux_image,

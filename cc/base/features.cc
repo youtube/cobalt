@@ -282,6 +282,6 @@ BASE_FEATURE(kCobaltMainFrameBeforeActivation,
              "CobaltMainFrameBeforeActivation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features

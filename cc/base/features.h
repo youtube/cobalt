@@ -321,7 +321,7 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(
 // frame production with pending tree rasterization and activation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 

@@ -444,7 +444,7 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
             ExecutionContext::From(script_state))) {
       exception_state.ThrowTypeError("Local Fonts Access API is not enabled.");
       return nullptr;
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     case V8PermissionName::Enum::kStorageAccess:

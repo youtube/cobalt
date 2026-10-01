@@ -2541,7 +2541,7 @@ void NavigationRequest::BeginNavigation() {
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   BeginNavigationImpl();
 }
 

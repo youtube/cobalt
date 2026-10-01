@@ -28,7 +28,7 @@ std::string GetOptionalImageCodecs() {
 #if BUILDFLAG(ENABLE_AV1_DECODER)
 =======
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   result.append("image/avif,");
 #endif
   return result;

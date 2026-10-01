@@ -167,7 +167,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 #endif
 
   void SetMute(JNIEnv* env, jboolean muted);
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Called by the Java `AudioManagerAndroid` when the Bluetooth SCO state
   // changes. Note that this is called on the main thread.
