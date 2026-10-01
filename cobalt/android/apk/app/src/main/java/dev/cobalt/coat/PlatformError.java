@@ -132,7 +132,9 @@ public class PlatformError
     StartupGuard.getInstance().disarm();
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
 
-    // When the user presses the back button, suspend the app without dismissing the dialog
+    // When the user presses the back button, suspend the app without dismissing the dialog.
+    // With predictive back (API 33+), KEYCODE_BACK doesn't reach this listener; it is handled by
+    // ErrorDialog.cancel() instead.
     mDialog.setOnKeyListener(
         (dialog, keyCode, event) -> {
           if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
