@@ -37,6 +37,7 @@
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
@@ -71,7 +72,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -250,17 +250,13 @@ void RecordPriorSessionExitReasons() {
       base::android::SDK_VERSION_R) {
     return;
   }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
+  int exit_reason = 0;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()
+          ->RecordLatestExitReasonAndGetSummary(
+              "Cobalt.Stability.Android.SystemExitReason", &exit_reason);
+  if (summary.has_value()) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
   }
 }
 #endif

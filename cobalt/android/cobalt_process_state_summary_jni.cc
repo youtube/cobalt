@@ -100,5 +100,13 @@ std::optional<std::vector<uint8_t>> RecordLatestExitReasonAndGetSummary(
   return result;
 }
 
+int RecordLatestExitReasonToUma(const std::string& uma_name) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jstring> j_uma_name =
+      base::android::ConvertUTF8ToJavaString(env, uma_name);
+  return Java_CobaltProcessStateSummary_recordLatestExitReasonToUma(env,
+                                                                    j_uma_name);
+}
+
 }  // namespace android
 }  // namespace cobalt

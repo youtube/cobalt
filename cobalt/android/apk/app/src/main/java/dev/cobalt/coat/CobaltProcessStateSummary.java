@@ -277,6 +277,7 @@ public final class CobaltProcessStateSummary {
    * @return The converted ExitReason enum value recorded, or -1 if no foreground exit reason was
    *     recorded.
    */
+  @CalledByNative
   public static int recordLatestExitReasonToUma(String umaName) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return -1;
     try {
