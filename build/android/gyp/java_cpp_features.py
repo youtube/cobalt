@@ -18,11 +18,10 @@ import zip_helpers
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
   # or 'BASE_FEATURE(kConstantName, ...);'
-  # or any of the above with STARBOARD_FEATURE in place of BASE_FEATURE
   # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
   #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
-  _FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(\s*(k\w+),')
+  _FEATURE_RE = re.compile(r'BASE_FEATURE\(\s*(k\w+),')
   _STRING_LITERAL_RE = re.compile(r'"(?:\\"|[^"])*"')
   _constant_name = None  # The name of the current macro.
   _comma_count = 0  # Number of commas seen in the current macro.
