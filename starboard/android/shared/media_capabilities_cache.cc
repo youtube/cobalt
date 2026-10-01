@@ -267,17 +267,20 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
   if (fps != 0 && !supported_frame_rates_.Contains(fps)) {
     return false;
   }
-  if (!size.IsEmpty() && !j_video_capabilities_.is_null()) {
-    JNIEnv* env = AttachCurrentThread();
-    if (fps != 0) {
-      return Java_MediaCodecUtil_areSizeAndRateSupported(
-          env, j_video_capabilities_, size.width, size.height,
-          static_cast<jdouble>(fps));
-    }
-    return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
-                                               size.width, size.height);
+  if (size.IsEmpty() || j_video_capabilities_.is_null()) {
+    return true;
   }
-  return true;
+
+  JNIEnv* env = AttachCurrentThread();
+
+  if (fps != 0) {
+    return Java_MediaCodecUtil_areSizeAndRateSupported(
+        env, j_video_capabilities_, size.width, size.height,
+        static_cast<jdouble>(fps));
+  }
+
+  return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
+                                             size.width, size.height);
 }
 
 // static
