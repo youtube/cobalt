@@ -1196,10 +1196,6 @@ void GpuServiceImpl::OnForegrounded() {
 }
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
-<<<<<<< HEAD
-  if (priority_changed_callback_) {
-    priority_changed_callback_.Run(base::Process::Priority::kUserBlocking);
-=======
 #if BUILDFLAG(IS_COBALT)
   // Re-initialize the EGL display and default offscreen surface before servicing
   // any channel establishment requests. On background cleanup, the display is
@@ -1248,9 +1244,8 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   }
 #endif
 
-  if (visibility_changed_callback_) {
-    visibility_changed_callback_.Run(true);
->>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (priority_changed_callback_) {
+    priority_changed_callback_.Run(base::Process::Priority::kUserBlocking);
     if (gpu_preferences_.enable_gpu_benchmarking_extension) {
       ++gpu_info_.visibility_callback_call_count;
       UpdateGPUInfoGL();
