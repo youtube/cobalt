@@ -46,23 +46,23 @@ namespace {
 
 TEST(PosixSymlinkTest, SuccessfulCreation) {
   ScopedRandomFile target_file;
-  const char* link_path = "success_link.tmp";
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  std::string link_path = temp_dir.path() + "/success_link";
 
   // Create the symbolic link.
-  EXPECT_EQ(symlink(target_file.filename().c_str(), link_path), 0);
+  EXPECT_EQ(symlink(target_file.filename().c_str(), link_path.c_str()), 0);
 
   // Verify that the link was created and points to the correct target.
   struct stat sb;
-  EXPECT_EQ(lstat(link_path, &sb), 0);
+  EXPECT_EQ(lstat(link_path.c_str(), &sb), 0);
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
 
   char read_buf[1024];
-  ssize_t len = readlink(link_path, read_buf, sizeof(read_buf) - 1);
+  ssize_t len = readlink(link_path.c_str(), read_buf, sizeof(read_buf) - 1);
   ASSERT_GT(len, 0);
   read_buf[len] = '\0';
   EXPECT_STREQ(target_file.filename().c_str(), read_buf);
-
-  unlink(link_path);
 }
 
 TEST(PosixSymlinkTest, FailsIfNewPathExists) {
@@ -75,18 +75,18 @@ TEST(PosixSymlinkTest, FailsIfNewPathExists) {
 }
 
 TEST(PosixSymlinkTest, CanCreateDanglingLink) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
   const char* non_existent_target = "this_file_does_not_exist";
-  const char* link_path = "dangling_link.tmp";
+  std::string link_path = temp_dir.path() + "/dangling_link";
 
   // It is valid to create a symbolic link to a target that does not exist.
-  EXPECT_EQ(symlink(non_existent_target, link_path), 0);
+  EXPECT_EQ(symlink(non_existent_target, link_path.c_str()), 0);
 
   // Verify that the dangling link was created.
   struct stat sb;
-  EXPECT_EQ(lstat(link_path, &sb), 0);
+  EXPECT_EQ(lstat(link_path.c_str(), &sb), 0);
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
-
-  unlink(link_path);
 }
 
 TEST(PosixSymlinkTest, FailsWithEmptyOldPath) {
