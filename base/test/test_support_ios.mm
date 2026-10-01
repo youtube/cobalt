@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "base/test/test_support_ios.h"
 
 #import <UIKit/UIKit.h>
@@ -15,8 +20,23 @@
 #include "base/test/test_suite.h"
 #include "base/test/test_switches.h"
 #include "build/blink_buildflags.h"
+#include "build/build_config.h"
 #include "build/ios_buildflags.h"
 #include "testing/coverage_util_ios.h"
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
+#include "base/logging.h"
+#include "base/no_destructor.h"
+#include "base/path_service.h"
+#include "base/strings/strcat.h"
+#include "base/test/launcher/test_launcher.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
 
 // Springboard will kill any iOS app that fails to check in after launch within
 // a given time. Starting a UIApplication before invoking TestSuite::Run
@@ -279,6 +299,29 @@ void InitIOSRunHook(RunTestSuiteCallback callback) {
 }
 
 void InitIOSArgs(int argc, char* argv[]) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
+  // TODO(b/567997722): Revisit moving relative --gtest_output fallback into
+  // TestLauncher / TestResultsTracker::Init.
+  static base::NoDestructor<std::vector<std::string>> rewritten_args;
+  FilePath cache_dir;
+  if (PathService::Get(DIR_CACHE, &cache_dir)) {
+    const std::string prefix = StrCat({"--", kGTestOutputFlag, "=xml:"});
+    for (int i = 0; i < argc; ++i) {
+      std::string_view arg(argv[i]);
+      if (arg.starts_with(prefix)) {
+        std::string_view file_path = arg.substr(prefix.size());
+        if (!file_path.empty() && file_path[0] != '/') {
+          FilePath new_path = cache_dir.Append(file_path);
+          LOG(WARNING) << "Redirecting relative --" << kGTestOutputFlag
+                       << " path '" << file_path << "' to writable cache dir: "
+                       << new_path.value();
+          rewritten_args->push_back(StrCat({prefix, new_path.value()}));
+          argv[i] = rewritten_args->back().data();
+        }
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   g_argc = argc;
   g_argv = argv;
 }
