@@ -48,7 +48,11 @@ runs:
         MERGED_DIR="${GITHUB_WORKSPACE}/${INPUT_PATH}"
 
         # Clean up any stale mount on this specific destination
-        fusermount3 -u "${MERGED_DIR}" 2>/dev/null || fusermount -u "${MERGED_DIR}" 2>/dev/null || umount "${MERGED_DIR}" 2>/dev/null || true
+        fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
+
+        # Clean up any stale workspaces from previous runs to prevent disk space exhaustion
+        rm -rf /runner-cache/workspaces/*
+
         mkdir -p "${UPPER_DIR}" "${WORK_DIR}" "${MERGED_DIR}"
 
         echo "Mounting OverlayFS (${LOWER_DIR}) to ${MERGED_DIR}..."

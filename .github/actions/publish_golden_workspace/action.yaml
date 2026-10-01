@@ -65,10 +65,20 @@ runs:
         fi
 
         echo "Publishing golden workspace stream directly to ${PLATFORM_ARCHIVE}..."
+        set +e
         tar --exclude='.runner_cache_ready' --exclude='./.runner_cache_ready' \
             --warning=no-file-changed \
             --use-compress-program="zstd -T0 -3" -cf - -C "${TARGET_DIR}" . \
           | gcloud storage cp - "${PLATFORM_ARCHIVE}"
+        pipestatus=("${PIPESTATUS[@]}")
+        set -e
+
+        for code in "${pipestatus[@]}"; do
+          if [ "${code}" -ne 0 ] && [ "${code}" -ne 1 ]; then
+            echo "Publishing failed with exit code ${code}."
+            exit "${code}"
+          fi
+        done
 
         if [ "${PLATFORM}" = "linux" ] || [ "${PLATFORM}" = "chromium_linux" ]; then
           echo "Updating canonical fallback snapshot at ${LATEST_ARCHIVE}..."
