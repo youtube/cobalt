@@ -77,24 +77,13 @@ uint64_t GetShellManagerGeneration() {
   return g_global_state.Get().generation;
 }
 
-<<<<<<< HEAD
 static void JNI_ShellManager_Init(JNIEnv* env, const JavaRef<jobject>& obj) {
-  g_global_state.Get().j_shell_manager.Reset(obj);
-}
-
-void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaRef<jstring>& jurl,
-                                  const JavaRef<jstring>& jdeeplink_url) {
-=======
-static void JNI_ShellManager_Init(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj) {
   auto& state = g_global_state.Get();
   ++state.generation;
   state.j_shell_manager.Reset(obj);
 }
 
-static void JNI_ShellManager_Destroy(JNIEnv* env,
-                                     const JavaParamRef<jobject>& obj) {
+static void JNI_ShellManager_Destroy(JNIEnv* env, const JavaRef<jobject>& obj) {
   auto& j_shell_manager = g_global_state.Get().j_shell_manager;
   if (!j_shell_manager.is_null() &&
       env->IsSameObject(j_shell_manager.obj(), obj.obj())) {
@@ -104,15 +93,14 @@ static void JNI_ShellManager_Destroy(JNIEnv* env,
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj,
-                                  const JavaParamRef<jstring>& jurl,
-                                  const JavaParamRef<jstring>& jdeeplink_url) {
+                                  const JavaRef<jobject>& obj,
+                                  const JavaRef<jstring>& jurl,
+                                  const JavaRef<jstring>& jdeeplink_url) {
   auto& state = g_global_state.Get();
   if (state.j_shell_manager.is_null() ||
       !env->IsSameObject(state.j_shell_manager.obj(), obj.obj())) {
     return;
   }
->>>>>>> 93606cbbb11 (android: Fix Cobalt APK memory and binder leaks (#11455))
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   std::string deeplink_url =
       base::android::ConvertJavaStringToUTF8(env, jdeeplink_url);

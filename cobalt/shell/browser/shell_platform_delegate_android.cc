@@ -18,11 +18,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
-<<<<<<< HEAD
-=======
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
->>>>>>> 93606cbbb11 (android: Fix Cobalt APK memory and binder leaks (#11455))
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/Shell_jni.h"
