@@ -571,10 +571,20 @@ jobs:
             rm -rf "${STAGING_DIR}"
           fi
       - name: Apply Golden Workspace
+        id: overlay_workspace
         if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' && !contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
+
+      - name: Runner Cache Hot
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
         uses: ./.github/actions/checkout
@@ -1012,10 +1022,20 @@ jobs:
             rm -rf "${STAGING_DIR}"
           fi
       - name: Apply Golden Workspace
+        id: overlay_workspace
         if: ${{ env.USE_GOLDEN_WORKSPACE == 'true' }}
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
+
+      - name: Runner Cache Hot
+        if: steps.overlay_workspace.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: steps.overlay_workspace.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
         uses: ./.github/actions/checkout
