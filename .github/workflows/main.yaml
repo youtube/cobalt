@@ -807,7 +807,6 @@ jobs:
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_finch_tests
-    continue-on-error: true # <-- Prevents this job from halting downstream jobs if it fails
     permissions: {}
     strategy:
       fail-fast: false
@@ -1111,6 +1110,7 @@ jobs:
       - web-tests
       - e2e-test
       - yts-test
+      - yts-finch-test
       - browser-test-on-host
     if: always() && needs.initialize.result == 'success'
     permissions: {}
