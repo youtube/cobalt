@@ -78,7 +78,7 @@ component("image_decoders") {
     "//ui/gfx/geometry:geometry_skia",
   ]
 
-  if (enable_dav1d_decoder) {
+  if (enable_av1_decoder) {
     sources += [
       "avif/avif_image_decoder.cc",
       "avif/avif_image_decoder.h",
@@ -127,8 +127,6 @@ source_set("unit_tests") {
 
   if (is_win || is_mac || (is_linux && !is_castos)) {
     deps += [ "//ui/base:pixel_diff_test_support" ]
-  }
-
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

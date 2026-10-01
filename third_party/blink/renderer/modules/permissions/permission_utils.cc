@@ -338,6 +338,34 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
           !clipboard_permission->allowWithoutSanitization());
     }
 
+    case V8PermissionName::Enum::kClipboardWrite: {
+      ClipboardPermissionDescriptor* clipboard_permission =
+          NativeValueTraits<ClipboardPermissionDescriptor>::NativeValue(
+              script_state->GetIsolate(), raw_descriptor.V8Value(),
+              exception_state);
+      return CreateClipboardPermissionDescriptor(
+          PermissionName::CLIPBOARD_WRITE,
+          /*has_user_gesture=*/!clipboard_permission->allowWithoutGesture(),
+          /*will_be_sanitized=*/
+          !clipboard_permission->allowWithoutSanitization());
+    }
+
+    case V8PermissionName::Enum::kPaymentHandler:
+      return CreatePermissionDescriptor(PermissionName::PAYMENT_HANDLER);
+
+    case V8PermissionName::Enum::kIdleDetection:
+      return CreatePermissionDescriptor(PermissionName::IDLE_DETECTION);
+
+    case V8PermissionName::Enum::kPeriodicBackgroundSync:
+      return CreatePermissionDescriptor(PermissionName::PERIODIC_BACKGROUND_SYNC);
+
+    case V8PermissionName::Enum::kSystemWakeLock: {
+      if (!RuntimeEnabledFeatures::SystemWakeLockEnabled(
+              ExecutionContext::From(script_state))) {
+        exception_state.ThrowTypeError("System Wake Lock is not enabled.");
+        return nullptr;
+      }
+      return CreatePermissionDescriptor(PermissionName::SYSTEM_WAKE_LOCK);
     }
 
     case V8PermissionName::Enum::kStorageAccess:
@@ -357,6 +385,7 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
     }
 
     case V8PermissionName::Enum::kTopLevelStorageAccess: {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       TopLevelStorageAccessPermissionDescriptor*
           top_level_storage_access_permission =
               NativeValueTraits<TopLevelStorageAccessPermissionDescriptor>::
@@ -373,6 +402,11 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
       }
 
       return CreateTopLevelStorageAccessPermissionDescriptor(origin_as_kurl);
+#else
+      exception_state.ThrowTypeError(
+          "Top-level storage access permission is not enabled.");
+      return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     }
 
     case V8PermissionName::Enum::kCapturedSurfaceControl: {

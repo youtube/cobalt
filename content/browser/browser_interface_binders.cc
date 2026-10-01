@@ -1038,8 +1038,10 @@ void PopulateBinderMapWithContext(
         &BindWebNNContextProviderForRenderFrame);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebBluetoothService>(
       &WebBluetoothServiceImpl::BindIfAllowed);
+#endif
 
   map->Add<blink::mojom::PushMessaging>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetPushMessaging>);

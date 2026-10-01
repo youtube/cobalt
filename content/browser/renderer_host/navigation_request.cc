@@ -2525,6 +2525,7 @@ void NavigationRequest::BeginNavigation() {
   frame_tree_node_->current_frame_host()
       ->MaybeSendFencedFrameAutomaticReportingBeacon(
           *this, blink::mojom::AutomaticBeaconType::kTopNavigationStart);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   BeginNavigationImpl();
 }
