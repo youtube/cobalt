@@ -29,7 +29,7 @@ source_set("renderer") {
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/cdm/renderer",
-    "//components/js_injection/renderer:renderer",
+    "//components/js_injection/renderer",
     "//components/network_hints/renderer",
     "//components/web_cache/renderer",
     "//content/public/common",
@@ -63,7 +63,9 @@ test("cobalt_renderer_unittests") {
     "//media",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/blink/public:blink_headers",
     "//third_party/blink/renderer/modules/exported:test_support",
+    "//url",
     "//v8",
   ]
 }

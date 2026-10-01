@@ -65,15 +65,16 @@ bool CobaltRenderFrameObserver::AllowRunningInsecureContent(
   // Allow insecure WebSocket connections (ws:) to local/private network
   // endpoints (RFC 1918 / loopback) for testing frameworks such as YTS.
   // See b/377410179, b/545796867.
-  if (gurl.SchemeIs(url::kWsScheme)) {
-    if (net::IsLocalhost(gurl)) {
-      return true;
-    }
-    net::IPAddress ip_address;
-    if (ip_address.AssignFromIPLiteral(gurl.host_piece()) &&
-        !ip_address.IsPubliclyRoutable()) {
-      return true;
-    }
+  if (!gurl.SchemeIs(url::kWsScheme)) {
+    return false;
+  }
+  if (net::IsLocalhost(gurl)) {
+    return true;
+  }
+  net::IPAddress ip_address;
+  if (ip_address.AssignFromIPLiteral(gurl.host_piece()) &&
+      !ip_address.IsPubliclyRoutable()) {
+    return true;
   }
   return false;
 }
