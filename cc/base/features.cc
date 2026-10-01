@@ -273,15 +273,13 @@ BASE_FEATURE(kReportUkm, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
              base::FEATURE_ENABLED_BY_DEFAULT);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltMainFrameBeforeActivation,
              "CobaltMainFrameBeforeActivation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features

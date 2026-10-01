@@ -36,13 +36,8 @@
 
 #include <gtest/gtest.h>
 
-<<<<<<< HEAD
-
 BSSL_NAMESPACE_BEGIN
 namespace {
-
-=======
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 static pid_t WaitpidEINTR(pid_t pid, int *out_status, int options) {
   pid_t ret;
   do {

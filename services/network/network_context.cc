@@ -3003,17 +3003,11 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       *base::CommandLine::ForCurrentProcess(), is_quic_force_disabled,
       &session_params, quic_context->params());
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
   // TODO: b/550183348 - disabled as part of the 140.7298 roll.
   session_params.use_quic_for_unknown_origins = false;
 #endif
 
-  session_params.disable_idle_sockets_close_on_memory_pressure =
-      params_->disable_idle_sockets_close_on_memory_pressure;
-
->>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   session_params.key_auth_cache_server_entries_by_network_anonymization_key =
       params_->split_auth_cache_by_network_anonymization_key;
 

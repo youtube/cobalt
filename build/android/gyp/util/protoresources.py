@@ -23,6 +23,9 @@ sys.path[1:1] = [
                  'python'),
 ]
 
+# Allow legacy generated _pb2.py files to work with protobuf >= 4.x
+os.environ.setdefault('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', 'python')
+
 from proto import Resources_pb2
 
 # First bytes in an .flat.arsc file.
