@@ -43,6 +43,7 @@ env:
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   IS_NON_DRAFT_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
   RUN_ODT_ON_NIGHTLY: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
+  USE_GOLDEN_WORKSPACE: ${{ vars.USE_GOLDEN_WORKSPACE != 'false' }}
   RUN_ODT_ON_PUSH: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
 
 jobs:
