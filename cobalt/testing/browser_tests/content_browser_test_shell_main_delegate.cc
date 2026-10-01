@@ -32,7 +32,15 @@ ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
   // Create a PlatformEventSource instance, as it is checked for by
   // content::responsiveness::NativeEventObserver::RegisterObserver() and
   // nothing in PlatformStarboard code creates one on its own.
-  platform_event_source_ = std::make_unique<ui::PlatformEventSourceStarboard>();
+  //
+  // Note that some tests may subclass this class (e.g. MockContentMainDelegate
+  // in content_browser_test_shell_main_delegate.cc) which can cause this to be
+  // called more than once. Only create an event source if none has been
+  // registered yet.
+  if (!ui::PlatformEventSource::GetInstance()) {
+    platform_event_source_ =
+        std::make_unique<ui::PlatformEventSourceStarboard>();
+  }
 #endif
 }
 
