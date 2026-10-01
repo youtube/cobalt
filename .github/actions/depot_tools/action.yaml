@@ -14,6 +14,12 @@ inputs:
   use_gcloud:
     description: "Whether to run gcloud config set account."
     default: 'false'
+  publish_golden_workspace:
+    description: "Whether or not to publish the golden workspace archive."
+    default: 'false'
+  platform:
+    description: "Target platform for platform-specific golden archive."
+    default: ''
 
 runs:
   using: "composite"
@@ -185,3 +191,11 @@ runs:
       run: |
         gclient runhooks --verbose
       shell: bash
+
+    - name: Publish Golden Workspace
+      if: inputs.publish_golden_workspace == 'true'
+      uses: ./.github/actions/publish_golden_workspace
+      with:
+        platform: ${{ inputs.platform }}
+        workspace_path: cobalt
+        use_gcloud: ${{ inputs.use_gcloud }}
