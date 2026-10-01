@@ -58,10 +58,27 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertIn('--owner=0', tar_cmd)
     self.assertIn('--group=0', tar_cmd)
     self.assertIn('--numeric-owner', tar_cmd)
+    self.assertIn('--warning=no-file-changed', tar_cmd)
 
     # Verify file list content (sorted and newline-separated)
     mock_file1.write.assert_called_with('file1\nfile2')
     mock_file2.write.assert_called_with('file3')
+
+  @mock.patch('tempfile.NamedTemporaryFile')
+  @mock.patch('subprocess.check_call')
+  def test_make_tar_exit_code_1_handled(self, mock_call, mock_temp):
+    archive_path = os.path.join(self.dest_dir, 'test.tar.gz')
+    file_lists = [(['file1'], self.source_dir)]
+    mock_file = mock.MagicMock()
+    mock_file.name = '/tmp/fake_list1'
+    mock_temp.return_value = mock_file
+    import subprocess
+    mock_call.side_effect = subprocess.CalledProcessError(1, ['tar'])
+
+    with mock.patch('os.path.getsize', return_value=1024):
+      # Should not raise exception when tar exits with code 1
+      # pylint: disable=protected-access
+      archive_test_artifacts._make_tar(archive_path, 'gz', 1, file_lists)
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_linux_style(self, mock_make_tar):

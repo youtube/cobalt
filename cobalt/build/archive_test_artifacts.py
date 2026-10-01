@@ -95,8 +95,8 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
   else:
     raise ValueError(f'Unsupported compression: {compression}')
   tar_cmd = [
-      'tar', '--owner=0', '--group=0', '--numeric-owner', '-I',
-      compression_flag, '-cvf', archive_path
+      'tar', '--owner=0', '--group=0', '--numeric-owner',
+      '--warning=no-file-changed', '-I', compression_flag, '-cvf', archive_path
   ]
   tmp_files = []
   for file_list, base_dir in file_lists:
@@ -114,7 +114,15 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     tar_cmd += ['-C', os.path.abspath(base_dir), '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
-  subprocess.check_call(tar_cmd)
+  try:
+    subprocess.check_call(tar_cmd)
+  except subprocess.CalledProcessError as e:
+    # Tar exit code 1 indicates non-fatal warnings (e.g. file changed as we read it
+    # due to OverlayFS/filesystem activity). Exit code >= 2 indicates fatal errors.
+    if e.returncode == 1:
+      print(f'Warning: tar exited with code 1: {e}')
+    else:
+      raise
 
   archive_size = f'{os.path.getsize(archive_path) / 1024 / 1024:.2f} MB'
   print(f'Created {os.path.basename(archive_path)} ({archive_size})')
