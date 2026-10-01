@@ -64,13 +64,8 @@ runs:
         LATEST_ARCHIVE="${ARCHIVE_DIR}/golden-workspace-latest.tar.zst"
         STAGING_ARCHIVE="${ARCHIVE_DIR}/${PLATFORM}/golden-workspace-staging-${GITHUB_RUN_ID:-$$}.tar.zst"
 
-        echo "Updating golden revision and combined DEPS+.gclient hash metadata in ${TARGET_DIR}..."
+        echo "Updating golden revision metadata in ${TARGET_DIR}..."
         git -C "${TARGET_DIR}/src" rev-parse HEAD > "${TARGET_DIR}/.golden_revision" 2>/dev/null || true
-        if [ -f "${TARGET_DIR}/src/DEPS" ] && [ -f "${TARGET_DIR}/.gclient" ]; then
-          cat "${TARGET_DIR}/src/DEPS" "${TARGET_DIR}/.gclient" | sha256sum | awk '{print $1}' > "${TARGET_DIR}/.deps_sha256"
-        elif [ -f "${TARGET_DIR}/src/DEPS" ]; then
-          sha256sum "${TARGET_DIR}/src/DEPS" | awk '{print $1}' > "${TARGET_DIR}/.deps_sha256"
-        fi
 
         echo "Packaging and uploading golden workspace stream to ${STAGING_ARCHIVE}..."
         if tar --exclude='.runner_cache_ready' --exclude='./.runner_cache_ready' \

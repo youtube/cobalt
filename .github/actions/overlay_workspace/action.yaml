@@ -67,4 +67,5 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
         echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
+        echo "OVERLAY_LOWER_DIR=${LOWER_DIR}" >> "${GITHUB_ENV}"
         echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
