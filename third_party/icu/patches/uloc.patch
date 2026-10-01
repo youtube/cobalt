@@ -1,0 +1,50 @@
+diff --git a/source/common/uloc.cpp b/source/common/uloc.cpp
+index bea4827a0..877874142 100644
+--- a/source/common/uloc.cpp
++++ b/source/common/uloc.cpp
+@@ -627,7 +627,7 @@ ulocimp_getKeywords(std::string_view localeID,
+         do {
+             bool duplicate = false;
+             /* skip leading spaces */
+-            while (localeID.front() == ' ') {
++            while (!localeID.empty() && localeID.front() == ' ') {
+                 localeID.remove_prefix(1);
+             }
+             if (localeID.empty()) { /* handle trailing "; " */
+diff --git a/source/test/intltest/loctest.cpp b/source/test/intltest/loctest.cpp
+index 18887ed4f..44bedd4f8 100644
+--- a/source/test/intltest/loctest.cpp
++++ b/source/test/intltest/loctest.cpp
+@@ -265,6 +265,7 @@ void LocaleTest::runIndexedTest( int32_t index, UBool exec, const char* &name, c
+     TESTCASE_AUTO(TestBug13554);
+     TESTCASE_AUTO(TestBug20410);
+     TESTCASE_AUTO(TestBug20900);
++    TESTCASE_AUTO(TestChromiumBug451657601);
+     TESTCASE_AUTO(TestLocaleCanonicalizationFromFile);
+     TESTCASE_AUTO(TestKnownCanonicalizedListCorrect);
+     TESTCASE_AUTO(TestConstructorAcceptsBCP47);
+@@ -5818,6 +5819,12 @@ void LocaleTest::TestBug20900() {
+     }
+ }
+ 
++void LocaleTest::TestChromiumBug451657601() {
++    // This used to cause a crash in _LIBCPP_HARDENING_MODE.
++    Locale l = Locale("@x=@; ");
++    assertEquals("canonicalized", "@x=@", l.getName());
++}
++
+ U_DEFINE_LOCAL_OPEN_POINTER(LocalStdioFilePointer, FILE, fclose);
+ void LocaleTest::TestLocaleCanonicalizationFromFile()
+ {
+diff --git a/source/test/intltest/loctest.h b/source/test/intltest/loctest.h
+index b3410242e..ce6c78d05 100644
+--- a/source/test/intltest/loctest.h
++++ b/source/test/intltest/loctest.h
+@@ -125,6 +125,7 @@ public:
+     void TestBug13554();
+     void TestBug20410();
+     void TestBug20900();
++    void TestChromiumBug451657601();
+     void TestLocaleCanonicalizationFromFile();
+     void TestKnownCanonicalizedListCorrect();
+     void TestConstructorAcceptsBCP47();

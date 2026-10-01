@@ -1,0 +1,111 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+@import "theme";
+
+:root {
+  // Legacy variables - to be removed
+  --sidebar-width: 230px;
+  --topbar-height: 44px;
+  --track-shell-width: 250px;
+  --anim-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --details-content-height: 308px;
+
+  // Fonts
+  --pf-font: "Roboto", sans-serif;
+  --pf-font-compact: "Roboto Condensed", sans-serif;
+  --pf-font-monospace: "Roboto Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px;
+  font-family: var(--pf-font);
+  height: 100%;
+  width: 100%;
+  touch-action: pan-x pan-y;
+}
+
+@media (pointer: coarse) {
+  // Disable long-press text selection on tablets. That collides with the mouse
+  // emulation we do where long press emulates a mousedown+move+up (to
+  // distinguish it from pans).
+  html {
+    // required for iOS which doesn't support unprefixed user-select.
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+html,
+body,
+body > main {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  overscroll-behavior: none;
+  overflow: hidden;
+}
+
+pre,
+code {
+  font-family: var(--pf-font-monospace);
+}
+
+h1,
+h2,
+h3 {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+table {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+body.filedrag::after {
+  content: "Drop the trace file to open it";
+  position: fixed;
+  z-index: 99;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 10px dashed #404854;
+  text-align: center;
+  font-size: 3rem;
+  line-height: 100vh;
+  color: #333;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+button {
+  background: none;
+  color: inherit;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  outline: inherit;
+}
