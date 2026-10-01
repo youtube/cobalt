@@ -26,6 +26,7 @@ runs:
         REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
         FETCH_DEPTH: ${{ inputs.fetch_depth }}
+        USE_CACHE: ${{ inputs.use_cache }}
       shell: bash
       run: |
         set -ex
@@ -35,10 +36,30 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
+        ref_args=()
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          MIRROR_HASH=$(echo -n "${REPO_URL}" | sha256sum | cut -c1-16)
+          MIRROR="/runner-cache/git-cache/checkout/${MIRROR_HASH}.git"
+          mkdir -p "$(dirname "${MIRROR}")"
+          if (
+            flock -w 60 9
+            if [ ! -f "${MIRROR}/config" ]; then
+              git clone --mirror --no-tags "${REPO_URL}" "${MIRROR}" || rm -rf "${MIRROR}"
+            else
+              git -C "${MIRROR}" fetch --prune origin 2>/dev/null || rm -rf "${MIRROR}"
+            fi
+          ) 9>"${MIRROR}.lock" 2>/dev/null; then
+            if [ -d "${MIRROR}" ]; then
+              ref_args=(--reference-if-able "${MIRROR}")
+            fi
+          fi
+        fi
+
         if [ ! -d "${DEST_PATH}/.git" ]; then
           for attempt in 1 2 3; do
             if git clone \
               --filter=blob:none \
+              "${ref_args[@]}" \
               "${depth_arg[@]}" \
               "${REPO_URL}" \
               "${DEST_PATH}"; then
@@ -60,9 +81,18 @@ runs:
 
         git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
 
-        if [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]] && git -C "${DEST_PATH}" cat-file -e "${REF}^{commit}" 2>/dev/null; then
+        is_shallow=$(git -C "${DEST_PATH}" rev-parse --is-shallow-repository 2>/dev/null || echo "false")
+        if [ "${FETCH_DEPTH}" -eq 0 ] && [ "${is_shallow}" = "true" ]; then
+          depth_arg=(--unshallow)
+          need_fetch=true
+        elif [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]] && git -C "${DEST_PATH}" cat-file -e "${REF}^{commit}" 2>/dev/null; then
           echo "Commit ${REF} already exists in ${DEST_PATH}. Skipping fetch."
+          need_fetch=false
         else
+          need_fetch=true
+        fi
+
+        if [ "${need_fetch}" = "true" ]; then
           for attempt in 1 2 3; do
             if git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"; then
               break
@@ -73,4 +103,5 @@ runs:
             sleep $((attempt * 2))
           done
         fi
-        git -C "${DEST_PATH}" checkout "${REF}"
+        # Force checkout to resolve any mtime or index skew from cache extraction
+        git -C "${DEST_PATH}" checkout -f "${REF}"
