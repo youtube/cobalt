@@ -1,13 +1,130 @@
 # Cobalt Rebase Patterns
 
-### Handling Cobalt-Specific Version Macros
+### Privacy Sandbox Pruning & Lifecycle Policy (`b/505811196`)
 
-A common pattern in the Cobalt codebase is the use of preprocessor macros to conditionally compile code based on the Chromium milestone version. These macros follow the format `CHROMIUM_MILESTONE_LE_XXX`, where `XXX` is a Chromium version number (e.g., `CHROMIUM_MILESTONE_LE_138`).
+Cobalt is a single-domain application that does **not** use Chromium's Privacy Sandbox features. In `cobalt/build/configs/cobalt.gni`, `enable_privacy_sandbox_apis = !is_cobalt` (`false` on Cobalt), which sets `BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` to `0` and strips the following subsystems to save ~1.9MB+ of binary size:
+- **Shared Storage** (`content/browser/shared_storage/*`, `third_party/blink/renderer/modules/shared_storage/*`, `SharedStorageWorkletHost`)
+- **Ad Auction / Protected Audience / Interest Group** (`content/browser/interest_group/*`, `third_party/blink/renderer/modules/ad_auction/*`)
+- **Attribution Reporting / Private Aggregation / Aggregation Service** (`content/browser/attribution_reporting/*`, `content/browser/private_aggregation/*`, `content/browser/aggregation_service/*`)
+- **Browsing Topics** (`content/browser/browsing_topics/*`, `components/browsing_topics/*`)
+- **Fenced Frames** (`content/browser/fenced_frame/*`, `fenced_frame_viewport_observer`)
+- **Private State Tokens / Trust Tokens** (`services/network/trust_tokens/*`)
+- **IP Protection / Masked Domain List / Probabilistic Reveal Tokens** (`components/ip_protection/*`)
+- **FedCM / WebID & Credential Management** (`content/browser/webid/*`, `third_party/blink/renderer/modules/credentialmanagement/*`, `protocol::FedCmHandler`)
+- **Storage Access API** (`third_party/blink/renderer/modules/storage_access/*`)
 
-When performing a rebase to a new Chromium version `YYY`, you must:
-1.  Globally search the codebase for the pattern `CHROMIUM_MILESTONE_LE_`.
-2.  For any macros referencing the *previous* version, update them to the *new* version number. For example, when rebasing from 138 to 140, all instances of `CHROMIUM_MILESTONE_LE_138` should be updated to `CHROMIUM_MILESTONE_LE_140` (or a higher version like 150 if the feature lifetime has been extended, as seen in PR #12161).
-3.  This is a critical step for managing API churn and feature flags between versions. Failure to update these macros will result in using stale code paths.
+The **core goal** for Privacy Sandbox during any rebase is to **keep Privacy Sandbox code stripped from Cobalt** and **delete Cobalt's temporary `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` blocks as soon as upstream Chromium itself deletes those features**.
+
+#### 1. Scenario A — Upstream Chromium Deletes a Privacy Sandbox Feature: DELETE the Guarded Block Completely!
+Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often combined with `&& CHROMIUM_MILESTONE_LE_138` or `&& CHROMIUM_MILESTONE_LE_150`) and `if (enable_privacy_sandbox_apis)` blocks exist **only** to strip Privacy Sandbox code before upstream deletes it (as documented in `BUILD.gn`: `# If in the future privacy sandbox components are removed from the code base, ignore this if block`).
+- When upstream Chromium deletes a Privacy Sandbox member, method, `#include`, or GN `deps` entry (`<<<< HEAD` removes it), **ACCEPT the upstream deletion completely** and delete Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` block too!
+- **NEVER** resurrect upstream-deleted Privacy Sandbox code inside a Cobalt `#if` block.
+
+**Real Example 1 — Upstream Deleting IP Protection in C++ (`services/network/network_context.h` & `network_service.cc`, Igalia M144 `#12760` / `#12818`)**:
+```cpp
+// [BAD] Resurrecting upstream-deleted IP Protection members/includes inside Cobalt's #if block:
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "components/ip_protection/common/ip_protection_core.h"  // nogncheck
+#endif
+...
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  ip_protection::IpProtectionCore* ip_protection_core() {
+    return ip_protection_core_.get();
+  }
+  std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
+#endif
+
+// [GOOD] Upstream deleted ip_protection_core_, masked_domain_list_manager_, and
+// probabilistic_reveal_token_registry_ in M144. Delete the entire #if block completely!
+```
+
+**Real Example 2 — Upstream Deleting IP Protection Deps in GN (`services/network/BUILD.gn`, Igalia M144/M145 `#12871`)**:
+```gn
+# [BAD] Keeping removed //components/ip_protection/common:* targets in BUILD.gn:
+  if (enable_privacy_sandbox_apis) {
+    deps += [
+      "//components/ip_protection/common:ip_protection_core_host_remote",
+      "//components/ip_protection/common:ip_protection_core_impl",
+      ...
+      "//services/network/trust_tokens",
+    ]
+  }
+
+# [GOOD] Removing the deleted ip_protection targets and keeping only what still exists upstream:
+  if (enable_privacy_sandbox_apis) {
+    deps += [ "//services/network/trust_tokens" ]
+  }
+```
+
+#### 2. Scenario B — Upstream Chromium Adds New References to a Stripped Privacy Sandbox Subsystem: Gate the Caller!
+When upstream adds a new function, Mojo binder, DevTools handler, or call site referencing a stripped Privacy Sandbox class, **NEVER re-add excluded Privacy Sandbox `.cc` files or `deps` to `BUILD.gn`**. Instead, gate the caller under `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)`:
+
+- **Pattern B1 — Function Signature Uses a Stripped Class (`content/browser/network/reporting_service_proxy.{h,cc}`, Igalia M144 `#12818`)**:
+  ```cpp
+  // [GOOD] Gate both the header declaration and .cc implementation when a parameter
+  // type (SharedStorageWorkletHost) belongs to a stripped Privacy Sandbox subsystem:
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  void CreateReportingServiceProxyForSharedStorageWorklet(
+      SharedStorageWorkletHost* shared_storage_worklet_host,
+      mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
+  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  ```
+
+- **Pattern B2 — `void` Hook or Pointer-Returning Getter (`content/browser/devtools/devtools_instrumentation.cc` & `browser_context.cc`, PR `#11535`)**:
+  ```cpp
+  // [GOOD] Guard the header include (with // nogncheck if needed) and function body:
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  #include "content/browser/devtools/protocol/fedcm_handler.h"  // nogncheck
+  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+
+  void WillSendFedCmRequest(RenderFrameHost& render_frame_host,
+                            bool* intercept,
+                            bool* disable_delay) {
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+    FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
+    if (!ftn) {
+      return;
+    }
+    DispatchToAgents(ftn, &protocol::FedCmHandler::WillSendRequest, intercept,
+                     disable_delay);
+  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  }
+
+  FederatedIdentityPermissionContextDelegate*
+  BrowserContext::GetFederatedIdentityPermissionContext() {
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+    return impl()->GetFederatedPermissionContext();
+  #else
+    return nullptr;
+  #endif
+  }
+  ```
+
+- **Pattern B3 — Async Mojo Method Taking a Callback (`services/network/network_context.cc`, PR `#11509`)**:
+  ```cpp
+  // [GOOD] Always run the Mojo callback with an empty/disabled result in the #else branch
+  // so callers do not hang waiting for a dropped Mojo callback:
+  void NetworkContext::ClearTrustTokenData(mojom::ClearDataFilterPtr filter,
+                                           base::OnceClosure done) {
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+    if (!trust_token_store_) {
+      std::move(done).Run();
+      return;
+    }
+    ...
+  #else
+    std::move(done).Run();
+  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  }
+  ```
+
+- **Pattern B4 — New Blink IDL Bindings for a Stripped Privacy Sandbox Module (`third_party/blink/renderer/bindings/bindings.gni`, PR `#11535` & Igalia M141)**:
+  - Never edit generated V8 binding files under `out/*/gen/`. Add the wildcard pattern (e.g., `"*fed_cm*"`) to `cobalt_bindings_exclude_patterns` under `if (!enable_privacy_sandbox_apis)` in `third_party/blink/renderer/bindings/bindings.gni`.
+
+#### 3. Scenario C — Upstream Refactors Code *Inside* an Active `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` Block
+When upstream keeps a Privacy Sandbox feature but renames a class, moves a header, or updates a call signature inside a block Cobalt gated with `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)`:
+- Keep the `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` guard, and **update the code inside the guard to match the new upstream Chromium code** (for example, updating `#include "content/browser/webid/federated_auth_request_impl.h"` and `FederatedAuthRequestImpl::Create(...)` to `#include "content/browser/webid/request_service.h"` and `webid::RequestService::Create(...)`).
+- Consolidate adjacent `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` functions or `#include` lines into a single `#if ... #endif` block rather than splitting every line into separate `#if` blocks, and never concatenate `// nogncheck` with the next line's `#include`.
 
 ---
 
@@ -143,21 +260,65 @@ Chromium milestones frequently introduce Java classes annotated with `@NativeMet
    - There is **NO standalone target** named `generate_jni("libchrobalt__jni_registration")` or `action("libchrobalt__jni_registration")` in `cobalt/android/BUILD.gn`.
    - When `jni_zero.py generate-final` runs, it checks whether all Java classes with native methods referenced by `cobalt_apk` have registered native methods. If unlinked classes are found, it asserts unless stub generation is enabled.
 
-3. **Resolution in `cobalt/android/BUILD.gn`**:
-   - In `cobalt/android/BUILD.gn`, locate `shared_library_with_jni("libchrobalt")` (which already defines `remove_uncalled_jni = true`).
-   - Add `add_stubs_for_missing_jni = true` directly inside `shared_library_with_jni("libchrobalt")`:
+3. **Resolution (Default): Link the Real C++ Implementation into `libchrobalt`**:
+   - For each file listed under `Excess Java files`, find the C++ `generate_jni` target and the `source_set` that implements its native methods (`TOOL_GREP: <ClassName>_jni.h`), and add that implementation target to the `libchrobalt` deps in `cobalt/android/BUILD.gn`. Add a comment naming the upstream CL that pulled the Java class in.
+   - If the upstream implementation target drags in heavy deps that Cobalt strips (or creates a dependency cycle), add a minimal Cobalt-only target under `if (is_cobalt)` next to it that contains just the JNI C++ side, and depend on that instead.
+   - Real Example (`cobalt/android/BUILD.gn` and `components/permissions/android/BUILD.gn`, M143.7471, Human #12591):
      ```gn
-     FILE: cobalt/android/BUILD.gn
-     <<<<<<< SEARCH
-     shared_library_with_jni("libchrobalt") {
-       remove_uncalled_jni = true
-     =======
-     shared_library_with_jni("libchrobalt") {
-       remove_uncalled_jni = true
-       add_stubs_for_missing_jni = true
-     >>>>>>> REPLACE
+     # cobalt/android/BUILD.gn -- libchrobalt deps
+     # Added in 143.7471: https://crrev.com/c/6996548 added a dependency on
+     # //components/permissions/android code to //services/device/geolocation.
+     # //media/capture/video/android comes from https://crrev.com/c/7008390.
+     "//components/permissions/android:core",
+     "//components/webxr/android:features",
+     "//media/capture/video/android",
+
+     # components/permissions/android/BUILD.gn -- Cobalt-only minimal target
+     if (is_cobalt) {
+       source_set("core") {
+         sources = [
+           "permissions_android_feature_map.cc",
+           "permissions_android_feature_map.h",
+         ]
+         deps = [
+           ":core_jni",
+           "//base",
+           "//components/content_settings/core/common:features",
+           "//components/permissions:permissions_common",
+           "//media",
+           "//third_party/blink/public/common",
+         ]
+       }
+     }
+
+     # components/permissions/BUILD.gn -- move the files out of the original
+     # target so the symbols are defined exactly once
+     if (is_cobalt && is_android) {
+       sources -= [
+         "android/permissions_android_feature_map.cc",
+         "android/permissions_android_feature_map.h",
+       ]
+       public_deps += [ "//components/permissions/android:core" ]
+     }
      ```
-   - GN template `shared_library_with_jni` forwards `add_stubs_for_missing_jni` to `generate_jni_registration`, which appends `--add-stubs-for-missing-native` to `jni_zero.py generate-final`. This generates native stubs for the missing bindings and cleanly satisfies the assertion without modifying upstream Java or C++ sources.
+   - Why the carve-out is needed: linking the full `//components/permissions` target into `libchrobalt` creates a circular dependency and pulls in code Cobalt strips. The carve-out is a direct consequence of NOT stubbing (item 4): once you choose to link the real JNI implementation, you will often have to split out a minimal target like this.
+   - A carve-out always has two halves. Do both, or you get duplicate symbols (files compiled in two targets) or missing symbols (files removed but no dep added):
+     1. Add the Cobalt-only minimal `source_set` under `if (is_cobalt)` with just the JNI implementation files and their direct deps.
+     2. In the original target, under `if (is_cobalt && is_android)`, `sources -=` those files and `public_deps +=` the new target so existing dependents still get the symbols.
+
+4. **Last Resort Only: `add_stubs_for_missing_jni = true`, Always Flagged**:
+   - `add_stubs_for_missing_jni = true` makes `jni_zero` generate empty native stubs so the assertion passes. The build succeeds, but any Java call into those methods at runtime reaches a stub with no real logic. This is a global bypass that hides missing functionality, so it is NOT an acceptable default (see `gn_healing.md` Rule 6).
+   - Use it only if linking the real implementation is impossible (for example, the implementation depends on code Cobalt fundamentally cannot build). When you do, you MUST add a `[HUMAN_REVIEW_REQUIRED]` flag listing every Java class being stubbed and why the real target could not be linked:
+     ```gn
+     shared_library_with_jni("libchrobalt") {
+       remove_uncalled_jni = true
+       # TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED] Stubbing JNI for
+       # <ClassName>.java because <reason the real target cannot be linked>.
+       # Confirm Cobalt never calls these native methods at runtime.
+       add_stubs_for_missing_jni = true
+     ```
+   - [BAD] (AI #12593, M143.7471): added `add_stubs_for_missing_jni = true` with no flag instead of linking `//components/permissions/android:core`, `//components/webxr/android:features`, and `//media/capture/video/android`.
+
 
 ---
 
@@ -227,3 +388,130 @@ Chromium milestones routinely split one large `mojom()` target into several smal
    - This applies to any Cobalt mojom feature flag, not only `use_starboard_media`.
    - When a roll splits a `mojom()` target, audit **every** Cobalt-specific attribute on the original target and replicate the relevant ones onto the new target: `enabled_features`, `cpp_typemaps`, `traits_headers`, `traits_public_deps`, and any `if (is_cobalt)` block. Losing a `cpp_typemaps` entry produces a different but equally confusing error about a missing or mismatched typemap.
    - Also ensure `import("//starboard/build/buildflags.gni")` is present at the top of the `BUILD.gn` if the new guard references `use_starboard_media`, otherwise GN gen fails with an undefined-identifier error.
+
+---
+
+### Cobalt Stub & Gold-Build File Synchronization (`devtools_instrumentation_stub.cc`, `cobalt_modules_stubs.cc`)
+
+Cobalt maintains lightweight stub implementations for subsystems that are stripped either in `gold` builds (such as DevTools) or across all Cobalt builds (such as unused Blink modules in `third_party/blink/renderer/modules/cobalt_modules_stubs.cc`). Because `gold`-only stubs are not compiled during standard `devel`/`qa` `autoninja` runs, signature mismatches in those stubs will silently break `gold` builds unless synchronized proactively.
+
+1. **`content/browser/devtools/cobalt/devtools_instrumentation_stub.cc`**:
+   - Whenever upstream Chromium changes function or struct method signatures in `content/browser/devtools/devtools_instrumentation.h` or `content/browser/devtools/devtools_instrumentation.cc`, you MUST inspect `content/browser/devtools/cobalt/devtools_instrumentation_stub.cc` and update the corresponding stub signature to match.
+   - **Real Example (`content/browser/devtools/cobalt/devtools_instrumentation_stub.cc`, M145)**:
+     When upstream added `mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>* header_client` to `WillCreateURLLoaderFactoryParams::Run` in `devtools_instrumentation.{h,cc}`, the stub in `devtools_instrumentation_stub.cc` had to be updated identically:
+     ```cpp
+     bool WillCreateURLLoaderFactoryParams::Run(
+         bool is_navigation,
+         bool is_download,
+         network::URLLoaderFactoryBuilder& factory_builder,
+         ukm::SourceIdObj ukm_source_id,
+          scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner,
+         mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+             header_client) {
+       return false;
+     }
+     ```
+
+2. **`third_party/blink/renderer/modules/cobalt_modules_stubs.cc`**:
+   - When upstream Chromium refactors Blink base classes (such as migrating `Supplement<NavigatorBase>` to trace its base class in `Trace(Visitor*)`, or adding `buffers_with_mailbox_` to `GPUDevice::Trace`), ensure stub classes in `cobalt_modules_stubs.cc` are updated to match.
+
+3. **`third_party/blink/renderer/core/inspector/cobalt/*_stub.cc` & `content/renderer/media/cobalt/inspector_media_event_handler_stub.h`**:
+   - Whenever upstream Chromium adds or modifies methods on Blink Inspector agents (`InspectorDOMAgent`, `InspectorNetworkAgent`, `InspectorPageAgent`, `InspectorEmulationAgent`, `InspectorMediaAgent`, `WorkerInspectorController`, `MainThreadDebugger`, `WorkerThreadDebugger`, `MediaInspectorContextImpl`), add or update the corresponding no-op stub definitions in `third_party/blink/renderer/core/inspector/cobalt/*_stub.cc`.
+
+4. **`third_party/blink/renderer/platform/graphics/gpu/cobalt_webgpu_stubs.cc` & `cobalt/browser/android/overlay/cobalt_video_overlay_window.{h,cc}`**:
+   - When upstream Dawn/WebGPU C APIs or `content::VideoOverlayWindow` pure virtual methods change (e.g., `wgpuGetInstanceCapabilities` -> `wgpuGetInstanceLimits`, or adding `SetHidePictureInPictureButtonVisibility`), update the matching stub definitions instead of deleting them.
+
+---
+
+### Third-Party Generated Config Headers (`third_party/fontconfig/include/config.h`)
+
+When upstream Chromium migrates a `third_party/` library from a large inline generated `config.h` to a thin Meson/wrapper header (for example, replacing `third_party/fontconfig/include/config.h` with `#include "meson-config.h"` and `#include "config-fixups.h"`), **always accept upstream's new wrapper header** instead of preserving Cobalt's legacy 100+ line `config.h` snapshot. If Cobalt needs platform-specific macro overrides, they belong in the per-platform config or fixup header, not by reverting the upstream wrapper.
+
+---
+
+### Cobalt Android Single-Process Mode, Packaging & Warning Suppressions
+
+1. **Single-Process Mode in `CobaltActivity.java`**:
+   - Cobalt on Android strictly runs Chromium in single-process mode. When resolving conflicts or updating `BrowserStartupController.startBrowserProcessesAsync(...)` in `cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java`, ALWAYS pass `/* singleProcess= */ true` (never `false`).
+
+2. **Removed Java JARs in `cobalt/build/android/package.json`**:
+   - When upstream Chromium removes or folds an Android Java target into `base_java` (for example, removing `obj/base/android_info_java.javac.jar` or `obj/base/jank_tracker_java.javac.jar`), remove its stale entry from `cobalt/build/android/package.json` so Android packaging does not fail on missing JAR inputs.
+
+3. **Global Clang Warnings in `build/config/warning_suppression.txt`**:
+   - When upstream Chromium enables new Clang diagnostic flags (such as `-Wexit-time-destructors`), add path suppressions for `cobalt` and `starboard` in `build/config/warning_suppression.txt` (e.g., `src:*{/,\\}cobalt{/,\\}*` and `src:*{/,\\}starboard{/,\\}*`) rather than rewriting static variables across `cobalt/browser/` and `cobalt/shell/` with `base::NoDestructor`.
+
+---
+
+### Upstream Replaces a Silent Fallback with a Hard `CHECK`: Embedder Must Supply the Dependency
+
+Upstream sometimes removes a default/fallback path and replaces it with a `CHECK` that the embedder supplied a required object (a provider, delegate, or factory in a `mojom::*Params` struct). Cobalt's own code (`cobalt/browser/cobalt_content_browser_client.cc`) is the embedder, so nothing in the conflict region changes, the build may even succeed, and Cobalt aborts at startup.
+
+1. **How to detect it**: an upstream diff that deletes a fallback such as `if (!params->foo) foo = GetDefaultFoo();` and adds `CHECK(params->foo)`, or a new required field in `network::mojom::NetworkContextParams` / similar params. Grep for every place Cobalt builds that params struct.
+2. **How to fix it**:
+   - Look at how another lightweight embedder that also lacks Chrome's full profile stack supplies the object, and mirror it. `chromecast/browser/` is usually the closest reference for Cobalt; `content/shell/` is the next choice.
+   - Keep each platform's pre-roll behavior. If a platform never had the feature before the roll, opt that platform out explicitly (using the opt-out field upstream provides) instead of silently turning the feature on for existing user data.
+   - Add the GN deps the new objects need to `//cobalt/browser`.
+3. **Flag it**: this is a runtime behavior change that compile healing cannot verify, so add `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` describing the chosen behavior per platform.
+
+**Real Example (`cobalt/browser/`, M143.7457, b/559470755)**:
+Upstream https://crrev.com/c/6996667 ("Reland: Port net::CookieCryptoDelegate to os_crypt async") made `NetworkContext` `CHECK` for `cookie_encryption_provider` instead of falling back to `cookie_config::GetCookieCryptoDelegate()`. Cobalt aborted at startup with `Check failed: params_->cookie_encryption_provider`. The AI made no change.
+
+```cpp
+// [GOOD] Human: supply the provider the chromecast way -- an OSCryptAsync with
+// no key providers, which keeps the legacy OSCrypt path Cobalt already used.
+// cobalt_content_browser_client.cc (constructor)
+os_crypt_async_(std::make_unique<os_crypt_async::OSCryptAsync>(
+    std::vector<std::pair<os_crypt_async::OSCryptAsync::Precedence,
+                          std::unique_ptr<os_crypt_async::KeyProvider>>>{})),
+cookie_encryption_provider_(
+    std::make_unique<CookieEncryptionProviderImpl>(os_crypt_async_.get())) {
+
+// cobalt_content_browser_client.cc (network context params)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
+  // Android had no cookie crypto delegate before the roll; opt out instead of
+  // starting to encrypt existing cookie databases (crbug.com/449652881).
+  network_context_params->enable_encrypted_cookies = false;
+#else
+  network_context_params->cookie_encryption_provider =
+      cookie_encryption_provider_->BindNewRemote();
+#endif
+```
+```gn
+# cobalt/browser/BUILD.gn
+deps += [
+  "//components/os_crypt/async/browser",
+  "//services/network/public/cpp",
+]
+```
+
+---
+
+### Reusing an Upstream Cast-Only Branch for Starboard (`USE_STARBOARD_MEDIA`)
+Cobalt shares several constraints with Chromecast (CastOS): surfaceless output, video rendered as an underlay/punch-out, and a single-process media pipeline. When upstream adds or touches a `#if BUILDFLAG(IS_CASTOS)` branch in code Cobalt also runs (viz overlays, display, media), check whether the reason for the Cast branch also applies to Cobalt. If it does, extend the guard with `BUILDFLAG(USE_STARBOARD_MEDIA)` and write a comment explaining the shared constraint. This is easy to miss because it produces no conflict and no build error; it shows up only at runtime (visual corruption or crashes).
+
+**Real Example (`components/viz/service/display/overlay_processor_ozone.cc`, M145.7577, Human #12871 vs AI #12875)**:
+```cpp
+// [BAD] AI: no change. Under Starboard media, SkiaRenderer tries to back a
+//       primary plane overlay on a surfaceless device that cannot allocate
+//       images.
+bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
+#if BUILDFLAG(IS_CASTOS)
+  return false;
+#else
+  return true;
+#endif
+}
+
+// [GOOD] Human: reuse the Cast branch and explain why it applies to Cobalt.
+bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
+#if BUILDFLAG(IS_CASTOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt reports supports_surfaceless from SkiaOutputDeviceGL, which never
+  // sets renderer_allocates_images, so SkiaRenderer cannot back a primary
+  // plane overlay.
+  return false;
+#else
+  return true;
+#endif
+}
+```
+- Only extend the guard when you can state the shared constraint in the comment. If you cannot, do not guess: add `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` next to the Cast branch asking whether Cobalt needs the same behavior.

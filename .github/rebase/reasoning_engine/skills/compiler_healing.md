@@ -1,7 +1,13 @@
 # Compiler & Linker Self-Healing Skill
 
 ## Role & Goal
-You are an expert Chromium and Cobalt systems engineer specializing in resolving C++, Java, and linker build errors during Chromium milestone rebases (e.g. M138 to M140).
+You are an expert Chromium and Cobalt systems engineer specializing in resolving C++, Java, and linker build errors during Chromium milestone rebases (e.g. M138 to M145+).
+
+## Core Philosophy: Design and Build Cobalt on the New Chromium Codebase
+The goal of a milestone rebase is **not** memorizing static "use A over B" rules or keeping Cobalt frozen on legacy Chromium patterns via local shims. **The goal is to design and build Cobalt natively on the new Chromium codebase:**
+1. **First Attempt — Always Accept Upstream Chromium Changes**: Inspect how upstream Chromium migrated its own first-party callers (`TOOL_UPSTREAM_DIFF` / `TOOL_GREP`) and migrate Cobalt's classes/callers (`cobalt/`, `starboard/`, and Cobalt hooks in `content/`/`blink/`) to the new Chromium pattern first.
+2. **Fallback Only If Migration Fails — MUST Raise a Flag for Human Review**: Only if adopting the new Chromium pattern fails after attempting it may you fall back to keeping Cobalt on the legacy code or adding a compatibility adapter. Whenever you do so, you **must** annotate the fallback code with:
+   `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED] Kept legacy Cobalt pattern instead of new Chromium <pattern>: <reason>`
 
 ## Investigation Tools (Multi-Turn Tool Protocol)
 If you encounter missing identifiers, unknown types, relocated classes/methods, or missing headers:
@@ -76,8 +82,44 @@ When something that used to work has broken after a roll, **run both on the rele
    - **If `TOOL_FIND_FILE` returns no matching files (the header was DELETED upstream in this milestone):**
      * Do NOT repeat `TOOL_FIND_FILE` or `TOOL_GREP` searching for the deleted file in a loop.
      * **Case A — Unused `#include`:** If the file does not reference any type/symbol from the deleted header (e.g. `crash_log.h` including `supplementable.h`), simply delete the `#include` line.
-     * **Case B — Upstream removed the base class / mixin defined in that header (e.g. `third_party/blink/renderer/platform/supplementable.h` and `Supplement<LocalDOMWindow>`):**
-       Use `TOOL_UPSTREAM_DIFF` on the host class header (e.g. `TOOL_UPSTREAM_DIFF: third_party/blink/renderer/core/frame/local_dom_window.h`) to see how upstream migrated supplements (e.g. replacing `public Supplement<LocalDOMWindow>` with `public GarbageCollectedMixin` + a `Member<LocalDOMWindow>` member on the supplement class, and adding `ForwardDeclaredMember<T>` + `GetFoo()`/`SetFoo()` + `Trace()` on `LocalDOMWindow` under `#if BUILDFLAG(IS_COBALT)`). Emit multi-file `FILE:` `SEARCH/REPLACE` blocks for both the supplement `.h`/`.cc` and host `.h`/`.cc` in one turn.
+     * **Case B — Upstream refactored the host class / supplement architecture (e.g., `LocalDOMWindow` / `ExecutionContext` supplements: `H5vcc`, `CobaltLifecycleController`, `OnScreenKeyboard`, `DialServerManager`):**
+       - Remember the Core Philosophy: do NOT memorize a fixed direction (`Supplement` vs `ForwardDeclaredMember`). Instead, run `TOOL_UPSTREAM_DIFF` or `TOOL_READ_FILE` on the host header (`third_party/blink/renderer/core/frame/local_dom_window.h` or `execution_context.h`) to see what pattern **the new Chromium codebase** uses, and migrate Cobalt's extension class to that exact pattern:
+       - **When the new Chromium codebase uses indexed `Supplementable<LocalDOMWindow, N>` (M145+)**:
+         1. Register the Cobalt supplement in `LocalDOMWindow::Supplements` (or `ExecutionContext::Supplements`) and update the capacity `N` in `Supplementable<Host, N>` across `local_dom_window.h` and any forward declarations (`range.cc`, `local_frame_view.cc`, `highlight_registry.cc`).
+         2. Migrate the Cobalt extension class to inherit from `Supplement<LocalDOMWindow>` and use `Supplement<LocalDOMWindow>::From<T>` / `ProvideTo`.
+         3. Only if multi-file migration fails may you fall back to keeping legacy fields on the host class, and you MUST annotate them with `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]`.
+
+       **Real Example (`cobalt/renderer/h5vcc_runtime/h_5_vcc.{h,cc}`)**:
+       ```cpp
+       // [GOOD] Migrating H5vcc to the new Chromium indexed Supplement<LocalDOMWindow> architecture:
+       // h_5_vcc.h:
+       #include "third_party/blink/renderer/platform/supplementable.h"
+       class H5vcc final : public ScriptWrappable,
+                           public Supplement<LocalDOMWindow> {
+         DEFINE_WRAPPERTYPEINFO();
+        public:
+         static constexpr auto kSupplementIndex = LocalDOMWindow::Supplements::kH5vcc;
+         static H5vcc* h5vcc(LocalDOMWindow& window);
+         explicit H5vcc(LocalDOMWindow&);
+         void Trace(Visitor*) const override;
+       };
+
+       // h_5_vcc.cc:
+       H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
+         auto* h5vcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
+         if (!h5vcc) {
+           h5vcc = MakeGarbageCollected<H5vcc>(window);
+         }
+         return h5vcc;
+       }
+       H5vcc::H5vcc(LocalDOMWindow& window) : Supplement<LocalDOMWindow>(window) {
+         Supplement<LocalDOMWindow>::ProvideTo(window, this);
+       }
+       void H5vcc::Trace(Visitor* visitor) const {
+         ScriptWrappable::Trace(visitor);
+         Supplement<LocalDOMWindow>::Trace(visitor);
+       }
+       ```
 8. Siso Build Diagnostics & Target Names (cobalt_apk, *.apk, *.ninja):
    - Siso error outputs often start with high-level build targets (e.g. `FAILED: obj/.../wrappers.o`, `build step: cobalt_apk`).
    - `cobalt_apk` is the top-level build target, NOT a source code file! NEVER generate a patch targeting `FILE: cobalt_apk`, `FILE: *.apk`, or `FILE: *.ninja`.
@@ -133,15 +175,15 @@ When something that used to work has broken after a roll, **run both on the rele
 5. ROOT CAUSE LOCALIZATION: MAPPING `obj/` AND `gen/` PATHS TO REAL SOURCE FILES:
    - When error logs or linker outputs reference `obj/`, `gen/`, or `out/` paths, NEVER attempt to edit generated files directly. Deduce and locate the real source file or `BUILD.gn`:
      * Mapping `obj/` object paths to real C++ sources:
-       `obj/content/browser/browser/web_contents_impl.o` ➡️ Strip `obj/` and intermediate target names ➡️ Real source: `content/browser/web_contents/web_contents_impl.cc`
-       `obj/components/update_client/update_client/op_install.o` ➡️ Strip `obj/` and target name ➡️ Real source: `components/update_client/op_install.cc`
+       `obj/content/browser/browser/web_contents_impl.o` -> Strip `obj/` and intermediate target names -> Real source: `content/browser/web_contents/web_contents_impl.cc`
+       `obj/components/update_client/update_client/op_install.o` -> Strip `obj/` and target name -> Real source: `components/update_client/op_install.cc`
        Target `BUILD.gn`: Located in the directory enclosing the source (e.g. `content/browser/BUILD.gn`).
      * Mapping `gen/` generated code to source definitions:
-       `gen/.../v8_custom_element.h` ➡️ Generated from IDL ➡️ Find real source: `TOOL_FIND_FILE: *custom_element*.idl`
-       `gen/.../ip_address_space.mojom.h` ➡️ Generated from Mojom ➡️ Find real source: `TOOL_FIND_FILE: *ip_address_space*.mojom`
-       Generated JNI headers (`gen/.../jni/..._jni.h`) ➡️ Find real Java source: `TOOL_FIND_FILE: *Classname*.java`
+       `gen/.../v8_custom_element.h` -> Generated from IDL -> Find real source: `TOOL_FIND_FILE: *custom_element*.idl`
+       `gen/.../ip_address_space.mojom.h` -> Generated from Mojom -> Find real source: `TOOL_FIND_FILE: *ip_address_space*.mojom`
+       Generated JNI headers (`gen/.../jni/..._jni.h`) -> Find real Java source: `TOOL_FIND_FILE: *Classname*.java`
      * Linker errors (`ld.lld: error: undefined symbol: Foo::Bar`):
-       - Step 1: Identify the referenced object in `>>> referenced by obj/.../caller.o` ➡️ Real caller: `caller.cc`.
+       - Step 1: Identify the referenced object in `>>> referenced by obj/.../caller.o` -> Real caller: `caller.cc`.
        - Step 2: Use `TOOL_GREP: "Foo::Bar" <subsystem>/` to find where the definition lives in `.cc`.
        - Step 3: Check if the definition file was excluded from `BUILD.gn` or if the caller needs `#if BUILDFLAG(...)` macro guards.
      * Investigation workflow:
@@ -253,6 +295,42 @@ When something that used to work has broken after a roll, **run both on the rele
 3. **Avoid Macro Hacks for JNI**:
    - Never use preprocessor macros (e.g., `#define SetPrimaryPageImportance...`) to intercept or redirect JNI generated calls.
    - Always resolve API changes at the C++ method level by updating signatures in both `.h` and `.cc` files.
+
+4. **Adopting Upstream JNI `JavaRef<T>` Over Internal `jni_zero::JavaParamRef<T>`**:
+   - When `base::android::JavaParamRef<T>` is deprecated/removed upstream, accept upstream Chromium's migration to `base::android::JavaRef<T>` rather than switching to internal `jni_zero::JavaParamRef<T>`:
+     ```cpp
+     // [BAD] Switching to internal jni_zero::JavaParamRef:
+     static void JNI_CobaltInterfaceRegistrar_RegisterMojoInterfaces(
+         JNIEnv* env, const jni_zero::JavaParamRef<jobject>& j_web_contents)
+
+     // [GOOD] Accepting upstream Chromium's migration to base::android::JavaRef:
+     static void JNI_CobaltInterfaceRegistrar_RegisterMojoInterfaces(
+         JNIEnv* env, const base::android::JavaRef<jobject>& j_web_contents)
+     ```
+
+5. **`std::optional<T>` to Value-Type Getter Migrations (e.g., `gfx::HDRMetadata`)**:
+   - When upstream changes a getter from returning `std::optional<T>` to returning `T` (or `const T&`) directly (e.g., `VideoDecoderConfig::hdr_metadata()`, `StreamParserBuffer::GetHDRMetadata()`), replace `.has_value()` with the semantic emptiness check `!config.hdr_metadata().IsEmpty()`, NOT `.IsValid()` (which checks strict SMPTE validation rules rather than presence).
+
+6. **Propagating Upstream Interface Signatures Into `cobalt/` (e.g., `DecodeAudioFileData`)**:
+   - When upstream changes a platform/renderer interface signature in `content/` or `blink/` (e.g., `RendererBlinkPlatformImpl::DecodeAudioFileData` changing from `bool(WebAudioBus*, ...)` to `std::unique_ptr<WebAudioBus>(...)`), update the underlying `cobalt/` implementation (`cobalt/media/audio/audio_decoder.{h,cc}`) to return `std::unique_ptr<blink::WebAudioBus>` directly rather than wrapping the legacy signature in `content/`.
+
+7. **Signature Change on a Cobalt Manual Init Call: Check for a Duplicate Call Before Patching Arguments**:
+   - A compile error on a Cobalt call to an upstream one-time initialization function (tracing, feature list, field trials, crash keys, Perfetto, etc.) is a signal to re-check WHY Cobalt calls it at all, not just to add the new argument.
+   - Before patching the arguments, grep the upstream callers (`TOOL_GREP: <function_name>`). Cobalt's browser process DOES go through the standard `content::RunContentProcess()` -> `ContentMainRunnerImpl::Run()` -> `ContentMainRunnerImpl::RunBrowser()` path (via `cobalt::AppEventRunnerImpl::Run()`), so anything `RunBrowser()` / `BrowserMainLoop` already calls is also called for Cobalt. If `//content` already calls the function on that path, delete Cobalt's manual call instead of adapting it. A duplicate call compiles fine but hits a runtime `DCHECK` in `devel`/`debug` builds, which `autoninja` alone will not catch.
+   - Because this changes runtime startup behavior, add `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` in the commit/PR notes (or next to the removed call's former location) so the original author can confirm the removal.
+
+   **Real Example (`cobalt/browser/cobalt_browser_main_parts.cc`, M140.7278, b/548005580)**:
+   PR #11036 added a manual `tracing::InitTracingPostFeatureList()` call in `CobaltBrowserMainParts::PreCreateThreads()`, with a comment claiming Cobalt bypasses `ContentMainRunnerImpl::RunBrowser()`. That claim was wrong: a stack trace on Linux shows `ContentMainRunnerImpl::RunBrowser()` already calls `tracing::InitTracingPostFeatureList()` for Cobalt. After upstream https://crrev.com/c/6685790 ("[tracing] Improve and simplify startup tracing") changed the function's signature and startup ordering, the duplicate Cobalt call started failing a `DCHECK` at `services/tracing/public/cpp/trace_startup.cc`.
+   ```cpp
+   // [BAD] AI: fixed the compile error by adding the new argument, keeping the
+   //       duplicate call. Compiles, then hits the DCHECK at startup.
+   tracing::InitTracingPostFeatureList(/*enable_consumer=*/true,
+                                       /*will_trace_thread_restart=*/false);
+
+   // [GOOD] Human: removed the manual call entirely and relied on
+   //        ContentMainRunnerImpl::RunBrowser() to initialize tracing.
+   ```
+
 
 
 ---

@@ -118,10 +118,16 @@ When upstream changes deprecate APIs or remove interfaces:
    * **DEPS**: Verify with `ast.parse()` and run `gclient sync --nohooks --no-history`.
    * **Source Files**: Run `autoninja -C out/Default cobalt:cobalt` to verify compilation.
 
-4. **Milestone build flags**
-   * You may see build flag like `CHROMIUM_MILESTONE_LE_138`, which means the edit is only for milestone less than 138. For milestone larger than 138,
-   use upstream code. It is mostly used with `BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)`, because a lot of Privacy Sandbox APIs are removed before M152.
-   Therefore, if the conflicts are due to the removel, just use upstream changes.
+4. **Privacy Sandbox Pruning & Lifecycle Policy (`b/505811196` — `enable_privacy_sandbox_apis = !is_cobalt`)**:
+   * **Core Goal**: Cobalt is a single-domain application that does **not** use Chromium's Privacy Sandbox features (Shared Storage, Ad Auction / Protected Audience / Interest Group, Attribution Reporting, Private Aggregation, Aggregation Service, Browsing Topics, Fenced Frames, Private State Tokens / Trust Tokens, IP Protection / Masked Domain List / Probabilistic Reveal Tokens, FedCM / WebID, Storage Access API). In `cobalt/build/configs/cobalt.gni`, `enable_privacy_sandbox_apis = !is_cobalt` (`false` on Cobalt), stripping these components to save ~1.9MB+ of binary size.
+   * **Rule A — When Upstream Chromium Deletes Privacy Sandbox Code: DELETE the Guarded Block Completely!**
+     - Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often paired with `&& CHROMIUM_MILESTONE_LE_138` or `&& CHROMIUM_MILESTONE_LE_150`) and `if (enable_privacy_sandbox_apis)` / `if (!enable_privacy_sandbox_apis)` blocks exist **only** to strip Privacy Sandbox code before upstream deletes it (as noted in `BUILD.gn`: `# If in the future privacy sandbox components are removed from the code base, ignore this if block`).
+     - When upstream Chromium itself deletes a Privacy Sandbox member, method, `#include`, or GN `deps` entry (e.g., removing `ip_protection_core_`, `masked_domain_list_manager_`, `probabilistic_reveal_token_registry_`, `//components/ip_protection/common:*` in M144/M145, or `CanvasNoiseTokenData` in M141), **ACCEPT the upstream deletion completely** and delete Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` block too! Never resurrect upstream-deleted Privacy Sandbox code inside a Cobalt `#if` block.
+   * **Rule B — When Upstream Chromium Adds New Calls/Bindings to a Stripped Privacy Sandbox Component: Gate the Caller with `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)`!**
+     - **NEVER** re-add excluded Privacy Sandbox `.cc` files or targets in `BUILD.gn`.
+     - Instead, gate the new `#include` (with `// nogncheck` if needed), declaration, and call site / method body under `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (see concrete code examples in `cobalt_rebase_patterns.md`).
+   * **Rule C — When Upstream Refactors Code *Inside* an Active `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` Block: Update the Code Inside the Guard!**
+     - If upstream keeps the Privacy Sandbox feature but renames a class or moves a header inside a block gated by `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (e.g., `FederatedAuthRequestImpl::Create` -> `webid::RequestService::Create` or moving `digital_identity_request_impl.h` out of `webid/`), keep the `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` guard and update the code inside it to match upstream. Keep adjacent `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` methods consolidated in a single `#if ... #endif` block.
 
 ---
 
@@ -154,11 +160,7 @@ Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST gen
 
 ### M140 API Migrations & Behavioral Preservation
 
-1. **Privacy Sandbox Milestone Flag Shift**:
-   - In M140, update all `CHROMIUM_MILESTONE_LE_138` guards to `CHROMIUM_MILESTONE_LE_150` in `services/network/` files to preserve Cobalt's Privacy Sandbox behavior.
-   - Update `UpdateMaskedDomainList` to use the new flatbuffer signature (`base::File`, `uint64_t`).
-
-2. **`MediaClient` Allocator Initialization**:
+1. **`MediaClient` Allocator Initialization**:
    - The `DecoderBuffer::Allocator` must no longer be installed in the `MediaClient` constructor.
    - Add `void InstallDecoderBufferAllocator();` to `media/base/media_client.h`.
    - Implement it in `media/base/media_client.cc` under `#if BUILDFLAG(USE_STARBOARD_MEDIA)`.
