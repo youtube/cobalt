@@ -22,6 +22,21 @@ _COBALT_SUBMODULE_DIRS = [
     'v8',
 ]
 
+# These hashes correspond to 145.7595 and 145.7613 in the chromium/main branch.
+# See b/565697787 for more context.
+_REVISIONS_WITH_BROKEN_ANGLE_SUBDEP = (
+    '38f4bd69219cb5db170704cdb0221dc3ea6eb039',
+    'a829ba1ad70c664608ac2dd4005e0dee339edbe4',
+)
+
+
+def remove_angle_from_recursedeps():
+  """Removes ANGLE from the top-level DEPS' recursedeps.
+
+  See b/565697787 for more information.
+  """
+  lib.run(['sed', '-i', r"/'src\/third_party\/angle',/s/^/\#/", 'DEPS'])
+
 
 def get_submodule_root_dirs():
   paths = lib.get_out(
@@ -104,6 +119,15 @@ def verify_chromium_commit(sha):
             f'{upstream_sha}.')
     return True
 
+  if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
+    modified_files = lib.get_out(['git', 'diff', '--name-only', sha,
+                                  'HEAD']).strip()
+    if modified_files == 'DEPS':
+      lib.log(f'Verification passed: Tree {current_tree} matches Chromium '
+              f'{upstream_sha} with one change to DEPS to remove ANGLE from '
+              f'recursedeps')
+      return True
+
   diff_output = lib.get_out(['git', 'diff', '--name-status', sha,
                              'HEAD']).strip()
   lib.log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
@@ -136,6 +160,11 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   remove_local_checkout()
   lib.run(['git', 'checkout', previous_sha, '--', '.'])
 
+  if previous_sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
+    # Just remove it from DEPS but do not commit the change, otherwise it will
+    # also add a lot of other changes made by the git checkout call above.
+    remove_angle_from_recursedeps()
+
   replace_submodules_with_dirs()
 
   lib.log('Committing Cobalt revert...')
@@ -157,6 +186,12 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   for sha in shas:
     lib.log('Cherry picking Chromium...')
     lib.run(['git', 'cherry-pick', sha])
+
+    if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
+      remove_angle_from_recursedeps()
+      lib.run([
+          'git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'
+      ])
 
     if not verify_chromium_commit(sha):
       raise RuntimeError(
