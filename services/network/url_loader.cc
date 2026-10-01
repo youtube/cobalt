@@ -350,6 +350,40 @@ uint32_t GetCobaltContentLengthAwarePipeCapacity(int64_t content_length,
   return static_cast<uint32_t>(
       std::min(capacity, static_cast<uint64_t>(default_capacity)));
 }
+
+std::atomic<int64_t> g_header_client_net_cpu_ns{0};
+std::atomic<int> g_header_client_net_ipc_count{0};
+std::atomic<int64_t> g_header_client_stall_us{0};
+std::atomic<int64_t> g_header_client_max_stall_us{0};
+std::atomic<int> g_header_client_stall_count{0};
+
+struct ScopedHeaderClientNetCpuLogger {
+  base::ThreadTicks start = base::ThreadTicks::Now();
+  ~ScopedHeaderClientNetCpuLogger() {
+    const int64_t ns = (base::ThreadTicks::Now() - start).InNanoseconds();
+    const int64_t total_ns = g_header_client_net_cpu_ns.fetch_add(ns) + ns;
+    const int count = g_header_client_net_ipc_count.fetch_add(1) + 1;
+    if (count % 50 == 0) {
+      LOG(INFO) << "[HeaderClientCPU][Net] ipcs=" << count
+                << " cumulative_cpu_ms=" << (total_ns / 1e6)
+                << " stall_hops=" << g_header_client_stall_count.load()
+                << " cumulative_stall_ms="
+                << (g_header_client_stall_us.load() / 1000.0)
+                << " max_stall_ms="
+                << (g_header_client_max_stall_us.load() / 1000.0);
+    }
+  }
+};
+
+void RecordHeaderClientStall(base::TimeTicks start) {
+  const int64_t us = (base::TimeTicks::Now() - start).InMicroseconds();
+  g_header_client_stall_us.fetch_add(us);
+  g_header_client_stall_count.fetch_add(1);
+  int64_t prev_max = g_header_client_max_stall_us.load();
+  while (us > prev_max &&
+         !g_header_client_max_stall_us.compare_exchange_weak(prev_max, us)) {
+  }
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
@@ -506,6 +540,9 @@ URLLoader::URLLoader(
       context.GetUrlLoaderHeaderClient();
   if (url_loader_header_client &&
       (options_ & mojom::kURLLoadOptionUseHeaderClient)) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
     if (options_ & mojom::kURLLoadOptionAsCorsPreflight) {
       url_loader_header_client->OnLoaderForCorsPreflightCreated(
           request, header_client_.BindNewPipeAndPassReceiver());
@@ -1824,10 +1861,24 @@ int URLLoader::OnBeforeStartTransaction(
   }
 
   if (header_client_) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+    auto timed_callback = base::BindOnce(
+        [](base::TimeTicks start,
+           net::NetworkDelegate::OnBeforeStartTransactionCallback cb,
+           int result, const std::optional<net::HttpRequestHeaders>& hdrs) {
+          RecordHeaderClientStall(start);
+          std::move(cb).Run(result, hdrs);
+        },
+        base::TimeTicks::Now(), std::move(callback));
+#else
+    auto timed_callback = std::move(callback);
+#endif
     header_client_->OnBeforeSendHeaders(
         *used_headers,
         base::BindOnce(&URLLoader::OnBeforeSendHeadersComplete,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(timed_callback)));
     return net::ERR_IO_PENDING;
   }
 
@@ -1851,10 +1902,22 @@ int URLLoader::OnHeadersReceived(
     const net::IPEndPoint& endpoint,
     std::optional<GURL>* preserve_fragment_on_redirect_url) {
   if (header_client_) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+    auto timed_callback = base::BindOnce(
+        [](base::TimeTicks start, net::CompletionOnceCallback cb, int result) {
+          RecordHeaderClientStall(start);
+          std::move(cb).Run(result);
+        },
+        base::TimeTicks::Now(), std::move(callback));
+#else
+    auto timed_callback = std::move(callback);
+#endif
     header_client_->OnHeadersReceived(
         original_response_headers->raw_headers(), endpoint,
         base::BindOnce(&URLLoader::OnHeadersReceivedComplete,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(timed_callback),
                        override_response_headers,
                        preserve_fragment_on_redirect_url));
     return net::ERR_IO_PENDING;
@@ -2340,12 +2403,18 @@ void URLLoader::OnBeforeSendHeadersComplete(
     net::NetworkDelegate::OnBeforeStartTransactionCallback callback,
     int result,
     const std::optional<net::HttpRequestHeaders>& headers) {
-  if (include_request_cookies_with_response_ && headers) {
-    request_cookies_.clear();
-    std::string cookie_header =
-        headers->GetHeader(net::HttpRequestHeaders::kCookie)
-            .value_or(std::string());
-    net::cookie_util::ParseRequestCookieLine(cookie_header, &request_cookies_);
+  {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
+    if (include_request_cookies_with_response_ && headers) {
+      request_cookies_.clear();
+      std::string cookie_header =
+          headers->GetHeader(net::HttpRequestHeaders::kCookie)
+              .value_or(std::string());
+      net::cookie_util::ParseRequestCookieLine(cookie_header,
+                                               &request_cookies_);
+    }
   }
   std::move(callback).Run(result, headers);
 }
@@ -2357,11 +2426,16 @@ void URLLoader::OnHeadersReceivedComplete(
     int result,
     const std::optional<std::string>& headers,
     const std::optional<GURL>& preserve_fragment_on_redirect_url) {
-  if (headers) {
-    *out_headers =
-        base::MakeRefCounted<net::HttpResponseHeaders>(headers.value());
+  {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
+    if (headers) {
+      *out_headers =
+          base::MakeRefCounted<net::HttpResponseHeaders>(headers.value());
+    }
+    *out_preserve_fragment_on_redirect_url = preserve_fragment_on_redirect_url;
   }
-  *out_preserve_fragment_on_redirect_url = preserve_fragment_on_redirect_url;
   std::move(callback).Run(result);
 }
 

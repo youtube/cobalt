@@ -15,12 +15,18 @@
 #ifndef COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 #define COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 
+#include "base/time/time.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
 namespace cobalt {
 namespace browser {
+
+struct ScopedHeaderClientUiCpuLogger {
+  base::ThreadTicks start = base::ThreadTicks::Now();
+  ~ScopedHeaderClientUiCpuLogger();
+};
 
 // Responsible for handling trusted headers for individual network requests.
 // This class is used to add Cobalt-specific client hint headers before a
