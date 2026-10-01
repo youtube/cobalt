@@ -55,7 +55,13 @@ void CrashLog::OnSetString(ScriptPromiseResolver<IDLBoolean>* resolver,
 }
 
 void CrashLog::triggerCrash() {
-  CHECK(false) << "Intentionally triggered crash";
+  // TODO(b/567555097): Consider enhancing this implementation to reliably
+  // generate a deeper stack that can still be unwound with CFI. We could try to
+  // increase the visibility of blink::internal::CrashIntentionally() or at
+  // least borrow from its implementation, and leverage other compiler
+  // annotations like NOT_TAIL_CALLED.
+  volatile int* zero = nullptr;
+  *zero = 0;
 }
 
 void CrashLog::EnsureReceiverIsBound() {
