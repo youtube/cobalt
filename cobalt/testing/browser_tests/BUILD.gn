@@ -229,6 +229,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/custom_mime_type_browsertest.cc",
     "//cobalt/browser/experiments/experiment_config_browsertest.cc",
     "//cobalt/browser/h5vcc_memory_browsertest.cc",
+    "//cobalt/browser/h5vcc_native_stability_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
     "//cobalt/browser/i18n_browsertest.cc",
@@ -261,7 +262,7 @@ test("cobalt_browsertests") {
 
   if (is_android) {
     sources += [
-      "//cobalt/browser/h5vcc_system_android_browsertest.cc",
+      "//cobalt/browser/h5vcc_native_stability_android_browsertest.cc",
       "browsertests_apk/content_browser_tests_jni_onload.cc",
     ]
   }

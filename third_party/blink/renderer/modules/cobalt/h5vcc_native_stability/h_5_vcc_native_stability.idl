@@ -34,9 +34,9 @@ dictionary HangReport : BaseNativeStabilityReport {
 
 typedef (NativeCrashReport or HangReport) NativeStabilityReport;
 
-// Interface for querying and acknowledging native stability reports.
-// On platforms that do not support native stability reporting, calling these
-// APIs will result in promises rejected with "Mojo connection error".
+// Interface for querying native stability information and reports.
+// On platforms that do not support native stability reporting, calling
+// getPendingReports() or acknowledgeReports() will result in rejected promises.
 [
   Exposed=Window,
   SecureContext
@@ -54,4 +54,10 @@ interface H5vccNativeStability {
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> acknowledgeReports(
       sequence<DOMString> nativeStabilityEventUuids);
+
+  // Returns true if the previous Cobalt session was killed by the system due to
+  // memory pressure. Returns false if the platform does not report LMK or does
+  // not implement the LowMemoryKill extension.
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> wasLowMemoryKilled();
 };

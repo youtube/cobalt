@@ -38,10 +38,11 @@ constexpr int kAppExitInfoReasonUserRequested = 10;
 
 }  // namespace
 
-class H5vccSystemAndroidBrowserTest : public content::ContentBrowserTest {
+class H5vccNativeStabilityAndroidBrowserTest
+    : public content::ContentBrowserTest {
  public:
-  H5vccSystemAndroidBrowserTest() = default;
-  ~H5vccSystemAndroidBrowserTest() override = default;
+  H5vccNativeStabilityAndroidBrowserTest() = default;
+  ~H5vccNativeStabilityAndroidBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
@@ -80,12 +81,13 @@ class H5vccSystemAndroidBrowserTest : public content::ContentBrowserTest {
   bool QueryWasLowMemoryKilledFromJs() {
     return content::EvalJs(
                shell()->web_contents(),
-               "(async () => await window.h5vcc.system.wasLowMemoryKilled())()")
+               "(async () => await "
+               "window.h5vcc.nativeStability.wasLowMemoryKilled())()")
         .ExtractBool();
   }
 };
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyDefaultExitReasonResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -102,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyNonLmkExitReasonResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -120,7 +122,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyLowMemoryKillExitReasonResolvesTrue) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -141,7 +143,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_TRUE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyUserRequestedExitReasonResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -160,7 +162,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyCrashExitReasonResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -178,7 +180,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyDynamicExitReasonTransition) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -207,7 +209,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyEmptyHistoricalExitReasonsResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -225,7 +227,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyNullHistoricalExitReasonsResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
@@ -243,7 +245,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccNativeStabilityAndroidBrowserTest,
                        VerifyExceptionInHistoricalExitReasonsResolvesFalse) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {

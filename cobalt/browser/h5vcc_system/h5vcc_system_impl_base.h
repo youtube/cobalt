@@ -62,7 +62,6 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   void GetUserOnExitStrategy(GetUserOnExitStrategyCallback) override;
   void Exit() override;
   void HideSplashScreen() override;
-  void GetWasLowMemoryKilled(GetWasLowMemoryKilledCallback) override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,

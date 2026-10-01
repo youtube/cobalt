@@ -14,10 +14,14 @@
 
 #include "cobalt/browser/h5vcc_native_stability/h5vcc_native_stability_impl.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
+#include "cobalt/browser/h5vcc_native_stability/low_memory_kill.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "content/public/browser/render_frame_host.h"
 
 namespace h5vcc_native_stability {
@@ -37,14 +41,33 @@ H5vccNativeStabilityImpl::H5vccNativeStabilityImpl(
 
 void H5vccNativeStabilityImpl::GetPendingReports(
     GetPendingReportsCallback callback) {
-  NativeStabilityManager::GetInstance()->GetPendingReports(std::move(callback));
+#if BUILDFLAG(USE_EVERGREEN)
+  NativeStabilityManager::GetInstance()->GetPendingReports(base::BindOnce(
+      [](GetPendingReportsCallback callback,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        std::move(callback).Run(std::move(reports));
+      },
+      std::move(callback)));
+#else
+  std::move(callback).Run(std::nullopt);
+#endif
 }
 
 void H5vccNativeStabilityImpl::AcknowledgeReports(
     const std::vector<std::string>& native_stability_event_uuids,
     AcknowledgeReportsCallback callback) {
+#if BUILDFLAG(USE_EVERGREEN)
   NativeStabilityManager::GetInstance()->AcknowledgeReports(
-      native_stability_event_uuids, std::move(callback));
+      native_stability_event_uuids,
+      base::BindOnce(std::move(callback), /*supported=*/true));
+#else
+  std::move(callback).Run(/*supported=*/false);
+#endif
+}
+
+void H5vccNativeStabilityImpl::GetWasLowMemoryKilled(
+    GetWasLowMemoryKilledCallback callback) {
+  std::move(callback).Run(::h5vcc_native_stability::GetWasLowMemoryKilled());
 }
 
 }  // namespace h5vcc_native_stability
