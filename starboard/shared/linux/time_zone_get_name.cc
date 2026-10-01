@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
 
 #include "starboard/common/log.h"
 #include "starboard/time_zone.h"
@@ -56,10 +56,8 @@ const char* SbTimeZoneGetName() {
   static thread_local char s_tz_name[PATH_MAX];
 
   char tz_path[PATH_MAX];
-  int32_t ret = (int32_t)readlink(TZDEFAULT, tz_path, sizeof(tz_path) - 1);
-  if (0 < ret) {
+  if (realpath(TZDEFAULT, tz_path) != NULL) {
     int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
-    tz_path[ret] = 0;
     char* tzZoneInfoTailPtr = strstr(tz_path, TZZONEINFOTAIL);
 
     if (tzZoneInfoTailPtr != NULL &&
