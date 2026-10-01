@@ -40,18 +40,6 @@ runs:
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
           exit 0
         fi
-
-        if [ -w "${LOWER_DIR}" ]; then
-          if [ -d "${LOWER_DIR}/src/.git" ] && [ ! -f "${LOWER_DIR}/.golden_revision" ]; then
-            git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision" 2>/dev/null || true
-          fi
-          if [ -f "${LOWER_DIR}/src/DEPS" ] && [ ! -f "${LOWER_DIR}/.deps_sha256" ]; then
-            sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256" 2>/dev/null || true
-          fi
-        fi
-
-        echo "GOLDEN_WORKSPACE_LOWER_DIR=${LOWER_DIR}" >> "${GITHUB_ENV}"
-
         # Scope upper and work directories uniquely to this runner job
         SESSION_ID="${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${RUNNER_NAME:-runner}"
         UPPER_DIR="/runner-cache/workspaces/${SESSION_ID}/upper"

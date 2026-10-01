@@ -57,13 +57,6 @@ runs:
         ARCHIVE_DIR="gs://${PROJECT_NAME}-test-artifacts/golden-workspace"
         PLATFORM_ARCHIVE="${ARCHIVE_DIR}/${PLATFORM}/golden-workspace-latest.tar.zst"
         LATEST_ARCHIVE="${ARCHIVE_DIR}/golden-workspace-latest.tar.zst"
-
-        echo "Updating golden revision and DEPS hash metadata in ${TARGET_DIR}..."
-        git -C "${TARGET_DIR}/src" rev-parse HEAD > "${TARGET_DIR}/.golden_revision" 2>/dev/null || true
-        if [ -f "${TARGET_DIR}/src/DEPS" ]; then
-          sha256sum "${TARGET_DIR}/src/DEPS" | awk '{print $1}' > "${TARGET_DIR}/.deps_sha256"
-        fi
-
         echo "Publishing golden workspace stream directly to ${PLATFORM_ARCHIVE}..."
         set +e
         tar --exclude='.runner_cache_ready' --exclude='./.runner_cache_ready' \

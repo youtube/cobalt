@@ -133,72 +133,14 @@ runs:
       working-directory: cobalt
       run: |
         git config --global --add safe.directory '*'
-        if ! grep -q "ios" .gclient && [ -f "src/DEPS" ]; then
-          LOWER_DIR="${GOLDEN_WORKSPACE_LOWER_DIR:-}"
-          if [ -z "${LOWER_DIR}" ]; then
-            if [ -f "/runner-cache/current/.runner_cache_ready" ]; then
-              LOWER_DIR=$(readlink -f "/runner-cache/current")
-            elif [ -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
-              LOWER_DIR=$(readlink -f "/runner-cache/golden-workspace")
-            fi
-          fi
-
-          target_matched=false
-          current_hash=$(sha256sum src/DEPS | awk '{print $1}')
-
-          # Method 1: Direct comparison between golden workspace DEPS and target src/DEPS
-          if [ -n "${LOWER_DIR}" ] && [ -f "${LOWER_DIR}/src/DEPS" ]; then
-            if cmp -s "${LOWER_DIR}/src/DEPS" "src/DEPS"; then
-              echo "Golden workspace DEPS (${LOWER_DIR}/src/DEPS) matches target src/DEPS."
-              target_matched=true
-            fi
-          fi
-
-          # Method 2: Compare against cached DEPS hash (.deps_sha256)
-          if [ "${target_matched}" != "true" ]; then
-            cached_hash=""
-            if [ -f ".deps_sha256" ]; then
-              cached_hash=$(tr -d '[:space:]' < .deps_sha256)
-            elif [ -n "${LOWER_DIR}" ] && [ -f "${LOWER_DIR}/.deps_sha256" ]; then
-              cached_hash=$(tr -d '[:space:]' < "${LOWER_DIR}/.deps_sha256")
-            elif [ -n "${LOWER_DIR}" ] && [ -f "${LOWER_DIR}/src/DEPS" ]; then
-              cached_hash=$(sha256sum "${LOWER_DIR}/src/DEPS" 2>/dev/null | awk '{print $1}')
-            fi
-
-            if [ -n "${cached_hash}" ] && [ "${cached_hash}" = "${current_hash}" ]; then
-              echo "Golden workspace DEPS hash (${current_hash}) matches src/DEPS."
-              target_matched=true
-            fi
-          fi
-
-          # Method 3: Compare git tree diff against golden revision if present in git object database
-          if [ "${target_matched}" != "true" ]; then
-            golden_rev=""
-            if [ -f ".golden_revision" ]; then
-              golden_rev=$(tr -d '[:space:]' < .golden_revision)
-            elif [ -n "${LOWER_DIR}" ] && [ -f "${LOWER_DIR}/.golden_revision" ]; then
-              golden_rev=$(tr -d '[:space:]' < "${LOWER_DIR}/.golden_revision")
-            elif [ -n "${LOWER_DIR}" ] && [ -d "${LOWER_DIR}/src/.git" ]; then
-              golden_rev=$(git -C "${LOWER_DIR}/src" rev-parse HEAD 2>/dev/null || true)
-            fi
-
-            if [ -n "${golden_rev}" ] && git -C src cat-file -e "${golden_rev}^{commit}" 2>/dev/null; then
-              if git -C src diff --quiet "${golden_rev}" HEAD -- DEPS 2>/dev/null; then
-                echo "Golden workspace base revision (${golden_rev}) matches target DEPS."
-                target_matched=true
-              fi
-            fi
-          fi
-
-          if [ "${target_matched}" = "true" ]; then
-            echo "Skipping gclient sync and runhooks."
-            python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE --filter='\(#[1-9][0-9]*\)'
-            python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h
-            echo "deps_match=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
+        if cmp -s /runner-cache/golden-workspace/src/DEPS src/DEPS && cmp -s /runner-cache/golden-workspace/.gclient .gclient; then
+          echo "Golden workspace DEPS and .gclient match local workspace. Skipping gclient sync and runhooks."
+          python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE --filter='\(#[1-9][0-9]*\)'
+          python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h
+          echo "deps_match=true" >> "${GITHUB_OUTPUT}"
+        else
+          echo "deps_match=false" >> "${GITHUB_OUTPUT}"
         fi
-        echo "deps_match=false" >> "${GITHUB_OUTPUT}"
 
     - name: Clean dirty sub-repositories
       shell: bash

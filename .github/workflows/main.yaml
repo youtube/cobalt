@@ -534,14 +534,6 @@ jobs:
 
           if [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
             echo "Golden workspace cache is already warm."
-            if [ -w "${LOWER_DIR}" ]; then
-              if [ -d "${LOWER_DIR}/src/.git" ] && [ ! -f "${LOWER_DIR}/.golden_revision" ]; then
-                git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision" 2>/dev/null || true
-              fi
-              if [ -f "${LOWER_DIR}/src/DEPS" ] && [ ! -f "${LOWER_DIR}/.deps_sha256" ]; then
-                sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256" 2>/dev/null || true
-              fi
-            fi
             exit 0
           fi
 
@@ -573,12 +565,6 @@ jobs:
             mv "${STAGING_DIR}" "${LOWER_DIR}"
             touch "${LOWER_DIR}/.runner_cache_ready"
             chown -R 1000:1000 "${LOWER_DIR}" 2>/dev/null || true
-            if [ -d "${LOWER_DIR}/src/.git" ] && [ ! -f "${LOWER_DIR}/.golden_revision" ]; then
-              git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision" 2>/dev/null || true
-            fi
-            if [ -f "${LOWER_DIR}/src/DEPS" ] && [ ! -f "${LOWER_DIR}/.deps_sha256" ]; then
-              sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256" 2>/dev/null || true
-            fi
             echo "Golden workspace cache prepared successfully."
           else
             echo "Failed to pull or extract golden workspace archive. Proceeding with un-warmed cache."
@@ -999,14 +985,6 @@ jobs:
 
           if [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
             echo "Golden workspace cache is already warm."
-            if [ -w "${LOWER_DIR}" ]; then
-              if [ -d "${LOWER_DIR}/src/.git" ] && [ ! -f "${LOWER_DIR}/.golden_revision" ]; then
-                git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision" 2>/dev/null || true
-              fi
-              if [ -f "${LOWER_DIR}/src/DEPS" ] && [ ! -f "${LOWER_DIR}/.deps_sha256" ]; then
-                sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256" 2>/dev/null || true
-              fi
-            fi
             exit 0
           fi
 
@@ -1038,12 +1016,6 @@ jobs:
             mv "${STAGING_DIR}" "${LOWER_DIR}"
             touch "${LOWER_DIR}/.runner_cache_ready"
             chown -R 1000:1000 "${LOWER_DIR}" 2>/dev/null || true
-            if [ -d "${LOWER_DIR}/src/.git" ] && [ ! -f "${LOWER_DIR}/.golden_revision" ]; then
-              git -C "${LOWER_DIR}/src" rev-parse HEAD > "${LOWER_DIR}/.golden_revision" 2>/dev/null || true
-            fi
-            if [ -f "${LOWER_DIR}/src/DEPS" ] && [ ! -f "${LOWER_DIR}/.deps_sha256" ]; then
-              sha256sum "${LOWER_DIR}/src/DEPS" | awk '{print $1}' > "${LOWER_DIR}/.deps_sha256" 2>/dev/null || true
-            fi
             echo "Golden workspace cache prepared successfully."
           else
             echo "Failed to pull or extract golden workspace archive. Proceeding with un-warmed cache."
