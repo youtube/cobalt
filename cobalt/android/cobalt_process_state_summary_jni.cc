@@ -60,5 +60,24 @@ std::optional<std::vector<uint8_t>> GetPriorSessionProcessStateSummary(
   return result;
 }
 
+// Default weak no-op implementations so binaries that link the Java natives
+// without CobaltProcessStateSummaryManager (e.g. nplb, loader_app) link
+// cleanly. The strong definitions in cobalt_process_state_summary_manager.cc
+// take precedence in the Cobalt library.
+__attribute__((weak)) void SetStartupMilestoneFromJava(int milestone) {}
+
+__attribute__((weak)) void SetStartupGuardArmedFromJava(bool armed) {}
+
 }  // namespace android
+
+static void JNI_CobaltProcessStateSummary_SetStartupMilestone(JNIEnv* env,
+                                                              jint milestone) {
+  android::SetStartupMilestoneFromJava(milestone);
+}
+
+static void JNI_CobaltProcessStateSummary_SetStartupGuardArmed(JNIEnv* env,
+                                                               jboolean armed) {
+  android::SetStartupGuardArmedFromJava(armed);
+}
+
 }  // namespace cobalt

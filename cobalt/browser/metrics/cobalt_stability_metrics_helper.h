@@ -19,8 +19,21 @@
 
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
+#endif
 
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID)
+// Emits pre-joined memory and stability histograms for a prior session snapshot
+// according to |exit_reason|.
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSummaryData& summary);
+#endif
 
 // Returns the total size in bytes of all .pma files in |metrics_dir|.
 int64_t GetTotalStabilityMetricsPmaDirSizeBytes(
