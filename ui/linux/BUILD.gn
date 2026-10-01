@@ -37,7 +37,7 @@ component("linux_ui") {
   ]
   public_deps = [ "//printing/buildflags" ]
   if (is_cobalt) {
-    public_deps += [ "//ui/gfx:native_widget_types" ]
+    public_deps += [ "//ui/gfx:native_ui_types" ]
   }
 }
 
