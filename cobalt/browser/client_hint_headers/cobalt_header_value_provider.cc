@@ -18,6 +18,7 @@
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
+#include "services/network/public/cpp/header_util.h"
 #include "starboard/common/system_property.h"
 
 namespace cobalt {
@@ -46,12 +47,14 @@ void CobaltHeaderValueProvider::SetHeaderValue(
   // Thread-safely acquire lock and insert or update the specified header key.
   base::AutoLock auto_lock(lock_);
   header_values_.insert_or_assign(header_name, header_value);
+  network::SetCobaltClientHintHeader(header_name, header_value);
 }
 
 void CobaltHeaderValueProvider::ClearHeaderValuesForTesting() {
   // Thread-safely acquire lock and clear stored headers for test isolation.
   base::AutoLock auto_lock(lock_);
   header_values_.clear();
+  network::ClearCobaltClientHintHeadersForTesting();
 }
 
 void CobaltHeaderValueProvider::LoadSystemProperties() {

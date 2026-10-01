@@ -307,8 +307,10 @@ int32_t PopulateOptions(int32_t initial_options,
   }
 
 #if BUILDFLAG(IS_COBALT)
-  options |= mojom::kURLLoadOptionUseHeaderClient;
-  options |= mojom::kURLLoadOptionAsCorsPreflight;
+  if (!base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    options |= mojom::kURLLoadOptionUseHeaderClient;
+    options |= mojom::kURLLoadOptionAsCorsPreflight;
+  }
 #endif
 
   return options;
@@ -356,6 +358,8 @@ std::atomic<int> g_header_client_net_ipc_count{0};
 std::atomic<int64_t> g_header_client_stall_us{0};
 std::atomic<int64_t> g_header_client_max_stall_us{0};
 std::atomic<int> g_header_client_stall_count{0};
+std::atomic<int64_t> g_header_client_direct_cpu_ns{0};
+std::atomic<int> g_header_client_direct_count{0};
 
 struct ScopedHeaderClientNetCpuLogger {
   base::ThreadTicks start = base::ThreadTicks::Now();
@@ -374,6 +378,21 @@ struct ScopedHeaderClientNetCpuLogger {
     }
   }
 };
+
+void ApplyCobaltClientHintHeadersDirectly(net::URLRequest& url_request) {
+  const base::ThreadTicks start = base::ThreadTicks::Now();
+  for (const auto& [name, value] : GetCobaltClientHintHeaders()) {
+    url_request.SetExtraRequestHeaderByName(name, value, /*overwrite=*/true);
+  }
+  const int64_t ns = (base::ThreadTicks::Now() - start).InNanoseconds();
+  const int64_t total_ns = g_header_client_direct_cpu_ns.fetch_add(ns) + ns;
+  const int count = g_header_client_direct_count.fetch_add(1) + 1;
+  if (count % 50 == 0) {
+    LOG(INFO) << "[HeaderClientCPU][Direct] requests=" << count
+              << " cumulative_cpu_ms=" << (total_ns / 1e6)
+              << " ipcs=0 stall_hops=0 cumulative_stall_ms=0";
+  }
+}
 
 void RecordHeaderClientStall(base::TimeTicks start) {
   const int64_t us = (base::TimeTicks::Now() - start).InMicroseconds();
@@ -572,6 +591,11 @@ URLLoader::URLLoader(
   url_loader_util::ConfigureUrlRequest(request, *factory_params_,
                                        *origin_access_list_, *url_request_,
                                        shared_resource_checker);
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    ApplyCobaltClientHintHeadersDirectly(*url_request_);
+  }
+#endif
   if (context.ShouldRequireIsolationInfo()) {
     DCHECK(!url_request_->isolation_info().IsEmpty());
   }
@@ -858,6 +882,11 @@ void URLLoader::FollowRedirect(
                           request_destination_, *deferred_redirect_url_,
                           *factory_params_, *origin_access_list_,
                           request_credentials_mode_);
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    ApplyCobaltClientHintHeadersDirectly(*url_request_);
+  }
+#endif
 
   // Set seen_raw_request_headers_ to false in order to make sure this redirect
   // also calls the devtools observer.
