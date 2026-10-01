@@ -27,6 +27,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
@@ -87,6 +88,8 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(14);
 #endif
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupGuardArmed(true);
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(14);
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -126,6 +129,7 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
 #endif
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(15);
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -180,6 +184,7 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(16);
 #endif
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(16);
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);

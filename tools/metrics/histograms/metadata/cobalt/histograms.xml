@@ -31,6 +31,32 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<variants name="AndroidExitReasonToken">
+  <variant name="AllExits" summary="aggregate across all exit reasons"/>
+  <variant name="Anr" summary="ANR (Application Not Responding)"/>
+  <variant name="Crash" summary="unhandled Java exception crash"/>
+  <variant name="CrashNative"
+      summary="native signal crash (SIGSEGV, SIGABRT, etc.)"/>
+  <variant name="DependencyDied"
+      summary="death of a required dependency process"/>
+  <variant name="ExcessiveResourceUsage"
+      summary="exceeded system resource limits"/>
+  <variant name="ExitSelf"
+      summary="process cleanly exited via exit() or System.exit()"/>
+  <variant name="Freezer" summary="killed by system app freezer"/>
+  <variant name="InitFailure" summary="failure during process initialization"/>
+  <variant name="LowMemory"
+      summary="killed by Android LMK (low memory killer)"/>
+  <variant name="Other" summary="other system-defined exit reason"/>
+  <variant name="PackageStateChange" summary="package disabled or modified"/>
+  <variant name="PackageUpdated" summary="application package was updated"/>
+  <variant name="PermissionChange" summary="runtime permissions changed"/>
+  <variant name="Signaled" summary="killed by an unhandled POSIX signal"/>
+  <variant name="UserRequested" summary="explicitly killed by user action"/>
+  <variant name="UserStopped"
+      summary="stopped as part of user session management"/>
+</variants>
+
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
     enum="Android.MemoryPressureNotification" expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -425,6 +451,41 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+    units="milestone" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The highest StartupGuard milestone reached in the prior session before
+    termination for processes ending with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+    enum="Boolean" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Whether StartupGuard was actively armed (indicating termination during early
+    startup before startup completion/disarm) in the prior Cobalt session for
+    processes terminating with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone"
+    units="milestone" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The highest StartupGuard milestone reached in the prior session before
+    Cobalt was forcefully crashed by its StartupGuard watchdog timer due to a
+    startup hang or timeout.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Stability.Android.SystemExitReason"
     enum="AndroidProcessExitReason" expires_after="never">
   <owner>avvall@google.com</owner>
@@ -442,6 +503,16 @@ Always run the pretty print utility on this file after editing:
     browser process when the process importance was foreground (&lt;=
     IMPORTANCE_FOREGROUND), recorded on startup for Android R+ (API 30+)
     devices.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Pma.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the total aggregate size (in kilobytes) of all persistent memory
+    allocator (.pma) files on disk in the stability metrics directory measured
+    at startup during background metrics cleanup.
   </summary>
 </histogram>
 

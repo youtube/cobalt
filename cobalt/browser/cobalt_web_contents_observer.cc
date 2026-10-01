@@ -23,6 +23,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -146,6 +147,7 @@ void CobaltWebContentsObserver::DidStartNavigation(
       navigation_start_ticks_.is_null()) {
     navigation_start_ticks_ = base::TimeTicks::Now();
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(22);
   }
 
   // Start a navigation timer with a timeout callback to raise a
@@ -178,6 +180,9 @@ void CobaltWebContentsObserver::DidFinishNavigation(
       navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::OK) {
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 26);
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(26);
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupGuardArmed(
+        false);
     base::TimeDelta nav_duration =
         base::TimeTicks::Now() - navigation_start_ticks_;
     base::UmaHistogramCustomTimes(
