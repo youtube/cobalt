@@ -112,6 +112,8 @@ TEST_F(CobaltRenderFrameObserverTest, AllowsInsecureWebSocketToPrivateNetwork) {
       false, blink::WebURL(GURL("ws://172.16.0.1:8080"))));
   EXPECT_TRUE(observer_->AllowRunningInsecureContent(
       false, blink::WebURL(GURL("ws://192.168.1.100:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://[fd00::1]:8080"))));
 }
 
 TEST_F(CobaltRenderFrameObserverTest, BlocksInsecureWebSocketToPublicEndpoint) {
@@ -119,6 +121,8 @@ TEST_F(CobaltRenderFrameObserverTest, BlocksInsecureWebSocketToPublicEndpoint) {
       false, blink::WebURL(GURL("ws://example.com:8080"))));
   EXPECT_FALSE(observer_->AllowRunningInsecureContent(
       false, blink::WebURL(GURL("ws://8.8.8.8:8080"))));
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://[2001:4860:4860::8888]:8080"))));
 }
 
 TEST_F(CobaltRenderFrameObserverTest,
