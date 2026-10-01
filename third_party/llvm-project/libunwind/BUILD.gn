@@ -41,6 +41,16 @@ if (is_apple) {
   common_sources += [ "src/Unwind_AppleExtras.cpp" ]
 }
 
+common_removed_configs = [
+  "//build/config/compiler:chromium_code",
+  "//build/config/coverage:default_coverage",
+  "//build/config/compiler:default_optimization",
+]
+common_added_configs = [
+  "//build/config/compiler:no_chromium_code",
+  "//build/config/compiler:optimize_speed",
+]
+
 config("common_unwind_dependents_config") {
   include_dirs = [ "include" ]
   defines = [
@@ -56,29 +66,9 @@ config("common_unwind_dependents_config") {
 # TODO: b/295702296 Fix libunwind for modular  builds.
 if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
   config("unwind_config") {
-    configs = [ ":common_unwind_dependents_config" ]
-
-    cflags = [
-      "-nostdinc",
-      "-Wno-unused-command-line-argument",
-      "-Wno-unreachable-code",
-      "-Wno-unreachable-code-return",
-    ]
-
-    cflags_cc = [
-      "-std=c++20",
-      "-nostdinc++",
-      "-fPIC",
-      "-Werror=return-type",
-      "-fvisibility-inlines-hidden",
-      "-fms-compatibility-version=19.00",
-      "-funwind-tables",
-      "-Wall",
-      "-Wextra",
-      "-Wwrite-strings",
-      "-Wshorten-64-to-32",
-      "-Wno-error",
-      "-Wno-unused-parameter",
+    configs = [
+      ":common_unwind_dependents_config",
+      "//buildtools/third_party/libunwind:libunwind_config",
     ]
 
     defines = [
@@ -89,12 +79,14 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
       "LIBUNWIND_PRINT_DWARF",
       "LIBUNWIND_PRINT_UNWINDING",
     ]
-    include_dirs = ["//third_party/llvm-project/compiler-rt/include"]
+    include_dirs = [ "//third_party/llvm-project/compiler-rt/include" ]
   }
 
   static_library("unwind") {
     sources = common_sources
 
+    configs -= common_removed_configs
+    configs += common_added_configs
     configs += [ ":unwind_config" ]
     all_dependent_configs = [ ":common_unwind_dependents_config" ]
 
@@ -108,25 +100,10 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
 config("unwind_starboard_config") {
   configs = [
     ":common_unwind_dependents_config",
+    "//buildtools/third_party/libunwind:libunwind_config",
     "//starboard/build/config:starboard_implementation",
   ]
 
-  cflags = [
-    "-Wno-unused-command-line-argument",
-    "-Wno-unreachable-code",
-  ]
-  cflags_cc = [
-    "-std=c++17",
-    "-fPIC",
-    "-Werror=return-type",
-    "-fvisibility-inlines-hidden",
-    "-funwind-tables",
-    "-Wall",
-    "-Wextra",
-    "-Wwrite-strings",
-    "-Wno-error",
-    "-Wno-unused-parameter",
-  ]
   defines = [
     # Build libunwind with concurrency built upon Starboard mutexes and
     # condition variables.
@@ -138,16 +115,18 @@ config("unwind_starboard_config") {
 config("unwind_hide_symbols_config") {
   cflags = [ "-fvisibility=hidden" ]
 
-  defines = [
-    "_LIBUNWIND_HIDE_SYMBOLS",
-  ]
+  defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
 }
 
 static_library("unwind_starboard") {
   sources = common_sources
 
-  configs += [ ":unwind_starboard_config" ]
-  configs += [ ":unwind_hide_symbols_config" ]
+  configs -= common_removed_configs
+  configs += common_added_configs
+  configs += [
+    ":unwind_starboard_config",
+    ":unwind_hide_symbols_config",
+  ]
   all_dependent_configs = [ ":common_unwind_dependents_config" ]
 
   public_deps = [
