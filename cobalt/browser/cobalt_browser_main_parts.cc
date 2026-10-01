@@ -71,7 +71,8 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+#include "base/android/jni_android.h"
+#include "cobalt/android/jni_headers/BaseStarboardBridge_jni.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -250,18 +251,8 @@ void RecordPriorSessionExitReasons() {
       base::android::SDK_VERSION_R) {
     return;
   }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
-  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_BaseStarboardBridge_recordHistoricalProcessExitReason(env);
 }
 #endif
 

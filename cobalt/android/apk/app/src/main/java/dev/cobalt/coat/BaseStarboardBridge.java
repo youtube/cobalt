@@ -33,6 +33,8 @@ import android.os.Build;
 import android.view.InputDevice;
 import android.view.Surface;
 import android.view.accessibility.CaptioningManager;
+import androidx.annotation.GuardedBy;
+import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -42,6 +44,8 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -54,6 +58,8 @@ import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.CommandLine;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -135,6 +141,7 @@ public class BaseStarboardBridge {
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
   private static volatile Boolean sWasLowMemoryKilledForTesting;
+  private static ActivityManager sActivityManagerForTesting;
   private final Natives mNatives = BaseStarboardBridgeJni.get();
 
   /**
@@ -1058,6 +1065,97 @@ public class BaseStarboardBridge {
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
 
+  public static final String HISTOGRAM_SYSTEM_EXIT_REASON =
+      "Cobalt.Stability.Android.SystemExitReason";
+  public static final String HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND =
+      "Cobalt.Stability.Android.SystemExitReason.Foreground";
+
+  @IntDef({
+    ExitReason.REASON_ANR,
+    ExitReason.REASON_CRASH,
+    ExitReason.REASON_CRASH_NATIVE,
+    ExitReason.REASON_DEPENDENCY_DIED,
+    ExitReason.REASON_EXCESSIVE_RESOURCE_USAGE,
+    ExitReason.REASON_EXIT_SELF,
+    ExitReason.REASON_INITIALIZATION_FAILURE,
+    ExitReason.REASON_LOW_MEMORY,
+    ExitReason.REASON_OTHER,
+    ExitReason.REASON_PERMISSION_CHANGE,
+    ExitReason.REASON_SIGNALED,
+    ExitReason.REASON_UNKNOWN,
+    ExitReason.REASON_USER_REQUESTED,
+    ExitReason.REASON_USER_STOPPED,
+    ExitReason.REASON_API_FAILED,
+    ExitReason.REASON_FREEZER,
+    ExitReason.REASON_PACKAGE_STATE_CHANGE,
+    ExitReason.REASON_PACKAGE_UPDATED,
+  })
+  @Retention(RetentionPolicy.SOURCE)
+  public @interface ExitReason {
+    int REASON_ANR = 0;
+    int REASON_CRASH = 1;
+    int REASON_CRASH_NATIVE = 2;
+    int REASON_DEPENDENCY_DIED = 3;
+    int REASON_EXCESSIVE_RESOURCE_USAGE = 4;
+    int REASON_EXIT_SELF = 5;
+    int REASON_INITIALIZATION_FAILURE = 6;
+    int REASON_LOW_MEMORY = 7;
+    int REASON_OTHER = 8;
+    int REASON_PERMISSION_CHANGE = 9;
+    int REASON_SIGNALED = 10;
+    int REASON_UNKNOWN = 11;
+    int REASON_USER_REQUESTED = 12;
+    int REASON_USER_STOPPED = 13;
+    int REASON_API_FAILED = 14;
+    int REASON_FREEZER = 15;
+    int REASON_PACKAGE_STATE_CHANGE = 16;
+    int REASON_PACKAGE_UPDATED = 17;
+    int NUM_ENTRIES = 18;
+  }
+
+  public static @Nullable Integer convertToExitReason(int systemReason) {
+    switch (systemReason) {
+      case -1:
+        return ExitReason.REASON_API_FAILED;
+      case ApplicationExitInfo.REASON_ANR:
+        return ExitReason.REASON_ANR;
+      case ApplicationExitInfo.REASON_CRASH:
+        return ExitReason.REASON_CRASH;
+      case ApplicationExitInfo.REASON_CRASH_NATIVE:
+        return ExitReason.REASON_CRASH_NATIVE;
+      case ApplicationExitInfo.REASON_DEPENDENCY_DIED:
+        return ExitReason.REASON_DEPENDENCY_DIED;
+      case ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE:
+        return ExitReason.REASON_EXCESSIVE_RESOURCE_USAGE;
+      case ApplicationExitInfo.REASON_EXIT_SELF:
+        return ExitReason.REASON_EXIT_SELF;
+      case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE:
+        return ExitReason.REASON_INITIALIZATION_FAILURE;
+      case ApplicationExitInfo.REASON_LOW_MEMORY:
+        return ExitReason.REASON_LOW_MEMORY;
+      case ApplicationExitInfo.REASON_OTHER:
+        return ExitReason.REASON_OTHER;
+      case ApplicationExitInfo.REASON_PERMISSION_CHANGE:
+        return ExitReason.REASON_PERMISSION_CHANGE;
+      case ApplicationExitInfo.REASON_SIGNALED:
+        return ExitReason.REASON_SIGNALED;
+      case ApplicationExitInfo.REASON_UNKNOWN:
+        return ExitReason.REASON_UNKNOWN;
+      case ApplicationExitInfo.REASON_USER_REQUESTED:
+        return ExitReason.REASON_USER_REQUESTED;
+      case ApplicationExitInfo.REASON_USER_STOPPED:
+        return ExitReason.REASON_USER_STOPPED;
+      case ApplicationExitInfo.REASON_FREEZER:
+        return ExitReason.REASON_FREEZER;
+      case ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE:
+        return ExitReason.REASON_PACKAGE_STATE_CHANGE;
+      case ApplicationExitInfo.REASON_PACKAGE_UPDATED:
+        return ExitReason.REASON_PACKAGE_UPDATED;
+      default:
+        return null;
+    }
+  }
+
   @CalledByNative
   public boolean getWasLowMemoryKilled() {
     if (sWasLowMemoryKilledForTesting != null) {
@@ -1066,33 +1164,99 @@ public class BaseStarboardBridge {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
       return false;
     }
-    if (mAppContext == null) {
-      return false;
+    ActivityManager am = ApiHelperForR.getActivityManager(mAppContext);
+    return am != null && ApiHelperForR.getWasLowMemoryKilled(am);
+  }
+
+  /** Records historical process exit reasons into UMA histograms. */
+  @CalledByNative
+  public static void recordHistoricalProcessExitReason() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      return;
     }
-    ActivityManager am = (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
-    if (am == null) {
-      return false;
+    Context context = null;
+    try {
+      context = ContextUtils.getApplicationContext();
+    } catch (Throwable ignored) {
     }
-    return ApiHelperForR.getWasLowMemoryKilled(am);
+    ApiHelperForR.recordHistoricalProcessExitReason(context);
   }
 
   @RequiresApi(Build.VERSION_CODES.R)
-  private static final class ApiHelperForR {
+  static final class ApiHelperForR {
+    private static final Object sExitInfoLock = new Object();
+
+    @GuardedBy("sExitInfoLock")
+    private static boolean sExitInfoQueried;
+
+    @GuardedBy("sExitInfoLock")
+    private static @Nullable ApplicationExitInfo sCachedExitInfo;
+
     private ApiHelperForR() {}
 
-    static boolean getWasLowMemoryKilled(ActivityManager am) {
-      try {
-        // Query the latest process exit reason for this package (pid <= 0).
-        List<ApplicationExitInfo> reasons =
-            am.getHistoricalProcessExitReasons(
-                /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
-        if (reasons == null || reasons.isEmpty() || reasons.get(0) == null) {
-          return false;
+    static @Nullable ActivityManager getActivityManager(@Nullable Context context) {
+      if (sActivityManagerForTesting != null) {
+        return sActivityManagerForTesting;
+      }
+      return context != null
+          ? (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)
+          : null;
+    }
+
+    static @Nullable ApplicationExitInfo getLatestProcessExitInfo(@Nullable ActivityManager am) {
+      synchronized (sExitInfoLock) {
+        if (sExitInfoQueried) {
+          return sCachedExitInfo;
         }
-        return reasons.get(0).getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
-      } catch (RuntimeException e) {
-        Log.w(TAG, "Failed to get historical process exit reasons", e);
-        return false;
+        if (am == null) {
+          return null;
+        }
+        try {
+          List<ApplicationExitInfo> reasons =
+              am.getHistoricalProcessExitReasons(
+                  /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
+          if (reasons != null && !reasons.isEmpty() && reasons.get(0) != null) {
+            sCachedExitInfo = reasons.get(0);
+          }
+          sExitInfoQueried = true;
+        } catch (RuntimeException e) {
+          Log.w(TAG, "Failed to get historical process exit reasons", e);
+          sExitInfoQueried = true;
+        }
+        return sCachedExitInfo;
+      }
+    }
+
+    static boolean getWasLowMemoryKilled(ActivityManager am) {
+      ApplicationExitInfo info = getLatestProcessExitInfo(am);
+      return info != null && info.getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
+    }
+
+    static void recordHistoricalProcessExitReason(Context context) {
+      ActivityManager am = getActivityManager(context);
+      if (am == null) {
+        Log.w(TAG, "ActivityManager is null, cannot get process exit reasons.");
+        return;
+      }
+      ApplicationExitInfo info = getLatestProcessExitInfo(am);
+      if (info == null) {
+        return;
+      }
+      Integer exitReason = convertToExitReason(info.getReason());
+      if (exitReason != null) {
+        RecordHistogram.recordEnumeratedHistogram(
+            HISTOGRAM_SYSTEM_EXIT_REASON, exitReason, ExitReason.NUM_ENTRIES);
+        if (info.getImportance() <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+          RecordHistogram.recordEnumeratedHistogram(
+              HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND, exitReason, ExitReason.NUM_ENTRIES);
+        }
+      }
+    }
+
+    static void resetForTesting() {
+      synchronized (sExitInfoLock) {
+        sExitInfoQueried = false;
+        sCachedExitInfo = null;
       }
     }
   }
@@ -1100,5 +1264,13 @@ public class BaseStarboardBridge {
   @VisibleForTesting
   public static void setWasLowMemoryKilledForTesting(@Nullable Boolean wasKilled) {
     sWasLowMemoryKilledForTesting = wasKilled;
+  }
+
+  @VisibleForTesting
+  public static void setActivityManagerForTesting(@Nullable ActivityManager am) {
+    sActivityManagerForTesting = am;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      ApiHelperForR.resetForTesting();
+    }
   }
 }
