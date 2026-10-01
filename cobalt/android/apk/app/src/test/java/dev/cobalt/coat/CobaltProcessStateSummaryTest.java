@@ -134,8 +134,38 @@ public class CobaltProcessStateSummaryTest {
     byte[] retrieved =
         CobaltProcessStateSummary.recordLatestExitReasonAndGetSummary("TestUma", outReason);
     assertThat(retrieved).isEqualTo(expectedSummary);
-    // REASON_LOW_MEMORY (3) maps to enum 2
-    assertThat(outReason[0]).isEqualTo(2);
+    // REASON_LOW_MEMORY maps to ProcessExitReasonFromSystem.ExitReason.REASON_LOW_MEMORY (7)
+    assertThat(outReason[0]).isEqualTo(7);
+  }
+
+  @Test
+  public void testRecordLatestExitReasonToUma_recordsForegroundExitReason() {
+    ApplicationExitInfo mockExitInfo = mock(ApplicationExitInfo.class);
+    when(mockExitInfo.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(mockExitInfo.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(mMockActivityManager.getHistoricalProcessExitReasons(null, 0, 1))
+        .thenReturn(Collections.singletonList(mockExitInfo));
+
+    int recordedReason =
+        CobaltProcessStateSummary.recordLatestExitReasonToUma(
+            "Cobalt.Stability.Android.SystemExitReason");
+    assertThat(recordedReason).isEqualTo(7);
+  }
+
+  @Test
+  public void testRecordLatestExitReasonToUma_ignoresBackgroundExit() {
+    ApplicationExitInfo mockExitInfo = mock(ApplicationExitInfo.class);
+    when(mockExitInfo.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND);
+    when(mockExitInfo.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(mMockActivityManager.getHistoricalProcessExitReasons(null, 0, 1))
+        .thenReturn(Collections.singletonList(mockExitInfo));
+
+    int recordedReason =
+        CobaltProcessStateSummary.recordLatestExitReasonToUma(
+            "Cobalt.Stability.Android.SystemExitReason");
+    assertThat(recordedReason).isEqualTo(-1);
   }
 
   @Test
@@ -143,18 +173,18 @@ public class CobaltProcessStateSummaryTest {
     assertThat(
             CobaltProcessStateSummary.ApiHelperForR.convertToExitReason(
                 ApplicationExitInfo.REASON_EXIT_SELF))
-        .isEqualTo(0);
+        .isEqualTo(5);
     assertThat(
             CobaltProcessStateSummary.ApiHelperForR.convertToExitReason(
                 ApplicationExitInfo.REASON_LOW_MEMORY))
-        .isEqualTo(2);
+        .isEqualTo(7);
     assertThat(
             CobaltProcessStateSummary.ApiHelperForR.convertToExitReason(
                 ApplicationExitInfo.REASON_CRASH))
-        .isEqualTo(3);
+        .isEqualTo(1);
     assertThat(
             CobaltProcessStateSummary.ApiHelperForR.convertToExitReason(
                 ApplicationExitInfo.REASON_ANR))
-        .isEqualTo(5);
+        .isEqualTo(0);
   }
 }

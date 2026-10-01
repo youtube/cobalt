@@ -36,6 +36,10 @@ std::optional<std::vector<uint8_t>> RecordLatestExitReasonAndGetSummary(
     const std::string& uma_name,
     int* out_exit_reason);
 
+// Queries the latest historical exit reason and records it to UMA if it was a
+// foreground exit (importance <= IMPORTANCE_FOREGROUND).
+int RecordLatestExitReasonToUma(const std::string& uma_name);
+
 }  // namespace android
 }  // namespace cobalt
 
