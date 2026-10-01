@@ -308,12 +308,11 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReportUkm);
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 
-<<<<<<< HEAD
 // When enabled, browser controls height changed that does not request animation
 // will cancel the ongoing animation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(
     kBrowserControlsHeightChangeCancelAnimations);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // When enabled, allows the compositor scheduler to send the next
 // BeginMainFrame before the previous commit has activated on the impl tree
@@ -321,7 +320,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(
 // frame production with pending tree rasterization and activation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 223bb72d61d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 
