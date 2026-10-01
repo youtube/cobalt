@@ -70,7 +70,7 @@ bool CobaltRenderFrameObserver::AllowRunningInsecureContent(
       return true;
     }
     net::IPAddress ip_address;
-    if (ip_address.AssignFromIPLiteral(gurl.host_piece()) &&
+    if (ip_address.AssignFromIPLiteral(gurl.host()) &&
         !ip_address.IsPubliclyRoutable()) {
       return true;
     }
