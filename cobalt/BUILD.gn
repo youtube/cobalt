@@ -308,6 +308,7 @@ source_set("common") {
 
   if (is_android) {
     deps += [
+      "//cobalt/browser:metrics",
       "//components/services/storage",
       "//content/public/common",
     ]

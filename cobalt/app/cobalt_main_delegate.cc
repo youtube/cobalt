@@ -24,6 +24,7 @@
 #include "base/feature_list.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
@@ -35,6 +36,10 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
+#endif
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
@@ -107,6 +112,10 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(14);
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(14);
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupGuardArmed(true);
+#endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -145,6 +154,9 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(15);
 #endif
   content::RenderFrameHost::AllowInjectingJavaScript();
 
@@ -199,6 +211,9 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(16);
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(16);
 #endif
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
