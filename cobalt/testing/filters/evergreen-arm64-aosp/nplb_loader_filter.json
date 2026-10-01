@@ -7,7 +7,6 @@
     "*SbPlayer*",
     "*VerticalVideoTest*",
     "CrashpadConfigTest.VerifyUploadCert",
-    "NativeStabilityTest.VerifyNativeStabilityExtension",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
@@ -28,10 +27,6 @@
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
-    "SbSystemGetStackTest.SunnyDay",
-    "SbSystemGetStackTest.SunnyDayShortStack",
-    "SbSystemGetStackTest.SunnyDayStackDirection",
-    "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
 }

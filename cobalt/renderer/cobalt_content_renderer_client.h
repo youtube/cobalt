@@ -20,7 +20,6 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
@@ -59,6 +58,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
   void RenderThreadStarted() override;
+  void SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() override;
 
   // Thread safety: The following media capability query methods can be called
   // from any thread (main thread or worker threads, e.g., when MSE is used in
@@ -89,11 +89,11 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
-  mutable base::Lock media_allocator_lock_;
-  bool is_external_memory_pool_enabled_ GUARDED_BY(media_allocator_lock_) =
-      false;
-  std::unique_ptr<::media::ExternalMemoryAllocator> media_memory_allocator_
-      GUARDED_BY(media_allocator_lock_);
+  // Routes media frame buffer allocations into Starboard's media memory pool.
+  // Created in the constructor and never reassigned, so it is safe to hand out
+  // from any thread via GetMediaAllocator().
+  const std::unique_ptr<::media::ExternalMemoryAllocator>
+      media_memory_allocator_;
 
   std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
                   base::OnTaskRunnerDeleter>
