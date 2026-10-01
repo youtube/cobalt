@@ -104,6 +104,15 @@ source_set("app_event_bridge") {
   ]
 }
 
+source_set("cobalt_process_state_summary_jni") {
+  sources = [
+    "cobalt_process_state_summary_jni.cc",
+    "cobalt_process_state_summary_jni.h",
+  ]
+  public_deps = [ ":jni_headers" ]
+  deps = [ "//base" ]
+}
+
 android_library("cobalt_browser_java") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
