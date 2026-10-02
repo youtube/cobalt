@@ -16,6 +16,11 @@
 
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
+#if defined(OS_ANDROID)
+#include <android/api-level.h>
+#endif  // defined(OS_ANDROID)
 
 #include <map>
 #include <memory>
@@ -81,17 +86,41 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
     LOG(ERROR) << "Couldn't retrieve path to crashpad_handler binary.";
     return base::FilePath("");
   }
+#if defined(OS_ANDROID)
+  // The executable path is the app's native library directory, where the
+  // handler is extracted alongside the loader.
+  return base::FilePath(exe_path.data())
+      .Append("libchrome_crashpad_handler.so");
+#else   // defined(OS_ANDROID)
   base::FilePath exe_dir_path = base::FilePath(exe_path.data()).DirName();
   std::string handler_path(exe_dir_path.value());
   handler_path.push_back(kSbFileSepChar);
-#if defined(OS_ANDROID)
-  // Path to the extracted native library.
-  handler_path.append("arm/libcrashpad_handler.so");
-#else   // defined(OS_ANDROID)
   handler_path.append("native_target/crashpad_handler");
-#endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
+#endif  // defined(OS_ANDROID)
 }
+
+#if defined(OS_ANDROID)
+// Copies the current environment with |library_dir| prepended to
+// LD_LIBRARY_PATH, so the handler can load the libraries packaged with it.
+std::vector<std::string> BuildHandlerEnvironment(
+    const base::FilePath& library_dir) {
+  static constexpr char kLdLibraryPathPrefix[] = "LD_LIBRARY_PATH=";
+  const size_t prefix_length = strlen(kLdLibraryPathPrefix);
+  std::string library_path = kLdLibraryPathPrefix + library_dir.value();
+  std::vector<std::string> env;
+  for (char** envp = environ; *envp != nullptr; ++envp) {
+    if (strncmp(*envp, kLdLibraryPathPrefix, prefix_length) == 0) {
+      library_path += ':';
+      library_path += *envp + prefix_length;
+      continue;
+    }
+    env.push_back(*envp);
+  }
+  env.push_back(library_path);
+  return env;
+}
+#endif  // defined(OS_ANDROID)
 
 base::FilePath GetDatabasePath() {
   if (g_database_path_override_for_testing) {
@@ -285,6 +314,15 @@ std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
+#if defined(OS_ANDROID)
+  // The linker only launches an executable passed on its command line from
+  // Android Q. Like Android TV, don't report crashes below that.
+  if (android_get_device_api_level() < __ANDROID_API_Q__) {
+    LOG(INFO) << "Crashpad handler not installed: requires Android Q or later";
+    return;
+  }
+#endif  // defined(OS_ANDROID)
+
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -334,10 +372,24 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   client->SetUnhandledSignals({});
 
-  if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
-                                   default_metrics_dir, kUploadUrl,
-                                   base::FilePath(ca_certificates_path.c_str()),
-                                   default_annotations, default_arguments)) {
+#if defined(OS_ANDROID)
+  // The handler runs outside the app's linker namespace, so it is launched
+  // through the system linker with its library directory in its environment.
+  // This path doesn't pass a CA certificates path, so Crashpad uses the
+  // Android system CA store.
+  const std::vector<std::string> handler_env =
+      BuildHandlerEnvironment(handler_path.DirName());
+  const bool handler_started = client->StartHandlerWithLinkerAtCrash(
+      handler_path.value(), /*handler_library=*/std::string(),
+      /*is_64_bit=*/sizeof(void*) == 8, &handler_env, database_directory_path,
+      default_metrics_dir, kUploadUrl, default_annotations, default_arguments);
+#else   // defined(OS_ANDROID)
+  const bool handler_started = client->StartHandlerAtCrash(
+      handler_path, database_directory_path, default_metrics_dir, kUploadUrl,
+      base::FilePath(ca_certificates_path.c_str()), default_annotations,
+      default_arguments);
+#endif  // defined(OS_ANDROID)
+  if (!handler_started) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
