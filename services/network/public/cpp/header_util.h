@@ -5,9 +5,12 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_HEADER_UTIL_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_HEADER_UTIL_H_
 
+#include <map>
+#include <string>
 #include <string_view>
 
 #include "base/component_export.h"
+#include "build/build_config.h"
 #include "services/network/public/mojom/referrer_policy.mojom.h"
 
 class GURL;
@@ -46,6 +49,18 @@ bool ShouldSniffContent(const GURL& url,
 // https://fetch.spec.whatwg.org/#ok-status aka a successful 2xx status code,
 // https://www.rfc-editor.org/rfc/rfc9110#status.2xx.
 COMPONENT_EXPORT(NETWORK_CPP) bool IsSuccessfulStatus(int status);
+
+#if BUILDFLAG(IS_COBALT)
+COMPONENT_EXPORT(NETWORK_CPP)
+void SetCobaltClientHintHeader(const std::string& name,
+                               const std::string& value);
+
+COMPONENT_EXPORT(NETWORK_CPP)
+std::map<std::string, std::string> GetCobaltClientHintHeaders();
+
+COMPONENT_EXPORT(NETWORK_CPP)
+void ClearCobaltClientHintHeadersForTesting();
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network
 

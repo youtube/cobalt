@@ -36,6 +36,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -563,6 +564,11 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
+  browser::CobaltHeaderValueProvider::GetInstance();
+  if (base::FeatureList::IsEnabled(
+          network::features::kCobaltSkipTrustedHeaderClient)) {
+    return;
+  }
   if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),

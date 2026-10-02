@@ -4,12 +4,16 @@
 
 #include "services/network/public/cpp/header_util.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "net/base/mime_sniffer.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -20,6 +24,18 @@
 namespace network {
 
 namespace {
+
+#if BUILDFLAG(IS_COBALT)
+struct CobaltClientHintHeaderStore {
+  base::Lock lock;
+  std::map<std::string, std::string> headers;
+};
+
+CobaltClientHintHeaderStore& GetCobaltClientHintHeaderStore() {
+  static base::NoDestructor<CobaltClientHintHeaderStore> store;
+  return *store;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Headers that consumers are not trusted to set. All "Proxy-" prefixed messages
 // are blocked inline. The"Authorization" auth header is deliberately not
@@ -164,5 +180,26 @@ bool IsSuccessfulStatus(int status) {
   // This contains successful 2xx status code.
   return status >= net::HTTP_OK && status < net::HTTP_MULTIPLE_CHOICES;
 }
+
+#if BUILDFLAG(IS_COBALT)
+void SetCobaltClientHintHeader(const std::string& name,
+                               const std::string& value) {
+  auto& store = GetCobaltClientHintHeaderStore();
+  base::AutoLock auto_lock(store.lock);
+  store.headers.insert_or_assign(name, value);
+}
+
+std::map<std::string, std::string> GetCobaltClientHintHeaders() {
+  auto& store = GetCobaltClientHintHeaderStore();
+  base::AutoLock auto_lock(store.lock);
+  return store.headers;
+}
+
+void ClearCobaltClientHintHeadersForTesting() {
+  auto& store = GetCobaltClientHintHeaderStore();
+  base::AutoLock auto_lock(store.lock);
+  store.headers.clear();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network
