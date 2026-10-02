@@ -123,6 +123,15 @@ extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
 // Delay before performing memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 
+// Enables GPU memory ablation study to allocate and hold GPU memory.
+BASE_DECLARE_FEATURE(kCobaltGpuMemoryAblation);
+
+// GPU memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
+
+// Delay before performing GPU memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
+
 }  // namespace features
 }  // namespace cobalt
 

@@ -53,6 +53,46 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.GpuMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the amount of GPU memory requested in megabytes when the GPU memory
+    ablation Finch feature is enabled. Recorded in the GPU process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether the GPU memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.GlErrorDrainExhausted"
+    enum="Boolean" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether GL errors were still pending after the bounded glGetError()
+    drain loop used by the GPU memory ablation study. True indicates unexpected
+    driver behavior that may skew experiment results. Recorded each time the
+    errors are drained.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Result"
+    enum="GpuMemoryAblationResult" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the outcome of the GPU memory ablation allocation attempt, including
+    the failure reason if the allocation did not succeed. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
