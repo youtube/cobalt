@@ -17,7 +17,7 @@
 #include "net/base/network_change_notifier.h"
 #include "services/network/public/mojom/network_change_manager.mojom.h"
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
 #include "services/network/public/mojom/network_interface_change_listener.mojom.h"
 #endif
 
@@ -30,7 +30,7 @@ namespace network {
 class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkChangeManager
     : public mojom::NetworkChangeManager,
       public net::NetworkChangeNotifier::NetworkChangeObserver
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
     ,
       public mojom::NetworkInterfaceChangeListener
 #endif
@@ -65,7 +65,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkChangeManager
       mojom::ConnectionSubtype new_connection_subtype) override;
 #endif
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
   void BindNetworkInterfaceChangeListener(
       mojo::PendingAssociatedReceiver<mojom::NetworkInterfaceChangeListener>)
       override;
@@ -87,7 +87,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkChangeManager
 
   std::unique_ptr<net::NetworkChangeNotifier> network_change_notifier_;
   mojo::ReceiverSet<mojom::NetworkChangeManager> receivers_;
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
   mojo::AssociatedReceiver<mojom::NetworkInterfaceChangeListener>
       interface_change_listener_receiver_{this};
 #endif

@@ -18,25 +18,17 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "components/language_detection/content/common/language_detection.mojom.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/viz/host/gpu_client.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "content/browser/attribution_reporting/attribution_internals.mojom.h"  // nogncheck
-#include "content/browser/attribution_reporting/attribution_internals_ui.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/attribution_reporting/attribution_internals.mojom.h"
+#include "content/browser/attribution_reporting/attribution_internals_ui.h"
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
-#endif
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "content/browser/browsing_topics/browsing_topics_document_host.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/browsing_topics/browsing_topics_document_host.h"
 #include "content/browser/contacts/contacts_manager_impl.h"
 #include "content/browser/content_index/content_index_service_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
@@ -46,9 +38,7 @@
 #include "content/browser/image_capture/image_capture_impl.h"
 #include "content/browser/indexed_db/indexed_db_internals.mojom.h"
 #include "content/browser/indexed_db/indexed_db_internals_ui.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "content/browser/interest_group/ad_auction_service_impl.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/interest_group/ad_auction_service_impl.h"
 #include "content/browser/keyboard_lock/keyboard_lock_service_impl.h"
 #include "content/browser/loader/content_security_notifier.h"
 #include "content/browser/media/media_web_contents_observer.h"
@@ -58,10 +48,8 @@
 #include "content/browser/picture_in_picture/picture_in_picture_service_impl.h"
 #include "content/browser/preloading/anchor_element_interaction_host_impl.h"
 #include "content/browser/preloading/speculation_rules/speculation_host_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-#include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"  // nogncheck
-#include "content/browser/private_aggregation/private_aggregation_internals_ui.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"
+#include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_context.h"
@@ -750,15 +738,11 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   }
 
 #if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
-#if !BUILDFLAG(IS_COBALT)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 #else
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &RenderFrameHostImpl::GetHidService, base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 
   map->Add<blink::mojom::InstalledAppProvider>(
       base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
@@ -766,10 +750,8 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(base::BindRepeating(
@@ -813,7 +795,6 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
       },
       base::Unretained(host)));
 
-#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](RenderFrameHostImpl* host,
@@ -825,7 +806,6 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                 std::move(receiver));
           },
           base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 void PopulateBinderMapWithContext(
@@ -845,14 +825,12 @@ void PopulateBinderMapWithContext(
       &EmptyBinderForFrame<blink::mojom::CredentialManager>);
   map->Add<blink::mojom::LCPCriticalPathPredictorHost>(
       &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
       base::FeatureList::IsEnabled(
           blink::features::kBrowsingTopicsDocumentAPI)) {
     map->Add<blink::mojom::BrowsingTopicsDocumentService>(
         &BrowsingTopicsDocumentHost::CreateMojoService);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(
       &DirectSocketsServiceImpl::CreateForFrame);
@@ -996,10 +974,8 @@ void PopulateBinderMapWithContext(
           &RenderFrameHostImpl::GetManagedConfigurationService>);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebUsbService>);
-#endif
 
   map->Add<blink::mojom::WebSocketConnector>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::CreateWebSocketConnector>);
@@ -1038,10 +1014,8 @@ void PopulateBinderMapWithContext(
         &BindWebNNContextProviderForRenderFrame);
   }
 
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebBluetoothService>(
       &WebBluetoothServiceImpl::BindIfAllowed);
-#endif
 
   map->Add<blink::mojom::PushMessaging>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetPushMessaging>);
@@ -1159,12 +1133,10 @@ void PopulateBinderMapWithContext(
       &ContentIndexServiceImpl::CreateForFrame);
   map->Add<blink::mojom::KeyboardLockService>(
       &KeyboardLockServiceImpl::CreateMojoService);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     map->Add<blink::mojom::AdAuctionService>(
         &AdAuctionServiceImpl::CreateMojoService);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   map->Add<blink::mojom::MediaSessionService>(&MediaSessionServiceImpl::Create);
   map->Add<blink::mojom::PictureInPictureService>(
       &PictureInPictureServiceImpl::Create);
@@ -1175,13 +1147,11 @@ void PopulateBinderMapWithContext(
   map->Add<device::mojom::VRService>(
       &EmptyBinderForFrame<device::mojom::VRService>);
 #endif
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   RegisterWebUIControllerInterfaceBinder<
       private_aggregation_internals::mojom::Factory,
       PrivateAggregationInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<attribution_internals::mojom::Factory,
                                          AttributionInternalsUI>(map);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   RegisterWebUIControllerInterfaceBinder<storage::mojom::IdbInternalsHandler,
                                          indexed_db::IndexedDBInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<::mojom::ProcessInternalsHandler,
@@ -1319,10 +1289,8 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
       base::BindRepeating(&DedicatedWorkerHost::CreateDirectSocketsService,
                           base::Unretained(host)));
 #endif
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &DedicatedWorkerHost::CreateWebUsbService, base::Unretained(host)));
-#endif
   map->Add<blink::mojom::WebSocketConnector>(base::BindRepeating(
       &DedicatedWorkerHost::CreateWebSocketConnector, base::Unretained(host)));
   map->Add<blink::mojom::WebTransportConnector>(
@@ -1345,14 +1313,12 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                           base::Unretained(host)));
   map->Add<blink::mojom::ReportingServiceProxy>(base::BindRepeating(
       &CreateReportingServiceProxyForDedicatedWorker, base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &DedicatedWorkerHost::BindSerialService, base::Unretained(host)));
-#endif
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &DedicatedWorkerHost::BindHidService, base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
       &DedicatedWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
   map->Add<blink::mojom::FileSystemAccessManager>(
@@ -1403,7 +1369,6 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
             host->GetStorageKey().origin(), std::move(receiver));
       },
       base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](DedicatedWorkerHost* host,
@@ -1415,7 +1380,6 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                 std::move(receiver));
           },
           base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 void PopulateBinderMapWithContext(
@@ -1523,7 +1487,6 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
             host->GetStorageKey().origin(), std::move(receiver));
       },
       base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](SharedWorkerHost* host,
@@ -1535,7 +1498,6 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
                 std::move(receiver));
           },
           base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(base::BindRepeating(
@@ -1600,7 +1562,6 @@ void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
   map->Add<ukm::mojom::UkmRecorderFactory>(base::DoNothing());
   map->Add<blink::mojom::FeatureObserver>(base::DoNothing());
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // SharedStorageWorkletHost binders
   // base::Unretained(host) is safe because the map is owned by
   // |SharedStorageWorkletHost::broker_|.
@@ -1609,9 +1570,6 @@ void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
   map->Add<blink::mojom::ReportingServiceProxy>(
       base::BindRepeating(&CreateReportingServiceProxyForSharedStorageWorklet,
                           base::Unretained(host)));
-#else
-  (void)host;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 void PopulateBinderMapWithContext(
@@ -1676,17 +1634,13 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
                                                          std::move(receiver));
       },
       base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &ServiceWorkerHost::BindHidService, base::Unretained(host)));
 #endif
-#endif
   map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
       &ServiceWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &ServiceWorkerHost::BindUsbService, base::Unretained(host)));
-#endif
   map->Add<blink::mojom::AIManager>(base::BindRepeating(
       &ServiceWorkerHost::BindAIManager, base::Unretained(host)));
 
@@ -1707,7 +1661,6 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
         }
       },
       base::Unretained(host)));
-#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](ServiceWorkerHost* host,
@@ -1721,7 +1674,6 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
             }
           },
           base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
 
   // RenderProcessHost binders
   map->Add<media::mojom::VideoDecodePerfHistory>(BindServiceWorkerReceiver(

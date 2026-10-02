@@ -186,7 +186,7 @@ void WasmInterpreterThreadMap::NotifyIsolateDisposal(Isolate* isolate) {
     WasmInterpreterThread* thread = it->second.get();
     if (thread->GetIsolate() == isolate) {
       thread->TerminateExecutionTimers();
-      map_.erase(it++);
+      it = map_.erase(it);
     } else {
       ++it;
     }
@@ -9825,7 +9825,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       const BranchOnCastData& br_on_cast_data = instr.optional.br_on_cast_data;
       int32_t target_branch_index =
           GetTargetBranch(br_on_cast_data.label_depth());
-      bool null_succeeds = br_on_cast_data.res_is_null();
+      bool null_succeeds = br_on_cast_data.res_is_null;
       HeapType br_on_cast_data_target_type =
           HeapType::FromBits(br_on_cast_data.target_type_bit_fields());
       const ValueType target_type =
