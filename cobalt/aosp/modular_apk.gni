@@ -75,18 +75,20 @@ template("modular_apk") {
       renaming_destinations += [ "fonts/$_font_file" ]
     }
 
+    foreach(_cert, network_certs) {
+      _cert_file = get_path_info(_cert, "file")
+      renaming_sources +=
+          [ "$root_build_dir/app/${_name}/content/ssl/certs/$_cert_file" ]
+      renaming_destinations += [ "app/${_name}/content/ssl/certs/$_cert_file" ]
+    }
+
     deps = [
+      ":copy_${_name}_certs($default_toolchain)",
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
       "//starboard/content/fonts:copy_fonts($default_toolchain)",
       "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
-
-    foreach(_cert, network_certs) {
-      renaming_sources += [ _cert ]
-      renaming_destinations +=
-          [ "app/${_name}/content/ssl/certs/" + get_path_info(_cert, "file") ]
-    }
 
     if (icu_use_data_file) {
       renaming_sources += [ "$root_build_dir/icudtl.dat" ]
