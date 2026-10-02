@@ -18,7 +18,14 @@
 #include <memory>
 #include <optional>
 
+#include "build/build_config.h"
 #include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+namespace ui {
+class PlatformEventSourceStarboard;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace content {
 
@@ -33,6 +40,11 @@ class ContentBrowserTestShellMainDelegate : public ShellMainTestDelegate {
 
   // ShellMainDelegate overrides.
   content::ContentBrowserClient* CreateContentBrowserClient() override;
+
+ private:
+#if BUILDFLAG(IS_STARBOARD)
+  std::unique_ptr<ui::PlatformEventSourceStarboard> platform_event_source_;
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace content
