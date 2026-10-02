@@ -448,4 +448,42 @@ IN_PROC_BROWSER_TEST_F(
       std::make_pair(std::string(kInitialMime), std::string(kChangedMime))));
 }
 
+// Runs with the MediaSourceChangeType Blink feature turned off, which is how
+// CobaltContentRendererClient hides SourceBuffer.changeType() by default. The
+// browser test renderer client does not apply that default, so the feature is
+// turned off from the command line here. This class is owned and managed by
+// the gtest framework, with a lifetime spanning a single test case execution.
+// It is thread-affine to the browser main thread.
+class SourceBufferChangeTypeDisabledBrowserTest
+    : public CustomMimeTypeBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    CustomMimeTypeBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(switches::kDisableBlinkFeatures,
+                                    "MediaSourceChangeType");
+  }
+};
+
+// Web apps feature-detect changeType() by checking that the method exists, so
+// turning the feature off must remove it from script rather than only make
+// calls fail.
+IN_PROC_BROWSER_TEST_F(SourceBufferChangeTypeDisabledBrowserTest,
+                       ChangeTypeIsNotExposed) {
+  test_media_.SetSupportType(kSbMediaSupportTypeProbably);
+
+  const char kScript[] = R"(
+    (async () => {
+      const ms = new MediaSource();
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(ms);
+      await new Promise(resolve => ms.addEventListener('sourceopen', resolve, {once: true}));
+      const sb = ms.addSourceBuffer('video/mp4; codecs="avc1.4d401f"');
+      return !('changeType' in SourceBuffer.prototype) &&
+          typeof sb.changeType === 'undefined';
+    })()
+  )";
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), kScript).ExtractBool());
+}
+
 }  // namespace cobalt
