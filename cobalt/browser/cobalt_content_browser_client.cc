@@ -578,10 +578,12 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
-  // With kCobaltSkipTrustedHeaderClient, the network service adds the client
-  // hint headers itself (see ConfigureNetworkContextParams()).
-  if (header_client &&
-      !base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    // With kCobaltSkipTrustedHeaderClient, the network service adds the client
+    // hint headers itself (see ConfigureNetworkContextParams()).
+    return;
+  }
+  if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
         header_client->InitWithNewPipeAndPassReceiver());
