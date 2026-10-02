@@ -75,7 +75,7 @@ class NackRequester final : public NackRequesterBase {
                 NackSender* nack_sender,
                 KeyFrameRequestSender* keyframe_request_sender,
                 const FieldTrialsView& field_trials);
-  ~NackRequester();
+  ~NackRequester() override;
 
   void ProcessNacks() override;
 

@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static uint32_t CRYPTO_BUFFER_hash(const CRYPTO_BUFFER *buf) {
   return (uint32_t)SIPHASH_24(buf->pool->hash_key, buf->data, buf->len);
 }
@@ -40,7 +42,7 @@ static int CRYPTO_BUFFER_cmp(const CRYPTO_BUFFER *a, const CRYPTO_BUFFER *b) {
   return OPENSSL_memcmp(a->data, b->data, a->len);
 }
 
-CRYPTO_BUFFER_POOL *CRYPTO_BUFFER_POOL_new(void) {
+CRYPTO_BUFFER_POOL *CRYPTO_BUFFER_POOL_new() {
   CRYPTO_BUFFER_POOL *pool = reinterpret_cast<CRYPTO_BUFFER_POOL *>(
       OPENSSL_zalloc(sizeof(CRYPTO_BUFFER_POOL)));
   if (pool == nullptr) {

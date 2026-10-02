@@ -6,6 +6,7 @@ import './event_list_item.js';
 import './filter_bar.js';
 import './raw_event_details.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
+import '//resources/cr_elements/cr_infinite_list/cr_infinite_list.js';
 
 import {assert} from '//resources/js/assert.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
@@ -22,6 +23,7 @@ import type {EventListItemElement} from './event_list_item.js';
 import {applyFilterSettings, createDefaultFilterSettings} from './filter_settings.js';
 import type {FilterSettings} from './filter_settings.js';
 
+
 /**
  * Maps a set of events to EventEntry objects, which have all of the necessary
  * information to render an event-list-item. All of the provided events must
@@ -33,21 +35,28 @@ function getEventEntries(
   if (processMap === undefined) {
     return [];
   }
-  return events.map((event, index) => {
+  return events.map(event => {
     const eventDate = processMap.eventDate(event);
     assert(eventDate !== undefined);
-    const nextEvent = events[index - 1];
-    const nextEventDate =
-        nextEvent ? processMap.eventDate(nextEvent) : undefined;
     return {
       event,
-      shouldShowBreak: index > 0 && nextEventDate !== undefined &&
-          nextEventDate.getTime() - eventDate.getTime() > 1000 * 60 * 60,
       eventDate,
-      formattedEventDate: eventDate.toLocaleString(),
+      formattedEventDate: getFormattedDate(eventDate),
       formattedRelativeEventDate: getRelativeDate(eventDate),
     };
   });
+}
+
+function getFormattedDate(date: Date): string {
+  return new Intl
+      .DateTimeFormat(undefined, {
+        timeZoneName: 'short',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+      })
+      .format(date);
 }
 
 function getRelativeDate(date: Date): string {
@@ -70,10 +79,8 @@ function getRelativeDate(date: Date): string {
   return rtf.format(-Math.floor(diffInDays), 'day');
 }
 
-interface EventEntry {
+export interface EventEntry {
   event: HistoryEvent|MergedHistoryEvent;
-  // Whether a list break should be displayed before the entry.
-  shouldShowBreak: boolean;
   eventDate: Date;
   formattedEventDate: string;
   formattedRelativeEventDate: string;
@@ -100,6 +107,7 @@ export class EventListElement extends CrLitElement {
       eventsWithParseErrorsLabel: {type: String},
       expandAllButtonLabel: {type: String},
       events: {type: Array},
+      scrollTarget: {type: Object},
     };
   }
 
@@ -110,6 +118,7 @@ export class EventListElement extends CrLitElement {
   protected accessor expandAllButtonLabel: string =
       loadTimeData.getString('expandAll');
   protected accessor events: EventEntry[] = [];
+  protected accessor scrollTarget: HTMLElement = document.documentElement;
 
   protected processMap: UpdaterProcessMap|undefined = undefined;
   protected eventsWithParseErrors: Array<Record<string, unknown>> = [];
@@ -193,6 +202,12 @@ export class EventListElement extends CrLitElement {
   protected onEventItemExpandedChanged() {
     this.expandAllButtonLabel =
         loadTimeData.getString(this.anyExpanded ? 'collapseAll' : 'expandAll');
+  }
+
+  protected get numDisplayedEventsLabel(): string {
+    return loadTimeData.getStringF(
+        'displayedEventsCount', this.events.length,
+        this.sortedEventsWithDates.length);
   }
 }
 

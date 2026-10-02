@@ -108,12 +108,23 @@ TEST(VideoCodecTestLibvpx, HighBitrateVP9) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 500, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 0, 1, 0.3, 0.1, 0, 1}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
 
-  std::vector<QualityThresholds> quality_thresholds = {{37, 36, 0.94, 0.92}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 37,
+                                                        .min_min_psnr = 36,
+                                                        .min_avg_ssim = 0.94,
+                                                        .min_min_ssim = 0.92}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -127,17 +138,50 @@ TEST(VideoCodecTestLibvpx, ChangeBitrateVP9) {
   auto fixture = CreateVideoCodecTestFixture(config);
 
   std::vector<RateProfile> rate_profiles = {
-      {200, 30, 0},  // target_kbps, input_fps, frame_num
-      {700, 30, 100},
-      {500, 30, 200}};
+      {.target_kbps = 200,
+       .input_fps = 30,
+       .frame_num = 0},  // target_kbps, input_fps, frame_num
+      {.target_kbps = 700, .input_fps = 30, .frame_num = 100},
+      {.target_kbps = 500, .input_fps = 30, .frame_num = 200}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 2, 0, 1, 0.5, 0.1, 0, 1},
-      {15, 3, 0, 1, 0.5, 0.1, 0, 0},
-      {11, 2, 0, 1, 0.5, 0.1, 0, 0}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1},
+      {.max_avg_bitrate_mismatch_percent = 15,
+       .max_time_to_reach_target_bitrate_sec = 3,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0},
+      {.max_avg_bitrate_mismatch_percent = 11,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0}};
 
-  std::vector<QualityThresholds> quality_thresholds = {
-      {34, 33, 0.90, 0.88}, {38, 35, 0.95, 0.91}, {35, 34, 0.93, 0.90}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 34,
+                                                        .min_min_psnr = 33,
+                                                        .min_avg_ssim = 0.90,
+                                                        .min_min_ssim = 0.88},
+                                                       {.min_avg_psnr = 38,
+                                                        .min_min_psnr = 35,
+                                                        .min_avg_ssim = 0.95,
+                                                        .min_min_ssim = 0.91},
+                                                       {.min_avg_psnr = 35,
+                                                        .min_min_psnr = 34,
+                                                        .min_avg_ssim = 0.93,
+                                                        .min_min_ssim = 0.90}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -151,19 +195,52 @@ TEST(VideoCodecTestLibvpx, ChangeFramerateVP9) {
   auto fixture = CreateVideoCodecTestFixture(config);
 
   std::vector<RateProfile> rate_profiles = {
-      {100, 24, 0},  // target_kbps, input_fps, frame_num
-      {100, 15, 100},
-      {100, 10, 200}};
+      {.target_kbps = 100,
+       .input_fps = 24,
+       .frame_num = 0},  // target_kbps, input_fps, frame_num
+      {.target_kbps = 100, .input_fps = 15, .frame_num = 100},
+      {.target_kbps = 100, .input_fps = 10, .frame_num = 200}};
 
   // Framerate mismatch should be lower for lower framerate.
   std::vector<RateControlThresholds> rc_thresholds = {
-      {10, 2, 40, 1, 0.5, 0.2, 0, 1},
-      {8, 2, 5, 1, 0.5, 0.2, 0, 0},
-      {5, 2, 0, 1, 0.5, 0.3, 0, 0}};
+      {.max_avg_bitrate_mismatch_percent = 10,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 40,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.2,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1},
+      {.max_avg_bitrate_mismatch_percent = 8,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 5,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.2,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0},
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.3,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0}};
 
   // Quality should be higher for lower framerates for the same content.
-  std::vector<QualityThresholds> quality_thresholds = {
-      {33, 32, 0.88, 0.86}, {33.5, 32, 0.90, 0.86}, {33.5, 31.5, 0.90, 0.85}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 33,
+                                                        .min_min_psnr = 32,
+                                                        .min_avg_ssim = 0.88,
+                                                        .min_min_ssim = 0.86},
+                                                       {.min_avg_psnr = 33.5,
+                                                        .min_min_psnr = 32,
+                                                        .min_avg_ssim = 0.90,
+                                                        .min_min_ssim = 0.86},
+                                                       {.min_avg_psnr = 33.5,
+                                                        .min_min_psnr = 31.5,
+                                                        .min_avg_ssim = 0.90,
+                                                        .min_min_ssim = 0.85}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -177,12 +254,23 @@ TEST(VideoCodecTestLibvpx, DenoiserOnVP9) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 500, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 0, 1, 0.3, 0.1, 0, 1}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
 
-  std::vector<QualityThresholds> quality_thresholds = {{37.5, 36, 0.94, 0.93}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 37.5,
+                                                        .min_min_psnr = 36,
+                                                        .min_avg_ssim = 0.94,
+                                                        .min_min_ssim = 0.93}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -195,12 +283,23 @@ TEST(VideoCodecTestLibvpx, VeryLowBitrateVP9) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{50, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 50, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {15, 3, 75, 1, 0.5, 0.4, 2, 1}};
+      {.max_avg_bitrate_mismatch_percent = 15,
+       .max_time_to_reach_target_bitrate_sec = 3,
+       .max_avg_framerate_mismatch_percent = 75,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.4,
+       .max_num_spatial_resizes = 2,
+       .max_num_key_frames = 1}};
 
-  std::vector<QualityThresholds> quality_thresholds = {{28, 25, 0.80, 0.65}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 28,
+                                                        .min_min_psnr = 25,
+                                                        .min_avg_ssim = 0.80,
+                                                        .min_min_ssim = 0.65}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -219,15 +318,26 @@ TEST(VideoCodecTestLibvpx, HighBitrateVP8) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 500, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 0, 1, 0.2, 0.1, 0, 1}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
 
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<QualityThresholds> quality_thresholds = {{35, 33, 0.91, 0.89}};
 #else
-  std::vector<QualityThresholds> quality_thresholds = {{37, 35, 0.93, 0.91}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 37,
+                                                        .min_min_psnr = 35,
+                                                        .min_avg_ssim = 0.93,
+                                                        .min_min_ssim = 0.91}};
 #endif
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -241,21 +351,54 @@ TEST(VideoCodecTestLibvpx, MAYBE_ChangeBitrateVP8) {
   auto fixture = CreateVideoCodecTestFixture(config);
 
   std::vector<RateProfile> rate_profiles = {
-      {200, 30, 0},  // target_kbps, input_fps, frame_num
-      {800, 30, 100},
-      {500, 30, 200}};
+      {.target_kbps = 200,
+       .input_fps = 30,
+       .frame_num = 0},  // target_kbps, input_fps, frame_num
+      {.target_kbps = 800, .input_fps = 30, .frame_num = 100},
+      {.target_kbps = 500, .input_fps = 30, .frame_num = 200}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 0, 1, 0.2, 0.1, 0, 1},
-      {15.5, 1, 0, 1, 0.2, 0.1, 0, 0},
-      {15, 1, 0, 1, 0.2, 0.1, 0, 0}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1},
+      {.max_avg_bitrate_mismatch_percent = 15.5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0},
+      {.max_avg_bitrate_mismatch_percent = 15,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0}};
 
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<QualityThresholds> quality_thresholds = {
       {31.8, 31, 0.86, 0.85}, {36, 34.8, 0.92, 0.90}, {33.5, 32, 0.90, 0.88}};
 #else
-  std::vector<QualityThresholds> quality_thresholds = {
-      {33, 32, 0.89, 0.88}, {38, 36, 0.94, 0.93}, {35, 34, 0.92, 0.91}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 33,
+                                                        .min_min_psnr = 32,
+                                                        .min_avg_ssim = 0.89,
+                                                        .min_min_ssim = 0.88},
+                                                       {.min_avg_psnr = 38,
+                                                        .min_min_psnr = 36,
+                                                        .min_avg_ssim = 0.94,
+                                                        .min_min_ssim = 0.93},
+                                                       {.min_avg_psnr = 35,
+                                                        .min_min_psnr = 34,
+                                                        .min_avg_ssim = 0.92,
+                                                        .min_min_ssim = 0.91}};
 #endif
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -269,9 +412,11 @@ TEST(VideoCodecTestLibvpx, MAYBE_ChangeFramerateVP8) {
   auto fixture = CreateVideoCodecTestFixture(config);
 
   std::vector<RateProfile> rate_profiles = {
-      {80, 24, 0},  // target_kbps, input_fps, frame_index_rate_update
-      {80, 15, 100},
-      {80, 10, 200}};
+      {.target_kbps = 80,
+       .input_fps = 24,
+       .frame_num = 0},  // target_kbps, input_fps, frame_index_rate_update
+      {.target_kbps = 80, .input_fps = 15, .frame_num = 100},
+      {.target_kbps = 80, .input_fps = 10, .frame_num = 200}};
 
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<RateControlThresholds> rc_thresholds = {
@@ -280,17 +425,48 @@ TEST(VideoCodecTestLibvpx, MAYBE_ChangeFramerateVP8) {
       {10, 2, 10, 1, 0.3, 0.2, 0, 0}};
 #else
   std::vector<RateControlThresholds> rc_thresholds = {
-      {10, 2, 20, 1, 0.3, 0.15, 0, 1},
-      {5, 2, 5, 1, 0.3, 0.15, 0, 0},
-      {4, 2, 1, 1, 0.3, 0.2, 0, 0}};
+      {.max_avg_bitrate_mismatch_percent = 10,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 20,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.15,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1},
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 5,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.15,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0},
+      {.max_avg_bitrate_mismatch_percent = 4,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 1,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.2,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 0}};
 #endif
 
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<QualityThresholds> quality_thresholds = {
       {31, 30, 0.85, 0.84}, {31.4, 30.5, 0.86, 0.84}, {30.5, 29, 0.83, 0.78}};
 #else
-  std::vector<QualityThresholds> quality_thresholds = {
-      {31, 30, 0.87, 0.85}, {32, 31, 0.88, 0.85}, {32, 30, 0.87, 0.82}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 31,
+                                                        .min_min_psnr = 30,
+                                                        .min_avg_ssim = 0.87,
+                                                        .min_min_ssim = 0.85},
+                                                       {.min_avg_psnr = 32,
+                                                        .min_min_psnr = 31,
+                                                        .min_avg_ssim = 0.88,
+                                                        .min_min_ssim = 0.85},
+                                                       {.min_avg_psnr = 32,
+                                                        .min_min_psnr = 30,
+                                                        .min_avg_ssim = 0.87,
+                                                        .min_min_ssim = 0.82}};
 #endif
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -308,22 +484,45 @@ TEST(VideoCodecTestLibvpx, MAYBE_TemporalLayersVP8) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{200, 30, 0}, {400, 30, 150}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 200, .input_fps = 30, .frame_num = 0},
+      {.target_kbps = 400, .input_fps = 30, .frame_num = 150}};
 
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<RateControlThresholds> rc_thresholds = {
       {10, 1, 2.1, 1, 0.2, 0.1, 0, 1}, {12, 2, 3, 1, 0.2, 0.1, 0, 1}};
 #else
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 0, 1, 0.2, 0.1, 0, 1}, {10, 2, 0, 1, 0.2, 0.1, 0, 1}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1},
+      {.max_avg_bitrate_mismatch_percent = 10,
+       .max_time_to_reach_target_bitrate_sec = 2,
+       .max_avg_framerate_mismatch_percent = 0,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.2,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
 #endif
 // Min SSIM drops because of high motion scene with complex backgound (trees).
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<QualityThresholds> quality_thresholds = {{31, 30, 0.85, 0.83},
                                                        {31, 28, 0.85, 0.75}};
 #else
-  std::vector<QualityThresholds> quality_thresholds = {{32, 30, 0.88, 0.85},
-                                                       {33, 30, 0.89, 0.83}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 32,
+                                                        .min_min_psnr = 30,
+                                                        .min_avg_ssim = 0.88,
+                                                        .min_min_ssim = 0.85},
+                                                       {.min_avg_psnr = 33,
+                                                        .min_min_psnr = 30,
+                                                        .min_avg_ssim = 0.89,
+                                                        .min_min_ssim = 0.83}};
 #endif
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -343,15 +542,26 @@ TEST(VideoCodecTestLibvpx, MAYBE_MultiresVP8) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{1500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 1500, .input_fps = 30, .frame_num = 0}};
 #if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
   std::vector<RateControlThresholds> rc_thresholds = {
       {4.1, 1.04, 7, 0.18, 0.14, 0.08, 0, 1}};
 #else
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 5, 1, 0.3, 0.1, 0, 1}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 5,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
 #endif
-  std::vector<QualityThresholds> quality_thresholds = {{34, 32, 0.90, 0.88}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 34,
+                                                        .min_min_psnr = 32,
+                                                        .min_avg_ssim = 0.90,
+                                                        .min_min_ssim = 0.88}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -382,11 +592,22 @@ TEST(VideoCodecTestLibvpx, MAYBE_SimulcastVP8) {
       CreateVideoCodecTestFixture(config, std::move(internal_decoder_factory),
                                   std::move(adapted_encoder_factory));
 
-  std::vector<RateProfile> rate_profiles = {{1500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 1500, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {20, 5, 90, 1, 0.5, 0.3, 0, 1}};
-  std::vector<QualityThresholds> quality_thresholds = {{34, 32, 0.90, 0.88}};
+      {.max_avg_bitrate_mismatch_percent = 20,
+       .max_time_to_reach_target_bitrate_sec = 5,
+       .max_avg_framerate_mismatch_percent = 90,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.5,
+       .max_max_delta_frame_delay_sec = 0.3,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 34,
+                                                        .min_min_psnr = 32,
+                                                        .min_avg_ssim = 0.90,
+                                                        .min_min_ssim = 0.88}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -406,11 +627,22 @@ TEST(VideoCodecTestLibvpx, MAYBE_SvcVP9) {
   config.encoded_frame_checker = frame_checker.get();
   auto fixture = CreateVideoCodecTestFixture(config);
 
-  std::vector<RateProfile> rate_profiles = {{1500, 30, 0}};
+  std::vector<RateProfile> rate_profiles = {
+      {.target_kbps = 1500, .input_fps = 30, .frame_num = 0}};
 
   std::vector<RateControlThresholds> rc_thresholds = {
-      {5, 1, 5, 1, 0.3, 0.1, 0, 1}};
-  std::vector<QualityThresholds> quality_thresholds = {{36, 34, 0.93, 0.90}};
+      {.max_avg_bitrate_mismatch_percent = 5,
+       .max_time_to_reach_target_bitrate_sec = 1,
+       .max_avg_framerate_mismatch_percent = 5,
+       .max_avg_buffer_level_sec = 1,
+       .max_max_key_frame_delay_sec = 0.3,
+       .max_max_delta_frame_delay_sec = 0.1,
+       .max_num_spatial_resizes = 0,
+       .max_num_key_frames = 1}};
+  std::vector<QualityThresholds> quality_thresholds = {{.min_avg_psnr = 36,
+                                                        .min_min_psnr = 34,
+                                                        .min_avg_ssim = 0.93,
+                                                        .min_min_ssim = 0.90}};
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
@@ -428,7 +660,8 @@ TEST(VideoCodecTestLibvpx, DISABLED_MultiresVP8RdPerf) {
 
   std::map<size_t, std::vector<VideoStatistics>> rd_stats;
   for (size_t bitrate_kbps : kBitrateRdPerfKbps) {
-    std::vector<RateProfile> rate_profiles = {{bitrate_kbps, 30, 0}};
+    std::vector<RateProfile> rate_profiles = {
+        {.target_kbps = bitrate_kbps, .input_fps = 30, .frame_num = 0}};
 
     fixture->RunTest(rate_profiles, nullptr, nullptr, nullptr);
 
@@ -453,7 +686,8 @@ TEST(VideoCodecTestLibvpx, DISABLED_SvcVP9RdPerf) {
 
   std::map<size_t, std::vector<VideoStatistics>> rd_stats;
   for (size_t bitrate_kbps : kBitrateRdPerfKbps) {
-    std::vector<RateProfile> rate_profiles = {{bitrate_kbps, 30, 0}};
+    std::vector<RateProfile> rate_profiles = {
+        {.target_kbps = bitrate_kbps, .input_fps = 30, .frame_num = 0}};
 
     fixture->RunTest(rate_profiles, nullptr, nullptr, nullptr);
 

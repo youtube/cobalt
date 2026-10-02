@@ -65,7 +65,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:checks",
       "../rtc_base:gunit_helpers",
       "../rtc_base:rtc_json",
-      "../test:test_main",
       "../test:test_support",
     ]
 

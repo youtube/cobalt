@@ -128,7 +128,7 @@ class CachedVideo : public Video {
     }
 
     scoped_refptr<I420BufferInterface> frame = video_->GetFrame(index);
-    cache_.push_front({index, frame});
+    cache_.push_front({.index = index, .frame = frame});
     if (cache_.size() > max_cache_size_)
       cache_.pop_back();
 

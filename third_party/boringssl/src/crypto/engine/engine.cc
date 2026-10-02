@@ -30,7 +30,7 @@ struct engine_st {
   ECDSA_METHOD *ecdsa_method;
 };
 
-ENGINE *ENGINE_new(void) {
+ENGINE *ENGINE_new() {
   return reinterpret_cast<ENGINE *>(OPENSSL_zalloc(sizeof(ENGINE)));
 }
 

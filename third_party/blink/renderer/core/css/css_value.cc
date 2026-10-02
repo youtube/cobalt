@@ -1132,7 +1132,7 @@ String CSSValue::ClassTypeToString() const {
 
 const CSSValue* CSSValue::CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
     const CSSPropertyName& property_name,
-    wtf_size_t property_value_index) const {
+    wtf_size_t& property_value_index) const {
   switch (GetClassType()) {
     case kMathFunctionClass:
       return To<CSSMathFunctionValue>(this)
@@ -1144,6 +1144,30 @@ const CSSValue* CSSValue::CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
               property_name, property_value_index);
     case kFunctionClass:
       return To<CSSFunctionValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kUnresolvedColorClass:
+      return To<cssvalue::CSSUnresolvedColorValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kRelativeColorClass:
+      return To<cssvalue::CSSRelativeColorValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kColorMixClass:
+      return To<cssvalue::CSSColorMixValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kCustomIdentClass:
+      return To<CSSCustomIdentValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kImageSetOptionClass:
+      return To<CSSImageSetOptionValue>(this)
+          ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
+              property_name, property_value_index);
+    case kImageSetClass:
+      return To<CSSImageSetValue>(this)
           ->CopyRandomValueWithPropertyNameAndValueIndexIfNeeded(
               property_name, property_value_index);
     default:

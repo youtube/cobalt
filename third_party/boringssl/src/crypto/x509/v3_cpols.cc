@@ -26,6 +26,9 @@
 
 #include "internal.h"
 
+
+using namespace bssl;
+
 // Certificate policies extension support: this one is a bit complex...
 
 static int i2r_certpol(const X509V3_EXT_METHOD *method, void *ext, BIO *out,

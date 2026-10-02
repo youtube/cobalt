@@ -11,8 +11,8 @@
 #ifndef MEDIA_BASE_FAKE_FRAME_SOURCE_H_
 #define MEDIA_BASE_FAKE_FRAME_SOURCE_H_
 
-#include <cstdint>
-
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_rotation.h"
 
@@ -22,9 +22,8 @@ class FakeFrameSource {
  public:
   FakeFrameSource(int width,
                   int height,
-                  int interval_us,
-                  int64_t timestamp_offset_us);
-  FakeFrameSource(int width, int height, int interval_us);
+                  TimeDelta interval,
+                  Timestamp timestamp);
 
   VideoRotation GetRotation() const;
   void SetRotation(VideoRotation rotation);
@@ -36,15 +35,15 @@ class FakeFrameSource {
   VideoFrame GetFrame(int width,
                       int height,
                       VideoRotation rotation,
-                      int interval_us);
+                      TimeDelta interval);
 
  private:
   const int width_;
   const int height_;
-  const int interval_us_;
+  const TimeDelta interval_;
 
   VideoRotation rotation_ = kVideoRotation_0;
-  int64_t next_timestamp_us_;
+  Timestamp next_timestamp_;
 };
 
 }  //  namespace webrtc

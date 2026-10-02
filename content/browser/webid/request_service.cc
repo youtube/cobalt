@@ -10,7 +10,6 @@
 #include "base/barrier_closure.h"
 #include "base/base64url.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
@@ -40,6 +39,7 @@
 #include "content/browser/webid/webid_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -346,6 +346,9 @@ void RequestService::RequestToken(
                             /*is_auto_selected=*/false);
     return;
   }
+
+  can_accept_redirect_to_ =
+      IsNavigationInterceptionEnabled() && navigation_handle != nullptr;
 
   had_transient_user_activation_ =
       (navigation_handle &&
@@ -795,13 +798,97 @@ void RequestService::FetchEndpointsForIdps(
   fetch_data_ = FetchData();
   fetch_data_.pending_idps = std::move(pending_idps);
 
+  std::vector<ConfigFetcher::FetchRequest> idps;
+  for (const auto& idp : idp_config_urls) {
+    auto idp_get = token_request_get_infos_.find(idp);
+    CHECK(idp_get != token_request_get_infos_.end());
+    idps.emplace_back(
+        idp, idp_get->second.provider->config->from_idp_registration_api);
+  }
+
   fedcm_accounts_fetcher_ = std::make_unique<AccountsFetcher>(
       render_frame_host(), network_manager_.get(), api_permission_delegate_,
       permission_delegate_,
       AccountsFetcher::FedCmFetchingParams(
           rp_mode_, icon_ideal_size, icon_minimum_size, mediation_requirement_),
-      this);
-  fedcm_accounts_fetcher_->FetchEndpointsForIdps(idp_config_urls);
+      base::BindOnce(&RequestService::OnAccountsResultsReceived,
+                     weak_ptr_factory_.GetWeakPtr()));
+  fedcm_accounts_fetcher_->FetchEndpointsForIdps(
+      idps, token_request_get_infos_, fedcm_metrics_.get(),
+      GetEmbeddingOrigin(),
+      base::BindRepeating(&RequestService::FilterAccounts,
+                          weak_ptr_factory_.GetWeakPtr()));
+}
+
+void RequestService::FilterAccounts(
+    const GURL& idp_config_url,
+    const GURL& idp_login_url,
+    std::vector<IdentityRequestAccountPtr>& accounts) {
+  auto filter = [](const IdentityRequestAccountPtr& account) {
+    return account->is_filtered_out;
+  };
+  if (idps_user_tried_to_signin_to_.find(idp_config_url) ==
+          idps_user_tried_to_signin_to_.end() ||
+      login_url_ != idp_login_url) {
+    std::erase_if(accounts, filter);
+  } else {
+    // If the user is logging in to new accounts, only show filtered
+    // accounts if there are no new unfiltered accounts. This includes in
+    // particular the case where all accounts are filtered out.
+    size_t new_unfiltered =
+        std::count_if(accounts.begin(), accounts.end(),
+                      [&](const IdentityRequestAccountPtr& account) {
+                        return !account->is_filtered_out &&
+                               account_ids_before_login_.find(account->id) ==
+                                   account_ids_before_login_.end();
+                      });
+    if (new_unfiltered > 0u) {
+      std::erase_if(accounts, filter);
+    }
+  }
+}
+
+void RequestService::OnAccountsResultsReceived(
+    base::TimeTicks well_known_and_config_fetched_time,
+    std::vector<AccountsFetcher::Result> results) {
+  SetWellKnownAndConfigFetchedTime(well_known_and_config_fetched_time);
+
+  for (auto& result : results) {
+    if (result.idp_info) {
+      SetIdpLoginInfo(result.idp_info->metadata.idp_login_url,
+                      result.idp_info->provider->login_hint,
+                      result.idp_info->provider->domain_hint);
+    }
+    if (result.accounts_fetched_time != base::TimeTicks()) {
+      SetAccountsFetchedTime(result.accounts_fetched_time);
+    }
+    if (result.client_metadata_fetched_time != base::TimeTicks()) {
+      SetClientMetadataFetchedTime(result.client_metadata_fetched_time);
+    }
+
+    if (result.show_active_mode_modal_dialog) {
+      MaybeShowActiveModeModalDialog(result.idp_config_url,
+                                     result.idp_info->metadata.idp_login_url);
+      continue;
+    }
+
+    if (result.error) {
+      OnFetchDataForIdpFailed(std::move(result.idp_info), *result.error,
+                              result.token_status,
+                              result.should_delay_callback);
+      continue;
+    }
+
+    if (result.is_mismatch) {
+      OnIdpMismatch(std::move(result.idp_info));
+      continue;
+    }
+
+    // Success
+    CHECK(result.accounts.has_value());
+    OnFetchDataForIdpSucceeded(std::move(*result.accounts),
+                               std::move(result.idp_info));
+  }
 }
 
 void RequestService::CompleteDisconnectRequest(
@@ -859,7 +946,7 @@ UseOtherAccountResult RequestService::ComputeUseOtherAccountResult(
 }
 
 void RequestService::OnFetchDataForIdpSucceeded(
-    std::vector<IdentityRequestAccountPtr> accounts,
+    IdpNetworkRequestManager::AccountsResponse accounts,
     std::unique_ptr<IdentityProviderInfo> idp_info) {
   fetch_data_.did_succeed_for_at_least_one_idp = true;
 
@@ -873,7 +960,7 @@ void RequestService::OnFetchDataForIdpSucceeded(
     });
   }
   idp_infos_[idp_config_url] = std::move(idp_info);
-  idp_accounts_[idp_config_url] = std::move(accounts);
+  idp_accounts_[idp_config_url] = std::move(accounts.accounts);
 
   fetch_data_.pending_idps.erase(idp_config_url);
   MaybeShowAccountsDialog();
@@ -1465,6 +1552,10 @@ void RequestService::OnAccountSelected(const GURL& idp_config_url,
       &RequestService::OnContinueOnResponseReceived,
       weak_ptr_factory_.GetWeakPtr(), idp_info.provider->Clone());
 
+  IdpNetworkRequestManager::RedirectToCallback redirect_to = base::BindOnce(
+      &RequestService::OnRedirectToResponseReceived,
+      weak_ptr_factory_.GetWeakPtr(), idp_info.provider->Clone());
+
   std::vector<std::string> disclosure_shown_for;
   if (!is_sign_in) {
     disclosure_shown_for =
@@ -1506,7 +1597,7 @@ void RequestService::OnAccountSelected(const GURL& idp_config_url,
       base::BindOnce(&RequestService::OnTokenResponseReceived,
                      weak_ptr_factory_.GetWeakPtr(),
                      idp_info.provider->Clone()),
-      std::move(continue_on),
+      std::move(continue_on), std::move(redirect_to),
       base::BindOnce(&RequestService::RecordErrorMetrics,
                      weak_ptr_factory_.GetWeakPtr(),
                      idp_info.provider->Clone()));
@@ -1692,6 +1783,49 @@ void RequestService::OnContinueOnResponseReceived(
       webid::ContinueOnPopupStatus::kPopupOpened);
   ShowModalDialog(DialogType::kContinueOnPopup, idp->config->config_url,
                   continue_on);
+}
+
+void RequestService::OnRedirectToResponseReceived(
+    IdentityProviderRequestOptionsPtr idp,
+    FetchStatus status,
+    const GURL& redirect_to) {
+  // Navigate the top-level frame to the URL specified by the IdP.
+  //
+  // This is done here rather than in the callers of the RequestService because
+  // that allows us to have a consistent experience regardless of how the token
+  // was requested (e.g. via an interception or via the renderer process call).
+  if (!can_accept_redirect_to_ || !redirect_to.SchemeIsHTTPOrHTTPS()) {
+    CompleteRequestWithError(
+        FederatedAuthRequestResult::kIdTokenInvalidResponse,
+        TokenStatus::kIdTokenInvalidResponse,
+        /*should_delay_callback=*/false);
+    return;
+  }
+
+  // can_accept_redirect_to_ is only true for primary main frames.
+  DCHECK(render_frame_host().IsInPrimaryMainFrame());
+
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&render_frame_host());
+
+  if (!web_contents) {
+    CompleteRequestWithError(FederatedAuthRequestResult::kError,
+                             /*token_status=*/std::nullopt,
+                             /*should_delay_callback=*/false);
+    return;
+  }
+
+  content::NavigationController::LoadURLParams params(redirect_to);
+  params.transition_type = ui::PAGE_TRANSITION_LINK;
+  web_contents->GetController().LoadURLWithParams(params);
+
+  // TODO(crbug.com/474120843): Introduce a more specific success enum value
+  // rather than kSuccessUsingTokenInHttpResponse.
+  CompleteRequest(FederatedAuthRequestResult::kSuccess,
+                  TokenStatus::kSuccessUsingTokenInHttpResponse,
+                  /*token_error=*/std::nullopt, idp->config->config_url,
+                  /*token_data=*/std::nullopt,
+                  /*should_delay_callback=*/false);
 }
 
 void RequestService::ShowErrorDialog(const GURL& idp_config_url,

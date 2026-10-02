@@ -74,13 +74,13 @@ extern "C" {
 
 // OPENSSL_cpuid_setup initializes the platform-specific feature cache. This
 // function should not be called directly. Call |OPENSSL_init_cpuid| instead.
-void OPENSSL_cpuid_setup(void);
+void OPENSSL_cpuid_setup();
 
 // OPENSSL_init_cpuid initializes the platform-specific feature cache, if
 // needed. This function is idempotent and may be called concurrently.
-void OPENSSL_init_cpuid(void);
+void OPENSSL_init_cpuid();
 #else
-inline void OPENSSL_init_cpuid(void) {}
+inline void OPENSSL_init_cpuid() {}
 #endif
 
 #if (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) && \
@@ -88,7 +88,7 @@ inline void OPENSSL_init_cpuid(void) {}
 // OPENSSL_get_armcap_pointer_for_test returns a pointer to |OPENSSL_armcap_P|
 // for unit tests. Any modifications to the value must be made before any other
 // function call in BoringSSL.
-OPENSSL_EXPORT uint32_t *OPENSSL_get_armcap_pointer_for_test(void);
+OPENSSL_EXPORT uint32_t *OPENSSL_get_armcap_pointer_for_test();
 #endif
 
 
@@ -145,21 +145,21 @@ typedef __uint128_t uint128_t;
 // resets the internal malloc counter, to simulate further malloc failures. This
 // should be called in between independent tests, at a point where failure from
 // a previous test will not impact subsequent ones.
-OPENSSL_EXPORT void OPENSSL_reset_malloc_counter_for_testing(void);
+OPENSSL_EXPORT void OPENSSL_reset_malloc_counter_for_testing();
 
 // OPENSSL_disable_malloc_failures_for_testing, when malloc testing is enabled,
 // disables simulated malloc failures. Calls to |OPENSSL_malloc| will not
 // increment the malloc counter or synthesize failures. This may be used to skip
 // simulating malloc failures in some region of code.
-OPENSSL_EXPORT void OPENSSL_disable_malloc_failures_for_testing(void);
+OPENSSL_EXPORT void OPENSSL_disable_malloc_failures_for_testing();
 
 // OPENSSL_enable_malloc_failures_for_testing, when malloc testing is enabled,
 // re-enables simulated malloc failures.
-OPENSSL_EXPORT void OPENSSL_enable_malloc_failures_for_testing(void);
+OPENSSL_EXPORT void OPENSSL_enable_malloc_failures_for_testing();
 #else
-inline void OPENSSL_reset_malloc_counter_for_testing(void) {}
-inline void OPENSSL_disable_malloc_failures_for_testing(void) {}
-inline void OPENSSL_enable_malloc_failures_for_testing(void) {}
+inline void OPENSSL_reset_malloc_counter_for_testing() {}
+inline void OPENSSL_disable_malloc_failures_for_testing() {}
+inline void OPENSSL_enable_malloc_failures_for_testing() {}
 #endif
 
 #if defined(__has_builtin)
@@ -541,7 +541,7 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
-OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
+OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)());
 
 
 // Atomics.
@@ -1041,35 +1041,35 @@ static inline uint64_t CRYPTO_rotr_u64(uint64_t value, int shift) {
 // BORINGSSL_FIPS_abort is called when a FIPS power-on or continuous test
 // fails. It prevents any further cryptographic operations by the current
 // process.
-void BORINGSSL_FIPS_abort(void) __attribute__((noreturn));
+void BORINGSSL_FIPS_abort() __attribute__((noreturn));
 
 // boringssl_self_test_startup runs all startup self tests and returns one on
 // success or zero on error. Startup self tests do not include lazy tests.
 // Call |BORINGSSL_self_test| to run every self test.
-int boringssl_self_test_startup(void);
+int boringssl_self_test_startup();
 
 // boringssl_ensure_rsa_self_test checks whether the RSA self-test has been run
 // in this address space. If not, it runs it and crashes the address space if
 // unsuccessful.
-void boringssl_ensure_rsa_self_test(void);
+void boringssl_ensure_rsa_self_test();
 
 // boringssl_ensure_ecc_self_test checks whether the ECDSA and ECDH self-test
 // has been run in this address space. If not, it runs it and crashes the
 // address space if unsuccessful.
-void boringssl_ensure_ecc_self_test(void);
+void boringssl_ensure_ecc_self_test();
 
 // boringssl_ensure_ffdh_self_test checks whether the FFDH self-test has been
 // run in this address space. If not, it runs it and crashes the address space
 // if unsuccessful.
-void boringssl_ensure_ffdh_self_test(void);
+void boringssl_ensure_ffdh_self_test();
 
 #else
 
 // Outside of FIPS mode, the lazy tests are no-ops.
 
-inline void boringssl_ensure_rsa_self_test(void) {}
-inline void boringssl_ensure_ecc_self_test(void) {}
-inline void boringssl_ensure_ffdh_self_test(void) {}
+inline void boringssl_ensure_rsa_self_test() {}
+inline void boringssl_ensure_ecc_self_test() {}
+inline void boringssl_ensure_ffdh_self_test() {}
 
 #endif  // FIPS
 
@@ -1080,22 +1080,22 @@ int BORINGSSL_check_test(const void *expected, const void *actual,
                          size_t expected_len, const char *name);
 
 // boringssl_self_test_sha256 performs a SHA-256 KAT.
-int boringssl_self_test_sha256(void);
+int boringssl_self_test_sha256();
 
 // boringssl_self_test_sha512 performs a SHA-512 KAT.
-int boringssl_self_test_sha512(void);
+int boringssl_self_test_sha512();
 
 // boringssl_self_test_hmac_sha256 performs an HMAC-SHA-256 KAT.
-int boringssl_self_test_hmac_sha256(void);
+int boringssl_self_test_hmac_sha256();
 
 // boringssl_self_test_mlkem performs the ML-KEM KATs.
-OPENSSL_EXPORT int boringssl_self_test_mlkem(void);
+OPENSSL_EXPORT int boringssl_self_test_mlkem();
 
 // boringssl_self_test_mldsa performs the ML-DSA KATs.
-OPENSSL_EXPORT int boringssl_self_test_mldsa(void);
+OPENSSL_EXPORT int boringssl_self_test_mldsa();
 
 // boringssl_self_test_slhdsa performs the SLH-DSA KATs.
-OPENSSL_EXPORT int boringssl_self_test_slhdsa(void);
+OPENSSL_EXPORT int boringssl_self_test_slhdsa();
 
 #if defined(BORINGSSL_FIPS_COUNTERS)
 void boringssl_fips_inc_counter(enum fips_counter_t counter);
@@ -1150,14 +1150,14 @@ void OPENSSL_adjust_ia32cap(uint32_t cap[4], const char *env);
 
 // See Intel manual, volume 2A, table 3-11.
 
-inline int CRYPTO_is_intel_cpu(void) {
+inline int CRYPTO_is_intel_cpu() {
   // The reserved bit 30 is used to indicate an Intel CPU.
   return (OPENSSL_get_ia32cap(0) & (1u << 30)) != 0;
 }
 
 // See Intel manual, volume 2A, table 3-10.
 
-inline int CRYPTO_is_PCLMUL_capable(void) {
+inline int CRYPTO_is_PCLMUL_capable() {
 #if defined(__PCLMUL__)
   return 1;
 #else
@@ -1165,7 +1165,7 @@ inline int CRYPTO_is_PCLMUL_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_SSSE3_capable(void) {
+inline int CRYPTO_is_SSSE3_capable() {
 #if defined(__SSSE3__)
   return 1;
 #else
@@ -1173,7 +1173,7 @@ inline int CRYPTO_is_SSSE3_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_SSE4_1_capable(void) {
+inline int CRYPTO_is_SSE4_1_capable() {
 #if defined(__SSE4_1__)
   return 1;
 #else
@@ -1181,7 +1181,7 @@ inline int CRYPTO_is_SSE4_1_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_MOVBE_capable(void) {
+inline int CRYPTO_is_MOVBE_capable() {
 #if defined(__MOVBE__)
   return 1;
 #else
@@ -1189,7 +1189,7 @@ inline int CRYPTO_is_MOVBE_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_AESNI_capable(void) {
+inline int CRYPTO_is_AESNI_capable() {
 #if defined(__AES__)
   return 1;
 #else
@@ -1200,7 +1200,7 @@ inline int CRYPTO_is_AESNI_capable(void) {
 // We intentionally avoid defining a |CRYPTO_is_XSAVE_capable| function. See
 // |CRYPTO_cpu_perf_is_like_silvermont|.
 
-inline int CRYPTO_is_AVX_capable(void) {
+inline int CRYPTO_is_AVX_capable() {
 #if defined(__AVX__)
   return 1;
 #else
@@ -1208,7 +1208,7 @@ inline int CRYPTO_is_AVX_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_RDRAND_capable(void) {
+inline int CRYPTO_is_RDRAND_capable() {
   // We intentionally do not check |__RDRND__| here. On some AMD processors, we
   // will act as if the hardware is RDRAND-incapable, even it actually supports
   // it. See cpu_intel.c.
@@ -1217,7 +1217,7 @@ inline int CRYPTO_is_RDRAND_capable(void) {
 
 // See Intel manual, volume 2A, table 3-8.
 
-inline int CRYPTO_is_BMI1_capable(void) {
+inline int CRYPTO_is_BMI1_capable() {
 #if defined(__BMI__)
   return 1;
 #else
@@ -1225,7 +1225,7 @@ inline int CRYPTO_is_BMI1_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_AVX2_capable(void) {
+inline int CRYPTO_is_AVX2_capable() {
 #if defined(__AVX2__)
   return 1;
 #else
@@ -1233,7 +1233,7 @@ inline int CRYPTO_is_AVX2_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_BMI2_capable(void) {
+inline int CRYPTO_is_BMI2_capable() {
 #if defined(__BMI2__)
   return 1;
 #else
@@ -1241,7 +1241,7 @@ inline int CRYPTO_is_BMI2_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ADX_capable(void) {
+inline int CRYPTO_is_ADX_capable() {
 #if defined(__ADX__)
   return 1;
 #else
@@ -1250,7 +1250,7 @@ inline int CRYPTO_is_ADX_capable(void) {
 }
 
 // SHA-1 and SHA-256 are defined as a single extension.
-inline int CRYPTO_is_x86_SHA_capable(void) {
+inline int CRYPTO_is_x86_SHA_capable() {
 #if defined(__SHA__)
   return 1;
 #else
@@ -1268,7 +1268,7 @@ inline int CRYPTO_is_x86_SHA_capable(void) {
 // isn't matched by this. Various sources indicate AMD first implemented MOVBE
 // and XSAVE at the same time in Jaguar, so it seems like AMD chips will not be
 // matched by this. That seems to be the case for other x86(-64) CPUs.
-inline int CRYPTO_cpu_perf_is_like_silvermont(void) {
+inline int CRYPTO_cpu_perf_is_like_silvermont() {
   // WARNING: This MUST NOT be used to guard the execution of the XSAVE
   // instruction. This is the "hardware supports XSAVE" bit, not the OSXSAVE bit
   // that indicates whether we can safely execute XSAVE. This bit may be set
@@ -1282,7 +1282,7 @@ inline int CRYPTO_cpu_perf_is_like_silvermont(void) {
   return !hardware_supports_xsave && CRYPTO_is_MOVBE_capable();
 }
 
-inline int CRYPTO_is_AVX512BW_capable(void) {
+inline int CRYPTO_is_AVX512BW_capable() {
 #if defined(__AVX512BW__)
   return 1;
 #else
@@ -1290,7 +1290,7 @@ inline int CRYPTO_is_AVX512BW_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_AVX512VL_capable(void) {
+inline int CRYPTO_is_AVX512VL_capable() {
 #if defined(__AVX512VL__)
   return 1;
 #else
@@ -1302,11 +1302,11 @@ inline int CRYPTO_is_AVX512VL_capable(void) {
 // should not be used even if the CPU supports them.
 //
 // Note that this reuses the bit for the removed MPX feature.
-inline int CRYPTO_cpu_avoid_zmm_registers(void) {
+inline int CRYPTO_cpu_avoid_zmm_registers() {
   return (OPENSSL_get_ia32cap(2) & (1u << 14)) != 0;
 }
 
-inline int CRYPTO_is_VAES_capable(void) {
+inline int CRYPTO_is_VAES_capable() {
 #if defined(__VAES__)
   return 1;
 #else
@@ -1314,7 +1314,7 @@ inline int CRYPTO_is_VAES_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_VPCLMULQDQ_capable(void) {
+inline int CRYPTO_is_VPCLMULQDQ_capable() {
 #if defined(__VPCLMULQDQ__)
   return 1;
 #else
@@ -1346,7 +1346,7 @@ inline int CRYPTO_is_VPCLMULQDQ_capable(void) {
 
 #if defined(OPENSSL_STATIC_ARMCAP)
 // We assume |CRYPTO_is_*_capable| already checked static capabilities.
-inline uint32_t OPENSSL_get_armcap(void) { return 0; }
+inline uint32_t OPENSSL_get_armcap() { return 0; }
 #else
 // OPENSSL_armcap_P contains ARM CPU capabilities as a bitmask of the above
 // constants. This should only be accessed with |OPENSSL_get_armcap|.
@@ -1355,7 +1355,7 @@ extern uint32_t OPENSSL_armcap_P;
 // OPENSSL_get_armcap initializes the library if needed and returns ARM CPU
 // capabilities. It is marked as a const function so duplicate calls can be
 // merged by the compiler.
-OPENSSL_ATTR_CONST uint32_t OPENSSL_get_armcap(void);
+OPENSSL_ATTR_CONST uint32_t OPENSSL_get_armcap();
 #endif  // OPENSSL_STATIC_ARMCAP
 
 // Normalize some older feature flags to their modern ACLE values.
@@ -1374,7 +1374,7 @@ OPENSSL_ATTR_CONST uint32_t OPENSSL_get_armcap(void);
 
 // CRYPTO_is_NEON_capable returns true if the current CPU has a NEON unit. If
 // this is known statically, it is a constant inline function.
-inline int CRYPTO_is_NEON_capable(void) {
+inline int CRYPTO_is_NEON_capable() {
 #if (defined(OPENSSL_STATIC_ARMCAP_NEON) || defined(__ARM_NEON)) && \
     !defined(OPENSSL_NO_STATIC_NEON_FOR_TESTING)
   return 1;
@@ -1383,7 +1383,7 @@ inline int CRYPTO_is_NEON_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ARMv8_AES_capable(void) {
+inline int CRYPTO_is_ARMv8_AES_capable() {
 #if defined(OPENSSL_STATIC_ARMCAP_AES) || defined(__ARM_FEATURE_AES)
   return 1;
 #else
@@ -1391,7 +1391,7 @@ inline int CRYPTO_is_ARMv8_AES_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ARMv8_PMULL_capable(void) {
+inline int CRYPTO_is_ARMv8_PMULL_capable() {
 #if defined(OPENSSL_STATIC_ARMCAP_PMULL) || defined(__ARM_FEATURE_AES)
   return 1;
 #else
@@ -1399,7 +1399,7 @@ inline int CRYPTO_is_ARMv8_PMULL_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ARMv8_SHA1_capable(void) {
+inline int CRYPTO_is_ARMv8_SHA1_capable() {
   // SHA-1 and SHA-2 (only) share |__ARM_FEATURE_SHA2| but otherwise
   // are dealt with independently.
 #if defined(OPENSSL_STATIC_ARMCAP_SHA1) || defined(__ARM_FEATURE_SHA2)
@@ -1409,7 +1409,7 @@ inline int CRYPTO_is_ARMv8_SHA1_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ARMv8_SHA256_capable(void) {
+inline int CRYPTO_is_ARMv8_SHA256_capable() {
   // SHA-1 and SHA-2 (only) share |__ARM_FEATURE_SHA2| but otherwise
   // are dealt with independently.
 #if defined(OPENSSL_STATIC_ARMCAP_SHA256) || defined(__ARM_FEATURE_SHA2)
@@ -1419,7 +1419,7 @@ inline int CRYPTO_is_ARMv8_SHA256_capable(void) {
 #endif
 }
 
-inline int CRYPTO_is_ARMv8_SHA512_capable(void) {
+inline int CRYPTO_is_ARMv8_SHA512_capable() {
   // There is no |OPENSSL_STATIC_ARMCAP_SHA512|.
 #if defined(__ARM_FEATURE_SHA512)
   return 1;
@@ -1463,9 +1463,9 @@ OPENSSL_EXPORT int OPENSSL_vasprintf_internal(char **str, const char *format,
 // CRYPTO_fuzzer_mode_enabled returns whether fuzzer mode is enabled. See
 // |CRYPTO_set_fuzzer_mode|. In non-fuzzer builds, this function statically
 // returns zero so the codepaths will be deleted by the optimizer.
-int CRYPTO_fuzzer_mode_enabled(void);
+int CRYPTO_fuzzer_mode_enabled();
 #else
-inline int CRYPTO_fuzzer_mode_enabled(void) { return 0; }
+inline int CRYPTO_fuzzer_mode_enabled() { return 0; }
 #endif
 
 

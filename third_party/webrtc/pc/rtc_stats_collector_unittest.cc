@@ -188,8 +188,10 @@ std::unique_ptr<Candidate> CreateFakeCandidate(
 
 class MockStatsCollectorCallback : public RTCStatsCollectorCallback {
  public:
-  MOCK_METHOD1(OnStatsDelivered,
-               void(const scoped_refptr<const RTCStatsReport>&));
+  MOCK_METHOD(void,
+              OnStatsDelivered,
+              (const scoped_refptr<const RTCStatsReport>&),
+              (override));
 };
 
 class FakeAudioProcessor : public AudioProcessorInterface {

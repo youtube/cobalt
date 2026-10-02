@@ -183,7 +183,9 @@ TEST_P(OpusFecTest, RandomPacketLossTest) {
   int time_now_ms, fec_frames;
   int actual_packet_loss_rate;
   bool lost_current, lost_previous;
-  mode mode_set[3] = {{true, 0}, {false, 0}, {true, 50}};
+  mode mode_set[3] = {{.fec = true, .target_packet_loss_rate = 0},
+                      {.fec = false, .target_packet_loss_rate = 0},
+                      {.fec = true, .target_packet_loss_rate = 50}};
 
   lost_current = false;
   for (int i = 0; i < 3; i++) {

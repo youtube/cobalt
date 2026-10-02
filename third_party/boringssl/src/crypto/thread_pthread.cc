@@ -55,7 +55,7 @@ void CRYPTO_MUTEX_unlock_write(CRYPTO_MUTEX *lock) {
 
 void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX *lock) { pthread_rwlock_destroy(lock); }
 
-void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void)) {
+void CRYPTO_once(CRYPTO_once_t *once, void (*init)()) {
   if (pthread_once(once, init) != 0) {
     abort();
   }
@@ -93,7 +93,7 @@ static pthread_once_t g_thread_local_init_once = PTHREAD_ONCE_INIT;
 static pthread_key_t g_thread_local_key;
 static int g_thread_local_key_created = 0;
 
-static void thread_local_init(void) {
+static void thread_local_init() {
   g_thread_local_key_created =
       pthread_key_create(&g_thread_local_key, thread_local_destructor) == 0;
 }

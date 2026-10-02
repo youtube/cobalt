@@ -24,19 +24,21 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 namespace {
 
 extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meth;
 
-static evp_decode_result_t dsa_pub_decode(const EVP_PKEY_ALG *alg,
-                                          EVP_PKEY *out, CBS *params,
-                                          CBS *key) {
+static bssl::evp_decode_result_t dsa_pub_decode(const EVP_PKEY_ALG *alg,
+                                                EVP_PKEY *out, CBS *params,
+                                                CBS *key) {
   // See RFC 3279, section 2.3.2.
 
   // Decode parameters. RFC 3279 permits DSA parameters to be omitted, in which
   // case they are implicitly determined from the issuing certificate, or
   // somewhere unspecified and out-of-band. We do not support this mode.
-  bssl::UniquePtr<DSA> dsa(DSA_parse_parameters(params));
+  UniquePtr<DSA> dsa(DSA_parse_parameters(params));
   if (dsa == nullptr || CBS_len(params) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -78,13 +80,13 @@ static int dsa_pub_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t dsa_priv_decode(const EVP_PKEY_ALG *alg,
-                                           EVP_PKEY *out, CBS *params,
-                                           CBS *key) {
+static bssl::evp_decode_result_t dsa_priv_decode(const EVP_PKEY_ALG *alg,
+                                                 EVP_PKEY *out, CBS *params,
+                                                 CBS *key) {
   // See PKCS#11, v2.40, section 2.5.
 
   // Decode parameters.
-  bssl::UniquePtr<DSA> dsa(DSA_parse_parameters(params));
+  UniquePtr<DSA> dsa(DSA_parse_parameters(params));
   if (dsa == nullptr || CBS_len(params) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -108,7 +110,7 @@ static evp_decode_result_t dsa_priv_decode(const EVP_PKEY_ALG *alg,
   }
 
   // Calculate the public key.
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   dsa->pub_key = BN_new();
   if (ctx == nullptr || dsa->pub_key == nullptr ||
       !BN_mod_exp_mont_consttime(dsa->pub_key, dsa->g, dsa->priv_key, dsa->p,
@@ -164,7 +166,7 @@ static int dsa_missing_parameters(const EVP_PKEY *pkey) {
 }
 
 static int dup_bn_into(BIGNUM **out, BIGNUM *src) {
-  bssl::UniquePtr<BIGNUM> a(BN_dup(src));
+  UniquePtr<BIGNUM> a(BN_dup(src));
   if (a == nullptr) {
     return 0;
   }
@@ -242,7 +244,7 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
 
 }  // namespace
 
-const EVP_PKEY_ALG *EVP_pkey_dsa(void) {
+const EVP_PKEY_ALG *EVP_pkey_dsa() {
   static const EVP_PKEY_ALG kAlg = {&dsa_asn1_meth};
   return &kAlg;
 }

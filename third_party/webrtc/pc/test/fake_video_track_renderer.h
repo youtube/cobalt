@@ -24,7 +24,7 @@ class FakeVideoTrackRenderer : public FakeVideoRenderer {
       : video_track_(video_track) {
     video_track_->AddOrUpdateSink(this, VideoSinkWants());
   }
-  ~FakeVideoTrackRenderer() { video_track_->RemoveSink(this); }
+  ~FakeVideoTrackRenderer() override { video_track_->RemoveSink(this); }
 
  private:
   scoped_refptr<VideoTrackInterface> video_track_;

@@ -18,6 +18,7 @@ import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConf
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.R;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
+import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
@@ -168,13 +169,12 @@ public abstract class SigninPromoDelegate {
      *     {@code null} if no account is currently available on the device.
      */
     void onPrimaryButtonClicked(@Nullable CoreAccountInfo visibleAccount) {
-        BottomSheetSigninAndHistorySyncConfig config =
-                isSeamlessSigninAllowed() && visibleAccount != null
-                        ? getConfigForSeamlessSignin(visibleAccount)
-                        : getConfigForCollapsedBottomSheet();
         @Nullable Intent intent =
                 mLauncher.createBottomSheetSigninIntentOrShowError(
-                        mContext, mProfile, config, getAccessPoint());
+                        mContext,
+                        mProfile,
+                        getConfigForPrimaryButtonClick(visibleAccount),
+                        getAccessPoint());
         if (intent != null) {
             mContext.startActivity(intent);
         }
@@ -188,11 +188,9 @@ public abstract class SigninPromoDelegate {
     void onSecondaryButtonClicked() {
         assert !shouldHideSecondaryButton();
 
-        BottomSheetSigninAndHistorySyncConfig config =
-                getConfigForExpandedBottomSheet(isSeamlessSigninAllowed());
         @Nullable Intent intent =
                 mLauncher.createBottomSheetSigninIntentOrShowError(
-                        mContext, mProfile, config, getAccessPoint());
+                        mContext, mProfile, getConfigForSecondaryButtonClick(), getAccessPoint());
         if (intent != null) {
             mContext.startActivity(intent);
         }
@@ -202,40 +200,70 @@ public abstract class SigninPromoDelegate {
         mOnPromoVisibilityChange.run();
     }
 
+    /** Returns a survey trigger if a signin survey should be shown after the promo. */
+    @Nullable
+    @SigninSurveyController.SigninSurveyType
+    Integer getSurveyTriggerType() {
+        return null;
+    }
+
+    // TODO(https://crbug.com/474294917): Remove this.
+    /** Returns true if the delegate should handle the primary button click. */
+    boolean shouldOverridePrimaryButtonClick() {
+        return true;
+    }
+
+    // TODO(https://crbug.com/474294917): Remove this.
+    /** Returns true if the delegate should handle the secondary button click. */
+    boolean shouldOverrideSecondaryButtonClick() {
+        return true;
+    }
+
+    /** Returns the configuration for the flow started by the secondary button. */
+    BottomSheetSigninAndHistorySyncConfig getConfigForPrimaryButtonClick(
+            @Nullable CoreAccountInfo visibleAccount) {
+        return isSeamlessSigninAllowed() && visibleAccount != null
+                ? getConfigForSeamlessSignin(visibleAccount)
+                : getConfigForCollapsedBottomSheet();
+    }
+
+    /** Returns the configuration for the flow started by the secondary button. */
+    BottomSheetSigninAndHistorySyncConfig getConfigForSecondaryButtonClick() {
+        return getConfigForExpandedBottomSheet(isSeamlessSigninAllowed());
+    }
+
     private BottomSheetSigninAndHistorySyncConfig getConfigForCollapsedBottomSheet() {
-        return new BottomSheetSigninAndHistorySyncConfig.Builder(
-                        getBottomSheetStrings(),
-                        NoAccountSigninMode.BOTTOM_SHEET,
-                        WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET,
-                        getHistoryOptInMode(),
-                        mContext.getString(R.string.history_sync_title),
-                        mContext.getString(R.string.history_sync_subtitle))
-                .build();
+        return getBaseConfigBuilder(WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET).build();
     }
 
     private BottomSheetSigninAndHistorySyncConfig getConfigForSeamlessSignin(
             CoreAccountInfo visibleAccount) {
-        return new BottomSheetSigninAndHistorySyncConfig.Builder(
-                        getBottomSheetStrings(),
-                        NoAccountSigninMode.BOTTOM_SHEET,
-                        WithAccountSigninMode.SEAMLESS_SIGNIN,
-                        getHistoryOptInMode(),
-                        mContext.getString(R.string.history_sync_title),
-                        mContext.getString(R.string.history_sync_subtitle))
+        return getBaseConfigBuilder(WithAccountSigninMode.SEAMLESS_SIGNIN)
                 .useSeamlessWithAccountSignin(visibleAccount.getId())
                 .build();
     }
 
     private BottomSheetSigninAndHistorySyncConfig getConfigForExpandedBottomSheet(
             boolean shownSigninSnackbar) {
-        return new BottomSheetSigninAndHistorySyncConfig.Builder(
-                        getBottomSheetStrings(),
-                        NoAccountSigninMode.BOTTOM_SHEET,
-                        WithAccountSigninMode.CHOOSE_ACCOUNT_BOTTOM_SHEET,
-                        getHistoryOptInMode(),
-                        mContext.getString(R.string.history_sync_title),
-                        mContext.getString(R.string.history_sync_subtitle))
+        return getBaseConfigBuilder(WithAccountSigninMode.CHOOSE_ACCOUNT_BOTTOM_SHEET)
                 .shouldShowSigninSnackbar(shownSigninSnackbar)
                 .build();
+    }
+
+    private BottomSheetSigninAndHistorySyncConfig.Builder getBaseConfigBuilder(
+            @WithAccountSigninMode int mode) {
+        @Nullable Integer surveyType = getSurveyTriggerType();
+        BottomSheetSigninAndHistorySyncConfig.Builder config =
+                new BottomSheetSigninAndHistorySyncConfig.Builder(
+                        getBottomSheetStrings(),
+                        NoAccountSigninMode.BOTTOM_SHEET,
+                        mode,
+                        getHistoryOptInMode(),
+                        mContext.getString(R.string.history_sync_title),
+                        mContext.getString(R.string.history_sync_subtitle));
+        if (surveyType != null) {
+            config.signinSurveyType(surveyType);
+        }
+        return config;
     }
 }

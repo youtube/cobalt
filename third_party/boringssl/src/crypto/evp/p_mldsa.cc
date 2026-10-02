@@ -26,6 +26,8 @@
 #include "../mem_internal.h"
 #include "internal.h"
 
+using namespace bssl;
+
 namespace {
 
 constexpr CBS_ASN1_TAG kSeedTag = CBS_ASN1_CONTEXT_SPECIFIC | 0;
@@ -43,7 +45,7 @@ constexpr uint8_t kMLDSA87OID[] = {OBJ_ENC_ML_DSA_87};
     static constexpr size_t kPublicKeyBytes = MLDSA##kl##_PUBLIC_KEY_BYTES;   \
     static constexpr size_t kSignatureBytes = MLDSA##kl##_SIGNATURE_BYTES;    \
     static constexpr int kType = EVP_PKEY_ML_DSA_##kl;                        \
-    static constexpr bssl::Span<const uint8_t> kOID = kMLDSA##kl##OID;        \
+    static constexpr Span<const uint8_t> kOID = kMLDSA##kl##OID;              \
     static constexpr auto PrivateKeyFromSeed =                                \
         &MLDSA##kl##_private_key_from_seed;                                   \
     static constexpr auto Sign = &MLDSA##kl##_sign;                           \
@@ -138,9 +140,9 @@ void KeyData<Traits>::Free(KeyData<Traits> *data) {
   // type has a non-trivial destructor.
   auto *priv_data = data->AsPrivateKeyData();
   if (priv_data) {
-    bssl::Delete(priv_data);
+    Delete(priv_data);
   } else {
-    bssl::Delete(static_cast<PublicKeyData<Traits> *>(data));
+    Delete(static_cast<PublicKeyData<Traits> *>(data));
   }
 }
 
@@ -163,7 +165,7 @@ struct MLDSAImplementation {
   }
 
   static int SetPrivateSeed(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
-    auto priv = bssl::MakeUnique<PrivateKeyData<Traits>>();
+    auto priv = MakeUnique<PrivateKeyData<Traits>>();
     if (priv == nullptr) {
       return 0;
     }
@@ -179,7 +181,7 @@ struct MLDSAImplementation {
   }
 
   static int SetRawPublic(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
-    auto pub = bssl::MakeUnique<PublicKeyData<Traits>>();
+    auto pub = MakeUnique<PublicKeyData<Traits>>();
     if (pub == nullptr) {
       return 0;
     }

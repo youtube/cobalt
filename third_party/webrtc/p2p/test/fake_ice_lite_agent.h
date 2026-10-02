@@ -157,7 +157,7 @@ class FakeIceLiteAgentIceControllerFactory
   ~FakeIceLiteAgentIceControllerFactory() override = default;
 
   std::unique_ptr<ActiveIceControllerInterface> Create(
-      const ActiveIceControllerFactoryArgs& args) {
+      const ActiveIceControllerFactoryArgs& args) override {
     return std::make_unique<FakeIceLiteAgent>(args);
   }
 };

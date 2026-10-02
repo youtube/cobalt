@@ -136,4 +136,4 @@ void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
   ad->sk = nullptr;
 }
 
-void CRYPTO_cleanup_all_ex_data(void) {}
+void CRYPTO_cleanup_all_ex_data() {}

@@ -135,9 +135,9 @@ function decodeBase64URLToArrayBuffer(base64: string): ArrayBuffer {
   return stringToArrayBuffer(atob(standardBase64));
 }
 
-// Converts a buffer source to a base 64 encoded (forgiving policy) string.
-function bufferSourceToBase64(buffer: BufferSource): string {
-  return arrayBufferToBase64(
+// Converts a buffer source to a base 64 URL encoded string.
+function bufferSourceToBase64URL(buffer: BufferSource): string {
+  return arrayBufferToBase64URL(
       buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
 }
 
@@ -162,7 +162,7 @@ interface UserEntity {
 // Returns a dictionary of the user's entity.
 function extractUserEntity(user: PublicKeyCredentialUserEntity): UserEntity {
   return {
-    'id': bufferSourceToBase64(user.id),
+    'id': bufferSourceToBase64URL(user.id),
     'name': user.name,
     'displayName': user.displayName,
   };
@@ -205,7 +205,7 @@ function extractRequestInformation(options: Options): RequestInformation {
   }
 
   return {
-    'challenge': bufferSourceToBase64(options.challenge),
+    'challenge': bufferSourceToBase64URL(options.challenge),
     'userVerification': uvRequirement ?? 'unknown',
     'extensions': options.extensions,
   };
@@ -234,16 +234,130 @@ function publicKeyCredentialDescriptorAsSerializedDescriptors(
   // Map the array and convert BufferSource to base64.
   return descriptors.map((desc) => ({
                            type: desc.type,
-                           id: bufferSourceToBase64(desc.id),
+                           id: bufferSourceToBase64URL(desc.id),
                            transports: transportsAsStrings(desc.transports),
                          }));
+}
+
+// Converts PRF values to strings (Base64URL).
+function prfValuesToBase64URL(values: AuthenticationExtensionsPRFValues):
+    AuthenticationExtensionsPRFValuesJSON {
+  const result: AuthenticationExtensionsPRFValuesJSON = {
+    first: bufferSourceToBase64URL(values.first),
+  };
+  if (values.second) {
+    result.second = bufferSourceToBase64URL(values.second);
+  }
+  return result;
+}
+
+// Serializes all PRF-related data from the extensions dictionary.
+function serializePRF(prf: AuthenticationExtensionsPRFInputs):
+    AuthenticationExtensionsPRFInputsJSON {
+  const result: AuthenticationExtensionsPRFInputsJSON = {};
+
+  // Add main PRF values to result as Base64 strings if present.
+  if (prf.eval) {
+    result.eval = prfValuesToBase64URL(prf.eval);
+  }
+
+  // Get per credential PRF values as Base64 strings if present.
+  const perCredentialPRFData:
+      Map<string, AuthenticationExtensionsPRFValuesJSON> = new Map();
+  for (const credentialId in prf.evalByCredential) {
+    const credentialPRFData = prf.evalByCredential[credentialId];
+    if (credentialPRFData) {
+      // credentialId is base64url encoded, as specified by the webauthn spec
+      // here: https://www.w3.org/TR/webauthn-3/#prf-extension
+      perCredentialPRFData.set(
+          credentialId, prfValuesToBase64URL(credentialPRFData));
+    }
+  }
+
+  // Copy per credential PRF values as Base64 strings to result if present.
+  if (prf.evalByCredential) {
+    result.evalByCredential =
+        Object.fromEntries(perCredentialPRFData.entries());
+  }
+
+  return result;
+}
+
+// Serialize all extension inputs.
+function serializeExtensions(extensions?: AuthenticationExtensionsClientInputs):
+    AuthenticationExtensionsClientInputsJSON {
+  const result: AuthenticationExtensionsClientInputsJSON = {};
+
+  if (!extensions) {
+    return result;
+  }
+
+  if (extensions.prf) {
+    result.prf = serializePRF(extensions.prf);
+  }
+
+  // TODO(crbug.com/460485679): Support extensions other than PRF.
+
+  return result;
+}
+
+// Converts Base64URL strings to PRF values.
+function prfBase64URLToValues(outputs: AuthenticationExtensionsPRFValuesJSON):
+    AuthenticationExtensionsPRFValues {
+  const result: AuthenticationExtensionsPRFValues = {
+    first: decodeBase64URLToArrayBuffer(outputs.first),
+  };
+  if (outputs.second) {
+    result.second = decodeBase64URLToArrayBuffer(outputs.second);
+  }
+  return result;
+}
+
+// Interface containing serialized PRF outputs.
+// eslint-disable-next-line @typescript-eslint/naming-convention
+interface AuthenticationExtensionsPRFOutputsJSON {
+  enabled: boolean;
+  results: AuthenticationExtensionsPRFValuesJSON;
+}
+
+// Interface containing serialized extension outputs.
+// eslint-disable-next-line @typescript-eslint/naming-convention
+interface AuthenticationExtensionsClientOutputsJSON {
+  prf: AuthenticationExtensionsPRFOutputsJSON;
+}
+
+// Deserializes all PRF-related data from the extensions dictionary.
+function deserializePRF(prf: AuthenticationExtensionsPRFOutputsJSON):
+    AuthenticationExtensionsPRFOutputs {
+  return {enabled: prf.enabled, results: prfBase64URLToValues(prf.results)};
+}
+
+// Deserialize all extension outputs.
+function deserializeExtensions(
+    extensions?: AuthenticationExtensionsClientOutputsJSON):
+    AuthenticationExtensionsClientOutputs {
+  const result: AuthenticationExtensionsClientOutputs = {};
+
+  if (!extensions) {
+    return result;
+  }
+
+  if (extensions.prf) {
+    result.prf = deserializePRF(extensions.prf);
+  }
+
+  // TODO(crbug.com/460485679): Support extensions other than PRF.
+
+  return result;
 }
 
 // Creates a PublicKeyCredential from the provided list of arguments.
 // The credential's type is always set to 'public-key'.
 function createPublicKeyCredential(
     authenticatorAttachment: string, rawId: ArrayBuffer,
-    response: AuthenticatorResponse): PublicKeyCredential {
+    response: AuthenticatorResponse,
+    extensionOutputs: AuthenticationExtensionsClientOutputs):
+    PublicKeyCredential {
   return {
     id: arrayBufferToBase64URL(rawId),
     type: 'public-key',
@@ -251,8 +365,7 @@ function createPublicKeyCredential(
     rawId: rawId,
     response: response,
     getClientExtensionResults(): AuthenticationExtensionsClientOutputs {
-      // TODO(crbug.com/460485679): implement when adding extension support.
-      return {};
+      return extensionOutputs;
     },
     toJSON(): any {
       return {
@@ -269,9 +382,9 @@ function createPublicKeyCredential(
 // Creates an empty credential, which will be used to resolve a Credential
 // promise so that the promise resolution is deferred to the renderer.
 function createEmptyCredential(): PublicKeyCredential {
-  const nullArray = new ArrayBuffer(0);
-  const emptyResponse: AuthenticatorResponse = {clientDataJSON: nullArray};
-  return createPublicKeyCredential('', nullArray, emptyResponse);
+  const emptyArray = new ArrayBuffer(0);
+  const emptyResponse: AuthenticatorResponse = {clientDataJSON: emptyArray};
+  return createPublicKeyCredential('', emptyArray, emptyResponse, {});
 }
 
 // Returns whether a credential is non empty.
@@ -431,6 +544,7 @@ function createRegistrationRequest(
     'userEntity': extractUserEntity(publicKeyOptions.user),
     'excludeCredentials': publicKeyCredentialDescriptorAsSerializedDescriptors(
         publicKeyOptions.excludeCredentials),
+    'extensions': serializeExtensions(publicKeyOptions.extensions),
   });  // Attestation request
 
   return deferredPromise.promise;
@@ -451,6 +565,7 @@ function createAssertionRequest(
     'rpEntity': extractRelyingPartyEntity(publicKeyOptions),
     'allowCredentials': publicKeyCredentialDescriptorAsSerializedDescriptors(
         publicKeyOptions.allowCredentials),
+    'extensions': serializeExtensions(publicKeyOptions.extensions),
   });  // Assertion request
 
   return deferredPromise.promise;
@@ -523,10 +638,11 @@ function deferToRenderer(requestId: string): void {
 
 // Resolves the credential promise with the provided response.
 function resolveCredentialPromise(
-    requestId: string, id64: string, response: AuthenticatorResponse): void {
+    requestId: string, id64: string, response: AuthenticatorResponse,
+    extensions: AuthenticationExtensionsClientOutputsJSON): void {
   const id = decodeBase64URLToArrayBuffer(id64);
-  const credential: PublicKeyCredential =
-      createPublicKeyCredential('platform', id, response);
+  const credential: PublicKeyCredential = createPublicKeyCredential(
+      'platform', id, response, deserializeExtensions(extensions));
 
   DeferredPublicKeyCredentialPromise.resolve(requestId, credential);
 }
@@ -534,8 +650,9 @@ function resolveCredentialPromise(
 // Function called from C++ to resolve the deferred promise with a valid
 // assertion credential.
 function resolveAssertionRequest(
-    requestId: string, id64: string, authenticatorData64: string,
-    clientDataJson: string, signature64: string, userHandle64: string): void {
+    requestId: string, id64: string, signature64: string,
+    authenticatorData64: string, userHandle64: string, clientDataJson: string,
+    extensions: AuthenticationExtensionsClientOutputsJSON): void {
   const response: AuthenticatorAssertionResponse = {
     authenticatorData: decodeBase64URLToArrayBuffer(authenticatorData64),
     clientDataJSON: stringToArrayBuffer(clientDataJson),
@@ -543,7 +660,7 @@ function resolveAssertionRequest(
     userHandle: decodeBase64URLToArrayBuffer(userHandle64),
   };
 
-  resolveCredentialPromise(requestId, id64, response);
+  resolveCredentialPromise(requestId, id64, response, extensions);
 }
 
 // Function called from C++ to resolve the deferred promise with a valid
@@ -551,14 +668,15 @@ function resolveAssertionRequest(
 function resolveAttestationRequest(
     requestId: string, id64: string, attestationObject64: string,
     authenticatorData64: string, publicKeySpkiDer64: string,
-    clientDataJson: string): void {
+    clientDataJson: string,
+    extensions: AuthenticationExtensionsClientOutputsJSON): void {
   const response: AuthenticatorAttestationResponse =
       createAuthenticatorAttestationResponse(
           decodeBase64URLToArrayBuffer(attestationObject64),
           decodeBase64URLToArrayBuffer(authenticatorData64),
           decodeBase64URLToArrayBuffer(publicKeySpkiDer64), clientDataJson);
 
-  resolveCredentialPromise(requestId, id64, response);
+  resolveCredentialPromise(requestId, id64, response, extensions);
 }
 
 const passkey = new CrWebApi();

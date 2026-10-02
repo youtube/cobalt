@@ -14,7 +14,10 @@
 
 package runner
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
 
 func addBasicTests() {
 	basicTests := []testCase{
@@ -1348,9 +1351,17 @@ read alert 1 0
 			config: Config{
 				MaxVersion: VersionTLS12,
 				Bugs: ProtocolBugs{
-					MaxHandshakeRecordLength:  2,
-					ReorderHandshakeFragments: true,
-					SendExtraFinished:         true,
+					SendExtraFinished: true,
+					WriteFlightDTLS: func(c *DTLSController, prev, received, next []DTLSMessage, records []DTLSRecordNumberInfo) {
+						if next[len(next)-1].Type == typeFinished {
+							// Reorder such that the extra Finished is sent first.
+							if len(next) < 2 || next[len(next)-2].Type != typeFinished {
+								panic("expected two Finished messages")
+							}
+							slices.Reverse(next[len(next)-2:])
+						}
+						c.WriteFlight(next)
+					},
 				},
 			},
 			shouldFail:         true,
@@ -1390,9 +1401,17 @@ read alert 1 0
 			config: Config{
 				MaxVersion: VersionTLS13,
 				Bugs: ProtocolBugs{
-					MaxHandshakeRecordLength:  2,
-					ReorderHandshakeFragments: true,
-					SendExtraFinished:         true,
+					SendExtraFinished: true,
+					WriteFlightDTLS: func(c *DTLSController, prev, received, next []DTLSMessage, records []DTLSRecordNumberInfo) {
+						if next[len(next)-1].Type == typeFinished {
+							// Reorder such that the extra Finished is sent first.
+							if len(next) < 2 || next[len(next)-2].Type != typeFinished {
+								panic("expected two Finished messages")
+							}
+							slices.Reverse(next[len(next)-2:])
+						}
+						c.WriteFlight(next)
+					},
 				},
 			},
 			shouldFail:         true,

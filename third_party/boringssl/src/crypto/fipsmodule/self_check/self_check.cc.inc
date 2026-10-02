@@ -33,6 +33,7 @@
 #include <openssl/nid.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/tls_prf.h>
 
 #include "../../bcm_support.h"
 #include "../../internal.h"
@@ -45,6 +46,8 @@
 #include "../service_indicator/internal.h"
 #include "../tls/internal.h"
 
+
+using namespace bssl;
 
 static void hexdump(FILE *out, const void *in, size_t len) {
   const uint8_t *in8 = reinterpret_cast<const uint8_t *>(in);
@@ -73,7 +76,7 @@ static int set_bignum(BIGNUM **out, const uint8_t *in, size_t len) {
   return *out != nullptr;
 }
 
-static RSA *self_test_rsa_key(void) {
+static RSA *self_test_rsa_key() {
   static const uint8_t kN[] = {
       0xd3, 0x3a, 0x62, 0x9f, 0x07, 0x77, 0xb0, 0x18, 0xf3, 0xff, 0xfe, 0xcc,
       0xc9, 0xa2, 0xc2, 0x3a, 0xa6, 0x1d, 0xd8, 0xf0, 0x26, 0x5b, 0x38, 0x90,
@@ -206,7 +209,7 @@ static RSA *self_test_rsa_key(void) {
   return rsa;
 }
 
-static EC_KEY *self_test_ecdsa_key(void) {
+static EC_KEY *self_test_ecdsa_key() {
   static const uint8_t kQx[] = {
       0xc8, 0x15, 0x61, 0xec, 0xf2, 0xe5, 0x4e, 0xde, 0xfe, 0x66, 0x17,
       0xdb, 0x1c, 0x7a, 0x34, 0xa7, 0x07, 0x44, 0xdd, 0xb2, 0x61, 0xf2,
@@ -241,7 +244,7 @@ static EC_KEY *self_test_ecdsa_key(void) {
   return ec_key;
 }
 
-static DH *self_test_dh(void) {
+static DH *self_test_dh() {
   DH *dh = DH_get_rfc7919_2048();
   if (!dh) {
     return nullptr;
@@ -283,7 +286,7 @@ err:
 // actually exercised, in FIPS mode. (In non-FIPS mode these tests are only run
 // when requested by |BORINGSSL_self_test|.)
 
-static int boringssl_self_test_rsa(void) {
+static int boringssl_self_test_rsa() {
   int ret = 0;
   uint8_t output[256];
 
@@ -380,7 +383,7 @@ err:
   return ret;
 }
 
-static int boringssl_self_test_ecc(void) {
+static int boringssl_self_test_ecc() {
   int ret = 0;
   EC_KEY *ec_key = nullptr;
   EC_POINT *ec_point_in = nullptr;
@@ -506,7 +509,7 @@ err:
   return ret;
 }
 
-static int boringssl_self_test_ffdh(void) {
+static int boringssl_self_test_ffdh() {
   int ret = 0;
   DH *dh = nullptr;
   BIGNUM *ffdhe2048_value = nullptr;
@@ -586,7 +589,7 @@ err:
 
 #if defined(BORINGSSL_FIPS)
 
-static void run_self_test_rsa(void) {
+static void run_self_test_rsa() {
   FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_rsa()) {
     BORINGSSL_FIPS_abort();
@@ -596,11 +599,11 @@ static void run_self_test_rsa(void) {
 
 DEFINE_STATIC_ONCE(g_self_test_once_rsa)
 
-void boringssl_ensure_rsa_self_test(void) {
+void boringssl_ensure_rsa_self_test() {
   CRYPTO_once(g_self_test_once_rsa_bss_get(), run_self_test_rsa);
 }
 
-static void run_self_test_ecc(void) {
+static void run_self_test_ecc() {
   FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_ecc()) {
     BORINGSSL_FIPS_abort();
@@ -610,11 +613,11 @@ static void run_self_test_ecc(void) {
 
 DEFINE_STATIC_ONCE(g_self_test_once_ecc)
 
-void boringssl_ensure_ecc_self_test(void) {
+void boringssl_ensure_ecc_self_test() {
   CRYPTO_once(g_self_test_once_ecc_bss_get(), run_self_test_ecc);
 }
 
-static void run_self_test_ffdh(void) {
+static void run_self_test_ffdh() {
   FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_ffdh()) {
     BORINGSSL_FIPS_abort();
@@ -624,7 +627,7 @@ static void run_self_test_ffdh(void) {
 
 DEFINE_STATIC_ONCE(g_self_test_once_ffdh)
 
-void boringssl_ensure_ffdh_self_test(void) {
+void boringssl_ensure_ffdh_self_test() {
   CRYPTO_once(g_self_test_once_ffdh_bss_get(), run_self_test_ffdh);
 }
 
@@ -635,7 +638,7 @@ void boringssl_ensure_ffdh_self_test(void) {
 //
 // These tests are run at process start when in FIPS mode.
 
-int boringssl_self_test_sha256(void) {
+int boringssl_self_test_sha256() {
   static const uint8_t kInput[16] = {
       0xff, 0x3b, 0x85, 0x7d, 0xa7, 0x23, 0x6a, 0x2b,
       0xaa, 0x0f, 0x39, 0x6b, 0x51, 0x52, 0x22, 0x17,
@@ -653,7 +656,7 @@ int boringssl_self_test_sha256(void) {
                               sizeof(kPlaintextSHA256), "SHA-256 KAT");
 }
 
-int boringssl_self_test_sha512(void) {
+int boringssl_self_test_sha512() {
   static const uint8_t kInput[16] = {
       0x21, 0x25, 0x12, 0xf8, 0xd2, 0xad, 0x83, 0x22,
       0x78, 0x1c, 0x6c, 0x4d, 0x69, 0xa9, 0xda, 0xa1,
@@ -674,7 +677,7 @@ int boringssl_self_test_sha512(void) {
                               sizeof(kPlaintextSHA512), "SHA-512 KAT");
 }
 
-int boringssl_self_test_hmac_sha256(void) {
+int boringssl_self_test_hmac_sha256() {
   static const uint8_t kInput[16] = {
       0xda, 0xd9, 0x12, 0x93, 0xdf, 0xcf, 0x2a, 0x7c,
       0x8e, 0xcd, 0x13, 0xfe, 0x35, 0x3f, 0xa7, 0x5b,
@@ -694,7 +697,7 @@ int boringssl_self_test_hmac_sha256(void) {
                               sizeof(kPlaintextHMACSHA256), "HMAC-SHA-256 KAT");
 }
 
-static int boringssl_self_test_fast(void) {
+static int boringssl_self_test_fast() {
   static const uint8_t kAESKey[16] = {
       'B', 'o', 'r', 'i', 'n', 'g', 'C', 'r',
       'y', 'p', 't', 'o', ' ', 'K', 'e', 'y',
@@ -758,7 +761,7 @@ static int boringssl_self_test_fast(void) {
   size_t out_len;
   uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH];
   OPENSSL_memset(nonce, 0, sizeof(nonce));
-  bssl::ScopedEVP_AEAD_CTX aead_ctx;
+  ScopedEVP_AEAD_CTX aead_ctx;
   if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_gcm(), kAESKey,
                          sizeof(kAESKey), 0, nullptr)) {
     fprintf(CRYPTO_get_stderr(), "EVP_AEAD_CTX_init for AES-128-GCM failed.\n");
@@ -1022,7 +1025,7 @@ static int boringssl_self_test_fast(void) {
   return 1;
 }
 
-int BORINGSSL_self_test(void) {
+int BORINGSSL_self_test() {
   if (!boringssl_self_test_fast() ||
       // When requested to run self tests, also run some of the lazy tests.
       !boringssl_self_test_rsa() ||    //
@@ -1036,7 +1039,7 @@ int BORINGSSL_self_test(void) {
   return 1;
 }
 
-int BORINGSSL_self_test_all(void) {
+int BORINGSSL_self_test_all() {
   if (!BORINGSSL_self_test() ||
       // When requested to run all self tests, add in the really slow tests.
       !boringssl_self_test_slhdsa()) {
@@ -1047,5 +1050,5 @@ int BORINGSSL_self_test_all(void) {
 }
 
 #if defined(BORINGSSL_FIPS)
-int boringssl_self_test_startup(void) { return boringssl_self_test_fast(); }
+int boringssl_self_test_startup() { return boringssl_self_test_fast(); }
 #endif

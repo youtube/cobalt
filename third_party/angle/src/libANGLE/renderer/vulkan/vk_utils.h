@@ -551,6 +551,8 @@ class MemoryProperties final : angle::NonCopyable
     uint32_t getMemoryHeapCount() const { return mMemoryProperties.memoryHeapCount; }
     uint32_t getMemoryTypeCount() const { return mMemoryProperties.memoryTypeCount; }
 
+    uint32_t findTileMemoryTypeIndex() const;
+
     void log(std::ostringstream &out) const;
 
   private:
@@ -614,6 +616,15 @@ VkResult AllocateImageMemoryWithRequirements(ErrorContext *context,
                                              Image *image,
                                              uint32_t *memoryTypeIndexOut,
                                              DeviceMemory *deviceMemoryOut);
+
+VkResult AllocateImageMemoryFromTileHeap(ErrorContext *context,
+                                         MemoryAllocationType memoryAllocationType,
+                                         VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+                                         VkMemoryPropertyFlags *memoryPropertyFlagsOut,
+                                         Image *image,
+                                         uint32_t *memoryTypeIndexOut,
+                                         DeviceMemory *deviceMemoryOut,
+                                         VkDeviceSize *sizeOut);
 
 VkResult AllocateBufferMemoryWithRequirements(ErrorContext *context,
                                               MemoryAllocationType memoryAllocationType,
@@ -1494,6 +1505,9 @@ void InitFragmentShadingRateKHRDeviceFunction(VkDevice device);
 // VK_KHR_maintenance5
 void InitMaintenance5Functions(VkDevice device);
 
+// VK_QCOM_tile_memory_heap
+void InitTileMemoryHeapFunctions(VkDevice device);
+
 // VK_GOOGLE_display_timing
 void InitGetPastPresentationTimingGoogleFunction(VkDevice device);
 
@@ -1684,6 +1698,9 @@ enum class RenderPassClosureReason
     CopyTextureOnCPU,
     TextureReformatToRenderable,
     OutOfReservedQueueSerialForOutsideCommands,
+
+    // VK_QCOM_tile_memory_heap
+    TileMemorySimulatedClear,
 
     // UtilsVk
     GenerateMipmapWithDraw,

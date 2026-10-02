@@ -519,7 +519,8 @@ bool ContainsSender(
 // correspond to kSdpStringWithStream1.
 // CreateStreamCollection(2) correspond to kSdpStringWithStream1And2.
 scoped_refptr<StreamCollection> CreateStreamCollection(int number_of_streams,
-                                                       int tracks_per_stream) {
+                                                       int tracks_per_stream,
+                                                       Thread* worker_thread) {
   scoped_refptr<StreamCollection> local_collection(StreamCollection::Create());
 
   for (int i = 0; i < number_of_streams; ++i) {
@@ -533,9 +534,9 @@ scoped_refptr<StreamCollection> CreateStreamCollection(int number_of_streams,
       stream->AddTrack(audio_track);
 
       // Add a local video track.
-      scoped_refptr<VideoTrackInterface> video_track(VideoTrack::Create(
-          kVideoTracks[i * tracks_per_stream + j],
-          FakeVideoTrackSource::Create(), Thread::Current()));
+      scoped_refptr<VideoTrackInterface> video_track(
+          VideoTrack::Create(kVideoTracks[i * tracks_per_stream + j],
+                             FakeVideoTrackSource::Create(), worker_thread));
       stream->AddTrack(video_track);
     }
 
@@ -610,10 +611,11 @@ class MockTrackObserver : public ObserverInterface {
 class PeerConnectionFactoryForTest : public PeerConnectionFactory {
  public:
   static scoped_refptr<PeerConnectionFactoryForTest>
-  CreatePeerConnectionFactoryForTest() {
+  CreatePeerConnectionFactoryForTest(Thread* network_thread,
+                                     Thread* worker_thread) {
     PeerConnectionFactoryDependencies dependencies;
-    dependencies.worker_thread = Thread::Current();
-    dependencies.network_thread = Thread::Current();
+    dependencies.worker_thread = worker_thread;
+    dependencies.network_thread = network_thread;
     dependencies.signaling_thread = Thread::Current();
     // Use fake audio device module since we're only testing the interface
     // level, and using a real one could make tests flaky when run in parallel.
@@ -647,8 +649,15 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     // Use fake audio capture module since we're only testing the interface
     // level, and using a real one could make tests flaky when run in parallel.
     fake_audio_capture_module_ = FakeAudioCaptureModule::Create();
+    network_thread_ = Thread::CreateWithSocketServer();
+    network_thread_->SetName("NetworkThread", nullptr);
+    ASSERT_TRUE(network_thread_->Start());
+    worker_thread_ = Thread::Create();
+    worker_thread_->SetName("WorkerThread", nullptr);
+    ASSERT_TRUE(worker_thread_->Start());
+
     pc_factory_ = CreatePeerConnectionFactory(
-        Thread::Current(), Thread::Current(), Thread::Current(),
+        network_thread_.get(), worker_thread_.get(), Thread::Current(),
         scoped_refptr<AudioDeviceModule>(fake_audio_capture_module_),
         CreateBuiltinAudioEncoderFactory(), CreateBuiltinAudioDecoderFactory(),
         std::make_unique<VideoEncoderFactoryTemplate<
@@ -667,7 +676,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       ReleasePeerConnection();
     }
 
-    ASSERT_THAT(port_allocator_, IsNull());
+    network_thread_->BlockingCall(
+        [&] { ASSERT_THAT(port_allocator_, IsNull()); });
   }
 
   void CreatePeerConnection() {
@@ -710,10 +720,16 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       pc_->Close();
       ReleasePeerConnection();
     }
-    ASSERT_THAT(port_allocator_, IsNull());
-    auto port_allocator =
-        std::make_unique<FakePortAllocator>(CreateEnvironment(), vss_.get());
-    port_allocator_ = port_allocator->NewWeakPtr();
+    network_thread_->BlockingCall(
+        [&] { ASSERT_THAT(port_allocator_, IsNull()); });
+
+    std::unique_ptr<FakePortAllocator> port_allocator =
+        network_thread_->BlockingCall([&] {
+          auto allocator = std::make_unique<FakePortAllocator>(
+              CreateEnvironment(), network_thread_->socketserver());
+          port_allocator_ = allocator->NewWeakPtr();
+          return allocator;
+        });
 
     // Create certificate generator unless DTLS constraint is explicitly set to
     // false.
@@ -763,11 +779,13 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
 
   void CreatePeerConnectionWithDifferentConfigurations() {
     CreatePeerConnectionWithIceServer(kStunAddressOnly, "", "");
-    EXPECT_EQ(1u, port_allocator_->stun_servers().size());
-    EXPECT_EQ(0u, port_allocator_->turn_servers().size());
-    EXPECT_EQ("address", port_allocator_->stun_servers().begin()->hostname());
-    EXPECT_EQ(kDefaultStunPort,
-              port_allocator_->stun_servers().begin()->port());
+    network_thread_->BlockingCall([&] {
+      EXPECT_EQ(1u, port_allocator_->stun_servers().size());
+      EXPECT_EQ(0u, port_allocator_->turn_servers().size());
+      EXPECT_EQ("address", port_allocator_->stun_servers().begin()->hostname());
+      EXPECT_EQ(kDefaultStunPort,
+                port_allocator_->stun_servers().begin()->port());
+    });
 
     CreatePeerConnectionExpectFail(kStunInvalidPort);
     CreatePeerConnectionExpectFail(kStunAddressPortAndMore1);
@@ -775,14 +793,16 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
 
     CreatePeerConnectionWithIceServer(kTurnIceServerUri, kTurnUsername,
                                       kTurnPassword);
-    EXPECT_EQ(0u, port_allocator_->stun_servers().size());
-    EXPECT_EQ(1u, port_allocator_->turn_servers().size());
-    EXPECT_EQ(kTurnUsername,
-              port_allocator_->turn_servers()[0].credentials.username);
-    EXPECT_EQ(kTurnPassword,
-              port_allocator_->turn_servers()[0].credentials.password);
-    EXPECT_EQ(kTurnHostname,
-              port_allocator_->turn_servers()[0].ports[0].address.hostname());
+    network_thread_->BlockingCall([&] {
+      EXPECT_EQ(0u, port_allocator_->stun_servers().size());
+      EXPECT_EQ(1u, port_allocator_->turn_servers().size());
+      EXPECT_EQ(kTurnUsername,
+                port_allocator_->turn_servers()[0].credentials.username);
+      EXPECT_EQ(kTurnPassword,
+                port_allocator_->turn_servers()[0].credentials.password);
+      EXPECT_EQ(kTurnHostname,
+                port_allocator_->turn_servers()[0].ports[0].address.hostname());
+    });
   }
 
   void ReleasePeerConnection() {
@@ -1147,7 +1167,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   void AddVideoTrack(const std::string& track_id,
                      MediaStreamInterface* stream) {
     scoped_refptr<VideoTrackInterface> video_track(VideoTrack::Create(
-        track_id, FakeVideoTrackSource::Create(), Thread::Current()));
+        track_id, FakeVideoTrackSource::Create(), worker_thread_.get()));
     ASSERT_TRUE(stream->AddTrack(video_track));
   }
 
@@ -1258,6 +1278,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
 
   std::unique_ptr<VirtualSocketServer> vss_;
   AutoSocketServerThread main_;
+  std::unique_ptr<Thread> network_thread_;
+  std::unique_ptr<Thread> worker_thread_;
   scoped_refptr<FakeAudioCaptureModule> fake_audio_capture_module_;
   WeakPtr<FakePortAllocator> port_allocator_;
   FakeRTCCertificateGenerator* fake_certificate_generator_ = nullptr;
@@ -1311,13 +1333,18 @@ TEST_P(PeerConnectionInterfaceTest,
 TEST_P(PeerConnectionInterfaceTest,
        CreatePeerConnectionWithDifferentIceTransportsTypes) {
   CreatePeerConnectionWithIceTransportsType(PeerConnectionInterface::kNone);
-  EXPECT_EQ(CF_NONE, port_allocator_->candidate_filter());
+  network_thread_->BlockingCall(
+      [&] { EXPECT_EQ(CF_NONE, port_allocator_->candidate_filter()); });
   CreatePeerConnectionWithIceTransportsType(PeerConnectionInterface::kRelay);
-  EXPECT_EQ(CF_RELAY, port_allocator_->candidate_filter());
+  network_thread_->BlockingCall(
+      [&] { EXPECT_EQ(CF_RELAY, port_allocator_->candidate_filter()); });
   CreatePeerConnectionWithIceTransportsType(PeerConnectionInterface::kNoHost);
-  EXPECT_EQ(CF_ALL & ~CF_HOST, port_allocator_->candidate_filter());
+  network_thread_->BlockingCall([&] {
+    EXPECT_EQ(CF_ALL & ~CF_HOST, port_allocator_->candidate_filter());
+  });
   CreatePeerConnectionWithIceTransportsType(PeerConnectionInterface::kAll);
-  EXPECT_EQ(CF_ALL, port_allocator_->candidate_filter());
+  network_thread_->BlockingCall(
+      [&] { EXPECT_EQ(CF_ALL, port_allocator_->candidate_filter()); });
 }
 
 // Test that when a PeerConnection is created with a nonzero candidate pool
@@ -1337,13 +1364,15 @@ TEST_P(PeerConnectionInterfaceTest, CreatePeerConnectionWithPooledCandidates) {
   config.ice_candidate_pool_size = 1;
   CreatePeerConnection(config);
 
-  const FakePortAllocatorSession* session =
-      static_cast<const FakePortAllocatorSession*>(
-          port_allocator_->GetPooledSession());
-  ASSERT_NE(nullptr, session);
-  EXPECT_EQ(1UL, session->stun_servers().size());
-  EXPECT_LT(0U, session->flags() & PORTALLOCATOR_DISABLE_TCP);
-  EXPECT_LT(0U, session->flags() & PORTALLOCATOR_DISABLE_COSTLY_NETWORKS);
+  network_thread_->BlockingCall([&] {
+    const FakePortAllocatorSession* session =
+        static_cast<const FakePortAllocatorSession*>(
+            port_allocator_->GetPooledSession());
+    ASSERT_NE(nullptr, session);
+    EXPECT_EQ(1UL, session->stun_servers().size());
+    EXPECT_LT(0U, session->flags() & PORTALLOCATOR_DISABLE_TCP);
+    EXPECT_LT(0U, session->flags() & PORTALLOCATOR_DISABLE_COSTLY_NETWORKS);
+  });
 }
 
 // Test that network-related RTCConfiguration members are applied to the
@@ -1359,9 +1388,17 @@ TEST_P(PeerConnectionInterfaceTest, CreatePeerConnectionWithPooledCandidates) {
 TEST_P(PeerConnectionInterfaceTest,
        CreatePeerConnectionAppliesNetworkConfigToPortAllocator) {
   // Create fake port allocator.
-  auto port_allocator =
-      std::make_unique<FakePortAllocator>(CreateEnvironment(), socket_server());
-  WeakPtr<FakePortAllocator> raw_port_allocator = port_allocator->NewWeakPtr();
+  // Create fake port allocator on the network thread.
+  std::unique_ptr<FakePortAllocator> port_allocator;
+  network_thread_->BlockingCall([&] {
+    port_allocator = std::make_unique<FakePortAllocator>(
+        CreateEnvironment(), network_thread_->socketserver());
+  });
+  // We need to keep a raw pointer to check flags later, but we need to
+  // accessing it on the network thread or be careful. FakePortAllocator methods
+  // might be thread-safe or check threads. `flags()` is on BasicPortAllocator,
+  // which checks thread_checker_. So we must access it on network thread.
+  FakePortAllocator* raw_port_allocator = port_allocator.get();
 
   // Create RTCConfiguration with some network-related fields relevant to
   // PortAllocator populated.
@@ -1376,19 +1413,6 @@ TEST_P(PeerConnectionInterfaceTest,
   config.prune_turn_ports = true;
 
   // Create the PC factory and PC with the above config.
-  scoped_refptr<PeerConnectionFactoryInterface> pc_factory(
-      CreatePeerConnectionFactory(
-          Thread::Current(), Thread::Current(), Thread::Current(),
-          fake_audio_capture_module_, CreateBuiltinAudioEncoderFactory(),
-          CreateBuiltinAudioDecoderFactory(),
-          std::make_unique<VideoEncoderFactoryTemplate<
-              LibvpxVp8EncoderTemplateAdapter, LibvpxVp9EncoderTemplateAdapter,
-              OpenH264EncoderTemplateAdapter,
-              LibaomAv1EncoderTemplateAdapter>>(),
-          std::make_unique<VideoDecoderFactoryTemplate<
-              LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
-              OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
-          nullptr /* audio_mixer */, nullptr /* audio_processing */));
   PeerConnectionDependencies pc_dependencies(&observer_);
   pc_dependencies.allocator = std::move(port_allocator);
   auto result = pc_factory_->CreatePeerConnectionOrError(
@@ -1398,13 +1422,16 @@ TEST_P(PeerConnectionInterfaceTest,
 
   // Now validate that the config fields set above were applied to the
   // PortAllocator, as flags or otherwise.
-  EXPECT_FALSE(raw_port_allocator->flags() & PORTALLOCATOR_ENABLE_IPV6_ON_WIFI);
-  EXPECT_EQ(10, raw_port_allocator->max_ipv6_networks());
-  EXPECT_TRUE(raw_port_allocator->flags() & PORTALLOCATOR_DISABLE_TCP);
-  EXPECT_TRUE(raw_port_allocator->flags() &
-              PORTALLOCATOR_DISABLE_COSTLY_NETWORKS);
-  EXPECT_EQ(PRUNE_BASED_ON_PRIORITY,
-            raw_port_allocator->turn_port_prune_policy());
+  network_thread_->BlockingCall([&] {
+    EXPECT_FALSE(raw_port_allocator->flags() &
+                 PORTALLOCATOR_ENABLE_IPV6_ON_WIFI);
+    EXPECT_EQ(10, raw_port_allocator->max_ipv6_networks());
+    EXPECT_TRUE(raw_port_allocator->flags() & PORTALLOCATOR_DISABLE_TCP);
+    EXPECT_TRUE(raw_port_allocator->flags() &
+                PORTALLOCATOR_DISABLE_COSTLY_NETWORKS);
+    EXPECT_EQ(PRUNE_BASED_ON_PRIORITY,
+              raw_port_allocator->turn_port_prune_policy());
+  });
 }
 
 // Check that GetConfiguration returns the configuration the PeerConnection was
@@ -2207,9 +2234,11 @@ TEST_P(PeerConnectionInterfaceTest, SetConfigurationChangesIceServers) {
   config.servers.push_back(server);
   EXPECT_TRUE(pc_->SetConfiguration(config).ok());
 
-  EXPECT_EQ(1u, port_allocator_->stun_servers().size());
-  EXPECT_EQ("test_hostname",
-            port_allocator_->stun_servers().begin()->hostname());
+  network_thread_->BlockingCall([&] {
+    EXPECT_EQ(1u, port_allocator_->stun_servers().size());
+    EXPECT_EQ("test_hostname",
+              port_allocator_->stun_servers().begin()->hostname());
+  });
 }
 
 TEST_P(PeerConnectionInterfaceTest, SetConfigurationChangesCandidateFilter) {
@@ -2217,7 +2246,8 @@ TEST_P(PeerConnectionInterfaceTest, SetConfigurationChangesCandidateFilter) {
   PeerConnectionInterface::RTCConfiguration config = pc_->GetConfiguration();
   config.type = PeerConnectionInterface::kRelay;
   EXPECT_TRUE(pc_->SetConfiguration(config).ok());
-  EXPECT_EQ(CF_RELAY, port_allocator_->candidate_filter());
+  network_thread_->BlockingCall(
+      [&] { EXPECT_EQ(CF_RELAY, port_allocator_->candidate_filter()); });
 }
 
 TEST_P(PeerConnectionInterfaceTest, SetConfigurationChangesPruneTurnPortsFlag) {
@@ -2225,11 +2255,15 @@ TEST_P(PeerConnectionInterfaceTest, SetConfigurationChangesPruneTurnPortsFlag) {
   config.prune_turn_ports = false;
   CreatePeerConnection(config);
   config = pc_->GetConfiguration();
-  EXPECT_EQ(NO_PRUNE, port_allocator_->turn_port_prune_policy());
+  network_thread_->BlockingCall(
+      [&] { EXPECT_EQ(NO_PRUNE, port_allocator_->turn_port_prune_policy()); });
 
   config.prune_turn_ports = true;
   EXPECT_TRUE(pc_->SetConfiguration(config).ok());
-  EXPECT_EQ(PRUNE_BASED_ON_PRIORITY, port_allocator_->turn_port_prune_policy());
+  network_thread_->BlockingCall([&] {
+    EXPECT_EQ(PRUNE_BASED_ON_PRIORITY,
+              port_allocator_->turn_port_prune_policy());
+  });
 }
 
 // Test that the ice check interval can be changed. This does not verify that
@@ -2273,11 +2307,13 @@ TEST_P(PeerConnectionInterfaceTest,
   config.type = PeerConnectionInterface::kRelay;
   EXPECT_TRUE(pc_->SetConfiguration(config).ok());
 
-  const FakePortAllocatorSession* session =
-      static_cast<const FakePortAllocatorSession*>(
-          port_allocator_->GetPooledSession());
-  ASSERT_NE(nullptr, session);
-  EXPECT_EQ(1UL, session->stun_servers().size());
+  network_thread_->BlockingCall([&] {
+    const FakePortAllocatorSession* session =
+        static_cast<const FakePortAllocatorSession*>(
+            port_allocator_->GetPooledSession());
+    ASSERT_NE(nullptr, session);
+    EXPECT_EQ(1UL, session->stun_servers().size());
+  });
 }
 
 // Test that after SetLocalDescription, changing the pool size is not allowed,
@@ -2318,8 +2354,10 @@ TEST_P(PeerConnectionInterfaceTest,
   CreateAnswerAsLocalDescription();
 
   // Expect no pooled sessions to be left.
-  const PortAllocatorSession* session = port_allocator_->GetPooledSession();
-  EXPECT_EQ(nullptr, session);
+  network_thread_->BlockingCall([&] {
+    const PortAllocatorSession* session = port_allocator_->GetPooledSession();
+    EXPECT_EQ(nullptr, session);
+  });
 }
 
 // After Close is called, pooled candidates should be discarded so as to not
@@ -2328,8 +2366,10 @@ TEST_P(PeerConnectionInterfaceTest, PooledSessionsDiscardedAfterClose) {
   CreatePeerConnection();
 
   bool candidate_pool_discarded = false;
-  port_allocator_->SetOnDiscardCandidatePool(
-      [&]() { candidate_pool_discarded = true; });
+  network_thread_->BlockingCall([&] {
+    port_allocator_->SetOnDiscardCandidatePool(
+        [&]() { candidate_pool_discarded = true; });
+  });
 
   PeerConnectionInterface::RTCConfiguration config = pc_->GetConfiguration();
   config.ice_candidate_pool_size = 3;
@@ -2648,7 +2688,8 @@ TEST_P(PeerConnectionInterfaceTest, UpdateRemoteStreams) {
   CreatePeerConnection(config);
   CreateAndSetRemoteOffer(GetSdpStringWithStream1());
 
-  scoped_refptr<StreamCollection> reference(CreateStreamCollection(1, 1));
+  scoped_refptr<StreamCollection> reference(
+      CreateStreamCollection(1, 1, worker_thread_.get()));
   EXPECT_TRUE(
       CompareStreamCollections(observer_.remote_streams(), reference.get()));
   MediaStreamInterface* remote_stream = observer_.remote_streams()->at(0);
@@ -2658,7 +2699,8 @@ TEST_P(PeerConnectionInterfaceTest, UpdateRemoteStreams) {
   // MediaStream.
   CreateAndSetRemoteOffer(GetSdpStringWithStream1And2());
 
-  scoped_refptr<StreamCollection> reference2(CreateStreamCollection(2, 1));
+  scoped_refptr<StreamCollection> reference2(
+      CreateStreamCollection(2, 1, worker_thread_.get()));
   EXPECT_TRUE(
       CompareStreamCollections(observer_.remote_streams(), reference2.get()));
 }
@@ -2919,7 +2961,8 @@ TEST_F(PeerConnectionInterfaceTestPlanB, VerifyDefaultStreamIsNotRecreated) {
   RTCConfiguration config;
   CreatePeerConnection(config);
   CreateAndSetRemoteOffer(GetSdpStringWithStream1());
-  scoped_refptr<StreamCollection> reference(CreateStreamCollection(1, 1));
+  scoped_refptr<StreamCollection> reference(
+      CreateStreamCollection(1, 1, worker_thread_.get()));
   EXPECT_TRUE(
       CompareStreamCollections(observer_.remote_streams(), reference.get()));
 
@@ -2995,7 +3038,7 @@ TEST_F(PeerConnectionInterfaceTestPlanB, LocalDescriptionChanged) {
 
   // Create an offer with 1 stream with 2 tracks of each type.
   scoped_refptr<StreamCollection> stream_collection =
-      CreateStreamCollection(1, 2);
+      CreateStreamCollection(1, 2, worker_thread_.get());
   pc_->AddStream(stream_collection->at(0));
   std::unique_ptr<SessionDescriptionInterface> offer;
   ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
@@ -3010,7 +3053,7 @@ TEST_F(PeerConnectionInterfaceTestPlanB, LocalDescriptionChanged) {
 
   // Remove an audio and video track.
   pc_->RemoveStream(stream_collection->at(0));
-  stream_collection = CreateStreamCollection(1, 1);
+  stream_collection = CreateStreamCollection(1, 1, worker_thread_.get());
   pc_->AddStream(stream_collection->at(0));
   ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
   EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
@@ -3032,7 +3075,7 @@ TEST_F(PeerConnectionInterfaceTestPlanB,
   CreatePeerConnection(config);
 
   scoped_refptr<StreamCollection> stream_collection =
-      CreateStreamCollection(1, 2);
+      CreateStreamCollection(1, 2, worker_thread_.get());
   // Add a stream to create the offer, but remove it afterwards.
   pc_->AddStream(stream_collection->at(0));
   std::unique_ptr<SessionDescriptionInterface> offer;
@@ -3111,7 +3154,7 @@ TEST_F(PeerConnectionInterfaceTestPlanB,
   CreatePeerConnection(config);
 
   scoped_refptr<StreamCollection> stream_collection =
-      CreateStreamCollection(2, 1);
+      CreateStreamCollection(2, 1, worker_thread_.get());
   pc_->AddStream(stream_collection->at(0));
   std::unique_ptr<SessionDescriptionInterface> offer;
   ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
@@ -3863,7 +3906,14 @@ INSTANTIATE_TEST_SUITE_P(PeerConnectionInterfaceTest,
 class PeerConnectionMediaConfigTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    pcf_ = PeerConnectionFactoryForTest::CreatePeerConnectionFactoryForTest();
+    network_thread_ = Thread::CreateWithSocketServer();
+    network_thread_->SetName("NetworkThread", nullptr);
+    ASSERT_TRUE(network_thread_->Start());
+    worker_thread_ = Thread::Create();
+    worker_thread_->SetName("WorkerThread", nullptr);
+    ASSERT_TRUE(worker_thread_->Start());
+    pcf_ = PeerConnectionFactoryForTest::CreatePeerConnectionFactoryForTest(
+        network_thread_.get(), worker_thread_.get());
   }
   MediaConfig TestCreatePeerConnection(const RTCConfiguration& config) {
     PeerConnectionDependencies pc_dependencies(&observer_);
@@ -3874,6 +3924,8 @@ class PeerConnectionMediaConfigTest : public ::testing::Test {
     return result.value()->GetConfiguration().media_config;
   }
 
+  std::unique_ptr<Thread> network_thread_;
+  std::unique_ptr<Thread> worker_thread_;
   scoped_refptr<PeerConnectionFactoryForTest> pcf_;
   MockPeerConnectionObserver observer_;
 };

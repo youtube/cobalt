@@ -164,6 +164,18 @@ fix_c_cc_include_deltas() {
 		sort -u
 }
 
+filter_global_symbols() {
+	# Some symbols need to remain in global scope:
+	# - begin/end: have bssl-owned template args.
+	# - timeval: forward declared by us.
+	# One symbol is "annoying":
+	# - PKCS7: names an anonymous struct type, and is also used in macro
+	#   concatenation. Should later just give it a struct tag so the
+	#   typedef stops being annoying.
+	grep -vE '^(begin|end|timeval)$' |\
+		grep -vxF 'PKCS7'
+}
+
 echo >&2 'Indexing C++ includes...'
 include_files $(public_cc_includes) | cc_source_to_identifiers - > "${workdir}"/include.cc.ids
 include_files $(public_cc_includes) | cc_source_to_symbols - > "${workdir}"/include.cc.syms
@@ -174,7 +186,9 @@ echo >&2 'Indexing C includes as C++...'
 include_files $(public_c_includes) | cc_source_to_identifiers - > "${workdir}"/include.c_as_cc.ids
 include_files $(public_c_includes) | cc_source_to_symbols - > "${workdir}"/include.c_as_cc.syms
 echo >&2 'Merging symbol lists...'
-cat "${workdir}"/include.c.syms "${workdir}"/include.cc.syms "${workdir}"/include.c_as_cc.syms | sort -u > "${workdir}"/include.syms
+cat "${workdir}"/include.c.syms "${workdir}"/include.cc.syms "${workdir}"/include.c_as_cc.syms |\
+	filter_global_symbols |\
+	sort -u > "${workdir}"/include.syms
 
 # Check that the headers behave the same if included by C and C++ files, other
 # than for expected diffs.

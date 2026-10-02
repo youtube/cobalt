@@ -24,19 +24,22 @@
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 
-#include "internal.h"
-#include "../bn/internal.h"
 #include "../../internal.h"
 #include "../../test/abi_test.h"
 #include "../../test/file_test.h"
 #include "../../test/test_util.h"
+#include "../bn/internal.h"
+#include "internal.h"
 #include "p256-nistz.h"
 
 
+BSSL_NAMESPACE_BEGIN
+namespace {
+
 // Disable tests if BORINGSSL_SHARED_LIBRARY is defined. These tests need access
 // to internal functions.
-#if !defined(OPENSSL_NO_ASM) &&  \
-    (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) &&  \
+#if !defined(OPENSSL_NO_ASM) &&                              \
+    (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) && \
     !defined(OPENSSL_SMALL) && !defined(BORINGSSL_SHARED_LIBRARY)
 
 struct P256NistzSelectImpl {
@@ -266,10 +269,9 @@ static bool PointToAffine(P256_POINT_AFFINE *out, const P256_POINT *in) {
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
   };
 
-  bssl::UniquePtr<BIGNUM> x(BN_new()), y(BN_new()), z(BN_new());
-  bssl::UniquePtr<BIGNUM> p(BN_bin2bn(kP, sizeof(kP), nullptr));
-  if (!x || !y || !z || !p ||
-      !bn_set_words(x.get(), in->X, P256_LIMBS) ||
+  UniquePtr<BIGNUM> x(BN_new()), y(BN_new()), z(BN_new());
+  UniquePtr<BIGNUM> p(BN_bin2bn(kP, sizeof(kP), nullptr));
+  if (!x || !y || !z || !p || !bn_set_words(x.get(), in->X, P256_LIMBS) ||
       !bn_set_words(y.get(), in->Y, P256_LIMBS) ||
       !bn_set_words(z.get(), in->Z, P256_LIMBS)) {
     return false;
@@ -288,9 +290,8 @@ static bool PointToAffine(P256_POINT_AFFINE *out, const P256_POINT *in) {
     return true;
   }
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
-  bssl::UniquePtr<BN_MONT_CTX> mont(
-      BN_MONT_CTX_new_for_modulus(p.get(), ctx.get()));
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_for_modulus(p.get(), ctx.get()));
   if (!ctx || !mont ||
       // Invert Z.
       !BN_from_montgomery(z.get(), z.get(), mont.get(), ctx.get()) ||
@@ -671,3 +672,6 @@ TEST_P(P256NistzImplTest, ABI) {
 }
 
 #endif
+
+}  // namespace
+BSSL_NAMESPACE_END

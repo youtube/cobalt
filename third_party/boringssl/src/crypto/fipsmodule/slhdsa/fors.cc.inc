@@ -23,6 +23,9 @@
 #include "./params.h"
 #include "./thash.h"
 
+
+using namespace bssl;
+
 // Compute the base 2^a representation of `message` (algorithm 4, page 16).
 static void fors_base_b(const slh_dsa_config *config, uint32_t *indices,
                         const uint8_t *message) {
@@ -48,9 +51,9 @@ static void fors_base_b(const slh_dsa_config *config, uint32_t *indices,
 }
 
 // Implements Algorithm 14: fors_skGen function (page 29)
-void slhdsa_fors_sk_gen(const slh_dsa_config *config, uint8_t *fors_sk,
-                        uint32_t idx, const uint8_t *sk_seed,
-                        const uint8_t *pk_seed, uint8_t addr[32]) {
+void bssl::slhdsa_fors_sk_gen(const slh_dsa_config *config, uint8_t *fors_sk,
+                              uint32_t idx, const uint8_t *sk_seed,
+                              const uint8_t *pk_seed, uint8_t addr[32]) {
   uint8_t sk_addr[32];
   OPENSSL_memcpy(sk_addr, addr, sizeof(sk_addr));
 
@@ -61,11 +64,11 @@ void slhdsa_fors_sk_gen(const slh_dsa_config *config, uint8_t *fors_sk,
 }
 
 // Implements Algorithm 15: fors_node function (page 30)
-void slhdsa_fors_treehash(const slh_dsa_config *config, uint8_t *root_node,
-                          const uint8_t *sk_seed,
-                          uint32_t i /*target node index*/,
-                          uint32_t z /*target node height*/,
-                          const uint8_t *pk_seed, uint8_t addr[32]) {
+void bssl::slhdsa_fors_treehash(const slh_dsa_config *config,
+                                uint8_t *root_node, const uint8_t *sk_seed,
+                                uint32_t i /*target node index*/,
+                                uint32_t z /*target node height*/,
+                                const uint8_t *pk_seed, uint8_t addr[32]) {
   const uint32_t nodes_in_tree = 1u << (config->fors_height - z);
   BSSL_CHECK(z <= config->fors_height);
   BSSL_CHECK(i < (uint32_t)(config->fors_trees * nodes_in_tree));
@@ -89,9 +92,9 @@ void slhdsa_fors_treehash(const slh_dsa_config *config, uint8_t *root_node,
 }
 
 // Implements Algorithm 16: fors_sign function (page 31)
-void slhdsa_fors_sign(const slh_dsa_config *config, uint8_t *fors_sig,
-                      const uint8_t *message, const uint8_t *sk_seed,
-                      const uint8_t *pk_seed, uint8_t addr[32]) {
+void bssl::slhdsa_fors_sign(const slh_dsa_config *config, uint8_t *fors_sig,
+                            const uint8_t *message, const uint8_t *sk_seed,
+                            const uint8_t *pk_seed, uint8_t addr[32]) {
   uint32_t indices[SLHDSA_MAX_FORS_TREES];
   BSSL_CHECK(config->fors_trees <= SLHDSA_MAX_FORS_TREES);
   BSSL_CHECK(config->fors_height <= SLHDSA_MAX_FORS_HEIGHT);
@@ -120,9 +123,10 @@ void slhdsa_fors_sign(const slh_dsa_config *config, uint8_t *fors_sig,
 }
 
 // Implements Algorithm 17: fors_pkFromSig function (page 32)
-void slhdsa_fors_pk_from_sig(const slh_dsa_config *config, uint8_t *fors_pk,
-                             const uint8_t *fors_sig, const uint8_t *message,
-                             const uint8_t *pk_seed, uint8_t addr[32]) {
+void bssl::slhdsa_fors_pk_from_sig(const slh_dsa_config *config,
+                                   uint8_t *fors_pk, const uint8_t *fors_sig,
+                                   const uint8_t *message,
+                                   const uint8_t *pk_seed, uint8_t addr[32]) {
   uint32_t indices[SLHDSA_MAX_FORS_TREES];
   uint8_t tmp[2 * SLHDSA_MAX_N];
   uint8_t roots[SLHDSA_MAX_FORS_TREES * SLHDSA_MAX_N];

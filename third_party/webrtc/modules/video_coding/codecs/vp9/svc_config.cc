@@ -63,7 +63,7 @@ std::vector<SpatialLayer> ConfigureSvcScreenSharing(size_t input_width,
   std::vector<SpatialLayer> spatial_layers;
 
   for (size_t sl_idx = 0; sl_idx < num_spatial_layers; ++sl_idx) {
-    SpatialLayer spatial_layer = {0};
+    SpatialLayer spatial_layer = {.width = 0};
     spatial_layer.width = input_width;
     spatial_layer.height = input_height;
     spatial_layer.maxFramerate =
@@ -121,7 +121,7 @@ std::vector<SpatialLayer> ConfigureSvcNormalVideo(
   std::vector<SpatialLayer> spatial_layers;
   for (size_t sl_idx = first_active_layer; sl_idx < num_spatial_layers;
        ++sl_idx) {
-    SpatialLayer spatial_layer = {0};
+    SpatialLayer spatial_layer = {.width = 0};
     spatial_layer.width = input_width >> (num_spatial_layers - sl_idx - 1);
     spatial_layer.height = input_height >> (num_spatial_layers - sl_idx - 1);
     spatial_layer.maxFramerate = max_framerate_fps;

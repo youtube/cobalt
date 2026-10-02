@@ -70,7 +70,7 @@ class SimulatedMainThread : public SimulatedThread {
  public:
   explicit SimulatedMainThread(
       sim_time_impl::SimulatedTimeControllerImpl* handler);
-  ~SimulatedMainThread();
+  ~SimulatedMainThread() override;
 
  private:
   CurrentThreadSetter current_setter_;

@@ -27,13 +27,20 @@
 #include <openssl/digest.h>
 #include <openssl/hmac.h>
 #include <openssl/sha2.h>
+#include <openssl/tls_prf.h>
 
 #include "../bcm_support.h"
 #include "../internal.h"
 #include "bcm_interface.h"
 
+// The .cc.inc files are not written as headers, but .cc files which we
+// currently need to combine together in the style of a unity or jumbo build.
+// -Wheader-hygiene interprets them as headers.
+//
 // TODO(crbug.com/362530616): When delocate is removed, build these files as
 // separate compilation units again.
+OPENSSL_CLANG_PRAGMA("clang diagnostic push")
+OPENSSL_CLANG_PRAGMA("clang diagnostic ignored \"-Wheader-hygiene\"")
 #include "aes/aes.cc.inc"
 #include "aes/aes_nohw.cc.inc"
 #include "aes/cbc.cc.inc"
@@ -113,7 +120,10 @@
 #include "slhdsa/thash.cc.inc"
 #include "slhdsa/wots.cc.inc"
 #include "tls/kdf.cc.inc"
+OPENSSL_CLANG_PRAGMA("clang diagnostic pop")
 
+
+using namespace bssl;
 
 #if defined(BORINGSSL_FIPS)
 
@@ -172,8 +182,8 @@ static void BORINGSSL_maybe_set_module_text_permissions(int permission) {}
 
 #endif  // !ASAN
 
-static void __attribute__((constructor)) BORINGSSL_bcm_power_on_self_test(
-    void) {
+static void
+    __attribute__((constructor)) BORINGSSL_bcm_power_on_self_test(void) {
 #if !defined(OPENSSL_ASAN)
   // Integrity tests cannot run under ASAN because it involves reading the full
   // .text section, which triggers the global-buffer overflow detection.
@@ -193,7 +203,7 @@ err:
 }
 
 #if !defined(OPENSSL_ASAN)
-int BORINGSSL_integrity_test(void) {
+int BORINGSSL_integrity_test() {
   const uint8_t *const start = BORINGSSL_bcm_text_start;
   const uint8_t *const end = BORINGSSL_bcm_text_end;
 
@@ -268,11 +278,11 @@ int BORINGSSL_integrity_test(void) {
   return 1;
 }
 
-const uint8_t *FIPS_module_hash(void) { return BORINGSSL_bcm_text_hash; }
+const uint8_t *FIPS_module_hash() { return BORINGSSL_bcm_text_hash; }
 
 #endif  // OPENSSL_ASAN
 
-void BORINGSSL_FIPS_abort(void) {
+void BORINGSSL_FIPS_abort() {
   for (;;) {
     abort();
     exit(1);

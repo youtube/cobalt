@@ -74,7 +74,10 @@ class FakeNetworkManager : public NetworkManagerBase {
       std::optional<AdapterType> underlying_vpn_adapter_type = std::nullopt) {
     SocketAddress address(if_name, 0);
     address.SetResolvedIP(iface.ipaddr());
-    ifaces_.push_back({address, type, underlying_vpn_adapter_type});
+    ifaces_.push_back(
+        {.socket_address = address,
+         .adapter_type = type,
+         .underlying_vpn_adapter_type = underlying_vpn_adapter_type});
     DoUpdateNetworks();
   }
 

@@ -14,10 +14,10 @@ namespace v8::internal {
 
 class CancelableTaskManager;
 class Isolate;
-class LargePageMetadata;
-class MemoryChunkMetadata;
-class MutablePageMetadata;
-class PageMetadata;
+class LargePage;
+class BasePage;
+class MutablePage;
+class NormalPage;
 
 // PooledPage converts a metadata object into a pooled entry. The metadata entry
 // should be considered invalid after invoking `Create()`. PooledPage takes over
@@ -54,8 +54,8 @@ class PooledPage final {
 
   // Bottlenecks for converting metadata objects into the pooled page
   // counterpart.
-  static PooledPage Create(PageMetadata* metadata, Epoch epoch);
-  static PooledPage Create(LargePageMetadata* metadata, Epoch epoch);
+  static PooledPage Create(NormalPage* metadata, Epoch epoch);
+  static PooledPage Create(LargePage* metadata, Epoch epoch);
 
   PooledPage(void* uninitialized_metadata, VirtualMemory reservation,
              Epoch epoch);
@@ -82,17 +82,17 @@ class MemoryPool final {
   MemoryPool& operator=(const MemoryPool&) = delete;
 
   // Creates a pooled page with current epoch.
-  PooledPage CreatePooledPage(PageMetadata* metadata);
+  PooledPage CreatePooledPage(NormalPage* metadata);
 
   // Adds page to the pool.
-  void Add(Isolate* isolate, MutablePageMetadata* chunk);
+  void Add(Isolate* isolate, MutablePage* chunk);
   // Tries to get page from the pool. Order of priority for pools:
   // 1. Local pool for the isolate.
   // 2. Shared pool.
   // 3. Steal from another isolate.
   std::optional<PooledPage::Result> Remove(Isolate* isolate);
 
-  void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
+  void AddLarge(Isolate* isolate, std::vector<LargePage*>& pages);
   // Tries to get a large page from the pool with at least `chunk_size` usable
   // bytes.
   std::optional<PooledPage::Result> RemoveLarge(Isolate* isolate,
@@ -174,7 +174,7 @@ class MemoryPool final {
    public:
     ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
 
-    bool Add(std::vector<LargePageMetadata*>& pages, Epoch epoch);
+    bool Add(std::vector<LargePage*>& pages, Epoch epoch);
     std::optional<PooledPage::Result> Remove(Isolate* isolate,
                                              size_t chunk_size);
     void ReleaseAll();

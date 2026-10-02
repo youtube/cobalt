@@ -197,6 +197,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
     composebox_handler_ = std::move(handler);
   }
 
+  // Notify the UI of the page context eligibility of the page.
+  void OnPageContextEligibilityChecked(bool is_page_context_eligible);
+
   // Called by the browser process to send a message to the <webview>
   // guest. The WebUI is responsible for taking the 'message' (a serialized
   // lens.ClientToAimMessage protobuf) and using the <webview> postMessage API
@@ -208,6 +211,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // Transfers an existing navigation to the page embedded in this WebUI. This
   // API will only accept navigations to the AI or search results pages.
   void TransferNavigationToEmbeddedPage(content::OpenURLParams params);
+
+  // Returns whether the active tab context suggestion is showing.
+  bool IsActiveTabContextSuggestionShowing() const;
 
  private:
   void RequestOAuthToken();

@@ -55,6 +55,7 @@ void TransceiverStableState::SetInitSendEncodings(
 std::vector<RtpTransceiver*> TransceiverList::ListInternal() const {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   std::vector<RtpTransceiver*> internals;
+  internals.reserve(transceivers_.size());
   for (auto transceiver : transceivers_) {
     internals.push_back(transceiver->internal());
   }

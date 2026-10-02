@@ -172,16 +172,17 @@ id<GREYMatcher> ContextualPanelEntrypointImageViewMatcher() {
   if ([self isRunningTest:@selector(testTurnOnReaderModeViaPageActionMenu)] ||
       [self isRunningTest:@selector(testReaderModeChipShowsAIHubIfAvailable)]) {
     config.features_enabled_and_params.push_back({kPageActionMenu, {}});
-    config.features_enabled_and_params.push_back(
-        {kLensOverlayEnableIPadCompatibility, {}});
   } else {
     config.features_disabled.push_back(kPageActionMenu);
   }
   if ([self isRunningTest:@selector(testOmniboxEntryPointDisabled)]) {
     config.features_disabled.push_back(kEnableReaderModeOmniboxEntryPoint);
+    config.features_disabled.push_back(kEnableReaderModeOmniboxEntryPointInUS);
   } else {
     config.features_enabled_and_params.push_back(
         {kEnableReaderModeOmniboxEntryPoint, {}});
+    config.features_enabled_and_params.push_back(
+        {kEnableReaderModeOmniboxEntryPointInUS, {}});
   }
   return config;
 }
@@ -193,9 +194,7 @@ id<GREYMatcher> ContextualPanelEntrypointImageViewMatcher() {
   [ChromeEarlGreyUI openToolsMenu];
 
   id<GREYMatcher> tableViewMatcher =
-      [ChromeEarlGrey isNewOverflowMenuEnabled]
-          ? grey_accessibilityID(kPopupMenuToolsMenuActionListId)
-          : grey_accessibilityID(kPopupMenuToolsMenuTableViewId);
+      grey_accessibilityID(kPopupMenuToolsMenuActionListId);
   id<GREYMatcher> readerModeButtonMatcher =
       grey_allOf(grey_accessibilityID(kToolsMenuReaderMode),
                  grey_accessibilityTrait(UIAccessibilityTraitButton),

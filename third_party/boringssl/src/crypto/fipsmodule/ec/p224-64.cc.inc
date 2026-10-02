@@ -27,10 +27,12 @@
 #include <assert.h>
 #include <string.h>
 
-#include "internal.h"
-#include "../delocate.h"
 #include "../../internal.h"
+#include "../delocate.h"
+#include "internal.h"
 
+
+using namespace bssl;
 
 #if defined(BORINGSSL_HAS_UINT128) && !defined(OPENSSL_SMALL)
 
@@ -1142,6 +1144,8 @@ static void ec_GFp_nistp224_felem_sqr(const EC_GROUP *group, EC_FELEM *r,
   p224_felem_to_generic(r, felem);
 }
 
+BSSL_NAMESPACE_BEGIN
+
 DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp224_method) {
   out->point_get_affine_coordinates =
       ec_GFp_nistp224_point_get_affine_coordinates;
@@ -1159,5 +1163,7 @@ DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp224_method) {
       ec_simple_scalar_to_montgomery_inv_vartime;
   out->cmp_x_coordinate = ec_GFp_simple_cmp_x_coordinate;
 }
+
+BSSL_NAMESPACE_END
 
 #endif  // BORINGSSL_HAS_UINT128 && !SMALL

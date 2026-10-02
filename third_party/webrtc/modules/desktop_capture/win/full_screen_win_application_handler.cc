@@ -18,6 +18,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "absl/strings/ascii.h"
@@ -33,6 +34,12 @@ void RecordFullScreenDetectorResult(FullScreenDetectorResult result) {
   RTC_HISTOGRAM_ENUMERATION(
       "WebRTC.Screenshare.FullScreenDetectorResult", static_cast<int>(result),
       static_cast<int>(FullScreenDetectorResult::kMaxValue));
+}
+
+void RecordFullScreenFindEditorResult(FullScreenFindEditorResult result) {
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.Screenshare.FullScreenFindEditorResult", static_cast<int>(result),
+      static_cast<int>(FullScreenFindEditorResult::kMaxValue));
 }
 
 namespace webrtc {
@@ -201,10 +208,77 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
   return full_screen_slide_show_id;
 }
 
+DesktopCapturer::SourceId FullScreenPowerPointHandler::FindEditorWindow(
+    const DesktopCapturer::SourceList& window_list) const {
+  if (!UseHeuristicForFindingEditor() || window_list.empty()) {
+    return 0;
+  }
+
+  auto original_window = reinterpret_cast<HWND>(GetSourceId());
+  if (GetWindowType(original_window) == WindowType::kEditor) {
+    return GetSourceId();
+  }
+
+  if (GetWindowType(original_window) != WindowType::kSlideShow) {
+    return 0;
+  }
+
+  DesktopCapturer::SourceList powerpoint_windows = GetProcessWindows(
+      window_list, WindowProcessId(original_window), original_window);
+
+  // No relevant windows with the same process id as the `original_window` were
+  // found.
+  if (powerpoint_windows.empty()) {
+    return 0;
+  }
+
+  std::unordered_set<DesktopCapturer::SourceId> editor_ids;
+  const std::string original_document_title =
+      GetDocumentTitleFromSlideShow(original_window);
+  for (const auto& source : powerpoint_windows) {
+    auto window_id = reinterpret_cast<HWND>(source.id);
+    // Looking for editor window for the corresponding fullscreen slide show
+    // window.
+    if (GetWindowType(window_id) == WindowType::kEditor &&
+        GetDocumentTitleFromEditor(window_id) == original_document_title) {
+      editor_ids.insert(source.id);
+    }
+  }
+
+  if (editor_ids.size() != 1) {
+    RecordFullScreenFindEditorResult(
+        FullScreenFindEditorResult::kFailureDueToSameTitleWindows);
+    // If `editor_ids` has more than one id, then there are multiple open
+    // editors with the same title as the full screen slide show and then
+    // there's no way of knowing which editor has opened the slide show.
+    return 0;
+  }
+
+  RecordFullScreenFindEditorResult(FullScreenFindEditorResult::kSuccess);
+  return *editor_ids.begin();
+}
+
 void FullScreenPowerPointHandler::SetSlideShowCreationStateForTest(
     bool fullscreen_slide_show_started_after_capture_start) {
   was_slide_show_created_after_capture_started_ =
       fullscreen_slide_show_started_after_capture_start;
+}
+
+void FullScreenPowerPointHandler::SetEditorWasFound() {
+  if (!UseHeuristicForFindingEditor())
+    return;
+
+  // Mark `was_slide_show_created_after_capture_started_` true if editor was
+  // found for the chosen slide show window.
+  // This ensures that when we call FindFullScreenWindow, the function finds the
+  // slide show window and returns it. If
+  // `was_slide_show_created_after_capture_started_` was marked false (which is
+  // the default case when a FullScreenPowerPointHandler class is created),
+  // FindFullScreenWindow doesn't return the slide show window because we think
+  // it's the user's intention to share the editor window as the user explicitly
+  // chose to share the editor window even when both editor and slide show
+  // window were available for sharing.
+  was_slide_show_created_after_capture_started_ = true;
 }
 
 FullScreenPowerPointHandler::WindowType

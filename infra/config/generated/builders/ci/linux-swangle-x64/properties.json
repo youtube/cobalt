@@ -45,8 +45,7 @@
           "group": "tryserver.chromium.swangle"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/ci/linux-swangle-x64/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "infra/config/generated/builders/ci/linux-swangle-x64/targets"
     }
   },
   "$build/siso": {
@@ -57,7 +56,6 @@
     "enable_cloud_profiler": true,
     "enable_cloud_trace": true,
     "experiments": [],
-    "metrics_project": "chromium-reclient-metrics",
     "project": "rbe-chromium-trusted",
     "remote_jobs": 500
   },

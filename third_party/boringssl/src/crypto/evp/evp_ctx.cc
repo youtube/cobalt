@@ -25,6 +25,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // |EVP_PKEY_RSA_PSS| is intentionally omitted from this list. These are types
 // that can be created without an |EVP_PKEY|, and we do not support
 // |EVP_PKEY_RSA_PSS| keygen.
@@ -45,14 +47,14 @@ static const EVP_PKEY_CTX_METHOD *evp_pkey_meth_find(int type) {
 
 static EVP_PKEY_CTX *evp_pkey_ctx_new(EVP_PKEY *pkey,
                                       const EVP_PKEY_CTX_METHOD *pmeth) {
-  bssl::UniquePtr<EVP_PKEY_CTX> ret = bssl::MakeUnique<EVP_PKEY_CTX>();
+  UniquePtr<EVP_PKEY_CTX> ret = MakeUnique<EVP_PKEY_CTX>();
   if (!ret) {
     return nullptr;
   }
 
   ret->pmeth = pmeth;
   ret->operation = EVP_PKEY_OP_UNDEFINED;
-  ret->pkey = bssl::UpRef(pkey);
+  ret->pkey = UpRef(pkey);
 
   if (pmeth->init && pmeth->init(ret.get()) <= 0) {
     ret->pmeth = nullptr;  // Don't call |pmeth->cleanup|.
@@ -102,15 +104,15 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx) {
     return nullptr;
   }
 
-  bssl::UniquePtr<EVP_PKEY_CTX> ret = bssl::MakeUnique<EVP_PKEY_CTX>();
+  UniquePtr<EVP_PKEY_CTX> ret = MakeUnique<EVP_PKEY_CTX>();
   if (!ret) {
     return nullptr;
   }
 
   ret->pmeth = ctx->pmeth;
   ret->operation = ctx->operation;
-  ret->pkey = bssl::UpRef(ctx->pkey);
-  ret->peerkey = bssl::UpRef(ctx->peerkey);
+  ret->pkey = UpRef(ctx->pkey);
+  ret->peerkey = UpRef(ctx->peerkey);
   if (ctx->pmeth->copy(ret.get(), ctx) <= 0) {
     ret->pmeth = nullptr;  // Don't call |pmeth->cleanup|.
     OPENSSL_PUT_ERROR(EVP, ERR_LIB_EVP);
@@ -122,8 +124,8 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx) {
 
 EVP_PKEY *EVP_PKEY_CTX_get0_pkey(EVP_PKEY_CTX *ctx) { return ctx->pkey.get(); }
 
-int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype, int cmd,
-                      int p1, void *p2) {
+int bssl::EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype, int cmd,
+                            int p1, void *p2) {
   if (!ctx || !ctx->pmeth || !ctx->pmeth->ctrl) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_COMMAND_NOT_SUPPORTED);
     return 0;
@@ -315,7 +317,7 @@ int EVP_PKEY_derive_set_peer(EVP_PKEY_CTX *ctx, EVP_PKEY *peer) {
     return 0;
   }
 
-  ctx->peerkey = bssl::UpRef(peer);
+  ctx->peerkey = UpRef(peer);
   ret = ctx->pmeth->ctrl(ctx, EVP_PKEY_CTRL_PEER_KEY, 1, peer);
   if (ret <= 0) {
     ctx->peerkey = nullptr;

@@ -149,6 +149,10 @@ class NetEqImpl : public NetEq {
 
   void SetCodecs(const std::map<int, SdpAudioFormat>& codecs) override;
 
+  void SetMaximumBufferPackets(size_t max_packets) override;
+
+  void SetFastAccelerate(bool enable) override;
+
   bool RegisterPayloadType(int rtp_payload_type,
                            const SdpAudioFormat& audio_format) override;
 

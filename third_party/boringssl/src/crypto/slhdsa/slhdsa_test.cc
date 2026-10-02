@@ -26,6 +26,7 @@
 #include "../test/file_test.h"
 #include "../test/test_util.h"
 
+BSSL_NAMESPACE_BEGIN
 namespace {
 
 TEST(SLHDSATest, KeyGenerationSHA2) {
@@ -342,3 +343,4 @@ TEST(SLHDSATest, NullptrArgumentsToCreate) {
 }
 
 }  // namespace
+BSSL_NAMESPACE_END

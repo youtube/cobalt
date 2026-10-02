@@ -56,8 +56,7 @@ void HeapLayoutTracer::GCEpiloguePrintHeapLayout(v8::Isolate* isolate,
 }
 
 // static
-void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os,
-                                        const MemoryChunkMetadata& chunk,
+void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os, const BasePage& chunk,
                                         const char* owner_name) {
   os << "{owner:" << owner_name << ","
      << "address:" << &chunk << ","
@@ -69,28 +68,28 @@ void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os,
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
   if (v8_flags.minor_ms) {
-    for (const PageMetadata* page : *heap->paged_new_space()) {
+    for (const NormalPage* page : *heap->paged_new_space()) {
       PrintMemoryChunk(os, *page, "new_space");
     }
   } else {
     const SemiSpaceNewSpace* semi_space_new_space =
         SemiSpaceNewSpace::From(heap->new_space());
-    for (const PageMetadata* page : semi_space_new_space->to_space()) {
+    for (const NormalPage* page : semi_space_new_space->to_space()) {
       PrintMemoryChunk(os, *page, "to_space");
     }
 
-    for (const PageMetadata* page : semi_space_new_space->from_space()) {
+    for (const NormalPage* page : semi_space_new_space->from_space()) {
       PrintMemoryChunk(os, *page, "from_space");
     }
   }
 
   OldGenerationMemoryChunkIterator it(heap);
-  MutablePageMetadata* chunk;
+  MutablePage* chunk;
   while ((chunk = it.next()) != nullptr) {
     PrintMemoryChunk(os, *chunk, ToString(chunk->owner()->identity()));
   }
 
-  for (ReadOnlyPageMetadata* page : heap->read_only_space()->pages()) {
+  for (ReadOnlyPage* page : heap->read_only_space()->pages()) {
     PrintMemoryChunk(os, *page, "ro_space");
   }
 }

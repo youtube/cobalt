@@ -24,6 +24,8 @@
 #include "./thash.h"
 
 
+using namespace bssl;
+
 // Internal thash function used by F, H, and T_l for SHA-256 based parameter
 // sets (Section 11.2, pages 44-46)
 static void slhdsa_thash_sha256(const slh_dsa_config *config, uint8_t *output,
@@ -149,10 +151,11 @@ static void slhdsa_thash_prfmsg_shake(const slh_dsa_config *config,
   BORINGSSL_keccak_squeeze(&keccak, output, config->n);
 }
 
-void slhdsa_thash_prfmsg(const slh_dsa_config *config, uint8_t *output,
-                         const uint8_t *sk_prf, const uint8_t *entropy,
-                         const uint8_t *header, const uint8_t *ctx,
-                         size_t ctx_len, const uint8_t *msg, size_t msg_len) {
+void bssl::slhdsa_thash_prfmsg(const slh_dsa_config *config, uint8_t *output,
+                               const uint8_t *sk_prf, const uint8_t *entropy,
+                               const uint8_t *header, const uint8_t *ctx,
+                               size_t ctx_len, const uint8_t *msg,
+                               size_t msg_len) {
   switch (config->hash_type) {
     case SLH_DSA_HASH_SHA2_256:
       slhdsa_thash_prfmsg_sha256(config, output, sk_prf, entropy, header, ctx,
@@ -237,11 +240,11 @@ static void slhdsa_thash_hmsg_shake(const slh_dsa_config *config,
   BORINGSSL_keccak_squeeze(&keccak, output, config->digest_size);
 }
 
-void slhdsa_thash_hmsg(const slh_dsa_config *config, uint8_t *output,
-                       const uint8_t *r, const uint8_t *pk_seed,
-                       const uint8_t *pk_root, const uint8_t *header,
-                       const uint8_t *ctx, size_t ctx_len, const uint8_t *msg,
-                       size_t msg_len) {
+void bssl::slhdsa_thash_hmsg(const slh_dsa_config *config, uint8_t *output,
+                             const uint8_t *r, const uint8_t *pk_seed,
+                             const uint8_t *pk_root, const uint8_t *header,
+                             const uint8_t *ctx, size_t ctx_len,
+                             const uint8_t *msg, size_t msg_len) {
   switch (config->hash_type) {
     case SLH_DSA_HASH_SHA2_256:
       slhdsa_thash_hmsg_sha256(config, output, r, pk_seed, pk_root, header, ctx,
@@ -276,9 +279,9 @@ static void slhdsa_thash_prf_shake(const slh_dsa_config *config,
   BORINGSSL_keccak_squeeze(&keccak, output, config->n);
 }
 
-void slhdsa_thash_prf(const slh_dsa_config *config, uint8_t *output,
-                      const uint8_t *pk_seed, const uint8_t *sk_seed,
-                      uint8_t addr[32]) {
+void bssl::slhdsa_thash_prf(const slh_dsa_config *config, uint8_t *output,
+                            const uint8_t *pk_seed, const uint8_t *sk_seed,
+                            uint8_t addr[32]) {
   switch (config->hash_type) {
     case SLH_DSA_HASH_SHA2_256:
       slhdsa_thash_prf_sha256(config, output, pk_seed, sk_seed, addr);
@@ -292,32 +295,32 @@ void slhdsa_thash_prf(const slh_dsa_config *config, uint8_t *output,
 
 // Implements T_l function for WOTS+ public key compression (Section 4.1, page
 // 11 and Section 11.2, pages 44-46)
-void slhdsa_thash_tl(const slh_dsa_config *config, uint8_t *output,
-                     const uint8_t *input, const uint8_t *pk_seed,
-                     uint8_t addr[32]) {
-  slhdsa_thash_dispatch(config, output, input, slhdsa_wots_len(config),
-                        pk_seed, addr);
+void bssl::slhdsa_thash_tl(const slh_dsa_config *config, uint8_t *output,
+                           const uint8_t *input, const uint8_t *pk_seed,
+                           uint8_t addr[32]) {
+  slhdsa_thash_dispatch(config, output, input, slhdsa_wots_len(config), pk_seed,
+                        addr);
 }
 
 // Implements H function (Section 4.1, page 11 and Section 11.2, pages 44-46)
-void slhdsa_thash_h(const slh_dsa_config *config, uint8_t *output,
-                    const uint8_t *input, const uint8_t *pk_seed,
-                    uint8_t addr[32]) {
+void bssl::slhdsa_thash_h(const slh_dsa_config *config, uint8_t *output,
+                          const uint8_t *input, const uint8_t *pk_seed,
+                          uint8_t addr[32]) {
   slhdsa_thash_dispatch(config, output, input, 2, pk_seed, addr);
 }
 
 // Implements F function (Section 4.1, page 11 and Section 11.2, pages 44-46)
-void slhdsa_thash_f(const slh_dsa_config *config, uint8_t *output,
-                    const uint8_t *input, const uint8_t *pk_seed,
-                    uint8_t addr[32]) {
+void bssl::slhdsa_thash_f(const slh_dsa_config *config, uint8_t *output,
+                          const uint8_t *input, const uint8_t *pk_seed,
+                          uint8_t addr[32]) {
   slhdsa_thash_dispatch(config, output, input, 1, pk_seed, addr);
 }
 
 // Implements T_k function for FORS public key compression (Section 4.1, page 11
 // and Section 11.2, pages 44-46)
-void slhdsa_thash_tk(const slh_dsa_config *config, uint8_t *output,
-                     const uint8_t *input, const uint8_t *pk_seed,
-                     uint8_t addr[32]) {
+void bssl::slhdsa_thash_tk(const slh_dsa_config *config, uint8_t *output,
+                           const uint8_t *input, const uint8_t *pk_seed,
+                           uint8_t addr[32]) {
   slhdsa_thash_dispatch(config, output, input, config->fors_trees, pk_seed,
                         addr);
 }

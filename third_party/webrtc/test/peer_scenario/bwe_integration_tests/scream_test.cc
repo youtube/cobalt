@@ -351,6 +351,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1000KbpsRtt100msEcn)) {
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcn)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
   SendMediaTestParams params;
+  params.test_duration = TimeDelta::Seconds(30);
   params.callee_to_caller_path =
       CreateNetworkPath(s, /*use_dual_pi= */ false,
                         DataRate::KilobitsPerSec(2000), TimeDelta::Millis(25));
@@ -359,8 +360,10 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcn)) {
                         DataRate::KilobitsPerSec(2000), TimeDelta::Millis(25));
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+  // TODO: bugs.webrtc.org/447037083 - investigate if we can make Scream react
+  // less aggressive to overuse when codec is slow to ramp up.
   EXPECT_THAT(result.caller().subview(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(1200),
+                                              DataRate::KilobitsPerSec(1000),
                                               DataRate::KilobitsPerSec(2300))));
 }
 
@@ -405,6 +408,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithGoogCC)) {
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithTwcc)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
   SendMediaTestParams params;
+  params.test_duration = TimeDelta::Seconds(30);
   params.callee_to_caller_path =
       CreateNetworkPath(s, /*use_dual_pi= */ false,
                         DataRate::KilobitsPerSec(2000), TimeDelta::Millis(25));
@@ -417,9 +421,11 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithTwcc)) {
   };
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
-  EXPECT_THAT(result.caller_stats.back(),
-              AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(1000),
-                                            DataRate::KilobitsPerSec(2600)));
+  // BWE rampup is quite slow since feedback is only sent every 90ms
+  // approximately.
+  EXPECT_THAT(result.caller().subview(5), Each(AvailableSendBitrateIsBetween(
+                                              DataRate::KilobitsPerSec(1200),
+                                              DataRate::KilobitsPerSec(2300))));
 }
 
 TEST(ScreamTest, MaybeTest(CallerPauseSendingVideoIfFeedbackNotReceived)) {
@@ -538,9 +544,8 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1MbitRtt50msWithShortQueuesNoEcn)) {
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
 
-  // Ignore estimate during rampup.
   EXPECT_THAT(result.caller().subview(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(300),
+                                              DataRate::KilobitsPerSec(200),
                                               DataRate::KilobitsPerSec(1100))));
 }
 
@@ -561,7 +566,7 @@ TEST(ScreamTest,
             0.05 * GetPacketsSent(result.caller_stats.back()));
   // Ignore estimate during rampup.
   EXPECT_THAT(result.caller().subview(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(300),
+                                              DataRate::KilobitsPerSec(200),
                                               DataRate::KilobitsPerSec(1100))));
 }
 

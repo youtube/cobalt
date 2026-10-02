@@ -644,7 +644,7 @@ enum bn_primality_result_t {
 };
 
 // BN_enhanced_miller_rabin_primality_test tests whether |w| is probably a prime
-// number using the Enhanced Miller-Rabin Test (FIPS 186-4 C.3.2) with
+// number using the Enhanced Miller-Rabin Test (FIPS 186-5 B.3.2) with
 // |checks| iterations and returns the result in |out_result|. Enhanced
 // Miller-Rabin tests primality for odd integers greater than 3, returning
 // |bn_probably_prime| if the number is probably prime,

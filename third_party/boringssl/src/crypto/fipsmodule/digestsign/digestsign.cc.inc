@@ -22,6 +22,8 @@
 #include "../service_indicator/internal.h"
 
 
+using namespace bssl;
+
 enum evp_sign_verify_t {
   evp_sign,
   evp_verify,

@@ -21,9 +21,9 @@ namespace webrtc {
 void Pcm16BAppendSupportedCodecSpecs(std::vector<AudioCodecSpec>* specs) {
   for (uint8_t num_channels : {1, 2}) {
     for (int sample_rate_hz : {8000, 16000, 32000}) {
-      specs->push_back(
-          {{"L16", sample_rate_hz, num_channels},
-           {sample_rate_hz, num_channels, sample_rate_hz * num_channels * 16}});
+      specs->push_back({.format = {"L16", sample_rate_hz, num_channels},
+                        .info = {sample_rate_hz, num_channels,
+                                 sample_rate_hz * num_channels * 16}});
     }
   }
 }

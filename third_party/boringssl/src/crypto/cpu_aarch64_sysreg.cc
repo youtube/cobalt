@@ -49,7 +49,7 @@ static int get_signed_id_field(uint64_t reg, unsigned field) {
   }
 }
 
-static uint32_t read_armcap(void) {
+static uint32_t read_armcap() {
   uint32_t armcap = ARMV7_NEON;
 
   uint64_t id_aa64pfr0_el1 = READ_SYSREG("id_aa64pfr0_el1");
@@ -86,7 +86,7 @@ static uint32_t read_armcap(void) {
   return armcap;
 }
 
-void OPENSSL_cpuid_setup(void) { OPENSSL_armcap_P |= read_armcap(); }
+void OPENSSL_cpuid_setup() { OPENSSL_armcap_P |= read_armcap(); }
 
 #endif  // OPENSSL_AARCH64 && !OPENSSL_STATIC_ARMCAP &&
         // (ANDROID_BAREMETAL || OPENSSL_FREEBSD)

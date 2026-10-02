@@ -332,7 +332,7 @@ WIN_HOST = {
 }
 
 # The Android tests take longer to run. See https://crbug.com/900953.
-ANDROID_TIMEOUT = 60 * time.minute
+ANDROID_TIMEOUT = 90 * time.minute
 
 WALLEYE_HOST = {
     "dimensions": {
@@ -390,7 +390,7 @@ both_builders(
     },
 )
 both_builders(
-    "android_aarch64_fips",
+    "android_aarch64_fips_rel",
     # The Android FIPS configuration requires a newer device.
     WALLEYE_HOST,
     category = "android|aarch64",
@@ -403,13 +403,14 @@ both_builders(
             "ANDROID_PLATFORM": "android-24",
             # FIPS mode on Android uses shared libraries.
             "BUILD_SHARED_LIBS": "1",
+            "CMAKE_BUILD_TYPE": "RelWithAsserts",
             "FIPS": "1",
         },
     },
 )
 
 both_builders(
-    "android_aarch64_fips_noasm",
+    "android_aarch64_fips_noasm_rel",
     # The Android FIPS configuration requires a newer device.
     WALLEYE_HOST,
     category = "android|aarch64",
@@ -423,6 +424,7 @@ both_builders(
             "ANDROID_PLATFORM": "android-24",
             # FIPS mode on Android uses shared libraries.
             "BUILD_SHARED_LIBS": "1",
+            "CMAKE_BUILD_TYPE": "RelWithAsserts",
             "FIPS": "1",
         },
     },
@@ -432,7 +434,7 @@ both_builders(
 # for android_aarch64_fips. Additionally, urandom_test doesn't work in shared
 # library builds, so this gives Android FIPS coverage for urandom_test.
 both_builders(
-    "android_aarch64_fips_static",
+    "android_aarch64_fips_static_rel",
     # The Android FIPS configuration requires a newer device.
     WALLEYE_HOST,
     category = "android|aarch64",
@@ -443,6 +445,7 @@ both_builders(
         "cmake_args": {
             "ANDROID_ABI": "arm64-v8a",
             "ANDROID_PLATFORM": "android-24",
+            "CMAKE_BUILD_TYPE": "RelWithAsserts",
             "FIPS": "1",
         },
     },
@@ -485,7 +488,7 @@ both_builders(
     },
 )
 both_builders(
-    "android_arm_fips",
+    "android_arm_fips_rel",
     # The Android FIPS configuration requires a newer device.
     WALLEYE_HOST,
     category = "android|thumb",
@@ -498,6 +501,7 @@ both_builders(
             "ANDROID_PLATFORM": "android-24",
             # FIPS mode on Android uses shared libraries.
             "BUILD_SHARED_LIBS": "1",
+            "CMAKE_BUILD_TYPE": "RelWithAsserts",
             "FIPS": "1",
         },
     },

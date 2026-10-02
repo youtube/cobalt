@@ -331,14 +331,6 @@
             "issue": "http://anglebug.com/42262115"
         },
         {
-            "name": "disable_flipping_blit_with_command",
-            "category": "Workarounds",
-            "description": [
-                "vkCmdBlitImage with flipped coordinates blits incorrectly."
-            ],
-            "issue": "http://anglebug.com/42262161"
-        },
-        {
             "name": "avoid_invisible_window_swapchain_recreate",
             "category": "Workarounds",
             "description": [
@@ -580,15 +572,6 @@
                 "Expose EXT_multisampled_render_to_texture"
             ],
             "issue": "http://anglebug.com/40644747"
-        },
-        {
-            "name": "wait_idle_before_swapchain_recreation",
-            "category": "Workarounds",
-            "description": [
-                "Before passing an oldSwapchain to VkSwapchainCreateInfoKHR, wait for queue to be idle. ",
-                "Works around a bug on platforms which destroy oldSwapchain in vkCreateSwapchainKHR."
-            ],
-            "issue": "http://anglebug.com/42263629"
         },
         {
             "name": "destroy_old_swapchain_in_shared_present_mode",

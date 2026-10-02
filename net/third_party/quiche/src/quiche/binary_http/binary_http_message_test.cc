@@ -31,10 +31,15 @@ std::string WordToBytes(uint32_t word) {
 }
 
 template <class T>
-void TestPrintTo(const T& resp) {
+absl::Status TestPrintTo(const T& resp) {
   std::ostringstream os;
   PrintTo(resp, &os);
-  EXPECT_EQ(os.str(), resp.DebugString());
+  if (os.str() != resp.DebugString()) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "PrintTo output to stream does not match DebugString: stream=",
+        os.str(), ", DebugString=", resp.DebugString()));
+  }
+  return absl::OkStatus();
 }
 
 class RequestMessageSectionTestHandler
@@ -53,39 +58,60 @@ class RequestMessageSectionTestHandler
   RequestMessageSectionTestHandler() = default;
   absl::Status OnControlData(
       const BinaryHttpRequest::ControlData& control_data) override {
-    EXPECT_FALSE(message_data_.control_data_.has_value());
+    if (message_data_.control_data_.has_value()) {
+      return absl::FailedPreconditionError(
+          "OnControlData called multiple times");
+    }
     message_data_.control_data_ = control_data;
     return absl::OkStatus();
   }
   absl::Status OnHeader(absl::string_view name,
                         absl::string_view value) override {
-    EXPECT_FALSE(message_data_.headers_done_);
+    if (message_data_.headers_done_) {
+      return absl::FailedPreconditionError(
+          "OnHeader called after OnHeadersDone");
+    }
     message_data_.headers_.push_back({std::string(name), std::string(value)});
     return absl::OkStatus();
   }
   absl::Status OnHeadersDone() override {
-    EXPECT_FALSE(message_data_.headers_done_);
+    if (message_data_.headers_done_) {
+      return absl::FailedPreconditionError(
+          "OnHeadersDone called multiple times");
+    }
     message_data_.headers_done_ = true;
     return absl::OkStatus();
   }
   absl::Status OnBodyChunk(absl::string_view body_chunk) override {
-    EXPECT_FALSE(message_data_.body_chunks_done_);
+    if (message_data_.body_chunks_done_) {
+      return absl::FailedPreconditionError(
+          "OnBodyChunk called after OnBodyChunksDone");
+    }
     message_data_.body_chunks_.push_back(std::string(body_chunk));
     return absl::OkStatus();
   }
   absl::Status OnBodyChunksDone() override {
-    EXPECT_FALSE(message_data_.body_chunks_done_);
+    if (message_data_.body_chunks_done_) {
+      return absl::FailedPreconditionError(
+          "OnBodyChunksDone called multiple times");
+    }
     message_data_.body_chunks_done_ = true;
     return absl::OkStatus();
   }
   absl::Status OnTrailer(absl::string_view name,
                          absl::string_view value) override {
-    EXPECT_FALSE(message_data_.trailers_done_);
+    if (message_data_.trailers_done_) {
+      return absl::FailedPreconditionError(
+          "OnTrailer called after OnTrailersDone");
+    }
     message_data_.trailers_.push_back({std::string(name), std::string(value)});
     return absl::OkStatus();
   }
   absl::Status OnTrailersDone() override {
-    EXPECT_FALSE(message_data_.trailers_done_);
+    if (message_data_.trailers_done_) {
+      return absl::FailedPreconditionError(
+          "OnTrailersDone called multiple times");
+    }
     message_data_.trailers_done_ = true;
     return absl::OkStatus();
   }
@@ -179,7 +205,7 @@ TEST(BinaryHttpRequest, EncodeGetNoBody) {
             "libcurl/7.16.3 OpenSSL/0.9.7l "
             "zlib/1.2.3};Field{host=www.example.com};Field{accept-language=en, "
             "mi}}Body{}}}"));
-  TestPrintTo(request);
+  QUICHE_EXPECT_OK(TestPrintTo(request));
 }
 
 TEST(BinaryHttpRequest, DecodeGetNoBody) {
@@ -214,7 +240,7 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
       {"host", "www.example.com"},
       {"accept-language", "en, mi"}};
   for (const auto& field : expected_fields) {
-    TestPrintTo(field);
+    QUICHE_EXPECT_OK(TestPrintTo(field));
   }
   ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(request.body(), "");
@@ -225,7 +251,7 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
             "libcurl/7.16.3 OpenSSL/0.9.7l "
             "zlib/1.2.3};Field{host=www.example.com};Field{accept-language=en, "
             "mi}}Body{}}}"));
-  TestPrintTo(request);
+  QUICHE_EXPECT_OK(TestPrintTo(request));
 }
 
 TEST(BinaryHttpRequest, EncodeGetNoBodyOrHeaders) {
@@ -257,7 +283,7 @@ TEST(BinaryHttpRequest, EncodeGetNoBodyOrHeaders) {
   ASSERT_EQ(*result, expected);
   EXPECT_THAT(request.DebugString(),
               StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{}Body{}}}"));
-  TestPrintTo(request);
+  QUICHE_EXPECT_OK(TestPrintTo(request));
 }
 
 TEST(BinaryHttpRequest, DecodeGetNoBodyOrHeaders) {
@@ -280,13 +306,13 @@ TEST(BinaryHttpRequest, DecodeGetNoBodyOrHeaders) {
                 FieldsAre("GET", "https", "example.com", "/"));
     std::vector<BinaryHttpMessage::Field> expected_fields = {};
     for (const auto& field : expected_fields) {
-      TestPrintTo(field);
+      QUICHE_EXPECT_OK(TestPrintTo(field));
     }
     ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
     ASSERT_EQ(request.body(), "");
     EXPECT_THAT(request.DebugString(),
                 StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{}Body{}}}"));
-    TestPrintTo(request);
+    QUICHE_EXPECT_OK(TestPrintTo(request));
   }
 }
 
@@ -485,26 +511,43 @@ TEST(BinaryHttpRequest, Inequality) {
   EXPECT_NE(request, no_body);
 }
 
-void ExpectRequestMessageSectionHandler(
+absl::Status ExpectRequestMessageSectionHandler(
     const RequestMessageSectionTestHandler::MessageData& message_data) {
-  EXPECT_TRUE(message_data.control_data_.has_value());
-  if (message_data.control_data_.has_value()) {
-    EXPECT_THAT(*message_data.control_data_,
-                FieldsAre("POST", "https", "google.com", "/hello"));
+  if (!message_data.control_data_.has_value()) {
+    return absl::FailedPreconditionError("control_data missing");
+  }
+  if (message_data.control_data_->method != "POST" ||
+      message_data.control_data_->scheme != "https" ||
+      message_data.control_data_->authority != "google.com" ||
+      message_data.control_data_->path != "/hello") {
+    return absl::FailedPreconditionError("control_data mismatch");
   }
   std::vector<std::pair<std::string, std::string>> expected_headers = {
       {"user-agent", "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3"},
       {"accept-language", "en, mi"}};
-  EXPECT_TRUE(message_data.headers_done_);
-  EXPECT_THAT(message_data.headers_, ContainerEq(expected_headers));
+  if (!message_data.headers_done_) {
+    return absl::FailedPreconditionError("headers not done");
+  }
+  if (message_data.headers_ != expected_headers) {
+    return absl::FailedPreconditionError("headers mismatch");
+  }
   std::vector<std::string> expected_body_chunks = {"chunk1", "chunk2",
                                                    "chunk3"};
-  EXPECT_TRUE(message_data.body_chunks_done_);
-  EXPECT_THAT(message_data.body_chunks_, ContainerEq(expected_body_chunks));
+  if (!message_data.body_chunks_done_) {
+    return absl::FailedPreconditionError("body chunks not done");
+  }
+  if (message_data.body_chunks_ != expected_body_chunks) {
+    return absl::FailedPreconditionError("body chunks mismatch");
+  }
   std::vector<std::pair<std::string, std::string>> expected_trailers = {
       {"trailer1", "value1"}, {"trailer2", "value2"}};
-  EXPECT_TRUE(message_data.trailers_done_);
-  EXPECT_THAT(message_data.trailers_, ContainerEq(expected_trailers));
+  if (!message_data.trailers_done_) {
+    return absl::FailedPreconditionError("trailers not done");
+  }
+  if (message_data.trailers_ != expected_trailers) {
+    return absl::FailedPreconditionError("trailers mismatch");
+  }
+  return absl::OkStatus();
 }
 
 TEST(IndeterminateLengthDecoder, FullRequestDecodingSuccess) {
@@ -518,9 +561,12 @@ TEST(IndeterminateLengthDecoder, FullRequestDecodingSuccess) {
           kPadding),
       &request_bytes));
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
-  ExpectRequestMessageSectionHandler(handler.GetMessageData());
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/true));
+  QUICHE_EXPECT_OK(
+      ExpectRequestMessageSectionHandler(handler.GetMessageData()));
 }
 
 class MockFailingMessageSectionHandler
@@ -572,12 +618,14 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
           kPadding),
       &request_bytes));
 
-  auto handler = GetMockMessageSectionHandler();
+  std::unique_ptr<MockFailingMessageSectionHandler> handler =
+      GetMockMessageSectionHandler();
   std::string error_message = "Failed to handle control data";
   EXPECT_CALL(*handler, OnControlData(testing::_))
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  auto decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder);
   EXPECT_THAT(decoder->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
@@ -586,9 +634,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle header";
   EXPECT_CALL(*handler, OnHeader(testing::_, testing::_))
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder2 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder2);
+  EXPECT_THAT(decoder2->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 
@@ -596,9 +645,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle headers done";
   EXPECT_CALL(*handler, OnHeadersDone())
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder3 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder3);
+  EXPECT_THAT(decoder3->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 
@@ -606,9 +656,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle body chunk";
   EXPECT_CALL(*handler, OnBodyChunk(testing::_))
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder4 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder4);
+  EXPECT_THAT(decoder4->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 
@@ -616,9 +667,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle body chunks done";
   EXPECT_CALL(*handler, OnBodyChunksDone())
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder5 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder5);
+  EXPECT_THAT(decoder5->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 
@@ -626,9 +678,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle trailer";
   EXPECT_CALL(*handler, OnTrailer(testing::_, testing::_))
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder6 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder6);
+  EXPECT_THAT(decoder6->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 
@@ -636,9 +689,10 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   error_message = "Failed to handle trailers done";
   EXPECT_CALL(*handler, OnTrailersDone())
       .WillOnce(testing::Return(absl::InternalError(error_message)));
-  decoder =
-      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
-  EXPECT_THAT(decoder->Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder7 =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(handler.get());
+  QUICHE_ASSERT_OK(decoder7);
+  EXPECT_THAT(decoder7->Decode(request_bytes, true),
               test::StatusIs(absl::StatusCode::kInternal,
                              testing::HasSubstr(error_message)));
 }
@@ -654,15 +708,18 @@ TEST(IndeterminateLengthDecoder, BufferedRequestDecodingSuccess) {
           kPadding),
       &request_bytes));
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
   for (uint64_t i = 0; i < request_bytes.size() - 1; i++) {
     QUICHE_EXPECT_OK(
-        decoder.Decode(absl::string_view(&request_bytes[i], 1), false));
+        decoder->Decode(absl::string_view(&request_bytes[i], 1), false));
   }
   // Decode the last byte, send end_stream.
-  QUICHE_EXPECT_OK(decoder.Decode(
+  QUICHE_EXPECT_OK(decoder->Decode(
       absl::string_view(&request_bytes[request_bytes.size() - 1], 1), true));
-  ExpectRequestMessageSectionHandler(handler.GetMessageData());
+  QUICHE_EXPECT_OK(
+      ExpectRequestMessageSectionHandler(handler.GetMessageData()));
 }
 
 TEST(IndeterminateLengthDecoder,
@@ -673,23 +730,29 @@ TEST(IndeterminateLengthDecoder,
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(incomplete_request_bytes, &request_bytes));
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
-  EXPECT_THAT(decoder.Decode(request_bytes, true),
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
+  EXPECT_THAT(decoder->Decode(request_bytes, /*end_stream=*/true),
               test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(IndeterminateLengthDecoder, InvalidFramingError) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes("00", &request_bytes));
-  absl::Status status = decoder.Decode(request_bytes, false);
+  absl::Status status = decoder->Decode(request_bytes, /*end_stream=*/false);
   EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(IndeterminateLengthDecoder, InvalidPaddingError) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
       absl::StrCat(
@@ -699,25 +762,36 @@ TEST(IndeterminateLengthDecoder, InvalidPaddingError) {
           kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
           kPadding),
       &request_bytes));
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
-  absl::Status status = decoder.Decode("\x01", false);
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/false));
+  absl::Status status = decoder->Decode("\x01", /*end_stream=*/false);
   EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
-void ExpectTruncatedTrailerSection(
+absl::Status ExpectTruncatedTrailerSection(
     const RequestMessageSectionTestHandler::MessageData& message_data) {
-  EXPECT_TRUE(message_data.headers_done_);
-  EXPECT_TRUE(message_data.trailers_done_);
+  if (!message_data.headers_done_) {
+    return absl::FailedPreconditionError("headers not done");
+  }
+  if (!message_data.trailers_done_) {
+    return absl::FailedPreconditionError("trailers not done");
+  }
   std::vector<std::pair<std::string, std::string>> expected_headers = {
       {"user-agent", "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3"},
       {"accept-language", "en, mi"}};
-  EXPECT_THAT(message_data.headers_, ContainerEq(expected_headers));
-  EXPECT_THAT(message_data.trailers_, testing::IsEmpty());
+  if (message_data.headers_ != expected_headers) {
+    return absl::FailedPreconditionError("headers mismatch");
+  }
+  if (!message_data.trailers_.empty()) {
+    return absl::FailedPreconditionError("trailers not empty");
+  }
+  return absl::OkStatus();
 }
 
 TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailers) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
       absl::StrCat(
@@ -725,16 +799,18 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailers) {
           kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
       &request_bytes));
 
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/true));
   auto message_data = handler.GetMessageData();
   EXPECT_TRUE(message_data.body_chunks_done_);
   EXPECT_THAT(message_data.body_chunks_, testing::IsEmpty());
-  ExpectTruncatedTrailerSection(message_data);
+  QUICHE_EXPECT_OK(ExpectTruncatedTrailerSection(message_data));
 }
 
 TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailersSplitEndStream) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
       absl::StrCat(
@@ -742,13 +818,13 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailersSplitEndStream) {
           kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
       &request_bytes));
 
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/false));
   // Send `end_stream` with no data.
-  QUICHE_EXPECT_OK(decoder.Decode("", true));
+  QUICHE_EXPECT_OK(decoder->Decode("", /*end_stream=*/true));
   auto message_data = handler.GetMessageData();
   EXPECT_TRUE(message_data.body_chunks_done_);
   EXPECT_THAT(message_data.body_chunks_, testing::IsEmpty());
-  ExpectTruncatedTrailerSection(message_data);
+  QUICHE_EXPECT_OK(ExpectTruncatedTrailerSection(message_data));
 }
 
 namespace {
@@ -915,9 +991,12 @@ TEST(RequestIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
   EXPECT_EQ(encoded_data, expected);
 
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
-  QUICHE_EXPECT_OK(decoder.Decode(encoded_data, true));
-  ExpectRequestMessageSectionHandler(handler.GetMessageData());
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_ASSERT_OK(decoder);
+  QUICHE_EXPECT_OK(decoder->Decode(encoded_data, /*end_stream=*/true));
+  QUICHE_EXPECT_OK(
+      ExpectRequestMessageSectionHandler(handler.GetMessageData()));
 }
 
 TEST(RequestIndeterminateLengthEncoder, OutOfOrderHeaders) {
@@ -1001,13 +1080,14 @@ struct ResponseIndeterminateLengthEncoderTestData {
        "1111111111111111111111111111111111111111111111111111111111111111"}};
 };
 
-constexpr absl::string_view kEncodedInformationalResponses =
-    "4066"                    // status code: 102
-    "0772756e6e696e67"        // running
-    "0a22736C65657020313522"  // "sleep 15"
-    "00"                      // content terminator
-    "4067"                    // status code: 103
-    "046C696E6B"              // link
+constexpr absl::string_view kIndeterminateLengthResponseFramingIndicator = "03";
+constexpr absl::string_view kInfoResp1StatusCode = "4066";  // status code: 102
+constexpr absl::string_view kInfoResp1Headers =
+    "0772756e6e696e67"                                      // running
+    "0a22736C65657020313522";                               // "sleep 15"
+constexpr absl::string_view kInfoResp2StatusCode = "4067";  // status code: 103
+constexpr absl::string_view kInfoResp2Headers =
+    "046C696E6B"  // link
     "233C2F7374796C652E6373733E3B2072656C3D7072656C6F6"
     "1643B2061733D737479"
     "6C65"        // </style.css>; rel=preload; as=style
@@ -1017,11 +1097,10 @@ constexpr absl::string_view kEncodedInformationalResponses =
     "697074"  // </script.js>; rel=preload; as=script
     "136C6F6E6765725F6865616465725F76616C7565"  // longer_header_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00";  // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
 
-constexpr absl::string_view kEncodedResponse =
-    "40C8"        // status code: 200
+constexpr absl::string_view kFinalResponseStatusCode = "40C8";  // 200
+constexpr absl::string_view kFinalResponseHeaders =
     "0464617465"  // date
     "1D4D6F6E2C203237204A756C20323030392031323A32383A3"
     "53320474D54"                               // Mon, 27
@@ -1033,29 +1112,33 @@ constexpr absl::string_view kEncodedResponse =
     "06417061636865"                            // Apache
     "136C6F6E6765725F6865616465725F76616C7565"  // longer_header_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00"              // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
+constexpr absl::string_view kFinalResponseBody =
     "066368756E6B31"  // chunk1
     "066368756E6B32"  // chunk2
     "066368756E6B33"  // chunk3
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00"                                          // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
+constexpr absl::string_view kFinalResponseTrailers =
     "08747261696C657231"                          // trailer1
     "0676616C756531"                              // value1
     "08747261696C657232"                          // trailer2
     "0676616C756532"                              // value2
     "146C6F6E6765725F747261696C65725F76616C7565"  // longer_trailer_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00";
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
 
 }  // namespace
 
 TEST(ResponseIndeterminateLengthEncoder, WithInformationalResponses) {
   std::string expected;
   ASSERT_TRUE(absl::HexStringToBytes(
-      absl::StrCat("03", kEncodedInformationalResponses, kEncodedResponse),
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kInfoResp1StatusCode, kInfoResp1Headers, kContentTerminator,
+                   kInfoResp2StatusCode, kInfoResp2Headers, kContentTerminator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
       &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
@@ -1092,8 +1175,12 @@ TEST(ResponseIndeterminateLengthEncoder, WithInformationalResponses) {
 
 TEST(ResponseIndeterminateLengthEncoder, NoInformationalResponses) {
   std::string expected;
-  ASSERT_TRUE(
-      absl::HexStringToBytes(absl::StrCat("03", kEncodedResponse), &expected));
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
+      &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
   ResponseIndeterminateLengthEncoderTestData test_data;
@@ -1119,8 +1206,12 @@ TEST(ResponseIndeterminateLengthEncoder, NoInformationalResponses) {
 
 TEST(ResponseIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
   std::string expected;
-  ASSERT_TRUE(
-      absl::HexStringToBytes(absl::StrCat("03", kEncodedResponse), &expected));
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
+      &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
   ResponseIndeterminateLengthEncoderTestData test_data;
@@ -1246,7 +1337,9 @@ TEST(ResponseIndeterminateLengthEncoder, MustNotEncodeTrailersTwice) {
 
 TEST(IndeterminateLengthDecoder, TruncatedTrailers) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_EXPECT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
       absl::StrCat(
@@ -1256,18 +1349,20 @@ TEST(IndeterminateLengthDecoder, TruncatedTrailers) {
           k4ByteContentTerminator),
       &request_bytes));
 
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/true));
   auto message_data = handler.GetMessageData();
   EXPECT_TRUE(message_data.body_chunks_done_);
   std::vector<std::string> expected_body_chunks = {"chunk1", "chunk2",
                                                    "chunk3"};
   EXPECT_THAT(message_data.body_chunks_, ContainerEq(expected_body_chunks));
-  ExpectTruncatedTrailerSection(message_data);
+  QUICHE_EXPECT_OK(ExpectTruncatedTrailerSection(message_data));
 }
 
 TEST(IndeterminateLengthDecoder, TruncatedTrailersSplitEndStream) {
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_EXPECT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
       absl::StrCat(
@@ -1277,15 +1372,15 @@ TEST(IndeterminateLengthDecoder, TruncatedTrailersSplitEndStream) {
           k4ByteContentTerminator),
       &request_bytes));
 
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/false));
   // Send `end_stream` with no data.
-  QUICHE_EXPECT_OK(decoder.Decode("", true));
+  QUICHE_EXPECT_OK(decoder->Decode("", /*end_stream=*/true));
   auto message_data = handler.GetMessageData();
   EXPECT_TRUE(message_data.body_chunks_done_);
   std::vector<std::string> expected_body_chunks = {"chunk1", "chunk2",
                                                    "chunk3"};
   EXPECT_THAT(message_data.body_chunks_, ContainerEq(expected_body_chunks));
-  ExpectTruncatedTrailerSection(message_data);
+  QUICHE_EXPECT_OK(ExpectTruncatedTrailerSection(message_data));
 }
 
 TEST(IndeterminateLengthDecoder, InvalidDecodeAfterEndStream) {
@@ -1296,9 +1391,11 @@ TEST(IndeterminateLengthDecoder, InvalidDecodeAfterEndStream) {
           kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
       &request_bytes));
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
-  QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
-  absl::Status status = decoder.Decode(request_bytes, false);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_EXPECT_OK(decoder);
+  QUICHE_EXPECT_OK(decoder->Decode(request_bytes, /*end_stream=*/true));
+  absl::Status status = decoder->Decode(request_bytes, /*end_stream=*/false);
   EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kInternal));
 }
 
@@ -1313,10 +1410,12 @@ using InvalidEndStreamTest =
 TEST_P(InvalidEndStreamTest, InvalidEndStreamError) {
   const InvalidEndStreamTestCase& test_case = GetParam();
   RequestMessageSectionTestHandler handler;
-  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> decoder =
+      BinaryHttpRequest::IndeterminateLengthDecoder::Create(&handler);
+  QUICHE_EXPECT_OK(decoder);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(test_case.request, &request_bytes));
-  absl::Status status = decoder.Decode(request_bytes, true);
+  absl::Status status = decoder->Decode(request_bytes, /*end_stream=*/true);
   EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
@@ -1580,7 +1679,7 @@ TEST(BinaryHttpResponse, EncodeMultiInformationalWithBody) {
           "CRLF.\r\n}}InformationalResponse{Field{running=\"sleep "
           "15\"}};InformationalResponse{Field{link=</style.css>; rel=preload; "
           "as=style};Field{link=</script.js>; rel=preload; as=script}}}"));
-  TestPrintTo(response);
+  QUICHE_EXPECT_OK(TestPrintTo(response));
 }
 
 TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
@@ -1664,7 +1763,7 @@ TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
           "CRLF.\r\n}}InformationalResponse{Field{running=\"sleep "
           "15\"}};InformationalResponse{Field{link=</style.css>; rel=preload; "
           "as=style};Field{link=</script.js>; rel=preload; as=script}}}"));
-  TestPrintTo(response);
+  QUICHE_EXPECT_OK(TestPrintTo(response));
 }
 
 TEST(BinaryHttpMessage, SwapBody) {
@@ -1754,46 +1853,74 @@ MATCHER_P(HasEqPayload, value, "Payloads of messages are equivalent.") {
 }
 
 template <typename T>
-void TestPadding(T& message) {
+absl::Status TestPadding(T& message) {
   const auto data_so = message.Serialize();
-  ASSERT_TRUE(data_so.ok());
+  if (!data_so.ok()) {
+    return data_so.status();
+  }
   auto data = *data_so;
-  ASSERT_EQ(data.size(), message.EncodedSize());
-
+  if (data.size() != message.EncodedSize()) {
+    return absl::FailedPreconditionError("Incorrect size");
+  }
   message.set_num_padding_bytes(10);
   const auto padded_data_so = message.Serialize();
-  ASSERT_TRUE(padded_data_so.ok());
+  if (!padded_data_so.ok()) {
+    return padded_data_so.status();
+  }
   const auto padded_data = *padded_data_so;
-  ASSERT_EQ(padded_data.size(), message.EncodedSize());
-
+  if (padded_data.size() != message.EncodedSize()) {
+    return absl::FailedPreconditionError("Incorrect padded size");
+  }
   // Check padding size output.
-  ASSERT_EQ(data.size() + 10, padded_data.size());
+  if (data.size() + 10 != padded_data.size()) {
+    return absl::FailedPreconditionError("Padding size mismatch");
+  }
   // Check for valid null byte padding output
   data.resize(data.size() + 10);
-  ASSERT_EQ(data, padded_data);
-
+  if (data != padded_data) {
+    return absl::FailedPreconditionError("Padded data mismatch");
+  }
   // Deserialize padded and not padded, and verify they are the same.
   const auto deserialized_padded_message_so = T::Create(data);
-  ASSERT_TRUE(deserialized_padded_message_so.ok());
+  if (!deserialized_padded_message_so.ok()) {
+    return deserialized_padded_message_so.status();
+  }
   const auto deserialized_padded_message = *deserialized_padded_message_so;
-  ASSERT_EQ(deserialized_padded_message, message);
-  ASSERT_EQ(deserialized_padded_message.num_padding_bytes(), size_t(10));
-
+  if (!(deserialized_padded_message == message)) {
+    return absl::FailedPreconditionError(
+        "Deserialized padded message != message");
+  }
+  if (deserialized_padded_message.num_padding_bytes() != size_t(10)) {
+    return absl::FailedPreconditionError(
+        "Padding bytes mismatch in deserialized");
+  }
   // Invalid padding
   data[data.size() - 1] = 'a';
   const auto bad_so = T::Create(data);
-  ASSERT_FALSE(bad_so.ok());
-
+  if (bad_so.ok()) {
+    return absl::FailedPreconditionError(
+        "Expected bad status for invalid padding");
+  }
   // Check that padding does not impact equality.
   data.resize(data.size() - 10);
   const auto deserialized_message_so = T::Create(data);
-  ASSERT_TRUE(deserialized_message_so.ok());
+  if (!deserialized_message_so.ok()) {
+    return deserialized_message_so.status();
+  }
   const auto deserialized_message = *deserialized_message_so;
-  ASSERT_EQ(deserialized_message.num_padding_bytes(), size_t(0));
+  if (deserialized_message.num_padding_bytes() != size_t(0)) {
+    return absl::FailedPreconditionError("Num padding bytes should be 0");
+  }
   // Confirm that the message payloads are equal, but not fully equivalent due
   // to padding.
-  ASSERT_THAT(deserialized_message, HasEqPayload(deserialized_padded_message));
-  ASSERT_NE(deserialized_message, deserialized_padded_message);
+  if (!deserialized_message.IsPayloadEqual(deserialized_padded_message)) {
+    return absl::FailedPreconditionError("IsPayloadEqual failed");
+  }
+  if (deserialized_message == deserialized_padded_message) {
+    return absl::FailedPreconditionError(
+        "deserialized_message == deserialized_padded_message");
+  }
+  return absl::OkStatus();
 }
 
 TEST(BinaryHttpRequest, Padding) {
@@ -1809,7 +1936,7 @@ TEST(BinaryHttpRequest, Padding) {
                        "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3"})
       ->AddHeaderField({"Host", "www.example.com"})
       ->AddHeaderField({"Accept-Language", "en, mi"});
-  TestPadding(request);
+  QUICHE_EXPECT_OK(TestPadding(request));
 }
 
 TEST(BinaryHttpResponse, Padding) {
@@ -1822,7 +1949,7 @@ TEST(BinaryHttpResponse, Padding) {
   BinaryHttpResponse response(200);
   response.AddHeaderField({"Server", "Apache"});
   response.set_body("Hello, world!\r\n");
-  TestPadding(response);
+  QUICHE_EXPECT_OK(TestPadding(response));
 }
 
 }  // namespace quiche

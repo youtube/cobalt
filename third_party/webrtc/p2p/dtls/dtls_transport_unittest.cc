@@ -69,14 +69,14 @@ namespace {
 using ::testing::Eq;
 using ::testing::IsTrue;
 
-static const size_t kPacketNumOffset = 8;
-static const size_t kPacketHeaderLen = 12;
-static const int kFakePacketId = 0x1234;
-static const int kTimeout = 10000;
+const size_t kPacketNumOffset = 8;
+const size_t kPacketHeaderLen = 12;
+const int kFakePacketId = 0x1234;
+const int kTimeout = 10000;
 
 constexpr uint8_t kRtpLeadByte = 0x80;
 
-static bool IsRtpLeadByte(uint8_t b) {
+bool IsRtpLeadByte(uint8_t b) {
   return b == kRtpLeadByte;
 }
 
@@ -871,8 +871,12 @@ TEST_F(DtlsTransportInternalImplTest, KeyingMaterialExporter) {
   int key_len;
   int salt_len;
   EXPECT_TRUE(GetSrtpKeyAndSaltLengths(crypto_suite, &key_len, &salt_len));
-  ZeroOnFreeBuffer<uint8_t> client1_out(2 * (key_len + salt_len));
-  ZeroOnFreeBuffer<uint8_t> client2_out(2 * (key_len + salt_len));
+  ZeroOnFreeBuffer<uint8_t> client1_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
+  ZeroOnFreeBuffer<uint8_t> client2_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
   EXPECT_TRUE(client1_.dtls_transport()->ExportSrtpKeyingMaterial(client1_out));
   EXPECT_TRUE(client2_.dtls_transport()->ExportSrtpKeyingMaterial(client2_out));
   EXPECT_EQ(client1_out, client2_out);
@@ -920,7 +924,7 @@ void AbslStringify(Sink& sink, HandshakeTestEvent event) {
   }
 }
 
-static const std::vector<HandshakeTestEvent> dtls_12_handshake_events{
+const std::vector<HandshakeTestEvent> dtls_12_handshake_events{
     // Flight 1
     EV_CLIENT_SEND,
     EV_SERVER_RECV,
@@ -936,7 +940,7 @@ static const std::vector<HandshakeTestEvent> dtls_12_handshake_events{
     EV_CLIENT_WRITABLE,
 };
 
-static const std::vector<HandshakeTestEvent> dtls_13_handshake_events{
+const std::vector<HandshakeTestEvent> dtls_13_handshake_events{
     // Flight 1
     EV_CLIENT_SEND,
     EV_SERVER_RECV,
@@ -951,7 +955,7 @@ static const std::vector<HandshakeTestEvent> dtls_13_handshake_events{
     EV_SERVER_WRITABLE,
 };
 
-static const std::vector<HandshakeTestEvent> dtls_pqc_handshake_events{
+const std::vector<HandshakeTestEvent> dtls_pqc_handshake_events{
     // Flight 1
     EV_CLIENT_SEND,
     EV_CLIENT_SEND,
@@ -970,7 +974,7 @@ static const std::vector<HandshakeTestEvent> dtls_pqc_handshake_events{
     EV_SERVER_WRITABLE,
 };
 
-static const struct {
+const struct {
   int version_bytes;
   const std::vector<HandshakeTestEvent>& events;
 } kEventsPerVersion[] = {
@@ -1163,7 +1167,7 @@ class DtlsTransportInternalImplVersionTest
   }
 };
 
-static const EndpointConfig kEndpointVariants[] = {
+const EndpointConfig kEndpointVariants[] = {
     {
         .max_protocol_version = SSL_PROTOCOL_DTLS_10,
         .dtls_in_stun = false,
@@ -1591,6 +1595,20 @@ TEST_F(DtlsTransportInternalImplTest, DtlsConnectionTimeMetric) {
   EXPECT_METRIC_EQ(
       metrics::NumSamples("WebRTC.PeerConnection.DtlsServerRoleConnectionTime"),
       1);
+}
+
+TEST_F(DtlsTransportInternalImplTest, DtlsVersionMetric) {
+  metrics::Reset();
+  PrepareDtls(KT_DEFAULT);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsVersionClientRole"), 0);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsVersionServerRole"), 0);
+  ASSERT_TRUE(Connect());
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsVersionClientRole"), 1);
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.DtlsVersionServerRole"), 1);
 }
 
 // The following events can occur in many different orders:

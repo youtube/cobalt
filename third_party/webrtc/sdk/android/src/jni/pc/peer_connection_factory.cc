@@ -31,6 +31,7 @@
 #include "api/audio_options.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media.h"
+#include "api/environment/deprecated_global_field_trials.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
 #include "api/media_stream_interface.h"
@@ -67,7 +68,6 @@
 #include "sdk/android/src/jni/pc/ssl_certificate_verifier_wrapper.h"
 #include "sdk/android/src/jni/pc/video.h"
 #include "sdk/media_constraints.h"
-#include "system_wrappers/include/field_trial.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
@@ -200,8 +200,6 @@ static void JNI_PeerConnectionFactory_InitializeAndroidGlobals(JNIEnv* jni) {
   }
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 static void JNI_PeerConnectionFactory_InitializeFieldTrials(
     JNIEnv* jni,
     const jni_zero::JavaRef<jstring>& j_trials_init_string) {
@@ -210,15 +208,13 @@ static void JNI_PeerConnectionFactory_InitializeFieldTrials(
 
   if (j_trials_init_string.is_null()) {
     field_trials_init_string = nullptr;
-    field_trial::InitFieldTrialsFromString(nullptr);
+    DeprecatedGlobalFieldTrials::Set(nullptr);
     return;
   }
   field_trials_init_string = std::make_unique<std::string>(
       JavaToNativeString(jni, j_trials_init_string));
-  RTC_LOG(LS_INFO) << "initializeFieldTrials: " << *field_trials_init_string;
-  field_trial::InitFieldTrialsFromString(field_trials_init_string->c_str());
+  DeprecatedGlobalFieldTrials::Set(field_trials_init_string->c_str());
 }
-#pragma clang diagnostic pop
 
 static void JNI_PeerConnectionFactory_InitializeInternalTracer(JNIEnv* jni) {
   tracing::SetupInternalTracer();
@@ -384,10 +380,7 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
 
 static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedFactoryAndThreads*>(j_p);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  field_trial::InitFieldTrialsFromString(nullptr);
-#pragma clang diagnostic pop
+  DeprecatedGlobalFieldTrials::Set(nullptr);
   GetStaticObjects().field_trials_init_string = nullptr;
 }
 

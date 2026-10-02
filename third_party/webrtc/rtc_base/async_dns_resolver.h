@@ -53,7 +53,7 @@ class AsyncDnsResolverResultImpl : public AsyncDnsResolverResult {
 class RTC_EXPORT AsyncDnsResolver : public AsyncDnsResolverInterface {
  public:
   AsyncDnsResolver();
-  ~AsyncDnsResolver();
+  ~AsyncDnsResolver() override;
   // Start address resolution of the hostname in `addr`.
   void Start(const SocketAddress& addr,
              absl::AnyInvocable<void()> callback) override;

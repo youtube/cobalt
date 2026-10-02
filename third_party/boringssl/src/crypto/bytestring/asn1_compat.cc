@@ -25,7 +25,9 @@
 #include "../internal.h"
 
 
-int CBB_finish_i2d(CBB *cbb, uint8_t **outp) {
+using namespace bssl;
+
+int bssl::CBB_finish_i2d(CBB *cbb, uint8_t **outp) {
   assert(!cbb->is_child);
   assert(cbb->u.base.can_resize);
 

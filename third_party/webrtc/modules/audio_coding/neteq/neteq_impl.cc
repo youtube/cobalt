@@ -109,9 +109,7 @@ NetEqImpl::Dependencies::Dependencies(
       tick_timer(new TickTimer),
       stats(std::make_unique<StatisticsCalculator>(tick_timer.get())),
       decoder_database(
-          std::make_unique<DecoderDatabase>(env,
-                                            std::move(decoder_factory),
-                                            config.codec_pair_id)),
+          std::make_unique<DecoderDatabase>(env, std::move(decoder_factory))),
       dtmf_buffer(new DtmfBuffer(config.sample_rate_hz)),
       dtmf_tone_generator(new DtmfToneGenerator),
       packet_buffer(new PacketBuffer(config.max_packets_in_buffer,
@@ -2002,6 +2000,14 @@ NetEqController::PacketArrivedInfo NetEqImpl::ToPacketArrivedInfo(
   info.main_sequence_number = packet.sequence_number;
   info.is_dtx = packet.frame && packet.frame->IsDtxPacket();
   return info;
+}
+
+void NetEqImpl::SetMaximumBufferPackets(size_t max_packets) {
+  packet_buffer_->SetMaxNumberOfPackets(max_packets);
+}
+
+void NetEqImpl::SetFastAccelerate(bool enable) {
+  enable_fast_accelerate_ = enable;
 }
 
 }  // namespace webrtc

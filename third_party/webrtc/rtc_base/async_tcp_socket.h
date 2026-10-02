@@ -64,7 +64,7 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   void AppendToOutBuffer(const void* pv, size_t cb);
 
   // Helper methods for `outpos_`.
-  bool IsOutBufferEmpty() const { return outbuf_.size() == 0; }
+  bool IsOutBufferEmpty() const { return outbuf_.empty(); }
   void ClearOutBuffer() { outbuf_.Clear(); }
 
  private:

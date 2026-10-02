@@ -64,7 +64,7 @@ class VideoTrack : public MediaStreamTrack<VideoTrackInterface>,
       scoped_refptr<
           VideoTrackSourceProxyWithInternal<VideoTrackSourceInterface>> source,
       Thread* worker_thread);
-  ~VideoTrack();
+  ~VideoTrack() override;
 
  private:
   // Implements ObserverInterface. Observes `video_source_` state.

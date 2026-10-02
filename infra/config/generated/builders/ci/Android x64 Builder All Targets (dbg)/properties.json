@@ -53,8 +53,7 @@
       ],
       "retry_failed_shards": true,
       "retry_invalid_shards": true,
-      "targets_spec_directory": "infra/config/generated/builders/ci/Android x64 Builder All Targets (dbg)/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "infra/config/generated/builders/ci/Android x64 Builder All Targets (dbg)/targets"
     }
   },
   "$build/siso": {
@@ -68,7 +67,6 @@
     "experiments": [
       "oom-score-adj"
     ],
-    "metrics_project": "chromium-reclient-metrics",
     "output_local_strategy": "greedy",
     "project": "rbe-chromium-trusted",
     "remote_jobs": 500

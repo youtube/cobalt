@@ -10,271 +10,212 @@
 
 #include "pc/track_media_info_map.h"
 
+#include <cstddef>
 #include <cstdint>
-#include <map>
 #include <optional>
-#include <set>
+#include <string>
 #include <utility>
 
 #include "api/array_view.h"
-#include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
-#include "api/scoped_refptr.h"
 #include "media/base/media_channel.h"
-#include "media/base/stream_params.h"
-#include "pc/rtp_receiver.h"
-#include "pc/rtp_sender.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/thread.h"
+#include "rtc_base/containers/flat_map.h"
 
 namespace webrtc {
 
 namespace {
 
 template <typename K, typename V>
-V FindValueOrNull(const std::map<K, V>& map, const K& key) {
+V FindValueOrNull(const flat_map<K, V>& map, const K& key) {
   auto it = map.find(key);
   return (it != map.end()) ? it->second : nullptr;
 }
 
 template <typename K, typename V>
-const V* FindAddressOrNull(const std::map<K, V>& map, const K& key) {
+const V* FindAddressOrNull(const flat_map<K, V>& map, const K& key) {
   auto it = map.find(key);
   return (it != map.end()) ? &it->second : nullptr;
 }
 
-void GetAudioAndVideoTrackBySsrc(
-    ArrayView<scoped_refptr<RtpSenderInternal>> rtp_senders,
-    ArrayView<scoped_refptr<RtpReceiverInternal>> rtp_receivers,
-    std::map<uint32_t, AudioTrackInterface*>* local_audio_track_by_ssrc,
-    std::map<uint32_t, VideoTrackInterface*>* local_video_track_by_ssrc,
-    std::map<uint32_t, AudioTrackInterface*>* remote_audio_track_by_ssrc,
-    std::map<uint32_t, VideoTrackInterface*>* remote_video_track_by_ssrc,
-    AudioTrackInterface** unsignaled_audio_track,
-    VideoTrackInterface** unsignaled_video_track) {
-  RTC_DCHECK(local_audio_track_by_ssrc->empty());
-  RTC_DCHECK(local_video_track_by_ssrc->empty());
-  RTC_DCHECK(remote_audio_track_by_ssrc->empty());
-  RTC_DCHECK(remote_video_track_by_ssrc->empty());
-  for (const auto& rtp_sender : rtp_senders) {
-    MediaType media_type = rtp_sender->media_type();
-    MediaStreamTrackInterface* track = rtp_sender->track().get();
-    if (!track) {
+flat_map<uint32_t, int> GetSenderAttachmentIds(
+    ArrayView<const TrackMediaInfoMap::RtpSenderSignalInfo> senders,
+    MediaType media_type) {
+  flat_map<uint32_t, int> result;
+  for (const auto& sender : senders) {
+    if (sender.media_type != media_type || sender.ssrc == 0) {
       continue;
     }
-    // TODO(deadbeef): `ssrc` should be removed in favor of `GetParameters`.
-    uint32_t ssrc = rtp_sender->ssrc();
-    if (ssrc != 0) {
-      if (media_type == MediaType::AUDIO) {
-        RTC_DCHECK(local_audio_track_by_ssrc->find(ssrc) ==
-                   local_audio_track_by_ssrc->end());
-        (*local_audio_track_by_ssrc)[ssrc] =
-            static_cast<AudioTrackInterface*>(track);
-      } else {
-        RTC_DCHECK(local_video_track_by_ssrc->find(ssrc) ==
-                   local_video_track_by_ssrc->end());
-        (*local_video_track_by_ssrc)[ssrc] =
-            static_cast<VideoTrackInterface*>(track);
+    result[sender.ssrc] = sender.attachment_id;
+  }
+  return result;
+}
+
+flat_map<uint32_t, int> GetReceiverAttachmentIds(
+    ArrayView<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
+    ArrayView<const RtpParameters> receiver_parameters,
+    MediaType media_type) {
+  RTC_DCHECK_EQ(receivers.size(), receiver_parameters.size());
+  flat_map<uint32_t, int> result;
+  for (size_t i = 0; i < receivers.size(); ++i) {
+    if (receivers[i].media_type != media_type) {
+      continue;
+    }
+    for (const RtpEncodingParameters& encoding :
+         receiver_parameters[i].encodings) {
+      if (encoding.ssrc) {
+        result[*encoding.ssrc] = receivers[i].attachment_id;
       }
     }
   }
-  for (const auto& rtp_receiver : rtp_receivers) {
-    MediaType media_type = rtp_receiver->media_type();
-    MediaStreamTrackInterface* track = rtp_receiver->track().get();
-    RTC_DCHECK(track);
-    RtpParameters params = rtp_receiver->GetParameters();
-    for (const RtpEncodingParameters& encoding : params.encodings) {
-      if (!encoding.ssrc) {
-        if (media_type == MediaType::AUDIO) {
-          *unsignaled_audio_track = static_cast<AudioTrackInterface*>(track);
-        } else {
-          RTC_DCHECK(media_type == MediaType::VIDEO);
-          *unsignaled_video_track = static_cast<VideoTrackInterface*>(track);
-        }
-        continue;
-      }
-      if (media_type == MediaType::AUDIO) {
-        RTC_DCHECK(remote_audio_track_by_ssrc->find(*encoding.ssrc) ==
-                   remote_audio_track_by_ssrc->end());
-        (*remote_audio_track_by_ssrc)[*encoding.ssrc] =
-            static_cast<AudioTrackInterface*>(track);
-      } else {
-        RTC_DCHECK(remote_video_track_by_ssrc->find(*encoding.ssrc) ==
-                   remote_video_track_by_ssrc->end());
-        (*remote_video_track_by_ssrc)[*encoding.ssrc] =
-            static_cast<VideoTrackInterface*>(track);
+  return result;
+}
+
+flat_map<uint32_t, std::string> GetReceiverTrackIds(
+    ArrayView<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
+    ArrayView<const RtpParameters> receiver_parameters,
+    MediaType media_type) {
+  RTC_DCHECK_EQ(receivers.size(), receiver_parameters.size());
+  flat_map<uint32_t, std::string> result;
+  for (size_t i = 0; i < receivers.size(); ++i) {
+    if (receivers[i].media_type != media_type) {
+      continue;
+    }
+    for (const RtpEncodingParameters& encoding :
+         receiver_parameters[i].encodings) {
+      if (encoding.ssrc) {
+        result[*encoding.ssrc] = receivers[i].track_id;
       }
     }
   }
+  return result;
+}
+
+flat_map<uint32_t, const VoiceSenderInfo*> GetVoiceSenderInfos(
+    const std::optional<VoiceMediaInfo>& voice_media_info) {
+  flat_map<uint32_t, const VoiceSenderInfo*> result;
+  if (!voice_media_info.has_value()) {
+    return result;
+  }
+  for (auto& sender_info : voice_media_info->senders) {
+    if (sender_info.ssrc() == 0) {
+      continue;
+    }
+    RTC_CHECK(result.find(sender_info.ssrc()) == result.end())
+        << "Duplicate voice sender SSRC: " << sender_info.ssrc();
+    result[sender_info.ssrc()] = &sender_info;
+  }
+  return result;
+}
+
+flat_map<uint32_t, const VideoSenderInfo*> GetVideoSenderInfos(
+    const std::optional<VideoMediaInfo>& video_media_info) {
+  flat_map<uint32_t, const VideoSenderInfo*> result;
+  if (!video_media_info.has_value()) {
+    return result;
+  }
+  for (auto& sender_info : video_media_info->aggregated_senders) {
+    if (sender_info.ssrc() == 0) {
+      continue;
+    }
+    RTC_DCHECK(result.find(sender_info.ssrc()) == result.end())
+        << "Duplicate video sender SSRC: " << sender_info.ssrc();
+    result[sender_info.ssrc()] = &sender_info;
+  }
+  return result;
 }
 
 }  // namespace
 
-TrackMediaInfoMap::TrackMediaInfoMap() = default;
-
-void TrackMediaInfoMap::Initialize(
+TrackMediaInfoMap::TrackMediaInfoMap(
     std::optional<VoiceMediaInfo> voice_media_info,
     std::optional<VideoMediaInfo> video_media_info,
-    ArrayView<scoped_refptr<RtpSenderInternal>> rtp_senders,
-    ArrayView<scoped_refptr<RtpReceiverInternal>> rtp_receivers) {
-  Thread::ScopedDisallowBlockingCalls no_blocking_calls;
-  RTC_DCHECK(!is_initialized_);
-  is_initialized_ = true;
-  voice_media_info_ = std::move(voice_media_info);
-  video_media_info_ = std::move(video_media_info);
-
-  std::map<uint32_t, AudioTrackInterface*> local_audio_track_by_ssrc;
-  std::map<uint32_t, VideoTrackInterface*> local_video_track_by_ssrc;
-  std::map<uint32_t, AudioTrackInterface*> remote_audio_track_by_ssrc;
-  std::map<uint32_t, VideoTrackInterface*> remote_video_track_by_ssrc;
-  AudioTrackInterface* unsignaled_audio_track = nullptr;
-  VideoTrackInterface* unsignaled_video_track = nullptr;
-  GetAudioAndVideoTrackBySsrc(
-      rtp_senders, rtp_receivers, &local_audio_track_by_ssrc,
-      &local_video_track_by_ssrc, &remote_audio_track_by_ssrc,
-      &remote_video_track_by_ssrc, &unsignaled_audio_track,
-      &unsignaled_video_track);
-
-  for (const auto& sender : rtp_senders) {
-    attachment_id_by_track_[sender->track().get()] = sender->AttachmentId();
-  }
-  for (const auto& receiver : rtp_receivers) {
-    attachment_id_by_track_[receiver->track().get()] = receiver->AttachmentId();
-  }
-
-  if (voice_media_info_.has_value()) {
-    for (auto& sender_info : voice_media_info_->senders) {
-      AudioTrackInterface* associated_track =
-          FindValueOrNull(local_audio_track_by_ssrc, sender_info.ssrc());
-      if (associated_track) {
-        // One sender is associated with at most one track.
-        // One track may be associated with multiple senders.
-        audio_track_by_sender_info_[&sender_info] = associated_track;
-      }
-      if (sender_info.ssrc() == 0)
-        continue;  // Unconnected SSRC. bugs.webrtc.org/8673
-      RTC_CHECK(voice_info_by_sender_ssrc_.count(sender_info.ssrc()) == 0)
-          << "Duplicate voice sender SSRC: " << sender_info.ssrc();
-      voice_info_by_sender_ssrc_[sender_info.ssrc()] = &sender_info;
-    }
-    for (auto& receiver_info : voice_media_info_->receivers) {
-      AudioTrackInterface* associated_track =
-          FindValueOrNull(remote_audio_track_by_ssrc, receiver_info.ssrc());
-      if (associated_track) {
-        // One receiver is associated with at most one track, which is uniquely
-        // associated with that receiver.
-        audio_track_by_receiver_info_[&receiver_info] = associated_track;
-      } else if (unsignaled_audio_track) {
-        audio_track_by_receiver_info_[&receiver_info] = unsignaled_audio_track;
-      }
-      RTC_CHECK(voice_info_by_receiver_ssrc_.count(receiver_info.ssrc()) == 0)
-          << "Duplicate voice receiver SSRC: " << receiver_info.ssrc();
-      voice_info_by_receiver_ssrc_[receiver_info.ssrc()] = &receiver_info;
-    }
-  }
-  if (video_media_info_.has_value()) {
-    for (auto& sender_info : video_media_info_->senders) {
-      std::set<uint32_t> ssrcs;
-      ssrcs.insert(sender_info.ssrc());
-      for (auto& ssrc_group : sender_info.ssrc_groups) {
-        for (auto ssrc : ssrc_group.ssrcs) {
-          ssrcs.insert(ssrc);
-        }
-      }
-      for (auto ssrc : ssrcs) {
-        VideoTrackInterface* associated_track =
-            FindValueOrNull(local_video_track_by_ssrc, ssrc);
-        if (associated_track) {
-          // One sender is associated with at most one track.
-          // One track may be associated with multiple senders.
-          video_track_by_sender_info_[&sender_info] = associated_track;
-          break;
-        }
-      }
-    }
-    for (auto& sender_info : video_media_info_->aggregated_senders) {
-      if (sender_info.ssrc() == 0)
-        continue;  // Unconnected SSRC. bugs.webrtc.org/8673
-      RTC_DCHECK(video_info_by_sender_ssrc_.count(sender_info.ssrc()) == 0)
-          << "Duplicate video sender SSRC: " << sender_info.ssrc();
-      video_info_by_sender_ssrc_[sender_info.ssrc()] = &sender_info;
-      VideoTrackInterface* associated_track =
-          FindValueOrNull(local_video_track_by_ssrc, sender_info.ssrc());
-      if (associated_track) {
-        video_track_by_sender_info_[&sender_info] = associated_track;
-      }
-    }
-    for (auto& receiver_info : video_media_info_->receivers) {
-      VideoTrackInterface* associated_track =
-          FindValueOrNull(remote_video_track_by_ssrc, receiver_info.ssrc());
-      if (associated_track) {
-        // One receiver is associated with at most one track, which is uniquely
-        // associated with that receiver.
-        video_track_by_receiver_info_[&receiver_info] = associated_track;
-      } else if (unsignaled_video_track) {
-        video_track_by_receiver_info_[&receiver_info] = unsignaled_video_track;
-      }
-      RTC_DCHECK(video_info_by_receiver_ssrc_.count(receiver_info.ssrc()) == 0)
-          << "Duplicate video receiver SSRC: " << receiver_info.ssrc();
-      video_info_by_receiver_ssrc_[receiver_info.ssrc()] = &receiver_info;
-    }
-  }
+    ArrayView<const RtpSenderSignalInfo> senders,
+    ArrayView<const RtpReceiverSignalInfo> receivers,
+    ArrayView<const RtpParameters> receiver_parameters)
+    : voice_media_info_(std::move(voice_media_info)),
+      video_media_info_(std::move(video_media_info)),
+      audio_sender_attachment_id_by_ssrc_(
+          GetSenderAttachmentIds(senders, MediaType::AUDIO)),
+      video_sender_attachment_id_by_ssrc_(
+          GetSenderAttachmentIds(senders, MediaType::VIDEO)),
+      audio_receiver_attachment_id_by_ssrc_(
+          GetReceiverAttachmentIds(receivers,
+                                   receiver_parameters,
+                                   MediaType::AUDIO)),
+      video_receiver_attachment_id_by_ssrc_(
+          GetReceiverAttachmentIds(receivers,
+                                   receiver_parameters,
+                                   MediaType::VIDEO)),
+      audio_receiver_track_id_by_ssrc_(GetReceiverTrackIds(receivers,
+                                                           receiver_parameters,
+                                                           MediaType::AUDIO)),
+      video_receiver_track_id_by_ssrc_(GetReceiverTrackIds(receivers,
+                                                           receiver_parameters,
+                                                           MediaType::VIDEO)),
+      voice_info_by_sender_ssrc_(GetVoiceSenderInfos(voice_media_info_)),
+      video_info_by_sender_ssrc_(GetVideoSenderInfos(video_media_info_)) {
+  RTC_DCHECK_EQ(receivers.size(), receiver_parameters.size());
 }
 
 const VoiceSenderInfo* TrackMediaInfoMap::GetVoiceSenderInfoBySsrc(
     uint32_t ssrc) const {
-  RTC_DCHECK(is_initialized_);
   return FindValueOrNull(voice_info_by_sender_ssrc_, ssrc);
-}
-const VoiceReceiverInfo* TrackMediaInfoMap::GetVoiceReceiverInfoBySsrc(
-    uint32_t ssrc) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(voice_info_by_receiver_ssrc_, ssrc);
 }
 
 const VideoSenderInfo* TrackMediaInfoMap::GetVideoSenderInfoBySsrc(
     uint32_t ssrc) const {
-  RTC_DCHECK(is_initialized_);
   return FindValueOrNull(video_info_by_sender_ssrc_, ssrc);
 }
 
-const VideoReceiverInfo* TrackMediaInfoMap::GetVideoReceiverInfoBySsrc(
-    uint32_t ssrc) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(video_info_by_receiver_ssrc_, ssrc);
+std::optional<int> TrackMediaInfoMap::GetAttachmentIdBySsrc(
+    uint32_t ssrc,
+    MediaType media_type,
+    bool is_sender) const {
+  if (media_type == MediaType::AUDIO) {
+    if (is_sender) {
+      auto it = audio_sender_attachment_id_by_ssrc_.find(ssrc);
+      if (it != audio_sender_attachment_id_by_ssrc_.end()) {
+        return it->second;
+      }
+    } else {
+      auto it = audio_receiver_attachment_id_by_ssrc_.find(ssrc);
+      if (it != audio_receiver_attachment_id_by_ssrc_.end()) {
+        return it->second;
+      }
+    }
+  } else {
+    if (is_sender) {
+      auto it = video_sender_attachment_id_by_ssrc_.find(ssrc);
+      if (it != video_sender_attachment_id_by_ssrc_.end()) {
+        return it->second;
+      }
+    } else {
+      auto it = video_receiver_attachment_id_by_ssrc_.find(ssrc);
+      if (it != video_receiver_attachment_id_by_ssrc_.end()) {
+        return it->second;
+      }
+    }
+  }
+  return std::nullopt;
 }
 
-scoped_refptr<AudioTrackInterface> TrackMediaInfoMap::GetAudioTrack(
-    const VoiceSenderInfo& voice_sender_info) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(audio_track_by_sender_info_, &voice_sender_info);
-}
-
-scoped_refptr<AudioTrackInterface> TrackMediaInfoMap::GetAudioTrack(
-    const VoiceReceiverInfo& voice_receiver_info) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(audio_track_by_receiver_info_, &voice_receiver_info);
-}
-
-scoped_refptr<VideoTrackInterface> TrackMediaInfoMap::GetVideoTrack(
-    const VideoSenderInfo& video_sender_info) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(video_track_by_sender_info_, &video_sender_info);
-}
-
-scoped_refptr<VideoTrackInterface> TrackMediaInfoMap::GetVideoTrack(
-    const VideoReceiverInfo& video_receiver_info) const {
-  RTC_DCHECK(is_initialized_);
-  return FindValueOrNull(video_track_by_receiver_info_, &video_receiver_info);
-}
-
-std::optional<int> TrackMediaInfoMap::GetAttachmentIdByTrack(
-    const MediaStreamTrackInterface* track) const {
-  RTC_DCHECK(is_initialized_);
-  auto it = attachment_id_by_track_.find(track);
-  return it != attachment_id_by_track_.end() ? std::optional<int>(it->second)
-                                             : std::nullopt;
+std::optional<std::string> TrackMediaInfoMap::GetReceiverTrackIdBySsrc(
+    uint32_t ssrc,
+    MediaType media_type) const {
+  if (media_type == MediaType::AUDIO) {
+    auto it = audio_receiver_track_id_by_ssrc_.find(ssrc);
+    if (it != audio_receiver_track_id_by_ssrc_.end()) {
+      return it->second;
+    }
+  } else {
+    auto it = video_receiver_track_id_by_ssrc_.find(ssrc);
+    if (it != video_receiver_track_id_by_ssrc_.end()) {
+      return it->second;
+    }
+  }
+  return std::nullopt;
 }
 
 }  // namespace webrtc

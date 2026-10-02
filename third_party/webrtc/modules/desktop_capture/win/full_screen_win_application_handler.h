@@ -30,6 +30,14 @@ enum class FullScreenDetectorResult {
   kMaxValue = kFailureDueToSlideShowWasNotChosen
 };
 
+// Used for metrics; Entries should not be renumbered and numeric values should
+// never be reused.
+enum class FullScreenFindEditorResult {
+  kSuccess = 0,
+  kFailureDueToSameTitleWindows = 1,
+  kMaxValue = kFailureDueToSameTitleWindows
+};
+
 namespace webrtc {
 
 class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
@@ -44,8 +52,13 @@ class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
       const DesktopCapturer::SourceList& window_list,
       int64_t timestamp) const override;
 
+  DesktopCapturer::SourceId FindEditorWindow(
+      const DesktopCapturer::SourceList& window_list) const override;
+
   void SetSlideShowCreationStateForTest(
       bool fullscreen_slide_show_started_after_capture_start) override;
+
+  void SetEditorWasFound() override;
 
  private:
   WindowType GetWindowType(HWND window) const;

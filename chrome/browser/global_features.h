@@ -27,7 +27,7 @@ class DefaultBrowserManager;
 }  // namespace default_browser
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 namespace glic {
 class GlicBackgroundModeManager;
 class GlicGlobalEnabling;
@@ -62,12 +62,6 @@ namespace unexportable_keys {
 class UnexportableKeyObsoleteProfileGarbageCollector;
 }  // namespace unexportable_keys
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
-
-#if BUILDFLAG(IS_ANDROID)
-namespace supervised_user {
-class AndroidParentalControls;
-}  // namespace supervised_user
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // This class owns the core controllers for features that are globally
 // scoped on desktop and Android. It can be subclassed by tests to perform
@@ -128,10 +122,6 @@ class GlobalFeatures {
   whats_new::WhatsNewRegistry* whats_new_registry() {
     return whats_new_registry_.get();
   }
-
-  default_browser::DefaultBrowserManager* default_browser_manager() {
-    return default_browser_manager_.get();
-  }
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -142,7 +132,9 @@ class GlobalFeatures {
   glic::GlicBackgroundModeManager* glic_background_mode_manager() {
     return glic_background_mode_manager_.get();
   }
+#endif
 
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   glic::GlicSyntheticTrialManager* glic_synthetic_trial_manager() {
     return synthetic_trial_manager_.get();
   }
@@ -183,10 +175,6 @@ class GlobalFeatures {
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID)
-  supervised_user::AndroidParentalControls* GetAndroidParentalControls();
-#endif  // BUILDFLAG(IS_ANDROID)
-
   static ui::UserDataFactoryWithOwner<BrowserProcess>&
   GetUserDataFactoryForTesting();
 
@@ -218,11 +206,15 @@ class GlobalFeatures {
       default_browser_manager_;
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   std::unique_ptr<glic::GlicGlobalEnabling> glic_global_enabling_;
+#endif
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicProfileManager> glic_profile_manager_;
   std::unique_ptr<glic::GlicBackgroundModeManager>
       glic_background_mode_manager_;
+#endif
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   std::unique_ptr<glic::GlicSyntheticTrialManager> synthetic_trial_manager_;
 #endif
 
@@ -253,11 +245,6 @@ class GlobalFeatures {
       unexportable_keys::UnexportableKeyObsoleteProfileGarbageCollector>
       unexportable_key_obsolete_profile_garbage_collector_;
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
-
-#if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<supervised_user::AndroidParentalControls>
-      android_parental_controls_;
-#endif  // BUILDFLAG(IS_ANDROID)
 };
 
 #endif  // CHROME_BROWSER_GLOBAL_FEATURES_H_

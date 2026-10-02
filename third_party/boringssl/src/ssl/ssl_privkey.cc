@@ -41,7 +41,7 @@ typedef struct {
   uint16_t sigalg;
   int pkey_type;
   int curve;
-  const EVP_MD *(*digest_func)(void);
+  const EVP_MD *(*digest_func)();
   bool is_rsa_pss;
   bool tls12_ok;
   bool tls13_ok;

@@ -75,6 +75,7 @@ if (rtc_include_tests) {
         "../../../../rtc_base:random",
         "../../../../test:fileutils",
         "../../../../test:test_support",
+        "//third_party/abseil-cpp/absl/strings:string_view",
         "//third_party/flatbuffers",
       ]
       if (build_with_chromium) {

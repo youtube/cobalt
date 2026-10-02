@@ -30,7 +30,7 @@ class VcmCapturer : public TestVideoCapturer,
                              size_t height,
                              size_t target_fps,
                              size_t capture_device_index);
-  virtual ~VcmCapturer();
+  ~VcmCapturer() override;
 
   void Start() override {
     RTC_LOG(LS_WARNING) << "Capturer doesn't support resume/pause and always "

@@ -330,12 +330,12 @@ PageInfo::PageInfo(std::unique_ptr<PageInfoDelegate> delegate,
 
 #if !BUILDFLAG(IS_ANDROID)
   if (web_contents) {
-    controller_ = delegate_->CreateCookieControlsController();
-    observation_.Observe(controller_.get());
+    cookie_controller_ = delegate_->CreateCookieControlsController();
+    cookie_observation_.Observe(cookie_controller_.get());
 
     // TODO(crbug.com/40901748): SetCookieInfo is called twice, once from here
     // and once from InitializeUiState. This should be cleaned up.
-    controller_->Update(web_contents);
+    cookie_controller_->Update(web_contents);
 
     auto* pscs = GetPageSpecificContentSettings();
     if (pscs) {
@@ -398,22 +398,21 @@ PageInfo::~PageInfo() {
 void PageInfo::OnStatusChanged(CookieControlsState controls_state,
                                CookieControlsEnforcement enforcement,
                                base::Time expiration) {
-  if (controls_state_ != controls_state || enforcement != enforcement_ ||
-      expiration != cookie_exception_expiration_) {
-    controls_state_ = controls_state;
-    enforcement_ = enforcement;
+  if (cookie_controls_state_ != controls_state ||
+      cookie_enforcement_ != enforcement ||
+      cookie_exception_expiration_ != expiration) {
+    cookie_controls_state_ = controls_state;
+    cookie_enforcement_ = enforcement;
     cookie_exception_expiration_ = expiration;
     PresentSiteData(base::DoNothing());
   }
 }
 
 void PageInfo::OnThirdPartyToggleClicked(bool block_third_party_cookies) {
-  DCHECK(controls_state_ == CookieControlsState::kAllowed3pc ||
-         controls_state_ == CookieControlsState::kBlocked3pc);
   RecordPageInfoAction(block_third_party_cookies
                            ? page_info::PAGE_INFO_COOKIES_BLOCKED_FOR_SITE
                            : page_info::PAGE_INFO_COOKIES_ALLOWED_FOR_SITE);
-  controller_->OnCookieBlockingEnabledForSite(block_third_party_cookies);
+  cookie_controller_->OnCookieBlockingEnabledForSite(block_third_party_cookies);
   show_info_bar_ = true;
 }
 
@@ -854,7 +853,7 @@ void PageInfo::OnRevokeSSLErrorBypassButtonPressed() {
       delegate_->GetStatefulSSLHostStateDelegate();
   DCHECK(stateful_ssl_host_state_delegate);
   stateful_ssl_host_state_delegate->RevokeUserAllowExceptionsHard(
-      site_url().GetHost());
+      site_url_.GetHost());
   did_revoke_user_ssl_decisions_ = true;
   RecordPageInfoAction(page_info::PAGE_INFO_RESET_DECISIONS_CLICKED);
 }
@@ -868,7 +867,7 @@ void PageInfo::OpenSiteSettingsView() {
   NOTREACHED();
 #else
   RecordPageInfoAction(page_info::PAGE_INFO_SITE_SETTINGS_OPENED);
-  delegate_->ShowSiteSettings(site_url());
+  delegate_->ShowSiteSettings(site_url_);
 #endif
 }
 
@@ -1367,12 +1366,16 @@ void PageInfo::PopulatePermissionInfo(PermissionInfo& permission_info,
 // via `HasContentSettingChangedViaPageInfo(type)`.
 bool PageInfo::ShouldShowPermission(
     const PageInfo::PermissionInfo& info) const {
-  // For the Loud Clapper experiment Chrome should display NOTIFICATIONS
+  // For the Clapper experiment Chrome should display NOTIFICATIONS
   // permission while it is being requested.
 #if BUILDFLAG(IS_ANDROID)
   if (info.type == ContentSettingsType::NOTIFICATIONS &&
-      base::FeatureList::IsEnabled(
-          permissions::kPermissionsAndroidClapperLoud) &&
+      (base::FeatureList::IsEnabled(
+           permissions::kPermissionsAndroidClapperLoud) ||
+       base::FeatureList::IsEnabled(
+           permissions::kPermissionsAndroidClapperQuiet)
+
+           ) &&
       web_contents_) {
     permissions::PermissionRequestManager* manager =
         permissions::PermissionRequestManager::FromWebContents(
@@ -1639,8 +1642,8 @@ void PageInfo::PresentSiteDataInternal(base::OnceClosure done) {
     cookies_info.rws_info->is_managed = delegate_->IsRwsManaged(site_url_);
   }
 #endif
-  cookies_info.controls_state = controls_state_;
-  cookies_info.enforcement = enforcement_;
+  cookies_info.controls_state = cookie_controls_state_;
+  cookies_info.enforcement = cookie_enforcement_;
   cookies_info.expiration = cookie_exception_expiration_;
   cookies_info.is_incognito = delegate_->IsIncognitoProfile();
   ui_->SetCookieInfo(cookies_info);
@@ -1844,16 +1847,6 @@ int PageInfo::GetSitesWithAllowedCookiesAccessCount() {
       *(settings->allowed_browsing_data_model()));
 }
 
-int PageInfo::GetThirdPartySitesWithBlockedCookiesAccessCount(
-    const GURL& site_url) {
-  auto* settings = GetPageSpecificContentSettings();
-  if (!settings) {
-    return 0;
-  }
-  return browsing_data::GetUniqueThirdPartyCookiesHostCount(
-      site_url, *(settings->blocked_browsing_data_model()));
-}
-
 bool PageInfo::IsIsolatedWebApp() const {
 #if !BUILDFLAG(IS_ANDROID)
   return delegate_->IsIsolatedWebApp();
@@ -1861,3 +1854,9 @@ bool PageInfo::IsIsolatedWebApp() const {
   return false;
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+bool PageInfo::ShouldSyncCookiesForCurrentUrl() {
+  return delegate_->ShouldSyncCookiesForUrl(site_url_);
+}
+#endif

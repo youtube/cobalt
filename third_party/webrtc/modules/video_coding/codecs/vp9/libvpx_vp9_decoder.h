@@ -29,7 +29,7 @@ namespace webrtc {
 class LibvpxVp9Decoder : public VP9Decoder {
  public:
   LibvpxVp9Decoder();
-  virtual ~LibvpxVp9Decoder();
+  ~LibvpxVp9Decoder() override;
 
   bool Configure(const Settings& settings) override;
 

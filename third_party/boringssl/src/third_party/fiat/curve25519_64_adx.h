@@ -618,9 +618,9 @@ static inline void table_select_4(ge_precomp_4 *t, const int pos,
 #if defined(__clang__)
   __asm__("" : "+m" (t_bytes) : /*no inputs*/);
 #endif
-  static_assert(sizeof(t_bytes) == sizeof(k25519Precomp[pos][0]), "");
+  static_assert(sizeof(t_bytes) == sizeof(bssl::k25519Precomp[pos][0]), "");
   for (int i = 0; i < 8; i++) {
-    constant_time_conditional_memxor(t_bytes, k25519Precomp[pos][i],
+    constant_time_conditional_memxor(t_bytes, bssl::k25519Precomp[pos][i],
                                      sizeof(t_bytes),
                                      constant_time_eq_w(babs, 1 + i));
   }

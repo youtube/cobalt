@@ -56,7 +56,7 @@ class CongestionControlFeedbackGenerator
   CongestionControlFeedbackGenerator(
       const Environment& env,
       RtpTransportFeedbackGenerator::RtcpSender feedback_sender);
-  ~CongestionControlFeedbackGenerator() = default;
+  ~CongestionControlFeedbackGenerator() override = default;
 
   void OnReceivedPacket(const RtpPacketReceived& packet) override;
 

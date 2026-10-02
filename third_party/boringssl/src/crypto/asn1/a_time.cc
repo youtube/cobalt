@@ -25,11 +25,18 @@
 
 #include "internal.h"
 
+
+using namespace bssl;
+
 // This is an implementation of the ASN1 Time structure which is: Time ::=
 // CHOICE { utcTime UTCTime, generalTime GeneralizedTime } written by Steve
 // Henson.
 
+BSSL_NAMESPACE_BEGIN
+
 IMPLEMENT_ASN1_MSTRING(ASN1_TIME, B_ASN1_TIME)
+
+BSSL_NAMESPACE_END
 
 IMPLEMENT_ASN1_FUNCTIONS_const(ASN1_TIME)
 
@@ -223,14 +230,15 @@ int ASN1_TIME_to_posix(const ASN1_TIME *t, int64_t *out_time) {
   return OPENSSL_tm_to_posix(&tm, out_time);
 }
 
-int asn1_parse_time(CBS *cbs, ASN1_TIME *out, int allow_utc_timezone_offset) {
+int bssl::asn1_parse_time(CBS *cbs, ASN1_TIME *out,
+                          int allow_utc_timezone_offset) {
   if (CBS_peek_asn1_tag(cbs, CBS_ASN1_UTCTIME)) {
     return asn1_parse_utc_time(cbs, out, /*tag=*/0, allow_utc_timezone_offset);
   }
   return asn1_parse_generalized_time(cbs, out, /*tag=*/0);
 }
 
-int asn1_marshal_time(CBB *cbb, const ASN1_TIME *in) {
+int bssl::asn1_marshal_time(CBB *cbb, const ASN1_TIME *in) {
   if (in->type != V_ASN1_UTCTIME && in->type != V_ASN1_GENERALIZEDTIME) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
     return 0;

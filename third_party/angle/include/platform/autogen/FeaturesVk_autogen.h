@@ -272,12 +272,6 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
-    FeatureInfo disableFlippingBlitWithCommand = {
-        "disableFlippingBlitWithCommand",
-        FeatureCategory::VulkanWorkarounds,
-        &members,
-    };
-
     FeatureInfo avoidInvisibleWindowSwapchainRecreate = {
         "avoidInvisibleWindowSwapchainRecreate",
         FeatureCategory::VulkanWorkarounds,
@@ -448,12 +442,6 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo enableMultisampledRenderToTexture = {
         "enableMultisampledRenderToTexture",
-        FeatureCategory::VulkanWorkarounds,
-        &members,
-    };
-
-    FeatureInfo waitIdleBeforeSwapchainRecreation = {
-        "waitIdleBeforeSwapchainRecreation",
         FeatureCategory::VulkanWorkarounds,
         &members,
     };

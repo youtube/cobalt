@@ -171,8 +171,8 @@ ReduceResult MaglevReducer<BaseT>::AddNewControlNode(
   RETURN_IF_ABORT(SetNodeInputs(control_node, inputs));
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
-  static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
-  static_assert(!ControlNodeT::kProperties.can_throw());
+  AttachLazyDeoptInfo(control_node);
+  AttachExceptionHandlerInfo(control_node);
   static_assert(!ControlNodeT::kProperties.can_write());
   control_node->set_owner(current_block());
   current_block()->set_control_node(control_node);
@@ -1164,9 +1164,15 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       }
       return alternative.set_float64(float64);
     }
-    case ValueRepresentation::kShiftedInt53:
+    case ValueRepresentation::kShiftedInt53: {
+      if (use_rep == UseRepresentation::kHoleyFloat64) {
+        return alternative.set_holey_float64(
+            AddNewNodeNoInputConversion<ChangeShiftedInt53ToHoleyFloat64>(
+                {value}));
+      }
       return alternative.set_float64(
           AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value}));
+    }
     case ValueRepresentation::kNone:
     case ValueRepresentation::kRawPtr:
       UNREACHABLE();

@@ -17,10 +17,8 @@
 
 #include <openssl/base.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // Kyber is the pre-standard version of ML-KEM. This was once exported as public
 // API, but is now internal and only used by libssl. It will be removed entirely
@@ -162,8 +160,6 @@ OPENSSL_EXPORT void KYBER_encap_external_entropy(
     const struct KYBER_public_key *public_key,
     const uint8_t entropy[KYBER_ENCAP_ENTROPY]);
 
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_KYBER_INTERNAL_H

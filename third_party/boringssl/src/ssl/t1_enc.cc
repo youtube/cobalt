@@ -28,6 +28,7 @@
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 #include <openssl/rand.h>
+#include <openssl/tls_prf.h>
 
 #include "../crypto/fipsmodule/tls/internal.h"
 #include "../crypto/internal.h"

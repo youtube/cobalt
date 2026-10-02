@@ -152,7 +152,7 @@ int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509);
 DECLARE_ASN1_ITEM(X509)
 
 typedef struct {
-  ASN1_ENCODING enc;
+  bssl::ASN1_ENCODING enc;
   ASN1_INTEGER *version;
   X509_NAME *subject;
   X509_PUBKEY *pubkey;
@@ -193,7 +193,7 @@ typedef struct {
   ASN1_TIME *nextUpdate;
   STACK_OF(X509_REVOKED) *revoked;
   STACK_OF(X509_EXTENSION) /* [0] */ *extensions;
-  ASN1_ENCODING enc;
+  bssl::ASN1_ENCODING enc;
 } X509_CRL_INFO;
 
 DECLARE_ASN1_FUNCTIONS_const(X509_CRL_INFO)

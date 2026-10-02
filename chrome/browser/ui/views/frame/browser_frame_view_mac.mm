@@ -41,7 +41,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
-#include "components/remote_cocoa/common/native_widget_ns_window.mojom-shared.h"
 #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/theme_provider.h"
@@ -193,8 +192,8 @@ gfx::Rect BrowserFrameViewMac::GetBoundsForTabStripRegion(
   // caption buttons or the tab search button.
   if (browser_widget()->IsFullscreen()) {
     if (!GetBrowserView()->UsesImmersiveFullscreenMode()) {
-      bounds.Inset(
-          gfx::Insets::TLBR(0, GetLayoutConstant(TOOLBAR_CORNER_RADIUS), 0, 0));
+      bounds.Inset(gfx::Insets::TLBR(
+          0, GetLayoutConstant(LayoutConstant::kToolbarCornerRadius), 0, 0));
     }
   } else {
     // The bottom curve of the first/last tab swoops into the caption button
@@ -367,6 +366,14 @@ void BrowserFrameViewMac::LayoutWebAppWindowTitle(
   // DCHECK in Label. As such, disable the DCHECK.
   window_title_label.SetSkipSubpixelRenderingOpacityCheck(
       ImmersiveModeController::From(GetBrowserView()->browser())->IsEnabled());
+}
+
+views::LayoutAlignment BrowserFrameViewMac::GetWindowTitleAlignment() const {
+  if (@available(macOS 26, *)) {
+    return views::LayoutAlignment::kStart;
+  } else {
+    return views::LayoutAlignment::kCenter;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

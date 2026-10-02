@@ -24,7 +24,7 @@
 #include "internal.h"
 
 
-void OPENSSL_cpuid_setup(void) {
+void OPENSSL_cpuid_setup() {
   int isar0_mib[] = {CTL_MACHDEP, CPU_ID_AA64ISAR0};
   uint64_t cpu_id = 0;
   size_t len = sizeof(cpu_id);

@@ -343,7 +343,7 @@ TEST_F(NetEqImplTest, InsertPacket) {
         return mock_decoder;
       }));
   DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("pcmu", 8000, 1),
-                                    std::nullopt, mock_decoder_factory.get());
+                                    mock_decoder_factory.get());
 
   // Expectations for decoder database.
   EXPECT_CALL(*mock_decoder_database_, GetDecoderInfo(kPayloadType))
@@ -1077,10 +1077,18 @@ TEST_F(NetEqImplTest, CodecInternalCng) {
     AudioDecoder::SpeechType decoder_output_type;
   };
   std::vector<Packet> packets = {
-      {0, 0, AudioDecoder::kSpeech},
-      {1, kPayloadLengthSamples, AudioDecoder::kComfortNoise},
-      {2, 2 * kPayloadLengthSamples, AudioDecoder::kSpeech},
-      {1, kPayloadLengthSamples, AudioDecoder::kSpeech}};
+      {.sequence_number_delta = 0,
+       .timestamp_delta = 0,
+       .decoder_output_type = AudioDecoder::kSpeech},
+      {.sequence_number_delta = 1,
+       .timestamp_delta = kPayloadLengthSamples,
+       .decoder_output_type = AudioDecoder::kComfortNoise},
+      {.sequence_number_delta = 2,
+       .timestamp_delta = 2 * kPayloadLengthSamples,
+       .decoder_output_type = AudioDecoder::kSpeech},
+      {.sequence_number_delta = 1,
+       .timestamp_delta = kPayloadLengthSamples,
+       .decoder_output_type = AudioDecoder::kSpeech}};
 
   for (size_t i = 0; i < packets.size(); ++i) {
     rtp_header.sequenceNumber += packets[i].sequence_number_delta;
@@ -1569,7 +1577,7 @@ TEST_F(NetEqImplTest, NoCrashWithMaxChannels) {
         return dec;
       }));
   DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("pcmu", 8000, 1),
-                                    std::nullopt, mock_decoder_factory.get());
+                                    mock_decoder_factory.get());
   // Expectations for decoder database.
   EXPECT_CALL(*mock_decoder_database_, GetDecoderInfo(kPayloadType))
       .WillRepeatedly(Return(&info));

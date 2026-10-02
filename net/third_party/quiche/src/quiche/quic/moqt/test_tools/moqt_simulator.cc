@@ -68,7 +68,7 @@ using ::quic::simulator::Simulator;
 // value just has to be sufficiently larger than the server link bandwidth.
 constexpr QuicBandwidth kClientLinkBandwidth =
     QuicBandwidth::FromBitsPerSecond(10.0e6);
-constexpr MoqtVersion kMoqtVersion = kDefaultMoqtVersion;
+constexpr absl::string_view kMoqtVersion = kDefaultMoqtVersion;
 
 // Track name used by the simulator.
 FullTrackName TrackName() { return FullTrackName("test", "track"); }
@@ -196,10 +196,10 @@ std::string ObjectGenerator::FormatBitrateHistory() const {
 
 void ObjectReceiver::OnReply(
     const FullTrackName& full_track_name,
-    std::variant<SubscribeOkData, MoqtRequestError> response) {
+    std::variant<SubscribeOkData, MoqtErrorPair> response) {
   QUICHE_CHECK(full_track_name == TrackName());
-  if (std::holds_alternative<MoqtRequestError>(response)) {
-    MoqtRequestError error = std::get<MoqtRequestError>(response);
+  if (std::holds_alternative<MoqtErrorPair>(response)) {
+    MoqtErrorPair error = std::get<MoqtErrorPair>(response);
     QUICHE_CHECK(!error.reason_phrase.empty()) << error.reason_phrase;
   }
 }
@@ -268,7 +268,7 @@ MoqtSimulator::MoqtSimulator(const SimulationParameters& parameters)
                  TrackName(), parameters.keyframe_interval, parameters.fps,
                  parameters.i_to_p_ratio, parameters.bitrate),
       adjuster_(simulator_.GetClock(), client_endpoint_.session()->session(),
-                &generator_),
+                simulator_.GetAlarmFactory(), &generator_),
       parameters_(parameters) {
   if (parameters.aggregation_threshold > 0) {
     QuicTimeDelta timeout = parameters.aggregation_timeout;

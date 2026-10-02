@@ -701,7 +701,7 @@ void VideoQualityTest::FillScalabilitySettings(
     std::vector<int> v = VideoQualityTest::ParseCSV(descriptor);
     RTC_CHECK_EQ(v.size(), 8);
 
-    SpatialLayer layer = {0};
+    SpatialLayer layer = {.width = 0};
     layer.width = v[0];
     layer.height = v[1];
     layer.maxFramerate = v[2];

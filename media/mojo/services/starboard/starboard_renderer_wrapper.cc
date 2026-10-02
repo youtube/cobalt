@@ -700,6 +700,7 @@ void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
       },
       shared_image);
 
+  const auto shared_image_cs = shared_image->color_space();
   auto frame = VideoFrame::WrapSharedImage(
       format, std::move(shared_image), gpu::SyncToken(), std::move(release_cb),
       coded_size, visible_rect, natural_size, base::TimeDelta());
@@ -707,6 +708,7 @@ void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
     LOG(ERROR) << __func__ << " failed to create video frame";
     return;
   }
+  frame->set_color_space(shared_image_cs);
   current_frame_ = std::move(frame);
 }
 

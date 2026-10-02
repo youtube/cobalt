@@ -26,7 +26,7 @@ namespace test {
 class MockRenderDelayController : public RenderDelayController {
  public:
   MockRenderDelayController();
-  virtual ~MockRenderDelayController();
+  ~MockRenderDelayController() override;
 
   MOCK_METHOD(void, Reset, (bool reset_delay_statistics), (override));
   MOCK_METHOD(void, LogRenderCall, (), (override));

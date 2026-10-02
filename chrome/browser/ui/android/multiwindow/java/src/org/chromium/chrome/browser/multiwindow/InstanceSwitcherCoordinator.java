@@ -60,6 +60,8 @@ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -87,6 +89,7 @@ public class InstanceSwitcherCoordinator {
     private final InstanceSwitcherActionsDelegate mDelegate;
     private final ModalDialogManager mModalDialogManager;
     private final int mMaxInstanceCount;
+    private final int mMinCommandItemHeightPx;
 
     private final ModelList mModelList = new ModelList();
     private final ModelList mActiveModelList = new ModelList();
@@ -105,6 +108,7 @@ public class InstanceSwitcherCoordinator {
     private boolean mNewWindowEnabled;
     private boolean mIsInactiveListShowing;
     private @MonotonicNonNull FrameLayout mInstanceListContainer;
+    private @MonotonicNonNull FrameLayout mInactiveListEmptyStateView;
     private @MonotonicNonNull RecyclerView mActiveInstancesList;
     private @MonotonicNonNull RecyclerView mInactiveInstancesList;
     private @MonotonicNonNull DialogListItemDecoration mActiveListItemDecoration;
@@ -151,6 +155,9 @@ public class InstanceSwitcherCoordinator {
         mUiUtils = new UiUtils(mContext, iconBridge);
         mDelegate = delegate;
         mMaxInstanceCount = maxInstanceCount;
+        mMinCommandItemHeightPx =
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.instance_switcher_dialog_list_item_height);
         mIsIncognitoWindow = isIncognitoWindow;
         mSelectedItems = new HashSet<>();
 
@@ -163,6 +170,8 @@ public class InstanceSwitcherCoordinator {
                             .inflate(R.layout.instance_switcher_dialog_v2, null);
             mInstanceListContainer = mDialogView.findViewById(R.id.instance_list_container);
             mMaxInfoView = mDialogView.findViewById(R.id.max_instance_info);
+            mInactiveListEmptyStateView =
+                    mDialogView.findViewById(R.id.inactive_list_empty_state_view);
             mNewWindowLayout = mDialogView.findViewById(R.id.new_window);
             TextView newWindowTextView = mNewWindowLayout.findViewById(R.id.new_window_text);
             if (mIsIncognitoWindow) {
@@ -189,7 +198,11 @@ public class InstanceSwitcherCoordinator {
             mInactiveInstancesList.addItemDecoration(inactiveListItemDecoration);
 
             addInstanceListGlobalLayoutListener(
-                    mInstanceListContainer, mActiveInstancesList, mIsInactiveListShowing);
+                    mInstanceListContainer,
+                    mActiveInstancesList,
+                    mIsInactiveListShowing,
+                    mNewWindowLayout,
+                    mMinCommandItemHeightPx);
 
             mTabHeaderRow = mDialogView.findViewById(R.id.tabs);
             mTabHeaderRow.addOnTabSelectedListener(
@@ -205,11 +218,14 @@ public class InstanceSwitcherCoordinator {
                             addInstanceListGlobalLayoutListener(
                                     mInstanceListContainer,
                                     mActiveInstancesList,
-                                    mIsInactiveListShowing);
+                                    mIsInactiveListShowing,
+                                    mNewWindowLayout,
+                                    mMinCommandItemHeightPx);
                             updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
                             unselectItems(/* hideVisibleList= */ false);
                             updateMoreMenu();
                             updatePositiveButtonText();
+                            updateInactiveListEmptyStateVisibility();
                         }
 
                         @Override
@@ -256,7 +272,9 @@ public class InstanceSwitcherCoordinator {
     /* package */ static OnGlobalLayoutListener addInstanceListGlobalLayoutListener(
             View instanceListContainer,
             RecyclerView activeInstancesList,
-            boolean isInactiveListShowing) {
+            boolean isInactiveListShowing,
+            View newWindowLayout,
+            int minCommandItemHeightPx) {
         var listener =
                 new OnGlobalLayoutListener() {
                     @Override
@@ -265,7 +283,11 @@ public class InstanceSwitcherCoordinator {
                                 .getViewTreeObserver()
                                 .removeOnGlobalLayoutListener(this);
                         maybeUpdateInstanceListContainerParams(
-                                instanceListContainer, activeInstancesList, isInactiveListShowing);
+                                instanceListContainer,
+                                activeInstancesList,
+                                isInactiveListShowing,
+                                newWindowLayout,
+                                minCommandItemHeightPx);
                     }
                 };
         instanceListContainer.getViewTreeObserver().addOnGlobalLayoutListener(listener);
@@ -275,8 +297,15 @@ public class InstanceSwitcherCoordinator {
     private static void maybeUpdateInstanceListContainerParams(
             View instanceListContainer,
             RecyclerView activeInstancesList,
-            boolean isInactiveListShowing) {
+            boolean isInactiveListShowing,
+            View newWindowLayout,
+            int minCommandItemHeightPx) {
         LayoutParams params = (LayoutParams) instanceListContainer.getLayoutParams();
+
+        int newWindowLayoutHeight =
+                (newWindowLayout != null && newWindowLayout.getVisibility() == View.VISIBLE)
+                        ? newWindowLayout.getMeasuredHeight()
+                        : 0;
 
         // Default height / weight params should be applied for the inactive instance list, or a
         // scrollable active instance list so that the command item sticks while the instance list
@@ -284,7 +313,8 @@ public class InstanceSwitcherCoordinator {
         boolean shouldUseDefaultWeight =
                 isInactiveListShowing
                         || activeInstancesList.getMeasuredHeight()
-                                < activeInstancesList.computeVerticalScrollRange();
+                                < activeInstancesList.computeVerticalScrollRange()
+                        || newWindowLayoutHeight < minCommandItemHeightPx;
 
         // Do nothing if params are already as expected.
         if ((shouldUseDefaultWeight && params.weight == 1f)
@@ -520,7 +550,7 @@ public class InstanceSwitcherCoordinator {
 
     private void closeWindow(InstanceInfo item) {
         if (canSkipConfirm(item)) {
-            removeInstance(item.instanceId);
+            removeInstances(Collections.singletonList(item.instanceId));
         } else {
             showConfirmationMessage(item);
         }
@@ -694,27 +724,32 @@ public class InstanceSwitcherCoordinator {
         return numActiveInstances + numInactiveInstances;
     }
 
-    private void removeInstance(Integer instanceId) {
-        if (UiUtils.isInstanceSwitcherV2Enabled()) {
-            addInstanceListGlobalLayoutListener(
-                    assumeNonNull(mInstanceListContainer),
-                    assumeNonNull(mActiveInstancesList),
-                    mIsInactiveListShowing);
+    private void removeInstances(List<Integer> instanceIds) {
+        for (Integer instanceId : instanceIds) {
+            if (UiUtils.isInstanceSwitcherV2Enabled()) {
+                addInstanceListGlobalLayoutListener(
+                        assumeNonNull(mInstanceListContainer),
+                        assumeNonNull(mActiveInstancesList),
+                        mIsInactiveListShowing,
+                        assumeNonNull(mNewWindowLayout),
+                        mMinCommandItemHeightPx);
                 assert mDialog != null;
-            mSelectedItems.remove(instanceId);
-            updateActionButtons();
-            removeItemFromModelList(
-                    instanceId, mIsInactiveListShowing ? mInactiveModelList : mActiveModelList);
-            updateActionButtons();
-            updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
-            updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
-            updateMoreMenu();
-        } else {
-            removeItemFromModelList(instanceId, mModelList);
-            // Update new window item based on instance count after instance removal.
-            enableNewWindowCommand(getTotalInstanceCount() < mMaxInstanceCount);
+                mSelectedItems.remove(instanceId);
+                updateActionButtons();
+                removeItemFromModelList(
+                        instanceId, mIsInactiveListShowing ? mInactiveModelList : mActiveModelList);
+                updateActionButtons();
+                updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+                updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
+                updateMoreMenu();
+                updateInactiveListEmptyStateVisibility();
+            } else {
+                removeItemFromModelList(instanceId, mModelList);
+                // Update new window item based on instance count after instance removal.
+                enableNewWindowCommand(getTotalInstanceCount() < mMaxInstanceCount);
+            }
         }
-        mDelegate.closeInstance(instanceId);
+        mDelegate.closeInstances(instanceIds);
         RecordUserAction.record("Android.WindowManager.CloseWindow");
     }
 
@@ -764,7 +799,7 @@ public class InstanceSwitcherCoordinator {
                     CheckBox skipConfirm = dialog.findViewById(R.id.no_more_check);
                     if (skipConfirm.isChecked()) setSkipCloseConfirmation();
                     dialog.dismiss();
-                    removeInstance(mItemToDelete.instanceId);
+                    removeInstances(Collections.singletonList(mItemToDelete.instanceId));
                 });
         TextView negativeButton = dialog.findViewById(R.id.negative_button);
         negativeButton.setText(res.getString(R.string.cancel));
@@ -872,6 +907,12 @@ public class InstanceSwitcherCoordinator {
         mDialog.set(ModalDialogProperties.TITLE_MORE_BUTTON_DELEGATE, () -> listMenu);
     }
 
+    private void updateInactiveListEmptyStateVisibility() {
+        if (mInactiveListEmptyStateView == null) return;
+        boolean showEmptyState = mIsInactiveListShowing && mInactiveModelList.size() == 0;
+        mInactiveListEmptyStateView.setVisibility(showEmptyState ? View.VISIBLE : View.GONE);
+    }
+
     private void buildWindowManagerMoreMenu(PropertyModel.Builder builder) {
         ModelList menuItems = new ModelList();
         menuItems.add(buildSimpleMenuItem(R.string.instance_switcher_select_all));
@@ -888,10 +929,7 @@ public class InstanceSwitcherCoordinator {
     }
 
     private void closeSelectedInstances() {
-        // Create a copy of the set to iterate over, to avoid ConcurrentModificationException.
-        for (Integer instanceId : new HashSet<>(mSelectedItems)) {
-            removeInstance(instanceId);
-        }
+        removeInstances(new ArrayList(mSelectedItems));
         unselectItems(/* hideVisibleList= */ true);
     }
 }

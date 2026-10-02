@@ -17,11 +17,11 @@
 
 #include <stdlib.h>
 
-#include "../bcm_interface.h"
 #include "../../internal.h"
+#include "../bcm_interface.h"
 
-extern "C" {
 
+BSSL_NAMESPACE_BEGIN
 
 // block128_f is the type of an AES block cipher implementation.
 //
@@ -57,28 +57,28 @@ ctr128_f aes_ctr_set_key(AES_KEY *aes_key, int *out_is_hwaes,
 #define HWAES
 #define HWAES_ECB
 
-inline int hwaes_capable(void) { return CRYPTO_is_AESNI_capable(); }
+inline int hwaes_capable() { return CRYPTO_is_AESNI_capable(); }
 
 #define VPAES
 #define VPAES_CBC
-inline int vpaes_capable(void) { return CRYPTO_is_SSSE3_capable(); }
+inline int vpaes_capable() { return CRYPTO_is_SSSE3_capable(); }
 
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
 #define HWAES
 
-inline int hwaes_capable(void) { return CRYPTO_is_ARMv8_AES_capable(); }
+inline int hwaes_capable() { return CRYPTO_is_ARMv8_AES_capable(); }
 
 #if defined(OPENSSL_ARM)
 #define BSAES
 #define VPAES
-inline int bsaes_capable(void) { return CRYPTO_is_NEON_capable(); }
-inline int vpaes_capable(void) { return CRYPTO_is_NEON_capable(); }
+inline int bsaes_capable() { return CRYPTO_is_NEON_capable(); }
+inline int vpaes_capable() { return CRYPTO_is_NEON_capable(); }
 #endif
 
 #if defined(OPENSSL_AARCH64)
 #define VPAES
 #define VPAES_CBC
-inline int vpaes_capable(void) { return CRYPTO_is_NEON_capable(); }
+inline int vpaes_capable() { return CRYPTO_is_NEON_capable(); }
 #endif
 
 #endif
@@ -88,19 +88,25 @@ inline int vpaes_capable(void) { return CRYPTO_is_NEON_capable(); }
 
 #if defined(HWAES)
 
-int aes_hw_set_encrypt_key(const uint8_t *user_key, int bits, AES_KEY *key);
-int aes_hw_set_decrypt_key(const uint8_t *user_key, int bits, AES_KEY *key);
-void aes_hw_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
-void aes_hw_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
-void aes_hw_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t length,
-                        const AES_KEY *key, uint8_t *ivec, int enc);
-void aes_hw_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out, size_t len,
-                                 const AES_KEY *key, const uint8_t ivec[16]);
+extern "C" int aes_hw_set_encrypt_key(const uint8_t *user_key, int bits,
+                                      AES_KEY *key);
+extern "C" int aes_hw_set_decrypt_key(const uint8_t *user_key, int bits,
+                                      AES_KEY *key);
+extern "C" void aes_hw_encrypt(const uint8_t *in, uint8_t *out,
+                               const AES_KEY *key);
+extern "C" void aes_hw_decrypt(const uint8_t *in, uint8_t *out,
+                               const AES_KEY *key);
+extern "C" void aes_hw_cbc_encrypt(const uint8_t *in, uint8_t *out,
+                                   size_t length, const AES_KEY *key,
+                                   uint8_t *ivec, int enc);
+extern "C" void aes_hw_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out,
+                                            size_t len, const AES_KEY *key,
+                                            const uint8_t ivec[16]);
 
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
 // On x86 and x86_64, |aes_hw_set_decrypt_key| is implemented in terms of
 // |aes_hw_set_encrypt_key| and a conversion function.
-void aes_hw_encrypt_key_to_decrypt_key(AES_KEY *key);
+extern "C" void aes_hw_encrypt_key_to_decrypt_key(AES_KEY *key);
 
 // There are two variants of this function, one which uses aeskeygenassist
 // ("base") and one which uses aesenclast + pshufb ("alt"). aesenclast is
@@ -112,22 +118,23 @@ void aes_hw_encrypt_key_to_decrypt_key(AES_KEY *key);
 // worthwhile. However, the aesenclast version requires SSSE3. SSSE3 long
 // predates AES-NI, but it's not clear if AES-NI implies SSSE3. In OpenSSL, the
 // CCM AES-NI assembly seems to assume it does.
-inline int aes_hw_set_encrypt_key_alt_capable(void) {
+inline int aes_hw_set_encrypt_key_alt_capable() {
   return hwaes_capable() && CRYPTO_is_SSSE3_capable();
 }
-inline int aes_hw_set_encrypt_key_alt_preferred(void) {
+inline int aes_hw_set_encrypt_key_alt_preferred() {
   return hwaes_capable() && CRYPTO_is_AVX_capable();
 }
-int aes_hw_set_encrypt_key_base(const uint8_t *user_key, int bits,
-                                AES_KEY *key);
-int aes_hw_set_encrypt_key_alt(const uint8_t *user_key, int bits, AES_KEY *key);
+extern "C" int aes_hw_set_encrypt_key_base(const uint8_t *user_key, int bits,
+                                           AES_KEY *key);
+extern "C" int aes_hw_set_encrypt_key_alt(const uint8_t *user_key, int bits,
+                                          AES_KEY *key);
 #endif  // OPENSSL_X86 || OPENSSL_X86_64
 
 #else
 
 // If HWAES isn't defined then we provide dummy functions for each of the hwaes
 // functions.
-inline int hwaes_capable(void) { return 0; }
+inline int hwaes_capable() { return 0; }
 
 inline int aes_hw_set_encrypt_key(const uint8_t *user_key, int bits,
                                   AES_KEY *key) {
@@ -164,25 +171,31 @@ inline void aes_hw_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out,
 
 
 #if defined(HWAES_ECB)
-void aes_hw_ecb_encrypt(const uint8_t *in, uint8_t *out, size_t length,
-                        const AES_KEY *key, int enc);
+extern "C" void aes_hw_ecb_encrypt(const uint8_t *in, uint8_t *out,
+                                   size_t length, const AES_KEY *key, int enc);
 #endif  // HWAES_ECB
 
 
 #if defined(BSAES)
 // Note |bsaes_cbc_encrypt| requires |enc| to be zero.
-void bsaes_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t length,
-                       const AES_KEY *key, uint8_t ivec[16], int enc);
-void bsaes_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out, size_t len,
-                                const AES_KEY *key, const uint8_t ivec[16]);
-// VPAES to BSAES conversions are available on all BSAES platforms.
-void vpaes_encrypt_key_to_bsaes(AES_KEY *out_bsaes, const AES_KEY *vpaes);
-void vpaes_decrypt_key_to_bsaes(AES_KEY *out_bsaes, const AES_KEY *vpaes);
-void vpaes_ctr32_encrypt_blocks_with_bsaes(const uint8_t *in, uint8_t *out,
-                                           size_t blocks, const AES_KEY *key,
+extern "C" void bsaes_cbc_encrypt(const uint8_t *in, uint8_t *out,
+                                  size_t length, const AES_KEY *key,
+                                  uint8_t ivec[16], int enc);
+extern "C" void bsaes_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out,
+                                           size_t len, const AES_KEY *key,
                                            const uint8_t ivec[16]);
+// VPAES to BSAES conversions are available on all BSAES platforms.
+extern "C" void vpaes_encrypt_key_to_bsaes(AES_KEY *out_bsaes,
+                                           const AES_KEY *vpaes);
+extern "C" void vpaes_decrypt_key_to_bsaes(AES_KEY *out_bsaes,
+                                           const AES_KEY *vpaes);
+extern "C" void vpaes_ctr32_encrypt_blocks_with_bsaes(const uint8_t *in,
+                                                      uint8_t *out,
+                                                      size_t blocks,
+                                                      const AES_KEY *key,
+                                                      const uint8_t ivec[16]);
 #else
-inline int bsaes_capable(void) { return 0; }
+inline int bsaes_capable() { return 0; }
 
 // On other platforms, bsaes_capable() will always return false and so the
 // following will never be called.
@@ -212,20 +225,26 @@ inline void vpaes_decrypt_key_to_bsaes(AES_KEY *out_bsaes,
 #if defined(VPAES)
 // On platforms where VPAES gets defined (just above), then these functions are
 // provided by asm.
-int vpaes_set_encrypt_key(const uint8_t *userKey, int bits, AES_KEY *key);
-int vpaes_set_decrypt_key(const uint8_t *userKey, int bits, AES_KEY *key);
+extern "C" int vpaes_set_encrypt_key(const uint8_t *userKey, int bits,
+                                     AES_KEY *key);
+extern "C" int vpaes_set_decrypt_key(const uint8_t *userKey, int bits,
+                                     AES_KEY *key);
 
-void vpaes_encrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
-void vpaes_decrypt(const uint8_t *in, uint8_t *out, const AES_KEY *key);
+extern "C" void vpaes_encrypt(const uint8_t *in, uint8_t *out,
+                              const AES_KEY *key);
+extern "C" void vpaes_decrypt(const uint8_t *in, uint8_t *out,
+                              const AES_KEY *key);
 
 #if defined(VPAES_CBC)
-void vpaes_cbc_encrypt(const uint8_t *in, uint8_t *out, size_t length,
-                       const AES_KEY *key, uint8_t *ivec, int enc);
+extern "C" void vpaes_cbc_encrypt(const uint8_t *in, uint8_t *out,
+                                  size_t length, const AES_KEY *key,
+                                  uint8_t *ivec, int enc);
 #endif
-void vpaes_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out, size_t len,
-                                const AES_KEY *key, const uint8_t ivec[16]);
+extern "C" void vpaes_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out,
+                                           size_t len, const AES_KEY *key,
+                                           const uint8_t ivec[16]);
 #else
-inline int vpaes_capable(void) { return 0; }
+inline int vpaes_capable() { return 0; }
 
 // On other platforms, vpaes_capable() will always return false and so the
 // following will never be called.
@@ -358,7 +377,7 @@ typedef struct {
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
 // crypto_gcm_clmul_enabled returns one if the CLMUL implementation of GCM is
 // used.
-int crypto_gcm_clmul_enabled(void);
+int crypto_gcm_clmul_enabled();
 #endif
 
 // CRYPTO_ghash_init writes a precomputed table of powers of |gcm_key| to
@@ -418,52 +437,64 @@ void gcm_ghash_nohw(uint8_t Xi[16], const u128 Htable[16], const uint8_t *inp,
 
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
 #define GCM_FUNCREF
-void gcm_init_clmul(u128 Htable[16], const uint64_t Xi[2]);
-void gcm_gmult_clmul(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_clmul(uint8_t Xi[16], const u128 Htable[16], const uint8_t *inp,
-                     size_t len);
+extern "C" void gcm_init_clmul(u128 Htable[16], const uint64_t Xi[2]);
+extern "C" void gcm_gmult_clmul(uint8_t Xi[16], const u128 Htable[16]);
+extern "C" void gcm_ghash_clmul(uint8_t Xi[16], const u128 Htable[16],
+                                const uint8_t *inp, size_t len);
 
-void gcm_init_ssse3(u128 Htable[16], const uint64_t Xi[2]);
-void gcm_gmult_ssse3(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_ssse3(uint8_t Xi[16], const u128 Htable[16], const uint8_t *in,
-                     size_t len);
+extern "C" void gcm_init_ssse3(u128 Htable[16], const uint64_t Xi[2]);
+extern "C" void gcm_gmult_ssse3(uint8_t Xi[16], const u128 Htable[16]);
+extern "C" void gcm_ghash_ssse3(uint8_t Xi[16], const u128 Htable[16],
+                                const uint8_t *in, size_t len);
 
 #if defined(OPENSSL_X86_64)
 #define GHASH_ASM_X86_64
-void gcm_init_avx(u128 Htable[16], const uint64_t Xi[2]);
-void gcm_gmult_avx(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_avx(uint8_t Xi[16], const u128 Htable[16], const uint8_t *in,
-                   size_t len);
+extern "C" void gcm_init_avx(u128 Htable[16], const uint64_t Xi[2]);
+extern "C" void gcm_gmult_avx(uint8_t Xi[16], const u128 Htable[16]);
+extern "C" void gcm_ghash_avx(uint8_t Xi[16], const u128 Htable[16],
+                              const uint8_t *in, size_t len);
 
 #define HW_GCM
-size_t aesni_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
-                         const AES_KEY *key, uint8_t ivec[16],
-                         const u128 Htable[16], uint8_t Xi[16]);
-size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
-                         const AES_KEY *key, uint8_t ivec[16],
-                         const u128 Htable[16], uint8_t Xi[16]);
-
-void gcm_init_vpclmulqdq_avx2(u128 Htable[16], const uint64_t H[2]);
-void gcm_gmult_vpclmulqdq_avx2(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_vpclmulqdq_avx2(uint8_t Xi[16], const u128 Htable[16],
-                               const uint8_t *in, size_t len);
-void aes_gcm_enc_update_vaes_avx2(const uint8_t *in, uint8_t *out, size_t len,
-                                  const AES_KEY *key, const uint8_t ivec[16],
-                                  const u128 Htable[16], uint8_t Xi[16]);
-void aes_gcm_dec_update_vaes_avx2(const uint8_t *in, uint8_t *out, size_t len,
-                                  const AES_KEY *key, const uint8_t ivec[16],
-                                  const u128 Htable[16], uint8_t Xi[16]);
-
-void gcm_init_vpclmulqdq_avx512(u128 Htable[16], const uint64_t H[2]);
-void gcm_gmult_vpclmulqdq_avx512(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_vpclmulqdq_avx512(uint8_t Xi[16], const u128 Htable[16],
-                                 const uint8_t *in, size_t len);
-void aes_gcm_enc_update_vaes_avx512(const uint8_t *in, uint8_t *out, size_t len,
-                                    const AES_KEY *key, const uint8_t ivec[16],
+extern "C" size_t aesni_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                                    const AES_KEY *key, uint8_t ivec[16],
                                     const u128 Htable[16], uint8_t Xi[16]);
-void aes_gcm_dec_update_vaes_avx512(const uint8_t *in, uint8_t *out, size_t len,
-                                    const AES_KEY *key, const uint8_t ivec[16],
+extern "C" size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                                    const AES_KEY *key, uint8_t ivec[16],
                                     const u128 Htable[16], uint8_t Xi[16]);
+
+extern "C" void gcm_init_vpclmulqdq_avx2(u128 Htable[16], const uint64_t H[2]);
+extern "C" void gcm_gmult_vpclmulqdq_avx2(uint8_t Xi[16],
+                                          const u128 Htable[16]);
+extern "C" void gcm_ghash_vpclmulqdq_avx2(uint8_t Xi[16], const u128 Htable[16],
+                                          const uint8_t *in, size_t len);
+extern "C" void aes_gcm_enc_update_vaes_avx2(const uint8_t *in, uint8_t *out,
+                                             size_t len, const AES_KEY *key,
+                                             const uint8_t ivec[16],
+                                             const u128 Htable[16],
+                                             uint8_t Xi[16]);
+extern "C" void aes_gcm_dec_update_vaes_avx2(const uint8_t *in, uint8_t *out,
+                                             size_t len, const AES_KEY *key,
+                                             const uint8_t ivec[16],
+                                             const u128 Htable[16],
+                                             uint8_t Xi[16]);
+
+extern "C" void gcm_init_vpclmulqdq_avx512(u128 Htable[16],
+                                           const uint64_t H[2]);
+extern "C" void gcm_gmult_vpclmulqdq_avx512(uint8_t Xi[16],
+                                            const u128 Htable[16]);
+extern "C" void gcm_ghash_vpclmulqdq_avx512(uint8_t Xi[16],
+                                            const u128 Htable[16],
+                                            const uint8_t *in, size_t len);
+extern "C" void aes_gcm_enc_update_vaes_avx512(const uint8_t *in, uint8_t *out,
+                                               size_t len, const AES_KEY *key,
+                                               const uint8_t ivec[16],
+                                               const u128 Htable[16],
+                                               uint8_t Xi[16]);
+extern "C" void aes_gcm_dec_update_vaes_avx512(const uint8_t *in, uint8_t *out,
+                                               size_t len, const AES_KEY *key,
+                                               const uint8_t ivec[16],
+                                               const u128 Htable[16],
+                                               uint8_t Xi[16]);
 
 #endif  // OPENSSL_X86_64
 
@@ -476,29 +507,29 @@ void aes_gcm_dec_update_vaes_avx512(const uint8_t *in, uint8_t *out, size_t len,
 #define GHASH_ASM_ARM
 #define GCM_FUNCREF
 
-inline int gcm_pmull_capable(void) { return CRYPTO_is_ARMv8_PMULL_capable(); }
+inline int gcm_pmull_capable() { return CRYPTO_is_ARMv8_PMULL_capable(); }
 
-void gcm_init_v8(u128 Htable[16], const uint64_t H[2]);
-void gcm_gmult_v8(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_v8(uint8_t Xi[16], const u128 Htable[16], const uint8_t *inp,
-                  size_t len);
+extern "C" void gcm_init_v8(u128 Htable[16], const uint64_t H[2]);
+extern "C" void gcm_gmult_v8(uint8_t Xi[16], const u128 Htable[16]);
+extern "C" void gcm_ghash_v8(uint8_t Xi[16], const u128 Htable[16],
+                             const uint8_t *inp, size_t len);
 
-inline int gcm_neon_capable(void) { return CRYPTO_is_NEON_capable(); }
+inline int gcm_neon_capable() { return CRYPTO_is_NEON_capable(); }
 
-void gcm_init_neon(u128 Htable[16], const uint64_t H[2]);
-void gcm_gmult_neon(uint8_t Xi[16], const u128 Htable[16]);
-void gcm_ghash_neon(uint8_t Xi[16], const u128 Htable[16], const uint8_t *inp,
-                    size_t len);
+extern "C" void gcm_init_neon(u128 Htable[16], const uint64_t H[2]);
+extern "C" void gcm_gmult_neon(uint8_t Xi[16], const u128 Htable[16]);
+extern "C" void gcm_ghash_neon(uint8_t Xi[16], const u128 Htable[16],
+                               const uint8_t *inp, size_t len);
 
 #if defined(OPENSSL_AARCH64)
 #define HW_GCM
 // These functions are defined in aesv8-gcm-armv8.pl.
-void aes_gcm_enc_kernel(const uint8_t *in, uint64_t in_bits, void *out,
-                        void *Xi, uint8_t *ivec, const AES_KEY *key,
-                        const u128 Htable[16]);
-void aes_gcm_dec_kernel(const uint8_t *in, uint64_t in_bits, void *out,
-                        void *Xi, uint8_t *ivec, const AES_KEY *key,
-                        const u128 Htable[16]);
+extern "C" void aes_gcm_enc_kernel(const uint8_t *in, uint64_t in_bits,
+                                   void *out, void *Xi, uint8_t *ivec,
+                                   const AES_KEY *key, const u128 Htable[16]);
+extern "C" void aes_gcm_dec_kernel(const uint8_t *in, uint64_t in_bits,
+                                   void *out, void *Xi, uint8_t *ivec,
+                                   const AES_KEY *key, const u128 Htable[16]);
 #endif
 
 #endif
@@ -568,7 +599,6 @@ size_t CRYPTO_cts128_encrypt_block(const uint8_t *in, uint8_t *out, size_t len,
                                    const AES_KEY *key, uint8_t ivec[16],
                                    block128_f block);
 
-
-}  // extern C
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_AES_INTERNAL_H

@@ -1396,7 +1396,7 @@ TEST_F(RTCStatsRtpLifetimeTest, AudioInboundRtpMissingBeforeFirstPacket) {
                     report = GetStats(callee_->pc());
                     inbound_rtps =
                         report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return inbound_rtps.size() > 0;
+                    return !inbound_rtps.empty();
                   },
                   IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
               IsRtcOk());
@@ -1431,7 +1431,7 @@ TEST_F(RTCStatsRtpLifetimeTest, VideoInboundRtpMissingBeforeFirstPacket) {
                     report = GetStats(callee_->pc());
                     inbound_rtps =
                         report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return inbound_rtps.size() > 0;
+                    return !inbound_rtps.empty();
                   },
                   IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
               IsRtcOk());
@@ -1483,7 +1483,7 @@ TEST_F(RTCStatsRtpLifetimeTest, InboundRtpForEarlyMedia) {
                     report = GetStats(caller_->pc());
                     inbound_rtps =
                         report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return inbound_rtps.size() > 0;
+                    return !inbound_rtps.empty();
                   },
                   IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
               IsRtcOk());

@@ -29,6 +29,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // digest_to_scalar interprets |digest_len| bytes from |digest| as a scalar for
 // ECDSA.
 static void digest_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
@@ -57,9 +59,9 @@ static void digest_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
                           order->width);
 }
 
-int ecdsa_verify_fixed_no_self_test(const uint8_t *digest, size_t digest_len,
-                                    const uint8_t *sig, size_t sig_len,
-                                    const EC_KEY *eckey) {
+int bssl::ecdsa_verify_fixed_no_self_test(const uint8_t *digest,
+                                          size_t digest_len, const uint8_t *sig,
+                                          size_t sig_len, const EC_KEY *eckey) {
   const EC_GROUP *group = EC_KEY_get0_group(eckey);
   const EC_POINT *pub_key = EC_KEY_get0_public_key(eckey);
   if (group == nullptr || pub_key == nullptr || sig == nullptr) {
@@ -107,8 +109,9 @@ int ecdsa_verify_fixed_no_self_test(const uint8_t *digest, size_t digest_len,
   return 1;
 }
 
-int ecdsa_verify_fixed(const uint8_t *digest, size_t digest_len,
-                       const uint8_t *sig, size_t sig_len, const EC_KEY *key) {
+int bssl::ecdsa_verify_fixed(const uint8_t *digest, size_t digest_len,
+                             const uint8_t *sig, size_t sig_len,
+                             const EC_KEY *key) {
   boringssl_ensure_ecc_self_test();
 
   return ecdsa_verify_fixed_no_self_test(digest, digest_len, sig, sig_len, key);
@@ -185,7 +188,7 @@ static int ecdsa_sign_impl(const EC_GROUP *group, int *out_retry, uint8_t *sig,
   return 1;
 }
 
-int ecdsa_sign_fixed_with_nonce_for_known_answer_test(
+int bssl::ecdsa_sign_fixed_with_nonce_for_known_answer_test(
     const uint8_t *digest, size_t digest_len, uint8_t *sig, size_t *out_sig_len,
     size_t max_sig_len, const EC_KEY *eckey, const uint8_t *nonce,
     size_t nonce_len) {
@@ -210,9 +213,9 @@ int ecdsa_sign_fixed_with_nonce_for_known_answer_test(
                          priv_key, &k, digest, digest_len);
 }
 
-int ecdsa_sign_fixed(const uint8_t *digest, size_t digest_len, uint8_t *sig,
-                     size_t *out_sig_len, size_t max_sig_len,
-                     const EC_KEY *eckey) {
+int bssl::ecdsa_sign_fixed(const uint8_t *digest, size_t digest_len,
+                           uint8_t *sig, size_t *out_sig_len,
+                           size_t max_sig_len, const EC_KEY *eckey) {
   boringssl_ensure_ecc_self_test();
 
   if (eckey->ecdsa_meth && eckey->ecdsa_meth->sign) {

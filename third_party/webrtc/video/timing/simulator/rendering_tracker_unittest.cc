@@ -71,7 +71,7 @@ class RenderingTrackerTest : public SimulatedTimeTestFixture {
       rendering_tracker_->SetDecodedFrameIdCallback(&decoded_frame_id_cb_);
     });
   }
-  ~RenderingTrackerTest() {
+  ~RenderingTrackerTest() override {
     SendTask([this]() {
       RTC_DCHECK_RUN_ON(queue_ptr_);
       rendering_tracker_.reset();

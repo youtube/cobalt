@@ -172,7 +172,7 @@ void DumpFuzzerCase(char const *const *shaderStrings,
         memcpy(data, shaderStrings[i], length);
         data += length;
     }
-    auto hash = angle::ComputeGenericHash(contents.data(), contents.size());
+    auto hash = angle::ComputeGenericHash(contents);
 
     std::ostringstream o = sh::InitializeStream<std::ostringstream>();
     o << ANGLE_FUZZER_CORPUS_OUTPUT_DIR << std::hex << std::setw(16) << std::setfill('0') << hash
@@ -186,21 +186,7 @@ void DumpFuzzerCase(char const *const *shaderStrings,
 }
 #endif  // defined(ANGLE_FUZZER_CORPUS_OUTPUT_DIR)
 
-// Helper function to check if the TIntermNode is a uniform type declaration
-bool IsCurrentNodeUniformDeclaration(TIntermNode *node)
-{
-    TIntermDeclaration *declarationNode = node->getAsDeclarationNode();
-    if (declarationNode != nullptr)
-    {
-        TIntermTyped *typeNode = declarationNode->getSequence()->front()->getAsTyped();
-        if (typeNode != nullptr && typeNode->getType().getQualifier() == TQualifier::EvqUniform)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
+// Helper function to check if the TIntermNode is a struct specifier
 bool IsCurrentNodeStructTypeDeclaration(TIntermNode *node)
 {
     TIntermDeclaration *declarationNode = node->getAsDeclarationNode();
@@ -208,8 +194,24 @@ bool IsCurrentNodeStructTypeDeclaration(TIntermNode *node)
     {
         TIntermTyped *typeNode = declarationNode->getSequence()->front()->getAsTyped();
         if (typeNode != nullptr && (typeNode->getType().getBasicType() == EbtStruct &&
-                                    typeNode->getType().getQualifier() != EvqUniform &&
                                     typeNode->getType().isStructSpecifier()))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helper function to check if the TIntermNode is a uniform type declaration, and it is not a struct
+// specifier
+bool IsCurrentNodeUniformDeclaration(TIntermNode *node)
+{
+    TIntermDeclaration *declarationNode = node->getAsDeclarationNode();
+    if (declarationNode != nullptr)
+    {
+        TIntermTyped *typeNode = declarationNode->getSequence()->front()->getAsTyped();
+        if (typeNode != nullptr && typeNode->getType().getQualifier() == TQualifier::EvqUniform &&
+            !IsCurrentNodeStructTypeDeclaration(node))
         {
             return true;
         }
@@ -461,12 +463,6 @@ TCompiler::TCompiler(sh::GLenum type, ShShaderSpec spec, ShShaderOutput output)
 
 TCompiler::~TCompiler() {}
 
-bool TCompiler::isHighPrecisionSupported() const
-{
-    return mShaderVersion > 100 || mShaderType != GL_FRAGMENT_SHADER ||
-           mResources.FragmentPrecisionHigh == 1;
-}
-
 bool TCompiler::shouldRunLoopAndIndexingValidation(const ShCompileOptions &compileOptions) const
 {
     // If compiling an ESSL 1.00 shader for WebGL, or if its been requested through the API,
@@ -502,15 +498,13 @@ bool TCompiler::Init(const ShBuiltInResources &resources)
     return true;
 }
 
-TIntermBlock *TCompiler::compileTreeForTesting(const char *const shaderStrings[],
-                                               size_t numStrings,
+TIntermBlock *TCompiler::compileTreeForTesting(angle::Span<const char *const> shaderStrings,
                                                const ShCompileOptions &compileOptions)
 {
-    return compileTreeImpl(shaderStrings, numStrings, compileOptions);
+    return compileTreeImpl(shaderStrings, compileOptions);
 }
 
-TIntermBlock *TCompiler::compileTreeImpl(const char *const shaderStrings[],
-                                         size_t numStrings,
+TIntermBlock *TCompiler::compileTreeImpl(angle::Span<const char *const> shaderStrings,
                                          const ShCompileOptions &compileOptions)
 {
     // Remember the compile options for helper functions such as validateAST.
@@ -518,7 +512,7 @@ TIntermBlock *TCompiler::compileTreeImpl(const char *const shaderStrings[],
 
     clearResults();
 
-    ASSERT(numStrings > 0);
+    ASSERT(!shaderStrings.empty());
     ASSERT(GetGlobalPoolAllocator());
 
     // Reset the extension behavior for each compilation unit.
@@ -558,16 +552,13 @@ TIntermBlock *TCompiler::compileTreeImpl(const char *const shaderStrings[],
     TParseContext parseContext(mSymbolTable, mExtensionBehavior, mShaderType, mShaderSpec,
                                compileOptions, &mDiagnostics, getResources(), getOutputType());
 
-    parseContext.setFragmentPrecisionHighOnESSL1(mResources.FragmentPrecisionHigh == 1);
-
     // We preserve symbols at the built-in level from compile-to-compile.
     // Start pushing the user-defined symbols at global level.
     TScopedSymbolTableLevel globalLevel(&mSymbolTable);
     ASSERT(mSymbolTable.atGlobalLevel());
 
     // Parse shader.
-    if (PaParseStrings(numStrings - firstSource, &shaderStrings[firstSource], nullptr,
-                       &parseContext) != 0)
+    if (PaParseStrings(shaderStrings.subspan(firstSource), nullptr, &parseContext) != 0)
     {
         return nullptr;
     }
@@ -763,12 +754,11 @@ unsigned int TCompiler::getSharedMemorySize() const
 }
 
 bool TCompiler::getShaderBinary(const ShHandle compilerHandle,
-                                const char *const shaderStrings[],
-                                size_t numStrings,
+                                angle::Span<const char *const> shaderStrings,
                                 const ShCompileOptions &compileOptions,
                                 ShaderBinaryBlob *const binaryOut)
 {
-    if (!compile(shaderStrings, numStrings, compileOptions))
+    if (!compile(shaderStrings, compileOptions))
     {
         return false;
     }
@@ -781,22 +771,24 @@ bool TCompiler::getShaderBinary(const ShHandle compilerHandle,
         mOutputType);
 
     stream.writeBytes(
-        reinterpret_cast<const unsigned char *>(angle::GetANGLEShaderProgramVersion()),
-        angle::GetANGLEShaderProgramVersionHashSize());
+        // NOTE: version api could return a string view.
+        ANGLE_UNSAFE_TODO(angle::Span(
+            reinterpret_cast<const unsigned char *>(angle::GetANGLEShaderProgramVersion()),
+            angle::GetANGLEShaderProgramVersionHashSize())));
     stream.writeEnum(shaderType);
     stream.writeEnum(mOutputType);
 
     // Serialize the full source string for the shader. Ignore the source path if it is provided.
     std::string sourceString;
     size_t startingIndex = compileOptions.sourcePath ? 1 : 0;
-    for (size_t i = startingIndex; i < numStrings; ++i)
+    for (const char *str : shaderStrings.subspan(startingIndex))
     {
-        sourceString.append(shaderStrings[i]);
+        sourceString.append(str);
     }
     stream.writeString(sourceString);
 
-    stream.writeBytes(reinterpret_cast<const uint8_t *>(&compileOptions), sizeof(compileOptions));
-    stream.writeBytes(reinterpret_cast<const uint8_t *>(&mResources), sizeof(mResources));
+    stream.writeBytes(angle::byte_span_from_ref(compileOptions));
+    stream.writeBytes(angle::byte_span_from_ref(mResources));
 
     state.serialize(stream);
 
@@ -955,11 +947,9 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     }
     mValidateASTOptions.validateNoStatementsAfterBranch = true;
 
-    // We need to generate globals early if we have non constant initializers enabled
-    bool initializeLocalsAndGlobals =
-        compileOptions.initializeUninitializedLocals && !IsOutputHLSL(getOutputType());
-    bool canUseLoopsToInitialize =
-        !compileOptions.dontUseLoopsToInitializeVariables && isHighPrecisionSupported();
+    // We need to generate globals early if we have non constant initializers enabled.
+    bool initializeLocalsAndGlobals    = compileOptions.initializeUninitializedLocals;
+    bool canUseLoopsToInitialize       = !compileOptions.dontUseLoopsToInitializeVariables;
     bool enableNonConstantInitializers = IsExtensionEnabled(
         mExtensionBehavior, TExtension::EXT_shader_non_constant_global_initializers);
     if (enableNonConstantInitializers &&
@@ -1241,6 +1231,16 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     }
 
     collectVariables(root);
+    const bool hlslFragmentOutputsNeedInit =
+        IsOutputHLSL(mOutputType) && mShaderType == GL_FRAGMENT_SHADER &&
+        (compileOptions.initOutputVariables || compileOptions.initFragmentOutputVariables);
+    if (hlslFragmentOutputsNeedInit)
+    {
+        for (sh::ShaderVariable &outputVariable : mOutputVariables)
+        {
+            outputVariable.active = true;
+        }
+    }
 
     if (compileOptions.useUnusedStandardSharedBlocks)
     {
@@ -1273,10 +1273,13 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // For the MSL output, keep the inactive fragment outputs, but remove them otherwise.
     if (compileOptions.removeInactiveVariables)
     {
-        if (!RemoveInactiveInterfaceVariables(this, root, &getSymbolTable(), getAttributes(),
-                                              getInputVaryings(), getOutputVariables(),
-                                              getUniforms(), getInterfaceBlocks(),
-                                              mOutputType != SH_MSL_METAL_OUTPUT))
+        const bool keepInactiveFragmentOutputsForInit = hlslFragmentOutputsNeedInit;
+        const bool removeFragmentOutputs =
+            mOutputType != SH_MSL_METAL_OUTPUT && !keepInactiveFragmentOutputsForInit;
+
+        if (!RemoveInactiveInterfaceVariables(
+                this, root, &getSymbolTable(), getAttributes(), getInputVaryings(),
+                getOutputVariables(), getUniforms(), getInterfaceBlocks(), removeFragmentOutputs))
         {
             return false;
         }
@@ -1399,17 +1402,18 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     return true;
 }
 
-bool TCompiler::compile(const char *const shaderStrings[],
-                        size_t numStrings,
+bool TCompiler::compile(angle::Span<const char *const> shaderStrings,
                         const ShCompileOptions &compileOptionsIn)
 {
 #if defined(ANGLE_FUZZER_CORPUS_OUTPUT_DIR)
-    DumpFuzzerCase(shaderStrings, numStrings, mShaderType, mShaderSpec, mOutputType,
-                   compileOptionsIn);
+    DumpFuzzerCase(shaderStrings.data(), shaderStrings.size(), mShaderType, mShaderSpec,
+                   mOutputType, compileOptionsIn);
 #endif  // defined(ANGLE_FUZZER_CORPUS_OUTPUT_DIR)
 
-    if (numStrings == 0)
+    if (shaderStrings.empty())
+    {
         return true;
+    }
 
     ShCompileOptions compileOptions = compileOptionsIn;
 
@@ -1421,7 +1425,7 @@ bool TCompiler::compile(const char *const shaderStrings[],
     }
 
     TScopedPoolAllocator scopedAlloc;
-    TIntermBlock *root = compileTreeImpl(shaderStrings, numStrings, compileOptions);
+    TIntermBlock *root = compileTreeImpl(shaderStrings, compileOptions);
 
     if (root)
     {
@@ -1519,7 +1523,6 @@ void TCompiler::setResourceString()
         << ":NV_EGL_stream_consumer_external:" << mResources.NV_EGL_stream_consumer_external
         << ":ARB_texture_rectangle:" << mResources.ARB_texture_rectangle
         << ":EXT_draw_buffers:" << mResources.EXT_draw_buffers
-        << ":FragmentPrecisionHigh:" << mResources.FragmentPrecisionHigh
         << ":MaxExpressionComplexity:" << mResources.MaxExpressionComplexity
         << ":MaxStatementDepth:" << mResources.MaxStatementDepth
         << ":MaxCallStackDepth:" << mResources.MaxCallStackDepth
@@ -1598,7 +1601,6 @@ void TCompiler::setResourceString()
         << ":MaxCombinedAtomicCounterBuffers:" << mResources.MaxCombinedAtomicCounterBuffers
         << ":MaxAtomicCounterBufferSize:" << mResources.MaxAtomicCounterBufferSize
         << ":MaxGeometryUniformComponents:" << mResources.MaxGeometryUniformComponents
-        << ":MaxGeometryUniformBlocks:" << mResources.MaxGeometryUniformBlocks
         << ":MaxGeometryInputComponents:" << mResources.MaxGeometryInputComponents
         << ":MaxGeometryOutputComponents:" << mResources.MaxGeometryOutputComponents
         << ":MaxGeometryOutputVertices:" << mResources.MaxGeometryOutputVertices
@@ -1606,7 +1608,6 @@ void TCompiler::setResourceString()
         << ":MaxGeometryTextureImageUnits:" << mResources.MaxGeometryTextureImageUnits
         << ":MaxGeometryAtomicCounterBuffers:" << mResources.MaxGeometryAtomicCounterBuffers
         << ":MaxGeometryAtomicCounters:" << mResources.MaxGeometryAtomicCounters
-        << ":MaxGeometryShaderStorageBlocks:" << mResources.MaxGeometryShaderStorageBlocks
         << ":MaxGeometryShaderInvocations:" << mResources.MaxGeometryShaderInvocations
         << ":MaxGeometryImageUniforms:" << mResources.MaxGeometryImageUniforms
         << ":MaxClipDistances" << mResources.MaxClipDistances

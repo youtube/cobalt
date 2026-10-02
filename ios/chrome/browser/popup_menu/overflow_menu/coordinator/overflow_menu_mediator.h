@@ -7,7 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/browser_container/ui_bundled/browser_container_consumer.h"
+#import "ios/chrome/browser/browser_content/ui_bundled/browser_content_consumer.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_action_provider.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/ui/ui_swift.h"
 
@@ -25,14 +25,13 @@ class SyncService;
 }
 
 @protocol ActivityServiceCommands;
-@protocol ApplicationCommands;
 class AuthenticationService;
 @protocol BookmarksCommands;
 @protocol BrowserCoordinatorCommands;
 class BrowserPolicyConnectorIOS;
+@protocol BWGCommands;
 @protocol FindInPageCommands;
 @protocol HelpCommands;
-@protocol ReaderModeCommands;
 @protocol LensOverlayCommands;
 @protocol OverflowMenuCustomizationCommands;
 @class OverflowMenuOrderer;
@@ -43,23 +42,24 @@ class PrefService;
 @protocol PriceTrackedItemsCommands;
 class PromosManager;
 @protocol QuickDeleteCommands;
+@protocol ReaderModeCommands;
 class ReadingListBrowserAgent;
 class ReadingListModel;
 @protocol ReminderNotificationsCommands;
+@protocol SceneCommands;
 @protocol SettingsCommands;
 class TabBasedIPHBrowserAgent;
+@protocol TabGroupsCommands;
 class TemplateURLService;
 @protocol TextZoomCommands;
 class WebNavigationBrowserAgent;
 class WebStateList;
 @protocol WhatsNewCommands;
-@protocol BWGCommands;
-@protocol TabGroupsCommands;
 
 // Mediator for the overflow menu. This object is in charge of creating and
 // updating the items of the overflow menu.
 @interface OverflowMenuMediator
-    : NSObject <BrowserContainerConsumer, OverflowMenuActionProvider>
+    : NSObject <BrowserContentConsumer, OverflowMenuActionProvider>
 
 // The data model for the overflow menu.
 @property(nonatomic, weak) OverflowMenuModel* model;
@@ -70,7 +70,7 @@ class WebStateList;
 
 // Command Handlers.
 @property(nonatomic, weak) id<ActivityServiceCommands> activityServiceHandler;
-@property(nonatomic, weak) id<ApplicationCommands> applicationHandler;
+@property(nonatomic, weak) id<SceneCommands> sceneHandler;
 @property(nonatomic, weak) id<SettingsCommands> settingsHandler;
 @property(nonatomic, weak) id<BookmarksCommands> bookmarksHandler;
 @property(nonatomic, weak) id<LensOverlayCommands> lensOverlayHandler;

@@ -79,8 +79,7 @@
           "group": "tryserver.chromium.enterprise_companion"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/ci/mac-enterprise-companion-builder-rel/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "infra/config/generated/builders/ci/mac-enterprise-companion-builder-rel/targets"
     }
   },
   "$build/siso": {
@@ -91,7 +90,6 @@
     "enable_cloud_profiler": true,
     "enable_cloud_trace": true,
     "experiments": [],
-    "metrics_project": "chromium-reclient-metrics",
     "project": "rbe-chromium-trusted",
     "remote_jobs": 250
   },

@@ -234,7 +234,7 @@ struct RTC_EXPORT RtpCodec {
 // implementation of a codec.
 struct RTC_EXPORT RtpCodecCapability : public RtpCodec {
   RtpCodecCapability();
-  virtual ~RtpCodecCapability();
+  ~RtpCodecCapability() override;
 
   // Default payload type for this codec. Mainly needed for codecs that have
   // statically assigned payload types.
@@ -647,7 +647,7 @@ struct RTC_EXPORT RtpEncodingParameters {
 struct RTC_EXPORT RtpCodecParameters : public RtpCodec {
   RtpCodecParameters();
   RtpCodecParameters(const RtpCodecParameters&);
-  virtual ~RtpCodecParameters();
+  ~RtpCodecParameters() override;
 
   // Payload type used to identify this codec in RTP packets.
   // This must always be present, and must be unique across all codecs using

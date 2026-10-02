@@ -58,6 +58,7 @@
 #include "components/sync/protocol/shared_comment_specifics.pb.h"
 #include "components/sync/protocol/shared_tab_group_data_specifics.pb.h"
 #include "components/sync/protocol/sharing_message_specifics.pb.h"
+#include "components/sync/protocol/skill_specifics.pb.h"
 #include "components/sync/protocol/sync.pb.h"
 #include "components/sync/protocol/sync_entity.pb.h"
 #include "components/sync/protocol/sync_invalidations_payload.pb.h"
@@ -651,6 +652,11 @@ VISIT_PROTO_FIELDS(const sync_pb::DeviceInfoSpecifics& proto) {
   VISIT_ENUM(device_form_factor);
 }
 
+VISIT_PROTO_FIELDS(const sync_pb::DesktopToMobilePromoMessage& proto) {
+  VISIT(push_notification);
+  VISIT(promo_type);
+}
+
 VISIT_PROTO_FIELDS(const sync_pb::EligiblePriceRange& proto) {
   VISIT(currency);
   VISIT(min_price_in_micros);
@@ -729,7 +735,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(59 == GetNumDataTypes(),
+  static_assert(60 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -793,6 +799,7 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
   VISIT(webauthn_credential);
   VISIT(ai_thread);
   VISIT(contextual_task);
+  VISIT(skill);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
@@ -1242,6 +1249,22 @@ VISIT_PROTO_FIELDS(const sync_pb::PrintersAuthorizationServerSpecifics& proto) {
 
 VISIT_PROTO_FIELDS(const sync_pb::PriorityPreferenceSpecifics& proto) {
   VISIT(preference);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::PushNotificationMessage& proto) {
+  VISIT(title);
+  VISIT(text);
+  VISIT_REP(icon);
+  VISIT(favicon);
+  VISIT(destination_url);
+  VISIT(placeholder_title);
+  VISIT(placeholder_body);
+  VISIT(push_notification_client_id);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::PushNotificationMessage::Image& proto) {
+  VISIT(url);
+  VISIT(alt_text);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::ReadingListSpecifics& proto) {
@@ -2156,6 +2179,20 @@ VISIT_PROTO_FIELDS(const sync_pb::SharedCommentSpecifics& proto) {
   VISIT(proto_version);
   VISIT(comment);
   VISIT(shared_url_context);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::SkillSpecifics& proto) {
+  VISIT(guid);
+  VISIT(name);
+  VISIT(icon);
+  VISIT(simple_skill);
+  VISIT(creation_time_windows_epoch_micros);
+  VISIT(last_update_time_windows_epoch_micros);
+  VISIT(schema_version);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::SimpleSkill& proto) {
+  VISIT(prompt);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {

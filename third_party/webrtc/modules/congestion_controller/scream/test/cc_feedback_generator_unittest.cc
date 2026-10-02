@@ -24,6 +24,7 @@ namespace webrtc {
 namespace {
 
 constexpr DataSize kPacketSize = DataSize::Bytes(1000);
+using ::testing::MockFunction;
 using ::testing::SizeIs;
 
 TEST(CcFeedbackGeneratorTest, BasicFeedback) {
@@ -43,7 +44,7 @@ TEST(CcFeedbackGeneratorTest, BasicFeedback) {
 
   TransportPacketsFeedback feedback_1 =
       feedback_generator.ProcessUntilNextFeedback(
-          /*send_rate=*/DataRate::KilobitsPerSec(500), clock);
+          /*send_rate=*/DataRate::KilobitsPerSec(500), clock, nullptr);
 
   EXPECT_EQ(feedback_1.feedback_time, clock.CurrentTime());
   EXPECT_EQ(feedback_1.data_in_flight, 3 * kPacketSize);
@@ -59,7 +60,7 @@ TEST(CcFeedbackGeneratorTest, BasicFeedback) {
 
   TransportPacketsFeedback feedback_2 =
       feedback_generator.ProcessUntilNextFeedback(
-          /*send_rate=*/DataRate::KilobitsPerSec(500), clock);
+          /*send_rate=*/DataRate::KilobitsPerSec(500), clock, nullptr);
   EXPECT_EQ((feedback_2.feedback_time - feedback_1.feedback_time).ms(), 50);
 }
 
@@ -73,7 +74,7 @@ TEST(CcFeedbackGeneratorTest, CeMarksPacketsIfSendRateIsTooHigh) {
   for (int i = 0; i < 5; ++i) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
-            /*send_rate=*/DataRate::KilobitsPerSec(1100), clock);
+            /*send_rate=*/DataRate::KilobitsPerSec(1100), clock, nullptr);
     number_of_ce_marks += CcFeedbackGenerator::CountCeMarks(feedback);
   }
   EXPECT_GE(number_of_ce_marks, 2);
@@ -90,7 +91,7 @@ TEST(CcFeedbackGeneratorTest, NoCeMarksIfSendRateIsBelowLinkCapacity) {
   for (int i = 0; i < 5; ++i) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
-            /*send_rate=*/DataRate::KilobitsPerSec(1000), clock);
+            /*send_rate=*/DataRate::KilobitsPerSec(1000), clock, nullptr);
     number_of_ce_marks += CcFeedbackGenerator::CountCeMarks(feedback);
   }
   EXPECT_EQ(number_of_ce_marks, 0);
@@ -110,10 +111,32 @@ TEST(CcFeedbackGeneratorTest, DropPacketsIfSendRateIsTooHigh) {
   for (int i = 0; i < 5; ++i) {
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
-            /*send_rate=*/DataRate::KilobitsPerSec(1100), clock);
+            /*send_rate=*/DataRate::KilobitsPerSec(1100), clock, nullptr);
     number_of_lost_packets += feedback.LostWithSendInfo().size();
   }
   EXPECT_GE(number_of_lost_packets, 2);
+}
+
+TEST(CcFeedbackGeneratorTest, InvokesPacketSentCallbackWithDataInflight) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  SimulatedNetwork::Config network_config = {};
+  CcFeedbackGenerator feedback_generator({
+      .network_config = network_config,
+  });
+  MockFunction<void(const SentPacket&)> packet_sent_cb;
+
+  DataSize last_data_in_flight;
+  EXPECT_CALL(packet_sent_cb, Call)
+      .WillRepeatedly([&](const SentPacket& packet) {
+        last_data_in_flight = packet.data_in_flight;
+      });
+  TransportPacketsFeedback feedback =
+      feedback_generator.ProcessUntilNextFeedback(
+          /*send_rate=*/DataRate::KilobitsPerSec(1000), clock,
+          packet_sent_cb.AsStdFunction());
+  // After feedback, data in flight should be less than after sending last
+  // packet.
+  EXPECT_GT(last_data_in_flight, feedback.data_in_flight);
 }
 
 }  // namespace

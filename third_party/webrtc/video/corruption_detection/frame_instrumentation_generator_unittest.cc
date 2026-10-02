@@ -13,6 +13,7 @@
 #include <optional>
 #include <vector>
 
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/video/corruption_detection/corruption_detection_filter_settings.h"
@@ -22,7 +23,9 @@
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "rtc_base/ref_counted_object.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "video/corruption_detection/frame_instrumentation_generator_impl.h"
@@ -71,16 +74,18 @@ scoped_refptr<I420Buffer> MakeI420FrameBufferWithDifferentPixelValues() {
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsNothingWhenNoFramesHaveBeenProvided) {
+  const Environment env = CreateTestEnvironment();
   FrameInstrumentationGeneratorImpl generator(
-      VideoCodecType::kVideoCodecGeneric);
+      &env, VideoCodecType::kVideoCodecGeneric, ScalabilityMode::kL1T1);
 
   EXPECT_FALSE(generator.OnEncodedImage(EncodedImage()).has_value());
 }
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsNothingWhenNoFrameWithTheSameTimestampIsProvided) {
+  const Environment env = CreateTestEnvironment();
   FrameInstrumentationGeneratorImpl generator(
-      VideoCodecType::kVideoCodecGeneric);
+      &env, VideoCodecType::kVideoCodecGeneric, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -95,8 +100,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsNothingWhenTheFirstFrameOfASpatialOrSimulcastLayerIsNotAKeyFrame) {
+  const Environment env = CreateTestEnvironment();
   FrameInstrumentationGeneratorImpl generator(
-      VideoCodecType::kVideoCodecGeneric);
+      &env, VideoCodecType::kVideoCodecGeneric, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -117,8 +123,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsNothingWhenQpIsUnsetAndNotParseable) {
+  const Environment env = CreateTestEnvironment();
   FrameInstrumentationGeneratorImpl generator(
-      VideoCodecType::kVideoCodecGeneric);
+      &env, VideoCodecType::kVideoCodecGeneric, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -136,9 +143,10 @@ TEST(FrameInstrumentationGeneratorTest,
 
 #if GTEST_HAS_DEATH_TEST
 TEST(FrameInstrumentationGeneratorTest, FailsWhenCodecIsUnsupported) {
+  const Environment env = CreateTestEnvironment();
   // No available mapping from codec to filter parameters.
   FrameInstrumentationGeneratorImpl generator(
-      VideoCodecType::kVideoCodecGeneric);
+      &env, VideoCodecType::kVideoCodecGeneric, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -157,7 +165,9 @@ TEST(FrameInstrumentationGeneratorTest, FailsWhenCodecIsUnsupported) {
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsInstrumentationDataForVP8KeyFrameWithQpSet) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -184,7 +194,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsInstrumentationDataWhenQpIsParseable) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -219,7 +231,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsInstrumentationDataForUpperLayerOfAnSvcKeyFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP9);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP9, ScalabilityMode::kL3T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -256,7 +270,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsNothingWhenNotEnoughTimeHasPassedSinceLastSampledFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame1 = VideoFrame::Builder()
                           .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                           .set_rtp_timestamp(1)
@@ -292,7 +308,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      ReturnsInstrumentationDataForUpperLayerOfASecondSvcKeyFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP9);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP9, ScalabilityMode::kL3T1);
   VideoFrame frame1 = VideoFrame::Builder()
                           .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                           .set_rtp_timestamp(1)
@@ -336,7 +354,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      SvcLayersSequenceIndicesIncreaseIndependentOnEachother) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP9);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP9, ScalabilityMode::kL3T1);
   VideoFrame frame1 =
       VideoFrame::Builder()
           .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
@@ -389,7 +409,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      OutputsDeltaFrameInstrumentationDataForSimulcast) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP9);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP9, ScalabilityMode::kL3T1);
   bool has_found_delta_frame = false;
   // 34 frames is the minimum number of frames to be able to sample a delta
   // frame.
@@ -445,7 +467,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      SequenceIndexIncreasesCorrectlyAtNewKeyFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame1 =
       VideoFrame::Builder()
           .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
@@ -493,7 +517,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      SequenceIndexThatWouldOverflowTo15BitsIncreasesCorrectlyAtNewKeyFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame1 =
       VideoFrame::Builder()
           .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
@@ -541,7 +567,9 @@ TEST(FrameInstrumentationGeneratorTest,
 
 TEST(FrameInstrumentationGeneratorTest,
      SequenceIndexIncreasesCorrectlyAtNewKeyFrameAlreadyZeroes) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame1 =
       VideoFrame::Builder()
           .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
@@ -588,7 +616,9 @@ TEST(FrameInstrumentationGeneratorTest,
 }
 TEST(FrameInstrumentationGeneratorTest,
      SequenceIndexThatWouldOverflowTo15BitsIncreasesCorrectlyAtNewDeltaFrame) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   generator.OnCapturedFrame(
       VideoFrame::Builder()
           .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
@@ -636,7 +666,9 @@ TEST(FrameInstrumentationGeneratorTest,
 }
 
 TEST(FrameInstrumentationGeneratorTest, GetterAndSetterOperatesAsExpected) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   // `std::nullopt` when uninitialized.
   EXPECT_FALSE(generator.GetHaltonSequenceIndex(1).has_value());
 
@@ -664,8 +696,9 @@ TEST(FrameInstrumentationGeneratorTest, GetterAndSetterOperatesAsExpected) {
 }
 
 TEST(FrameInstrumentationGeneratorTest, QueuesAtMostThreeInputFrames) {
+  const Environment env = CreateTestEnvironment();
   auto generator = std::make_unique<FrameInstrumentationGeneratorImpl>(
-      VideoCodecType::kVideoCodecVP8);
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
 
   bool frames_destroyed[4] = {};
   class TestBuffer : public I420Buffer {
@@ -700,7 +733,9 @@ TEST(FrameInstrumentationGeneratorTest, QueuesAtMostThreeInputFrames) {
 
 TEST(FrameInstrumentationGeneratorTest,
      UsesFilterSettingsFromFrameWhenAvailable) {
-  FrameInstrumentationGeneratorImpl generator(VideoCodecType::kVideoCodecVP8);
+  const Environment env = CreateTestEnvironment();
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
                          .set_rtp_timestamp(1)
@@ -724,6 +759,54 @@ TEST(FrameInstrumentationGeneratorTest,
   EXPECT_EQ(frame_instrumentation_data->std_dev(), 1.0);
   EXPECT_EQ(frame_instrumentation_data->luma_error_threshold(), 2);
   EXPECT_EQ(frame_instrumentation_data->chroma_error_threshold(), 3);
+}
+
+TEST(FrameInstrumentationGeneratorTest, UsesFrameSelectorWhenEnabled) {
+  // We wish to verify that the frame selector is used when enabled.
+  // The default behavior of the frame selector is to sample key frames and
+  // randomly sample delta frames (uniform distribution).
+  // By setting the upper and lower bound of the distribution to 0, we can force
+  // the frame selector to sample every frame.
+  // Since the default behavior of the frame instrumentation generator (when
+  // frame selector is not used) is to sample key frames and then wait for at
+  // least 34 frames before sampling again, we can distinguish the two behaviors
+  // by checking if the second frame (a delta frame) is sampled.
+  const Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-CorruptionDetectionFrameSelector/"
+                       "enabled:true,low_overhead_lower_bound:0ms,low_overhead_"
+                       "upper_bound:0ms,"
+                       "high_overhead_lower_bound:0ms,high_overhead_upper_"
+                       "bound:0ms/"});
+  FrameInstrumentationGeneratorImpl generator(
+      &env, VideoCodecType::kVideoCodecVP8, ScalabilityMode::kL1T1);
+
+  VideoFrame frame1 = VideoFrame::Builder()
+                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
+                          .set_rtp_timestamp(1)
+                          .build();
+  EncodedImage encoded_image1;
+  encoded_image1.SetRtpTimestamp(1);
+  encoded_image1.SetFrameType(VideoFrameType::kVideoFrameKey);
+  encoded_image1.qp_ = 10;
+  encoded_image1._encodedWidth = kDefaultScaledWidth;
+  encoded_image1._encodedHeight = kDefaultScaledHeight;
+
+  VideoFrame frame2 = VideoFrame::Builder()
+                          .set_video_frame_buffer(MakeDefaultI420FrameBuffer())
+                          .set_rtp_timestamp(2)
+                          .build();
+  EncodedImage encoded_image2;
+  encoded_image2.SetRtpTimestamp(2);
+  encoded_image2.SetFrameType(VideoFrameType::kVideoFrameDelta);
+  encoded_image2.qp_ = 10;
+  encoded_image2._encodedWidth = kDefaultScaledWidth;
+  encoded_image2._encodedHeight = kDefaultScaledHeight;
+
+  generator.OnCapturedFrame(frame1);
+  EXPECT_TRUE(generator.OnEncodedImage(encoded_image1).has_value());
+
+  generator.OnCapturedFrame(frame2);
+  EXPECT_TRUE(generator.OnEncodedImage(encoded_image2).has_value());
 }
 
 }  // namespace

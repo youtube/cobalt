@@ -253,7 +253,8 @@ bool DtlsSrtpTransport::ExtractParams(DtlsTransportInternal* dtls_transport,
   }
 
   // OK, we're now doing DTLS (RFC 5764)
-  ZeroOnFreeBuffer<uint8_t> dtls_buffer(key_len * 2 + salt_len * 2);
+  auto dtls_buffer = ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+      key_len * 2 + salt_len * 2);
 
   // RFC 5705 exporter using the RFC 5764 parameters
   if (!dtls_transport->ExportSrtpKeyingMaterial(dtls_buffer)) {

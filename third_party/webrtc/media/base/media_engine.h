@@ -18,7 +18,6 @@
 
 #include "api/array_view.h"
 #include "api/audio/audio_device.h"
-#include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
@@ -84,7 +83,7 @@ class RtpHeaderExtensionQueryInterface {
 class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
  public:
   VoiceEngineInterface() = default;
-  virtual ~VoiceEngineInterface() = default;
+  ~VoiceEngineInterface() override = default;
 
   VoiceEngineInterface(const VoiceEngineInterface&) = delete;
   VoiceEngineInterface& operator=(const VoiceEngineInterface&) = delete;
@@ -103,16 +102,14 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options,
-      AudioCodecPairId codec_pair_id) = 0;
+      const CryptoOptions& crypto_options) = 0;
 
   virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
   CreateReceiveChannel(const Environment& env,
                        Call* call,
                        const MediaConfig& config,
                        const AudioOptions& options,
-                       const CryptoOptions& crypto_options,
-                       AudioCodecPairId codec_pair_id) = 0;
+                       const CryptoOptions& crypto_options) = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
@@ -145,7 +142,7 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
 class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
  public:
   VideoEngineInterface() = default;
-  virtual ~VideoEngineInterface() = default;
+  ~VideoEngineInterface() override = default;
 
   VideoEngineInterface(const VideoEngineInterface&) = delete;
   VideoEngineInterface& operator=(const VideoEngineInterface&) = delete;

@@ -10,6 +10,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>  // For move
 #include <vector>
 
@@ -34,6 +35,7 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/bit-field.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
@@ -184,6 +186,11 @@
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
 #endif  // V8_ENABLE_ETW_STACK_WALKING
+
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+#include "src/strings/owning-external-string-resource.h"
+#endif  // defined(V8_ENABLE_SANDBOX) &&
+        // defined(V8_ENABLE_MEMORY_CORRUPTION_API)
 
 namespace v8 {
 
@@ -480,19 +487,39 @@ void RegisteredExtension::UnregisterAll() {
 }
 
 namespace {
+
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
+// An implementation that holds all extension resources as copies in the
+// ExternalStringsCage; for use in testing/fuzzing memory_corruption_api enabled
+// builds to avoid filing issues for OOB reads due to corruptions of lengths
+// stored on heap.
+class ExtensionResource : public i::OwningExternalOneByteStringResource {
+ public:
+  using i::OwningExternalOneByteStringResource::
+      OwningExternalOneByteStringResource;
+  void Dispose() override {
+    // Don't delete here - our lifetime is managed by the Extension object.
+  }
+};
+
+#else  // defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
+// An implementation that simply wraps the specified view.
 class ExtensionResource : public String::ExternalOneByteStringResource {
  public:
-  ExtensionResource() : data_(nullptr), length_(0) {}
-  ExtensionResource(const char* data, size_t length)
-      : data_(data), length_(length) {}
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
+  explicit ExtensionResource(std::string_view string) : string_(string) {}
+  const char* data() const override { return string_.data(); }
+  size_t length() const override { return string_.length(); }
   void Dispose() override {}
 
  private:
-  const char* data_;
-  size_t length_;
+  const std::string_view string_;
 };
+
+#endif  // defined(V8_ENABLE_SANDBOX) &&
+        // defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
 }  // anonymous namespace
 
 void RegisterExtension(std::unique_ptr<Extension> extension) {
@@ -502,14 +529,16 @@ void RegisterExtension(std::unique_ptr<Extension> extension) {
 Extension::Extension(const char* name, const char* source, int dep_count,
                      const char** deps, int source_length)
     : name_(name),
-      source_length_(source_length >= 0
-                         ? source_length
-                         : (source ? static_cast<int>(strlen(source)) : 0)),
       dep_count_(dep_count),
       deps_(deps),
       auto_enable_(false) {
-  source_ = new ExtensionResource(source, source_length_);
-  CHECK(source != nullptr || source_length_ == 0);
+  CHECK_IMPLIES(source == nullptr, source_length <= 0);
+  std::string_view source_view;
+  if (source) {
+    source_view = source_length >= 0 ? std::string_view(source, source_length)
+                                     : std::string_view(source);
+  }
+  source_ = new ExtensionResource(source_view);
 }
 
 void ResourceConstraints::ConfigureDefaultsFromHeapSize(
@@ -2825,13 +2854,20 @@ MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,
 
 // --- E x c e p t i o n s ---
 
+namespace {
+using TryCatchIsVerboseField = v8::base::BitField<bool, 0, 1, uint8_t>;
+using TryCatchCanContinueField = TryCatchIsVerboseField::Next<bool, 1>;
+using TryCatchCaptureMessageField = TryCatchCanContinueField::Next<bool, 1>;
+using TryCatchRethrowField = TryCatchCaptureMessageField::Next<bool, 1>;
+}  // namespace
+
 v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
     : i_isolate_(reinterpret_cast<i::Isolate*>(v8_isolate)),
       next_(i_isolate_->try_catch_handler()),
-      is_verbose_(false),
-      can_continue_(true),
-      capture_message_(true),
-      rethrow_(false) {
+      flags_(TryCatchIsVerboseField::encode(false) |
+             TryCatchCanContinueField::encode(true) |
+             TryCatchCaptureMessageField::encode(true) |
+             TryCatchRethrowField::encode(false)) {
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ = static_cast<internal::Address>(
@@ -2849,9 +2885,9 @@ i::Tagged<i::Object> ToObject(void* object) {
 
 v8::TryCatch::~TryCatch() {
   if (HasCaught()) {
-    if (rethrow_ || (V8_UNLIKELY(HasTerminated()) &&
-                     !i_isolate_->thread_local_top()->CallDepthIsZero())) {
-      if (capture_message_) {
+    if (rethrow() || (V8_UNLIKELY(HasTerminated()) &&
+                      !i_isolate_->thread_local_top()->CallDepthIsZero())) {
+      if (capture_message()) {
         // If an exception was caught and rethrow_ is indicated, the saved
         // message, script, and location need to be restored to Isolate TLS
         // for reuse.  capture_message_ needs to be disabled so that Throw()
@@ -2867,7 +2903,7 @@ v8::TryCatch::~TryCatch() {
     Reset();
   }
   i_isolate_->UnregisterTryCatchHandler(this);
-  DCHECK_IMPLIES(rethrow_,
+  DCHECK_IMPLIES(rethrow(),
                  !i_isolate_->thread_local_top()->rethrowing_message_);
 }
 
@@ -2880,8 +2916,6 @@ bool v8::TryCatch::HasCaught() const {
   return !IsTheHole(ToObject(exception_), i_isolate_);
 }
 
-bool v8::TryCatch::CanContinue() const { return can_continue_; }
-
 bool v8::TryCatch::HasTerminated() const {
   return ToObject(exception_) ==
          i::ReadOnlyRoots(i_isolate_).termination_exception();
@@ -2889,7 +2923,7 @@ bool v8::TryCatch::HasTerminated() const {
 
 v8::Local<v8::Value> v8::TryCatch::ReThrow() {
   if (!HasCaught()) return {};
-  rethrow_ = true;
+  set_rethrow(true);
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate_));
 }
 
@@ -2931,7 +2965,7 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 }
 
 void v8::TryCatch::Reset() {
-  if (rethrow_) return;
+  if (rethrow()) return;
   if (V8_UNLIKELY(i_isolate_->is_execution_terminating()) &&
       !i_isolate_->thread_local_top()->CallDepthIsZero()) {
     return;
@@ -2947,11 +2981,37 @@ void v8::TryCatch::ResetInternal() {
   message_obj_ = reinterpret_cast<void*>(the_hole.ptr());
 }
 
-void v8::TryCatch::SetVerbose(bool value) { is_verbose_ = value; }
+bool v8::TryCatch::CanContinue() const {
+  return TryCatchCanContinueField::decode(flags_);
+}
 
-bool v8::TryCatch::IsVerbose() const { return is_verbose_; }
+void v8::TryCatch::SetVerbose(bool value) {
+  flags_ = TryCatchIsVerboseField::update(flags_, value);
+}
 
-void v8::TryCatch::SetCaptureMessage(bool value) { capture_message_ = value; }
+bool v8::TryCatch::IsVerbose() const {
+  return TryCatchIsVerboseField::decode(flags_);
+}
+
+void v8::TryCatch::SetCaptureMessage(bool value) {
+  flags_ = TryCatchCaptureMessageField::update(flags_, value);
+}
+
+bool v8::TryCatch::capture_message() const {
+  return TryCatchCaptureMessageField::decode(flags_);
+}
+
+void v8::TryCatch::set_can_continue(bool value) {
+  flags_ = TryCatchCanContinueField::update(flags_, value);
+}
+
+bool v8::TryCatch::rethrow() const {
+  return TryCatchRethrowField::decode(flags_);
+}
+
+void v8::TryCatch::set_rethrow(bool value) {
+  flags_ = TryCatchRethrowField::update(flags_, value);
+}
 
 // --- M e s s a g e ---
 
@@ -10596,6 +10656,11 @@ void Isolate::ClearCachesForTesting() {
 void Isolate::SetIsLoading(bool is_loading) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetIsLoading(is_loading);
+}
+
+void Isolate::SetIsInputHandling(bool is_input_handling) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetIsInputHandling(is_input_handling);
 }
 
 void Isolate::Freeze(bool is_frozen) {

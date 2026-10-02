@@ -1425,7 +1425,7 @@ TEST_F(PacingControllerTest, PaddingPacketCanTriggerProbe) {
   pacer->SetPacerConfig(PacerConfig::Create(
       clock_.CurrentTime(),
       /*send_rate=*/DataRate::BitsPerSec(kInitialBitrateBps * kPaceMultiplier),
-      /*padding_rate=*/DataRate::KilobitsPerSec(300)));
+      /*pad_rate=*/DataRate::KilobitsPerSec(300)));
 
   pacer->EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo,
                                    /*ssrc=*/123, /*sequence_number=*/1,
@@ -2180,7 +2180,7 @@ TEST_F(PacingControllerTest, GapInPacingDoesntAccumulateBudget) {
 
   pacer->SetPacerConfig(PacerConfig::Create(clock_.CurrentTime(),
                                             kPackeSize / kPacketSendTime,
-                                            /*padding_rate=*/DataRate::Zero()));
+                                            /*pad_rate=*/DataRate::Zero()));
 
   // Send an initial packet.
   SendAndExpectPacket(pacer.get(), RtpPacketMediaType::kVideo, kSsrc,
@@ -2217,7 +2217,7 @@ TEST_F(PacingControllerTest, HandlesSubMicrosecondSendIntervals) {
   // Set pacing rate such that a packet is sent in 0.5us.
   pacer->SetPacerConfig(PacerConfig::Create(
       clock_.CurrentTime(), /*pacing_rate=*/2 * kPacketSize / kPacketSendTime,
-      /*padding_rate=*/DataRate::Zero(),
+      /*pad_rate=*/DataRate::Zero(),
       /*time_window=*/TimeDelta::Zero()));
 
   // Enqueue three packets, the first two should be sent immediately - the third
@@ -2241,7 +2241,7 @@ TEST_F(PacingControllerTest, HandlesSubMicrosecondPaddingInterval) {
   // Set both pacing and padding rates to 1 byte per 0.5us.
   pacer->SetPacerConfig(PacerConfig::Create(
       clock_.CurrentTime(), /*pacing_rate=*/2 * kPacketSize / kPacketSendTime,
-      /*padding_rate=*/2 * kPacketSize / kPacketSendTime));
+      /*pad_rate=*/2 * kPacketSize / kPacketSendTime));
 
   // Enqueue and send one packet.
   EXPECT_CALL(callback_, SendPacket);
@@ -2362,7 +2362,7 @@ TEST_F(PacingControllerTest, RespectsQueueTimeLimit) {
   PacingController pacer(&clock_, &callback_, trials_);
   pacer.SetPacerConfig(PacerConfig::Create(clock_.CurrentTime(),
                                            kNominalPacingRate,
-                                           /*padding_rate=*/DataRate::Zero()));
+                                           /*pad_rate=*/DataRate::Zero()));
   pacer.SetQueueTimeLimit(kQueueTimeLimit);
 
   // Fill pacer up to queue time limit.
@@ -2402,7 +2402,7 @@ TEST_F(PacingControllerTest, BudgetDoesNotAffectRetransmissionInsTrial) {
       CreateTestFieldTrials("WebRTC-Pacer-FastRetransmissions/Enabled/");
   PacingController pacer(&clock_, &callback_, trials);
   pacer.SetPacerConfig(PacerConfig::Create(clock_.CurrentTime(), kTargetRate,
-                                           /*padding_rate=*/DataRate::Zero()));
+                                           /*pad_rate=*/DataRate::Zero()));
 
   // Send a video packet so that we have a bit debt.
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,
@@ -2427,7 +2427,7 @@ TEST_F(PacingControllerTest, AbortsAfterReachingCircuitBreakLimit) {
   EXPECT_CALL(callback_, SendPadding).Times(0);
   PacingController pacer(&clock_, &callback_, trials_);
   pacer.SetPacerConfig(PacerConfig::Create(clock_.CurrentTime(), kTargetRate,
-                                           /*padding_rate=*/DataRate::Zero()));
+                                           /*pad_rate=*/DataRate::Zero()));
 
   // Set the circuit breaker to abort after one iteration of the main
   // sending loop.
@@ -2454,7 +2454,7 @@ TEST_F(PacingControllerTest, DoesNotPadIfProcessThreadIsBorked) {
 
   // Set both pacing and padding rate to be non-zero.
   pacer.SetPacerConfig(PacerConfig::Create(clock_.CurrentTime(), kTargetRate,
-                                           /*padding_rate=*/kTargetRate));
+                                           /*pad_rate=*/kTargetRate));
 
   // Add one packet to the queue, but do not send it yet.
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,

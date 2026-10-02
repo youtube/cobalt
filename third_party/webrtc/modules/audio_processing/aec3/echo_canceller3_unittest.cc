@@ -1176,6 +1176,7 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
                   ArrayView<const std::array<float, 65>> S2_linear,
                   ArrayView<const std::array<float, 65>> Y2,
                   ArrayView<const std::array<float, 65>> E2,
+                  bool dominant_nearend,
                   ArrayView<std::array<float, 65>> R2,
                   ArrayView<std::array<float, 65>> R2_unbounded) override {
       residual_echo_estimate_requested_ = true;
@@ -1213,7 +1214,7 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
                       &neural_residual_echo_estimator,
                       /*sample_rate_hz=*/kSampleRateHz,
                       /*num_render_channels=*/kNumChannels,
-                      /*num_capture_input_channels=*/kNumChannels);
+                      /*num_capture_channels=*/kNumChannels);
   constexpr int kNumFramesToProcess = 300;
   for (int k = 0; k < kNumFramesToProcess; ++k) {
     RunAecInSMono(buffer, aec3, k);

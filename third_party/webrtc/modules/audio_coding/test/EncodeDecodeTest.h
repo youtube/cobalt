@@ -34,7 +34,7 @@ namespace webrtc {
 class TestPacketization : public AudioPacketizationCallback {
  public:
   TestPacketization(RTPStream* rtpStream, uint16_t frequency);
-  ~TestPacketization();
+  ~TestPacketization() override;
   int32_t SendData(AudioFrameType frameType,
                    uint8_t payloadType,
                    uint32_t timeStamp,

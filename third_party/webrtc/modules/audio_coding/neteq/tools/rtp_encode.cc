@@ -229,7 +229,8 @@ std::unique_ptr<AudioEncoder> CreateEncoder(CodecType codec_type,
       config.dtx_enabled = absl::GetFlag(FLAGS_dtx);
       config.fec_enabled = absl::GetFlag(FLAGS_fec);
       RTC_CHECK(config.IsOk());
-      return AudioEncoderOpus::MakeAudioEncoder(CreateEnvironment(), config,
+      return AudioEncoderOpus::MakeAudioEncoder(CreateEnvironment(),
+                                                std::move(config),
                                                 {.payload_type = payload_type});
     }
 

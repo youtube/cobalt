@@ -176,7 +176,7 @@ class FakeDtlsTransport : public DtlsTransportInternal {
   RTCError SetRemoteParameters(absl::string_view alg,
                                const uint8_t* digest,
                                size_t digest_len,
-                               std::optional<SSLRole> role) {
+                               std::optional<SSLRole> role) override {
     if (role) {
       SetDtlsRole(*role);
     }

@@ -52,7 +52,7 @@ class DtlsTransport : public DtlsTransportInterface {
   void OnInternalDtlsState(DtlsTransportInternal* transport);
 
  protected:
-  ~DtlsTransport();
+  ~DtlsTransport() override;
 
  private:
   void UpdateInformation(DtlsTransportInternal* transport);

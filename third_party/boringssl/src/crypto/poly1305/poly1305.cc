@@ -25,6 +25,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 #if !defined(BORINGSSL_HAS_UINT128) || !defined(OPENSSL_X86_64)
 
 static uint64_t mul32x32_64(uint32_t a, uint32_t b) { return (uint64_t)a * b; }

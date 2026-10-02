@@ -20,7 +20,7 @@
 
 namespace webrtc {
 class VideoFrame;
-}
+}  // namespace webrtc
 
 namespace webrtc {
 

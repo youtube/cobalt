@@ -55,8 +55,8 @@ class RtcEventEndLog final : public RtcEvent {
  private:
   RtcEventEndLog(const RtcEventEndLog&) = default;
 
-  static constexpr EventParameters event_params_{"EndLog",
-                                                 RtcEventEndLog::kType};
+  static constexpr EventParameters event_params_{.name = "EndLog",
+                                                 .id = RtcEventEndLog::kType};
 };
 
 }  // namespace webrtc

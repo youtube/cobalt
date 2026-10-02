@@ -1280,6 +1280,13 @@ void HTMLElement::UpdatePopoverAttribute(const AtomicString& value) {
                       "Found a 'popover' attribute with an invalid value.");
     UseCounter::Count(GetDocument(), WebFeature::kPopoverTypeInvalid);
   }
+  if (RuntimeEnabledFeatures::CustomizableComboboxEnabled() &&
+      IsA<HTMLDataListElement>(this)) {
+    // Datalist elements implicitly become popovers when they have base
+    // appearance and are invoked by a base appearance text input. Datalist
+    // elements manage their own popover state.
+    return;
+  }
   if (IsPopover()) {
     if (PopoverType() == type)
       return;
@@ -2262,7 +2269,14 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 5. A custom element button with `ElementInternals.type=button`
+        // Case 5. A customizable combobox whose picker is a popover.
+        if (auto* input = DynamicTo<HTMLInputElement>(test_node)) {
+          if (input->IsBaseAppearanceCombobox()) {
+            return input->DataList();
+          }
+        }
+
+        // Case 6. A custom element button with `ElementInternals.type=button`
         // with the `popovertarget` attribute or the `commandfor` attribute.
         if (auto* html_element = DynamicTo<HTMLElement>(test_node);
             html_element &&
@@ -2514,8 +2528,7 @@ bool HTMLElement::DispatchFocusEvent(
                                      source_capabilities);
 }
 
-bool HTMLElement::IsValidBuiltinPopoverCommand(HTMLElement& invoker,
-                                               CommandEventType command) {
+bool HTMLElement::IsValidBuiltinPopoverCommand(CommandEventType command) {
   return command == CommandEventType::kTogglePopover ||
          command == CommandEventType::kHidePopover ||
          command == CommandEventType::kShowPopover ||
@@ -2527,7 +2540,7 @@ bool HTMLElement::IsValidBuiltinPopoverCommand(HTMLElement& invoker,
 bool HTMLElement::IsValidBuiltinCommand(HTMLElement& invoker,
                                         CommandEventType command) {
   return Element::IsValidBuiltinCommand(invoker, command) ||
-         IsValidBuiltinPopoverCommand(invoker, command) ||
+         IsValidBuiltinPopoverCommand(command) ||
          (RuntimeEnabledFeatures::HTMLCommandActionsV2Enabled() &&
           (command == CommandEventType::kToggleFullscreen ||
            command == CommandEventType::kRequestFullscreen ||
@@ -2839,7 +2852,7 @@ CommandEventType HTMLElement::GetCommandEventType(
     }
   }
 
-  if (RuntimeEnabledFeatures::CSSOverscrollGesturesEnabled() &&
+  if (RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
       EqualIgnoringASCIICase(action, keywords::kToggleOverscroll)) {
     return CommandEventType::kToggleOverscroll;
   }

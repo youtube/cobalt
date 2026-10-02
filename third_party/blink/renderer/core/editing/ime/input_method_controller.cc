@@ -483,8 +483,10 @@ void InputMethodController::InsertTextDuringCompositionWithEvents(
       if (text.empty())
         TypingCommand::DeleteSelection(*frame.GetDocument(), 0);
       frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
-      TypingCommand::InsertText(*frame.GetDocument(), text, options,
-                                composition_type, is_incremental_insertion);
+      TypingCommand::InsertText(
+          *frame.GetDocument(), text, options,
+          EditCommand::PasswordEchoBehavior::kEchoIfPasswordEchoTouchEnabled,
+          composition_type, is_incremental_insertion);
       break;
     case TypingCommand::TextCompositionType::kTextCompositionCancel:
       // TODO(editing-dev): Use TypingCommand::insertText after TextEvent was
@@ -864,6 +866,8 @@ void InputMethodController::AddImeTextSpans(
                 .SetBackgroundColor(ime_text_span.BackgroundColor())
                 .SetRemoveOnFinishComposing(
                     ime_text_span.NeedsRemovalOnFinishComposing())
+                .SetShouldHideSuggestionMenu(
+                    ime_text_span.ShouldHideSuggestionMenu())
                 .Build());
         break;
     }
@@ -995,7 +999,8 @@ void InputMethodController::SetComposition(
     const String& text,
     const Vector<ImeTextSpan>& ime_text_spans,
     int selection_start,
-    int selection_end) {
+    int selection_end,
+    mojom::blink::ImeState ime_state) {
   RevealSelectionScope reveal_selection_scope(GetFrame());
 
   // Updates styles before setting selection for composition to prevent
@@ -1120,7 +1125,7 @@ void InputMethodController::SetComposition(
   composition_range_->setEnd(focus_node, focus_offset);
   if (Node* focused_element = GetDocument().FocusedElement()) {
     if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
-      cache->HandleSetComposition(focused_element);
+      cache->HandleSetComposition(focused_element, ime_state);
     }
   }
 
@@ -1231,7 +1236,8 @@ void InputMethodController::SetCompositionFromExistingText(
   composition_range_->setEnd(range.EndPosition());
   if (Node* focused_element = GetDocument().FocusedElement()) {
     if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
-      cache->HandleSetComposition(focused_element);
+      cache->HandleSetComposition(focused_element,
+                                  mojom::blink::ImeState::kNone);
     }
   }
 

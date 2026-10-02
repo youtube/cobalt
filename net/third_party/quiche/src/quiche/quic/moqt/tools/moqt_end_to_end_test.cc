@@ -46,12 +46,11 @@ class MoqtEndToEndTest : public quiche::test::QuicheTest {
       : server_(quic::test::crypto_test_utils::ProofSourceForTesting(),
                 absl::bind_front(&MoqtEndToEndTest::ServerBackend, this)) {
     quic::QuicIpAddress host = quic::TestLoopback();
-    bool success = server_.quic_server().CreateUDPSocketAndListen(
+    absl::Status socket_status = server_.CreateUDPSocketAndListen(
         quic::QuicSocketAddress(host, /*port=*/0));
-    QUICHE_CHECK(success);
-    server_address_ =
-        quic::QuicSocketAddress(host, server_.quic_server().port());
-    event_loop_ = server_.quic_server().event_loop();
+    QUICHE_CHECK_OK(socket_status);
+    server_address_ = quic::QuicSocketAddress(host, server_.port());
+    event_loop_ = server_.event_loop();
   }
 
   absl::StatusOr<MoqtConfigureSessionCallback> ServerBackend(

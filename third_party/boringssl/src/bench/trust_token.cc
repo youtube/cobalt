@@ -19,8 +19,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/trust_token.h>
+
 #include "../crypto/mem_internal.h"
-#include "../crypto/trust_token/internal.h"
 
 namespace {
 
@@ -82,27 +83,23 @@ class TrustTokenFixture : public benchmark::Fixture {
     return true;
   }
 
-  static TRUST_TOKEN_PRETOKEN *trust_token_pretoken_dup(
-      const TRUST_TOKEN_PRETOKEN *in) {
-    return static_cast<TRUST_TOKEN_PRETOKEN *>(
-        OPENSSL_memdup(in, sizeof(TRUST_TOKEN_PRETOKEN)));
-  }
-
   void SpeedBeginIssue(benchmark::State &state) {
     for (auto _ : state) {
+      bssl::UniquePtr<TRUST_TOKEN_CLIENT> copy(
+          TRUST_TOKEN_CLIENT_dup_for_testing(client_.get()));
+      if (copy == nullptr) {
+        state.SkipWithError("TRUST_TOKEN_CLIENT_dup_for_testing failed.");
+        return;
+      }
       uint8_t *issue_msg = NULL;
       size_t test_msg_len;
-      int ok = TRUST_TOKEN_CLIENT_begin_issuance(client_.get(), &issue_msg,
+      int ok = TRUST_TOKEN_CLIENT_begin_issuance(copy.get(), &issue_msg,
                                                  &test_msg_len, batchsize_);
       OPENSSL_free(issue_msg);
       if (!ok) {
         state.SkipWithError("TRUST_TOKEN_CLIENT_begin_issuance failed.");
         return;
       }
-      // Clear pretokens.
-      sk_TRUST_TOKEN_PRETOKEN_pop_free(client_->pretokens,
-                                       TRUST_TOKEN_PRETOKEN_free);
-      client_->pretokens = sk_TRUST_TOKEN_PRETOKEN_new_null();
     }
   }
   bool BeginIssue(benchmark::State &state) {
@@ -114,9 +111,6 @@ class TrustTokenFixture : public benchmark::Fixture {
       return false;
     }
     free_issue_msg_.Reset(issue_msg, msg_len);
-    pretokens_.reset(sk_TRUST_TOKEN_PRETOKEN_deep_copy(
-        client_->pretokens, trust_token_pretoken_dup,
-        TRUST_TOKEN_PRETOKEN_free));
     return true;
   }
   void SpeedIssue(benchmark::State &state) {
@@ -152,16 +146,17 @@ class TrustTokenFixture : public benchmark::Fixture {
   }
   void SpeedFinishIssue(benchmark::State &state) {
     for (auto _ : state) {
+      bssl::UniquePtr<TRUST_TOKEN_CLIENT> copy(
+          TRUST_TOKEN_CLIENT_dup_for_testing(client_.get()));
+      if (copy == nullptr) {
+        state.SkipWithError("TRUST_TOKEN_CLIENT_dup_for_testing failed.");
+        return;
+      }
       size_t key_index2;
       bssl::UniquePtr<STACK_OF(TRUST_TOKEN)> test_tokens(
-          TRUST_TOKEN_CLIENT_finish_issuance(client_.get(), &key_index2,
+          TRUST_TOKEN_CLIENT_finish_issuance(copy.get(), &key_index2,
                                              free_issue_resp_.data(),
                                              free_issue_resp_.size()));
-
-      // Reset pretokens.
-      client_->pretokens = sk_TRUST_TOKEN_PRETOKEN_deep_copy(
-          pretokens_.get(), trust_token_pretoken_dup,
-          TRUST_TOKEN_PRETOKEN_free);
       if (!test_tokens) {
         state.SkipWithError("TRUST_TOKEN_CLIENT_finish_issuance failed.");
         return;
@@ -278,7 +273,6 @@ class TrustTokenFixture : public benchmark::Fixture {
 
   bssl::Array<uint8_t> free_issue_msg_;
   bssl::Array<uint8_t> free_issue_resp_;
-  bssl::UniquePtr<STACK_OF(TRUST_TOKEN_PRETOKEN)> pretokens_;
   size_t key_index_;
   bssl::UniquePtr<STACK_OF(TRUST_TOKEN)> tokens_;
   bssl::Array<uint8_t> free_redeem_msg_;

@@ -91,7 +91,7 @@ class BaseChannel : public ChannelInterface,
       bool srtp_required,
       CryptoOptions crypto_options,
       UniqueRandomIdGenerator* ssrc_generator);
-  virtual ~BaseChannel();
+  ~BaseChannel() override;
 
   TaskQueueBase* worker_thread() const { return worker_thread_; }
   Thread* network_thread() const { return network_thread_; }
@@ -311,7 +311,8 @@ class BaseChannel : public ChannelInterface,
   const std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel_;
 
  private:
-  bool ConnectToRtpTransport_n() RTC_RUN_ON(network_thread());
+  bool ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport)
+      RTC_RUN_ON(network_thread());
   void DisconnectFromRtpTransport_n() RTC_RUN_ON(network_thread());
   void SignalSentPacket_n(const SentPacketInfo& sent_packet);
 
@@ -388,7 +389,7 @@ class VoiceChannel : public BaseChannel {
       CryptoOptions crypto_options,
       UniqueRandomIdGenerator* ssrc_generator);
 
-  ~VoiceChannel();
+  ~VoiceChannel() override;
 
   VideoChannel* AsVideoChannel() override {
     RTC_CHECK_NOTREACHED();
@@ -455,7 +456,7 @@ class VideoChannel : public BaseChannel {
       bool srtp_required,
       CryptoOptions crypto_options,
       UniqueRandomIdGenerator* ssrc_generator);
-  ~VideoChannel();
+  ~VideoChannel() override;
 
   VideoChannel* AsVideoChannel() override { return this; }
   VoiceChannel* AsVoiceChannel() override {

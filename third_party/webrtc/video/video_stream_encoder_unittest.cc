@@ -2705,6 +2705,33 @@ TEST_F(VideoStreamEncoderTest,
   video_stream_encoder_->Stop();
 }
 
+TEST_F(VideoStreamEncoderTest,
+       ConfigureEncoderRequestsRefreshFrameOnScaleResolutionDownToChange) {
+  MockVideoSourceInterface mock_source;
+  video_stream_encoder_->SetSource(&mock_source,
+                                   DegradationPreference::DISABLED);
+
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, 0, 0, 0);
+
+  // Initial configuration.
+  VideoEncoderConfig config;
+  test::FillEncoderConfiguration(kVideoCodecVP8, 1, &config);
+  config.simulcast_layers[0].scale_resolution_down_to = {
+      .width = 640, .height = 360};  // Example resolution
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+
+  EXPECT_CALL(mock_source, RequestRefreshFrame).Times(1);
+
+  // Change scale_resolution_down_to.
+  config.simulcast_layers[0].scale_resolution_down_to = {
+      .width = 320, .height = 180};  // Different resolution
+  video_stream_encoder_->ConfigureEncoder(std::move(config), kMaxPayloadLength);
+
+  AdvanceTime(TimeDelta::Millis(0));
+  video_stream_encoder_->Stop();
+}
+
 TEST_F(VideoStreamEncoderTest, SwitchSourceDeregisterEncoderAsSink) {
   EXPECT_TRUE(video_source_.has_sinks());
   test::FrameForwarder new_video_source;

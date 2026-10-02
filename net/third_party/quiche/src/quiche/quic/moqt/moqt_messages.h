@@ -19,15 +19,13 @@
 
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -40,18 +38,15 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
   return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::RFCv1()};
 }
 
-enum class MoqtVersion : uint64_t {
-  kDraft14 = 0xff00000e,
-  kUnrecognizedVersionForTests = 0xfe0000ff,
-};
+inline constexpr absl::string_view kDraft16 = "moqt-16";
+inline constexpr absl::string_view kDefaultMoqtVersion = kDraft16;
+inline constexpr absl::string_view kImplementationName =
+    "Google QUICHE MOQT draft 16";
+inline constexpr absl::string_view kUnrecognizedVersionForTests = "moqt-15";
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft14;
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
-inline constexpr uint64_t kMinNamespaceElements = 1;
-inline constexpr uint64_t kMaxNamespaceElements = 32;
-inline constexpr size_t kMaxFullTrackNameSize = 1024;
 inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
 
 enum AuthTokenType : uint64_t {
@@ -100,7 +95,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
       : perspective(perspective), max_request_id(max_request_id) {}
   bool operator==(const MoqtSessionParameters& other) const = default;
 
-  MoqtVersion version = kDefaultMoqtVersion;
+  std::string version = std::string(kDefaultMoqtVersion);
   bool deliver_partial_objects = false;
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
@@ -111,7 +106,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO(martinduke): Turn authorization_token into structured data.
   std::vector<AuthToken> authorization_token;
   std::string authority;
-  std::string moqt_implementation = "Google QUICHE MOQT draft 14";
+  std::string moqt_implementation;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -389,120 +384,9 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kExpiredAuthToken = 0x12,
 };
 
-struct MoqtRequestError {
+struct MoqtErrorPair {
   RequestErrorCode error_code;
   std::string reason_phrase;
-};
-// TODO(martinduke): These are deprecated. Replace them in the code.
-using MoqtSubscribeErrorReason = MoqtRequestError;
-using MoqtPublishNamespaceErrorReason = MoqtSubscribeErrorReason;
-
-class TrackNamespace {
- public:
-  explicit TrackNamespace(absl::Span<const absl::string_view> elements);
-  explicit TrackNamespace(
-      std::initializer_list<const absl::string_view> elements)
-      : TrackNamespace(absl::Span<const absl::string_view>(
-            std::data(elements), std::size(elements))) {}
-  explicit TrackNamespace(absl::string_view ns) : TrackNamespace({ns}) {}
-  TrackNamespace() : TrackNamespace({}) {}
-
-  bool IsValid() const {
-    return !tuple_.empty() && tuple_.size() <= kMaxNamespaceElements &&
-           length_ <= kMaxFullTrackNameSize;
-  }
-  bool InNamespace(const TrackNamespace& other) const;
-  // Check if adding an element will exceed limits, without triggering a
-  // bug. Useful for the parser, which has to be robust to malformed data.
-  bool CanAddElement(absl::string_view element) {
-    return (tuple_.size() < kMaxNamespaceElements &&
-            length_ + element.length() <= kMaxFullTrackNameSize);
-  }
-  void AddElement(absl::string_view element);
-  bool PopElement() {
-    if (tuple_.size() == 1) {
-      return false;
-    }
-    length_ -= tuple_.back().length();
-    tuple_.pop_back();
-    return true;
-  }
-  std::string ToString() const;
-  // Returns the number of elements in the tuple.
-  size_t number_of_elements() const { return tuple_.size(); }
-  // Returns the sum of the lengths of all elements in the tuple.
-  size_t total_length() const { return length_; }
-
-  auto operator<=>(const TrackNamespace& other) const {
-    return std::lexicographical_compare_three_way(
-        tuple_.cbegin(), tuple_.cend(), other.tuple_.cbegin(),
-        other.tuple_.cend());
-  }
-  bool operator==(const TrackNamespace&) const = default;
-
-  const std::vector<std::string>& tuple() const { return tuple_; }
-
-  template <typename H>
-  friend H AbslHashValue(H h, const TrackNamespace& m) {
-    return H::combine(std::move(h), m.tuple_);
-  }
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, const TrackNamespace& track_namespace) {
-    sink.Append(track_namespace.ToString());
-  }
-
- private:
-  std::vector<std::string> tuple_;
-  size_t length_ = 0;  // size in bytes.
-};
-
-class FullTrackName {
- public:
-  FullTrackName(absl::string_view ns, absl::string_view name)
-      : namespace_(ns), name_(name) {
-    QUICHE_BUG_IF(Moqt_full_track_name_too_large_01, !IsValid())
-        << "Constructing a Full Track Name that is too large.";
-  }
-  FullTrackName(TrackNamespace ns, absl::string_view name)
-      : namespace_(ns), name_(name) {
-    QUICHE_BUG_IF(Moqt_full_track_name_too_large_02, !IsValid())
-        << "Constructing a Full Track Name that is too large.";
-  }
-  FullTrackName() = default;
-
-  bool IsValid() const {
-    return namespace_.IsValid() && length() <= kMaxFullTrackNameSize;
-  }
-  const TrackNamespace& track_namespace() const { return namespace_; }
-  TrackNamespace& track_namespace() { return namespace_; }
-  absl::string_view name() const { return name_; }
-  void AddElement(absl::string_view element) {
-    return namespace_.AddElement(element);
-  }
-  std::string ToString() const {
-    return absl::StrCat(namespace_.ToString(), "::", name_);
-  }
-  // Check if the name will exceed limits, without triggering a bug. Useful for
-  // the parser, which has to be robust to malformed data.
-  bool CanAddName(absl::string_view name) {
-    return (namespace_.total_length() + name.length() <= kMaxFullTrackNameSize);
-  }
-  void set_name(absl::string_view name);
-  size_t length() const { return namespace_.total_length() + name_.length(); }
-
-  auto operator<=>(const FullTrackName&) const = default;
-  template <typename H>
-  friend H AbslHashValue(H h, const FullTrackName& m) {
-    return H::combine(std::move(h), m.namespace_.tuple(), m.name_);
-  }
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, const FullTrackName& full_track_name) {
-    sink.Append(full_track_name.ToString());
-  }
-
- private:
-  TrackNamespace namespace_;
-  std::string name_ = "";
 };
 
 // Location as defined in
@@ -574,36 +458,36 @@ H AbslHashValue(H h, const Location& m) {
 // This class does not interpret the semantic meaning of the keys and values,
 // although it does accept various uint64_t-based enums to reduce the burden of
 // casting on the caller.
+// Keys must be ordered.
 class KeyValuePairList {
  public:
   KeyValuePairList() = default;
-  size_t size() const { return integer_map_.size() + string_map_.size(); }
-  void insert(VersionSpecificParameter key, uint64_t value) {
+  size_t size() const { return map_.size(); }
+
+  void insert(VersionSpecificParameter key,
+              std::variant<uint64_t, absl::string_view> value) {
     insert(static_cast<uint64_t>(key), value);
   }
-  void insert(SetupParameter key, uint64_t value) {
+  void insert(SetupParameter key,
+              std::variant<uint64_t, absl::string_view> value) {
     insert(static_cast<uint64_t>(key), value);
   }
-  void insert(VersionSpecificParameter key, absl::string_view value) {
-    insert(static_cast<uint64_t>(key), value);
-  }
-  void insert(SetupParameter key, absl::string_view value) {
-    insert(static_cast<uint64_t>(key), value);
-  }
-  void insert(uint64_t key, absl::string_view value);
-  void insert(uint64_t key, uint64_t value);
+  void insert(uint64_t key, std::variant<uint64_t, absl::string_view> value);
+
   size_t count(VersionSpecificParameter key) const {
-    return count(static_cast<uint64_t>(key));
+    return map_.count(static_cast<uint64_t>(key));
   }
   size_t count(SetupParameter key) const {
-    return count(static_cast<uint64_t>(key));
+    return map_.count(static_cast<uint64_t>(key));
   }
+
   bool contains(VersionSpecificParameter key) const {
-    return contains(static_cast<uint64_t>(key));
+    return map_.contains(static_cast<uint64_t>(key));
   }
   bool contains(SetupParameter key) const {
-    return contains(static_cast<uint64_t>(key));
+    return map_.contains(static_cast<uint64_t>(key));
   }
+
   // If either of these callbacks returns false, ForEach will return early.
   using IntCallback = quiche::UnretainedCallback<bool(uint64_t, uint64_t)>;
   using StringCallback =
@@ -611,13 +495,12 @@ class KeyValuePairList {
   // Iterates through the whole list, and executes int_callback for each integer
   // value and string_callback for each string value.
   bool ForEach(IntCallback int_callback, StringCallback string_callback) const {
-    for (const auto& [key, value] : integer_map_) {
-      if (!int_callback(key, value)) {
-        return false;
-      }
-    }
-    for (const auto& [key, value] : string_map_) {
-      if (!string_callback(key, value)) {
+    for (const auto& [key, value] : map_) {
+      if (std::holds_alternative<uint64_t>(value)) {
+        if (!int_callback(key, std::get<uint64_t>(value))) {
+          return false;
+        }
+      } else if (!string_callback(key, std::get<std::string>(value))) {
         return false;
       }
     }
@@ -636,33 +519,26 @@ class KeyValuePairList {
   std::vector<absl::string_view> GetStrings(SetupParameter key) const {
     return GetStrings(static_cast<uint64_t>(key));
   }
-  void clear() {
-    integer_map_.clear();
-    string_map_.clear();
-  }
+
+  void clear() { map_.clear(); }
 
  private:
-  size_t count(uint64_t key) const;
-  bool contains(uint64_t key) const;
   std::vector<uint64_t> GetIntegers(uint64_t key) const;
   std::vector<absl::string_view> GetStrings(uint64_t key) const;
-  absl::btree_multimap<uint64_t, uint64_t> integer_map_;
-  absl::btree_multimap<uint64_t, std::string> string_map_;
+  absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
 };
 
 // TODO(martinduke): Collapse both Setup messages into MoqtSessionParameters.
 struct QUICHE_EXPORT MoqtClientSetup {
-  std::vector<MoqtVersion> supported_versions;
   MoqtSessionParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
-  MoqtVersion selected_version;
   MoqtSessionParameters parameters;
 };
 
 // These codes do not appear on the wire.
-enum class QUICHE_EXPORT MoqtForwardingPreference {
+enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
   kSubgroup,
   kDatagram,
 };

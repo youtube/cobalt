@@ -18,7 +18,7 @@
 #include "../delocate.h"
 
 
-int FIPS_mode(void) {
+int FIPS_mode() {
 #if defined(BORINGSSL_FIPS) && !defined(OPENSSL_ASAN)
   return 1;
 #else
@@ -28,9 +28,9 @@ int FIPS_mode(void) {
 
 int FIPS_mode_set(int on) { return on == FIPS_mode(); }
 
-const char *FIPS_module_name(void) { return "BoringCrypto"; }
+const char *FIPS_module_name() { return "BoringCrypto"; }
 
-int CRYPTO_has_asm(void) {
+int CRYPTO_has_asm() {
 #if defined(OPENSSL_NO_ASM)
   return 0;
 #else
@@ -38,9 +38,7 @@ int CRYPTO_has_asm(void) {
 #endif
 }
 
-uint32_t FIPS_version(void) {
-  return 0;
-}
+uint32_t FIPS_version() { return 0; }
 
 int FIPS_query_algorithm_status(const char *algorithm) {
 #if defined(BORINGSSL_FIPS)

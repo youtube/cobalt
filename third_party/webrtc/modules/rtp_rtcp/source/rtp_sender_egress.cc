@@ -21,7 +21,6 @@
 #include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -128,9 +127,7 @@ RtpSenderEgress::RtpSenderEgress(const Environment& env,
       rtp_sequence_number_map_(need_rtp_packet_infos_
                                    ? std::make_unique<RtpSequenceNumberMap>(
                                          kRtpSequenceNumberMapMaxEntries)
-                                   : nullptr),
-      use_ntp_time_for_absolute_send_time_(!env_.field_trials().IsDisabled(
-          "WebRTC-UseNtpTimeAbsoluteSendTime")) {
+                                   : nullptr) {
   RTC_DCHECK(worker_queue_);
   if (bitrate_callback_) {
     update_task_ = RepeatingTaskHandle::DelayedStart(worker_queue_,
@@ -229,12 +226,8 @@ void RtpSenderEgress::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
     packet->SetExtension<TransmissionOffset>(kTimestampTicksPerMs * diff.ms());
   }
   if (packet->HasExtension<AbsoluteSendTime>()) {
-    if (use_ntp_time_for_absolute_send_time_) {
-      packet->SetExtension<AbsoluteSendTime>(AbsoluteSendTime::To24Bits(
-          env_.clock().ConvertTimestampToNtpTime(now)));
-    } else {
-      packet->SetExtension<AbsoluteSendTime>(AbsoluteSendTime::To24Bits(now));
-    }
+    packet->SetExtension<AbsoluteSendTime>(AbsoluteSendTime::To24Bits(
+        env_.clock().ConvertTimestampToNtpTime(now)));
   }
   if (packet->HasExtension<TransportSequenceNumber>() &&
       packet->transport_sequence_number()) {

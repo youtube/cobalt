@@ -253,7 +253,7 @@ class RTC_EXPORT StatsReport {
     // this Equals() function.  It simply calls the protected (and overridden)
     // Equals() method.
     bool Equals(const scoped_refptr<IdBase>& other) const {
-      return Equals(*other.get());
+      return Equals(*other);
     }
 
     virtual std::string ToString() const = 0;

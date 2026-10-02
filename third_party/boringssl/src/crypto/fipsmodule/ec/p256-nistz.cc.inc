@@ -37,6 +37,9 @@
 #include "internal.h"
 #include "p256-nistz.h"
 
+
+using namespace bssl;
+
 #if !defined(OPENSSL_NO_ASM) &&                              \
     (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) && \
     !defined(OPENSSL_SMALL)
@@ -715,6 +718,8 @@ static int ecp_nistz256_cmp_x_coordinate(const EC_GROUP *group,
   return 0;
 }
 
+BSSL_NAMESPACE_BEGIN
+
 DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistz256_method) {
   out->point_get_affine_coordinates = ecp_nistz256_get_affine;
   out->add = ecp_nistz256_add;
@@ -735,6 +740,8 @@ DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistz256_method) {
       ecp_nistz256_scalar_to_montgomery_inv_vartime;
   out->cmp_x_coordinate = ecp_nistz256_cmp_x_coordinate;
 }
+
+BSSL_NAMESPACE_END
 
 #endif /* !defined(OPENSSL_NO_ASM) &&                              \
           (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) && \

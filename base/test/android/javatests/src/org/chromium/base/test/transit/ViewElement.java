@@ -12,7 +12,6 @@ import static org.chromium.base.test.transit.Condition.whether;
 import static org.chromium.base.test.transit.SimpleConditions.instrumentationThreadCondition;
 
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.content.Context;
 import android.view.View;
 
@@ -26,6 +25,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.hamcrest.Matcher;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.test.util.ForgivingClickAction;
@@ -108,6 +108,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
         return DisplayedCondition.newOptions()
                 .withExpectEnabled(options.mExpectEnabled)
                 .withExpectDisabled(options.mExpectDisabled)
+                .withEffectiveVisibility(options.mExpectedEffectiveVisibility)
                 .withDisplayingAtLeast(options.mDisplayedPercentageRequired)
                 .withSettleTimeMs(options.mInitialSettleTimeMs);
     }
@@ -227,10 +228,8 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
 
         Triggers.runTo(
                         () -> {
-                            ActivityManager activityManager =
-                                    (ActivityManager)
-                                            activity.getSystemService(Context.ACTIVITY_SERVICE);
-                            activityManager.moveTaskToFront(activity.getTaskId(), 0);
+                            ApiCompatibilityUtils.moveTaskToFront(
+                                    activity, activity.getTaskId(), 0);
                         })
                 .withContext(this)
                 .waitForAnd(
@@ -287,6 +286,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
         protected boolean mScoped = true;
         protected boolean mExpectEnabled = true;
         protected boolean mExpectDisabled;
+        protected int mExpectedEffectiveVisibility = View.VISIBLE;
         protected int mDisplayedPercentageRequired = ViewElement.MIN_DISPLAYED_PERCENT;
         protected int mInitialSettleTimeMs;
         protected @Nullable RootSpec mRootSpec;
@@ -331,6 +331,18 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
                 return this;
             }
 
+            /** Expect the View to be INVISIBLE rather than VISIBLE. */
+            public Builder expectInvisible() {
+                mExpectedEffectiveVisibility = View.INVISIBLE;
+                return this;
+            }
+
+            /** Expect the View to be GONE rather than VISIBLE. */
+            public Builder expectGone() {
+                mExpectedEffectiveVisibility = View.GONE;
+                return this;
+            }
+
             /**
              * Changes the minimum percentage of the View that needs be displayed to fulfill the
              * enter Condition. Default is >=90% visible, which matches the minimum requirement for
@@ -358,6 +370,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
                 mScoped = optionsToClone.mScoped;
                 mExpectDisabled = optionsToClone.mExpectDisabled;
                 mExpectEnabled = optionsToClone.mExpectEnabled;
+                mExpectedEffectiveVisibility = optionsToClone.mExpectedEffectiveVisibility;
                 mDisplayedPercentageRequired = optionsToClone.mDisplayedPercentageRequired;
                 mInitialSettleTimeMs = optionsToClone.mInitialSettleTimeMs;
                 mRootSpec = optionsToClone.mRootSpec;
@@ -391,9 +404,26 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
         return newOptions().allowDisabled().build();
     }
 
+    /** Convenience {@link Options} setting expectInvisible(). */
+    public static Options expectInvisibleOption() {
+        return newOptions().expectInvisible().build();
+    }
+
+    /** Convenience {@link Options} setting expectGone(). */
+    public static Options expectGoneOption() {
+        return newOptions().expectGone().build();
+    }
+
     /** Convenience {@link Options} setting displayingAtLeast(). */
     public static Options displayingAtLeastOption(int percentage) {
         return newOptions().displayingAtLeast(percentage).build();
+    }
+
+    /**
+     * @param settleTimeMs the time to wait for the View to settle in ms.
+     */
+    public static Options initialSettleTimeOption(int settleTimeMs) {
+        return newOptions().initialSettleTime(settleTimeMs).build();
     }
 
     /** Convenience {@link Options} setting rootSpec(). */

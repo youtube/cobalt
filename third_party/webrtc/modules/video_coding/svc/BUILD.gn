@@ -14,6 +14,7 @@ rtc_library("scalability_mode_util") {
     "scalability_mode_util.h",
   ]
   deps = [
+    "../../../api/video:video_frame",
     "../../../api/video_codecs:scalability_mode",
     "../../../api/video_codecs:video_codecs_api",
     "../../../rtc_base:checks",
@@ -130,8 +131,10 @@ if (rtc_include_tests) {
       "../../../api:array_view",
       "../../../api/transport/rtp:dependency_descriptor",
       "../../../api/video:video_bitrate_allocation",
+      "../../../api/video:video_frame",
       "../../../api/video:video_frame_type",
       "../../../api/video_codecs:scalability_mode",
+      "../../../api/video_codecs:video_codecs_api",
       "../../../common_video/generic_frame_descriptor",
       "../../../rtc_base:checks",
       "../../../rtc_base:stringutils",

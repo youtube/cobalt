@@ -42,7 +42,7 @@ namespace test {
 class FakeEncoder : public VideoEncoder {
  public:
   explicit FakeEncoder(const Environment& env_);
-  virtual ~FakeEncoder() = default;
+  ~FakeEncoder() override = default;
 
   // Sets max bitrate. Not thread-safe, call before registering the encoder.
   void SetMaxBitrate(int max_kbps) RTC_LOCKS_EXCLUDED(mutex_);
@@ -127,7 +127,7 @@ class FakeEncoder : public VideoEncoder {
 class FakeH264Encoder : public FakeEncoder {
  public:
   explicit FakeH264Encoder(const Environment& env);
-  virtual ~FakeH264Encoder() = default;
+  ~FakeH264Encoder() override = default;
 
  private:
   CodecSpecificInfo EncodeHook(
@@ -141,7 +141,7 @@ class FakeH264Encoder : public FakeEncoder {
 class DelayedEncoder : public test::FakeEncoder {
  public:
   DelayedEncoder(const Environment& env, int delay_ms);
-  virtual ~DelayedEncoder() = default;
+  ~DelayedEncoder() override = default;
 
   void SetDelay(int delay_ms);
   int32_t Encode(const VideoFrame& input_image,
@@ -159,7 +159,7 @@ class DelayedEncoder : public test::FakeEncoder {
 class MultithreadedFakeH264Encoder : public test::FakeH264Encoder {
  public:
   explicit MultithreadedFakeH264Encoder(const Environment& env);
-  virtual ~MultithreadedFakeH264Encoder() = default;
+  ~MultithreadedFakeH264Encoder() override = default;
 
   int32_t InitEncode(const VideoCodec* config,
                      const Settings& settings) override;

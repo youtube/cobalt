@@ -226,7 +226,7 @@ static const BIO_METHOD mem_method = {
     mem_new,      mem_free,        /*callback_ctrl=*/nullptr,
 };
 
-const BIO_METHOD *BIO_s_mem(void) { return &mem_method; }
+const BIO_METHOD *BIO_s_mem() { return &mem_method; }
 
 int BIO_mem_contents(const BIO *bio, const uint8_t **out_contents,
                      size_t *out_len) {

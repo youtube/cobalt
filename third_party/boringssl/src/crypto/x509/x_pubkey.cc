@@ -33,14 +33,16 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 void x509_pubkey_init(X509_PUBKEY *key) {
   OPENSSL_memset(key, 0, sizeof(X509_PUBKEY));
   x509_algor_init(&key->algor);
   asn1_string_init(&key->public_key, V_ASN1_BIT_STRING);
 }
 
-X509_PUBKEY *X509_PUBKEY_new(void) {
-  bssl::UniquePtr<X509_PUBKEY> ret = bssl::MakeUnique<X509_PUBKEY>();
+X509_PUBKEY *X509_PUBKEY_new() {
+  UniquePtr<X509_PUBKEY> ret = MakeUnique<X509_PUBKEY>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -62,19 +64,19 @@ void X509_PUBKEY_free(X509_PUBKEY *key) {
 }
 
 static void x509_pubkey_changed(X509_PUBKEY *pub,
-                                bssl::Span<const EVP_PKEY_ALG *const> algs) {
+                                Span<const EVP_PKEY_ALG *const> algs) {
   EVP_PKEY_free(pub->pkey);
   pub->pkey = nullptr;
 
   // Re-encode the |X509_PUBKEY| to DER and parse it with EVP's APIs. If the
   // operation fails, clear errors. An |X509_PUBKEY| whose key we cannot parse
   // is still a valid SPKI. It just cannot be converted to an |EVP_PKEY|.
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 64) || !x509_marshal_public_key(cbb.get(), pub)) {
     ERR_clear_error();
     return;
   }
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_from_subject_public_key_info(
+  UniquePtr<EVP_PKEY> pkey(EVP_PKEY_from_subject_public_key_info(
       CBB_data(cbb.get()), CBB_len(cbb.get()), algs.data(), algs.size()));
   if (pkey == nullptr) {
     ERR_clear_error();
@@ -85,7 +87,7 @@ static void x509_pubkey_changed(X509_PUBKEY *pub,
 }
 
 int x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
-                          bssl::Span<const EVP_PKEY_ALG *const> algs) {
+                          Span<const EVP_PKEY_ALG *const> algs) {
   CBS seq;
   if (!CBS_get_asn1(cbs, &seq, CBS_ASN1_SEQUENCE) ||
       !x509_parse_algorithm(&seq, &out->algor) ||
@@ -99,7 +101,7 @@ int x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
 }
 
 static int x509_parse_public_key_default(CBS *cbs, X509_PUBKEY *out) {
-  return x509_parse_public_key(cbs, out, bssl::GetDefaultEVPAlgorithms());
+  return x509_parse_public_key(cbs, out, GetDefaultEVPAlgorithms());
 }
 
 int x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in) {
@@ -111,18 +113,17 @@ int x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in) {
 }
 
 X509_PUBKEY *d2i_X509_PUBKEY(X509_PUBKEY **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(
-      out, inp, len, [](CBS *cbs) -> bssl::UniquePtr<X509_PUBKEY> {
-        bssl::UniquePtr<X509_PUBKEY> ret(X509_PUBKEY_new());
-        if (ret == nullptr || !x509_parse_public_key_default(cbs, ret.get())) {
-          return nullptr;
-        }
-        return ret;
-      });
+  return D2IFromCBS(out, inp, len, [](CBS *cbs) -> UniquePtr<X509_PUBKEY> {
+    UniquePtr<X509_PUBKEY> ret(X509_PUBKEY_new());
+    if (ret == nullptr || !x509_parse_public_key_default(cbs, ret.get())) {
+      return nullptr;
+    }
+    return ret;
+  });
 }
 
 int i2d_X509_PUBKEY(const X509_PUBKEY *key, uint8_t **outp) {
-  return bssl::I2DFromCBB(/*initial_capacity=*/32, outp, [&](CBB *cbb) -> bool {
+  return I2DFromCBB(/*initial_capacity=*/32, outp, [&](CBB *cbb) -> bool {
     return x509_marshal_public_key(cbb, key);
   });
 }
@@ -134,9 +135,8 @@ IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
                              i2d_X509_PUBKEY)
 
 int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
-  bssl::ScopedCBB cbb;
-  if (!CBB_init(cbb.get(), 64) ||
-      !EVP_marshal_public_key(cbb.get(), pkey)) {
+  ScopedCBB cbb;
+  if (!CBB_init(cbb.get(), 64) || !EVP_marshal_public_key(cbb.get(), pkey)) {
     OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_ENCODE_ERROR);
     return 0;
   }
@@ -146,11 +146,11 @@ int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
   // TODO(crbug.com/42290364): Use an |EVP_PKEY_ALG| derived from |pkey|.
   // |X509_PUBKEY_get0| does not currently work when setting, say, an
   // |EVP_PKEY_RSA_PSS| key.
-  return x509_parse_public_key(&cbs, key, bssl::GetDefaultEVPAlgorithms());
+  return x509_parse_public_key(&cbs, key, GetDefaultEVPAlgorithms());
 }
 
 int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey) {
-  bssl::UniquePtr<X509_PUBKEY> new_key(X509_PUBKEY_new());
+  UniquePtr<X509_PUBKEY> new_key(X509_PUBKEY_new());
   if (new_key == nullptr || !x509_pubkey_set1(new_key.get(), pkey)) {
     return 0;
   }
@@ -191,7 +191,7 @@ int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *obj, int param_type,
   pub->public_key.flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
   pub->public_key.flags |= ASN1_STRING_FLAG_BITS_LEFT;
 
-  x509_pubkey_changed(pub, bssl::GetDefaultEVPAlgorithms());
+  x509_pubkey_changed(pub, GetDefaultEVPAlgorithms());
   return 1;
 }
 

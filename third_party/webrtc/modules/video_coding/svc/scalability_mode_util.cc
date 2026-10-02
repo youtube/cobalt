@@ -17,6 +17,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
@@ -310,6 +311,67 @@ constexpr auto Idx(ScalabilityMode s) {
   return index;
 }
 
+std::optional<ScalabilityModeResolutionRatio> CalculateSimulcastResolutionRatio(
+    const VideoCodec& codec) {
+  if (codec.numberOfSimulcastStreams < 2) {
+    return std::nullopt;
+  }
+
+  std::optional<ScalabilityModeResolutionRatio> ratio;
+  for (int i = 0; i < codec.numberOfSimulcastStreams - 1; ++i) {
+    ScalabilityModeResolutionRatio layer_ratio;
+    if (codec.simulcastStream[i + 1].width / codec.simulcastStream[i].width ==
+        2) {
+      layer_ratio = ScalabilityModeResolutionRatio::kTwoToOne;
+    } else if (2 * codec.simulcastStream[i + 1].width /
+                   codec.simulcastStream[i].width ==
+               3) {
+      layer_ratio = ScalabilityModeResolutionRatio::kThreeToTwo;
+    } else {
+      // Unknown ratio.
+      return std::nullopt;
+    }
+
+    if (ratio.has_value() && ratio != layer_ratio) {
+      // Inconsistent layer ratios.
+      return std::nullopt;
+    }
+    ratio = layer_ratio;
+  }
+
+  return ratio;
+}
+
+std::optional<ScalabilityModeResolutionRatio> CalculateSpatialResolutionRatio(
+    const VideoCodec& codec,
+    int num_spatial_layers) {
+  if (num_spatial_layers < 2) {
+    return std::nullopt;
+  }
+
+  std::optional<ScalabilityModeResolutionRatio> ratio;
+  for (int i = 0; i < num_spatial_layers - 1; ++i) {
+    ScalabilityModeResolutionRatio layer_ratio;
+    if (codec.spatialLayers[i + 1].width / codec.spatialLayers[i].width == 2) {
+      layer_ratio = ScalabilityModeResolutionRatio::kTwoToOne;
+    } else if (2 * codec.spatialLayers[i + 1].width /
+                   codec.spatialLayers[i].width ==
+               3) {
+      layer_ratio = ScalabilityModeResolutionRatio::kThreeToTwo;
+    } else {
+      // Unknown ratio.
+      return std::nullopt;
+    }
+
+    if (ratio.has_value() && ratio != layer_ratio) {
+      // Inconsistent layer ratios.
+      return std::nullopt;
+    }
+    ratio = layer_ratio;
+  }
+
+  return ratio;
+}
 }  // namespace
 
 std::optional<ScalabilityMode> MakeScalabilityMode(
@@ -459,6 +521,60 @@ ScalabilityMode LimitNumSpatialLayers(ScalabilityMode scalability_mode,
 
 bool ScalabilityModeIsShiftMode(ScalabilityMode scalability_mode) {
   return kScalabilityModeParams[Idx(scalability_mode)].shift;
+}
+
+ScalabilityMode GetScalabilityModeFromVideoCodec(const VideoCodec& codec) {
+  if (auto scalability_mode = codec.GetScalabilityMode()) {
+    return *scalability_mode;
+  }
+
+  int num_spatial_layers = 1;
+  int num_temporal_layers = 1;
+  InterLayerPredMode inter_layer_pred = InterLayerPredMode::kOff;
+  std::optional<ScalabilityModeResolutionRatio> ratio;
+
+  switch (codec.codecType) {
+    case kVideoCodecVP8:
+      num_temporal_layers = codec.VP8().numberOfTemporalLayers;
+      num_spatial_layers = codec.numberOfSimulcastStreams;
+      inter_layer_pred = InterLayerPredMode::kOff;
+      ratio = CalculateSimulcastResolutionRatio(codec);
+      break;
+    case kVideoCodecH264:
+      num_temporal_layers = codec.H264().numberOfTemporalLayers;
+      num_spatial_layers = codec.numberOfSimulcastStreams;
+      inter_layer_pred = InterLayerPredMode::kOff;
+      ratio = CalculateSimulcastResolutionRatio(codec);
+      break;
+    case kVideoCodecVP9:
+      // VP9 can be used with either simulcast or spatial layers.
+      if (codec.VP9().numberOfSpatialLayers > 0) {
+        num_spatial_layers = codec.VP9().numberOfSpatialLayers;
+        ratio = CalculateSpatialResolutionRatio(codec, num_spatial_layers);
+      } else {
+        num_spatial_layers = codec.numberOfSimulcastStreams;
+        ratio = CalculateSimulcastResolutionRatio(codec);
+      }
+      inter_layer_pred = codec.VP9().interLayerPred;
+      break;
+    case kVideoCodecAV1:
+    case kVideoCodecH265:
+    case kVideoCodecGeneric:
+      // All other codecs may support simulcast, but not spatial or temporal
+      // layers unless they are specified using the explicit scalability mode.
+      num_spatial_layers = codec.numberOfSimulcastStreams;
+      break;
+  }
+
+  // L1Tx modes always have InterLayerPredMode::kOff.
+  if (num_spatial_layers == 1) {
+    inter_layer_pred = InterLayerPredMode::kOff;
+  }
+
+  return MakeScalabilityMode(num_spatial_layers, num_temporal_layers,
+                             inter_layer_pred, ratio,
+                             /*shift=*/false)
+      .value_or(ScalabilityMode::kL1T1);
 }
 
 }  // namespace webrtc

@@ -22,6 +22,8 @@
 #include "internal.h"
 
 
+BSSL_NAMESPACE_BEGIN
+
 // kMinNumBuckets is the minimum size of the buckets array in an |_LHASH|.
 static const size_t kMinNumBuckets = 16;
 
@@ -305,3 +307,5 @@ void OPENSSL_lh_doall_arg(_LHASH *lh, void (*func)(void *, void *), void *arg) {
   // resizing is done here.
   lh_maybe_resize(lh);
 }
+
+BSSL_NAMESPACE_END

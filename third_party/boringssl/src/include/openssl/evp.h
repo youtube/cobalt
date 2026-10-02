@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_EVP_H
 #define OPENSSL_HEADER_EVP_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #include <openssl/evp_errors.h>  // IWYU pragma: export
 
@@ -77,9 +77,11 @@ OPENSSL_EXPORT int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
 OPENSSL_EXPORT int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
 
 // EVP_PKEY_cmp_parameters compares the parameters of |a| and |b|. It returns
-// one if they match, zero if not, or a negative number on error.
+// one if they match, zero if not, or a negative number on error. In algorithms
+// that do not use parameters, this function returns one; null parameters are
+// vacuously equal.
 //
-// WARNING: the return value differs from the usual return value convention.
+// WARNING: this differs from the traditional return value of a "cmp" function.
 OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,
                                            const EVP_PKEY *b);
 

@@ -59,6 +59,13 @@ PacketBuffer::~PacketBuffer() {
   buffer_.clear();
 }
 
+void PacketBuffer::SetMaxNumberOfPackets(size_t max_number_of_packets) {
+  max_number_of_packets_ = max_number_of_packets;
+  while (buffer_.size() > max_number_of_packets_) {
+    DiscardNextPacket();
+  }
+}
+
 // Flush the buffer. All packets in the buffer will be destroyed.
 void PacketBuffer::Flush() {
   for (auto& p : buffer_) {

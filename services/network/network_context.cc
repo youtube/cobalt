@@ -3008,9 +3008,6 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   session_params.use_quic_for_unknown_origins = false;
 #endif
 
-  session_params.disable_idle_sockets_close_on_memory_pressure =
-      params_->disable_idle_sockets_close_on_memory_pressure;
-
   session_params.key_auth_cache_server_entries_by_network_anonymization_key =
       params_->split_auth_cache_by_network_anonymization_key;
 

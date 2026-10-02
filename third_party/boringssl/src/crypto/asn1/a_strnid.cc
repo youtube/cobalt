@@ -29,18 +29,24 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
+BSSL_NAMESPACE_BEGIN
+
 DEFINE_LHASH_OF(ASN1_STRING_TABLE)
+
+BSSL_NAMESPACE_END
 
 static LHASH_OF(ASN1_STRING_TABLE) *string_tables = nullptr;
 static CRYPTO_MUTEX string_tables_lock = CRYPTO_MUTEX_INIT;
 
 void ASN1_STRING_set_default_mask(unsigned long mask) {}
 
-unsigned long ASN1_STRING_get_default_mask(void) { return B_ASN1_UTF8STRING; }
+unsigned long ASN1_STRING_get_default_mask() { return B_ASN1_UTF8STRING; }
 
 int ASN1_STRING_set_default_mask_asc(const char *p) { return 1; }
 
-static const ASN1_STRING_TABLE *asn1_string_table_get(int nid);
+static const bssl::ASN1_STRING_TABLE *asn1_string_table_get(int nid);
 
 // The following function generates an ASN1_STRING based on limits in a
 // table. Frequently the types and length of an ASN1_STRING are restricted by
@@ -84,7 +90,7 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out, const unsigned char *in,
 
 // This table must be kept in NID order
 
-static const ASN1_STRING_TABLE tbl_standard[] = {
+static const bssl::ASN1_STRING_TABLE tbl_standard[] = {
     {NID_commonName, 1, ub_common_name, DIRSTRING_TYPE, 0},
     {NID_countryName, 2, 2, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK},
     {NID_localityName, 1, ub_locality_name, DIRSTRING_TYPE, 0},
@@ -127,7 +133,7 @@ static uint32_t table_hash(const ASN1_STRING_TABLE *tbl) {
   return OPENSSL_hash32(&tbl->nid, sizeof(tbl->nid));
 }
 
-static const ASN1_STRING_TABLE *asn1_string_table_get(int nid) {
+static const bssl::ASN1_STRING_TABLE *asn1_string_table_get(int nid) {
   ASN1_STRING_TABLE key;
   key.nid = nid;
   const ASN1_STRING_TABLE *tbl = reinterpret_cast<ASN1_STRING_TABLE *>(
@@ -199,10 +205,10 @@ err:
   return ret;
 }
 
-void ASN1_STRING_TABLE_cleanup(void) {}
+void ASN1_STRING_TABLE_cleanup() {}
 
-void asn1_get_string_table_for_testing(const ASN1_STRING_TABLE **out_ptr,
-                                       size_t *out_len) {
+void bssl::asn1_get_string_table_for_testing(const ASN1_STRING_TABLE **out_ptr,
+                                             size_t *out_len) {
   *out_ptr = tbl_standard;
   *out_len = std::size(tbl_standard);
 }

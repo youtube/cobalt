@@ -506,6 +506,7 @@ void ComposeboxQueryController::CreateSearchUrl(
       template_url_service_, search_url_request_info->aim_entry_point,
       search_url_request_info->query_start_time,
       base::UTF8ToUTF16(search_url_request_info->query_text),
+      search_url_request_info->invocation_source,
       std::move(search_url_request_info->additional_params)));
 }
 
@@ -529,6 +530,13 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
        create_client_to_aim_request_info->additional_cgi_params) {
     (*submit_query->mutable_payload()
           ->mutable_additional_cgi_params())[param.first] = param.second;
+  }
+
+  // Add context turn metadata.
+  for (const auto& context_turn_metadata :
+       create_client_to_aim_request_info->context_turn_metadata) {
+    (*submit_query->mutable_payload()->add_context_turn_metadata()) =
+        context_turn_metadata;
   }
 
   // Add the request id data for each file token.

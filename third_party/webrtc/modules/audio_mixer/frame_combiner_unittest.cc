@@ -283,9 +283,30 @@ TEST(FrameCombiner, CombiningOneFrameShouldNotChangeFrame) {
 TEST(FrameCombiner, GainCurveIsSmoothForAlternatingNumberOfStreams) {
   // Rates are divisible by 2000 when limiter is active.
   std::vector<FrameCombinerConfig> configs = {
-      {false, 30100, 2, 50.f},  {false, 16500, 1, 3200.f},
-      {true, 8000, 1, 3200.f},  {true, 16000, 1, 50.f},
-      {true, 18000, 8, 3200.f}, {true, 10000, 2, 50.f},
+      {.use_limiter = false,
+       .sample_rate_hz = 30100,
+       .number_of_channels = 2,
+       .wave_frequency = 50.f},
+      {.use_limiter = false,
+       .sample_rate_hz = 16500,
+       .number_of_channels = 1,
+       .wave_frequency = 3200.f},
+      {.use_limiter = true,
+       .sample_rate_hz = 8000,
+       .number_of_channels = 1,
+       .wave_frequency = 3200.f},
+      {.use_limiter = true,
+       .sample_rate_hz = 16000,
+       .number_of_channels = 1,
+       .wave_frequency = 50.f},
+      {.use_limiter = true,
+       .sample_rate_hz = 18000,
+       .number_of_channels = 8,
+       .wave_frequency = 3200.f},
+      {.use_limiter = true,
+       .sample_rate_hz = 10000,
+       .number_of_channels = 2,
+       .wave_frequency = 50.f},
   };
 
   for (const auto& config : configs) {

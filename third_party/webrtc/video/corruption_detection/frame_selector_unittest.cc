@@ -36,10 +36,12 @@ constexpr TimeDelta kLowOverheadUpperBound = TimeDelta::Seconds(2);
 constexpr TimeDelta kHighOverheadLowerBound = TimeDelta::Seconds(3);
 constexpr TimeDelta kHighOverheadUpperBound = TimeDelta::Seconds(4);
 
-constexpr FrameSelector::Timespan kLowOverheadSpan = {kLowOverheadLowerBound,
-                                                      kLowOverheadUpperBound};
-constexpr FrameSelector::Timespan kHighOverheadSpan = {kHighOverheadLowerBound,
-                                                       kHighOverheadUpperBound};
+constexpr FrameSelector::Timespan kLowOverheadSpan = {
+    .lower_bound = kLowOverheadLowerBound,
+    .upper_bound = kLowOverheadUpperBound};
+constexpr FrameSelector::Timespan kHighOverheadSpan = {
+    .lower_bound = kHighOverheadLowerBound,
+    .upper_bound = kHighOverheadUpperBound};
 
 class FakeNativeBuffer : public VideoFrameBuffer {
  public:

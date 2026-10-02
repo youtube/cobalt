@@ -25,6 +25,9 @@
 
 #include "./internal.h"
 
+
+using namespace bssl;
+
 namespace {
 
 template <typename Out>
@@ -53,17 +56,17 @@ BSSL_BENCH_LAZY_REGISTER() {
       BM_SpeedHashToCurve<EC_JACOBIAN, ec_hash_to_curve_p256_xmd_sha256_sswu,
                           EC_group_p256>)
       ->Name("BM_SpeedHashToCurve/hash-to-curve P256_XMD:SHA-256_SSWU_RO_")
-      ->Apply(bssl::bench::SetThreads);
+      ->Apply(bench::SetThreads);
   BENCHMARK(
       BM_SpeedHashToCurve<EC_JACOBIAN, ec_hash_to_curve_p384_xmd_sha384_sswu,
                           EC_group_p384>)
       ->Name("BM_SpeedHashToCurve/hash-to-curve P384_XMD:SHA-384_SSWU_RO_")
-      ->Apply(bssl::bench::SetThreads);
+      ->Apply(bench::SetThreads);
   BENCHMARK(
       BM_SpeedHashToCurve<EC_SCALAR, ec_hash_to_scalar_p384_xmd_sha512_draft07,
                           EC_group_p384>)
       ->Name("BM_SpeedHashToCurve/hash-to-scalar P384_XMD:SHA-512")
-      ->Apply(bssl::bench::SetThreads);
+      ->Apply(bench::SetThreads);
 }
 
 }  // namespace

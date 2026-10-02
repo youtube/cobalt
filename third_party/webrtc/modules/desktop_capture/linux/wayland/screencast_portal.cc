@@ -56,12 +56,15 @@ ScreenCastPortal::CaptureSourceType ScreenCastPortal::ToCaptureSourceType(
   }
 }
 
-ScreenCastPortal::ScreenCastPortal(CaptureType type, PortalNotifier* notifier)
+ScreenCastPortal::ScreenCastPortal(CaptureType type,
+                                   PortalNotifier* notifier,
+                                   bool prefer_cursor_embedded)
     : ScreenCastPortal(type,
                        notifier,
                        OnProxyRequested,
                        OnSourcesRequestResponseSignal,
-                       this) {}
+                       this,
+                       prefer_cursor_embedded) {}
 
 ScreenCastPortal::ScreenCastPortal(
     CaptureType type,

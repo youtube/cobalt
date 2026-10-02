@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/span_printf.h"
@@ -43,9 +42,10 @@ base::Value::Dict LoadSchemaDictionary(const std::string& name,
 
   // Tracking down http://crbug.com/121424
   char buf[128];
-  base::SpanPrintf(buf, "%s: (%d) '%s'", name.c_str(),
-                   result.has_value() ? static_cast<int>(result->type()) : -1,
-                   !result.has_value() ? result.error().message.c_str() : "");
+  UNSAFE_TODO(base::SpanPrintf(
+      buf, "%s: (%d) '%s'", name.c_str(),
+      result.has_value() ? static_cast<int>(result->type()) : -1,
+      !result.has_value() ? result.error().message.c_str() : ""));
 
   CHECK(result.has_value())
       << result.error().message << " for schema " << schema;
@@ -296,7 +296,7 @@ std::string ExtensionAPI::GetAPINameFromFullName(std::string_view full_name,
 bool ExtensionAPI::IsKnownAPI(const std::string& name,
                               ExtensionsClient* client) {
   lock_.AssertAcquired();
-  return base::Contains(schemas_, name) || client->IsAPISchemaGenerated(name);
+  return schemas_.contains(name) || client->IsAPISchemaGenerated(name);
 }
 
 Feature::Availability ExtensionAPI::IsAliasAvailable(

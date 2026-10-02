@@ -19,10 +19,8 @@
 
 #include "../ec/internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // ECDSA_MAX_FIXED_LEN is the maximum length of an ECDSA signature in the
 // fixed-width, big-endian format from IEEE P1363.
@@ -54,9 +52,6 @@ int ecdsa_verify_fixed_no_self_test(const uint8_t *digest, size_t digest_len,
                                     const uint8_t *sig, size_t sig_len,
                                     const EC_KEY *key);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_ECDSA_INTERNAL_H

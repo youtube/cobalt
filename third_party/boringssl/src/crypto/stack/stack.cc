@@ -64,7 +64,7 @@ err:
   return nullptr;
 }
 
-OPENSSL_STACK *OPENSSL_sk_new_null(void) { return OPENSSL_sk_new(nullptr); }
+OPENSSL_STACK *OPENSSL_sk_new_null() { return OPENSSL_sk_new(nullptr); }
 
 size_t OPENSSL_sk_num(const OPENSSL_STACK *sk) {
   if (sk == nullptr) {
@@ -476,7 +476,7 @@ OPENSSL_STACK *OPENSSL_sk_deep_copy(const OPENSSL_STACK *sk,
   return ret;
 }
 
-OPENSSL_STACK *sk_new_null(void) { return OPENSSL_sk_new_null(); }
+OPENSSL_STACK *sk_new_null() { return OPENSSL_sk_new_null(); }
 
 size_t sk_num(const OPENSSL_STACK *sk) { return OPENSSL_sk_num(sk); }
 

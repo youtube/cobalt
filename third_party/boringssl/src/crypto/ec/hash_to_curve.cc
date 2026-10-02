@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // This file implements hash-to-curve, as described in RFC 9380.
 //
 // This hash-to-curve implementation is written generically with the
@@ -59,7 +61,7 @@ static int expand_message_xmd(const EVP_MD *md, uint8_t *out, size_t out_len,
 
   const size_t block_size = EVP_MD_block_size(md);
   const size_t md_size = EVP_MD_size(md);
-  bssl::ScopedEVP_MD_CTX ctx;
+  ScopedEVP_MD_CTX ctx;
 
   // Long DSTs are hashed down to size. See section 5.3.3.
   static_assert(EVP_MAX_MD_SIZE < 256, "hashed DST still too large");
@@ -430,10 +432,9 @@ static const uint8_t kP384Sqrt12[] = {
     0x1f, 0x87, 0x2f, 0xcb, 0x9c, 0xcb, 0x80, 0xc5, 0x3c, 0x0d, 0xe1, 0xf8,
     0xa8, 0x0f, 0x7e, 0x19, 0x14, 0xe2, 0xec, 0x69, 0xf5, 0xa6, 0x26, 0xb3};
 
-int ec_hash_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
-                                          EC_JACOBIAN *out, const uint8_t *dst,
-                                          size_t dst_len, const uint8_t *msg,
-                                          size_t msg_len) {
+int bssl::ec_hash_to_curve_p256_xmd_sha256_sswu(
+    const EC_GROUP *group, EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len) {
   // See section 8.3 of RFC 9380.
   if (EC_GROUP_get_curve_name(group) != NID_X9_62_prime256v1) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
@@ -463,10 +464,9 @@ int EC_hash_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group, EC_POINT *out,
                                                msg, msg_len);
 }
 
-int ec_hash_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
-                                          EC_JACOBIAN *out, const uint8_t *dst,
-                                          size_t dst_len, const uint8_t *msg,
-                                          size_t msg_len) {
+int bssl::ec_hash_to_curve_p384_xmd_sha384_sswu(
+    const EC_GROUP *group, EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len) {
   // See section 8.3 of RFC 9380.
   if (EC_GROUP_get_curve_name(group) != NID_secp384r1) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
@@ -496,11 +496,9 @@ int EC_hash_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group, EC_POINT *out,
                                                msg, msg_len);
 }
 
-int ec_encode_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
-                                            EC_JACOBIAN *out,
-                                            const uint8_t *dst, size_t dst_len,
-                                            const uint8_t *msg,
-                                            size_t msg_len) {
+int bssl::ec_encode_to_curve_p256_xmd_sha256_sswu(
+    const EC_GROUP *group, EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len) {
   // See section 8.3 of RFC 9380.
   if (EC_GROUP_get_curve_name(group) != NID_X9_62_prime256v1) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
@@ -531,11 +529,9 @@ int EC_encode_to_curve_p256_xmd_sha256_sswu(const EC_GROUP *group,
                                                  msg, msg_len);
 }
 
-int ec_encode_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
-                                            EC_JACOBIAN *out,
-                                            const uint8_t *dst, size_t dst_len,
-                                            const uint8_t *msg,
-                                            size_t msg_len) {
+int bssl::ec_encode_to_curve_p384_xmd_sha384_sswu(
+    const EC_GROUP *group, EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
+    const uint8_t *msg, size_t msg_len) {
   // See section 8.3 of RFC 9380.
   if (EC_GROUP_get_curve_name(group) != NID_secp384r1) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
@@ -566,9 +562,10 @@ int EC_encode_to_curve_p384_xmd_sha384_sswu(const EC_GROUP *group,
                                                  msg, msg_len);
 }
 
-int ec_hash_to_scalar_p384_xmd_sha384(const EC_GROUP *group, EC_SCALAR *out,
-                                      const uint8_t *dst, size_t dst_len,
-                                      const uint8_t *msg, size_t msg_len) {
+int bssl::ec_hash_to_scalar_p384_xmd_sha384(const EC_GROUP *group,
+                                            EC_SCALAR *out, const uint8_t *dst,
+                                            size_t dst_len, const uint8_t *msg,
+                                            size_t msg_len) {
   if (EC_GROUP_get_curve_name(group) != NID_secp384r1) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
     return 0;
@@ -578,7 +575,7 @@ int ec_hash_to_scalar_p384_xmd_sha384(const EC_GROUP *group, EC_SCALAR *out,
                         msg_len);
 }
 
-int ec_hash_to_curve_p384_xmd_sha512_sswu_draft07(
+int bssl::ec_hash_to_curve_p384_xmd_sha512_sswu_draft07(
     const EC_GROUP *group, EC_JACOBIAN *out, const uint8_t *dst, size_t dst_len,
     const uint8_t *msg, size_t msg_len) {
   // See section 8.3 of draft-irtf-cfrg-hash-to-curve-07.
@@ -599,7 +596,7 @@ int ec_hash_to_curve_p384_xmd_sha512_sswu_draft07(
                        dst_len, msg, msg_len);
 }
 
-int ec_hash_to_scalar_p384_xmd_sha512_draft07(
+int bssl::ec_hash_to_scalar_p384_xmd_sha512_draft07(
     const EC_GROUP *group, EC_SCALAR *out, const uint8_t *dst, size_t dst_len,
     const uint8_t *msg, size_t msg_len) {
   if (EC_GROUP_get_curve_name(group) != NID_secp384r1) {

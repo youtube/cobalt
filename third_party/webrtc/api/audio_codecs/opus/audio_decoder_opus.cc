@@ -35,15 +35,6 @@ int GetDefaultNumChannels(const FieldTrialsView& field_trials) {
 
 }  // namespace
 
-bool AudioDecoderOpus::Config::IsOk() const {
-  if (sample_rate_hz != 16000 && sample_rate_hz != 48000) {
-    // Unsupported sample rate. (libopus supports a few other rates as
-    // well; we can add support for them when needed.)
-    return false;
-  }
-  return !num_channels.has_value() || *num_channels == 1 || *num_channels == 2;
-}
-
 std::optional<AudioDecoderOpus::Config> AudioDecoderOpus::SdpToConfig(
     const SdpAudioFormat& format) {
   if (!absl::EqualsIgnoreCase(format.name, "opus") ||
@@ -81,7 +72,7 @@ void AudioDecoderOpus::AppendSupportedDecoders(
   opus_info.supports_network_adaption = true;
   SdpAudioFormat opus_format(
       {"opus", 48000, 2, {{"minptime", "10"}, {"useinbandfec", "1"}}});
-  specs->push_back({std::move(opus_format), opus_info});
+  specs->push_back({.format = std::move(opus_format), .info = opus_info});
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderOpus::MakeAudioDecoder(

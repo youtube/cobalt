@@ -37,7 +37,9 @@
 #include "internal.h"
 
 
-int pkcs12_iterations_acceptable(uint64_t iterations) {
+using namespace bssl;
+
+int bssl::pkcs12_iterations_acceptable(uint64_t iterations) {
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   static const uint64_t kIterationsLimit = 2048;
 #else
@@ -688,7 +690,7 @@ err:
   return ret;
 }
 
-void PKCS12_PBE_add(void) {}
+void PKCS12_PBE_add() {}
 
 struct pkcs12_st {
   uint8_t *ber_bytes;
@@ -1020,7 +1022,7 @@ static int add_encrypted_data(CBB *out, int pbe_nid,
     return 0;
   }
 
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
   CBB content_info, wrapper, encrypted_data, encrypted_content_info,
       encrypted_content;
   if (  // Add the ContentInfo wrapping.

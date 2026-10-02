@@ -64,9 +64,9 @@ static int rsa_pub_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
-                                          EVP_PKEY *out, CBS *params,
-                                          CBS *key) {
+static bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
+                                                EVP_PKEY *out, CBS *params,
+                                                CBS *key) {
   // See RFC 3279, section 2.3.1.
 
   // The parameters must be NULL.
@@ -117,9 +117,9 @@ static int rsa_priv_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
-                                           EVP_PKEY *out, CBS *params,
-                                           CBS *key) {
+static bssl::evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
+                                                 EVP_PKEY *out, CBS *params,
+                                                 CBS *key) {
   // Per RFC 8017, A.1, the parameters have type NULL.
   CBS null;
   if (!CBS_get_asn1(params, &null, CBS_ASN1_NULL) || CBS_len(&null) != 0 ||
@@ -138,8 +138,8 @@ static evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-static evp_decode_result_t rsa_decode_pss_params(rsa_pss_params_t expected,
-                                                 CBS *params) {
+static bssl::evp_decode_result_t rsa_decode_pss_params(
+    rsa_pss_params_t expected, CBS *params) {
   if (CBS_len(params) == 0) {
     return evp_decode_unsupported;
   }
@@ -172,9 +172,9 @@ static int rsa_pub_encode_pss(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
-                                                     EVP_PKEY *out, CBS *params,
-                                                     CBS *key) {
+static bssl::evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
+                                                    EVP_PKEY *out, CBS *params,
+                                                    CBS *key) {
   const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
   evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
@@ -211,9 +211,9 @@ static int rsa_priv_encode_pss(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
-                                               EVP_PKEY *out, CBS *params,
-                                               CBS *key) {
+static bssl::evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
+                                                     EVP_PKEY *out, CBS *params,
+                                                     CBS *key) {
   const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
   evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
@@ -804,24 +804,24 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
 
 }  // namespace
 
-const EVP_PKEY_ALG *EVP_pkey_rsa(void) {
+const EVP_PKEY_ALG *EVP_pkey_rsa() {
   static const EVP_PKEY_ALG kAlg = {&rsa_asn1_meth};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256(void) {
+const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256() {
   static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
                                             rsa_pss_sha256};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha384(void) {
+const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha384() {
   static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
                                             rsa_pss_sha384};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha512(void) {
+const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha512() {
   static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
                                             rsa_pss_sha512};
   return &kAlg;
@@ -860,7 +860,7 @@ RSA *EVP_PKEY_get1_RSA(const EVP_PKEY *pkey) {
   return rsa;
 }
 
-const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
+const EVP_PKEY_CTX_METHOD bssl::rsa_pkey_meth = {
     EVP_PKEY_RSA,
     pkey_rsa_init,
     pkey_rsa_copy,
@@ -878,7 +878,7 @@ const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
     pkey_rsa_ctrl,
 };
 
-const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
+const EVP_PKEY_CTX_METHOD bssl::rsa_pss_pkey_meth = {
     EVP_PKEY_RSA_PSS,
     pkey_rsa_init,
     pkey_rsa_copy,

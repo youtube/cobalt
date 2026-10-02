@@ -53,7 +53,6 @@
 #import "ios/chrome/browser/first_run/public/first_run_util.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
-#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
@@ -66,8 +65,8 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
@@ -860,8 +859,8 @@ NSString* GetIdForWebState(web::WebState* web_state) {
 + (void)openSettingsInWindowWithNumber:(int)windowNumber {
   SceneState* scene = [self sceneStateWithNumber:windowNumber];
   Browser* browser = scene.browserProviderInterface.mainBrowserProvider.browser;
-  id<ApplicationCommands> handler =
-      HandlerForProtocol(browser->GetCommandDispatcher(), ApplicationCommands);
+  id<SceneCommands> handler =
+      HandlerForProtocol(browser->GetCommandDispatcher(), SceneCommands);
   [handler showSettingsFromViewController:nil];
 }
 
@@ -1236,10 +1235,6 @@ NSString* GetIdForWebState(web::WebState* web_state) {
   return base::ios::IsMultipleScenesSupported();
 }
 
-+ (BOOL)isNewOverflowMenuEnabled {
-  return IsNewOverflowMenuEnabled();
-}
-
 + (BOOL)isUseLensToSearchForImageEnabled {
   TemplateURLService* service = ios::TemplateURLServiceFactory::GetForProfile(
       chrome_test_util::GetOriginalProfile());
@@ -1250,11 +1245,6 @@ NSString* GetIdForWebState(web::WebState* web_state) {
 
 + (BOOL)isCurrentLayoutBottomOmnibox {
   return IsCurrentLayoutBottomOmnibox(chrome_test_util::GetCurrentBrowser());
-}
-
-+ (BOOL)isEnhancedSafeBrowsingInfobarEnabled {
-  return base::FeatureList::IsEnabled(
-      safe_browsing::kEnhancedSafeBrowsingPromo);
 }
 
 + (BOOL)isComposeboxIOSEnabled {
@@ -1314,6 +1304,20 @@ NSString* GetIdForWebState(web::WebState* web_state) {
     @"Command" : @"searchtext",
     @"Text" : text,
   };
+  NSUserDefaults* sharedDefaults = app_group::GetGroupUserDefaults();
+  [sharedDefaults setObject:searchTextCommand
+                     forKey:base::SysUTF8ToNSString(
+                                app_group::kChromeAppGroupCommandPreference)];
+}
+
++ (void)setAppGroupCommandToIncognitoSearchText:(NSString*)text {
+  NSMutableDictionary* searchTextCommand =
+      [NSMutableDictionary dictionaryWithDictionary:@{
+        @"CommandTime" : [NSDate date],
+        @"SourceApp" : @"testApp",
+        @"Command" : @"incognitosearchtext",
+        @"Text" : text,
+      }];
   NSUserDefaults* sharedDefaults = app_group::GetGroupUserDefaults();
   [sharedDefaults setObject:searchTextCommand
                      forKey:base::SysUTF8ToNSString(

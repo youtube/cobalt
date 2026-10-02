@@ -12,7 +12,6 @@
 #define MODULES_AUDIO_CODING_NETEQ_MOCK_MOCK_DECODER_DATABASE_H_
 
 #include <cstdint>
-#include <optional>
 
 #include "api/audio_codecs/audio_decoder.h"
 #include "api/audio_codecs/audio_format.h"
@@ -27,8 +26,7 @@ class MockDecoderDatabase : public DecoderDatabase {
  public:
   MockDecoderDatabase()
       : DecoderDatabase(CreateEnvironment(),
-                        /*decoder_factory=*/nullptr,
-                        /*codec_pair_id=*/std::nullopt) {}
+                        /*decoder_factory=*/nullptr) {}
   ~MockDecoderDatabase() override { Die(); }
   MOCK_METHOD(void, Die, ());
   MOCK_METHOD(bool, Empty, (), (const, override));

@@ -42,7 +42,7 @@ Buffer ExtractI420BufferWithSize(const VideoFrame& frame,
 
     size_t length =
         CalcBufferSize(VideoType::kI420, scaled->width(), scaled->height());
-    Buffer buffer(length);
+    Buffer buffer = Buffer::CreateUninitializedWithSize(length);
     RTC_CHECK_NE(ExtractBuffer(scaled, length, buffer.data()), -1);
     return buffer;
   }
@@ -50,7 +50,7 @@ Buffer ExtractI420BufferWithSize(const VideoFrame& frame,
   // No resize.
   size_t length =
       CalcBufferSize(VideoType::kI420, frame.width(), frame.height());
-  Buffer buffer(length);
+  Buffer buffer = Buffer::CreateUninitializedWithSize(length);
   RTC_CHECK_NE(ExtractBuffer(frame, length, buffer.data()), -1);
   return buffer;
 }

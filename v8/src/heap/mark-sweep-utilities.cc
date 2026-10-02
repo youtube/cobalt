@@ -37,7 +37,7 @@ void MarkingVerifierBase::VerifyRoots() {
                                       base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
-void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
+void MarkingVerifierBase::VerifyMarkingOnPage(const NormalPage* page,
                                               Address start, Address end) {
   Address next_object_must_be_here_or_later = start;
 
@@ -71,13 +71,13 @@ void MarkingVerifierBase::VerifyMarking(NewSpace* space) {
     return;
   }
 
-  for (PageMetadata* page : *space) {
+  for (NormalPage* page : *space) {
     VerifyMarkingOnPage(page, page->area_start(), page->area_end());
   }
 }
 
 void MarkingVerifierBase::VerifyMarking(PagedSpaceBase* space) {
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     VerifyMarkingOnPage(p, p->area_start(), p->area_end());
   }
 }
@@ -153,7 +153,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   MemoryChunkIterator chunk_iterator(heap);
 
   while (chunk_iterator.HasNext()) {
-    MutablePageMetadata* chunk = chunk_iterator.Next();
+    MutablePage* chunk = chunk_iterator.Next();
 
     // Old-to-old slot sets must be empty after evacuation.
     DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
@@ -188,11 +188,10 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   }
 
   if (v8_flags.sticky_mark_bits) {
-    OldGenerationMemoryChunkIterator::ForAll(
-        heap, [](MutablePageMetadata* chunk) {
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
-        });
+    OldGenerationMemoryChunkIterator::ForAll(heap, [](MutablePage* chunk) {
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
+    });
   }
 }
 #endif  // DEBUG

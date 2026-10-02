@@ -16,14 +16,6 @@
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/view.h"
 
-namespace content {
-class WebContents;
-}
-
-namespace ui {
-class ImageModel;
-}  // namespace ui
-
 namespace views {
 class Label;
 class ToggleButton;
@@ -52,8 +44,8 @@ class ExtensionsMenuMainPageView : public views::View {
       ExtensionsMenuViewModel::MenuEntryState entry_state,
       int index);
 
-  // Removes the menu item at `index`.
-  void RemoveMenuItem(int index);
+  // Removes the menu entry at `index`.
+  void RemoveMenuEntry(int index);
 
   // Returns the menu entry views.
   std::vector<ExtensionsMenuEntryView*> GetMenuEntries() const;
@@ -62,32 +54,34 @@ class ExtensionsMenuMainPageView : public views::View {
   void UpdateSiteSettings(
       ExtensionsMenuViewModel::SiteSettingsState site_settings_state);
 
-  // Shows the reload section in the menu. Takes precedence over the requests
-  // section.
-  void ShowReloadSection();
+  // Adds or updates the extension entry in the `requests_access_section_` at
+  // `index` with the given information. Doesn't update the requests section
+  // view visibility.
+  void AddExtensionRequestingAccess(
+      ExtensionsMenuViewModel::HostAccessRequest request,
+      int index);
 
-  // Show the requests section in the menu if there are any items in
-  // `requests_entries_` and reload section is not visible.
-  void MaybeShowRequestsSection();
-
-  // Adds or updates the extension entry in the `requests_access_section_` with
-  // the given information. Doesn't update the requests section view
+  // Updates the extension entry in the `requests_access_section_` at `index`
+  // with the given information. Doesn't update the requests section view
   // visibility.
-  void AddOrUpdateExtensionRequestingAccess(const extensions::ExtensionId& id,
-                                            const std::u16string& name,
-                                            const ui::ImageModel& icon,
-                                            int index);
+  void UpdateExtensionRequestingAccess(
+      ExtensionsMenuViewModel::HostAccessRequest request,
+      int index);
 
-  // Remove the entry in the `requests_access_section_` corresponding to `id`,
-  // if existent. Doesn't update the requests section view visibility.
-  void RemoveExtensionRequestingAccess(const extensions::ExtensionId& id);
+  // Removes the entry in the `requests_access_section_` at `index`. Doesn't
+  // update the requests section view visibility.
+  void RemoveExtensionRequestingAccess(const extensions::ExtensionId& id,
+                                       int index);
 
   // Clears the entries in the `request_access_section_`, if existent. Doesn't
   // update the requests section view visibility.
   void ClearExtensionsRequestingAccess();
 
+  // Shows/hides the optional section.
+  void SetOptionalSectionVisibility(
+      ExtensionsMenuViewModel::OptionalSection optional_section);
+
   // Accessors used by tests:
-  // Returns the currently-showing menu items.
   std::u16string_view GetSiteSettingLabelForTesting() const;
   const views::View* site_settings_tooltip() const;
   views::ToggleButton* GetSiteSettingsToggleForTesting() {
@@ -101,8 +95,6 @@ class ExtensionsMenuMainPageView : public views::View {
       const extensions::ExtensionId& extension_id);
 
  private:
-  content::WebContents* GetActiveWebContents() const;
-
   // Returns the request entry for `extension_id` if existent.
   views::View* GetExtensionRequestEntry(
       const extensions::ExtensionId& extension_id) const;
@@ -119,12 +111,12 @@ class ExtensionsMenuMainPageView : public views::View {
       views::FlexSpecification);
 
   // Returns the contents builder, which contains the reload section, the access
-  // requests section and the menu items section on a scrollable view.
+  // requests section and the menu entries section on a scrollable view.
   [[nodiscard]] views::Builder<views::ScrollView> CreateContentsBuilder(
       gfx::Insets scroll_margins,
       gfx::Insets contents_margins,
       gfx::Insets reload_button_margins,
-      gfx::Insets menu_items_margins);
+      gfx::Insets menu_entries_margins);
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Returns the webstore button builder.
@@ -154,9 +146,9 @@ class ExtensionsMenuMainPageView : public views::View {
   std::map<extensions::ExtensionId, raw_ptr<views::View, CtnExperimental>>
       requests_entries_;
 
-  // Menu items section. The children are guaranteed to only be
-  // ExtensionMenuItemViews.
-  raw_ptr<views::View> menu_items_ = nullptr;
+  // Menu entries section. The children are guaranteed to only be
+  // ExtensionsMenuEntryView.
+  raw_ptr<views::View> menu_entries_ = nullptr;
 };
 
 BEGIN_VIEW_BUILDER(/* no export */, ExtensionsMenuMainPageView, views::View)

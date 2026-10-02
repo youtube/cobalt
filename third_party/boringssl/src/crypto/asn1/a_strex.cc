@@ -30,6 +30,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 #define ESC_FLAGS                                                           \
   (ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_ESC_QUOTE | ASN1_STRFLGS_ESC_CTRL | \
    ASN1_STRFLGS_ESC_MSB)

@@ -156,7 +156,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.ApiFunctions" enum="DownloadFunctions"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>dtrainor@chromium.org</owner>
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -766,7 +766,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.OpenDownloads.OpenWithExternalAppsSource"
-    enum="OpenDownloadWithExternalAppsSource" expires_after="2026-01-11">
+    enum="OpenDownloadWithExternalAppsSource" expires_after="2026-06-30">
   <owner>shuyng@google.com</owner>
   <owner>clank-downloads@google.com</owner>
   <summary>

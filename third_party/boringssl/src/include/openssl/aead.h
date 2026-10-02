@@ -424,12 +424,6 @@ struct crypto_iovec_st {
 // ciphertext to the |out| pointers of |iovec| and the authentication tag to
 // |out_tag|. It returns one on success and zero otherwise.
 //
-// WARNING: This is a preview API and should not be used yet. Not all AEADs
-// support it, or support may exist but be slow.
-//
-// TODO(crbug.com/383343306): remove the above note once this is implemented
-// for all ciphers.
-//
 // This function computes the same output as |EVP_AEAD_CTX_seal_scatter|, but
 // without requiring the input or output to be a contiguous buffer. The
 // individual input and output pieces are logically concatenated for a single

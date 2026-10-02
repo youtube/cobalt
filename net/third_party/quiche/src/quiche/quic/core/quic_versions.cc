@@ -60,9 +60,6 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
 }  // namespace
 
 bool ParsedQuicVersion::IsKnown() const {
-  QUICHE_DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
-      << QuicVersionToString(transport_version) << " "
-      << HandshakeProtocolToString(handshake_protocol);
   return transport_version != QUIC_VERSION_UNSUPPORTED;
 }
 
@@ -70,19 +67,9 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::UsesHttp3() const {
-  QUICHE_DCHECK(IsKnown());
-  return IsIetfQuic();
-}
-
 bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
   QUICHE_DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_IETF_DRAFT_29;
-}
-
-bool ParsedQuicVersion::UsesTls() const {
-  QUICHE_DCHECK(IsKnown());
-  return IsIetfQuic();
 }
 
 bool ParsedQuicVersion::UsesV2PacketTypes() const {
@@ -138,8 +125,7 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
   }
   QUIC_BUG(quic_bug_10589_2)
       << "Unsupported version "
-      << QuicVersionToString(parsed_version.transport_version) << " "
-      << HandshakeProtocolToString(parsed_version.handshake_protocol);
+      << QuicVersionToString(parsed_version.transport_version);
   return 0;
 }
 
@@ -290,10 +276,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
       quic_version_number <= QuicTransportVersion::QUIC_VERSION_MAX_VALUE) {
     QuicTransportVersion transport_version =
         static_cast<QuicTransportVersion>(quic_version_number);
-    if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
-      return UnsupportedQuicVersion();
-    }
-    ParsedQuicVersion version(PROTOCOL_QUIC_CRYPTO, transport_version);
+    ParsedQuicVersion version(transport_version);
     if (std::find(supported_versions.begin(), supported_versions.end(),
                   version) != supported_versions.end()) {
       return version;
@@ -438,16 +421,6 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
   }
   return absl::StrCat("QUIC_VERSION_UNKNOWN(",
                       static_cast<int>(transport_version), ")");
-}
-
-std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
-  switch (handshake_protocol) {
-    RETURN_STRING_LITERAL(PROTOCOL_UNSUPPORTED);
-    RETURN_STRING_LITERAL(PROTOCOL_QUIC_CRYPTO);
-    RETURN_STRING_LITERAL(PROTOCOL_TLS1_3);
-  }
-  return absl::StrCat("PROTOCOL_UNKNOWN(", static_cast<int>(handshake_protocol),
-                      ")");
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {

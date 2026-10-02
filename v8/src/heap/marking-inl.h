@@ -10,9 +10,9 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"
 
 namespace v8::internal {
@@ -152,8 +152,8 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 MarkingBitmap* MarkingBitmap::FromAddress(const Isolate* isolate,
                                           Address address) {
   Address metadata_address =
-      MutablePageMetadata::FromAddress(isolate, address)->MetadataAddress();
-  return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
+      MutablePage::FromAddress(isolate, address)->MetadataAddress();
+  return Cast(metadata_address + MutablePage::MarkingBitmapOffset());
 }
 
 // static
@@ -197,7 +197,7 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
+inline Address MarkingBitmap::FindPreviousValidObject(const NormalPage* page,
                                                       Address maybe_inner_ptr) {
   DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();

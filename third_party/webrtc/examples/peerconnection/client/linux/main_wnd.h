@@ -40,21 +40,23 @@ typedef struct _cairo cairo_t;
 class GtkMainWnd : public MainWindow {
  public:
   GtkMainWnd(const char* server, int port, bool autoconnect, bool autocall);
-  ~GtkMainWnd();
+  ~GtkMainWnd() override;
 
-  virtual void RegisterObserver(MainWndCallback* callback);
-  virtual bool IsWindow();
-  virtual void SwitchToConnectUI();
-  virtual void SwitchToPeerList(const Peers& peers);
-  virtual void SwitchToStreamingUI();
-  virtual void MessageBox(const char* caption, const char* text, bool is_error);
-  virtual MainWindow::UI current_ui();
-  virtual void StartLocalRenderer(webrtc::VideoTrackInterface* local_video);
-  virtual void StopLocalRenderer();
-  virtual void StartRemoteRenderer(webrtc::VideoTrackInterface* remote_video);
-  virtual void StopRemoteRenderer();
+  void RegisterObserver(MainWndCallback* callback) override;
+  bool IsWindow() override;
+  void SwitchToConnectUI() override;
+  void SwitchToPeerList(const Peers& peers) override;
+  void SwitchToStreamingUI() override;
+  void MessageBox(const char* caption,
+                  const char* text,
+                  bool is_error) override;
+  MainWindow::UI current_ui() override;
+  void StartLocalRenderer(webrtc::VideoTrackInterface* local_video) override;
+  void StopLocalRenderer() override;
+  void StartRemoteRenderer(webrtc::VideoTrackInterface* remote_video) override;
+  void StopRemoteRenderer() override;
 
-  virtual void QueueUIThreadCallback(int msg_id, void* data);
+  void QueueUIThreadCallback(int msg_id, void* data) override;
 
   // Creates and shows the main window with the |Connect UI| enabled.
   bool Create();
@@ -87,7 +89,7 @@ class GtkMainWnd : public MainWindow {
    public:
     VideoRenderer(GtkMainWnd* main_wnd,
                   webrtc::VideoTrackInterface* track_to_render);
-    virtual ~VideoRenderer();
+    ~VideoRenderer() override;
 
     // VideoSinkInterface implementation
     void OnFrame(const webrtc::VideoFrame& frame) override;

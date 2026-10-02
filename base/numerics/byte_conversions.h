@@ -20,14 +20,6 @@ static_assert(ARCH_CPU_LITTLE_ENDIAN);
 
 namespace base {
 
-// Returns a value with all bytes in |x| swapped, i.e. reverses the endianness.
-// TODO(pkasting): Once C++23 is available, replace with std::byteswap.
-template <class T>
-  requires(std::is_integral_v<T>)
-[[nodiscard]] inline constexpr T ByteSwap(T value) {
-  return numerics_internal::SwapBytes(value);
-}
-
 // Returns a uint8_t with the value in `bytes` interpreted as the native endian
 // encoding of the integer for the machine.
 //
@@ -297,7 +289,7 @@ inline constexpr uint8_t U8FromBigEndian(std::span<const uint8_t, 1u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr uint16_t U16FromBigEndian(std::span<const uint8_t, 2u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<uint16_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<uint16_t>(bytes));
 }
 // Returns a uint32_t with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -307,7 +299,7 @@ inline constexpr uint16_t U16FromBigEndian(std::span<const uint8_t, 2u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr uint32_t U32FromBigEndian(std::span<const uint8_t, 4u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<uint32_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<uint32_t>(bytes));
 }
 // Returns a uint64_t with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -317,7 +309,7 @@ inline constexpr uint32_t U32FromBigEndian(std::span<const uint8_t, 4u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr uint64_t U64FromBigEndian(std::span<const uint8_t, 8u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<uint64_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<uint64_t>(bytes));
 }
 // Returns a int8_t with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -341,7 +333,7 @@ inline constexpr int8_t I8FromBigEndian(std::span<const uint8_t, 1u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr int16_t I16FromBigEndian(std::span<const uint8_t, 2u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<int16_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<int16_t>(bytes));
 }
 // Returns a int32_t with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -351,7 +343,7 @@ inline constexpr int16_t I16FromBigEndian(std::span<const uint8_t, 2u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr int32_t I32FromBigEndian(std::span<const uint8_t, 4u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<int32_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<int32_t>(bytes));
 }
 // Returns a int64_t with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -361,7 +353,7 @@ inline constexpr int32_t I32FromBigEndian(std::span<const uint8_t, 4u> bytes) {
 // that were always in memory, such as when stored in shared-memory (or through
 // IPC) as a byte buffer.
 inline constexpr int64_t I64FromBigEndian(std::span<const uint8_t, 8u> bytes) {
-  return ByteSwap(numerics_internal::FromLittleEndian<int64_t>(bytes));
+  return std::byteswap(numerics_internal::FromLittleEndian<int64_t>(bytes));
 }
 // Returns a float with the value in `bytes` interpreted as a big-endian
 // encoding of the integer.
@@ -617,7 +609,7 @@ inline constexpr std::array<uint8_t, 1u> U8ToBigEndian(uint8_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 2u> U16ToBigEndian(uint16_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a uint32_t encoded as the
 // big-endian encoding of the integer.
@@ -628,7 +620,7 @@ inline constexpr std::array<uint8_t, 2u> U16ToBigEndian(uint16_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 4u> U32ToBigEndian(uint32_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a uint64_t encoded as the
 // big-endian encoding of the integer.
@@ -639,7 +631,7 @@ inline constexpr std::array<uint8_t, 4u> U32ToBigEndian(uint32_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 8u> U64ToBigEndian(uint64_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a int8_t encoded as the big-endian
 // encoding of the integer.
@@ -661,7 +653,7 @@ inline constexpr std::array<uint8_t, 1u> I8ToBigEndian(int8_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 2u> I16ToBigEndian(int16_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a int32_t encoded as the
 // big-endian encoding of the integer.
@@ -672,7 +664,7 @@ inline constexpr std::array<uint8_t, 2u> I16ToBigEndian(int16_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 4u> I32ToBigEndian(int32_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a int64_t encoded as the
 // big-endian encoding of the integer.
@@ -683,7 +675,7 @@ inline constexpr std::array<uint8_t, 4u> I32ToBigEndian(int32_t val) {
 // IPC) as a byte buffer. Use the little-endian encoding for storing and reading
 // from storage.
 inline constexpr std::array<uint8_t, 8u> I64ToBigEndian(int64_t val) {
-  return numerics_internal::ToLittleEndian(ByteSwap(val));
+  return numerics_internal::ToLittleEndian(std::byteswap(val));
 }
 // Returns a byte array holding the value of a float encoded as the big-endian
 // encoding of the number.
@@ -695,7 +687,7 @@ inline constexpr std::array<uint8_t, 8u> I64ToBigEndian(int64_t val) {
 // from storage.
 inline constexpr std::array<uint8_t, 4u> FloatToBigEndian(float val) {
   return numerics_internal::ToLittleEndian(
-      ByteSwap(std::bit_cast<uint32_t>(val)));
+      std::byteswap(std::bit_cast<uint32_t>(val)));
 }
 // Returns a byte array holding the value of a double encoded as the big-endian
 // encoding of the number.
@@ -707,7 +699,7 @@ inline constexpr std::array<uint8_t, 4u> FloatToBigEndian(float val) {
 // from storage.
 inline constexpr std::array<uint8_t, 8u> DoubleToBigEndian(double val) {
   return numerics_internal::ToLittleEndian(
-      ByteSwap(std::bit_cast<uint64_t>(val)));
+      std::byteswap(std::bit_cast<uint64_t>(val)));
 }
 
 }  // namespace base

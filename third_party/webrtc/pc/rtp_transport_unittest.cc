@@ -305,9 +305,8 @@ TEST(RtpTransportTest, SignalDemuxedRtcp) {
   EXPECT_EQ(0, observer.rtp_count());
 }
 
-static const unsigned char kRtpData[] = {0x80, 0x11, 0, 0, 0, 0,
-                                         0,    0,    0, 0, 0, 0};
-static const int kRtpLen = 12;
+const unsigned char kRtpData[] = {0x80, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+const int kRtpLen = 12;
 
 // Test that SignalPacketReceived fires with rtcp=false when a RTP packet with a
 // handled payload type is received.

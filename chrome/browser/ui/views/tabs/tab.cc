@@ -29,6 +29,7 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
@@ -63,7 +64,7 @@
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "third_party/skia/include/core/SkPath.h"
-#include "third_party/skia/include/effects/SkGradientShader.h"
+#include "third_party/skia/include/effects/SkGradient.h"
 #include "third_party/skia/include/pathops/SkPathOps.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -257,21 +258,18 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
       AddChildView(std::make_unique<AlertIndicatorButton>(this));
 
 #if BUILDFLAG(ENABLE_GLIC)
-  if (controller_->GetBrowser() &&
+  BrowserWindowInterface* const browser_window_interface =
+      controller_->GetBrowserWindowInterface();
+  if (browser_window_interface &&
       ((base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines) &&
         glic::GlicEnabling::IsProfileEligible(
-            controller_->GetBrowser()->GetProfile())) ||
+            browser_window_interface->GetProfile())) ||
        base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks))) {
     glic_tab_underline_view_ = AddChildView(
         views::Builder<glic::TabUnderlineView>(
             glic::TabUnderlineView::Factory::Create(
                 std::make_unique<glic::TabUnderlineViewControllerImpl>(),
-                controller->GetBrowser(), tab_handle_))
-            // Needed so that expectations of visibility that
-            // inform underline updates are correct on first show.
-            .SetVisible(false)
-            // `glic_tab_underline_view_` should never receive input events.
-            .SetCanProcessEventsWithinSubtree(false)
+                browser_window_interface, tab_handle_))
             .Build());
   }
 #endif
@@ -398,14 +396,15 @@ void Tab::Layout(PassKey) {
   icon_->SetBoundsRect(favicon_bounds);
   icon_->SetVisible(showing_icon_);
 
-  const int after_title_padding = GetLayoutConstant(TAB_AFTER_TITLE_PADDING);
+  const int after_title_padding =
+      GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
 
   int close_x = contents_rect.right();
   if (showing_close_button_) {
     // The visible size is the button's hover shape size. The actual size
     // includes the border insets for the button.
     const int close_button_visible_size =
-        GetLayoutConstant(TAB_CLOSE_BUTTON_SIZE);
+        GetLayoutConstant(LayoutConstant::kTabCloseButtonSize);
     const gfx::Size close_button_actual_size =
         close_button_->GetPreferredSize();
 
@@ -469,9 +468,9 @@ void Tab::Layout(PassKey) {
       // icon view width (which will include extra room for the alert
       // indicator), but rather the normal favicon width which is what it will
       // look like.
-      const int after_favicon = favicon_bounds.x() + icon_->GetInsets().left() +
-                                gfx::kFaviconSize +
-                                GetLayoutConstant(TAB_PRE_TITLE_PADDING);
+      const int after_favicon =
+          favicon_bounds.x() + icon_->GetInsets().left() + gfx::kFaviconSize +
+          GetLayoutConstant(LayoutConstant::kTabPreTitlePadding);
       title_left = std::max(title_left, after_favicon);
     }
     int title_right = contents_rect.right();
@@ -808,7 +807,7 @@ void Tab::SetSplit(std::optional<split_tabs::SplitTabId> split) {
 gfx::Size Tab::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   return gfx::Size(GetTabSizeInfo().standard_width,
-                   GetLayoutConstant(TAB_HEIGHT));
+                   GetLayoutConstant(LayoutConstant::kTabHeight));
 }
 
 void Tab::PaintChildren(const views::PaintInfo& info) {
@@ -970,7 +969,7 @@ bool Tab::ShouldUpdateAccessibleName(TabRendererData& old_data,
   }
 
   return ((old_data.network_state != new_data.network_state) ||
-          old_data.crashed_status != new_data.crashed_status ||
+          old_data.is_crashed != new_data.is_crashed ||
           old_data.alert_state != new_data.alert_state ||
           old_data.should_show_discard_status !=
               new_data.should_show_discard_status ||
@@ -1130,7 +1129,7 @@ void Tab::UpdateIconVisibility() {
   showing_icon_ = showing_alert_indicator_ = false;
   extra_alert_indicator_padding_ = false;
 
-  if (height() < GetLayoutConstant(TAB_HEIGHT)) {
+  if (height() < GetLayoutConstant(LayoutConstant::kTabHeight)) {
     return;
   }
 
@@ -1177,8 +1176,9 @@ void Tab::UpdateIconVisibility() {
       alert_indicator_button_->GetPreferredSize().width();
   // In case of touch optimized UI, the close button has an extra padding on the
   // left that needs to be considered.
-  const int close_button_width = GetLayoutConstant(TAB_CLOSE_BUTTON_SIZE) +
-                                 GetLayoutConstant(TAB_AFTER_TITLE_PADDING);
+  const int close_button_width =
+      GetLayoutConstant(LayoutConstant::kTabCloseButtonSize) +
+      GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
   const bool large_enough_for_close_button =
       available_width >= (touch_ui ? kTouchMinimumContentsWidthForCloseButtons
                                    : kMinimumContentsWidthForCloseButtons);

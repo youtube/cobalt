@@ -96,12 +96,13 @@ using ::tabs::TabInterface;
 
 namespace {
 
-// Test only callback for overriding the TabObservationResult provided from
-// BuildActionsResultWithObservations.
-base::RepeatingCallback<apc::TabObservation::TabObservationResult()>&
+// Test only callback for mutating and returning the TabObservationResult
+// provided from BuildActionsResultWithObservations.
+base::RepeatingCallback<void(apc::TabObservation*,
+                             const FetchPageContextResult&)>&
 GetTabObservationResultOverrideForTesting() {
-  static base::NoDestructor<
-      base::RepeatingCallback<apc::TabObservation::TabObservationResult()>>
+  static base::NoDestructor<base::RepeatingCallback<void(
+      apc::TabObservation*, const FetchPageContextResult&)>>
       callback;
   return *callback;
 }
@@ -837,8 +838,7 @@ void FetchCallback(
   TabInterface* const tab = tab_handle.Get();
 
   if (!GetTabObservationResultOverrideForTesting().is_null()) {
-    tab_observation->set_result(
-        GetTabObservationResultOverrideForTesting().Run());
+    GetTabObservationResultOverrideForTesting().Run(tab_observation, **result);
     return;
   }
 
@@ -1095,9 +1095,9 @@ void BuildActionsResultWithObservations(
   base::RepeatingClosure barrier = base::BarrierClosure(
       tabs_to_fetch.size(),
       base::BindOnce(std::move(callback), actions_start_time, result_code,
-                     index_of_failed_action, std::move(action_results),
-                     task.id(), skip_async_observation_information,
-                     std::move(response), std::move(journal_entry)));
+                     index_of_failed_action, action_results, task.id(),
+                     skip_async_observation_information, std::move(response),
+                     std::move(journal_entry)));
   for (auto& [tab, tab_observation] : tabs_to_fetch) {
     // tab_observation can be Unretained because the underlying APC is owned
     // by the barrier which is ref-counted.
@@ -1111,9 +1111,9 @@ void BuildActionsResultWithObservations(
 }
 
 void SetTabObservationResultOverrideForTesting(
-    base::RepeatingCallback<
-        optimization_guide::proto::TabObservation::TabObservationResult()>
-        callback) {
+    base::RepeatingCallback<void(
+        optimization_guide::proto::TabObservation*,
+        const page_content_annotations::FetchPageContextResult&)> callback) {
   GetTabObservationResultOverrideForTesting() = callback;
 }
 

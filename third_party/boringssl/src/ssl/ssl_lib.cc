@@ -372,7 +372,7 @@ BSSL_NAMESPACE_END
 
 using namespace bssl;
 
-int SSL_library_init(void) { return 1; }
+int SSL_library_init() { return 1; }
 
 int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings) {
   return 1;
@@ -3245,8 +3245,8 @@ int SSL_CTX_need_tmp_RSA(const SSL_CTX *ctx) { return 0; }
 int SSL_need_tmp_RSA(const SSL *ssl) { return 0; }
 int SSL_CTX_set_tmp_rsa(SSL_CTX *ctx, const RSA *rsa) { return 1; }
 int SSL_set_tmp_rsa(SSL *ssl, const RSA *rsa) { return 1; }
-void ERR_load_SSL_strings(void) {}
-void SSL_load_error_strings(void) {}
+void ERR_load_SSL_strings() {}
+void SSL_load_error_strings() {}
 int SSL_cache_hit(SSL *ssl) { return SSL_session_reused(ssl); }
 
 int SSL_CTX_set_tmp_ecdh(SSL_CTX *ctx, const EC_KEY *ec_key) {

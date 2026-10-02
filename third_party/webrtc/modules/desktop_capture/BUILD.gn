@@ -117,7 +117,6 @@ if (rtc_include_tests) {
         "../../rtc_base:task_queue_for_test",
         "../../rtc_base:threading",
         "../../system_wrappers",
-        "../../test:test_main",
         "../../test:test_support",
         "//api/units:time_delta",
         "//rtc_base:rtc_event",
@@ -205,6 +204,7 @@ if (rtc_include_tests) {
       }
       deps += [
         ":desktop_capture_mock",
+        "../../api:make_ref_counted",
         "../../system_wrappers:metrics",
       ]
       public_configs = [ ":x11_config" ]
@@ -281,6 +281,7 @@ rtc_library("desktop_capture") {
   visibility = [ "*" ]
   defines = []
   deps = [
+    "../../media:video_common",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",

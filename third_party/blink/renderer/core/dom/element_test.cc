@@ -1476,25 +1476,26 @@ TEST_F(ElementTest, ThePickerIconPseudoElement) {
 }
 
 TEST_F(ElementTest, OverscrollPseudoElementLayoutStructure) {
-  ScopedCSSOverscrollGesturesForTest enabled(true);
+  ScopedOverscrollGesturesForTest enabled(true);
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div, #scroller::before {
         /* Prevent wrapping by anonymous blocks. */
         display: block;
       }
-      #scroller {
-        overscroll-area: --foo, --bar;
-      }
       #scroller::before {
         content: "::before pseudo";
       }
     </style>
     <div id="previous-sibling"></div>
-    <div id="scroller">
+    <div id="scroller" overscrollcontainer>
       <div id="child"></div>
+      <div id="foo"></div>
+      <div id="bar"></div>
     </div>
     <div id="next-sibling"></div>
+    <button command="toggle-overscroll" commandfor="foo"></button>
+    <button command="toggle-overscroll" commandfor="bar"></button>
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
@@ -1532,15 +1533,19 @@ TEST_F(ElementTest, OverscrollPseudoElementLayoutStructure) {
 }
 
 TEST_F(ElementTest, OverscrollPropertyTrees) {
-  ScopedCSSOverscrollGesturesForTest enabled(true);
+  ScopedOverscrollGesturesForTest enabled(true);
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #container {
-        overscroll-area: --foo, --bar;
         overflow: auto;
       }
     </style>
-    <div id="container"></div>
+    <div id="container" overscrollcontainer>
+      <div id="foo"></div>
+      <div id="bar"></div>
+    </div>
+    <button command="toggle-overscroll" commandfor="foo"></button>
+    <button command="toggle-overscroll" commandfor="bar"></button>
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
@@ -1581,23 +1586,17 @@ TEST_F(ElementTest, OverscrollPropertyTrees) {
 }
 
 TEST_F(ElementTest, OverscrollPseudoElementStyles) {
-  ScopedCSSOverscrollGesturesForTest enabled(true);
+  ScopedOverscrollGesturesForTest enabled(true);
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
-      #scroller, #non-scroller {
-        overscroll-area: --foo;
-      }
       #scroller {
         overflow: auto;
       }
-      /* Only UA stylesheets should be able to style these pseudo-elements.
-       * The following styles SHOULD NOT apply. */
-      #scroller::-internal-overscroll-area-parent(*),
-      #non-scroller::-internal-overscroll-area-parent(*) {
-        backface-visibility: hidden;
-      }
     </style>
-    <div id="scroller"></div>
+    <div id="scroller" overscrollcontainer>
+      <div id="foo"></div>
+    </div>
+    <button command="toggle-overscroll" commandfor="foo"></button>
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
@@ -1633,7 +1632,7 @@ TEST_F(ElementTest, OverscrollPseudoElementStyles) {
 // TODO(crbug.com/463729080): Enable this when the layout objects are properly
 // created.
 TEST_F(ElementTest, DISABLED_OverscrollContainerWithElement) {
-  ScopedCSSOverscrollGesturesForTest enabled(true);
+  ScopedOverscrollGesturesForTest enabled(true);
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="container" overscrollcontainer>
       <div id="menu"></div>

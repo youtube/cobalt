@@ -29,6 +29,7 @@ if (rtc_include_tests) {
       "../../../../system_wrappers",
       "../../../../test:test_support",
       "../../../../test/network:simulated_network",
+      "//third_party/abseil-cpp/absl/functional:any_invocable",
     ]
   }
 

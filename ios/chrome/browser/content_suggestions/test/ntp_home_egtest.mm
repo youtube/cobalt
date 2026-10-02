@@ -172,14 +172,6 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 }
 
 - (BOOL)loadMinimalAppUI {
-  // TODO(crbug.com/469833796): Fix this issue on ipad-device bot.
-#if !TARGET_OS_SIMULATOR
-  // The app hasn't booted yet, so `isIpadIdiom` cannot be used here.
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    return NO;
-  }
-#endif
-
   std::vector<SEL> minimalAppUITests = {
       @selector(testAccessibility),
       @selector(testOmniboxWidthRotation),
@@ -225,8 +217,6 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
         std::string("-google-doodle-url=https://www.gstatic.com/chrome/ntp/"
                     "doodle_test/ddljson_android0.json"));
   }
-  config.features_disabled.push_back(
-      segmentation_platform::features::kSegmentationPlatformTipsEphemeralCard);
 
   if ([self isRunningTest:@selector(testLargeFakeboxFocus)]) {
     config.features_enabled.push_back(kNTPMIAEntrypoint);
@@ -455,6 +445,9 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 - (void)testOmniboxWidthRotation {
   [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
   [ChromeEarlGreyUI waitForAppToIdle];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPCollectionView()]
+      assertWithMatcher:grey_sufficientlyVisible()];
+
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
   UIEdgeInsets safeArea = collectionView.safeAreaInsets;
   CGFloat collectionWidth =
@@ -1051,7 +1044,14 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 }
 
 - (void)testMinimumHeight {
+  if (!base::ios::IsRunningOnIOS18OrLater()) {
+    EARL_GREY_TEST_SKIPPED(
+        @"On iOS 17, EarlGrey finishes the test before the "
+        @"MostVisitedTilesCollectionView goes through its next layout pass "
+        @"based on the actual width of the new tab page content.");
+  }
   [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
+  GREYWaitForAppToIdle(@"App failed to idle");
   [self
       testNTPInitialPositionAndContent:[NewTabPageAppInterface collectionView]];
 
@@ -1098,6 +1098,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 // the device back and forth.
 - (void)testInitialPositionAndOrientationChange {
   [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
+  GREYWaitForAppToIdle(@"App failed to idle");
 
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
 
@@ -1134,8 +1135,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
       assertWithMatcher:grey_notVisible()];
 
   // Reload page, then check if incognito view is still visible.
-  if ([ChromeEarlGrey isNewOverflowMenuEnabled] &&
-      UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+  if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
     // In the new
     // overflow menu on iPad, the reload button is only on the toolbar.
     [[EarlGrey selectElementWithMatcher:chrome_test_util::ReloadButton()]
@@ -1365,6 +1365,10 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // Tests most visited tiles visibility separately.
   [self resetCustomizationPrefs];
   [ChromeCoordinatorAppInterface startNewTabPageCoordinator];
+
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:
+          grey_accessibilityID(kNTPCustomizationMenuButtonIdentifier)];
 
   // Open the Home customization menu.
   [[EarlGrey

@@ -189,7 +189,6 @@ should be able to be added at any place in this file.
       summary="For AddToHomescreen IPH feature."/>
   <variant name="_AddToHomescreenTextBubble"
       summary="For AddToHomescreen IPH feature using text bubble (obsolete)."/>
-  <variant name="_AIHubNewBadge" summary="For AI Hub New Badge feature."/>
   <variant name="_AndroidTabDeclutter" summary="For archived tabs on android."/>
   <variant name="_AppSpecificHistory"
       summary="For App Specific History feature."/>
@@ -382,11 +381,13 @@ should be able to be added at any place in this file.
       summary="For FocusHelpBubbleScreenReaderPromo feature."/>
   <variant name="_FollowWhileBrowsing"
       summary="For Follow While-Browsing IPH feature."/>
-  <variant name="_GeminiContextualCueChip"
-      summary="For Gemini contextual cue chip feature."/>
   <variant name="_GenericAlwaysTriggerHelpUiFeature"
       summary="For generic always show help UI feature."/>
   <variant name="_GlicPromo" summary="For Glic feature."/>
+  <variant name="_GlicTrustFirstOnboardingShortcutSnoozePromo"
+      summary="For Glic shortcut feature with a snooze promo."/>
+  <variant name="_GlicTrustFirstOnboardingShortcutToastPromo"
+      summary="For Glic shortcut feature with a toast promo."/>
   <variant name="_GlicTryIt" summary="For Glic feature with a call to action."/>
   <variant name="_GlobalMediaControls"
       summary="For GlobalMediaControls feature."/>
@@ -413,6 +414,7 @@ should be able to be added at any place in this file.
                intent chip."/>
   <variant name="_iOSAddressPromoDesktop"
       summary="For iOSAddressPromoDesktop feature"/>
+  <variant name="_iOSAIHubNewBadge" summary="For AI Hub New Badge feature."/>
   <variant name="_IOSBWGPromoFeature" summary="For IOSBWGPromoFeature feature"/>
   <variant name="_iOSChoiceScreen"
       summary="(obsolete) For iOSChoiceScreen feature"/>
@@ -444,6 +446,8 @@ should be able to be added at any place in this file.
       summary="For iOSFeedSwipeAnimatedFeature feature"/>
   <variant name="_iOSFeedSwipeStaticFeature"
       summary="For iOSFeedSwipeStaticFeature feature"/>
+  <variant name="_iOSGeminiContextualCueChip"
+      summary="For Gemini contextual cue chip feature."/>
   <variant name="_iOSGeminiFullscreenPromoFeature"
       summary="For iOSGeminiFullscreenPromoFeature feature"/>
   <variant name="_iOSHistoryOnOverflowMenuFeature"
@@ -672,70 +676,6 @@ should be able to be added at any place in this file.
       summary="For the RestoreTabsOnFRE feature."/>
   <variant name="_RtlGestureNavigation"
       summary="For the gesture navigation in RTL mode."/>
-  <variant name="_ScalableIphGaming"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedEight"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedFive"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedFour"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedNine"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedNudge"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedOne"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedSeven"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedSix"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedTen"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedThree"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphHelpAppBasedTwo"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedEight"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedFive"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedFour"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedNine"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedOne"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedSeven"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedSix"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedTen"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedThree"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphTimerBasedTwo"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedEight"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedFive"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedFour"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedNine"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedOne"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedSeven"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedSix"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedTen"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedThree"
-      summary="For a variant of Scalable Iph feature."/>
-  <variant name="_ScalableIphUnlockedBasedTwo"
-      summary="For a variant of Scalable Iph feature."/>
   <variant name="_SharedHighlightingBuilder"
       summary="For SharedHighlightingBuilder feature."/>
   <variant name="_SharedHighlightingReceiver"
@@ -3479,6 +3419,25 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Actor.Ui.GlobalTaskIndicator.{NudgeText}.Click">
+  <owner>mjenn@google.com</owner>
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the user clicks the Global Task Indicator.
+  </description>
+  <token key="NudgeText">
+    <variant name="CompleteTasks"
+        summary="Task Indicator text shown when a task is complete."/>
+    <variant name="Default"
+        summary="Task Indicator shown in default state with no text."/>
+    <variant name="NeedsAttention"
+        summary="Task Indicator text shown when one or more tasks need
+                 attention."/>
+  </token>
+</action>
+
 <action name="Actor.Ui.HandoffButton.GiveControl.Clicked">
   <owner>chrstne@google.com</owner>
   <owner>kenok@google.com</owner>
@@ -3521,6 +3480,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Actor.Ui.TaskNudge.{NudgeText}.Click">
+  <owner>mjenn@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>kenok@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -3535,8 +3495,7 @@ should be able to be added at any place in this file.
         summary="Obsolete. Task Nudge text shown when multiple tasks need
                  attention."/>
     <variant name="NeedsAttention"
-        summary="Task Nudge text shown when one or more tasks needs
-                 attention."/>
+        summary="Task Nudge text shown when one or more tasks need attention."/>
   </token>
 </action>
 
@@ -4138,6 +4097,33 @@ should be able to be added at any place in this file.
   <description>
     User tapped on a phone number, address or email address, activating a
     content detector and causing a content intent to be sent.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.Apply">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Apply&quot; button in the
+    cross-device settings import snackbar.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.Redo">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Redo&quot; button in the
+    cross-device settings import snackbar.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.Undo">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Undo&quot; button in the
+    cross-device settings import snackbar.
   </description>
 </action>
 
@@ -4801,15 +4787,6 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="Android.WindowManager.InstanceLimitReached">
-  <owner>rathomas@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User attempted to create a new Chrome window when the maximum number of
-    instances is reached.
-  </description>
-</action>
-
 <action name="Android.WindowManager.NameWindow">
   <owner>aishwaryarj@google.com</owner>
   <owner>rathomas@google.com</owner>
@@ -4820,20 +4797,6 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Android.WindowManager.NewWindow">
-  <obsolete>
-    Deprecated as of 12/2025. This action was replaced by either
-    Android.WindowManager.InstanceLimitReached or
-    Android.WindowManager.NewWindow2.
-  </obsolete>
-  <owner>jinsukkim@chromium.org</owner>
-  <owner>twellington@chromium.org</owner>
-  <description>
-    User tapped the 'New window' button in Chrome's in-app window manager to
-    create a new Chrome window.
-  </description>
-</action>
-
-<action name="Android.WindowManager.NewWindow2">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <description>
@@ -5473,18 +5436,6 @@ should be able to be added at any place in this file.
     User has pressed Assistant key to open Assistant new entry point. Note that
     there can be a chance that the actual key combo is not Assistant key as this
     shortcut is configurable for now: https://crbug.com/387507743.
-  </description>
-</action>
-
-<action name="Assistant.NewEntryPoint.Launcher">
-  <obsolete>
-    Deprecated in M139. Replaced with Apps.AppList.GeminiSearchBoxIcon.
-  </obsolete>
-  <owner>yawano@google.com</owner>
-  <owner>assistive-eng@google.com</owner>
-  <description>
-    User has opened the new entry point by activating a button in the launcher
-    (app list).
   </description>
 </action>
 
@@ -26230,6 +26181,23 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiCameraSettingsBack">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Reported when user goes back from Gemini Camera Settings UI to Gemini
+    Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraSettingsClose">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Reported when Gemini Camera Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
 <action name="MobileGeminiEntryPointAutomatic">
   <owner>kanouche@google.com</owner>
   <owner>bling-alchemy@google.com</owner>
@@ -27300,8 +27268,9 @@ should be able to be added at any place in this file.
 
 <action name="MobileMenuNewIncognitoWindow">
   <obsolete>
-    Deprecated as of 12/2025. This action is replaced by
-    Android.WindowManager.NewWindow2.
+    Deprecated as of 01/2026 in favor of the enumerated histogram
+    Android.MultiWindowMode.NewWindow.AppSource2 that tracks various new window
+    creation sources.
   </obsolete>
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -27348,8 +27317,9 @@ should be able to be added at any place in this file.
 
 <action name="MobileMenuNewWindow">
   <obsolete>
-    Deprecated as of 12/2025. This action was replaced by
-    Android.WindowManager.NewWindow2.
+    Deprecated as of 01/2026 in favor of the enumerated histogram
+    Android.MultiWindowMode.NewWindow.AppSource2 that tracks various new window
+    creation sources.
   </obsolete>
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
@@ -39385,6 +39355,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.BWGSettings">
+  <obsolete>Renamed to Settings.GeminiSettings.</obsolete>
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when user navigates to BWG Settings. iOS only.
@@ -39392,6 +39363,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.BWGSettings.BWGAppActivity">
+  <obsolete>Renamed to Settings.GeminiSettings.GeminiAppsActivity.</obsolete>
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when user tap BWG App Activity row in Settings. iOS only.
@@ -39399,6 +39371,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.BWGSettings.BWGExtensions">
+  <obsolete>Renamed to Settings.GeminiSettings.GeminiExtensions.</obsolete>
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when user tap BWG Extensions row in Settings. iOS only.
@@ -39520,6 +39493,38 @@ should be able to be added at any place in this file.
   <owner>koilos@google.com</owner>
   <description>
     User enables the Fingerprinting Protection in the Privacy settings page.
+  </description>
+</action>
+
+<action name="Settings.GeminiSettings">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when user navigates to Gemini Settings. iOS only.
+  </description>
+</action>
+
+<action name="Settings.GeminiSettings.GeminiAppsActivity">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when user taps Gemini Apps Activity row in Settings. iOS only.
+  </description>
+</action>
+
+<action name="Settings.GeminiSettings.GeminiExtensions">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when user taps Gemini Extensions row in Settings. iOS only.
+  </description>
+</action>
+
+<action name="Settings.GeminiSettings.GeminiPersonalization">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when user taps Gemini Personalization row in Settings. iOS only.
   </description>
 </action>
 
@@ -51087,13 +51092,6 @@ should be able to be added at any place in this file.
   <description>
     User launched voice interaction session through long pressing app list
     button.
-  </description>
-</action>
-
-<action name="VoiceInteraction.Started.Assistant">
-  <owner>muyuanli@chromium.org</owner>
-  <description>
-    User launched voice interaction session through Assistant key.
   </description>
 </action>
 

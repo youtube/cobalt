@@ -25,6 +25,9 @@
 #include "./internal.h"
 
 
+BSSL_NAMESPACE_BEGIN
+namespace {
+
 static void KeccakFileTest(FileTest *t) {
   std::vector<uint8_t> input, sha3_256_expected, sha3_512_expected,
       shake128_expected, shake256_expected;
@@ -287,3 +290,6 @@ TEST(KeccakTest, MultiPass) {
     }
   }
 }
+
+}  // namespace
+BSSL_NAMESPACE_END

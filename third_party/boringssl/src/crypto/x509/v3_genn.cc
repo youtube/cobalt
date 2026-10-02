@@ -22,6 +22,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 ASN1_SEQUENCE(OTHERNAME) = {
     ASN1_SIMPLE(OTHERNAME, type_id, ASN1_OBJECT),
     // Maybe have a true ANY DEFINED BY later

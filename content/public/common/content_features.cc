@@ -25,12 +25,6 @@ namespace features {
 BASE_FEATURE(kAbortNavigationsFromTabClosures,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Kill switch to guard additional security checks performed by the browser
-// process on opaque origins, such as when verifying source origins for
-// postMessage. See https://crbug.com/40109437.
-BASE_FEATURE(kAdditionalOpaqueOriginEnforcements,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Capture Android key event objects to send them to the web contents when the
 // IME sends composition texts.
 BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1236,6 +1230,12 @@ BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
 BASE_FEATURE(kAccessibilityExtendedSelection,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When this feature is enabled, the InputConnection will request
+// formatted text from the TextInputState.
+BASE_FEATURE(kAccessibilityImeGetFormattedText,
+             "AccessibilityImeGetFormattedText",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, WINDOW_CONTENT_CHANGED events will be sent for each
 // LIVE_REGION_NODE_CHANGED rather than TYPE_ANNOUNCEMENT.
 // kAccessibilityDeprecateTypeAnnounce also encompasses ariaNotify, whereas this
@@ -1250,6 +1250,12 @@ BASE_FEATURE(kAccessibilityImproveLiveRegionAnnounce,
 // or not.
 BASE_FEATURE(kAccessibilityRequestLayoutBasedActions,
              "AccessibilityRequestLayoutBasedActions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, supports atomic announcements, meaning that when
+// aria-atomic=true, the entire live region will be announced not just the node
+// that changed.
+BASE_FEATURE(kAccessibilityAtomicLiveRegions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the second iteration of AccessibilityPageZoom, which continues

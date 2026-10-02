@@ -25,6 +25,7 @@
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_response.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_stream_handle.mojom.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 
 namespace {
 
@@ -32,6 +33,10 @@ constexpr char kHistogramIsHeaderConsistent[] =
     "ServiceWorker.SyntheticResponse.IsHeaderConsistent";
 constexpr char kHistogramIsHeaderStored[] =
     "ServiceWorker.SyntheticResponse.IsHeaderStored";
+constexpr char kHistogramStartRequestToReceiveResponse[] =
+    "ServiceWorker.SyntheticResponse.StartRequestToReceiveResponse";
+constexpr char kHistogramReceiveResponseToComplete[] =
+    "ServiceWorker.SyntheticResponse.ReceiveResponseToComplete";
 constexpr char kHistogramSyntheticResponseReloadReason[] =
     "ServiceWorker.SyntheticResponse.ReloadReason";
 
@@ -252,7 +257,8 @@ ServiceWorkerSyntheticResponseManager::ServiceWorkerSyntheticResponseManager(
     : url_loader_factory_(url_loader_factory), version_(version) {
   TRACE_EVENT("ServiceWorker",
               "ServiceWorkerSyntheticResponseManager::"
-              "ServiceWorkerSyntheticResponseManager");
+              "ServiceWorkerSyntheticResponseManager",
+              perfetto::Flow::FromPointer(this));
   write_buffer_manager_.emplace();
   status_ = write_buffer_manager_->is_data_pipe_created() &&
                     version_->GetResponseHeadForSyntheticResponse()
@@ -261,7 +267,12 @@ ServiceWorkerSyntheticResponseManager::ServiceWorkerSyntheticResponseManager(
 }
 
 ServiceWorkerSyntheticResponseManager::
-    ~ServiceWorkerSyntheticResponseManager() = default;
+    ~ServiceWorkerSyntheticResponseManager() {
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerSyntheticResponseManager::"
+              "~ServiceWorkerSyntheticResponseManager",
+              perfetto::TerminatingFlow::FromPointer(this));
+}
 
 void ServiceWorkerSyntheticResponseManager::StartRequest(
     int request_id,
@@ -271,8 +282,11 @@ void ServiceWorkerSyntheticResponseManager::StartRequest(
     OnReceiveRedirectCallback receive_redirect_callback,
     OnCompleteCallback complete_callback) {
   TRACE_EVENT("ServiceWorker",
-              "ServiceWorkerSyntheticResponseManager::StartRequest");
+              "ServiceWorkerSyntheticResponseManager::StartRequest",
+              perfetto::Flow::FromPointer(this), "request_id", request_id,
+              "url", request.url.spec());
   CHECK(!request.client_side_content_decoding_enabled);
+  request_start_time_ = base::TimeTicks::Now();
   response_callback_ = std::move(receive_response_callback);
   redirect_callback_ = std::move(receive_redirect_callback);
   complete_callback_ = std::move(complete_callback);
@@ -346,7 +360,11 @@ void ServiceWorkerSyntheticResponseManager::OnReceiveResponse(
     network::mojom::URLResponseHeadPtr response_head,
     mojo::ScopedDataPipeConsumerHandle body) {
   TRACE_EVENT("ServiceWorker",
-              "ServiceWorkerSyntheticResponseManager::OnReceiveResponse");
+              "ServiceWorkerSyntheticResponseManager::OnReceiveResponse",
+              perfetto::Flow::FromPointer(this));
+  response_received_time_ = base::TimeTicks::Now();
+  base::UmaHistogramTimes(kHistogramStartRequestToReceiveResponse,
+                          response_received_time_ - request_start_time_);
   switch (status_) {
     case SyntheticResponseStatus::kReady: {
       CHECK(write_buffer_manager_.has_value());
@@ -413,11 +431,17 @@ void ServiceWorkerSyntheticResponseManager::OnReceiveRedirect(
 void ServiceWorkerSyntheticResponseManager::OnComplete(
     const network::URLLoaderCompletionStatus& status) {
   TRACE_EVENT("ServiceWorker",
-              "ServiceWorkerSyntheticResponseManager::OnComplete");
+              "ServiceWorkerSyntheticResponseManager::OnComplete",
+              perfetto::Flow::FromPointer(this));
+  base::UmaHistogramTimes(kHistogramReceiveResponseToComplete,
+                          base::TimeTicks::Now() - response_received_time_);
   std::move(complete_callback_).Run(status);
 }
 
 void ServiceWorkerSyntheticResponseManager::OnCloneCompleted() {
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerSyntheticResponseManager::OnCloneCompleted",
+              perfetto::Flow::FromPointer(this));
   write_buffer_manager_->ResetProducer();
   CHECK(stream_callback_);
   // Perhaps this assumption is wrong because the write operation may not be
@@ -461,10 +485,16 @@ bool ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency(
     MaybeReportHeaderInconsistency(incoming_headers, stored_headers);
   }
 
+  TRACE_EVENT1("ServiceWorker",
+               "ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency",
+               "result", result);
+
   return result;
 }
 
 void ServiceWorkerSyntheticResponseManager::NotifyReloading() {
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerSyntheticResponseManager::NotifyReloading");
   auto body_for_reload = base::span_from_cstring<const char>(
       "<meta http-equiv=\"refresh\" content=\"0;\" />");
   auto [result, size] = write_buffer_manager_->WriteData(body_for_reload);

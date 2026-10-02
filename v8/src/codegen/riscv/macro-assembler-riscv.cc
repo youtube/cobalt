@@ -19,7 +19,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -5644,7 +5644,15 @@ void MacroAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   if (!IsDoubleZeroRegSet()) {
     LoadFPRImmediate(kDoubleRegZero, 0.0);
   }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  feq_d(scratch, src, src);
+  fmv_d(kScratchDoubleReg, src);
   fsub_d(dst, src, kDoubleRegZero);
+  Label not_nan;
+  Branch(&not_nan, ne, scratch, Operand(zero_reg));
+  fsgnj_d(dst, dst, kScratchDoubleReg);
+  bind(&not_nan);
 }
 
 void MacroAssembler::MovFromFloatResult(const DoubleRegister dst) {

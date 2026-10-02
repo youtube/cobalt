@@ -27,7 +27,10 @@
 #include "internal.h"
 
 
-int asn1_marshal_object(CBB *out, const ASN1_OBJECT *in, CBS_ASN1_TAG tag) {
+using namespace bssl;
+
+int bssl::asn1_marshal_object(CBB *out, const ASN1_OBJECT *in,
+                              CBS_ASN1_TAG tag) {
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(ASN1, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
@@ -43,7 +46,7 @@ int asn1_marshal_object(CBB *out, const ASN1_OBJECT *in, CBS_ASN1_TAG tag) {
 }
 
 int i2d_ASN1_OBJECT(const ASN1_OBJECT *in, unsigned char **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/static_cast<size_t>(in->length) + 2, outp,
       [&](CBB *cbb) -> bool {
         return asn1_marshal_object(cbb, in, /*tag=*/0);
@@ -91,7 +94,7 @@ int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a) {
 
 ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **out, const unsigned char **inp,
                              long len) {
-  return bssl::D2IFromCBS(out, inp, len, [](CBS *cbs) -> ASN1_OBJECT * {
+  return D2IFromCBS(out, inp, len, [](CBS *cbs) -> ASN1_OBJECT * {
     CBS child;
     if (!CBS_get_asn1(cbs, &child, CBS_ASN1_OBJECT)) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
@@ -104,7 +107,7 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **out, const unsigned char **inp,
 
 ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **out, const unsigned char **inp,
                              long len) {
-  return bssl::D2IFromCBS(out, inp, len, [](CBS *cbs) -> ASN1_OBJECT * {
+  return D2IFromCBS(out, inp, len, [](CBS *cbs) -> ASN1_OBJECT * {
     if (!CBS_is_valid_asn1_oid(cbs)) {
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_OBJECT_ENCODING);
       return nullptr;
@@ -120,7 +123,7 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **out, const unsigned char **inp,
   });
 }
 
-ASN1_OBJECT *asn1_parse_object(CBS *cbs, CBS_ASN1_TAG tag) {
+ASN1_OBJECT *bssl::asn1_parse_object(CBS *cbs, CBS_ASN1_TAG tag) {
   tag = tag == 0 ? CBS_ASN1_OBJECT : tag;
   CBS child;
   if (!CBS_get_asn1(cbs, &child, tag)) {
@@ -135,7 +138,7 @@ ASN1_OBJECT *asn1_parse_object(CBS *cbs, CBS_ASN1_TAG tag) {
                             /*sn=*/nullptr, /*ln=*/nullptr);
 }
 
-ASN1_OBJECT *ASN1_OBJECT_new(void) {
+ASN1_OBJECT *bssl::ASN1_OBJECT_new() {
   ASN1_OBJECT *ret;
 
   ret = (ASN1_OBJECT *)OPENSSL_malloc(sizeof(ASN1_OBJECT));

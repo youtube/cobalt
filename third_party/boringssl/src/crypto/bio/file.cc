@@ -238,7 +238,7 @@ static const BIO_METHOD methods_filep = {
     /*create=*/nullptr, file_free,      /*callback_ctrl=*/nullptr,
 };
 
-const BIO_METHOD *BIO_s_file(void) { return &methods_filep; }
+const BIO_METHOD *BIO_s_file() { return &methods_filep; }
 
 
 int BIO_get_fp(BIO *bio, FILE **out_file) {

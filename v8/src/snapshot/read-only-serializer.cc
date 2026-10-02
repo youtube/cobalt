@@ -165,8 +165,7 @@ class ObjectPreProcessor final {
 };
 
 struct ReadOnlySegmentForSerialization {
-  ReadOnlySegmentForSerialization(Isolate* isolate,
-                                  const ReadOnlyPageMetadata* page,
+  ReadOnlySegmentForSerialization(Isolate* isolate, const ReadOnlyPage* page,
                                   Address segment_start, size_t segment_size,
                                   ObjectPreProcessor* pre_processor)
       : page(page),
@@ -206,7 +205,7 @@ struct ReadOnlySegmentForSerialization {
 
   void EncodeTaggedSlots(Isolate* isolate);
 
-  const ReadOnlyPageMetadata* const page;
+  const ReadOnlyPage* const page;
   const Address segment_start;
   const size_t segment_size;
   const size_t segment_offset;
@@ -220,8 +219,7 @@ struct ReadOnlySegmentForSerialization {
 
 ro::EncodedTagged Encode(Isolate* isolate, Tagged<HeapObject> o) {
   Address o_address = o.address();
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromAddress(isolate, o_address);
+  BasePage* chunk = BasePage::FromAddress(isolate, o_address);
 
   ReadOnlySpace* ro_space = isolate->read_only_heap()->read_only_space();
   int index = static_cast<int>(ro_space->IndexOf(chunk));
@@ -389,25 +387,26 @@ class ReadOnlyHeapImageSerializer {
 
     // Allocate all pages first s.t. the deserializer can easily handle forward
     // references (e.g.: an object on page i points at an object on page i+1).
-    for (const ReadOnlyPageMetadata* page : ro_space->pages()) {
+    for (const ReadOnlyPage* page : ro_space->pages()) {
       EmitAllocatePage(page);
     }
 
     // Now write the page contents.
-    for (const ReadOnlyPageMetadata* page : ro_space->pages()) {
+    for (const ReadOnlyPage* page : ro_space->pages()) {
       SerializePage(page);
     }
 
     EmitReadOnlyRootsTable();
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
+    sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
   }
 
-  uint32_t IndexOf(const ReadOnlyPageMetadata* page) {
+  uint32_t IndexOf(const ReadOnlyPage* page) {
     ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
     return static_cast<uint32_t>(ro_space->IndexOf(page));
   }
 
-  void EmitAllocatePage(const ReadOnlyPageMetadata* page) {
+  void EmitAllocatePage(const ReadOnlyPage* page) {
     if (V8_STATIC_ROOTS_BOOL) {
       sink_->Put(Bytecode::kAllocatePageAt, "fixed page begin");
     } else {
@@ -446,7 +445,7 @@ class ReadOnlyHeapImageSerializer {
     return {};
   }
 
-  void SerializePage(const ReadOnlyPageMetadata* page) {
+  void SerializePage(const ReadOnlyPage* page) {
     Address pos = page->area_start();
     if (v8_flags.trace_serializer) {
       PrintF("[ro serializer] Serializing page %p -> %p\n",
@@ -573,6 +572,7 @@ void ReadOnlySerializer::Serialize() {
       CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);
     }
   }
+  Pad();
 }
 
 }  // namespace internal

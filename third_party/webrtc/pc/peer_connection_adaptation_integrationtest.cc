@@ -23,6 +23,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/test/rtc_error_matchers.h"
+#include "api/units/time_delta.h"
 #include "api/video/video_source_interface.h"
 #include "call/adaptation/test/fake_resource.h"
 #include "pc/test/fake_periodic_video_source.h"
@@ -58,8 +59,8 @@ TrackWithPeriodicSource CreateTrackWithPeriodicSource(
     Clock& clock,
     scoped_refptr<PeerConnectionFactoryInterface> factory) {
   FakePeriodicVideoSource::Config periodic_track_source_config;
-  periodic_track_source_config.frame_interval_ms = 100;
-  periodic_track_source_config.timestamp_offset_ms = clock.TimeInMilliseconds();
+  periodic_track_source_config.frame_interval = TimeDelta::Millis(100);
+  periodic_track_source_config.timestamp_offset = clock.CurrentTime();
   scoped_refptr<FakePeriodicVideoTrackSource> periodic_track_source =
       make_ref_counted<FakePeriodicVideoTrackSource>(
           periodic_track_source_config, /* remote */ false);

@@ -249,6 +249,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8DotI8x16S:
     case kArm64I32x4DotI8x16AddS:
     case kArm64IAddv:
+    case kArm64IAddp:
     case kArm64IAddpScalar:
     case kArm64FAddp:
     case kArm64FAddpScalar:
@@ -288,8 +289,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ssra:
     case kArm64Usra:
     case kArm64S64x2Reverse:
-    case kArm64S32x4OneLaneSwizzle:
     case kArm64S128MoveLane:
+    case kArm64S128MoveReg:
     case kArm64S32x4Shuffle:
     case kArm64S8x16Concat:
     case kArm64I8x16Swizzle:
@@ -318,8 +319,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64ISubSatU:
     case kArm64Bcax:
     case kArm64Eor3:
-    case kArm64Cpy:
-    case kArm64Set:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
@@ -381,6 +380,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64DsbIsb:
 #if V8_ENABLE_WEBASSEMBLY
     case kArm64StoreLane:
+    case kArm64Cpy:
+    case kArm64Set:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kHasSideEffect;
 

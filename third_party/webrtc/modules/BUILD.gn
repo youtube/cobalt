@@ -47,7 +47,6 @@ if (rtc_include_tests && !build_with_chromium) {
     testonly = true
 
     deps = [
-      "../test:test_main",
       "../test:video_test_common",
       "audio_coding:audio_coding_modules_tests",
       "rtp_rtcp:rtp_rtcp_modules_tests",
@@ -84,7 +83,6 @@ if (rtc_include_tests && !build_with_chromium) {
     deps = [
       ":module_api",
       ":module_api_public",
-      "../test:test_main",
       "../test:test_support",
       "audio_coding:audio_coding_unittests",
       "audio_device:audio_device_unittests",

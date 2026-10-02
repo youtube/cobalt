@@ -1618,6 +1618,8 @@ void EventLogAnalyzer::CreateScreamSimulationRatiosGraph(Plot* plot) const {
   TimeSeries queue_delay_dev_norm_series("QueueDelayDevNorm", LineStyle::kStep);
   TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
   TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
+  TimeSeries ref_window_delay_increase_scale("RefWindowDelayIncreaseScale",
+                                             LineStyle::kStep);
 
   LogScreamSimulation simulation({.rate_window = config_.window_duration_},
                                  env_);
@@ -1630,10 +1632,14 @@ void EventLogAnalyzer::CreateScreamSimulationRatiosGraph(Plot* plot) const {
                                          state.l4s_alpha);
     l4s_alpha_v_series.points.emplace_back(config_.GetCallTimeSec(state.time),
                                            state.l4s_alpha_v);
+    ref_window_delay_increase_scale.points.emplace_back(
+        config_.GetCallTimeSec(state.time),
+        state.ref_window_delay_increase_scale);
   }
   plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
+  plot->AppendTimeSeries(std::move(ref_window_delay_increase_scale));
 
   plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
                  "Time (s)", kLeftMargin, kRightMargin);

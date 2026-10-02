@@ -62,6 +62,9 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   return types;
 }
 
+constexpr absl::string_view kTestImplementationString =
+    "Moq Test Implementation Type";
+
 // Base class containing a wire image and the corresponding structured
 // representation of an example of each message. It allows parser and framer
 // tests to iterate through all message types without much specialized code.
@@ -494,14 +497,20 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
     client_setup_.parameters.using_webtrans = webtrans;
+    client_setup_.parameters.moqt_implementation = kTestImplementationString;
     if (webtrans) {
       // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = "";
       client_setup_.parameters.authority = "";
-      raw_packet_[2] = 0x23;  // adjust payload length (-17)
-      raw_packet_[6] = 0x02;  // only two parameters
+      raw_packet_[2] -= 17;   // adjust payload length
+      raw_packet_[3] = 0x02;  // only two parameters
+      // Move MaxRequestId up in the packet.
+      memmove(raw_packet_ + 4, raw_packet_ + 10, 2);
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 9, raw_packet_ + 26, 29);
+      memmove(raw_packet_ + 6, raw_packet_ + 23,
+              kTestImplementationString.length() + 2);
+      raw_packet_[4] = 0x02;  // Diff from 0.
+      raw_packet_[6] = 0x05;  // Diff from 2.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -510,18 +519,6 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtClientSetup>(values);
-    if (cast.supported_versions.size() !=
-        client_setup_.supported_versions.size()) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP number of supported versions mismatch";
-      return false;
-    }
-    for (uint64_t i = 0; i < cast.supported_versions.size(); ++i) {
-      // Listed versions are 1 and 2, in that order.
-      if (cast.supported_versions[i] != client_setup_.supported_versions[i]) {
-        QUIC_LOG(INFO) << "CLIENT_SETUP supported version mismatch";
-        return false;
-      }
-    }
     if (cast.parameters != client_setup_.parameters) {
       QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
       return false;
@@ -531,9 +528,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (!client_setup_.parameters.path.empty()) {
-      ExpandVarintsImpl("vvvvvvvv----vv---------vv---------------------------");
+      ExpandVarintsImpl("vvv----vvvv---------vv---------------------------");
     } else {
-      ExpandVarintsImpl("vvvvvvvv---------------------------");
+      ExpandVarintsImpl("vvvvv---------------------------");
     }
   }
 
@@ -546,21 +543,18 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[55] = {
-      0x20, 0x00, 0x34,                    // type, length
-      0x02, 0x01, 0x02,                    // versions
+  uint8_t raw_packet_[53] = {
+      0x20, 0x00, 0x32,                    // type, length
       0x04,                                // 4 parameters
-      0x02, 0x32,                          // max_request_id = 50
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
-      0x05, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
+      0x01, 0x32,                          // max_request_id = 50
+      0x03, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
       // moqt_implementation:
-      0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x20, 0x51, 0x55, 0x49,
-      0x43, 0x48, 0x45, 0x20, 0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
-      0x66, 0x74, 0x20, 0x31, 0x34};
+      0x02, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
+      0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
+      0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtClientSetup client_setup_ = {
-      /*supported_versions=*/std::vector<MoqtVersion>(
-          {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
       MoqtSessionParameters(quic::Perspective::IS_CLIENT, "path", "authority",
                             50),
   };
@@ -570,6 +564,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
  public:
   explicit ServerSetupMessage(bool webtrans) : TestMessageBase() {
     server_setup_.parameters.using_webtrans = webtrans;
+    server_setup_.parameters.moqt_implementation = kTestImplementationString;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -582,26 +577,22 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(server_setup_);
   }
 
  private:
-  uint8_t raw_packet_[36] = {0x21, 0x00,
-                             0x21,  // type
-                             0x01,
-                             0x02,  // version, two parameters
-                             0x02,
-                             0x32,  // max_subscribe_id = 50
+  uint8_t raw_packet_[36] = {0x21, 0x00, 0x21,  // type, length
+                             0x02,              // two parameters
+                             0x02, 0x32,        // max_subscribe_id = 50
                              // moqt_implementation:
-                             0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
-                             0x20, 0x51, 0x55, 0x49, 0x43, 0x48, 0x45, 0x20,
-                             0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
-                             0x66, 0x74, 0x20, 0x31, 0x34};
+                             0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
+                             0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
+                             0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
+                             0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtServerSetup server_setup_ = {
-      /*selected_version=*/static_cast<MoqtVersion>(1),
       MoqtSessionParameters(quic::Perspective::IS_SERVER, 50),
   };
 };
@@ -702,7 +693,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x02,
       0x67,
       0x10,  // delivery_timeout = 10000 ms
-      0x03,
+      0x01,
       0x05,
       0x03,
       0x00,
@@ -782,7 +773,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x0c, 0x14,                          // largest_location = (12, 20)
       0x02,                                // 2 parameters
       0x02, 0x67, 0x10,                    // delivery_timeout = 10000
-      0x04, 0x67, 0x10,                    // max_cache_duration = 10000
+      0x02, 0x67, 0x10,                    // max_cache_duration = 10000
   };
 };
 

@@ -19,6 +19,8 @@
 #include <utility>
 
 #include "api/field_trials.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/resolution.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_source_interface.h"
@@ -83,7 +85,8 @@ class VideoAdapterTest : public ::testing::Test,
         frame_source_(std::make_unique<FakeFrameSource>(
             kWidth,
             kHeight,
-            VideoFormat::FpsToInterval(kDefaultFps) / kNumNanosecsPerMicrosec)),
+            TimeDelta::Seconds(1) / kDefaultFps,
+            Timestamp::Zero())),
         adapter_(source_resolution_alignment),
         adapter_wrapper_(std::make_unique<VideoAdapterWrapper>(&adapter_)),
         use_new_format_request_(GetParam()) {}

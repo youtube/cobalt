@@ -48,7 +48,7 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
   TestVideoCapturerVideoTrackSource& operator=(
       TestVideoCapturerVideoTrackSource&&) = delete;
 
-  ~TestVideoCapturerVideoTrackSource() = default;
+  ~TestVideoCapturerVideoTrackSource() override = default;
 
   void Start() override {
     SetState(kLive);
@@ -73,7 +73,7 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
     return is_screencast_;
   }
 
-  void SetEnableAdaptation(bool enable_adaptation) {
+  void SetEnableAdaptation(bool enable_adaptation) override {
     video_capturer_->SetEnableAdaptation(enable_adaptation);
   }
 

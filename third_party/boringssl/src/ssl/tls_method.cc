@@ -194,7 +194,7 @@ BSSL_NAMESPACE_END
 
 using namespace bssl;
 
-const SSL_METHOD *TLS_method(void) {
+const SSL_METHOD *TLS_method() {
   static const SSL_METHOD kMethod = {
       0,
       &kTLSProtocolMethod,
@@ -203,9 +203,9 @@ const SSL_METHOD *TLS_method(void) {
   return &kMethod;
 }
 
-const SSL_METHOD *SSLv23_method(void) { return TLS_method(); }
+const SSL_METHOD *SSLv23_method() { return TLS_method(); }
 
-const SSL_METHOD *TLS_with_buffers_method(void) {
+const SSL_METHOD *TLS_with_buffers_method() {
   static const SSL_METHOD kMethod = {
       0,
       &kTLSProtocolMethod,
@@ -216,7 +216,7 @@ const SSL_METHOD *TLS_with_buffers_method(void) {
 
 // Legacy version-locked methods.
 
-const SSL_METHOD *TLSv1_2_method(void) {
+const SSL_METHOD *TLSv1_2_method() {
   static const SSL_METHOD kMethod = {
       TLS1_2_VERSION,
       &kTLSProtocolMethod,
@@ -225,7 +225,7 @@ const SSL_METHOD *TLSv1_2_method(void) {
   return &kMethod;
 }
 
-const SSL_METHOD *TLSv1_1_method(void) {
+const SSL_METHOD *TLSv1_1_method() {
   static const SSL_METHOD kMethod = {
       TLS1_1_VERSION,
       &kTLSProtocolMethod,
@@ -234,7 +234,7 @@ const SSL_METHOD *TLSv1_1_method(void) {
   return &kMethod;
 }
 
-const SSL_METHOD *TLSv1_method(void) {
+const SSL_METHOD *TLSv1_method() {
   static const SSL_METHOD kMethod = {
       TLS1_VERSION,
       &kTLSProtocolMethod,
@@ -245,22 +245,22 @@ const SSL_METHOD *TLSv1_method(void) {
 
 // Legacy side-specific methods.
 
-const SSL_METHOD *TLSv1_2_server_method(void) { return TLSv1_2_method(); }
+const SSL_METHOD *TLSv1_2_server_method() { return TLSv1_2_method(); }
 
-const SSL_METHOD *TLSv1_1_server_method(void) { return TLSv1_1_method(); }
+const SSL_METHOD *TLSv1_1_server_method() { return TLSv1_1_method(); }
 
-const SSL_METHOD *TLSv1_server_method(void) { return TLSv1_method(); }
+const SSL_METHOD *TLSv1_server_method() { return TLSv1_method(); }
 
-const SSL_METHOD *TLSv1_2_client_method(void) { return TLSv1_2_method(); }
+const SSL_METHOD *TLSv1_2_client_method() { return TLSv1_2_method(); }
 
-const SSL_METHOD *TLSv1_1_client_method(void) { return TLSv1_1_method(); }
+const SSL_METHOD *TLSv1_1_client_method() { return TLSv1_1_method(); }
 
-const SSL_METHOD *TLSv1_client_method(void) { return TLSv1_method(); }
+const SSL_METHOD *TLSv1_client_method() { return TLSv1_method(); }
 
-const SSL_METHOD *SSLv23_server_method(void) { return SSLv23_method(); }
+const SSL_METHOD *SSLv23_server_method() { return SSLv23_method(); }
 
-const SSL_METHOD *SSLv23_client_method(void) { return SSLv23_method(); }
+const SSL_METHOD *SSLv23_client_method() { return SSLv23_method(); }
 
-const SSL_METHOD *TLS_server_method(void) { return TLS_method(); }
+const SSL_METHOD *TLS_server_method() { return TLS_method(); }
 
-const SSL_METHOD *TLS_client_method(void) { return TLS_method(); }
+const SSL_METHOD *TLS_client_method() { return TLS_method(); }

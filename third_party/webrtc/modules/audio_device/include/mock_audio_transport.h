@@ -24,7 +24,7 @@ namespace test {
 class MockAudioTransport : public AudioTransport {
  public:
   MockAudioTransport() {}
-  ~MockAudioTransport() {}
+  ~MockAudioTransport() override {}
 
   MOCK_METHOD(int32_t,
               RecordedDataIsAvailable,

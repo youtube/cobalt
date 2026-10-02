@@ -51,7 +51,6 @@
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
-#include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -109,20 +108,6 @@ using base::UserMetricsAction;
 using content::WebContents;
 
 namespace {
-
-// Gets the source browser view during a tab dragging. Returns nullptr if there
-// is none.
-BrowserView* GetSourceBrowserViewInTabDragging() {
-  auto* source_context = TabDragController::GetSourceContext();
-  if (source_context) {
-    gfx::NativeWindow source_window =
-        source_context->GetWidget()->GetNativeWindow();
-    if (source_window) {
-      return BrowserView::GetBrowserViewForNativeWindow(source_window);
-    }
-  }
-  return nullptr;
-}
 
 void DialogTimingToSource(
     base::OnceCallback<void(CloseTabSource)> callback,
@@ -208,9 +193,10 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
   }
   AddTabs(tabs_to_add);
 }
-
+// TODO(crbug.com/435178910): Change this to return a
+// TabStripModelSelectionState instead of a ListSelectionModel.
 ui::ListSelectionModel BrowserTabStripController::GetSelectionModel() const {
-  return model_->selection_model();
+  return model_->selection_model().GetListSelectionModel();
 }
 
 int BrowserTabStripController::GetCount() const {
@@ -261,8 +247,7 @@ void BrowserTabStripController::SelectTab(int model_index,
   std::optional<split_tabs::SplitTabId> split_id =
       tabstrip_->tab_at(model_index)->split();
   if (split_id.has_value()) {
-    model_index = split_tabs::GetIndexOfLastActiveTab(
-        browser()->tab_strip_model(), split_id.value());
+    model_index = split_tabs::GetIndexOfLastActiveTab(model_, split_id.value());
   }
 
   std::unique_ptr<viz::PeakGpuMemoryTracker> tracker =
@@ -300,7 +285,7 @@ void BrowserTabStripController::RecordMetricsOnTabSelectionChange(
 
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(
-          browser_view_->GetProfile());
+          GetBrowserWindowInterface()->GetProfile());
 
   if (!tab_group_service) {
     return;
@@ -397,7 +382,7 @@ void BrowserTabStripController::CloseTab(int model_index) {
 
   // Try to show reading list IPH if needed.
   if (tabstrip_->GetTabCount() >= 7) {
-    BrowserUserEducationInterface::From(browser_view_->browser())
+    BrowserUserEducationInterface::From(GetBrowserWindowInterface())
         ->MaybeShowFeaturePromo(
             feature_engagement::kIPHReadingListEntryPointFeature);
   }
@@ -542,62 +527,23 @@ void BrowserTabStripController::OnDropIndexUpdate(
 }
 
 void BrowserTabStripController::CreateNewTab(NewTabTypes context) {
-  chrome::NewTab(GetBrowser(), context);
+  chrome::NewTab(browser_view_->browser(), context);
 }
 
-void BrowserTabStripController::OnStartedDragging(bool dragging_window) {
+void BrowserTabStripController::OnStartedDragging() {
   if (!immersive_reveal_lock_.get()) {
     // The top-of-window views should be revealed while the user is dragging
     // tabs in immersive fullscreen. The top-of-window views may not be already
     // revealed if the user is attempting to attach a tab to a tabstrip
     // belonging to an immersive fullscreen window.
     immersive_reveal_lock_ =
-        ImmersiveModeController::From(browser_view_->browser())
+        ImmersiveModeController::From(GetBrowserWindowInterface())
             ->GetRevealedLock(ImmersiveModeController::ANIMATE_REVEAL_NO);
   }
-
-  browser_view_->browser_widget()->SetTabDragKind(
-      dragging_window ? TabDragKind::kAllTabs : TabDragKind::kTab);
-  // We also use fast resize for the source browser window as the source browser
-  // window may also change bounds during dragging.
-  BrowserView* source_browser_view = GetSourceBrowserViewInTabDragging();
-  if (source_browser_view && source_browser_view != browser_view_) {
-    source_browser_view->browser_widget()->SetTabDragKind(TabDragKind::kTab);
-  }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  browser_view_->GetWidget()->GetNativeWindow()->SetProperty(
-      ash::kIsDraggingTabsKey, true);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void BrowserTabStripController::OnStoppedDragging() {
   immersive_reveal_lock_.reset();
-
-  BrowserView* source_browser_view = GetSourceBrowserViewInTabDragging();
-  // Only reset the source window's fast resize bit after the entire drag
-  // ends.
-  if (browser_view_ != source_browser_view) {
-    browser_view_->browser_widget()->SetTabDragKind(TabDragKind::kNone);
-  }
-  if (source_browser_view && !TabDragController::IsActive()) {
-    source_browser_view->browser_widget()->SetTabDragKind(TabDragKind::kNone);
-  }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Clear the drag properties unless the drag browser's tabs got merged into
-  // another browser, in which case SplitViewController::TabDragWindowObserver
-  // still needs to read the properties. We detect this case by checking if the
-  // tab strip model is now empty. Since it was non-empty originally and the
-  // drag browser can't have any pending downloads. we know that it's about to
-  // get destroyed anyways.
-  if (!browser_view_->browser()->tab_strip_model()->empty()) {
-    browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
-        ash::kIsDraggingTabsKey);
-    browser_view_->GetWidget()->GetNativeWindow()->ClearProperty(
-        ash::kTabDraggingSourceWindowKey);
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void BrowserTabStripController::OnKeyboardFocusedTabChanged(
@@ -683,27 +629,11 @@ bool BrowserTabStripController::IsFrameCondensed() const {
   return GetFrameView()->IsFrameCondensed();
 }
 
-bool BrowserTabStripController::HasVisibleBackgroundTabShapes() const {
-  return GetFrameView()->HasVisibleBackgroundTabShapes(
-      BrowserFrameActiveState::kUseCurrent);
-}
-
 bool BrowserTabStripController::EverHasVisibleBackgroundTabShapes() const {
   return GetFrameView()->HasVisibleBackgroundTabShapes(
              BrowserFrameActiveState::kActive) ||
          GetFrameView()->HasVisibleBackgroundTabShapes(
              BrowserFrameActiveState::kInactive);
-}
-
-bool BrowserTabStripController::CanDrawStrokes() const {
-  // Web apps should not draw strokes if they don't have a tab strip.
-  return !browser_view_->browser()->app_controller() ||
-         browser_view_->browser()->app_controller()->has_tab_strip();
-}
-
-SkColor BrowserTabStripController::GetFrameColor(
-    BrowserFrameActiveState active_state) const {
-  return GetFrameView()->GetFrameColor(active_state);
 }
 
 std::optional<int> BrowserTabStripController::GetCustomBackgroundId(
@@ -717,15 +647,7 @@ std::u16string BrowserTabStripController::GetAccessibleTabName(
       tabstrip_->GetModelIndexOf(tab).value(), /*is_for_tab=*/true);
 }
 
-Profile* BrowserTabStripController::GetProfile() const {
-  return model_->profile();
-}
-
 BrowserWindowInterface* BrowserTabStripController::GetBrowserWindowInterface() {
-  return browser_view_->browser();
-}
-
-Browser* BrowserTabStripController::GetBrowser() {
   return browser_view_->browser();
 }
 
@@ -1023,7 +945,7 @@ void BrowserTabStripController::AddTabs(
   // Try to show tab search IPH if needed.
   constexpr int kTabSearchIPHTriggerThreshold = 8;
   if (tabstrip_->GetTabCount() >= kTabSearchIPHTriggerThreshold) {
-    BrowserUserEducationInterface::From(browser_view_->browser())
+    BrowserUserEducationInterface::From(GetBrowserWindowInterface())
         ->MaybeShowFeaturePromo(feature_engagement::kIPHTabSearchFeature);
   }
 }
@@ -1064,12 +986,12 @@ bool BrowserTabStripController::GetContextMenuAccelerator(
     int command_id,
     ui::Accelerator* accelerator) {
 #if BUILDFLAG(IS_CHROMEOS)
-  auto* browser = browser_view_->browser();
-  auto* system_app = browser->app_controller()
-                         ? browser->app_controller()->system_app()
-                         : nullptr;
-  if (system_app && !system_app->ShouldShowTabContextMenuShortcut(
-                        browser->profile(), command_id)) {
+  auto* const app_controller =
+      web_app::AppBrowserController::From(GetBrowserWindowInterface());
+  auto* system_app = app_controller ? app_controller->system_app() : nullptr;
+  if (system_app &&
+      !system_app->ShouldShowTabContextMenuShortcut(
+          GetBrowserWindowInterface()->GetProfile(), command_id)) {
     return false;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)

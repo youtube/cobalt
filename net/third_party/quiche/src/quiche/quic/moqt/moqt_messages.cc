@@ -9,16 +9,14 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -26,34 +24,21 @@
 
 namespace moqt {
 
-void KeyValuePairList::insert(uint64_t key, absl::string_view value) {
-  if (key % 2 == 0) {
+void KeyValuePairList::insert(uint64_t key,
+                              std::variant<uint64_t, absl::string_view> value) {
+  if (key % 2 == 0 && std::holds_alternative<absl::string_view>(value)) {
     QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
     return;
   }
-  string_map_.emplace(key, value);
-}
-
-void KeyValuePairList::insert(uint64_t key, uint64_t value) {
-  if (key % 2 == 1) {
+  if (key % 2 == 1 && std::holds_alternative<uint64_t>(value)) {
     QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
     return;
   }
-  integer_map_.emplace(key, value);
-}
-
-size_t KeyValuePairList::count(uint64_t key) const {
-  if (key % 2 == 0) {
-    return integer_map_.count(key);
+  if (key % 2 == 1) {
+    map_.emplace(key, std::string(std::get<absl::string_view>(value)));
+  } else {
+    map_.emplace(key, std::get<uint64_t>(value));
   }
-  return string_map_.count(key);
-}
-
-bool KeyValuePairList::contains(uint64_t key) const {
-  if (key % 2 == 0) {
-    return integer_map_.contains(key);
-  }
-  return string_map_.contains(key);
 }
 
 std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
@@ -62,9 +47,9 @@ std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
     return {};
   }
   std::vector<uint64_t> result;
-  auto [range_start, range_end] = integer_map_.equal_range(key);
+  auto [range_start, range_end] = map_.equal_range(key);
   for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(it->second);
+    result.push_back(std::get<uint64_t>(it->second));
   }
   return result;
 }
@@ -76,9 +61,9 @@ std::vector<absl::string_view> KeyValuePairList::GetStrings(
     return {};
   }
   std::vector<absl::string_view> result;
-  auto [range_start, range_end] = string_map_.equal_range(key);
+  auto [range_start, range_end] = map_.equal_range(key);
   for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(it->second);
+    result.push_back(std::get<std::string>(it->second));
   }
   return result;
 }
@@ -316,62 +301,6 @@ std::string MoqtForwardingPreferenceToString(
   QUIC_BUG(quic_bug_bad_moqt_message_type_01)
       << "Unknown preference " << std::to_string(static_cast<int>(preference));
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
-}
-
-TrackNamespace::TrackNamespace(absl::Span<const absl::string_view> elements)
-    : tuple_(elements.begin(), elements.end()) {
-  if (std::size(elements) > kMaxNamespaceElements) {
-    tuple_.clear();
-    QUICHE_BUG(Moqt_namespace_too_large_01)
-        << "Constructing a namespace that is too large.";
-    return;
-  }
-  for (auto it : elements) {
-    length_ += it.size();
-    if (length_ > kMaxFullTrackNameSize) {
-      tuple_.clear();
-      QUICHE_BUG(Moqt_namespace_too_large_02)
-          << "Constructing a namespace that is too large.";
-      return;
-    }
-  }
-}
-
-bool TrackNamespace::InNamespace(const TrackNamespace& other) const {
-  if (tuple_.size() < other.tuple_.size()) {
-    return false;
-  }
-  for (int i = 0; i < other.tuple_.size(); ++i) {
-    if (tuple_[i] != other.tuple_[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void TrackNamespace::AddElement(absl::string_view element) {
-  if (!CanAddElement(element)) {
-    QUICHE_BUG(Moqt_namespace_too_large_03)
-        << "Constructing a namespace that is too large.";
-    return;
-  }
-  length_ += element.length();
-  tuple_.push_back(std::string(element));
-}
-
-std::string TrackNamespace::ToString() const {
-  std::vector<std::string> bits;
-  bits.reserve(tuple_.size());
-  for (absl::string_view raw_bit : tuple_) {
-    bits.push_back(absl::StrCat("\"", absl::CHexEscape(raw_bit), "\""));
-  }
-  return absl::StrCat("{", absl::StrJoin(bits, "::"), "}");
-}
-
-void FullTrackName::set_name(absl::string_view name) {
-  QUIC_BUG_IF(Moqt_name_too_large_03, !CanAddName(name))
-      << "Setting a name that is too large.";
-  name_ = name;
 }
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,

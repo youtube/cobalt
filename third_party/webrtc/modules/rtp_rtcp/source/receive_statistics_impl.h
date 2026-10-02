@@ -36,7 +36,7 @@ namespace webrtc {
 // Extends StreamStatistician with methods needed by the implementation.
 class StreamStatisticianImplInterface : public StreamStatistician {
  public:
-  virtual ~StreamStatisticianImplInterface() = default;
+  ~StreamStatisticianImplInterface() override = default;
   virtual void MaybeAppendReportBlockAndReset(
       std::vector<rtcp::ReportBlock>& report_blocks) = 0;
   virtual void SetMaxReorderingThreshold(int max_reordering_threshold) = 0;

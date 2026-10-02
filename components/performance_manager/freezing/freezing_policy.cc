@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/byte_count.h"
 #include "base/byte_size.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
@@ -375,7 +374,7 @@ base::flat_set<raw_ptr<const PageNode>> FreezingPolicy::GetConnectedPages(
       CHECK(it != browsing_instance_states_.end());
       const BrowsingInstanceState& browsing_instance_state = it->second;
       for (auto* browsing_instance_page : browsing_instance_state.pages) {
-        if (!base::Contains(connected_pages, browsing_instance_page)) {
+        if (!connected_pages.contains(browsing_instance_page)) {
           pages_to_visit.insert(browsing_instance_page);
         }
       }
@@ -1044,8 +1043,9 @@ void FreezingPolicy::DiscardFrozenPagesWithGrowingMemoryOnMemoryMeasurement(
     }
   }
 
-  const base::ByteCount growth_threshold =
-      base::KiB(features::kFreezingMemoryGrowthThresholdToDiscardKb.Get());
+  const base::ByteSize growth_threshold =
+      base::KiBU(base::checked_cast<uint64_t>(
+          features::kFreezingMemoryGrowthThresholdToDiscardKb.Get()));
 
   // Traverse memory measurements to find pages to discard.
   std::set<const PageNode*> pages_to_discard;
@@ -1071,10 +1071,9 @@ void FreezingPolicy::DiscardFrozenPagesWithGrowingMemoryOnMemoryMeasurement(
       continue;
     }
 
-    const base::ByteCount current =
+    const base::ByteSize current =
         result.memory_summary_result->private_footprint;
-    if (base::Contains(browsing_instance_states_without_initial_measurement,
-                       id)) {
+    if (browsing_instance_states_without_initial_measurement.contains(id)) {
       // Store the first PMF measurement after being frozen.
       state.per_origin_pmf_after_freezing[origin_in_browsing_instance_context
                                               .GetOrigin()] = current;
@@ -1082,7 +1081,7 @@ void FreezingPolicy::DiscardFrozenPagesWithGrowingMemoryOnMemoryMeasurement(
       // Compare current measurement against the one stored after being frozen.
       auto it = state.per_origin_pmf_after_freezing.find(
           origin_in_browsing_instance_context.GetOrigin());
-      base::ByteCount after_freezing;
+      base::ByteSize after_freezing;
       if (it == state.per_origin_pmf_after_freezing.end()) {
         // No memory measurement was stored for this origin after being frozen.
         // This could indicate a measurement error (e.g. process missing in a
@@ -1095,14 +1094,14 @@ void FreezingPolicy::DiscardFrozenPagesWithGrowingMemoryOnMemoryMeasurement(
         // stored in `per_origin_pmf_after_freezing` to prevent it from
         // growing without bounds if the page continuously navigates to new
         // origins.
-        after_freezing = base::ByteCount(0);
+        after_freezing = base::ByteSize(0);
       } else {
         after_freezing = it->second;
       }
 
-      const base::ByteCount growth = current > after_freezing
-                                         ? current - after_freezing
-                                         : base::ByteCount(0);
+      const base::ByteSize growth =
+          current > after_freezing ? (current - after_freezing).AsByteSize()
+                                   : base::ByteSize(0);
       if (growth > growth_threshold) {
         pages_to_discard.insert(state.pages.begin(), state.pages.end());
       }
@@ -1454,7 +1453,7 @@ void FreezingPolicy::UpdateAllPagesFrozenState() {
 
   base::flat_set<raw_ptr<const PageNode>> visited_pages;
   for (auto& [id, state] : browsing_instance_states_) {
-    if (!base::Contains(visited_pages, *state.pages.begin())) {
+    if (!visited_pages.contains(*state.pages.begin())) {
       UpdateFrozenState(*state.pages.begin(), now, &visited_pages);
     }
   }

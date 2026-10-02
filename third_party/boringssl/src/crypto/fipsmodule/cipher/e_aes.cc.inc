@@ -32,6 +32,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 #define AES_GCM_NONCE_LENGTH 12
 
 typedef struct {
@@ -681,19 +683,19 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_hw_256_ecb) {
   out->cipher_update = aes_hw_ecb_cipher_update;
 }
 
-#define EVP_ECB_CIPHER_FUNCTION(keybits)            \
-  const EVP_CIPHER *EVP_aes_##keybits##_ecb(void) { \
-    if (hwaes_capable()) {                          \
-      return aes_hw_##keybits##_ecb();              \
-    }                                               \
-    return aes_##keybits##_ecb_generic();           \
+#define EVP_ECB_CIPHER_FUNCTION(keybits)        \
+  const EVP_CIPHER *EVP_aes_##keybits##_ecb() { \
+    if (hwaes_capable()) {                      \
+      return aes_hw_##keybits##_ecb();          \
+    }                                           \
+    return aes_##keybits##_ecb_generic();       \
   }
 
 #else
 
-#define EVP_ECB_CIPHER_FUNCTION(keybits)            \
-  const EVP_CIPHER *EVP_aes_##keybits##_ecb(void) { \
-    return aes_##keybits##_ecb_generic();           \
+#define EVP_ECB_CIPHER_FUNCTION(keybits)        \
+  const EVP_CIPHER *EVP_aes_##keybits##_ecb() { \
+    return aes_##keybits##_ecb_generic();       \
   }
 
 #endif  // HWAES_ECB
@@ -758,11 +760,10 @@ static int aead_aes_gcm_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
 static void aead_aes_gcm_cleanup(EVP_AEAD_CTX *ctx) {}
 
 static int aead_aes_gcm_sealv_impl(const struct aead_aes_gcm_ctx *gcm_ctx,
-                                   bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                   bssl::Span<uint8_t> out_tag,
-                                   size_t *out_tag_len,
-                                   bssl::Span<const uint8_t> nonce,
-                                   bssl::Span<const CRYPTO_IVEC> aadvecs,
+                                   Span<const CRYPTO_IOVEC> iovecs,
+                                   Span<uint8_t> out_tag, size_t *out_tag_len,
+                                   Span<const uint8_t> nonce,
+                                   Span<const CRYPTO_IVEC> aadvecs,
                                    size_t tag_len) {
   if (out_tag.size() < tag_len) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
@@ -797,10 +798,10 @@ static int aead_aes_gcm_sealv_impl(const struct aead_aes_gcm_ctx *gcm_ctx,
 }
 
 static int aead_aes_gcm_sealv(const EVP_AEAD_CTX *ctx,
-                              bssl::Span<const CRYPTO_IOVEC> iovecs,
-                              bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-                              bssl::Span<const uint8_t> nonce,
-                              bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                              Span<const CRYPTO_IOVEC> iovecs,
+                              Span<uint8_t> out_tag, size_t *out_tag_len,
+                              Span<const uint8_t> nonce,
+                              Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_gcm_ctx *gcm_ctx =
       (const struct aead_aes_gcm_ctx *)&ctx->state;
   return aead_aes_gcm_sealv_impl(gcm_ctx, iovecs, out_tag, out_tag_len, nonce,
@@ -808,10 +809,9 @@ static int aead_aes_gcm_sealv(const EVP_AEAD_CTX *ctx,
 }
 
 static int aead_aes_gcm_openv_detached_impl(
-    const struct aead_aes_gcm_ctx *gcm_ctx,
-    bssl::Span<const CRYPTO_IOVEC> iovecs, bssl::Span<const uint8_t> nonce,
-    bssl::Span<const uint8_t> in_tag, bssl::Span<const CRYPTO_IVEC> aadvecs,
-    size_t tag_len) {
+    const struct aead_aes_gcm_ctx *gcm_ctx, Span<const CRYPTO_IOVEC> iovecs,
+    Span<const uint8_t> nonce, Span<const uint8_t> in_tag,
+    Span<const CRYPTO_IVEC> aadvecs, size_t tag_len) {
   uint8_t tag[EVP_AEAD_AES_GCM_TAG_LEN];
 
   if (nonce.size() == 0) {
@@ -850,10 +850,10 @@ static int aead_aes_gcm_openv_detached_impl(
 }
 
 static int aead_aes_gcm_openv_detached(const EVP_AEAD_CTX *ctx,
-                                       bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                       bssl::Span<const uint8_t> nonce,
-                                       bssl::Span<const uint8_t> in_tag,
-                                       bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                       Span<const CRYPTO_IOVEC> iovecs,
+                                       Span<const uint8_t> nonce,
+                                       Span<const uint8_t> in_tag,
+                                       Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_ctx *gcm_ctx = (struct aead_aes_gcm_ctx *)&ctx->state;
   if (!aead_aes_gcm_openv_detached_impl(gcm_ctx, iovecs, nonce, in_tag, aadvecs,
                                         ctx->tag_len)) {
@@ -925,11 +925,12 @@ static int aead_aes_gcm_init_randnonce(EVP_AEAD_CTX *ctx, const uint8_t *key,
   return 1;
 }
 
-static int aead_aes_gcm_sealv_randnonce(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-    bssl::Span<const uint8_t> external_nonce,
-    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+static int aead_aes_gcm_sealv_randnonce(const EVP_AEAD_CTX *ctx,
+                                        Span<const CRYPTO_IOVEC> iovecs,
+                                        Span<uint8_t> out_tag,
+                                        size_t *out_tag_len,
+                                        Span<const uint8_t> external_nonce,
+                                        Span<const CRYPTO_IVEC> aadvecs) {
   if (external_nonce.size() != 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
@@ -965,9 +966,9 @@ static int aead_aes_gcm_sealv_randnonce(
 }
 
 static int aead_aes_gcm_openv_detached_randnonce(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<const uint8_t> external_nonce, bssl::Span<const uint8_t> in_tag,
-    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+    const EVP_AEAD_CTX *ctx, Span<const CRYPTO_IOVEC> iovecs,
+    Span<const uint8_t> external_nonce, Span<const uint8_t> in_tag,
+    Span<const CRYPTO_IVEC> aadvecs) {
   if (external_nonce.size() != 0) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_INVALID_NONCE_SIZE);
     return 0;
@@ -1051,11 +1052,10 @@ static int aead_aes_gcm_tls12_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
 }
 
 static int aead_aes_gcm_tls12_sealv(const EVP_AEAD_CTX *ctx,
-                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                    bssl::Span<uint8_t> out_tag,
-                                    size_t *out_tag_len,
-                                    bssl::Span<const uint8_t> nonce,
-                                    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                    Span<const CRYPTO_IOVEC> iovecs,
+                                    Span<uint8_t> out_tag, size_t *out_tag_len,
+                                    Span<const uint8_t> nonce,
+                                    Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_tls12_ctx *gcm_ctx =
       (struct aead_aes_gcm_tls12_ctx *)&ctx->state;
 
@@ -1143,11 +1143,10 @@ static int aead_aes_gcm_tls13_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
 }
 
 static int aead_aes_gcm_tls13_sealv(const EVP_AEAD_CTX *ctx,
-                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                    bssl::Span<uint8_t> out_tag,
-                                    size_t *out_tag_len,
-                                    bssl::Span<const uint8_t> nonce,
-                                    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                    Span<const CRYPTO_IOVEC> iovecs,
+                                    Span<uint8_t> out_tag, size_t *out_tag_len,
+                                    Span<const uint8_t> nonce,
+                                    Span<const CRYPTO_IVEC> aadvecs) {
   struct aead_aes_gcm_tls13_ctx *gcm_ctx =
       (struct aead_aes_gcm_tls13_ctx *)&ctx->state;
 
@@ -1213,7 +1212,7 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_256_gcm_tls13) {
   out->openv_detached = aead_aes_gcm_openv_detached;
 }
 
-int EVP_has_aes_hardware(void) {
+int EVP_has_aes_hardware() {
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
   return hwaes_capable() && crypto_gcm_clmul_enabled();
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)

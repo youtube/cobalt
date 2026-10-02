@@ -13,6 +13,7 @@
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -31,6 +32,7 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/browser_action_util.h"
+#include "chrome/browser/actor/origin_checker.h"
 #include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
@@ -98,20 +100,6 @@ void PostTaskForActCallback(
                      index_of_failed_action, std::move(action_results)));
 }
 
-// Helper to determine if we should gate and thus send an IPC when navigtating
-// to a new origin. See note on `kGlicNavigationGatingUseSiteNotOrigin`.
-bool IsSameForNewOriginNavigationGating(const url::Origin& reference_origin,
-                                        const GURL& navigation_url) {
-  CHECK(IsNavigationGatingEnabled());
-
-  if (kGlicNavigationGatingUseSiteNotOrigin.Get()) {
-    return net::SchemefulSite::IsSameSite(reference_origin.GetURL(),
-                                          navigation_url);
-  }
-
-  return reference_origin.IsSameOriginWith(navigation_url);
-}
-
 // When operating on an opaque site, we choose to use the precursor's origin
 // when judging whether a user confirmation should be triggered or not. We are
 // effictively, using `rfh.GetLastCommittedUrl()` vs
@@ -176,9 +164,7 @@ std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
 
 ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  RecordActorNavigationGatingListSize(
-      allowed_navigation_origins_->size(),
-      user_confirmed_blocklisted_origins_->size());
+  origin_checker_.RecordSizeMetrics();
 
   RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
 }
@@ -238,7 +224,7 @@ std::string ExecutionEngine::StateToString(State state) {
   }
 }
 
-bool ExecutionEngine::ShouldGateNavigation(
+bool ExecutionEngine::ShouldDeferNavigation(
     content::NavigationHandle& navigation_handle,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!IsNavigationGatingEnabled()) {
@@ -249,53 +235,53 @@ bool ExecutionEngine::ShouldGateNavigation(
             content::FrameType::kPrimaryMainFrame ||
         navigation_handle.GetNavigatingFrameType() ==
             content::FrameType::kPrerenderMainFrame);
-
-  GatingDecision decision =
-      ShouldGateNavigationInternal(navigation_handle, std::move(callback));
-  if (decision == GatingDecision::kNeedsAsyncCheck) {
-    return true;
-  }
-
-  bool applied_gate = decision == GatingDecision::kBlockByStaticList;
-  LogNavigationGating(
-      /*initiator_origin=*/GetPrimaryMainFrame(navigation_handle)
-          ->GetLastCommittedOrigin(),
-      navigation_handle.GetURL(), applied_gate);
-  return applied_gate;
-}
-
-ExecutionEngine::GatingDecision ExecutionEngine::ShouldGateNavigationInternal(
-    content::NavigationHandle& navigation_handle,
-    ExecutionEngine::NavigationDecisionCallback callback) {
   CHECK(!navigation_handle.HasCommitted());
+
   base::ScopedUmaHistogramTimer timer(
       "Actor.NavigationGating.TimeElapsedForGating");
 
-  const GURL source_url =
-      GetPrimaryMainFrame(navigation_handle)->GetLastCommittedURL();
-  const GURL& destination_url = navigation_handle.GetURL();
-  const GatingDecision decision =
-      DetermineGatingDecision(source_url, destination_url);
+  const GatingDecision decision = DetermineGatingDecision(
+      /*source_url=*/GetPrimaryMainFrame(navigation_handle)
+          ->GetLastCommittedURL(),
+      /*destination_url=*/navigation_handle.GetURL());
   RecordNavigationGatingDecision(decision);
-  if (decision == GatingDecision::kBlockByStaticList) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), /*may_continue=*/false));
-  } else if (decision == GatingDecision::kNeedsAsyncCheck) {
-    bool skip_prompt = navigation_handle.IsInPrerenderedMainFrame();
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ExecutionEngine::CheckNavigationBlocklist, GetWeakPtr(),
-                       navigation_handle.GetInitiatorOrigin(), destination_url,
-                       skip_prompt, std::move(callback)));
+
+  switch (decision) {
+    case GatingDecision::kAllowSameOrigin:
+    case GatingDecision::kAllowByStaticList:
+      LogNavigationGating(
+          /*initiator_origin=*/GetPrimaryMainFrame(navigation_handle)
+              ->GetLastCommittedOrigin(),
+          navigation_handle.GetURL(), /*applied_gate=*/false);
+      return false;
+    case GatingDecision::kBlockByStaticList:
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(std::move(callback), /*may_continue=*/false));
+      LogNavigationGating(
+          /*initiator_origin=*/GetPrimaryMainFrame(navigation_handle)
+              ->GetLastCommittedOrigin(),
+          navigation_handle.GetURL(), /*applied_gate=*/true);
+      return true;
+    case GatingDecision::kNeedsAsyncCheck: {
+      bool skip_prompt = navigation_handle.IsInPrerenderedMainFrame();
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&ExecutionEngine::CheckNavigationBlocklist,
+                         GetWeakPtr(), navigation_handle.GetInitiatorOrigin(),
+                         navigation_handle.GetURL(), skip_prompt,
+                         std::move(callback)));
+      return true;
+    }
   }
 
-  return decision;
+  NOTREACHED();
 }
 
 void ExecutionEngine::LogNavigationGating(
     base::optional_ref<const url::Origin> initiator_origin,
     const GURL& navigation_url,
-    bool applied_gate) {
+    bool applied_gate) const {
   UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.AppliedGate", applied_gate);
 
   if (initiator_origin) {
@@ -365,25 +351,20 @@ void ExecutionEngine::CheckNavigationBlocklist(
   // Check previously confirmed origins on the sensitive blocklist. If the user
   // has previously confirmed the origin is allowed, we should proceed and not
   // double prompt.
-  for (const auto& origin : *user_confirmed_blocklisted_origins_) {
-    if (origin.IsSameOriginWith(navigation_url)) {
-      OnNavigationBlocklistDecision(initiator_origin, navigation_url,
-                                    skip_prompt, std::move(callback),
-                                    /*not_on_blocklist=*/true);
-      return;
-    }
+  if (origin_checker_.IsSensitiveUrlConfirmed(navigation_url)) {
+    OnNavigationBlocklistDecision(initiator_origin, navigation_url, skip_prompt,
+                                  std::move(callback),
+                                  /*not_on_blocklist=*/true);
+    return;
   }
   auto [callback1, callback2] = base::SplitOnceCallback(std::move(callback));
-  if (ShouldBlockNavigationUrlForOriginGating(
+  if (MaybeCheckOptimizationGuideForSensitiveUrl(
           navigation_url, profile_,
           base::BindOnce(&ExecutionEngine::OnNavigationBlocklistDecision,
                          GetWeakPtr(), initiator_origin, navigation_url,
                          skip_prompt, std::move(callback1)))) {
     return;
   }
-  // If `ShouldBlockNavigationUrlForOriginGating` returns false, it means the
-  // Optimization Guide was not available to check the blocklist, so we
-  // continue to the next step.
   OnNavigationBlocklistDecision(initiator_origin, navigation_url, skip_prompt,
                                 std::move(callback2),
                                 /*not_on_blocklist=*/true);
@@ -398,23 +379,12 @@ void ExecutionEngine::OnNavigationBlocklistDecision(
   // If not blocked by blocklist, check if it's in origin the actor has
   // previously interacted with or received instructions from the server to
   // interact with.
-  if (not_on_blocklist) {
-    if (initiator_origin && IsSameForNewOriginNavigationGating(
-                                initiator_origin.value(), navigation_url)) {
-      LogNavigationGating(initiator_origin, navigation_url,
-                          /*applied_gate=*/false);
-      std::move(callback).Run(/*may_continue=*/true);
-      return;
-    }
-
-    for (const auto& origin : *allowed_navigation_origins_) {
-      if (IsSameForNewOriginNavigationGating(origin, navigation_url)) {
-        LogNavigationGating(initiator_origin, navigation_url,
-                            /*applied_gate=*/false);
-        std::move(callback).Run(/*may_continue=*/true);
-        return;
-      }
-    }
+  if (not_on_blocklist &&
+      origin_checker_.IsNavigationAllowed(initiator_origin, navigation_url)) {
+    LogNavigationGating(initiator_origin, navigation_url,
+                        /*applied_gate=*/false);
+    std::move(callback).Run(/*may_continue=*/true);
+    return;
   }
 
   // At this point, the navigation is either blocked OR not on the allowlist.
@@ -435,7 +405,7 @@ void ExecutionEngine::OnNavigationBlocklistDecision(
   }
 
   // We use `kGlicPromptUserForSensitiveNavigations` to toggle user
-  // confirmations when navigationg to a URL on the optimization guide
+  // confirmations when navigating to a URL on the optimization guide
   // blocklist.
   if (!kGlicPromptUserForSensitiveNavigations.Get()) {
     std::move(callback).Run(/*may_continue=*/false);
@@ -489,7 +459,7 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
     UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
                           permission_granted);
     if (permission_granted) {
-      allowed_navigation_origins_->insert(std::move(navigation_origin));
+      origin_checker_.AllowNavigationTo(std::move(navigation_origin));
     }
     std::move(callback).Run(permission_granted);
     return;
@@ -507,6 +477,10 @@ void ExecutionEngine::SendUserConfirmationDialogRequest(
     std::move(callback).Run(/*may_continue=*/false);
     return;
   }
+
+  journal_->Log(GURL::EmptyGURL(), task_->id(),
+                "SendUserConfirmationDialogRequest", {});
+
   task_->delegate()->RequestToShowUserConfirmationDialog(
       task_->id(), navigation_origin, for_blocklisted_origin,
       base::BindOnce(&ExecutionEngine::OnPromptUserToConfirmNavigationDecision,
@@ -527,13 +501,13 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
       // See the comment on `OriginOrPrecursorIfOpaque` for why we do not store
       // `navigation_origin` directly here and for the confirmed blocklist
       // origins.
-      allowed_navigation_origins_->insert(
+      origin_checker_.AllowNavigationTo(
           OriginOrPrecursorIfOpaque(navigation_origin));
       // We update both lists in the `for_blocklisted_origin` case so that we do
       // not have to double-confirm this origin when we invoke
       // ExecutionEngine::HandleNavigationToNewOrigin.
       if (for_blocklisted_origin) {
-        user_confirmed_blocklisted_origins_->insert(
+        origin_checker_.ConfirmSensitiveOrigin(
             OriginOrPrecursorIfOpaque(navigation_origin));
       }
     }
@@ -576,8 +550,15 @@ void ExecutionEngine::RemoveObserver(StateObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
+void ExecutionEngine::DidUninterruptTask() {
+  if (deferred_finish_tool_invoke_) {
+    std::move(deferred_finish_tool_invoke_).Run();
+  }
+}
+
 void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
   TRACE_EVENT0("actor", "ExecutionEngine::CancelOngoingActions");
+  deferred_finish_tool_invoke_.Reset();
   if (tool_controller_) {
     tool_controller_->Cancel();
   }
@@ -602,6 +583,7 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   TRACE_EVENT0("actor", "ExecutionEngine::Act");
   CHECK(base::FeatureList::IsEnabled(features::kGlicActor));
   CHECK(!actions.empty());
+  CHECK(deferred_finish_tool_invoke_.is_null());
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_EQ(task_->GetState(), ActorTask::State::kActing);
 
@@ -644,7 +626,7 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
       if (std::optional<url::Origin> maybe_origin =
               action->AssociatedOriginGrant();
           maybe_origin) {
-        allowed_navigation_origins_->insert(maybe_origin.value());
+        origin_checker_.AllowNavigationTo(maybe_origin.value());
       }
     }
   }
@@ -707,11 +689,11 @@ void ExecutionEngine::SafetyChecksForNextAction() {
 
   // Asynchronously check if we can act on the tab. NOTE that the MayActOnTab
   // check uses `GetLastCommittedURL()` from the tab. For opaque origins, this
-  // means that we'll get the precursor URL. For this reason, we used the
-  // precusor in `user_confirmed_blocklisted_origins_` to ensure the
-  // optimization blocklist check would be skipped as expected.
+  // means that we'll get the precursor URL. For this reason, we previously
+  // invoked `origin_checker_.ConfirmSensitiveOrigin()` with the precursor to
+  // ensure the optimization blocklist check would be skipped as expected.
   ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnTab(
-      *tab, *journal_, task_->id(), user_confirmed_blocklisted_origins_,
+      *tab, *journal_, task_->id(), origin_checker_,
       base::BindOnce(
           &ExecutionEngine::OnMayActOnTabDecision, GetWeakPtr(),
           tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()));
@@ -855,6 +837,23 @@ void ExecutionEngine::FinishedUiPreInvoke(mojom::ActionResultPtr result) {
 void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
   TRACE_EVENT0("actor", "ExecutionEngine::FinishedToolInvoke");
   DCHECK_EQ(state_, State::kToolInvoke);
+
+  if (tool_invoke_complete_callback_for_testing_) {
+    std::move(tool_invoke_complete_callback_for_testing_).Run();
+  }
+
+  // If the task is waiting on user input, defer returning a result for it. This
+  // prevents the actor state from proceeding and also allows UI to insert an
+  // `external_tool_failure_reason` to the action.
+  if (base::FeatureList::IsEnabled(kGlicDeferActUntilUninterrupted) &&
+      task_->GetState() == ActorTask::State::kWaitingOnUser) {
+    CHECK(deferred_finish_tool_invoke_.is_null());
+    deferred_finish_tool_invoke_ =
+        base::BindOnce(&ExecutionEngine::FinishedToolInvoke,
+                       base::Unretained(this), std::move(result));
+    return;
+  }
+
   // The current action errored out. Stop the chain.
   std::optional<mojom::ActionResultCode> external_tool_failure_reason;
   std::swap(external_tool_failure_reason, external_tool_failure_reason_);
@@ -869,6 +868,13 @@ void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
     return;
   }
 
+  // TODO(bokan): If tool completion is deferred due to interruption (e.g.
+  // waiting on a user to confirm an action) the recorded tool metrics will look
+  // inflated. This is a problem even if we record the metrics at the start of
+  // this function (before deferring) because presumably the tool itself waits
+  // on the cause of an interruption (and may reach here due to timeout or other
+  // reason). Ideally we'd split metrics based on whether or not an
+  // interruption was involved. Will file bug.
   CHECK(result->execution_end_time);
   base::TimeTicks end_time = base::TimeTicks::Now();
   RecordToolTimings(GetInProgressAction().Name(), end_time - action_start_time_,
@@ -884,6 +890,7 @@ void ExecutionEngine::FinishedUiPostInvoke(mojom::ActionResultPtr result) {
   TRACE_EVENT0("actor", "ExecutionEngine::FinishedUiPostInvoke");
   DCHECK_EQ(state_, State::kUiPostInvoke);
   CHECK(!action_sequence_.empty());
+  CHECK(deferred_finish_tool_invoke_.is_null());
 
   if (!IsOk(*result)) {
     CompleteActions(std::move(result), InProgressActionIndex());
@@ -1093,11 +1100,7 @@ void ExecutionEngine::AddWritableMainframeOrigins(
   if (!IsNavigationGatingEnabled()) {
     return;
   }
-  for (const auto& origin : added_writable_mainframe_origins) {
-    // Intentionally storing a copy of the origin so that ExecutionEngine owns
-    // the url::Origin's stored in allowed_navigation_origins_.
-    allowed_navigation_origins_->insert(url::Origin(origin));
-  }
+  origin_checker_.AllowNavigationTo(added_writable_mainframe_origins);
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

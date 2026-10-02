@@ -17,7 +17,7 @@ namespace webrtc {
 
 namespace {
 constexpr char kFieldTrialName[] = "WebRTC-Video-CalculatePsnr";
-}
+}  // namespace
 
 PsnrExperiment::PsnrExperiment(const FieldTrialsView& field_trials)
     : enabled_(false), sampling_interval_(TimeDelta::Millis(1000)) {

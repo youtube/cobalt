@@ -20,10 +20,8 @@
 
 #include "../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // TODO(davidben): Ideally these macros would be replaced with
 // |CRYPTO_load_u32_le| and |CRYPTO_store_u32_le|.
@@ -141,9 +139,6 @@ OPENSSL_EXPORT void DES_encrypt3(uint32_t data[2], const DES_key_schedule *ks1,
                                  const DES_key_schedule *ks2,
                                  const DES_key_schedule *ks3);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_DES_INTERNAL_H

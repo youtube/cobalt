@@ -72,7 +72,7 @@ namespace webrtc {
 class MockPeerConnectionInternal : public PeerConnectionInternal {
  public:
   MockPeerConnectionInternal() {}
-  ~MockPeerConnectionInternal() = default;
+  ~MockPeerConnectionInternal() override = default;
   // PeerConnectionInterface
   MOCK_METHOD(scoped_refptr<StreamCollectionInterface>,
               local_streams,
@@ -261,7 +261,6 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
   MOCK_METHOD(Thread*, signaling_thread, (), (const, override));
 
   // PeerConnectionSdpMethods
-  MOCK_METHOD(void, OnTransportChanging, (bool change_done), (override));
   MOCK_METHOD(std::string, session_id, (), (const, override));
   MOCK_METHOD(bool, NeedsIceRestart, (const std::string&), (const, override));
   MOCK_METHOD(std::optional<std::string>, sctp_mid, (), (const, override));

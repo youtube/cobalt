@@ -52,7 +52,7 @@ class FlexfecSender : public VideoFecGenerator {
                 const std::vector<RtpExtension>& rtp_header_extensions,
                 ArrayView<const RtpExtensionSize> extension_sizes,
                 const RtpState* rtp_state);
-  ~FlexfecSender();
+  ~FlexfecSender() override;
 
   FecType GetFecType() const override {
     return VideoFecGenerator::FecType::kFlexFec;

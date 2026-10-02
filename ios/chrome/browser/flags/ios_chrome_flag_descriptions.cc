@@ -164,12 +164,6 @@ const char kAutofillEnableWalletBrandingDescription[] =
     "When enabled, certain strings and logos referencing Google Account, "
     "Google Payments, and Google Pay will instead reference Google Wallet.";
 
-const char kAutofillIsolatedWorldForJavascriptIOSName[] =
-    "Isolated content world for Autofill";
-const char kAutofillIsolatedWorldForJavascriptIOSDescription[] =
-    "Use the isolated content world instead of the page content world "
-    "for the Autofill JS feature scripts.";
-
 const char kAutofillLocalSaveCardBottomSheetName[] =
     "Enable save card bottomsheet for local save";
 const char kAutofillLocalSaveCardBottomSheetDescription[] =
@@ -303,6 +297,10 @@ const char kCollaborationMessagingDescription[] =
     "Enables the messaging framework within the collaboration feature, "
     "including features such as recent activity, dirty dots, and description "
     "action chips.";
+
+const char kComposeboxAIMDisabledName[] = "ComposeboxAIMDisabled";
+const char kComposeboxAIMDisabledDescription[] =
+    "When enabled, AIM feature are disabled in the composebox.";
 
 const char kComposeboxAIMNudgeName[] = "ComposeboxAIMNudge";
 const char kComposeboxAIMNudgeDescription[] =
@@ -577,10 +575,6 @@ const char kEnableFeedHeaderSettingsName[] =
 const char kEnableFeedHeaderSettingsDescription[] =
     "When enabled, some UI elements of the feed header can be modified.";
 
-const char kEnableIdentityInAuthErrorName[] = "Enable Identities in Auth Error";
-const char kEnableIdentityInAuthErrorDescription[] =
-    "Enable identities in auth error state.";
-
 const char kEnableLensInOmniboxCopiedImageName[] =
     "Enable Google Lens in the Omnibox for Copied Images";
 const char kEnableLensInOmniboxCopiedImageDescription[] =
@@ -590,11 +584,6 @@ const char kEnableLensInOmniboxCopiedImageDescription[] =
 
 const char kEnableLensOverlayName[] = "Enable Lens Overlay";
 const char kEnableLensOverlayDescription[] = "Enables lens overlay UI";
-
-const char kEnableLensViewFinderUnifiedExperienceName[] =
-    "Enable LVF Unified Experience";
-const char kEnableLensViewFinderUnifiedExperienceDescription[] =
-    "Enables Lens View Finder unified experience";
 
 const char kEnableReadingListAccountStorageName[] =
     "Enable Reading List Account Storage";
@@ -616,12 +605,6 @@ const char kEnhancedCalendarName[] = "Enable Enhanced Calendar integration";
 const char kEnhancedCalendarDescription[] =
     "When enabled, the enhanced calendar flow will be available to eligible "
     "users when adding a calendar event.";
-
-const char kEnhancedSafeBrowsingPromoName[] =
-    "Enable Enhanced Safe Browsing Promos";
-const char kEnhancedSafeBrowsingPromoDescription[] =
-    "When enabled, the Enhanced Safe Browsing inline and infobar promos are "
-    "displayed given certain preconditions are met.";
 
 const char kFRESignInHeaderTextUpdateName[] =
     "Enable header text variations on the FRE sign-in page.";
@@ -863,20 +846,6 @@ const char kIOSSaveToDriveClientFolderDescription[] =
 const char kIOSSoftLockName[] = "Soft Lock on iOS";
 const char kIOSSoftLockDescription[] = "Enables experimental Soft Lock on iOS.";
 
-const char kIOSStartTimeBrowserBackgroundRemediationsName[] =
-    "Browser Background Termination remediations for the Bling Start 4 hour "
-    "reduction";
-const char kIOSStartTimeBrowserBackgroundRemediationsDescription[] =
-    "Enables potential remediations for Browser Background Termination "
-    "regressions caused by the reduction of Bling Start time from 6 hours to "
-    "4.";
-
-const char kIOSStartTimeStartupRemediationsName[] =
-    "Startup remediations for the Bling Start 4 hour reduction";
-const char kIOSStartTimeStartupRemediationsDescription[] =
-    "Enables potential remediations for startup regressions caused by the "
-    "reduction of Bling Start time from 6 hours to 4.";
-
 const char kIOSSyncedSetUpName[] = "Synced Set Up";
 const char kIOSSyncedSetUpDescription[] =
     "Enables the Synced Set Up experience, allowing the user to locally apply "
@@ -899,22 +868,10 @@ const char kIOSWebContextMenuNewTitleDescription[] =
     "Enables actions in context menu title instead of customized action for "
     "web context menu.";
 
-const char kIPHPriceNotificationsWhileBrowsingName[] =
-    "Price Tracking IPH Display";
-const char kIPHPriceNotificationsWhileBrowsingDescription[] =
-    "Displays the Price Tracking IPH when the user navigates to a "
-    "product "
-    "webpage that supports price tracking.";
-
 const char kIdentityConfirmationSnackbarName[] =
     "Identity Confirmation Snackbar";
 const char kIdentityConfirmationSnackbarDescription[] =
     "When enabled, the identity confirmation snackbar will show on startup.";
-
-const char kImageContextMenuGeminiEntryPointName[] =
-    "Context menu Gemini entrypoint";
-const char kImageContextMenuGeminiEntryPointDescription[] =
-    "Enables the long-press image context menu entry point for Gemini floaty.";
 
 const char kImportPasswordsFromSafariName[] = "Import Passwords From Safari";
 const char kImportPasswordsFromSafariDescription[] =
@@ -1003,11 +960,6 @@ const char kLensOverlayDisableIPHPanGestureName[] =
 const char kLensOverlayDisableIPHPanGestureDescription[] =
     "Disable the pan gesture that dismisses Lens Overlay IPH. The IPH can "
     "still be dismissed with a tap.";
-
-const char kLensOverlayEnableIPadCompatibilityName[] =
-    "Allow Lens overlay to also run on iPad devices if the feature is enabled";
-const char kLensOverlayEnableIPadCompatibilityDescription[] =
-    "When enabled, it allows Lens Overlay to run on iPad devices";
 
 const char kLensOverlayEnableLandscapeCompatibilityName[] =
     "Allow Lens overlay to also run in landscape if the feature is enabled";
@@ -1178,12 +1130,6 @@ const char kNotificationCollisionManagementName[] =
 const char kNotificationCollisionManagementDescription[] =
     "Enables delays to notifications to space them out more";
 
-const char kNotificationSettingsMenuItemName[] =
-    "Notification Settings Menu Item";
-const char kNotificationSettingsMenuItemDescription[] =
-    "Displays the menu item for the notification controls inside the chrome "
-    "settings UI.";
-
 const char kNtpAlphaBackgroundCollectionsName[] =
     "Enable alpha background collections";
 const char kNtpAlphaBackgroundCollectionsDescription[] =
@@ -1275,11 +1221,6 @@ const char kOmniboxMobileParityUpdateV2Description[] =
     "When set, applies certain assets to match Desktop visuals and "
     "descriptions";
 
-const char kOmniboxMobileParityUpdateV3Name[] =
-    "Omnibox Mobile parity update V3";
-const char kOmniboxMobileParityUpdateV3Description[] =
-    "When set, shows the search engine logo in the NTP";
-
 const char kOmniboxOnClobberFocusTypeOnIOSName[] =
     "Omnibox On Clobber Focus Type On IOS";
 const char kOmniboxOnClobberFocusTypeOnIOSDescription[] =
@@ -1327,11 +1268,6 @@ const char kOmniboxZeroSuggestPrefetchingOnWebName[] =
 const char kOmniboxZeroSuggestPrefetchingOnWebDescription[] =
     "Enables prefetching of the zero prefix suggestions for eligible users "
     "on the Web (i.e. non-NTP and non-SRP URLs).";
-
-const char kOnlyAccessClipboardAsyncName[] =
-    "Only access the clipboard asynchronously";
-const char kOnlyAccessClipboardAsyncDescription[] =
-    "Only accesses the clipboard asynchronously.";
 
 const char kOptimizationGuideDebugLogsName[] =
     "Enable optimization guide debug logs";
@@ -1429,10 +1365,6 @@ const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
 
-const char kReaderModeBadgeSupportName[] = "Enable Reader Mode Badge Support";
-const char kReaderModeBadgeSupportDescription[] =
-    "Enable Reader Mode Badge Support.";
-
 const char kReaderModeName[] = "Enables Reader Mode";
 const char kReaderModeDescription[] =
     "Enables Reader Mode UI and entry points.";
@@ -1440,6 +1372,11 @@ const char kReaderModeDescription[] =
 const char kReaderModeNewCssName[] = "Reader mode new CSS on iOS";
 const char kReaderModeNewCssDescription[] =
     "Enables the new CSS for Reader mode on iOS.";
+
+const char kReaderModeOmniboxEntrypointInUSName[] =
+    "Reader Mode Omnibox Entrypoint In US";
+const char kReaderModeOmniboxEntrypointInUSDescription[] =
+    "Enables the omnibox entrypoint for Reader Mode for users in the US.";
 
 const char kReaderModeOmniboxEntrypointName[] =
     "Reader Mode Omnibox Entrypoint";
@@ -1509,15 +1446,6 @@ const char kSafeBrowsingTrustedURLName[] =
 const char kSafeBrowsingTrustedURLDescription[] =
     "When enabled, chrome://safe-browsing will be accessible.";
 
-const char kSafetyCheckNotificationsName[] =
-    "Enable Safety Check Push Notifications";
-const char kSafetyCheckNotificationsDescription[] =
-    "Enables push notifications for important Safety Check findings.";
-
-const char kScreenTimeIntegrationName[] = "Enables ScreenTime Integration";
-const char kScreenTimeIntegrationDescription[] =
-    "Enables integration with ScreenTime in iOS 14.0 and above.";
-
 const char kSegmentationPlatformEphemeralCardRankerName[] =
     "Enable Segmentation Ranking for Ephemeral Cards";
 const char kSegmentationPlatformEphemeralCardRankerDescription[] =
@@ -1540,11 +1468,6 @@ const char kSegmentationPlatformIosModuleRankerSplitBySurfaceName[] =
 const char kSegmentationPlatformIosModuleRankerSplitBySurfaceDescription[] =
     "Enables the Magic Stack module ranking to be split by surface for "
     "engagement";
-
-const char kSegmentationPlatformTipsEphemeralCardName[] =
-    "Enable Tips (Magic Stack)";
-const char kSegmentationPlatformTipsEphemeralCardDescription[] =
-    "When enabled, the Tips module will be displayed in the Magic Stack.";
 
 const char kSendTabToSelfIOSPushNotificationsName[] =
     "Send tab to self iOS push notifications";
@@ -1706,12 +1629,6 @@ const char kWaitThresholdMillisecondsForCapabilitiesApiDescription[] =
 const char kWalletServiceUseSandboxName[] = "Use Google Payments sandbox";
 const char kWalletServiceUseSandboxDescription[] =
     "Uses the sandbox service for Google Payments API calls.";
-
-const char kWebFeedFeedbackRerouteName[] =
-    "Send discover feed feedback to a updated destination";
-const char kWebFeedFeedbackRerouteDescription[] =
-    "Directs discover feed feedback to a new target for better handling of the"
-    "feedback reports.";
 
 const char kWebPageAlternativeTextZoomName[] =
     "Use different method for zooming web pages";

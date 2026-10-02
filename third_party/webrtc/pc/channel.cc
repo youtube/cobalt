@@ -217,15 +217,17 @@ std::string BaseChannel::ToString() const {
       MediaTypeToString(media_send_channel_->media_type()).c_str());
 }
 
-bool BaseChannel::ConnectToRtpTransport_n() {
-  RTC_DCHECK(rtp_transport_);
+bool BaseChannel::ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport) {
+  RTC_DCHECK(!rtp_transport_);
+  RTC_DCHECK(rtp_transport);
   RTC_DCHECK(media_send_channel());
 
   // We don't need to call OnDemuxerCriteriaUpdatePending/Complete because
   // there's no previous criteria to worry about.
-  if (!rtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria_, this)) {
+  if (!rtp_transport->RegisterRtpDemuxerSink(demuxer_criteria_, this)) {
     return false;
   }
+  rtp_transport_ = rtp_transport;
   rtp_transport_->SubscribeReadyToSend(
       this, [this](bool ready) { OnTransportReadyToSend(ready); });
   rtp_transport_->SubscribeNetworkRouteChanged(
@@ -263,33 +265,51 @@ bool BaseChannel::SetRtpTransport(RtpTransportInternal* rtp_transport) {
   if (rtp_transport_) {
     DisconnectFromRtpTransport_n();
     // Clear the cached header extensions on the worker.
-    worker_thread_->PostTask(SafeTask(alive_, [this] {
+    // If the network and worker thread pointers are configured to map to the
+    // same thread object, we'll do this synchronously. To start with, we're on
+    // the correct thread anyway, but an important second reason is that other
+    // parts of the code (SetLocalContent_w, SetRemoteContent_w) may execute a
+    // BlockingCall that touches `rtp_header_extensions` which, for the case
+    // where the threads are the same, will be executed before the lambda in the
+    // PostTask and not after, which may lead to unexpected behavior.
+    if (worker_thread_ == network_thread_) {
       RTC_DCHECK_RUN_ON(worker_thread());
       rtp_header_extensions_.clear();
-    }));
+    } else {
+      worker_thread_->PostTask(SafeTask(alive_, [this] {
+        RTC_DCHECK_RUN_ON(worker_thread());
+        rtp_header_extensions_.clear();
+      }));
+    }
   }
 
-  rtp_transport_ = rtp_transport;
-  if (rtp_transport_) {
-    if (!ConnectToRtpTransport_n()) {
-      return false;
-    }
+  RTC_DCHECK(!rtp_transport_);
 
-    RTC_DCHECK(!media_send_channel()->HasNetworkInterface());
-    media_send_channel()->SetInterface(this);
-    media_receive_channel()->SetInterface(this);
+  if (!rtp_transport) {
+    return true;  // We're done.
+  }
 
-    media_send_channel()->OnReadyToSend(rtp_transport_->IsReadyToSend());
-    UpdateWritableState_n();
+  if (!ConnectToRtpTransport_n(rtp_transport)) {
+    RTC_DCHECK(!rtp_transport_);
+    return false;
+  }
 
-    // Set the cached socket options.
-    for (const auto& pair : socket_options_) {
-      rtp_transport_->SetRtpOption(pair.first, pair.second);
-    }
-    if (!rtp_transport_->rtcp_mux_enabled()) {
-      for (const auto& pair : rtcp_socket_options_) {
-        rtp_transport_->SetRtcpOption(pair.first, pair.second);
-      }
+  RTC_DCHECK_EQ(rtp_transport_, rtp_transport);
+
+  RTC_DCHECK(!media_send_channel()->HasNetworkInterface());
+  media_send_channel()->SetInterface(this);
+  media_receive_channel()->SetInterface(this);
+
+  media_send_channel()->OnReadyToSend(rtp_transport_->IsReadyToSend());
+  UpdateWritableState_n();
+
+  // Set the cached socket options.
+  for (const auto& pair : socket_options_) {
+    rtp_transport_->SetRtpOption(pair.first, pair.second);
+  }
+  if (!rtp_transport_->rtcp_mux_enabled()) {
+    for (const auto& pair : rtcp_socket_options_) {
+      rtp_transport_->SetRtcpOption(pair.first, pair.second);
     }
   }
 
@@ -549,6 +569,13 @@ bool BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
 
   bool success = network_thread()->BlockingCall([&]() mutable {
     RTC_DCHECK_RUN_ON(network_thread());
+    if (!rtp_transport_) {
+      // To repro this situation, run the
+      // `ApplyDescriptionWithSameSsrcsBundledFails` test.
+      RTC_LOG(LS_ERROR) << "No transport assigned for mid=" << mid();
+      return false;
+    }
+
     // NOTE: This doesn't take the BUNDLE case in account meaning the RTP header
     // extension maps are not merged when BUNDLE is enabled. This is fine
     // because the ID for MID should be consistent among all the RTP transports.

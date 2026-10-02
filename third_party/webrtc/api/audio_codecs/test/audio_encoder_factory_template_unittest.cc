@@ -92,6 +92,7 @@ struct BaseAudioEncoderApi {
   // Create Encoders with different sample rates depending if it is created
   // through V1 or V2 method so that a test may detect which method was used.
   static constexpr int kV1SameRate = 10'000;
+  static constexpr int kV1NoCodecPairSameRate = 15'000;
   static constexpr int kV2SameRate = 20'000;
 
   struct Config {};
@@ -105,7 +106,7 @@ struct BaseAudioEncoderApi {
   }
 
   static void AppendSupportedEncoders(std::vector<AudioCodecSpec>* specs) {
-    specs->push_back({AudioFormat(), CodecInfo()});
+    specs->push_back({.format = AudioFormat(), .info = CodecInfo()});
   }
 
   static AudioCodecInfo QueryAudioEncoder(const Config&) { return CodecInfo(); }
@@ -118,6 +119,17 @@ struct AudioEncoderApiWithV1Make : BaseAudioEncoderApi {
       std::optional<AudioCodecPairId> /* codec_pair_id */) {
     auto encoder = std::make_unique<NiceMock<MockAudioEncoder>>();
     ON_CALL(*encoder, SampleRateHz).WillByDefault(Return(kV1SameRate));
+    return encoder;
+  }
+};
+
+struct AudioEncoderApiWithV1AndNoCodecPairId : BaseAudioEncoderApi {
+  static std::unique_ptr<AudioEncoder> MakeAudioEncoder(
+      const Config&,
+      int /* payload_type */) {
+    auto encoder = std::make_unique<NiceMock<MockAudioEncoder>>();
+    ON_CALL(*encoder, SampleRateHz)
+        .WillByDefault(Return(kV1NoCodecPairSameRate));
     return encoder;
   }
 };
@@ -161,6 +173,17 @@ TEST(AudioEncoderFactoryTemplateTest,
   EXPECT_THAT(factory->Create(env, BaseAudioEncoderApi::AudioFormat(), {}),
               Pointer(Property(&AudioEncoder::SampleRateHz,
                                BaseAudioEncoderApi::kV1SameRate)));
+}
+
+TEST(AudioEncoderFactoryTemplateTest,
+     UsesV1NoCodecPairMakeAudioEncoderWhenV2IsNotAvailable) {
+  const Environment env = CreateEnvironment();
+  auto factory =
+      CreateAudioEncoderFactory<AudioEncoderApiWithV1AndNoCodecPairId>();
+
+  EXPECT_THAT(factory->Create(env, BaseAudioEncoderApi::AudioFormat(), {}),
+              Pointer(Property(&AudioEncoder::SampleRateHz,
+                               BaseAudioEncoderApi::kV1NoCodecPairSameRate)));
 }
 
 TEST(AudioEncoderFactoryTemplateTest,

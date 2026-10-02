@@ -167,7 +167,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../system_wrappers",
       "../test:fileutils",
       "../test:frame_utils",
-      "../test:test_main",
       "../test:test_support",
       "../test:video_test_common",
       "//testing/gtest",

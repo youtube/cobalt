@@ -25,6 +25,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // Node depends on |EVP_R_NOT_XOF_OR_INVALID_LENGTH|.
 //
 // TODO(davidben): Fix Node to not touch the error queue itself and remove this.
@@ -34,7 +36,7 @@ OPENSSL_DECLARE_ERROR_REASON(EVP, NOT_XOF_OR_INVALID_LENGTH)
 // directory.
 OPENSSL_DECLARE_ERROR_REASON(EVP, EMPTY_PSK)
 
-EVP_PKEY *EVP_PKEY_new(void) {
+EVP_PKEY *EVP_PKEY_new() {
   EVP_PKEY *ret =
       reinterpret_cast<EVP_PKEY *>(OPENSSL_zalloc(sizeof(EVP_PKEY)));
   if (ret == nullptr) {
@@ -154,8 +156,8 @@ int EVP_PKEY_id(const EVP_PKEY *pkey) {
   return pkey->ameth != nullptr ? pkey->ameth->pkey_id : EVP_PKEY_NONE;
 }
 
-void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
-                   void *pkey_data) {
+void bssl::evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
+                         void *pkey_data) {
   if (pkey->ameth && pkey->ameth->pkey_free) {
     pkey->ameth->pkey_free(pkey);
   }
@@ -222,7 +224,7 @@ EVP_PKEY *EVP_PKEY_from_raw_private_key(const EVP_PKEY_ALG *alg,
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return nullptr;
   }
-  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
+  UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
   if (ret == nullptr || !alg->method->set_priv_raw(ret.get(), in, len)) {
     return nullptr;
   }
@@ -235,7 +237,7 @@ EVP_PKEY *EVP_PKEY_from_private_seed(const EVP_PKEY_ALG *alg, const uint8_t *in,
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return nullptr;
   }
-  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
+  UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
   if (ret == nullptr || !alg->method->set_priv_seed(ret.get(), in, len)) {
     return nullptr;
   }
@@ -248,7 +250,7 @@ EVP_PKEY *EVP_PKEY_from_raw_public_key(const EVP_PKEY_ALG *alg,
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return nullptr;
   }
-  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
+  UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
   if (ret == nullptr || !alg->method->set_pub_raw(ret.get(), in, len)) {
     return nullptr;
   }
@@ -322,9 +324,9 @@ int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
   if (a->ameth && a->ameth->param_cmp) {
     return a->ameth->param_cmp(a, b);
   }
-  // TODO(https://crbug.com/boringssl/536): If the algorithm doesn't use
-  // parameters, they should compare as vacuously equal.
-  return -2;
+  // If the algorithm does not use parameters, the two null value compare as
+  // vacuously equal.
+  return 1;
 }
 
 int EVP_PKEY_CTX_set_signature_md(EVP_PKEY_CTX *ctx, const EVP_MD *md) {
@@ -346,15 +348,15 @@ void *EVP_PKEY_get0(const EVP_PKEY *pkey) {
   return nullptr;
 }
 
-void OpenSSL_add_all_algorithms(void) {}
+void OpenSSL_add_all_algorithms() {}
 
-void OPENSSL_add_all_algorithms_conf(void) {}
+void OPENSSL_add_all_algorithms_conf() {}
 
-void OpenSSL_add_all_ciphers(void) {}
+void OpenSSL_add_all_ciphers() {}
 
-void OpenSSL_add_all_digests(void) {}
+void OpenSSL_add_all_digests() {}
 
-void EVP_cleanup(void) {}
+void EVP_cleanup() {}
 
 int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey, const uint8_t *in,
                                    size_t len) {

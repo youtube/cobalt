@@ -127,7 +127,7 @@ static void err_state_free(void *statep) {
 }
 
 // err_get_state gets the ERR_STATE object for the current thread.
-static ERR_STATE *err_get_state(void) {
+static ERR_STATE *err_get_state() {
   ERR_STATE *state = reinterpret_cast<ERR_STATE *>(
       CRYPTO_get_thread_local(OPENSSL_THREAD_LOCAL_ERR));
   if (state == nullptr) {
@@ -216,7 +216,7 @@ static uint32_t get_error_values(int inc, int top, const char **file, int *line,
   return ret;
 }
 
-uint32_t ERR_get_error(void) {
+uint32_t ERR_get_error() {
   return get_error_values(1 /* inc */, 0 /* bottom */, nullptr, nullptr,
                           nullptr, nullptr);
 }
@@ -231,7 +231,7 @@ uint32_t ERR_get_error_line_data(const char **file, int *line,
   return get_error_values(1 /* inc */, 0 /* bottom */, file, line, data, flags);
 }
 
-uint32_t ERR_peek_error(void) {
+uint32_t ERR_peek_error() {
   return get_error_values(0 /* peek */, 0 /* bottom */, nullptr, nullptr,
                           nullptr, nullptr);
 }
@@ -247,7 +247,7 @@ uint32_t ERR_peek_error_line_data(const char **file, int *line,
                           flags);
 }
 
-uint32_t ERR_peek_last_error(void) {
+uint32_t ERR_peek_last_error() {
   return get_error_values(0 /* peek */, 1 /* top */, nullptr, nullptr, nullptr,
                           nullptr);
 }
@@ -262,7 +262,7 @@ uint32_t ERR_peek_last_error_line_data(const char **file, int *line,
   return get_error_values(0 /* peek */, 1 /* top */, file, line, data, flags);
 }
 
-void ERR_clear_error(void) {
+void ERR_clear_error() {
   ERR_STATE *const state = err_get_state();
   unsigned i;
 
@@ -288,7 +288,7 @@ void ERR_remove_thread_state(const CRYPTO_THREADID *tid) {
   ERR_clear_error();
 }
 
-int ERR_get_next_error_library(void) {
+int ERR_get_next_error_library() {
   int ret;
 
   CRYPTO_MUTEX_lock_write(&global_next_library_mutex);
@@ -300,7 +300,7 @@ int ERR_get_next_error_library(void) {
 
 void ERR_remove_state(unsigned long pid) { ERR_clear_error(); }
 
-void ERR_clear_system_error(void) { errno = 0; }
+void ERR_clear_system_error() { errno = 0; }
 
 // err_string_cmp is a compare function for searching error values with
 // |bsearch| in |err_string_lookup|.
@@ -701,7 +701,7 @@ void ERR_set_error_data(char *data, int flags) {
   }
 }
 
-int ERR_set_mark(void) {
+int ERR_set_mark() {
   ERR_STATE *const state = err_get_state();
 
   if (state == nullptr || state->bottom == state->top) {
@@ -711,7 +711,7 @@ int ERR_set_mark(void) {
   return 1;
 }
 
-int ERR_pop_to_mark(void) {
+int ERR_pop_to_mark() {
   ERR_STATE *const state = err_get_state();
 
   if (state == nullptr) {
@@ -737,15 +737,15 @@ int ERR_pop_to_mark(void) {
   return 0;
 }
 
-void ERR_load_crypto_strings(void) {}
+void ERR_load_crypto_strings() {}
 
-void ERR_free_strings(void) {}
+void ERR_free_strings() {}
 
-void ERR_load_BIO_strings(void) {}
+void ERR_load_BIO_strings() {}
 
-void ERR_load_ERR_strings(void) {}
+void ERR_load_ERR_strings() {}
 
-void ERR_load_RAND_strings(void) {}
+void ERR_load_RAND_strings() {}
 
 BSSL_NAMESPACE_BEGIN
 
@@ -767,7 +767,7 @@ void bssl::ERR_SAVE_STATE_free(ERR_SAVE_STATE *state) {
   free(state);
 }
 
-ERR_SAVE_STATE *bssl::ERR_save_state(void) {
+ERR_SAVE_STATE *bssl::ERR_save_state() {
   ERR_STATE *const state = err_get_state();
   if (state == nullptr || state->top == state->bottom) {
     return nullptr;

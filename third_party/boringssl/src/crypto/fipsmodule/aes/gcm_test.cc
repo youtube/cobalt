@@ -22,6 +22,9 @@
 #include "internal.h"
 
 
+BSSL_NAMESPACE_BEGIN
+namespace {
+
 #if defined(SUPPORTS_ABI_TEST) && !defined(OPENSSL_NO_ASM)
 TEST(GCMTest, ABI) {
   static const uint64_t kH[2] = {
@@ -171,3 +174,6 @@ TEST(GCMTest, ABI) {
 #endif
 }
 #endif  // SUPPORTS_ABI_TEST && !OPENSSL_NO_ASM
+
+}  // namespace
+BSSL_NAMESPACE_END

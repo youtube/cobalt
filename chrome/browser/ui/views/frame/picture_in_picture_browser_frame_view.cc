@@ -267,7 +267,13 @@ void PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
   }
 
   invisible_child_dialogs_.erase(widget);
-  child_dialog_observations_.RemoveObservation(widget);
+  // During widget destruction, it is possible for `OnWidgetDestroying` to be
+  // called multiple times (e.g., once by parent notification and once by
+  // self-notification). This check ensures RemoveObservation is only called
+  // once.
+  if (child_dialog_observations_.IsObservingSource(widget)) {
+    child_dialog_observations_.RemoveObservation(widget);
+  }
   child_dialogs_waiting_for_resize_.erase(widget);
   child_dialog_sizes_.erase(widget);
 
@@ -1392,10 +1398,10 @@ LocationIconView* PictureInPictureBrowserFrameView::GetLocationIconView() {
 }
 
 void PictureInPictureBrowserFrameView::UpdateContentSettingsIcons() {
-  const auto kButtonContainerViewWithCameraButtonInsets =
-      gfx::Insets::TLBR(0, 0, 0, GetLayoutConstant(TAB_AFTER_TITLE_PADDING));
-  const auto kButtonContainerViewInsets =
-      gfx::Insets::VH(0, GetLayoutConstant(TAB_AFTER_TITLE_PADDING));
+  const auto kButtonContainerViewWithCameraButtonInsets = gfx::Insets::TLBR(
+      0, 0, 0, GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding));
+  const auto kButtonContainerViewInsets = gfx::Insets::VH(
+      0, GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding));
 
   for (ContentSettingImageView* view : content_setting_views_) {
     view->Update();

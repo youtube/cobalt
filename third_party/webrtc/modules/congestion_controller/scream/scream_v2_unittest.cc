@@ -70,7 +70,10 @@ TEST(ScreamV2Test, TargetRateIncreaseToMaxOnUnConstrainedNetwork) {
 
   for (int i = 0; i < 100; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
     scream.OnTransportPacketsFeedback(feedback);
     send_rate = scream.target_rate();
   }
@@ -92,7 +95,10 @@ TEST(ScreamV2Test,
 
   for (int i = 0; i < 70; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
     scream.OnTransportPacketsFeedback(feedback);
     send_rate = scream.target_rate();
   }
@@ -102,7 +108,10 @@ TEST(ScreamV2Test,
   send_rate = send_rate / 2;
   for (int i = 0; i < 20; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
     scream.OnTransportPacketsFeedback(feedback);
   }
   // Still the same ref_window.
@@ -232,7 +241,10 @@ AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
   DataRate send_rate = DataRate::KilobitsPerSec(100);
   while (clock.CurrentTime() < kStartTime + params.adaption_time) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
     scream.OnTransportPacketsFeedback(feedback);
     send_rate = scream.target_rate();
   }
@@ -244,7 +256,10 @@ AdaptsToLinkCapacityResult RunAdaptToLinkCapacityTest(
   while (clock.CurrentTime() <
          time_after_adaption + params.time_to_run_after_adaption_time) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
     scream.OnTransportPacketsFeedback(feedback);
     send_rate = scream.target_rate();
     result.min_rate_after_adaption =

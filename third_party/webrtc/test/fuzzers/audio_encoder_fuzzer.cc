@@ -37,7 +37,8 @@ void FuzzAudioEncoder(ArrayView<const uint8_t> data_view,
     return;
   }
 
-  BufferT<int16_t> input_aligned(block_size_samples);
+  BufferT<int16_t> input_aligned =
+      BufferT<int16_t>::CreateUninitializedWithSize(block_size_samples);
   Buffer encoded;
 
   // Each round in the loop below will need one block of samples + a 32-bit

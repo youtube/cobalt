@@ -64,7 +64,7 @@ class RunLoop {
   class FakeSocketServer : public SocketServer {
    public:
     FakeSocketServer();
-    ~FakeSocketServer();
+    ~FakeSocketServer() override;
 
     void FailNextWait();
 

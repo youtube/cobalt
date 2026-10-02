@@ -566,7 +566,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
          ++stream_idx) {
       if (stream_idx >= codec_.numberOfSimulcastStreams) {
         // Reset parameters of unspecified stream.
-        codec_.simulcastStream[stream_idx] = {0};
+        codec_.simulcastStream[stream_idx] = {.width = 0};
       } else {
         codec_.simulcastStream[stream_idx].active =
             stream_descriptions[stream_idx].active;
@@ -2155,9 +2155,9 @@ TEST_F(TestSimulcastEncoderAdapterFake, InitEncodeForMixedCodec) {
   std::vector<SdpVideoFormat> codecs = {SdpVideoFormat::VP8(),
                                         SdpVideoFormat::VP9Profile0(),
                                         SdpVideoFormat::VP9Profile1()};
-  SetupMixedCodec({{true, SdpVideoFormat::VP8()},
-                   {true, SdpVideoFormat::VP9Profile0()},
-                   {true, SdpVideoFormat::VP9Profile1()}});
+  SetupMixedCodec({{.active = true, .format = SdpVideoFormat::VP8()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile0()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile1()}});
   std::vector<MockVideoEncoder*> encoders = helper_->factory()->encoders();
   ASSERT_EQ(3u, helper_->factory()->encoders().size());
   EXPECT_EQ(encoders[0]->video_format(), SdpVideoFormat::VP8());
@@ -2167,9 +2167,9 @@ TEST_F(TestSimulcastEncoderAdapterFake, InitEncodeForMixedCodec) {
   EXPECT_EQ(encoders[1]->codec().codecType, webrtc::kVideoCodecVP9);
   EXPECT_EQ(encoders[2]->codec().codecType, webrtc::kVideoCodecVP9);
 
-  SetupMixedCodec({{false, SdpVideoFormat::VP8()},
-                   {true, SdpVideoFormat::VP9Profile0()},
-                   {true, SdpVideoFormat::VP9Profile1()}});
+  SetupMixedCodec({{.active = false, .format = SdpVideoFormat::VP8()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile0()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile1()}});
   encoders = helper_->factory()->encoders();
   ASSERT_EQ(2u, helper_->factory()->encoders().size());
   EXPECT_EQ(encoders[0]->video_format(), SdpVideoFormat::VP9Profile0());
@@ -2183,9 +2183,9 @@ TEST_F(TestSimulcastEncoderAdapterFake,
   std::vector<SdpVideoFormat> codecs = {SdpVideoFormat::VP8(),
                                         SdpVideoFormat::VP9Profile0(),
                                         SdpVideoFormat::VP9Profile1()};
-  SetupMixedCodec({{true, SdpVideoFormat::VP8()},
-                   {true, SdpVideoFormat::VP9Profile0()},
-                   {true, SdpVideoFormat::VP9Profile1()}});
+  SetupMixedCodec({{.active = true, .format = SdpVideoFormat::VP8()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile0()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile1()}});
   std::vector<MockVideoEncoder*> encoders = helper_->factory()->encoders();
   ASSERT_EQ(3u, helper_->factory()->encoders().size());
   EXPECT_EQ(encoders[0]->codec().codecType, webrtc::kVideoCodecVP8);
@@ -2221,9 +2221,9 @@ TEST_F(TestSimulcastEncoderAdapterFake,
                                         SdpVideoFormat::VP9Profile0(),
                                         SdpVideoFormat::VP9Profile1()};
   helper_->factory()->set_supports_simulcast(true);
-  SetupMixedCodec({{true, SdpVideoFormat::VP8()},
-                   {true, SdpVideoFormat::VP9Profile0()},
-                   {true, SdpVideoFormat::VP9Profile1()}});
+  SetupMixedCodec({{.active = true, .format = SdpVideoFormat::VP8()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile0()},
+                   {.active = true, .format = SdpVideoFormat::VP9Profile1()}});
   std::vector<MockVideoEncoder*> encoders = helper_->factory()->encoders();
   ASSERT_EQ(3u, helper_->factory()->encoders().size());
   EXPECT_EQ(encoders[0]->video_format(), SdpVideoFormat::VP8());

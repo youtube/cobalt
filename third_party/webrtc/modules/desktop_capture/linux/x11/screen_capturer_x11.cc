@@ -24,6 +24,7 @@
 #include <memory>
 #include <utility>
 
+#include "media/base/video_common.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
@@ -307,7 +308,8 @@ bool ScreenCapturerX11::GetSourceList(SourceList* sources) {
     char* monitor_title = XGetAtomName(display(), m.name);
 
     // Note name is an X11 Atom used to id the monitor.
-    sources->push_back({static_cast<SourceId>(m.name), monitor_title});
+    sources->push_back(
+        {.id = static_cast<SourceId>(m.name), .title = monitor_title});
     XFree(monitor_title);
   }
 

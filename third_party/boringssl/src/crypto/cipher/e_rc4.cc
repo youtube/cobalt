@@ -53,4 +53,4 @@ static const EVP_CIPHER rc4 = {
     /*ctrl=*/nullptr,
 };
 
-const EVP_CIPHER *EVP_rc4(void) { return &rc4; }
+const EVP_CIPHER *EVP_rc4() { return &rc4; }

@@ -390,11 +390,6 @@ class PeerConnection : public PeerConnectionInternal,
   void AddRemoteCandidate(absl::string_view mid,
                           const Candidate& candidate) override;
 
-  // Called before and after OnTransportChanged() is called.
-  // When `change_done` is false, we populate `negotiated_channels_` with the
-  // current set of active channels. Otherwise, negotiated_channels_ is cleared.
-  void OnTransportChanging(bool change_done) override;
-
   // Report the UMA metric BundleUsage for the given remote description.
   void ReportSdpBundleUsage(
       const SessionDescriptionInterface& remote_description) override;
@@ -744,15 +739,6 @@ class PeerConnection : public PeerConnectionInternal,
       RTC_GUARDED_BY(network_thread());
   JsepTransportController* transport_controller_copy_
       RTC_GUARDED_BY(signaling_thread()) = nullptr;
-
-  // A list of active channels, updated by `OnTransportChanging` on the
-  // network thread. This is a temporary copy of the active channels used during
-  // transport updates (e.g. SetRemoteDescription) to allow `OnTransportChanged`
-  // to look up the channel for a given MID without accessing
-  // RtpTransceiver::channel() or `rtp_manager_`, which should be accessed from
-  // the signaling thread.
-  std::vector<ChannelInterface*> negotiated_channels_
-      RTC_GUARDED_BY(network_thread());
 
   // The machinery for handling offers and answers. Const after initialization.
   std::unique_ptr<SdpOfferAnswerHandler> sdp_handler_

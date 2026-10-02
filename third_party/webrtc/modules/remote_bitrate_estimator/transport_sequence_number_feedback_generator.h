@@ -41,7 +41,7 @@ class TransportSequenceNumberFeedbackGenenerator
  public:
   TransportSequenceNumberFeedbackGenenerator(
       RtpTransportFeedbackGenerator::RtcpSender feedback_sender);
-  ~TransportSequenceNumberFeedbackGenenerator();
+  ~TransportSequenceNumberFeedbackGenenerator() override;
 
   void OnReceivedPacket(const RtpPacketReceived& packet) override;
   void OnSendBandwidthEstimateChanged(DataRate estimate) override;

@@ -21,6 +21,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+
 namespace webrtc {
 namespace {
 
@@ -165,11 +166,13 @@ TEST(ScreamControllerTest, TargetRateLimitedByRemoteBitrateReport) {
 
   // Simulation with infinite capacity.
   CcFeedbackGenerator feedback_generator({});
-
   DataRate target_rate = DataRate::KilobitsPerSec(100);
   for (int i = 0; i < 10; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(target_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            target_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
     NetworkControlUpdate update =
         scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.target_rate.has_value()) {
@@ -188,7 +191,10 @@ TEST(ScreamControllerTest, TargetRateLimitedByRemoteBitrateReport) {
 
   for (int i = 0; i < 2; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(target_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            target_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
     update = scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.target_rate.has_value()) {
       EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
@@ -259,14 +265,12 @@ TEST(ScreamControllerTest,
 TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
   Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  ScreamNetworkController scream_controller(config);
   CcFeedbackGenerator feedback_generator(
       {.network_config = {.queue_delay_ms = 10,
                           .link_capacity = DataRate::KilobitsPerSec(5000)},
        .send_as_ect1 = true});
-
-  NetworkControllerConfig config(env);
-  ScreamNetworkController scream_controller(config);
-
   StreamsConfig streams_config;
   streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
   scream_controller.OnStreamsConfig(streams_config);
@@ -277,7 +281,9 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   Timestamp start_time = clock.CurrentTime();
   while (clock.CurrentTime() < start_time + TimeDelta::Seconds(1)) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
     NetworkControlUpdate update =
         scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.pacer_config.has_value()) {
@@ -333,7 +339,8 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
     // to be able to test that padding stops and resumes.
     TransportPacketsFeedback feedback =
         feedback_generator.ProcessUntilNextFeedback(
-            send_rate + padding_rate / 4, clock);
+            send_rate + padding_rate / 4, clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
     NetworkControlUpdate update =
         scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.pacer_config.has_value()) {

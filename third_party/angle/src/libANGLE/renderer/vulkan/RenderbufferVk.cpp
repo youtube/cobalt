@@ -126,12 +126,14 @@ angle::Result RenderbufferVk::setStorageImpl(const gl::Context *context,
     const uint32_t imageSamples = isRenderToTexture ? 1 : samples;
 
     bool robustInit = contextVk->isRobustResourceInitEnabled();
+    vk::TileMemory tileMemoryPreference =
+        isDepthStencilFormat ? vk::TileMemory::Preferred : vk::TileMemory::Prohibited;
 
     VkExtent3D extents = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1u};
     ANGLE_TRY(mImage->initExternal(
         contextVk, gl::TextureType::_2D, extents, format.getIntendedFormatID(), textureFormatID,
         imageSamples, usage, createFlags, vk::ImageAccess::Undefined, nullptr, gl::LevelIndex(0), 1,
-        1, robustInit, false, vk::YcbcrConversionDesc{}, nullptr));
+        1, robustInit, false, tileMemoryPreference, vk::YcbcrConversionDesc{}, nullptr));
 
     VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     ANGLE_TRY(contextVk->initImageAllocation(mImage, false, flags,
@@ -394,10 +396,17 @@ void RenderbufferVk::onSubjectStateChange(angle::SubjectIndex index, angle::Subj
 {
     ASSERT(index == kRenderbufferImageSubjectIndex &&
            (message == angle::SubjectMessage::SubjectChanged ||
-            message == angle::SubjectMessage::InitializationComplete));
+            message == angle::SubjectMessage::InitializationComplete ||
+            message == angle::SubjectMessage::VkImageChanged));
+
+    if (message == angle::SubjectMessage::VkImageChanged)
+    {
+        mImageViews.release(mRenderer, mImage->getResourceUse());
+    }
 
     // Forward the notification to the parent class that the staging buffer changed.
-    if (message == angle::SubjectMessage::SubjectChanged)
+    if (message == angle::SubjectMessage::SubjectChanged ||
+        message == angle::SubjectMessage::VkImageChanged)
     {
         onStateChange(angle::SubjectMessage::SubjectChanged);
     }

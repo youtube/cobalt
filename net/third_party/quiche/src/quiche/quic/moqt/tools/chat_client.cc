@@ -50,7 +50,9 @@ void ChatClient::OnIncomingPublishNamespace(
   }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    std::move(callback)(std::nullopt);
+    if (parameters.has_value()) {  // callback exists.
+      std::move(callback)(std::nullopt);
+    }
     return;
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
@@ -66,7 +68,7 @@ void ChatClient::OnIncomingPublishNamespace(
   std::cout << "PUBLISH_NAMESPACE for " << track_namespace.ToString() << "\n";
   if (!track_name.has_value()) {
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
-    std::move(callback)(std::make_optional<MoqtPublishNamespaceErrorReason>(
+    std::move(callback)(std::make_optional<MoqtErrorPair>(
         RequestErrorCode::kTrackDoesNotExist, "Not a subscribed namespace"));
     return;
   }
@@ -83,10 +85,13 @@ void ChatClient::OnIncomingPublishNamespace(
   }
   VersionSpecificParameters subscribe_parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-  if (session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
+  // session_ could be nullptr if we get unsolicited PUBLISH_NAMESPACE at the
+  // start of the session.
+  other_users_.emplace(*track_name);
+  if (session_ != nullptr &&
+      session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
                                        subscribe_parameters)) {
     ++subscribes_to_make_;
-    other_users_.emplace(*track_name);
   }
   std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
 }
@@ -180,7 +185,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
 
 void ChatClient::RemoteTrackVisitor::OnReply(
     const FullTrackName& full_track_name,
-    std::variant<SubscribeOkData, MoqtRequestError> response) {
+    std::variant<SubscribeOkData, MoqtErrorPair> response) {
   auto it = client_->other_users_.find(full_track_name);
   if (it == client_->other_users_.end()) {
     std::cout << "Error: received reply for unknown user "
@@ -192,9 +197,9 @@ void ChatClient::RemoteTrackVisitor::OnReply(
   if (std::holds_alternative<SubscribeOkData>(response)) {
     std::cout << "ACCEPTED\n";
   } else {
-    auto request_error = std::get<MoqtRequestError>(response);
+    auto request_error = std::get<MoqtErrorPair>(response);
     std::cout << "REJECTED, reason = "
-              << std::get<MoqtRequestError>(response).reason_phrase << "\n";
+              << std::get<MoqtErrorPair>(response).reason_phrase << "\n";
     client_->other_users_.erase(it);
   }
 }
@@ -224,6 +229,16 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
     std::cout << "Failed to connect.\n";
     return false;
   }
+  // There might already be published namespaces that have populated
+  // other_users_. Subscribe to their tracks now.
+  for (const auto& track_name : other_users_) {
+    VersionSpecificParameters subscribe_parameters(
+        AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
+    if (session_->SubscribeCurrentObject(track_name, &remote_track_visitor_,
+                                         subscribe_parameters)) {
+      ++subscribes_to_make_;
+    }
+  }
   // TODO: A server log might choose to not provide a username, thus getting all
   // the messages without adding itself to the catalog.
   queue_ = std::make_shared<MoqtOutgoingQueue>(
@@ -232,7 +247,7 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   session_->set_publisher(&publisher_);
   MoqtOutgoingPublishNamespaceCallback publish_namespace_callback =
       [this](TrackNamespace track_namespace,
-             std::optional<MoqtPublishNamespaceErrorReason> reason) {
+             std::optional<MoqtErrorPair> reason) {
         if (reason.has_value()) {
           std::cout << "PUBLISH_NAMESPACE rejected, " << reason->reason_phrase
                     << "\n";

@@ -128,6 +128,12 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       proof_verifier_ = std::make_unique<FakeProofVerifier>();
     } else {
       proof_verifier_ = CreateDefaultProofVerifier(url_.host());
+      if (!proof_verifier_) {
+        QUICHE_LOG(ERROR)
+            << "The default proof verifier is not supported. Pass "
+               "in --disable_certificate_verification.";
+        return false;
+      }
     }
     socket_address_ = tools::LookupAddress(
         address_family_for_lookup_, url_.host(), absl::StrCat(url_.port()));
@@ -237,7 +243,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       return;
     }
     SSL_set_bio(ssl_.get(), tls_io, tls_io);
-    BIO_free(tls_io);
+    // `SSL_set_bio` causes `ssl_` to take ownership of `tls_io`.
 
     int ret = SSL_connect(ssl_.get());
     if (ret != 1) {
@@ -448,7 +454,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   }
 
   void SendH1Request() {
-    std::string request = absl::StrCat("GET ", url_.path(),
+    std::string request = absl::StrCat("GET ", url_.PathParamsQuery(),
                                        " HTTP/1.1\r\nHost: ", url_.HostPort(),
                                        "\r\nConnection: close\r\n\r\n");
     QUICHE_DVLOG(1) << "Sending h1 request of length " << request.size()
@@ -475,7 +481,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     headers[":method"] = "GET";
     headers[":scheme"] = url_.scheme();
     headers[":authority"] = url_.HostPort();
-    headers[":path"] = url_.path();
+    headers[":path"] = url_.PathParamsQuery();
     stream_id_ = h2_connection_->SendRequest(headers, std::string());
     h2_connection_->AttemptToSend();
     if (stream_id_ >= 0) {

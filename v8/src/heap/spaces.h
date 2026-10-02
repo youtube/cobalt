@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base-space.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/free-list.h"
@@ -19,9 +20,8 @@
 #include "src/heap/list.h"
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
-#include "src/heap/mutable-page-metadata.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/mutable-page.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
@@ -41,7 +41,7 @@ class FreeList;
 class Heap;
 class Isolate;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class ObjectIterator;
 class PagedSpaceBase;
 class SemiSpace;
@@ -83,25 +83,21 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
-  virtual MutablePageMetadata* first_page() {
-    return memory_chunk_list_.front();
-  }
-  virtual MutablePageMetadata* last_page() { return memory_chunk_list_.back(); }
+  virtual MutablePage* first_page() { return memory_chunk_list_.front(); }
+  virtual MutablePage* last_page() { return memory_chunk_list_.back(); }
 
-  virtual const MutablePageMetadata* first_page() const {
+  virtual const MutablePage* first_page() const {
     return memory_chunk_list_.front();
   }
-  virtual const MutablePageMetadata* last_page() const {
+  virtual const MutablePage* last_page() const {
     return memory_chunk_list_.back();
   }
 
-  virtual heap::List<MutablePageMetadata>& memory_chunk_list() {
+  virtual heap::List<MutablePage>& memory_chunk_list() {
     return memory_chunk_list_;
   }
 
-  virtual PageMetadata* InitializePage(MutablePageMetadata* chunk) {
-    UNREACHABLE();
-  }
+  virtual NormalPage* InitializePage(MutablePage* chunk) { UNREACHABLE(); }
 
   virtual void NotifyBlackAreaCreated(size_t size) {}
   virtual void NotifyBlackAreaDestroyed(size_t size) {}
@@ -119,7 +115,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
  protected:
   // The List manages the pages that belong to the given space.
-  heap::List<MutablePageMetadata> memory_chunk_list_;
+  heap::List<MutablePage> memory_chunk_list_;
   std::unique_ptr<FreeList> free_list_;
 };
 
@@ -161,39 +157,38 @@ class PageIteratorImpl
   PageType* p_;
 };
 
-using PageIterator = PageIteratorImpl<PageMetadata>;
-using ConstPageIterator = PageIteratorImpl<const PageMetadata>;
-using LargePageIterator = PageIteratorImpl<LargePageMetadata>;
-using ConstLargePageIterator = PageIteratorImpl<const LargePageMetadata>;
+using PageIterator = PageIteratorImpl<NormalPage>;
+using ConstPageIterator = PageIteratorImpl<const NormalPage>;
+using LargePageIterator = PageIteratorImpl<LargePage>;
+using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
 
 class PageRange {
  public:
   using iterator = PageIterator;
-  PageRange(PageMetadata* begin, PageMetadata* end)
-      : begin_(begin), end_(end) {}
-  inline explicit PageRange(PageMetadata* page);
+  PageRange(NormalPage* begin, NormalPage* end) : begin_(begin), end_(end) {}
+  inline explicit PageRange(NormalPage* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  PageMetadata* begin_;
-  PageMetadata* end_;
+  NormalPage* begin_;
+  NormalPage* end_;
 };
 
 class ConstPageRange {
  public:
   using iterator = ConstPageIterator;
-  ConstPageRange(const PageMetadata* begin, const PageMetadata* end)
+  ConstPageRange(const NormalPage* begin, const NormalPage* end)
       : begin_(begin), end_(end) {}
-  inline explicit ConstPageRange(const PageMetadata* page);
+  inline explicit ConstPageRange(const NormalPage* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  const PageMetadata* begin_;
-  const PageMetadata* end_;
+  const NormalPage* begin_;
+  const NormalPage* end_;
 };
 
 class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
@@ -227,11 +222,11 @@ class MemoryChunkIterator {
   explicit MemoryChunkIterator(Heap* heap) : space_iterator_(heap) {}
 
   V8_INLINE bool HasNext();
-  V8_INLINE MutablePageMetadata* Next();
+  V8_INLINE MutablePage* Next();
 
  private:
   SpaceIterator space_iterator_;
-  MutablePageMetadata* current_chunk_ = nullptr;
+  MutablePage* current_chunk_ = nullptr;
 };
 
 }  // namespace internal

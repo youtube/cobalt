@@ -177,22 +177,22 @@ class SupervisedUserMetricsServiceFieldTrialTest
         << "Create test environment first with CreateTestEnvironment().";
 
     if (GetFieldTrialName() == "AndroidDeviceSearchContentFilters") {
-      test_environment_->android_parental_controls()
-          ->SetSearchContentFiltersEnabledForTesting(enabled);
+      test_environment_->device_parental_controls()
+          .SetSearchContentFiltersEnabledForTesting(enabled);
       return;
     } else if (GetFieldTrialName() == "AndroidDeviceBrowserContentFilters") {
-      test_environment_->android_parental_controls()
-          ->SetBrowserContentFiltersEnabledForTesting(enabled);
+      test_environment_->device_parental_controls()
+          .SetBrowserContentFiltersEnabledForTesting(enabled);
       return;
     }
 
     NOTREACHED() << "Unsupported field trial name: " << GetFieldTrialName();
   }
 
-  void CreateTestEnvironment(std::unique_ptr<MetricsServiceAccessorDelegateMock>
-                                 metrics_service_accessor_delegate) {
+  void CreateTestEnvironment(std::unique_ptr<SynteticFieldTrialDelegateMock>
+                                 synthetic_field_trial_delegate) {
     test_environment_ = std::make_unique<SupervisedUserTestEnvironment>(
-        std::move(metrics_service_accessor_delegate));
+        std::move(synthetic_field_trial_delegate));
   }
 
   static FieldTrialName GetFieldTrialName() { return GetParam(); }
@@ -208,7 +208,7 @@ TEST_P(SupervisedUserMetricsServiceFieldTrialTest,
        SyntheticFieldTrialRegistered) {
   // Register calls before environment's created, because the metrics service
   // calls field trial registration on creation.
-  auto mock = std::make_unique<MetricsServiceAccessorDelegateMock>();
+  auto mock = std::make_unique<SynteticFieldTrialDelegateMock>();
   EXPECT_CALL(*mock, RegisterSyntheticFieldTrial(_, "Disabled")).Times(1);
   EXPECT_CALL(*mock, RegisterSyntheticFieldTrial(Eq(GetParam()), "Disabled"))
       .Times(2);

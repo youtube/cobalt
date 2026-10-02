@@ -83,6 +83,8 @@ rtc_library("frame_instrumentation_generator_factory") {
     ":frame_instrumentation_generator_header",
     "../:video_frame",
     "../../../video/corruption_detection:frame_instrumentation_generator_impl",
+    "../../environment",
+    "../../video_codecs:scalability_mode",
     "../../video_codecs:video_codecs_api",
   ]
 }

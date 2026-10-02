@@ -18,10 +18,6 @@
 #include <openssl/base.h>
 #include <openssl/stack.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 
 struct pkcs8_priv_key_info_st {
   ASN1_INTEGER *version;
@@ -29,6 +25,8 @@ struct pkcs8_priv_key_info_st {
   ASN1_OCTET_STRING *pkey;
   STACK_OF(X509_ATTRIBUTE) *attributes;
 };
+
+BSSL_NAMESPACE_BEGIN
 
 // pkcs8_pbe_decrypt decrypts |in| using the PBE scheme described by
 // |algorithm|, which should be a serialized AlgorithmIdentifier structure. On
@@ -63,8 +61,8 @@ struct pbe_suite {
   int pbe_nid;
   uint8_t oid[10];
   uint8_t oid_len;
-  const EVP_CIPHER *(*cipher_func)(void);
-  const EVP_MD *(*md_func)(void);
+  const EVP_CIPHER *(*cipher_func)();
+  const EVP_MD *(*md_func)();
   // decrypt_init initialize |ctx| for decrypting. The password is specified by
   // |pass| and |pass_len|. |param| contains the serialized parameters field of
   // the AlgorithmIdentifier.
@@ -95,9 +93,6 @@ int PKCS5_pbe2_encrypt_init(CBB *out, EVP_CIPHER_CTX *ctx,
 // number of PBKDF2 iterations and zero otherwise.
 int pkcs12_iterations_acceptable(uint64_t iterations);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_PKCS8_INTERNAL_H

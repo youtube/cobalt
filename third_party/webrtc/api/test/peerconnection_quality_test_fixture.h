@@ -31,7 +31,7 @@ class PeerConnectionE2EQualityTestFixture {
   // Represent an entity that will report quality metrics after test.
   class QualityMetricsReporter : public StatsObserverInterface {
    public:
-    virtual ~QualityMetricsReporter() = default;
+    ~QualityMetricsReporter() override = default;
 
     // Invoked by framework after peer connection factory and peer connection
     // itself will be created but before offer/answer exchange will be started.

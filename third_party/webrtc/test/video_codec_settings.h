@@ -46,8 +46,8 @@ static void CodecSettings(VideoCodecType codec_type, VideoCodec* settings) {
   settings->numberOfSimulcastStreams = 0;
 
   settings->timing_frame_thresholds = {
-      kTestTimingFramesDelayMs,
-      kTestOutlierFrameSizePercent,
+      .delay_ms = kTestTimingFramesDelayMs,
+      .outlier_ratio_percent = kTestOutlierFrameSizePercent,
   };
 
   settings->codecType = codec_type;

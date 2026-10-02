@@ -2533,9 +2533,8 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest, Simulcast) {
               StrCaseEq(mime_type_));
   EXPECT_THAT(GetCurrentCodecMimeType(report, *outbound_rtps[2]),
               StrCaseEq(mime_type_));
-  EXPECT_THAT(*outbound_rtps[0]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[1]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[2]->scalability_mode, StrEq("L1T3"));
+  EXPECT_THAT(report, OutboundRtpStatsAre(
+                          Each(ScalabilityModeIs(Optional(StrEq("L1T3"))))));
 }
 
 // Configure 4:2:1 using `scale_resolution_down_to`.
@@ -2585,20 +2584,28 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest,
   EXPECT_THAT(parameters.encodings[2].scalability_mode,
               Optional(std::string("L1T3")));
 
-  // Wait until media is flowing on all three layers.
-  // Ramp up time is needed before all three layers are sending.
-  auto error_or_report =
-      GetStatsUntil(local_pc_wrapper, HasOutboundRtpBytesSent(3u),
-                    {.timeout = kLongTimeoutForRampingUp});
+  // Wait until media is flowing on all three layers AND scalability mode is
+  // reported. Ramp up time is needed before all three layers are sending.
+  auto error_or_report = GetStatsUntil(
+      local_pc_wrapper,
+      AllOf(HasOutboundRtpBytesSent(3u),
+            OutboundRtpStatsAre(
+                Each(ScalabilityModeIs(Optional(StrEq("L1T3")))))),
+      {.timeout = kLongTimeoutForRampingUp});
   ASSERT_THAT(error_or_report, IsRtcOk());
   // Verify codec and scalability mode.
   scoped_refptr<const RTCStatsReport> report = error_or_report.value();
   auto outbound_rtp_by_rid = GetOutboundRtpStreamStatsByRid(report);
-  EXPECT_THAT(outbound_rtp_by_rid,
-              UnorderedElementsAre(Pair("q", ResolutionIs(320, 180)),
-                                   Pair("h", ResolutionIs(640, 360)),
-                                   Pair("f", ResolutionIs(1280, 720))));
-  // Verify codec and scalability mode.
+  EXPECT_THAT(
+      outbound_rtp_by_rid,
+      UnorderedElementsAre(
+          Pair("q", AllOf(ResolutionIs(320, 180),
+                          ScalabilityModeIs(Optional(StrEq("L1T3"))))),
+          Pair("h", AllOf(ResolutionIs(640, 360),
+                          ScalabilityModeIs(Optional(StrEq("L1T3"))))),
+          Pair("f", AllOf(ResolutionIs(1280, 720),
+                          ScalabilityModeIs(Optional(StrEq("L1T3")))))));
+  // Verify codec.
   std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
       report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   ASSERT_THAT(outbound_rtps, SizeIs(3u));
@@ -2608,9 +2615,6 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest,
               StrCaseEq(mime_type_));
   EXPECT_THAT(GetCurrentCodecMimeType(report, *outbound_rtps[2]),
               StrCaseEq(mime_type_));
-  EXPECT_THAT(*outbound_rtps[0]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[1]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[2]->scalability_mode, StrEq("L1T3"));
 }
 
 // Simulcast starting in 720p 4:2:1 then changing to {180p, 360p, 540p} using

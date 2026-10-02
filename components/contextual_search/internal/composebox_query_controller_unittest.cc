@@ -1336,6 +1336,28 @@ TEST_F(
             lens::LensOverlayRequestId::MEDIA_TYPE_PDF);
 }
 
+TEST_F(ComposeboxQueryControllerTest, CreateSearchUrlWithInvocationSource) {
+  CreateController(/*send_lns_surface=*/false);
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test query";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->invocation_source =
+      lens::LensOverlayInvocationSource::kAppMenu;
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL aim_url = url_future.Take();
+
+  std::string source_param;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, "source", &source_param));
+  EXPECT_EQ(source_param, "chrome.crn.menu");
+}
+
 TEST_F(ComposeboxQueryControllerTest,
        UploadPageContextPdfFileWithViewportRequestSuccess) {
   // Act: Start the session.
@@ -2357,6 +2379,47 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(params.size(), 2u);
   EXPECT_EQ(params.at("key1"), "value1");
   EXPECT_EQ(params.at("key2"), "value2");
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateClientToAimRequestWithContextTurnMetadata) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Create the ClientToAimRequest.
+  std::unique_ptr<CreateClientToAimRequestInfo> client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  client_to_aim_request_info->query_text = "hello";
+  client_to_aim_request_info->query_text_source =
+      lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT;
+  client_to_aim_request_info->context_turn_metadata.push_back(
+      lens::ContextTurnMetadata());
+  client_to_aim_request_info->context_turn_metadata[0].set_context_id(1);
+  client_to_aim_request_info->context_turn_metadata[0]
+      .mutable_tab_metadata()
+      ->set_is_active_tab(true);
+
+  std::optional<lens::ClientToAimMessage> client_to_aim_request =
+      controller().CreateClientToAimRequest(
+          std::move(client_to_aim_request_info));
+
+  // Assert: The ClientToAimRequest is populated correctly.
+  ASSERT_TRUE(client_to_aim_request.has_value());
+  EXPECT_EQ(client_to_aim_request->submit_query().payload().query_text(),
+            "hello");
+  EXPECT_EQ(client_to_aim_request->submit_query().payload().query_text_source(),
+            lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT);
+  EXPECT_EQ(client_to_aim_request->submit_query()
+                .payload()
+                .context_turn_metadata_size(),
+            1);
+  const auto& context_turn_metadata =
+      client_to_aim_request->submit_query().payload().context_turn_metadata(0);
+  EXPECT_EQ(context_turn_metadata.context_id(), 1);
+  EXPECT_TRUE(context_turn_metadata.tab_metadata().is_active_tab());
 }
 
 TEST_F(ComposeboxQueryControllerTest,
@@ -3499,9 +3562,6 @@ TEST_F(ComposeboxQueryControllerTest, HandleInteractionResponse) {
   lens::LensOverlayInteractionResponse actual_response = response_future.Take();
   EXPECT_EQ(actual_response.text().content_language(), "en");
 }
-
-
-
 
 #if !BUILDFLAG(IS_IOS)
 TEST_F(ComposeboxQueryControllerTest,

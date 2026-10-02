@@ -107,6 +107,8 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
       bool get_and_clear_legacy_stats) const override;
   void SetSink(AudioSinkInterface* sink) override;
   void SetGain(float gain) override;
+  void SetJitterBufferMaxPackets(size_t max_packets) override;
+  void SetJitterBufferFastAccelerate(bool fast_accelerate) override;
   bool SetBaseMinimumPlayoutDelayMs(int delay_ms) override;
   int GetBaseMinimumPlayoutDelayMs() const override;
   std::vector<webrtc::RtpSource> GetSources() const override;

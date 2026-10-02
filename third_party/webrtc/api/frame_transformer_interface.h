@@ -112,7 +112,7 @@ class TransformableFrameInterface {
 class TransformableVideoFrameInterface : public TransformableFrameInterface {
  public:
   RTC_EXPORT explicit TransformableVideoFrameInterface(Passkey passkey);
-  virtual ~TransformableVideoFrameInterface() = default;
+  ~TransformableVideoFrameInterface() override = default;
   virtual bool IsKeyFrame() const = 0;
   virtual std::optional<std::string> Rid() const { return std::nullopt; }
   virtual VideoFrameMetadata Metadata() const = 0;
@@ -123,7 +123,7 @@ class TransformableVideoFrameInterface : public TransformableFrameInterface {
 class TransformableAudioFrameInterface : public TransformableFrameInterface {
  public:
   RTC_EXPORT explicit TransformableAudioFrameInterface(Passkey passkey);
-  virtual ~TransformableAudioFrameInterface() = default;
+  ~TransformableAudioFrameInterface() override = default;
 
   virtual ArrayView<const uint32_t> GetContributingSources() const = 0;
 

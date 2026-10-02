@@ -280,7 +280,7 @@ bool dtls1_process_handshake_fragments(SSL *ssl, uint8_t *out_alert,
       // Ignore fragments from the past. This is a retransmit of data we already
       // received.
       //
-      // TODO(crbug.com/42290594): Use this to drive retransmits.
+      // TODO(crbug.com/383016430): Use this to drive retransmits.
       continue;
     }
 
@@ -408,7 +408,7 @@ ssl_open_record_t dtls1_open_handshake(SSL *ssl, size_t *out_consumed,
       }
 
       // Flag the ChangeCipherSpec for later.
-      // TODO(crbug.com/42290594): Should we reject this in DTLS 1.3?
+      // TODO(crbug.com/383078468): Should we reject this in DTLS 1.3?
       ssl->d1->has_change_cipher_spec = true;
       ssl_do_msg_callback(ssl, 0 /* read */, SSL3_RT_CHANGE_CIPHER_SPEC,
                           record);
@@ -534,7 +534,7 @@ void dtls_clear_unused_write_epochs(SSL *ssl) {
         // Non-current epochs may be discarded once there are no incomplete
         // outgoing messages that reference them.
         //
-        // TODO(crbug.com/42290594): Epoch 1 (0-RTT) should be retained until
+        // TODO(crbug.com/381113363): Epoch 1 (0-RTT) should be retained until
         // epoch 3 (app data) is available.
         for (const auto &msg : ssl->d1->outgoing_messages) {
           if (msg.epoch == write_epoch->epoch() && !msg.IsFullyAcked()) {
@@ -1067,6 +1067,6 @@ int dtls1_flush(SSL *ssl) {
   return 1;
 }
 
-unsigned int dtls1_min_mtu(void) { return kMinMTU; }
+unsigned int dtls1_min_mtu() { return kMinMTU; }
 
 BSSL_NAMESPACE_END

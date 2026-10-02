@@ -39,7 +39,7 @@ namespace {
 
 using ::testing::Ge;
 
-static const int kTimeOut = 5000;
+const int kTimeOut = 5000;
 #ifdef WEBRTC_MAC
 static const int kTestHeight = 288;
 static const int kTestWidth = 352;

@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_animating_layout_manager.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/geometry/rect.h"
@@ -23,8 +24,13 @@ constexpr int kTabPadding = 4;
 VerticalPinnedTabContainerView::VerticalPinnedTabContainerView(
     TabCollectionNode* collection_node)
     : collection_node_(collection_node) {
-  SetLayoutManager(std::make_unique<TabCollectionAnimatingLayoutManager>(
-      std::make_unique<views::DelegatingLayoutManager>(this)));
+  auto* layout_manager =
+      SetLayoutManager(std::make_unique<TabCollectionAnimatingLayoutManager>(
+          std::make_unique<views::DelegatingLayoutManager>(this)));
+  collection_node->set_remove_child_from_node(base::BindRepeating(
+      &TabCollectionAnimatingLayoutManager::AnimateAndRemoveChildView,
+      base::Unretained(layout_manager)));
+
   node_destroyed_subscription_ = collection_node_->RegisterWillDestroyCallback(
       base::BindOnce(&VerticalPinnedTabContainerView::ResetCollectionNode,
                      base::Unretained(this)));
@@ -56,16 +62,20 @@ views::ProposedLayout VerticalPinnedTabContainerView::CalculateProposedLayout(
       contains_split = true;
     }
   }
-  int child_width =
-      GetLayoutConstant(VERTICAL_TAB_MIN_WIDTH) * (contains_split ? 2 : 1);
+  int child_width = GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
+                    (contains_split ? 2 : 1);
 
   // If the width is bounded, calculate how many children can fit on a row.
   // Since all children are allocated the same width this will be the same for
   // every row.
   if (size_bounds.width().is_bounded() && size_bounds.width().value() > 0) {
+    auto* controller = collection_node_->GetController();
+    bool is_collapsed = controller && controller->IsCollapsed();
+    const int region_horizontal_padding = GetLayoutConstant(
+        is_collapsed ? LayoutConstant::kVerticalTabStripCollapsedPadding
+                     : LayoutConstant::kVerticalTabStripUncollapsedPadding);
     int available_width =
-        size_bounds.width().value() -
-        GetLayoutConstant(VERTICAL_TAB_STRIP_HORIZONTAL_PADDING);
+        size_bounds.width().value() - region_horizontal_padding;
 
     children_on_row =
         std::min(children_on_row,

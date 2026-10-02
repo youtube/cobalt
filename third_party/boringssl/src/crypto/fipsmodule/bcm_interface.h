@@ -30,9 +30,7 @@
 // Over time, calls from libcrypto to BCM will all move to this header
 // and the separation will become more meaningful.
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+BSSL_NAMESPACE_BEGIN
 
 // Enumerated types for return values from bcm functions, both infallible
 // and fallible functions. Two success values are used to correspond to the
@@ -939,9 +937,7 @@ bcm_status BCM_aes_set_encrypt_key(const uint8_t *key, unsigned bits,
 bcm_status BCM_aes_set_decrypt_key(const uint8_t *key, unsigned bits,
                                    AES_KEY *aeskey);
 
+BSSL_NAMESPACE_END
 
-#if defined(__cplusplus)
-}  // extern C
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_BCM_INTERFACE_H

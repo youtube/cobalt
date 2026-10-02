@@ -126,7 +126,7 @@ static int x509_object_cmp_sk(const X509_OBJECT *const *a,
   return x509_object_cmp(*a, *b);
 }
 
-X509_STORE *X509_STORE_new(void) {
+X509_STORE *X509_STORE_new() {
   X509_STORE *ret =
       reinterpret_cast<X509_STORE *>(OPENSSL_zalloc(sizeof(X509_STORE)));
   if (ret == nullptr) {
@@ -256,7 +256,7 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x) {
   return x509_store_add(ctx, x, /*is_crl=*/1);
 }
 
-X509_OBJECT *X509_OBJECT_new(void) {
+X509_OBJECT *X509_OBJECT_new() {
   return reinterpret_cast<X509_OBJECT *>(OPENSSL_zalloc(sizeof(X509_OBJECT)));
 }
 

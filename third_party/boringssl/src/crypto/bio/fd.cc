@@ -168,7 +168,7 @@ static const BIO_METHOD methods_fdp = {
     fd_new,      fd_free,           /*callback_ctrl=*/nullptr,
 };
 
-const BIO_METHOD *BIO_s_fd(void) { return &methods_fdp; }
+const BIO_METHOD *BIO_s_fd() { return &methods_fdp; }
 
 #endif  // OPENSSL_NO_POSIX_IO
 

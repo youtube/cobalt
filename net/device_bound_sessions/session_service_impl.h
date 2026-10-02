@@ -107,6 +107,9 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void GetAllSessionsAsync(
       base::OnceCallback<void(const std::vector<SessionKey>&)> callback)
       override;
+  void GetAllSessionDisplaysAsync(
+      base::OnceCallback<void(const std::vector<SessionDisplay>&)> callback)
+      override;
   void DeleteSessionAndNotify(
       DeletionReason reason,
       const SessionKey& session_key,
@@ -122,6 +125,8 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   base::ScopedClosureRunner AddObserver(
       const GURL& url,
       base::RepeatingCallback<void(const SessionAccess&)> callback) override;
+  base::CallbackListSubscription AddEventObserver(
+      OnEventCallback callback) override;
   const Session* GetSession(const SessionKey& session_key) const override;
   void AddSession(
       const SchemefulSite& site,
@@ -180,6 +185,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void OnRegistrationComplete(OnAccessCallback on_access_callback,
                               bool is_google_subdomain_for_histograms,
                               bool is_federated_registration_for_histograms,
+                              SchemefulSite site,
                               RegistrationFetcher* fetcher,
                               RegistrationResult result);
   void OnRefreshRequestCompletion(RefreshTrigger trigger,
@@ -200,6 +206,8 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void UnblockDeferredRequests(
       const SessionKey& session_key,
       RefreshResult result,
+      std::optional<SessionError::ErrorType> fetch_error = std::nullopt,
+      std::optional<SessionDisplay> new_session_display = std::nullopt,
       std::optional<bool> is_proactive_refresh_candidate = std::nullopt,
       std::optional<base::TimeDelta> minimum_proactive_refresh_threshold =
           std::nullopt);
@@ -233,7 +241,8 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   SessionError::ErrorType OnRegistrationCompleteInternal(
       OnAccessCallback on_access_callback,
       RegistrationFetcher* fetcher,
-      RegistrationResult result);
+      RegistrationResult result,
+      SchemefulSite site);
 
   // Helper function encapsulating the processing of refresh
   SessionError::ErrorType OnRefreshRequestCompletionInternal(
@@ -308,6 +317,12 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
           key_or_error);
 
+  base::expected<std::unique_ptr<Session>, SessionError::ErrorType>
+  CreateSessionFromUnexportableKey(
+      SessionParams params,
+      unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
+          key_or_error);
+
   // If `minimum_cookie_lifetime` is small enough and there are no
   // pending refreshes for `session_key`, start a proactive refresh.
   void MaybeStartProactiveRefresh(
@@ -325,6 +340,16 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       const NetLogWithSource& net_log,
       const std::optional<url::Origin>& original_request_initiator,
       base::expected<Session*, SessionError> federated_provider_session);
+
+  ChallengeResult SetChallengeForBoundSessionInternal(
+      OnAccessCallback on_access_callback,
+      DbscRequest& request,
+      const FirstPartySetMetadata& first_party_set_metadata,
+      const SessionChallengeParam& param);
+
+  // Helper to notify event listeners about an event only if they exist.
+  void NotifyIfEventCallbackListeners(
+      base::FunctionRef<SessionEvent()> event_creator);
 
   // Whether we are waiting on the initial load of saved sessions to
   // complete.
@@ -353,6 +378,9 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   // All observers of sessions.
   std::map<net::SchemefulSite, ObserverSet> observers_by_site_;
+
+  // Observers for DBSC events. Used for DevTools.
+  base::RepeatingCallbackList<void(const SessionEvent&)> event_callbacks_;
 
   // Per-site session refresh quota. In order to be robust across
   // session parameter changes, we enforce refresh quota for a site.

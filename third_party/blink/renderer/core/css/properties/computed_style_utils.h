@@ -168,6 +168,8 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForGridPosition(const GridPosition&);
   static CSSValue* ValueForItemTolerance(const ItemTolerance&,
                                          const ComputedStyle&);
+  static CSSValue* ValueForGridLanesDirection(const GridLanesDirection&,
+                                              const ComputedStyle&);
   static gfx::SizeF UsedBoxSize(const LayoutObject&);
   static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecorationLine);
   static CSSValue* ValueForTextDecorationStyle(ETextDecorationStyle);
@@ -217,7 +219,7 @@ class CORE_EXPORT ComputedStyleUtils {
 
   static CSSValue* ValueForTimelineInset(const TimelineInset&,
                                          const ComputedStyle&);
-  static CSSValue* SingleValueForTimelineShorthand(const ScopedCSSName* name,
+  static CSSValue* SingleValueForTimelineShorthand(const AtomicString& name,
                                                    TimelineAxis,
                                                    std::optional<TimelineInset>,
                                                    const ComputedStyle&);
@@ -225,7 +227,7 @@ class CORE_EXPORT ComputedStyleUtils {
       const TimelineOffsetOrAuto& offset,
       const ComputedStyle& style,
       const Length& default_offset);
-  static CSSValue* ValueForTimelineTriggerExitRangeList(
+  static CSSValue* ValueForTimelineTriggerActiveRangeList(
       const Vector<TimelineOffsetOrAuto>& range_list,
       const ComputedStyle& style,
       const Length& default_offset);
@@ -233,16 +235,16 @@ class CORE_EXPORT ComputedStyleUtils {
       const EAnimationTriggerBehavior);
   static CSSValue* ValueForAnimationTriggerBehaviorList(
       const Vector<EAnimationTriggerBehavior>& behavior_list);
-  static CSSValue* ValueForTimelineTriggerRangeStartList(
+  static CSSValue* ValueForTimelineTriggerEntryRangeStartList(
       const CSSAnimationData* animation_data,
       const ComputedStyle& style);
-  static CSSValue* ValueForTimelineTriggerRangeEndList(
+  static CSSValue* ValueForTimelineTriggerEntryRangeEndList(
       const CSSAnimationData* animation_data,
       const ComputedStyle& style);
-  static CSSValue* ValueForTimelineTriggerExitRangeStartList(
+  static CSSValue* ValueForTimelineTriggerActiveRangeStartList(
       const CSSAnimationData* animation_data,
       const ComputedStyle& style);
-  static CSSValue* ValueForTimelineTriggerExitRangeEndList(
+  static CSSValue* ValueForTimelineTriggerActiveRangeEndList(
       const CSSAnimationData* animation_data,
       const ComputedStyle& style);
   static CSSValue* ValueForTimelineTriggerTimelineList(const CSSAnimationData*,
@@ -351,6 +353,14 @@ class CORE_EXPORT ComputedStyleUtils {
                                                   const LayoutObject*,
                                                   bool allow_visited_style,
                                                   CSSValuePhase value_phase);
+  static CSSValueList* ValuesForGapDecorationRuleEdgeInteriorInsetShorthand(
+      const StylePropertyShorthand&,
+      const ComputedStyle&,
+      const LayoutObject*,
+      bool allow_visited_style,
+      bool is_edge,
+      CSSValuePhase value_phase,
+      CSSGapDecorationPropertyDirection direction);
   static CSSValueList* ValuesForGapDecorationRuleInsetShorthand(
       const StylePropertyShorthand&,
       const ComputedStyle&,
@@ -386,6 +396,14 @@ class CORE_EXPORT ComputedStyleUtils {
                                                   bool allow_visited_style,
                                                   CSSValuePhase value_phase);
   static CSSValueList* ValuesForGridTemplateShorthand(
+      const StylePropertyShorthand&,
+      const ComputedStyle&,
+      const LayoutObject*,
+      bool allow_visited_style,
+      CSSValuePhase value_phase);
+
+  static const CSSValue*
+  ValuesForBidirectionalGapRuleEdgeInteriorInsetShorthand(
       const StylePropertyShorthand&,
       const ComputedStyle&,
       const LayoutObject*,

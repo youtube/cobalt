@@ -63,7 +63,9 @@ cc_library(
     deps = [
         ":quiche_core",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -80,6 +82,7 @@ cc_library(
         ":quiche_core",
         "@boringssl//:crypto",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -121,7 +124,6 @@ cc_library(
     srcs = quiche_core_srcs + default_platform_impl_srcs,
     hdrs = quiche_core_hdrs + default_platform_impl_hdrs,
     includes = ["common/platform/default"],
-    textual_hdrs = ["http2/hpack/hpack_static_table_entries.inc"],
     deps = [
         ":quiche_flags_list",
         ":quiche_protobufs_cc_proto",
@@ -155,6 +157,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
@@ -219,6 +222,7 @@ cc_library(
     hdrs = quiche_test_support_hdrs + default_platform_impl_test_support_hdrs,
     includes = ["common/platform/default"],
     deps = [
+        ":balsa",
         ":binary_http",
         ":quiche_core",
         ":quiche_protobufs_testonly_cc_proto",
@@ -234,6 +238,7 @@ cc_library(
         "@com_google_absl//absl/flags:usage",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:cord",
@@ -314,6 +319,7 @@ test_suite_from_source_list(
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:node_hash_map",
@@ -324,6 +330,7 @@ test_suite_from_source_list(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
@@ -601,6 +608,59 @@ cc_binary(
         ":masque_support",
         ":quiche_core",
         ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "masque_tcp_server",
+    srcs = ["quic/masque/masque_tcp_server_bin.cc"],
+    deps = [
+        ":binary_http",
+        ":io_tool_support",
+        ":masque_support",
+        ":oblivious_http",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@boringssl//:ssl",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "masque_tcp_client",
+    srcs = ["quic/masque/masque_tcp_client_bin.cc"],
+    deps = [
+        ":io_tool_support",
+        ":masque_support",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@boringssl//:ssl",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "masque_ohttp_client",
+    srcs = ["quic/masque/masque_ohttp_client_bin.cc"],
+    deps = [
+        ":binary_http",
+        ":io_tool_support",
+        ":masque_support",
+        ":oblivious_http",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

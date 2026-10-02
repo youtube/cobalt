@@ -22,7 +22,7 @@ namespace webrtc {
 class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder();
-  ~MockAudioDecoder();
+  ~MockAudioDecoder() override;
   MOCK_METHOD(void, Die, ());
   MOCK_METHOD(int,
               DecodeInternal,

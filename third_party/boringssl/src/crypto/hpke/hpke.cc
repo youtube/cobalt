@@ -36,6 +36,8 @@
 #include "../internal.h"
 
 
+using namespace bssl;
+
 // This file implements RFC 9180.
 
 #define MAX_SEED_LEN XWING_SEED_LEN
@@ -75,12 +77,12 @@ struct evp_hpke_kem_st {
 struct evp_hpke_kdf_st {
   uint16_t id;
   // We only support HKDF-based KDFs.
-  const EVP_MD *(*hkdf_md_func)(void);
+  const EVP_MD *(*hkdf_md_func)();
 };
 
 struct evp_hpke_aead_st {
   uint16_t id;
-  const EVP_AEAD *(*aead_func)(void);
+  const EVP_AEAD *(*aead_func)();
 };
 
 
@@ -299,7 +301,7 @@ static int x25519_auth_decap(const EVP_HPKE_KEY *key,
   return 1;
 }
 
-const EVP_HPKE_KEM *EVP_hpke_x25519_hkdf_sha256(void) {
+const EVP_HPKE_KEM *EVP_hpke_x25519_hkdf_sha256() {
   static const EVP_HPKE_KEM kKEM = {
       /*id=*/EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
       /*public_key_len=*/X25519_PUBLIC_VALUE_LEN,
@@ -587,7 +589,7 @@ static int p256_auth_decap(const EVP_HPKE_KEY *key, uint8_t *out_shared_secret,
   return 1;
 }
 
-const EVP_HPKE_KEM *EVP_hpke_p256_hkdf_sha256(void) {
+const EVP_HPKE_KEM *EVP_hpke_p256_hkdf_sha256() {
   static const EVP_HPKE_KEM kKEM = {
       /*id=*/EVP_HPKE_DHKEM_P256_HKDF_SHA256,
       /*public_key_len=*/P256_PUBLIC_KEY_LEN,
@@ -701,7 +703,7 @@ static int xwing_decap(const EVP_HPKE_KEY *key, uint8_t *out_shared_secret,
   return 1;
 }
 
-const EVP_HPKE_KEM *EVP_hpke_xwing(void) {
+const EVP_HPKE_KEM *EVP_hpke_xwing() {
   static const EVP_HPKE_KEM kKEM = {
       /*id=*/EVP_HPKE_XWING,
       /*public_key_len=*/XWING_PUBLIC_KEY_LEN,
@@ -871,8 +873,8 @@ static const EVP_HPKE_KEM kMLKEM = {
 
 }  // namespace
 
-const EVP_HPKE_KEM *EVP_hpke_mlkem768(void) { return &kMLKEM<MLKEM768HPKE>; }
-const EVP_HPKE_KEM *EVP_hpke_mlkem1024(void) { return &kMLKEM<MLKEM1024HPKE>; }
+const EVP_HPKE_KEM *EVP_hpke_mlkem768() { return &kMLKEM<MLKEM768HPKE>; }
+const EVP_HPKE_KEM *EVP_hpke_mlkem1024() { return &kMLKEM<MLKEM1024HPKE>; }
 
 uint16_t EVP_HPKE_KEM_id(const EVP_HPKE_KEM *kem) { return kem->id; }
 
@@ -895,7 +897,7 @@ void EVP_HPKE_KEY_cleanup(EVP_HPKE_KEY *key) {
   // future.
 }
 
-EVP_HPKE_KEY *EVP_HPKE_KEY_new(void) {
+EVP_HPKE_KEY *EVP_HPKE_KEY_new() {
   EVP_HPKE_KEY *key =
       reinterpret_cast<EVP_HPKE_KEY *>(OPENSSL_malloc(sizeof(EVP_HPKE_KEY)));
   if (key == nullptr) {
@@ -977,7 +979,7 @@ int EVP_HPKE_KEY_private_key(const EVP_HPKE_KEY *key, uint8_t *out,
 
 // Supported KDFs and AEADs.
 
-const EVP_HPKE_KDF *EVP_hpke_hkdf_sha256(void) {
+const EVP_HPKE_KDF *EVP_hpke_hkdf_sha256() {
   static const EVP_HPKE_KDF kKDF = {EVP_HPKE_HKDF_SHA256, &EVP_sha256};
   return &kKDF;
 }
@@ -988,19 +990,19 @@ const EVP_MD *EVP_HPKE_KDF_hkdf_md(const EVP_HPKE_KDF *kdf) {
   return kdf->hkdf_md_func();
 }
 
-const EVP_HPKE_AEAD *EVP_hpke_aes_128_gcm(void) {
+const EVP_HPKE_AEAD *EVP_hpke_aes_128_gcm() {
   static const EVP_HPKE_AEAD kAEAD = {EVP_HPKE_AES_128_GCM,
                                       &EVP_aead_aes_128_gcm};
   return &kAEAD;
 }
 
-const EVP_HPKE_AEAD *EVP_hpke_aes_256_gcm(void) {
+const EVP_HPKE_AEAD *EVP_hpke_aes_256_gcm() {
   static const EVP_HPKE_AEAD kAEAD = {EVP_HPKE_AES_256_GCM,
                                       &EVP_aead_aes_256_gcm};
   return &kAEAD;
 }
 
-const EVP_HPKE_AEAD *EVP_hpke_chacha20_poly1305(void) {
+const EVP_HPKE_AEAD *EVP_hpke_chacha20_poly1305() {
   static const EVP_HPKE_AEAD kAEAD = {EVP_HPKE_CHACHA20_POLY1305,
                                       &EVP_aead_chacha20_poly1305};
   return &kAEAD;
@@ -1121,7 +1123,7 @@ void EVP_HPKE_CTX_cleanup(EVP_HPKE_CTX *ctx) {
   EVP_AEAD_CTX_cleanup(&ctx->aead_ctx);
 }
 
-EVP_HPKE_CTX *EVP_HPKE_CTX_new(void) {
+EVP_HPKE_CTX *EVP_HPKE_CTX_new() {
   EVP_HPKE_CTX *ctx =
       reinterpret_cast<EVP_HPKE_CTX *>(OPENSSL_malloc(sizeof(EVP_HPKE_CTX)));
   if (ctx == nullptr) {

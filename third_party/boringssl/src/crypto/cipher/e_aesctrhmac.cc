@@ -26,6 +26,8 @@
 #include "../fipsmodule/cipher/internal.h"
 
 
+using namespace bssl;
+
 #define EVP_AEAD_AES_CTR_HMAC_SHA256_TAG_LEN SHA256_DIGEST_LENGTH
 #define EVP_AEAD_AES_CTR_HMAC_SHA256_NONCE_LEN 12
 
@@ -119,10 +121,12 @@ static void hmac_update_uint64(SHA256_CTX *sha256, uint64_t value) {
   SHA256_Update(sha256, bytes, sizeof(bytes));
 }
 
-static void hmac_calculate(
-    uint8_t out[SHA256_DIGEST_LENGTH], const SHA256_CTX *inner_init_state,
-    const SHA256_CTX *outer_init_state, bssl::Span<const CRYPTO_IVEC> aadvecs,
-    const uint8_t *nonce, bssl::Span<const CRYPTO_IOVEC> iovecs, bool encrypt) {
+static void hmac_calculate(uint8_t out[SHA256_DIGEST_LENGTH],
+                           const SHA256_CTX *inner_init_state,
+                           const SHA256_CTX *outer_init_state,
+                           Span<const CRYPTO_IVEC> aadvecs,
+                           const uint8_t *nonce,
+                           Span<const CRYPTO_IOVEC> iovecs, bool encrypt) {
   size_t ad_len = bssl::iovec::TotalLength(aadvecs);
   SHA256_CTX sha256;
   OPENSSL_memcpy(&sha256, inner_init_state, sizeof(sha256));
@@ -157,7 +161,7 @@ static void hmac_calculate(
 
 static void aead_aes_ctr_hmac_sha256_crypt(
     const struct aead_aes_ctr_hmac_sha256_ctx *aes_ctx,
-    bssl::Span<const CRYPTO_IOVEC> iovecs, const uint8_t *nonce) {
+    Span<const CRYPTO_IOVEC> iovecs, const uint8_t *nonce) {
   uint8_t partial_block_buffer[AES_BLOCK_SIZE];
   unsigned partial_block_offset = 0;
   OPENSSL_memset(partial_block_buffer, 0, sizeof(partial_block_buffer));
@@ -173,10 +177,12 @@ static void aead_aes_ctr_hmac_sha256_crypt(
   }
 }
 
-static int aead_aes_ctr_hmac_sha256_sealv(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const CRYPTO_IVEC> aadvecs) {
+static int aead_aes_ctr_hmac_sha256_sealv(const EVP_AEAD_CTX *ctx,
+                                          Span<const CRYPTO_IOVEC> iovecs,
+                                          Span<uint8_t> out_tag,
+                                          size_t *out_tag_len,
+                                          Span<const uint8_t> nonce,
+                                          Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_ctr_hmac_sha256_ctx *aes_ctx =
       (struct aead_aes_ctr_hmac_sha256_ctx *)&ctx->state;
   const uint64_t in_len_64 = bssl::iovec::TotalLength(iovecs);
@@ -203,16 +209,16 @@ static int aead_aes_ctr_hmac_sha256_sealv(
   hmac_calculate(hmac_result, &aes_ctx->inner_init_state,
                  &aes_ctx->outer_init_state, aadvecs, nonce.data(), iovecs,
                  /*encrypt=*/true);
-  CopyToPrefix(bssl::Span(hmac_result).first(ctx->tag_len), out_tag);
+  CopyToPrefix(Span(hmac_result).first(ctx->tag_len), out_tag);
   *out_tag_len = ctx->tag_len;
 
   return 1;
 }
 
 static int aead_aes_ctr_hmac_sha256_openv_detached(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const uint8_t> in_tag,
-    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+    const EVP_AEAD_CTX *ctx, Span<const CRYPTO_IOVEC> iovecs,
+    Span<const uint8_t> nonce, Span<const uint8_t> in_tag,
+    Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_ctr_hmac_sha256_ctx *aes_ctx =
       (struct aead_aes_ctr_hmac_sha256_ctx *)&ctx->state;
 
@@ -272,10 +278,10 @@ static const EVP_AEAD aead_aes_256_ctr_hmac_sha256 = {
     nullptr /* tag_len */,
 };
 
-const EVP_AEAD *EVP_aead_aes_128_ctr_hmac_sha256(void) {
+const EVP_AEAD *EVP_aead_aes_128_ctr_hmac_sha256() {
   return &aead_aes_128_ctr_hmac_sha256;
 }
 
-const EVP_AEAD *EVP_aead_aes_256_ctr_hmac_sha256(void) {
+const EVP_AEAD *EVP_aead_aes_256_ctr_hmac_sha256() {
   return &aead_aes_256_ctr_hmac_sha256;
 }

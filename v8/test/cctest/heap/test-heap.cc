@@ -52,14 +52,14 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
@@ -694,7 +694,7 @@ TEST(BytecodeArray) {
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
-  PageMetadata* evac_page = PageMetadata::FromHeapObject(*constant_pool);
+  NormalPage* evac_page = NormalPage::FromHeapObject(*constant_pool);
   heap::ForceEvacuationCandidate(evac_page);
   {
     // We need to invoke GC without stack, otherwise no compaction is performed.
@@ -4116,7 +4116,7 @@ TEST(LargeObjectSlotRecording) {
     heap::SimulateFullSpace(heap->old_space());
     IndirectHandle<FixedArray> lit =
         isolate->factory()->NewFixedArray(4, AllocationType::kOld);
-    PageMetadata* evac_page = PageMetadata::FromHeapObject(*lit);
+    NormalPage* evac_page = NormalPage::FromHeapObject(*lit);
     heap::ForceEvacuationCandidate(evac_page);
     old_location = *lit;
 
@@ -5189,7 +5189,7 @@ HEAP_TEST(Regress538257) {
          i++) {
       objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen,
                                                        AllocationType::kOld);
-      heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*objects[i]));
+      heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*objects[i]));
     }
     heap::SimulateFullSpace(old_space);
     heap::InvokeMajorGC(heap);
@@ -5267,7 +5267,7 @@ TEST(Regress388880) {
                          OMIT_TRANSITION)
           .ToHandleChecked();
 
-  size_t desired_offset = PageMetadata::kPageSize - map1->instance_size();
+  size_t desired_offset = NormalPage::kPageSize - map1->instance_size();
 
   // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
@@ -5282,7 +5282,7 @@ TEST(Regress388880) {
   o->set_raw_properties_or_hash(*factory->empty_fixed_array());
 
   // Ensure that the object allocated where we need it.
-  PageMetadata* page = PageMetadata::FromHeapObject(*o);
+  NormalPage* page = NormalPage::FromHeapObject(*o);
   CHECK_EQ(desired_offset, page->Offset(o->address()));
 
   // Now we have an object right at the end of the page.
@@ -5823,15 +5823,15 @@ HEAP_TEST(Regress589413) {
   // Fill the new space with byte arrays with elements looking like pointers.
   const int M = 256;
   Tagged<ByteArray> byte_array;
-  PageMetadata* young_page = nullptr;
+  NormalPage* young_page = nullptr;
   while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
              .To(&byte_array)) {
     // Only allocate objects on one young page as a rough estimate on
     // how much memory can be promoted into the old generation.
     // Otherwise we would crash when forcing promotion of all young
     // live objects.
-    if (!young_page) young_page = PageMetadata::FromHeapObject(byte_array);
-    if (PageMetadata::FromHeapObject(byte_array) != young_page) break;
+    if (!young_page) young_page = NormalPage::FromHeapObject(byte_array);
+    if (NormalPage::FromHeapObject(byte_array) != young_page) break;
 
     for (int j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
@@ -5855,14 +5855,14 @@ HEAP_TEST(Regress589413) {
     const int N = 0x3EEE;
 
     std::vector<Tagged<FixedArray>> arrays;
-    std::set<PageMetadata*> pages;
+    std::set<NormalPage*> pages;
     Tagged<FixedArray> array;
     // Fill all pages with fixed arrays.
     heap->set_force_oom(true);
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
       arrays.push_back(array);
-      pages.insert(PageMetadata::FromHeapObject(array));
+      pages.insert(NormalPage::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
     }
@@ -5873,7 +5873,7 @@ HEAP_TEST(Regress589413) {
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
       arrays.push_back(array);
-      pages.insert(PageMetadata::FromHeapObject(array));
+      pages.insert(NormalPage::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
       // Do not expand anymore.
@@ -5886,7 +5886,7 @@ HEAP_TEST(Regress589413) {
     {
       DirectHandle<HeapObject> ec_obj =
           factory->NewFixedArray(5000, AllocationType::kOld);
-      PageMetadata* ec_page = PageMetadata::FromHeapObject(*ec_obj);
+      NormalPage* ec_page = NormalPage::FromHeapObject(*ec_obj);
       heap::ForceEvacuationCandidate(ec_page);
       // Make all arrays point to evacuation candidate so that
       // slots are recorded for them.
@@ -5953,8 +5953,7 @@ TEST(Regress598319) {
 
   CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
-  LargePageMetadata* page =
-      LargePageMetadata::FromHeapObject(isolate, arr.get());
+  LargePage* page = LargePage::FromHeapObject(isolate, arr.get());
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state
@@ -6154,7 +6153,7 @@ TEST(Regress631969) {
       factory->NewStringFromStaticChars("123456789", AllocationType::kOld);
   Handle<String> s2 =
       factory->NewStringFromStaticChars("01234", AllocationType::kOld);
-  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*s1));
+  heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*s1));
 
   heap::SimulateIncrementalMarking(heap, false);
 
@@ -6213,7 +6212,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       isolate->factory()->NewFixedArray(100, AllocationType::kOld);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
-  PageMetadata* page = PageMetadata::FromAddress(start_address);
+  NormalPage* page = NormalPage::FromAddress(start_address);
   NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
   CHECK(marking_state->IsMarked(*array));
   CHECK(page->marking_bitmap()->AllBitsSetInRange(
@@ -6277,7 +6276,7 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
       isolate->factory()->NewFixedArray(100, AllocationType::kOld);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
+  NormalPage* page = NormalPage::FromHeapObject(*array);
   CHECK(page->Chunk()->IsBlackAllocatedPage());
   CHECK(heap->old_space()->Contains(*array));
 
@@ -6290,7 +6289,7 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   CHECK(page->Chunk()->IsBlackAllocatedPage());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 
   heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
@@ -6298,10 +6297,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   // Allocate the large fixed array that will be trimmed later.
   array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*array));
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!PageMetadata::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 }
 
 TEST(Regress618958) {
@@ -6338,8 +6337,8 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  BasePage* metadata = chunk->Metadata(isolate);
+  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6351,8 +6350,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6371,8 +6369,8 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  BasePage* metadata = chunk->Metadata(isolate);
+  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6384,8 +6382,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6406,7 +6403,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
           isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE,
-               MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+               MutablePage::cast(chunk->Metadata())->owner_identity());
       CHECK(chunk->IsToPage());
     }
   }
@@ -6429,31 +6426,28 @@ TEST(UncommitUnusedLargeObjectMemory) {
   DirectHandle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK_EQ(MutablePageMetadata::cast(chunk->Metadata())->owner_identity(),
-           LO_SPACE);
+  CHECK_EQ(MutablePage::cast(chunk->Metadata())->owner_identity(), LO_SPACE);
 
   intptr_t size_before = array->Size();
   size_t committed_memory_before =
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory();
+      MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory();
 
   array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);
-  CHECK(
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory() <
-      committed_memory_before);
+  CHECK(MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory() <
+        committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
-  CHECK_EQ(
-      shrinked_size,
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory());
+  CHECK_EQ(shrinked_size,
+           MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory());
 }
 
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MutablePageMetadata::FromHeapObject(CcTest::i_isolate(), obj);
+  auto chunk = MutablePage::FromHeapObject(CcTest::i_isolate(), obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -6593,7 +6587,7 @@ TEST(RememberedSet_OldToOld) {
       factory->NewFixedArray(100, AllocationType::kOld);
     }
 
-    heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*arr));
+    heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*arr));
     prev_location = *arr;
     arr_global.Reset(CcTest::isolate(), v8::Utils::FixedArrayToLocal(arr));
   }
@@ -6620,18 +6614,17 @@ TEST(RememberedSetRemoveRange) {
   Isolate* isolate = heap->isolate();
 
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(
-      PageMetadata::kPageSize / kTaggedSize, AllocationType::kOld);
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(isolate, *array);
+      NormalPage::kPageSize / kTaggedSize, AllocationType::kOld);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate, *array);
   CHECK_EQ(chunk->owner_identity(), LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
   std::map<Address, bool> slots;
   slots[start + 0] = true;
   slots[start + kTaggedSize] = true;
-  slots[start + PageMetadata::kPageSize - kTaggedSize] = true;
-  slots[start + PageMetadata::kPageSize] = true;
-  slots[start + PageMetadata::kPageSize + kTaggedSize] = true;
+  slots[start + NormalPage::kPageSize - kTaggedSize] = true;
+  slots[start + NormalPage::kPageSize] = true;
+  slots[start + NormalPage::kPageSize + kTaggedSize] = true;
   slots[chunk->area_end() - kTaggedSize] = true;
 
   for (auto x : slots) {
@@ -6659,10 +6652,10 @@ TEST(RememberedSetRemoveRange) {
       SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
-                                         start + PageMetadata::kPageSize,
+                                         start + NormalPage::kPageSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kTaggedSize] = false;
-  slots[start + PageMetadata::kPageSize - kTaggedSize] = false;
+  slots[start + NormalPage::kPageSize - kTaggedSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk,
       [&slots](MaybeObjectSlot slot) {
@@ -6672,9 +6665,9 @@ TEST(RememberedSetRemoveRange) {
       SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, start, start + PageMetadata::kPageSize + kTaggedSize,
+      chunk, start, start + NormalPage::kPageSize + kTaggedSize,
       SlotSet::FREE_EMPTY_BUCKETS);
-  slots[start + PageMetadata::kPageSize] = false;
+  slots[start + NormalPage::kPageSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk,
       [&slots](MaybeObjectSlot slot) {
@@ -6872,7 +6865,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
 
     HandleScope scope(i_isolate);
     while (heap->OldGenerationSizeOfObjects() <
-           heap->MaxOldGenerationSize() * 0.9) {
+           heap->MaxOldGenerationSize() * 0.95) {
       factory->NewFixedArray(100, AllocationType::kOld);
     }
     {
@@ -6999,7 +6992,7 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
 
 size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
   // Size to capacity factor.
-  double factor = PageMetadata::kPageSize * 1.0 /
+  double factor = NormalPage::kPageSize * 1.0 /
                   MemoryChunkLayout::AllocatableMemoryInDataPage();
   // Some tables (e.g. deoptimization table) are allocated directly with the
   // memory allocator. Allow some slack to account for them.
@@ -7192,7 +7185,7 @@ TEST(Regress8617) {
       "obj.method = foo;"
       "obj;");
   // Step 3. Make sure that foo moves during Mark-Compact.
-  PageMetadata* ec_page = PageMetadata::FromAddress((*foo).ptr());
+  NormalPage* ec_page = NormalPage::FromAddress((*foo).ptr());
   heap::ForceEvacuationCandidate(ec_page);
   // Step 4. Start incremental marking.
   heap::SimulateIncrementalMarking(heap, false);
@@ -7259,17 +7252,17 @@ TEST(CodeObjectRegistry) {
     DirectHandle<InstructionStream> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
 
-    CHECK_EQ(MutablePageMetadata::FromHeapObject(isolate, *code1),
-             MutablePageMetadata::FromHeapObject(isolate, *code2));
-    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
+    CHECK_EQ(MutablePage::FromHeapObject(isolate, *code1),
+             MutablePage::FromHeapObject(isolate, *code2));
+    CHECK(MutablePage::FromHeapObject(isolate, *code1)
               ->Contains(code1->address()));
-    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code2)
+    CHECK(MutablePage::FromHeapObject(isolate, *code2)
               ->Contains(code2->address()));
   }
   heap::InvokeMemoryReducingMajorGCs(heap);
-  CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
-            ->Contains(code1->address()));
-  CHECK(MutablePageMetadata::FromAddress(isolate, code2_address)
+  CHECK(
+      MutablePage::FromHeapObject(isolate, *code1)->Contains(code1->address()));
+  CHECK(MutablePage::FromAddress(isolate, code2_address)
             ->Contains(code2_address));
 }
 

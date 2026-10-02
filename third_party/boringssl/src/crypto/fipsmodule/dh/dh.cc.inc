@@ -29,7 +29,9 @@
 #include "internal.h"
 
 
-DH *DH_new(void) {
+using namespace bssl;
+
+DH *DH_new() {
   DH *dh = reinterpret_cast<DH *>(OPENSSL_zalloc(sizeof(DH)));
   if (dh == nullptr) {
     return nullptr;
@@ -152,7 +154,7 @@ int DH_generate_key(DH *dh) {
   bool generate_new_key = false;
   BIGNUM *pub_key = nullptr, *priv_key = nullptr;
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     goto err;
   }
@@ -203,7 +205,7 @@ int DH_generate_key(DH *dh) {
       // clamp |dh->priv_length| before invoking the algorithm.
 
       // Compute M = min(2^N, q).
-      bssl::UniquePtr<BIGNUM> priv_key_limit(BN_new());
+      UniquePtr<BIGNUM> priv_key_limit(BN_new());
       if (priv_key_limit == nullptr) {
         goto err;
       }
@@ -266,7 +268,7 @@ static int dh_compute_key(DH *dh, BIGNUM *out_shared_key,
     return 0;
   }
 
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *p_minus_1 = BN_CTX_get(ctx);
   if (!p_minus_1 ||
       !BN_MONT_CTX_set_locked(&dh->method_mont_p, &dh->method_mont_p_lock,
@@ -291,13 +293,13 @@ static int dh_compute_key(DH *dh, BIGNUM *out_shared_key,
   return 1;
 }
 
-int dh_compute_key_padded_no_self_test(unsigned char *out,
-                                       const BIGNUM *peers_key, DH *dh) {
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+int bssl::dh_compute_key_padded_no_self_test(unsigned char *out,
+                                             const BIGNUM *peers_key, DH *dh) {
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return -1;
   }
-  bssl::BN_CTXScope scope(ctx.get());
+  BN_CTXScope scope(ctx.get());
   int dh_size = DH_size(dh);
   BIGNUM *shared_key = BN_CTX_get(ctx.get());
   if (shared_key == nullptr ||
@@ -317,11 +319,11 @@ int DH_compute_key_padded(unsigned char *out, const BIGNUM *peers_key, DH *dh) {
 int DH_compute_key(unsigned char *out, const BIGNUM *peers_key, DH *dh) {
   boringssl_ensure_ffdh_self_test();
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return -1;
   }
-  bssl::BN_CTXScope scope(ctx.get());
+  BN_CTXScope scope(ctx.get());
   BIGNUM *shared_key = BN_CTX_get(ctx.get());
   if (shared_key == nullptr ||
       !dh_compute_key(dh, shared_key, peers_key, ctx.get())) {
@@ -379,7 +381,7 @@ int DH_up_ref(DH *dh) {
   return 1;
 }
 
-DH *DH_get_rfc7919_2048(void) {
+DH *DH_get_rfc7919_2048() {
   // This is the prime from https://tools.ietf.org/html/rfc7919#appendix-A.1,
   // which is specifically approved for FIPS in appendix D of SP 800-56Ar3.
   static const BN_ULONG kFFDHE2048Data[] = {
@@ -401,10 +403,10 @@ DH *DH_get_rfc7919_2048(void) {
       TOBN(0xadf85458, 0xa2bb4a9a), TOBN(0xffffffff, 0xffffffff),
   };
 
-  bssl::UniquePtr<BIGNUM> ffdhe2048_p(BN_new());
-  bssl::UniquePtr<BIGNUM> ffdhe2048_q(BN_new());
-  bssl::UniquePtr<BIGNUM> ffdhe2048_g(BN_new());
-  bssl::UniquePtr<DH> dh(DH_new());
+  UniquePtr<BIGNUM> ffdhe2048_p(BN_new());
+  UniquePtr<BIGNUM> ffdhe2048_q(BN_new());
+  UniquePtr<BIGNUM> ffdhe2048_g(BN_new());
+  UniquePtr<DH> dh(DH_new());
   if (!ffdhe2048_p || !ffdhe2048_q || !ffdhe2048_g || !dh) {
     return nullptr;
   }

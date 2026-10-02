@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -236,9 +238,18 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
     virtual absl::Status OnTrailersDone() = 0;
   };
 
-  explicit IndeterminateLengthDecoder(
-      MessageSectionHandler& message_section_handler)
-      : message_section_handler_(message_section_handler) {}
+  // Creates a new IndeterminateLengthDecoder. Does not take ownership of
+  // `message_section_handler`, which must refer to a valid handler that
+  // outlives this decoder.
+  static absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> Create(
+      MessageSectionHandler* absl_nonnull message_section_handler
+          ABSL_ATTRIBUTE_LIFETIME_BOUND) {
+    if (message_section_handler == nullptr) {
+      return absl::InvalidArgumentError("MessageSectionHandler is null");
+    }
+    return BinaryHttpRequest::IndeterminateLengthDecoder(
+        message_section_handler);
+  }
 
   // Decodes an Indeterminate-Length BHTTP request. As the caller receives
   // portions of the request, the caller can call this method with the request
@@ -254,40 +265,25 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   absl::Status Decode(absl::string_view data, bool end_stream);
 
  private:
-  // Initializes the checkpoint with the provided data and any buffered data.
-  void InitializeCheckpoint(absl::string_view data);
+  explicit IndeterminateLengthDecoder(
+      MessageSectionHandler* absl_nonnull message_section_handler
+          ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : message_section_handler_(*message_section_handler) {}
   // Carries out the decode logic from the checkpoint. Returns
   // OutOfRangeError if there is not enough data to decode the current
   // section. When a section is fully decoded, the checkpoint is updated.
-  absl::Status DecodeCheckpointData(bool end_stream);
-  // Saves the checkpoint based on the current position of the reader.
-  void SaveCheckpoint(const QuicheDataReader& reader) {
-    checkpoint_view_ = reader.PeekRemainingPayload();
-  }
-  // Buffers the checkpoint.
-  void BufferCheckpoint() { buffer_ = std::string(checkpoint_view_); }
-  // Decodes a section 0 or more times until a content terminator is
-  // encountered.
-  absl::Status DecodeContentTerminatedSection(QuicheDataReader& reader);
+  absl::Status DecodeCheckpointData(bool end_stream,
+                                    absl::string_view& checkpoint);
 
+  // The handler to invoke when a section is decoded successfully. The
+  // handler can return an error if the decoded data cannot be processed
+  // successfully. Not owned.
   MessageSectionHandler& message_section_handler_;
   // Stores the data that could not be processed due to missing data.
   std::string buffer_;
-  // Tracks the remaining data to be processed or buffered.
-  // When decoding fails due to missing data, we buffer based on this
-  // checkpoint and return. When decoding succeeds, we update the checkpoint
-  // to not buffer the already processed data.
-  absl::string_view checkpoint_view_;
   // The current section that is being decoded.
   IndeterminateLengthMessageSection current_section_ =
       IndeterminateLengthMessageSection::kControlData;
-  // Upon initial entry of the body or trailer section, the message is assumed
-  // to be truncated. This will be set to `false` upon the detection of data,
-  // and the state remains consistent for the remainder of the section. This
-  // serves to differentiate between true truncation and an `end_stream`
-  // occurring after partial processing of the section's content but before
-  // its content terminator.
-  bool maybe_truncated_ = true;
 };
 
 // Provides encoding methods for an Indeterminate-Length BHTTP request. The
@@ -421,9 +417,13 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
 
  private:
   enum class IndeterminateLengthMessageSection {
-    kInformationalResponseOrHeader,
+    kFramingIndicator,
+    kInformationalOrFinalStatusCode,
+    kInformationalResponseHeader,
+    kFinalResponseHeader,
     kBody,
     kTrailer,
+    kPadding,
     kEnd,
   };
   // Returns Binary Http known length request formatted response.
@@ -463,8 +463,7 @@ class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
       IndeterminateLengthMessageSection section) const;
 
   IndeterminateLengthMessageSection current_section_ =
-      IndeterminateLengthMessageSection::kInformationalResponseOrHeader;
-  bool framing_indicator_encoded_ = false;
+      IndeterminateLengthMessageSection::kFramingIndicator;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpResponse& msg, std::ostream* os);

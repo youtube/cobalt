@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "base/check.h"
-#include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -350,12 +349,12 @@ const RenderFrameHostProxy& FrameNodeImpl::GetRenderFrameHostProxy() const {
   return render_frame_host_proxy_;
 }
 
-base::ByteCount FrameNodeImpl::GetResidentSetEstimate() const {
+base::ByteSize FrameNodeImpl::GetResidentSetEstimate() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return resident_set_estimate_;
 }
 
-base::ByteCount FrameNodeImpl::GetPrivateFootprintEstimate() const {
+base::ByteSize FrameNodeImpl::GetPrivateFootprintEstimate() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return private_footprint_estimate_;
 }
@@ -573,13 +572,13 @@ void FrameNodeImpl::SetIsImportant(bool is_important) {
   is_important_.SetAndMaybeNotify(this, is_important);
 }
 
-void FrameNodeImpl::SetResidentSetEstimate(base::ByteCount rss_estimate) {
+void FrameNodeImpl::SetResidentSetEstimate(base::ByteSize rss_estimate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   resident_set_estimate_ = rss_estimate;
 }
 
 void FrameNodeImpl::SetPrivateFootprintEstimate(
-    base::ByteCount private_footprint_estimate) {
+    base::ByteSize private_footprint_estimate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   private_footprint_estimate_ = private_footprint_estimate;
 }

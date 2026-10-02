@@ -22,9 +22,11 @@
 
 #include <CommonCrypto/CommonRandom.h>
 
-void CRYPTO_init_sysrand(void) {}
+using namespace bssl;
 
-void CRYPTO_sysrand(uint8_t *out, size_t requested) {
+void bssl::CRYPTO_init_sysrand() {}
+
+void bssl::CRYPTO_sysrand(uint8_t *out, size_t requested) {
   if (CCRandomGenerateBytes(out, requested) != kCCSuccess) {
     abort();
   }

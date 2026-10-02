@@ -408,7 +408,7 @@ static const BIO_METHOD methods_biop = {
     /*callback_ctrl=*/nullptr,
 };
 
-static const BIO_METHOD *bio_s_bio(void) { return &methods_biop; }
+static const BIO_METHOD *bio_s_bio() { return &methods_biop; }
 
 int BIO_new_bio_pair(BIO **bio1_p, size_t writebuf1_len, BIO **bio2_p,
                      size_t writebuf2_len) {

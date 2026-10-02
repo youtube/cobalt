@@ -434,7 +434,7 @@ TEST_P(PeerConnectionIntegrationTest,
   FakePeriodicVideoSource::Config config;
   config.width = 1280;
   config.height = 720;
-  config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
+  config.timestamp_offset = env_.clock().CurrentTime();
   caller()->AddTrack(caller()->CreateLocalVideoTrackWithConfig(config));
   callee()->AddTrack(callee()->CreateLocalVideoTrackWithConfig(config));
 
@@ -4976,6 +4976,67 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
       }
     }
   }
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       OfferAnswerWithAddTrackAndTweak) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  scoped_refptr<VideoTrackInterface> caller_track =
+      caller()->CreateLocalVideoTrack();
+  caller()->AddTrack(caller_track);
+  ASSERT_TRUE(caller()
+                  ->pc()
+                  ->GetTransceivers()[0]
+                  ->SetDirectionWithError(RtpTransceiverDirection::kSendOnly)
+                  .ok());
+  RtpTransceiverInit recvonly_init;
+  recvonly_init.direction = RtpTransceiverDirection::kRecvOnly;
+  ASSERT_TRUE(
+      caller()->pc()->AddTransceiver(MediaType::VIDEO, recvonly_init).ok());
+
+  scoped_refptr<VideoTrackInterface> callee_track =
+      callee()->CreateLocalVideoTrack();
+  callee()->AddTrack(callee_track);
+  auto callee_transceiver = callee()->pc()->GetTransceivers()[0];
+  callee_transceiver->SetDirectionWithError(RtpTransceiverDirection::kSendOnly);
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(caller()->pc()->GetTransceivers().size(), Eq(2));
+  EXPECT_THAT(callee()->pc()->GetTransceivers().size(), Eq(2));
+  EXPECT_TRUE(callee_transceiver->mid().has_value());
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       OfferAnswerWithAddTransceiver) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  scoped_refptr<VideoTrackInterface> caller_track =
+      caller()->CreateLocalVideoTrack();
+  RtpTransceiverInit sendonly_init;
+  sendonly_init.direction = RtpTransceiverDirection::kSendOnly;
+  ASSERT_TRUE(caller()->pc()->AddTransceiver(caller_track, sendonly_init).ok());
+  RtpTransceiverInit recvonly_init;
+  recvonly_init.direction = RtpTransceiverDirection::kRecvOnly;
+  ASSERT_TRUE(
+      caller()->pc()->AddTransceiver(MediaType::VIDEO, recvonly_init).ok());
+  scoped_refptr<VideoTrackInterface> callee_track =
+      callee()->CreateLocalVideoTrack();
+  auto receiver_video_transceiver =
+      callee()->pc()->AddTransceiver(callee_track, sendonly_init).MoveValue();
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  ASSERT_THAT(caller()->pc()->GetTransceivers().size(), Eq(2));
+  // Verify that the video-sending track has not gotten associated with
+  // a media section.
+  // This is likely not what we want. See this spec issue:
+  // https://github.com/rtcweb-wg/jsep/issues/1040
+  EXPECT_THAT(callee()->pc()->GetTransceivers().size(), Eq(3));
+  EXPECT_FALSE(receiver_video_transceiver->mid().has_value());
 }
 
 #ifdef WEBRTC_HAVE_SCTP

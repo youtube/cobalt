@@ -233,7 +233,7 @@ angle::Result InitImageHelper(DisplayVk *displayVk,
         displayVk, gl::TextureType::_2D, extents, vkFormat.getIntendedFormatID(),
         renderableFormatId, samples, usage, imageCreateFlags, vk::ImageAccess::Undefined, nullptr,
         gl::LevelIndex(0), 1, 1, isRobustResourceInitEnabled, hasProtectedContent,
-        vk::YcbcrConversionDesc{}, nullptr));
+        vk::TileMemory::Prohibited, vk::YcbcrConversionDesc{}, nullptr));
 
     return angle::Result::Continue;
 }
@@ -1168,11 +1168,31 @@ egl::Error WindowSurfaceVk::initialize(const egl::Display *display)
     return angle::ToEGL(result, EGL_BAD_SURFACE);
 }
 
+egl::Error WindowSurfaceVk::makeCurrent(const gl::Context *context)
+{
+    ContextVk *contextVk = vk::GetImpl(context);
+    // mDepthStencilImage is initialized at surface create time where there is no context
+    // information. So tileMemoryImages will not propagate to the rendering context. In order for
+    // tests to work, we need to propagate it to rendering context.
+    if (mDepthStencilImage.useTileMemory())
+    {
+        contextVk->getPerfCounters().tileMemoryImages++;
+    }
+    return egl::NoError();
+}
+
 egl::Error WindowSurfaceVk::unMakeCurrent(const gl::Context *context)
 {
     ContextVk *contextVk = vk::GetImpl(context);
 
     angle::Result result = contextVk->onSurfaceUnMakeCurrent(this);
+    if (mDepthStencilImage.useTileMemory())
+    {
+        contextVk->getPerfCounters().tileMemoryImages--;
+        // ContextVk::onSurfaceUnMakeCurrent must have submitted everything which means all tile
+        // images mus have been finalized
+        ASSERT(contextVk->isImageWithTileMemoryFinalized(&mDepthStencilImage));
+    }
 
     return angle::ToEGL(result, EGL_BAD_CURRENT_SURFACE);
 }
@@ -1599,12 +1619,6 @@ angle::Result WindowSurfaceVk::recreateSwapchain(vk::ErrorContext *context)
             vkDestroySwapchainKHR(context->getDevice(), mLastSwapchain, nullptr);
             mLastSwapchain = VK_NULL_HANDLE;
         }
-        // On Android, vkCreateSwapchainKHR destroys mLastSwapchain, which is incorrect.  Wait idle
-        // in that case as a workaround.
-        else if (context->getFeatures().waitIdleBeforeSwapchainRecreation.enabled)
-        {
-            ANGLE_TRY(finish(context));
-        }
     }
 
     // Save the handle since it is going to be updated in the createSwapChain call below.
@@ -1855,9 +1869,14 @@ angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
             dsUsage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
         }
 
+        // Try use tile memory for depth buffer since its content will be
+        // invalidated after swap.
+        vk::TileMemory tileMemoryPreference =
+            isSharedPresentMode() ? vk::TileMemory::Prohibited : vk::TileMemory::Preferred;
+
         ANGLE_TRY(mDepthStencilImage.init(context, gl::TextureType::_2D, vkExtents, dsFormat,
                                           samples, dsUsage, gl::LevelIndex(0), 1, 1, robustInit,
-                                          mState.hasProtectedContent()));
+                                          mState.hasProtectedContent(), tileMemoryPreference));
         ANGLE_TRY(mDepthStencilImage.initMemoryAndNonZeroFillIfNeeded(
             context, mState.hasProtectedContent(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             vk::MemoryAllocationType::SwapchainDepthStencilImage));
@@ -3709,6 +3728,32 @@ egl::Error WindowSurfaceVk::getCompressionRate(const egl::Display *display,
 
 void WindowSurfaceVk::onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message)
 {
+    if (message == angle::SubjectMessage::VkImageChanged)
+    {
+        const vk::ResourceUse &use = mDepthStencilImage.getResourceUse();
+
+        // Free all cached VkFramebuffers
+        if (isMultiSampled())
+        {
+            mRenderer->collectGarbage(use, &mFramebufferMS);
+        }
+
+        for (auto &image : mSwapchainImages)
+        {
+            if (mFramebufferFetchMode == vk::FramebufferFetchMode::Color)
+            {
+                mRenderer->collectGarbage(use, &image.fetchFramebuffer);
+            }
+            else
+            {
+                mRenderer->collectGarbage(use, &image.framebuffer);
+            }
+        }
+
+        // Release ImageViews
+        mDepthStencilImageViews.release(mRenderer, use);
+    }
+
     // Forward the notification to observing class that the staging buffer changed.
     onStateChange(angle::SubjectMessage::SubjectChanged);
 }

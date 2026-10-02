@@ -10,6 +10,17 @@
  * #include=sp-shared-style-lit cr-hidden-style-lit
  * #scheme=relative
  * #css_wrapper_metadata_end */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+:host #appFlexParent {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
 
 #lineFocus {
   position: absolute;
@@ -34,7 +45,7 @@
   margin: 0 8px;
   margin-bottom: var(--sp-card-block-padding);
   min-width: var(--container-min-width);
-  overflow: hidden;
+  overflow: auto;
   padding: 20px;
 }
 
@@ -113,7 +124,6 @@
   color: var(--foreground-color);
   font-family: var(--font-family);
   font-size: var(--font-size);
-  height:100%; /* Keeps content within containerParent */
   letter-spacing: var(--letter-spacing);
   line-height: var(--line-height);
   margin: 0 auto;
@@ -135,6 +145,7 @@
   display: flex;
   margin: 0 auto 16px auto;
   font-family: var(--font-family);
+  letter-spacing: var(--letter-spacing);
   --sp-empty-state-heading-font-size: calc(var(--font-size) * 1.2);
   --sp-empty-state-body-font-size: var(--font-size);
 

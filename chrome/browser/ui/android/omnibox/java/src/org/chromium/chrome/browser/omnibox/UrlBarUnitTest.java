@@ -204,6 +204,14 @@ public class UrlBarUnitTest {
         measureAndLayoutUrlBarForSize(URL_BAR_WIDTH, URL_BAR_HEIGHT);
     }
 
+    private KeyEvent keyEvent(int keyCode) {
+        return keyEvent(keyCode, 0);
+    }
+
+    private KeyEvent keyEvent(int keyCode, int metaState) {
+        return new KeyEvent(0, 0, KeyEvent.ACTION_DOWN, keyCode, 0, metaState);
+    }
+
     @Test
     public void testAutofillStructureReceivesFullURL() {
         mUrlBar.setTextForAutofillServices("https://www.google.com");
@@ -749,14 +757,6 @@ public class UrlBarUnitTest {
         for (int keyCode : keysToCheck) {
             var event = new KeyEvent(KeyEvent.ACTION_DOWN, keyCode);
 
-            // Pre-IME Key Down: passed only to IME.
-            doReturn(false).when(mUrlBar).super_onKeyPreIme(anyInt(), any());
-            assertFalse(mUrlBar.onKeyPreIme(keyCode, event));
-            verify(listener, never()).onKey(any(), anyInt(), any());
-            verify(mUrlBar).super_onKeyPreIme(keyCode, event);
-
-            clearInvocations(listener, mUrlBar);
-
             // Post-IME Key Down: consumed keys not passed to View.
             doReturn(true).when(listener).onKey(any(), anyInt(), any());
             assertTrue(mUrlBar.onKeyDown(keyCode, event));
@@ -865,6 +865,44 @@ public class UrlBarUnitTest {
     }
 
     @Test
+    public void onKeyPreIme_numpadEnterAlwaysPassedToClient() {
+        var listener = mock(View.OnKeyListener.class);
+        mUrlBar.setKeyDownListener(listener);
+        doReturn(true).when(listener).onKey(any(), anyInt(), any());
+
+        var testEvents =
+                List.of(
+                        keyEvent(KeyEvent.KEYCODE_NUMPAD_ENTER),
+                        keyEvent(KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.META_SHIFT_ON),
+                        keyEvent(KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.META_CTRL_ON));
+
+        for (var event : testEvents) {
+            assertTrue(mUrlBar.onKeyPreIme(event.getKeyCode(), event));
+            verify(listener).onKey(mUrlBar, event.getKeyCode(), event);
+            clearInvocations(listener);
+        }
+    }
+
+    @Test
+    public void onKeyPreIme_enterAlwaysPassedToIme() {
+        var listener = mock(View.OnKeyListener.class);
+        mUrlBar.setKeyDownListener(listener);
+
+        var testEvents =
+                List.of(
+                        keyEvent(KeyEvent.KEYCODE_ENTER),
+                        keyEvent(KeyEvent.KEYCODE_ENTER, KeyEvent.META_SHIFT_ON),
+                        keyEvent(KeyEvent.KEYCODE_ENTER, KeyEvent.META_CTRL_ON));
+
+        for (var event : testEvents) {
+            mUrlBar.onKeyPreIme(event.getKeyCode(), event);
+            verify(mUrlBar).super_onKeyPreIme(event.getKeyCode(), event);
+            verify(listener, never()).onKey(any(), anyInt(), any());
+            clearInvocations(mUrlBar);
+        }
+    }
+
+    @Test
     public void horizontalFadingEdge_followsScrollWhenNotFocused() {
         // By default we show up unfocused.
         mUrlBar.setScrollX(0);
@@ -920,10 +958,11 @@ public class UrlBarUnitTest {
      *
      * @param fontActualHeight the desired actual difference between top and the bottom pixel ever
      *     drawn by the font
-     * @param urlBarHeight the usable area of the UrlBar that will accommodate the text
      */
-    private float computeExpectedFontHeight(float fontActualHeight, int urlBarHeight) {
+    private float computeExpectedFontHeight(float fontActualHeight) {
         float lineHeightScaleFactor = LINE_HEIGHT_ELEGANT_FACTOR;
+        int urlBarHeight =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.location_bar_height);
         return FONT_HEIGHT_NOMINAL * (urlBarHeight / (fontActualHeight * lineHeightScaleFactor));
     }
 
@@ -936,7 +975,7 @@ public class UrlBarUnitTest {
         mUrlBar.enforceMaxTextHeight();
 
         assertEquals(
-                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_TALL, URL_BAR_HEIGHT),
+                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_TALL),
                 mUrlBar.getTextSize(),
                 MathUtils.EPSILON);
     }
@@ -950,7 +989,7 @@ public class UrlBarUnitTest {
         mUrlBar.enforceMaxTextHeight();
 
         assertEquals(
-                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_TALL, URL_BAR_HEIGHT - 20),
+                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_TALL),
                 mUrlBar.getTextSize(),
                 MathUtils.EPSILON);
     }
@@ -964,7 +1003,7 @@ public class UrlBarUnitTest {
         mUrlBar.enforceMaxTextHeight();
 
         assertEquals(
-                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_SHORT, URL_BAR_HEIGHT),
+                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_SHORT),
                 mUrlBar.getTextSize(),
                 MathUtils.EPSILON);
     }
@@ -978,34 +1017,9 @@ public class UrlBarUnitTest {
         mUrlBar.enforceMaxTextHeight();
 
         assertEquals(
-                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_SHORT, URL_BAR_HEIGHT - 20),
+                computeExpectedFontHeight(FONT_HEIGHT_ACTUAL_SHORT),
                 mUrlBar.getTextSize(),
                 MathUtils.EPSILON);
-    }
-
-    @Test
-    public void layout_adjustFontSizeWithFixedHeight() {
-        mUrlBar.setLayoutParams(new LayoutParams(123, 123));
-        mUrlBar.layout(0, 0, 123, 123);
-        verify(mUrlBar).post(mUrlBar.mEnforceMaxTextHeight);
-    }
-
-    @Test
-    public void layout_adjustFontSizeLayoutRequested() {
-        mUrlBar.setLayoutParams(new LayoutParams(123, 123));
-        mUrlBar.layout(0, 0, 123, 123);
-        verify(mUrlBar).post(mUrlBar.mEnforceMaxTextHeight);
-
-        mUrlBar.forceLayout();
-        mUrlBar.enforceMaxTextHeight();
-        verify(mUrlBar, times(2)).post(mUrlBar.mEnforceMaxTextHeight);
-    }
-
-    @Test
-    public void layout_fixedFontSizeWithWrappingHeight() {
-        mUrlBar.setLayoutParams(new LayoutParams(123, LayoutParams.WRAP_CONTENT));
-        mUrlBar.layout(0, 0, 123, 123);
-        verify(mUrlBar, never()).post(mUrlBar.mEnforceMaxTextHeight);
     }
 
     @Test

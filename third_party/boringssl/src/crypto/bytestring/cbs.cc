@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static int cbs_get(CBS *cbs, const uint8_t **p, size_t n) {
   if (cbs->len < n) {
     return 0;
@@ -760,7 +762,7 @@ int CBS_is_valid_asn1_relative_oid(const CBS *cbs) {
 
 char *CBS_asn1_relative_oid_to_text(const CBS *cbs) {
   CBS copy = *cbs;
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 32)) {
     return nullptr;
   }

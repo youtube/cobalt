@@ -45,6 +45,7 @@
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/span.h>
+#include <openssl/tls_prf.h>
 
 #include "../../../../crypto/fipsmodule/bcm_interface.h"
 #include "../../../../crypto/fipsmodule/ec/internal.h"
@@ -873,7 +874,7 @@ static bool GetConfig(const Span<const uint8_t> args[],
         ]
       }
     ])";
-  return write_reply({bssl::StringAsBytes(kConfig)});
+  return write_reply({StringAsBytes(kConfig)});
 }
 
 static bool Flush(const Span<const uint8_t> args[], ReplyCallback write_reply) {
@@ -1169,7 +1170,7 @@ static bool AEADSeal(const Span<const uint8_t> args[],
   Span<const uint8_t> nonce = args[3];
   Span<const uint8_t> ad = args[4];
 
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   if (!SetupFunc(ctx.get(), tag_len_span, key)) {
     return false;
   }
@@ -1200,7 +1201,7 @@ static bool AEADOpen(const Span<const uint8_t> args[],
   Span<const uint8_t> nonce = args[3];
   Span<const uint8_t> ad = args[4];
 
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   if (!SetupFunc(ctx.get(), tag_len_span, key)) {
     return false;
   }
@@ -1351,7 +1352,7 @@ static bool TDES(const Span<const uint8_t> args[], ReplyCallback write_reply) {
               static_cast<unsigned>(args[0].size()));
     return false;
   }
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
   if (!EVP_CipherInit_ex(ctx.get(), cipher, nullptr, args[0].data(), nullptr,
                          Encrypt ? 1 : 0) ||
       !EVP_CIPHER_CTX_set_padding(ctx.get(), 0)) {
@@ -1416,7 +1417,7 @@ static bool TDES_CBC(const Span<const uint8_t> args[],
 
   std::vector<uint8_t> result(input.size());
   std::vector<uint8_t> prev_result, prev_prev_result;
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
   if (!EVP_CipherInit_ex(ctx.get(), cipher, nullptr, args[0].data(), iv.data(),
                          Encrypt ? 1 : 0) ||
       !EVP_CIPHER_CTX_set_padding(ctx.get(), 0)) {
@@ -1608,7 +1609,7 @@ static UniquePtr<EC_KEY> ECKeyFromName(Span<const uint8_t> name) {
     return nullptr;
   }
 
-  return bssl::UniquePtr<EC_KEY>(EC_KEY_new_by_curve_name(nid));
+  return UniquePtr<EC_KEY>(EC_KEY_new_by_curve_name(nid));
 }
 
 static std::vector<uint8_t> BIGNUMBytes(const BIGNUM *bn) {
@@ -1620,8 +1621,8 @@ static std::vector<uint8_t> BIGNUMBytes(const BIGNUM *bn) {
 
 static std::pair<std::vector<uint8_t>, std::vector<uint8_t>> GetPublicKeyBytes(
     const EC_KEY *key) {
-  bssl::UniquePtr<BIGNUM> x(BN_new());
-  bssl::UniquePtr<BIGNUM> y(BN_new());
+  UniquePtr<BIGNUM> x(BN_new());
+  UniquePtr<BIGNUM> y(BN_new());
   if (!EC_POINT_get_affine_coordinates_GFp(EC_KEY_get0_group(key),
                                            EC_KEY_get0_public_key(key), x.get(),
                                            y.get(), /*ctx=*/nullptr)) {
@@ -1636,7 +1637,7 @@ static std::pair<std::vector<uint8_t>, std::vector<uint8_t>> GetPublicKeyBytes(
 
 static bool ECDSAKeyGen(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
-  bssl::UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
+  UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
   if (!key || !EC_KEY_generate_key_fips(key.get())) {
     return false;
   }
@@ -1658,13 +1659,13 @@ static UniquePtr<BIGNUM> BytesToBIGNUM(Span<const uint8_t> bytes) {
 
 static bool ECDSAKeyVer(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
-  bssl::UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
+  UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
   if (!key) {
     return false;
   }
 
-  bssl::UniquePtr<BIGNUM> x(BytesToBIGNUM(args[1]));
-  bssl::UniquePtr<BIGNUM> y(BytesToBIGNUM(args[2]));
+  UniquePtr<BIGNUM> x(BytesToBIGNUM(args[1]));
+  UniquePtr<BIGNUM> y(BytesToBIGNUM(args[2]));
 
   uint8_t reply[1];
   if (!EC_KEY_set_public_key_affine_coordinates(key.get(), x.get(), y.get()) ||
@@ -1697,8 +1698,8 @@ static const EVP_MD *HashFromName(Span<const uint8_t> name) {
 
 static bool ECDSASigGen(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
-  bssl::UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
-  bssl::UniquePtr<BIGNUM> d = BytesToBIGNUM(args[1]);
+  UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
+  UniquePtr<BIGNUM> d = BytesToBIGNUM(args[1]);
   const EVP_MD *hash = HashFromName(args[2]);
   uint8_t digest[EVP_MAX_MD_SIZE];
   unsigned digest_len;
@@ -1709,7 +1710,7 @@ static bool ECDSASigGen(const Span<const uint8_t> args[],
     return false;
   }
 
-  bssl::UniquePtr<ECDSA_SIG> sig(ECDSA_do_sign(digest, digest_len, key.get()));
+  UniquePtr<ECDSA_SIG> sig(ECDSA_do_sign(digest, digest_len, key.get()));
   if (!sig) {
     return false;
   }
@@ -1723,13 +1724,13 @@ static bool ECDSASigGen(const Span<const uint8_t> args[],
 
 static bool ECDSASigVer(const Span<const uint8_t> args[],
                         ReplyCallback write_reply) {
-  bssl::UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
+  UniquePtr<EC_KEY> key = ECKeyFromName(args[0]);
   const EVP_MD *hash = HashFromName(args[1]);
   auto msg = args[2];
-  bssl::UniquePtr<BIGNUM> x(BytesToBIGNUM(args[3]));
-  bssl::UniquePtr<BIGNUM> y(BytesToBIGNUM(args[4]));
-  bssl::UniquePtr<BIGNUM> r(BytesToBIGNUM(args[5]));
-  bssl::UniquePtr<BIGNUM> s(BytesToBIGNUM(args[6]));
+  UniquePtr<BIGNUM> x(BytesToBIGNUM(args[3]));
+  UniquePtr<BIGNUM> y(BytesToBIGNUM(args[4]));
+  UniquePtr<BIGNUM> r(BytesToBIGNUM(args[5]));
+  UniquePtr<BIGNUM> s(BytesToBIGNUM(args[6]));
   ECDSA_SIG sig;
   sig.r = r.get();
   sig.s = s.get();
@@ -1800,7 +1801,7 @@ static RSA *GetRSAKey(unsigned bits) {
     return it->second.get();
   }
 
-  bssl::UniquePtr<RSA> key(RSA_new());
+  UniquePtr<RSA> key(RSA_new());
   if (!RSA_generate_key_fips(key.get(), bits, nullptr)) {
     abort();
   }
@@ -1819,7 +1820,7 @@ static bool RSAKeyGen(const Span<const uint8_t> args[],
   }
   memcpy(&bits, args[0].data(), sizeof(bits));
 
-  bssl::UniquePtr<RSA> key(RSA_new());
+  UniquePtr<RSA> key(RSA_new());
   if (!RSA_generate_key_fips(key.get(), bits, nullptr)) {
     LOG_ERROR("RSA_generate_key_fips failed for modulus length %u.\n", bits);
     return false;
@@ -1888,7 +1889,7 @@ static bool RSASigVer(const Span<const uint8_t> args[],
 
   BIGNUM *n = BN_new();
   BIGNUM *e = BN_new();
-  bssl::UniquePtr<RSA> key(RSA_new());
+  UniquePtr<RSA> key(RSA_new());
   if (!BN_bin2bn(n_bytes.data(), n_bytes.size(), n) ||
       !BN_bin2bn(e_bytes.data(), e_bytes.size(), e) ||
       !RSA_set0_key(key.get(), n, e, /*d=*/nullptr)) {
@@ -1920,7 +1921,7 @@ static bool TLSKDF(const Span<const uint8_t> args[],
                    ReplyCallback write_reply) {
   const Span<const uint8_t> out_len_bytes = args[0];
   const Span<const uint8_t> secret = args[1];
-  const std::string_view label = bssl::BytesAsStringView(args[2]);
+  const std::string_view label = BytesAsStringView(args[2]);
   const Span<const uint8_t> seed1 = args[3];
   const Span<const uint8_t> seed2 = args[4];
   const EVP_MD *md = MDFunc();
@@ -1943,15 +1944,15 @@ static bool TLSKDF(const Span<const uint8_t> args[],
 
 template <int Nid>
 static bool ECDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
-  bssl::UniquePtr<BIGNUM> their_x(BytesToBIGNUM(args[0]));
-  bssl::UniquePtr<BIGNUM> their_y(BytesToBIGNUM(args[1]));
+  UniquePtr<BIGNUM> their_x(BytesToBIGNUM(args[0]));
+  UniquePtr<BIGNUM> their_y(BytesToBIGNUM(args[1]));
   const Span<const uint8_t> private_key = args[2];
 
-  bssl::UniquePtr<EC_KEY> ec_key(EC_KEY_new_by_curve_name(Nid));
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<EC_KEY> ec_key(EC_KEY_new_by_curve_name(Nid));
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
 
   const EC_GROUP *const group = EC_KEY_get0_group(ec_key.get());
-  bssl::UniquePtr<EC_POINT> their_point(EC_POINT_new(group));
+  UniquePtr<EC_POINT> their_point(EC_POINT_new(group));
   if (!EC_POINT_set_affine_coordinates_GFp(
           group, their_point.get(), their_x.get(), their_y.get(), ctx.get())) {
     LOG_ERROR("Invalid peer point for ECDH.\n");
@@ -1959,13 +1960,13 @@ static bool ECDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
   }
 
   if (!private_key.empty()) {
-    bssl::UniquePtr<BIGNUM> our_k(BytesToBIGNUM(private_key));
+    UniquePtr<BIGNUM> our_k(BytesToBIGNUM(private_key));
     if (!EC_KEY_set_private_key(ec_key.get(), our_k.get())) {
       LOG_ERROR("EC_KEY_set_private_key failed.\n");
       return false;
     }
 
-    bssl::UniquePtr<EC_POINT> our_pub(EC_POINT_new(group));
+    UniquePtr<EC_POINT> our_pub(EC_POINT_new(group));
     if (!EC_POINT_mul(group, our_pub.get(), our_k.get(), nullptr, nullptr,
                       ctx.get()) ||
         !EC_KEY_set_public_key(ec_key.get(), our_pub.get())) {
@@ -1993,8 +1994,8 @@ static bool ECDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
   output.resize(static_cast<size_t>(out_len));
 
   const EC_POINT *pub = EC_KEY_get0_public_key(ec_key.get());
-  bssl::UniquePtr<BIGNUM> x(BN_new());
-  bssl::UniquePtr<BIGNUM> y(BN_new());
+  UniquePtr<BIGNUM> x(BN_new());
+  UniquePtr<BIGNUM> y(BN_new());
   if (!EC_POINT_get_affine_coordinates_GFp(group, pub, x.get(), y.get(),
                                            ctx.get())) {
     LOG_ERROR("EC_POINT_get_affine_coordinates_GFp failed.\n");
@@ -2005,14 +2006,14 @@ static bool ECDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
 }
 
 static bool FFDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
-  bssl::UniquePtr<BIGNUM> p(BytesToBIGNUM(args[0]));
-  bssl::UniquePtr<BIGNUM> q(BytesToBIGNUM(args[1]));
-  bssl::UniquePtr<BIGNUM> g(BytesToBIGNUM(args[2]));
-  bssl::UniquePtr<BIGNUM> their_pub(BytesToBIGNUM(args[3]));
+  UniquePtr<BIGNUM> p(BytesToBIGNUM(args[0]));
+  UniquePtr<BIGNUM> q(BytesToBIGNUM(args[1]));
+  UniquePtr<BIGNUM> g(BytesToBIGNUM(args[2]));
+  UniquePtr<BIGNUM> their_pub(BytesToBIGNUM(args[3]));
   const Span<const uint8_t> private_key_span = args[4];
   const Span<const uint8_t> public_key_span = args[5];
 
-  bssl::UniquePtr<DH> dh(DH_new());
+  UniquePtr<DH> dh(DH_new());
   if (!DH_set0_pqg(dh.get(), p.get(), q.get(), g.get())) {
     LOG_ERROR("DH_set0_pqg failed.\n");
     return 0;
@@ -2024,8 +2025,8 @@ static bool FFDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
   g.release();
 
   if (!private_key_span.empty()) {
-    bssl::UniquePtr<BIGNUM> private_key(BytesToBIGNUM(private_key_span));
-    bssl::UniquePtr<BIGNUM> public_key(BytesToBIGNUM(public_key_span));
+    UniquePtr<BIGNUM> private_key(BytesToBIGNUM(private_key_span));
+    UniquePtr<BIGNUM> public_key(BytesToBIGNUM(public_key_span));
 
     if (!DH_set0_key(dh.get(), public_key.get(), private_key.get())) {
       LOG_ERROR("DH_set0_key failed.\n");
@@ -2312,8 +2313,8 @@ static bool SLHDSASigGen(const Span<const uint8_t> args[],
   }
 
   std::vector<uint8_t> signature(SignatureBytes);
-  SignInternal(signature.data(), private_key.data(), nullptr, nullptr, 0, msg.data(),
-               msg.size(), entropy);
+  SignInternal(signature.data(), private_key.data(), nullptr, nullptr, 0,
+               msg.data(), msg.size(), entropy);
 
   return write_reply({Span<const uint8_t>(signature)});
 }
@@ -2522,7 +2523,7 @@ static constexpr struct {
 };
 
 Handler FindHandler(Span<const Span<const uint8_t>> args) {
-  auto algorithm = bssl::BytesAsStringView(args[0]);
+  auto algorithm = BytesAsStringView(args[0]);
   for (const auto &func : kFunctions) {
     if (algorithm == func.name) {
       if (args.size() - 1 != func.num_expected_args) {

@@ -188,7 +188,7 @@ static const BIO_METHOD ssl_method = {
     ssl_ctrl,     ssl_new, ssl_free,  ssl_callback_ctrl,
 };
 
-const BIO_METHOD *BIO_f_ssl(void) { return &ssl_method; }
+const BIO_METHOD *BIO_f_ssl() { return &ssl_method; }
 
 long BIO_set_ssl(BIO *bio, SSL *ssl, int take_owership) {
   return BIO_ctrl(bio, BIO_C_SET_SSL, take_owership, ssl);

@@ -122,8 +122,8 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
   AsyncSocketPacketOptions options() const { return options_; }
 
  protected:
-  virtual bool SendPacket(CopyOnWriteBuffer* packet,
-                          const AsyncSocketPacketOptions& options)
+  bool SendPacket(CopyOnWriteBuffer* packet,
+                  const AsyncSocketPacketOptions& options) override
       RTC_LOCKS_EXCLUDED(mutex_) {
     if (!IsRtpPacket(*packet)) {
       return false;
@@ -145,8 +145,8 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
     return true;
   }
 
-  virtual bool SendRtcp(CopyOnWriteBuffer* packet,
-                        const AsyncSocketPacketOptions& options)
+  bool SendRtcp(CopyOnWriteBuffer* packet,
+                const AsyncSocketPacketOptions& options) override
       RTC_LOCKS_EXCLUDED(mutex_) {
     MutexLock lock(&mutex_);
     rtcp_packets_.push_back(*packet);
@@ -159,7 +159,9 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
     return true;
   }
 
-  virtual int SetOption(SocketType /* type */, Socket::Option opt, int option) {
+  int SetOption(SocketType /* type */,
+                Socket::Option opt,
+                int option) override {
     if (opt == Socket::OPT_SNDBUF) {
       sendbuf_size_ = option;
     } else if (opt == Socket::OPT_RCVBUF) {

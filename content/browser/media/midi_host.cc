@@ -68,7 +68,6 @@ MidiHost::~MidiHost() {
 void MidiHost::BindReceiver(
     ChildProcessId render_process_id,
     midi::MidiService* midi_service,
-    RenderFrameHost*,  // Required for the BinderMapWithContext interface.
     mojo::PendingReceiver<midi::mojom::MidiSessionProvider> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 #if BUILDFLAG(IS_COBALT)
@@ -82,8 +81,6 @@ void MidiHost::BindReceiver(
     return;
   }
 #endif  // BUILDFLAG(IS_COBALT)
-  // NOTE: This is not the correct sequence to call RenderFrameHost::GetProcess
-  //       hence, we have the render_process_id passed in separately.
   mojo::MakeSelfOwnedReceiver(
       base::WrapUnique(new MidiHost(render_process_id, midi_service)),
       std::move(receiver));

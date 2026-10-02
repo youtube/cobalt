@@ -230,9 +230,9 @@ void ResidualEchoEstimator::Estimate(
     }
 
     const Block& render = render_buffer.GetBlock(headroom_blocks);
-    neural_residual_echo_estimator_->Estimate(render, capture,
-                                              linear_aec_output, S2_linear, Y2,
-                                              E2, R2, R2_unbounded);
+    neural_residual_echo_estimator_->Estimate(
+        render, capture, linear_aec_output, S2_linear, Y2, E2, dominant_nearend,
+        R2, R2_unbounded);
   }
 
   // Estimate the residual echo power.

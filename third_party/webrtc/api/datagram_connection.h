@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -76,7 +77,7 @@ class RTC_EXPORT DatagramConnection : public RefCountInterface {
     virtual void OnWritableChange() = 0;
   };
 
-  virtual ~DatagramConnection() = default;
+  ~DatagramConnection() override = default;
 
   virtual void SetRemoteIceParameters(const IceParameters& ice_parameters) = 0;
   virtual void AddRemoteCandidate(const Candidate& candidate) = 0;

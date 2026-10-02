@@ -212,7 +212,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
       AllocationType::kOld, &handles);
 
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*handles.front());
-  auto* page = MutablePageMetadata::FromHeapObject(isolate, *handles.front());
+  auto* page = MutablePage::FromHeapObject(isolate, *handles.front());
 
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
   page->set_is_pinned_for_testing(true);
@@ -369,7 +369,7 @@ TEST(Regress5829) {
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->FreeMainThreadLinearAllocationAreas();
-  PageMetadata* page = PageMetadata::FromAddress(array->address());
+  NormalPage* page = NormalPage::FromAddress(array->address());
   for (auto object_and_size : LiveObjectRange(page)) {
     CHECK(!IsFreeSpaceOrFiller(object_and_size.first));
   }

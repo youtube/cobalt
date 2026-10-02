@@ -30,6 +30,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 typedef int (*hash_t_func_t)(const EC_GROUP *group, EC_JACOBIAN *out,
                              const uint8_t t[TRUST_TOKEN_NONCE_SIZE]);
 typedef int (*hash_s_func_t)(const EC_GROUP *group, EC_JACOBIAN *out,
@@ -1195,7 +1197,7 @@ static int pmbtoken_exp1_ok = 0;
 static PMBTOKEN_METHOD pmbtoken_exp1_method;
 static CRYPTO_once_t pmbtoken_exp1_method_once = CRYPTO_ONCE_INIT;
 
-static void pmbtoken_exp1_init_method_impl(void) {
+static void pmbtoken_exp1_init_method_impl() {
   // This is the output of |ec_hash_to_scalar_p384_xmd_sha512_draft07| with DST
   // "PMBTokens Experiment V1 HashH" and message "generator".
   static const uint8_t kH[] = {
@@ -1216,7 +1218,7 @@ static void pmbtoken_exp1_init_method_impl(void) {
       pmbtoken_exp1_hash_to_scalar, 1);
 }
 
-static int pmbtoken_exp1_init_method(void) {
+static int pmbtoken_exp1_init_method() {
   CRYPTO_once(&pmbtoken_exp1_method_once, pmbtoken_exp1_init_method_impl);
   if (!pmbtoken_exp1_ok) {
     OPENSSL_PUT_ERROR(TRUST_TOKEN, ERR_R_INTERNAL_ERROR);
@@ -1367,7 +1369,7 @@ static int pmbtoken_exp2_ok = 0;
 static PMBTOKEN_METHOD pmbtoken_exp2_method;
 static CRYPTO_once_t pmbtoken_exp2_method_once = CRYPTO_ONCE_INIT;
 
-static void pmbtoken_exp2_init_method_impl(void) {
+static void pmbtoken_exp2_init_method_impl() {
   // This is the output of |ec_hash_to_scalar_p384_xmd_sha512_draft07| with DST
   // "PMBTokens Experiment V2 HashH" and message "generator".
   static const uint8_t kH[] = {
@@ -1387,7 +1389,7 @@ static void pmbtoken_exp2_init_method_impl(void) {
       pmbtoken_exp2_hash_to_scalar, 0);
 }
 
-static int pmbtoken_exp2_init_method(void) {
+static int pmbtoken_exp2_init_method() {
   CRYPTO_once(&pmbtoken_exp2_method_once, pmbtoken_exp2_init_method_impl);
   if (!pmbtoken_exp2_ok) {
     OPENSSL_PUT_ERROR(TRUST_TOKEN, ERR_R_INTERNAL_ERROR);
@@ -1539,7 +1541,7 @@ static int pmbtoken_pst1_ok = 0;
 static PMBTOKEN_METHOD pmbtoken_pst1_method;
 static CRYPTO_once_t pmbtoken_pst1_method_once = CRYPTO_ONCE_INIT;
 
-static void pmbtoken_pst1_init_method_impl(void) {
+static void pmbtoken_pst1_init_method_impl() {
   // This is the output of |ec_hash_to_scalar_p384_xmd_sha384| with DST
   // "PMBTokens PST V1 HashH" and message "generator".
   static const uint8_t kH[] = {
@@ -1559,7 +1561,7 @@ static void pmbtoken_pst1_init_method_impl(void) {
       pmbtoken_pst1_hash_to_scalar, 0);
 }
 
-static int pmbtoken_pst1_init_method(void) {
+static int pmbtoken_pst1_init_method() {
   CRYPTO_once(&pmbtoken_pst1_method_once, pmbtoken_pst1_init_method_impl);
   if (!pmbtoken_pst1_ok) {
     OPENSSL_PUT_ERROR(TRUST_TOKEN, ERR_R_INTERNAL_ERROR);

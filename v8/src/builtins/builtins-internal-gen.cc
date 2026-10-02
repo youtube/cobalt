@@ -14,7 +14,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
@@ -166,7 +166,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
     TNode<IntPtrT> chunk = MemoryChunkFromAddress(object);
-    TNode<IntPtrT> page = MemoryChunkMetadataFromMemoryChunk(chunk);
+    TNode<IntPtrT> page = BasePageFromMemoryChunk(chunk);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
@@ -199,10 +199,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
-    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), page,
-             IntPtrConstant(MutablePageMetadata::SlotSetOffset(
-                 RememberedSetType::OLD_TO_NEW))));
+    TNode<IntPtrT> slot_set =
+        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
+                                    IntPtrConstant(MutablePage::SlotSetOffset(
+                                        RememberedSetType::OLD_TO_NEW))));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }
@@ -1494,7 +1494,6 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
                           &var_value, next_holder, if_bailout,
                           kExpectingJSReceiver);
         BIND(&if_found);
-        GotoIfLazyClosure(CAST(var_value.value()), if_bailout);
         Return(var_value.value());
       };
 

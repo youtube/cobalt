@@ -137,7 +137,9 @@ std::string RtcEventLogEncoderV3::EncodeBatch(
   std::map<EventGroupKey, std::vector<const RtcEvent*>> event_groups;
 
   for (auto it = begin; it != end; ++it) {
-    event_groups[{(*it)->GetType(), (*it)->GetGroupKey()}].push_back(it->get());
+    event_groups[{.type = (*it)->GetType(),
+                  .secondary_group_key = (*it)->GetGroupKey()}]
+        .push_back(it->get());
   }
 
   std::string encoded_output;

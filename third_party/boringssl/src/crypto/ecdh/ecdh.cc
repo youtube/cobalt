@@ -26,6 +26,8 @@
 #include "../internal.h"
 
 
+using namespace bssl;
+
 int ECDH_compute_key(void *out, size_t out_len, const EC_POINT *pub_key,
                      const EC_KEY *priv_key,
                      void *(*kdf)(const void *in, size_t inlen, void *out,

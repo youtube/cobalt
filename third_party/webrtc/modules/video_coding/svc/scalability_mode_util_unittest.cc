@@ -16,7 +16,9 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/video_codec.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -132,6 +134,144 @@ TEST_P(NumSpatialLayersTest, LimitsSpatialLayers) {
       EXPECT_EQ(expected_mode, LimitNumSpatialLayers(mode, max_layers));
     }
   }
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecReturnsExplicitMode) {
+  VideoCodec codec;
+  codec.SetScalabilityMode(ScalabilityMode::kL2T2);
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL2T2);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp8Simulcast2To1) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 2;
+  codec.simulcastStream[0].width = 640;
+  codec.simulcastStream[1].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T1);
+
+  codec.VP8()->numberOfTemporalLayers = 2;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T2);
+
+  codec.VP8()->numberOfTemporalLayers = 3;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T3);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp8Simulcast3To2) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 2;
+  codec.simulcastStream[0].width = 640;
+  codec.simulcastStream[1].width = 960;  // 1.5x
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T1h);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp8Simulcast3Layers) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 3;
+  codec.simulcastStream[0].width = 320;
+  codec.simulcastStream[1].width = 640;
+  codec.simulcastStream[2].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS3T1);
+}
+
+TEST(ScalabilityModeUtil,
+     GetScalabilityModeFromVideoCodecVp8SimulcastInvalidRatio) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 2;
+  codec.simulcastStream[0].width = 640;
+  codec.simulcastStream[1].width = 641;  // Not 2:1 or 3:2
+  // Should fall back to L1T1 if params don't match any known mode
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL1T1);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecH264Simulcast) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecH264;
+  codec.H264()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 2;
+  codec.simulcastStream[0].width = 640;
+  codec.simulcastStream[1].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T1);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp9SpatialLayers) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP9;
+  codec.VP9()->numberOfSpatialLayers = 2;
+  codec.VP9()->numberOfTemporalLayers = 1;
+  codec.VP9()->interLayerPred = InterLayerPredMode::kOn;
+  codec.spatialLayers[0].width = 640;
+  codec.spatialLayers[1].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL2T1);
+
+  codec.spatialLayers[1].width = 960;  // 3:2
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL2T1h);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp9Simulcast) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP9;
+  codec.VP9()->numberOfSpatialLayers = 0;  // Using simulcast
+  codec.VP9()->numberOfTemporalLayers = 1;
+  codec.VP9()->interLayerPred = InterLayerPredMode::kOff;
+  codec.numberOfSimulcastStreams = 2;
+  codec.simulcastStream[0].width = 640;
+  codec.simulcastStream[1].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kS2T1);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecVp9Ksvc) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP9;
+  codec.VP9()->numberOfSpatialLayers = 2;
+  codec.VP9()->numberOfTemporalLayers = 1;
+  codec.VP9()->interLayerPred = InterLayerPredMode::kOnKeyPic;
+  codec.spatialLayers[0].width = 640;
+  codec.spatialLayers[1].width = 1280;
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec),
+            ScalabilityMode::kL2T1_KEY);
+}
+
+TEST(ScalabilityModeUtil,
+     GetScalabilityModeFromVideoCodecSimulcastInconsistentRatios) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 3;
+  codec.simulcastStream[0].width = 320;
+  codec.simulcastStream[1].width = 640;  // 2:1 relative to previous
+  codec.simulcastStream[2].width = 960;  // 1.5:1 relative to previous
+  // Should fall back because ratios are inconsistent (mixed 2:1 and 1.5:1)
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL1T1);
+}
+
+TEST(ScalabilityModeUtil,
+     GetScalabilityModeFromVideoCodecSpatialInconsistentRatios) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP9;
+  codec.VP9()->numberOfSpatialLayers = 3;
+  codec.VP9()->numberOfTemporalLayers = 1;
+  codec.VP9()->interLayerPred = InterLayerPredMode::kOn;
+  codec.spatialLayers[0].width = 320;
+  codec.spatialLayers[1].width = 640;  // 2:1
+  codec.spatialLayers[2].width = 960;  // 1.5:1
+  // Should fall back because ratios are inconsistent
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL1T1);
+}
+
+TEST(ScalabilityModeUtil, GetScalabilityModeFromVideoCodecDefaultsToL1T1) {
+  VideoCodec codec;
+  codec.codecType = kVideoCodecVP8;
+  codec.VP8()->numberOfTemporalLayers = 1;
+  codec.numberOfSimulcastStreams = 1;  // Explicitly 1
+  EXPECT_EQ(GetScalabilityModeFromVideoCodec(codec), ScalabilityMode::kL1T1);
 }
 
 }  // namespace

@@ -45,7 +45,7 @@ class WrappingActiveIceController : public ActiveIceControllerInterface {
       IceAgentInterface* ice_agent,
       IceControllerFactoryInterface* wrapped_factory,
       const IceControllerFactoryArgs& wrapped_factory_args);
-  virtual ~WrappingActiveIceController();
+  ~WrappingActiveIceController() override;
 
   void SetIceConfig(const IceConfig& config) override;
   bool GetUseCandidateAttribute(const Connection* connection,

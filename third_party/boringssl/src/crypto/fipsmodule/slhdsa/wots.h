@@ -17,10 +17,8 @@
 
 #include "./params.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // Implements Algorithm 6: wots_pkGen function, page 18
 void slhdsa_wots_pk_gen(const slh_dsa_config *config, uint8_t *pk,
@@ -37,9 +35,6 @@ void slhdsa_wots_pk_from_sig(const slh_dsa_config *config, uint8_t *pk,
                              const uint8_t *sig, const uint8_t *msg,
                              const uint8_t *pub_seed, uint8_t addr[32]);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SLHDSA_WOTS_H

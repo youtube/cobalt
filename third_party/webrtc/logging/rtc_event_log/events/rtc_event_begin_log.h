@@ -64,10 +64,13 @@ class RtcEventBeginLog final : public RtcEvent {
 
   int64_t utc_start_time_ms_;
 
-  static constexpr EventParameters event_params_{"BeginLog",
-                                                 RtcEventBeginLog::kType};
+  static constexpr EventParameters event_params_{.name = "BeginLog",
+                                                 .id = RtcEventBeginLog::kType};
   static constexpr FieldParameters utc_start_time_params_{
-      "utc_start_time_ms", /*id=*/1, FieldType::kVarInt, /*width=*/64};
+      .name = "utc_start_time_ms",
+      /*id=*/.field_id = 1,
+      .field_type = FieldType::kVarInt,
+      /*width=*/.value_width = 64};
 };
 
 }  // namespace webrtc

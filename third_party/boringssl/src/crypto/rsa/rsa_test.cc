@@ -42,6 +42,7 @@
 #endif
 
 
+BSSL_NAMESPACE_BEGIN
 namespace {
 
 // kPlaintext is a sample plaintext.
@@ -420,8 +421,8 @@ static const uint8_t kExponent1RSAKey[] = {
 };
 
 struct RSAEncryptParam {
-  bssl::Span<const uint8_t> der;
-  bssl::Span<const uint8_t> oaep_ciphertext;
+  Span<const uint8_t> der;
+  Span<const uint8_t> oaep_ciphertext;
 } kRSAEncryptParams[] = {
     {kKey1, kOAEPCiphertext1},
     {kKey2, kOAEPCiphertext2},
@@ -433,13 +434,13 @@ class RSAEncryptTest : public testing::TestWithParam<RSAEncryptParam> {};
 TEST_P(RSAEncryptTest, TestKey) {
   // Construct an RSA key in different ways.
   const auto &param = GetParam();
-  bssl::UniquePtr<RSA> parsed(
+  UniquePtr<RSA> parsed(
       RSA_private_key_from_bytes(param.der.data(), param.der.size()));
   ASSERT_TRUE(parsed);
   EXPECT_TRUE(RSA_get0_e(parsed.get()));
   EXPECT_TRUE(RSA_get0_d(parsed.get()));
 
-  bssl::UniquePtr<RSA> constructed(RSA_new_private_key(
+  UniquePtr<RSA> constructed(RSA_new_private_key(
       RSA_get0_n(parsed.get()), RSA_get0_e(parsed.get()),
       RSA_get0_d(parsed.get()), RSA_get0_p(parsed.get()),
       RSA_get0_q(parsed.get()), RSA_get0_dmp1(parsed.get()),
@@ -448,20 +449,20 @@ TEST_P(RSAEncryptTest, TestKey) {
   EXPECT_TRUE(RSA_get0_e(constructed.get()));
   EXPECT_TRUE(RSA_get0_d(constructed.get()));
 
-  bssl::UniquePtr<RSA> no_crt(RSA_new_private_key_no_crt(
-      RSA_get0_n(parsed.get()), RSA_get0_e(parsed.get()),
-      RSA_get0_d(parsed.get())));
+  UniquePtr<RSA> no_crt(RSA_new_private_key_no_crt(RSA_get0_n(parsed.get()),
+                                                   RSA_get0_e(parsed.get()),
+                                                   RSA_get0_d(parsed.get())));
   ASSERT_TRUE(no_crt);
   EXPECT_TRUE(RSA_get0_e(no_crt.get()));
   EXPECT_TRUE(RSA_get0_d(no_crt.get()));
 
-  bssl::UniquePtr<RSA> no_e(RSA_new_private_key_no_e(RSA_get0_n(parsed.get()),
-                                                     RSA_get0_d(parsed.get())));
+  UniquePtr<RSA> no_e(RSA_new_private_key_no_e(RSA_get0_n(parsed.get()),
+                                               RSA_get0_d(parsed.get())));
   ASSERT_TRUE(no_e);
   EXPECT_FALSE(RSA_get0_e(no_e.get()));
   EXPECT_TRUE(RSA_get0_d(no_e.get()));
 
-  bssl::UniquePtr<RSA> pub(
+  UniquePtr<RSA> pub(
       RSA_new_public_key(RSA_get0_n(parsed.get()), RSA_get0_e(parsed.get())));
   ASSERT_TRUE(pub);
   EXPECT_TRUE(RSA_get0_e(pub.get()));
@@ -539,7 +540,7 @@ INSTANTIATE_TEST_SUITE_P(All, RSAEncryptTest,
                          testing::ValuesIn(kRSAEncryptParams));
 
 TEST(RSATest, TestDecrypt) {
-  bssl::UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
+  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
   ASSERT_TRUE(rsa);
 
   EXPECT_TRUE(RSA_check_key(rsa.get()));
@@ -554,19 +555,19 @@ TEST(RSATest, TestDecrypt) {
 }
 
 TEST(RSATest, CheckFIPS) {
-  bssl::UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(rsa);
   EXPECT_TRUE(RSA_check_fips(rsa.get()));
 
   // Check that RSA_check_fips works on a public key.
-  bssl::UniquePtr<RSA> pub(
+  UniquePtr<RSA> pub(
       RSA_public_key_from_bytes(kKey1Public, sizeof(kKey1Public)));
   ASSERT_TRUE(pub);
   EXPECT_TRUE(RSA_check_fips(pub.get()));
 }
 
 TEST(RSATest, GenerateFIPS) {
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
 
   // RSA_generate_key_fips may only be used for 2048-, 3072-, and 4096-bit
@@ -593,8 +594,8 @@ TEST(RSATest, GenerateFIPS) {
 }
 
 TEST(RSATest, BadKey) {
-  bssl::UniquePtr<RSA> key(RSA_new());
-  bssl::UniquePtr<BIGNUM> e(BN_new());
+  UniquePtr<RSA> key(RSA_new());
+  UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(key);
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
@@ -611,21 +612,21 @@ TEST(RSATest, BadKey) {
   uint8_t *der;
   size_t der_len;
   ASSERT_TRUE(RSA_private_key_to_bytes(&der, &der_len, key.get()));
-  bssl::UniquePtr<uint8_t> delete_der(der);
+  UniquePtr<uint8_t> delete_der(der);
   key.reset(RSA_private_key_from_bytes(der, der_len));
   EXPECT_FALSE(key);
 }
 
 TEST(RSATest, ASN1) {
   // Test that private keys may be decoded.
-  bssl::UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(rsa);
 
   // Test that the serialization round-trips.
   uint8_t *der;
   size_t der_len;
   ASSERT_TRUE(RSA_private_key_to_bytes(&der, &der_len, rsa.get()));
-  bssl::UniquePtr<uint8_t> delete_der(der);
+  UniquePtr<uint8_t> delete_der(der);
   EXPECT_EQ(Bytes(kKey1), Bytes(der, der_len));
 
   // Test that serializing public keys works.
@@ -642,7 +643,7 @@ TEST(RSATest, ASN1) {
   uint8_t *der2;
   size_t der2_len;
   ASSERT_TRUE(RSA_public_key_to_bytes(&der2, &der2_len, rsa.get()));
-  bssl::UniquePtr<uint8_t> delete_der2(der2);
+  UniquePtr<uint8_t> delete_der2(der2);
   EXPECT_EQ(Bytes(der, der_len), Bytes(der2, der2_len));
 
   // Public keys cannot be serialized as private keys.
@@ -661,32 +662,19 @@ TEST(RSATest, ASN1) {
 }
 
 TEST(RSATest, BadExponent) {
-  bssl::UniquePtr<RSA> rsa(
+  UniquePtr<RSA> rsa(
       RSA_public_key_from_bytes(kExponent1RSAKey, sizeof(kExponent1RSAKey)));
   EXPECT_FALSE(rsa);
   ERR_clear_error();
 }
 
-// Attempting to generate an excessively small key should fail.
-TEST(RSATest, GenerateSmallKey) {
-  bssl::UniquePtr<RSA> rsa(RSA_new());
-  ASSERT_TRUE(rsa);
-  bssl::UniquePtr<BIGNUM> e(BN_new());
-  ASSERT_TRUE(e);
-  ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
-
-  EXPECT_FALSE(RSA_generate_key_ex(rsa.get(), 255, e.get(), nullptr));
-  EXPECT_TRUE(
-      ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_KEY_SIZE_TOO_SMALL));
-}
-
 // Attempting to generate an funny RSA key length should round down.
 TEST(RSATest, RoundKeyLengths) {
-  bssl::UniquePtr<BIGNUM> e(BN_new());
+  UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
 
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
   ASSERT_TRUE(RSA_generate_key_ex(rsa.get(), 1025, e.get(), nullptr));
   EXPECT_EQ(1024u, BN_num_bits(rsa->n));
@@ -753,7 +741,7 @@ TEST(RSATest, CheckKey) {
       "a54bb61ea5e64b9423102933ea100c12dad809fbf9589515e9d28e867f6b95c2d307f792"
       "cac28c6d7d23f441cb5b62798233db29b5cc0348";
 
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
 
   // Missing n or e does not pass.
@@ -898,7 +886,7 @@ TEST(RSATest, CheckKey) {
 }
 
 TEST(RSATest, KeygenFail) {
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
 
   // Cause RSA key generation after a prime has been generated, to test that
@@ -908,7 +896,7 @@ TEST(RSATest, KeygenFail) {
       &cb, [](int event, int, BN_GENCB *) -> int { return event != 3; },
       nullptr);
 
-  bssl::UniquePtr<BIGNUM> e(BN_new());
+  UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
 
@@ -938,14 +926,14 @@ TEST(RSATest, KeygenFail) {
   uint8_t *der;
   size_t der_len;
   ASSERT_TRUE(RSA_private_key_to_bytes(&der, &der_len, rsa.get()));
-  bssl::UniquePtr<uint8_t> delete_der(der);
+  UniquePtr<uint8_t> delete_der(der);
 
   EXPECT_FALSE(RSA_generate_key_ex(rsa.get(), 2048, e.get(), &cb));
 
   uint8_t *der2;
   size_t der2_len;
   ASSERT_TRUE(RSA_private_key_to_bytes(&der2, &der2_len, rsa.get()));
-  bssl::UniquePtr<uint8_t> delete_der2(der2);
+  UniquePtr<uint8_t> delete_der2(der2);
   EXPECT_EQ(Bytes(der, der_len), Bytes(der2, der2_len));
 
   // Generating a key over an existing key works, despite any cached state.
@@ -954,12 +942,12 @@ TEST(RSATest, KeygenFail) {
   uint8_t *der3;
   size_t der3_len;
   ASSERT_TRUE(RSA_private_key_to_bytes(&der3, &der3_len, rsa.get()));
-  bssl::UniquePtr<uint8_t> delete_der3(der3);
+  UniquePtr<uint8_t> delete_der3(der3);
   EXPECT_NE(Bytes(der, der_len), Bytes(der3, der3_len));
 }
 
 TEST(RSATest, KeygenFailOnce) {
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
 
   // Cause only the first iteration of RSA key generation to fail.
@@ -980,14 +968,14 @@ TEST(RSATest, KeygenFailOnce) {
 
   // Although key generation internally retries, the external behavior of
   // |BN_GENCB| is preserved.
-  bssl::UniquePtr<BIGNUM> e(BN_new());
+  UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
   EXPECT_FALSE(RSA_generate_key_ex(rsa.get(), 2048, e.get(), &cb));
 }
 
 TEST(RSATest, KeygenInternalRetry) {
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   ASSERT_TRUE(rsa);
 
   // Simulate one internal attempt at key generation failing.
@@ -1010,7 +998,7 @@ TEST(RSATest, KeygenInternalRetry) {
       &failed);
 
   // Key generation internally retries on RSA_R_TOO_MANY_ITERATIONS.
-  bssl::UniquePtr<BIGNUM> e(BN_new());
+  UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
   EXPECT_TRUE(RSA_generate_key_ex(rsa.get(), 2048, e.get(), &cb));
@@ -1021,7 +1009,7 @@ TEST(RSATest, KeygenInternalRetry) {
 TEST(RSATest, OverwriteKey) {
   // Make a key and perform public and private key operations with it, so that
   // all derived values are filled in.
-  bssl::UniquePtr<RSA> key1(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> key1(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(key1);
 
   ASSERT_TRUE(RSA_check_key(key1.get()));
@@ -1040,25 +1028,25 @@ TEST(RSATest, OverwriteKey) {
   EXPECT_EQ(Bytes(plaintext), Bytes(kPlaintext));
 
   // Overwrite |key1| with the contents of |key2|.
-  bssl::UniquePtr<RSA> key2(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
+  UniquePtr<RSA> key2(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
   ASSERT_TRUE(key2);
 
   auto copy_rsa_fields = [](RSA *dst, const RSA *src) {
-    bssl::UniquePtr<BIGNUM> n(BN_dup(RSA_get0_n(src)));
+    UniquePtr<BIGNUM> n(BN_dup(RSA_get0_n(src)));
     ASSERT_TRUE(n);
-    bssl::UniquePtr<BIGNUM> e(BN_dup(RSA_get0_e(src)));
+    UniquePtr<BIGNUM> e(BN_dup(RSA_get0_e(src)));
     ASSERT_TRUE(e);
-    bssl::UniquePtr<BIGNUM> d(BN_dup(RSA_get0_d(src)));
+    UniquePtr<BIGNUM> d(BN_dup(RSA_get0_d(src)));
     ASSERT_TRUE(d);
-    bssl::UniquePtr<BIGNUM> p(BN_dup(RSA_get0_p(src)));
+    UniquePtr<BIGNUM> p(BN_dup(RSA_get0_p(src)));
     ASSERT_TRUE(p);
-    bssl::UniquePtr<BIGNUM> q(BN_dup(RSA_get0_q(src)));
+    UniquePtr<BIGNUM> q(BN_dup(RSA_get0_q(src)));
     ASSERT_TRUE(q);
-    bssl::UniquePtr<BIGNUM> dmp1(BN_dup(RSA_get0_dmp1(src)));
+    UniquePtr<BIGNUM> dmp1(BN_dup(RSA_get0_dmp1(src)));
     ASSERT_TRUE(dmp1);
-    bssl::UniquePtr<BIGNUM> dmq1(BN_dup(RSA_get0_dmq1(src)));
+    UniquePtr<BIGNUM> dmq1(BN_dup(RSA_get0_dmq1(src)));
     ASSERT_TRUE(dmq1);
-    bssl::UniquePtr<BIGNUM> iqmp(BN_dup(RSA_get0_iqmp(src)));
+    UniquePtr<BIGNUM> iqmp(BN_dup(RSA_get0_iqmp(src)));
     ASSERT_TRUE(iqmp);
     ASSERT_TRUE(RSA_set0_key(dst, n.release(), e.release(), d.release()));
     ASSERT_TRUE(RSA_set0_factors(dst, p.release(), q.release()));
@@ -1105,7 +1093,7 @@ TEST(RSATest, OverwriteKey) {
 
 // Test that RSA keys do not support operations will cleanly fail them.
 TEST(RSATest, MissingParameters) {
-  bssl::UniquePtr<RSA> sample(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> sample(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(sample);
 
   // Make a sample signature.
@@ -1117,7 +1105,7 @@ TEST(RSATest, MissingParameters) {
   sig.resize(len_u);
 
   // A public key cannot perform private key operations.
-  bssl::UniquePtr<RSA> rsa(
+  UniquePtr<RSA> rsa(
       RSA_new_public_key(RSA_get0_n(sample.get()), RSA_get0_e(sample.get())));
   ASSERT_TRUE(rsa);
 
@@ -1147,8 +1135,8 @@ TEST(RSATest, MissingParameters) {
 }
 
 TEST(RSATest, Negative) {
-  auto dup_neg = [](const BIGNUM *bn) -> bssl::UniquePtr<BIGNUM> {
-    bssl::UniquePtr<BIGNUM> ret(BN_dup(bn));
+  auto dup_neg = [](const BIGNUM *bn) -> UniquePtr<BIGNUM> {
+    UniquePtr<BIGNUM> ret(BN_dup(bn));
     if (!ret) {
       return nullptr;
     }
@@ -1156,31 +1144,31 @@ TEST(RSATest, Negative) {
     return ret;
   };
 
-  bssl::UniquePtr<RSA> key(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> key(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(key);
   const BIGNUM *n = RSA_get0_n(key.get());
-  bssl::UniquePtr<BIGNUM> neg_n = dup_neg(n);
+  UniquePtr<BIGNUM> neg_n = dup_neg(n);
   ASSERT_TRUE(neg_n);
   const BIGNUM *e = RSA_get0_e(key.get());
-  bssl::UniquePtr<BIGNUM> neg_e = dup_neg(e);
+  UniquePtr<BIGNUM> neg_e = dup_neg(e);
   ASSERT_TRUE(neg_e);
   const BIGNUM *d = RSA_get0_d(key.get());
-  bssl::UniquePtr<BIGNUM> neg_d = dup_neg(d);
+  UniquePtr<BIGNUM> neg_d = dup_neg(d);
   ASSERT_TRUE(neg_d);
   const BIGNUM *p = RSA_get0_p(key.get());
-  bssl::UniquePtr<BIGNUM> neg_p = dup_neg(p);
+  UniquePtr<BIGNUM> neg_p = dup_neg(p);
   ASSERT_TRUE(neg_p);
   const BIGNUM *q = RSA_get0_q(key.get());
-  bssl::UniquePtr<BIGNUM> neg_q = dup_neg(q);
+  UniquePtr<BIGNUM> neg_q = dup_neg(q);
   ASSERT_TRUE(neg_q);
   const BIGNUM *dmp1 = RSA_get0_dmp1(key.get());
-  bssl::UniquePtr<BIGNUM> neg_dmp1 = dup_neg(dmp1);
+  UniquePtr<BIGNUM> neg_dmp1 = dup_neg(dmp1);
   ASSERT_TRUE(neg_dmp1);
   const BIGNUM *dmq1 = RSA_get0_dmq1(key.get());
-  bssl::UniquePtr<BIGNUM> neg_dmq1 = dup_neg(dmq1);
+  UniquePtr<BIGNUM> neg_dmq1 = dup_neg(dmq1);
   ASSERT_TRUE(neg_dmq1);
   const BIGNUM *iqmp = RSA_get0_iqmp(key.get());
-  bssl::UniquePtr<BIGNUM> neg_iqmp = dup_neg(iqmp);
+  UniquePtr<BIGNUM> neg_iqmp = dup_neg(iqmp);
   ASSERT_TRUE(neg_iqmp);
 
   EXPECT_FALSE(RSA_new_public_key(neg_n.get(), e));
@@ -1198,7 +1186,7 @@ TEST(RSATest, Negative) {
 TEST(RSATest, LargeE) {
   // Test an RSA key with large e by swapping d and e in kKey1.
   // Since e is small, e mod (p-1) and e mod (q-1) will simply be e.
-  bssl::UniquePtr<RSA> key(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> key(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(key);
   const BIGNUM *n = RSA_get0_n(key.get());
   const BIGNUM *e = RSA_get0_e(key.get());
@@ -1208,10 +1196,10 @@ TEST(RSATest, LargeE) {
   const BIGNUM *iqmp = RSA_get0_iqmp(key.get());
 
   // By default, the large exponent is not allowed as e.
-  bssl::UniquePtr<RSA> pub(RSA_new_public_key(n, /*e=*/d));
+  UniquePtr<RSA> pub(RSA_new_public_key(n, /*e=*/d));
   EXPECT_FALSE(pub);
-  bssl::UniquePtr<RSA> priv(RSA_new_private_key(n, /*e=*/d, /*d=*/e, p, q,
-                                                /*dmp1=*/e, /*dmq1=*/e, iqmp));
+  UniquePtr<RSA> priv(RSA_new_private_key(n, /*e=*/d, /*d=*/e, p, q,
+                                          /*dmp1=*/e, /*dmq1=*/e, iqmp));
   EXPECT_FALSE(priv);
 
   // Constructing such a key piecemeal also would not work. This was only
@@ -1255,7 +1243,7 @@ TEST(RSATest, LargeE) {
   EXPECT_FALSE(RSA_new_public_key_large_e(n, BN_value_one()));
 
   // e must still be odd.
-  bssl::UniquePtr<BIGNUM> bad_e(BN_dup(d));
+  UniquePtr<BIGNUM> bad_e(BN_dup(d));
   ASSERT_TRUE(bad_e);
   ASSERT_TRUE(BN_add_word(bad_e.get(), 1));
   EXPECT_FALSE(RSA_new_public_key_large_e(n, bad_e.get()));
@@ -1268,39 +1256,55 @@ TEST(RSATest, LargeE) {
 }
 
 TEST(RSATest, KeyLimits) {
-  auto read_private_key = [](const char *path) -> bssl::UniquePtr<RSA> {
+  auto read_private_key = [](const char *path) -> UniquePtr<RSA> {
     std::string data = GetTestData(path);
-    bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(data.data(), data.size()));
+    UniquePtr<BIO> bio(BIO_new_mem_buf(data.data(), data.size()));
     if (!bio) {
       return nullptr;
     }
-    return bssl::UniquePtr<RSA>(
+    return UniquePtr<RSA>(
         PEM_read_bio_RSAPrivateKey(bio.get(), nullptr, nullptr, nullptr));
   };
-  auto read_public_key = [](const char *path) -> bssl::UniquePtr<RSA> {
+  auto read_public_key = [](const char *path) -> UniquePtr<RSA> {
     std::string data = GetTestData(path);
-    bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(data.data(), data.size()));
+    UniquePtr<BIO> bio(BIO_new_mem_buf(data.data(), data.size()));
     if (!bio) {
       return nullptr;
     }
-    return bssl::UniquePtr<RSA>(
+    return UniquePtr<RSA>(
         PEM_read_bio_RSA_PUBKEY(bio.get(), nullptr, nullptr, nullptr));
   };
+  auto generate_key = [](unsigned bits) -> bssl::UniquePtr<RSA> {
+    bssl::UniquePtr<RSA> rsa(RSA_new());
+    bssl::UniquePtr<BIGNUM> e(BN_new());
+    if (!rsa || !e || !BN_set_word(e.get(), RSA_F4) ||
+        !RSA_generate_key_ex(rsa.get(), bits, e.get(), nullptr)) {
+      return nullptr;
+    }
+    return rsa;
+  };
 
-  // We support RSA-512 through RSA-8192.
+  // We support RSA-512 through RSA-16384.
   //
-  // TODO(crbug.com/boringssl/42290480): Raise this limit. 512-bit RSA was
-  // factored in 1999.
+  // TODO(crbug.com/42290480): Raise the lower bound. 512-bit RSA was factored
+  // in 1999.
+  EXPECT_FALSE(generate_key(511u));
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_KEY_SIZE_TOO_SMALL));
   EXPECT_FALSE(read_private_key("crypto/rsa/test/rsa511.pem"));
   EXPECT_FALSE(read_public_key("crypto/rsa/test/rsa511pub.pem"));
 
-  bssl::UniquePtr<RSA> rsa = read_private_key("crypto/rsa/test/rsa512.pem");
+  UniquePtr<RSA> rsa = read_private_key("crypto/rsa/test/rsa512.pem");
   ASSERT_TRUE(rsa);
   EXPECT_EQ(RSA_bits(rsa.get()), 512u);
   rsa = read_public_key("crypto/rsa/test/rsa512pub.pem");
   ASSERT_TRUE(rsa);
   EXPECT_EQ(RSA_bits(rsa.get()), 512u);
+  rsa = generate_key(512u);
+  ASSERT_TRUE(rsa);
+  EXPECT_EQ(RSA_bits(rsa.get()), 512u);
 
+  // RSA-8192 and up take too long to generate, so skip keygen tests.
   rsa = read_private_key("crypto/rsa/test/rsa8192.pem");
   ASSERT_TRUE(rsa);
   EXPECT_EQ(RSA_bits(rsa.get()), 8192u);
@@ -1308,44 +1312,28 @@ TEST(RSATest, KeyLimits) {
   ASSERT_TRUE(rsa);
   EXPECT_EQ(RSA_bits(rsa.get()), 8192u);
 
-  EXPECT_FALSE(read_private_key("crypto/rsa/test/rsa8193.pem"));
-  EXPECT_FALSE(read_public_key("crypto/rsa/test/rsa8193pub.pem"));
+  rsa = read_private_key("crypto/rsa/test/rsa8193.pem");
+  ASSERT_TRUE(rsa);
+  EXPECT_EQ(RSA_bits(rsa.get()), 8193u);
+  rsa = read_public_key("crypto/rsa/test/rsa8193pub.pem");
+  ASSERT_TRUE(rsa);
+  EXPECT_EQ(RSA_bits(rsa.get()), 8193u);
+
+  rsa = read_private_key("crypto/rsa/test/rsa16384.pem");
+  ASSERT_TRUE(rsa);
+  EXPECT_EQ(RSA_bits(rsa.get()), 16384u);
+  rsa = read_public_key("crypto/rsa/test/rsa16384pub.pem");
+  ASSERT_TRUE(rsa);
+  EXPECT_EQ(RSA_bits(rsa.get()), 16384u);
+
+  EXPECT_FALSE(read_private_key("crypto/rsa/test/rsa16385.pem"));
+  EXPECT_FALSE(read_public_key("crypto/rsa/test/rsa16385pub.pem"));
+  EXPECT_FALSE(generate_key(16385u));
 }
-
-#if !defined(BORINGSSL_SHARED_LIBRARY)
-TEST(RSATest, SqrtTwo) {
-  bssl::UniquePtr<BIGNUM> sqrt(BN_new()), pow2(BN_new());
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
-  ASSERT_TRUE(sqrt);
-  ASSERT_TRUE(pow2);
-  ASSERT_TRUE(ctx);
-
-  size_t bits = kBoringSSLRSASqrtTwoLen * BN_BITS2;
-  ASSERT_TRUE(BN_one(pow2.get()));
-  ASSERT_TRUE(BN_lshift(pow2.get(), pow2.get(), 2 * bits - 1));
-
-  // Check that sqrt² < pow2.
-  ASSERT_TRUE(
-      bn_set_words(sqrt.get(), kBoringSSLRSASqrtTwo, kBoringSSLRSASqrtTwoLen));
-  ASSERT_TRUE(BN_sqr(sqrt.get(), sqrt.get(), ctx.get()));
-  EXPECT_LT(BN_cmp(sqrt.get(), pow2.get()), 0);
-
-  // Check that pow2 < (sqrt + 1)².
-  ASSERT_TRUE(
-      bn_set_words(sqrt.get(), kBoringSSLRSASqrtTwo, kBoringSSLRSASqrtTwoLen));
-  ASSERT_TRUE(BN_add_word(sqrt.get(), 1));
-  ASSERT_TRUE(BN_sqr(sqrt.get(), sqrt.get(), ctx.get()));
-  EXPECT_LT(BN_cmp(pow2.get(), sqrt.get()), 0);
-
-  // Check the kBoringSSLRSASqrtTwo is sized for a 4096-bit RSA key.
-  EXPECT_EQ(4096u / 2u, bits);
-}
-#endif  // !BORINGSSL_SHARED_LIBRARY
 
 #if defined(OPENSSL_THREADS)
 TEST(RSATest, Threads) {
-  bssl::UniquePtr<RSA> rsa_template(
-      RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
+  UniquePtr<RSA> rsa_template(RSA_private_key_from_bytes(kKey1, sizeof(kKey1)));
   ASSERT_TRUE(rsa_template);
 
   const uint8_t kDummyHash[32] = {0};
@@ -1357,7 +1345,7 @@ TEST(RSATest, Threads) {
 
   // RSA keys may be assembled piece-meal and then used in parallel between
   // threads, which requires internal locking to create some derived properties.
-  bssl::UniquePtr<RSA> rsa(RSA_new());
+  UniquePtr<RSA> rsa(RSA_new());
   rsa->n = BN_dup(rsa_template->n);
   ASSERT_TRUE(rsa->n);
   rsa->e = BN_dup(rsa_template->e);
@@ -1414,3 +1402,4 @@ TEST(RSATest, Threads) {
 #endif  // THREADS
 
 }  // namespace
+BSSL_NAMESPACE_END

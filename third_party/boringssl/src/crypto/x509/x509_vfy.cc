@@ -1481,7 +1481,7 @@ int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust) {
   return 1;
 }
 
-X509_STORE_CTX *X509_STORE_CTX_new(void) {
+X509_STORE_CTX *X509_STORE_CTX_new() {
   return reinterpret_cast<X509_STORE_CTX *>(
       OPENSSL_zalloc(sizeof(X509_STORE_CTX)));
 }

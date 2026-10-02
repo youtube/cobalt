@@ -28,13 +28,13 @@ class Notifier : public T {
  public:
   Notifier() = default;
 
-  virtual void RegisterObserver(ObserverInterface* observer) {
+  void RegisterObserver(ObserverInterface* observer) override {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     RTC_DCHECK(observer != nullptr);
     observers_.push_back(observer);
   }
 
-  virtual void UnregisterObserver(ObserverInterface* observer) {
+  void UnregisterObserver(ObserverInterface* observer) override {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     for (std::list<ObserverInterface*>::iterator it = observers_.begin();
          it != observers_.end(); it++) {

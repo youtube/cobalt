@@ -351,22 +351,22 @@ class AudioEncoderOpusImpl::PacketLossFractionSmoother {
 
 std::unique_ptr<AudioEncoderOpusImpl> AudioEncoderOpusImpl::CreateForTesting(
     const Environment& env,
-    const AudioEncoderOpusConfig& config,
+    AudioEncoderOpusConfig config,
     int payload_type,
     const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
     std::unique_ptr<SmoothingFilter> bitrate_smoother) {
   // Using `new` to access a non-public constructor.
   return absl::WrapUnique(new AudioEncoderOpusImpl(
-      env, config, payload_type, audio_network_adaptor_creator,
+      env, std::move(config), payload_type, audio_network_adaptor_creator,
       std::move(bitrate_smoother)));
 }
 
 AudioEncoderOpusImpl::AudioEncoderOpusImpl(const Environment& env,
-                                           const AudioEncoderOpusConfig& config,
+                                           AudioEncoderOpusConfig config,
                                            int payload_type)
     : AudioEncoderOpusImpl(
           env,
-          config,
+          std::move(config),
           payload_type,
           [this](absl::string_view config) {
             return DefaultAudioNetworkAdaptorCreator(config);
@@ -376,11 +376,12 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(const Environment& env,
 
 AudioEncoderOpusImpl::AudioEncoderOpusImpl(
     const Environment& env,
-    const AudioEncoderOpusConfig& config,
+    AudioEncoderOpusConfig config,
     int payload_type,
     const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
     std::unique_ptr<SmoothingFilter> bitrate_smoother)
     : env_(env),
+      config_(std::move(config)),
       payload_type_(payload_type),
       adjust_bandwidth_(
           env_.field_trials().IsEnabled("WebRTC-AdjustOpusBandwidth")),
@@ -397,9 +398,8 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
 
   // Sanity check of the redundant payload type field that we want to get rid
   // of. See https://bugs.chromium.org/p/webrtc/issues/detail?id=7847
-  RTC_CHECK(config.payload_type == -1 || config.payload_type == payload_type);
-
-  RTC_CHECK(RecreateEncoderInstance(config));
+  RTC_CHECK(config_.payload_type == -1 || config_.payload_type == payload_type);
+  RTC_CHECK(RecreateEncoderInstance());
 
   SetProjectedPacketLossRate(packet_loss_rate_);
 }
@@ -433,7 +433,7 @@ int AudioEncoderOpusImpl::GetTargetBitrate() const {
 }
 
 void AudioEncoderOpusImpl::Reset() {
-  RTC_CHECK(RecreateEncoderInstance(config_));
+  RTC_CHECK(RecreateEncoderInstance());
 }
 
 bool AudioEncoderOpusImpl::SetFec(bool enable) {
@@ -461,22 +461,20 @@ bool AudioEncoderOpusImpl::GetDtx() const {
 }
 
 bool AudioEncoderOpusImpl::SetApplication(Application application) {
-  auto conf = config_;
   switch (application) {
     case Application::kSpeech:
-      conf.application = AudioEncoderOpusConfig::ApplicationMode::kVoip;
+      config_.application = AudioEncoderOpusConfig::ApplicationMode::kVoip;
       break;
     case Application::kAudio:
-      conf.application = AudioEncoderOpusConfig::ApplicationMode::kAudio;
+      config_.application = AudioEncoderOpusConfig::ApplicationMode::kAudio;
       break;
   }
-  return RecreateEncoderInstance(conf);
+  return RecreateEncoderInstance();
 }
 
 void AudioEncoderOpusImpl::SetMaxPlaybackRate(int frequency_hz) {
-  auto conf = config_;
-  conf.max_playback_rate_hz = frequency_hz;
-  RTC_CHECK(RecreateEncoderInstance(conf));
+  config_.max_playback_rate_hz = frequency_hz;
+  RTC_CHECK(RecreateEncoderInstance());
 }
 
 bool AudioEncoderOpusImpl::EnableAudioNetworkAdaptor(absl::string_view config) {
@@ -657,37 +655,41 @@ size_t AudioEncoderOpusImpl::SufficientOutputBufferSize() const {
 // settings, save the config, and return true. Otherwise, do nothing and return
 // false.
 bool AudioEncoderOpusImpl::RecreateEncoderInstance(
-    const AudioEncoderOpusConfig& config) {
+    AudioEncoderOpusConfig config) {
   if (!config.IsOk())
     return false;
-  config_ = config;
+  config_ = std::move(config);
+  return RecreateEncoderInstance();
+}
+
+bool AudioEncoderOpusImpl::RecreateEncoderInstance() {
   if (inst_)
     RTC_CHECK_EQ(0, WebRtcOpus_EncoderFree(inst_));
   input_buffer_.clear();
   input_buffer_.reserve(Num10msFramesPerPacket() * SamplesPer10msFrame());
   RTC_CHECK_EQ(0, WebRtcOpus_EncoderCreate(
-                      &inst_, config.num_channels,
-                      config.application ==
+                      &inst_, config_.num_channels,
+                      config_.application ==
                               AudioEncoderOpusConfig::ApplicationMode::kVoip
                           ? 0
                           : 1,
-                      config.sample_rate_hz));
-  const int bitrate = GetBitrateBps(config);
+                      config_.sample_rate_hz));
+  const int bitrate = GetBitrateBps(config_);
   RTC_CHECK_EQ(0, WebRtcOpus_SetBitRate(inst_, bitrate));
   RTC_LOG(LS_VERBOSE) << "Set Opus bitrate to " << bitrate << " bps.";
-  if (config.fec_enabled) {
+  if (config_.fec_enabled) {
     RTC_CHECK_EQ(0, WebRtcOpus_EnableFec(inst_));
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableFec(inst_));
   }
   RTC_CHECK_EQ(
-      0, WebRtcOpus_SetMaxPlaybackRate(inst_, config.max_playback_rate_hz));
+      0, WebRtcOpus_SetMaxPlaybackRate(inst_, config_.max_playback_rate_hz));
   // Use the default complexity if the start bitrate is within the hysteresis
   // window.
-  complexity_ = GetNewComplexity(config).value_or(config.complexity);
+  complexity_ = GetNewComplexity(config_).value_or(config_.complexity);
   RTC_CHECK_EQ(0, WebRtcOpus_SetComplexity(inst_, complexity_));
   bitrate_changed_ = true;
-  if (config.dtx_enabled) {
+  if (config_.dtx_enabled) {
     RTC_CHECK_EQ(0, WebRtcOpus_EnableDtx(inst_));
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableDtx(inst_));
@@ -695,7 +697,7 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance(
   RTC_CHECK_EQ(0,
                WebRtcOpus_SetPacketLossRate(
                    inst_, static_cast<int32_t>(packet_loss_rate_ * 100 + .5)));
-  if (config.cbr_enabled) {
+  if (config_.cbr_enabled) {
     RTC_CHECK_EQ(0, WebRtcOpus_EnableCbr(inst_));
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableCbr(inst_));

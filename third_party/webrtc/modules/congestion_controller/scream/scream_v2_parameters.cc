@@ -54,7 +54,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       queue_delay_drain_rtts("QDelayDrainRtts", 5),
       periodic_padding_interval("PeriodicPadding", TimeDelta::Seconds(10)),
       periodic_padding_duration("PaddingDuration", TimeDelta::Seconds(1)),
-      pacing_factor("PacingFactor", 1.1) {
+      pacing_factor("PacingFactor", 1.1),
+      feedback_hold_time_avg_g("FeedbackHoldTimeAvgG", 1.0 / 8.0) {
   ParseFieldTrial({&min_ref_window,
                    &l4s_avg_g_up,
                    &l4s_avg_g_down,
@@ -82,7 +83,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
                    &queue_delay_drain_rtts,
                    &periodic_padding_interval,
                    &periodic_padding_duration,
-                   &pacing_factor},
+                   &pacing_factor,
+                   &feedback_hold_time_avg_g},
                   trials.Lookup("WebRTC-Bwe-ScreamV2"));
 }
 

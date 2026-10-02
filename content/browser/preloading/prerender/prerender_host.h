@@ -18,10 +18,10 @@
 #include "content/browser/preloading/prerender/prerender_attributes.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/speculation_rules/speculation_rules_tags.h"
-#include "content/browser/prerender_host_id.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/navigation_controller_delegate.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/prerender_host_id.h"
 #include "content/public/browser/render_frame_host.h"
 #include "net/http/http_no_vary_search_data.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-forward.h"
@@ -159,10 +159,6 @@ class CONTENT_EXPORT PrerenderHost {
     // Called from the PrerenderHost's destructor. The observer should drop any
     // reference to the host.
     virtual void OnHostDestroyed(PrerenderFinalStatus status) {}
-
-    // Called when the PrerenderHost is reused for another prerender. The
-    // observer shall not cancel the host if OnHostReused is called.
-    virtual void OnHostReused() {}
   };
 
   // Returns the PrerenderHost that the given `frame_tree_node` is in, if it is
@@ -200,7 +196,7 @@ class CONTENT_EXPORT PrerenderHost {
 
   // Sets a callback to be called on PrerenderHost creation.
   static void SetHostCreationCallbackForTesting(
-      base::OnceCallback<void(FrameTreeNodeId host_id)> callback);
+      base::OnceCallback<void(PrerenderHostId host_id)> callback);
 
   PrerenderHost(std::unique_ptr<PrerenderHost> reuse_host,
                 const PrerenderAttributes& attributes,
@@ -442,8 +438,6 @@ class CONTENT_EXPORT PrerenderHost {
   void AddAdditionalRequestHeaders(net::HttpRequestHeaders& headers,
                                    FrameTreeNode& navigating_frame_tree_node);
 
-  void NotifyReused();
-
   // Called just before cancellation
   void OnWillBeCancelled(const PrerenderCancellationReason& reason);
 
@@ -487,6 +481,7 @@ class CONTENT_EXPORT PrerenderHost {
     bool OnRenderFrameProxyVisibilityChanged(
         RenderFrameProxyHost* render_frame_proxy_host,
         blink::mojom::FrameVisibility visibility) override;
+    PrerenderHostId GetPrerenderHostId() override;
 
     // NavigationControllerDelegate
     void NotifyNavigationStateChangedFromController(

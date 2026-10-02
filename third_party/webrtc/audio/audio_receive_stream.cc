@@ -92,9 +92,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
       config.rtcp_send_transport, config.rtp.local_ssrc, config.rtp.remote_ssrc,
       config.jitter_buffer_max_packets, config.jitter_buffer_fast_accelerate,
       config.jitter_buffer_min_delay_ms, config.enable_non_sender_rtt,
-      config.decoder_factory, config.codec_pair_id,
-      std::move(config.frame_decryptor), config.crypto_options,
-      std::move(config.frame_transformer));
+      config.decoder_factory, std::move(config.frame_decryptor),
+      config.crypto_options, std::move(config.frame_transformer));
 }
 }  // namespace
 
@@ -376,6 +375,17 @@ void AudioReceiveStreamImpl::SetSink(AudioSinkInterface* sink) {
 void AudioReceiveStreamImpl::SetGain(float gain) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   channel_receive_->SetChannelOutputVolumeScaling(gain);
+}
+
+void AudioReceiveStreamImpl::SetJitterBufferMaxPackets(size_t max_packets) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  channel_receive_->SetMaximumBufferPackets(max_packets);
+}
+
+void AudioReceiveStreamImpl::SetJitterBufferFastAccelerate(
+    bool fast_accelerate) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  channel_receive_->SetFastAccelerate(fast_accelerate);
 }
 
 bool AudioReceiveStreamImpl::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

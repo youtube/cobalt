@@ -597,8 +597,8 @@ static const EVP_CIPHER bf_cfb = {
     /* ctrl= */ nullptr,
 };
 
-const EVP_CIPHER *EVP_bf_ecb(void) { return &bf_ecb; }
+const EVP_CIPHER *EVP_bf_ecb() { return &bf_ecb; }
 
-const EVP_CIPHER *EVP_bf_cbc(void) { return &bf_cbc; }
+const EVP_CIPHER *EVP_bf_cbc() { return &bf_cbc; }
 
-const EVP_CIPHER *EVP_bf_cfb(void) { return &bf_cfb; }
+const EVP_CIPHER *EVP_bf_cfb() { return &bf_cfb; }

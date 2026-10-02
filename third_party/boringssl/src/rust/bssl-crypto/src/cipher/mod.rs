@@ -187,7 +187,7 @@ impl<C: EvpCipherType> Cipher<C> {
         assert_eq!(
             self.cipher_mode(),
             bssl_sys::EVP_CIPH_CTR_MODE as u32,
-            "Cannot use apply_keystraem_in_place for non-CTR modes"
+            "Cannot use apply_keystream_in_place for non-CTR modes"
         );
         let mut cslice_buf_mut = CSliceMut::from(buffer);
         let mut out_len = 0;
@@ -219,8 +219,7 @@ impl<C: EvpCipherType> Cipher<C> {
             .try_into()
             .expect("Block size should always fit in usize");
         let max_encrypt_total_output_size = buffer.len() + block_size;
-        let mut output_vec =
-            vec![0_u8; max_encrypt_total_output_size];
+        let mut output_vec = vec![0_u8; max_encrypt_total_output_size];
         // EncryptUpdate block
         let update_out_len = {
             let mut cslice_out_buf_mut = CSliceMut::from(&mut output_vec[..]);
@@ -250,8 +249,7 @@ impl<C: EvpCipherType> Cipher<C> {
             // Slice indexing here will not panic because we ensured `output_vec` is larger than
             // what `EncryptUpdate` will write.
             #[allow(clippy::indexing_slicing)]
-            let mut cslice_finalize_buf_mut =
-                CSliceMut::from(&mut output_vec[update_out_len..]);
+            let mut cslice_finalize_buf_mut = CSliceMut::from(&mut output_vec[update_out_len..]);
             let mut final_out_len = 0;
             // Safety: the output buffer bounds are passed into `EVP_EncryptFinal_ex2`.
             let final_result = unsafe {

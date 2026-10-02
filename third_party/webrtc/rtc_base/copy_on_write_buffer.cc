@@ -38,7 +38,8 @@ CopyOnWriteBuffer::CopyOnWriteBuffer(absl::string_view s)
     : CopyOnWriteBuffer(s.data(), s.length()) {}
 
 CopyOnWriteBuffer::CopyOnWriteBuffer(size_t size)
-    : buffer_(size > 0 ? new RefCountedBuffer(size) : nullptr),
+    : buffer_(size > 0 ? new RefCountedBuffer(size, size) : nullptr),
+      // note - the RefCountedBuffer will be created uninitialized.
       offset_(0),
       size_(size) {
   RTC_DCHECK(IsConsistent());
@@ -66,7 +67,8 @@ void CopyOnWriteBuffer::SetSize(size_t size) {
   RTC_DCHECK(IsConsistent());
   if (!buffer_) {
     if (size > 0) {
-      buffer_ = new RefCountedBuffer(size);
+      buffer_ = new RefCountedBuffer(size, size);
+      // Note - the new buffer will be created uninitialized.
       offset_ = 0;
       size_ = size;
     }

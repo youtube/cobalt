@@ -2329,7 +2329,7 @@ are declared in tools/grit/grit_args.gni.
         Your organization's policies aren't met
       </message>
       <message name="IDS_FORCED_SAVE_TO_GDRIVE_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this local download is blocked because it contains sensitive content and download will proceed to GDrive">
-        Failed - Local download blocked
+        Your organization's policies aren't met
       </message>
       <message name="IDS_BLOCKED_TOO_LARGE_DESCRIPTION" desc="Message shown to the user on chrome://downloads page to explain this download is blocked because it is too large for deep scanning">
         This file is too big for a security check. You can open files up to 50 MB.
@@ -3578,6 +3578,9 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_WEB_APP_INSTALL_NOT_SUPPORTED_DIALOG_TITLE_GUEST_MODE" desc="Title for the dialog shown when a web app cannot be installed in Guest Mode.">
         Web app installs aren't supported in Guest mode
       </message>
+      <message name="IDS_WEB_APP_INSTALL_NOT_SUPPORTED_DIALOG_TITLE_POLICY_MODE" desc="Title of the dialog shown when the web app cannot be installed by Policy setting.">
+        Web app installation is blocked by administrator policy.
+      </message>
 
       <!-- WebApp name/icon update dialog -->
       <message name="IDS_WEBAPP_UPDATE_DIALOG_TITLE_NAME" desc="The title at the top of the web app update dialog when only the name changed." formatter_data="android_java">
@@ -3920,9 +3923,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_ACCESSED_ON_DEVICE_SITE_DATA_MESSAGE" desc="Tooltip and bubble info header text when a page saves site data while saving all site data is blocked.">
         This site is allowed to save data on your device.
       </message>
-      <message name="IDS_BLOCKED_COOKIES_INFO" desc="Info link to a dialog showing the blocked/allowed cookies, displayed in bubble when a page tries to write cookies or other site data.">
-        Show cookies and other site data...
-      </message>
       <message name="IDS_BLOCKED_IMAGES_TITLE" desc="Tooltip and bubble info header text when a page is not allowed to display images.">
         Images blocked
       </message>
@@ -4108,12 +4108,6 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_TRACKING_PROTECTION_BUBBLE_SITE_NOT_WORKING_DESCRIPTION" desc="Descriptive text in the trackings protection bubble mentioning the option to enable third-party cookies and mentions the trade off of doing so.">
         Try temporarily allowing third-party cookies, which means less browsing protection but site features are more likely to work as expected.
       </message>
-      <message name="IDS_TRACKING_PROTECTION_BUBBLE_LIMITING_RESTART_TITLE" desc="Subtitle shown on the tracking protection bubble indicating how long until cookies will be limited again.">
-        {COUNT, plural,
-              =0 {Chrome will limit cookies again today}
-              =1 {Chrome will limit cookies again tomorrow}
-              other {# days until Chrome limits cookies again}}
-      </message>
       <message name="IDS_TRACKING_PROTECTION_BUBBLE_BLOCKING_RESTART_TITLE" desc="Subtitle shown on the tracking protection bubble indicating how long until cookies are blocked again.">
         {COUNT, plural,
               =0 {Cookies will be blocked again today}
@@ -4149,12 +4143,6 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_COOKIE_CONTROLS_PAGE_ACTION_COOKIES_BLOCKED_LABEL" desc="Label in the Page Action (omnibox) icon indicating that cookies are blocked on the current site.">
         Third-party cookies blocked
-      </message>
-      <message name="IDS_COOKIE_CONTROLS_PAGE_ACTION_COOKIES_LIMITED_LABEL" desc="Label in the Page Action (omnibox) icon indicating that cookies are limited on the current site.">
-        Third-party cookies limited
-      </message>
-      <message name="IDS_TRACKING_PROTECTION_PAGE_ACTION_SITE_NOT_WORKING_LABEL" desc="Label for the Page Action (omnibox) icon that highlights the Tracking Protection bubble entrypoint when cookies are blocked and we have high confidence that this is breaking the current site.">
-        Site not working?
       </message>
       <message name="IDS_COOKIE_CONTROLS_PROMO_TITLE" desc="Title of the in-product-help bubble shown for the cookie controls bubble. Indicates that cookies are blocked on the current site.">
         Third-party cookies blocked
@@ -8139,6 +8127,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_SHOW_LESS_BUTTON_LABEL" desc="Label for a button that allows the user to see fewer most visited tiles on the New Tab Page.">
         Show less
       </message>
+      <message name="IDS_NTP_THREADS_HISTORY_LABEL" desc="Label for listing the user's AI Mode threads history.">
+        AI Mode history
+      </message>
+      <message name="IDS_NTP_THREADS_NEW_SEARCH_LABEL" desc="Label for starting a new AI Mode query.">
+        Start new search
+      </message>
       <message name="IDS_NTP_WEBSTORE_SHOPPING_CATEOGRY_LABEL" desc="The message displayed on the button that redirects users to the 'shopping' category page of the Chrome webstore.">
         Find coupons
       </message>
@@ -8740,6 +8734,18 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_COMPOSE_CREATE_IMAGES" desc="The label for the create images button in the context menu in the composebox as well as the chip that indicates that the user is in create images mode.">
         Create images
+      </message>
+      <message name="IDS_NTP_COMPOSE_CANVAS" desc="The label for the canvas button in the context menu in the composebox as well as the chip that indicates that the user is in canvas mode.">
+        Canvas
+      </message>
+      <message name="IDS_NTP_COMPOSE_MODELS_LABEL" desc="The label for the models label in the context menu in the composebox.">
+        Models
+      </message>
+      <message name="IDS_NTP_COMPOSE_AUTO_MODEL" desc="The label for the Auto model button in the context menu in the composebox as well as the chip that indicates that the user is using the Auto model.">
+        Auto
+      </message>
+      <message name="IDS_NTP_COMPOSE_THINKING_3_PRO" desc="The label for the Thinking 3 Pro model button in the context menu in the composebox as well as the chip that indicates that the user is using the Thinking 3 Pro model.">
+        Thinking (3 Pro)
       </message>
       <message name="IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER" desc="Placeholder text for the composebox when in deep search mode.">
         Research anything
@@ -9769,17 +9775,29 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_LINE_FOCUS_WINDOW_HEADING" desc="Heading in dropdown menu for the sliding window line focus options.">
         Highlight
       </message>
-      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_1_LINE_LABEL" desc="Dropdown option for the sliding 1-line-height window line focus option.">
-        1 line
+      <message name="IDS_READING_MODE_LINE_FOCUS_STYLE_HEADING" desc="Heading in dropdown menu for choosing the line focus visual style.">
+        Style
       </message>
-      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_3_LINE_LABEL" desc="Dropdown option for the sliding 3-line-height window line focus option.">
-        3 lines
+      <message name="IDS_READING_MODE_LINE_FOCUS_SMALL_FOCUS_LABEL" desc="Dropdown option for the small height window line focus option.">
+        Small focus
       </message>
-      <message name="IDS_READING_MODE_LINE_FOCUS_HIGHLIGHT_5_LINE_LABEL" desc="Dropdown option for the sliding 5-line-height window line focus option.">
-        5 lines
+      <message name="IDS_READING_MODE_LINE_FOCUS_MEDIUM_FOCUS_LABEL" desc="Dropdown option for the medium height window line focus option.">
+        Medium focus
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_LARGE_FOCUS_LABEL" desc="Dropdown option for the large height window line focus option.">
+        Large focus
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_UNDERLINE_LABEL" desc="Dropdown option for the single-line underline line focus option.">
+        Underline
       </message>
       <message name="IDS_READING_MODE_LINE_FOCUS_LINE_HEADING" desc="Heading in dropdown menu for the single underline line focus options.">
         Line
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_MOVEMENT_HEADING" desc="Heading in dropdown menu for choosing the line focus movement type.">
+        Movement
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_STATIC_LABEL" desc="Dropdown option for the line focus option of staying in the middle of the panel.">
+        Static
       </message>
       <message name="IDS_READING_MODE_LINE_FOCUS_STATIC_LINE_LABEL" desc="Dropdown option for the line focus option of a single static line in the middle of the panel.">
         Static line
@@ -10350,24 +10368,30 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <if expr="use_titlecase">
         <then>
           <message name="IDS_SWITCH_TO_VERTICAL_TAB" desc="In Title Case: The button in context menu that switches to vertical tab view.">
-            Show Tabs To The Side
+            Move Tabs To The Side
           </message>
           <message name="IDS_SWITCH_TO_HORIZONTAL_TAB" desc="In Title Case: The button in context menu that switches to horizontal tab view.">
-            Show Tabs At The Top
+            Move Tabs To The Top
           </message>
           <message name="IDS_COLLAPSE_VERTICAL_TABS" desc="In Title Case: The tooltip for the button in the top container that collapses the vertical tab strip.">
             Collapse Vertical Tabs
           </message>
+          <message name="IDS_EXPAND_VERTICAL_TABS" desc="In Title Case: The tooltip for the button in the top container that expands the vertical tab strip.">
+            Expand Vertical Tabs
+          </message>
         </then>
         <else>
           <message name="IDS_SWITCH_TO_VERTICAL_TAB" desc="The button in context menu that switches to vertical tab view.">
-            Show tabs to the side
+            Move tabs to the side
           </message>
           <message name="IDS_SWITCH_TO_HORIZONTAL_TAB" desc="The button in context menu that switches to horizontal tab view.">
-            Show tabs at the top
+            Move tabs to the top
           </message>
           <message name="IDS_COLLAPSE_VERTICAL_TABS" desc="The tooltip for the button in the top container that collapses the vertical tab strip.">
             Collapse vertical tabs
+          </message>
+          <message name="IDS_EXPAND_VERTICAL_TABS" desc="The tooltip for the button in the top container that expands the vertical tab strip.">
+            Expand vertical tabs
           </message>
         </else>
       </if>
@@ -10512,6 +10536,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_SUBTITLE" desc="The subtitle for the iOS desktop password promo bubble which lets the user know they can access their saved password on the Google Password Manager.">
           You can access it on Google Password Manager.
         </message>
+        <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Password promo notification.">
+          Save and autofill your passwords to easily sign in to sites and apps
+        </message>
       </if>
 
       <!--Desktop to iOS address promo strings-->
@@ -10586,6 +10613,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_IOS_DESKTOP_ESB_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop ESB promo bubble with a reminder button.">
           Enhance Safe Browsing on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
         </message>
+        <message name="IDS_IOS_DESKTOP_SAFE_BROWSING_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Enhanced Safe Browsing promo notification.">
+          Add an extra layer of protection against online threats
+        </message>
       </if>
 
       <!--Desktop to iOS Lens promo strings-->
@@ -10595,6 +10625,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_IOS_DESKTOP_LENS_PROMO_BUBBLE_TITLE_REMINDER" desc="The title for the iOS desktop Lens promo bubble with a reminder button.">
           Try Google Lens on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>
+        </message>
+        <message name="IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Lens promo notification.">
+          Shop, translate, and identify what you see with your camera.
         </message>
       </if>
 
@@ -13522,6 +13555,15 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
   Would you like to start <ph name="CONTROL_PANEL_APPLET_NAME">$1<ex>Add/Remove Programs</ex></ph>?
         </message>
       </if>
+      <message name="IDS_DEFAULT_BROWSER_CHANGED_TITLE" desc="Title of the notification shown when the default browser setting changes.">
+        Your default browser was changed
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_CHANGED_YES_BUTTON" desc="Label of the yes button on the notification shown when the default browser setting changes.">
+        Yes
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_CHANGED_NO_THANKS_BUTTON" desc="Label of the no button on the notification shown when the default browser setting changes.">
+        No, thanks
+      </message>
 
       <!-- chrome://help -->
       <if expr="not is_android">
@@ -17853,9 +17895,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
         </message>
       </if>
 
-      <message name="IDS_WEBAUTHN_TRANSPORT_POPUP_PAIR_PHONE" desc="Menu item text. The user selects this to begin the process of pairing with a previously unknown smartphone.">
-        Pair with new phone
-      </message>
       <message name="IDS_WEBAUTHN_CABLE_ACTIVATE_TITLE" desc="Title of the dialog shown when the user tries to sign-in using a phone as a security key.">
         Check your phone
       </message>
@@ -17864,9 +17903,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_WEBAUTHN_CABLE_ACTIVATE_DESCRIPTION" desc="Contents of the dialog shown when the user tries to sign-in using a phone as a security key.">
         A notification was sent to your phone to confirm it's you.
-      </message>
-      <message name="IDS_WEBAUTHN_CABLE_ACTIVATE_DEVICE_NAME_DESCRIPTION" desc="Contents of the dialog shown when the user tries to sign-in using a phone as a security key.">
-        A notification was sent to <ph name="DEVICE_NAME">$1<ex>Ted's Pixel 6 Pro</ex></ph>
       </message>
       <message name="IDS_WEBAUTHN_CABLEV2_CONNECTING_TITLE" desc="The title of a dialog that is shown when the computer is connecting to a phone or tablet.">
         Connecting to your device
@@ -17886,9 +17922,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_WEBAUTHN_PASSKEY_PHONE_TABLET_OR_SECURITY_KEY_LABEL" desc="The label on a button-like element in a list of options. Clicking this causes Chrome to show a QR code that the user can scan with their phone to use that phone for signing into a website. Here 'phone' is used as a short hand for smartphone. Users can also insert and tap their security key on the QR code screen.">
         Use a phone, tablet, or security key
-      </message>
-      <message name="IDS_WEBAUTHN_PHONE_CONFIRMATION_TITLE" desc="The title of a dialog shown when a user can use a passkey from a phone or tablet they have already paired with Chrome to sign in to a website. Refer to Glossary for the meaning of 'passkey'; do not translate it as 'password'.">
-        Use a passkey from <ph name="DEVICE_NAME">$1<ex>Ted's Pixel 6 Pro</ex></ph> to sign in to <ph name="WEBSITE">$2<ex>accounts.google.com</ex></ph>
       </message>
 
       <!-- WebAuthn authenticator PIN entry/setup -->
@@ -18516,8 +18549,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_LABEL" desc="Button text to allow the user to save a file to cloud storage">
       Save to cloud storage
     </message>
+    <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_FILENAME_PLACEHOLDER" desc="Placeholder for the case where filename does not exist">
+      This file
+    </message>
     <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_MESSAGE" desc="Button text to allow the user to save a file to cloud storage">
-      This file has sensitive or dangerous data. Your organization will let you save it to cloud storage or discard it
+      <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive or dangerous data. Your organization will let you save it to cloud storage or discard it
     </message>
 
     <!-- Data sharing UI strings -->
@@ -19806,6 +19842,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_DATE_FILTER_RANGE" desc="Text displayed in a filter chip indicating logs are shown within a date range.">
         <ph name="START_DATE">$1<ex>Jan 1, 2025</ex></ph> to <ph name="END_DATE">$2<ex>Feb 1, 2025</ex></ph>
       </message>
+      <message name="IDS_UPDATER_DISPLAYED_EVENTS_COUNT" desc="Text displayed above a filtered list of events in the Chrome Updater log indicating how many events match the filter and are displayed. The number of displayed events is greater than or equal to zero. The number of total events is one or more.">
+        Displaying <ph name="NUM_DISPLAYED_EVENTS">$1<ex>17</ex></ph> of <ph name="NUM_TOTAL_EVENTS">$2<ex>1149</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_DURATION" desc="Text indicating the duration of a Chrome Updater event in a log.">
+        Duration: <ph name="DURATION">$1<ex>1m 12s</ex></ph>
+      </message>
       <message name="IDS_UPDATER_END_DATE" desc="Label for the end date input field.">
         End Date:
       </message>
@@ -19860,6 +19902,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_FILTER_CHIP_UPDATE_OUTCOME" desc="Text displayed in a filter chip showing the selected update outcomes.">
         Update Outcome: <ph name="OUTCOMES">$1<ex>Updated, Update Error</ex></ph>
       </message>
+      <message name="IDS_UPDATER_FILTER_CHIP_UPDATER_SCOPE" desc="Text displayed in a filter chip showing the selected updater scopes.">
+        Updater Scope: <ph name="OUTCOMES">$1<ex>Per-system updater, Per-user updater</ex></ph>
+      </message>
       <message name="IDS_UPDATER_INSTALL_SUMMARY" desc="Summary of an event in which software was installed, including the version.">
         Installed version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
       </message>
@@ -19869,8 +19914,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_NEXT_VERSION" desc="Label indicating the version of a software installation that the Chrome Updater tried to update to.">
         Next version: <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
       </message>
-      <message name="IDS_UPDATER_NO_UPDATE" desc="Summary of an update event where the server indicated that no update was available.">
-        No update was available
+      <message name="IDS_UPDATER_NO_UPDATE" desc="Summary of an update event where the server indicated that no update was available. The text should indicate that the service was successfully able to check for an update. Not being offered an update is a normal occurance, the text should not suggest that any sort of error occured.">
+        Update check completed successfully. No update was available
       </message>
       <message name="IDS_UPDATER_OMAHA_REQUEST" desc="Label for a collapsible section displaying or chip indicating the presence of Omaha protocol request data in JSON format.">
         Omaha Request
@@ -19904,6 +19949,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_REMOVE_FILTER" desc="Accessibility label for the button that removes a specific filter chip.">
         Remove filter
+      </message>
+      <message name="IDS_UPDATER_SCOPE" desc="Label for a filter category allowing the user to filter Chrome Updater logs by the scope of the updater. Chrome Updater may be scoped per-user or per-system.">
+        Updater Scope
+      </message>
+      <message name="IDS_UPDATER_SCOPE_SYSTEM" desc="Tooltip explaining that an event belongs to a per-system installation of the updater as opposed to a per-user installation.">
+        Per-system updater
+      </message>
+      <message name="IDS_UPDATER_SCOPE_USER" desc="Tooltip explaining that an event belongs to a per-user installation of the updater as opposed to a per-system installation.">
+        Per-user updater
       </message>
       <message name="IDS_UPDATER_START_DATE" desc="Label for the start date input field.">
         Start Date:

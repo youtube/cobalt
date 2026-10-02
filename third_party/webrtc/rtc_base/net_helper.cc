@@ -51,10 +51,10 @@ std::optional<ProtocolType> StringToProto(absl::string_view proto_name) {
     ProtocolType type;
     absl::string_view name;
   } const mappings[] = {
-      {PROTO_UDP, UDP_PROTOCOL_NAME},
-      {PROTO_TCP, TCP_PROTOCOL_NAME},
-      {PROTO_SSLTCP, SSLTCP_PROTOCOL_NAME},
-      {PROTO_TLS, TLS_PROTOCOL_NAME},
+      {.type = PROTO_UDP, .name = UDP_PROTOCOL_NAME},
+      {.type = PROTO_TCP, .name = TCP_PROTOCOL_NAME},
+      {.type = PROTO_SSLTCP, .name = SSLTCP_PROTOCOL_NAME},
+      {.type = PROTO_TLS, .name = TLS_PROTOCOL_NAME},
   };
   for (const auto& m : mappings) {
     if (absl::EqualsIgnoreCase(m.name, proto_name)) {

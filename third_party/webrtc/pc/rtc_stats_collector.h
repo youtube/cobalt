@@ -65,8 +65,12 @@ struct RtpTransceiverStatsInfo {
   const MediaType media_type;
   const std::optional<std::string> mid;
   std::optional<std::string> transport_name;
-  TrackMediaInfoMap track_media_info_map;
+  std::vector<TrackMediaInfoMap::RtpSenderSignalInfo> sender_infos;
+  std::vector<TrackMediaInfoMap::RtpReceiverSignalInfo> receiver_infos;
+  std::vector<scoped_refptr<RtpReceiverInternal>> receivers;
+  std::unique_ptr<TrackMediaInfoMap> track_media_info_map;
   const std::optional<RtpTransceiverDirection> current_direction;
+  bool has_receivers = false;
 };
 
 // All public methods of the collector are to be called on the signaling thread.

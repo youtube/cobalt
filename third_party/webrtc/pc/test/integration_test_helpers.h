@@ -197,7 +197,8 @@ class MockRtpReceiverObserver : public RtpReceiverObserverInterface {
     ASSERT_EQ(expected_media_type_, media_type);
     first_packet_received_ = true;
   }
-  void OnFirstPacketReceivedAfterReceptiveChange(webrtc::MediaType media_type) {
+  void OnFirstPacketReceivedAfterReceptiveChange(
+      webrtc::MediaType media_type) override {
     ASSERT_EQ(expected_media_type_, media_type);
     first_packet_received_after_receptive_change_ = true;
   }
@@ -207,7 +208,7 @@ class MockRtpReceiverObserver : public RtpReceiverObserverInterface {
     return first_packet_received_after_receptive_change_;
   }
 
-  virtual ~MockRtpReceiverObserver() {}
+  ~MockRtpReceiverObserver() override {}
 
  private:
   bool first_packet_received_ = false;
@@ -227,7 +228,7 @@ class MockRtpSenderObserver : public RtpSenderObserverInterface {
 
   bool first_packet_sent() const { return first_packet_sent_; }
 
-  virtual ~MockRtpSenderObserver() {}
+  ~MockRtpSenderObserver() override {}
 
  private:
   bool first_packet_sent_ = false;
@@ -373,7 +374,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
   scoped_refptr<VideoTrackInterface> CreateLocalVideoTrack() {
     FakePeriodicVideoSource::Config config;
-    config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
+    config.timestamp_offset = env_.clock().CurrentTime();
     return CreateLocalVideoTrackInternal(config);
   }
 
@@ -386,7 +387,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
       VideoRotation rotation) {
     FakePeriodicVideoSource::Config config;
     config.rotation = rotation;
-    config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
+    config.timestamp_offset = env_.clock().CurrentTime();
     return CreateLocalVideoTrackInternal(config);
   }
 
@@ -852,7 +853,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
       FakePeriodicVideoSource::Config config) {
     // Set max frame rate to 10fps to reduce the risk of test flakiness.
     // TODO(deadbeef): Do something more robust.
-    config.frame_interval_ms = 100;
+    config.frame_interval = TimeDelta::Millis(100);
 
     video_track_sources_.emplace_back(
         make_ref_counted<FakePeriodicVideoTrackSource>(config,
@@ -1085,7 +1086,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   }
 
   void OnIceSelectedCandidatePairChanged(
-      const CandidatePairChangeEvent& event) {
+      const CandidatePairChangeEvent& event) override {
     ice_candidate_pair_change_history_.push_back(event);
   }
 
@@ -1240,7 +1241,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
 class MockRtcEventLogOutput : public RtcEventLogOutput {
  public:
-  virtual ~MockRtcEventLogOutput() = default;
+  ~MockRtcEventLogOutput() override = default;
   MOCK_METHOD(bool, IsActive, (), (const, override));
   MOCK_METHOD(bool, Write, (absl::string_view), (override));
 };
@@ -1356,7 +1357,7 @@ class MockIceTransport : public IceTransportInterface {
       : internal_(std::make_unique<FakeIceTransportInternal>(name,
                                                              component,
                                                              nullptr)) {}
-  ~MockIceTransport() = default;
+  ~MockIceTransport() override = default;
   IceTransportInternal* internal() override { return internal_.get(); }
 
  private:
@@ -1369,7 +1370,7 @@ class MockIceTransportFactory : public IceTransportFactory {
   scoped_refptr<IceTransportInterface> CreateIceTransport(
       const std::string& transport_name,
       int component,
-      IceTransportInit init) {
+      IceTransportInit init) override {
     RecordIceTransportCreated();
     return make_ref_counted<MockIceTransport>(transport_name, component);
   }

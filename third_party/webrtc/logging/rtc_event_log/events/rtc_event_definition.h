@@ -123,9 +123,11 @@ class RtcEventDefinition {
     ArrayView<LoggedType> output_batch =
         ExtendLoggedBatch(output, parser.NumEventsInBatch());
 
-    constexpr FieldParameters timestamp_params{"timestamp_ms",
-                                               FieldParameters::kTimestampField,
-                                               FieldType::kVarInt, 64};
+    constexpr FieldParameters timestamp_params{
+        .name = "timestamp_ms",
+        .field_id = FieldParameters::kTimestampField,
+        .field_type = FieldType::kVarInt,
+        .value_width = 64};
     RtcEventLogParseStatusOr<ArrayView<uint64_t>> result =
         parser.ParseNumericField(timestamp_params);
     if (!result.ok())

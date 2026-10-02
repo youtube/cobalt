@@ -32,7 +32,7 @@ struct RTC_EXPORT AudioEncoderMultiChannelOpus {
   static void AppendSupportedEncoders(std::vector<AudioCodecSpec>* specs);
   static AudioCodecInfo QueryAudioEncoder(const Config& config);
   static std::unique_ptr<AudioEncoder> MakeAudioEncoder(
-      const Config& config,
+      Config config,
       int payload_type,
       std::optional<AudioCodecPairId> codec_pair_id = std::nullopt,
       const FieldTrialsView* field_trials = nullptr);

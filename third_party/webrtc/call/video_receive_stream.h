@@ -348,7 +348,7 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
   virtual void UpdateRtxSsrc(uint32_t ssrc) = 0;
 
  protected:
-  virtual ~VideoReceiveStreamInterface() {}
+  ~VideoReceiveStreamInterface() override {}
 };
 
 }  // namespace webrtc

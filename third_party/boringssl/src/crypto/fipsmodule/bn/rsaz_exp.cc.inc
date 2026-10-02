@@ -29,6 +29,8 @@
 #include "../../internal.h"
 
 
+using namespace bssl;
+
 // rsaz_one is 1 in RSAZ's representation.
 alignas(64) static const BN_ULONG rsaz_one[40] = {
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

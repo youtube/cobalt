@@ -26,6 +26,11 @@ DesktopCapturer::SourceId FullScreenApplicationHandler::FindFullScreenWindow(
   return 0;
 }
 
+DesktopCapturer::SourceId FullScreenApplicationHandler::FindEditorWindow(
+    const DesktopCapturer::SourceList&) const {
+  return 0;
+}
+
 DesktopCapturer::SourceId FullScreenApplicationHandler::GetSourceId() const {
   return source_id_;
 }

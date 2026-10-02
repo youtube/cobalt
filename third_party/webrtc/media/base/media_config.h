@@ -82,6 +82,14 @@ struct MediaConfig {
   struct Audio {
     // Time interval between RTCP report for audio
     int rtcp_report_interval_ms = 5000;
+
+    // The maximum number of packets that can be stored in the NetEq audio
+    // jitter buffer. Can be reduced to lower tolerated audio latency.
+    int audio_jitter_buffer_max_packets = 200;
+
+    // Whether to use the NetEq "fast mode" which will accelerate audio quicker
+    // if it falls behind.
+    bool audio_jitter_buffer_fast_accelerate = false;
   } audio;
 
   bool operator==(const MediaConfig& o) const {
@@ -98,7 +106,11 @@ struct MediaConfig {
            video.rtcp_report_interval_ms == o.video.rtcp_report_interval_ms &&
            video.enable_send_packet_batching ==
                o.video.enable_send_packet_batching &&
-           audio.rtcp_report_interval_ms == o.audio.rtcp_report_interval_ms;
+           audio.rtcp_report_interval_ms == o.audio.rtcp_report_interval_ms &&
+           audio.audio_jitter_buffer_max_packets ==
+               o.audio.audio_jitter_buffer_max_packets &&
+           audio.audio_jitter_buffer_fast_accelerate ==
+               o.audio.audio_jitter_buffer_fast_accelerate;
   }
 
   bool operator!=(const MediaConfig& o) const { return !(*this == o); }

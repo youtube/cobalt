@@ -102,6 +102,9 @@ bn_mul_mont_words:
 	umulh	$ahi,$aj,$m0
 
 	mul	$m1,$lo0,$n0		// "tp[0]"*n0
+	// This can allocate at most 8 * BN_MONTGOMERY_MAX_WORDS on the stack,
+	// or 2 KiB. This fits well within a page, so it is not necessary to
+	// fault pages in the correct order.
 	mov	sp,$tp			// alloca
 
 	// (*)	mul	$lo1,$hi1,$m1	// np[0]*m1
@@ -310,6 +313,19 @@ __bn_sqr8x_mont:
 	ldp	$a4,$a5,[$ap,#8*4]
 	ldp	$a6,$a7,[$ap,#8*6]
 
+	// This can allocate at most 16 * BN_MONTGOMERY_MAX_WORDS on the stack,
+	// or 4 KiB. The fixed allocation above pushes to just above a page. On
+	// Windows, we must ensure new pages are first accessed in order. See
+	// https://learn.microsoft.com/en-us/cpp/build/arm64-windows-abi-conventions?view=msvc-170#stack
+	//
+	// The order is correct, but precariously so: the code above access as
+	// low as [sp,#16]. This leaves a jump of 16 + 4096 = 4112 bytes. If
+	// [sp,#16] were at page boundary, those 4112 bytes would span two
+	// pages. If [$tp] were the next access, we would skip a guard page.
+	//
+	// Fortunately, the first access is [$tp,#8*8], at .Lsqr8x_zero_start.
+	// We jump at most 4112 - 64 = 4048 bytes, less than a page. If any of
+	// this changes, we must insert a no-op access or call __chkstk.
 	sub	$tp,sp,$num,lsl#4
 	lsl	$num,$num,#3
 	ldr	$n0,[$n0]		// *n0
@@ -1085,6 +1101,9 @@ __bn_mul4x_mont:
 	stp	x25,x26,[sp,#64]
 	stp	x27,x28,[sp,#80]
 
+	// This can allocate at most 8 * BN_MONTGOMERY_MAX_WORDS on the stack,
+	// or 2 KiB. This fits well within a page, so it is not necessary to
+	// fault pages in the correct order.
 	sub	$tp,sp,$num,lsl#3
 	lsl	$num,$num,#3
 	ldr	$n0,[$n0]		// *n0

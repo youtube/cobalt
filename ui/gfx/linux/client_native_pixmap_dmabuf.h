@@ -23,7 +23,7 @@ namespace gfx {
 class ClientNativePixmapDmaBuf : public gfx::ClientNativePixmap {
  public:
   static COMPONENT_EXPORT(GFX) bool IsConfigurationSupported(
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage);
 
   // Note: |handle| is expected to have been validated as in
@@ -47,6 +47,7 @@ class ClientNativePixmapDmaBuf : public gfx::ClientNativePixmap {
   void* GetMemoryAddress(size_t plane) const override;
   int GetStride(size_t plane) const override;
   NativePixmapHandle CloneHandleForIPC() const override;
+  uint64_t GetPlaneSize(size_t plane) const override;
 
  private:
   static constexpr size_t kMaxPlanes = 4;

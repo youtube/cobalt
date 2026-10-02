@@ -69,6 +69,20 @@ class SimpleIceTransport : public IceTransportInterface {
   IceTransportInternal* internal() override { return internal_; }
   IceTransportInternal* const internal_;
 };
+
+HistogramDtlsVersion ToHistogramDtlsVersion(int version_bytes) {
+  switch (version_bytes) {
+    case kDtls10VersionBytes:
+      return HistogramDtlsVersion::kDtls10;
+    case kDtls12VersionBytes:
+      return HistogramDtlsVersion::kDtls12;
+    case kDtls13VersionBytes:
+      return HistogramDtlsVersion::kDtls13;
+    default:
+      return HistogramDtlsVersion::kUnknown;
+  }
+}
+
 }  // namespace
 
 template <typename Sink>
@@ -1122,6 +1136,27 @@ void DtlsTransportInternalImpl::set_dtls_state(DtlsTransportState state) {
   dtls_state_ = state;
   if (dtls_state_ == DtlsTransportState::kConnecting) {
     connecting_state_timestamp_ = env_.clock().CurrentTime();
+  }
+  if (dtls_state_ == DtlsTransportState::kConnected) {
+    int ssl_version_bytes = 0;
+    if (dtls_role_ && GetSslVersionBytes(&ssl_version_bytes)) {
+      HistogramDtlsVersion dtls_version =
+          ToHistogramDtlsVersion(ssl_version_bytes);
+      switch (*dtls_role_) {
+        case SSL_CLIENT:
+          RTC_HISTOGRAM_ENUMERATION(
+              "WebRTC.PeerConnection.DtlsVersionClientRole",
+              static_cast<int>(dtls_version),
+              static_cast<int>(HistogramDtlsVersion::kMax));
+          break;
+        case SSL_SERVER:
+          RTC_HISTOGRAM_ENUMERATION(
+              "WebRTC.PeerConnection.DtlsVersionServerRole",
+              static_cast<int>(dtls_version),
+              static_cast<int>(HistogramDtlsVersion::kMax));
+          break;
+      }
+    }
   }
   if (dtls_state_ == DtlsTransportState::kFailed) {
     dtls_stun_piggyback_controller_.SetDtlsFailed();

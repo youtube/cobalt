@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -156,7 +157,7 @@ class RelayNamespaceTree {
     if (!node->publishers.empty()) {
       subscriber->PublishNamespace(
           track_namespace,
-          [](const TrackNamespace&, std::optional<MoqtRequestError>) {},
+          [](const TrackNamespace&, std::optional<MoqtErrorPair>) {},
           // TODO(martinduke): Add parameters.
           VersionSpecificParameters());
     }
@@ -188,7 +189,7 @@ class RelayNamespaceTree {
         if (adding) {
           subscriber->PublishNamespace(
               track_namespace,
-              [](const TrackNamespace&, std::optional<MoqtRequestError>) {},
+              [](const TrackNamespace&, std::optional<MoqtErrorPair>) {},
               // TODO(martinduke): Add parameters.
               VersionSpecificParameters());
         } else {

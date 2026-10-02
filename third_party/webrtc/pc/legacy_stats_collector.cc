@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_processing_statistics.h"
@@ -61,7 +62,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
 
@@ -188,37 +188,50 @@ void ExtractStats(const VoiceReceiverInfo& info,
                   bool use_standard_bytes_stats) {
   ExtractCommonReceiveProperties(info, report);
   const FloatForAdd floats[] = {
-      {StatsReport::kStatsValueNameExpandRate, info.expand_rate},
-      {StatsReport::kStatsValueNameSecondaryDecodedRate,
-       info.secondary_decoded_rate},
-      {StatsReport::kStatsValueNameSecondaryDiscardedRate,
-       info.secondary_discarded_rate},
-      {StatsReport::kStatsValueNameSpeechExpandRate, info.speech_expand_rate},
-      {StatsReport::kStatsValueNameAccelerateRate, info.accelerate_rate},
-      {StatsReport::kStatsValueNamePreemptiveExpandRate,
-       info.preemptive_expand_rate},
-      {StatsReport::kStatsValueNameTotalAudioEnergy,
-       static_cast<float>(info.total_output_energy)},
-      {StatsReport::kStatsValueNameTotalSamplesDuration,
-       static_cast<float>(info.total_output_duration)}};
+      {.name = StatsReport::kStatsValueNameExpandRate,
+       .value = info.expand_rate},
+      {.name = StatsReport::kStatsValueNameSecondaryDecodedRate,
+       .value = info.secondary_decoded_rate},
+      {.name = StatsReport::kStatsValueNameSecondaryDiscardedRate,
+       .value = info.secondary_discarded_rate},
+      {.name = StatsReport::kStatsValueNameSpeechExpandRate,
+       .value = info.speech_expand_rate},
+      {.name = StatsReport::kStatsValueNameAccelerateRate,
+       .value = info.accelerate_rate},
+      {.name = StatsReport::kStatsValueNamePreemptiveExpandRate,
+       .value = info.preemptive_expand_rate},
+      {.name = StatsReport::kStatsValueNameTotalAudioEnergy,
+       .value = static_cast<float>(info.total_output_energy)},
+      {.name = StatsReport::kStatsValueNameTotalSamplesDuration,
+       .value = static_cast<float>(info.total_output_duration)}};
 
   const IntForAdd ints[] = {
-      {StatsReport::kStatsValueNameCurrentDelayMs, info.delay_estimate_ms},
-      {StatsReport::kStatsValueNameDecodingCNG, info.decoding_cng},
-      {StatsReport::kStatsValueNameDecodingCTN, info.decoding_calls_to_neteq},
-      {StatsReport::kStatsValueNameDecodingCTSG,
-       info.decoding_calls_to_silence_generator},
-      {StatsReport::kStatsValueNameDecodingMutedOutput,
-       info.decoding_muted_output},
-      {StatsReport::kStatsValueNameDecodingNormal, info.decoding_normal},
-      {StatsReport::kStatsValueNameDecodingPLC, info.decoding_plc},
-      {StatsReport::kStatsValueNameDecodingPLCCNG, info.decoding_plc_cng},
-      {StatsReport::kStatsValueNameJitterBufferMs, info.jitter_buffer_ms},
-      {StatsReport::kStatsValueNameJitterReceived, info.jitter_ms},
-      {StatsReport::kStatsValueNamePacketsLost, info.packets_lost},
-      {StatsReport::kStatsValueNamePacketsReceived, info.packets_received},
-      {StatsReport::kStatsValueNamePreferredJitterBufferMs,
-       info.jitter_buffer_preferred_ms},
+      {.name = StatsReport::kStatsValueNameCurrentDelayMs,
+       .value = info.delay_estimate_ms},
+      {.name = StatsReport::kStatsValueNameDecodingCNG,
+       .value = info.decoding_cng},
+      {.name = StatsReport::kStatsValueNameDecodingCTN,
+       .value = info.decoding_calls_to_neteq},
+      {.name = StatsReport::kStatsValueNameDecodingCTSG,
+       .value = info.decoding_calls_to_silence_generator},
+      {.name = StatsReport::kStatsValueNameDecodingMutedOutput,
+       .value = info.decoding_muted_output},
+      {.name = StatsReport::kStatsValueNameDecodingNormal,
+       .value = info.decoding_normal},
+      {.name = StatsReport::kStatsValueNameDecodingPLC,
+       .value = info.decoding_plc},
+      {.name = StatsReport::kStatsValueNameDecodingPLCCNG,
+       .value = info.decoding_plc_cng},
+      {.name = StatsReport::kStatsValueNameJitterBufferMs,
+       .value = info.jitter_buffer_ms},
+      {.name = StatsReport::kStatsValueNameJitterReceived,
+       .value = info.jitter_ms},
+      {.name = StatsReport::kStatsValueNamePacketsLost,
+       .value = info.packets_lost},
+      {.name = StatsReport::kStatsValueNamePacketsReceived,
+       .value = info.packets_received},
+      {.name = StatsReport::kStatsValueNamePreferredJitterBufferMs,
+       .value = info.jitter_buffer_preferred_ms},
   };
 
   for (const auto& f : floats)
@@ -254,17 +267,21 @@ void ExtractStats(const VoiceSenderInfo& info,
   SetAudioProcessingStats(report, info.apm_statistics);
 
   const FloatForAdd floats[] = {
-      {StatsReport::kStatsValueNameTotalAudioEnergy,
-       static_cast<float>(info.total_input_energy)},
-      {StatsReport::kStatsValueNameTotalSamplesDuration,
-       static_cast<float>(info.total_input_duration)}};
+      {.name = StatsReport::kStatsValueNameTotalAudioEnergy,
+       .value = static_cast<float>(info.total_input_energy)},
+      {.name = StatsReport::kStatsValueNameTotalSamplesDuration,
+       .value = static_cast<float>(info.total_input_duration)}};
 
   RTC_DCHECK_GE(info.audio_level, 0);
   const IntForAdd ints[] = {
-      {StatsReport::kStatsValueNameAudioInputLevel, info.audio_level},
-      {StatsReport::kStatsValueNameJitterReceived, info.jitter_ms},
-      {StatsReport::kStatsValueNamePacketsLost, info.packets_lost},
-      {StatsReport::kStatsValueNamePacketsSent, info.packets_sent},
+      {.name = StatsReport::kStatsValueNameAudioInputLevel,
+       .value = info.audio_level},
+      {.name = StatsReport::kStatsValueNameJitterReceived,
+       .value = info.jitter_ms},
+      {.name = StatsReport::kStatsValueNamePacketsLost,
+       .value = info.packets_lost},
+      {.name = StatsReport::kStatsValueNamePacketsSent,
+       .value = info.packets_sent},
   };
 
   for (const auto& f : floats) {
@@ -334,25 +351,37 @@ void ExtractStats(const VideoReceiverInfo& info,
   }
 
   const IntForAdd ints[] = {
-      {StatsReport::kStatsValueNameCurrentDelayMs, info.current_delay_ms},
-      {StatsReport::kStatsValueNameDecodeMs, info.decode_ms},
-      {StatsReport::kStatsValueNameFirsSent, info.firs_sent},
-      {StatsReport::kStatsValueNameFrameHeightReceived, info.frame_height},
-      {StatsReport::kStatsValueNameFrameRateDecoded, info.framerate_decoded},
-      {StatsReport::kStatsValueNameFrameRateOutput, info.framerate_output},
-      {StatsReport::kStatsValueNameFrameRateReceived, info.framerate_received},
-      {StatsReport::kStatsValueNameFrameWidthReceived, info.frame_width},
-      {StatsReport::kStatsValueNameJitterBufferMs, info.jitter_buffer_ms},
-      {StatsReport::kStatsValueNameMaxDecodeMs, info.max_decode_ms},
-      {StatsReport::kStatsValueNameMinPlayoutDelayMs,
-       info.min_playout_delay_ms},
-      {StatsReport::kStatsValueNamePacketsLost, info.packets_lost},
-      {StatsReport::kStatsValueNamePacketsReceived, info.packets_received},
-      {StatsReport::kStatsValueNamePlisSent, info.plis_sent},
-      {StatsReport::kStatsValueNameRenderDelayMs, info.render_delay_ms},
-      {StatsReport::kStatsValueNameTargetDelayMs, info.target_delay_ms},
-      {StatsReport::kStatsValueNameFramesDecoded,
-       static_cast<int>(info.frames_decoded)},
+      {.name = StatsReport::kStatsValueNameCurrentDelayMs,
+       .value = info.current_delay_ms},
+      {.name = StatsReport::kStatsValueNameDecodeMs, .value = info.decode_ms},
+      {.name = StatsReport::kStatsValueNameFirsSent, .value = info.firs_sent},
+      {.name = StatsReport::kStatsValueNameFrameHeightReceived,
+       .value = info.frame_height},
+      {.name = StatsReport::kStatsValueNameFrameRateDecoded,
+       .value = info.framerate_decoded},
+      {.name = StatsReport::kStatsValueNameFrameRateOutput,
+       .value = info.framerate_output},
+      {.name = StatsReport::kStatsValueNameFrameRateReceived,
+       .value = info.framerate_received},
+      {.name = StatsReport::kStatsValueNameFrameWidthReceived,
+       .value = info.frame_width},
+      {.name = StatsReport::kStatsValueNameJitterBufferMs,
+       .value = info.jitter_buffer_ms},
+      {.name = StatsReport::kStatsValueNameMaxDecodeMs,
+       .value = info.max_decode_ms},
+      {.name = StatsReport::kStatsValueNameMinPlayoutDelayMs,
+       .value = info.min_playout_delay_ms},
+      {.name = StatsReport::kStatsValueNamePacketsLost,
+       .value = info.packets_lost},
+      {.name = StatsReport::kStatsValueNamePacketsReceived,
+       .value = info.packets_received},
+      {.name = StatsReport::kStatsValueNamePlisSent, .value = info.plis_sent},
+      {.name = StatsReport::kStatsValueNameRenderDelayMs,
+       .value = info.render_delay_ms},
+      {.name = StatsReport::kStatsValueNameTargetDelayMs,
+       .value = info.target_delay_ms},
+      {.name = StatsReport::kStatsValueNameFramesDecoded,
+       .value = static_cast<int>(info.frames_decoded)},
   };
 
   for (const auto& i : ints)
@@ -389,25 +418,34 @@ void ExtractStats(const VideoSenderInfo& info,
     report->AddInt(StatsReport::kStatsValueNameQpSum, *info.qp_sum);
 
   const IntForAdd ints[] = {
-      {StatsReport::kStatsValueNameAdaptationChanges, info.adapt_changes},
-      {StatsReport::kStatsValueNameAvgEncodeMs, info.avg_encode_ms},
-      {StatsReport::kStatsValueNameEncodeUsagePercent,
-       info.encode_usage_percent},
-      {StatsReport::kStatsValueNameFirsReceived, info.firs_received},
-      {StatsReport::kStatsValueNameFrameHeightSent, info.send_frame_height},
-      {StatsReport::kStatsValueNameFrameRateInput,
-       static_cast<int>(round(info.framerate_input))},
-      {StatsReport::kStatsValueNameFrameRateSent, info.framerate_sent},
-      {StatsReport::kStatsValueNameFrameWidthSent, info.send_frame_width},
-      {StatsReport::kStatsValueNameNacksReceived,
-       static_cast<int>(info.nacks_received)},
-      {StatsReport::kStatsValueNamePacketsLost, info.packets_lost},
-      {StatsReport::kStatsValueNamePacketsSent, info.packets_sent},
-      {StatsReport::kStatsValueNamePlisReceived, info.plis_received},
-      {StatsReport::kStatsValueNameFramesEncoded,
-       static_cast<int>(info.frames_encoded)},
-      {StatsReport::kStatsValueNameHugeFramesSent,
-       static_cast<int>(info.huge_frames_sent)},
+      {.name = StatsReport::kStatsValueNameAdaptationChanges,
+       .value = info.adapt_changes},
+      {.name = StatsReport::kStatsValueNameAvgEncodeMs,
+       .value = info.avg_encode_ms},
+      {.name = StatsReport::kStatsValueNameEncodeUsagePercent,
+       .value = info.encode_usage_percent},
+      {.name = StatsReport::kStatsValueNameFirsReceived,
+       .value = info.firs_received},
+      {.name = StatsReport::kStatsValueNameFrameHeightSent,
+       .value = info.send_frame_height},
+      {.name = StatsReport::kStatsValueNameFrameRateInput,
+       .value = static_cast<int>(round(info.framerate_input))},
+      {.name = StatsReport::kStatsValueNameFrameRateSent,
+       .value = info.framerate_sent},
+      {.name = StatsReport::kStatsValueNameFrameWidthSent,
+       .value = info.send_frame_width},
+      {.name = StatsReport::kStatsValueNameNacksReceived,
+       .value = static_cast<int>(info.nacks_received)},
+      {.name = StatsReport::kStatsValueNamePacketsLost,
+       .value = info.packets_lost},
+      {.name = StatsReport::kStatsValueNamePacketsSent,
+       .value = info.packets_sent},
+      {.name = StatsReport::kStatsValueNamePlisReceived,
+       .value = info.plis_received},
+      {.name = StatsReport::kStatsValueNameFramesEncoded,
+       .value = static_cast<int>(info.frames_encoded)},
+      {.name = StatsReport::kStatsValueNameHugeFramesSent,
+       .value = static_cast<int>(info.huge_frames_sent)},
   };
 
   for (const auto& i : ints)
@@ -424,14 +462,18 @@ void ExtractStats(const BandwidthEstimationInfo& info,
 
   report->set_timestamp(stats_gathering_started);
   const IntForAdd ints[] = {
-      {StatsReport::kStatsValueNameAvailableSendBandwidth,
-       info.available_send_bandwidth},
-      {StatsReport::kStatsValueNameAvailableReceiveBandwidth,
-       info.available_recv_bandwidth},
-      {StatsReport::kStatsValueNameTargetEncBitrate, info.target_enc_bitrate},
-      {StatsReport::kStatsValueNameActualEncBitrate, info.actual_enc_bitrate},
-      {StatsReport::kStatsValueNameRetransmitBitrate, info.retransmit_bitrate},
-      {StatsReport::kStatsValueNameTransmitBitrate, info.transmit_bitrate},
+      {.name = StatsReport::kStatsValueNameAvailableSendBandwidth,
+       .value = info.available_send_bandwidth},
+      {.name = StatsReport::kStatsValueNameAvailableReceiveBandwidth,
+       .value = info.available_recv_bandwidth},
+      {.name = StatsReport::kStatsValueNameTargetEncBitrate,
+       .value = info.target_enc_bitrate},
+      {.name = StatsReport::kStatsValueNameActualEncBitrate,
+       .value = info.actual_enc_bitrate},
+      {.name = StatsReport::kStatsValueNameRetransmitBitrate,
+       .value = info.retransmit_bitrate},
+      {.name = StatsReport::kStatsValueNameTransmitBitrate,
+       .value = info.transmit_bitrate},
   };
   for (const auto& i : ints)
     report->AddInt(i.name, i.value);
@@ -555,23 +597,21 @@ const char* AdapterTypeToStatsType(AdapterType type) {
   }
 }
 
-LegacyStatsCollector::LegacyStatsCollector(PeerConnectionInternal* pc,
-                                           Clock& clock)
+LegacyStatsCollector::LegacyStatsCollector(
+    PeerConnectionInternal* pc,
+    Clock& clock,
+    absl::AnyInvocable<int64_t()> utc_time_now)
     : pc_(pc),
       clock_(clock),
       stats_gathering_started_(0),
-      use_standard_bytes_stats_(
-          pc->trials().IsEnabled(kUseStandardBytesStats)) {
+      use_standard_bytes_stats_(pc->trials().IsEnabled(kUseStandardBytesStats)),
+      utc_time_now_(std::move(utc_time_now)) {
   RTC_DCHECK(pc_);
+  RTC_DCHECK(utc_time_now_);
 }
 
 LegacyStatsCollector::~LegacyStatsCollector() {
   RTC_DCHECK_RUN_ON(pc_->signaling_thread());
-}
-
-// Wallclock time in ms.
-double LegacyStatsCollector::GetTimeNow() {
-  return static_cast<double>(TimeUTCMillis());
 }
 
 // Adds a MediaStream with tracks that can be used as a `selector` in a call
@@ -684,7 +724,7 @@ void LegacyStatsCollector::UpdateStats(
     return;
   }
   cache_timestamp_ms_ = cache_now_ms;
-  stats_gathering_started_ = GetTimeNow();
+  stats_gathering_started_ = static_cast<double>(utc_time_now_());
 
   // TODO(tommi): ExtractSessionInfo now has a single hop to the network thread
   // to fetch stats, then applies them on the signaling thread. See if we need
@@ -785,9 +825,10 @@ StatsReport* LegacyStatsCollector::AddConnectionInfoReport(
   report->set_timestamp(stats_gathering_started_);
 
   const BoolForAdd bools[] = {
-      {StatsReport::kStatsValueNameActiveConnection, info.best_connection},
-      {StatsReport::kStatsValueNameReceiving, info.receiving},
-      {StatsReport::kStatsValueNameWritable, info.writable},
+      {.name = StatsReport::kStatsValueNameActiveConnection,
+       .value = info.best_connection},
+      {.name = StatsReport::kStatsValueNameReceiving, .value = info.receiving},
+      {.name = StatsReport::kStatsValueNameWritable, .value = info.writable},
   };
   for (const auto& b : bools)
     report->AddBoolean(b.name, b.value);
@@ -801,25 +842,27 @@ StatsReport* LegacyStatsCollector::AddConnectionInfoReport(
                 AddCandidateReport(remote_candidate_stats, false)->id());
 
   const Int64ForAdd int64s[] = {
-      {StatsReport::kStatsValueNameBytesReceived,
-       static_cast<int64_t>(info.recv_total_bytes)},
-      {StatsReport::kStatsValueNameBytesSent,
-       static_cast<int64_t>(info.sent_total_bytes)},
-      {StatsReport::kStatsValueNamePacketsSent,
-       static_cast<int64_t>(info.sent_total_packets)},
-      {StatsReport::kStatsValueNameRtt, static_cast<int64_t>(info.rtt)},
-      {StatsReport::kStatsValueNameSendPacketsDiscarded,
-       static_cast<int64_t>(info.sent_discarded_packets)},
-      {StatsReport::kStatsValueNameSentPingRequestsTotal,
-       static_cast<int64_t>(info.sent_ping_requests_total)},
-      {StatsReport::kStatsValueNameSentPingRequestsBeforeFirstResponse,
-       static_cast<int64_t>(info.sent_ping_requests_before_first_response)},
-      {StatsReport::kStatsValueNameSentPingResponses,
-       static_cast<int64_t>(info.sent_ping_responses)},
-      {StatsReport::kStatsValueNameRecvPingRequests,
-       static_cast<int64_t>(info.recv_ping_requests)},
-      {StatsReport::kStatsValueNameRecvPingResponses,
-       static_cast<int64_t>(info.recv_ping_responses)},
+      {.name = StatsReport::kStatsValueNameBytesReceived,
+       .value = static_cast<int64_t>(info.recv_total_bytes)},
+      {.name = StatsReport::kStatsValueNameBytesSent,
+       .value = static_cast<int64_t>(info.sent_total_bytes)},
+      {.name = StatsReport::kStatsValueNamePacketsSent,
+       .value = static_cast<int64_t>(info.sent_total_packets)},
+      {.name = StatsReport::kStatsValueNameRtt,
+       .value = static_cast<int64_t>(info.rtt)},
+      {.name = StatsReport::kStatsValueNameSendPacketsDiscarded,
+       .value = static_cast<int64_t>(info.sent_discarded_packets)},
+      {.name = StatsReport::kStatsValueNameSentPingRequestsTotal,
+       .value = static_cast<int64_t>(info.sent_ping_requests_total)},
+      {.name = StatsReport::kStatsValueNameSentPingRequestsBeforeFirstResponse,
+       .value =
+           static_cast<int64_t>(info.sent_ping_requests_before_first_response)},
+      {.name = StatsReport::kStatsValueNameSentPingResponses,
+       .value = static_cast<int64_t>(info.sent_ping_responses)},
+      {.name = StatsReport::kStatsValueNameRecvPingRequests,
+       .value = static_cast<int64_t>(info.recv_ping_requests)},
+      {.name = StatsReport::kStatsValueNameRecvPingResponses,
+       .value = static_cast<int64_t>(info.recv_ping_responses)},
   };
   for (const auto& i : int64s)
     report->AddInt64(i.name, i.value);

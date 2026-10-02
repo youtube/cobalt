@@ -86,7 +86,7 @@ class MediaChannelUtil {
    public:
     TransportForMediaChannels(TaskQueueBase* network_thread, bool enable_dscp);
 
-    virtual ~TransportForMediaChannels();
+    ~TransportForMediaChannels() override;
 
     // Implementation of Transport
     bool SendRtp(ArrayView<const uint8_t> packet,

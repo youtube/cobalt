@@ -97,9 +97,11 @@ signin::Tribool AccountCapabilities::can_fetch_family_member_info() const {
   return GetCapabilityByName(kCanFetchFamilyMemberInfoCapabilityName);
 }
 
+#if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_have_email_address_displayed() const {
   return GetCapabilityByName(kCanHaveEmailAddressDisplayedCapabilityName);
 }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 signin::Tribool
@@ -134,10 +136,6 @@ signin::Tribool AccountCapabilities::can_use_chromeos_generative_ai() const {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-signin::Tribool AccountCapabilities::can_use_copyeditor_feature() const {
-  return GetCapabilityByName(kCanUseCopyEditorFeatureName);
-}
-
 #if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_use_devtools_generative_ai_features()
     const {
@@ -145,25 +143,31 @@ signin::Tribool AccountCapabilities::can_use_devtools_generative_ai_features()
 }
 #endif
 
+#if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_use_edu_features() const {
   return GetCapabilityByName(kCanUseEduFeaturesCapabilityName);
 }
+#endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_use_gemini_in_chrome() const {
   return GetCapabilityByName(kCanUseGeminiInChromeCapabilityName);
 }
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_use_generative_ai_in_recorder_app()
     const {
   return GetCapabilityByName(kCanUseGenerativeAiInRecorderApp);
 }
+#endif
 
+#if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_use_generative_ai_photo_editing()
     const {
   return GetCapabilityByName(kCanUseGenerativeAiPhotoEditing);
 }
+#endif
 
 signin::Tribool AccountCapabilities::can_use_manta_service() const {
   return GetCapabilityByName(kCanUseMantaServiceName);

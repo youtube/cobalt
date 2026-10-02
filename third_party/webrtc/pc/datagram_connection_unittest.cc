@@ -65,7 +65,7 @@ class DatagramConnectionTest : public ::testing::Test {
  public:
   DatagramConnectionTest() : env_(CreateEnvironment()) {}
 
-  ~DatagramConnectionTest() {
+  ~DatagramConnectionTest() override {
     conn1_->Terminate([] {});
     conn2_->Terminate([] {});
   }

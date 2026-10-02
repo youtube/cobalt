@@ -487,7 +487,7 @@ ScopedJavaLocalRef<jobject> WebContentsAndroid::GetLastCommittedURL(
                                           web_contents_->GetLastCommittedURL());
 }
 
-jboolean WebContentsAndroid::IsIncognito(JNIEnv* env) {
+bool WebContentsAndroid::IsIncognito(JNIEnv* env) {
   return web_contents_->GetBrowserContext()->IsOffTheRecord();
 }
 
@@ -515,15 +515,15 @@ void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {
   web_contents_->media_web_contents_observer()->SuspendAllMediaPlayers();
 }
 
-void WebContentsAndroid::SetAudioMuted(JNIEnv* env, jboolean mute) {
+void WebContentsAndroid::SetAudioMuted(JNIEnv* env, bool mute) {
   web_contents_->SetAudioMuted(mute);
 }
 
-jboolean WebContentsAndroid::IsAudioMuted(JNIEnv* env) {
+bool WebContentsAndroid::IsAudioMuted(JNIEnv* env) {
   return web_contents_->IsAudioMuted();
 }
 
-jboolean WebContentsAndroid::FocusLocationBarByDefault(JNIEnv* env) {
+bool WebContentsAndroid::FocusLocationBarByDefault(JNIEnv* env) {
   return web_contents_->FocusLocationBarByDefault();
 }
 
@@ -565,8 +565,8 @@ void WebContentsAndroid::SelectAroundCaretAck(
 
 void WebContentsAndroid::SelectAroundCaret(JNIEnv* env,
                                            jint granularity,
-                                           jboolean should_show_handle,
-                                           jboolean should_show_context_menu,
+                                           bool should_show_handle,
+                                           bool should_show_context_menu,
                                            jint startOffset,
                                            jint endOffset,
                                            jint surroundingTextLength) {
@@ -585,7 +585,7 @@ void WebContentsAndroid::AdjustSelectionByCharacterOffset(
     JNIEnv* env,
     jint start_adjust,
     jint end_adjust,
-    jboolean show_selection_menu) {
+    bool show_selection_menu) {
   web_contents_->AdjustSelectionByCharacterOffset(start_adjust, end_adjust,
                                                   show_selection_menu);
 }
@@ -679,12 +679,12 @@ void WebContentsAndroid::PostMessageToMainFrame(
       jmessage, jports);
 }
 
-jboolean WebContentsAndroid::HasAccessedInitialDocument(JNIEnv* env) {
+bool WebContentsAndroid::HasAccessedInitialDocument(JNIEnv* env) {
   return static_cast<WebContentsImpl*>(web_contents_)->
       HasAccessedInitialDocument();
 }
 
-jboolean WebContentsAndroid::HasViewTransitionOptIn(JNIEnv* env) {
+bool WebContentsAndroid::HasViewTransitionOptIn(JNIEnv* env) {
   auto* opt_in_state = ViewTransitionOptInState::GetForCurrentDocument(
       web_contents_->GetPrimaryMainFrame());
   return opt_in_state &&
@@ -804,9 +804,9 @@ void WebContentsAndroid::SetStylusHandwritingEnabled(JNIEnv* env,
 int WebContentsAndroid::DownloadImage(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& jurl,
-    jboolean is_fav_icon,
+    bool is_fav_icon,
     jint max_bitmap_size,
-    jboolean bypass_cache,
+    bool bypass_cache,
     const base::android::JavaRef<jobject>& jcallback) {
   const gfx::Size preferred_size;
   return web_contents_->DownloadImage(
@@ -817,7 +817,7 @@ int WebContentsAndroid::DownloadImage(
                      ScopedJavaGlobalRef<jobject>(env, jcallback)));
 }
 
-void WebContentsAndroid::SetHasPersistentVideo(JNIEnv* env, jboolean value) {
+void WebContentsAndroid::SetHasPersistentVideo(JNIEnv* env, bool value) {
   web_contents_->SetHasPersistentVideo(value);
 }
 
@@ -910,7 +910,7 @@ void WebContentsAndroid::OnScaleFactorChanged(JNIEnv* env) {
   }
 }
 
-void WebContentsAndroid::SetFocus(JNIEnv* env, jboolean focused) {
+void WebContentsAndroid::SetFocus(JNIEnv* env, bool focused) {
   WebContentsViewAndroid* view =
       static_cast<WebContentsViewAndroid*>(web_contents_->GetView());
   view->SetFocus(focused);
@@ -961,12 +961,11 @@ jint WebContentsAndroid::GetCurrentBackForwardTransitionStage(JNIEnv* env) {
   return static_cast<jint>(stage);
 }
 
-void WebContentsAndroid::SetLongPressLinkSelectText(JNIEnv* env,
-                                                    jboolean enabled) {
+void WebContentsAndroid::SetLongPressLinkSelectText(JNIEnv* env, bool enabled) {
   web_contents_->SetLongPressLinkSelectText((bool)enabled);
 }
 
-void WebContentsAndroid::SetCanAcceptLoadDrops(JNIEnv* env, jboolean enabled) {
+void WebContentsAndroid::SetCanAcceptLoadDrops(JNIEnv* env, bool enabled) {
   web_contents_->SetCanAcceptLoadDrops((bool)enabled);
 }
 
@@ -974,9 +973,8 @@ bool WebContentsAndroid::GetCanAcceptLoadDropsForTesting(JNIEnv* env) {
   return web_contents_->GetCanAcceptLoadDropsForTesting();  // IN-TEST
 }
 
-void WebContentsAndroid::SetSupportsForwardTransitionAnimation(
-    JNIEnv* env,
-    jboolean supports) {
+void WebContentsAndroid::SetSupportsForwardTransitionAnimation(JNIEnv* env,
+                                                               bool supports) {
   web_contents_->SetSupportsForwardTransitionAnimation(supports);
 }
 
@@ -984,8 +982,8 @@ jint WebContentsAndroid::GetOriginalWindowOpenDisposition(JNIEnv* env) {
   return static_cast<jint>(web_contents_->GetOriginalWindowOpenDisposition());
 }
 
-jboolean WebContentsAndroid::HasOpener(JNIEnv* env) {
-  return static_cast<jboolean>(web_contents_->HasOpener());
+bool WebContentsAndroid::HasOpener(JNIEnv* env) {
+  return static_cast<bool>(web_contents_->HasOpener());
 }
 
 void WebContentsAndroid::UpdateWindowControlsOverlay(JNIEnv* env,

@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_mediator.h"
 
-#import "base/containers/contains.h"
 #import "base/memory/ptr_util.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
@@ -25,16 +24,16 @@
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_tab_group_state.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/toolbar_consumer.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/legacy_toolbar_consumer.h"
 #import "ios/chrome/browser/url_loading/model/image_search_param_generator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -355,7 +354,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
   }
 }
 
-- (void)setConsumer:(id<ToolbarConsumer>)consumer {
+- (void)setConsumer:(id<LegacyToolbarConsumer>)consumer {
   _consumer = consumer;
   [_consumer setVoiceSearchEnabled:ios::provider::IsVoiceSearchEnabled()];
   if (self.webState) {
@@ -442,7 +441,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
 - (void)updateNavigationBackAndForwardStateForWebState:
     (web::WebState*)webState {
   DCHECK(webState);
-  const id<ToolbarConsumer> consumer = self.consumer;
+  const id<LegacyToolbarConsumer> consumer = self.consumer;
   WebNavigationBrowserAgent* navigationBrowserAgent =
       self.navigationBrowserAgent;
   if (navigationBrowserAgent) {
@@ -631,8 +630,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
     std::set<ClipboardContentType> clipboardContentTypeValues =
         clipboardContentType.value();
 
-    if (base::Contains(clipboardContentTypeValues,
-                       ClipboardContentType::Image)) {
+    if (clipboardContentTypeValues.contains(ClipboardContentType::Image)) {
       if (base::FeatureList::IsEnabled(kEnableLensInOmniboxCopiedImage)) {
         if (search_engines::SupportsSearchImageWithLens(
                 self.templateURLService) &&
@@ -644,11 +642,10 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
           return [self.actionFactory actionToSearchCopiedImage];
         }
       }
-    } else if (base::Contains(clipboardContentTypeValues,
-                              ClipboardContentType::URL)) {
+    } else if (clipboardContentTypeValues.contains(ClipboardContentType::URL)) {
       return [self.actionFactory actionToSearchCopiedURL];
-    } else if (base::Contains(clipboardContentTypeValues,
-                              ClipboardContentType::Text)) {
+    } else if (clipboardContentTypeValues.contains(
+                   ClipboardContentType::Text)) {
       return [self.actionFactory actionToSearchCopiedText];
     }
   }

@@ -36,6 +36,10 @@
 
 #include <gtest/gtest.h>
 
+
+BSSL_NAMESPACE_BEGIN
+namespace {
+
 static pid_t WaitpidEINTR(pid_t pid, int *out_status, int options) {
   pid_t ret;
   do {
@@ -172,5 +176,8 @@ TEST(ForkDetect, Test) {
   // We still observe |start|.
   EXPECT_EQ(start, CRYPTO_get_fork_generation());
 }
+
+}  // namespace
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_FORK_DETECTION && !OPENSSL_TSAN && !OPENSSL_IOS

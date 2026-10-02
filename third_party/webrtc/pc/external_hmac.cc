@@ -32,14 +32,14 @@ static const uint8_t kExternalHmacFakeTag[10] = {0xba, 0xdd, 0xba, 0xdd, 0xba,
                                                  0xdd, 0xba, 0xdd, 0xba, 0xdd};
 
 static const srtp_auth_test_case_t kExternalHmacTestCase0 = {
-    20,                                                // Octets in key
-    const_cast<uint8_t*>(kExternalHmacTestCase0Key),   // Key
-    8,                                                 // Octets in data
-    const_cast<uint8_t*>(kExternalHmacTestCase0Data),  // Data
-    10,                                                // Octets in tag
-    const_cast<uint8_t*>(kExternalHmacFakeTag),        // Tag
-    nullptr                                            // Pointer to next
-                                                       // testcase
+    .key_length_octets = 20,                                   // Octets in key
+    .key = const_cast<uint8_t*>(kExternalHmacTestCase0Key),    // Key
+    .data_length_octets = 8,                                   // Octets in data
+    .data = const_cast<uint8_t*>(kExternalHmacTestCase0Data),  // Data
+    .tag_length_octets = 10,                                   // Octets in tag
+    .tag = const_cast<uint8_t*>(kExternalHmacFakeTag),         // Tag
+    .next_test_case = nullptr  // Pointer to next
+                               // testcase
 };
 
 static const char kExternalHmacDescription[] =
@@ -48,15 +48,15 @@ static const char kExternalHmacDescription[] =
 // srtp_auth_type_t external_hmac is the hmac metaobject
 
 static const srtp_auth_type_t external_hmac = {
-    external_hmac_alloc,
-    external_hmac_dealloc,
-    external_hmac_init,
-    external_hmac_compute,
-    external_hmac_update,
-    external_hmac_start,
-    const_cast<char*>(kExternalHmacDescription),
-    const_cast<srtp_auth_test_case_t*>(&kExternalHmacTestCase0),
-    EXTERNAL_HMAC_SHA1};
+    .alloc = external_hmac_alloc,
+    .dealloc = external_hmac_dealloc,
+    .init = external_hmac_init,
+    .compute = external_hmac_compute,
+    .update = external_hmac_update,
+    .start = external_hmac_start,
+    .description = const_cast<char*>(kExternalHmacDescription),
+    .test_data = const_cast<srtp_auth_test_case_t*>(&kExternalHmacTestCase0),
+    .id = EXTERNAL_HMAC_SHA1};
 
 srtp_err_status_t external_hmac_alloc(srtp_auth_t** a,
                                       int key_len,

@@ -171,7 +171,8 @@ TEST(WavFileReaderTest, RepeatedTrueWithSingleFrameFileReadTwice) {
   {
     std::unique_ptr<TestAudioDeviceModule::Capturer> reader =
         TestAudioDeviceModule::CreateWavFileReader(output_filename, true);
-    BufferT<int16_t> buffer(kExpectedSamples.size());
+    BufferT<int16_t> buffer =
+        BufferT<int16_t>::CreateWithCapacity(kExpectedSamples.size());
     EXPECT_TRUE(reader->Capture(&buffer));
     EXPECT_EQ(kExpectedSamples, buffer);
     EXPECT_TRUE(reader->Capture(&buffer));
@@ -213,8 +214,10 @@ void RunRawTestNoRepeat(const std::vector<int16_t>& input_samples,
         TestAudioDeviceModule::CreateRawFileReader(
             output_filename, /*sampling_frequency_in_hz=*/800,
             /*num_channels=*/2, /*repeat=*/false);
-    BufferT<int16_t> buffer(expected_samples.size());
-    BufferT<int16_t> expected_buffer(expected_samples.size());
+    BufferT<int16_t> buffer =
+        BufferT<int16_t>::CreateWithCapacity(expected_samples.size());
+    BufferT<int16_t> expected_buffer =
+        BufferT<int16_t>::CreateWithCapacity(expected_samples.size());
     expected_buffer.SetData(expected_samples);
     EXPECT_TRUE(reader->Capture(&buffer));
     EXPECT_EQ(expected_buffer, buffer);
@@ -319,7 +322,8 @@ TEST(RawFileWriterTest, Repeat) {
         TestAudioDeviceModule::CreateRawFileReader(
             output_filename, /*sampling_frequency_in_hz=*/800,
             /*num_channels=*/2, /*repeat=*/true);
-    BufferT<int16_t> buffer(kExpectedSamples.size());
+    BufferT<int16_t> buffer =
+        BufferT<int16_t>::CreateWithCapacity(kExpectedSamples.size());
     EXPECT_TRUE(reader->Capture(&buffer));
     EXPECT_EQ(kExpectedSamples, buffer);
     EXPECT_TRUE(reader->Capture(&buffer));

@@ -401,7 +401,7 @@ static const EVP_CIPHER rc2_40_cbc = {
     /*ctrl=*/rc2_ctrl,
 };
 
-const EVP_CIPHER *EVP_rc2_40_cbc(void) { return &rc2_40_cbc; }
+const EVP_CIPHER *EVP_rc2_40_cbc() { return &rc2_40_cbc; }
 
 static const EVP_CIPHER rc2_cbc = {
     /*nid=*/NID_rc2_cbc,
@@ -418,4 +418,4 @@ static const EVP_CIPHER rc2_cbc = {
     /*ctrl=*/rc2_ctrl,
 };
 
-const EVP_CIPHER *EVP_rc2_cbc(void) { return &rc2_cbc; }
+const EVP_CIPHER *EVP_rc2_cbc() { return &rc2_cbc; }

@@ -17,10 +17,8 @@
 
 #include <openssl/base.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // pkcs7_parse_header reads the non-certificate/non-CRL prefix of a PKCS#7
 // SignedData blob from |cbs| and sets |*out| to point to the rest of the
@@ -64,9 +62,6 @@ int pkcs7_add_signed_data(CBB *out, uint64_t signed_data_version,
 int pkcs7_add_external_signature(CBB *out, X509 *sign_cert, EVP_PKEY *key,
                                  const EVP_MD *md, BIO *data, bool use_key_id);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_PKCS7_INTERNAL_H

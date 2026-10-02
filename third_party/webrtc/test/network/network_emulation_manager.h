@@ -44,7 +44,7 @@ namespace test {
 class NetworkEmulationManagerImpl : public NetworkEmulationManager {
  public:
   explicit NetworkEmulationManagerImpl(NetworkEmulationManagerConfig config);
-  ~NetworkEmulationManagerImpl();
+  ~NetworkEmulationManagerImpl() override;
 
   EmulatedNetworkNode* CreateEmulatedNode(BuiltInNetworkBehaviorConfig config,
                                           uint64_t random_seed = 1) override;

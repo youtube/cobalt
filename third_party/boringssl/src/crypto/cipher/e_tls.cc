@@ -31,6 +31,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 typedef struct {
   EVP_CIPHER_CTX cipher_ctx;
   HMAC_CTX *hmac_ctx;
@@ -114,10 +116,10 @@ static size_t aead_tls_tag_len(const EVP_AEAD_CTX *ctx, const size_t in_len) {
 }
 
 static int aead_tls_sealv(const EVP_AEAD_CTX *ctx,
-                          bssl::Span<const CRYPTO_IOVEC> iovecs,
-                          bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-                          bssl::Span<const uint8_t> nonce,
-                          bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                          Span<const CRYPTO_IOVEC> iovecs,
+                          Span<uint8_t> out_tag, size_t *out_tag_len,
+                          Span<const uint8_t> nonce,
+                          Span<const CRYPTO_IVEC> aadvecs) {
   AEAD_TLS_CTX *tls_ctx = (AEAD_TLS_CTX *)&ctx->state;
 
   if (!tls_ctx->cipher_ctx.encrypt) {
@@ -264,10 +266,9 @@ static int aead_tls_sealv(const EVP_AEAD_CTX *ctx,
 }
 
 static int aead_tls_openv(const EVP_AEAD_CTX *ctx,
-                          bssl::Span<const CRYPTO_IOVEC> iovecs,
-                          size_t *out_total_bytes,
-                          bssl::Span<const uint8_t> nonce,
-                          bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                          Span<const CRYPTO_IOVEC> iovecs,
+                          size_t *out_total_bytes, Span<const uint8_t> nonce,
+                          Span<const CRYPTO_IVEC> aadvecs) {
   AEAD_TLS_CTX *tls_ctx = (AEAD_TLS_CTX *)&ctx->state;
 
   if (tls_ctx->cipher_ctx.encrypt) {
@@ -331,14 +332,12 @@ static int aead_tls_openv(const EVP_AEAD_CTX *ctx,
   // Split the decrypted record into |iovecs_without_trailer| and |trailer|,
   // based on the public lower bound of where the plaintext ends. The plaintext
   // is followed by |mac_len| and then at most 256 bytes of padding.
-  bssl::InplaceVector<CRYPTO_IOVEC, CRYPTO_IOVEC_MAX> iovecs_without_trailer;
+  InplaceVector<CRYPTO_IOVEC, CRYPTO_IOVEC_MAX> iovecs_without_trailer;
   iovecs_without_trailer.CopyFrom(iovecs);
   uint8_t trailer_buf[EVP_MAX_MD_SIZE + 256];
   const size_t trailer_len = std::min(in_len, mac_len + 256);
-  std::optional<bssl::Span<const uint8_t>> trailer =
-      bssl::iovec::GetAndRemoveOutSuffix(
-          bssl::Span(trailer_buf).first(trailer_len),
-          bssl::Span(iovecs_without_trailer));
+  std::optional<Span<const uint8_t>> trailer = bssl::iovec::GetAndRemoveOutSuffix(
+      Span(trailer_buf).first(trailer_len), Span(iovecs_without_trailer));
   BSSL_CHECK(trailer.has_value());
 
   // Remove CBC padding. Code from here on is timing-sensitive with respect to
@@ -584,30 +583,30 @@ static const EVP_AEAD aead_des_ede3_cbc_sha1_tls_implicit_iv = {
     aead_tls_tag_len,
 };
 
-const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_tls(void) {
+const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_tls() {
   return &aead_aes_128_cbc_sha1_tls;
 }
 
-const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_tls_implicit_iv(void) {
+const EVP_AEAD *EVP_aead_aes_128_cbc_sha1_tls_implicit_iv() {
   return &aead_aes_128_cbc_sha1_tls_implicit_iv;
 }
 
-const EVP_AEAD *EVP_aead_aes_128_cbc_sha256_tls(void) {
+const EVP_AEAD *EVP_aead_aes_128_cbc_sha256_tls() {
   return &aead_aes_128_cbc_sha256_tls;
 }
 
-const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls(void) {
+const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls() {
   return &aead_aes_256_cbc_sha1_tls;
 }
 
-const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls_implicit_iv(void) {
+const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls_implicit_iv() {
   return &aead_aes_256_cbc_sha1_tls_implicit_iv;
 }
 
-const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls(void) {
+const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls() {
   return &aead_des_ede3_cbc_sha1_tls;
 }
 
-const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv(void) {
+const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv() {
   return &aead_des_ede3_cbc_sha1_tls_implicit_iv;
 }

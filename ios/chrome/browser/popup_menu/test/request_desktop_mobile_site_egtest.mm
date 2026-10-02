@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "base/containers/contains.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/time/time.h"
@@ -52,9 +51,7 @@ constexpr base::TimeDelta kWaitForUserAgentChangeTimeout = base::Seconds(15);
 // Returns the correct matcher for the collection view containing the Request
 // Desktop/Mobile button given the current overflow menu.
 id<GREYMatcher> CollectionViewMatcher() {
-  return [ChromeEarlGrey isNewOverflowMenuEnabled]
-             ? grey_accessibilityID(kPopupMenuToolsMenuActionListId)
-             : grey_accessibilityID(kPopupMenuToolsMenuTableViewId);
+  return grey_accessibilityID(kPopupMenuToolsMenuActionListId);
 }
 
 // Select the button to request desktop site by scrolling the collection.
@@ -100,7 +97,7 @@ class UserAgentResponseProvider : public web::DataResponseProvider {
     }
 
     std::string purge_additions = "";
-    if (base::Contains(request.url.GetPath(), kPurgeURL)) {
+    if (request.url.GetPath().contains(kPurgeURL)) {
       purge_additions = kJavaScriptReload;
     }
 

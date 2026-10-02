@@ -3593,7 +3593,7 @@ bool dtls1_parse_fragment(CBS *cbs, struct hm_header_st *out_hdr,
 
 void dtls1_stop_timer(SSL *ssl);
 
-unsigned int dtls1_min_mtu(void);
+unsigned int dtls1_min_mtu();
 
 bool dtls1_new(SSL *ssl);
 void dtls1_free(SSL *ssl);
@@ -3762,7 +3762,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   bssl::UniquePtr<bssl::SSLCipherPreferenceList> cipher_list;
 
   X509_STORE *cert_store = nullptr;
-  LHASH_OF(bssl::SSL_SESSION) *sessions = nullptr;
+  LHASH_OF(SSL_SESSION) *sessions = nullptr;
   // Most session-ids that will be cached, default is
   // SSL_SESSION_CACHE_MAX_SIZE_DEFAULT. 0 is unlimited.
   unsigned long session_cache_size = SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;

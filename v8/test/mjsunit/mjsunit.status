@@ -681,6 +681,7 @@
 
   # --experimental-wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
+  'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
 
   # --experimental-wasm-growable-stacks
@@ -699,6 +700,7 @@
   'wasm/gc-casts-from-any': [SKIP],
   'wasm/reference-globals-import': [SKIP],
   'wasm/reference-table-js-interop': [SKIP],
+  'wasm/regress-467863659': [SKIP],
   'wasm/stringref*': [SKIP],
   'wasm/stringview-valuestack': [SKIP],
   'wasm/turboshaft/instruction-selection': [SKIP],
@@ -2584,8 +2586,8 @@
 ##############################################################################
 # TODO(14716): memory64 trap handling doesn't work on arm64 without pointer
 # compression.
-['(arch != x64 and arch != arm64) or (arch == arm64 and not pointer_compression)', {
-  # --wasm-memory64-trap-handling only supported on x64 and arm64.
+['(arch != x64 and arch != arm64 and arch != riscv64) or (arch == arm64 and not pointer_compression)', {
+  # this test requires memory64 trap handling.
   'regress/wasm/regress-332939161': [SKIP],
 }],
 

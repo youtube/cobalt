@@ -29,6 +29,8 @@
 #include "../internal.h"
 #include "internal.h"
 
+using namespace bssl;
+
 struct aead_chacha20_poly1305_ctx {
   uint8_t key[32];
 };
@@ -81,7 +83,7 @@ static void poly1305_update_length(poly1305_state *poly1305, size_t data_len) {
 // inputs.
 static size_t calc_tag_pre(poly1305_state *ctx, const uint8_t key[32],
                            const uint8_t nonce[12],
-                           bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                           Span<const CRYPTO_IVEC> aadvecs) {
   alignas(16) uint8_t poly1305_key[32];
   OPENSSL_memset(poly1305_key, 0, sizeof(poly1305_key));
   CRYPTO_chacha_20(poly1305_key, poly1305_key, sizeof(poly1305_key), key, nonce,
@@ -113,11 +115,10 @@ static void calc_tag_post(poly1305_state *ctx, uint8_t tag[POLY1305_TAG_LEN],
 }
 
 static int chacha20_poly1305_sealv(const uint8_t *key,
-                                   bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                   bssl::Span<uint8_t> out_tag,
-                                   size_t *out_tag_len,
-                                   bssl::Span<const uint8_t> nonce,
-                                   bssl::Span<const CRYPTO_IVEC> aadvecs,
+                                   Span<const CRYPTO_IOVEC> iovecs,
+                                   Span<uint8_t> out_tag, size_t *out_tag_len,
+                                   Span<const uint8_t> nonce,
+                                   Span<const CRYPTO_IVEC> aadvecs,
                                    size_t tag_len) {
   if (out_tag.size() < tag_len) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BUFFER_TOO_SMALL);
@@ -171,7 +172,7 @@ static int chacha20_poly1305_sealv(const uint8_t *key,
                          iovecs[1].len - done, key, nonce.data(),
                          block_counter);
       }
-      // TODO(crbug.com/383343306): Support more than 1 extra ciphertext.
+      // TODO(crbug.com/473454967): Support more than 1 extra ciphertext.
       data.in.extra_ciphertext = iovecs[1].out;
       data.in.extra_ciphertext_len = iovecs[1].len;
     } else {
@@ -192,7 +193,7 @@ static int chacha20_poly1305_sealv(const uint8_t *key,
     bssl::iovec::ForEachBlockRange<64, /*WriteOut=*/true>(
         iovecs,
         [&](const uint8_t *in, uint8_t *out, size_t len) {
-          // TODO(crbug.com/383343306): Maybe just provide asm version of this?
+          // TODO(crbug.com/473454967): Maybe just provide asm version of this?
           // Here, len is always a multiple of 64.
           CRYPTO_chacha_20(out, in, len, key, nonce.data(), block);
           CRYPTO_poly1305_update(&ctx, out, len);
@@ -212,17 +213,17 @@ static int chacha20_poly1305_sealv(const uint8_t *key,
     calc_tag_post(&ctx, data.out.tag, ciphertext_total, ad_len);
   }
 
-  CopyToPrefix(bssl::Span(data.out.tag).first(tag_len), out_tag);
+  CopyToPrefix(Span(data.out.tag).first(tag_len), out_tag);
   *out_tag_len = tag_len;
   return 1;
 }
 
 static int aead_chacha20_poly1305_sealv(const EVP_AEAD_CTX *ctx,
-                                        bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                        bssl::Span<uint8_t> out_tag,
+                                        Span<const CRYPTO_IOVEC> iovecs,
+                                        Span<uint8_t> out_tag,
                                         size_t *out_tag_len,
-                                        bssl::Span<const uint8_t> nonce,
-                                        bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                        Span<const uint8_t> nonce,
+                                        Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_chacha20_poly1305_ctx *c20_ctx =
       (struct aead_chacha20_poly1305_ctx *)&ctx->state;
 
@@ -230,10 +231,12 @@ static int aead_chacha20_poly1305_sealv(const EVP_AEAD_CTX *ctx,
                                  nonce, aadvecs, ctx->tag_len);
 }
 
-static int aead_xchacha20_poly1305_sealv(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const CRYPTO_IVEC> aadvecs) {
+static int aead_xchacha20_poly1305_sealv(const EVP_AEAD_CTX *ctx,
+                                         Span<const CRYPTO_IOVEC> iovecs,
+                                         Span<uint8_t> out_tag,
+                                         size_t *out_tag_len,
+                                         Span<const uint8_t> nonce,
+                                         Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_chacha20_poly1305_ctx *c20_ctx =
       (struct aead_chacha20_poly1305_ctx *)&ctx->state;
 
@@ -252,10 +255,12 @@ static int aead_xchacha20_poly1305_sealv(
                                  derived_nonce, aadvecs, ctx->tag_len);
 }
 
-static int chacha20_poly1305_openv_detached(
-    const uint8_t *key, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const uint8_t> in_tag,
-    bssl::Span<const CRYPTO_IVEC> aadvecs, size_t tag_len) {
+static int chacha20_poly1305_openv_detached(const uint8_t *key,
+                                            Span<const CRYPTO_IOVEC> iovecs,
+                                            Span<const uint8_t> nonce,
+                                            Span<const uint8_t> in_tag,
+                                            Span<const CRYPTO_IVEC> aadvecs,
+                                            size_t tag_len) {
   if (nonce.size() != 12) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_UNSUPPORTED_NONCE_SIZE);
     return 0;
@@ -281,7 +286,7 @@ static int chacha20_poly1305_openv_detached(
   union chacha20_poly1305_open_data data;
   if (chacha20_poly1305_asm_capable() && iovecs.size() <= 1 &&
       aadvecs.size() <= 1) {
-    // TODO(crbug.com/383343306): Support more than 1 ciphertext segment.
+    // TODO(crbug.com/473454967): Support more than 1 ciphertext segment.
     OPENSSL_memcpy(data.in.key, key, 32);
     data.in.counter = 0;
     CopySpan(nonce, data.in.nonce);
@@ -299,7 +304,7 @@ static int chacha20_poly1305_openv_detached(
     bssl::iovec::ForEachBlockRange<64, /*WriteOut=*/true>(
         iovecs,
         [&](const uint8_t *in, uint8_t *out, size_t len) {
-          // TODO(crbug.com/383343306): Maybe just provide asm version of this?
+          // TODO(crbug.com/473454967): Maybe just provide asm version of this?
           // Here, len is always a multiple of 64.
           CRYPTO_poly1305_update(&ctx, in, len);
           CRYPTO_chacha_20(out, in, len, key, nonce.data(), block);
@@ -328,9 +333,9 @@ static int chacha20_poly1305_openv_detached(
 }
 
 static int aead_chacha20_poly1305_openv_detached(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const uint8_t> in_tag,
-    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+    const EVP_AEAD_CTX *ctx, Span<const CRYPTO_IOVEC> iovecs,
+    Span<const uint8_t> nonce, Span<const uint8_t> in_tag,
+    Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_chacha20_poly1305_ctx *c20_ctx =
       (struct aead_chacha20_poly1305_ctx *)&ctx->state;
 
@@ -339,9 +344,9 @@ static int aead_chacha20_poly1305_openv_detached(
 }
 
 static int aead_xchacha20_poly1305_openv_detached(
-    const EVP_AEAD_CTX *ctx, bssl::Span<const CRYPTO_IOVEC> iovecs,
-    bssl::Span<const uint8_t> nonce, bssl::Span<const uint8_t> in_tag,
-    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+    const EVP_AEAD_CTX *ctx, Span<const CRYPTO_IOVEC> iovecs,
+    Span<const uint8_t> nonce, Span<const uint8_t> in_tag,
+    Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_chacha20_poly1305_ctx *c20_ctx =
       (struct aead_chacha20_poly1305_ctx *)&ctx->state;
 
@@ -392,10 +397,8 @@ static const EVP_AEAD aead_xchacha20_poly1305 = {
     nullptr,  // tag_len
 };
 
-const EVP_AEAD *EVP_aead_chacha20_poly1305(void) {
-  return &aead_chacha20_poly1305;
-}
+const EVP_AEAD *EVP_aead_chacha20_poly1305() { return &aead_chacha20_poly1305; }
 
-const EVP_AEAD *EVP_aead_xchacha20_poly1305(void) {
+const EVP_AEAD *EVP_aead_xchacha20_poly1305() {
   return &aead_xchacha20_poly1305;
 }

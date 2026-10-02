@@ -50,4 +50,4 @@ static const EVP_CIPHER n_cipher = {
     /*ctrl=*/nullptr,
 };
 
-const EVP_CIPHER *EVP_enc_null(void) { return &n_cipher; }
+const EVP_CIPHER *EVP_enc_null() { return &n_cipher; }

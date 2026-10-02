@@ -84,7 +84,7 @@ class TestMemoryAllocatorScope;
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
-class MemoryChunkMetadata;
+class BasePage;
 class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -107,15 +107,15 @@ class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryBalancer;
-class MutablePageMetadata;
+class MutablePage;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkSweepCollector;
 class NativeContext;
 class NopRwxMemoryWriteScope;
+class NormalPage;
 class ObjectIterator;
 class ObjectStats;
-class PageMetadata;
 class PagedSpace;
 class PagedNewSpace;
 class ReadOnlyHeap;
@@ -221,7 +221,8 @@ DEFINE_OPERATORS_FOR_FLAGS(GCFlags)
 enum class CompleteSweepingReason {
   kCollectCodeStatistics,
   kHeapObjectIterator,
-  kStartMarking,
+  kStartMinorMarking,
+  kStartMajorMarking,
   kMinorGC,
   kMajorGC,
   kHeapSnapshot,
@@ -237,8 +238,10 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
       return "collect code statistics";
     case CompleteSweepingReason::kHeapObjectIterator:
       return "heap object iterator";
-    case CompleteSweepingReason::kStartMarking:
-      return "start marking";
+    case CompleteSweepingReason::kStartMajorMarking:
+      return "start major marking";
+    case CompleteSweepingReason::kStartMinorMarking:
+      return "start minor marking";
     case CompleteSweepingReason::kMinorGC:
       return "minor gc";
     case CompleteSweepingReason::kMajorGC:
@@ -536,7 +539,7 @@ class Heap final {
   };
 
   void NotifyOldGenerationExpansion(
-      LocalHeap* local_heap, AllocationSpace space, MutablePageMetadata* chunk,
+      LocalHeap* local_heap, AllocationSpace space, MutablePage* chunk,
       OldGenerationExpansionNotificationOrigin =
           OldGenerationExpansionNotificationOrigin::kFromSameHeap);
 
@@ -1173,7 +1176,7 @@ class Heap final {
   uint8_t* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlotRange(Address start, Address end);
-  static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+  static int InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                              size_t slot_offset);
 
   static void VerifySkippedWriteBarrier(Address object, Address value);
@@ -1585,6 +1588,11 @@ class Heap final {
   // more eager to finalize incremental marking.
   bool AllocationLimitOvershotByLargeMargin() const;
 
+  // While handling input, we allow allocations to overshoot the limits by a
+  // fixed margin, to decrease the chances of running a GC during that window.
+  bool AllocationLimitOvershotByFixedMargin(
+      const uint64_t overshoot_margin) const;
+
   // Return the maximum size objects can be before having to allocate them as
   // large objects. This takes into account allocating in the code space for
   // which the size of the allocatable space per V8 page may depend on the OS
@@ -1716,11 +1724,15 @@ class Heap final {
     return sweeper_->major_sweeping_in_progress();
   }
 
+  // Used on Minor GCs to finish sweeping for Major GCs if the sweeper tasks
+  // have run out of work. Finishes sweeping using EnsureSweepingCompleted() -
+  // but this should be a no-op as all sweeping is already done.
   void FinishSweepingIfOutOfWork(CompleteSweepingReason reason);
 
   enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
 
-  // Ensures that sweeping is finished.
+  // Ensures that sweeping is finished. This generally entails sweeping heap
+  // pages not yet swept.
   //
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
@@ -2055,7 +2067,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() {
+  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
@@ -2092,13 +2104,27 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
-  V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
+  // We use this timeout in case the embedder doesn't ever reset the input
+  // handling state. Note that input may actually be relatively long in a few
+  // cases, such as scrolling.
+  // The value is arbitrary; it was chosen to match a similar timeout in
+  // Chrome.
+  static const int kMaxInputHandlingTimeMs = 3000;
 
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
   V8_EXPORT_PRIVATE bool IsLoading() const;
   bool IsLoadingInitialized() const;
 
+  bool ShouldOptimizeForInputHandlingResponsiveness() const;
+  bool IsInputHandling() const;
+  bool IsInputHandlingInitialized() const;
+
   void NotifyLoadingStarted();
   void NotifyLoadingEnded(LeaveHeapState context = LeaveHeapState::kNotify);
+
+  void NotifyInputHandlingStarted();
+  void NotifyInputHandlingEnded(
+      LeaveHeapState context = LeaveHeapState::kNotify);
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);
@@ -2162,7 +2188,6 @@ class Heap final {
   size_t GlobalMemoryAvailable();
 
   void RecomputeLimits(GarbageCollector collector);
-  void RecomputeLimitsAfterLoadingIfNeeded();
 
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
@@ -2586,11 +2611,41 @@ class Heap final {
 
   std::unique_ptr<MemoryBalancer> mb_;
 
-  // A sentinel meaning that the embedder isn't currently loading resources.
-  static constexpr double kLoadTimeNotLoading = -1.0;
+  class GCHintState {
+   public:
+    explicit GCHintState(const double max_time_ms, perfetto::NamedTrack track,
+                         perfetto::StaticString track_tag)
+        : max_time_ms_(max_time_ms), track_(track), tag_(track_tag) {}
+    bool IsActive(const Heap* heap) const;
+    bool IsInitialized() const;
+    void NotifyStarted(Heap* heap);
+    void NotifyEnded(Heap* heap);
 
-  // Time that the embedder started loading resources, or kLoadTimeNotLoading.
-  std::atomic<double> load_start_time_ms_{kLoadTimeNotLoading};
+   protected:
+    // Maximum time spent in high responsiveness mode, in ms.
+    double max_time() const { return max_time_ms_; }
+    // Sentinel value meaning that we are not currently in high responsiveness
+    // mode.
+    static constexpr double kInactive = -1.0;
+    // The time that we entered high responsiveness mode, or |kInactive|.
+    std::atomic<double> start_time_ms_{kInactive};
+    // Maximum time spent in high responsiveness mode.
+    const double max_time_ms_;
+    // Track used to record whether or not high responsiveness mode is active.
+    perfetto::NamedTrack track_;
+    // What to tag |track_| with when high responsiveness mode is active.
+    perfetto::StaticString tag_;
+  };
+
+  perfetto::NamedTrack tracing_track_;
+
+  GCHintState loading_state_{kMaxLoadTimeMs,
+                             perfetto::NamedTrack{"Loading", 0, tracing_track_},
+                             "IsLoading"};
+  GCHintState input_handling_state_{
+      kMaxInputHandlingTimeMs,
+      perfetto::NamedTrack{"InputHandling", 0, tracing_track_},
+      "IsInputHandling"};
 
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.
@@ -2601,9 +2656,6 @@ class Heap final {
   uint64_t physical_memory_;
 
   std::atomic<uint64_t> total_allocated_bytes_ = 0;
-
-  perfetto::NamedTrack tracing_track_;
-  perfetto::NamedTrack loading_track_;
 
   const uint8_t* gc_tracing_category_enabled_ = nullptr;
   size_t notify_context_disposed_counter_ = 1;
@@ -2641,8 +2693,8 @@ class Heap final {
   friend class MinorMSIncrementalMarkingTaskObserver;
   friend class NewLargeObjectSpace;
   friend class NewSpace;
+  friend class NormalPage;
   friend class ObjectStatsCollector;
-  friend class PageMetadata;
   friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
@@ -2808,8 +2860,7 @@ class CodePageMemoryModificationScopeForDebugging {
   // access the page header. Hence, use the VirtualMemory for tracking instead.
   explicit CodePageMemoryModificationScopeForDebugging(
       Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
-  explicit CodePageMemoryModificationScopeForDebugging(
-      MemoryChunkMetadata* chunk);
+  explicit CodePageMemoryModificationScopeForDebugging(BasePage* chunk);
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:

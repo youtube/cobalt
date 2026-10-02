@@ -19,17 +19,14 @@
 
 #include <stdio.h>
 
-// Provided by libcrypto, called from BCM
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+BSSL_NAMESPACE_BEGIN
 
 // Provided by libcrypto, called from BCM
 
 // CRYPTO_init_sysrand initializes long-lived resources needed to draw entropy
 // from the operating system, if the operating system requires initialization.
-void CRYPTO_init_sysrand(void);
+void CRYPTO_init_sysrand();
 
 // CRYPTO_sysrand fills |len| bytes at |buf| with entropy from the operating
 // system.
@@ -53,7 +50,7 @@ void RAND_need_entropy(size_t bytes_needed);
 //
 // This is not reliably supported on all platforms which implement |fork|, so it
 // should only be used as a hardening measure.
-OPENSSL_EXPORT uint64_t CRYPTO_get_fork_generation(void);
+OPENSSL_EXPORT uint64_t CRYPTO_get_fork_generation();
 
 // CRYPTO_fork_detect_force_madv_wipeonfork_for_testing is an internal detail
 // used for testing purposes.
@@ -62,11 +59,8 @@ OPENSSL_EXPORT void CRYPTO_fork_detect_force_madv_wipeonfork_for_testing(
 
 // CRYPTO_get_stderr returns stderr. This function exists to avoid BCM needing
 // a data dependency on libc.
-FILE *CRYPTO_get_stderr(void);
+FILE *CRYPTO_get_stderr();
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_BCM_SUPPORT_H

@@ -25,6 +25,8 @@
 #include "./wots.h"
 
 
+using namespace bssl;
+
 // Implements Algorithm 5: chain function, page 18
 static void chain(const slh_dsa_config *config, uint8_t *output,
                   const uint8_t *input, uint32_t start, uint32_t steps,
@@ -53,9 +55,9 @@ static void slhdsa_wots_do_chain(const slh_dsa_config *config, uint8_t *out,
 }
 
 // Implements Algorithm 6: wots_pkGen function, page 18
-void slhdsa_wots_pk_gen(const slh_dsa_config *config, uint8_t *pk,
-                        const uint8_t *sk_seed, const uint8_t *pub_seed,
-                        uint8_t addr[32]) {
+void bssl::slhdsa_wots_pk_gen(const slh_dsa_config *config, uint8_t *pk,
+                              const uint8_t *sk_seed, const uint8_t *pub_seed,
+                              uint8_t addr[32]) {
   uint8_t wots_pk_addr[32], sk_addr[32];
   OPENSSL_memcpy(wots_pk_addr, addr, sizeof(wots_pk_addr));
   OPENSSL_memcpy(sk_addr, addr, sizeof(sk_addr));
@@ -78,9 +80,9 @@ void slhdsa_wots_pk_gen(const slh_dsa_config *config, uint8_t *pk,
 }
 
 // Implements Algorithm 7: wots_sign function, page 20
-void slhdsa_wots_sign(const slh_dsa_config *config, uint8_t *sig,
-                      const uint8_t *msg, const uint8_t *sk_seed,
-                      const uint8_t *pub_seed, uint8_t addr[32]) {
+void bssl::slhdsa_wots_sign(const slh_dsa_config *config, uint8_t *sig,
+                            const uint8_t *msg, const uint8_t *sk_seed,
+                            const uint8_t *pub_seed, uint8_t addr[32]) {
   BSSL_CHECK(config->wots_w == 16);
   const size_t n = config->n;
   const uint32_t max_chain = config->wots_w - 1;
@@ -131,9 +133,9 @@ static void slhdsa_wots_pk_from_sig_do_chain(const slh_dsa_config *config,
 }
 
 // Implements Algorithm 8: wots_pkFromSig function, page 21
-void slhdsa_wots_pk_from_sig(const slh_dsa_config *config, uint8_t *pk,
-                             const uint8_t *sig, const uint8_t *msg,
-                             const uint8_t *pub_seed, uint8_t addr[32]) {
+void bssl::slhdsa_wots_pk_from_sig(const slh_dsa_config *config, uint8_t *pk,
+                                   const uint8_t *sig, const uint8_t *msg,
+                                   const uint8_t *pub_seed, uint8_t addr[32]) {
   BSSL_CHECK(config->wots_w == 16);
   const size_t n = config->n;
   const uint32_t max_chain = config->wots_w - 1;

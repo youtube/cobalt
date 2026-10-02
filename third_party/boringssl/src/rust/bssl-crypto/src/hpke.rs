@@ -564,7 +564,13 @@ mod test {
 
     #[test]
     fn all_algorithms() {
-        let kems = vec![Kem::X25519HkdfSha256, Kem::P256HkdfSha256, Kem::XWing, Kem::MlKem768, Kem::MlKem1024];
+        let kems = vec![
+            Kem::X25519HkdfSha256,
+            Kem::P256HkdfSha256,
+            Kem::XWing,
+            Kem::MlKem768,
+            Kem::MlKem1024,
+        ];
         let kdfs = vec![Kdf::HkdfSha256];
         let aeads = vec![Aead::Aes128Gcm, Aead::Aes256Gcm, Aead::Chacha20Poly1305];
         let plaintext: &[u8] = b"plaintext";
@@ -602,7 +608,13 @@ mod test {
 
     #[test]
     fn kem_public_from_private() {
-        let kems = vec![Kem::X25519HkdfSha256, Kem::P256HkdfSha256, Kem::XWing, Kem::MlKem768, Kem::MlKem1024];
+        let kems = vec![
+            Kem::X25519HkdfSha256,
+            Kem::P256HkdfSha256,
+            Kem::XWing,
+            Kem::MlKem768,
+            Kem::MlKem1024,
+        ];
         for kem in &kems {
             let (pub_key, priv_key) = kem.generate_keypair();
             assert_eq!(kem.public_from_private(&priv_key), Some(pub_key));

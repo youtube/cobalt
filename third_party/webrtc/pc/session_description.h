@@ -57,7 +57,7 @@ class MediaContentDescription {
   MediaContentDescription() = default;
   virtual ~MediaContentDescription() = default;
 
-  virtual webrtc::MediaType type() const = 0;
+  virtual MediaType type() const = 0;
 
   // Try to cast this media description to an AudioContentDescription. Returns
   // nullptr if the cast fails.
@@ -214,12 +214,19 @@ class MediaContentDescription {
   bool extmap_allow_mixed() const { return extmap_allow_mixed_enum_ != kNo; }
 
   // Simulcast functionality.
-  bool HasSimulcast() const { return !simulcast_.empty(); }
+  bool HasSimulcast() const {
+    // In practice this is only supported for video, but currently
+    // tests populate the simulcast_ field for non video types.
+    return !simulcast_.empty();
+  }
   SimulcastDescription& simulcast_description() { return simulcast_; }
   const SimulcastDescription& simulcast_description() const {
+    // In practice this is only supported for video, but currently
+    // tests populate the simulcast_ field for non video types.
     return simulcast_;
   }
   void set_simulcast_description(const SimulcastDescription& simulcast) {
+    // In practice only applies to video descriptions.
     simulcast_ = simulcast;
   }
   const std::vector<RidDescription>& receive_rids() const {
@@ -288,13 +295,13 @@ class MediaContentDescription {
 
 class RtpMediaContentDescription : public MediaContentDescription {};
 
-class AudioContentDescription : public RtpMediaContentDescription {
+class AudioContentDescription final : public RtpMediaContentDescription {
  public:
   void set_protocol(absl::string_view protocol) override {
     RTC_DCHECK(IsRtpProtocol(protocol));
     protocol_ = std::string(protocol);
   }
-  webrtc::MediaType type() const override { return webrtc::MediaType::AUDIO; }
+  MediaType type() const override { return MediaType::AUDIO; }
   AudioContentDescription* as_audio() override { return this; }
   const AudioContentDescription* as_audio() const override { return this; }
 
@@ -304,13 +311,13 @@ class AudioContentDescription : public RtpMediaContentDescription {
   }
 };
 
-class VideoContentDescription : public RtpMediaContentDescription {
+class VideoContentDescription final : public RtpMediaContentDescription {
  public:
   void set_protocol(absl::string_view protocol) override {
     RTC_DCHECK(IsRtpProtocol(protocol));
     protocol_ = std::string(protocol);
   }
-  webrtc::MediaType type() const override { return webrtc::MediaType::VIDEO; }
+  MediaType type() const override { return MediaType::VIDEO; }
   VideoContentDescription* as_video() override { return this; }
   const VideoContentDescription* as_video() const override { return this; }
 
@@ -320,7 +327,7 @@ class VideoContentDescription : public RtpMediaContentDescription {
   }
 };
 
-class SctpDataContentDescription : public MediaContentDescription {
+class SctpDataContentDescription final : public MediaContentDescription {
  public:
   SctpDataContentDescription() {}
   SctpDataContentDescription(const SctpDataContentDescription& o)
@@ -329,7 +336,7 @@ class SctpDataContentDescription : public MediaContentDescription {
         port_(o.port_),
         max_message_size_(o.max_message_size_),
         sctp_init_(o.sctp_init_) {}
-  webrtc::MediaType type() const override { return webrtc::MediaType::DATA; }
+  MediaType type() const override { return MediaType::DATA; }
   SctpDataContentDescription* as_sctp() override { return this; }
   const SctpDataContentDescription* as_sctp() const override { return this; }
 
@@ -368,13 +375,11 @@ class SctpDataContentDescription : public MediaContentDescription {
   std::optional<std::vector<uint8_t>> sctp_init_;
 };
 
-class UnsupportedContentDescription : public MediaContentDescription {
+class UnsupportedContentDescription final : public MediaContentDescription {
  public:
   explicit UnsupportedContentDescription(absl::string_view media_type)
       : media_type_(media_type) {}
-  webrtc::MediaType type() const override {
-    return webrtc::MediaType::UNSUPPORTED;
-  }
+  MediaType type() const override { return MediaType::UNSUPPORTED; }
 
   UnsupportedContentDescription* as_unsupported() override { return this; }
   const UnsupportedContentDescription* as_unsupported() const override {
@@ -389,7 +394,7 @@ class UnsupportedContentDescription : public MediaContentDescription {
     return new UnsupportedContentDescription(*this);
   }
 
-  std::string media_type_;
+  const std::string media_type_;
 };
 
 // Protocol used for encoding media. This is the "top level" protocol that may
@@ -406,7 +411,7 @@ enum class MediaProtocolType {
 // Represents a session description section. Most information about the section
 // is stored in the description, which is a subclass of MediaContentDescription.
 // Owns the description.
-class RTC_EXPORT ContentInfo {
+class RTC_EXPORT ContentInfo final {
  public:
   ContentInfo(MediaProtocolType type,
               absl::string_view mid,

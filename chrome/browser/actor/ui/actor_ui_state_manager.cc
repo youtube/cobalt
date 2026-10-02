@@ -162,6 +162,8 @@ void ActorUiStateManager::OnActorTaskStateChange(
       if (base::FeatureList::IsEnabled(
               features::kGlicActorUiGlobalTaskIndicator)) {
         LOG(FATAL) << "Stopped states should be processed via StopTask event.";
+      } else {
+        NotifyActorTaskStopped(task_id);
       }
       break;
   }
@@ -240,6 +242,11 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
           [this](const StopTask& e) {
             if (base::FeatureList::IsEnabled(
                     features::kGlicActorUiGlobalTaskIndicator)) {
+              // Cancelled tasks are intentionally not stored.
+              if (e.final_state == ActorTask::State::kCancelled) {
+                NotifyActorTaskStopped(e.task_id);
+                return;
+              }
               stopped_task_info_.emplace(
                   e.task_id,
                   StoppedTaskInfo{
@@ -362,6 +369,10 @@ std::optional<actor::ActorTask::State> ActorUiStateManager::GetActorTaskState(
     return it->second.final_state;
   }
   return std::nullopt;
+}
+
+size_t ActorUiStateManager::GetInactiveTaskCount() {
+  return stopped_task_info_.size();
 }
 
 }  // namespace actor::ui

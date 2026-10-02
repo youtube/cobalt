@@ -50,6 +50,8 @@ class MockAudioDecoderFactory : public AudioDecoderFactory {
               (),
               (override));
   MOCK_METHOD(bool, IsSupportedDecoder, (const SdpAudioFormat&), (override));
+  // TODO: https://issues.webrtc.org/398550915 - mock version without
+  // AudioCodecPairId. Needs changes at EXPECT_CALL sites.
   MOCK_METHOD(std::unique_ptr<AudioDecoder>,
               Create,
               (const Environment&,

@@ -39,7 +39,7 @@ class SrtpTransport : public RtpTransport {
  public:
   SrtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials);
 
-  virtual ~SrtpTransport() = default;
+  ~SrtpTransport() override = default;
 
   bool SendRtpPacket(CopyOnWriteBuffer* packet,
                      const AsyncSocketPacketOptions& options,

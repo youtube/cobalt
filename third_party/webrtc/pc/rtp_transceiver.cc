@@ -24,7 +24,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
-#include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -240,13 +239,10 @@ CreateMediaContentChannels(
     const CryptoOptions& crypto_options,
     VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) {
   if (media_type == MediaType::AUDIO) {
-    AudioCodecPairId codec_pair_id = AudioCodecPairId::Create();
     return {media_engine->voice().CreateSendChannel(
-                env, call, media_config, audio_options, crypto_options,
-                codec_pair_id),
+                env, call, media_config, audio_options, crypto_options),
             media_engine->voice().CreateReceiveChannel(
-                env, call, media_config, audio_options, crypto_options,
-                codec_pair_id)};
+                env, call, media_config, audio_options, crypto_options)};
   }
   return {media_engine->video().CreateSendChannel(
               env, call, media_config, video_options, crypto_options,
@@ -444,6 +440,7 @@ RTCError RtpTransceiver::CreateChannel(
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!channel());
   RTC_DCHECK(!mid_ || mid_.value() == mid);
+  RTC_DCHECK(!stopped_);
 
   mid_ = mid;
 
@@ -461,6 +458,15 @@ RTCError RtpTransceiver::CreateChannel(
       RTC_DCHECK(owned_receive_channel_);
       media_send_channel = std::move(owned_send_channel_);
       media_receive_channel = std::move(owned_receive_channel_);
+      // Apply options to the voice channels for audio and send channel for
+      // video. Note that the video options are primarily for sending.
+      if (media_type() == MediaType::AUDIO) {
+        media_send_channel->AsVoiceSendChannel()->SetOptions(audio_options);
+        media_receive_channel->AsVoiceReceiveChannel()->SetOptions(
+            audio_options);
+      } else if (media_type() == MediaType::VIDEO) {
+        media_send_channel->AsVideoSendChannel()->SetOptions(video_options);
+      }
     } else {
       auto channels = CreateMediaContentChannels(
           media_type(), env_, media_engine(), call_ptr, media_config,
@@ -468,6 +474,7 @@ RTCError RtpTransceiver::CreateChannel(
           video_bitrate_allocator_factory);
       media_send_channel = std::move(channels.first);
       media_receive_channel = std::move(channels.second);
+      SetMediaChannels(media_send_channel.get(), media_receive_channel.get());
     }
     // Note that this is safe because both sending and
     // receiving channels will be deleted at the same time.
@@ -491,21 +498,22 @@ RTCError RtpTransceiver::CreateChannel(
               srtp_required, crypto_options);
     }
   });
-  SetChannel(std::move(new_channel), std::move(transport_lookup));
-  return RTCError::OK();
+  return SetChannel(std::move(new_channel), std::move(transport_lookup),
+                    /*set_media_channels=*/false);
 }
 
-void RtpTransceiver::SetChannel(
+RTCError RtpTransceiver::SetChannel(
     std::unique_ptr<ChannelInterface> channel,
     absl::AnyInvocable<RtpTransportInternal*(const std::string&) &&>
-        transport_lookup) {
+        transport_lookup,
+    bool set_media_channels) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(channel);
   RTC_DCHECK(transport_lookup);
   RTC_DCHECK(!channel_);
   // Cannot set a channel on a stopped transceiver.
   if (stopped_) {
-    return;
+    return RTCError(RTCErrorType::INVALID_STATE);
   }
 
   RTC_LOG_THREAD_BLOCK_COUNT();
@@ -524,9 +532,13 @@ void RtpTransceiver::SetChannel(
   // Similarly, if the channel() accessor is limited to the network thread, that
   // helps with keeping the channel implementation requirements being met and
   // avoids synchronization for accessing the pointer or network related state.
-  context()->network_thread()->BlockingCall(
+  RTCError err = context()->network_thread()->BlockingCall(
       [&, flag = signaling_thread_safety_]() {
-        channel_->SetRtpTransport(std::move(transport_lookup)(channel_->mid()));
+        if (!channel_->SetRtpTransport(
+                std::move(transport_lookup)(channel_->mid()))) {
+          return RTCError::InvalidParameter()
+                 << "Invalid transport for mid=" << channel_->mid();
+        }
         channel_->SetFirstPacketReceivedCallback([thread = thread_, flag = flag,
                                                   this]() mutable {
           thread->PostTask(
@@ -541,10 +553,16 @@ void RtpTransceiver::SetChannel(
           RTC_DCHECK_RUN_ON(context()->network_thread());
           OnPacketReceived(flag);
         });
+        return RTCError::OK();
       });
-  PushNewMediaChannel();
+
+  if (err.ok() && set_media_channels) {
+    PushNewMediaChannel();
+  }
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
+
+  return err;
 }
 
 absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
@@ -625,27 +643,25 @@ void RtpTransceiver::PushNewMediaChannel() {
   }
   context()->worker_thread()->BlockingCall([&]() {
     RTC_DCHECK_RUN_ON(context()->worker_thread());
-    // Push down the new media_channel.
-    auto* media_send_channel = channel_->media_send_channel();
-    for (const auto& sender : senders_) {
-      sender->internal()->SetMediaChannel(media_send_channel);
-    }
-
-    auto* media_receive_channel = channel_->media_receive_channel();
-    for (const auto& receiver : receivers_) {
-      receiver->internal()->SetMediaChannel(media_receive_channel);
-    }
+    SetMediaChannels(channel_->media_send_channel(),
+                     channel_->media_receive_channel());
   });
 }
 
 // RTC_RUN_ON(context()->worker_thread());
-void RtpTransceiver::ClearMediaChannelReferences() {
+void RtpTransceiver::SetMediaChannels(MediaSendChannelInterface* send,
+                                      MediaReceiveChannelInterface* receive) {
   for (const auto& sender : senders_) {
-    sender->internal()->SetMediaChannel(nullptr);
+    sender->internal()->SetMediaChannel(send);
   }
   for (const auto& receiver : receivers_) {
-    receiver->internal()->SetMediaChannel(nullptr);
+    receiver->internal()->SetMediaChannel(receive);
   }
+}
+
+// RTC_RUN_ON(context()->worker_thread());
+void RtpTransceiver::ClearMediaChannelReferences() {
+  SetMediaChannels(nullptr, nullptr);
   owned_send_channel_ = nullptr;
   owned_receive_channel_ = nullptr;
   media_engine_ref_ = nullptr;

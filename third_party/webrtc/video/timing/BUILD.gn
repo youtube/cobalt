@@ -11,7 +11,7 @@ import("../../webrtc.gni")
 if (rtc_include_tests) {
   rtc_test("video_timing_tests") {
     testonly = true
-    deps = [ "../../test:test_main" ]
+    deps = []
 
     if (rtc_enable_protobuf) {
       deps += [

@@ -89,7 +89,7 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
         fail_set_recv_codecs_(false),
         transport_overhead_per_packet_(0),
         num_network_route_changes_(0) {}
-  virtual ~RtpReceiveChannelHelper() = default;
+  ~RtpReceiveChannelHelper() override = default;
   const std::vector<RtpExtension>& recv_extensions() {
     return recv_extensions_;
   }
@@ -247,7 +247,7 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
         ready_to_send_(false),
         transport_overhead_per_packet_(0),
         num_network_route_changes_(0) {}
-  virtual ~RtpSendChannelHelper() = default;
+  ~RtpSendChannelHelper() override = default;
   const std::vector<RtpExtension>& send_extensions() {
     return send_extensions_;
   }
@@ -349,10 +349,14 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
       if (!result.ok()) {
         return InvokeSetParametersCallback(callback, result);
       }
-
+      bool changed = (parameters_iterator->second != parameters);
       parameters_iterator->second = parameters;
-
-      return InvokeSetParametersCallback(callback, RTCError::OK());
+      // Invoke the callback if set.
+      if (changed && on_rtp_send_parameters_changed_callback_) {
+        on_rtp_send_parameters_changed_callback_(ssrc, parameters);
+      }
+      InvokeSetParametersCallback(callback, RTCError::OK());
+      return RTCError::OK();
     }
     // Replicate the behavior of the real media channel: return false
     // when setting parameters for unknown SSRCs.
@@ -405,6 +409,13 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   }
 
   // Stuff that deals with encryptors, transformers and the like
+  void SetOnRtpSendParametersChanged(
+      absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
+          callback) override {
+    RTC_DCHECK(!on_rtp_send_parameters_changed_callback_);
+    on_rtp_send_parameters_changed_callback_ = std::move(callback);
+  }
+
   void SetFrameEncryptor(uint32_t /* ssrc */,
                          scoped_refptr<FrameEncryptorInterface>
                          /* frame_encryptor */) override {}
@@ -477,6 +488,8 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   MediaChannelNetworkInterface* network_interface_ = nullptr;
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ = nullptr;
+  absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
+      on_rtp_send_parameters_changed_callback_;
 };
 
 class FakeVoiceMediaReceiveChannel
@@ -490,7 +503,7 @@ class FakeVoiceMediaReceiveChannel
   };
   FakeVoiceMediaReceiveChannel(const AudioOptions& options,
                                TaskQueueBase* network_thread);
-  virtual ~FakeVoiceMediaReceiveChannel();
+  ~FakeVoiceMediaReceiveChannel() override;
 
   // Test methods
   const std::vector<Codec>& recv_codecs() const;
@@ -557,7 +570,7 @@ class FakeVoiceMediaReceiveChannel
 
   bool SetRecvCodecs(const std::vector<Codec>& codecs);
   bool SetMaxSendBandwidth(int bps);
-  bool SetOptions(const AudioOptions& options);
+  bool SetOptions(const AudioOptions& options) override;
 
   std::vector<Codec> recv_codecs_;
   std::map<uint32_t, double> output_scalings_;
@@ -606,6 +619,7 @@ class FakeVoiceMediaSendChannel
 
   bool CanInsertDtmf() override;
   bool InsertDtmf(uint32_t ssrc, int event_code, int duration) override;
+  bool SetOptions(const AudioOptions& options) override;
 
   bool SenderNackEnabled() const override { return false; }
   bool SenderNonSenderRttEnabled() const override { return false; }
@@ -637,7 +651,6 @@ class FakeVoiceMediaSendChannel
 
   bool SetSendCodecs(const std::vector<Codec>& codecs);
   bool SetMaxSendBandwidth(int bps);
-  bool SetOptions(const AudioOptions& options);
   bool SetLocalSource(uint32_t ssrc, AudioSource* source);
 
   std::vector<Codec> send_codecs_;
@@ -661,7 +674,7 @@ class FakeVideoMediaReceiveChannel
   FakeVideoMediaReceiveChannel(const VideoOptions& options,
                                TaskQueueBase* network_thread);
 
-  virtual ~FakeVideoMediaReceiveChannel();
+  ~FakeVideoMediaReceiveChannel() override;
 
   VideoMediaReceiveChannelInterface* AsVideoReceiveChannel() override {
     return this;
@@ -726,7 +739,7 @@ class FakeVideoMediaSendChannel
   FakeVideoMediaSendChannel(const VideoOptions& options,
                             TaskQueueBase* network_thread);
 
-  virtual ~FakeVideoMediaSendChannel();
+  ~FakeVideoMediaSendChannel() override;
 
   VideoMediaSendChannelInterface* AsVideoSendChannel() override { return this; }
   VoiceMediaSendChannelInterface* AsVoiceSendChannel() override {
@@ -763,10 +776,10 @@ class FakeVideoMediaSendChannel
   bool SendCodecHasNack() const override { return false; }
   std::optional<int> SendCodecRtxTime() const override { return std::nullopt; }
   bool GetStats(VideoMediaSendInfo* info) override;
+  bool SetOptions(const VideoOptions& options) override;
 
  private:
   bool SetSendCodecs(const std::vector<Codec>& codecs);
-  bool SetOptions(const VideoOptions& options);
   bool SetMaxSendBandwidth(int bps);
 
   std::vector<Codec> send_codecs_;
@@ -787,15 +800,13 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options,
-      AudioCodecPairId codec_pair_id) override;
+      const CryptoOptions& crypto_options) override;
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options,
-      AudioCodecPairId codec_pair_id) override;
+      const CryptoOptions& crypto_options) override;
 
   // TODO(ossu): For proper testing, These should either individually settable
   //             or the voice engine should reference mockable factories.
@@ -830,9 +841,9 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       // engine's "send_codecs/recv_codecs" and have them show up later.
       std::vector<AudioCodecSpec> specs;
       for (const auto& codec : owner_->send_codecs_) {
-        specs.push_back(
-            AudioCodecSpec{{codec.name, codec.clockrate, codec.channels},
-                           {codec.clockrate, codec.channels, codec.bitrate}});
+        specs.push_back(AudioCodecSpec{
+            .format = {codec.name, codec.clockrate, codec.channels},
+            .info = {codec.clockrate, codec.channels, codec.bitrate}});
       }
       return specs;
     }
@@ -857,9 +868,9 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       // engine's "send_codecs/recv_codecs" and have them show up later.
       std::vector<AudioCodecSpec> specs;
       for (const auto& codec : owner_->recv_codecs_) {
-        specs.push_back(
-            AudioCodecSpec{{codec.name, codec.clockrate, codec.channels},
-                           {codec.clockrate, codec.channels, codec.bitrate}});
+        specs.push_back(AudioCodecSpec{
+            .format = {codec.name, codec.clockrate, codec.channels},
+            .info = {codec.clockrate, codec.channels, codec.bitrate}});
       }
       return specs;
     }

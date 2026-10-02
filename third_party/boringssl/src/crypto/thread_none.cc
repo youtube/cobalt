@@ -28,7 +28,7 @@ void CRYPTO_MUTEX_unlock_write(CRYPTO_MUTEX *lock) {}
 
 void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX *lock) {}
 
-void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void)) {
+void CRYPTO_once(CRYPTO_once_t *once, void (*init)()) {
   if (*once) {
     return;
   }

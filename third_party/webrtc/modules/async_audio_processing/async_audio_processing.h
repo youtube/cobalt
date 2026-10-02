@@ -35,7 +35,7 @@ class AsyncAudioProcessing final {
     Factory(const Factory&) = delete;
     Factory& operator=(const Factory&) = delete;
 
-    ~Factory();
+    ~Factory() override;
     Factory(AudioFrameProcessor& frame_processor,
             TaskQueueFactory& task_queue_factory);
     Factory(std::unique_ptr<AudioFrameProcessor> frame_processor,

@@ -59,6 +59,23 @@ impl<C: ec::Curve> PublicKey<C> {
         self.point.to_x962_uncompressed()
     }
 
+    /// Parse a public key in compressed X9.62 point format.
+    pub fn from_x962_compressed(x962: &[u8]) -> Option<Self> {
+        let point = ec::Point::from_x962_compressed(C::group(sealed::Sealed), x962)?;
+        Some(Self {
+            point,
+            marker: PhantomData,
+        })
+    }
+
+    /// Serialize this key as compressed X9.62 format.
+    ///
+    /// WARNING: compressed form is rarely used and is not as well supported as
+    /// the uncompressed form.
+    pub fn to_x962_compressed(&self) -> Buffer {
+        self.point.to_x962_compressed()
+    }
+
     /// Parse a public key in SubjectPublicKeyInfo format.
     /// (This is found in, e.g., X.509 certificates.)
     pub fn from_der_subject_public_key_info(spki: &[u8]) -> Option<Self> {
@@ -191,6 +208,14 @@ impl<C: ec::Curve> PrivateKey<C> {
         self.key.to_x962_uncompressed()
     }
 
+    /// Serialize the _public_ part of this key in compressed X9.62 format.
+    ///
+    /// WARNING: compressed form is rarely used and is not as well supported as
+    /// the uncompressed form.
+    pub fn to_x962_compressed(&self) -> Buffer {
+        self.key.to_x962_compressed()
+    }
+
     /// Serialize this key in SubjectPublicKeyInfo format.
     pub fn to_der_subject_public_key_info(&self) -> Buffer {
         self.key.to_der_subject_public_key_info()
@@ -308,13 +333,36 @@ mod test {
             .is_err());
     }
 
+    fn check_compressed<C: ec::Curve>() {
+        let signed_message = b"hello world";
+        let key = PrivateKey::<C>::generate();
+        let mut sig = key.sign(signed_message);
+        let mut sig_p1363 = key.sign_p1363(signed_message);
+
+        let public_key =
+            PublicKey::<C>::from_x962_compressed(key.to_x962_compressed().as_ref()).unwrap();
+        assert!(public_key.verify(signed_message, sig.as_slice()).is_ok());
+        assert!(public_key
+            .verify_p1363(signed_message, sig_p1363.as_slice())
+            .is_ok());
+
+        sig[10] ^= 1;
+        assert!(public_key.verify(signed_message, sig.as_slice()).is_err());
+        sig_p1363[10] ^= 1;
+        assert!(public_key
+            .verify_p1363(signed_message, sig_p1363.as_slice())
+            .is_err());
+    }
+
     #[test]
     fn p256() {
         check_curve::<P256>();
+        check_compressed::<P256>();
     }
 
     #[test]
     fn p384() {
         check_curve::<P384>();
+        check_compressed::<P384>();
     }
 }

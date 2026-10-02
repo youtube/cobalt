@@ -23,6 +23,8 @@
 #include "../pkcs7/internal.h"
 
 
+using namespace bssl;
+
 // TODO(davidben): Should we move the core PKCS#7 / CMS implementation into
 // crypto/cms instead of crypto/pkcs7? CMS is getting new features while PKCS#7
 // is not.
@@ -51,7 +53,7 @@ CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
     return nullptr;
   }
 
-  bssl::UniquePtr<CMS_ContentInfo> cms(
+  UniquePtr<CMS_ContentInfo> cms(
       static_cast<CMS_ContentInfo *>(OPENSSL_zalloc(sizeof(CMS_ContentInfo))));
   if (cms == nullptr) {
     return nullptr;
@@ -118,8 +120,8 @@ CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert,
 
   // Save information for later.
   cms->has_signer_info = true;
-  cms->signer_info.signcert = bssl::UpRef(signcert).release();
-  cms->signer_info.pkey = bssl::UpRef(pkey).release();
+  cms->signer_info.signcert = UpRef(signcert).release();
+  cms->signer_info.pkey = UpRef(pkey).release();
   cms->signer_info.md = md;
   cms->signer_info.use_key_id = (flags & CMS_USE_KEYID) != 0;
   return &cms->signer_info;
@@ -139,7 +141,7 @@ int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, uint32_t flags) {
     return 0;
   }
 
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 2048) ||
       !pkcs7_add_external_signature(cbb.get(), cms->signer_info.signcert,
                                     cms->signer_info.pkey, cms->signer_info.md,

@@ -25,10 +25,12 @@
 #include "../bytestring/internal.h"
 
 
+using namespace bssl;
+
 // This function is in dsa_asn1.c rather than dsa.c because it is reachable from
 // |EVP_PKEY| parsers. This makes it easier for the static linker to drop most
 // of the DSA implementation.
-int dsa_check_key(const DSA *dsa) {
+int bssl::dsa_check_key(const DSA *dsa) {
   if (!dsa->p || !dsa->q || !dsa->g) {
     OPENSSL_PUT_ERROR(DSA, DSA_R_MISSING_PARAMETERS);
     return 0;
@@ -136,7 +138,7 @@ int DSA_SIG_marshal(CBB *cbb, const DSA_SIG *sig) {
 }
 
 DSA *DSA_parse_public_key(CBS *cbs) {
-  bssl::UniquePtr<DSA> ret(DSA_new());
+  UniquePtr<DSA> ret(DSA_new());
   if (ret == nullptr) {
     return nullptr;
   }
@@ -171,7 +173,7 @@ int DSA_marshal_public_key(CBB *cbb, const DSA *dsa) {
 }
 
 DSA *DSA_parse_parameters(CBS *cbs) {
-  bssl::UniquePtr<DSA> ret(DSA_new());
+  UniquePtr<DSA> ret(DSA_new());
   if (ret == nullptr) {
     return nullptr;
   }
@@ -204,7 +206,7 @@ int DSA_marshal_parameters(CBB *cbb, const DSA *dsa) {
 }
 
 DSA *DSA_parse_private_key(CBS *cbs) {
-  bssl::UniquePtr<DSA> ret(DSA_new());
+  UniquePtr<DSA> ret(DSA_new());
   if (ret == nullptr) {
     return nullptr;
   }
@@ -255,41 +257,41 @@ int DSA_marshal_private_key(CBB *cbb, const DSA *dsa) {
 }
 
 DSA_SIG *d2i_DSA_SIG(DSA_SIG **out_sig, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out_sig, inp, len, DSA_SIG_parse);
+  return D2IFromCBS(out_sig, inp, len, DSA_SIG_parse);
 }
 
 int i2d_DSA_SIG(const DSA_SIG *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return DSA_SIG_marshal(cbb, in); });
 }
 
 DSA *d2i_DSAPublicKey(DSA **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, DSA_parse_public_key);
+  return D2IFromCBS(out, inp, len, DSA_parse_public_key);
 }
 
 int i2d_DSAPublicKey(const DSA *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return DSA_marshal_public_key(cbb, in); });
 }
 
 DSA *d2i_DSAPrivateKey(DSA **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, DSA_parse_private_key);
+  return D2IFromCBS(out, inp, len, DSA_parse_private_key);
 }
 
 int i2d_DSAPrivateKey(const DSA *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return DSA_marshal_private_key(cbb, in); });
 }
 
 DSA *d2i_DSAparams(DSA **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, DSA_parse_parameters);
+  return D2IFromCBS(out, inp, len, DSA_parse_parameters);
 }
 
 int i2d_DSAparams(const DSA *in, uint8_t **outp) {
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return DSA_marshal_parameters(cbb, in); });
 }

@@ -48,7 +48,9 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
+import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.insets.InsetObserver;
@@ -288,10 +290,14 @@ public final class ChromeAndroidTaskUnitTestSupport {
         var mockTabModel = mock(TabModel.class);
         when(mockTabModel.getProfile()).thenReturn(profile);
 
+        var mockDesktopWindowStateManager = mock(DesktopWindowStateManager.class);
         var mockMultiInstanceManager = createMockMultiInstanceManager();
 
         return new ChromeAndroidTask.ActivityScopedObjects(
-                activityWindowAndroid, mockTabModel, mockMultiInstanceManager);
+                activityWindowAndroid,
+                mockTabModel,
+                mockDesktopWindowStateManager,
+                mockMultiInstanceManager);
     }
 
     /**
@@ -462,6 +468,7 @@ public final class ChromeAndroidTaskUnitTestSupport {
         // Activity should be in multi-window mode.
         // (Desktop windowing mode is a multi-window mode.)
         when(mockActivity.isInMultiWindowMode()).thenReturn(true);
+        AppHeaderUtils.setAppInDesktopWindowForTesting(true);
 
         // Config system bars behavior.
         var mockWindow = mock(Window.class);

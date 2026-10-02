@@ -25,7 +25,7 @@ namespace conversational_speech {
 class MockWavReader : public WavReaderInterface {
  public:
   MockWavReader(int sample_rate, size_t num_channels, size_t num_samples);
-  ~MockWavReader();
+  ~MockWavReader() override;
 
   MOCK_METHOD(size_t, ReadFloatSamples, (webrtc::ArrayView<float>), (override));
   MOCK_METHOD(size_t,

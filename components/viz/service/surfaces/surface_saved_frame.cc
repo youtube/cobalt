@@ -177,9 +177,8 @@ void SurfaceSavedFrame::RequestCopyOfOutput(
         std::move(shared_image));
   }
 
-  // DispatchCopyDoneCallback early for cross frame sink view transitions.
+  // DispatchCopyDoneCallback early if that feature is enabled.
   if ((features::ShouldAckCOREarlyForViewTransition() &&
-       directive_.maybe_cross_frame_sink() &&
        directive_.delay_layer_tree_view_deletion()) ||
       copy_request_count_ == 0) {
     DispatchCopyDoneCallback();
@@ -216,8 +215,10 @@ void SurfaceSavedFrame::DispatchViewTransitionResourcesCaptured() {
     return;
   }
 
-  std::move(view_transition_resources_captured_callback_)
-      .Run(directive_.transition_token());
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(view_transition_resources_captured_callback_),
+                     directive_.transition_token()));
 }
 std::unique_ptr<CopyOutputRequest> SurfaceSavedFrame::CreateCopyRequestIfNeeded(
     const CompositorRenderPass& render_pass,
@@ -302,9 +303,8 @@ void SurfaceSavedFrame::NotifyCopyOfOutputComplete(
   // Even if we early out, we update the count since we are no longer waiting
   // for this result.
   --copy_request_count_;
-  // Callback is run already for cross frame view transitions.
+  // Callback is run already when ShouldAckCOREarlyForViewTransition is enabled
   if (!(features::ShouldAckCOREarlyForViewTransition() &&
-        directive_.maybe_cross_frame_sink() &&
         directive_.delay_layer_tree_view_deletion()) &&
       copy_request_count_ == 0) {
     DispatchCopyDoneCallback();

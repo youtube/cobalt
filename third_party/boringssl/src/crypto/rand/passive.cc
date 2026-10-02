@@ -22,6 +22,8 @@
 
 #include <atomic>
 
+using namespace bssl;
+
 // passive_get_seed_entropy writes |out_entropy_len| bytes of entropy, suitable
 // for seeding a DRBG, to |out_entropy|. It sets |*out_used_cpu| to one if the
 // entropy came directly from the CPU and zero if it came from the OS. It
@@ -152,7 +154,7 @@ static int get_seed_from_daemon(uint8_t *out_entropy, size_t out_entropy_len) {
 
 // RAND_need_entropy is called by the FIPS module when it has blocked because of
 // a lack of entropy. This signal is used as an indication to feed it more.
-void RAND_need_entropy(size_t bytes_needed) {
+void bssl::RAND_need_entropy(size_t bytes_needed) {
   uint8_t buf[ENTROPY_READ_LEN];
   size_t todo = sizeof(buf);
   if (todo > bytes_needed) {

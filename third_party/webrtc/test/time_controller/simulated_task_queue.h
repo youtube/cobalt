@@ -32,7 +32,7 @@ class SimulatedTaskQueue : public TaskQueueBase,
   SimulatedTaskQueue(sim_time_impl::SimulatedTimeControllerImpl* handler,
                      absl::string_view name);
 
-  ~SimulatedTaskQueue();
+  ~SimulatedTaskQueue() override;
 
   void RunReady(Timestamp at_time) override;
 

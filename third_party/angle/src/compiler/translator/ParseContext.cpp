@@ -422,7 +422,6 @@ TParseContext::TParseContext(TSymbolTable &symt,
       mStructNestingLevel(0),
       mCurrentFunction(nullptr),
       mFunctionReturnsValue(false),
-      mFragmentPrecisionHighOnESSL1(false),
       mEarlyFragmentTestsSpecified(false),
       mHasDiscard(false),
       mSampleQualifierSpecified(false),
@@ -4923,12 +4922,6 @@ void TParseContext::parseDefaultPrecisionQualifier(const TPrecision precision,
                                                    const TPublicType &type,
                                                    const TSourceLoc &loc)
 {
-    if ((precision == EbpHigh) && (getShaderType() == GL_FRAGMENT_SHADER) &&
-        !getFragmentPrecisionHigh())
-    {
-        error(loc, "precision is not supported in fragment shader", "highp");
-    }
-
     if (!CanSetDefaultPrecisionOnType(type))
     {
         error(loc, "illegal type argument for default precision qualifier",
@@ -9843,18 +9836,19 @@ bool TParseContext::postParseChecks()
 //
 // Returns 0 for success.
 //
-int PaParseStrings(size_t count,
-                   const char *const string[],
+int PaParseStrings(angle::Span<const char *const> string,
                    const int length[],
                    TParseContext *context)
 {
-    if ((count == 0) || (string == nullptr))
+    if (string.empty())
+    {
         return 1;
+    }
 
     if (glslang_initialize(context))
         return 1;
 
-    int error = glslang_scan(count, string, length, context);
+    int error = glslang_scan(string.size(), string.data(), length, context);
     if (!error)
         error = glslang_parse(context);
 

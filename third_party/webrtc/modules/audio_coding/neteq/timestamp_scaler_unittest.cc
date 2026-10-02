@@ -10,9 +10,7 @@
 
 #include "modules/audio_coding/neteq/timestamp_scaler.h"
 
-#include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <utility>
 
 #include "api/audio_codecs/audio_format.h"
@@ -36,7 +34,7 @@ TEST(TimestampScaler, TestNoScaling) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use PCMu, because it doesn't use scaled timestamps.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("pcmu", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 0;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -59,7 +57,7 @@ TEST(TimestampScaler, TestNoScalingLargeStep) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use PCMu, because it doesn't use scaled timestamps.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("pcmu", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 0;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -87,7 +85,7 @@ TEST(TimestampScaler, TestG722) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("g722", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -114,7 +112,7 @@ TEST(TimestampScaler, TestG722LargeStep) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("g722", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -145,9 +143,9 @@ TEST(TimestampScaler, TestG722WithCng) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info_g722(
-      env, SdpAudioFormat("g722", 8000, 1), std::nullopt, factory.get());
+      env, SdpAudioFormat("g722", 8000, 1), factory.get());
   const DecoderDatabase::DecoderInfo info_cng(
-      env, SdpAudioFormat("cn", 16000, 1), std::nullopt, factory.get());
+      env, SdpAudioFormat("cn", 16000, 1), factory.get());
   static const uint8_t kRtpPayloadTypeG722 = 17;
   static const uint8_t kRtpPayloadTypeCng = 13;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadTypeG722))
@@ -190,7 +188,7 @@ TEST(TimestampScaler, TestG722Packet) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("g722", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -221,7 +219,7 @@ TEST(TimestampScaler, TestG722PacketList) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("g722", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -256,7 +254,7 @@ TEST(TimestampScaler, TestG722Reset) {
   auto factory = CreateBuiltinAudioDecoderFactory();
   // Use G722, which has a factor 2 scaling.
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("g722", 8000, 1),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));
@@ -298,7 +296,7 @@ TEST(TimestampScaler, TestOpusLargeStep) {
   MockDecoderDatabase db;
   auto factory = CreateBuiltinAudioDecoderFactory();
   const DecoderDatabase::DecoderInfo info(env, SdpAudioFormat("opus", 48000, 2),
-                                          std::nullopt, factory.get());
+                                          factory.get());
   static const uint8_t kRtpPayloadType = 17;
   EXPECT_CALL(db, GetDecoderInfo(kRtpPayloadType))
       .WillRepeatedly(Return(&info));

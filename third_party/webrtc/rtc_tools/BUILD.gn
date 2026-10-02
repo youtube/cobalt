@@ -564,7 +564,6 @@ if (rtc_include_tests) {
         "../rtc_base:threading",
         "../system_wrappers",
         "../test:fileutils",
-        "../test:test_main",
         "../test:test_support",
         "//testing/gtest",
         "//third_party/libyuv",

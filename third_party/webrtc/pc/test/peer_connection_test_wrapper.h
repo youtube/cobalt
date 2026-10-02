@@ -62,7 +62,7 @@ class PeerConnectionTestWrapper : public PeerConnectionObserver,
                             SocketServer* socket_server,
                             Thread* network_thread,
                             Thread* worker_thread);
-  virtual ~PeerConnectionTestWrapper();
+  ~PeerConnectionTestWrapper() override;
 
   bool CreatePc(const PeerConnectionInterface::RTCConfiguration& config,
                 scoped_refptr<AudioEncoderFactory> audio_encoder_factory,

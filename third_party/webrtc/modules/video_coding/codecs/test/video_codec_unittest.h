@@ -52,8 +52,9 @@ class VideoCodecUnitTest : public ::testing::Test {
     explicit FakeEncodeCompleteCallback(VideoCodecUnitTest* test)
         : test_(test) {}
 
-    Result OnEncodedImage(const EncodedImage& frame,
-                          const CodecSpecificInfo* codec_specific_info);
+    Result OnEncodedImage(
+        const EncodedImage& frame,
+        const CodecSpecificInfo* codec_specific_info) override;
 
    private:
     VideoCodecUnitTest* const test_;

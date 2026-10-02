@@ -156,7 +156,7 @@ static bool set_min_version(const SSL_PROTOCOL_METHOD *method, uint16_t *out,
 static bool set_max_version(const SSL_PROTOCOL_METHOD *method, uint16_t *out,
                             uint16_t version) {
   // Zero is interpreted as the default maximum version.
-  // TODO(crbug.com/42290594): Enable DTLS 1.3 by default, after it's
+  // TODO(crbug.com/382915276): Enable DTLS 1.3 by default, after it's
   // successfully shipped in WebRTC.
   if (version == 0) {
     *out = method->is_dtls ? DTLS1_2_VERSION : TLS1_3_VERSION;

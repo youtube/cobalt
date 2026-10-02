@@ -49,7 +49,7 @@ struct bignum_ctx {
   bool defer_error_ = false;
 } /* BN_CTX */;
 
-BN_CTX *BN_CTX_new(void) { return bssl::New<BN_CTX>(); }
+BN_CTX *BN_CTX_new() { return bssl::New<BN_CTX>(); }
 
 void BN_CTX_free(BN_CTX *ctx) { bssl::Delete(ctx); }
 

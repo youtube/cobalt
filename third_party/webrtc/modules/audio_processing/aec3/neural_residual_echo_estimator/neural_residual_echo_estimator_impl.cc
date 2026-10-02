@@ -12,10 +12,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,7 +28,7 @@
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_feature_extractor.h"
-#include "third_party/tflite/src/tensorflow/lite/c/c_api_types.h"
+#include "rtc_base/checks.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator/neural_residual_echo_estimator.pb.h"
 #else
@@ -55,6 +57,7 @@ constexpr char kLinearAecFrameInput[] = "cancelled_frame";
 constexpr char kAecRefFrameInput[] = "ref_frame";
 constexpr char kLstmStateInput[] = "lstm_state";
 constexpr char kEchoMaskFrameOutput[] = "echo_mask_frame";
+constexpr char kUnboundedEchoMaskFrameOutput[] = "unbounded_echo_mask_frame";
 constexpr char kLstmStateOutput[] = "lstm_state";
 constexpr char kServingDefault[] = "serving_default";
 
@@ -75,6 +78,31 @@ std::optional<audioproc::ReeModelMetadata> ReadModelMetadata(
     return metadata;
   }
   return std::nullopt;
+}
+
+// Downsamples the model output mask to the AEC3 frequency resolution and
+// transforms it from a nearend prediction to an echo power mask.
+void DownsampleAndTransformMask(ArrayView<const float> mask,
+                                ArrayView<float> downsampled_mask) {
+  const int kDownsampleFactor =
+      static_cast<int>((mask.size() - 1) / kFftLengthBy2);
+  downsampled_mask[0] = mask[0];
+  // Downsample by taking the maximum element in each frequency band.
+  auto downsample_element = [kDownsampleFactor](const float* mask) {
+    return *std::max_element(mask, mask + kDownsampleFactor);
+  };
+  for (size_t i = 1; i < kFftLengthBy2Plus1; ++i) {
+    downsampled_mask[i] =
+        downsample_element(&mask[kDownsampleFactor * (i - 1) + 1]);
+  }
+  // The model is trained to predict the nearend magnitude spectrum but
+  // exposes 1 minus that mask. The next transformation computes the mask
+  // that estimates the echo power spectrum assuming that the sum of the
+  // power spectra of the nearend and the echo produces the power spectrum
+  // of the input microphone signal.
+  for (float& m : downsampled_mask) {
+    m = 1.0f - (1.0f - m) * (1.0f - m);
+  }
 }
 
 // Checks if all the expected input tensors are present in the model signature
@@ -157,10 +185,22 @@ bool AllExpectedOutputsArePresent(
       tflite::NumElements(echo_mask_frame_tensor) != frame_size / 2 + 1) {
     return false;
   }
-  for (const char* output_name : {kEchoMaskFrameOutput, kLstmStateOutput}) {
+  // Check that the unbounded echo mask is either not present or that it has the
+  // correct size.
+  const TfLiteTensor* echo_mask_unbounded_frame_tensor =
+      interpreter->output_tensor_by_signature(kUnboundedEchoMaskFrameOutput,
+                                              kServingDefault);
+  if (echo_mask_unbounded_frame_tensor != nullptr &&
+      tflite::NumElements(echo_mask_unbounded_frame_tensor) !=
+          frame_size / 2 + 1) {
+    return false;
+  }
+  for (const char* output_name :
+       {kEchoMaskFrameOutput, kUnboundedEchoMaskFrameOutput,
+        kLstmStateOutput}) {
     const TfLiteTensor* output_tensor =
         interpreter->output_tensor_by_signature(output_name, kServingDefault);
-    if (output_tensor->type != kTfLiteFloat32) {
+    if (output_tensor != nullptr && output_tensor->type != kTfLiteFloat32) {
       return false;
     }
   }
@@ -195,7 +235,8 @@ std::vector<size_t> GetInputTensorIndexes(
 }
 
 std::vector<size_t> GetOutputTensorIndexes(
-    std::unique_ptr<tflite::Interpreter>& interpreter) {
+    std::unique_ptr<tflite::Interpreter>& interpreter,
+    bool use_unbounded_mask) {
   std::vector<size_t> tensor_indexes(
       static_cast<size_t>(ModelOutputEnum::kNumOutputs), 0);
   const std::map<std::string, uint32_t>& signature_outputs =
@@ -205,6 +246,12 @@ std::vector<size_t> GetOutputTensorIndexes(
     switch (k) {
       case static_cast<int>(ModelOutputEnum::kEchoMask):
         tensor_indexes[k] = signature_outputs.at(kEchoMaskFrameOutput);
+        break;
+      case static_cast<int>(ModelOutputEnum::kUnboundedEchoMask):
+        tensor_indexes[k] =
+            use_unbounded_mask
+                ? signature_outputs.at(kUnboundedEchoMaskFrameOutput)
+                : 0;
         break;
       case static_cast<int>(ModelOutputEnum::kModelState):
         tensor_indexes[k] = signature_outputs.at(kLstmStateOutput);
@@ -230,6 +277,9 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
         frame_size_(metadata.version() == 1 ? input_tensor_size_
                                             : (input_tensor_size_ - 1) * 2),
         step_size_(frame_size_ / 2),
+        use_unbounded_mask_(tflite_interpreter->output_tensor_by_signature(
+                                kUnboundedEchoMaskFrameOutput,
+                                kServingDefault) != nullptr),
         metadata_(metadata),
         model_state_(
             tflite::NumElements(
@@ -237,7 +287,8 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
                                                               kServingDefault)),
             0.0f),
         input_tensor_indexes_(GetInputTensorIndexes(tflite_interpreter)),
-        output_tensor_indexes_(GetOutputTensorIndexes(tflite_interpreter)),
+        output_tensor_indexes_(
+            GetOutputTensorIndexes(tflite_interpreter, use_unbounded_mask_)),
         tflite_interpreter_(std::move(tflite_interpreter)) {
     for (const auto input_enum :
          {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
@@ -263,6 +314,10 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   ArrayView<const float> GetOutput(
       FeatureExtractor::ModelOutputEnum output_enum) override {
+    if (!use_unbounded_mask_ &&
+        output_enum == ModelOutputEnum::kUnboundedEchoMask) {
+      return ArrayView<const float>();
+    }
     size_t index = output_tensor_indexes_[static_cast<size_t>(output_enum)];
     const TfLiteTensor* output_tensor = tflite_interpreter_->tensor(index);
     const float* output_typed_tensor =
@@ -307,6 +362,9 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   // Step size.
   const int step_size_;
+
+  // Whether to use the unbounded mask;
+  const bool use_unbounded_mask_;
 
   // Metadata of the model.
   const audioproc::ReeModelMetadata metadata_;
@@ -390,8 +448,12 @@ int NeuralResidualEchoEstimatorImpl::instance_count_ = 0;
 NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
     absl_nonnull std::unique_ptr<ModelRunner> model_runner)
     : model_runner_(std::move(model_runner)),
+      use_unbounded_mask_(
+          !model_runner_->GetOutput(ModelOutputEnum::kUnboundedEchoMask)
+               .empty()),
       data_dumper_(new ApmDataDumper(++instance_count_)) {
   output_mask_.fill(0.0f);
+  output_mask_unbounded_.fill(0.0f);
   if (model_runner_->GetMetadata().version() == 1) {
     feature_extractor_ = std::make_unique<TimeDomainFeatureExtractor>(
         /*step_size=*/model_runner_->StepSize());
@@ -408,6 +470,7 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
     ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
     ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
     ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+    bool dominant_nearend,
     ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
     ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
   DumpInputs(render, y, e);
@@ -441,21 +504,12 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
       // Downsample output mask to match the AEC3 frequency resolution.
       ArrayView<const float> output_mask =
           model_runner_->GetOutput(ModelOutputEnum::kEchoMask);
-      const int kDownsampleFactor = (output_mask.size() - 1) / kFftLengthBy2;
-      output_mask_[0] = output_mask[0];
-      for (size_t i = 1; i < kFftLengthBy2Plus1; ++i) {
-        const auto* output_mask_ptr =
-            &output_mask[kDownsampleFactor * (i - 1) + 1];
-        output_mask_[i] = *std::max_element(
-            output_mask_ptr, output_mask_ptr + kDownsampleFactor);
-      }
-      // The model is trained to predict the nearend magnitude spectrum but
-      // exposes 1 minus that mask. The next transformation computes the mask
-      // that estimates the echo power spectrum assuming that the sum of the
-      // power spectra of the nearend and the echo produces the power spectrum
-      // of the input microphone signal.
-      for (float& m : output_mask_) {
-        m = 1.0f - (1.0f - m) * (1.0f - m);
+      DownsampleAndTransformMask(output_mask, output_mask_);
+      if (use_unbounded_mask_) {
+        ArrayView<const float> output_mask_unbounded =
+            model_runner_->GetOutput(ModelOutputEnum::kUnboundedEchoMask);
+        DownsampleAndTransformMask(output_mask_unbounded,
+                                   output_mask_unbounded_);
       }
       data_dumper_->DumpRaw("ml_ree_model_mask", output_mask);
       data_dumper_->DumpRaw("ml_ree_output_mask", output_mask_);
@@ -463,11 +517,29 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
   }
 
   // Use the latest output mask to produce output echo power estimates.
-  for (size_t ch = 0; ch < E2.size(); ++ch) {
-    std::transform(E2[ch].begin(), E2[ch].end(), output_mask_.begin(),
-                   R2[ch].begin(),
-                   [](float power, float mask) { return power * mask; });
-    std::copy(R2[ch].begin(), R2[ch].end(), R2_unbounded[ch].begin());
+  if (use_unbounded_mask_) {
+    for (size_t ch = 0; ch < E2.size(); ++ch) {
+      std::transform(E2[ch].begin(), E2[ch].end(),
+                     output_mask_unbounded_.begin(), R2_unbounded[ch].begin(),
+                     [](float power, float mask) { return power * mask; });
+      // During dominant nearend, use the unbounded mask as it is less
+      // conservative in terms of echo suppression.
+      if (dominant_nearend) {
+        std::copy(R2_unbounded[ch].begin(), R2_unbounded[ch].end(),
+                  R2[ch].begin());
+      } else {
+        std::transform(E2[ch].begin(), E2[ch].end(), output_mask_.begin(),
+                       R2[ch].begin(),
+                       [](float power, float mask) { return power * mask; });
+      }
+    }
+  } else {
+    for (size_t ch = 0; ch < E2.size(); ++ch) {
+      std::transform(E2[ch].begin(), E2[ch].end(), output_mask_.begin(),
+                     R2[ch].begin(),
+                     [](float power, float mask) { return power * mask; });
+      std::copy(R2[ch].begin(), R2[ch].end(), R2_unbounded[ch].begin());
+    }
   }
 }
 

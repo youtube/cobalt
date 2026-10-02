@@ -54,6 +54,15 @@
 
 namespace webrtc {
 
+// Used by histograms. Values of entries should not be changed, except for kMax.
+enum class HistogramDtlsVersion {
+  kUnknown = 0,
+  kDtls10 = 1,
+  kDtls12 = 2,
+  kDtls13 = 3,
+  kMax = 4
+};
+
 // A bridge between a packet-oriented/transport-type interface on
 // the bottom and a StreamInterface on the top.
 class StreamInterfaceChannel : public StreamInterface {

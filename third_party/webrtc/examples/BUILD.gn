@@ -77,7 +77,6 @@ if (rtc_include_tests) {
     sources = [ "turnserver/read_auth_file_unittest.cc" ]
     deps = [
       ":read_auth_file",
-      "../test:test_main",
       "//test:test_support",
       "//testing/gtest",
     ]

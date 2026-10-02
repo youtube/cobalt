@@ -26,10 +26,8 @@
 
 #include "../bn/internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // EC internals.
 
@@ -424,6 +422,7 @@ void ec_set_to_safe_point(const EC_GROUP *group, EC_JACOBIAN *out);
 int ec_affine_jacobian_equal(const EC_GROUP *group, const EC_AFFINE *a,
                              const EC_JACOBIAN *b);
 
+BSSL_NAMESPACE_END
 
 // Implementation details.
 
@@ -432,70 +431,80 @@ struct ec_method_st {
   // of |p|. Either |x| or |y| may be NULL to omit it. It returns one on success
   // and zero if |p| is the point at infinity. It leaks whether |p| was the
   // point at infinity, but otherwise treats |p| as secret.
-  int (*point_get_affine_coordinates)(const EC_GROUP *, const EC_JACOBIAN *p,
-                                      EC_FELEM *x, EC_FELEM *y);
+  int (*point_get_affine_coordinates)(const EC_GROUP *,
+                                      const bssl::EC_JACOBIAN *p,
+                                      bssl::EC_FELEM *x, bssl::EC_FELEM *y);
 
   // jacobian_to_affine_batch implements |ec_jacobian_to_affine_batch|.
-  int (*jacobian_to_affine_batch)(const EC_GROUP *group, EC_AFFINE *out,
-                                  const EC_JACOBIAN *in, size_t num);
+  int (*jacobian_to_affine_batch)(const EC_GROUP *group, bssl::EC_AFFINE *out,
+                                  const bssl::EC_JACOBIAN *in, size_t num);
 
   // add sets |r| to |a| + |b|.
-  void (*add)(const EC_GROUP *group, EC_JACOBIAN *r, const EC_JACOBIAN *a,
-              const EC_JACOBIAN *b);
+  void (*add)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+              const bssl::EC_JACOBIAN *a, const bssl::EC_JACOBIAN *b);
   // dbl sets |r| to |a| + |a|.
-  void (*dbl)(const EC_GROUP *group, EC_JACOBIAN *r, const EC_JACOBIAN *a);
+  void (*dbl)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+              const bssl::EC_JACOBIAN *a);
 
   // mul sets |r| to |scalar|*|p|.
-  void (*mul)(const EC_GROUP *group, EC_JACOBIAN *r, const EC_JACOBIAN *p,
-              const EC_SCALAR *scalar);
+  void (*mul)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+              const bssl::EC_JACOBIAN *p, const bssl::EC_SCALAR *scalar);
   // mul_base sets |r| to |scalar|*generator.
-  void (*mul_base)(const EC_GROUP *group, EC_JACOBIAN *r,
-                   const EC_SCALAR *scalar);
+  void (*mul_base)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+                   const bssl::EC_SCALAR *scalar);
   // mul_batch implements |ec_mul_scalar_batch|.
-  void (*mul_batch)(const EC_GROUP *group, EC_JACOBIAN *r,
-                    const EC_JACOBIAN *p0, const EC_SCALAR *scalar0,
-                    const EC_JACOBIAN *p1, const EC_SCALAR *scalar1,
-                    const EC_JACOBIAN *p2, const EC_SCALAR *scalar2);
+  void (*mul_batch)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+                    const bssl::EC_JACOBIAN *p0, const bssl::EC_SCALAR *scalar0,
+                    const bssl::EC_JACOBIAN *p1, const bssl::EC_SCALAR *scalar1,
+                    const bssl::EC_JACOBIAN *p2,
+                    const bssl::EC_SCALAR *scalar2);
   // mul_public sets |r| to |g_scalar|*generator + |p_scalar|*|p|. It assumes
   // that the inputs are public so there is no concern about leaking their
   // values through timing.
   //
   // This function may be omitted if |mul_public_batch| is provided.
-  void (*mul_public)(const EC_GROUP *group, EC_JACOBIAN *r,
-                     const EC_SCALAR *g_scalar, const EC_JACOBIAN *p,
-                     const EC_SCALAR *p_scalar);
+  void (*mul_public)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+                     const bssl::EC_SCALAR *g_scalar,
+                     const bssl::EC_JACOBIAN *p,
+                     const bssl::EC_SCALAR *p_scalar);
   // mul_public_batch implements |ec_point_mul_scalar_public_batch|.
-  int (*mul_public_batch)(const EC_GROUP *group, EC_JACOBIAN *r,
-                          const EC_SCALAR *g_scalar, const EC_JACOBIAN *points,
-                          const EC_SCALAR *scalars, size_t num);
+  int (*mul_public_batch)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+                          const bssl::EC_SCALAR *g_scalar,
+                          const bssl::EC_JACOBIAN *points,
+                          const bssl::EC_SCALAR *scalars, size_t num);
 
   // init_precomp implements |ec_init_precomp|.
-  int (*init_precomp)(const EC_GROUP *group, EC_PRECOMP *out,
-                      const EC_JACOBIAN *p);
+  int (*init_precomp)(const EC_GROUP *group, bssl::EC_PRECOMP *out,
+                      const bssl::EC_JACOBIAN *p);
   // mul_precomp implements |ec_point_mul_scalar_precomp|.
-  void (*mul_precomp)(const EC_GROUP *group, EC_JACOBIAN *r,
-                      const EC_PRECOMP *p0, const EC_SCALAR *scalar0,
-                      const EC_PRECOMP *p1, const EC_SCALAR *scalar1,
-                      const EC_PRECOMP *p2, const EC_SCALAR *scalar2);
+  void (*mul_precomp)(const EC_GROUP *group, bssl::EC_JACOBIAN *r,
+                      const bssl::EC_PRECOMP *p0,
+                      const bssl::EC_SCALAR *scalar0,
+                      const bssl::EC_PRECOMP *p1,
+                      const bssl::EC_SCALAR *scalar1,
+                      const bssl::EC_PRECOMP *p2,
+                      const bssl::EC_SCALAR *scalar2);
 
   // felem_mul and felem_sqr implement multiplication and squaring,
-  // respectively, so that the generic |EC_POINT_add| and |EC_POINT_dbl|
-  // implementations can work both with |EC_GFp_mont_method| and the tuned
-  // operations.
+  // respectively, so that the generic |bssl::EC_POINT_add| and
+  // |bssl::EC_POINT_dbl| implementations can work both with
+  // |bssl::EC_GFp_mont_method| and the tuned operations.
   //
-  // TODO(davidben): This constrains |EC_FELEM|'s internal representation, adds
-  // many indirect calls in the middle of the generic code, and a bunch of
+  // TODO(davidben): This constrains |bssl::EC_FELEM|'s internal representation,
+  // adds many indirect calls in the middle of the generic code, and a bunch of
   // conversions. If p224-64.c were easily convertible to Montgomery form, we
-  // could say |EC_FELEM| is always in Montgomery form. If we routed the rest of
-  // simple.c to |EC_METHOD|, we could give |EC_POINT| an |EC_METHOD|-specific
-  // representation and say |EC_FELEM| is purely a |EC_GFp_mont_method| type.
-  void (*felem_mul)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a,
-                    const EC_FELEM *b);
-  void (*felem_sqr)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a);
+  // could say |bssl::EC_FELEM| is always in Montgomery form. If we routed the
+  // rest of simple.c to |bssl::EC_METHOD|, we could give |bssl::EC_POINT| an
+  // |bssl::EC_METHOD|-specific representation and say |bssl::EC_FELEM| is
+  // purely a |bssl::EC_GFp_mont_method| type.
+  void (*felem_mul)(const EC_GROUP *, bssl::EC_FELEM *r,
+                    const bssl::EC_FELEM *a, const bssl::EC_FELEM *b);
+  void (*felem_sqr)(const EC_GROUP *, bssl::EC_FELEM *r,
+                    const bssl::EC_FELEM *a);
 
   void (*felem_to_bytes)(const EC_GROUP *group, uint8_t *out, size_t *out_len,
-                         const EC_FELEM *in);
-  int (*felem_from_bytes)(const EC_GROUP *group, EC_FELEM *out,
+                         const bssl::EC_FELEM *in);
+  int (*felem_from_bytes)(const EC_GROUP *group, bssl::EC_FELEM *out,
                           const uint8_t *in, size_t len);
 
   // felem_reduce sets |out| to |words|, reduced modulo the field size, p.
@@ -504,7 +513,7 @@ struct ec_method_st {
   //
   // This function is only used in hash-to-curve and may be omitted in curves
   // that do not support it.
-  void (*felem_reduce)(const EC_GROUP *group, EC_FELEM *out,
+  void (*felem_reduce)(const EC_GROUP *group, bssl::EC_FELEM *out,
                        const BN_ULONG *words, size_t num);
 
   // felem_exp sets |out| to |a|^|exp|. It treats |a| is secret but |exp| as
@@ -518,26 +527,32 @@ struct ec_method_st {
   // needs to avoid |BIGNUM|. Can we unify this a bit? By generalizing to
   // arbitrary exponentiation, we also miss an opportunity to use a specialized
   // addition chain.
-  void (*felem_exp)(const EC_GROUP *group, EC_FELEM *out, const EC_FELEM *a,
-                    const BN_ULONG *exp, size_t num_exp);
+  void (*felem_exp)(const EC_GROUP *group, bssl::EC_FELEM *out,
+                    const bssl::EC_FELEM *a, const BN_ULONG *exp,
+                    size_t num_exp);
 
   // scalar_inv0_montgomery implements |ec_scalar_inv0_montgomery|.
-  void (*scalar_inv0_montgomery)(const EC_GROUP *group, EC_SCALAR *out,
-                                 const EC_SCALAR *in);
+  void (*scalar_inv0_montgomery)(const EC_GROUP *group, bssl::EC_SCALAR *out,
+                                 const bssl::EC_SCALAR *in);
 
   // scalar_to_montgomery_inv_vartime implements
   // |ec_scalar_to_montgomery_inv_vartime|.
-  int (*scalar_to_montgomery_inv_vartime)(const EC_GROUP *group, EC_SCALAR *out,
-                                          const EC_SCALAR *in);
+  int (*scalar_to_montgomery_inv_vartime)(const EC_GROUP *group,
+                                          bssl::EC_SCALAR *out,
+                                          const bssl::EC_SCALAR *in);
 
   // cmp_x_coordinate compares the x (affine) coordinate of |p|, mod the group
   // order, with |r|. It returns one if the values match and zero if |p| is the
   // point at infinity of the values do not match.
-  int (*cmp_x_coordinate)(const EC_GROUP *group, const EC_JACOBIAN *p,
-                          const EC_SCALAR *r);
+  int (*cmp_x_coordinate)(const EC_GROUP *group, const bssl::EC_JACOBIAN *p,
+                          const bssl::EC_SCALAR *r);
 } /* EC_METHOD */;
 
-const EC_METHOD *EC_GFp_mont_method(void);
+BSSL_NAMESPACE_BEGIN
+
+const EC_METHOD *EC_GFp_mont_method();
+
+BSSL_NAMESPACE_END
 
 struct ec_point_st {
   // group is an owning reference to |group|, unless this is
@@ -547,7 +562,7 @@ struct ec_point_st {
   // typically check consistency with |EC_GROUP| while functions that take
   // |EC_JACOBIAN| do not. Thus accesses to this field should be externally
   // checked for consistency.
-  EC_JACOBIAN raw;
+  bssl::EC_JACOBIAN raw;
 } /* EC_POINT */;
 
 struct ec_group_st {
@@ -562,7 +577,7 @@ struct ec_group_st {
   BN_MONT_CTX order;
   BN_MONT_CTX field;
 
-  EC_FELEM a, b;  // Curve coefficients.
+  bssl::EC_FELEM a, b;  // Curve coefficients.
 
   // comment is a human-readable string describing the curve.
   const char *comment;
@@ -584,6 +599,8 @@ struct ec_group_st {
 
   CRYPTO_refcount_t references;
 } /* EC_GROUP */;
+
+BSSL_NAMESPACE_BEGIN
 
 EC_GROUP *ec_group_new(const EC_METHOD *meth, const BIGNUM *p, const BIGNUM *a,
                        const BIGNUM *b, BN_CTX *ctx);
@@ -668,12 +685,12 @@ int ec_GFp_mont_felem_from_bytes(const EC_GROUP *group, EC_FELEM *out,
 void ec_GFp_nistp_recode_scalar_bits(crypto_word_t *sign, crypto_word_t *digit,
                                      crypto_word_t in);
 
-const EC_METHOD *EC_GFp_nistp224_method(void);
-const EC_METHOD *EC_GFp_nistp256_method(void);
+const EC_METHOD *EC_GFp_nistp224_method();
+const EC_METHOD *EC_GFp_nistp256_method();
 
 // EC_GFp_nistz256_method is a GFp method using montgomery multiplication, with
 // x86-64 optimized P256. See http://eprint.iacr.org/2013/816.
-const EC_METHOD *EC_GFp_nistz256_method(void);
+const EC_METHOD *EC_GFp_nistz256_method();
 
 // An EC_WRAPPED_SCALAR is an |EC_SCALAR| with a parallel |BIGNUM|
 // representation. It exists to support the |EC_KEY_get0_private_key| API.
@@ -682,6 +699,8 @@ typedef struct {
   EC_SCALAR scalar;
 } EC_WRAPPED_SCALAR;
 
+BSSL_NAMESPACE_END
+
 struct ec_key_st {
   EC_GROUP *group;
 
@@ -689,7 +708,7 @@ struct ec_key_st {
   // inversion each time, but the |EC_KEY_get0_public_key| API implies public
   // keys are stored in an |EC_POINT|-compatible form.
   EC_POINT *pub_key;
-  EC_WRAPPED_SCALAR *priv_key;
+  bssl::EC_WRAPPED_SCALAR *priv_key;
 
   unsigned int enc_flag;
   point_conversion_form_t conv_form;
@@ -701,9 +720,5 @@ struct ec_key_st {
   CRYPTO_EX_DATA ex_data;
 } /* EC_KEY */;
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_EC_INTERNAL_H

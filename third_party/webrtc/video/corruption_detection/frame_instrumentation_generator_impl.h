@@ -13,23 +13,30 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <queue>
 
+#include "api/environment/environment.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/corruption_detection/frame_instrumentation_generator.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
+#include "video/corruption_detection/frame_selector.h"
 #include "video/corruption_detection/halton_frame_sampler.h"
 
 namespace webrtc {
 
 class FrameInstrumentationGeneratorImpl : public FrameInstrumentationGenerator {
  public:
-  explicit FrameInstrumentationGeneratorImpl(VideoCodecType video_codec_type);
+  FrameInstrumentationGeneratorImpl(
+      const Environment* environment,
+      VideoCodecType video_codec_type,
+      std::optional<ScalabilityMode> scalability_mode);
 
   FrameInstrumentationGeneratorImpl(const FrameInstrumentationGeneratorImpl&) =
       delete;
@@ -58,6 +65,7 @@ class FrameInstrumentationGeneratorImpl : public FrameInstrumentationGenerator {
   // Map from spatial or simulcast index to sampling context.
   std::map<int, Context> contexts_ RTC_GUARDED_BY(mutex_);
   const VideoCodecType video_codec_type_;
+  const std::unique_ptr<FrameSelector> frame_selector_;
   mutable Mutex mutex_;
 };
 

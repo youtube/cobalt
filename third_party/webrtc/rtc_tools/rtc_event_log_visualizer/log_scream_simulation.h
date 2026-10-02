@@ -47,6 +47,8 @@ class LogScreamSimulation {
     double queue_delay_dev_norm;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
+
+    double ref_window_delay_increase_scale = 0.0;
   };
 
   struct Config {

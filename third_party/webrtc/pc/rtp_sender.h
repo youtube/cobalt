@@ -37,6 +37,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "media/base/audio_source.h"
@@ -131,10 +132,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
 
   bool SetTrack(MediaStreamTrackInterface* track) override;
   scoped_refptr<MediaStreamTrackInterface> track() const override {
-    // This method is currently called from the worker thread via
-    // RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n
-    // inside TrackMediaInfoMap::Initialize().
-    // RTC_DCHECK_RUN_ON(signaling_thread_);
+    RTC_DCHECK_RUN_ON(signaling_thread_);
     return track_;
   }
 
@@ -160,9 +158,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   // description).
   void SetSsrc(uint32_t ssrc) override;
   uint32_t ssrc() const override {
-    // This method is currently called from the worker thread by
-    // RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n.
-    // RTC_DCHECK_RUN_ON(signaling_thread_);
+    RTC_DCHECK_RUN_ON(signaling_thread_);
     return ssrc_;
   }
 
@@ -266,10 +262,9 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   const Environment env_;
   TaskQueueBase* const signaling_thread_;
   Thread* const worker_thread_;
-  // TODO: bugs.webrtc.org/42222804 - Access to `ssrc_` should be restricted to
-  // the signaling thread. The type should also be `std::optional<uint32_t>`
+  // TODO(tommi): The type for ssrc_ should be `std::optional<uint32_t>`
   // since 0 is a legal SSRC value.
-  uint32_t ssrc_ = 0;
+  uint32_t ssrc_ RTC_GUARDED_BY(signaling_thread_) = 0;
   bool stopped_ RTC_GUARDED_BY(signaling_thread_) = false;
   int attachment_id_ = 0;
   const std::string id_;
@@ -310,6 +305,9 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   // Guard with RTC_GUARDED_BY(worker_thread_) after refactoring.
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
       encoder_selector_;
+
+  scoped_refptr<PendingTaskSafetyFlag> worker_safety_;
+  ScopedTaskSafety signaling_safety_;
 };
 
 // LocalAudioSinkAdapter receives data callback as a sink to the local
@@ -318,7 +316,7 @@ class LocalAudioSinkAdapter : public AudioTrackSinkInterface,
                               public AudioSource {
  public:
   LocalAudioSinkAdapter();
-  virtual ~LocalAudioSinkAdapter();
+  ~LocalAudioSinkAdapter() override;
 
  private:
   // AudioSinkInterface implementation.
@@ -368,7 +366,7 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
       LegacyStatsCollectorInterface* stats,
       SetStreamsObserver* set_streams_observer,
       MediaSendChannelInterface* media_channel);
-  virtual ~AudioRtpSender();
+  ~AudioRtpSender() override;
 
   // DtmfSenderProvider implementation.
   bool CanInsertDtmf() override;
@@ -437,7 +435,7 @@ class VideoRtpSender : public RtpSenderBase {
       absl::string_view id,
       SetStreamsObserver* set_streams_observer,
       MediaSendChannelInterface* media_channel);
-  virtual ~VideoRtpSender();
+  ~VideoRtpSender() override;
 
   // ObserverInterface implementation
   void OnChanged() override;

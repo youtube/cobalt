@@ -10,4 +10,4 @@ license = "Apache-2.0"
 links = "bssl"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(unsupported_inline_wrappers)', 'cfg(bindgen_rs_file)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(bindgen_rs_file)'] }

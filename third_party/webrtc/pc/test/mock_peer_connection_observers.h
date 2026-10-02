@@ -79,7 +79,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   };
 
   MockPeerConnectionObserver() : remote_streams_(StreamCollection::Create()) {}
-  virtual ~MockPeerConnectionObserver() {}
+  ~MockPeerConnectionObserver() override {}
   void SetPeerConnectionInterface(PeerConnectionInterface* pc) {
     pc_ = pc;
     if (pc) {
@@ -199,12 +199,12 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   // Returns the id of the last added stream.
   // Empty string if no stream have been added.
   std::string GetLastAddedStreamId() {
-    if (last_added_stream_.get())
+    if (last_added_stream_)
       return last_added_stream_->id();
     return "";
   }
   std::string GetLastRemovedStreamId() {
-    if (last_removed_stream_.get())
+    if (last_removed_stream_)
       return last_removed_stream_->id();
     return "";
   }
@@ -276,7 +276,7 @@ class MockCreateSessionDescriptionObserver
   MockCreateSessionDescriptionObserver()
       : called_(false),
         error_("MockCreateSessionDescriptionObserver not called") {}
-  virtual ~MockCreateSessionDescriptionObserver() {}
+  ~MockCreateSessionDescriptionObserver() override {}
   void OnSuccess(SessionDescriptionInterface* desc) override {
     MutexLock lock(&mutex_);
     called_ = true;
@@ -433,7 +433,7 @@ class MockDataChannelObserver : public DataChannelObserver {
     channel_->RegisterObserver(this);
     states_.push_back(channel_->state());
   }
-  virtual ~MockDataChannelObserver() { channel_->UnregisterObserver(); }
+  ~MockDataChannelObserver() override { channel_->UnregisterObserver(); }
 
   void OnBufferedAmountChange(uint64_t previous_amount) override {}
 
@@ -446,8 +446,8 @@ class MockDataChannelObserver : public DataChannelObserver {
 
   void OnMessage(const DataBuffer& buffer) override {
     messages_.push_back(
-        {std::string(buffer.data.data<char>(), buffer.data.size()),
-         buffer.binary});
+        {.data = std::string(buffer.data.data<char>(), buffer.data.size()),
+         .binary = buffer.binary});
     if (on_message_callback_) {
       on_message_callback_(buffer);
     }
@@ -494,9 +494,9 @@ class MockDataChannelObserver : public DataChannelObserver {
 class MockStatsObserver : public StatsObserver {
  public:
   MockStatsObserver() : called_(false), stats_() {}
-  virtual ~MockStatsObserver() {}
+  ~MockStatsObserver() override {}
 
-  virtual void OnComplete(const StatsReports& reports) {
+  void OnComplete(const StatsReports& reports) override {
     RTC_CHECK(!called_);
     called_ = true;
     stats_.Clear();

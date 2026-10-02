@@ -22,10 +22,11 @@
 
 #include "../../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
+
+// TODO(crbug.com/42290480): Raise this limit. 512-bit RSA was factored in 1999.
+#define OPENSSL_RSA_MIN_MODULUS_BITS 512
 
 // TODO(davidben): This is inside BCM because |RSA| is inside BCM, but BCM never
 // uses this. Split the RSA type in two.
@@ -40,6 +41,8 @@ enum rsa_pss_params_t {
   // RSA-PSS using SHA-512, MGF1 with SHA-512, salt length 64.
   rsa_pss_sha512,
 };
+
+BSSL_NAMESPACE_END
 
 struct rsa_st {
   RSA_METHOD *meth;
@@ -78,7 +81,7 @@ struct rsa_st {
 
   // pss_params is the RSA-PSS parameters associated with the key. This is not
   // used by the low-level RSA implementation, just the EVP layer.
-  rsa_pss_params_t pss_params;
+  bssl::rsa_pss_params_t pss_params;
 
   // private_key_frozen is one if the key has been used for a private key
   // operation and may no longer be mutated.
@@ -86,11 +89,13 @@ struct rsa_st {
 };
 
 
+BSSL_NAMESPACE_BEGIN
+
 #define RSA_PKCS1_PADDING_SIZE 11
 
 // Default implementations of RSA operations.
 
-const RSA_METHOD *RSA_default_method(void);
+const RSA_METHOD *RSA_default_method();
 
 int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
                          size_t max_out, const uint8_t *in, size_t in_len,
@@ -132,11 +137,6 @@ int rsa_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
 void rsa_invalidate_key(RSA *rsa);
 
 
-// This constant is exported for test purposes.
-extern const BN_ULONG kBoringSSLRSASqrtTwo[];
-extern const size_t kBoringSSLRSASqrtTwoLen;
-
-
 // Functions that avoid self-tests.
 //
 // Self-tests need to call functions that don't try and ensure that the
@@ -158,9 +158,6 @@ int rsa_sign_no_self_test(int hash_nid, const uint8_t *digest,
                           size_t digest_len, uint8_t *out, unsigned *out_len,
                           RSA *rsa);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_RSA_INTERNAL_H

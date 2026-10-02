@@ -41,7 +41,7 @@ class RandomWalkCrossTraffic final : public CrossTrafficGenerator {
  public:
   RandomWalkCrossTraffic(RandomWalkConfig config,
                          CrossTrafficRoute* traffic_route);
-  ~RandomWalkCrossTraffic();
+  ~RandomWalkCrossTraffic() override;
 
   void Process(Timestamp at_time) override;
   TimeDelta GetProcessInterval() const override;
@@ -68,7 +68,7 @@ class PulsedPeaksCrossTraffic final : public CrossTrafficGenerator {
  public:
   PulsedPeaksCrossTraffic(PulsedPeaksConfig config,
                           CrossTrafficRoute* traffic_route);
-  ~PulsedPeaksCrossTraffic();
+  ~PulsedPeaksCrossTraffic() override;
 
   void Process(Timestamp at_time) override;
   TimeDelta GetProcessInterval() const override;

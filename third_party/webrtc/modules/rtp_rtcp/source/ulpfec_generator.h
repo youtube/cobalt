@@ -42,7 +42,7 @@ class UlpfecGenerator : public VideoFecGenerator {
   UlpfecGenerator(const Environment& env,
                   int red_payload_type,
                   int ulpfec_payload_type);
-  ~UlpfecGenerator();
+  ~UlpfecGenerator() override;
 
   FecType GetFecType() const override {
     return VideoFecGenerator::FecType::kUlpFec;

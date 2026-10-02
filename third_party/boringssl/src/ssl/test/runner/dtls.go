@@ -370,7 +370,7 @@ func (c *Conn) dtlsWriteRecord(typ recordType, data []byte) (n int, err error) {
 
 	if typ == recordTypeChangeCipherSpec {
 		// Don't send ChangeCipherSpec in DTLS 1.3.
-		// TODO(crbug.com/42290594): Add an option to send them anyway and test
+		// TODO(crbug.com/383078468): Add an option to send them anyway and test
 		// what our implementation does with unexpected ones.
 		if c.vers >= VersionTLS13 {
 			return

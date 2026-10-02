@@ -15,7 +15,6 @@
 #include <vector>
 
 
-#include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
@@ -120,6 +119,8 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   } else {
     next_incoming_request_id_ = 1;
   }
+  QUICHE_DCHECK(parameters_.moqt_implementation.empty());
+  parameters_.moqt_implementation = kImplementationName;
 }
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {
@@ -145,10 +146,15 @@ void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
 
 void MoqtSession::OnSessionReady() {
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session ready";
+  std::optional<std::string> version = session_->GetNegotiatedSubprotocol();
+  if (version != parameters_.version) {
+    Error(MoqtError::kVersionNegotiationFailed,
+          "MOQT peer chose wrong subprotocol");
+    return;
+  }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     return;
   }
-
   webtransport::Stream* control_stream =
       session_->OpenOutgoingBidirectionalStream();
   if (control_stream == nullptr) {
@@ -159,7 +165,6 @@ void MoqtSession::OnSessionReady() {
       std::make_unique<ControlStream>(this, control_stream));
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
-      .supported_versions = std::vector<MoqtVersion>{parameters_.version},
       .parameters = parameters_,
   };
   SendControlMessage(framer_.SerializeClientSetup(setup));
@@ -216,10 +221,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   if (track == nullptr) {
     return;
   }
-  if (!track->OnObject(/*is_datagram=*/true)) {
-    OnMalformedTrack(track);
-    return;
-  }
+  track->OnObjectOrOk();
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
     // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
     // not an error.
@@ -234,6 +236,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     metadata.subgroup = message.object_id;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
+    metadata.forwarding_preference = MoqtForwardingPreference::kDatagram;
     metadata.arrival_time = callbacks_.clock->Now();
     visitor->OnObjectFragment(track->full_track_name(), metadata, *payload,
                               true);
@@ -322,9 +325,8 @@ void MoqtSession::PublishNamespace(
   if (outgoing_publish_namespaces_.contains(track_namespace)) {
     std::move(callback)(
         track_namespace,
-        MoqtRequestError{
-            RequestErrorCode::kInternalError,
-            "PUBLISH_NAMESPACE already outstanding for namespace"});
+        MoqtErrorPair{RequestErrorCode::kInternalError,
+                      "PUBLISH_NAMESPACE already outstanding for namespace"});
     return;
   }
   if (next_request_id_ >= peer_max_request_id_) {
@@ -732,8 +734,7 @@ void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
   if (subscribe->ErrorIsAllowed()) {
     subscribe->visitor()->OnReply(
         subscribe->full_track_name(),
-        MoqtRequestError{RequestErrorCode::kNotSupported,
-                         "Subscription closed"});
+        MoqtErrorPair{RequestErrorCode::kNotSupported, "Subscription closed"});
   } else {
     subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
   }
@@ -987,20 +988,11 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                     "Received CLIENT_SETUP from server");
     return;
   }
-  if (absl::c_find(message.supported_versions, session_->parameters_.version) ==
-      message.supported_versions.end()) {
-    // TODO(martinduke): Is this the right error code? See issue #346.
-    session_->Error(MoqtError::kVersionNegotiationFailed,
-                    absl::StrCat("Version mismatch: expected 0x",
-                                 absl::Hex(session_->parameters_.version)));
-    return;
-  }
   session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
     response.parameters = session_->parameters_;
-    response.selected_version = session_->parameters_.version;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
@@ -1014,13 +1006,6 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   if (perspective() == Perspective::IS_SERVER) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SERVER_SETUP from client");
-    return;
-  }
-  if (message.selected_version != session_->parameters_.version) {
-    // TODO(martinduke): Is this the right error code? See issue #346.
-    session_->Error(MoqtError::kProtocolViolation,
-                    absl::StrCat("Version mismatch: expected 0x",
-                                 absl::Hex(session_->parameters_.version)));
     return;
   }
   session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
@@ -1182,7 +1167,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(
         subscribe->full_track_name(),
-        MoqtRequestError{message.error_code, message.reason_phrase});
+        MoqtErrorPair{message.error_code, message.reason_phrase});
   }
   if (!session_->is_closing_) {
     // The visitor might have closed the session.
@@ -1249,7 +1234,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
       session_->GetWeakPtr();
   session_->callbacks_.incoming_publish_namespace_callback(
       message.track_namespace, message.parameters,
-      [&](std::optional<MoqtRequestError> error) {
+      [&](std::optional<MoqtErrorPair> error) {
         MoqtSession* session =
             static_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
         if (session == nullptr) {
@@ -1310,7 +1295,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
   }
   std::move(it2->second)(
       track_namespace,
-      MoqtRequestError{message.error_code, std::string(message.error_reason)});
+      MoqtErrorPair{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it2);
 }
 
@@ -1334,7 +1319,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
   }
   std::move(it->second)(
       message.track_namespace,
-      MoqtRequestError{message.error_code, std::string(message.error_reason)});
+      MoqtErrorPair{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it);
 }
 
@@ -1421,7 +1406,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
   }
   (session_->callbacks_.incoming_subscribe_namespace_callback)(
       message.track_namespace, message.parameters,
-      [&](std::optional<MoqtRequestError> error) {
+      [&](std::optional<MoqtErrorPair> error) {
         if (error.has_value()) {
           MoqtSubscribeNamespaceError reply;
           reply.request_id = message.request_id;
@@ -1780,7 +1765,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   }
   if (!track->is_fetch()) {
     if (no_more_objects_) {
-      // Already got a stream-ending object.
+      // Already got a stream-ending object. While the lower layer won't
+      // deliver data after the FIN, there could have been an EndOfGroup or
+      // EndOfTrack signal.
       session_->OnMalformedTrack(track);
       return;
     }
@@ -1792,10 +1779,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       }
     }
     SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-    if (!subscribe->OnObject(/*is_datagram=*/false)) {
-      session_->OnMalformedTrack(track);
-      return;
-    }
+    subscribe->OnObjectOrOk();
     if (subscribe->visitor() != nullptr) {
       PublishedObjectMetadata metadata;
       metadata.location = Location(message.group_id, message.object_id);
@@ -1803,6 +1787,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
+      metadata.forwarding_preference = MoqtForwardingPreference::kSubgroup;
       metadata.arrival_time = session_->callbacks_.clock->Now();
       subscribe->visitor()->OnObjectFragment(track->full_track_name(), metadata,
                                              payload, end_of_message);
@@ -1812,6 +1797,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
     if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
                                 message.object_status, end_of_message)) {
+      // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
+      // I make the case that this should be a protocol violation. Update if
+      // that proposal is accepted (at which point
+      // QuicSession::OnMalformedTrack can be removed, since all the
+      // remaining conditions are at the application layer).
       session_->OnMalformedTrack(track);
       return;
     }
@@ -2081,7 +2071,7 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
 }
 
 void MoqtSession::PublishedSubscription::OnSubscribeRejected(
-    MoqtSubscribeErrorReason reason) {
+    MoqtErrorPair reason) {
   session_->GetControlStream()->SendSubscribeError(
       request_id_, reason.error_code, reason.reason_phrase);
   session_->published_subscriptions_.erase(request_id_);
@@ -2089,7 +2079,8 @@ void MoqtSession::PublishedSubscription::OnSubscribeRejected(
 }
 
 void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
-    Location location, uint64_t subgroup, MoqtPriority publisher_priority) {
+    Location location, uint64_t subgroup, MoqtPriority publisher_priority,
+    MoqtForwardingPreference forwarding_preference) {
   if (!InWindow(location)) {
     return;
   }
@@ -2140,12 +2131,7 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   }
   QUICHE_DCHECK_GE(location.group, first_active_group_);
 
-  std::optional<MoqtForwardingPreference> forwarding_preference =
-      track_publisher_->forwarding_preference();
-  if (!forwarding_preference.has_value()) {
-    return;
-  }
-  if (*forwarding_preference == MoqtForwardingPreference::kDatagram) {
+  if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
     SendDatagram(location);
     return;
   }
@@ -2273,9 +2259,6 @@ MoqtSession::PublishedSubscription::GetAllStreams() const {
 webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
     Location sequence, uint64_t subgroup,
     MoqtPriority publisher_priority) const {
-  QUICHE_BUG_IF(GetSendOrder_no_forwarding_preference,
-                !track_publisher_->forwarding_preference().has_value())
-      << "No forwarding preference";
   MoqtForwardingPreference forwarding_preference =
       track_publisher_->forwarding_preference().value_or(
           MoqtForwardingPreference::kSubgroup);
@@ -2451,8 +2434,6 @@ void MoqtSession::OutgoingDataStream::SendObjects(
 
     QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
     QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
-    QUICHE_DCHECK(subscription.publisher().forwarding_preference() ==
-                  MoqtForwardingPreference::kSubgroup);
     if (!subscription.InWindow(object->metadata.location)) {
       // It is possible that the next object became irrelevant due to a
       // SUBSCRIBE_UPDATE.  Close the stream if so.
@@ -2479,8 +2460,8 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       // there is no need to process the stream any further.
       return;
     }
-    ++next_object_;
     last_object_id_ = object->metadata.location.object;
+    next_object_ = *last_object_id_ + 1;
     subscription.OnObjectSent(object->metadata.location);
 
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
@@ -2590,8 +2571,8 @@ void MoqtSession::CleanUpState() {
                                                    std::nullopt, nullptr);
   }
   for (auto& [track_namespace, callback] : outgoing_publish_namespaces_) {
-    callback(track_namespace, MoqtRequestError{RequestErrorCode::kUninterested,
-                                               "Session closed"});
+    callback(track_namespace,
+             MoqtErrorPair{RequestErrorCode::kUninterested, "Session closed"});
   }
   while (!upstream_by_id_.empty()) {
     auto upstream = upstream_by_id_.begin();
@@ -2624,8 +2605,8 @@ void MoqtSession::CancelFetch(uint64_t request_id) {
 }
 
 void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
-  std::optional<PublishedObject> object =
-      track_publisher_->GetCachedObject(sequence.group, 0, sequence.object);
+  std::optional<PublishedObject> object = track_publisher_->GetCachedObject(
+      sequence.group, sequence.object, sequence.object);
   if (!object.has_value()) {
     QUICHE_BUG(PublishedSubscription_SendDatagram_object_not_in_cache)
         << "Got notification about an object that is not in the cache";

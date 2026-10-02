@@ -15,12 +15,12 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
@@ -34,7 +34,7 @@ ReadOnlyArtifacts::~ReadOnlyArtifacts() {
   // SharedReadOnlySpace is aware that it doesn't actually own the pages.
   shared_read_only_space_->TearDown(nullptr);
 
-  for (ReadOnlyPageMetadata* metadata : pages_) {
+  for (ReadOnlyPage* metadata : pages_) {
     void* chunk_address = reinterpret_cast<void*>(metadata->ChunkAddress());
     size_t size =
         RoundUp(metadata->size(), page_allocator_->AllocatePageSize());
@@ -44,7 +44,7 @@ ReadOnlyArtifacts::~ReadOnlyArtifacts() {
 }
 
 void ReadOnlyArtifacts::Initialize(Isolate* isolate,
-                                   std::vector<ReadOnlyPageMetadata*>&& pages,
+                                   std::vector<ReadOnlyPage*>&& pages,
                                    const AllocationStats& stats) {
   page_allocator_ = isolate->isolate_group()->read_only_page_allocator();
   pages_ = std::move(pages);
@@ -124,7 +124,7 @@ void SharedReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
 }
 
 void ReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
-  for (ReadOnlyPageMetadata* chunk : pages_) {
+  for (ReadOnlyPage* chunk : pages_) {
     memory_allocator->FreeReadOnlyPage(chunk);
   }
   pages_.clear();
@@ -140,19 +140,17 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(ReadOnlyArtifacts* artifacts) {
   artifacts->Initialize(heap->isolate(), std::move(pages_), accounting_stats_);
 }
 
-ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
-                                           size_t chunk_size,
-                                           Address area_start, Address area_end,
-                                           VirtualMemory reservation)
-    : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation),
-                          Executability::NOT_EXECUTABLE) {
+ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                           Address area_start, Address area_end,
+                           VirtualMemory reservation)
+    : BasePage(heap, space, chunk_size, area_start, area_end,
+               std::move(reservation), Executability::NOT_EXECUTABLE) {
   allocated_bytes_ = 0;
   set_never_evacuate();
   set_is_read_only_page();
 }
 
-MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
+MemoryChunk::MainThreadFlags ReadOnlyPage::InitialFlags() const {
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
 #if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   flags |= MemoryChunk::READ_ONLY_HEAP;
@@ -165,7 +163,7 @@ MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
   return flags;
 }
 
-void ReadOnlyPageMetadata::MakeHeaderRelocatableAndMarkAsSealed() {
+void ReadOnlyPage::MakeHeaderRelocatableAndMarkAsSealed() {
   heap_ = nullptr;
   owner_ = nullptr;
   reservation_.Reset();
@@ -174,7 +172,7 @@ void ReadOnlyPageMetadata::MakeHeaderRelocatableAndMarkAsSealed() {
 
 void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
                                            PageAllocator::Permission access) {
-  for (MemoryChunkMetadata* chunk : pages_) {
+  for (BasePage* chunk : pages_) {
     // Read only pages don't have valid reservation object so we get proper
     // page allocator manually.
     v8::PageAllocator* page_allocator =
@@ -189,11 +187,11 @@ void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
 // were created with the wrong FreeSpaceMap (normally nullptr), so we need to
 // fix them.
 void ReadOnlySpace::RepairFreeSpacesBeforeSerialization() {
-  MemoryChunkMetadata::UpdateHighWaterMark(top_);
+  BasePage::UpdateHighWaterMark(top_);
   // Each page may have a small free space that is not tracked by a free list.
   // Those free spaces still contain null as their map pointer.
   // Overwrite them with new fillers.
-  for (MemoryChunkMetadata* chunk : pages_) {
+  for (BasePage* chunk : pages_) {
     Address start = chunk->HighWaterMark();
     Address end = chunk->area_end();
     // Put a filler object in the gap between the end of the allocated objects
@@ -213,7 +211,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 
   if (ro_mode != SealMode::kDoNotDetachFromHeap) {
     heap_ = nullptr;
-    for (ReadOnlyPageMetadata* ro_page : pages_) {
+    for (ReadOnlyPage* ro_page : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
         memory_allocator->UnregisterReadOnlyPage(ro_page);
       }
@@ -226,7 +224,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
-  for (MemoryChunkMetadata* metadata : pages_) {
+  for (BasePage* metadata : pages_) {
     if (metadata->Chunk() == chunk) return true;
   }
   return false;
@@ -237,7 +235,7 @@ namespace {
 class ReadOnlySpaceObjectIterator : public ObjectIterator {
  public:
   ReadOnlySpaceObjectIterator(const Heap* heap, const ReadOnlySpace* space,
-                              MemoryChunkMetadata* chunk)
+                              BasePage* chunk)
       : cur_addr_(chunk->area_start()),
         cur_end_(chunk->area_end()),
         space_(space) {}
@@ -274,12 +272,12 @@ void ReadOnlySpace::Verify(Isolate* isolate,
                            SpaceVerificationVisitor* visitor) const {
   bool allocation_pointer_found_in_space = top_ == limit_;
 
-  for (MemoryChunkMetadata* page : pages_) {
+  for (BasePage* page : pages_) {
     CHECK_NULL(page->owner());
 
     visitor->VerifyPage(page);
 
-    if (top_ && page == PageMetadata::FromAllocationAreaAddress(top_)) {
+    if (top_ && page == NormalPage::FromAllocationAreaAddress(top_)) {
       allocation_pointer_found_in_space = true;
     }
     ReadOnlySpaceObjectIterator it(isolate->heap(), this, page);
@@ -311,7 +309,7 @@ void ReadOnlySpace::Verify(Isolate* isolate,
 void ReadOnlySpace::VerifyCounters(Heap* heap) const {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
-  for (MemoryChunkMetadata* page : pages_) {
+  for (BasePage* page : pages_) {
     total_capacity += page->area_size();
     ReadOnlySpaceObjectIterator it(heap, this, page);
     size_t real_allocated = 0;
@@ -335,7 +333,7 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) const {
 
 size_t ReadOnlySpace::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  MemoryChunkMetadata::UpdateHighWaterMark(top_);
+  BasePage::UpdateHighWaterMark(top_);
   size_t size = 0;
   for (auto* chunk : pages_) {
     size += chunk->size();
@@ -354,7 +352,7 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
-  MemoryChunkMetadata::UpdateHighWaterMark(top_);
+  BasePage::UpdateHighWaterMark(top_);
 
   top_ = kNullAddress;
   limit_ = kNullAddress;
@@ -380,7 +378,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
   FreeLinearAllocationArea();
 
-  ReadOnlyPageMetadata* metadata =
+  ReadOnlyPage* metadata =
       heap()->memory_allocator()->AllocateReadOnlyPage(this);
   CHECK_NOT_NULL(metadata);
 
@@ -457,7 +455,7 @@ Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
   if (new_top > limit_) return HeapObject();
 
   // Allocation always occurs in the last chunk for RO_SPACE.
-  MemoryChunkMetadata* chunk = pages_.back();
+  BasePage* chunk = pages_.back();
   int allocated_size = filler_size + size_in_bytes;
   accounting_stats_.IncreaseAllocatedBytes(allocated_size, chunk);
   chunk->IncreaseAllocatedBytes(allocated_size);
@@ -507,7 +505,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
 
   // Allocation always occurs in the last chunk for RO_SPACE.
-  MemoryChunkMetadata* chunk = pages_.back();
+  BasePage* chunk = pages_.back();
   accounting_stats_.IncreaseAllocatedBytes(size_in_bytes, chunk);
   chunk->IncreaseAllocatedBytes(size_in_bytes);
 
@@ -521,7 +519,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
              : AllocateRawUnaligned(size_in_bytes);
 }
 
-size_t ReadOnlyPageMetadata::ShrinkToHighWaterMark() {
+size_t ReadOnlyPage::ShrinkToHighWaterMark() {
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
   Tagged<HeapObject> filler = HeapObject::FromAddress(HighWaterMark());
@@ -553,10 +551,10 @@ size_t ReadOnlyPageMetadata::ShrinkToHighWaterMark() {
 }
 
 void ReadOnlySpace::ShrinkPages() {
-  MemoryChunkMetadata::UpdateHighWaterMark(top_);
+  BasePage::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
-  for (ReadOnlyPageMetadata* page : pages_) {
+  for (ReadOnlyPage* page : pages_) {
     DCHECK(page->never_evacuate());
     size_t unused = page->ShrinkToHighWaterMark();
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
@@ -572,7 +570,7 @@ SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
   pages_ = artifacts->pages();
 }
 
-size_t ReadOnlySpace::IndexOf(const MemoryChunkMetadata* chunk) const {
+size_t ReadOnlySpace::IndexOf(const BasePage* chunk) const {
   for (size_t i = 0; i < pages_.size(); i++) {
     if (chunk == pages_[i]) return i;
   }
@@ -580,8 +578,7 @@ size_t ReadOnlySpace::IndexOf(const MemoryChunkMetadata* chunk) const {
 }
 
 size_t ReadOnlySpace::AllocateNextPage() {
-  ReadOnlyPageMetadata* page =
-      heap_->memory_allocator()->AllocateReadOnlyPage(this);
+  ReadOnlyPage* page = heap_->memory_allocator()->AllocateReadOnlyPage(this);
   AccountCommitted(page->size());
   pages_.push_back(page);
   return pages_.size() - 1;
@@ -589,7 +586,7 @@ size_t ReadOnlySpace::AllocateNextPage() {
 
 size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   CHECK(IsAligned(pos, kRegularPageSize));
-  ReadOnlyPageMetadata* page =
+  ReadOnlyPage* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
   if (!page) {
     heap_->FatalProcessOutOfMemory("ReadOnly allocation failure");
@@ -604,22 +601,23 @@ size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
 }
 
 void ReadOnlySpace::InitializePageForDeserialization(
-    ReadOnlyPageMetadata* page, size_t area_size_in_bytes) {
+    ReadOnlyPage* page, size_t area_size_in_bytes) {
   page->IncreaseAllocatedBytes(area_size_in_bytes);
   limit_ = top_ = page->area_start() + area_size_in_bytes;
   page->high_water_mark_ = page->Offset(top_);
 }
 
-void ReadOnlySpace::FinalizeSpaceForDeserialization() {
+void ReadOnlySpace::FinalizeSpaceForDeserialization(int sfi_id) {
   // The ReadOnlyRoots table is now initialized. Create fillers, shrink pages,
   // and update accounting stats.
-  for (ReadOnlyPageMetadata* page : pages_) {
+  for (ReadOnlyPage* page : pages_) {
     Address top = page->ChunkAddress() + page->high_water_mark_;
     heap()->CreateFillerObjectAt(top, static_cast<int>(page->area_end() - top));
     page->ShrinkToHighWaterMark();
     accounting_stats_.IncreaseCapacity(page->area_size());
     accounting_stats_.IncreaseAllocatedBytes(page->allocated_bytes(), page);
   }
+  heap()->isolate()->InitializeNextUniqueSfiId(sfi_id);
 }
 
 }  // namespace internal

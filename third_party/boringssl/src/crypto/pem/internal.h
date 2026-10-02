@@ -20,10 +20,8 @@
 
 #include "../mem_internal.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // PEM_get_EVP_CIPHER_INFO decodes |header| as a PEM header block and writes the
 // specified cipher and IV to |cipher|. It returns one on success and zero on
@@ -46,8 +44,6 @@ int PEM_read_bio_inner(BIO *bp, bssl::UniquePtr<char> *name,
                        bssl::UniquePtr<char> *header,
                        bssl::Array<uint8_t> *data);
 
-#ifdef __cplusplus
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_PEM_INTERNAL_H

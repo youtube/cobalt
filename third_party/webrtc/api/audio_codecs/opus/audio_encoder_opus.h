@@ -34,7 +34,7 @@ struct RTC_EXPORT AudioEncoderOpus {
   static AudioCodecInfo QueryAudioEncoder(const AudioEncoderOpusConfig& config);
   static std::unique_ptr<AudioEncoder> MakeAudioEncoder(
       const Environment& env,
-      const AudioEncoderOpusConfig& config,
+      AudioEncoderOpusConfig config,
       const AudioEncoderFactory::Options& options);
 };
 

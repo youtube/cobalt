@@ -109,7 +109,7 @@ static uint64_t malloc_number_to_fail = 0;
 static int malloc_failure_enabled = 0, break_on_malloc_fail = 0,
            any_malloc_failed = 0, disable_malloc_failures = 0;
 
-static void malloc_exit_handler(void) {
+static void malloc_exit_handler() {
   CRYPTO_MUTEX_lock_read(&malloc_failure_lock);
   if (any_malloc_failed) {
     // Signal to the test driver that some allocation failed, so it knows to
@@ -119,7 +119,7 @@ static void malloc_exit_handler(void) {
   CRYPTO_MUTEX_unlock_read(&malloc_failure_lock);
 }
 
-static void init_malloc_failure(void) {
+static void init_malloc_failure() {
   const char *env = getenv("MALLOC_NUMBER_TO_FAIL");
   if (env != nullptr && env[0] != 0) {
     char *endptr;
@@ -158,20 +158,20 @@ static int should_fail_allocation() {
   return should_fail;
 }
 
-void OPENSSL_reset_malloc_counter_for_testing(void) {
+void OPENSSL_reset_malloc_counter_for_testing() {
   CRYPTO_MUTEX_lock_write(&malloc_failure_lock);
   current_malloc_count = 0;
   CRYPTO_MUTEX_unlock_write(&malloc_failure_lock);
 }
 
-void OPENSSL_disable_malloc_failures_for_testing(void) {
+void OPENSSL_disable_malloc_failures_for_testing() {
   CRYPTO_MUTEX_lock_write(&malloc_failure_lock);
   BSSL_CHECK(!disable_malloc_failures);
   disable_malloc_failures = 1;
   CRYPTO_MUTEX_unlock_write(&malloc_failure_lock);
 }
 
-void OPENSSL_enable_malloc_failures_for_testing(void) {
+void OPENSSL_enable_malloc_failures_for_testing() {
   CRYPTO_MUTEX_lock_write(&malloc_failure_lock);
   BSSL_CHECK(disable_malloc_failures);
   disable_malloc_failures = 0;
@@ -179,7 +179,7 @@ void OPENSSL_enable_malloc_failures_for_testing(void) {
 }
 
 #else
-static int should_fail_allocation(void) { return 0; }
+static int should_fail_allocation() { return 0; }
 #endif
 
 void *OPENSSL_malloc(size_t size) {
@@ -314,9 +314,9 @@ void OPENSSL_clear_free(void *ptr, size_t unused) { OPENSSL_free(ptr); }
 
 int CRYPTO_secure_malloc_init(size_t size, size_t min_size) { return 0; }
 
-int CRYPTO_secure_malloc_initialized(void) { return 0; }
+int CRYPTO_secure_malloc_initialized() { return 0; }
 
-size_t CRYPTO_secure_used(void) { return 0; }
+size_t CRYPTO_secure_used() { return 0; }
 
 void *OPENSSL_secure_malloc(size_t size) { return OPENSSL_malloc(size); }
 

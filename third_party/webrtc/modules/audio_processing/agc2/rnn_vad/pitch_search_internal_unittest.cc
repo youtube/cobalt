@@ -142,12 +142,15 @@ TEST_P(PitchCandidatesParametrization,
 std::vector<PitchCandidatesParameters> CreatePitchCandidatesParameters() {
   std::vector<PitchCandidatesParameters> v;
   for (AvailableCpuFeatures cpu_features : GetCpuFeaturesToTest()) {
-    v.push_back({{.best = 0, .second_best = 2}, cpu_features});
-    v.push_back({{.best = 260, .second_best = 284}, cpu_features});
-    v.push_back({{.best = 280, .second_best = 284}, cpu_features});
-    v.push_back({{.best = kInitialNumLags24kHz - 2,
-                  .second_best = kInitialNumLags24kHz - 1},
-                 cpu_features});
+    v.push_back({.pitch_candidates = {.best = 0, .second_best = 2},
+                 .cpu_features = cpu_features});
+    v.push_back({.pitch_candidates = {.best = 260, .second_best = 284},
+                 .cpu_features = cpu_features});
+    v.push_back({.pitch_candidates = {.best = 280, .second_best = 284},
+                 .cpu_features = cpu_features});
+    v.push_back({.pitch_candidates = {.best = kInitialNumLags24kHz - 2,
+                                      .second_best = kInitialNumLags24kHz - 1},
+                 .cpu_features = cpu_features});
   }
   return v;
 }
@@ -197,16 +200,16 @@ CreateExtendedPitchPeriodSearchParameters() {
          {kTestPitchPeriodsLow, kTestPitchPeriodsHigh}) {
       for (float last_pitch_strength :
            {kTestPitchStrengthLow, kTestPitchStrengthHigh}) {
-        v.push_back(
-            {kTestPitchPeriodsLow,
-             {.period = last_pitch_period, .strength = last_pitch_strength},
-             {.period = 91, .strength = -0.0188608f},
-             cpu_features});
-        v.push_back(
-            {kTestPitchPeriodsHigh,
-             {.period = last_pitch_period, .strength = last_pitch_strength},
-             {.period = 475, .strength = -0.0904344f},
-             cpu_features});
+        v.push_back({.initial_pitch_period = kTestPitchPeriodsLow,
+                     .last_pitch = {.period = last_pitch_period,
+                                    .strength = last_pitch_strength},
+                     .expected_pitch = {.period = 91, .strength = -0.0188608f},
+                     .cpu_features = cpu_features});
+        v.push_back({.initial_pitch_period = kTestPitchPeriodsHigh,
+                     .last_pitch = {.period = last_pitch_period,
+                                    .strength = last_pitch_strength},
+                     .expected_pitch = {.period = 475, .strength = -0.0904344f},
+                     .cpu_features = cpu_features});
       }
     }
   }

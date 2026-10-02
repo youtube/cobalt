@@ -67,7 +67,7 @@ struct AudioEncoderOpusStates {
   MockSmoothingFilter* mock_bitrate_smoother;
   std::unique_ptr<AudioEncoderOpusImpl> encoder;
   std::unique_ptr<ScopedFakeClock> fake_clock;
-  AudioEncoderOpusConfig config;
+  int uplink_bandwidth_update_interval_ms = 0;
 };
 
 std::unique_ptr<AudioEncoderOpusStates> CreateCodec(
@@ -98,15 +98,16 @@ std::unique_ptr<AudioEncoderOpusStates> CreateCodec(
                            ? AudioEncoderOpusConfig::ApplicationMode::kVoip
                            : AudioEncoderOpusConfig::ApplicationMode::kAudio;
   config.supported_frame_lengths_ms.push_back(config.frame_size_ms);
-  states->config = config;
+  states->uplink_bandwidth_update_interval_ms =
+      config.uplink_bandwidth_update_interval_ms;
 
   std::unique_ptr<MockSmoothingFilter> bitrate_smoother(
       new MockSmoothingFilter());
   states->mock_bitrate_smoother = bitrate_smoother.get();
 
   states->encoder = AudioEncoderOpusImpl::CreateForTesting(
-      CreateEnvironment(field_trials), states->config, kDefaultOpusPayloadType,
-      creator, std::move(bitrate_smoother));
+      CreateEnvironment(field_trials), std::move(config),
+      kDefaultOpusPayloadType, creator, std::move(bitrate_smoother));
   return states;
 }
 
@@ -516,8 +517,8 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
   // Repeat update uplink bandwidth tests.
   for (int i = 0; i < 5; i++) {
     // Don't update till it is time to update again.
-    states->fake_clock->AdvanceTime(TimeDelta::Millis(
-        states->config.uplink_bandwidth_update_interval_ms - 1));
+    states->fake_clock->AdvanceTime(
+        TimeDelta::Millis(states->uplink_bandwidth_update_interval_ms - 1));
     states->encoder->Encode(
         0, ArrayView<const int16_t>(audio.data(), audio.size()), &encoded);
 
@@ -686,7 +687,8 @@ TEST(AudioEncoderOpusTest, GetFrameLenghtRange) {
   AudioEncoderOpusConfig config =
       CreateConfigWithParameters({{"maxptime", "10"}, {"ptime", "10"}});
   std::unique_ptr<AudioEncoder> encoder = AudioEncoderOpus::MakeAudioEncoder(
-      CreateEnvironment(), config, {.payload_type = kDefaultOpusPayloadType});
+      CreateEnvironment(), std::move(config),
+      {.payload_type = kDefaultOpusPayloadType});
   auto ptime = TimeDelta::Millis(10);
   std::optional<std::pair<TimeDelta, TimeDelta>> range = {{ptime, ptime}};
   EXPECT_EQ(encoder->GetFrameLengthRange(), range);
@@ -777,7 +779,7 @@ TEST_P(AudioEncoderOpusTest, OpusFlagDtxAsNonSpeech) {
   config.dtx_enabled = true;
   config.sample_rate_hz = sample_rate_hz_;
   const auto encoder = AudioEncoderOpus::MakeAudioEncoder(
-      CreateEnvironment(), config, {.payload_type = 17});
+      CreateEnvironment(), std::move(config), {.payload_type = 17});
 
   // Open file containing speech and silence.
   const std::string kInputFileName =
@@ -793,7 +795,7 @@ TEST_P(AudioEncoderOpusTest, OpusFlagDtxAsNonSpeech) {
 
   // Encode.
   AudioEncoder::EncodedInfo info;
-  Buffer encoded(500);
+  Buffer encoded = Buffer::CreateWithCapacity(500);
   int nonspeech_frames = 0;
   int max_nonspeech_frames = 0;
   int dtx_frames = 0;

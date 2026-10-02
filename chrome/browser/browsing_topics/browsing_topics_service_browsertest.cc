@@ -600,7 +600,7 @@ class BrowsingTopicsBrowserTest : public BrowsingTopicsBrowserTestBase {
     InitializePreexistingState(history_service, site_data_manager,
                                profile->GetPath(), annotator.get());
 
-    DCHECK(!base::Contains(calculation_finish_waiters_, profile));
+    DCHECK(!calculation_finish_waiters_.contains(profile));
     calculation_finish_waiters_.emplace(profile,
                                         std::make_unique<base::RunLoop>());
 
@@ -1222,7 +1222,7 @@ IN_PROC_BROWSER_TEST_F(BrowsingTopicsBrowserTest,
   GURL prerender_url =
       https_server_.GetURL("a.test", "/browsing_topics/empty_page.html");
 
-  content::FrameTreeNodeId host_id =
+  content::PrerenderHostId host_id =
       prerender_helper().AddPrerender(prerender_url);
 
   content::RenderFrameHost* prerender_host =

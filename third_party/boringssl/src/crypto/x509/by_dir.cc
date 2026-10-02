@@ -56,9 +56,7 @@ static const X509_LOOKUP_METHOD x509_dir_lookup = {
     get_cert_by_subject,  // get_by_subject
 };
 
-const X509_LOOKUP_METHOD *X509_LOOKUP_hash_dir(void) {
-  return &x509_dir_lookup;
-}
+const X509_LOOKUP_METHOD *X509_LOOKUP_hash_dir() { return &x509_dir_lookup; }
 
 static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
                     char **retp) {

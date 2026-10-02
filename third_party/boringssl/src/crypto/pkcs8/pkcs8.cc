@@ -31,9 +31,11 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static int pkcs12_encode_password(const char *in, size_t in_len, uint8_t **out,
                                   size_t *out_len) {
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   if (!CBB_init(cbb.get(), in_len * 2)) {
     return 0;
   }
@@ -58,9 +60,9 @@ static int pkcs12_encode_password(const char *in, size_t in_len, uint8_t **out,
   return 1;
 }
 
-int pkcs12_key_gen(const char *pass, size_t pass_len, const uint8_t *salt,
-                   size_t salt_len, uint8_t id, uint32_t iterations,
-                   size_t out_len, uint8_t *out, const EVP_MD *md) {
+int bssl::pkcs12_key_gen(const char *pass, size_t pass_len, const uint8_t *salt,
+                         size_t salt_len, uint8_t id, uint32_t iterations,
+                         size_t out_len, uint8_t *out, const EVP_MD *md) {
   // See https://tools.ietf.org/html/rfc7292#appendix-B. Quoted parts of the
   // specification have errata applied and other typos fixed.
 
@@ -231,7 +233,7 @@ static int pkcs12_pbe_decrypt_init(const struct pbe_suite *suite,
                                 0 /* decrypt */);
 }
 
-static const struct pbe_suite kBuiltinPBE[] = {
+static const struct bssl::pbe_suite kBuiltinPBE[] = {
     {
         NID_pbe_WithSHA1And40BitRC2_CBC,
         // 1.2.840.113549.1.12.1.6
@@ -270,7 +272,7 @@ static const struct pbe_suite kBuiltinPBE[] = {
     },
 };
 
-static const struct pbe_suite *get_pkcs12_pbe_suite(int pbe_nid) {
+static const struct bssl::pbe_suite *get_pkcs12_pbe_suite(int pbe_nid) {
   for (const auto &pbe : kBuiltinPBE) {
     if (pbe.pbe_nid == pbe_nid &&
         // If |cipher_func| or |md_func| are missing, this is a PBES2 scheme.
@@ -282,10 +284,11 @@ static const struct pbe_suite *get_pkcs12_pbe_suite(int pbe_nid) {
   return nullptr;
 }
 
-int pkcs12_pbe_encrypt_init(CBB *out, EVP_CIPHER_CTX *ctx, int alg_nid,
-                            const EVP_CIPHER *alg_cipher, uint32_t iterations,
-                            const char *pass, size_t pass_len,
-                            const uint8_t *salt, size_t salt_len) {
+int bssl::pkcs12_pbe_encrypt_init(CBB *out, EVP_CIPHER_CTX *ctx, int alg_nid,
+                                  const EVP_CIPHER *alg_cipher,
+                                  uint32_t iterations, const char *pass,
+                                  size_t pass_len, const uint8_t *salt,
+                                  size_t salt_len) {
   // TODO(davidben): OpenSSL has since extended |pbe_nid| to control either
   // the PBES1 scheme or the PBES2 PRF. E.g. passing |NID_hmacWithSHA256| will
   // select PBES2 with HMAC-SHA256 as the PRF. Implement this if anything uses
@@ -319,12 +322,12 @@ int pkcs12_pbe_encrypt_init(CBB *out, EVP_CIPHER_CTX *ctx, int alg_nid,
                                 salt_len, 1 /* encrypt */);
 }
 
-int pkcs8_pbe_decrypt(uint8_t **out, size_t *out_len, CBS *algorithm,
-                      const char *pass, size_t pass_len, const uint8_t *in,
-                      size_t in_len) {
+int bssl::pkcs8_pbe_decrypt(uint8_t **out, size_t *out_len, CBS *algorithm,
+                            const char *pass, size_t pass_len,
+                            const uint8_t *in, size_t in_len) {
   int ret = 0;
   uint8_t *buf = nullptr;
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
 
   CBS obj;
   const struct pbe_suite *suite = nullptr;
@@ -404,7 +407,7 @@ int PKCS8_marshal_encrypted_private_key(CBB *out, int pbe_nid,
   int ret = 0;
   uint8_t *plaintext = nullptr, *salt_buf = nullptr;
   size_t plaintext_len = 0;
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
 
   {
     // Generate a random salt if necessary.

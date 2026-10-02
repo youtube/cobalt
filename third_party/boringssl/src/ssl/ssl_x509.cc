@@ -1052,7 +1052,7 @@ static int set_cert_store(X509_STORE **store_ptr, X509_STORE *new_store,
   return 1;
 }
 
-int SSL_get_ex_data_X509_STORE_CTX_idx(void) {
+int SSL_get_ex_data_X509_STORE_CTX_idx() {
   // The ex_data index to go from |X509_STORE_CTX| to |SSL| always uses the
   // reserved app_data slot. Before ex_data was introduced, app_data was used.
   // Avoid breaking any software which assumes |X509_STORE_CTX_get_app_data|

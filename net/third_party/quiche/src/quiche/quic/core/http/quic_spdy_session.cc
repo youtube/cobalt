@@ -897,6 +897,12 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
 
 void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
                                       const std::string& reason) {
+  SendHttp3GoAway(error_code, reason, /*immediate=*/false);
+}
+
+void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
+                                      const std::string& reason,
+                                      bool immediate) {
   QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   if (!IsEncryptionEstablished()) {
     QUIC_CODE_COUNT(quic_h3_goaway_before_encryption_established);
@@ -908,8 +914,7 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
   ietf_streamid_manager().StopIncreasingIncomingMaxStreams();
 
   QuicStreamId stream_id =
-      QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
-          transport_version());
+      GetStreamIdForHttp3Goaway(immediate && enforce_immediate_goaway());
   if (last_sent_http3_goaway_id_.has_value() &&
       *last_sent_http3_goaway_id_ <= stream_id) {
     // Do not send GOAWAY frame with a higher id, because it is forbidden.
@@ -1628,6 +1633,16 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     }
   }
 
+  // When qpack_maximum_dynamic_table_capacity_ is zero, decoder's dynamic table
+  // capacity is always zero and encoder's dynamic table capacity is MIN(0,
+  // SETTINGS_QPACK_MAX_TABLE_CAPACITY from peer) = 0. Hence, we don't need to
+  // instantiate qpack send streams for both decoder and encoder.
+  if (GetQuicheReloadableFlag(quic_not_instantiate_unused_qpack_send_stream) &&
+      qpack_maximum_dynamic_table_capacity_ == 0) {
+    QUICHE_RELOADABLE_FLAG_COUNT(quic_not_instantiate_unused_qpack_send_stream);
+    return;
+  }
+
   if (!qpack_decoder_send_stream_ &&
       CanOpenNextOutgoingUnidirectionalStream()) {
     auto decoder_send = std::make_unique<QpackSendStream>(
@@ -1657,6 +1672,26 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   }
 }
 
+QuicStreamId QuicSpdySession::GetStreamIdForHttp3Goaway(bool immediate) const {
+  if (!immediate) {
+    return QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
+        transport_version());
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_enforce_immediate_goaway, 3, 3);
+  QuicStreamId stream_id =
+      GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
+
+  if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
+    // No client-initiated bidirectional streams received yet.
+    // Send 0 to let client know that all requests can be retried.
+    return 0;
+  }
+  // Tell client that streams starting with the next after the largest
+  // received one can be retried.
+  return stream_id + QuicUtils::StreamIdDelta(transport_version());
+}
+
 void QuicSpdySession::BeforeConnectionCloseSent() {
   if (!VersionIsIetfQuic(transport_version()) || !IsEncryptionEstablished()) {
     return;
@@ -1664,18 +1699,8 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
 
   QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
 
-  QuicStreamId stream_id =
-      GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
+  QuicStreamId stream_id = GetStreamIdForHttp3Goaway(/*immediate=*/true);
 
-  if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
-    // No client-initiated bidirectional streams received yet.
-    // Send 0 to let client know that all requests can be retried.
-    stream_id = 0;
-  } else {
-    // Tell client that streams starting with the next after the largest
-    // received one can be retried.
-    stream_id += QuicUtils::StreamIdDelta(transport_version());
-  }
   if (last_sent_http3_goaway_id_.has_value() &&
       *last_sent_http3_goaway_id_ <= stream_id) {
     // Do not send GOAWAY frame with a higher id, because it is forbidden.
@@ -2041,6 +2066,11 @@ void QuicSpdySession::OnConfigNegotiated() {
                                    4);
     force_buffer_requests_until_settings_ = true;
   }
+}
+
+bool QuicSpdySession::ShouldRefuseIncomingStream(QuicStreamId stream_id) {
+  return last_sent_http3_goaway_id_.has_value() &&
+         *last_sent_http3_goaway_id_ <= stream_id;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

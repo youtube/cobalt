@@ -18,8 +18,8 @@
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h"
-#import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_bridge_service.h"
-#import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_bridge_service_factory.h"
+#import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_service.h"
+#import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_service_factory.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -380,15 +380,11 @@ PersistTabContextBrowserAgent::PersistTabContextBrowserAgent(Browser* browser)
 
     if (use_page_content_cache_) {
       page_content_cache_service_ =
-          PageContentCacheBridgeServiceFactory::GetForProfile(profile);
+          PageContentCacheServiceFactory::GetForProfile(profile);
 
       // Purge the direct storage system. Intended for clients migrating to the
       // SQLite storage system from the direct filesystem.
-      task_runner_->PostDelayedTask(
-          FROM_HERE,
-          base::BindOnce(&DeletePersistedContextsDirectory,
-                         storage_directory_path_),
-          kPurgeTaskDelay);
+      RemoveFilesystemStorage();
 
       // Log the difference between web states and persisted files/entries.
       if (page_content_cache_service_) {
@@ -412,17 +408,18 @@ PersistTabContextBrowserAgent::PersistTabContextBrowserAgent(Browser* browser)
                          ttl),
           kPurgeTaskDelay);
 
+      // Purge the SQLite storage system. Intended for clients migrating from
+      // SQLite to the direct filesystem.
+      RemoveSqliteStorage();
+
       // Log the difference between web states and persisted files/entries.
       task_runner_->PostTask(FROM_HERE, base::BindOnce(&LogStorageDifference,
                                                        storage_directory_path_,
                                                        total_web_state_count));
     }
   } else {
-    task_runner_->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&DeletePersistedContextsDirectory,
-                       storage_directory_path_),
-        kPurgeTaskDelay);
+    RemoveFilesystemStorage();
+    RemoveSqliteStorage();
   }
 }
 
@@ -716,4 +713,23 @@ void PersistTabContextBrowserAgent::OnSingleContextRetrieved(
         result) {
   std::move(barrier_callback)
       .Run(std::make_pair(web_state_id, std::move(result)));
+}
+
+void PersistTabContextBrowserAgent::RemoveFilesystemStorage() {
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DeletePersistedContextsDirectory,
+                     storage_directory_path_),
+      kPurgeTaskDelay);
+}
+
+void PersistTabContextBrowserAgent::RemoveSqliteStorage() {
+  base::FilePath storage_directory_path_db =
+      PageContentCacheServiceFactory::GetStoragePathForProfile(
+          browser_->GetProfile());
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DeletePersistedContextsDirectory,
+                     storage_directory_path_db),
+      kPurgeTaskDelay);
 }

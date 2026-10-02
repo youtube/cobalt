@@ -33,7 +33,7 @@
 #include "src/heap/heap-layout.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
@@ -522,7 +522,7 @@ TEST_F(HeapTest, HeapLayout) {
 
   SafepointScope scope(i_isolate(), kGlobalSafepointForSharedSpaceIsolate);
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
-  while (MutablePageMetadata* chunk = iter.next()) {
+  while (MutablePage* chunk = iter.next()) {
     Address address = chunk->ChunkAddress();
     size_t size = chunk->area_end() - address;
     AllocationSpace owner_id = chunk->owner_identity();
@@ -562,7 +562,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    PageMetadata* page = *it++;
+    NormalPage* page = *it++;
     if (page->allocated_bytes() == 0) {
       paged_new_space->paged_space()->RemovePageFromSpace(page);
       heap->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
@@ -578,7 +578,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     }
   }
   paged_new_space->FinishShrinking();
-  for (PageMetadata* page : *paged_new_space) {
+  for (NormalPage* page : *paged_new_space) {
     // We reset the number of live bytes to zero, as is expected after a GC.
     page->SetLiveBytes(0);
   }
@@ -728,7 +728,7 @@ namespace {
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MutablePageMetadata::FromHeapObject(isolate, obj);
+  auto chunk = MutablePage::FromHeapObject(isolate, obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -812,8 +812,7 @@ TEST_F(HeapTest, Regress978156) {
   heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
-      MutablePageMetadata::FromHeapObject(isolate(), *last)->area_end() -
-      kTaggedSize);
+      MutablePage::FromHeapObject(isolate(), *last)->area_end() - kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
   CHECK(IsFiller(filler));
   // 5. Start incremental marking.
@@ -933,7 +932,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   Isolate* iso = isolate();
   ManualGCScope manual_gc_scope(iso);
 
-  auto in_free_list = [](PageMetadata* page, Address address) {
+  auto in_free_list = [](NormalPage* page, Address address) {
     bool found = false;
     page->ForAllFreeListCategories(
         [address, &found](FreeListCategory* category) {
@@ -958,7 +957,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   const Address lab_top = heap->allocator()->old_space_allocator()->top();
   ASSERT_EQ(lab_top, next);
 
-  auto* page = PageMetadata::FromAddress(next);
+  auto* page = NormalPage::FromAddress(next);
   const size_t wasted_before_incremental_marking_start = page->wasted_memory();
 
   heap->StartIncrementalMarking(
@@ -984,7 +983,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   next = arr->address() + arr->Size();
 
   // Expect the page to be black.
-  page = PageMetadata::FromHeapObject(*arr);
+  page = NormalPage::FromHeapObject(*arr);
   EXPECT_TRUE(page->Chunk()->IsBlackAllocatedPage());
 
   // Invoke GC.
@@ -1189,7 +1188,7 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
 
   Address number_address = number->address();
 
-  i::MutablePageMetadata::FromHeapObject(isolate(), *number)
+  i::MutablePage::FromHeapObject(isolate(), *number)
       ->set_forced_evacuation_candidate_for_testing(true);
 
   InvokeMajorGC();
@@ -1274,7 +1273,7 @@ TEST_F(HeapTest,
   Address number_address = number->address();
 
   for (int i = 0; i < 10; i++) {
-    i::MutablePageMetadata::FromHeapObject(isolate(), *number)
+    i::MutablePage::FromHeapObject(isolate(), *number)
         ->set_forced_evacuation_candidate_for_testing(true);
     InvokeMajorGC();
     CHECK_EQ(number_address, number->address());

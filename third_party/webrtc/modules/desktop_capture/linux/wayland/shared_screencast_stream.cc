@@ -31,7 +31,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -41,6 +40,7 @@
 #include <vector>
 
 #include "api/scoped_refptr.h"
+#include "media/base/video_common.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
@@ -337,7 +337,7 @@ void SharedScreenCastStreamPrivate::OnStreamParamChanged(
                                : (1 << SPA_DATA_MemFd);
 
   uint8_t buffer[2048] = {};
-  auto builder = spa_pod_builder{buffer, sizeof(buffer)};
+  auto builder = spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
   std::vector<const spa_pod*> params;
   params.push_back(reinterpret_cast<spa_pod*>(spa_pod_builder_add_object(
       &builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
@@ -558,7 +558,10 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
                             SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx}) {
       // Modifiers can be used with PipeWire >= 0.3.33
       if (has_required_pw_client_version && has_required_pw_server_version) {
-        modifiers_ = egl_dmabuf_->QueryDmaBufModifiers(format);
+        auto render_device = egl_dmabuf_->GetRenderDevice();
+        if (render_device) {
+          modifiers_ = render_device->QueryDmaBufModifiers(format);
+        }
 
         if (!modifiers_.empty()) {
           params.push_back(BuildFormat(&builder, format, modifiers_,
@@ -1010,16 +1013,23 @@ bool SharedScreenCastStreamPrivate::ProcessDMABuffer(
     return false;
   }
 
-  std::vector<EglDmaBuf::PlaneData> plane_datas;
+  std::vector<EglDrmDevice::PlaneData> plane_datas;
   for (uint32_t i = 0; i < n_planes; ++i) {
-    EglDmaBuf::PlaneData data = {
+    EglDrmDevice::PlaneData data = {
         .fd = static_cast<int32_t>(spa_buffer->datas[i].fd),
         .stride = static_cast<uint32_t>(spa_buffer->datas[i].chunk->stride),
         .offset = static_cast<uint32_t>(spa_buffer->datas[i].chunk->offset)};
     plane_datas.push_back(data);
   }
 
-  const bool imported = egl_dmabuf_->ImageFromDmaBuf(
+  auto render_device = egl_dmabuf_->GetRenderDevice();
+  if (!render_device) {
+    RTC_LOG(LS_ERROR)
+        << "Failed to import image from DMA-BUF: no render device";
+    return false;
+  }
+
+  const bool imported = render_device->ImageFromDmaBuf(
       stream_size_, spa_video_format_.format, plane_datas, modifier_, offset,
       frame.size(), frame.data());
   if (!imported) {

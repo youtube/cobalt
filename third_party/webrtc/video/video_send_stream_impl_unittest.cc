@@ -1130,7 +1130,9 @@ TEST_F(VideoSendStreamImplTest, ConfiguresBitratesForSvc) {
   for (bool screenshare : {false, true}) {
     for (bool alr : {false, true}) {
       for (int min_padding : {0, 400000}) {
-        test_variants.push_back({screenshare, alr, min_padding});
+        test_variants.push_back({.screenshare = screenshare,
+                                 .alr = alr,
+                                 .min_padding_bitrate_bps = min_padding});
       }
     }
   }

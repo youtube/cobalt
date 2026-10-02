@@ -1020,7 +1020,6 @@ if (rtc_include_tests) {
                "../../rtc_base:checks",
                "../../test:create_test_field_trials",
                "../../test:fileutils",
-               "../../test:test_main",
                "../../test:test_support",
              ] + audio_coding_deps
 
@@ -1132,7 +1131,6 @@ if (rtc_include_tests) {
       deps += [
         ":webrtc_opus",
         "../../rtc_base:checks",
-        "../../test:test_main",
         "../../test:test_support",
         "../audio_processing",
         "//testing/gtest",

@@ -22,7 +22,7 @@
 #include <zircon/types.h>
 
 
-void OPENSSL_cpuid_setup(void) {
+void OPENSSL_cpuid_setup() {
   uint32_t hwcap;
   zx_status_t rc = zx_system_get_features(ZX_FEATURE_KIND_CPU, &hwcap);
   if (rc != ZX_OK || (hwcap & ZX_ARM64_FEATURE_ISA_ASIMD) == 0) {

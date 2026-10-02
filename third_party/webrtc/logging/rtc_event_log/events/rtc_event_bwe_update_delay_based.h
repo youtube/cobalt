@@ -127,13 +127,19 @@ class RtcEventBweUpdateDelayBased final : public RtcEvent {
                                       int32_t,
                                       BandwidthUsage>
       definition_{
-          {"BweDelayBased", RtcEventBweUpdateDelayBased::kType},
-          {&RtcEventBweUpdateDelayBased::bitrate_bps_,
-           &LoggedBweDelayBasedUpdate::bitrate_bps,
-           {"bitrate_bps", /*id=*/1, FieldType::kVarInt, /*width=*/32}},
-          {&RtcEventBweUpdateDelayBased::detector_state_,
-           &LoggedBweDelayBasedUpdate::detector_state,
-           {"detector_state", /*id=*/2, FieldType::kVarInt, /*width=*/64}}};
+          {.name = "BweDelayBased", .id = RtcEventBweUpdateDelayBased::kType},
+          {.event_member = &RtcEventBweUpdateDelayBased::bitrate_bps_,
+           .logged_member = &LoggedBweDelayBasedUpdate::bitrate_bps,
+           .params = {.name = "bitrate_bps",
+                      /*id=*/.field_id = 1,
+                      .field_type = FieldType::kVarInt,
+                      /*width=*/.value_width = 32}},
+          {.event_member = &RtcEventBweUpdateDelayBased::detector_state_,
+           .logged_member = &LoggedBweDelayBasedUpdate::detector_state,
+           .params = {.name = "detector_state",
+                      /*id=*/.field_id = 2,
+                      .field_type = FieldType::kVarInt,
+                      /*width=*/.value_width = 64}}};
 };
 
 }  // namespace webrtc

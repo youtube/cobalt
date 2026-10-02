@@ -219,7 +219,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../rtc_base:checks",
       "../../rtc_base:rtc_stats_counters",
       "../../system_wrappers",
-      "../../system_wrappers:field_trial",
       "../../test:test_support",
       "../../test:video_test_constants",
       "../logging:log_writer",

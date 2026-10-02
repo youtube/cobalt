@@ -543,4 +543,33 @@ func addRenegotiationTests() {
 			"-expect-verify-result",
 		},
 	})
+
+	// We do not support renegotiation in DTLS, even if enabled. Currently,
+	// BoringSSL treats this as an unexpected record.
+	testCases = append(testCases, testCase{
+		protocol: dtls,
+		testType: clientTest,
+		name:     "Renegotiate-DTLS-Client-Forbidden",
+		config: Config{
+			MaxVersion: VersionTLS12,
+		},
+		renegotiate:        1,
+		flags:              []string{"-renegotiate-freely"},
+		shouldFail:         true,
+		expectedError:      ":UNEXPECTED_RECORD:",
+		expectedLocalError: "remote error: unexpected message",
+	})
+	testCases = append(testCases, testCase{
+		protocol: dtls,
+		testType: serverTest,
+		name:     "Renegotiate-DTLS-Server-Forbidden",
+		config: Config{
+			MaxVersion: VersionTLS12,
+		},
+		renegotiate:        1,
+		flags:              []string{"-renegotiate-freely"},
+		shouldFail:         true,
+		expectedError:      ":UNEXPECTED_RECORD:",
+		expectedLocalError: "remote error: unexpected message",
+	})
 }

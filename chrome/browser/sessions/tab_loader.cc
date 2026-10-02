@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/raw_ptr.h"
@@ -381,12 +380,8 @@ bool TabLoader::ShouldStopLoadingTabs() const {
   }
   if (g_browser_process->IsShuttingDown())
     return true;
-  if (base::MemoryPressureMonitor::Get()) {
-    return base::MemoryPressureMonitor::Get()->GetCurrentPressureLevel(
-               base::MemoryPressureMonitorTag::kTabLoader) !=
-           base::MEMORY_PRESSURE_LEVEL_NONE;
-  }
-  return false;
+
+  return memory_pressure_level() != base::MEMORY_PRESSURE_LEVEL_NONE;
 }
 
 size_t TabLoader::GetMaxNewTabLoads() const {

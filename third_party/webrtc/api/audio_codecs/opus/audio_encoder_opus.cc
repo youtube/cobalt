@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/audio_codecs/audio_encoder.h"
@@ -41,13 +42,13 @@ AudioCodecInfo AudioEncoderOpus::QueryAudioEncoder(
 
 std::unique_ptr<AudioEncoder> AudioEncoderOpus::MakeAudioEncoder(
     const Environment& env,
-    const AudioEncoderOpusConfig& config,
+    AudioEncoderOpusConfig config,
     const AudioEncoderFactory::Options& options) {
   if (!config.IsOk()) {
     RTC_DCHECK_NOTREACHED();
     return nullptr;
   }
-  return std::make_unique<AudioEncoderOpusImpl>(env, config,
+  return std::make_unique<AudioEncoderOpusImpl>(env, std::move(config),
                                                 options.payload_type);
 }
 

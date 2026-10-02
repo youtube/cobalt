@@ -425,6 +425,7 @@ if (rtc_include_tests) {
         "agc2/rnn_vad:unittests",
         "capture_levels_adjuster",
         "capture_levels_adjuster:capture_levels_adjuster_unittests",
+        "capture_mixer:capture_mixer_unittests",
         "test/conversational_speech:unittest",
         "utility:cascaded_biquad_filter_unittest",
         "utility:legacy_delay_estimator_unittest",

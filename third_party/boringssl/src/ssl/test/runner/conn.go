@@ -1741,6 +1741,16 @@ func (c *Conn) ReadKeyUpdate() error {
 }
 
 func (c *Conn) Renegotiate() error {
+	if c.vers >= VersionTLS13 {
+		return errors.New("tls: renegotiation requires (D)TLS 1.2 or earlier")
+	}
+
+	// In DTLS, renegotiation resets the message sequence numbers.
+	if c.isDTLS {
+		c.sendHandshakeSeq = 0
+		c.recvHandshakeSeq = 0
+	}
+
 	if !c.isClient {
 		helloReq := new(helloRequestMsg).marshal()
 		if c.config.Bugs.BadHelloRequest != nil {

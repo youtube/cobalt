@@ -90,9 +90,10 @@ class PlottableCounterPrinter {
                   const SamplesStatsCounter& counter,
                   absl::string_view units) {
     MutexLock lock(&mutex_);
-    plottable_counters_.push_back({std::string(graph_name),
-                                   std::string(trace_name), counter,
-                                   std::string(units)});
+    plottable_counters_.push_back({.graph_name = std::string(graph_name),
+                                   .trace_name = std::string(trace_name),
+                                   .counter = counter,
+                                   .units = std::string(units)});
   }
 
   void Print(const std::vector<std::string>& desired_graphs_raw) const {

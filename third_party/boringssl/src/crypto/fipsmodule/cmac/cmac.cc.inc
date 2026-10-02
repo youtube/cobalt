@@ -26,6 +26,8 @@
 #include "../service_indicator/internal.h"
 
 
+using namespace bssl;
+
 struct cmac_ctx_st {
   EVP_CIPHER_CTX cipher_ctx;
   // k1 and k2 are the CMAC subkeys. See
@@ -84,7 +86,7 @@ int AES_CMAC(uint8_t out[16], const uint8_t *key, size_t key_len,
   return ok;
 }
 
-CMAC_CTX *CMAC_CTX_new(void) {
+CMAC_CTX *CMAC_CTX_new() {
   CMAC_CTX *ctx = reinterpret_cast<CMAC_CTX *>(OPENSSL_malloc(sizeof(*ctx)));
   if (ctx != nullptr) {
     CMAC_CTX_init(ctx);

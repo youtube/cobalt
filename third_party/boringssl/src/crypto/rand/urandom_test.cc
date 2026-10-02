@@ -24,8 +24,8 @@
 #include "../bcm_support.h"
 #include "../fipsmodule/rand/internal.h"
 #include "../internal.h"
-#include "internal.h"
 #include "getrandom_fillin.h"
+#include "internal.h"
 
 
 #if (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) &&               \
@@ -41,6 +41,7 @@
 #include <sys/un.h>
 #include <sys/user.h>
 
+BSSL_NAMESPACE_BEGIN
 namespace {
 
 #if !defined(PTRACE_O_EXITKILL)
@@ -604,7 +605,9 @@ static void TestFunction() {
   RAND_bytes(&byte, sizeof(byte));
 }
 
-static bool have_fork_detection() { return CRYPTO_get_fork_generation() != 0; }
+static bool have_fork_detection() {
+  return bssl::CRYPTO_get_fork_generation() != 0;
+}
 
 static bool AppendDaemonEvents(std::vector<Event> *events, unsigned flags) {
   events->push_back(Event::Socket());
@@ -766,14 +769,15 @@ TEST(URandomTest, Test) {
 }
 
 }  // namespace
+BSSL_NAMESPACE_END
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   if (getenv("BORINGSSL_IGNORE_MADV_WIPEONFORK")) {
-    CRYPTO_fork_detect_force_madv_wipeonfork_for_testing(0);
+    bssl::CRYPTO_fork_detect_force_madv_wipeonfork_for_testing(0);
   } else {
-    CRYPTO_fork_detect_force_madv_wipeonfork_for_testing(1);
+    bssl::CRYPTO_fork_detect_force_madv_wipeonfork_for_testing(1);
   }
 
   return RUN_ALL_TESTS();

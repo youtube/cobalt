@@ -28,7 +28,7 @@ namespace webrtc {
 class FakeMdnsResponder : public MdnsResponderInterface {
  public:
   explicit FakeMdnsResponder(Thread* thread) : thread_(thread) {}
-  ~FakeMdnsResponder() = default;
+  ~FakeMdnsResponder() override = default;
 
   void CreateNameForAddress(const IPAddress& addr,
                             NameCreatedCallback callback) override {

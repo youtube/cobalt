@@ -23,7 +23,9 @@
 #include "../fipsmodule/dh/internal.h"
 
 
-static BIGNUM *get_params(BIGNUM *ret, bssl::Span<const BN_ULONG> words) {
+using namespace bssl;
+
+static BIGNUM *get_params(BIGNUM *ret, Span<const BN_ULONG> words) {
   BIGNUM *alloc = nullptr;
   if (ret == nullptr) {
     alloc = BN_new();
@@ -343,7 +345,7 @@ int DH_generate_parameters_ex(DH *dh, int prime_bits, int generator,
     g = generator;
   }
 
-  bssl::UniquePtr<BIGNUM> t1_bn(BN_new()), t2_bn(BN_new());
+  UniquePtr<BIGNUM> t1_bn(BN_new()), t2_bn(BN_new());
   if (t1_bn == nullptr || t2_bn == nullptr ||
       !BN_set_word(t1_bn.get(), t1) ||  //
       !BN_set_word(t2_bn.get(), t2) ||  //

@@ -125,7 +125,7 @@ static void x509_policy_level_free(X509_POLICY_LEVEL *level) {
   }
 }
 
-static X509_POLICY_LEVEL *x509_policy_level_new(void) {
+static X509_POLICY_LEVEL *x509_policy_level_new() {
   X509_POLICY_LEVEL *level = reinterpret_cast<X509_POLICY_LEVEL *>(
       OPENSSL_zalloc(sizeof(X509_POLICY_LEVEL)));
   if (level == nullptr) {

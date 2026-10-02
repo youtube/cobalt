@@ -57,7 +57,7 @@ class DecodabilityTrackerTest : public SimulatedTimeTestFixture {
       decodability_tracker_->SetDecodedFrameIdCallback(&decoded_frame_id_cb_);
     });
   }
-  ~DecodabilityTrackerTest() {
+  ~DecodabilityTrackerTest() override {
     SendTask([this]() {
       RTC_DCHECK_RUN_ON(queue_ptr_);
       decodability_tracker_.reset();

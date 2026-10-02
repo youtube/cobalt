@@ -1087,7 +1087,6 @@ if (rtc_include_tests) {
       "../../test:create_test_field_trials",
       "../../test:fileutils",
       "../../test:test_flags",
-      "../../test:test_main",
       "../../test:test_support",
       "../../test:video_codec_tester",
       "//third_party/abseil-cpp/absl/flags:flag",

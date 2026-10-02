@@ -32,12 +32,13 @@
 #include "../test/wycheproof_util.h"
 
 
+BSSL_NAMESPACE_BEGIN
 namespace {
 
 template <typename T>
 std::vector<uint8_t> Marshal(bcm_status (*marshal_func)(CBB *, const T *),
                              const T *t) {
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   uint8_t *encoded;
   size_t encoded_len;
   if (!CBB_init(cbb.get(), 1) ||                             //
@@ -311,13 +312,12 @@ TEST(MLDSATest, InvalidPublicKeyEncodingLength) {
       MLDSA65_generate_key(encoded_public_key.data(), seed, priv.get()));
 
   // Public key is 1 byte too short.
-  CBS cbs =
-      CBS(bssl::Span(encoded_public_key).first(MLDSA65_PUBLIC_KEY_BYTES - 1));
+  CBS cbs = CBS(Span(encoded_public_key).first(MLDSA65_PUBLIC_KEY_BYTES - 1));
   auto parsed_pub = std::make_unique<MLDSA65_public_key>();
   EXPECT_FALSE(MLDSA65_parse_public_key(parsed_pub.get(), &cbs));
 
   // Public key has the correct length.
-  cbs = CBS(bssl::Span(encoded_public_key).first(MLDSA65_PUBLIC_KEY_BYTES));
+  cbs = CBS(Span(encoded_public_key).first(MLDSA65_PUBLIC_KEY_BYTES));
   EXPECT_TRUE(MLDSA65_parse_public_key(parsed_pub.get(), &cbs));
 
   // Public key is 1 byte too long.
@@ -711,3 +711,4 @@ TEST(MLDSATest, NullptrArgumentsToCreate) {
 }
 
 }  // namespace
+BSSL_NAMESPACE_END

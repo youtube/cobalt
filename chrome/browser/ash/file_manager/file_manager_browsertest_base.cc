@@ -157,10 +157,7 @@
 #include "chromeos/ash/components/disks/mount_point.h"
 #include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
 #include "chromeos/ash/components/drivefs/fake_drivefs.h"
-#include "chromeos/ash/components/drivefs/mojom/drivefs.mojom-forward.h"
-#include "chromeos/ash/components/drivefs/mojom/drivefs.mojom-shared.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom.h"
-#include "chromeos/ash/components/smbfs/mojom/smbfs.mojom-shared.h"
 #include "chromeos/ash/components/smbfs/mojom/smbfs.mojom.h"
 #include "chromeos/ash/components/smbfs/smbfs_host.h"
 #include "chromeos/ash/components/smbfs/smbfs_mounter.h"
@@ -3008,7 +3005,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
 
     content::WebContents* web_contents;
     if (app_id && !app_id->empty()) {
-      CHECK(base::Contains(swa_web_contents_, *app_id))
+      CHECK(swa_web_contents_.contains(*app_id))
           << "Couldn't find the SWA WebContents for appId: " << *app_id
           << " command data: " << *data;
       web_contents = swa_web_contents_[*app_id];
@@ -3702,7 +3699,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
     ASSERT_TRUE(app_id);
 
     content::WebContents* web_contents;
-    CHECK(base::Contains(swa_web_contents_, *app_id))
+    CHECK(swa_web_contents_.contains(*app_id))
         << "Couldn't find the SWA WebContents for appId: " << *app_id;
     web_contents = swa_web_contents_[*app_id];
 
@@ -4060,7 +4057,7 @@ void FileManagerBrowserTestBase::OnCommand(const std::string& name,
     ASSERT_TRUE(app_id);
 
     content::WebContents* web_contents;
-    CHECK(base::Contains(swa_web_contents_, *app_id))
+    CHECK(swa_web_contents_.contains(*app_id))
         << "Couldn't find the SWA WebContents for appId: " << *app_id;
     web_contents = swa_web_contents_[*app_id];
     web_contents->Focus();

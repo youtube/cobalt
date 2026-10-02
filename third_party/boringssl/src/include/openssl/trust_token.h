@@ -127,6 +127,18 @@ OPENSSL_EXPORT TRUST_TOKEN_CLIENT *TRUST_TOKEN_CLIENT_new(
 // TRUST_TOKEN_CLIENT_free releases memory associated with |ctx|.
 OPENSSL_EXPORT void TRUST_TOKEN_CLIENT_free(TRUST_TOKEN_CLIENT *ctx);
 
+// TRUST_TOKEN_CLIENT_dup_for_testing returns a newly-allocated copy of |ctx|,
+// or NULL on error. This may be useful for testing the library, e.g. to
+// benchmark an individual operation.
+//
+// WARNING: This function should never be used in production. A
+// |TRUST_TOKEN_CLIENT| maintains single-use state between
+// |TRUST_TOKEN_CLIENT_begin_issuance| and |TRUST_TOKEN_CLIENT_finish_issuance|
+// operations. Cloning this state will cause tokens to be linkable and no longer
+// anonymized.
+OPENSSL_EXPORT TRUST_TOKEN_CLIENT *TRUST_TOKEN_CLIENT_dup_for_testing(
+    const TRUST_TOKEN_CLIENT *ctx);
+
 // TRUST_TOKEN_CLIENT_add_key configures the |ctx| to support the public key
 // |key|. It sets |*out_key_index| to the index this key has been configured to.
 // It returns one on success or zero on error if the |key| can't be parsed or

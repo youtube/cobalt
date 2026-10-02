@@ -56,14 +56,6 @@ pub const XN_FLAG_DUMP_UNKNOWN_FIELDS: c_ulong = bindgen::XN_FLAG_DUMP_UNKNOWN_F
 pub const XN_FLAG_RFC2253: c_ulong = bindgen::XN_FLAG_RFC2253 as c_ulong;
 pub const XN_FLAG_ONELINE: c_ulong = bindgen::XN_FLAG_ONELINE as c_ulong;
 
-// TODO(crbug.com/boringssl/596): Remove these wrappers.
-#[cfg(unsupported_inline_wrappers)]
-pub use { ERR_GET_LIB_RUST as ERR_GET_LIB,
-          ERR_GET_REASON_RUST as ERR_GET_REASON,
-          ERR_GET_FUNC_RUST as ERR_GET_FUNC,
-          CBS_init_RUST as CBS_init,
-          CBS_len_RUST as CBS_len };
-
 pub fn init() {
     // This function does nothing.
     // TODO(davidben): Remove rust-openssl's dependency on this and remove this.

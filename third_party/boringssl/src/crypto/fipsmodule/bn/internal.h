@@ -25,9 +25,8 @@
 
 #include "../../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+
+BSSL_NAMESPACE_BEGIN
 
 #if defined(OPENSSL_64_BIT)
 
@@ -169,17 +168,42 @@ inline void bn_declassify(BIGNUM *bn) {
   CONSTTIME_DECLASSIFY(bn->d, bn->width * sizeof(BN_ULONG));
 }
 
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86)
+// See asm/bn-586.pl.
+#define BN_ADD_ASM
+#define BN_MUL_ASM
+#endif
+
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && \
+    (defined(__GNUC__) || defined(__clang__))
+// See asm/x86_64-gcc.c
+#define BN_ADD_ASM
+#define BN_MUL_ASM
+#endif
+
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64)
+// See asm/bn-armv8.pl.
+#define BN_ADD_ASM
+#endif
+
 // bn_mul_add_words multiples |ap| by |w|, adds the result to |rp|, and places
 // the result in |rp|. |ap| and |rp| must both be |num| words long. It returns
 // the carry word of the operation. |ap| and |rp| may be equal but otherwise may
 // not alias.
-BN_ULONG bn_mul_add_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num,
-                          BN_ULONG w);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    BN_ULONG bn_mul_add_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num,
+                              BN_ULONG w);
 
 // bn_mul_words multiples |ap| by |w| and places the result in |rp|. |ap| and
 // |rp| must both be |num| words long. It returns the carry word of the
 // operation. |ap| and |rp| may be equal but otherwise may not alias.
-BN_ULONG bn_mul_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num, BN_ULONG w);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    BN_ULONG bn_mul_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num,
+                          BN_ULONG w);
 
 // bn_sqr_add_words computes |tmp| where |tmp[2*i]| and |tmp[2*i+1]| are
 // |ap[i]|'s square, for all |i| up to |num|, and adds the result to |rp|. If
@@ -188,33 +212,56 @@ BN_ULONG bn_mul_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num, BN_ULONG w);
 // |rp| may not alias.
 //
 // This gives the contribution of the |ap[i]*ap[i]| terms when squaring |ap|.
-void bn_sqr_add_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    void bn_sqr_add_words(BN_ULONG *rp, const BN_ULONG *ap, size_t num);
 
 // bn_add_words adds |ap| to |bp| and places the result in |rp|, each of which
 // are |num| words long. It returns the carry bit, which is one if the operation
 // overflowed and zero otherwise. Any pair of |ap|, |bp|, and |rp| may be equal
 // to each other but otherwise may not alias.
-BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                      size_t num);
+
+#if defined(BN_ADD_ASM)
+extern "C"
+#endif
+    BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
+                          size_t num);
 
 // bn_sub_words subtracts |bp| from |ap| and places the result in |rp|. It
 // returns the borrow bit, which is one if the computation underflowed and zero
 // otherwise. Any pair of |ap|, |bp|, and |rp| may be equal to each other but
 // otherwise may not alias.
-BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                      size_t num);
+#if defined(BN_ADD_ASM)
+extern "C"
+#endif
+    BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
+                          size_t num);
 
 // bn_mul_comba4 sets |r| to the product of |a| and |b|.
-void bn_mul_comba4(BN_ULONG r[8], const BN_ULONG a[4], const BN_ULONG b[4]);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    void bn_mul_comba4(BN_ULONG r[8], const BN_ULONG a[4], const BN_ULONG b[4]);
 
 // bn_mul_comba8 sets |r| to the product of |a| and |b|.
-void bn_mul_comba8(BN_ULONG r[16], const BN_ULONG a[8], const BN_ULONG b[8]);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    void bn_mul_comba8(BN_ULONG r[16], const BN_ULONG a[8],
+                       const BN_ULONG b[8]);
 
 // bn_sqr_comba8 sets |r| to |a|^2.
-void bn_sqr_comba8(BN_ULONG r[16], const BN_ULONG a[8]);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    void bn_sqr_comba8(BN_ULONG r[16], const BN_ULONG a[8]);
 
 // bn_sqr_comba4 sets |r| to |a|^2.
-void bn_sqr_comba4(BN_ULONG r[8], const BN_ULONG a[4]);
+#if defined(BN_MUL_ASM)
+extern "C"
+#endif
+    void bn_sqr_comba4(BN_ULONG r[8], const BN_ULONG a[4]);
 
 // bn_less_than_words returns one if |a| < |b| and zero otherwise, where |a|
 // and |b| both are |len| words long. It runs in constant time.
@@ -263,11 +310,12 @@ int bn_rand_secret_range(BIGNUM *r, int *out_is_uniform, BN_ULONG min_inclusive,
 // |BIGNUM|s, in |bn_wexpand|, but the exactfloat library needs to create 8 MiB
 // values for other operations.
 //
-// This limit is set so that one number fits within 1 KiB, giving room to
-// allocate a few of them on the stack in |bn_mul_mont_words| without exceeding
-// a page (4 KiB). It is also set to limit the DoS impact of large RSA, DH, and
-// DSA keys, which scale cubically.
-#define BN_MONTGOMERY_MAX_WORDS (8192 / BN_BITS2)
+// This limit is set so that one number fits within 2 KiB, giving room to
+// allocate a few of them on the stack. It is also set to limit the DoS impact
+// of large RSA, DH, and DSA keys, which scale cubically.
+#define BN_MONTGOMERY_MAX_WORDS (16384 / BN_BITS2)
+
+BSSL_NAMESPACE_END
 
 struct bn_mont_ctx_st {
   // RR is R^2, reduced modulo |N|. It is used to convert to Montgomery form. It
@@ -278,6 +326,8 @@ struct bn_mont_ctx_st {
   BIGNUM N;
   BN_ULONG n0[BN_MONT_CTX_N0_LIMBS];  // least significant words of (R*Ri-1)/N
 };
+
+BSSL_NAMESPACE_BEGIN
 
 #if !defined(OPENSSL_NO_ASM) &&                         \
     (defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || \
@@ -301,46 +351,53 @@ struct bn_mont_ctx_st {
 //
 // See also discussion in |ToWord| in abi_test.h for notes on smaller-than-word
 // inputs.
-void bn_mul_mont_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                       const BN_ULONG *np,
-                       const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], size_t num);
+extern "C" void bn_mul_mont_words(BN_ULONG *rp, const BN_ULONG *ap,
+                                  const BN_ULONG *bp, const BN_ULONG *np,
+                                  const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                  size_t num);
 
 #if defined(OPENSSL_X86_64)
-inline int bn_mulx_adx_capable(void) {
+inline int bn_mulx_adx_capable() {
   // MULX is in BMI2.
   return CRYPTO_is_BMI2_capable() && CRYPTO_is_ADX_capable();
 }
-void bn_mul_mont_nohw(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                      const BN_ULONG *np,
-                      const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], size_t num);
+extern "C" void bn_mul_mont_nohw(BN_ULONG *rp, const BN_ULONG *ap,
+                                 const BN_ULONG *bp, const BN_ULONG *np,
+                                 const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                 size_t num);
 inline int bn_mul4x_mont_capable(size_t num) {
   return num >= 8 && (num & 3) == 0;
 }
-void bn_mul4x_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                   const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                   size_t num);
+extern "C" void bn_mul4x_mont(BN_ULONG *rp, const BN_ULONG *ap,
+                              const BN_ULONG *bp, const BN_ULONG *np,
+                              const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                              size_t num);
 inline int bn_mulx4x_mont_capable(size_t num) {
   return bn_mul4x_mont_capable(num) && bn_mulx_adx_capable();
 }
-void bn_mulx4x_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                    const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                    size_t num);
+extern "C" void bn_mulx4x_mont(BN_ULONG *rp, const BN_ULONG *ap,
+                               const BN_ULONG *bp, const BN_ULONG *np,
+                               const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                               size_t num);
 inline int bn_sqr8x_mont_capable(size_t num) {
   return num >= 8 && (num & 7) == 0;
 }
-void bn_sqr8x_mont(BN_ULONG *rp, const BN_ULONG *ap, BN_ULONG mulx_adx_capable,
-                   const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                   size_t num);
+extern "C" void bn_sqr8x_mont(BN_ULONG *rp, const BN_ULONG *ap,
+                              BN_ULONG mulx_adx_capable, const BN_ULONG *np,
+                              const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                              size_t num);
 #elif defined(OPENSSL_ARM)
 inline int bn_mul8x_mont_neon_capable(size_t num) {
   return (num & 7) == 0 && CRYPTO_is_NEON_capable();
 }
-void bn_mul8x_mont_neon(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                        const BN_ULONG *np,
-                        const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], size_t num);
-void bn_mul_mont_nohw(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                      const BN_ULONG *np,
-                      const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], size_t num);
+extern "C" void bn_mul8x_mont_neon(BN_ULONG *rp, const BN_ULONG *ap,
+                                   const BN_ULONG *bp, const BN_ULONG *np,
+                                   const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                   size_t num);
+extern "C" void bn_mul_mont_nohw(BN_ULONG *rp, const BN_ULONG *ap,
+                                 const BN_ULONG *bp, const BN_ULONG *np,
+                                 const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                 size_t num);
 #endif
 
 #endif  // OPENSSL_BN_ASM_MONT
@@ -351,41 +408,43 @@ void bn_mul_mont_nohw(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 // The following functions implement |bn_mul_mont_gather5|. See
 // |bn_mul_mont_gather5| for details.
 inline int bn_mul4x_mont_gather5_capable(int num) { return (num & 7) == 0; }
-void bn_mul4x_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
-                           const BN_ULONG *table, const BN_ULONG *np,
-                           const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num,
-                           int power);
+extern "C" void bn_mul4x_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
+                                      const BN_ULONG *table, const BN_ULONG *np,
+                                      const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                      int num, int power);
 
 inline int bn_mulx4x_mont_gather5_capable(int num) {
   return bn_mul4x_mont_gather5_capable(num) && CRYPTO_is_ADX_capable() &&
          CRYPTO_is_BMI1_capable() && CRYPTO_is_BMI2_capable();
 }
-void bn_mulx4x_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
-                            const BN_ULONG *table, const BN_ULONG *np,
-                            const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num,
-                            int power);
+extern "C" void bn_mulx4x_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap,
+                                       const BN_ULONG *table,
+                                       const BN_ULONG *np,
+                                       const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
+                                       int num, int power);
 
-void bn_mul_mont_gather5_nohw(BN_ULONG *rp, const BN_ULONG *ap,
-                              const BN_ULONG *table, const BN_ULONG *np,
-                              const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num,
-                              int power);
+extern "C" void bn_mul_mont_gather5_nohw(
+    BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *table, const BN_ULONG *np,
+    const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num, int power);
 
 // bn_scatter5 stores |inp| to index |power| of |table|. |inp| and each entry of
 // |table| are |num| words long. |power| must be less than 32 and is treated as
 // public. |table| must be 32*|num| words long. |table| must be aligned to at
 // least 16 bytes.
-void bn_scatter5(const BN_ULONG *inp, size_t num, BN_ULONG *table,
-                 size_t power);
+extern "C" void bn_scatter5(const BN_ULONG *inp, size_t num, BN_ULONG *table,
+                            size_t power);
 
 // bn_gather5 loads index |power| of |table| and stores it in |out|. |out| and
 // each entry of |table| are |num| words long. |power| must be less than 32 and
 // is treated as secret. |table| must be aligned to at least 16 bytes.
-void bn_gather5(BN_ULONG *out, size_t num, const BN_ULONG *table, size_t power);
+extern "C" void bn_gather5(BN_ULONG *out, size_t num, const BN_ULONG *table,
+                           size_t power);
 
 // The following functions implement |bn_power5|. See |bn_power5| for details.
-void bn_power5_nohw(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *table,
-                    const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                    int num, int power);
+extern "C" void bn_power5_nohw(BN_ULONG *rp, const BN_ULONG *ap,
+                               const BN_ULONG *table, const BN_ULONG *np,
+                               const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num,
+                               int power);
 
 inline int bn_power5_capable(int num) { return (num & 7) == 0; }
 
@@ -393,9 +452,10 @@ inline int bn_powerx5_capable(int num) {
   return bn_power5_capable(num) && CRYPTO_is_ADX_capable() &&
          CRYPTO_is_BMI1_capable() && CRYPTO_is_BMI2_capable();
 }
-void bn_powerx5(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *table,
-                const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                int num, int power);
+extern "C" void bn_powerx5(BN_ULONG *rp, const BN_ULONG *ap,
+                           const BN_ULONG *table, const BN_ULONG *np,
+                           const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], int num,
+                           int power);
 
 #endif  // !OPENSSL_NO_ASM && OPENSSL_X86_64
 
@@ -453,7 +513,7 @@ int bn_odd_number_is_obviously_composite(const BIGNUM *bn);
 // A BN_MILLER_RABIN stores state common to each Miller-Rabin iteration. It is
 // initialized within an existing |BN_CTX| scope and may not be used after
 // that scope is released with |BN_CTX_end|. Field names match those in FIPS
-// 186-4, section C.3.1.
+// 186-5, section B.3.1.
 typedef struct {
   // w1 is w-1.
   BIGNUM *w1;
@@ -738,9 +798,7 @@ void bn_big_endian_to_words(BN_ULONG *out, size_t out_len, const uint8_t *in,
 void bn_words_to_big_endian(uint8_t *out, size_t out_len, const BN_ULONG *in,
                             size_t in_len);
 
+BSSL_NAMESPACE_END
 
-#if defined(__cplusplus)
-}  // extern C
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_BN_INTERNAL_H

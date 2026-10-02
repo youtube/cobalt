@@ -122,7 +122,7 @@ int RunRtpJitter(int argc, char* argv[]) {
     if (packet.empty() || time_it == new_arrival_times.end()) {
       break;
     }
-    packets.push_back({std::move(packet), *time_it});
+    packets.push_back({.packet = std::move(packet), .time = *time_it});
     ++time_it;
   }
 

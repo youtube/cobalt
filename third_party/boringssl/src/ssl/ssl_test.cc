@@ -480,9 +480,17 @@ static const char *kMustNotIncludeDeprecated[] = {
     "SHA1", "RSA",     "SSLv3", "TLSv1", "TLSv1.2",
 };
 
-static const char *kShouldIncludeCBCSHA256[] = {
-    "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-    "ALL:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+static const struct {
+  const char *rule;
+  int expected_included_deprecated_count;
+} kDeprecatedCBCSHA256Rules[] = {
+    {"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", 1},
+    {"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", 1},
+    {"ALL:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", 1},
+    {"ALL:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", 1},
+    {"ALL:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:TLS_ECDHE_RSA_WITH_AES_128_"
+     "CBC_SHA256",
+     2},
 };
 
 static const CurveTest kCurveTests[] = {
@@ -624,23 +632,22 @@ TEST(SSLTest, CipherRules) {
       EXPECT_FALSE(ssl_cipher_is_deprecated(cipher));
     }
   }
+}
 
-  {
-    for (const char *rule : kShouldIncludeCBCSHA256) {
-      bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
-      ASSERT_TRUE(ctx);
-      ASSERT_TRUE(SSL_CTX_set_strict_cipher_list(ctx.get(), rule));
+TEST(SSLTest, CipherRulesDeprecated) {
+  for (const auto& test : kDeprecatedCBCSHA256Rules) {
+    SCOPED_TRACE(test.rule);
+    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(SSL_CTX_set_strict_cipher_list(ctx.get(), test.rule));
 
-      bool found = false;
-      for (const SSL_CIPHER *cipher : SSL_CTX_get_ciphers(ctx.get())) {
-        if (SSL_CIPHER_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ==
-            SSL_CIPHER_get_protocol_id(cipher)) {
-          found = true;
-          break;
-        }
+    int found = 0;
+    for (const SSL_CIPHER *cipher : SSL_CTX_get_ciphers(ctx.get())) {
+      if (ssl_cipher_is_deprecated(cipher)) {
+        ++found;
       }
-      EXPECT_TRUE(found);
     }
+    EXPECT_EQ(found, test.expected_included_deprecated_count);
   }
 }
 
@@ -1297,7 +1304,7 @@ TEST(SSLTest, SessionEncoding) {
 }
 
 static void ExpectDefaultVersion(uint16_t min_version, uint16_t max_version,
-                                 const SSL_METHOD *(*method)(void)) {
+                                 const SSL_METHOD *(*method)()) {
   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(method()));
   ASSERT_TRUE(ctx);
   EXPECT_EQ(min_version, SSL_CTX_get_min_proto_version(ctx.get()));
@@ -8671,7 +8678,7 @@ TEST_F(QUICMethodTest, QuicCodePointDefault) {
 
 }  // namespace
 
-extern "C" int BORINGSSL_enum_c_type_test(void);
+extern "C" int BORINGSSL_enum_c_type_test();
 
 namespace {
 

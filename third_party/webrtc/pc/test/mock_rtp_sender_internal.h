@@ -104,17 +104,30 @@ class MockRtpSenderInternal : public RtpSenderInternal {
   MOCK_METHOD(void, SetObserver, (RtpSenderObserverInterface*), (override));
 
   // RtpSenderInternal methods.
-  MOCK_METHOD1(SetMediaChannel, void(webrtc::MediaSendChannelInterface*));
-  MOCK_METHOD1(SetSsrc, void(uint32_t));
-  MOCK_METHOD1(set_stream_ids, void(const std::vector<std::string>&));
-  MOCK_METHOD1(SetStreams, void(const std::vector<std::string>&));
-  MOCK_METHOD1(set_init_send_encodings,
-               void(const std::vector<RtpEncodingParameters>&));
-  MOCK_METHOD0(Stop, void());
-  MOCK_METHOD0(DetachTrackAndGetStopTask, absl::AnyInvocable<void() &&>());
-  MOCK_CONST_METHOD0(AttachmentId, int());
-  MOCK_METHOD1(DisableEncodingLayers,
-               RTCError(const std::vector<std::string>&));
+  MOCK_METHOD(void,
+              SetMediaChannel,
+              (webrtc::MediaSendChannelInterface*),
+              (override));
+  MOCK_METHOD(void, SetSsrc, (uint32_t), (override));
+  MOCK_METHOD(void,
+              set_stream_ids,
+              (const std::vector<std::string>&),
+              (override));
+  MOCK_METHOD(void, SetStreams, (const std::vector<std::string>&), (override));
+  MOCK_METHOD(void,
+              set_init_send_encodings,
+              (const std::vector<RtpEncodingParameters>&),
+              (override));
+  MOCK_METHOD(void, Stop, (), (override));
+  MOCK_METHOD(absl::AnyInvocable<void() &&>,
+              DetachTrackAndGetStopTask,
+              (),
+              (override));
+  MOCK_METHOD(int, AttachmentId, (), (const, override));
+  MOCK_METHOD(RTCError,
+              DisableEncodingLayers,
+              (const std::vector<std::string>&),
+              (override));
   MOCK_METHOD(void, NotifyFirstPacketSent, (), (override));
 };
 

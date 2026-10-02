@@ -17,10 +17,8 @@
 
 #include "./params.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // Implements Algorithm 14: fors_skGen function (page 29)
 void slhdsa_fors_sk_gen(const slh_dsa_config *config, uint8_t *fors_sk,
@@ -45,9 +43,6 @@ void slhdsa_fors_pk_from_sig(const slh_dsa_config *config, uint8_t *fors_pk,
                              const uint8_t *fors_sig, const uint8_t *message,
                              const uint8_t *pk_seed, uint8_t addr[32]);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SLHDSA_FORS_H

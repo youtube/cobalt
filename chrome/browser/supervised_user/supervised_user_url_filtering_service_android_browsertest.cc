@@ -62,7 +62,7 @@ class RegularUserUrlFilteringServiceAndroidBrowserTest
 
 IN_PROC_BROWSER_TEST_F(RegularUserUrlFilteringServiceAndroidBrowserTest,
                        EnablingAndroidParentalControlsEnablesUrlFiltering) {
-  GetAndroidParentalControls()->SetBrowserContentFiltersEnabledForTesting(true);
+  GetDeviceParentalControls().SetBrowserContentFiltersEnabledForTesting(true);
   EXPECT_EQ(
       WebFilterType::kTryToBlockMatureSites,
       SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile())
@@ -92,7 +92,7 @@ IN_PROC_BROWSER_TEST_F(FamilyLinkUrlFilteringServiceAndroidBrowserTest,
           ->GetWebFilterType());
 
   // Setting is ignored.
-  GetAndroidParentalControls()->SetBrowserContentFiltersEnabledForTesting(true);
+  GetDeviceParentalControls().SetBrowserContentFiltersEnabledForTesting(true);
   EXPECT_EQ(
       WebFilterType::kAllowAllSites,
       SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile())
@@ -117,7 +117,8 @@ class AndroidParentalControlsUrlFilteringServiceAndroidBrowserTest
 IN_PROC_BROWSER_TEST_F(
     AndroidParentalControlsUrlFilteringServiceAndroidBrowserTest,
     FamilyLinkDisablesAndroidParentalControls) {
-  ASSERT_TRUE(GetSupervisedUserService()->IsSupervisedLocally());
+  ASSERT_TRUE(
+      AreAndroidParentalControlsEffectiveForTesting(*GetProfile()->GetPrefs()));
   ASSERT_EQ(
       WebFilterType::kTryToBlockMatureSites,
       SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile())
@@ -125,7 +126,8 @@ IN_PROC_BROWSER_TEST_F(
 
   EnableParentalControls(*GetProfile()->GetPrefs());
 
-  EXPECT_FALSE(GetSupervisedUserService()->IsSupervisedLocally());
+  EXPECT_FALSE(
+      AreAndroidParentalControlsEffectiveForTesting(*GetProfile()->GetPrefs()));
   EXPECT_EQ(
       WebFilterType::kTryToBlockMatureSites,
       SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile())
@@ -137,9 +139,8 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     AndroidParentalControlsUrlFilteringServiceAndroidBrowserTest,
     DisablingAndroidParentalControlsSupervisionDisablesUrlFiltering) {
-  GetAndroidParentalControls()->SetBrowserContentFiltersEnabledForTesting(
-      false);
-  GetAndroidParentalControls()->SetSearchContentFiltersEnabledForTesting(false);
+  GetDeviceParentalControls().SetBrowserContentFiltersEnabledForTesting(false);
+  GetDeviceParentalControls().SetSearchContentFiltersEnabledForTesting(false);
   EXPECT_EQ(
       WebFilterType::kDisabled,
       SupervisedUserUrlFilteringServiceFactory::GetForProfile(GetProfile())

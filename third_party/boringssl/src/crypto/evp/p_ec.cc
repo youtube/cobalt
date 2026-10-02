@@ -34,6 +34,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 namespace {
 
 struct EVP_PKEY_ALG_EC : public EVP_PKEY_ALG {
@@ -67,14 +69,14 @@ static int eckey_pub_encode(CBB *out, const EVP_PKEY *key) {
   return 1;
 }
 
-static evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
-                                            EVP_PKEY *out, CBS *params,
-                                            CBS *key) {
+static bssl::evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
+                                                  EVP_PKEY *out, CBS *params,
+                                                  CBS *key) {
   // See RFC 5480, section 2.
 
   // Check that |params| matches |alg|. Only the namedCurve form is allowed.
   const EC_GROUP *group = static_cast<const EVP_PKEY_ALG_EC*>(alg)->ec_group();
-  if (ec_key_parse_curve_name(params, bssl::Span(&group, 1)) == nullptr) {
+  if (ec_key_parse_curve_name(params, Span(&group, 1)) == nullptr) {
     if (ERR_equals(ERR_peek_last_error(), ERR_LIB_EC, EC_R_UNKNOWN_GROUP)) {
       ERR_clear_error();
       return evp_decode_unsupported;
@@ -87,7 +89,7 @@ static evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  bssl::UniquePtr<EC_KEY> eckey(EC_KEY_new());
+  UniquePtr<EC_KEY> eckey(EC_KEY_new());
   if (eckey == nullptr ||  //
       !EC_KEY_set_group(eckey.get(), group) ||
       !EC_KEY_oct2key(eckey.get(), CBS_data(key), CBS_len(key), nullptr)) {
@@ -114,12 +116,12 @@ static int eckey_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
   }
 }
 
-static evp_decode_result_t eckey_priv_decode(const EVP_PKEY_ALG *alg,
-                                             EVP_PKEY *out, CBS *params,
-                                             CBS *key) {
+static bssl::evp_decode_result_t eckey_priv_decode(const EVP_PKEY_ALG *alg,
+                                                   EVP_PKEY *out, CBS *params,
+                                                   CBS *key) {
   // See RFC 5915.
   const EC_GROUP *group = static_cast<const EVP_PKEY_ALG_EC*>(alg)->ec_group();
-  if (ec_key_parse_parameters(params, bssl::Span(&group, 1)) == nullptr) {
+  if (ec_key_parse_parameters(params, Span(&group, 1)) == nullptr) {
     if (ERR_equals(ERR_peek_last_error(), ERR_LIB_EC, EC_R_UNKNOWN_GROUP)) {
       ERR_clear_error();
       return evp_decode_unsupported;
@@ -132,7 +134,7 @@ static evp_decode_result_t eckey_priv_decode(const EVP_PKEY_ALG *alg,
     return evp_decode_error;
   }
 
-  bssl::UniquePtr<EC_KEY> ec_key(ec_key_parse_private_key(key, group, {}));
+  UniquePtr<EC_KEY> ec_key(ec_key_parse_private_key(key, group, {}));
   if (ec_key == nullptr || CBS_len(key) != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
@@ -298,22 +300,22 @@ const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
 
 }  // namespace
 
-const EVP_PKEY_ALG *EVP_pkey_ec_p224(void) {
+const EVP_PKEY_ALG *EVP_pkey_ec_p224() {
   static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p224};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_ec_p256(void) {
+const EVP_PKEY_ALG *EVP_pkey_ec_p256() {
   static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p256};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_ec_p384(void) {
+const EVP_PKEY_ALG *EVP_pkey_ec_p384() {
   static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p384};
   return &kAlg;
 }
 
-const EVP_PKEY_ALG *EVP_pkey_ec_p521(void) {
+const EVP_PKEY_ALG *EVP_pkey_ec_p521() {
   static const EVP_PKEY_ALG_EC kAlg = {{&ec_asn1_meth}, &EC_group_p521};
   return &kAlg;
 }
@@ -532,7 +534,7 @@ static int pkey_ec_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
   return 1;
 }
 
-const EVP_PKEY_CTX_METHOD ec_pkey_meth = {
+const EVP_PKEY_CTX_METHOD bssl::ec_pkey_meth = {
     EVP_PKEY_EC,
     pkey_ec_init,
     pkey_ec_copy,

@@ -22,7 +22,7 @@
 #include <type_traits>
 
 
-extern "C" {
+BSSL_NAMESPACE_BEGIN
 
 // CBS_asn1_ber_to_der reads a BER element from |in|. If it finds
 // indefinite-length elements or constructed strings then it converts the BER
@@ -67,10 +67,6 @@ OPENSSL_EXPORT int CBS_get_asn1_implicit_string(CBS *in, CBS *out,
 //
 // This function may be used to help implement legacy i2d ASN.1 functions.
 int CBB_finish_i2d(CBB *cbb, uint8_t **outp);
-
-}  // extern C
-
-BSSL_NAMESPACE_BEGIN
 
 // D2IFromCBS takes a functor of type |Unique<T>(CBS*)| and implements the d2i
 // calling convention. For compatibility with functions that don't tag their

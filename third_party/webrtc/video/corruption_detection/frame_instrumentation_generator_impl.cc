@@ -14,24 +14,29 @@
 #include <cstdint>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <queue>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "api/environment/environment.h"
 #include "api/video/corruption_detection/corruption_detection_filter_settings.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/video_coding/utility/qp_parser.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/experiments/corruption_detection_frame_selector_settings.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "video/corruption_detection/frame_selector.h"
 #include "video/corruption_detection/generic_mapping_functions.h"
 #include "video/corruption_detection/halton_frame_sampler.h"
 #include "video/corruption_detection/utils.h"
@@ -74,11 +79,39 @@ std::optional<CorruptionDetectionFilterSettings> GetCorruptionFilterSettings(
   return filter_settings;
 }
 
+std::unique_ptr<FrameSelector> CreateFrameSelector(
+    const Environment* environment,
+    VideoCodecType video_codec_type,
+    std::optional<ScalabilityMode> scalability_mode) {
+  if (!environment) {
+    return nullptr;
+  }
+
+  CorruptionDetectionFrameSelectorSettings settings(
+      environment->field_trials());
+  if (!settings.is_enabled()) {
+    return nullptr;
+  }
+  return std::make_unique<FrameSelector>(
+      scalability_mode.value_or(ScalabilityMode::kL1T1),
+      FrameSelector::Timespan{
+          .lower_bound = settings.low_overhead_lower_bound(),
+          .upper_bound = settings.low_overhead_upper_bound()},
+      FrameSelector::Timespan{
+          .lower_bound = settings.high_overhead_lower_bound(),
+          .upper_bound = settings.high_overhead_upper_bound()});
+}
+
 }  // namespace
 
 FrameInstrumentationGeneratorImpl::FrameInstrumentationGeneratorImpl(
-    VideoCodecType video_codec_type)
-    : video_codec_type_(video_codec_type) {}
+    const Environment* environment,
+    VideoCodecType video_codec_type,
+    std::optional<ScalabilityMode> scalability_mode)
+    : video_codec_type_(video_codec_type),
+      frame_selector_(CreateFrameSelector(environment,
+                                          video_codec_type,
+                                          scalability_mode)) {}
 
 void FrameInstrumentationGeneratorImpl::OnCapturedFrame(VideoFrame frame) {
   MutexLock lock(&mutex_);
@@ -161,11 +194,21 @@ FrameInstrumentationGeneratorImpl::OnEncodedImage(
     RTC_CHECK(data.SetSequenceIndex(sequence_index));
 
     // TODO: bugs.webrtc.org/358039777 - Maybe allow other sample sizes as well
-    sample_coordinates =
-        contexts_[layer_id]
-            .frame_sampler.GetSampleCoordinatesForFrameIfFrameShouldBeSampled(
-                is_key_frame, captured_frame->rtp_timestamp(),
+    if (frame_selector_) {
+      if (frame_selector_->ShouldInstrumentFrame(*captured_frame,
+                                                 encoded_image)) {
+        sample_coordinates =
+            contexts_[layer_id].frame_sampler.GetSampleCoordinatesForFrame(
                 /*num_samples=*/13);
+      }
+    } else {
+      sample_coordinates =
+          contexts_[layer_id]
+              .frame_sampler.GetSampleCoordinatesForFrameIfFrameShouldBeSampled(
+                  is_key_frame, captured_frame->rtp_timestamp(),
+                  /*num_samples=*/13);
+    }
+
     if (sample_coordinates.empty()) {
       if (!is_key_frame) {
         return std::nullopt;

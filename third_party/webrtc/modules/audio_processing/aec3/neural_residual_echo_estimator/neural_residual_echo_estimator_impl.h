@@ -75,6 +75,7 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
       ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
       ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
       ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+      bool dominant_nearend,
       ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
       ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) override;
 
@@ -87,11 +88,14 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
 
   // Encapsulates all ML model invocation work.
   const std::unique_ptr<ModelRunner> model_runner_;
+
+  const bool use_unbounded_mask_;
   std::unique_ptr<FeatureExtractor> feature_extractor_;
 
   // Downsampled model output for what fraction of the power content in the
   // linear AEC output is echo for each bin.
   std::array<float, kFftLengthBy2Plus1> output_mask_;
+  std::array<float, kFftLengthBy2Plus1> output_mask_unbounded_;
 
   std::vector<ArrayView<const float, kBlockSize>> render_channels_;
   std::vector<ArrayView<const float, kBlockSize>> y_channels_;

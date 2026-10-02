@@ -47,13 +47,15 @@ constexpr unsigned int kEmulatedAlphaValue = 1;
 bool HasSrcBlitFeature(vk::Renderer *renderer, RenderTargetVk *srcRenderTarget)
 {
     angle::FormatID srcFormatID = srcRenderTarget->getImageActualFormatID();
-    return renderer->hasImageFormatFeatureBits(srcFormatID, VK_FORMAT_FEATURE_BLIT_SRC_BIT);
+    return renderer->hasImageFormatFeatureBits(srcFormatID, VK_FORMAT_FEATURE_BLIT_SRC_BIT) &&
+           srcRenderTarget->getImageForCopy().canTransferFrom();
 }
 
 bool HasDstBlitFeature(vk::Renderer *renderer, RenderTargetVk *dstRenderTarget)
 {
     angle::FormatID dstFormatID = dstRenderTarget->getImageActualFormatID();
-    return renderer->hasImageFormatFeatureBits(dstFormatID, VK_FORMAT_FEATURE_BLIT_DST_BIT);
+    return renderer->hasImageFormatFeatureBits(dstFormatID, VK_FORMAT_FEATURE_BLIT_DST_BIT) &&
+           dstRenderTarget->getImageForWrite().canTransferTo();
 }
 
 // Returns false if destination has any channel the source doesn't.  This means that channel was
@@ -1266,13 +1268,35 @@ angle::Result FramebufferVk::blit(const gl::Context *context,
         srcFramebufferVk->restageDeferredClearsForReadFramebuffer(contextVk);
     }
 
-    // We can sometimes end up in a blit with some clear commands saved. Ensure all clear commands
-    // are issued before we issue the blit command.
-    ANGLE_TRY(flushDeferredClears(contextVk));
-
     const bool blitColorBuffer   = (mask & GL_COLOR_BUFFER_BIT) != 0;
     const bool blitDepthBuffer   = (mask & GL_DEPTH_BUFFER_BIT) != 0;
     const bool blitStencilBuffer = (mask & GL_STENCIL_BUFFER_BIT) != 0;
+
+    if (blitDepthBuffer || blitStencilBuffer)
+    {
+        RenderTargetVk *readRenderTarget = srcFramebufferVk->getDepthStencilRenderTarget();
+        RenderTargetVk *drawRenderTarget = mRenderTargetCache.getDepthStencil();
+        vk::ImageHelper &readImage       = readRenderTarget->getImageForCopy();
+        vk::ImageHelper &drawImage       = drawRenderTarget->getImageForWrite();
+
+        if (!readImage.canTransferFrom())
+        {
+            ASSERT(readImage.useTileMemory());
+            readImage.finalizeImageLayoutInShareContexts(renderer, contextVk, {});
+            ANGLE_TRY(readImage.fallbackFromTileMemory(contextVk));
+        }
+
+        if (!drawImage.canTransferTo())
+        {
+            ASSERT(drawImage.useTileMemory());
+            drawImage.finalizeImageLayoutInShareContexts(renderer, contextVk, {});
+            ANGLE_TRY(drawImage.fallbackFromTileMemory(contextVk));
+        }
+    }
+
+    // We can sometimes end up in a blit with some clear commands saved. Ensure all clear commands
+    // are issued before we issue the blit command.
+    ANGLE_TRY(flushDeferredClears(contextVk));
 
     // If a framebuffer contains a mixture of multisampled and multisampled-render-to-texture
     // attachments, this function could be simultaneously doing a blit on one attachment and resolve
@@ -1417,8 +1441,6 @@ angle::Result FramebufferVk::blit(const gl::Context *context,
     bool flipX                          = false;
     bool flipY                          = false;
     bool noClip                         = false;
-    bool noFlip                         = false;
-    bool disableFlippingBlitWithCommand = false;
 
     UtilsVk::BlitResolveParameters params;
     params.stretch[0] = static_cast<float>(stretch[0]);
@@ -1441,9 +1463,6 @@ angle::Result FramebufferVk::blit(const gl::Context *context,
                         dstFramebufferFlippedY, isResolve, &flipX, &flipY, isDefault, &params);
 
         noClip = blitArea == destColorArea && stretch[0] == 1.0f && stretch[1] == 1.0f;
-        noFlip = !flipX && !flipY;
-        disableFlippingBlitWithCommand =
-            renderer->getFeatures().disableFlippingBlitWithCommand.enabled;
 
         // Multisampled images are not allowed to have mips.
         ASSERT(!isColorResolve || readRenderTarget->getLevelIndex() == gl::LevelIndex(0));
@@ -1458,9 +1477,9 @@ angle::Result FramebufferVk::blit(const gl::Context *context,
         // https://gitlab.khronos.org/vulkan/vulkan/-/issues/3490)
         //
         // For simplicity, we either blit all render targets with a Vulkan command, or none.
-        bool canBlitWithCommand =
-            !isColorResolve && noClip && (noFlip || !disableFlippingBlitWithCommand) &&
-            HasSrcBlitFeature(renderer, readRenderTarget) && rotation == SurfaceRotation::Identity;
+        bool canBlitWithCommand = !isColorResolve && noClip &&
+                                  HasSrcBlitFeature(renderer, readRenderTarget) &&
+                                  rotation == SurfaceRotation::Identity;
 
         // If we need to reinterpret the colorspace of the read RenderTarget then the blit must be
         // done through a shader
@@ -1594,17 +1613,14 @@ angle::Result FramebufferVk::blit(const gl::Context *context,
                         &flipY, isDefault, &params);
 
         noClip = blitArea == destArea && stretch[0] == 1.0f && stretch[1] == 1.0f;
-        noFlip = !flipX && !flipY;
-        disableFlippingBlitWithCommand =
-            renderer->getFeatures().disableFlippingBlitWithCommand.enabled;
+        const bool noFlip = !flipX && !flipY;
 
         // Multisampled images are not allowed to have mips.
         ASSERT(!isDepthStencilResolve || readRenderTarget->getLevelIndex() == gl::LevelIndex(0));
 
         // Similarly, only blit if there's been no clipping or rotating.
         bool canBlitWithCommand =
-            !isDepthStencilResolve && noClip && (noFlip || !disableFlippingBlitWithCommand) &&
-            HasSrcBlitFeature(renderer, readRenderTarget) &&
+            !isDepthStencilResolve && noClip && HasSrcBlitFeature(renderer, readRenderTarget) &&
             HasDstBlitFeature(renderer, drawRenderTarget) && rotation == SurfaceRotation::Identity;
         bool areChannelsBlitCompatible =
             AreSrcAndDstDepthStencilChannelsBlitCompatible(readRenderTarget, drawRenderTarget);
@@ -1832,7 +1848,8 @@ angle::Result FramebufferVk::ensureFragmentShadingRateImageAndViewInitialized(
             contextVk, gl::TextureType::_2D,
             VkExtent3D{fragmentShadingRateAttachmentWidth, fragmentShadingRateAttachmentHeight, 1},
             renderer->getFormat(angle::FormatID::R8_UINT), 1, imageUsageFlags, gl::LevelIndex(0), 1,
-            1, false, contextVk->getProtectionType() == vk::ProtectionType::Protected));
+            1, false, contextVk->getProtectionType() == vk::ProtectionType::Protected,
+            vk::TileMemory::Prohibited));
 
         ANGLE_TRY(contextVk->initImageAllocation(&mFragmentShadingRateImage, false,
                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,

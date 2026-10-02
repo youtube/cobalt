@@ -40,6 +40,7 @@ class ScreamV2 {
   void SetTargetBitrateConstraints(DataRate min, DataRate max);
   void SetFirstTargetRate(DataRate target_rate) { target_rate_ = target_rate; }
 
+  void OnPacketSent(DataSize data_in_flight);
   void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
 
   DataRate target_rate() const {
@@ -68,9 +69,13 @@ class ScreamV2 {
     return delay_based_congestion_control_;
   }
 
+  // Average time feedback is delayed in the receiver.
+  TimeDelta feedback_hold_time() const { return feedback_hold_time_; }
+
  private:
   void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
   void UpdateRefWindow(const TransportPacketsFeedback& msg);
+  void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
   void UpdateTargetRate(const TransportPacketsFeedback& msg);
 
   // Ratio between `max_segment_size` and `ref_window_`.
@@ -120,6 +125,8 @@ class ScreamV2 {
   // Round-Trip Time.
   double l4s_alpha_ = 0.0;
   Timestamp last_ce_mark_detected_time_ = Timestamp::MinusInfinity();
+
+  TimeDelta feedback_hold_time_ = TimeDelta::Zero();
 
   // Per-RTT stats
   Timestamp last_data_in_flight_update_ = Timestamp::MinusInfinity();

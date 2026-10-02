@@ -33,7 +33,7 @@ enum StereoMonoMode { kNotSet, kMono, kStereo };
 class TestPackStereo : public AudioPacketizationCallback {
  public:
   TestPackStereo();
-  ~TestPackStereo();
+  ~TestPackStereo() override;
 
   void RegisterReceiverNetEq(NetEq* neteq);
 

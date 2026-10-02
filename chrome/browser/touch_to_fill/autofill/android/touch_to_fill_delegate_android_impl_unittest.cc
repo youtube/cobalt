@@ -58,6 +58,7 @@ using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::Ref;
 using ::testing::Return;
+using ::testing::UnorderedElementsAre;
 
 Matcher<Suggestion> EqualsSuggestionFields(const std::u16string& main_text,
                                            const std::u16string& minor_text,
@@ -94,7 +95,12 @@ class MockPaymentsAutofillClient : public payments::TestPaymentsAutofillClient {
                base::span<const Iban> ibans_to_suggest),
               (override));
   MOCK_METHOD(bool,
-              ShowTouchToFillLoyaltyCard,
+              ShowTouchToFillAffiliatedLoyaltyCard,
+              (base::WeakPtr<autofill::TouchToFillDelegate> delegate,
+               std::vector<LoyaltyCard> loyalty_cards_to_suggest),
+              (override));
+  MOCK_METHOD(bool,
+              ShowTouchToFillForAllLoyaltyCards,
               (base::WeakPtr<autofill::TouchToFillDelegate> delegate,
                std::vector<LoyaltyCard> loyalty_cards_to_suggest),
               (override));
@@ -124,8 +130,22 @@ class MockPaymentsAutofillClient : public payments::TestPaymentsAutofillClient {
     });
   }
 
-  void ExpectDelegateWeakPtrFromShowInvalidatedOnHideForLoyaltyCards() {
-    EXPECT_CALL(*this, ShowTouchToFillLoyaltyCard)
+  void
+  ExpectDelegateWeakPtrFromShowInvalidatedOnHideForAffiliatedLoyaltyCards() {
+    EXPECT_CALL(*this, ShowTouchToFillAffiliatedLoyaltyCard)
+        .WillOnce(
+            [this](base::WeakPtr<autofill::TouchToFillDelegate> delegate,
+                   base::span<const LoyaltyCard> loyalty_cards_to_suggest) {
+              captured_delegate_ = delegate;
+              return true;
+            });
+    EXPECT_CALL(*this, HideTouchToFillPaymentMethod).WillOnce([this] {
+      EXPECT_FALSE(captured_delegate_);
+    });
+  }
+
+  void ExpectDelegateWeakPtrFromShowInvalidatedOnHideForAllLoyaltyCards() {
+    EXPECT_CALL(*this, ShowTouchToFillForAllLoyaltyCards)
         .WillOnce(
             [this](base::WeakPtr<autofill::TouchToFillDelegate> delegate,
                    base::span<const LoyaltyCard> loyalty_cards_to_suggest) {
@@ -241,7 +261,9 @@ class TouchToFillDelegateAndroidImplUnitTest
         .WillByDefault(Return(true));
     ON_CALL(payments_autofill_client(), ShowTouchToFillIban)
         .WillByDefault(Return(true));
-    ON_CALL(payments_autofill_client(), ShowTouchToFillLoyaltyCard)
+    ON_CALL(payments_autofill_client(), ShowTouchToFillAffiliatedLoyaltyCard)
+        .WillByDefault(Return(true));
+    ON_CALL(payments_autofill_client(), ShowTouchToFillForAllLoyaltyCards)
         .WillByDefault(Return(true));
     // Calling HideTouchToFillPaymentMethod in production code leads to that
     // OnDismissed gets triggered (HideTouchToFillPaymentMethod calls
@@ -320,6 +342,20 @@ class TouchToFillDelegateAndroidImplUnitTest
     OnFormsSeen();
     EXPECT_EQ(expected_success, touch_to_fill_delegate_->TryToShowTouchToFill(
                                     form_, form_.fields()[0]));
+    EXPECT_EQ(expected_success,
+              touch_to_fill_delegate_->IsShowingTouchToFill());
+  }
+
+  void TryShowTouchToFillForAllLoyaltyCards(bool expected_success) {
+    EXPECT_CALL(autofill_client(),
+                HideAutofillSuggestions(
+                    SuggestionHidingReason::kOverlappingWithTouchToFillSurface))
+        .Times(expected_success ? 1 : 0);
+
+    OnFormsSeen();
+    EXPECT_EQ(expected_success,
+              touch_to_fill_delegate_->ShowTouchToFillForAllLoyaltyCards(
+                  form_, form_.fields()[0]));
     EXPECT_EQ(expected_success,
               touch_to_fill_delegate_->IsShowingTouchToFill());
   }
@@ -1407,7 +1443,7 @@ class TouchToFillDelegateAndroidImplLoyaltyCardUnitTest
 TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
        TryToShowTouchToFillFailsIfShowLoyaltyCardsFails) {
   ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
-  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillLoyaltyCard)
+  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillAffiliatedLoyaltyCard)
       .WillOnce(Return(false));
 
   TryToShowTouchToFill(/*expected_success=*/false);
@@ -1425,8 +1461,8 @@ TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
       .SetLoyaltyCards(loyalty_cards);
 
   // Cards must be sorted by merchant name.
-  EXPECT_CALL(payments_autofill_client(),
-              ShowTouchToFillLoyaltyCard(_, ElementsAre(card1, card2)));
+  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillAffiliatedLoyaltyCard(
+                                              _, ElementsAre(card1, card2)));
 
   TryToShowTouchToFill(/*expected_success=*/true);
 }
@@ -1439,7 +1475,8 @@ TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
   test_api(*autofill_client().GetValuablesDataManager())
       .SetLoyaltyCards(loyalty_cards);
 
-  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillLoyaltyCard).Times(0);
+  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillAffiliatedLoyaltyCard)
+      .Times(0);
 
   TryToShowTouchToFill(/*expected_success=*/false);
 }
@@ -1447,7 +1484,7 @@ TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
 TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
        SafelyHideTouchToFillInDtor) {
   payments_autofill_client()
-      .ExpectDelegateWeakPtrFromShowInvalidatedOnHideForLoyaltyCards();
+      .ExpectDelegateWeakPtrFromShowInvalidatedOnHideForAffiliatedLoyaltyCards();
   TryToShowTouchToFill(/*expected_success=*/true);
 
   autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
@@ -1457,6 +1494,57 @@ TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
        LoyaltyCardSelectionFillsFormAndHidesSheet) {
   const LoyaltyCard kLoyaltyCard = test::CreateLoyaltyCard();
   TryToShowTouchToFill(/*expected_success=*/true);
+
+  EXPECT_CALL(payments_autofill_client(), HideTouchToFillPaymentMethod);
+  EXPECT_CALL(
+      autofill_manager(),
+      FillOrPreviewField(
+          mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
+          _, _, base::UTF8ToUTF16(kLoyaltyCard.loyalty_card_number()),
+          SuggestionType::kLoyaltyCardEntry, Optional(LOYALTY_MEMBERSHIP_ID)));
+  EXPECT_CALL(autofill_manager(),
+              LogAndRecordLoyaltyCardFill(kLoyaltyCard, _, _));
+  touch_to_fill_delegate_->LoyaltyCardSuggestionSelected(kLoyaltyCard);
+}
+
+TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
+       ShowTouchToFillForAllLoyaltyCards_FailsIfShowLoyaltyCardsFails) {
+  ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
+  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillForAllLoyaltyCards)
+      .WillOnce(Return(false));
+
+  TryShowTouchToFillForAllLoyaltyCards(/*expected_success=*/false);
+}
+
+TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
+       ShowTouchToFillForAllLoyaltyCards_PassTheLoyaltyCardsToTheClient) {
+  LoyaltyCard card1 = test::CreateLoyaltyCard();
+  LoyaltyCard card2 = test::CreateLoyaltyCard2();
+  std::vector<LoyaltyCard> loyalty_cards{card1, card2};
+  test_api(*autofill_client().GetValuablesDataManager())
+      .SetLoyaltyCards(loyalty_cards);
+
+  EXPECT_CALL(
+      payments_autofill_client(),
+      ShowTouchToFillForAllLoyaltyCards(_, UnorderedElementsAre(card1, card2)));
+
+  TryShowTouchToFillForAllLoyaltyCards(/*expected_success=*/true);
+}
+
+TEST_F(TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
+       ShowTouchToFillForAllLoyaltyCards_SafelyHideTouchToFillInDtor) {
+  payments_autofill_client()
+      .ExpectDelegateWeakPtrFromShowInvalidatedOnHideForAllLoyaltyCards();
+  TryShowTouchToFillForAllLoyaltyCards(/*expected_success=*/true);
+
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
+}
+
+TEST_F(
+    TouchToFillDelegateAndroidImplLoyaltyCardUnitTest,
+    ShowTouchToFillForAllLoyaltyCards_LoyaltyCardSelectionFillsFormAndHidesSheet) {
+  const LoyaltyCard kLoyaltyCard = test::CreateLoyaltyCard();
+  TryShowTouchToFillForAllLoyaltyCards(/*expected_success=*/true);
 
   EXPECT_CALL(payments_autofill_client(), HideTouchToFillPaymentMethod);
   EXPECT_CALL(
@@ -1506,8 +1594,8 @@ TEST_F(TouchToFillDelegateAndroidImplEmailOrLoyaltyCardUnitTest,
       .SetLoyaltyCards(loyalty_cards);
 
   // Cards must be sorted by merchant name.
-  EXPECT_CALL(payments_autofill_client(),
-              ShowTouchToFillLoyaltyCard(_, ElementsAre(card1, card2)));
+  EXPECT_CALL(payments_autofill_client(), ShowTouchToFillAffiliatedLoyaltyCard(
+                                              _, ElementsAre(card1, card2)));
 
   TryToShowTouchToFill(/*expected_success=*/true);
 }
@@ -1561,6 +1649,31 @@ TEST_F(TouchToFillDelegateAndroidImplVcnGrayOutForMerchantOptOutUnitTest,
                      /*has_deactivated_style=*/false))));
 
   TryToShowTouchToFill(/*expected_success=*/true);
+}
+
+TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
+       ShouldShowGPayLogo_LocalCardOnly) {
+  ASSERT_FALSE(touch_to_fill_delegate_->ShouldShowGPayLogo());
+
+  autofill_client()
+      .GetPersonalDataManager()
+      .payments_data_manager()
+      .AddCreditCard(test::GetCreditCard());
+
+  EXPECT_FALSE(touch_to_fill_delegate_->ShouldShowGPayLogo());
+}
+
+TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
+       ShouldShowGPayLogo_WithServerCard) {
+  ASSERT_FALSE(touch_to_fill_delegate_->ShouldShowGPayLogo());
+
+  autofill_client()
+      .GetPersonalDataManager()
+      .payments_data_manager()
+      .AddServerCreditCardForTest(
+          std::make_unique<CreditCard>(test::GetMaskedServerCard()));
+
+  EXPECT_TRUE(touch_to_fill_delegate_->ShouldShowGPayLogo());
 }
 
 }  // namespace

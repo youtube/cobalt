@@ -106,11 +106,13 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
   if (!reader.ReadVarInt62(&num_params)) {
     return false;
   }
+  uint64_t type = 0;
   for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    if (!reader.ReadVarInt62(&type)) {
+    uint64_t type_diff;
+    if (!reader.ReadVarInt62(&type_diff)) {
       return false;
     }
+    type += type_diff;
     if (type % 2 == 1) {
       absl::string_view bytes;
       if (!reader.ReadStringPieceVarInt62(&bytes)) {
@@ -323,17 +325,6 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
   MoqtClientSetup setup;
   setup.parameters.using_webtrans = uses_web_transport_;
   setup.parameters.perspective = quic::Perspective::IS_CLIENT;
-  uint64_t number_of_supported_versions;
-  if (!reader.ReadVarInt62(&number_of_supported_versions)) {
-    return 0;
-  }
-  uint64_t version;
-  for (uint64_t i = 0; i < number_of_supported_versions; ++i) {
-    if (!reader.ReadVarInt62(&version)) {
-      return 0;
-    }
-    setup.supported_versions.push_back(static_cast<MoqtVersion>(version));
-  }
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
@@ -356,11 +347,6 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   MoqtServerSetup setup;
   setup.parameters.using_webtrans = uses_web_transport_;
   setup.parameters.perspective = quic::Perspective::IS_SERVER;
-  uint64_t version;
-  if (!reader.ReadVarInt62(&version)) {
-    return 0;
-  }
-  setup.selected_version = static_cast<MoqtVersion>(version);
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
@@ -1104,7 +1090,6 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
 
 bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
     const KeyValuePairList& parameters, MoqtSessionParameters& out) {
-  out.moqt_implementation = "";
   return parameters.ForEach(
       [&](uint64_t key, uint64_t value) {
         SetupParameter parameter = static_cast<SetupParameter>(key);

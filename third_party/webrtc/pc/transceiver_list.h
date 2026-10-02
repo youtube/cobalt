@@ -99,6 +99,19 @@ class TransceiverList {
     return transceivers_;
   }
 
+  // As above, but does not check thread ownership. Unsafe.
+  // TODO(bugs.webrtc.org/12692): Refactor and remove
+  std::vector<RtpTransceiverProxyRefPtr> UnsafeList() const
+      RTC_NO_THREAD_SAFETY_ANALYSIS {
+    return transceivers_;
+  }
+
+  // Returns a const reference to the list without generating a copy.
+  const std::vector<RtpTransceiverProxyRefPtr>& ListRef() const {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+    return transceivers_;
+  }
+
   // Returns a list of the internal() pointers of the currently active list
   // of transceivers. These raw pointers are not thread-safe, so need to
   // be consumed on the same thread.

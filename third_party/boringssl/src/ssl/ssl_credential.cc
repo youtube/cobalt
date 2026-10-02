@@ -26,7 +26,7 @@
 BSSL_NAMESPACE_BEGIN
 
 // new_leafless_chain returns a fresh stack of buffers set to {nullptr}.
-static UniquePtr<STACK_OF(CRYPTO_BUFFER)> new_leafless_chain(void) {
+static UniquePtr<STACK_OF(CRYPTO_BUFFER)> new_leafless_chain() {
   UniquePtr<STACK_OF(CRYPTO_BUFFER)> chain(sk_CRYPTO_BUFFER_new_null());
   if (!chain || !sk_CRYPTO_BUFFER_push(chain.get(), nullptr)) {
     return nullptr;
@@ -327,11 +327,11 @@ bool ssl_credential_st::AppendIntermediateCert(UniquePtr<CRYPTO_BUFFER> cert) {
   return PushToStack(chain.get(), std::move(cert));
 }
 
-SSL_CREDENTIAL *SSL_CREDENTIAL_new_x509(void) {
+SSL_CREDENTIAL *SSL_CREDENTIAL_new_x509() {
   return New<SSL_CREDENTIAL>(SSLCredentialType::kX509);
 }
 
-SSL_CREDENTIAL *SSL_CREDENTIAL_new_delegated(void) {
+SSL_CREDENTIAL *SSL_CREDENTIAL_new_delegated() {
   return New<SSL_CREDENTIAL>(SSLCredentialType::kDelegated);
 }
 

@@ -136,7 +136,7 @@ class SrtpTransportTest : public ::testing::Test {
   void TestSendRecvRtpPacket(int crypto_suite) {
     size_t rtp_len = sizeof(kPcmuFrame);
     size_t packet_size = rtp_len + rtp_auth_tag_len(crypto_suite);
-    Buffer rtp_packet_buffer(packet_size);
+    Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
     char* rtp_packet_data = rtp_packet_buffer.data<char>();
     memcpy(rtp_packet_data, kPcmuFrame, rtp_len);
     // In order to be able to run this test function multiple times we can not
@@ -187,7 +187,8 @@ class SrtpTransportTest : public ::testing::Test {
   void TestSendRecvRtcpPacket(int crypto_suite) {
     size_t rtcp_len = sizeof(::kRtcpReport);
     size_t packet_size = rtcp_len + 4 + rtcp_auth_tag_len(crypto_suite);
-    Buffer rtcp_packet_buffer(packet_size);
+    Buffer rtcp_packet_buffer =
+        Buffer::CreateUninitializedWithSize(packet_size);
     char* rtcp_packet_data = rtcp_packet_buffer.data<char>();
     memcpy(rtcp_packet_data, ::kRtcpReport, rtcp_len);
 
@@ -257,7 +258,7 @@ class SrtpTransportTest : public ::testing::Test {
       const std::vector<int>& encrypted_header_ids) {
     size_t rtp_len = sizeof(kPcmuFrameWithExtensions);
     size_t packet_size = rtp_len + rtp_auth_tag_len(crypto_suite);
-    Buffer rtp_packet_buffer(packet_size);
+    Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
     char* rtp_packet_data = rtp_packet_buffer.data<char>();
     memcpy(rtp_packet_data, kPcmuFrameWithExtensions, rtp_len);
     // In order to be able to run this test function multiple times we can not
@@ -450,7 +451,7 @@ TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
   // Create a packet and try to send it three times.
   size_t rtp_len = sizeof(kPcmuFrame);
   size_t packet_size = rtp_len + rtp_auth_tag_len(kSrtpAeadAes128Gcm);
-  Buffer rtp_packet_buffer(packet_size);
+  Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
   char* rtp_packet_data = rtp_packet_buffer.data<char>();
   memcpy(rtp_packet_data, kPcmuFrame, rtp_len);
 

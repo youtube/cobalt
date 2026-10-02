@@ -1071,7 +1071,6 @@ if (rtc_include_tests) {
         "../test:create_test_field_trials",
         "../test:fake_video_codecs",
         "../test:rtp_test_utils",
-        "../test:test_main",
         "../test:test_support",
         "../test:video_test_common",
         "../test/time_controller",
@@ -1079,6 +1078,7 @@ if (rtc_include_tests) {
         "../video/config:streams_config",
         "//third_party/abseil-cpp/absl/algorithm:container",
         "//third_party/abseil-cpp/absl/container:inlined_vector",
+        "//third_party/abseil-cpp/absl/functional:any_invocable",
         "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]

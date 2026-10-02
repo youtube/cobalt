@@ -29,6 +29,8 @@
 #include "thash.h"
 
 
+using namespace bssl;
+
 namespace {
 
 namespace fips {
@@ -265,7 +267,7 @@ static int verify_self_test() {
 
 DEFINE_STATIC_ONCE(g_slhdsa_keygen_self_test_once)
 
-void ensure_keygen_self_test(void) {
+void ensure_keygen_self_test() {
   CRYPTO_once(g_slhdsa_keygen_self_test_once_bss_get(), []() {
     if (!keygen_self_test()) {
       BORINGSSL_FIPS_abort();
@@ -275,7 +277,7 @@ void ensure_keygen_self_test(void) {
 
 DEFINE_STATIC_ONCE(g_slhdsa_sign_self_test_once)
 
-void ensure_sign_self_test(void) {
+void ensure_sign_self_test() {
   CRYPTO_once(g_slhdsa_sign_self_test_once_bss_get(), []() {
     if (!sign_self_test()) {
       BORINGSSL_FIPS_abort();
@@ -285,7 +287,7 @@ void ensure_sign_self_test(void) {
 
 DEFINE_STATIC_ONCE(g_slhdsa_verify_self_test_once)
 
-void ensure_verify_self_test(void) {
+void ensure_verify_self_test() {
   CRYPTO_once(g_slhdsa_verify_self_test_once_bss_get(), []() {
     if (!verify_self_test()) {
       BORINGSSL_FIPS_abort();
@@ -295,9 +297,9 @@ void ensure_verify_self_test(void) {
 
 #else
 
-void ensure_keygen_self_test(void) {}
-void ensure_sign_self_test(void) {}
-void ensure_verify_self_test(void) {}
+void ensure_keygen_self_test() {}
+void ensure_sign_self_test() {}
+void ensure_verify_self_test() {}
 
 #endif
 
@@ -305,7 +307,7 @@ void ensure_verify_self_test(void) {}
 
 }  // namespace
 
-bcm_infallible BCM_slhdsa_sha2_128s_generate_key_from_seed(
+bcm_infallible bssl::BCM_slhdsa_sha2_128s_generate_key_from_seed(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     uint8_t out_secret_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
     const uint8_t seed[3 * BCM_SLHDSA_SHA2_128S_N]) {
@@ -314,7 +316,7 @@ bcm_infallible BCM_slhdsa_sha2_128s_generate_key_from_seed(
       &kSLHDSAConfigSHA2_128s, out_public_key, out_secret_key, seed);
 }
 
-bcm_infallible BCM_slhdsa_shake_256f_generate_key_from_seed(
+bcm_infallible bssl::BCM_slhdsa_shake_256f_generate_key_from_seed(
     uint8_t out_public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     uint8_t out_secret_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t seed[3 * BCM_SLHDSA_SHAKE_256F_N]) {
@@ -323,7 +325,7 @@ bcm_infallible BCM_slhdsa_shake_256f_generate_key_from_seed(
       &kSLHDSAConfigSHAKE_256f, out_public_key, out_secret_key, seed);
 }
 
-bcm_status BCM_slhdsa_sha2_128s_generate_key_from_seed_fips(
+bcm_status bssl::BCM_slhdsa_sha2_128s_generate_key_from_seed_fips(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     uint8_t out_secret_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
     const uint8_t seed[3 * BCM_SLHDSA_SHA2_128S_N]) {
@@ -335,7 +337,7 @@ bcm_status BCM_slhdsa_sha2_128s_generate_key_from_seed_fips(
   return bcm_status::approved;
 }
 
-bcm_status BCM_slhdsa_shake_256f_generate_key_from_seed_fips(
+bcm_status bssl::BCM_slhdsa_shake_256f_generate_key_from_seed_fips(
     uint8_t out_public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     uint8_t out_secret_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t seed[3 * BCM_SLHDSA_SHAKE_256F_N]) {
@@ -347,7 +349,7 @@ bcm_status BCM_slhdsa_shake_256f_generate_key_from_seed_fips(
   return bcm_status::approved;
 }
 
-bcm_infallible BCM_slhdsa_sha2_128s_generate_key(
+bcm_infallible bssl::BCM_slhdsa_sha2_128s_generate_key(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     uint8_t out_private_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES]) {
   uint8_t seed[3 * BCM_SLHDSA_SHA2_128S_N];
@@ -356,7 +358,7 @@ bcm_infallible BCM_slhdsa_sha2_128s_generate_key(
                                                      out_private_key, seed);
 }
 
-bcm_infallible BCM_slhdsa_shake_256f_generate_key(
+bcm_infallible bssl::BCM_slhdsa_shake_256f_generate_key(
     uint8_t out_public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     uint8_t out_private_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES]) {
   uint8_t seed[3 * BCM_SLHDSA_SHAKE_256F_N];
@@ -365,7 +367,7 @@ bcm_infallible BCM_slhdsa_shake_256f_generate_key(
                                                       out_private_key, seed);
 }
 
-bcm_status BCM_slhdsa_sha2_128s_generate_key_fips(
+bcm_status bssl::BCM_slhdsa_sha2_128s_generate_key_fips(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     uint8_t out_private_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES]) {
   if (out_public_key == nullptr || out_private_key == nullptr) {
@@ -375,7 +377,7 @@ bcm_status BCM_slhdsa_sha2_128s_generate_key_fips(
   return bcm_status::approved;
 }
 
-bcm_status BCM_slhdsa_shake_256f_generate_key_fips(
+bcm_status bssl::BCM_slhdsa_shake_256f_generate_key_fips(
     uint8_t out_public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     uint8_t out_private_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES]) {
   if (out_public_key == nullptr || out_private_key == nullptr) {
@@ -385,7 +387,7 @@ bcm_status BCM_slhdsa_shake_256f_generate_key_fips(
   return bcm_status::approved;
 }
 
-bcm_infallible BCM_slhdsa_sha2_128s_public_from_private(
+bcm_infallible bssl::BCM_slhdsa_sha2_128s_public_from_private(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES]) {
   OPENSSL_memcpy(out_public_key, private_key + 2 * BCM_SLHDSA_SHA2_128S_N,
@@ -393,7 +395,7 @@ bcm_infallible BCM_slhdsa_sha2_128s_public_from_private(
   return bcm_infallible::approved;
 }
 
-bcm_infallible BCM_slhdsa_shake_256f_public_from_private(
+bcm_infallible bssl::BCM_slhdsa_shake_256f_public_from_private(
     uint8_t out_public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES]) {
   OPENSSL_memcpy(out_public_key, private_key + 2 * BCM_SLHDSA_SHAKE_256F_N,
@@ -401,7 +403,7 @@ bcm_infallible BCM_slhdsa_shake_256f_public_from_private(
   return bcm_infallible::approved;
 }
 
-bcm_status BCM_slhdsa_sha2_128s_sign(
+bcm_status bssl::BCM_slhdsa_sha2_128s_sign(
     uint8_t out_signature[BCM_SLHDSA_SHA2_128S_SIGNATURE_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
     const uint8_t *msg, size_t msg_len, const uint8_t *context,
@@ -423,7 +425,7 @@ bcm_status BCM_slhdsa_sha2_128s_sign(
   return bcm_status::approved;
 }
 
-bcm_status BCM_slhdsa_shake_256f_sign(
+bcm_status bssl::BCM_slhdsa_shake_256f_sign(
     uint8_t out_signature[BCM_SLHDSA_SHAKE_256F_SIGNATURE_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t *msg, size_t msg_len, const uint8_t *context,
@@ -491,7 +493,7 @@ static int slhdsa_get_context_and_oid(uint8_t *out_context_and_oid,
   return 1;
 }
 
-bcm_infallible BCM_slhdsa_sha2_128s_sign_internal(
+bcm_infallible bssl::BCM_slhdsa_sha2_128s_sign_internal(
     uint8_t out_signature[BCM_SLHDSA_SHA2_128S_SIGNATURE_BYTES],
     const uint8_t secret_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
     const uint8_t header[BCM_SLHDSA_M_PRIME_HEADER_LEN], const uint8_t *context,
@@ -503,7 +505,7 @@ bcm_infallible BCM_slhdsa_sha2_128s_sign_internal(
                                     msg, msg_len, entropy);
 }
 
-bcm_infallible BCM_slhdsa_shake_256f_sign_internal(
+bcm_infallible bssl::BCM_slhdsa_shake_256f_sign_internal(
     uint8_t out_signature[BCM_SLHDSA_SHAKE_256F_SIGNATURE_BYTES],
     const uint8_t secret_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t header[BCM_SLHDSA_M_PRIME_HEADER_LEN], const uint8_t *context,
@@ -515,7 +517,7 @@ bcm_infallible BCM_slhdsa_shake_256f_sign_internal(
                                     msg, msg_len, entropy);
 }
 
-bcm_status BCM_slhdsa_sha2_128s_prehash_sign(
+bcm_status bssl::BCM_slhdsa_sha2_128s_prehash_sign(
     uint8_t out_signature[BCM_SLHDSA_SHA2_128S_SIGNATURE_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
     const uint8_t *hashed_msg, size_t hashed_msg_len, int hash_nid,
@@ -544,7 +546,7 @@ bcm_status BCM_slhdsa_sha2_128s_prehash_sign(
   return bcm_status::approved;
 }
 
-bcm_status BCM_slhdsa_shake_256f_prehash_sign(
+bcm_status bssl::BCM_slhdsa_shake_256f_prehash_sign(
     uint8_t out_signature[BCM_SLHDSA_SHAKE_256F_SIGNATURE_BYTES],
     const uint8_t private_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t *hashed_msg, size_t hashed_msg_len, int hash_nid,
@@ -574,7 +576,7 @@ bcm_status BCM_slhdsa_shake_256f_prehash_sign(
 }
 
 // Implements Algorithm 24: slh_verify function (Section 10.3, page 41)
-bcm_status BCM_slhdsa_sha2_128s_verify(
+bcm_status bssl::BCM_slhdsa_sha2_128s_verify(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     const uint8_t *msg, size_t msg_len, const uint8_t *context,
@@ -593,7 +595,7 @@ bcm_status BCM_slhdsa_sha2_128s_verify(
       context_len, msg, msg_len);
 }
 
-bcm_status BCM_slhdsa_shake_256f_verify(
+bcm_status bssl::BCM_slhdsa_shake_256f_verify(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     const uint8_t *msg, size_t msg_len, const uint8_t *context,
@@ -611,7 +613,7 @@ bcm_status BCM_slhdsa_shake_256f_verify(
       context_len, msg, msg_len);
 }
 
-bcm_status BCM_slhdsa_sha2_128s_prehash_verify(
+bcm_status bssl::BCM_slhdsa_sha2_128s_prehash_verify(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     const uint8_t *hashed_msg, size_t hashed_msg_len, int hash_nid,
@@ -637,7 +639,7 @@ bcm_status BCM_slhdsa_sha2_128s_prehash_verify(
       context_and_oid_len, hashed_msg, hashed_msg_len);
 }
 
-bcm_status BCM_slhdsa_shake_256f_prehash_verify(
+bcm_status bssl::BCM_slhdsa_shake_256f_prehash_verify(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     const uint8_t *hashed_msg, size_t hashed_msg_len, int hash_nid,
@@ -663,7 +665,7 @@ bcm_status BCM_slhdsa_shake_256f_prehash_verify(
       context_and_oid_len, hashed_msg, hashed_msg_len);
 }
 
-bcm_status BCM_slhdsa_sha2_128s_verify_internal(
+bcm_status bssl::BCM_slhdsa_sha2_128s_verify_internal(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     const uint8_t header[BCM_SLHDSA_M_PRIME_HEADER_LEN], const uint8_t *context,
@@ -674,7 +676,7 @@ bcm_status BCM_slhdsa_sha2_128s_verify_internal(
                          msg_len);
 }
 
-bcm_status BCM_slhdsa_shake_256f_verify_internal(
+bcm_status bssl::BCM_slhdsa_shake_256f_verify_internal(
     const uint8_t *signature, size_t signature_len,
     const uint8_t public_key[BCM_SLHDSA_SHAKE_256F_PUBLIC_KEY_BYTES],
     const uint8_t header[BCM_SLHDSA_M_PRIME_HEADER_LEN], const uint8_t *context,

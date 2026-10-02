@@ -74,9 +74,8 @@
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 #include <openssl/tls1.h>
+#include <openssl/tls_prf.h>
 #include <openssl/trust_token.h>
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/x509v3.h>
-
-#include "rust_wrapper.h"

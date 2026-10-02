@@ -227,6 +227,22 @@ class MediaSendChannelInterface {
       const RtpParameters& parameters,
       SetParametersCallback callback = nullptr) = 0;
 
+  // Sets a callback that will be invoked whenever the RTP parameters are
+  // changed. The callback is invoked on the worker thread.
+  //
+  // This callback is intended to inform the RtpSender that parameters of
+  // its associated media channel have changed including due to functions
+  // invoked on the channel object outside of the RtpSender. Once the Channel
+  // object has been merged with the RtpTransceiver, and MediaSendChannel is
+  // consistently accessed through the RtpSender, we should be able to remove
+  // this callback.
+  //
+  // Note for implementations: It's important that the callback is not invoked
+  // if the parameters haven't actually changed.
+  virtual void SetOnRtpSendParametersChanged(
+      absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
+          callback) = 0;
+
   virtual void SetEncoderToPacketizerFrameTransformer(
       uint32_t ssrc,
       scoped_refptr<FrameTransformerInterface> frame_transformer) = 0;
@@ -344,7 +360,7 @@ struct MediaSenderInfo {
     return retval;
   }
   // Returns true if the media has been connected.
-  bool connected() const { return local_stats.size() > 0; }
+  bool connected() const { return !local_stats.empty(); }
   // Utility accessor for clients that make the assumption only one ssrc
   // exists per media.
   // This will eventually go away.
@@ -410,7 +426,7 @@ struct MediaReceiverInfo {
     return retval;
   }
   // Returns true if the media has been connected.
-  bool connected() const { return local_stats.size() > 0; }
+  bool connected() const { return !local_stats.empty(); }
   // Utility accessor for clients that make the assumption only one ssrc
   // exists per media.
   // This will eventually go away.
@@ -909,6 +925,7 @@ class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
   virtual bool GetStats(VoiceMediaSendInfo* stats) = 0;
   virtual bool SenderNackEnabled() const = 0;
   virtual bool SenderNonSenderRttEnabled() const = 0;
+  virtual bool SetOptions(const AudioOptions& options) = 0;
 };
 
 class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
@@ -935,6 +952,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual void SetRtcpMode(enum RtcpMode mode) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;
   virtual void SetReceiveNonSenderRttEnabled(bool enabled) = 0;
+  virtual bool SetOptions(const AudioOptions& options) = 0;
 };
 
 struct VideoSenderParameters : SenderParameters {
@@ -964,6 +982,7 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   virtual bool SetVideoSend(uint32_t ssrc,
                             const VideoOptions* options,
                             VideoSourceInterface<VideoFrame>* source) = 0;
+  virtual bool SetOptions(const VideoOptions& options) = 0;
   // Cause generation of a keyframe for `ssrc` on a sending channel.
   virtual void GenerateSendKeyFrame(uint32_t ssrc,
                                     const std::vector<std::string>& rids) = 0;

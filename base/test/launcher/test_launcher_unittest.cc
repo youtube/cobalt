@@ -82,32 +82,41 @@ class MockTestLauncher : public TestLauncher {
 
   void CreateAndStartThreadPool(size_t parallel_jobs) override {}
 
-  MOCK_METHOD4(LaunchChildGTestProcess,
-               void(scoped_refptr<TaskRunner> task_runner,
-                    const std::vector<std::string>& test_names,
-                    const FilePath& task_temp_dir,
-                    const FilePath& child_temp_dir));
+  MOCK_METHOD(void,
+              LaunchChildGTestProcess,
+              (scoped_refptr<TaskRunner> task_runner,
+               const std::vector<std::string>& test_names,
+               const FilePath& task_temp_dir,
+               const FilePath& child_temp_dir),
+              (override));
 };
 
 // Simple TestLauncherDelegate mock to test TestLauncher flow.
 class MockTestLauncherDelegate : public TestLauncherDelegate {
  public:
-  MOCK_METHOD1(GetTests, bool(std::vector<TestIdentifier>* output));
-  MOCK_METHOD2(WillRunTest,
-               bool(const std::string& test_case_name,
-                    const std::string& test_name));
-  MOCK_METHOD2(ProcessTestResults,
-               void(std::vector<TestResult>& test_names,
-                    TimeDelta elapsed_time));
-  MOCK_METHOD3(GetCommandLine,
-               CommandLine(const std::vector<std::string>& test_names,
-                           const FilePath& temp_dir_,
-                           FilePath* output_file_));
-  MOCK_METHOD1(IsPreTask, bool(const std::vector<std::string>& test_names));
-  MOCK_METHOD0(GetWrapper, std::string());
-  MOCK_METHOD0(GetLaunchOptions, int());
-  MOCK_METHOD0(GetTimeout, TimeDelta());
-  MOCK_METHOD0(GetBatchSize, size_t());
+  MOCK_METHOD(bool,
+              GetTests,
+              (std::vector<TestIdentifier> * output),
+              (override));
+  MOCK_METHOD(bool,
+              WillRunTest,
+              (const std::string& test_case_name,
+               const std::string& test_name));
+  MOCK_METHOD(void,
+              ProcessTestResults,
+              (std::vector<TestResult> & test_names, TimeDelta elapsed_time),
+              (override));
+  MOCK_METHOD(CommandLine,
+              GetCommandLine,
+              (const std::vector<std::string>& test_names,
+               const FilePath& temp_dir_,
+               FilePath* output_file_),
+              (override));
+  MOCK_METHOD(bool, IsPreTask, (const std::vector<std::string>& test_names));
+  MOCK_METHOD(std::string, GetWrapper, (), (override));
+  MOCK_METHOD(int, GetLaunchOptions, (), (override));
+  MOCK_METHOD(TimeDelta, GetTimeout, (), (override));
+  MOCK_METHOD(size_t, GetBatchSize, (), (override));
 };
 
 class MockResultWatcher : public ResultWatcher {
@@ -1311,13 +1320,13 @@ TEST(ProcessGTestOutputTest, FoundTestCaseNotEnforced) {
   EXPECT_FALSE(GetAppOutputAndError(command_line, &output));
   // Banner should appear in the output.
   const char kBanner[] = "Found exact positive filter not enforced:";
-  EXPECT_TRUE(Contains(output, kBanner));
+  EXPECT_TRUE(output.contains(kBanner));
   std::vector<std::string> lines = base::SplitString(
       output, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   std::unordered_set<std::string> tests_not_enforced;
   bool banner_has_printed = false;
   for (size_t i = 0; i < lines.size(); i++) {
-    if (Contains(lines[i], kBanner)) {
+    if (lines[i].contains(kBanner)) {
       // The following two lines should have the test cases not enforced
       // and the third line for the check failure message.
       EXPECT_LT(i + 3, lines.size());
@@ -1341,9 +1350,9 @@ TEST(ProcessGTestOutputTest, FoundTestCaseNotEnforced) {
 // For official builds, they discard logs from CHECK failures, hence
 // the test case cannot catch the "Check failed" line.
 #if !defined(OFFICIAL_BUILD) || DCHECK_IS_ON()
-      EXPECT_TRUE(Contains(lines[i],
-                           "Check failed: "
-                           "!found_exact_positive_filter_not_enforced."));
+      EXPECT_TRUE(
+          lines[i].contains("Check failed: "
+                            "!found_exact_positive_filter_not_enforced."));
 #endif  // !defined(OFFICIAL_BUILD) || DCHECK_IS_ON()
       break;
     }

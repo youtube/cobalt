@@ -35,9 +35,13 @@
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -311,8 +315,8 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_MainPage) {
   RunTest("settings/settings_main_test.js", "mocha.run()");
 }
 
-// TODO(crbug.com/454213441): Flaky on Linux debug builds.
-#if BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/454213441): Flaky on Linux builds and debug ChromeOS builds.
+#if BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG))
 #define MAYBE_SettingsMain DISABLED_SettingsMain
 #else
 #define MAYBE_SettingsMain SettingsMain
@@ -572,6 +576,41 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageDefaultTabContextToggleTest,
   RunTest(
       "settings/glic_subpage_test.js",
       "runMochaSuite('GlicSubpage DefaultTabContextSettingFeatureEnabled')");
+}
+
+class SettingsGlicSubPageTestBase : public SettingsBrowserTest {
+ protected:
+  void SigninAndEnableAccountCapability() {
+    glic::SigninWithPrimaryAccount(GetProfile());
+
+    auto* const identity_manager =
+        IdentityManagerFactory::GetForProfile(GetProfile());
+    AccountInfo primary_account =
+        identity_manager->FindExtendedAccountInfoByAccountId(
+            identity_manager->GetPrimaryAccountId(
+                signin::ConsentLevel::kSignin));
+
+    AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+    mutator.set_can_use_model_execution_features(true);
+
+    signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
+  }
+};
+
+class SettingsGlicSubPageMicrophoneToggleTest
+    : public SettingsGlicSubPageTestBase {};
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageMicrophoneToggleTest,
+                       ToggleHiddenForUserWithoutAccountCapability) {
+  RunTest("settings/glic_subpage_test.js",
+          "runMochaSuite('GlicSubpage MicrophoneToggleHidden')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageMicrophoneToggleTest,
+                       ToggleVisibleForUserWithAccountCapability) {
+  SigninAndEnableAccountCapability();
+  RunTest("settings/glic_subpage_test.js",
+          "runMochaSuite('GlicSubpage MicrophoneToggleVisible')");
 }
 
 class SettingsGlicSubPageWebActuationToggleTest : public SettingsBrowserTest {

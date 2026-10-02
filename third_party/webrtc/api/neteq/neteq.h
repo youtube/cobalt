@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "api/array_view.h"
-#include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_info.h"
@@ -138,7 +137,6 @@ class NetEq {
     bool enable_fast_accelerate = false;
     bool enable_muted_state = false;
     bool enable_rtx_handling = false;
-    std::optional<AudioCodecPairId> codec_pair_id;
     bool for_test_no_time_stretching = false;  // Use only for testing.
   };
 
@@ -248,6 +246,13 @@ class NetEq {
   // -1 on failure. Removing a payload type that is not registered is ok and
   // will not result in an error.
   virtual int RemovePayloadType(uint8_t rtp_payload_type) = 0;
+
+  // Set the maximum number of packets to hold in the IO packet buffer.
+  virtual void SetMaximumBufferPackets(size_t max_packets) = 0;
+
+  // Set if the FastAccelerate feature (accelerate based on arrival time) is
+  // enabled.
+  virtual void SetFastAccelerate(bool enable) = 0;
 
   // Removes all payload types from the codec database.
   virtual void RemoveAllPayloadTypes() = 0;

@@ -109,7 +109,7 @@ int bssl::bio_socket_nbio(int sock, int on) {
 #endif
 }
 
-void bssl::bio_clear_socket_error(void) {}
+void bssl::bio_clear_socket_error() {}
 
 int bssl::bio_sock_error(int sock) {
   int error;

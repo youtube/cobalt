@@ -32,7 +32,7 @@ class CrossTrafficRouteImpl final : public CrossTrafficRoute {
   CrossTrafficRouteImpl(Clock* clock,
                         EmulatedNetworkReceiverInterface* receiver,
                         EmulatedEndpointImpl* endpoint);
-  ~CrossTrafficRouteImpl();
+  ~CrossTrafficRouteImpl() override;
 
   // Triggers sending of dummy packets with size `packet_size` bytes.
   void TriggerPacketBurst(size_t num_packets, size_t packet_size) override;

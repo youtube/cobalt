@@ -23,18 +23,20 @@
 
 #include "../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 
+BSSL_NAMESPACE_END
+
 struct evp_pkey_alg_st {
   // method implements operations for this |EVP_PKEY_ALG|.
-  const EVP_PKEY_ASN1_METHOD *method;
+  const bssl::EVP_PKEY_ASN1_METHOD *method;
 };
+
+BSSL_NAMESPACE_BEGIN
 
 enum evp_decode_result_t {
   evp_decode_error = 0,
@@ -120,6 +122,8 @@ struct evp_pkey_asn1_method_st {
   void (*pkey_free)(EVP_PKEY *pkey);
 } /* EVP_PKEY_ASN1_METHOD */;
 
+BSSL_NAMESPACE_END
+
 struct evp_pkey_st {
   CRYPTO_refcount_t references;
 
@@ -128,8 +132,10 @@ struct evp_pkey_st {
 
   // ameth contains a pointer to a method table that determines the key type, or
   // nullptr if the key is empty.
-  const EVP_PKEY_ASN1_METHOD *ameth;
+  const bssl::EVP_PKEY_ASN1_METHOD *ameth;
 } /* EVP_PKEY */;
+
+BSSL_NAMESPACE_BEGIN
 
 #define EVP_PKEY_OP_UNDEFINED 0
 #define EVP_PKEY_OP_KEYGEN (1 << 2)
@@ -200,11 +206,13 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
 #define EVP_PKEY_CTRL_HKDF_INFO (EVP_PKEY_ALG_CTRL + 18)
 #define EVP_PKEY_CTRL_DH_PAD (EVP_PKEY_ALG_CTRL + 19)
 
+BSSL_NAMESPACE_END
+
 struct evp_pkey_ctx_st {
   ~evp_pkey_ctx_st();
 
   // Method associated with this operation
-  const EVP_PKEY_CTX_METHOD *pmeth = nullptr;
+  const bssl::EVP_PKEY_CTX_METHOD *pmeth = nullptr;
   // Key: may be nullptr
   bssl::UniquePtr<EVP_PKEY> pkey;
   // Peer key for key agreement, may be nullptr
@@ -217,6 +225,8 @@ struct evp_pkey_ctx_st {
   // data on the subclass, coming from the same allocation.
   void *data = nullptr;
 } /* EVP_PKEY_CTX */;
+
+BSSL_NAMESPACE_BEGIN
 
 struct evp_pkey_ctx_method_st {
   int pkey_id;
@@ -269,12 +279,6 @@ extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
 void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
                    void *pkey_data);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
-
-BSSL_NAMESPACE_BEGIN
 inline auto GetDefaultEVPAlgorithms() {
   // A set of algorithms to use by default in |EVP_parse_public_key| and
   // |EVP_parse_private_key|.
@@ -291,6 +295,7 @@ inline auto GetDefaultEVPAlgorithms() {
       EVP_pkey_dsa(),
   };
 }
+
 BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_EVP_INTERNAL_H

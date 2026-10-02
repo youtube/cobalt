@@ -189,20 +189,18 @@ std::string GetOpenSslError() {
 }
 #endif
 
-}  // namespace
-
 //////////////////////////////////////////////////////////////////////
 // StreamBIO
 //////////////////////////////////////////////////////////////////////
 
-static int stream_write(BIO* h, const char* buf, int num);
-static int stream_read(BIO* h, char* buf, int size);
-static int stream_puts(BIO* h, const char* str);
-static long stream_ctrl(BIO* h, int cmd, long arg1, void* arg2);
-static int stream_new(BIO* h);
-static int stream_free(BIO* data);
+int stream_write(BIO* h, const char* buf, int num);
+int stream_read(BIO* h, char* buf, int size);
+int stream_puts(BIO* h, const char* str);
+long stream_ctrl(BIO* h, int cmd, long arg1, void* arg2);
+int stream_new(BIO* h);
+int stream_free(BIO* data);
 
-static BIO_METHOD* BIO_stream_method() {
+BIO_METHOD* BIO_stream_method() {
   static BIO_METHOD* method = [] {
     BIO_METHOD* method = BIO_meth_new(BIO_TYPE_BIO, "stream");
     BIO_meth_set_write(method, stream_write);
@@ -216,7 +214,7 @@ static BIO_METHOD* BIO_stream_method() {
   return method;
 }
 
-static BIO* BIO_new_stream(StreamInterface* stream) {
+BIO* BIO_new_stream(StreamInterface* stream) {
   BIO* ret = BIO_new(BIO_stream_method());
   if (ret == nullptr) {
     return nullptr;
@@ -227,21 +225,21 @@ static BIO* BIO_new_stream(StreamInterface* stream) {
 
 // bio methods return 1 (or at least non-zero) on success and 0 on failure.
 
-static int stream_new(BIO* b) {
+int stream_new(BIO* b) {
   BIO_set_shutdown(b, 0);
   BIO_set_init(b, 1);
   BIO_set_data(b, nullptr);
   return 1;
 }
 
-static int stream_free(BIO* b) {
+int stream_free(BIO* b) {
   if (b == nullptr) {
     return 0;
   }
   return 1;
 }
 
-static int stream_read(BIO* b, char* out, int outl) {
+int stream_read(BIO* b, char* out, int outl) {
   if (!out) {
     return -1;
   }
@@ -259,7 +257,7 @@ static int stream_read(BIO* b, char* out, int outl) {
   return -1;
 }
 
-static int stream_write(BIO* b, const char* in, int inl) {
+int stream_write(BIO* b, const char* in, int inl) {
   if (!in) {
     return -1;
   }
@@ -277,11 +275,11 @@ static int stream_write(BIO* b, const char* in, int inl) {
   return -1;
 }
 
-static int stream_puts(BIO* b, const char* str) {
+int stream_puts(BIO* b, const char* str) {
   return stream_write(b, str, checked_cast<int>(strlen(str)));
 }
 
-static long stream_ctrl(BIO* b, int cmd, long num, void* ptr) {
+long stream_ctrl(BIO* b, int cmd, long num, void* ptr) {
   switch (cmd) {
     case BIO_CTRL_RESET:
       return 0;
@@ -314,6 +312,8 @@ static long stream_ctrl(BIO* b, int cmd, long num, void* ptr) {
       return 0;
   }
 }
+
+}  // namespace
 
 /////////////////////////////////////////////////////////////////////////////
 // OpenSSLStreamAdapter

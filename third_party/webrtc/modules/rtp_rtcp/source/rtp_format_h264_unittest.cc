@@ -57,7 +57,7 @@ constexpr size_t kFuAHeaderSize = 2;
 // Creates Buffer that looks like nal unit of given size.
 Buffer GenerateNalUnit(size_t size) {
   RTC_CHECK_GT(size, 0);
-  Buffer buffer(size);
+  Buffer buffer = Buffer::CreateUninitializedWithSize(size);
   // Set some valid header.
   buffer[0] = kSlice;
   for (size_t i = 1; i < size; ++i) {
@@ -72,8 +72,8 @@ Buffer GenerateNalUnit(size_t size) {
 // Create frame consisting of nalus of given size.
 Buffer CreateFrame(std::initializer_list<size_t> nalu_sizes) {
   static constexpr int kStartCodeSize = 3;
-  Buffer frame(absl::c_accumulate(nalu_sizes, size_t{0}) +
-               kStartCodeSize * nalu_sizes.size());
+  Buffer frame = Buffer::CreateUninitializedWithSize(
+      absl::c_accumulate(nalu_sizes, 0) + kStartCodeSize * nalu_sizes.size());
   size_t offset = 0;
   for (size_t nalu_size : nalu_sizes) {
     EXPECT_GE(nalu_size, 1u);
@@ -89,6 +89,7 @@ Buffer CreateFrame(std::initializer_list<size_t> nalu_sizes) {
     }
     offset += (kStartCodeSize + nalu_size);
   }
+  EXPECT_EQ(offset, frame.size());  // verify size calculation up front
   return frame;
 }
 
@@ -99,7 +100,7 @@ Buffer CreateFrame(ArrayView<const Buffer> nalus) {
   for (const Buffer& nalu : nalus) {
     frame_size += (kStartCodeSize + nalu.size());
   }
-  Buffer frame(frame_size);
+  Buffer frame = Buffer::CreateUninitializedWithSize(frame_size);
   size_t offset = 0;
   for (const Buffer& nalu : nalus) {
     // Insert nalu start code

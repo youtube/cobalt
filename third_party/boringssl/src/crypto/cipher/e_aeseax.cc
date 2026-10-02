@@ -30,6 +30,9 @@
 #include "../fipsmodule/cipher/internal.h"
 #include "../internal.h"
 
+
+using namespace bssl;
+
 // Implementation of AES-EAX defined in
 // https://www.iacr.org/archive/fse2004/30170391/30170391.pdf.
 
@@ -117,8 +120,8 @@ static void pad(const struct aead_aes_eax_ctx *aes_ctx,
 
 template <typename IVEC>
 static void omac_with_tag(const struct aead_aes_eax_ctx *aes_ctx,
-                          uint8_t out[AES_BLOCK_SIZE],
-                          bssl::Span<const IVEC> ivecs, uint8_t tag) {
+                          uint8_t out[AES_BLOCK_SIZE], Span<const IVEC> ivecs,
+                          uint8_t tag) {
   OPENSSL_memset(out, 0, AES_BLOCK_SIZE);
   out[AES_BLOCK_SIZE - 1] = tag;
   size_t in_len = bssl::iovec::TotalLength(ivecs);
@@ -159,7 +162,7 @@ static void omac_with_tag(const struct aead_aes_eax_ctx *aes_ctx,
 
 static void omac_with_tag_iovec_out(const struct aead_aes_eax_ctx *aes_ctx,
                                     uint8_t out[AES_BLOCK_SIZE],
-                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
+                                    Span<const CRYPTO_IOVEC> iovecs,
                                     uint8_t tag) {
   OPENSSL_memset(out, 0, AES_BLOCK_SIZE);
   out[AES_BLOCK_SIZE - 1] = tag;
@@ -201,7 +204,7 @@ static void omac_with_tag_iovec_out(const struct aead_aes_eax_ctx *aes_ctx,
 // Encrypts/decrypts |in_len| bytes from |in| to |out| using AES-CTR with |n| as
 // the IV.
 static void aes_ctr(const struct aead_aes_eax_ctx *aes_ctx,
-                    bssl::Span<const CRYPTO_IOVEC> iovecs,
+                    Span<const CRYPTO_IOVEC> iovecs,
                     const uint8_t n[AES_BLOCK_SIZE]) {
   uint8_t ivec[AES_BLOCK_SIZE];
   OPENSSL_memcpy(ivec, n, AES_BLOCK_SIZE);
@@ -216,10 +219,10 @@ static void aes_ctr(const struct aead_aes_eax_ctx *aes_ctx,
 }
 
 static int aead_aes_eax_sealv(const EVP_AEAD_CTX *ctx,
-                              bssl::Span<const CRYPTO_IOVEC> iovecs,
-                              bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-                              bssl::Span<const uint8_t> nonce,
-                              bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                              Span<const CRYPTO_IOVEC> iovecs,
+                              Span<uint8_t> out_tag, size_t *out_tag_len,
+                              Span<const uint8_t> nonce,
+                              Span<const CRYPTO_IVEC> aadvecs) {
   // We use the full 128 bits of the nonce as counter, so no need to check the
   // plaintext size.
 
@@ -241,7 +244,7 @@ static int aead_aes_eax_sealv(const EVP_AEAD_CTX *ctx,
   CRYPTO_IVEC noncevec[1];
   noncevec[0].in = nonce.data();
   noncevec[0].len = nonce.size();
-  omac_with_tag(aes_ctx, n, bssl::Span<const CRYPTO_IVEC>(noncevec), /*tag=*/0);
+  omac_with_tag(aes_ctx, n, Span<const CRYPTO_IVEC>(noncevec), /*tag=*/0);
   // H <- OMAC(1 || ad)
   uint8_t h[AES_BLOCK_SIZE];
   omac_with_tag(aes_ctx, h, aadvecs, /*tag=*/1);
@@ -260,10 +263,10 @@ static int aead_aes_eax_sealv(const EVP_AEAD_CTX *ctx,
 }
 
 static int aead_aes_eax_openv_detached(const EVP_AEAD_CTX *ctx,
-                                       bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                       bssl::Span<const uint8_t> nonce,
-                                       bssl::Span<const uint8_t> in_tag,
-                                       bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                       Span<const CRYPTO_IOVEC> iovecs,
+                                       Span<const uint8_t> nonce,
+                                       Span<const uint8_t> in_tag,
+                                       Span<const CRYPTO_IVEC> aadvecs) {
   const uint64_t ad_len_64 = bssl::iovec::TotalLength(aadvecs);
   if (ad_len_64 >= (UINT64_C(1) << 61)) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
@@ -290,7 +293,7 @@ static int aead_aes_eax_openv_detached(const EVP_AEAD_CTX *ctx,
   CRYPTO_IVEC noncevec[1];
   noncevec[0].in = nonce.data();
   noncevec[0].len = nonce.size();
-  omac_with_tag(aes_ctx, n, bssl::Span<const CRYPTO_IVEC>(noncevec),
+  omac_with_tag(aes_ctx, n, Span<const CRYPTO_IVEC>(noncevec),
                 /*tag=*/0);
   // H <- OMAC(1 || ad)
   uint8_t h[AES_BLOCK_SIZE];
@@ -345,6 +348,6 @@ static const EVP_AEAD aead_aes_256_eax = {
     nullptr,  // tag_len
 };
 
-const EVP_AEAD *EVP_aead_aes_128_eax(void) { return &aead_aes_128_eax; }
+const EVP_AEAD *EVP_aead_aes_128_eax() { return &aead_aes_128_eax; }
 
-const EVP_AEAD *EVP_aead_aes_256_eax(void) { return &aead_aes_256_eax; }
+const EVP_AEAD *EVP_aead_aes_256_eax() { return &aead_aes_256_eax; }

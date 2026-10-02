@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 int BN_rand(BIGNUM *rnd, int bits, int top, int bottom) {
   if (rnd == nullptr) {
     return 0;
@@ -116,8 +118,8 @@ static crypto_word_t bn_less_than_word_mask(const BN_ULONG *a, size_t len,
   return mask;
 }
 
-int bn_in_range_words(const BN_ULONG *a, BN_ULONG min_inclusive,
-                      const BN_ULONG *max_exclusive, size_t len) {
+int bssl::bn_in_range_words(const BN_ULONG *a, BN_ULONG min_inclusive,
+                            const BN_ULONG *max_exclusive, size_t len) {
   crypto_word_t mask = ~bn_less_than_word_mask(a, len, min_inclusive);
   return mask & bn_less_than_words(a, max_exclusive, len);
 }
@@ -150,9 +152,9 @@ static int bn_range_to_mask(size_t *out_words, BN_ULONG *out_mask,
   return 1;
 }
 
-int bn_rand_range_words(BN_ULONG *out, BN_ULONG min_inclusive,
-                        const BN_ULONG *max_exclusive, size_t len,
-                        const uint8_t additional_data[32]) {
+int bssl::bn_rand_range_words(BN_ULONG *out, BN_ULONG min_inclusive,
+                              const BN_ULONG *max_exclusive, size_t len,
+                              const uint8_t additional_data[32]) {
   // This function implements the equivalent of steps 4 through 7 of FIPS 186-4
   // appendices B.4.2 and B.5.2. When called in those contexts, |max_exclusive|
   // is n and |min_inclusive| is one.
@@ -210,8 +212,9 @@ int BN_rand_range_ex(BIGNUM *r, BN_ULONG min_inclusive,
   return 1;
 }
 
-int bn_rand_secret_range(BIGNUM *r, int *out_is_uniform, BN_ULONG min_inclusive,
-                         const BIGNUM *max_exclusive) {
+int bssl::bn_rand_secret_range(BIGNUM *r, int *out_is_uniform,
+                               BN_ULONG min_inclusive,
+                               const BIGNUM *max_exclusive) {
   size_t words;
   BN_ULONG mask;
   if (!bn_range_to_mask(&words, &mask, min_inclusive, max_exclusive->d,

@@ -14,7 +14,6 @@
 
 #include "base/check.h"
 #include "base/check_deref.h"
-#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
@@ -1388,6 +1387,8 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   }
   update->may_throttle_if_undrawn_frames =
       host_impl_->may_throttle_if_undrawn_frames();
+  update->is_viewport_mobile_optimized =
+      host_impl_->viewport_mobile_optimized();
   update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->browser_controls_params = tree.browser_controls_params();
   update->browser_controls_offset_tag_modifications =
@@ -1585,7 +1586,7 @@ void VizLayerContext::SerializeAnimationUpdates(
   auto& pushed_timelines = pushed_animation_timelines_;
   std::vector<int32_t> removed_timelines;
   for (auto it = pushed_timelines.begin(); it != pushed_timelines.end();) {
-    if (!base::Contains(current_timelines, it->first)) {
+    if (!current_timelines.contains(it->first)) {
       removed_timelines.push_back(it->first);
       it = pushed_timelines.erase(it);
     } else {
@@ -1613,7 +1614,7 @@ VizLayerContext::MaybeSerializeAnimationTimeline(
   auto& pushed_animations = pushed_animation_timelines_[timeline.id()];
   std::vector<int32_t> removed_animations;
   for (auto it = pushed_animations.begin(); it != pushed_animations.end();) {
-    if (!base::Contains(current_animations, *it)) {
+    if (!current_animations.contains(*it)) {
       removed_animations.push_back(*it);
       it = pushed_animations.erase(it);
     } else {

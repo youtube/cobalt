@@ -33,14 +33,14 @@ extern "C" {
 #define SHA512_ASM_NOHW
 
 #define SHA1_ASM_HW
-inline int sha1_hw_capable(void) { return CRYPTO_is_ARMv8_SHA1_capable(); }
+inline int sha1_hw_capable() { return CRYPTO_is_ARMv8_SHA1_capable(); }
 
 #define SHA1_ASM_NEON
 void sha1_block_data_order_neon(uint32_t state[5], const uint8_t *data,
                                 size_t num);
 
 #define SHA256_ASM_HW
-inline int sha256_hw_capable(void) { return CRYPTO_is_ARMv8_SHA256_capable(); }
+inline int sha256_hw_capable() { return CRYPTO_is_ARMv8_SHA256_capable(); }
 
 #define SHA256_ASM_NEON
 void sha256_block_data_order_neon(uint32_t state[8], const uint8_t *data,
@@ -58,13 +58,13 @@ void sha512_block_data_order_neon(uint64_t state[8], const uint8_t *data,
 #define SHA512_ASM_NOHW
 
 #define SHA1_ASM_HW
-inline int sha1_hw_capable(void) { return CRYPTO_is_ARMv8_SHA1_capable(); }
+inline int sha1_hw_capable() { return CRYPTO_is_ARMv8_SHA1_capable(); }
 
 #define SHA256_ASM_HW
-inline int sha256_hw_capable(void) { return CRYPTO_is_ARMv8_SHA256_capable(); }
+inline int sha256_hw_capable() { return CRYPTO_is_ARMv8_SHA256_capable(); }
 
 #define SHA512_ASM_HW
-inline int sha512_hw_capable(void) { return CRYPTO_is_ARMv8_SHA512_capable(); }
+inline int sha512_hw_capable() { return CRYPTO_is_ARMv8_SHA512_capable(); }
 
 #elif !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86)
 
@@ -73,14 +73,12 @@ inline int sha512_hw_capable(void) { return CRYPTO_is_ARMv8_SHA512_capable(); }
 #define SHA512_ASM_NOHW
 
 #define SHA1_ASM_SSSE3
-inline int sha1_ssse3_capable(void) {
-  return CRYPTO_is_SSSE3_capable();
-}
+inline int sha1_ssse3_capable() { return CRYPTO_is_SSSE3_capable(); }
 void sha1_block_data_order_ssse3(uint32_t state[5], const uint8_t *data,
                                  size_t num);
 
 #define SHA1_ASM_AVX
-inline int sha1_avx_capable(void) {
+inline int sha1_avx_capable() {
   // AMD CPUs have slow SHLD/SHRD. See also the discussion in sha1-586.pl.
   //
   // TODO(crbug.com/42290564): Should we enable SHAEXT on 32-bit x86?
@@ -90,14 +88,12 @@ void sha1_block_data_order_avx(uint32_t state[5], const uint8_t *data,
                                size_t num);
 
 #define SHA256_ASM_SSSE3
-inline int sha256_ssse3_capable(void) {
-  return CRYPTO_is_SSSE3_capable();
-}
+inline int sha256_ssse3_capable() { return CRYPTO_is_SSSE3_capable(); }
 void sha256_block_data_order_ssse3(uint32_t state[8], const uint8_t *data,
                                    size_t num);
 
 #define SHA256_ASM_AVX
-inline int sha256_avx_capable(void) {
+inline int sha256_avx_capable() {
   // AMD CPUs have slow SHLD/SHRD. See also the discussion in sha1-586.pl.
   //
   // TODO(crbug.com/42290564): Should we enable SHAEXT on 32-bit x86?
@@ -107,9 +103,7 @@ void sha256_block_data_order_avx(uint32_t state[8], const uint8_t *data,
                                  size_t num);
 
 #define SHA512_ASM_SSSE3
-inline int sha512_ssse3_capable(void) {
-  return CRYPTO_is_SSSE3_capable();
-}
+inline int sha512_ssse3_capable() { return CRYPTO_is_SSSE3_capable(); }
 void sha512_block_data_order_ssse3(uint64_t state[8], const uint8_t *data,
                                    size_t num);
 
@@ -120,12 +114,12 @@ void sha512_block_data_order_ssse3(uint64_t state[8], const uint8_t *data,
 #define SHA512_ASM_NOHW
 
 #define SHA1_ASM_HW
-inline int sha1_hw_capable(void) {
+inline int sha1_hw_capable() {
   return CRYPTO_is_x86_SHA_capable() && CRYPTO_is_SSSE3_capable();
 }
 
 #define SHA1_ASM_AVX2
-inline int sha1_avx2_capable(void) {
+inline int sha1_avx2_capable() {
   return CRYPTO_is_AVX2_capable() && CRYPTO_is_BMI2_capable() &&
          CRYPTO_is_BMI1_capable();
 }
@@ -133,7 +127,7 @@ void sha1_block_data_order_avx2(uint32_t state[5], const uint8_t *data,
                                 size_t num);
 
 #define SHA1_ASM_AVX
-inline int sha1_avx_capable(void) {
+inline int sha1_avx_capable() {
   // AMD CPUs have slow SHLD/SHRD. See also the discussion in sha1-586.pl. Zen
   // added the SHA extension, so this is moot on newer AMD CPUs.
   return CRYPTO_is_AVX_capable() && CRYPTO_is_intel_cpu();
@@ -142,18 +136,18 @@ void sha1_block_data_order_avx(uint32_t state[5], const uint8_t *data,
                                size_t num);
 
 #define SHA1_ASM_SSSE3
-inline int sha1_ssse3_capable(void) { return CRYPTO_is_SSSE3_capable(); }
+inline int sha1_ssse3_capable() { return CRYPTO_is_SSSE3_capable(); }
 void sha1_block_data_order_ssse3(uint32_t state[5], const uint8_t *data,
                                  size_t num);
 
 #define SHA256_ASM_HW
-inline int sha256_hw_capable(void) {
+inline int sha256_hw_capable() {
   // Note that the original assembly did not check SSSE3.
   return CRYPTO_is_x86_SHA_capable() && CRYPTO_is_SSSE3_capable();
 }
 
 #define SHA256_ASM_AVX
-inline int sha256_avx_capable(void) {
+inline int sha256_avx_capable() {
   // AMD CPUs have slow SHLD/SHRD. See also the discussion in sha1-586.pl. Zen
   // added the SHA extension, so this is moot on newer AMD CPUs.
   return CRYPTO_is_AVX_capable() && CRYPTO_is_intel_cpu();
@@ -162,12 +156,12 @@ void sha256_block_data_order_avx(uint32_t state[8], const uint8_t *data,
                                  size_t num);
 
 #define SHA256_ASM_SSSE3
-inline int sha256_ssse3_capable(void) { return CRYPTO_is_SSSE3_capable(); }
+inline int sha256_ssse3_capable() { return CRYPTO_is_SSSE3_capable(); }
 void sha256_block_data_order_ssse3(uint32_t state[8], const uint8_t *data,
                                    size_t num);
 
 #define SHA512_ASM_AVX
-inline int sha512_avx_capable(void) {
+inline int sha512_avx_capable() {
   // AMD CPUs have slow SHLD/SHRD. See also the discussion in sha1-586.pl.
   //
   // TODO(crbug.com/42290564): Fixing and enabling the AVX2 implementation would

@@ -166,7 +166,8 @@ class TestTrackPublisher : public MoqtTrackPublisher {
       largest_location_ = location;
     }
     for (MoqtObjectListener* listener : listeners_) {
-      listener->OnNewObjectAvailable(location, subgroup, 128);
+      listener->OnNewObjectAvailable(location, subgroup, 128,
+                                     MoqtForwardingPreference::kSubgroup);
     }
   }
   void RemoveAllSubscriptions() {
@@ -187,7 +188,7 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
-               (std::variant<SubscribeOkData, MoqtRequestError> response)),
+               (std::variant<SubscribeOkData, MoqtErrorPair> response)),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
@@ -274,8 +275,9 @@ class MockFetchTask : public MoqtFetchTask {
 class MockMoqtObjectListener : public MoqtObjectListener {
  public:
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestError), (override));
-  MOCK_METHOD(void, OnNewObjectAvailable, (Location, uint64_t, MoqtPriority),
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtErrorPair), (override));
+  MOCK_METHOD(void, OnNewObjectAvailable,
+              (Location, uint64_t, MoqtPriority, MoqtForwardingPreference),
               (override));
   MOCK_METHOD(void, OnNewFinAvailable, (Location, uint64_t), (override));
   MOCK_METHOD(void, OnSubgroupAbandoned,

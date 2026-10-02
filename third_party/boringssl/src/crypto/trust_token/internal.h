@@ -46,26 +46,27 @@ extern "C" {
 #define TRUST_TOKEN_NONCE_SIZE 64
 
 typedef struct {
-  // TODO(https://crbug.com/boringssl/334): These should store |EC_PRECOMP| so
-  // that |TRUST_TOKEN_finish_issuance| can use |ec_point_mul_scalar_precomp|.
-  EC_AFFINE pub0;
-  EC_AFFINE pub1;
-  EC_AFFINE pubs;
+  // TODO(https://crbug.com/boringssl/334): These should store
+  // |bssl::EC_PRECOMP| so that |TRUST_TOKEN_finish_issuance| can use
+  // |ec_point_mul_scalar_precomp|.
+  bssl::EC_AFFINE pub0;
+  bssl::EC_AFFINE pub1;
+  bssl::EC_AFFINE pubs;
 } TRUST_TOKEN_CLIENT_KEY;
 
 typedef struct {
-  EC_SCALAR x0;
-  EC_SCALAR y0;
-  EC_SCALAR x1;
-  EC_SCALAR y1;
-  EC_SCALAR xs;
-  EC_SCALAR ys;
-  EC_AFFINE pub0;
-  EC_PRECOMP pub0_precomp;
-  EC_AFFINE pub1;
-  EC_PRECOMP pub1_precomp;
-  EC_AFFINE pubs;
-  EC_PRECOMP pubs_precomp;
+  bssl::EC_SCALAR x0;
+  bssl::EC_SCALAR y0;
+  bssl::EC_SCALAR x1;
+  bssl::EC_SCALAR y1;
+  bssl::EC_SCALAR xs;
+  bssl::EC_SCALAR ys;
+  bssl::EC_AFFINE pub0;
+  bssl::EC_PRECOMP pub0_precomp;
+  bssl::EC_AFFINE pub1;
+  bssl::EC_PRECOMP pub1_precomp;
+  bssl::EC_AFFINE pubs;
+  bssl::EC_PRECOMP pubs_precomp;
 } TRUST_TOKEN_ISSUER_KEY;
 
 // TRUST_TOKEN_PRETOKEN represents the intermediate state a client keeps during
@@ -73,8 +74,8 @@ typedef struct {
 typedef struct pmb_pretoken_st {
   uint8_t salt[TRUST_TOKEN_NONCE_SIZE];
   uint8_t t[TRUST_TOKEN_NONCE_SIZE];
-  EC_SCALAR r;
-  EC_AFFINE Tp;
+  bssl::EC_SCALAR r;
+  bssl::EC_AFFINE Tp;
 } TRUST_TOKEN_PRETOKEN;
 
 // TRUST_TOKEN_PRETOKEN_free releases the memory associated with |token|.
@@ -358,6 +359,8 @@ struct trust_token_client_st {
 
   // keys is the set of public keys that are supported by the client for
   // issuance/redemptions.
+  // TODO(crbug.com/42290036): Replace this and |num_keys| with an
+  // InplaceVector.
   struct trust_token_client_key_st keys[6];
 
   // num_keys is the number of keys currently configured.

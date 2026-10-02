@@ -69,7 +69,16 @@ OPENSSL_EXPORT int RSA_up_ref(RSA *rsa);
 // Properties.
 
 // OPENSSL_RSA_MAX_MODULUS_BITS is the maximum supported RSA modulus, in bits.
-#define OPENSSL_RSA_MAX_MODULUS_BITS 8192
+//
+// WARNING: RSA-16384 is extremely slow and may be a DoS risk. This value is set
+// based on the largest RSA keys any caller of BoringSSL may need to use, and
+// may be too high for a general-purpose application. Applications should impose
+// their own limits before importing an RSA key. RSA-16384 is of particular DoS
+// risk for RSA private key operations, which scale cubicly.
+//
+// In the future, BoringSSL may limit overly large RSA key sizes to application
+// opt-in, or impose a tighter limit on private key operations.
+#define OPENSSL_RSA_MAX_MODULUS_BITS 16384
 
 // RSA_bits returns the size of |rsa|, in bits.
 OPENSSL_EXPORT unsigned RSA_bits(const RSA *rsa);

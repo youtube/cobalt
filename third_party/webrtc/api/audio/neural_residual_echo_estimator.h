@@ -41,12 +41,16 @@ class NeuralResidualEchoEstimator {
   //   * S2: Linear echo estimate
   //   * Y2: Microphone input
   //   * E2: Output of linear stage
+  //
+  // Other inputs:
+  //   * dominant_nearend: True if dominant nearend is active
   virtual void Estimate(const Block& render,
                         ArrayView<const std::array<float, 64>> y,
                         ArrayView<const std::array<float, 64>> e,
                         ArrayView<const std::array<float, 65>> S2,
                         ArrayView<const std::array<float, 65>> Y2,
                         ArrayView<const std::array<float, 65>> E2,
+                        bool dominant_nearend,
                         ArrayView<std::array<float, 65>> R2,
                         ArrayView<std::array<float, 65>> R2_unbounded) = 0;
 

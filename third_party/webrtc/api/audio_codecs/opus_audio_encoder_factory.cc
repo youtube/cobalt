@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/audio_codecs/audio_codec_pair_id.h"
@@ -42,11 +43,11 @@ struct NotAdvertised {
     return T::QueryAudioEncoder(config);
   }
   static std::unique_ptr<AudioEncoder> MakeAudioEncoder(
-      const Config& config,
+      Config config,
       int payload_type,
       std::optional<AudioCodecPairId> codec_pair_id = std::nullopt,
       const FieldTrialsView* field_trials = nullptr) {
-    return T::MakeAudioEncoder(config, payload_type, codec_pair_id,
+    return T::MakeAudioEncoder(std::move(config), payload_type, codec_pair_id,
                                field_trials);
   }
 };

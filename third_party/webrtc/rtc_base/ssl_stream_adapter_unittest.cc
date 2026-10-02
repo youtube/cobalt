@@ -1412,8 +1412,12 @@ TEST_F(SSLStreamAdapterTestDTLS, TestDTLSSrtpExporter) {
   int salt_len;
   ASSERT_TRUE(
       GetSrtpKeyAndSaltLengths(selected_crypto_suite, &key_len, &salt_len));
-  ZeroOnFreeBuffer<uint8_t> client_out(2 * (key_len + salt_len));
-  ZeroOnFreeBuffer<uint8_t> server_out(2 * (key_len + salt_len));
+  ZeroOnFreeBuffer<uint8_t> client_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
+  ZeroOnFreeBuffer<uint8_t> server_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
 
   EXPECT_TRUE(client_ssl_->ExportSrtpKeyingMaterial(client_out));
   EXPECT_TRUE(server_ssl_->ExportSrtpKeyingMaterial(server_out));

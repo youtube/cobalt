@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -43,7 +42,6 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
-#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 using spdy::SpdyPriority;
@@ -66,32 +64,34 @@ QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
                                                       QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (!version.IsIetfQuic()) {
-    return session->config()->GetInitialStreamFlowControlWindowToSend();
+    return session->GetSavedConfig().GetInitialStreamFlowControlWindowToSend();
   }
 
   // Unidirectional streams (v99 only).
   if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
-    return session->config()
-        ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
+    return session->GetSavedConfig()
+        .GetInitialMaxStreamDataBytesUnidirectionalToSend();
   }
 
   if (QuicUtils::IsOutgoingStreamId(version, stream_id,
                                     session->perspective())) {
-    return session->config()
-        ->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+    return session->GetSavedConfig()
+        .GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
   }
 
-  return session->config()
-      ->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+  return session->GetSavedConfig()
+      .GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
 }
 
 QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
                                            QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (!version.IsIetfQuic()) {
-    if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
-      return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialStreamFlowControlWindowBytes()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialStreamFlowControlWindowBytes();
     }
 
     return DefaultFlowControlWindow(version);
@@ -100,10 +100,10 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
   // Unidirectional streams (v99 only).
   if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
-    if (session->config()
-            ->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
-      return session->config()
-          ->ReceivedInitialMaxStreamDataBytesUnidirectional();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialMaxStreamDataBytesUnidirectional();
     }
 
     return DefaultFlowControlWindow(version);
@@ -111,19 +111,19 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 
   if (QuicUtils::IsOutgoingStreamId(version, stream_id,
                                     session->perspective())) {
-    if (session->config()
-            ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
-      return session->config()
-          ->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
     }
 
     return DefaultFlowControlWindow(version);
   }
 
-  if (session->config()
-          ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
-    return session->config()
-        ->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+  if (session->GetSavedConfig()
+          .HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+    return session->GetSavedConfig()
+        .ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
   }
 
   return DefaultFlowControlWindow(version);
@@ -384,12 +384,28 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
                        QuicFlowController* connection_flow_controller,
                        QuicTime::Delta pending_duration)
     : sequencer_(std::move(sequencer)),
-      id_(id),
       session_(session),
       stream_delegate_(session),
       stream_bytes_read_(stream_bytes_read),
       stream_error_(QuicResetStreamError::NoError()),
+      id_(id),
       connection_error_(QUIC_NO_ERROR),
+      flow_controller_(std::move(flow_controller)),
+      connection_flow_controller_(connection_flow_controller),
+      busy_counter_(0),
+      send_buffer_(
+          session->connection()->helper()->GetStreamSendBufferAllocator()),
+      buffered_data_threshold_(GetQuicFlag(quic_buffered_data_threshold)),
+      deadline_(QuicTime::Zero()),
+      creation_time_(session->connection()->clock()->ApproximateNow()),
+      pending_duration_(pending_duration),
+      reliable_size_(0),
+      type_(VersionIsIetfQuic(session->transport_version()) && type != CRYPTO
+                ? QuicUtils::GetStreamType(id_, session->perspective(),
+                                           session->IsIncomingStream(id_),
+                                           session->version())
+                : type),
+      perspective_(session->perspective()),
       read_side_closed_(false),
       write_side_closed_(false),
       write_side_data_recvd_state_notified_(false),
@@ -402,26 +418,10 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       rst_stream_at_sent_(false),
       rst_received_(false),
       stop_sending_sent_(false),
-      flow_controller_(std::move(flow_controller)),
-      connection_flow_controller_(connection_flow_controller),
       stream_contributes_to_connection_flow_control_(true),
-      busy_counter_(0),
       add_random_padding_after_fin_(false),
-      send_buffer_(
-          session->connection()->helper()->GetStreamSendBufferAllocator()),
-      buffered_data_threshold_(GetQuicFlag(quic_buffered_data_threshold)),
       is_static_(is_static),
-      deadline_(QuicTime::Zero()),
-      was_draining_(false),
-      type_(VersionIsIetfQuic(session->transport_version()) && type != CRYPTO
-                ? QuicUtils::GetStreamType(id_, session->perspective(),
-                                           session->IsIncomingStream(id_),
-                                           session->version())
-                : type),
-      creation_time_(session->connection()->clock()->ApproximateNow()),
-      pending_duration_(pending_duration),
-      perspective_(session->perspective()),
-      reliable_size_(0) {
+      was_draining_(false) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
     fin_received_ = true;
     CloseReadSide();

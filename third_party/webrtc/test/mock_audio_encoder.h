@@ -29,7 +29,7 @@ namespace webrtc {
 class MockAudioEncoder : public AudioEncoder {
  public:
   MockAudioEncoder();
-  ~MockAudioEncoder();
+  ~MockAudioEncoder() override;
   MOCK_METHOD(int, SampleRateHz, (), (const, override));
   MOCK_METHOD(size_t, NumChannels, (), (const, override));
   MOCK_METHOD(int, RtpTimestampRateHz, (), (const, override));

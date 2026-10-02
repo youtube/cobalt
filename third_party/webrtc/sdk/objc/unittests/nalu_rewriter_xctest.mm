@@ -258,7 +258,8 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     0xAA, 0xFF}; // second chunk, 2 bytes
   // clang-format on
 
-  webrtc::Buffer annexb_buffer(std::size(cmsample_data));
+  webrtc::Buffer annexb_buffer =
+      webrtc::Buffer::CreateWithCapacity(std::size(cmsample_data));
   CMSampleBufferRef sample_buffer =
       [self createCMSampleBufferRef:(void*)cmsample_data
                        cmsampleSize:std::size(cmsample_data)];
@@ -292,7 +293,8 @@ static const uint8_t SPS_PPS_BUFFER[] = {
     0xAA, 0xFF}; // second chunk, 2 bytes
   // clang-format on
 
-  webrtc::Buffer annexb_buffer(std::size(cmsample_data));
+  webrtc::Buffer annexb_buffer =
+      webrtc::Buffer::CreateUninitializedWithSize(std::size(cmsample_data));
   CMSampleBufferRef sample_buffer =
       [self createCMSampleBufferRef:(void*)cmsample_data
                        cmsampleSize:std::size(cmsample_data)];

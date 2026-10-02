@@ -28,8 +28,9 @@ std::vector<NaluIndex> FindNaluIndices(ArrayView<const uint8_t> buffer) {
   std::vector<NaluIndex> results;
   results.reserve(indices.size());
   for (auto& index : indices) {
-    results.push_back(
-        {index.start_offset, index.payload_start_offset, index.payload_size});
+    results.push_back({.start_offset = index.start_offset,
+                       .payload_start_offset = index.payload_start_offset,
+                       .payload_size = index.payload_size});
   }
   return results;
 }

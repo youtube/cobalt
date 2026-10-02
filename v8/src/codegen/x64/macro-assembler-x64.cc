@@ -29,7 +29,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/instance-type-inl.h"
@@ -4911,14 +4911,14 @@ void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
 #endif  // !V8_ENABLE_SANDBOX
   if (v8_flags.slow_debug_code) {
     Push(object);
-    movq(scratch1, Operand(scratch0, MemoryChunkMetadata::AreaStartOffset()));
+    movq(scratch1, Operand(scratch0, BasePage::AreaStartOffset()));
     MemoryChunkHeaderFromObject(scratch1, scratch1);
     MemoryChunkHeaderFromObject(object, object);
     cmpq(object, scratch1);
     Check(equal, AbortReason::kMetadataAreaStartDoesNotMatch);
     Pop(object);
   }
-  addq(scratch0, Immediate(MutablePageMetadata::MarkingBitmapOffset()));
+  addq(scratch0, Immediate(MutablePage::MarkingBitmapOffset()));
 
   movq(scratch1, object);
   andq(scratch1, Immediate(MemoryChunk::GetAlignmentMaskForAssembler()));

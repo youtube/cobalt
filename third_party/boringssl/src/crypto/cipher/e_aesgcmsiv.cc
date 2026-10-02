@@ -26,6 +26,8 @@
 #include "../internal.h"
 
 
+using namespace bssl;
+
 #define EVP_AEAD_AES_GCM_SIV_NONCE_LEN 12
 #define EVP_AEAD_AES_GCM_SIV_TAG_LEN 16
 
@@ -228,9 +230,8 @@ void aead_aes_gcm_siv_asm_cleanup(EVP_AEAD_CTX *ctx) {}
 
 // gcm_siv_asm_polyval evaluates POLYVAL at |auth_key| on the given plaintext
 // and AD. The result is written to |out_tag|.
-void gcm_siv_asm_polyval(uint8_t out_tag[16],
-                         bssl::Span<const CRYPTO_IOVEC> iovecs,
-                         bssl::Span<const CRYPTO_IVEC> aadvecs,
+void gcm_siv_asm_polyval(uint8_t out_tag[16], Span<const CRYPTO_IOVEC> iovecs,
+                         Span<const CRYPTO_IVEC> aadvecs,
                          const uint8_t auth_key[16], const uint8_t nonce[12]) {
   OPENSSL_memset(out_tag, 0, 16);
   const size_t ad_len = bssl::iovec::TotalLength(aadvecs);
@@ -270,11 +271,11 @@ void gcm_siv_asm_polyval(uint8_t out_tag[16],
     return true;
   };
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
-      aadvecs, f_whole, f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(aadvecs, f_whole,
+                                                               f_final);
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
-      iovecs, f_whole, f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(iovecs, f_whole,
+                                                               f_final);
 
   uint8_t length_block[16];
   CRYPTO_store_u64_le(length_block, ad_len * 8);
@@ -341,10 +342,10 @@ void aead_aes_gcm_siv_kdf(int is_128_bit,
 }
 
 int aead_aes_gcm_siv_asm_sealv(const EVP_AEAD_CTX *ctx,
-                               bssl::Span<const CRYPTO_IOVEC> iovecs,
-                               bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-                               bssl::Span<const uint8_t> nonce,
-                               bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                               Span<const CRYPTO_IOVEC> iovecs,
+                               Span<uint8_t> out_tag, size_t *out_tag_len,
+                               Span<const uint8_t> nonce,
+                               Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_gcm_siv_asm_ctx *gcm_siv_ctx = asm_ctx_from_ctx(ctx);
   const size_t in_len = bssl::iovec::TotalLength(iovecs);
   const uint64_t in_len_64 = in_len;
@@ -464,10 +465,10 @@ int aead_aes_gcm_siv_asm_sealv(const EVP_AEAD_CTX *ctx,
 }
 
 int aead_aes_gcm_siv_asm_openv_detached(const EVP_AEAD_CTX *ctx,
-                                        bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                        bssl::Span<const uint8_t> nonce,
-                                        bssl::Span<const uint8_t> in_tag,
-                                        bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                        Span<const CRYPTO_IOVEC> iovecs,
+                                        Span<const uint8_t> nonce,
+                                        Span<const uint8_t> in_tag,
+                                        Span<const CRYPTO_IVEC> aadvecs) {
   const size_t ad_len = bssl::iovec::TotalLength(aadvecs);
   const uint64_t ad_len_64 = ad_len;
   if (ad_len_64 >= (UINT64_C(1) << 61)) {
@@ -704,7 +705,7 @@ void aead_aes_gcm_siv_cleanup(EVP_AEAD_CTX *ctx) {}
 // only the first four bytes are used and the GCM-SIV tweak to the final byte
 // is applied. The |in| and |out| pointers may be equal but otherwise must not
 // alias.
-void gcm_siv_crypt(bssl::Span<const CRYPTO_IOVEC> iovecs,
+void gcm_siv_crypt(Span<const CRYPTO_IOVEC> iovecs,
                    const uint8_t initial_counter[AES_BLOCK_SIZE],
                    block128_f enc_block, const AES_KEY *key) {
   uint8_t counter[16];
@@ -819,8 +820,8 @@ void crypto_polyval_finish(const struct polyval_ctx *ctx, uint8_t out[16]) {
 
 // gcm_siv_polyval evaluates POLYVAL at |auth_key| on the given plaintext and
 // AD. The result is written to |out_tag|.
-void gcm_siv_polyval(uint8_t out_tag[16], bssl::Span<const CRYPTO_IOVEC> iovecs,
-                     bool encrypt, bssl::Span<const CRYPTO_IVEC> aadvecs,
+void gcm_siv_polyval(uint8_t out_tag[16], Span<const CRYPTO_IOVEC> iovecs,
+                     bool encrypt, Span<const CRYPTO_IVEC> aadvecs,
                      const uint8_t auth_key[16],
                      const uint8_t nonce[EVP_AEAD_AES_GCM_SIV_NONCE_LEN]) {
   struct polyval_ctx polyval_ctx;
@@ -846,8 +847,8 @@ void gcm_siv_polyval(uint8_t out_tag[16], bssl::Span<const CRYPTO_IOVEC> iovecs,
     return true;
   };
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
-      aadvecs, f_whole, f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(aadvecs, f_whole,
+                                                               f_final);
 
   if (encrypt) {
     bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
@@ -916,10 +917,10 @@ void gcm_siv_keys(const struct aead_aes_gcm_siv_ctx *gcm_siv_ctx,
 }
 
 int aead_aes_gcm_siv_sealv(const EVP_AEAD_CTX *ctx,
-                           bssl::Span<const CRYPTO_IOVEC> iovecs,
-                           bssl::Span<uint8_t> out_tag, size_t *out_tag_len,
-                           bssl::Span<const uint8_t> nonce,
-                           bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                           Span<const CRYPTO_IOVEC> iovecs,
+                           Span<uint8_t> out_tag, size_t *out_tag_len,
+                           Span<const uint8_t> nonce,
+                           Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_gcm_siv_ctx *gcm_siv_ctx =
       (struct aead_aes_gcm_siv_ctx *)&ctx->state;
   size_t in_len = bssl::iovec::TotalLength(iovecs);
@@ -959,10 +960,10 @@ int aead_aes_gcm_siv_sealv(const EVP_AEAD_CTX *ctx,
 }
 
 int aead_aes_gcm_siv_openv_detached(const EVP_AEAD_CTX *ctx,
-                                    bssl::Span<const CRYPTO_IOVEC> iovecs,
-                                    bssl::Span<const uint8_t> nonce,
-                                    bssl::Span<const uint8_t> in_tag,
-                                    bssl::Span<const CRYPTO_IVEC> aadvecs) {
+                                    Span<const CRYPTO_IOVEC> iovecs,
+                                    Span<const uint8_t> nonce,
+                                    Span<const uint8_t> in_tag,
+                                    Span<const CRYPTO_IVEC> aadvecs) {
   const uint64_t ad_len_64 = bssl::iovec::TotalLength(aadvecs);
   if (ad_len_64 >= (UINT64_C(1) << 61)) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_TOO_LARGE);
@@ -1037,14 +1038,14 @@ const EVP_AEAD aead_aes_256_gcm_siv = {
 
 #if defined(AES_GCM_SIV_ASM)
 
-const EVP_AEAD *EVP_aead_aes_128_gcm_siv(void) {
+const EVP_AEAD *EVP_aead_aes_128_gcm_siv() {
   if (CRYPTO_is_AVX_capable() && CRYPTO_is_AESNI_capable()) {
     return &aead_aes_128_gcm_siv_asm;
   }
   return &aead_aes_128_gcm_siv;
 }
 
-const EVP_AEAD *EVP_aead_aes_256_gcm_siv(void) {
+const EVP_AEAD *EVP_aead_aes_256_gcm_siv() {
   if (CRYPTO_is_AVX_capable() && CRYPTO_is_AESNI_capable()) {
     return &aead_aes_256_gcm_siv_asm;
   }
@@ -1053,8 +1054,8 @@ const EVP_AEAD *EVP_aead_aes_256_gcm_siv(void) {
 
 #else
 
-const EVP_AEAD *EVP_aead_aes_128_gcm_siv(void) { return &aead_aes_128_gcm_siv; }
+const EVP_AEAD *EVP_aead_aes_128_gcm_siv() { return &aead_aes_128_gcm_siv; }
 
-const EVP_AEAD *EVP_aead_aes_256_gcm_siv(void) { return &aead_aes_256_gcm_siv; }
+const EVP_AEAD *EVP_aead_aes_256_gcm_siv() { return &aead_aes_256_gcm_siv; }
 
 #endif  // AES_GCM_SIV_ASM

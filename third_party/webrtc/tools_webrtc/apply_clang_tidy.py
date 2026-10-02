@@ -114,6 +114,13 @@ def _run_clang_tidy(work_dir: pathlib.Path) -> None:
                    check=False)
 
 
+def _cleanup_unrelated_changes() -> None:
+    print("Cleaning up changes in third_party etcetera")
+    subprocess.run(("gclient", "sync", "-f"),
+                   capture_output=False,
+                   text=True,
+                   check=False)
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Runs clang-tidy with a set of rules",
@@ -135,6 +142,7 @@ def main() -> None:
     _build_clang_tools(args.work_dir)
     _generate_compile_commands(args.work_dir)
     _run_clang_tidy(args.work_dir)
+    _cleanup_unrelated_changes()
 
 
 if __name__ == "__main__":

@@ -34,6 +34,8 @@
 #include "../test/wycheproof_util.h"
 #include "internal.h"
 
+
+BSSL_NAMESPACE_BEGIN
 namespace {
 
 // kLimitedImplementation indicates that tests that assume a generic AEAD
@@ -58,7 +60,7 @@ constexpr uint32_t kSkipIOVec = 1 << 5;
 
 struct KnownAEAD {
   const char name[40];
-  const EVP_AEAD *(*func)(void);
+  const EVP_AEAD *(*func)();
   const char *test_vectors;
   uint32_t flags;
 
@@ -198,7 +200,7 @@ TEST_P(PerAEADTest, TestVector) {
       ASSERT_TRUE(tag_len);
     }
 
-    bssl::ScopedEVP_AEAD_CTX ctx;
+    ScopedEVP_AEAD_CTX ctx;
     ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
         ctx.get(), aead(), key.data(), key.size(), tag_len, evp_aead_seal));
 
@@ -308,7 +310,7 @@ TEST_P(PerAEADTest, TestExtraInput) {
     for (size_t extra_in_size = 0; extra_in_size < in.size(); extra_in_size++) {
       SCOPED_TRACE(extra_in_size);
 
-      bssl::ScopedEVP_AEAD_CTX ctx;
+      ScopedEVP_AEAD_CTX ctx;
       ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
           ctx.get(), aead(), key.data(), key.size(), tag_len, evp_aead_seal));
       size_t tag_bytes_written;
@@ -350,7 +352,7 @@ TEST_P(PerAEADTest, TestVectorScatterGather) {
       ASSERT_TRUE(tag_len);
     }
 
-    bssl::ScopedEVP_AEAD_CTX ctx;
+    ScopedEVP_AEAD_CTX ctx;
     ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
         ctx.get(), aead(), key.data(), key.size(), tag_len, evp_aead_seal));
 
@@ -461,8 +463,8 @@ class TestIOVecs {
     return (*this = other.Clone());
   }
 
-  static TestIOVecs Split(bssl::Span<const uint8_t> inp,
-                          std::vector<size_t> splits, bool in_place) {
+  static TestIOVecs Split(Span<const uint8_t> inp, std::vector<size_t> splits,
+                          bool in_place) {
     TestIOVecs ret;
     for (size_t i = 0; i <= splits.size(); i++) {
       size_t start = i == 0 ? 0 : splits[i - 1];
@@ -473,11 +475,11 @@ class TestIOVecs {
     return ret;
   }
 
-  bssl::Span<const CRYPTO_IOVEC> iovecs() const { return iovecs_; }
+  Span<const CRYPTO_IOVEC> iovecs() const { return iovecs_; }
 
-  bssl::Span<const CRYPTO_IVEC> ivecs() const { return ivecs_; }
+  Span<const CRYPTO_IVEC> ivecs() const { return ivecs_; }
 
-  void Append(bssl::Span<const uint8_t> inp, bool in_place = false) {
+  void Append(Span<const uint8_t> inp, bool in_place = false) {
     CRYPTO_IOVEC iovec;
     iovec.len = inp.size();
     buffers_.emplace_back(inp.begin(), inp.end());
@@ -505,7 +507,7 @@ class TestIOVecs {
   TestIOVecs Clone() const {
     TestIOVecs out;
     for (const CRYPTO_IOVEC &iovec : iovecs_) {
-      out.Append(bssl::Span(iovec.in, iovec.len),
+      out.Append(Span(iovec.in, iovec.len),
                  /*in_place=*/iovec.in == iovec.out);
     }
     return out;
@@ -611,7 +613,7 @@ void RunSealvTests(const KnownAEAD &aead_config, bool in_place) {
          InterestingSplitsForLength(ad.size(), /*block_size=*/16)) {
       SCOPED_TRACE(FormatSplits(adsplits));
       TestIOVecs advecs = TestIOVecs::Split(ad, adsplits, in_place);
-      bssl::ScopedEVP_AEAD_CTX ctx;
+      ScopedEVP_AEAD_CTX ctx;
       for (const auto &splits :
            InterestingSplitsForLength(in.size(), /*block_size=*/16)) {
         if (!adsplits.empty() && !splits.empty()) {
@@ -628,20 +630,10 @@ void RunSealvTests(const KnownAEAD &aead_config, bool in_place) {
         TestIOVecs iovecs = TestIOVecs::Split(in, splits, in_place);
         std::vector<uint8_t> out_tag(EVP_AEAD_max_overhead(aead_config.func()));
         size_t out_tag_len;
-        int ret = EVP_AEAD_CTX_sealv(
+        ASSERT_TRUE(EVP_AEAD_CTX_sealv(
             ctx.get(), iovecs.iovecs().data(), iovecs.iovecs().size(),
             out_tag.data(), &out_tag_len, out_tag.size(), nonce.data(),
-            nonce.size(), advecs.ivecs().data(), advecs.ivecs().size());
-
-        // Skip encryption for AEADs that don't implement sealv().
-        // TODO(crbug.com/383343306): Remove this check once all AEADs do.
-        if (!ret && ERR_equals(ERR_peek_error(), ERR_LIB_CIPHER,
-                               CIPHER_R_CTRL_NOT_IMPLEMENTED)) {
-          t->SkipCurrent();
-          return;
-        }
-
-        ASSERT_TRUE(ret);
+            nonce.size(), advecs.ivecs().data(), advecs.ivecs().size()));
         out_tag.resize(out_tag_len);
         EXPECT_EQ(Bytes(ct), Bytes(iovecs.Output()));
         EXPECT_EQ(Bytes(tag), Bytes(out_tag));
@@ -679,7 +671,7 @@ void RunOpenvDetachedTests(const KnownAEAD &aead_config, bool in_place) {
          InterestingSplitsForLength(ad.size(), /*block_size=*/16)) {
       SCOPED_TRACE(FormatSplits(adsplits));
       TestIOVecs advecs = TestIOVecs::Split(ad, adsplits, in_place);
-      bssl::ScopedEVP_AEAD_CTX ctx;
+      ScopedEVP_AEAD_CTX ctx;
       for (const auto &splits :
            InterestingSplitsForLength(ct.size(), /*block_size=*/16)) {
         if (!adsplits.empty() && !splits.empty()) {
@@ -797,7 +789,7 @@ void RunOpenvTests(const KnownAEAD &aead_config, bool in_place) {
          InterestingSplitsForLength(ad.size(), /*block_size=*/16)) {
       SCOPED_TRACE(FormatSplits(adsplits));
       TestIOVecs advecs = TestIOVecs::Split(ad, adsplits, in_place);
-      bssl::ScopedEVP_AEAD_CTX ctx;
+      ScopedEVP_AEAD_CTX ctx;
       for (const auto &splits :
            InterestingSplitsForLength(combined.size(), /*block_size=*/16)) {
         if (!adsplits.empty() && !splits.empty()) {
@@ -974,7 +966,7 @@ TEST_P(PerAEADTest, TruncatedTags) {
       tag_len + EVP_AEAD_max_overhead(aead()) - EVP_AEAD_max_tag_len(aead());
   size_t expected_ciphertext_len = sizeof(plaintext) + expected_overhead;
 
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(ctx.get(), aead(), key, key_len,
                                                tag_len, evp_aead_seal));
 
@@ -1056,7 +1048,7 @@ TEST_P(PerAEADTest, AliasedBuffers) {
   const size_t max_overhead = EVP_AEAD_max_overhead(aead());
 
   std::vector<uint8_t> key(key_len, 'a');
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   ASSERT_TRUE(EVP_AEAD_CTX_init(ctx.get(), aead(), key.data(), key_len,
                                 EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr));
 
@@ -1140,7 +1132,7 @@ TEST_P(PerAEADTest, UnalignedInput) {
   ASSERT_GE(sizeof(ad) - 1, ad_len);
 
   // Encrypt some input.
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
       ctx.get(), aead(), key + 1, key_len, EVP_AEAD_DEFAULT_TAG_LENGTH,
       evp_aead_seal));
@@ -1169,7 +1161,7 @@ TEST_P(PerAEADTest, Overflow) {
   uint8_t key[EVP_AEAD_MAX_KEY_LENGTH];
   OPENSSL_memset(key, 'K', sizeof(key));
 
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   const size_t max_tag_len = EVP_AEAD_max_tag_len(aead());
   ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(ctx.get(), aead(), key,
                                                EVP_AEAD_key_length(aead()),
@@ -1215,7 +1207,7 @@ TEST_P(PerAEADTest, InvalidNonceLength) {
     uint8_t buf[256];
     size_t len;
     std::vector<uint8_t> nonce(nonce_len);
-    bssl::ScopedEVP_AEAD_CTX ctx;
+    ScopedEVP_AEAD_CTX ctx;
     ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
         ctx.get(), aead(), kZeros, EVP_AEAD_key_length(aead()),
         EVP_AEAD_DEFAULT_TAG_LENGTH, evp_aead_seal));
@@ -1289,11 +1281,11 @@ TEST_P(PerAEADTest, ABI) {
   const size_t key_len = EVP_AEAD_key_length(aead());
   ASSERT_LE(key_len, sizeof(key));
 
-  bssl::ScopedEVP_AEAD_CTX ctx_seal;
+  ScopedEVP_AEAD_CTX ctx_seal;
   ASSERT_TRUE(
       CHECK_ABI(aead_ctx_init_for_seal, ctx_seal.get(), aead(), key, key_len));
 
-  bssl::ScopedEVP_AEAD_CTX ctx_open;
+  ScopedEVP_AEAD_CTX ctx_open;
   ASSERT_TRUE(
       CHECK_ABI(aead_ctx_init_for_open, ctx_open.get(), aead(), key, key_len));
 
@@ -1383,7 +1375,7 @@ TEST(AEADTest, AESCCMLargeAD) {
   static const std::vector<uint8_t> kTag = {0x4a, 0x31, 0x82, 0x96};
 
   // Test AES-128-CCM-Bluetooth.
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   ASSERT_TRUE(EVP_AEAD_CTX_init(ctx.get(), EVP_aead_aes_128_ccm_bluetooth(),
                                 kKey.data(), kKey.size(),
                                 EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr));
@@ -1427,7 +1419,7 @@ static void RunWycheproofTestCase(FileTest *t, const EVP_AEAD *aead) {
   std::vector<uint8_t> ct_and_tag = ct;
   ct_and_tag.insert(ct_and_tag.end(), tag.begin(), tag.end());
 
-  bssl::ScopedEVP_AEAD_CTX ctx;
+  ScopedEVP_AEAD_CTX ctx;
   ASSERT_TRUE(EVP_AEAD_CTX_init(ctx.get(), aead, key.data(), key.size(),
                                 tag_size, nullptr));
   std::vector<uint8_t> out(msg.size());
@@ -1599,10 +1591,10 @@ TEST(AEADTest, ForEachBlockRange) {
        }) {
     SCOPED_TRACE(in_str);
 
-    bssl::Span<const uint8_t> in_span = bssl::StringAsBytes(in_str);
+    Span<const uint8_t> in_span = StringAsBytes(in_str);
     std::vector<uint8_t> want(in_str.size(), 'X');
     ebg13(in_span.data(), want.data(), in_span.size());
-    std::string_view want_str = bssl::BytesAsStringView(want);
+    std::string_view want_str = BytesAsStringView(want);
 
     for (const auto &splits :
          InterestingSplitsForLength(in_span.size(), /*block_size=*/16)) {
@@ -1640,3 +1632,4 @@ TEST(AEADTest, ForEachBlockRange) {
 }
 
 }  // namespace
+BSSL_NAMESPACE_END

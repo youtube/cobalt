@@ -4,9 +4,8 @@ This page lists all the steps needed in order to add an `rtc_test` target to
 WebRTC's BUILD.gn files and ensure the test binary will run on the presubmit and
 postsubmit infrastructure.
 
-1. While working on your CL, add an `rtc_test` target, with `testonly = true`,
-   and `../test:test_main` among its dependencies (`rtc_test` targets require
-   a `main()` function).
+1. While working on your CL, add an `rtc_test` target, with `testonly = true`.
+   `rtc_test` automatically adds `test:test_main` to its dependencies.
 
 2. Add the newly created `rtc_test` target to the `group("default")` target in
    the root [BUILD.gn](https://source.chromium.org/chromium/chromium/src/+/main:third_party/webrtc/BUILD.gn).

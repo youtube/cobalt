@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/test/simulated_network.h"
 #include "api/transport/ecn_marking.h"
 #include "api/transport/network_types.h"
@@ -57,23 +58,32 @@ CcFeedbackGenerator::CcFeedbackGenerator(Config config)
 TransportPacketsFeedback CcFeedbackGenerator::ProcessUntilNextFeedback(
     DataRate send_rate,
     SimulatedClock& clock,
+    absl::AnyInvocable<void(const SentPacket&)> sent_packet_cb,
     TimeDelta max_time) {
   Timestamp end_time = clock.CurrentTime() + max_time;
   while (clock.CurrentTime() < end_time) {
-    MaybeSendPackets(clock.CurrentTime(), send_rate);
+    std::optional<SentPacket> sent_packet =
+        MaybeSendPackets(clock.CurrentTime(), send_rate);
     ProcessNetwork(clock.CurrentTime());
+    if (sent_packet_cb && sent_packet.has_value()) {
+      sent_packet_cb(*sent_packet);
+    }
     std::optional<TransportPacketsFeedback> feedback =
         MaybeSendFeedback(clock.CurrentTime());
     if (feedback.has_value()) {
       return *feedback;
     }
-    clock.AdvanceTime(TimeDelta::Millis(1));
+    if (!sent_packet.has_value() && !feedback.has_value()) {
+      clock.AdvanceTime(TimeDelta::Millis(1));
+    }
   }
   ADD_FAILURE() << "No feedback received after " << max_time;
   return TransportPacketsFeedback();
 }
 
-void CcFeedbackGenerator::MaybeSendPackets(Timestamp time, DataRate send_rate) {
+std::optional<SentPacket> CcFeedbackGenerator::MaybeSendPackets(
+    Timestamp time,
+    DataRate send_rate) {
   if (last_send_budget_update.IsInfinite()) {
     send_budget_ = packet_size_;
   } else {
@@ -82,7 +92,9 @@ void CcFeedbackGenerator::MaybeSendPackets(Timestamp time, DataRate send_rate) {
   last_send_budget_update = time;
 
   // This simulator pace out packets with perfect pacing.
-  while (send_budget_ >= packet_size_) {
+  if (send_budget_ < packet_size_) {
+    return std::nullopt;
+  }
     send_budget_ -= packet_size_;
     PacketInFlightInfo packet_info(
         packet_size_, time,
@@ -94,7 +106,16 @@ void CcFeedbackGenerator::MaybeSendPackets(Timestamp time, DataRate send_rate) {
       RTC_LOG(LS_VERBOSE) << "Packet " << (next_packet_id_ - 1)
                           << " dropped by queueu ";
     }
-  }
+
+    DataSize bytes_in_flight = DataSize::Zero();
+    for (const PacketInFlightInfo& in_flight : packets_in_flight_) {
+      bytes_in_flight += in_flight.packet_size();
+    }
+    SentPacket sent_packet;
+    sent_packet.send_time = packet_info.send_time();
+    sent_packet.size = packet_info.packet_size();
+    sent_packet.data_in_flight = bytes_in_flight;
+    return sent_packet;
 }
 
 void CcFeedbackGenerator::ProcessNetwork(Timestamp time) {

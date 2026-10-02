@@ -255,7 +255,7 @@ end:
   return ret;
 }
 
-static BIO_CONNECT *BIO_CONNECT_new(void) {
+static BIO_CONNECT *BIO_CONNECT_new() {
   BIO_CONNECT *ret =
       reinterpret_cast<BIO_CONNECT *>(OPENSSL_zalloc(sizeof(BIO_CONNECT)));
   if (ret == nullptr) {
@@ -453,7 +453,7 @@ static const BIO_METHOD methods_connectp = {
     conn_new,         conn_free,        conn_callback_ctrl,
 };
 
-const BIO_METHOD *BIO_s_connect(void) { return &methods_connectp; }
+const BIO_METHOD *BIO_s_connect() { return &methods_connectp; }
 
 int BIO_set_conn_hostname(BIO *bio, const char *name) {
   return (int)BIO_ctrl(bio, BIO_C_SET_CONNECT, 0, (void *)name);

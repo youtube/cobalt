@@ -10,70 +10,12 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "quiche/http2/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_static_table.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
-namespace {
-
-std::vector<HpackStringPair>* MakeStaticTable() {
-  auto* ptr = new std::vector<HpackStringPair>();
-  ptr->reserve(kFirstDynamicTableIndex);
-  ptr->emplace_back("", "");
-
-#define STATIC_TABLE_ENTRY(name, value, index)               \
-  QUICHE_DCHECK_EQ(ptr->size(), static_cast<size_t>(index)); \
-  ptr->emplace_back(name, value)
-
-#include "quiche/http2/hpack/hpack_static_table_entries.inc"
-
-#undef STATIC_TABLE_ENTRY
-
-  return ptr;
-}
-
-const std::vector<HpackStringPair>* GetStaticTable() {
-  static const std::vector<HpackStringPair>* const g_static_table =
-      MakeStaticTable();
-  return g_static_table;
-}
-
-}  // namespace
-
-HpackStringPair::HpackStringPair(std::string name, std::string value)
-    : name(std::move(name)), value(std::move(value)) {
-  QUICHE_DVLOG(3) << DebugString() << " ctor";
-}
-
-HpackStringPair::~HpackStringPair() {
-  QUICHE_DVLOG(3) << DebugString() << " dtor";
-}
-
-std::string HpackStringPair::DebugString() const {
-  return absl::StrCat("HpackStringPair(name=", name, ", value=", value, ")");
-}
-
-std::ostream& operator<<(std::ostream& os, const HpackStringPair& p) {
-  os << p.DebugString();
-  return os;
-}
-
-HpackDecoderStaticTable::HpackDecoderStaticTable(
-    const std::vector<HpackStringPair>* table)
-    : table_(table) {}
-
-HpackDecoderStaticTable::HpackDecoderStaticTable() : table_(GetStaticTable()) {}
-
-const HpackStringPair* HpackDecoderStaticTable::Lookup(size_t index) const {
-  if (0 < index && index < kFirstDynamicTableIndex) {
-    return &((*table_)[index]);
-  }
-  return nullptr;
-}
-
-HpackDecoderDynamicTable::HpackDecoderDynamicTable()
-    : insert_count_(kFirstDynamicTableIndex - 1) {}
-HpackDecoderDynamicTable::~HpackDecoderDynamicTable() = default;
 
 void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
   QUICHE_DVLOG(3) << "HpackDecoderDynamicTable::DynamicTableSizeUpdate "
@@ -86,11 +28,11 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 // TODO(jamessynge): Check somewhere before here that names received from the
 // peer are valid (e.g. are lower-case, no whitespace, etc.).
 void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
-  HpackStringPair entry(std::move(name), std::move(value));
-  size_t entry_size = entry.size();
+  HpackEntry entry(std::move(name), std::move(value));
+  size_t entry_size = entry.Size();
   QUICHE_DVLOG(2) << "InsertEntry of size=" << entry_size
-                  << "\n     name: " << entry.name
-                  << "\n    value: " << entry.value;
+                  << "\n     name: " << entry.name()
+                  << "\n    value: " << entry.value();
   if (entry_size > size_limit_) {
     QUICHE_DVLOG(2) << "InsertEntry: entry larger than table, removing "
                     << table_.size() << " entries, of total size "
@@ -99,7 +41,6 @@ void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
     current_size_ = 0;
     return;
   }
-  ++insert_count_;
   size_t insert_limit = size_limit_ - entry_size;
   EnsureSizeNoMoreThan(insert_limit);
   table_.push_front(std::move(entry));
@@ -109,7 +50,7 @@ void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
   QUICHE_DCHECK_LE(current_size_, size_limit_);
 }
 
-const HpackStringPair* HpackDecoderDynamicTable::Lookup(size_t index) const {
+const HpackEntry* HpackDecoderDynamicTable::Lookup(size_t index) const {
   if (index < table_.size()) {
     return &table_[index];
   }
@@ -130,21 +71,23 @@ void HpackDecoderDynamicTable::RemoveLastEntry() {
   QUICHE_DCHECK(!table_.empty());
   if (!table_.empty()) {
     QUICHE_DVLOG(2) << "RemoveLastEntry current_size_=" << current_size_
-                    << ", last entry size=" << table_.back().size();
-    QUICHE_DCHECK_GE(current_size_, table_.back().size());
-    current_size_ -= table_.back().size();
+                    << ", last entry size=" << table_.back().Size();
+    QUICHE_DCHECK_GE(current_size_, table_.back().Size());
+    current_size_ -= table_.back().Size();
     table_.pop_back();
     // Empty IFF current_size_ == 0.
     QUICHE_DCHECK_EQ(table_.empty(), current_size_ == 0);
   }
 }
 
-HpackDecoderTables::HpackDecoderTables() = default;
-HpackDecoderTables::~HpackDecoderTables() = default;
+HpackDecoderTables::HpackDecoderTables()
+    : static_entries_(spdy::ObtainHpackStaticTable().GetStaticEntries()) {}
 
-const HpackStringPair* HpackDecoderTables::Lookup(size_t index) const {
-  if (index < kFirstDynamicTableIndex) {
-    return static_table_.Lookup(index);
+const HpackEntry* HpackDecoderTables::Lookup(size_t index) const {
+  if (index == 0) {
+    return nullptr;
+  } else if (index < kFirstDynamicTableIndex) {
+    return &static_entries_[index - 1];
   } else {
     return dynamic_table_.Lookup(index - kFirstDynamicTableIndex);
   }

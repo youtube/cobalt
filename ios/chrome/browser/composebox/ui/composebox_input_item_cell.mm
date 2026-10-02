@@ -9,6 +9,7 @@
 #import "base/i18n/message_formatter.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -85,6 +86,7 @@ const CGFloat kCloseButtonAlpha = 0.9;
 
 - (void)prepareForReuse {
   [super prepareForReuse];
+  _associatedItem = nil;
   [_inputItemView prepareForReuse];
 }
 
@@ -92,6 +94,7 @@ const CGFloat kCloseButtonAlpha = 0.9;
 
 - (void)configureWithItem:(ComposeboxInputItem*)item
                     theme:(ComposeboxTheme*)theme {
+  _associatedItem = item;
   [_inputItemView configureWithItem:item theme:theme];
 
   BOOL isLoading = item.state == ComposeboxInputItemState::kLoading ||
@@ -129,10 +132,16 @@ const CGFloat kCloseButtonAlpha = 0.9;
 
   self.isAccessibilityElement = YES;
   switch (item.type) {
-    case ComposeboxInputItemType::kComposeboxInputItemTypeImage:
-      self.accessibilityLabel = l10n_util::GetNSString(
-          IDS_IOS_COMPOSEBOX_ATTACHMENT_IMAGE_ACCESSIBILITY_LABEL);
+    case ComposeboxInputItemType::kComposeboxInputItemTypeImage: {
+      std::u16string pattern = l10n_util::GetStringUTF16(
+          IDS_IOS_COMPOSEBOX_ATTACHMENT_IMAGE_INDEXED_ACCESSIBILITY_LABEL);
+      std::u16string message =
+          base::i18n::MessageFormatter::FormatWithNamedArgs(
+              pattern, "index", static_cast<int>(item.uploadIndex + 1));
+      self.accessibilityLabel = base::SysUTF16ToNSString(message);
+      self.accessibilityTraits |= UIAccessibilityTraitImage;
       break;
+    }
     case ComposeboxInputItemType::kComposeboxInputItemTypeFile: {
       std::u16string title = base::SysNSStringToUTF16(item.title);
       std::u16string pattern = l10n_util::GetStringUTF16(
@@ -141,6 +150,7 @@ const CGFloat kCloseButtonAlpha = 0.9;
           base::i18n::MessageFormatter::FormatWithNamedArgs(pattern, "title",
                                                             title);
       self.accessibilityLabel = base::SysUTF16ToNSString(message);
+      self.accessibilityTraits &= ~UIAccessibilityTraitImage;
       break;
     }
     case ComposeboxInputItemType::kComposeboxInputItemTypeTab: {
@@ -151,6 +161,7 @@ const CGFloat kCloseButtonAlpha = 0.9;
           base::i18n::MessageFormatter::FormatWithNamedArgs(pattern, "title",
                                                             title);
       self.accessibilityLabel = base::SysUTF16ToNSString(message);
+      self.accessibilityTraits &= ~UIAccessibilityTraitImage;
       break;
     }
   }

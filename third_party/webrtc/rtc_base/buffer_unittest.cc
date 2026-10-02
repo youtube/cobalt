@@ -41,7 +41,7 @@ void TestBuf(const Buffer& b1, size_t size, size_t capacity) {
 TEST(BufferTest, TestConstructEmpty) {
   TestBuf(Buffer(), 0, 0);
   TestBuf(Buffer(Buffer()), 0, 0);
-  TestBuf(Buffer(0), 0, 0);
+  TestBuf(Buffer::CreateUninitializedWithSize(0), 0, 0);
 
   // We can't use a literal 0 for the first argument, because C++ will allow
   // that to be considered a null pointer, which makes the call ambiguous.
@@ -367,7 +367,7 @@ TEST(BufferTest, TestBracketReadConst) {
 }
 
 TEST(BufferTest, TestBracketWrite) {
-  Buffer buf(7);
+  Buffer buf = Buffer::CreateUninitializedWithSize(7);
   EXPECT_EQ(buf.size(), 7u);
   EXPECT_EQ(buf.capacity(), 7u);
   EXPECT_NE(buf.data(), nullptr);
@@ -442,12 +442,13 @@ TEST(BufferTest, TestStruct) {
     bool blood;
     const char* stone;
   };
-  BufferT<BloodStone> buf(4);
+  BufferT<BloodStone> buf = BufferT<BloodStone>::CreateUninitializedWithSize(4);
   EXPECT_EQ(buf.size(), 4u);
   EXPECT_EQ(buf.capacity(), 4u);
   EXPECT_NE(buf.data(), nullptr);
   EXPECT_FALSE(buf.empty());
-  BufferT<BloodStone*> buf2(4);
+  BufferT<BloodStone*> buf2 =
+      BufferT<BloodStone*>::CreateUninitializedWithSize(4);
   for (size_t i = 0; i < buf2.size(); ++i) {
     buf2[i] = &buf[i];
   }
@@ -457,7 +458,7 @@ TEST(BufferTest, TestStruct) {
 }
 
 TEST(BufferDeathTest, DieOnUseAfterMove) {
-  Buffer buf(17);
+  Buffer buf = Buffer::CreateUninitializedWithSize(17);
   Buffer buf2 = std::move(buf);
   EXPECT_EQ(buf2.size(), 17u);
 #if RTC_DCHECK_IS_ON

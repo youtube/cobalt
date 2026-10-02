@@ -174,13 +174,15 @@ class ClippingPredictorParameterization
   int num_channels() const { return std::get<0>(GetParam()); }
   ClippingPredictorConfig GetConfig(ClippingPredictorMode mode) const {
     // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
-    return {/*enabled=*/true,
-            /*mode=*/mode,
-            /*window_length=*/std::get<1>(GetParam()),
-            /*reference_window_length=*/std::get<2>(GetParam()),
-            /*reference_window_delay=*/std::get<3>(GetParam()),
-            /*clipping_threshold=*/-1.0f,
-            /*crest_factor_margin=*/0.5f};
+    return {/*enabled=*/.enabled = true,
+            /*mode=*/.mode = mode,
+            /*window_length=*/.window_length = std::get<1>(GetParam()),
+            /*reference_window_length=*/.reference_window_length =
+                std::get<2>(GetParam()),
+            /*reference_window_delay=*/.reference_window_delay =
+                std::get<3>(GetParam()),
+            /*clipping_threshold=*/.clipping_threshold = -1.0f,
+            /*crest_factor_margin=*/.crest_factor_margin = 0.5f};
   }
 };
 
@@ -291,13 +293,14 @@ class ClippingEventPredictorParameterization
  protected:
   ClippingPredictorConfig GetConfig() const {
     // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
-    return {/*enabled=*/true,
-            /*mode=*/ClippingPredictorMode::kClippingEventPrediction,
-            /*window_length=*/5,
-            /*reference_window_length=*/5,
-            /*reference_window_delay=*/5,
-            /*clipping_threshold=*/std::get<0>(GetParam()),
-            /*crest_factor_margin=*/std::get<1>(GetParam())};
+    return {
+        /*enabled=*/.enabled = true,
+        /*mode=*/.mode = ClippingPredictorMode::kClippingEventPrediction,
+        /*window_length=*/.window_length = 5,
+        /*reference_window_length=*/.reference_window_length = 5,
+        /*reference_window_delay=*/.reference_window_delay = 5,
+        /*clipping_threshold=*/.clipping_threshold = std::get<0>(GetParam()),
+        /*crest_factor_margin=*/.crest_factor_margin = std::get<1>(GetParam())};
   }
 };
 
@@ -337,13 +340,14 @@ class ClippingPredictorModeParameterization
  protected:
   ClippingPredictorConfig GetConfig(float clipping_threshold_dbfs) const {
     // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
-    return {/*enabled=*/true,
-            /*mode=*/GetParam(),
-            /*window_length=*/5,
-            /*reference_window_length=*/5,
-            /*reference_window_delay=*/5,
-            /*clipping_threshold=*/clipping_threshold_dbfs,
-            /*crest_factor_margin=*/3.0f};
+    return {
+        /*enabled=*/.enabled = true,
+        /*mode=*/.mode = GetParam(),
+        /*window_length=*/.window_length = 5,
+        /*reference_window_length=*/.reference_window_length = 5,
+        /*reference_window_delay=*/.reference_window_delay = 5,
+        /*clipping_threshold=*/.clipping_threshold = clipping_threshold_dbfs,
+        /*crest_factor_margin=*/.crest_factor_margin = 3.0f};
   }
 };
 
@@ -400,13 +404,13 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(ClippingEventPredictorTest, CheckEstimateAfterReset) {
   // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
   constexpr ClippingPredictorConfig kConfig{
-      /*enabled=*/true,
-      /*mode=*/ClippingPredictorMode::kClippingEventPrediction,
-      /*window_length=*/5,
-      /*reference_window_length=*/5,
-      /*reference_window_delay=*/5,
-      /*clipping_threshold=*/-1.0f,
-      /*crest_factor_margin=*/3.0f};
+      /*enabled=*/.enabled = true,
+      /*mode=*/.mode = ClippingPredictorMode::kClippingEventPrediction,
+      /*window_length=*/.window_length = 5,
+      /*reference_window_length=*/.reference_window_length = 5,
+      /*reference_window_delay=*/.reference_window_delay = 5,
+      /*clipping_threshold=*/.clipping_threshold = -1.0f,
+      /*crest_factor_margin=*/.crest_factor_margin = 3.0f};
   auto predictor = CreateClippingPredictor(kNumChannels, kConfig);
   AnalyzeNonZeroCrestFactorAudio(/*num_calls=*/kConfig.reference_window_length,
                                  kNumChannels,
@@ -425,12 +429,13 @@ TEST(ClippingEventPredictorTest, CheckEstimateAfterReset) {
 TEST(ClippingPeakPredictorTest, CheckNoEstimateAfterReset) {
   // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
   constexpr ClippingPredictorConfig kConfig{
-      /*enabled=*/true,
-      /*mode=*/ClippingPredictorMode::kAdaptiveStepClippingPeakPrediction,
-      /*window_length=*/5,
-      /*reference_window_length=*/5,
-      /*reference_window_delay=*/5,
-      /*clipping_threshold=*/-1.0f};
+      /*enabled=*/.enabled = true,
+      /*mode=*/.mode =
+          ClippingPredictorMode::kAdaptiveStepClippingPeakPrediction,
+      /*window_length=*/.window_length = 5,
+      /*reference_window_length=*/.reference_window_length = 5,
+      /*reference_window_delay=*/.reference_window_delay = 5,
+      /*clipping_threshold=*/.clipping_threshold = -1.0f};
   auto predictor = CreateClippingPredictor(kNumChannels, kConfig);
   AnalyzeNonZeroCrestFactorAudio(/*num_calls=*/kConfig.reference_window_length,
                                  kNumChannels,
@@ -449,12 +454,13 @@ TEST(ClippingPeakPredictorTest, CheckNoEstimateAfterReset) {
 TEST(ClippingPeakPredictorTest, CheckAdaptiveStepEstimate) {
   // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
   constexpr ClippingPredictorConfig kConfig{
-      /*enabled=*/true,
-      /*mode=*/ClippingPredictorMode::kAdaptiveStepClippingPeakPrediction,
-      /*window_length=*/5,
-      /*reference_window_length=*/5,
-      /*reference_window_delay=*/5,
-      /*clipping_threshold=*/-1.0f};
+      /*enabled=*/.enabled = true,
+      /*mode=*/.mode =
+          ClippingPredictorMode::kAdaptiveStepClippingPeakPrediction,
+      /*window_length=*/.window_length = 5,
+      /*reference_window_length=*/.reference_window_length = 5,
+      /*reference_window_delay=*/.reference_window_delay = 5,
+      /*clipping_threshold=*/.clipping_threshold = -1.0f};
   auto predictor = CreateClippingPredictor(kNumChannels, kConfig);
   AnalyzeNonZeroCrestFactorAudio(/*num_calls=*/kConfig.reference_window_length,
                                  kNumChannels, /*peak_ratio=*/0.99f,
@@ -472,12 +478,12 @@ TEST(ClippingPeakPredictorTest, CheckAdaptiveStepEstimate) {
 TEST(ClippingPeakPredictorTest, CheckFixedStepEstimate) {
   // TODO(bugs.webrtc.org/12874): Use designated initializers one fixed.
   constexpr ClippingPredictorConfig kConfig{
-      /*enabled=*/true,
-      /*mode=*/ClippingPredictorMode::kFixedStepClippingPeakPrediction,
-      /*window_length=*/5,
-      /*reference_window_length=*/5,
-      /*reference_window_delay=*/5,
-      /*clipping_threshold=*/-1.0f};
+      /*enabled=*/.enabled = true,
+      /*mode=*/.mode = ClippingPredictorMode::kFixedStepClippingPeakPrediction,
+      /*window_length=*/.window_length = 5,
+      /*reference_window_length=*/.reference_window_length = 5,
+      /*reference_window_delay=*/.reference_window_delay = 5,
+      /*clipping_threshold=*/.clipping_threshold = -1.0f};
   auto predictor = CreateClippingPredictor(kNumChannels, kConfig);
   AnalyzeNonZeroCrestFactorAudio(/*num_calls=*/kConfig.reference_window_length,
                                  kNumChannels, /*peak_ratio=*/0.99f,

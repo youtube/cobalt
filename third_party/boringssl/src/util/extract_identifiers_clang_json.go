@@ -80,6 +80,13 @@ func (t typeStruct) desugaredQualType() string {
 	return t.QualType
 }
 
+var typeTag = regexp.MustCompile(`^(?:enum|struct|union)\b`)
+
+// qualTypeTag returns the tag of the qualified type, if any.
+func (t typeStruct) qualTypeTag() string {
+	return typeTag.FindString(t.QualType)
+}
+
 // constTypeRE is an approximate regex for types that are const.
 // It errs on the side of returning constants as non-const.
 var constType = regexp.MustCompile(`.*\bconst\b[^\[\]()*&]*$`)
@@ -411,10 +418,17 @@ func (w walker) visit(n *node) (err error) {
 			return nil
 		}
 		if len(n.Inner) == 1 && n.Inner[0].Kind == "ElaboratedType" && len(n.Inner[0].Inner) == 1 && n.Inner[0].Inner[0].Decl != nil && n.Inner[0].Inner[0].Decl.Name == n.Name {
-			// typedef struct X X;
+			// typedef struct X { ... } X;
 			return nil
 		}
-		if err := w.collectIdentifier(n, "typedef", alwaysNamespaced, neverLinked, noStorage); err != nil {
+		tag := "typedef"
+		if len(n.Inner) == 1 && n.Inner[0].Kind == "ElaboratedType" && len(n.Inner[0].Inner) == 1 && n.Inner[0].Inner[0].Decl != nil && n.Inner[0].Inner[0].Decl.Name == "" {
+			tag = n.Type.qualTypeTag()
+			if tag == "" {
+				return fmt.Errorf("typedef refers to an anonymous type but has no tag: %s", nodeCode)
+			}
+		}
+		if err := w.collectIdentifier(n, tag, alwaysNamespaced, neverLinked, noStorage); err != nil {
 			return err
 		}
 	case "VarDecl":
@@ -450,7 +464,8 @@ func (w walker) visit(n *node) (err error) {
 		"UsingDecl",
 		"UsingDirectiveDecl",
 		"VisibilityAttr",
-		"WarnUnusedResultAttr":
+		"WarnUnusedResultAttr",
+		"WeakAttr":
 		if len(n.Inner) != 0 {
 			// If this ever fires, check AST to see if any of the node's children could be useful,
 			// then categorize the node type into one of the following two cases.
@@ -577,7 +592,14 @@ func (w walker) collectIdentifier(n *node, tag string, namespacing namespacing, 
 	w.seen[key] = declaration
 
 	if *globalSymbolsOnly {
-		if !namespaced && storage != staticStorage {
+		// NOTE: This is over-exporting.
+		// At least for quite a while we can't namespace the
+		// enum, struct and union tags either
+		// as they may be forward declared by callers.
+		// The idea is to first get this overzealous namespacing to work,
+		// and then to remove those forward declaration prone symbols
+		// at least initially (and possibly namespace them then one by one).
+		if (!namespaced || len(w.namespace) == 0) && storage != staticStorage && tag != "typedef" && tag != "using" {
 			fmt.Printf("%s\n", identifier)
 		}
 		return nil

@@ -15,11 +15,12 @@
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "media/base/fake_frame_source.h"
 #include "pc/test/fake_video_track_renderer.h"
 #include "pc/test/fake_video_track_source.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -27,7 +28,8 @@ namespace {
 
 class VideoTrackTest : public ::testing::Test {
  public:
-  VideoTrackTest() : frame_source_(640, 480, kNumMicrosecsPerSec / 30) {
+  VideoTrackTest()
+      : frame_source_(640, 480, TimeDelta::Seconds(1) / 30, Timestamp::Zero()) {
     static const char kVideoTrackId[] = "track_id";
     video_track_source_ = make_ref_counted<FakeVideoTrackSource>(
         /*is_screencast=*/false);

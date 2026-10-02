@@ -172,11 +172,37 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   return ProcessResult::kContinue;
 }
 
+namespace {
+// This `UnwrapIdentitiesAndPhis` helper is like `ValueNode::UnwrapIdentities`
+// except that it also removes Phis that have a single input (and are not
+// exception phis or resumable loop phis).
+// TODO(dmercadier): Remove this helper if https://crrev.com/c/7117478 ever
+// lands.
+ValueNode* UnwrapIdentitiesAndPhis(ValueNode* node) {
+  ValueNode* prev = nullptr;
+  while (prev != node) {
+    prev = node;
+    node = node->UnwrapIdentities();
+    if (Phi* phi = node->TryCast<Phi>()) {
+      // We skip resumable loop phis since their single input could actually be
+      // defined within the loop itself.
+      if (phi->input_count() == 1 && !phi->is_exception_phi() &&
+          !(phi->is_loop_phi() && phi->merge_state()->is_resumable_loop())) {
+        // This is a Phi with a single input ==> replacing with the input
+        // itself.
+        node = phi->input_node(0);
+      }
+    }
+  }
+  return node;
+}
+}  // namespace
+
 void MaglevGraphOptimizer::UnwrapInputs() {
   for (int i = 0; i < current_node()->input_count(); i++) {
     ValueNode* input = current_node()->input(i).node();
     if (!input) continue;
-    current_node()->change_input(i, input->UnwrapIdentities());
+    current_node()->change_input(i, UnwrapIdentitiesAndPhis(input));
   }
 }
 
@@ -395,13 +421,25 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   return ReduceResult::DoneWithAbort();
 }
 
-ProcessResult MaglevGraphOptimizer::EmitAbort(AbortReason reason) {
+ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
+                                             ValueNode* input) {
+  bool has_input;
+  if (input == nullptr) {
+    has_input = false;
+    // To avoid a nullptr input, we use Smi(0) as dummy input.
+    input = reducer_.GetSmiConstant(0);
+  } else {
+    has_input = true;
+  }
+
   BasicBlock* block = reducer_.current_block();
   ControlNode* control = block->reset_control_node();
+  block->set_deferred(true);
   block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Abort>({}, reason);
+  ReduceResult result =
+      reducer_.AddNewControlNode<Throw>({input}, function, has_input);
   CHECK(!result.IsDoneWithAbort());
-  return ProcessResult::kTruncateBlock;
+  return ReduceResult::DoneWithAbort();
 }
 
 template <typename NodeT>
@@ -877,16 +915,8 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      ValueNode* throw_input = reducer_.GetConstant(node->name());
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowAccessedUninitializedVariable,
-                                 /*has_input*/ true);
-      throw_node->change_input(0, throw_input);
-      // TODO(victorgomes): Ideally we should emit abort and truncate the graph
-      // here, however, if this node is the only reference to the catch
-      // block, KNA processor will not visit the newly added node above, we
-      // would have no references to catch block and we would then remove it.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
+                              node->ValueInput().node());
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -900,12 +930,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
     ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperNotCalled,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -923,12 +948,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
       // It is the hole; removing.
       return ProcessResult::kRemove;
     case Tribool::kFalse: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperAlreadyCalledError);
     }
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
@@ -1595,6 +1615,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
     CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToSmiSizedInt32(
+    CheckedFloat64ToSmiSizedInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToSmiSizedInt32(
+    CheckedHoleyFloat64ToSmiSizedInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2266,7 +2298,9 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Compare(
 ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
     Int32ToBoolean* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetInt32Constant(node->input_node(0))) {
-    return ReplaceWith(reducer_.GetBooleanConstant(cst.value() != 0));
+    bool value = cst.value() != 0;
+    return ReplaceWith(
+        reducer_.GetBooleanConstant(node->flip() ? !value : value));
   }
   return ProcessResult::kContinue;
 }
@@ -2369,7 +2403,8 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
           TaggedToFloat64ConversionType::kNumberOrOddball)) {
     double value = cst.value().get_scalar();
     bool boolean_value = value != 0.0 && !std::isnan(value);
-    return ReplaceWith(reducer_.GetBooleanConstant(boolean_value));
+    return ReplaceWith(reducer_.GetBooleanConstant(
+        node->flip() ? !boolean_value : boolean_value));
   }
   return ProcessResult::kContinue;
 }
@@ -2667,6 +2702,12 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
   if (IsConstantNode(node->input_node(0)->opcode())) {
+    // Holes shouldn't flow up to here: there should be either a ThrowXXXIfHole
+    // or a CheckNotHole before, which should have been constant-folded into
+    // unconditional deopt/throw if their input is a hole.
+    DCHECK_IMPLIES(node->input_node(0)->Is<Constant>(),
+                   !node->input_node(0)->Cast<Constant>()->IsTheHole());
+
     bool condition =
         FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
     FoldBranch(state.block(), node, condition);

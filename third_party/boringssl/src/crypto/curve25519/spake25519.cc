@@ -29,6 +29,8 @@
 #include "./internal.h"
 
 
+using namespace bssl;
+
 // The following precomputation tables are for the following
 // points used in the SPAKE2 protocol.
 //

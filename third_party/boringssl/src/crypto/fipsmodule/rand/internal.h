@@ -21,24 +21,27 @@
 #include "../../bcm_support.h"
 #include "../aes/internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+
+BSSL_NAMESPACE_BEGIN
 
 // rand_fork_unsafe_buffering_enabled returns whether fork-unsafe buffering has
 // been enabled via |RAND_enable_fork_unsafe_buffering|.
-int rand_fork_unsafe_buffering_enabled(void);
+int rand_fork_unsafe_buffering_enabled();
+
+BSSL_NAMESPACE_END
 
 // CTR_DRBG_STATE contains the state of a CTR_DRBG based on AES-256. See SP
 // 800-90Ar1.
 struct ctr_drbg_state_st {
   AES_KEY ks;
-  block128_f block;
-  ctr128_f ctr;
+  bssl::block128_f block;
+  bssl::ctr128_f ctr;
   uint8_t counter[16];
   uint64_t reseed_counter;
   int df;
 };
+
+BSSL_NAMESPACE_BEGIN
 
 // CTR_DRBG_init initialises |*drbg| given |entropy_len| bytes of entropy in
 // |entropy| and, optionally, a personalization string up to
@@ -55,35 +58,32 @@ OPENSSL_EXPORT int CTR_DRBG_init(CTR_DRBG_STATE *drbg, int df,
 
 #if defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM)
 
-inline int have_rdrand(void) { return CRYPTO_is_RDRAND_capable(); }
+inline int have_rdrand() { return CRYPTO_is_RDRAND_capable(); }
 
 // have_fast_rdrand returns true if RDRAND is supported and it's reasonably
 // fast. Concretely the latter is defined by whether the chip is Intel (fast) or
 // not (assumed slow).
-inline int have_fast_rdrand(void) {
+inline int have_fast_rdrand() {
   return CRYPTO_is_RDRAND_capable() && CRYPTO_is_intel_cpu();
 }
 
 // CRYPTO_rdrand writes eight bytes of random data from the hardware RNG to
 // |out|. It returns one on success or zero on hardware failure.
-int CRYPTO_rdrand(uint8_t out[8]);
+extern "C" int CRYPTO_rdrand(uint8_t out[8]);
 
 // CRYPTO_rdrand_multiple8_buf fills |len| bytes at |buf| with random data from
 // the hardware RNG. The |len| argument must be a multiple of eight. It returns
 // one on success and zero on hardware failure.
-int CRYPTO_rdrand_multiple8_buf(uint8_t *buf, size_t len);
+extern "C" int CRYPTO_rdrand_multiple8_buf(uint8_t *buf, size_t len);
 
 #else  // OPENSSL_X86_64 && !OPENSSL_NO_ASM
 
-inline int have_rdrand(void) { return 0; }
+inline int have_rdrand() { return 0; }
 
-inline int have_fast_rdrand(void) { return 0; }
+inline int have_fast_rdrand() { return 0; }
 
 #endif  // OPENSSL_X86_64 && !OPENSSL_NO_ASM
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_RAND_INTERNAL_H

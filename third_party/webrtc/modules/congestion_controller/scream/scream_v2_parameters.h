@@ -114,6 +114,11 @@ struct ScreamV2Parameters {
 
   // Factor multiplied by the current target rate to decide the pacing rate.
   FieldTrialParameter<double> pacing_factor;
+
+  // Exponentially Weighted Moving Average (EWMA) factor for calculating average
+  // time feedback is delayed by the receiver. I.e the time from a packet is
+  // received until feedback is sent. If zero, this delay is ignored.
+  FieldTrialParameter<double> feedback_hold_time_avg_g;
 };
 
 }  // namespace webrtc

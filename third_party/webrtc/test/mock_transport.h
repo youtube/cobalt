@@ -22,7 +22,7 @@ namespace webrtc {
 class MockTransport : public Transport {
  public:
   MockTransport();
-  ~MockTransport();
+  ~MockTransport() override;
 
   MOCK_METHOD(bool,
               SendRtp,

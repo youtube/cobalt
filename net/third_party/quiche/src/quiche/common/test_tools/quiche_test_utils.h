@@ -10,8 +10,14 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/platform/api/quiche_iovec.h"
+#include "quiche/common/platform/api/quiche_iovec.h"  // IWYU pragma: keep for iovec
 #include "quiche/common/platform/api/quiche_test.h"
+
+// This macro is newer than the Abseil release we use for open-source builds.
+// https://github.com/abseil/abseil-cpp/blob/lts_2025_08_14/absl/base/macros.h
+#ifndef ABSL_REFACTOR_INLINE
+#define ABSL_REFACTOR_INLINE
+#endif
 
 namespace quiche {
 namespace test {

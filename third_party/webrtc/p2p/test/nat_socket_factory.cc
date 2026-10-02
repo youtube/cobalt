@@ -41,25 +41,23 @@ namespace webrtc {
 // format that the natserver uses.
 // Returns 0 if an invalid address is passed.
 void PackAddressForNAT(const SocketAddress& remote_addr, Buffer& buf) {
-  RTC_DCHECK_GE(buf.capacity(), 4);
   const IPAddress& ip = remote_addr.ipaddr();
   int family = ip.family();
-  buf[0] = 0;
-  buf[1] = family;
-  // Writes the port.
-  *(reinterpret_cast<uint16_t*>(&buf[2])) = HostToNetwork16(remote_addr.port());
+
   if (family == AF_INET) {
-    RTC_DCHECK_GE(buf.capacity(), kNATEncodedIPv4AddressSize);
+    buf.AppendData<uint8_t>(0);
+    buf.AppendData<uint8_t>(family);
+    uint16_t port = HostToNetwork16(remote_addr.port());
+    buf.AppendData(reinterpret_cast<const uint8_t*>(&port), sizeof(port));
     in_addr v4addr = ip.ipv4_address();
-    memcpy(&buf[4], &v4addr, kNATEncodedIPv4AddressSize - 4);
-    buf.SetSize(kNATEncodedIPv4AddressSize);
+    buf.AppendData(reinterpret_cast<const uint8_t*>(&v4addr), sizeof(v4addr));
   } else if (family == AF_INET6) {
-    RTC_DCHECK_GE(buf.capacity(), kNATEncodedIPv6AddressSize);
+    buf.AppendData<uint8_t>(0);
+    buf.AppendData<uint8_t>(family);
+    uint16_t port = HostToNetwork16(remote_addr.port());
+    buf.AppendData(reinterpret_cast<const uint8_t*>(&port), sizeof(port));
     in6_addr v6addr = ip.ipv6_address();
-    memcpy(&buf[4], &v6addr, kNATEncodedIPv6AddressSize - 4);
-    buf.SetSize(kNATEncodedIPv6AddressSize);
-  } else {
-    buf.SetSize(0);
+    buf.AppendData(reinterpret_cast<const uint8_t*>(&v6addr), sizeof(v6addr));
   }
 }
 
@@ -151,7 +149,8 @@ class NATSocket : public Socket {
       return socket_->SendTo(data, size, addr);
     }
     // This array will be too large for IPv4 packets, but only by 12 bytes.
-    Buffer buf(/*size=*/size + kNATEncodedIPv6AddressSize);
+    Buffer buf = Buffer::CreateWithCapacity(
+        /*capacity=*/size + kNATEncodedIPv6AddressSize);
     PackAddressForNAT(addr, buf);
     size_t addrlength = buf.size();
     buf.AppendData(static_cast<const uint8_t*>(data), size);
@@ -302,7 +301,7 @@ class NATSocket : public Socket {
 
   // Sends the destination address to the server to tell it to connect.
   void SendConnectRequest() {
-    Buffer buf(kNATEncodedIPv6AddressSize);
+    Buffer buf = Buffer::CreateWithCapacity(kNATEncodedIPv6AddressSize);
     PackAddressForNAT(remote_addr_, buf);
     socket_->Send(buf.data(), buf.size());
   }

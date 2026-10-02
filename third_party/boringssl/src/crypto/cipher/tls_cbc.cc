@@ -25,9 +25,12 @@
 #include "internal.h"
 
 
-int EVP_tls_cbc_remove_padding(crypto_word_t *out_padding_ok, size_t *out_len,
-                               const uint8_t *in, size_t in_len,
-                               size_t block_size, size_t mac_size) {
+using namespace bssl;
+
+int bssl::EVP_tls_cbc_remove_padding(crypto_word_t *out_padding_ok,
+                                     size_t *out_len, const uint8_t *in,
+                                     size_t in_len, size_t block_size,
+                                     size_t mac_size) {
   const size_t overhead = 1 /* padding length byte */ + mac_size;
 
   // These lengths are all public so we can test them in non-constant time.
@@ -77,8 +80,8 @@ int EVP_tls_cbc_remove_padding(crypto_word_t *out_padding_ok, size_t *out_len,
   return 1;
 }
 
-void EVP_tls_cbc_copy_mac(uint8_t *out, size_t md_size, const uint8_t *in,
-                          size_t in_len, size_t orig_len) {
+void bssl::EVP_tls_cbc_copy_mac(uint8_t *out, size_t md_size, const uint8_t *in,
+                                size_t in_len, size_t orig_len) {
   uint8_t rotated_mac1[EVP_MAX_MD_SIZE], rotated_mac2[EVP_MAX_MD_SIZE];
   uint8_t *rotated_mac = rotated_mac1;
   uint8_t *rotated_mac_tmp = rotated_mac2;
@@ -140,10 +143,10 @@ void EVP_tls_cbc_copy_mac(uint8_t *out, size_t md_size, const uint8_t *in,
   OPENSSL_memcpy(out, rotated_mac, md_size);
 }
 
-int EVP_sha1_final_with_secret_suffix(SHA_CTX *ctx,
-                                      uint8_t out[SHA_DIGEST_LENGTH],
-                                      const uint8_t *in, size_t len,
-                                      size_t max_len) {
+int bssl::EVP_sha1_final_with_secret_suffix(SHA_CTX *ctx,
+                                            uint8_t out[SHA_DIGEST_LENGTH],
+                                            const uint8_t *in, size_t len,
+                                            size_t max_len) {
   // Bound the input length so |total_bits| below fits in four bytes. This is
   // redundant with TLS record size limits. This also ensures |input_idx| below
   // does not overflow.
@@ -232,10 +235,10 @@ int EVP_sha1_final_with_secret_suffix(SHA_CTX *ctx,
   return 1;
 }
 
-int EVP_sha256_final_with_secret_suffix(SHA256_CTX *ctx,
-                                        uint8_t out[SHA256_DIGEST_LENGTH],
-                                        const uint8_t *in, size_t len,
-                                        size_t max_len) {
+int bssl::EVP_sha256_final_with_secret_suffix(SHA256_CTX *ctx,
+                                              uint8_t out[SHA256_DIGEST_LENGTH],
+                                              const uint8_t *in, size_t len,
+                                              size_t max_len) {
   // Bound the input length so |total_bits| below fits in four bytes. This is
   // redundant with TLS record size limits. This also ensures |input_idx| below
   // does not overflow.
@@ -322,7 +325,7 @@ int EVP_sha256_final_with_secret_suffix(SHA256_CTX *ctx,
   return 1;
 }
 
-int EVP_tls_cbc_record_digest_supported(const EVP_MD *md) {
+int bssl::EVP_tls_cbc_record_digest_supported(const EVP_MD *md) {
   switch (EVP_MD_type(md)) {
     case NID_sha1:
     case NID_sha256:
@@ -334,9 +337,9 @@ int EVP_tls_cbc_record_digest_supported(const EVP_MD *md) {
 
 static int tls_cbc_digest_record_sha1(
     uint8_t *md_out, size_t *md_out_size, const uint8_t len_header[2],
-    bssl::Span<const CRYPTO_IVEC> aadvecs,
-    bssl::Span<const CRYPTO_IOVEC> iovecs_without_trailer,
-    bssl::Span<const uint8_t> trailer, size_t data_in_trailer_size,
+    Span<const CRYPTO_IVEC> aadvecs,
+    Span<const CRYPTO_IOVEC> iovecs_without_trailer,
+    Span<const uint8_t> trailer, size_t data_in_trailer_size,
     const uint8_t *mac_secret, unsigned mac_secret_length) {
   if (mac_secret_length > SHA_CBLOCK) {
     // HMAC pads small keys with zeros and hashes large keys down. This function
@@ -390,9 +393,9 @@ static int tls_cbc_digest_record_sha1(
 
 static int tls_cbc_digest_record_sha256(
     uint8_t *md_out, size_t *md_out_size, const uint8_t len_header[2],
-    bssl::Span<const CRYPTO_IVEC> aadvecs,
-    bssl::Span<const CRYPTO_IOVEC> iovecs_without_trailer,
-    bssl::Span<const uint8_t> trailer, size_t data_in_trailer_size,
+    Span<const CRYPTO_IVEC> aadvecs,
+    Span<const CRYPTO_IOVEC> iovecs_without_trailer,
+    Span<const uint8_t> trailer, size_t data_in_trailer_size,
     const uint8_t *mac_secret, unsigned mac_secret_length) {
   if (mac_secret_length > SHA256_CBLOCK) {
     // HMAC pads small keys with zeros and hashes large keys down. This function
@@ -444,11 +447,11 @@ static int tls_cbc_digest_record_sha256(
   return 1;
 }
 
-int EVP_tls_cbc_digest_record(
+int bssl::EVP_tls_cbc_digest_record(
     const EVP_MD *md, uint8_t *md_out, size_t *md_out_size,
-    const uint8_t len_header[2], bssl::Span<const CRYPTO_IVEC> aadvecs,
-    bssl::Span<const CRYPTO_IOVEC> iovecs_without_trailer,
-    bssl::Span<const uint8_t> trailer, size_t data_in_trailer_size,
+    const uint8_t len_header[2], Span<const CRYPTO_IVEC> aadvecs,
+    Span<const CRYPTO_IOVEC> iovecs_without_trailer,
+    Span<const uint8_t> trailer, size_t data_in_trailer_size,
     const uint8_t *mac_secret, unsigned mac_secret_length) {
   switch (EVP_MD_type(md)) {
     case NID_sha1:

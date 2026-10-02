@@ -3073,52 +3073,21 @@ void PeerConnection::ReportNegotiatedCiphers(
   }
 }
 
-void PeerConnection::OnTransportChanging(bool change_done) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  std::vector<ChannelInterface*> channels;
-  if (!change_done) {
-    // Gather the currently active channels.
-    for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
-      ChannelInterface* channel = transceiver->internal()->channel();
-      if (channel && !channel->mid().empty()) {
-        channels.push_back(channel);
-      }
-    }
-  }
-
-  if (network_thread()->IsCurrent()) {
-    // This is a workaround for tests that configure the network and signaling
-    // threads as one and the same. The problem with that configuration is that
-    // the synchronous blocking call that results in a call to
-    // `OnTransportChanged()` to be issued, will me made directly, but tasks
-    // posted to what should be the `network` alias for the same thread, won't
-    // run before the blocking call. The tests need to be fixed to use a
-    // dedicated network thread.
-    RTC_DCHECK_RUN_ON(network_thread());
-    negotiated_channels_ = std::move(channels);
-    return;
-  }
-  network_thread()->PostTask(
-      SafeTask(network_thread_safety_, [this, channels = std::move(channels)] {
-        RTC_DCHECK_RUN_ON(network_thread());
-        negotiated_channels_ = channels;
-      }));
-}
-
 bool PeerConnection::OnTransportChanged(
     absl::string_view mid,
     RtpTransportInternal* rtp_transport,
     scoped_refptr<DtlsTransport> dtls_transport,
     DataChannelTransportInterface* data_channel_transport) {
   RTC_DCHECK_RUN_ON(network_thread());
+  RTC_DCHECK(!mid.empty());
   bool ret = true;
   if (ConfiguredForMedia()) {
-    auto it = absl::c_find_if(negotiated_channels_,
-                              [&](const auto* c) { return c->mid() == mid; });
-    if (it != negotiated_channels_.end()) {
-      ret = (*it)->SetRtpTransport(rtp_transport);
-    } else {
-      // This is expected if the channel has been removed or not yet created.
+    for (const auto& transceiver :
+         rtp_manager()->transceivers()->UnsafeList()) {
+      ChannelInterface* channel = transceiver->internal()->channel();
+      if (channel && channel->mid() == mid) {
+        ret = channel->SetRtpTransport(rtp_transport);
+      }
     }
   }
 

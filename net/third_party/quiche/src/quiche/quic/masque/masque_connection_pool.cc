@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -36,24 +37,17 @@ namespace quic {
 MasqueConnectionPool::MasqueConnectionPool(
     QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
     bool disable_certificate_verification, int address_family_for_lookup,
-    Visitor* visitor)
-    : event_loop_(event_loop),
-      ssl_ctx_(ssl_ctx),
-      disable_certificate_verification_(disable_certificate_verification),
-      address_family_for_lookup_(address_family_for_lookup),
-      visitor_(visitor),
-      dns_resolver_(std::make_shared<DnsResolver>()) {}
-
-MasqueConnectionPool::MasqueConnectionPool(
-    QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-    bool disable_certificate_verification, int address_family_for_lookup,
     Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver)
     : event_loop_(event_loop),
-      ssl_ctx_(ssl_ctx),
+      tls_ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       address_family_for_lookup_(address_family_for_lookup),
       visitor_(visitor),
-      dns_resolver_(dns_resolver) {}
+      dns_resolver_(dns_resolver) {
+  if (!dns_resolver_) {
+    dns_resolver_ = std::make_shared<DnsResolver>();
+  }
+}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -63,7 +57,8 @@ void MasqueConnectionPool::OnConnectionFinished(
     MasqueH2Connection* connection) {
   FailPendingRequests(
       connection,
-      absl::InternalError("Connection finished before receiving request"));
+      absl::InternalError(
+          "Connection finished before receiving complete response"));
 }
 
 void MasqueConnectionPool::OnRequest(MasqueH2Connection* /*connection*/,
@@ -87,7 +82,7 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
       Message response;
       response.headers = headers.Clone();
       response.body = body;
-      visitor_->OnResponse(this, request_id, std::move(response));
+      visitor_->OnPoolResponse(this, request_id, std::move(response));
       found = true;
       break;
     }
@@ -100,19 +95,20 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
 }
 
 absl::StatusOr<MasqueConnectionPool::RequestId>
-MasqueConnectionPool::SendRequest(const Message& request) {
+MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   auto authority = request.headers.find(":authority");
   if (authority == request.headers.end()) {
     return absl::InvalidArgumentError("Request missing :authority header");
   }
   ConnectionState* connection =
-      GetOrCreateConnectionState(std::string(authority->second));
+      GetOrCreateConnectionState(std::string(authority->second), mtls);
   if (connection == nullptr) {
     return absl::InternalError(
         absl::StrCat("Failed to create connection to ", authority->second));
   }
   auto pending_request = std::make_unique<PendingRequest>();
   if (connection->connection() != nullptr) {
+    QUICHE_LOG(INFO) << "Reusing existing connection to " << authority->second;
     pending_request->connection = connection->connection();
     pending_request->stream_id =
         connection->connection()->SendRequest(request.headers, request.body);
@@ -120,6 +116,9 @@ MasqueConnectionPool::SendRequest(const Message& request) {
       return absl::InternalError(
           absl::StrCat("Failed to send request to ", authority->second));
     }
+    connection->connection()->AttemptToSend();
+  } else {
+    QUICHE_LOG(INFO) << "No existing connection to " << authority->second;
   }
   RequestId request_id = ++next_request_id_;
   pending_request->request.headers = request.headers.Clone();
@@ -129,19 +128,22 @@ MasqueConnectionPool::SendRequest(const Message& request) {
 }
 
 MasqueConnectionPool::ConnectionState*
-MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority) {
-  auto connection_state_it = connections_.find(authority);
+MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority,
+                                                 bool mtls) {
+  std::string entry = absl::StrCat((mtls ? "m" : ""), "tls:", authority);
+  auto connection_state_it = connections_.find(entry);
   if (connection_state_it != connections_.end()) {
     return connection_state_it->second.get();
   }
   auto connection_state = std::make_unique<ConnectionState>(this);
+  connection_state->set_mtls(mtls);
   if (!connection_state->SetupSocket(authority,
                                      disable_certificate_verification_,
                                      address_family_for_lookup_)) {
     QUICHE_LOG(ERROR) << "Failed to setup socket for " << authority;
     return nullptr;
   }
-  return connections_.insert({authority, std::move(connection_state)})
+  return connections_.insert({entry, std::move(connection_state)})
       .first->second.get();
 }
 
@@ -158,6 +160,8 @@ void MasqueConnectionPool::AttachConnectionToPendingRequests(
     if (authority_header->second != authority) {
       continue;
     }
+    QUICHE_LOG(INFO) << "Attaching connection to pending request for "
+                     << authority;
     pending_request.connection = connection;
   }
 }
@@ -170,15 +174,17 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
       ++it;
       continue;
     }
+    QUICHE_LOG(INFO) << "Sending pending request ID " << request_id;
     int32_t stream_id = connection->SendRequest(pending_request.request.headers,
                                                 pending_request.request.body);
     if (stream_id < 0) {
       QUICHE_LOG(ERROR) << "Failed to send request";
-      visitor_->OnResponse(this, request_id,
-                           absl::InternalError("Failed to send request"));
+      visitor_->OnPoolResponse(this, request_id,
+                               absl::InternalError("Failed to send request"));
       pending_requests_.erase(it++);
       continue;
     }
+    connection->AttemptToSend();
     pending_request.stream_id = stream_id;
     ++it;
   }
@@ -193,7 +199,7 @@ void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection* connection,
       ++it;
       continue;
     }
-    visitor_->OnResponse(this, request_id, error);
+    visitor_->OnPoolResponse(this, request_id, error);
     pending_requests_.erase(it++);
   }
 }
@@ -251,18 +257,33 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     QUICHE_LOG(ERROR) << "Failed to register socket with the event loop";
     return false;
   }
-  QUICHE_LOG(INFO) << "Socket connect in progress to " << socket_address;
+  QUICHE_LOG(INFO) << "Socket fd " << socket_ << " connect in progress to "
+                   << socket_address;
 
   if (disable_certificate_verification) {
     proof_verifier_ = std::make_unique<FakeProofVerifier>();
   } else {
     proof_verifier_ = CreateDefaultProofVerifier(host_);
+    if (!proof_verifier_) {
+      QUICHE_LOG(FATAL) << "The default proof verifier is not supported. Pass "
+                           "in --disable_certificate_verification.";
+    }
   }
   return true;
 }
 
 void MasqueConnectionPool::ConnectionState::OnSocketEvent(
-    QuicEventLoop* /*event_loop*/, SocketFd fd, QuicSocketEventMask events) {
+    QuicEventLoop* event_loop, SocketFd fd, QuicSocketEventMask events) {
+  auto cleanup = absl::MakeCleanup([this, event_loop, fd]() {
+    if (!event_loop->SupportsEdgeTriggered() &&
+        (!connection_ || !connection_->aborted())) {
+      if (!event_loop->RearmSocket(
+              fd, kSocketEventReadable | kSocketEventWritable)) {
+        QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;
+      }
+    }
+  });
+
   if (fd != socket_) {
     return;
   }
@@ -271,7 +292,7 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
   }
   if ((events & kSocketEventWritable) != 0) {
     if (!ssl_) {
-      ssl_.reset((SSL_new(connection_pool_->ssl_ctx())));
+      ssl_.reset((SSL_new(connection_pool_->GetSslCtx(mtls_))));
       SSL_set_connect_state(ssl_.get());
 
       if (SSL_set_app_data(ssl_.get(), this) != 1) {
@@ -284,7 +305,9 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
       }
 
       static constexpr uint8_t kAlpnProtocols[] = {
+          // clang-format off
           0x02, 'h', '2',  // h2
+          // clang-format on
       };
       if (SSL_set_alpn_protos(ssl_.get(), kAlpnProtocols,
                               sizeof(kAlpnProtocols)) != 0) {

@@ -732,7 +732,6 @@ if (rtc_include_tests) {
         ":rtc_expect_death",
         ":rtp_test_utils",
         ":run_loop",
-        ":test_main",
         ":test_support",
         ":test_support_test_artifacts",
         ":video_codec_tester",

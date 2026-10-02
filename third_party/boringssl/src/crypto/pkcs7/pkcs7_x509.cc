@@ -31,10 +31,12 @@
 #include <openssl/x509.h>
 
 #include "../asn1/internal.h"
-#include "../x509/internal.h"
 #include "../internal.h"
+#include "../x509/internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
 
 int PKCS7_get_certificates(STACK_OF(X509) *out_certs, CBS *cbs) {
   int ret = 0;
@@ -385,7 +387,7 @@ static bool digest_sign_update(EVP_MD_CTX *ctx, BIO *data) {
 namespace {
 struct signer_info_data {
   X509 *sign_cert = nullptr;
-  bssl::ScopedEVP_MD_CTX sign_ctx;
+  ScopedEVP_MD_CTX sign_ctx;
   bool use_key_id = false;
 };
 }  // namespace
@@ -470,8 +472,9 @@ static int write_signer_info(CBB *out, void *arg) {
   return 1;
 }
 
-int pkcs7_add_external_signature(CBB *out, X509 *sign_cert, EVP_PKEY *key,
-                                 const EVP_MD *md, BIO *data, bool use_key_id) {
+int bssl::pkcs7_add_external_signature(CBB *out, X509 *sign_cert, EVP_PKEY *key,
+                                       const EVP_MD *md, BIO *data,
+                                       bool use_key_id) {
   signer_info_data si_data;
   si_data.use_key_id = use_key_id;
   si_data.sign_cert = sign_cert;
@@ -493,7 +496,7 @@ int pkcs7_add_external_signature(CBB *out, X509 *sign_cert, EVP_PKEY *key,
 
 PKCS7 *PKCS7_sign(X509 *sign_cert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
                   BIO *data, int flags) {
-  bssl::ScopedCBB cbb;
+  ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 2048)) {
     return nullptr;
   }

@@ -1163,21 +1163,40 @@ class ComputedStyle final : public ComputedStyleBase {
 
   // Grid Lanes utility functions.
   GridTrackSizingDirection GridLanesTrackSizingDirection() const {
-    switch (GridLanesDirection()) {
-      case EGridLanesDirection::kColumn:
-      case EGridLanesDirection::kColumnReverse:
+    switch (GetGridLanesDirection().orientation) {
+      case kColumn:
         return kForColumns;
-      case EGridLanesDirection::kRow:
-      case EGridLanesDirection::kRowReverse:
+      case kNormal:
+        // The 'normal' keyword resolves to 'columns' or 'rows' depending on
+        // whether 'grid-template-columns' or 'grid-template-rows' was set
+        // (respectively), defaulting to columns if both or neither are set.
+        if (SpecifiedGridTemplateColumns()) {
+          return kForColumns;
+        } else if (SpecifiedGridTemplateRows()) {
+          return kForRows;
+        }
+        return kForColumns;
+      case kRow:
         return kForRows;
     }
     NOTREACHED();
   }
 
-  bool IsReverseGridLanesDirection() const {
-    const auto grid_lanes_direction = GridLanesDirection();
-    return (grid_lanes_direction == EGridLanesDirection::kColumnReverse ||
-            grid_lanes_direction == EGridLanesDirection::kRowReverse);
+  // If true, it changes the direction that tracks fill themselves; columns fill
+  // from bottom-up, rows fill rtl.
+  bool IsReverseGridLanesFillDirection() const {
+    return GetGridLanesDirection().is_fill_reverse;
+  }
+
+  // If true, it changes the order you choose tracks when they're tied and what
+  // direction the track cursor moves in; columns choose the rightmost and go
+  // left; rows choose the bottommost and go up.
+  bool IsReverseGridLanesTrackDirection() const {
+    return GetGridLanesDirection().is_track_reverse;
+  }
+
+  bool IsGridLanesPackDense() const {
+    return GridLanesPack() == EGridLanesPack::kDense;
   }
 
   // Grid axis utility functions, usable in Grid and Grid Lanes.
@@ -1269,6 +1288,14 @@ class ComputedStyle final : public ComputedStyleBase {
   // text-align utility functions.
   using ComputedStyleBase::GetTextAlign;
   ETextAlign GetTextAlign(bool is_last_line) const;
+
+  // text-indent utility functions.
+  bool IsTextIndentEachLine() const {
+    return EnumHasFlags(GetTextIndentFlags(), TextIndentFlags::kEachLine);
+  }
+  bool IsTextIndentHanging() const {
+    return EnumHasFlags(GetTextIndentFlags(), TextIndentFlags::kHanging);
+  }
 
   // text-transform utility functions.
   [[nodiscard]] String ApplyTextTransform(
@@ -2478,7 +2505,7 @@ class ComputedStyle final : public ComputedStyleBase {
       return HasPseudoElementStyle(kPseudoIdScrollButton);
     }
     if (pseudo == kPseudoIdOverscrollAreaParent) {
-      return HasOverscrollArea();
+      return IsInternalOverscrollAreaAuto();
     }
     if (!HasPseudoElementStyle(pseudo)) {
       return false;
@@ -2500,10 +2527,6 @@ class ComputedStyle final : public ComputedStyleBase {
 
   bool HasScrollMarkerGroupAfter() const {
     return GetScrollMarkerGroup() && GetScrollMarkerGroup()->PositionAfter();
-  }
-
-  bool HasOverscrollArea() const {
-    return OverscrollArea() && !OverscrollArea()->GetNames().empty();
   }
 
   // Empty value means scroll-marker-group: none.
@@ -2690,19 +2713,6 @@ class ComputedStyle final : public ComputedStyleBase {
            display == EDisplay::kTableColumn ||
            display == EDisplay::kTableCell ||
            display == EDisplay::kTableCaption;
-  }
-
-  static GridTrackSizingDirection GridLanesTrackSizingDirection(
-      EGridLanesDirection direction) {
-    switch (direction) {
-      case EGridLanesDirection::kColumn:
-      case EGridLanesDirection::kColumnReverse:
-        return kForColumns;
-      case EGridLanesDirection::kRow:
-      case EGridLanesDirection::kRowReverse:
-        return kForRows;
-    }
-    NOTREACHED();
   }
 
   static CORE_EXPORT const ComputedGridTrackList& ComputedGridTemplate(
@@ -3392,6 +3402,15 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
         SetMayHavePadding();
       }
       MutablePaddingLeftInternal() = v;
+    }
+  }
+
+  void SetPageMarginSafety(EPageMarginSafety v) {
+    if (GetPageMarginSafety() != v) {
+      if (v != EPageMarginSafety::kNone) {
+        SetMayHaveMargin();
+      }
+      SetPageMarginSafetyInternal(v);
     }
   }
 

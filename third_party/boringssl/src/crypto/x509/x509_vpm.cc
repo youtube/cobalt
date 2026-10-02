@@ -73,7 +73,7 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM *param, int mode,
   return 1;
 }
 
-X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void) {
+X509_VERIFY_PARAM *X509_VERIFY_PARAM_new() {
   X509_VERIFY_PARAM *param = reinterpret_cast<X509_VERIFY_PARAM *>(
       OPENSSL_zalloc(sizeof(X509_VERIFY_PARAM)));
   if (!param) {

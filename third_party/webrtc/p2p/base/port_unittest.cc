@@ -142,12 +142,12 @@ bool GetStunMessageFromBufferWriter(TestPort* port,
                               buf->Length(), addr, out_msg, out_username);
 }
 
-static void SendPingAndReceiveResponse(Connection* lconn,
-                                       TestPort* lport,
-                                       Connection* rconn,
-                                       TestPort* rport,
-                                       ScopedFakeClock* clock,
-                                       int64_t ms) {
+void SendPingAndReceiveResponse(Connection* lconn,
+                                TestPort* lport,
+                                Connection* rconn,
+                                TestPort* rport,
+                                ScopedFakeClock* clock,
+                                int64_t ms) {
   lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),

@@ -5,6 +5,8 @@
 package org.chromium.chrome.browser.ui;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.ui.activity_recreation.ActivityRecreationController.IS_TAB_SWITCHER_SHOWN;
+import static org.chromium.chrome.browser.ui.activity_recreation.ActivityRecreationController.URL_BAR_EDIT_TEXT;
 
 import android.app.Activity;
 import android.app.Fragment;
@@ -175,6 +177,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuSubmenuHeaderItemProperties
 import org.chromium.chrome.browser.ui.appmenu.AppMenuUtil;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
+import org.chromium.chrome.browser.ui.desktop_windowing.TopControlsLockCoordinator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerCreator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
@@ -373,6 +376,7 @@ public class RootUiCoordinator
     protected @Nullable EdgeToEdgeControllerCreator mEdgeToEdgeControllerCreator;
     protected final BottomControlsStacker mBottomControlsStacker;
     protected final TopControlsStacker mTopControlsStacker;
+    protected final @Nullable TopControlsLockCoordinator mTopControlsLockCoordinator;
     @NonNull protected final ObservableSupplier<Integer> mOverviewColorSupplier;
     @Nullable private ContextualSearchObserver mReadAloudContextualSearchObserver;
     @Nullable private PageZoomBarCoordinator mPageZoomBarCoordinator;
@@ -560,8 +564,6 @@ public class RootUiCoordinator
                         && savedInstanceState.getBoolean(
                                 IncognitoReauthControllerImpl.KEY_IS_INCOGNITO_REAUTH_PENDING,
                                 false);
-        // TODO(crbug.com/459921316): Only persist incognito state for app updates, state should be
-        //  discarded after a reboot.
         boolean persistedIncognitoReauthPending =
                 persistentState != null
                         && persistentState.getBoolean(
@@ -732,25 +734,16 @@ public class RootUiCoordinator
                 new TopControlsStacker(
                         mBrowserControlsManager, getAppBrowserControlsVisibilityDelegate());
 
-        if (BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2()) {
-            if (DeviceInfo.isDesktop()
-                    || BrowserControlsUtils.doSyncMinHeightWithTotalHeight(mActivity)) {
-                mTopControlsStacker.setScrollingDisabled(true);
-            } else if (mDesktopWindowStateManager != null) {
-                mAppHeaderObserver =
-                        new AppHeaderObserver() {
-                            @Override
-                            public void onDesktopWindowingModeChanged(boolean isInDesktopWindow) {
-                                mTopControlsStacker.setScrollingDisabled(isInDesktopWindow);
-                            }
-                        };
-                mDesktopWindowStateManager.addObserver(mAppHeaderObserver);
-                var appHeaderState = mDesktopWindowStateManager.getAppHeaderState();
-                if (appHeaderState != null) {
-                    mAppHeaderObserver.onDesktopWindowingModeChanged(
-                            appHeaderState.isInDesktopWindow());
-                }
-            }
+        if (BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2()
+                && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) {
+            mTopControlsLockCoordinator =
+                    new TopControlsLockCoordinator(
+                            mActivity,
+                            mTopControlsStacker,
+                            mTabStripVisibilitySupplier,
+                            mDesktopWindowStateManager);
+        } else {
+            mTopControlsLockCoordinator = null;
         }
     }
 
@@ -969,6 +962,9 @@ public class RootUiCoordinator
         if (mAutomotiveBackButtonToolbarCoordinator != null) {
             mAutomotiveBackButtonToolbarCoordinator.destroy();
             mAutomotiveBackButtonToolbarCoordinator = null;
+        }
+        if (mTopControlsLockCoordinator != null) {
+            mTopControlsLockCoordinator.destroy();
         }
         mBottomControlsStacker.destroy();
         mTopControlsStacker.destroy();
@@ -2404,12 +2400,40 @@ public class RootUiCoordinator
     }
 
     /**
+     * Saves relevant information preserved by {@code RootUiCoordinator#prepareUiState()} to the
+     * persistent bundle that will be used to restore the UI state after the activity is recreated.
+     * This is expected to be invoked in {@code Activity#onSaveInstanceState(Bundle,
+     * PersistableBundle)}.
+     *
+     * @param outPersistentState The {@link PersistableBundle} that is used to save state
+     *     information.
+     */
+    public void onSavePersistentState(PersistableBundle outPersistentState) {
+        if (mToolbarManager.isUrlBarFocused()) {
+            outPersistentState.putString(
+                    URL_BAR_EDIT_TEXT, mToolbarManager.getUrlBarTextWithoutAutocomplete());
+        }
+        outPersistentState.putBoolean(
+                IS_TAB_SWITCHER_SHOWN, mLayoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER));
+    }
+
+    /**
      * Restores the relevant UI state when the activity is recreated on a device fold transition.
      *
      * @param savedInstanceState The {@link Bundle} that is used to restore the UI state.
      */
     public void restoreUiState(Bundle savedInstanceState) {
         mActivityRecreationController.restoreUiState(savedInstanceState);
+    }
+
+    /**
+     * Restores the relevant UI state when the activity is recreated after a device reboot or app
+     * update.
+     *
+     * @param outPersistentState The {@link PersistableBundle} that is used to restore the UI state.
+     */
+    public void restorePersistentUiState(@Nullable PersistableBundle outPersistentState) {
+        mActivityRecreationController.restorePersistentState(outPersistentState);
     }
 
     private void attemptToShowRestoreTabsPromo() {

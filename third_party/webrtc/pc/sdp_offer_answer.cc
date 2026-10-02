@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -71,6 +70,7 @@
 #include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
+#include "pc/dtls_transport.h"
 #include "pc/jsep_transport_controller.h"
 #include "pc/legacy_stats_collector.h"
 #include "pc/media_options.h"
@@ -175,6 +175,36 @@ flat_map<std::string, const ContentGroup*> GetBundleGroupsByMid(
     }
   }
   return bundle_groups_by_mid;
+}
+
+// Helper function to look up DTLS transports for all transceivers in a single
+// blocking call to the network thread.
+flat_map<std::string, scoped_refptr<DtlsTransport>> GetDtlsTransports(
+    const TransceiverList& transceivers,
+    Thread* network_thread,
+    JsepTransportController* transport_controller) {
+  const auto& transceiver_list = transceivers.ListRef();
+  std::vector<std::string> mids_to_lookup;
+  mids_to_lookup.reserve(transceiver_list.size());
+  for (const auto& transceiver : transceiver_list) {
+    if (const auto mid = transceiver->internal()->mid()) {
+      mids_to_lookup.push_back(*mid);
+    }
+  }
+  if (mids_to_lookup.empty()) {
+    return flat_map<std::string, scoped_refptr<DtlsTransport>>();
+  }
+  return network_thread->BlockingCall([&] {
+    RTC_DCHECK_RUN_ON(network_thread);
+    std::vector<std::pair<std::string, scoped_refptr<DtlsTransport>>> entries;
+    entries.reserve(mids_to_lookup.size());
+    for (const auto& mid : mids_to_lookup) {
+      entries.emplace_back(
+          mid, transport_controller->LookupDtlsTransportByMid_n(mid));
+    }
+    return flat_map<std::string, scoped_refptr<DtlsTransport>>(
+        std::move(entries));
+  });
 }
 
 // Returns true if `new_desc` requests an ICE restart (i.e., new ufrag/pwd).
@@ -699,6 +729,10 @@ RTCError UpdateSimulcastLayerStatusInSender(
     const std::vector<SimulcastLayer>& layers,
     scoped_refptr<RtpSenderInternal> sender) {
   RTC_DCHECK(sender);
+  // In practice simulcast is supported only for video. However, this can
+  // currently get called for non-video senders in tests.
+  // See the `external/wpt/webrtc/simulcast/negotiation-encodings.https.html`
+  // test in chromium.
   RtpParameters parameters = sender->GetParametersInternalWithAllLayers();
   std::vector<std::string> disabled_layers;
 
@@ -1867,6 +1901,11 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
     if (ConfiguredForMedia()) {
       std::vector<scoped_refptr<RtpTransceiverInterface>> remove_list;
       std::vector<scoped_refptr<MediaStreamInterface>> removed_streams;
+      flat_map<std::string, scoped_refptr<DtlsTransport>>
+          dtls_transports_by_mid =
+              GetDtlsTransports(*transceivers(), context_->network_thread(),
+                                transport_controller_s());
+
       for (const auto& transceiver_ext : transceivers()->List()) {
         auto transceiver = transceiver_ext->internal();
         if (transceiver->stopped()) {
@@ -1877,11 +1916,10 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         // Note that code paths that don't set MID won't be able to use
         // information about DTLS transports.
         if (transceiver->mid()) {
-          auto dtls_transport =
-              transport_controller_s()->LookupDtlsTransportByMid(
-                  *transceiver->mid());
-          transceiver->sender_internal()->set_transport(dtls_transport);
-          transceiver->receiver_internal()->set_transport(dtls_transport);
+          auto it = dtls_transports_by_mid.find(*transceiver->mid());
+          RTC_DCHECK(it != dtls_transports_by_mid.end());
+          transceiver->sender_internal()->set_transport(it->second);
+          transceiver->receiver_internal()->set_transport(it->second);
         }
 
         const ContentInfo* content =
@@ -2138,14 +2176,6 @@ RTCError SdpOfferAnswerHandler::ReplaceRemoteDescription(
 
   const auto* local = local_description();
 
-  // We need to update the negotiated channels on the network thread before
-  // the below blocking call, so that OnTransportChanged (which might be called
-  // during SetRemoteDescription) can access the channel map.
-  pc_->OnTransportChanging(/*change_done=*/false);
-  absl::Cleanup cleanup = [this] {
-    pc_->OnTransportChanging(/*change_done=*/true);
-  };
-
   // NOTE: This will perform a BlockingCall() to the network thread.
   return transport_controller_s()->SetRemoteDescription(
       sdp_type, local ? local->description() : nullptr, session_desc);
@@ -2269,6 +2299,10 @@ void SdpOfferAnswerHandler::ApplyRemoteDescriptionUpdateTransceiverState(
   std::vector<scoped_refptr<RtpTransceiverInterface>> remove_list;
   std::vector<scoped_refptr<MediaStreamInterface>> added_streams;
   std::vector<scoped_refptr<MediaStreamInterface>> removed_streams;
+  flat_map<std::string, scoped_refptr<DtlsTransport>> dtls_transports_by_mid =
+      GetDtlsTransports(*transceivers(), context_->network_thread(),
+                        transport_controller_s());
+
   for (const auto& transceiver_ext : transceivers()->List()) {
     const auto transceiver = transceiver_ext->internal();
     const ContentInfo* content =
@@ -2344,11 +2378,10 @@ void SdpOfferAnswerHandler::ApplyRemoteDescriptionUpdateTransceiverState(
       transceiver->set_current_direction(local_direction);
       // 2.2.8.1.11.[3-6]: Set the transport internal slots.
       if (transceiver->mid()) {
-        auto dtls_transport =
-            transport_controller_s()->LookupDtlsTransportByMid(
-                *transceiver->mid());
-        transceiver->sender_internal()->set_transport(dtls_transport);
-        transceiver->receiver_internal()->set_transport(dtls_transport);
+        auto it = dtls_transports_by_mid.find(*transceiver->mid());
+        RTC_DCHECK(it != dtls_transports_by_mid.end());
+        transceiver->sender_internal()->set_transport(it->second);
+        transceiver->receiver_internal()->set_transport(it->second);
       }
     }
     // 2.2.8.1.12: If the media description is rejected, and transceiver is
@@ -3437,10 +3470,6 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
       transceiver->internal()->set_mline_index(stable_state.mline_index());
     }
   }
-  pc_->OnTransportChanging(/*change_done=*/false);
-  absl::Cleanup cleanup = [this] {
-    pc_->OnTransportChanging(/*change_done=*/true);
-  };
   RTCError e = transport_controller_s()->RollbackTransports();
   if (!e.ok()) {
     return e;
@@ -5278,11 +5307,6 @@ RTCError SdpOfferAnswerHandler::PushdownTransportDescription(
     SdpType type) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownTransportDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
-
-  pc_->OnTransportChanging(/*change_done=*/false);
-  absl::Cleanup cleanup = [this] {
-    pc_->OnTransportChanging(/*change_done=*/true);
-  };
 
   if (source == CS_LOCAL) {
     const SessionDescriptionInterface* sdesc = local_description();

@@ -145,8 +145,13 @@ class EventLogger final {
       }
     }
     MutexLock lock(&mutex_);
-    trace_events_.push_back(
-        {name, category_enabled, phase, args, timestamp, 1, thread_id});
+    trace_events_.push_back({.name = name,
+                             .category_enabled = category_enabled,
+                             .phase = phase,
+                             .args = args,
+                             .timestamp = timestamp,
+                             .pid = 1,
+                             .tid = thread_id});
   }
 
   // The TraceEvent format is documented here:

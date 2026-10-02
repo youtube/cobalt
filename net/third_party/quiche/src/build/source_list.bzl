@@ -15,6 +15,7 @@ quiche_core_hdrs = [
     "common/capsule.h",
     "common/http/http_header_block.h",
     "common/http/http_header_storage.h",
+    "common/http/status_code_mapping.h",
     "common/internet_checksum.h",
     "common/lifetime_tracking.h",
     "common/masque/connect_ip_datagram_payload.h",
@@ -272,6 +273,8 @@ quiche_core_hdrs = [
     "quic/core/http/quic_spdy_stream_body_manager.h",
     "quic/core/http/spdy_utils.h",
     "quic/core/http/web_transport_http3.h",
+    "quic/core/http/web_transport_only_dispatcher.h",
+    "quic/core/http/web_transport_only_server_session.h",
     "quic/core/http/web_transport_stream_adapter.h",
     "quic/core/legacy_quic_stream_id_manager.h",
     "quic/core/packet_number_indexed_queue.h",
@@ -421,6 +424,7 @@ quiche_core_srcs = [
     "common/capsule.cc",
     "common/http/http_header_block.cc",
     "common/http/http_header_storage.cc",
+    "common/http/status_code_mapping.cc",
     "common/internet_checksum.cc",
     "common/masque/connect_ip_datagram_payload.cc",
     "common/masque/connect_udp_datagram_payload.cc",
@@ -621,6 +625,8 @@ quiche_core_srcs = [
     "quic/core/http/quic_spdy_stream_body_manager.cc",
     "quic/core/http/spdy_utils.cc",
     "quic/core/http/web_transport_http3.cc",
+    "quic/core/http/web_transport_only_dispatcher.cc",
+    "quic/core/http/web_transport_only_server_session.cc",
     "quic/core/http/web_transport_stream_adapter.cc",
     "quic/core/legacy_quic_stream_id_manager.cc",
     "quic/core/qpack/new_qpack_blocking_manager.cc",
@@ -777,6 +783,12 @@ quiche_tool_support_srcs = [
     "quic/tools/simple_ticket_crypter.cc",
     "quic/tools/web_transport_only_backend.cc",
 ]
+quiche_fuzz_support_hdrs = [
+    "balsa/balsa_fuzz_util.h",
+]
+quiche_fuzz_support_srcs = [
+    "balsa/balsa_fuzz_util.cc",
+]
 quiche_test_support_hdrs = [
     "common/platform/api/quiche_expect_bug.h",
     "common/platform/api/quiche_fuzztest.h",
@@ -856,7 +868,6 @@ quiche_test_support_hdrs = [
     "quic/test_tools/quic_spdy_stream_peer.h",
     "quic/test_tools/quic_stream_id_manager_peer.h",
     "quic/test_tools/quic_stream_peer.h",
-    "quic/test_tools/quic_stream_send_buffer_peer.h",
     "quic/test_tools/quic_stream_sequencer_buffer_peer.h",
     "quic/test_tools/quic_stream_sequencer_peer.h",
     "quic/test_tools/quic_sustained_bandwidth_recorder_peer.h",
@@ -952,7 +963,6 @@ quiche_test_support_srcs = [
     "quic/test_tools/quic_spdy_stream_peer.cc",
     "quic/test_tools/quic_stream_id_manager_peer.cc",
     "quic/test_tools/quic_stream_peer.cc",
-    "quic/test_tools/quic_stream_send_buffer_peer.cc",
     "quic/test_tools/quic_stream_sequencer_buffer_peer.cc",
     "quic/test_tools/quic_stream_sequencer_peer.cc",
     "quic/test_tools/quic_sustained_bandwidth_recorder_peer.cc",
@@ -1098,6 +1108,7 @@ io_test_support_srcs = [
 quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
+    "balsa/balsa_frame_fuzz_test.cc",
     "balsa/balsa_frame_test.cc",
     "balsa/balsa_headers_sequence_test.cc",
     "balsa/balsa_headers_test.cc",
@@ -1137,6 +1148,7 @@ quiche_tests_srcs = [
     "common/quiche_random_test.cc",
     "common/quiche_simple_arena_test.cc",
     "common/quiche_socket_address_test.cc",
+    "common/quiche_status_utils_test.cc",
     "common/quiche_text_utils_test.cc",
     "common/quiche_weak_ptr_test.cc",
     "common/simple_buffer_allocator_test.cc",
@@ -1357,6 +1369,7 @@ quiche_tests_srcs = [
     "quic/core/quic_time_test.cc",
     "quic/core/quic_time_wait_list_manager_test.cc",
     "quic/core/quic_trace_visitor_test.cc",
+    "quic/core/quic_types_test.cc",
     "quic/core/quic_unacked_packet_map_test.cc",
     "quic/core/quic_utils_test.cc",
     "quic/core/quic_version_manager_test.cc",
@@ -1561,6 +1574,7 @@ moqt_hdrs = [
     "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_known_track_publisher.h",
     "quic/moqt/moqt_messages.h",
+    "quic/moqt/moqt_names.h",
     "quic/moqt/moqt_object.h",
     "quic/moqt/moqt_outgoing_queue.h",
     "quic/moqt/moqt_outstanding_objects.h",
@@ -1590,6 +1604,7 @@ moqt_srcs = [
     "quic/moqt/moqt_framer.cc",
     "quic/moqt/moqt_known_track_publisher.cc",
     "quic/moqt/moqt_messages.cc",
+    "quic/moqt/moqt_names.cc",
     "quic/moqt/moqt_object.cc",
     "quic/moqt/moqt_outgoing_queue.cc",
     "quic/moqt/moqt_outstanding_objects.cc",
@@ -1616,6 +1631,7 @@ moqt_test_srcs = [
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
     "quic/moqt/moqt_messages_test.cc",
+    "quic/moqt/moqt_names_test.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_outstanding_objects_test.cc",
     "quic/moqt/moqt_parser_fuzz_test.cc",

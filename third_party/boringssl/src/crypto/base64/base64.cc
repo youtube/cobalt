@@ -78,7 +78,7 @@ int EVP_EncodedLength(size_t *out_len, size_t len) {
   return 1;
 }
 
-EVP_ENCODE_CTX *EVP_ENCODE_CTX_new(void) {
+EVP_ENCODE_CTX *EVP_ENCODE_CTX_new() {
   return reinterpret_cast<EVP_ENCODE_CTX *>(
       OPENSSL_zalloc(sizeof(EVP_ENCODE_CTX)));
 }

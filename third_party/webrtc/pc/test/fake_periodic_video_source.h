@@ -11,11 +11,11 @@
 #ifndef PC_TEST_FAKE_PERIODIC_VIDEO_SOURCE_H_
 #define PC_TEST_FAKE_PERIODIC_VIDEO_SOURCE_H_
 
-#include <cstdint>
 #include <memory>
 
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_sink_interface.h"
@@ -27,35 +27,33 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
 class FakePeriodicVideoSource final : public VideoSourceInterface<VideoFrame> {
  public:
-  static constexpr int kDefaultFrameIntervalMs = 33;
   static constexpr int kDefaultWidth = 640;
   static constexpr int kDefaultHeight = 480;
 
   struct Config {
     int width = kDefaultWidth;
     int height = kDefaultHeight;
-    int frame_interval_ms = kDefaultFrameIntervalMs;
+    TimeDelta frame_interval = TimeDelta::Millis(33);
     VideoRotation rotation = kVideoRotation_0;
-    int64_t timestamp_offset_ms = 0;
+    Timestamp timestamp_offset = Timestamp::Zero();
   };
 
   FakePeriodicVideoSource() : FakePeriodicVideoSource(Config()) {}
   explicit FakePeriodicVideoSource(Config config)
       : frame_source_(config.width,
                       config.height,
-                      config.frame_interval_ms * kNumMicrosecsPerMillisec,
-                      config.timestamp_offset_ms * kNumMicrosecsPerMillisec),
+                      config.frame_interval,
+                      config.timestamp_offset),
         task_queue_(std::make_unique<TaskQueueForTest>(
             "FakePeriodicVideoTrackSource")) {
     frame_source_.SetRotation(config.rotation);
 
-    TimeDelta frame_interval = TimeDelta::Millis(config.frame_interval_ms);
+    TimeDelta frame_interval = config.frame_interval;
     repeating_task_handle_ =
         RepeatingTaskHandle::Start(task_queue_->Get(), [this, frame_interval] {
           if (broadcaster_.wants().rotation_applied) {

@@ -310,7 +310,7 @@ class MaglevGraphBuilder {
 
   std::pair<interpreter::Register, int> GetResultLocationAndSize() const;
 
-  void AttachExceptionHandlerInfo(Node* node);
+  void AttachExceptionHandlerInfo(NodeBase* node);
 
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
@@ -1046,6 +1046,8 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceBuiltin(
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
+  MaybeReduceResult TryReduceAsyncFunctionEnter(ValueNode* closure,
+                                                ValueNode* reducer);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   bool IsTheHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
@@ -1147,6 +1149,8 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);
+  MaybeReduceResult TryBuildAndAllocateJSAsyncFunctionObject(
+      ValueNode* closure, ValueNode* receiver, VirtualObject* promise);
 
   ReduceResult BuildGenericConstruct(
       ValueNode* target, ValueNode* new_target, ValueNode* context,
@@ -1266,10 +1270,12 @@ class MaglevGraphBuilder {
                                AllocationType allocation_type);
 
   void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
-                            AllocationType allocation_type, ValueNode* value);
+                            AllocationType allocation_type, ValueNode* value,
+                            StoreTaggedMode store_mode);
   void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
                                    AllocationType allocation_type,
-                                   ValueNode* value);
+                                   ValueNode* value,
+                                   StoreTaggedMode store_mode);
   void BuildInitializeStore_TrustedPointer(vobj::Field desc,
                                            InlinedAllocation* alloc,
                                            AllocationType allocation_type,
@@ -1556,11 +1562,17 @@ class MaglevGraphBuilder {
                                          ValueNode* closure,
                                          ValueNode* receiver,
                                          ValueNode* register_file);
+  VirtualObject* CreateJSAsyncFunctionObject(ValueNode* context,
+                                             ValueNode* closure,
+                                             ValueNode* receiver,
+                                             ValueNode* register_file,
+                                             ValueNode* promise);
   VirtualObject* CreateJSIteratorResult(compiler::MapRef map, ValueNode* value,
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
   VirtualObject* CreateJSStringWrapper(ValueNode* value);
+  VirtualObject* CreateJSPromiseObject();
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);
@@ -1570,6 +1582,8 @@ class MaglevGraphBuilder {
   void AddDeoptUse(ValueNode* node);
   void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
+
+  void AddDeoptUseToScopeData(DeoptFrame::FrameData& data);
 
   std::optional<VirtualObject*> TryGetNonEscapingArgumentsObject(
       ValueNode* value);
@@ -2049,6 +2063,8 @@ class MaglevGraphBuilder {
   EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
+
+  compiler::OptionalScopeInfoRef last_suspend_scope_info_ = {};
 
   struct HandlerTableEntry {
     int end;

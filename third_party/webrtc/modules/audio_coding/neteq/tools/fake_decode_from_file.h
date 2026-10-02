@@ -40,7 +40,7 @@ class FakeDecodeFromFile : public AudioDecoder {
         sample_rate_hz_(sample_rate_hz),
         stereo_(stereo) {}
 
-  ~FakeDecodeFromFile() = default;
+  ~FakeDecodeFromFile() override = default;
 
   std::vector<ParseResult> ParsePayload(Buffer&& payload,
                                         uint32_t timestamp) override;

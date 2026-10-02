@@ -198,7 +198,6 @@ if (!build_with_chromium || is_linux || is_chromeos) {
         "../../rtc_base/synchronization:mutex",
         "../../system_wrappers",
         "../../test:frame_utils",
-        "../../test:test_main",
         "../../test:test_support",
         "../../test:video_test_common",
         "../../test:wait_until",

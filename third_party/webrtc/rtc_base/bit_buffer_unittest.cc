@@ -21,27 +21,29 @@
 
 namespace webrtc {
 
+using ::testing::Each;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 
 TEST(BitBufferWriterTest, ConsumeBits) {
-  uint8_t bytes[64] = {0};
+  uint8_t bytes[64];
   BitBufferWriter buffer(bytes, 32);
   uint64_t total_bits = 32 * 8;
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
-  EXPECT_TRUE(buffer.ConsumeBits(3));
+  EXPECT_TRUE(buffer.ZeroBits(3));
   total_bits -= 3;
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
-  EXPECT_TRUE(buffer.ConsumeBits(3));
+  EXPECT_TRUE(buffer.ZeroBits(3));
   total_bits -= 3;
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
-  EXPECT_TRUE(buffer.ConsumeBits(15));
+  EXPECT_TRUE(buffer.ZeroBits(15));
   total_bits -= 15;
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
-  EXPECT_TRUE(buffer.ConsumeBits(37));
+  EXPECT_TRUE(buffer.ZeroBits(37));
   total_bits -= 37;
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
 
-  EXPECT_FALSE(buffer.ConsumeBits(32 * 8));
+  EXPECT_FALSE(buffer.ZeroBits(32 * 8));
   EXPECT_EQ(total_bits, buffer.RemainingBitCount());
 }
 
@@ -176,11 +178,11 @@ TEST(BitBufferWriterTest, SymmetricReadWrite) {
 }
 
 TEST(BitBufferWriterTest, SymmetricBytesMisaligned) {
-  uint8_t bytes[16] = {0};
-  BitBufferWriter buffer(bytes, 16);
+  uint8_t bytes[16];
+  BitBufferWriter buffer(bytes);
 
   // Offset 3, to get things misaligned.
-  EXPECT_TRUE(buffer.ConsumeBits(3));
+  EXPECT_TRUE(buffer.ZeroBits(3));
   EXPECT_TRUE(buffer.WriteUInt8(0x12u));
   EXPECT_TRUE(buffer.WriteUInt16(0x3456u));
   EXPECT_TRUE(buffer.WriteUInt32(0x789ABCDEu));
@@ -207,17 +209,18 @@ TEST(BitBufferWriterTest, SymmetricGolomb) {
   EXPECT_TRUE(reader.Ok());
 }
 
-TEST(BitBufferWriterTest, WriteClearsBits) {
-  uint8_t bytes[] = {0xFF, 0xFF};
-  BitBufferWriter buffer(bytes, 2);
-  EXPECT_TRUE(buffer.ConsumeBits(3));
-  EXPECT_TRUE(buffer.WriteBits(0, 1));
-  EXPECT_EQ(0xEFu, bytes[0]);
+TEST(BitBufferWriterTest, ZeroesUnwrittenBitsInUsedBytes) {
+  uint8_t bytes[] = {0b1111'1111, 0b1111'1111};
+  BitBufferWriter buffer(bytes);
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_THAT(bytes, ElementsAre(0b1100'0000, 0b1111'1111));
+
   EXPECT_TRUE(buffer.WriteBits(0, 3));
-  EXPECT_EQ(0xE1u, bytes[0]);
-  EXPECT_TRUE(buffer.WriteBits(0, 2));
-  EXPECT_EQ(0xE0u, bytes[0]);
-  EXPECT_EQ(0x7F, bytes[1]);
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_THAT(bytes, ElementsAre(0b1100'0110, 0b1111'1111));
+
+  EXPECT_TRUE(buffer.ZeroBits(3));
+  EXPECT_THAT(bytes, ElementsAre(0b1100'0110, 0b0000'0000));
 }
 
 TEST(BitBufferWriterTest, WriteLeb128) {
@@ -250,6 +253,87 @@ TEST(BitBufferWriterTest, WriteStringTooSmallBuffer) {
   uint8_t buffer[2];
   BitBufferWriter writer(buffer, sizeof(buffer));
   EXPECT_FALSE(writer.WriteString("abc"));
+}
+
+TEST(BitBufferWriterTest, ZeroBitsInAByte) {
+  uint8_t bytes[1];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 8u);
+
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_TRUE(buffer.ZeroBits(3));
+  EXPECT_TRUE(buffer.WriteBits(0b111, 1));
+  EXPECT_EQ(buffer.RemainingBitCount(), 2u);
+  EXPECT_EQ(bytes[0], 0b11'000'1'00);
+}
+
+TEST(BitBufferWriterTest, ZeroZeroBitsIsNoop) {
+  uint8_t bytes[1];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 8u);
+  EXPECT_TRUE(buffer.ZeroBits(0));
+  EXPECT_EQ(buffer.RemainingBitCount(), 8u);
+
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+
+  ASSERT_EQ(buffer.RemainingBitCount(), 6u);
+  EXPECT_TRUE(buffer.ZeroBits(0));
+  EXPECT_EQ(buffer.RemainingBitCount(), 6u);
+}
+
+TEST(BitBufferWriterTest, ZeroBitsAcrossByteBoundary) {
+  uint8_t bytes[2];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 16u);
+
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_TRUE(buffer.ZeroBits(9));
+  EXPECT_TRUE(buffer.WriteBits(0b11, 1));
+  EXPECT_EQ(buffer.RemainingBitCount(), 4u);
+  EXPECT_THAT(bytes, ElementsAre(0b11'000000, 0b000'1'0000));
+}
+
+TEST(BitBufferWriterTest, ZeroBitsFromByteBoundary) {
+  uint8_t bytes[2];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 16u);
+
+  EXPECT_TRUE(buffer.ZeroBits(9));
+  EXPECT_TRUE(buffer.WriteBits(0b1, 1));
+  EXPECT_EQ(buffer.RemainingBitCount(), 6u);
+  EXPECT_THAT(bytes, ElementsAre(0, 0b0'1'000000));
+}
+
+TEST(BitBufferWriterTest, ZeroBitsToByteBoundary) {
+  uint8_t bytes[3];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 24u);
+
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_TRUE(buffer.ZeroBits(14));
+  EXPECT_TRUE(buffer.WriteBits(0b1, 1));
+  EXPECT_EQ(buffer.RemainingBitCount(), 7u);
+  EXPECT_THAT(bytes, ElementsAre(0b11'000000, 0, 0b1'0000000));
+}
+
+TEST(BitBufferWriterTest, ZeroRemainingBits) {
+  uint8_t bytes[2];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 16u);
+
+  EXPECT_TRUE(buffer.WriteBits(0b11, 2));
+  EXPECT_TRUE(buffer.ZeroBits(buffer.RemainingBitCount()));
+  EXPECT_EQ(buffer.RemainingBitCount(), 0u);
+  EXPECT_THAT(bytes, ElementsAre(0b11'000000, 0));
+}
+
+TEST(BitBufferWriterTest, ZeroManyBytes) {
+  uint8_t bytes[1000];
+  BitBufferWriter buffer(bytes);
+  ASSERT_EQ(buffer.RemainingBitCount(), 8'000u);
+  EXPECT_TRUE(buffer.ZeroBits(buffer.RemainingBitCount()));
+  EXPECT_EQ(buffer.RemainingBitCount(), 0u);
+  EXPECT_THAT(bytes, Each(Eq(0)));
 }
 
 }  // namespace webrtc

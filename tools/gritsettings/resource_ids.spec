@@ -265,10 +265,6 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [3130],
   },
-  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/crostini_upgrader/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
-    "includes": [3135],
-  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/desk_api/resources.grd": {
     "META": {"sizes": {"includes": [10],}},
     "includes": [3140],
@@ -601,7 +597,7 @@
     "META": {"sizes": {"includes": [20]}},
     "includes": [4660],
   },
-   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/reload_button/resources.grd": {
+   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_toolbar/resources.grd": {
     "META": {"sizes": {"includes": [10]}},
     "includes": [4670],
   },
@@ -1255,7 +1251,7 @@
     "includes": [7490],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/unexportable_keys_internals/resources.grd": {
-    "META": {"sizes": {"includes": [5]}},
+    "META": {"sizes": {"includes": [10]}},
     "includes": [7495],
   },
   # END components/ section.

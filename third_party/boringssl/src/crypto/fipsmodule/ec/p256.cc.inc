@@ -35,6 +35,9 @@
 #include "../../../third_party/fiat/p256_field.c.inc"
 #include "../../../third_party/fiat/p256_point.br.c.inc"
 
+
+using namespace bssl;
+
 // utility functions, handwritten
 
 #if defined(OPENSSL_64_BIT)
@@ -556,6 +559,8 @@ static int ec_GFp_nistp256_cmp_x_coordinate(const EC_GROUP *group,
   return 0;
 }
 
+BSSL_NAMESPACE_BEGIN
+
 DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp256_method) {
   out->point_get_affine_coordinates =
       ec_GFp_nistp256_point_get_affine_coordinates;
@@ -577,3 +582,5 @@ DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp256_method) {
       ec_simple_scalar_to_montgomery_inv_vartime;
   out->cmp_x_coordinate = ec_GFp_nistp256_cmp_x_coordinate;
 }
+
+BSSL_NAMESPACE_END

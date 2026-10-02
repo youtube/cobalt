@@ -495,7 +495,7 @@ TEST(RTCStatsTest, SetTimestamp) {
 TEST(RTCStatsDeathTest, ValueOfUndefinedMember) {
   RTCTestStats stats("testId", Timestamp::Micros(0));
   EXPECT_FALSE(stats.m_int32.has_value());
-  EXPECT_DEATH(*stats.m_int32, "");
+  EXPECT_DEATH((void)*stats.m_int32, "");
 }
 
 TEST(RTCStatsDeathTest, InvalidCasting) {

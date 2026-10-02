@@ -119,6 +119,7 @@ NetworkControlUpdate ScreamNetworkController::OnRoundTripTimeUpdate(
 }
 
 NetworkControlUpdate ScreamNetworkController::OnSentPacket(SentPacket msg) {
+  scream_->OnPacketSent(msg.data_in_flight);
   if (msg.data_in_flight > scream_->max_data_in_flight()) {
     RTC_LOG(LS_VERBOSE) << " Send window full:" << msg.data_in_flight << " > "
                         << scream_->max_data_in_flight();

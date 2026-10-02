@@ -31,6 +31,9 @@
 #include "../internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
+
 static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 
 static constexpr CBS_ASN1_TAG kVersionTag =
@@ -40,9 +43,8 @@ static constexpr CBS_ASN1_TAG kSubjectUIDTag = CBS_ASN1_CONTEXT_SPECIFIC | 2;
 static constexpr CBS_ASN1_TAG kExtensionsTag =
     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 3;
 
-X509 *X509_new(void) {
-  bssl::UniquePtr<X509> ret(
-      reinterpret_cast<X509 *>(OPENSSL_zalloc(sizeof(X509))));
+X509 *X509_new() {
+  UniquePtr<X509> ret(reinterpret_cast<X509 *>(OPENSSL_zalloc(sizeof(X509))));
   if (ret == nullptr) {
     return nullptr;
   }
@@ -99,13 +101,13 @@ void X509_free(X509 *x509) {
 X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
                                  const EVP_PKEY_ALG *const *algs,
                                  size_t num_algs) {
-  bssl::UniquePtr<X509> ret(X509_new());
+  UniquePtr<X509> ret(X509_new());
   if (ret == nullptr) {
     return nullptr;
   }
 
   // Save the buffer to cache the original encoding.
-  ret->buf = bssl::UpRef(buf).release();
+  ret->buf = UpRef(buf).release();
 
   // Parse the Certificate.
   CBS cbs, cert, tbs;
@@ -161,7 +163,7 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
                        /*allow_utc_timezone_offset=*/1) ||
       CBS_len(&validity) != 0 ||  //
       !x509_parse_name(&tbs, &ret->subject) ||
-      !x509_parse_public_key(&tbs, &ret->key, bssl::Span(algs, num_algs))) {
+      !x509_parse_public_key(&tbs, &ret->key, Span(algs, num_algs))) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
   }
@@ -211,22 +213,22 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
 }
 
 X509 *X509_parse_from_buffer(CRYPTO_BUFFER *buf) {
-  auto algs = bssl::GetDefaultEVPAlgorithms();
+  auto algs = GetDefaultEVPAlgorithms();
   return X509_parse_with_algorithms(buf, algs.data(), algs.size());
 }
 
-static bssl::UniquePtr<X509> x509_parse(CBS *cbs) {
+static UniquePtr<X509> x509_parse(CBS *cbs) {
   CBS cert;
   if (!CBS_get_asn1_element(cbs, &cert, CBS_ASN1_SEQUENCE)) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return nullptr;
   }
 
-  bssl::UniquePtr<CRYPTO_BUFFER> buf(CRYPTO_BUFFER_new_from_CBS(&cert, nullptr));
+  UniquePtr<CRYPTO_BUFFER> buf(CRYPTO_BUFFER_new_from_CBS(&cert, nullptr));
   if (buf == nullptr) {
     return nullptr;
   }
-  return bssl::UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
+  return UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
 }
 
 int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
@@ -293,7 +295,7 @@ static int x509_marshal(CBB *cbb, const X509 *x509) {
 }
 
 X509 *d2i_X509(X509 **out, const uint8_t **inp, long len) {
-  return bssl::D2IFromCBS(out, inp, len, x509_parse);
+  return D2IFromCBS(out, inp, len, x509_parse);
 }
 
 int i2d_X509(const X509 *x509, uint8_t **outp) {
@@ -302,7 +304,7 @@ int i2d_X509(const X509 *x509, uint8_t **outp) {
     return -1;
   }
 
-  return bssl::I2DFromCBB(
+  return I2DFromCBB(
       /*initial_capacity=*/256, outp,
       [&](CBB *cbb) -> bool { return x509_marshal(cbb, x509); });
 }
@@ -323,7 +325,7 @@ static int x509_parse_cb(ASN1_VALUE **pval, CBS *cbs, const ASN1_ITEM *it,
     return 1;
   }
 
-  bssl::UniquePtr<X509> ret = x509_parse(cbs);
+  UniquePtr<X509> ret = x509_parse(cbs);
   if (ret == nullptr) {
     return 0;
   }
@@ -485,7 +487,7 @@ int i2d_re_X509_tbs(X509 *x509, uint8_t **outp) {
 }
 
 int i2d_X509_tbs(const X509 *x509, uint8_t **outp) {
-  return bssl::I2DFromCBB(/*initial_capacity=*/128, outp, [&](CBB *cbb) -> bool {
+  return I2DFromCBB(/*initial_capacity=*/128, outp, [&](CBB *cbb) -> bool {
     return x509_marshal_tbs_cert(cbb, x509);
   });
 }

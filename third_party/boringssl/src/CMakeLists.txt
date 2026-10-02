@@ -475,7 +475,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   endif()
 
   if(CLANG)
-    list(APPEND C_CXX_WARNINGS -Wnewline-eof -Wextra-semi -fcolor-diagnostics)
+    list(APPEND C_CXX_WARNINGS -Wnewline-eof -Wextra-semi -fcolor-diagnostics
+         -Wheader-hygiene)
   else()
     list(APPEND C_CXX_WARNINGS -Wformat-signedness)
     # GCC (at least 4.8.4) has a bug where it'll find unreachable free() calls

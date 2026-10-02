@@ -43,7 +43,7 @@ struct MD {
   // name is the name of the digest.
   const char *name;
   // md_func is the digest to test.
-  const EVP_MD *(*func)(void);
+  const EVP_MD *(*func)();
   // one_shot_func is the convenience one-shot version of the
   // digest.
   uint8_t *(*one_shot_func)(const uint8_t *, size_t, uint8_t *);

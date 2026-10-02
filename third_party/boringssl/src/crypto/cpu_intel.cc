@@ -146,7 +146,7 @@ void OPENSSL_adjust_ia32cap(uint32_t cap[4], const char *env) {
   }
 }
 
-void OPENSSL_cpuid_setup(void) {
+void OPENSSL_cpuid_setup() {
   // Determine the vendor and maximum input value.
   uint32_t eax, ebx, ecx, edx;
   OPENSSL_cpuid(&eax, &ebx, &ecx, &edx, 0);

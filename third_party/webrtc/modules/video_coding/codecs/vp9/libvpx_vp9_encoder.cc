@@ -939,8 +939,8 @@ int LibvpxVp9Encoder::InitAndSetControlSettings() {
 
   // Register callback for getting each spatial layer.
   vpx_codec_priv_output_cx_pkt_cb_pair_t cbp = {
-      LibvpxVp9Encoder::EncoderOutputCodedPacketCallback,
-      reinterpret_cast<void*>(this)};
+      .output_cx_pkt = LibvpxVp9Encoder::EncoderOutputCodedPacketCallback,
+      .user_priv = reinterpret_cast<void*>(this)};
   libvpx_->codec_control(encoder_, VP9E_REGISTER_CX_CALLBACK,
                          reinterpret_cast<void*>(&cbp));
 
@@ -1027,7 +1027,7 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     }
   }
 
-  vpx_svc_layer_id_t layer_id = {0};
+  vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   if (!force_key_frame_) {
     const size_t gof_idx = (pics_since_key_ + 1) % gof_.num_frames_in_gof;
     layer_id.temporal_layer_id = gof_.temporal_idx[gof_idx];
@@ -1316,7 +1316,7 @@ bool LibvpxVp9Encoder::PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
     ++pics_since_key_;
   }
 
-  vpx_svc_layer_id_t layer_id = {0};
+  vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   libvpx_->codec_control(encoder_, VP9E_GET_SVC_LAYER_ID, &layer_id);
 
   // Can't have keyframe with non-zero temporal layer.
@@ -1493,7 +1493,7 @@ void LibvpxVp9Encoder::FillReferenceIndices(const vpx_codec_cx_pkt& pkt,
                                             const size_t pic_num,
                                             const bool inter_layer_predicted,
                                             CodecSpecificInfoVP9* vp9_info) {
-  vpx_svc_layer_id_t layer_id = {0};
+  vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   libvpx_->codec_control(encoder_, VP9E_GET_SVC_LAYER_ID, &layer_id);
 
   const bool is_key_frame =
@@ -1502,7 +1502,7 @@ void LibvpxVp9Encoder::FillReferenceIndices(const vpx_codec_cx_pkt& pkt,
   std::vector<RefFrameBuffer> ref_buf_list;
 
   if (is_svc_) {
-    vpx_svc_ref_frame_config_t enc_layer_conf = {{0}};
+    vpx_svc_ref_frame_config_t enc_layer_conf = {.lst_fb_idx = {0}};
     libvpx_->codec_control(encoder_, VP9E_GET_SVC_REF_FRAME_CONFIG,
                            &enc_layer_conf);
     char ref_buf_flags[] = "00000000";
@@ -1597,7 +1597,7 @@ void LibvpxVp9Encoder::FillReferenceIndices(const vpx_codec_cx_pkt& pkt,
 
 void LibvpxVp9Encoder::UpdateReferenceBuffers(const vpx_codec_cx_pkt& /* pkt */,
                                               const size_t pic_num) {
-  vpx_svc_layer_id_t layer_id = {0};
+  vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   libvpx_->codec_control(encoder_, VP9E_GET_SVC_LAYER_ID, &layer_id);
 
   RefFrameBuffer frame_buf = {.pic_num = pic_num,
@@ -1605,7 +1605,7 @@ void LibvpxVp9Encoder::UpdateReferenceBuffers(const vpx_codec_cx_pkt& /* pkt */,
                               .temporal_layer_id = layer_id.temporal_layer_id};
 
   if (is_svc_) {
-    vpx_svc_ref_frame_config_t enc_layer_conf = {{0}};
+    vpx_svc_ref_frame_config_t enc_layer_conf = {.lst_fb_idx = {0}};
     libvpx_->codec_control(encoder_, VP9E_GET_SVC_REF_FRAME_CONFIG,
                            &enc_layer_conf);
     const int update_buffer_slot =
@@ -1739,7 +1739,7 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
     return;
   }
 
-  vpx_svc_layer_id_t layer_id = {0};
+  vpx_svc_layer_id_t layer_id = {.spatial_layer_id = 0};
   libvpx_->codec_control(encoder_, VP9E_GET_SVC_LAYER_ID, &layer_id);
 
   encoded_image_.SetEncodedData(EncodedImageBuffer::Create(

@@ -187,12 +187,27 @@ rtc_library("encoder_speed_experiment") {
   ]
 }
 
+rtc_library("corruption_detection_frame_selector_settings") {
+  sources = [
+    "corruption_detection_frame_selector_settings.cc",
+    "corruption_detection_frame_selector_settings.h",
+  ]
+  deps = [
+    ":field_trial_parser",
+    "../../api:field_trials_view",
+    "../../api/units:time_delta",
+    "../../rtc_base:logging",
+    "../../video/corruption_detection:frame_selector",
+  ]
+}
+
 if (rtc_include_tests && !build_with_chromium) {
   rtc_library("experiments_unittests") {
     testonly = true
 
     sources = [
       "balanced_degradation_settings_unittest.cc",
+      "corruption_detection_frame_selector_settings_unittest.cc",
       "encoder_info_settings_unittest.cc",
       "encoder_speed_experiment_unittest.cc",
       "field_trial_list_unittest.cc",
@@ -209,6 +224,7 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     deps = [
       ":balanced_degradation_settings",
+      ":corruption_detection_frame_selector_settings",
       ":encoder_info_settings",
       ":encoder_speed_experiment",
       ":field_trial_parser",

@@ -257,7 +257,8 @@ class RTC_EXPORT VideoFrame {
   // Returns update_rect set by the builder or set_update_rect() or whole frame
   // rect if no update rect is available.
   UpdateRect update_rect() const {
-    return update_rect_.value_or(UpdateRect{0, 0, width(), height()});
+    return update_rect_.value_or(UpdateRect{
+        .offset_x = 0, .offset_y = 0, .width = width(), .height = height()});
   }
 
   // Rectangle must be within the frame dimensions.

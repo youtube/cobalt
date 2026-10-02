@@ -12,6 +12,7 @@ import android.content.ServiceConnection;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
+import android.os.Bundle;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Display;
@@ -19,6 +20,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.TextAttribute;
 import android.webkit.WebViewDelegate;
 
@@ -171,6 +173,16 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
+     * Sets {@link
+     * android.view.inputmethod.EditorInfo.TYPE_TEXT_FLAG_ENABLE_TEXT_SUGGESTION_SELECTED} if
+     * supported.
+     *
+     * @param outAttrs The {@link android.view.inputmethod.EditorInfo} object used to describe the
+     *     attributes of the input connection being created.
+     */
+    default void setTextFlagEnableTextSuggestionSelected(EditorInfo outAttrs) {}
+
+    /**
      * Calls the {@link android.content.Context#rebindService(ServiceConnection, BindServiceFlags)}
      * method if supported.
      *
@@ -289,6 +301,42 @@ public interface AconfigFlaggedApiDelegate {
      */
     default void clearSelection(AccessibilityNodeInfoCompat info) {}
 
+    /**
+     * @return Id of
+     *     androidx.core.view.accessibility.AccessibilityNodeInfo.AccessibilityActionCompat.ACTION_SET_EXTENDED_SELECTION
+     */
+    default @Nullable Integer getActionSetExtendedSelectionId() {
+        return null;
+    }
+
+    /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#getSelection()} if
+     * supported.
+     *
+     * @param arguments Arguments sent with the ACTION_SET_EXTENDED_SELECTION action.
+     * @return Null if selection is empty or feature is not available, otherwise a pair of two
+     *     integers, representing startVirtualDescendentId and startOffset for the selection start
+     *     node.
+     */
+    default @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionStartArgument(
+            Bundle arguments) {
+        return null;
+    }
+
+    /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#getSelection()} if
+     * supported.
+     *
+     * @param arguments Arguments sent with the ACTION_SET_EXTENDED_SELECTION action.
+     * @return Null if selection is empty or feature is not available, otherwise a pair of two
+     *     integers, representing startVirtualDescendentId and startOffset for the selection end
+     *     node.
+     */
+    default @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionEndArgument(
+            Bundle arguments) {
+        return null;
+    }
+
     /** Checks if {@link android.content.pm.webapp.WebAppManager} service is available. */
     default boolean isWebAppServiceEnabled() {
         return false;
@@ -313,6 +361,11 @@ public interface AconfigFlaggedApiDelegate {
             Runnable installFailedCallback,
             Runnable installCancelledCallback) {
         installFailedCallback.run();
+        return false;
+    }
+
+    /** Whether the feature to split the Android setting 'Show passwords' is enabled. */
+    default boolean isShowPasswordsSplitEnabled() {
         return false;
     }
 }

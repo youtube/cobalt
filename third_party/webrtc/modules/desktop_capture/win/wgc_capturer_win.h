@@ -113,9 +113,14 @@ class WgcCapturerWin : public DesktopCapturer {
 
   // Used in WgcCapturerTests.
   bool IsSourceBeingCaptured(SourceId id);
+  DesktopCapturer::SourceId SelectedSourceId() const {
+    return selected_source_id_;
+  }
+
   void SetUpFullScreenDetectorForTest(
       DesktopCapturer::SourceId source_id,
-      bool fullscreen_slide_show_started_after_capture_start = true);
+      bool fullscreen_slide_show_started_after_capture_start = true,
+      bool use_heuristic_for_finding_editor_ = false);
 
  private:
   typedef HRESULT(WINAPI* CreateDispatcherQueueControllerFunc)(
@@ -170,6 +175,12 @@ class WgcCapturerWin : public DesktopCapturer {
   // delay capturable check till capture frame is called if the WgcCapturerWin
   // is used as a fallback capturer.
   bool allow_delayed_capturable_check_ = false;
+
+  DesktopCapturer::SourceId chosen_slide_show_id_ = 0;
+
+  // Stores the window id of the editor window when using
+  // `full_screen_window_detector_`.
+  DesktopCapturer::SourceId editor_id_ = 0;
 
   // A Direct3D11 device that is shared amongst the WgcCaptureSessions, who
   // require one to perform the capture.

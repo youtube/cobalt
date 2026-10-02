@@ -30,7 +30,7 @@
 namespace {
 
 struct HKDFTestVector {
-  const EVP_MD *(*md_func)(void);
+  const EVP_MD *(*md_func)();
   const uint8_t ikm[80];
   const size_t ikm_len;
   const uint8_t salt[80];

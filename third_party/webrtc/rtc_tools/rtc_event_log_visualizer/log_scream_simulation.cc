@@ -33,7 +33,10 @@ namespace webrtc {
 LogScreamSimulation::LogScreamSimulation(const Config& config,
                                          const Environment& env)
 
-    : env_(env), send_rate_tracker_(config.rate_window) {}
+    : env_(env), send_rate_tracker_(config.rate_window) {
+  // Scream is recreated if candidates change.
+  scream_.emplace(env_);
+}
 
 void LogScreamSimulation::ProcessUntil(Timestamp to_time) {
   current_time_ = to_time;
@@ -63,7 +66,11 @@ void LogScreamSimulation::OnPacketSent(const LoggedPacketInfo& packet) {
   send_rate_tracker_.Update(DataSize::Bytes(sent_packet.info.packet_size_bytes),
                             packet.log_packet_time);
 
-  transport_feedback_.ProcessSentPacket(sent_packet);
+  std::optional<SentPacket> packet_info =
+      transport_feedback_.ProcessSentPacket(sent_packet);
+  if (packet_info.has_value()) {
+    scream_->OnPacketSent(packet_info->data_in_flight);
+  }
 }
 
 void LogScreamSimulation::OnTransportFeedback(
@@ -154,7 +161,11 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .queue_delay_dev_norm =
           scream_->delay_based_congestion_control().queue_delay_dev_norm(),
       .l4s_alpha = scream_->l4s_alpha(),
-      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v()});
+      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
+      .ref_window_delay_increase_scale =
+          scream_->delay_based_congestion_control().IsQueueDelayDetected()
+              ? 0.0
+              : scream_->delay_based_congestion_control().scale_increase()});
 }
 
 }  // namespace webrtc

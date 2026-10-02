@@ -1745,9 +1745,9 @@ DEFINE_BOOL(
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_verify_load_store_taggedness,
-                            "insert runtime checks to verify the "
-                            "representation of loaded/stored values")
+DEFINE_BOOL(turboshaft_verify_load_store_taggedness, false,
+            "insert runtime checks to verify the representation of "
+            "loaded/stored values")
 DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
                    deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
@@ -2170,14 +2170,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(trace_wasm_revectorize, false, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 DEFINE_BOOL(wasm_memory64_trap_handling, true,
             "Use trap handling for Wasm memory64 bounds checks")
 #else
 DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
                      "Use trap handling for Wasm memory64 bounds checks (not "
                      "supported for this architecture)")
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 
 #ifdef V8_ENABLE_DRUMBRAKE
 // DrumBrake flags.
@@ -2452,7 +2452,7 @@ DEFINE_BOOL(ineffective_gc_includes_global, false,
 DEFINE_BOOL(ineffective_gcs_forces_last_resort, false,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
-    ineffective_gc_size_threshold, 0.8,
+    ineffective_gc_size_threshold, 0.95,
     "Threshold on heap size to trigger out-of-memory failure near heap limit.")
 DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "Threshold on mutator utilization to trigger out-of-memory "
@@ -2525,8 +2525,6 @@ DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
 DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump QOS class for running threads to reach safepoint")
 #endif
-DEFINE_BOOL(memory_reducer_respects_frozen_state, false,
-            "don't schedule another GC when we are frozen")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(memory_reducer_favors_memory, true,
@@ -2602,6 +2600,11 @@ DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
+DEFINE_INT(fixed_margin_for_input_handling, 64,
+           "how much we are allowed to overshoot the heap limit by during "
+           "input mode, in MiB.")
+DEFINE_BOOL(optimize_for_input_handling, false,
+            "whether to use input hints to optimize for responsiveness.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,
@@ -2916,11 +2919,19 @@ DEFINE_BOOL(external_reference_stats, false,
 // Dumpling flags start.
 DEFINE_BOOL(interpreter_dumping, false,
             "enable frame dumping in the interpreter")
+DEFINE_BOOL(sparkplug_dumping, false,
+            "enable frame dumping in baseline compiler")
 // Needed for function id.
 DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
+DEFINE_NEG_IMPLICATION(sparkplug_dumping, enable_lazy_source_positions)
 DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
               "File to save the frame dumps to")
 DEFINE_INT(dumpling_depth, 3, "depth used in dumpling")
+DEFINE_STRING(dump_positions_filename, "/tmp/dump_positions.txt",
+              "File to save dump positions to")
+DEFINE_BOOL(generate_dump_positions, false, "write dump positions to a file")
+DEFINE_BOOL(load_dump_positions, false, "load dump positions from a file")
+DEFINE_NEG_IMPLICATION(generate_dump_positions, load_dump_positions)
 // Dumpling flags end.
 #endif  // V8_DUMPLING
 
@@ -2966,7 +2977,7 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 // inspector
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
-DEFINE_BOOL(inspector_live_edit, true,
+DEFINE_BOOL(inspector_live_edit, false,
             "Enable the Debugger.setScriptSource CDP command, otherwise it'll "
             "always fail with an error")
 
@@ -3217,6 +3228,9 @@ DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
+DEFINE_BOOL(regexp_unroll, true, "unroll small {} repeats when optimizing")
+DEFINE_BOOL(regexp_quick_check, true,
+            "generate quickcheck code when optimizing")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
 #ifdef V8_TARGET_BIG_ENDIAN
 #define REGEXP_PEEPHOLE_OPTIMIZATION_BOOL false
@@ -3237,8 +3251,14 @@ DEFINE_BOOL(regexp_assemble_from_bytecode, false,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
 DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
+#ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
+#else
+DEFINE_BOOL_READONLY(trace_regexp_peephole_optimization, false,
+                     "trace regexp bytecode peephole optimization (requires "
+                     "v8_enable_disassembler = true)")
+#endif
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")

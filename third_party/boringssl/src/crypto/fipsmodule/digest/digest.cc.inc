@@ -41,7 +41,7 @@ void EVP_MD_CTX_init(EVP_MD_CTX *ctx) {
   ctx->pctx_ops = nullptr;
 }
 
-EVP_MD_CTX *EVP_MD_CTX_new(void) {
+EVP_MD_CTX *EVP_MD_CTX_new() {
   EVP_MD_CTX *ctx =
       reinterpret_cast<EVP_MD_CTX *>(OPENSSL_malloc(sizeof(EVP_MD_CTX)));
 
@@ -52,7 +52,7 @@ EVP_MD_CTX *EVP_MD_CTX_new(void) {
   return ctx;
 }
 
-EVP_MD_CTX *EVP_MD_CTX_create(void) { return EVP_MD_CTX_new(); }
+EVP_MD_CTX *EVP_MD_CTX_create() { return EVP_MD_CTX_new(); }
 
 int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) {
   assert(ctx->pctx == nullptr || ctx->pctx_ops != nullptr);

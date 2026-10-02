@@ -19,10 +19,6 @@
 
 #include "../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 
 struct dsa_st {
   BIGNUM *p;
@@ -40,13 +36,12 @@ struct dsa_st {
   CRYPTO_EX_DATA ex_data;
 };
 
+BSSL_NAMESPACE_BEGIN
+
 // dsa_check_key performs cheap self-checks on |dsa|, and ensures it is within
 // DoS bounds. It returns one on success and zero on error.
 int dsa_check_key(const DSA *dsa);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_DSA_INTERNAL_H

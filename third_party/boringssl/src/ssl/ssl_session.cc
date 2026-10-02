@@ -1030,7 +1030,7 @@ SSL_SESSION *SSL_SESSION_copy_without_early_data(SSL_SESSION *session) {
   return copy.release();
 }
 
-SSL_SESSION *SSL_magic_pending_session_ptr(void) {
+SSL_SESSION *SSL_magic_pending_session_ptr() {
   return (SSL_SESSION *)&g_pending_session_magic;
 }
 

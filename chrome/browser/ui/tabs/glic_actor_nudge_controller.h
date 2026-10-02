@@ -49,12 +49,20 @@ class GlicActorNudgeController {
   // the nudge. Always shows the task list bubble after.
   void UpdateNudgeLabelOrRetrigger(std::u16string nudge_label_text);
 
+  // Close the task list bubble if it is visible.
+  void CloseBubble();
+
+  // Called when the task list bubble's visibility state changes.
+  void OnBubbleVisibilityChange(bool is_bubble_open);
+
   const raw_ptr<Profile> profile_;
   raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<TabStripActionContainer> tab_strip_action_container_;
 
   std::vector<base::CallbackListSubscription>
       actor_nudge_state_change_callback_subscription_;
+  std::vector<base::CallbackListSubscription>
+      bubble_visibility_change_subscription_;
 
   ::ui::ScopedUnownedUserData<GlicActorNudgeController> scoped_data_holder_;
 

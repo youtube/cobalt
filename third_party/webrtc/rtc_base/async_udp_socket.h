@@ -43,7 +43,7 @@ class AsyncUDPSocket : public AsyncPacketSocket {
 
   AsyncUDPSocket(const Environment& env,
                  absl_nonnull std::unique_ptr<Socket> socket);
-  ~AsyncUDPSocket() = default;
+  ~AsyncUDPSocket() override = default;
 
   SocketAddress GetLocalAddress() const override;
   SocketAddress GetRemoteAddress() const override;

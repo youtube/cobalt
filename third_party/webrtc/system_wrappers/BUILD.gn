@@ -44,22 +44,6 @@ rtc_library("system_wrappers") {
   }
 }
 
-rtc_library("field_trial") {
-  visibility = [ "*" ]
-  poisonous = [ "environment_construction" ]
-  sources = [
-    "include/field_trial.h",
-    "source/field_trial.cc",
-  ]
-  deps = [
-    "../api/environment:deprecated_global_field_trials",
-    "../rtc_base:checks",
-    "../rtc_base:logging",
-    "../rtc_base:stringutils",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
 rtc_library("metrics") {
   visibility = [ "*" ]
   sources = [
@@ -84,14 +68,12 @@ if (rtc_include_tests && !build_with_chromium) {
     testonly = true
     sources = [
       "source/clock_unittest.cc",
-      "source/field_trial_unittest.cc",
       "source/metrics_default_unittest.cc",
       "source/metrics_unittest.cc",
       "source/ntp_time_unittest.cc",
     ]
 
     deps = [
-      ":field_trial",
       ":metrics",
       ":system_wrappers",
       "../api/units:time_delta",
@@ -100,7 +82,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:random",
       "../rtc_base:stringutils",
       "../test:rtc_expect_death",
-      "../test:test_main",
       "../test:test_support",
       "//testing/gtest",
       "//third_party/abseil-cpp/absl/strings:string_view",

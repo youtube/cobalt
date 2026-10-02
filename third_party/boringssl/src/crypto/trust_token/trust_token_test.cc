@@ -959,6 +959,12 @@ TEST_P(TrustTokenMetadataTest, SetAndGetMetadata) {
                                                   &msg_len, 10));
   }
   bssl::UniquePtr<uint8_t> free_issue_msg(issue_msg);
+
+  // Make a copy to test that the testing API works.
+  bssl::UniquePtr<TRUST_TOKEN_CLIENT> client_copy(
+      TRUST_TOKEN_CLIENT_dup_for_testing(client.get()));
+  ASSERT_TRUE(client_copy);
+
   size_t tokens_issued;
   bool result = TRUST_TOKEN_ISSUER_issue(
       issuer.get(), &issue_resp, &resp_len, &tokens_issued, issue_msg, msg_len,
@@ -969,12 +975,26 @@ TEST_P(TrustTokenMetadataTest, SetAndGetMetadata) {
   }
   ASSERT_TRUE(result);
   bssl::UniquePtr<uint8_t> free_msg(issue_resp);
+
   size_t key_index;
   bssl::UniquePtr<STACK_OF(TRUST_TOKEN)> tokens(
       TRUST_TOKEN_CLIENT_finish_issuance(client.get(), &key_index, issue_resp,
                                          resp_len));
   ASSERT_TRUE(tokens);
   EXPECT_EQ(1u, sk_TRUST_TOKEN_num(tokens.get()));
+
+  // Test that the testing copy gave the same result.
+  size_t key_index2;
+  bssl::UniquePtr<STACK_OF(TRUST_TOKEN)> tokens2(
+      TRUST_TOKEN_CLIENT_finish_issuance(client_copy.get(), &key_index2,
+                                         issue_resp, resp_len));
+  ASSERT_TRUE(tokens2);
+  EXPECT_EQ(key_index, key_index2);
+  EXPECT_EQ(1u, sk_TRUST_TOKEN_num(tokens2.get()));
+  EXPECT_EQ(Bytes(sk_TRUST_TOKEN_value(tokens.get(), 0)->data,
+                  sk_TRUST_TOKEN_value(tokens.get(), 0)->len),
+            Bytes(sk_TRUST_TOKEN_value(tokens2.get(), 0)->data,
+                  sk_TRUST_TOKEN_value(tokens2.get(), 0)->len));
 
   for (TRUST_TOKEN *token : tokens.get()) {
     const uint8_t kClientData[] = "\x70TEST CLIENT DATA";

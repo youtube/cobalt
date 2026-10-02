@@ -32,8 +32,9 @@ class FeatureExtractor {
   };
   enum class ModelOutputEnum {
     kEchoMask = 0,
-    kModelState = 1,
-    kNumOutputs = 2
+    kUnboundedEchoMask = 1,
+    kModelState = 2,
+    kNumOutputs = 3
   };
 
   virtual ~FeatureExtractor() = default;
@@ -74,7 +75,7 @@ class TimeDomainFeatureExtractor : public FeatureExtractor {
 class FrequencyDomainFeatureExtractor : public FeatureExtractor {
  public:
   explicit FrequencyDomainFeatureExtractor(int step_size);
-  ~FrequencyDomainFeatureExtractor();
+  ~FrequencyDomainFeatureExtractor() override;
 
   bool ReadyForInference() const override;
 

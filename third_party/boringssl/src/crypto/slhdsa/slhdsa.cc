@@ -19,6 +19,8 @@
 #include "../fipsmodule/bcm_interface.h"
 
 
+using namespace bssl;
+
 static_assert(SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES ==
               BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES);
 static_assert(SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES ==

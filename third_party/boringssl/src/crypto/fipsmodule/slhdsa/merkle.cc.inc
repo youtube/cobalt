@@ -24,10 +24,12 @@
 #include "./wots.h"
 
 
+using namespace bssl;
+
 // Implements Algorithm 9: xmss_node function (page 23)
-void slhdsa_treehash(const slh_dsa_config *config, uint8_t *out_pk,
-                     const uint8_t *sk_seed, uint32_t i, uint32_t z,
-                     const uint8_t *pk_seed, uint8_t addr[32]) {
+void bssl::slhdsa_treehash(const slh_dsa_config *config, uint8_t *out_pk,
+                           const uint8_t *sk_seed, uint32_t i, uint32_t z,
+                           const uint8_t *pk_seed, uint8_t addr[32]) {
   BSSL_CHECK(z <= config->tree_height);
   BSSL_CHECK(i < (uint32_t)(1u << (config->tree_height - z)));
 
@@ -49,10 +51,10 @@ void slhdsa_treehash(const slh_dsa_config *config, uint8_t *out_pk,
 }
 
 // Implements Algorithm 10: xmss_sign function (page 24)
-void slhdsa_xmss_sign(const slh_dsa_config *config, uint8_t *sig,
-                      const uint8_t *msg, unsigned int idx,
-                      const uint8_t *sk_seed, const uint8_t *pk_seed,
-                      uint8_t addr[32]) {
+void bssl::slhdsa_xmss_sign(const slh_dsa_config *config, uint8_t *sig,
+                            const uint8_t *msg, unsigned int idx,
+                            const uint8_t *sk_seed, const uint8_t *pk_seed,
+                            uint8_t addr[32]) {
   // Build authentication path
   const size_t wots_bytes = slhdsa_wots_bytes(config);
   const size_t n = config->n;
@@ -69,10 +71,10 @@ void slhdsa_xmss_sign(const slh_dsa_config *config, uint8_t *sig,
 }
 
 // Implements Algorithm 11: xmss_pkFromSig function (page 25)
-void slhdsa_xmss_pk_from_sig(const slh_dsa_config *config, uint8_t *root,
-                             const uint8_t *xmss_sig, unsigned int idx,
-                             const uint8_t *msg, const uint8_t *pk_seed,
-                             uint8_t addr[32]) {
+void bssl::slhdsa_xmss_pk_from_sig(const slh_dsa_config *config, uint8_t *root,
+                                   const uint8_t *xmss_sig, unsigned int idx,
+                                   const uint8_t *msg, const uint8_t *pk_seed,
+                                   uint8_t addr[32]) {
   // Stores node[0] and node[1] from Algorithm 11
   slhdsa_set_type(config, addr, SLHDSA_ADDR_TYPE_WOTS);
   slhdsa_set_keypair_addr(config, addr, idx);
@@ -106,10 +108,10 @@ void slhdsa_xmss_pk_from_sig(const slh_dsa_config *config, uint8_t *root,
 }
 
 // Implements Algorithm 12: ht_sign function (page 27)
-void slhdsa_ht_sign(const slh_dsa_config *config, uint8_t *sig,
-                    const uint8_t *message, uint64_t idx_tree,
-                    uint32_t idx_leaf, const uint8_t *sk_seed,
-                    const uint8_t *pk_seed) {
+void bssl::slhdsa_ht_sign(const slh_dsa_config *config, uint8_t *sig,
+                          const uint8_t *message, uint64_t idx_tree,
+                          uint32_t idx_leaf, const uint8_t *sk_seed,
+                          const uint8_t *pk_seed) {
   uint8_t addr[32] = {0};
   slhdsa_set_tree_addr(config, addr, idx_tree);
 
@@ -137,10 +139,10 @@ void slhdsa_ht_sign(const slh_dsa_config *config, uint8_t *sig,
 }
 
 // Implements Algorithm 13: ht_verify function (page 28)
-int slhdsa_ht_verify(const slh_dsa_config *config, const uint8_t *sig,
-                     const uint8_t *message, uint64_t idx_tree,
-                     uint32_t idx_leaf, const uint8_t *pk_root,
-                     const uint8_t *pk_seed) {
+int bssl::slhdsa_ht_verify(const slh_dsa_config *config, const uint8_t *sig,
+                           const uint8_t *message, uint64_t idx_tree,
+                           uint32_t idx_leaf, const uint8_t *pk_root,
+                           const uint8_t *pk_seed) {
   uint8_t addr[32] = {0};
   slhdsa_set_tree_addr(config, addr, idx_tree);
 

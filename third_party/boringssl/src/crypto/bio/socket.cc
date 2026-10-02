@@ -123,7 +123,7 @@ static const BIO_METHOD methods_sockp = {
     nullptr /* callback_ctrl */,
 };
 
-const BIO_METHOD *BIO_s_socket(void) { return &methods_sockp; }
+const BIO_METHOD *BIO_s_socket() { return &methods_sockp; }
 
 BIO *BIO_new_socket(int fd, int close_flag) {
   BIO *ret;

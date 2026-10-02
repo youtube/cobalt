@@ -21,17 +21,13 @@
 
 #include "./params.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // Implements Algorithm 9: xmss_node function (page 23)
 void slhdsa_treehash(const slh_dsa_config *config, uint8_t *out_pk,
-                     const uint8_t *sk_seed,
-                     uint32_t i /*target node index*/,
-                     uint32_t z /*target node height*/,
-                     const uint8_t *pk_seed,
+                     const uint8_t *sk_seed, uint32_t i /*target node index*/,
+                     uint32_t z /*target node height*/, const uint8_t *pk_seed,
                      uint8_t addr[32]);
 
 // Implements Algorithm 10: xmss_sign function (page 24)
@@ -53,12 +49,10 @@ void slhdsa_ht_sign(const slh_dsa_config *config, uint8_t *sig,
 
 // Implements Algorithm 13: ht_verify function (page 28)
 int slhdsa_ht_verify(const slh_dsa_config *config, const uint8_t *sig,
-                     const uint8_t *message, uint64_t idx_tree, uint32_t idx_leaf,
-                     const uint8_t *pk_root, const uint8_t *pk_seed);
+                     const uint8_t *message, uint64_t idx_tree,
+                     uint32_t idx_leaf, const uint8_t *pk_root,
+                     const uint8_t *pk_seed);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SLHDSA_MERKLE_H

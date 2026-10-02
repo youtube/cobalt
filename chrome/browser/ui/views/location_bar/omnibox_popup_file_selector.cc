@@ -7,6 +7,7 @@
 #include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
+#include "base/strings/strcat.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/unguessable_token.h"
@@ -120,15 +121,22 @@ void OmniboxPopupFileSelector::OnFileDataReady(
 
   std::string image_data_url;
   if (mime_type == lens::MimeType::kImage) {
-    image_data_url = "data:" + file_data->mime_type + ";base64," +
-                     base::Base64Encode(file_data->bytes);
+    image_data_url = base::StrCat({"data:", file_data->mime_type, ";base64,",
+                                   base::Base64Encode(file_data->bytes)});
   }
 
   if (auto* webui = web_contents_->GetWebUI()) {
     auto* omnibox_popup_ui = webui->GetController()->GetAs<OmniboxPopupUI>();
     if (omnibox_popup_ui && omnibox_popup_ui->composebox_handler()) {
+      // The order of execution of parameter evaluation is undefined in C++. On
+      // Windows this results in `file_data->mime_type` being moved before the
+      // other mime_type use is evaluated resulting. The move results in an
+      // empty mime_type value being passed into `AddFileContextFromBrowser`.
+      // See: https://en.cppreference.com/w/cpp/language/eval_order and
+      // http://crbug.com/472510275.
+      std::string mime_type_copy = file_data->mime_type;
       omnibox_popup_ui->composebox_handler()->AddFileContextFromBrowser(
-          file_data->mime_type, std::move(file_data_buffer),
+          std::move(mime_type_copy), std::move(file_data_buffer),
           std::move(image_encoding_options_),
           base::BindOnce(&OmniboxPopupFileSelector::UpdateSearchboxContextData,
                          weak_factory_.GetWeakPtr(), mime_type,

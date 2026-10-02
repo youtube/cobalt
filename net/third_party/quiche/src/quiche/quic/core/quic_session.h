@@ -115,6 +115,156 @@ class QUICHE_EXPORT QuicSession
     virtual void OnConfigNegotiated(const QuicConfig& config) = 0;
   };
 
+  // Wrapper around a `QuicConfig` which provides access to the underlying
+  // config.
+  class QUICHE_EXPORT SavedConfig {
+   public:
+    // Creates a new `SavedConfig` which stores a copy of `config`.
+    explicit SavedConfig(const QuicConfig& config)
+        : config_(std::make_unique<QuicConfig>(config)) {}
+
+    // Returns the underlying `QuicConfig`. Must not be called after the config
+    // is deleted.
+    QuicConfig* RawConfig() {
+      QUIC_BUG_IF(no_config, config_deleted_);
+      QUIC_BUG_IF(no_config, delete_config_ && config_ == nullptr);
+      return config_.get();
+    }
+
+    void DeleteConfig(ParsedQuicVersion version);
+
+    bool HasReceivedInitialStreamFlowControlWindowBytes() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_stream_flow_control_window_bytes_;
+      }
+      return config_->HasReceivedInitialStreamFlowControlWindowBytes();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_unidirectional_;
+      }
+      return config_->HasReceivedInitialMaxStreamDataBytesUnidirectional();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_outgoing_bidirectional_;  // NOLINT
+      }
+      return config_
+          ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_incoming_bidirectional_;  // NOLINT
+      }
+      return config_
+          ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+    }
+
+    bool HasReceivedMaxBidirectionalStreams() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_max_bidirectional_streams_;
+      }
+      return config_->HasReceivedMaxBidirectionalStreams();
+    }
+
+    uint64_t ReceivedInitialStreamFlowControlWindowBytes() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_stream_flow_control_window_bytes_;
+      }
+      return config_->ReceivedInitialStreamFlowControlWindowBytes();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesUnidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_unidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesUnidirectional();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_outgoing_bidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_incoming_bidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+    }
+
+    uint64_t GetInitialStreamFlowControlWindowToSend() const {
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_stream_flow_control_window_to_send_;
+      }
+      return config_->GetInitialStreamFlowControlWindowToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_unidirectional_to_send_;
+      }
+      return config_->GetInitialMaxStreamDataBytesUnidirectionalToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend() const {
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_outgoing_bidirectional_to_send_;  // NOLINT
+      }
+      return config_->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesIncomingBidirectionalToSend() const {
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_;  // NOLINT
+      }
+      return config_->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+    }
+
+    uint64_t ReceivedMaxBidirectionalStreams() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_max_bidirectional_streams_;
+      }
+      return config_->ReceivedMaxBidirectionalStreams();
+    }
+
+    QuicTime::Delta IdleNetworkTimeout() const {
+      if (delete_config_ && config_ == nullptr) {
+        return idle_network_timeout_;
+      }
+      return config_->IdleNetworkTimeout();
+    }
+
+   private:
+    std::unique_ptr<QuicConfig> config_;
+    // TODO(b/461482627): Delete this when retiring the flag.
+    bool config_deleted_ = false;
+    const bool delete_config_ = GetQuicReloadableFlag(quic_delete_config);
+
+    bool has_received_initial_stream_flow_control_window_bytes_ = false;
+    bool has_received_initial_max_stream_data_bytes_unidirectional_ = false;
+    bool has_received_initial_max_stream_data_bytes_outgoing_bidirectional_ =
+        false;
+    bool has_received_initial_max_stream_data_bytes_incoming_bidirectional_ =
+        false;
+    bool has_received_max_bidirectional_streams_ = false;
+    uint64_t received_initial_stream_flow_control_window_bytes_;
+    uint64_t received_initial_max_stream_data_bytes_unidirectional_;
+    uint64_t received_initial_max_stream_data_bytes_outgoing_bidirectional_;
+    uint64_t received_initial_max_stream_data_bytes_incoming_bidirectional_;
+    uint64_t get_initial_stream_flow_control_window_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_unidirectional_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_outgoing_bidirectional_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_;
+    uint64_t received_max_bidirectional_streams_;
+    QuicTime::Delta idle_network_timeout_ = QuicTime::Delta::Zero();
+  };
+
   // Does not take ownership of |connection| or |visitor|.
   QuicSession(QuicConnection* connection, Visitor* owner,
               const QuicConfig& config,
@@ -384,9 +534,10 @@ class QUICHE_EXPORT QuicSession
       const CryptoHandshakeMessage& message);
 
   // Returns mutable config for this session. Returned config is owned
-  // by QuicSession.
-  QuicConfig* config() { return &config_; }
-  const QuicConfig* config() const { return &config_; }
+  // by QuicSession. Must not be called after the handshake completes.
+  QuicConfig* config() { return saved_config_.RawConfig(); }
+
+  const SavedConfig& GetSavedConfig() const { return saved_config_; }
 
   // Returns true if the stream existed previously and has been closed.
   // Returns false if the stream is still active or if the stream has
@@ -733,6 +884,8 @@ class QUICHE_EXPORT QuicSession
   // Returns nullptr and does error handling if the stream can not be created.
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
   virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
+  // Return true if the specified stream should be refused.
+  virtual bool ShouldRefuseIncomingStream(QuicStreamId) { return false; }
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetMutableCryptoStream() = 0;
@@ -906,6 +1059,8 @@ class QUICHE_EXPORT QuicSession
     max_streams_accepted_per_loop_ = max_streams_accepted_per_loop;
   }
 
+  bool enforce_immediate_goaway() const { return enforce_immediate_goaway_; }
+
  private:
   friend class test::QuicSessionPeer;
 
@@ -1061,6 +1216,9 @@ class QUICHE_EXPORT QuicSession
   const bool notify_stream_soon_to_destroy_ =
       GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy);
 
+  const bool enforce_immediate_goaway_ =
+      GetQuicReloadableFlag(quic_enforce_immediate_goaway);
+
   // Whether a transport layer GOAWAY frame has been received.
   // Such a frame only exists in Google QUIC, therefore
   // |transport_goaway_received_| is always false when using IETF QUIC.
@@ -1133,7 +1291,7 @@ class QUICHE_EXPORT QuicSession
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager ietf_streamid_manager_;
 
-  QuicConfig config_;
+  SavedConfig saved_config_;
 };
 
 }  // namespace quic

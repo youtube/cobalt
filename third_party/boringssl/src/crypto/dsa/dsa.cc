@@ -32,6 +32,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static_assert(OPENSSL_DSA_MAX_MODULUS_BITS <=
                   BN_MONTGOMERY_MAX_WORDS * BN_BITS2,
               "Max DSA size too big for Montgomery arithmetic");
@@ -45,7 +47,7 @@ static int dsa_sign_setup(const DSA *dsa, BN_CTX *ctx_in, BIGNUM **out_kinv,
 
 static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
 
-DSA *DSA_new(void) {
+DSA *DSA_new() {
   DSA *dsa = reinterpret_cast<DSA *>(OPENSSL_zalloc(sizeof(DSA)));
   if (dsa == nullptr) {
     return nullptr;
@@ -202,11 +204,11 @@ int DSA_generate_parameters_ex(DSA *dsa, unsigned bits, const uint8_t *seed_in,
     OPENSSL_memcpy(seed, seed_in, seed_len);
   }
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return 0;
   }
-  bssl::BN_CTXScope scope(ctx.get());
+  BN_CTXScope scope(ctx.get());
 
   r0 = BN_CTX_get(ctx.get());
   g = BN_CTX_get(ctx.get());
@@ -363,7 +365,7 @@ end:
     return 0;
   }
 
-  bssl::UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_for_modulus(p, ctx.get()));
+  UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_for_modulus(p, ctx.get()));
   if (mont == nullptr || !BN_set_word(test, h)) {
     return 0;
   }
@@ -425,7 +427,7 @@ int DSA_generate_key(DSA *dsa) {
     return 0;
   }
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return 0;
   }
@@ -477,7 +479,7 @@ err:
   return ok;
 }
 
-DSA_SIG *DSA_SIG_new(void) {
+DSA_SIG *DSA_SIG_new() {
   return reinterpret_cast<DSA_SIG *>(OPENSSL_zalloc(sizeof(DSA_SIG)));
 }
 
@@ -517,7 +519,7 @@ int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s) {
 // neither inputs nor outputs are in Montgomery form.
 static int mod_mul_consttime(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
                              const BN_MONT_CTX *mont, BN_CTX *ctx) {
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *tmp = BN_CTX_get(ctx);
   // |BN_mod_mul_montgomery| removes a factor of R, so we cancel it with a
   // single |BN_to_montgomery| which adds one factor of R.
@@ -918,7 +920,7 @@ DH *DSA_dup_DH(const DSA *dsa) {
     return nullptr;
   }
 
-  bssl::UniquePtr<DH> ret(DH_new());
+  UniquePtr<DH> ret(DH_new());
   if (ret == nullptr) {
     return nullptr;
   }

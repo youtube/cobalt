@@ -32,11 +32,16 @@
 #include <openssl/nid.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/tls_prf.h>
 
 #include "../../crypto/fipsmodule/bcm_interface.h"
 #include "../../crypto/fipsmodule/rand/internal.h"
 #include "../../crypto/fipsmodule/tls/internal.h"
 #include "../../crypto/internal.h"
+
+
+BSSL_NAMESPACE_BEGIN
+namespace {
 
 OPENSSL_MSVC_PRAGMA(warning(disable : 4295))
 
@@ -544,8 +549,11 @@ static int run_test() {
 #endif  // !defined(BORINGSSL_FIPS)
 }
 
+}  // namespace
+BSSL_NAMESPACE_END
+
 int main(int argc, char **argv) {
-  if (!run_test()) {
+  if (!bssl::run_test()) {
     printf("FAIL\n");
     fflush(stdout);
     abort();

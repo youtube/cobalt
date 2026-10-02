@@ -12,18 +12,18 @@
 #define PC_TRACK_MEDIA_INFO_MAP_H_
 
 #include <cstdint>
-#include <map>
 #include <optional>
+#include <string>
 
 #include "api/array_view.h"
-#include "api/media_stream_interface.h"
-#include "api/scoped_refptr.h"
+#include "api/media_types.h"
+#include "api/rtp_parameters.h"
 #include "media/base/media_channel.h"
-#include "pc/rtp_receiver.h"
-#include "pc/rtp_sender.h"
-#include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 
 namespace webrtc {
+class RtpSenderInternal;
+class RtpReceiverInternal;
 
 // Audio/video tracks and sender/receiver statistical information are associated
 // with each other based on attachments to RTP senders/receivers. This class
@@ -31,22 +31,28 @@ namespace webrtc {
 // can be obtained from "infos".
 class TrackMediaInfoMap {
  public:
-  TrackMediaInfoMap();
+  struct RtpSenderSignalInfo {
+    uint32_t ssrc = 0;
+    int attachment_id = 0;
+    MediaType media_type = MediaType::AUDIO;
+  };
 
-  // Takes ownership of the "infos". Does not affect the lifetime of the senders
-  // or receivers, but TrackMediaInfoMap will keep their associated tracks alive
-  // through reference counting until the map is destroyed.
-  void Initialize(std::optional<VoiceMediaInfo> voice_media_info,
-                  std::optional<VideoMediaInfo> video_media_info,
-                  ArrayView<scoped_refptr<RtpSenderInternal>> rtp_senders,
-                  ArrayView<scoped_refptr<RtpReceiverInternal>> rtp_receivers);
+  struct RtpReceiverSignalInfo {
+    std::string track_id;
+    int attachment_id = 0;
+    MediaType media_type = MediaType::AUDIO;
+  };
+
+  TrackMediaInfoMap(std::optional<VoiceMediaInfo> voice_media_info,
+                    std::optional<VideoMediaInfo> video_media_info,
+                    ArrayView<const RtpSenderSignalInfo> senders,
+                    ArrayView<const RtpReceiverSignalInfo> receivers,
+                    ArrayView<const RtpParameters> receiver_parameters);
 
   const std::optional<VoiceMediaInfo>& voice_media_info() const {
-    RTC_DCHECK(is_initialized_);
     return voice_media_info_;
   }
   const std::optional<VideoMediaInfo>& video_media_info() const {
-    RTC_DCHECK(is_initialized_);
     return video_media_info_;
   }
 
@@ -55,49 +61,29 @@ class TrackMediaInfoMap {
   const VideoSenderInfo* GetVideoSenderInfoBySsrc(uint32_t ssrc) const;
   const VideoReceiverInfo* GetVideoReceiverInfoBySsrc(uint32_t ssrc) const;
 
-  scoped_refptr<AudioTrackInterface> GetAudioTrack(
-      const VoiceSenderInfo& voice_sender_info) const;
-  scoped_refptr<AudioTrackInterface> GetAudioTrack(
-      const VoiceReceiverInfo& voice_receiver_info) const;
-  scoped_refptr<VideoTrackInterface> GetVideoTrack(
-      const VideoSenderInfo& video_sender_info) const;
-  scoped_refptr<VideoTrackInterface> GetVideoTrack(
-      const VideoReceiverInfo& video_receiver_info) const;
-
-  // TODO(hta): Remove this function, and redesign the callers not to need it.
-  // It is not going to work if a track is attached multiple times, and
-  // it is not going to work if a received track is attached as a sending
-  // track (loopback).
-  std::optional<int> GetAttachmentIdByTrack(
-      const MediaStreamTrackInterface* track) const;
+  std::optional<int> GetAttachmentIdBySsrc(uint32_t ssrc,
+                                           MediaType media_type,
+                                           bool is_sender) const;
+  std::optional<std::string> GetReceiverTrackIdBySsrc(
+      uint32_t ssrc,
+      MediaType media_type) const;
 
  private:
-  bool is_initialized_ = false;
-  std::optional<VoiceMediaInfo> voice_media_info_;
-  std::optional<VideoMediaInfo> video_media_info_;
-  // These maps map info objects to their corresponding tracks. They are always
-  // the inverse of the maps above. One info object always maps to only one
-  // track. The use of scoped_refptr<> here ensures the tracks outlive
-  // TrackMediaInfoMap.
-  std::map<const VoiceSenderInfo*, scoped_refptr<AudioTrackInterface>>
-      audio_track_by_sender_info_;
-  std::map<const VoiceReceiverInfo*, scoped_refptr<AudioTrackInterface>>
-      audio_track_by_receiver_info_;
-  std::map<const VideoSenderInfo*, scoped_refptr<VideoTrackInterface>>
-      video_track_by_sender_info_;
-  std::map<const VideoReceiverInfo*, scoped_refptr<VideoTrackInterface>>
-      video_track_by_receiver_info_;
-  // Map of tracks to attachment IDs.
-  // Necessary because senders and receivers live on the signaling thread,
-  // but the attachment IDs are needed while building stats on the networking
-  // thread, so we can't look them up in the senders/receivers without
-  // thread jumping.
-  std::map<const MediaStreamTrackInterface*, int> attachment_id_by_track_;
+  const std::optional<VoiceMediaInfo> voice_media_info_;
+  const std::optional<VideoMediaInfo> video_media_info_;
+
+  // Maps SSRC to Attachment ID/Track ID, split by media type to handle SSRC
+  // reuse (e.g. same SSRC for Audio and Video on different processing chains)
+  // and by direction to handle loopback (same SSRC for Sender and Receiver).
+  const flat_map<uint32_t, int> audio_sender_attachment_id_by_ssrc_;
+  const flat_map<uint32_t, int> video_sender_attachment_id_by_ssrc_;
+  const flat_map<uint32_t, int> audio_receiver_attachment_id_by_ssrc_;
+  const flat_map<uint32_t, int> video_receiver_attachment_id_by_ssrc_;
+  const flat_map<uint32_t, std::string> audio_receiver_track_id_by_ssrc_;
+  const flat_map<uint32_t, std::string> video_receiver_track_id_by_ssrc_;
   // These maps map SSRCs to the corresponding voice or video info objects.
-  std::map<uint32_t, VoiceSenderInfo*> voice_info_by_sender_ssrc_;
-  std::map<uint32_t, VoiceReceiverInfo*> voice_info_by_receiver_ssrc_;
-  std::map<uint32_t, VideoSenderInfo*> video_info_by_sender_ssrc_;
-  std::map<uint32_t, VideoReceiverInfo*> video_info_by_receiver_ssrc_;
+  const flat_map<uint32_t, const VoiceSenderInfo*> voice_info_by_sender_ssrc_;
+  const flat_map<uint32_t, const VideoSenderInfo*> video_info_by_sender_ssrc_;
 };
 
 }  // namespace webrtc

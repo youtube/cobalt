@@ -28,7 +28,7 @@ namespace test {
 class MockRenderDelayBuffer : public RenderDelayBuffer {
  public:
   MockRenderDelayBuffer(int sample_rate_hz, size_t num_channels);
-  virtual ~MockRenderDelayBuffer();
+  ~MockRenderDelayBuffer() override;
 
   MOCK_METHOD(void, Reset, (), (override));
   MOCK_METHOD(RenderDelayBuffer::BufferingEvent,

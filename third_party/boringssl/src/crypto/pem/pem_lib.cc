@@ -40,6 +40,8 @@
 
 #define MIN_LENGTH 4
 
+using namespace bssl;
+
 static int load_iv(const char **fromp, unsigned char *to, size_t num);
 static int check_pem(const std::string_view nm, const std::string_view name);
 
@@ -175,9 +177,9 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
                        const char *name, BIO *bp, pem_password_cb *cb,
                        void *u) {
   EVP_CIPHER_INFO cipher;
-  bssl::UniquePtr<char> nm;
-  bssl::UniquePtr<char> header;
-  bssl::Array<uint8_t> data;
+  UniquePtr<char> nm;
+  UniquePtr<char> header;
+  Array<uint8_t> data;
   size_t ulen;
   size_t unused = 0;
 
@@ -236,7 +238,7 @@ int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp, void *x,
 int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp, void *x,
                        const EVP_CIPHER *enc, const unsigned char *pass,
                        int pass_len, pem_password_cb *callback, void *u) {
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
   int dsize = 0, ret = 0;
   size_t i, j, data_size;
   unsigned char *p, *data = nullptr;
@@ -331,10 +333,10 @@ err:
   return ret;
 }
 
-int PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
-                  size_t *len, pem_password_cb *callback, void *u) {
+int bssl::PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
+                        size_t *len, pem_password_cb *callback, void *u) {
   int pass_len;
-  bssl::ScopedEVP_CIPHER_CTX ctx;
+  ScopedEVP_CIPHER_CTX ctx;
   unsigned char key[EVP_MAX_KEY_LENGTH];
   char buf[PEM_BUFSIZE];
   const size_t in_len = *len;
@@ -374,7 +376,7 @@ int PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
   return 1;
 }
 
-int PEM_get_EVP_CIPHER_INFO(const char *header, EVP_CIPHER_INFO *cipher) {
+int bssl::PEM_get_EVP_CIPHER_INFO(const char *header, EVP_CIPHER_INFO *cipher) {
   cipher->cipher = nullptr;
   OPENSSL_memset(cipher->iv, 0, sizeof(cipher->iv));
   if ((header == nullptr) || (*header == '\0') || (*header == '\n')) {
@@ -542,9 +544,8 @@ int PEM_read(FILE *fp, char **name, char **header, unsigned char **data,
   return ret;
 }
 
-int PEM_read_bio_inner(BIO *bp, bssl::UniquePtr<char> *name,
-                       bssl::UniquePtr<char> *header,
-                       bssl::Array<uint8_t> *data) {
+int bssl::PEM_read_bio_inner(BIO *bp, UniquePtr<char> *name,
+                             UniquePtr<char> *header, Array<uint8_t> *data) {
   EVP_ENCODE_CTX ctx;
   int end = 0, i, k, bl = 0, hl = 0, nohead = 0;
   char buf[256];
@@ -717,9 +718,9 @@ err:
 
 int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
                  long *len) {
-  bssl::UniquePtr<char> owned_name;
-  bssl::UniquePtr<char> owned_header;
-  bssl::Array<uint8_t> owned_data;
+  UniquePtr<char> owned_name;
+  UniquePtr<char> owned_header;
+  Array<uint8_t> owned_data;
   if (!PEM_read_bio_inner(bp, &owned_name, &owned_header, &owned_data)) {
     return 0;
   }

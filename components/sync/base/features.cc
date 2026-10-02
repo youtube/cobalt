@@ -37,6 +37,8 @@ BASE_FEATURE(kSyncAIThread, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncContextualTask, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncSkill, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if !BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kUnoPhase2FollowUp,
 #if BUILDFLAG(IS_ANDROID)
@@ -169,9 +171,9 @@ BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
 #endif  // BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kSyncPreferencesUseSelectedTypes,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSyncUseOsCryptAsync, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSyncUseOsCryptAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -182,5 +184,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Seconds(5));
 
 BASE_FEATURE(kSyncEnableNewSyncDashboardUrl, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncRecordDeviceStatisticsMetrics,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace syncer

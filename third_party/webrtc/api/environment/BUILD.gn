@@ -26,7 +26,8 @@ rtc_source_set("environment") {
 rtc_library("deprecated_global_field_trials") {
   visibility = [
     ":environment_factory",
-    "../../system_wrappers:field_trial",
+    "../../sdk:peerconnectionfactory_base_objc",
+    "../../sdk/android:peerconnection_jni",
   ]
   allow_poison = [ "environment_construction" ]
   sources = [
@@ -35,6 +36,8 @@ rtc_library("deprecated_global_field_trials") {
   ]
   deps = [
     "../:field_trials_registry",
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

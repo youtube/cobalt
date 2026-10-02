@@ -52,6 +52,11 @@ class TrustStoreAndroid::Impl
     return trust_store_.GetTrust(cert);
   }
 
+  std::shared_ptr<const bssl::MTCAnchor> GetTrustedMTCIssuerOf(
+      const bssl::ParsedCertificate* cert) {
+    return trust_store_.GetTrustedMTCIssuerOf(cert);
+  }
+
   int generation() { return generation_; }
 
  private:
@@ -188,6 +193,11 @@ bssl::CertificateTrust TrustStoreAndroid::GetTrust(
 #else
   return MaybeInitializeAndGetImpl()->GetTrust(cert);
 #endif  // BUILDFLAG(IS_COBALT)
+}
+
+std::shared_ptr<const bssl::MTCAnchor> TrustStoreAndroid::GetTrustedMTCIssuerOf(
+    const bssl::ParsedCertificate* cert) {
+  return MaybeInitializeAndGetImpl()->GetTrustedMTCIssuerOf(cert);
 }
 
 std::vector<net::PlatformTrustStore::CertWithTrust>

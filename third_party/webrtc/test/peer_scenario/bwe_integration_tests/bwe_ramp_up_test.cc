@@ -175,12 +175,6 @@ TEST(BweRampupTest, RampUpWithUndemuxableRtpPackets) {
   EXPECT_GT(final_bwe, initial_bwe + DataRate::KilobitsPerSec(345));
 }
 
-// Due to ongoing development and testing of WebRTC-Bwe-ScreamV2 (L4S),
-// the Bandwidth Estimation (BWE) can sometimes overshoot the actual network
-// capacity. This factor is used to set a temporary upper bound for BWE
-// expectations in L4S tests until the behavior is fully aligned.
-constexpr double kScreamMaxBweMultiplier = 1.6;
-
 struct InitialProbeTestParams {
   std::string test_name;
   bool l4s_network = false;
@@ -210,20 +204,15 @@ INSTANTIATE_TEST_SUITE_P(
              .test_name = "L4s3Mbit",
              .l4s_network = true,
              .network_capacity = DataRate::KilobitsPerSec(3000),
-             .expected_bwe_min = DataRate::KilobitsPerSec(1900),
-             // TODO: bugs.webrtc.org/447037083 - BWE should be less than
-             // network capacity.
-             .max_bwe = DataRate::KilobitsPerSec(3000 *
-                                                 kScreamMaxBweMultiplier),
+             .expected_bwe_min = DataRate::KilobitsPerSec(1500),
+             .max_bwe = DataRate::KilobitsPerSec(3000),
          },
          {
              .test_name = "L4s500Kbit",
              .l4s_network = true,
              .network_capacity = DataRate::KilobitsPerSec(500),
              .expected_bwe_min = DataRate::KilobitsPerSec(200),
-             // TODO: bugs.webrtc.org/447037083 - BWE should be less than
-             // network capacity.
-             .max_bwe = DataRate::KilobitsPerSec(500 * kScreamMaxBweMultiplier),
+             .max_bwe = DataRate::KilobitsPerSec(500),
          }}),
     [](const ::testing::TestParamInfo<InitialProbeTestParams>& info) {
       return info.param.test_name;

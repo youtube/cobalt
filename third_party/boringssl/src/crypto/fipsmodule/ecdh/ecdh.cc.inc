@@ -28,6 +28,8 @@
 #include "../service_indicator/internal.h"
 
 
+using namespace bssl;
+
 int ECDH_compute_key_fips(uint8_t *out, size_t out_len, const EC_POINT *pub_key,
                           const EC_KEY *priv_key) {
   boringssl_ensure_ecc_self_test();

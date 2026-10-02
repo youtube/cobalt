@@ -55,7 +55,7 @@ class Conductor : public webrtc::PeerConnectionObserver,
   void Close() override;
 
  protected:
-  ~Conductor();
+  ~Conductor() override;
   bool InitializePeerConnection();
   bool ReinitializePeerConnectionForLoopback();
   bool CreatePeerConnection();

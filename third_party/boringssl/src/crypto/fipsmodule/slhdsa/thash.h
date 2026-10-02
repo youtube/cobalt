@@ -17,10 +17,8 @@
 
 #include "./params.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
+BSSL_NAMESPACE_BEGIN
 
 // Implements PRF_msg: a pseudo-random function that is used to generate the
 // randomizer r for the randomized hashing of the message to be signed.
@@ -68,9 +66,6 @@ void slhdsa_thash_tk(const slh_dsa_config *config, uint8_t *output,
                      const uint8_t *input, const uint8_t *pk_seed,
                      uint8_t addr[32]);
 
-
-#if defined(__cplusplus)
-}  // extern C
-#endif
+BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_SLHDSA_THASH_H

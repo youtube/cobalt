@@ -36,6 +36,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // RSA_R_BLOCK_TYPE_IS_NOT_02 is part of the legacy SSLv23 padding scheme.
 // Cryptography.io depends on this error code.
 OPENSSL_DECLARE_ERROR_REASON(RSA, BLOCK_TYPE_IS_NOT_02)
@@ -162,7 +164,7 @@ RSA *RSA_new_private_key_large_e(const BIGNUM *n, const BIGNUM *e,
   return rsa;
 }
 
-RSA *RSA_new(void) { return RSA_new_method(nullptr); }
+RSA *RSA_new() { return RSA_new_method(nullptr); }
 
 RSA *RSA_new_method(const ENGINE *engine) {
   RSA *rsa = reinterpret_cast<RSA *>(OPENSSL_zalloc(sizeof(RSA)));
@@ -540,9 +542,9 @@ int RSA_add_pkcs1_prefix(uint8_t **out_msg, size_t *out_msg_len,
   return 0;
 }
 
-int rsa_sign_no_self_test(int hash_nid, const uint8_t *digest,
-                          size_t digest_len, uint8_t *out, unsigned *out_len,
-                          RSA *rsa) {
+int bssl::rsa_sign_no_self_test(int hash_nid, const uint8_t *digest,
+                                size_t digest_len, uint8_t *out,
+                                unsigned *out_len, RSA *rsa) {
   if (rsa->meth->sign) {
     if (!rsa_check_digest_size(hash_nid, digest_len)) {
       return 0;
@@ -613,9 +615,9 @@ int RSA_sign_pss_mgf1(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   return ret;
 }
 
-int rsa_verify_no_self_test(int hash_nid, const uint8_t *digest,
-                            size_t digest_len, const uint8_t *sig,
-                            size_t sig_len, RSA *rsa) {
+int bssl::rsa_verify_no_self_test(int hash_nid, const uint8_t *digest,
+                                  size_t digest_len, const uint8_t *sig,
+                                  size_t sig_len, RSA *rsa) {
   if (rsa->n == nullptr || rsa->e == nullptr) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
     return 0;
@@ -646,8 +648,8 @@ int rsa_verify_no_self_test(int hash_nid, const uint8_t *digest,
     goto out;
   }
 
-  // Check that no other information follows the hash value (FIPS 186-4 Section
-  // 5.5) and it matches the expected hash.
+  // Check that no other information follows the hash value (FIPS 186-5 Section
+  // 5.4) and it matches the expected hash.
   if (len != signed_msg_len || OPENSSL_memcmp(buf, signed_msg, len) != 0) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_SIGNATURE);
     goto out;
@@ -713,7 +715,7 @@ static int check_mod_inverse(int *out_ok, const BIGNUM *a, const BIGNUM *ainv,
   // Note |bn_mul_consttime| and |bn_div_consttime| do not scale linearly, but
   // checking |ainv| is in range bounds the running time, assuming |m|'s bounds
   // were checked by the caller.
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *tmp = BN_CTX_get(ctx);
   if (tmp == nullptr ||  //
       !bn_mul_consttime(tmp, a, ainv, ctx) ||
@@ -958,8 +960,8 @@ cleanup:
   return ret;
 }
 
-int rsa_private_transform_no_self_test(RSA *rsa, uint8_t *out,
-                                       const uint8_t *in, size_t len) {
+int bssl::rsa_private_transform_no_self_test(RSA *rsa, uint8_t *out,
+                                             const uint8_t *in, size_t len) {
   if (rsa->meth->private_transform) {
     return rsa->meth->private_transform(rsa, out, in, len);
   }
@@ -967,8 +969,8 @@ int rsa_private_transform_no_self_test(RSA *rsa, uint8_t *out,
   return rsa_default_private_transform(rsa, out, in, len);
 }
 
-int rsa_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
-                          size_t len) {
+int bssl::rsa_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
+                                size_t len) {
   boringssl_ensure_rsa_self_test();
   return rsa_private_transform_no_self_test(rsa, out, in, len);
 }

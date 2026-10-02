@@ -540,8 +540,8 @@ scoped_refptr<MediaStreamInterface> PeerConnectionTestWrapper::GetUserMedia(
   if (video) {
     // Set max frame rate to 10fps to reduce the risk of the tests to be flaky.
     FakePeriodicVideoSource::Config config;
-    config.frame_interval_ms = 100;
-    config.timestamp_offset_ms = env_.clock().TimeInMilliseconds();
+    config.frame_interval = TimeDelta::Millis(100);
+    config.timestamp_offset = env_.clock().CurrentTime();
     config.width = resolution.width;
     config.height = resolution.height;
 

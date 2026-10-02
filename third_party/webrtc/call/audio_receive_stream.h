@@ -201,6 +201,13 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   // is potentially forwarded to any attached AudioSinkInterface implementation.
   virtual void SetGain(float gain) = 0;
 
+  // Sets the maximum number of packets to hold in the jitter buffer.
+  virtual void SetJitterBufferMaxPackets(size_t max_packets) = 0;
+
+  // Sets if the FastAccelerate feature (accelerate based on arrival time) is
+  // enabled.
+  virtual void SetJitterBufferFastAccelerate(bool fast_accelerate) = 0;
+
   // Sets a base minimum for the playout delay. Base minimum delay sets lower
   // bound on minimum delay value determining lower bound on playout delay.
   //
@@ -220,7 +227,7 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   virtual AudioMixer::Source* source() = 0;
 
  protected:
-  virtual ~AudioReceiveStreamInterface() {}
+  ~AudioReceiveStreamInterface() override {}
 };
 
 }  // namespace webrtc

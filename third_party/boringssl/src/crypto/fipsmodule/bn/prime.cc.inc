@@ -23,6 +23,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // kPrimes contains the first 1024 primes.
 static const uint16_t kPrimes[] = {
     2,    3,    5,    7,    11,   13,   17,   19,   23,   29,   31,   37,
@@ -117,9 +119,9 @@ static const uint16_t kPrimes[] = {
 // necessary for generating a 'bits'-bit candidate prime.
 //
 //
-// This table is generated using the algorithm of FIPS PUB 186-4
-// Digital Signature Standard (DSS), section F.1, page 117.
-// (https://doi.org/10.6028/NIST.FIPS.186-4)
+// This table is generated using the algorithm of FIPS PUB 186-5
+// Digital Signature Standard (DSS), section C.1, page 72.
+// (https://doi.org/10.6028/NIST.FIPS.186-5).
 // The following magma script was used to generate the output:
 // securitybits:=125;
 // k:=1024;
@@ -267,7 +269,7 @@ static int probable_prime_dh(BIGNUM *rnd, int bits, const BIGNUM *add,
 static int probable_prime_dh_safe(BIGNUM *rnd, int bits, const BIGNUM *add,
                                   const BIGNUM *rem, BN_CTX *ctx);
 
-BN_GENCB *BN_GENCB_new(void) {
+BN_GENCB *BN_GENCB_new() {
   return reinterpret_cast<BN_GENCB *>(OPENSSL_zalloc(sizeof(BN_GENCB)));
 }
 
@@ -305,11 +307,11 @@ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe, const BIGNUM *add,
     return 0;
   }
 
-  bssl::UniquePtr<BN_CTX> ctx(BN_CTX_new());
+  UniquePtr<BN_CTX> ctx(BN_CTX_new());
   if (ctx == nullptr) {
     return 0;
   }
-  bssl::BN_CTXScope scope(ctx.get());
+  BN_CTXScope scope(ctx.get());
   t = BN_CTX_get(ctx.get());
   if (!t) {
     return 0;
@@ -397,14 +399,14 @@ static int bn_trial_division(uint16_t *out, const BIGNUM *bn) {
   return 0;
 }
 
-int bn_odd_number_is_obviously_composite(const BIGNUM *bn) {
+int bssl::bn_odd_number_is_obviously_composite(const BIGNUM *bn) {
   uint16_t prime;
   return bn_trial_division(&prime, bn) && !BN_is_word(bn, prime);
 }
 
-int bn_miller_rabin_init(BN_MILLER_RABIN *miller_rabin, const BN_MONT_CTX *mont,
-                         BN_CTX *ctx) {
-  // This function corresponds to steps 1 through 3 of FIPS 186-4, C.3.1.
+int bssl::bn_miller_rabin_init(BN_MILLER_RABIN *miller_rabin,
+                               const BN_MONT_CTX *mont, BN_CTX *ctx) {
+  // This function corresponds to steps 1 through 3 of FIPS 186-5, B.3.1.
   const BIGNUM *w = &mont->N;
   // Note we do not call |BN_CTX_start| in this function. We intentionally
   // allocate values in the containing scope so they outlive this function.
@@ -419,7 +421,7 @@ int bn_miller_rabin_init(BN_MILLER_RABIN *miller_rabin, const BN_MONT_CTX *mont,
     return 0;
   }
 
-  // See FIPS 186-4, C.3.1, steps 1 through 3.
+  // See FIPS 186-5, B.3.1, steps 1 through 3.
   if (!bn_usub_consttime(miller_rabin->w1, w, BN_value_one())) {
     return 0;
   }
@@ -441,11 +443,11 @@ int bn_miller_rabin_init(BN_MILLER_RABIN *miller_rabin, const BN_MONT_CTX *mont,
   return 1;
 }
 
-int bn_miller_rabin_iteration(const BN_MILLER_RABIN *miller_rabin,
-                              int *out_is_possibly_prime, const BIGNUM *b,
-                              const BN_MONT_CTX *mont, BN_CTX *ctx) {
-  // This function corresponds to steps 4.3 through 4.5 of FIPS 186-4, C.3.1.
-  bssl::BN_CTXScope scope(ctx);
+int bssl::bn_miller_rabin_iteration(const BN_MILLER_RABIN *miller_rabin,
+                                    int *out_is_possibly_prime, const BIGNUM *b,
+                                    const BN_MONT_CTX *mont, BN_CTX *ctx) {
+  // This function corresponds to steps 4.3 through 4.5 of FIPS 186-5, B.3.1.
+  BN_CTXScope scope(ctx);
 
   // Step 4.3. We use Montgomery-encoding for better performance and to avoid
   // timing leaks.
@@ -533,7 +535,7 @@ int BN_primality_test(int *out_is_probably_prime, const BIGNUM *w, int checks,
   //
   // 2. For a random (i.e. non-adversarial) candidate large prime and candidate
   //    witness, the probability of false witness is very low. (This is why FIPS
-  //    186-4 only requires a few iterations.) Thus composites not discarded by
+  //    186-5 only requires a few iterations.) Thus composites not discarded by
   //    trial decryption, in practice, cost one Miller-Rabin iteration. Only the
   //    two actual primes cost the full iteration count.
   //
@@ -585,7 +587,7 @@ int BN_primality_test(int *out_is_probably_prime, const BIGNUM *w, int checks,
     checks = BN_prime_checks_for_size(BN_num_bits(w));
   }
 
-  bssl::UniquePtr<BN_CTX> new_ctx;
+  UniquePtr<BN_CTX> new_ctx;
   if (ctx == nullptr) {
     new_ctx.reset(BN_CTX_new());
     if (new_ctx == nullptr) {
@@ -594,10 +596,10 @@ int BN_primality_test(int *out_is_probably_prime, const BIGNUM *w, int checks,
     ctx = new_ctx.get();
   }
 
-  // See C.3.1 from FIPS 186-4.
-  bssl::BN_CTXScope scope(ctx);
+  // See B.3.1 from FIPS 186-5.
+  BN_CTXScope scope(ctx);
   BIGNUM *b = BN_CTX_get(ctx);
-  bssl::UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_consttime(w, ctx));
+  UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_consttime(w, ctx));
   BN_MILLER_RABIN miller_rabin;
   crypto_word_t uniform_iterations = 0;
   if (b == nullptr || mont == nullptr ||
@@ -609,7 +611,7 @@ int BN_primality_test(int *out_is_probably_prime, const BIGNUM *w, int checks,
   // The following loop performs in inner iteration of the Miller-Rabin
   // Primality test (Step 4).
   //
-  // The algorithm as specified in FIPS 186-4 leaks information on |w|, the RSA
+  // The algorithm as specified in FIPS 186-5 leaks information on |w|, the RSA
   // private key. Instead, we run through each iteration unconditionally,
   // performing modular multiplications, masking off any effects to behave
   // equivalently to the specified algorithm.
@@ -622,7 +624,7 @@ int BN_primality_test(int *out_is_probably_prime, const BIGNUM *w, int checks,
   //
   // Miller-Rabin is already probabilistic, so we could reach the desired
   // confidence levels by just suitably increasing the iteration count. However,
-  // to align with FIPS 186-4, we use a more pessimal analysis: we do not count
+  // to align with FIPS 186-5, we use a more pessimal analysis: we do not count
   // the non-uniform values towards the iteration count. As a result, this
   // function is more complex and has more timing risk than necessary.
   //
@@ -699,7 +701,7 @@ int BN_enhanced_miller_rabin_primality_test(
     checks = BN_prime_checks_for_size(BN_num_bits(w));
   }
 
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *w1 = BN_CTX_get(ctx);
   if (w1 == nullptr || !BN_copy(w1, w) || !BN_sub_word(w1, 1)) {
     return 0;
@@ -726,7 +728,7 @@ int BN_enhanced_miller_rabin_primality_test(
   }
 
   // Montgomery setup for computations mod w
-  bssl::UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_for_modulus(w, ctx));
+  UniquePtr<BN_MONT_CTX> mont(BN_MONT_CTX_new_for_modulus(w, ctx));
   if (mont == nullptr) {
     return 0;
   }
@@ -816,7 +818,7 @@ static int probable_prime(BIGNUM *rnd, int bits) {
 
 static int probable_prime_dh(BIGNUM *rnd, int bits, const BIGNUM *add,
                              const BIGNUM *rem, BN_CTX *ctx) {
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *t1;
   if ((t1 = BN_CTX_get(ctx)) == nullptr) {
     return 0;
@@ -862,7 +864,7 @@ loop:
 static int probable_prime_dh_safe(BIGNUM *p, int bits, const BIGNUM *padd,
                                   const BIGNUM *rem, BN_CTX *ctx) {
   bits--;
-  bssl::BN_CTXScope scope(ctx);
+  BN_CTXScope scope(ctx);
   BIGNUM *t1 = BN_CTX_get(ctx);
   BIGNUM *q = BN_CTX_get(ctx);
   BIGNUM *qadd = BN_CTX_get(ctx);

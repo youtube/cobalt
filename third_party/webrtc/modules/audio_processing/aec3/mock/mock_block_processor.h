@@ -22,7 +22,7 @@ namespace test {
 class MockBlockProcessor : public BlockProcessor {
  public:
   MockBlockProcessor();
-  virtual ~MockBlockProcessor();
+  ~MockBlockProcessor() override;
 
   MOCK_METHOD(void,
               ProcessCapture,

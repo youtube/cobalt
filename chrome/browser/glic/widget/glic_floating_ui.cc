@@ -153,13 +153,6 @@ void GlicFloatingUi::Resize(const gfx::Size& size,
   }
 }
 
-void GlicFloatingUi::SetDraggableAreas(
-    const std::vector<gfx::Rect>& draggable_areas) {
-  if (auto* glic_view = GetGlicView()) {
-    glic_view->SetDraggableAreas(draggable_areas);
-  }
-}
-
 GlicWindowAnimator* GlicFloatingUi::window_animator() {
   return glic_window_animator_.get();
 }
@@ -254,6 +247,16 @@ void GlicFloatingUi::FloatingPanelCanAttachChanged(bool can_attach) {
   delegate_->host().FloatingPanelCanAttachChanged(can_attach);
 }
 
+void GlicFloatingUi::ConfigureWebContentsModalDialogs() {
+  // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
+  // enterprise users) via constrained_window APIs.
+  web_modal::WebContentsModalDialogManager::CreateForWebContents(
+      delegate_->host().webui_contents());
+  web_modal::WebContentsModalDialogManager::FromWebContents(
+      delegate_->host().webui_contents())
+      ->SetDelegate(this);
+}
+
 void GlicFloatingUi::Attach() {
   if (!base::FeatureList::IsEnabled(kGlicFloatingUiReattachment)) {
     return;
@@ -293,16 +296,10 @@ void GlicFloatingUi::Show(const ShowOptions& options) {
     window_event_observer_->SetDraggingAreasAndWatchForMouseEvents();
   }
 
-  // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
-  // enterprise users) via constrained_window APIs.
-  web_modal::WebContentsModalDialogManager::CreateForWebContents(
-      delegate_->host().webui_contents());
-  web_modal::WebContentsModalDialogManager::FromWebContents(
-      delegate_->host().webui_contents())
-      ->SetDelegate(this);
+  ConfigureWebContentsModalDialogs();
 }
 
-void GlicFloatingUi::Close() {
+void GlicFloatingUi::Close(const CloseOptions& options) {
   instance_metrics_->OnFloatyClosed();
   if (IsShowing()) {
     modal_dialog_host_observers_.Notify(
@@ -333,8 +330,11 @@ void GlicFloatingUi::ClearWebContentsDelegate() {
   }
 }
 
-void GlicFloatingUi::ClosePanel() {
-  Close();
+void GlicFloatingUi::OnReload() {
+  if (auto* glic_view = GetGlicView()) {
+    glic_view->SetWebContents(delegate_->host().webui_contents());
+    ConfigureWebContentsModalDialogs();
+  }
 }
 
 void GlicFloatingUi::Focus() {
@@ -360,7 +360,8 @@ void GlicFloatingUi::OnWidgetDestroyed(views::Widget* widget) {
   if (GetGlicWidget() == widget) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::BindOnce(&GlicFloatingUi::Close, weak_ptr_factory_.GetWeakPtr()));
+        base::BindOnce(&GlicFloatingUi::Close, weak_ptr_factory_.GetWeakPtr(),
+                       CloseOptions{}));
   }
 }
 
@@ -382,10 +383,6 @@ void GlicFloatingUi::OnWidgetUserResizeEnded() {
   instance_metrics_->OnUserResizeEnded(GetPanelSize());
   if (GlicWebClientAccess* client = delegate_->host().GetPrimaryWebClient()) {
     client->ManualResizeChanged(false);
-  }
-
-  if (GetGlicView()) {
-    GetGlicView()->UpdatePrimaryDraggableAreaOnResize();
   }
 
   glic_window_animator_->ResetLastTargetSize();
@@ -462,6 +459,10 @@ void GlicFloatingUi::CaptureScreenshot(
   }
   screenshot_capturer_->CaptureScreenshot(GetGlicWidget()->GetNativeWindow(),
                                           std::move(callback));
+}
+
+void GlicFloatingUi::ClosePanel() {
+  Close({});
 }
 
 std::string GlicFloatingUi::DescribeForTesting() {

@@ -72,7 +72,8 @@ std::vector<Resolution> GetStreamResolutions(
     const std::vector<VideoStream>& streams) {
   std::vector<Resolution> res;
   for (const auto& s : streams) {
-    res.push_back({checked_cast<int>(s.width), checked_cast<int>(s.height)});
+    res.push_back({.width = checked_cast<int>(s.width),
+                   .height = checked_cast<int>(s.height)});
   }
   return res;
 }

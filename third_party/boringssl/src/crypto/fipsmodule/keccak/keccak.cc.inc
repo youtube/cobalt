@@ -21,6 +21,8 @@
 #include "./internal.h"
 
 
+using namespace bssl;
+
 // keccak_f implements the Keccak-1600 permutation as described at
 // https://keccak.team/keccak_specs_summary.html. Each lane is represented as a
 // 64-bit value and the 5×5 lanes are stored as an array in row-major order.
@@ -158,8 +160,9 @@ static void keccak_init(struct BORINGSSL_keccak_st *ctx,
   assert(ctx->rate_bytes % 8 == 0);
 }
 
-void BORINGSSL_keccak(uint8_t *out, size_t out_len, const uint8_t *in,
-                      size_t in_len, enum boringssl_keccak_config_t config) {
+void bssl::BORINGSSL_keccak(uint8_t *out, size_t out_len, const uint8_t *in,
+                            size_t in_len,
+                            enum boringssl_keccak_config_t config) {
   struct BORINGSSL_keccak_st ctx;
   keccak_init(&ctx, config);
   if (ctx.required_out_len != 0 && out_len != ctx.required_out_len) {
@@ -169,13 +172,13 @@ void BORINGSSL_keccak(uint8_t *out, size_t out_len, const uint8_t *in,
   BORINGSSL_keccak_squeeze(&ctx, out, out_len);
 }
 
-void BORINGSSL_keccak_init(struct BORINGSSL_keccak_st *ctx,
-                           enum boringssl_keccak_config_t config) {
+void bssl::BORINGSSL_keccak_init(struct BORINGSSL_keccak_st *ctx,
+                                 enum boringssl_keccak_config_t config) {
   keccak_init(ctx, config);
 }
 
-void BORINGSSL_keccak_absorb(struct BORINGSSL_keccak_st *ctx, const uint8_t *in,
-                             size_t in_len) {
+void bssl::BORINGSSL_keccak_absorb(struct BORINGSSL_keccak_st *ctx,
+                                   const uint8_t *in, size_t in_len) {
   if (ctx->phase == boringssl_keccak_phase_squeeze) {
     // It's illegal to call absorb() again after calling squeeze().
     abort();
@@ -246,8 +249,8 @@ static void keccak_finalize(struct BORINGSSL_keccak_st *ctx) {
   keccak_f(ctx->state);
 }
 
-void BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx, uint8_t *out,
-                              size_t out_len) {
+void bssl::BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx,
+                                    uint8_t *out, size_t out_len) {
   if (ctx->required_out_len != 0 &&
       (ctx->phase == boringssl_keccak_phase_squeeze ||
        out_len != ctx->required_out_len)) {

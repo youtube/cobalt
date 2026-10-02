@@ -20,7 +20,7 @@
 #include <sys/auxv.h>
 
 
-void OPENSSL_cpuid_setup(void) {
+void OPENSSL_cpuid_setup() {
   unsigned long hwcap = getauxval(AT_HWCAP);
 
   // See /usr/include/asm/hwcap.h on an aarch64 installation for the source of

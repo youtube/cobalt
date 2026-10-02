@@ -40,7 +40,7 @@ class FileAudioDevice : public AudioDeviceGeneric {
   FileAudioDevice(const Environment& env,
                   absl::string_view inputFilename,
                   absl::string_view outputFilename);
-  virtual ~FileAudioDevice();
+  ~FileAudioDevice() override;
 
   // Retrieve the currently utilized audio layer
   int32_t ActiveAudioLayer(

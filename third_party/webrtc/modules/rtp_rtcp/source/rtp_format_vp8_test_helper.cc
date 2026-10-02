@@ -18,6 +18,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "rtc_base/buffer.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -54,7 +55,8 @@ int Bit(uint8_t byte, int position) {
 
 RtpFormatVp8TestHelper::RtpFormatVp8TestHelper(const RTPVideoHeaderVP8* hdr,
                                                size_t payload_len)
-    : hdr_info_(hdr), payload_(payload_len) {
+    : hdr_info_(hdr),
+      payload_(Buffer::CreateUninitializedWithSize(payload_len)) {
   for (size_t i = 0; i < payload_.size(); ++i) {
     payload_[i] = i;
   }

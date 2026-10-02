@@ -41,15 +41,15 @@
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/pc/sctp/fake_sctp_transport.h"
+#include "test/run_loop.h"
 
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
 #endif
-#
+
 // This file contains tests that ensure the PeerConnection's implementation of
 // CreateOffer/CreateAnswer/SetLocalDescription/SetRemoteDescription conform
 // to the JavaScript Session Establishment Protocol (JSEP).
@@ -64,26 +64,31 @@ using ::testing::ElementsAre;
 using ::testing::UnorderedElementsAre;
 using ::testing::Values;
 
-PeerConnectionFactoryDependencies CreatePeerConnectionFactoryDependencies() {
-  PeerConnectionFactoryDependencies dependencies;
-  dependencies.worker_thread = Thread::Current();
-  dependencies.network_thread = Thread::Current();
-  dependencies.signaling_thread = Thread::Current();
-  dependencies.adm = FakeAudioCaptureModule::Create();
-  EnableMediaWithDefaults(dependencies);
-  dependencies.sctp_factory = std::make_unique<FakeSctpTransportFactory>();
-  return dependencies;
-}
-
 class PeerConnectionJsepTest : public ::testing::Test {
  protected:
   typedef std::unique_ptr<PeerConnectionWrapper> WrapperPtr;
 
-  PeerConnectionJsepTest()
-      : vss_(new VirtualSocketServer()), main_(vss_.get()) {
+  PeerConnectionJsepTest() {
+    network_thread_ = Thread::CreateWithSocketServer();
+    network_thread_->SetName("NetworkThread", nullptr);
+    EXPECT_TRUE(network_thread_->Start());
+    worker_thread_ = Thread::Create();
+    worker_thread_->SetName("WorkerThread", nullptr);
+    EXPECT_TRUE(worker_thread_->Start());
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
 #endif
+  }
+
+  PeerConnectionFactoryDependencies CreatePeerConnectionFactoryDependencies() {
+    PeerConnectionFactoryDependencies dependencies;
+    dependencies.worker_thread = worker_thread_.get();
+    dependencies.network_thread = network_thread_.get();
+    dependencies.signaling_thread = Thread::Current();
+    dependencies.adm = FakeAudioCaptureModule::Create();
+    EnableMediaWithDefaults(dependencies);
+    dependencies.sctp_factory = std::make_unique<FakeSctpTransportFactory>();
+    return dependencies;
   }
 
   WrapperPtr CreatePeerConnection() {
@@ -108,8 +113,9 @@ class PeerConnectionJsepTest : public ::testing::Test {
         pc_factory, result.MoveValue(), std::move(observer));
   }
 
-  std::unique_ptr<VirtualSocketServer> vss_;
-  AutoSocketServerThread main_;
+  test::RunLoop run_loop_;
+  std::unique_ptr<Thread> network_thread_;
+  std::unique_ptr<Thread> worker_thread_;
 };
 
 // Tests for JSEP initial offer generation.

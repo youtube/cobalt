@@ -537,6 +537,11 @@ template("rtc_test") {
       ]
     }
 
+    # TODO: bugs.webrtc.org/467294026 - Support iOS too.
+    if (!defined(invoker.is_xctest) || !invoker.is_xctest) {
+      deps += [ webrtc_root + "test:test_main" ]
+    }
+
     # Build //test:google_test_runner_objc when the test is not a real XCTest.
     if (is_ios && rtc_include_tests) {
       if (!defined(invoker.is_xctest) || !invoker.is_xctest) {

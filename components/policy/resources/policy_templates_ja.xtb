@@ -90,13 +90,6 @@
 
       このポリシーが設定されている場合、ログイン画面は常にこのポリシーの最初の値で指定されている言語 / 地域で表示されます（このポリシーは今後の互換性を確保するためにリスト形式で定義します）。このポリシーが未設定か空のリストに設定されている場合、ログイン画面は前回のユーザー セッションで使用された言語 / 地域で表示されます。このポリシーが無効な言語 / 地域の値に設定されている場合、ログイン画面は代替の言語 / 地域（現在は「en-US」）で表示されます。</translation>
 <translation id="1050158007881386475">デバイスのボード ステータス レポートを無効にする</translation>
-<translation id="1050897390688148222">レンズ オーバーレイは、スクリーンショット上で使用したり、現在のページのコンテンツについて質問したりして、コンテキストに沿った Google 検索を行える機能です。この機能を使用するには、エンドユーザーがオプトインする必要があります。
-
-この機能は、このポリシーで無効にしない限り、Google をデフォルトの検索エンジンに設定しているすべてのユーザーが使用できます。
-
-このポリシーを 0（許可する）に設定するか未設定のままにした場合、ユーザーはこの機能を使用できます。このポリシーを 1（許可しない）に設定した場合、この機能は使用できません。
-
-<ph name="PRODUCT_NAME" /> 140 以降では、このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。</translation>
 <translation id="1052499923181221200">SamlInSessionPasswordChangeEnabled が true に設定されていない場合、このポリシーは無視されます。
       上記のポリシーが true に設定されている場合は、このポリシーをたとえば 14 に設定すると、SAML ユーザーに対して、各自のパスワードの有効期限が切れる 14 日前に通知が行われます。
       これにより、ユーザーはすぐに対応することが可能になります。具体的には、セッション内でパスワードを変更し、有効期限が切れる前にパスワードを更新できます。
@@ -404,6 +397,17 @@ URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /
 <translation id="1305400589435476516">このポリシーを有効に設定した場合、デバイスのデータ ローミングが許可されます。
 
       このポリシーを無効に設定するか未設定のままにした場合、データ ローミングは使用できません。</translation>
+<translation id="1308102257035078529">検証するページの URL をこのポリシーの URL パターンと照合し、一致するものが見つかった場合、<ph name="CHROME_DEVTOOLS_NAME" /> はブロックされます。URL の形式について詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
+
+<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ポリシーを設定し、このポリシーを未設定のままにした場合、許可リストで指定されていない URL はブロックされます。
+
+このポリシーと <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> の両方を設定した場合、許可リストが優先されます。URL が許可リストのパターンと一致する場合、その URL は許可されます。URL がこのブロックリストのパターンと一致する（ただし許可リストと一致しない）場合、その URL はブロックされます。URL がどちらにも一致しない場合、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーが代わりに使用されます。
+
+どちらのポリシーも未設定のままにした場合、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーによって、デベロッパー ツールの使用の可否が決まります。
+
+このポリシーは、拡張機能やウェブ アプリケーション用に開かれた <ph name="CHROME_DEVTOOLS_NAME" /> にも適用されます。
+
+このポリシーで指定できる URL は最大 1,000 件です。</translation>
 <translation id="1309259005392595570">TLS のポスト量子鍵交換を無効にする</translation>
 <translation id="1309465583050255779"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_NAME_POLICY_NAME" /> では、デフォルトの検索プロバイダの名前を指定できます。
 
@@ -695,35 +699,6 @@ Attribution Reporting API のサポート終了により、このポリシーは
 <translation id="1542491165152947087">ユーザーがデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を有効または無効にできるようにする。</translation>
 <translation id="1542958897137600427">クライアント証明書のプロビジョニングを有効にする</translation>
 <translation id="1548431234399786388">ブラウザ イベント レポートの設定を管理します。</translation>
-<translation id="155018731031610976">このポリシーでは、ブラウザがファーストパーティ セット機能で使用するセットのリストをオーバーライドできます。
-
-ブラウザのファーストパーティ セット リストの各セットは、ファーストパーティ セットの要件を満たしている必要があります。
-ファーストパーティ セットには、プライマリ サイトと 1 つ以上のメンバーサイトが含まれている必要があります。
-セットには、所有するサービスサイトのリストと、サイトからすべての ccTLD バリアントへのマップを含めることもできます。
-<ph name="PRODUCT_NAME" /> で使用されるファーストパーティ セットの詳細については、https://github.com/WICG/first-party-sets をご覧ください。
-
-ファーストパーティ セットのすべてのサイトは、HTTPS 経由で配信される登録可能なドメインである必要があります。また、ファーストパーティ セットの各サイトは一意である必要があります。つまり、1 つのファーストパーティ セットに同じサイトを複数回含めることはできません。
-
-このポリシーで空の辞書を指定した場合、ブラウザはファーストパーティ セットの公開リストを使用します。
-
-<ph name="REPLACEMENTS" /> リストで指定したファーストパーティ セットのサイトについては、ブラウザのファーストパーティ セットのリストに同じサイトがある場合は、ブラウザのファーストパーティ セットからそのサイトが削除されます。
-その後、ポリシーで指定したファーストパーティ セットがブラウザのファーストパーティ セットのリストに追加されます。
-
-<ph name="ADDITIONS" /> リストで指定したファーストパーティ セットのサイトについては、ブラウザのファーストパーティ セットのリストに同じサイトがある場合は、新しいファーストパーティ セットをブラウザのリストに追加できるようにブラウザのファーストパーティ セットが更新されます。ブラウザのリストが更新された後、ポリシーで指定したファーストパーティ セットがブラウザのファーストパーティ セットのリストに追加されます。
-
-ブラウザのファーストパーティ セット リストのサイトは、いずれも複数のセットに含まれないようにする必要があります。この要件は <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストにも適用されます。同様に、同じサイトを <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストの両方に含めることはできません。
-
-ワイルドカード（*）は、ポリシーの値として使用できず、これらのリストのどのファーストパーティ セットでも使用できません。
-
-このポリシーで指定するすべてのセットは、有効なファーストパーティ セットである必要があります。そうでない場合は、該当するエラーが出力されます。
-
-<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
-
-<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
-
-これは <ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" /> ポリシーと同等です。
-どちらのポリシーも使用できますが、このポリシーはまもなくサポートが終了するため、<ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" /> ポリシーを推奨します。
-どちらもブラウザの動作に対して同じ影響を及ぼします。</translation>
 <translation id="1550295162561011575">このポリシーを設定すると、管理者は <ph name="PRODUCT_NAME" /> デバイスでアプリ起動の自動化を設定できます。アプリは、ユーザーのログイン時に起動することや、ユーザーがランチャーからまとめて起動することができます。</translation>
 <translation id="1551782388466447648">ログイン画面でタップ仮想キーボードを有効にする</translation>
 <translation id="1552418937045050762">この設定が有効な場合、ユーザーはニアバイシェアを有効にできます（ニアバイシェアは近くのユーザーとファイルを送受信できる機能です）。
@@ -975,6 +950,17 @@ Virtual Tasks の場合は <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY
 
       このポリシーを未設定のままにした場合、デバイスで使用できるディスクの空き容量が 20 GB（デフォルト値）未満のときに <ph name="PLUGIN_VM_NAME" /> のインストールが失敗します。
       このポリシーを設定した場合、デバイスで使用できるディスクの空き容量がポリシーで要求される値未満のときに <ph name="PLUGIN_VM_NAME" /> のインストールが失敗します。</translation>
+<translation id="1682893353675650337">レンズ オーバーレイは、スクリーンショット上で使用したり、現在のページのコンテンツについて質問したりして、コンテキストに沿った Google 検索を行える機能です。この機能を使用するには、エンドユーザーがオプトインする必要があります。
+
+この機能は、このポリシーで無効にしない限り、Google をデフォルトの検索エンジンに設定しているすべてのユーザーが使用できます。
+
+このポリシーを 0（許可する）に設定するか未設定のままにした場合、ユーザーはこの機能を使用できます。
+
+このポリシーを 1（許可しない）に設定した場合、この機能は使用できません。
+
+<ph name="PRODUCT_NAME" /> 140 以降では、このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+<ph name="PRODUCT_NAME" /> 147 以降、このポリシーは非推奨となります。IT 管理者は今後、<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> を使用してこの機能を制御できます。</translation>
 <translation id="1686952487081322272">クイック アンサーを無効にする</translation>
 <translation id="1690383938831887552">Signed HTTP Exchange の読み込みを許可しない</translation>
 <translation id="1692325295652827195">このポリシーを True に設定した場合、ポリシーによってトリガーされた主要な Android アプリ インストール イベントのレポートが Google に送信されます。
@@ -1623,6 +1609,21 @@ accounts.google.com など一部の URL は認証に必要です。オンライ�
 <translation id="2180958780733364832">ヘッドレス モードの使用を管理する</translation>
 <translation id="2182291258410176649">バックアップと復元を有効にするかどうかをユーザーに確認する</translation>
 <translation id="2183338188392346527">デバイスのランタイム カウンタを報告しない</translation>
+<translation id="2183838844225082873">このポリシーを 0（デフォルト）に設定した場合、デベロッパー ツールと JavaScript コンソールにアクセスできますが、企業ポリシーによりインストールされた拡張機能または M114 以降、および管理対象ユーザーの場合はブラウザに組み込まれた拡張機能では、アクセスは許可されません。このポリシーを 1 に設定した場合、あらゆる状況でデベロッパー ツールと JavaScript コンソールにアクセスできます。企業ポリシーによってインストールされた拡張機能でのアクセスも許可されます。このポリシーを 2 に設定した場合、デベロッパー ツールにアクセスできず、ウェブサイト要素も検査できなくなります。
+
+この設定では、デベロッパー ツールや JavaScript コンソールを開くためのキーボード ショートカット、メニューのエントリ、コンテキスト メニューのエントリも無効になります。
+
+<ph name="PRODUCT_NAME" /> バージョン 99 ではさらに、この設定により「ページのソースを表示」機能のエントリ ポイントも制御されます。このポリシーを「DeveloperToolsDisallowed」（値 2）に設定した場合、ユーザーはキーボード ショートカットまたはコンテキスト メニューを介してソースを表示することはできません。なお、ソースの表示を完全にブロックするには、<ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーに「view-source:*」を追加することも必要です。
+
+<ph name="PRODUCT_NAME" /> バージョン 119 以降では、この設定により、独立したウェブアプリのデベロッパー モードを有効にして使用できるかどうかも制御されます。
+
+<ph name="PRODUCT_NAME" /> バージョン 128 以降では、<ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> ポリシーが設定されている場合、この設定により拡張機能ページのデベロッパー モードは制御されません。
+
+デベロッパー ツールの使用の可否は、次の優先順位で決まります。
+1. URL が <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ポリシーのパターンに一致する場合、デベロッパー ツールの使用が許可されます。
+2. <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> を設定し、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> を未設定のままにした場合、許可リストで指定されていない URL はブロックされます。
+3. URL が <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーのパターンに一致する場合、デベロッパー ツールの使用はブロックされます。
+4. URL が許可リストまたはブロックリストで指定されていない場合、こちらのポリシー（<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />）が代わりに使用されます。</translation>
 <translation id="2187361040843865450">「Just Works」Bluetooth ペア設定リクエストを受け入れる</translation>
 <translation id="2187372280917024033">希望の DNS-over-HTTPS リゾルバの URI テンプレートを指定します。複数の DNS-over-HTTPS リゾルバを指定するには、対応する URI テンプレートをスペースで区切ります。このポリシーを設定した場合は、よく似ている <ph name="DOH_TEMPLATES_POLICY_NAME" /> より優先されます。
 <ph name="DOH_TEMPLATES_POLICY_NAME" /> ポリシーとは異なり、このポリシーでは ID 情報を指定できます。
@@ -2132,6 +2133,17 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FO
 <translation id="2568488785376704318">このポリシーはサポートを終了しました。代わりに <ph name="REMOTE_ACCESS_HOST_DOMAIN_LIST_POLICY_NAME" /> を使用してください。</translation>
 <translation id="2570059561924004903">音声フィードバックを無効にする</translation>
 <translation id="2570181623957732921"><ph name="DESK_API_NAME" /> の使用を許可するサードパーティのドメインリストを指定する</translation>
+<translation id="2571353268726025696">このポリシーでは、ファーストパーティ セット機能（後に「<ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" />」機能に名称変更）からオプトアウトするよう指定できます。
+
+このポリシーを未設定のままにした場合や有効に設定した場合、ファーストパーティ セット機能が有効になります。
+
+このポリシーを無効に設定した場合、ファーストパーティ セット機能は無効になります。
+
+このポリシーにより、Chrome でファーストパーティ セット関連の統合をサポートするかどうかが決まります。
+
+これは <ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" /> ポリシーと同等です。
+どちらのポリシーを使用しても、ブラウザの動作を同じように制御できます。
+これらのポリシーはいずれも、<ph name="PRODUCT_NAME" /> バージョン 144 で <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" /> 機能のサポートが終了したことに伴い、非推奨となりました。</translation>
 <translation id="2571821662934804440">AI モデルの改善は行わずに、機能の使用を許可する</translation>
 <translation id="2573850437942404034">許可しない</translation>
 <translation id="2575198840408498393">ローミング プロファイルの作成を無効にする</translation>
@@ -2872,27 +2884,6 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="3072847235228302527">デバイスのローカル アカウントの利用規約を設定する</translation>
 <translation id="3074032542020543133">LTS チャンネル</translation>
 <translation id="3074886258920642791">ログイン画面でユーザー補助仮想キーボードを有効にする</translation>
-<translation id="3077650998740742747">
-デフォルトの動作（ポリシーを未設定のままにした場合）
-コンテンツ エリアにアカウントを追加すると、新しいプロファイルの作成を求める小さなダイアログが表示される場合があります。このダイアログは閉じることができます。
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />
-ユーザーが <ph name="PRODUCT_NAME" /> ブラウザで Google サービスに初めてログインするとき、企業アカウントの新しいプロファイルの作成を求めるダイアログが表示されます。ユーザーは [キャンセル] をクリックしてログアウトするか、[続行] をクリックして新しいプロファイルを作成できます。既存の閲覧データは新しいプロファイルに追加されません。新しく作成したプロファイルでは、予備のアカウントを設定できます。たとえば、ユーザーはコンテンツ エリアで別のアカウントにログインできます。
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT" />
-<ph name="POLICY_VALUE_PRIMARY_ACCOUNT" /> と同じように動作します。ただし、新しく作成したプロファイルで予備のアカウントを設定することはできません。
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />
-<ph name="POLICY_VALUE_PRIMARY_ACCOUNT" /> と同じように動作しますが、ユーザーがローカルの閲覧データを保持できるようにするためのチェックボックスがダイアログに追加されます。
-このチェックボックスをオンにすると、既存のプロファイル データが管理対象アカウントに関連付けられます。
--  既存の閲覧データはすべて、新しいプロファイルで保持されます。
--  このデータには、ブックマーク、履歴、パスワード、自動入力データ、開いているタブ、Cookie、キャッシュ、ウェブ ストレージ、拡張機能などが含まれます。
-ユーザーがチェックボックスをオンにしない場合:
--  以前のプロファイルが保持されます。データが失われることはありません。
--  新しいプロファイルが作成されます。
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT_KEEP_EXISTING_DATA" />
-<ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" /> と同じように動作します。ただし、新しく作成したプロファイルで予備のアカウントを設定することはできません。</translation>
 <translation id="3083259245974004342">パスワード保護</translation>
 <translation id="308356121098374167">セキュアでないコンテキストの WebSQL を使用可能にする。</translation>
 <translation id="3086995894968271156"><ph name="PRODUCT_NAME" /> で Cast Receiver を設定します。</translation>
@@ -3872,6 +3863,8 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
           このポリシーを設定した場合、ユーザーによる変更やオーバーライドはできません。
 
           このポリシーを設定しない場合、音声入力は初期設定ではログイン画面で無効ですが、ユーザーはいつでも有効にできます。</translation>
+<translation id="3811407842708673996">このポリシーを未設定のままにするか有効に設定した場合、コンテキスト メニューに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索メニュー項目が表示され、ユーザーはこれを使用することができます。このポリシーを無効に設定した場合は、<ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索がサポートされていても、コンテキスト メニューに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索メニュー項目は表示されません。
+<ph name="PRODUCT_NAME" /> 147 以降、このポリシーは非推奨となります。IT 管理者は今後、<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> を使用してこの機能を制御できます。</translation>
 <translation id="3811562426301733860">すべてのサイトで広告の表示を許可する</translation>
 <translation id="3816312845600780067">自動ログイン回避用のキーボード ショートカットを有効にする</translation>
 <translation id="3817323252437541502">高度な保護機能プログラムに登録しているユーザーが追加の保護機能を使用できるようにする</translation>
@@ -4171,17 +4164,6 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
       このポリシーを有効にした場合、クイック アンサーは選択したコンテンツにアクセスできます。
       このポリシーを無効にした場合、クイック アンサーは選択したコンテンツにアクセスできません。
       このポリシーが設定されていない場合、クイック アンサーに選択したコンテンツへのアクセスを許可するかどうかをユーザーが指定できます。</translation>
-<translation id="4016523784669365747">このポリシーでは、ファーストパーティ セット機能からオプトアウトするよう指定できます。
-
-このポリシーを未設定のままにした場合や有効に設定した場合、ファーストパーティ セット機能が有効になります。
-
-このポリシーを無効に設定した場合、ファーストパーティ セット機能は無効になります。
-
-このポリシーにより、Chrome でファーストパーティ セット関連の統合をサポートするかどうかが決まります。
-
-これは <ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" /> ポリシーと同等です。
-どちらのポリシーも使用できますが、このポリシーはまもなくサポートが終了するため、<ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" /> ポリシーを推奨します。
-どちらもブラウザの動作に対して同じ影響を及ぼします。</translation>
 <translation id="4016700865356669962">このポリシーを有効に設定した場合、ユーザーはパソコン用レイアウト テンプレートを使用できます。このポリシーを無効に設定するか未設定のままにした場合、これらのテンプレートは使用できません。</translation>
 <translation id="4018536413833147396">ユーザーがデバイスで <ph name="IP_PROTECTION_NAME" /> の設定をオンまたはオフに切り替えられるようにする。この機能はデフォルトで有効になります。</translation>
 <translation id="4020682745012723568">Android アプリは、ユーザーのプロフィールに送信された Cookie にアクセスすることはできません。</translation>
@@ -4681,17 +4663,6 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4408428864159735559">事前設定のネットワーク ファイル共有のリスト。</translation>
 <translation id="4410236409016356088">ネットワークの帯域幅制限を有効にする</translation>
 <translation id="4410361389637971319">独立したウェブアプリのオリジンに Direct Sockets の使用を許可する</translation>
-<translation id="4410792459434637140">このポリシーでは、<ph name="CHROME_DEVTOOLS_NAME" /> を許可する URL を指定できます。
-
-検証するページの URL をこのポリシーの URL パターンと照合し、一致するものが見つかった場合、<ph name="CHROME_DEVTOOLS_NAME" /> が許可されます。このポリシーは、URL が <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーの URL パターンに一致する場合や、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーが不許可（値 2）に設定されている場合でも適用されます。URL の形式について詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
-
-このポリシーを未設定のままにした場合、この許可リストは適用されません。<ph name="CHROME_DEVTOOLS_NAME" /> はデフォルトで使用可能となっているため、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーで指定した場合のみブロックされます。
-
-一致しない URL には、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーの設定が適用されます。
-
-このポリシーは、拡張機能やウェブ アプリケーション用に開かれた <ph name="CHROME_DEVTOOLS_NAME" /> にも適用されます。
-
-このポリシーで指定できる URL は最大 1,000 件です。</translation>
 <translation id="4411734231900934213">お子様と保護者のデバイス間で許容される時計の時間差（秒）です。</translation>
 <translation id="441217499641439905">モバイル接続時に <ph name="PRODUCT_OS_NAME" /> ファイルアプリで Google ドライブを無効にする</translation>
 <translation id="4412885120239670573">このポリシーを有効に設定した場合、<ph name="PRODUCT_NAME" /> で内部 PDF ビューアがオフになります。この場合、PDF ファイルはダウンロードしたファイルと同じように扱われ、ユーザーはデフォルトのアプリで開くことができます。
@@ -5279,6 +5250,23 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 それ以外の場合は、選択したサービスのみが有効になります。</translation>
 <translation id="4767059955897420757">このポリシーを未設定のままにするか有効に設定した場合、認証情報プロバイダ拡張機能のプロモーションがユーザーに表示されます。
 このポリシーを無効に設定した場合、認証情報プロバイダ拡張機能のプロモーションはユーザーに表示されません。</translation>
+<translation id="4767618783249265266">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> や <ph name="GOOGLE_LENS_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
+
+なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
+
+0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
+
+1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントは無効になるか、非表示になります。
+
+<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
+
+このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
+
+また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
+
+このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="4768446404233019970">TLS の 3DES 暗号スイートを有効にします</translation>
 <translation id="4770334626033858263">保護者のアクセスコードの生成と確認に使用する設定です。</translation>
 <translation id="4773997835955617342">手動で作成された新しいチケットの <ph name="KRB5_CONFIG" /> 推奨設定を変更します。このポリシーを有効にすると、「KerberosCustomPrefilledConfig」の値が推奨設定として適用され、Kerberos 認証ダイアログの [詳細設定] セクションに表示されます。
@@ -6232,25 +6220,6 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="5433139124622290129">管理対象ブラウザについてレポートを作成する SaaS ドメインのリストを指定する</translation>
 <translation id="5433865420958136693">グラフィック アクセラレーションが使用可能な場合は使用する</translation>
 <translation id="5435888298115339571">アドレスバーとその他メニューでデスクトップ共有を有効にする</translation>
-<translation id="5435967860403961472">マルウェア以外の違反が原因で削除された拡張機能を、信頼度の低い環境で引き続き自動インストールできるようにするかどうかを制御します。
-
-マルウェア以外の違反と削除について詳しくは、https://developer.chrome.com/docs/webstore/review-process#warning をご覧ください。
-
-マルウェア以外の違反が解消されると、拡張機能は引き続き有効になり、無効にしたり削除したりすることはできません。
-
-<ph name="MS_WIN_NAME" /> の場合、このポリシーは <ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、「<ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" />」に登録されているインスタンスでは使用できません。
-
-<ph name="MAC_OS_NAME" /> の場合、このポリシーは MDM を介して管理されているインスタンス、MCX を介してドメインに追加されたインスタンス、「<ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" />」に登録されているインスタンスでは使用できません。
-
-これらのインスタンスでは、マルウェア以外の違反がある自動インストールの拡張機能は引き続き有効になります。
-
-現在、マルウェア以外の違反がある自動インストールの拡張機能は、引き続き Chrome にインストールされ、有効になります。
-
-このポリシーを有効に設定した場合、自動インストールの拡張機能は、マルウェア以外の違反の有無に関係なく、同じように動作します（引き続き有効になるなど）。
-
-このポリシーを無効に設定するか未設定のままにした場合、マルウェア以外の違反がある自動インストールの拡張機能は無効になります。
-
-このポリシーは 3 つのマイルストーンで使用できます。</translation>
 <translation id="5441508088704391614">特別な制限は行わない（デフォルトの設定）。</translation>
 <translation id="5442026853063570579">このポリシーでは、Android 開発者向けオプションへのアクセスも管理できます。このポリシーを「DeveloperToolsDisallowed」（値 2）に設定した場合、ユーザーは開発者向けオプションにアクセスできません。このポリシーを別の値に設定するか未設定のままにした場合、ユーザーは Android 設定アプリのビルド番号を 7 回タップすれば開発者向けオプションにアクセスできます。</translation>
 <translation id="5443582909255996887">このポリシーを有効に設定した場合、Android ではすべてのサイトが分離され、各サイトが独自のプロセスで実行されます。ユーザーが無効にすることはできません。サイトは、スキームと eTLD+1 で構成されます（例: https://example.com）。Android では <ph name="PRODUCT_NAME" /> バージョン 77 以降、特定のデリケートなコンテンツを含むウェブサイトがデフォルトで分離されており、このポリシーによってデフォルトのサイト分離モードがすべてのサイトに適用されます。このポリシーを無効に設定した場合は、すべてのサイト分離が無効になります。これには、デリケートなコンテンツを含むサイトの分離、IsolateOriginsAndroid と SitePerProcessAndroid のフィールド テスト、その他のサイト分離モードが含まれます。ただし、ユーザーはポリシーを手動で有効にできます。このポリシーを未設定のままにした場合、ユーザーはこの設定を変更できます。<ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" /> を使用して、サイト単位でなく、より細かいレベルで発行元を指定して分離することもできます（例: https://a.example.com）。注: 今後は改善される予定ですが、Android ですべてのサイトを分離する場合、現在は特にローエンドのデバイスでパフォーマンスに影響が生じる可能性があります。このポリシーは、厳密に 1 GB より大きい RAM を搭載した Android デバイスの Chrome のみに適用されます。ユーザーへのパフォーマンス上の影響を抑えつつ、特定のサイトを分離する場合は、<ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" /> で分離するサイトのリストを指定してください。Android 以外のプラットフォームにこのポリシーを適用するには、<ph name="SITE_PER_PROCESS_POLICY_NAME" /> を使用してください。</translation>
@@ -7076,6 +7045,8 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 
       ECH は進化中のプロトコルであるため、<ph name="PRODUCT_NAME" /> での実装には変更が生じる可能性があります。そのため、このポリシーは、試験運用版の初期実装を管理するための一時的な手段です。今後プロトコルが確定した際、最終版の管理機能に置き換わります。</translation>
 <translation id="5939873071468124100"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> の統合を使用できるアカウントを制限する</translation>
+<translation id="594085996886561267">このポリシーを未設定のままにするか有効に設定した場合、新しいタブページの検索ボックスに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> のボタンが表示され、ユーザーが使用できるようになります。このポリシーを無効に設定した場合、新しいタブページの検索ボックスに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> のボタンは表示されません。
+<ph name="PRODUCT_NAME" /> 147 以降、このポリシーは非推奨となります。IT 管理者は今後、<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> を使用してこの機能を制御できます。</translation>
 <translation id="5945312246863177268">ユーザーがスマートフォン ハブの通知をクリックして Eche アプリを起動することを許可しません。</translation>
 <translation id="5946082169633555022">Beta チャンネル</translation>
 <translation id="5946329690214660966">アップデート確認のカスタム スケジュールを設定する</translation>
@@ -7087,17 +7058,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5958746038080720143">ウェブプロキシ自動検出（WAPD）の最適化を有効にする</translation>
 <translation id="5961137303188584693">デバイスの組み込みの NIC MAC アドレス</translation>
 <translation id="5962271004971310788">シークレット モードで使用する前にシークレット モードでの実行を許可するようユーザーに要求する拡張機能</translation>
-<translation id="5962401339101255719">このポリシーを 0（デフォルト）に設定した場合、デベロッパー ツールと JavaScript コンソールにアクセスできますが、企業ポリシーによりインストールされた拡張機能または M114 以降、および管理対象ユーザーの場合はブラウザに組み込まれた拡張機能では、アクセスは許可されません。このポリシーを 1 に設定した場合、あらゆる状況でデベロッパー ツールと JavaScript コンソールにアクセスできます。企業ポリシーによってインストールされた拡張機能でのアクセスも許可されます。このポリシーを 2 に設定した場合、デベロッパー ツールにアクセスできず、ウェブサイト要素も検査できなくなります。
-
-この設定では、デベロッパー ツールや JavaScript コンソールを開くためのキーボード ショートカット、メニューのエントリ、コンテキスト メニューのエントリも無効になります。
-
-<ph name="PRODUCT_NAME" /> バージョン 99 ではさらに、この設定により「ページのソースを表示」機能のエントリ ポイントも制御されます。このポリシーを「DeveloperToolsDisallowed」（値 2）に設定した場合、ユーザーはキーボード ショートカットまたはコンテキスト メニューを介してソースを表示することはできません。なお、ソースの表示を完全にブロックするには、<ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーに「view-source:*」を追加することも必要です。
-
-<ph name="PRODUCT_NAME" /> バージョン 119 以降では、この設定により、独立したウェブアプリのデベロッパー モードを有効にして使用できるかどうかも制御されます。
-
-<ph name="PRODUCT_NAME" /> バージョン 128 以降では、<ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> ポリシーが設定されている場合、この設定により拡張機能ページのデベロッパー モードは制御されません。
-
-ページの URL に基づいてデベロッパー ツールへのアクセスを制限するには、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーと <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ポリシーを使用します。</translation>
 <translation id="5963752574792883406">ポート 990（ブロックの解除は 2022 年 2 年 1 日まで可能）</translation>
 <translation id="596523880465577341">このポリシーは非推奨で、サポートされていません。代わりに「<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />」ポリシーを使用してください。</translation>
 <translation id="5966615072639944554">Remote Attestation API の使用が許可されている拡張機能</translation>
@@ -7144,7 +7104,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="6011969832398368671">サイトがファイルとディレクトリへの書き込みアクセスをユーザーに要求することを許可する</translation>
 <translation id="601234435141599215">Linux 仮想マシンへのポート転送を許可する</translation>
 <translation id="6012952794649558174">デフォルトのブラウザ処理を使用する。</translation>
-<translation id="6013875085491664033">組み込みの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> とのコンテンツの共有を有効にする</translation>
 <translation id="6015281292796053435">このポリシーでは、セーフ ブラウジングの警告数、セーフ ブラウジングの警告のクリック数といったセーフ ブラウジングに関する情報について、レポートを作成するかどうかを管理します。
 
       ポリシー <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> を未設定のままにするか無効にすると、このポリシーは無視されます。
@@ -7236,6 +7195,35 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="6083631234867522991">Windows（Windows クライアント）:</translation>
 <translation id="6087413944876892918"><ph name="HAPPY_EYEBALLS_V3" /> アルゴリズムを使用する</translation>
 <translation id="608788685013546076">電力ピークシフトのバッテリーのしきい値をパーセントで設定する</translation>
+<translation id="6089118101413877627">このポリシーでは、ブラウザがファーストパーティ セット機能（後に「<ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" />」機能に名称変更）で使用するセットのリストをオーバーライドできます。
+
+ブラウザのファーストパーティ セット リストの各セットは、ファーストパーティ セットの要件を満たしている必要があります。
+ファーストパーティ セットには、プライマリ サイトと 1 つ以上のメンバーサイトが含まれている必要があります。
+セットには、所有するサービスサイトのリストと、サイトからすべての ccTLD バリアントへのマップを含めることもできます。
+<ph name="PRODUCT_NAME" /> で使用されるファーストパーティ セットの詳細については、https://github.com/WICG/first-party-sets をご覧ください。
+
+ファーストパーティ セットのすべてのサイトは、HTTPS 経由で配信される登録可能なドメインである必要があります。また、ファーストパーティ セットの各サイトは一意である必要があります。つまり、1 つのファーストパーティ セットに同じサイトを複数回含めることはできません。
+
+このポリシーで空の辞書を指定した場合、ブラウザはファーストパーティ セットの公開リストを使用します。
+
+<ph name="REPLACEMENTS" /> リストで指定したファーストパーティ セットのサイトについては、ブラウザのファーストパーティ セットのリストに同じサイトがある場合は、ブラウザのファーストパーティ セットからそのサイトが削除されます。
+その後、ポリシーで指定したファーストパーティ セットがブラウザのファーストパーティ セットのリストに追加されます。
+
+<ph name="ADDITIONS" /> リストで指定したファーストパーティ セットのサイトについては、ブラウザのファーストパーティ セットのリストに同じサイトがある場合は、新しいファーストパーティ セットをブラウザのリストに追加できるようにブラウザのファーストパーティ セットが更新されます。ブラウザのリストが更新された後、ポリシーで指定したファーストパーティ セットがブラウザのファーストパーティ セットのリストに追加されます。
+
+ブラウザのファーストパーティ セット リストのサイトは、いずれも複数のセットに含まれないようにする必要があります。この要件は <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストにも適用されます。同様に、同じサイトを <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストの両方に含めることはできません。
+
+ワイルドカード（*）は、ポリシーの値として使用できず、これらのリストのどのファーストパーティ セットでも使用できません。
+
+このポリシーで指定するすべてのセットは、有効なファーストパーティ セットである必要があります。そうでない場合は、該当するエラーが出力されます。
+
+<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
+
+<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
+
+これは <ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" /> ポリシーと同等です。
+どちらのポリシーを使用しても、ブラウザの動作を同じように制御できます。
+これらのポリシーはいずれも、<ph name="PRODUCT_NAME" /> バージョン 144 で <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" /> 機能のサポートが終了したことに伴い、非推奨となりました。</translation>
 <translation id="6089679180657323464">Wilco の診断およびテレメトリー用コントローラの設定を制御します。</translation>
 <translation id="6091233616732024397">ブラウザを使用するにはログインを必須とする</translation>
 <translation id="6092073071805297119">ユーザー補助パフォーマンス フィルタの使用を許可する。</translation>
@@ -7776,15 +7764,6 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> ポリシーを別途設定して、この機能による HTTPS へのアップグレードを特定のホスト名またはホスト名のパターンに適用しないよう指定できます。
 
 <ph name="HTTPS_ONLY_MODE_POLICY_NAME" /> ポリシーもご覧ください。</translation>
-<translation id="6439002087726312326">検証するページの URL をこのポリシーの URL パターンと照合し、一致するものが見つかった場合、<ph name="CHROME_DEVTOOLS_NAME" /> はブロックされます。URL の形式について詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
-
-<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ポリシーは、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> より優先されます。
-
-一致しない URL には、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーの設定が適用されます。
-
-このポリシーは、拡張機能やウェブ アプリケーション用に開かれた <ph name="CHROME_DEVTOOLS_NAME" /> にも適用されます。
-
-このポリシーで指定できる URL は最大 1,000 件です。</translation>
 <translation id="6440051664870270040">移動と同時にポップアップを表示することをサイトに許可する</translation>
 <translation id="6441781723322254041">切り捨ての処理を行った Cookie を許可する</translation>
 <translation id="6446366416439249472">モバイル接続を介した Google ドライブの同期を無効にする</translation>
@@ -7828,7 +7807,6 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
       このポリシーを無効に設定するか未設定のままにした場合、chrome://password-change で SAML パスワードを変更することはできず、SAML パスワードの有効期限が近づいても通知されません。</translation>
 <translation id="6457477291648119596">Type42</translation>
 <translation id="6458361632497500815">このポリシーを有効に設定するか未設定のままにした場合、<ph name="VIRTUAL_MACHINES_ALLOWED_POLICY_NAME" />、<ph name="CROSTINI_ALLOWED_POLICY_NAME" />、<ph name="DEVICE_UNAFFILIATED_CROSTINI_ALLOWED_POLICY_NAME" /> の 3 つのポリシーすべてが有効になっていれば、すべてのユーザーが <ph name="PRODUCT_CROSTINI_NAME" /> を使用できます。このポリシーを無効に設定した場合、外部のユーザーは <ph name="PRODUCT_CROSTINI_NAME" /> を使用できません。このポリシーを無効に変更すると、すでに実行されているコンテナではなく、新しい <ph name="PRODUCT_CROSTINI_NAME" /> コンテナの開始に対してポリシーが適用されます。</translation>
-<translation id="6462604655173570082">このポリシーを未設定のままにするか有効に設定した場合、新しいタブページの検索ボックスに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> のボタンが表示され、ユーザーが使用できるようになります。このポリシーを無効に設定した場合、新しいタブページの検索ボックスに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> のボタンは表示されません。</translation>
 <translation id="6464074037294098618">住所の自動入力を有効にします</translation>
 <translation id="6464564464230511695">有効に設定するか未設定のままにした場合、<ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> はすべてのウェブページで許可されます。
 
@@ -8223,23 +8201,6 @@ False に設定すると、P2P は使用されません。
 <translation id="6682305153467826752">マシン識別情報のレポートを有効にする</translation>
 <translation id="6684842561251679182">カーネルキーの増分を保留するマイルストーンの数</translation>
 <translation id="6685903773201985073">ゲスト セッションと標準セッションでアンビエント認証を有効にします。</translation>
-<translation id="668721405120274587">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
-
-なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
-
-0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
-
-1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントは無効になるか、非表示になります。
-
-<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
-
-このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
-
-また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="6687291630099400188">ログイン画面にシステム情報を表示しない</translation>
 <translation id="6689343802305995925">何の処理も行わない。</translation>
 <translation id="6689792153960219308">ハードウェア ステータスを報告する</translation>
@@ -9836,6 +9797,28 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
       true に設定した場合、デバイスのネットワーク イベントが報告されます。</translation>
 <translation id="780629758750905699">デバイスへのファミリー リンク アカウントの追加を許可する</translation>
 <translation id="7807139251387225825">同期から除外するデータタイプのリスト</translation>
+<translation id="7812285231594048601">このポリシーはサポートを終了しました。代わりに <ph name="POLICY_VALUE_PROFILE_SEPARATION_SETTINGS_NAME" /> を使用してください。
+
+デフォルトの動作（ポリシーを未設定のままにした場合）
+コンテンツ エリアにアカウントを追加すると、新しいプロファイルの作成を求める小さなダイアログが表示される場合があります。このダイアログは閉じることができます。
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />
+ユーザーが <ph name="PRODUCT_NAME" /> ブラウザで Google サービスに初めてログインするとき、企業アカウントの新しいプロファイルの作成を求めるダイアログが表示されます。ユーザーは [キャンセル] をクリックしてログアウトするか、[続行] をクリックして新しいプロファイルを作成できます。既存の閲覧データは新しいプロファイルに追加されません。新しく作成したプロファイルでは、予備のアカウントを設定できます。たとえば、ユーザーはコンテンツ エリアで別のアカウントにログインできます。
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT" />
+<ph name="POLICY_VALUE_PRIMARY_ACCOUNT" /> と同じように動作します。ただし、新しく作成したプロファイルで予備のアカウントを設定することはできません。
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />
+<ph name="POLICY_VALUE_PRIMARY_ACCOUNT" /> と同じように動作しますが、ユーザーがローカルの閲覧データを保持できるようにするためのチェックボックスがダイアログに追加されます。
+このチェックボックスをオンにすると、既存のプロファイル データが管理対象アカウントに関連付けられます。
+-  既存の閲覧データはすべて、新しいプロファイルで保持されます。
+-  このデータには、ブックマーク、履歴、パスワード、自動入力データ、開いているタブ、Cookie、キャッシュ、ウェブ ストレージ、拡張機能などが含まれます。
+ユーザーがチェックボックスをオンにしない場合:
+-  以前のプロファイルが保持されます。データが失われることはありません。
+-  新しいプロファイルが作成されます。
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT_KEEP_EXISTING_DATA" />
+<ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" /> と同じように動作します。ただし、新しく作成したプロファイルで予備のアカウントを設定することはできません。</translation>
 <translation id="781268256210530471">プラグイン設定</translation>
 <translation id="7816326058023670173">お子様と保護者のデバイス間で共有されるシークレットです。</translation>
 <translation id="7818131573217430250">ログイン画面でのハイコントラスト モードのデフォルト状態を設定する</translation>
@@ -9959,6 +9942,7 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 このポリシーを無効に設定するか未設定のままにした場合、証明書は生成されず、<ph name="ENTERPRISE_PLATFORM_KEYS_API" /> の呼び出しは失敗します。</translation>
 <translation id="7906983682927840536">シャットダウン時のキープアライブの継続時間を取得します</translation>
 <translation id="7908384265697653397"><ph name="PRODUCT_OS_NAME" /> のバージョンが指定の <ph name="CHROMEOS_VERSION_PROPERTY_NAME" /> よりも前の場合に、ユーザーがログアウトされるまでの期間（日）</translation>
+<translation id="7908762897332688196">組み込みの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と <ph name="GOOGLE_LENS_PRODUCT_NAME" /> とのコンテンツの共有を有効にする</translation>
 <translation id="7909751052609510518">印刷ジョブ（バージョン 129 以降でサポート）</translation>
 <translation id="7909839744818798105">従来の Cookie スコープの動作を有効にするドメインのリストを指定する</translation>
 <translation id="7911685775490889216">ロック画面のスクリーンセーバーに複数の画像を表示するよう指定されている場合に、画像を切り替える間隔を秒単位で設定します。
@@ -10150,6 +10134,21 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 
 <ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。</translation>
 <translation id="8044493735196713914">デバイス起動モードを報告する</translation>
+<translation id="8044943551137872312">このポリシーでは、<ph name="CHROME_DEVTOOLS_NAME" /> を許可する URL を指定できます。
+
+検証するページの URL をこのポリシーの URL パターンと照合し、一致するものが見つかった場合、<ph name="CHROME_DEVTOOLS_NAME" /> が許可されます。このポリシーは、URL が <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーの URL パターンに一致する場合や、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーが不許可（値 2）に設定されている場合でも適用されます。URL の形式について詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
+
+このポリシーを未設定のままにした場合、この許可リストは適用されません。
+
+このポリシーを設定し、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> を未設定のままにした場合、このリストで指定されていない URL はブロックされます。
+
+このポリシーと <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> ポリシーの両方を設定した場合、この許可リストが優先されます。URL が許可リストのパターンと一致する場合、その URL は許可されます。URL がブロックリストのパターンと一致する（ただし許可リストと一致しない）場合、その URL はブロックされます。URL がどちらにも一致しない場合、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーが代わりに使用されます。
+
+どちらのポリシーも未設定のままにした場合、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> ポリシーによって、デベロッパー ツールの使用の可否が決まります。
+
+このポリシーは、拡張機能やウェブ アプリケーション用に開かれた <ph name="CHROME_DEVTOOLS_NAME" /> にも適用されます。
+
+このポリシーで指定できる URL は最大 1,000 件です。</translation>
 <translation id="80453040817068401"><ph name="LACROS_NAME" /> ブラウザを使用可能にする</translation>
 <translation id="804619600634661088">リモート デバッグの使用を許可する</translation>
 <translation id="8047264240841615226"><ph name="CHROME_DEVTOOLS_NAME" /> の生成 AI 機能の設定</translation>
@@ -10363,7 +10362,6 @@ false に設定した場合、管理対象のネットワークに接続され�
 すべての処理値の詳しい説明については、RFC 8828 のセクション 5.2（https://tools.ietf.org/html/rfc8828.html#section-5.2）をご覧ください。</translation>
 <translation id="8244171102276095471">TLS の RC4 暗号スイートを有効にする</translation>
 <translation id="8244525275280476362">ポリシーの失効から取得までの最大時間</translation>
-<translation id="8245574649143980200">このポリシーを未設定のままにするか有効に設定した場合、コンテキスト メニューに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索メニュー項目が表示され、ユーザーはこれを使用することができます。このポリシーを無効に設定した場合は、<ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索がサポートされていても、コンテキスト メニューに <ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索メニュー項目は表示されません。</translation>
 <translation id="8247143534027746614">認証中にアクセスをブロックする URL パターンのリストを指定する</translation>
 <translation id="824818544897669723">ブラウザとダウンロードの履歴の削除を無効にする</translation>
 <translation id="8250048892729838843">このポリシーはサポートを終了しました。このポリシーを有効に設定するか未設定のままにした場合、デバイスで詳細なレポート コントロールを受けることができます。このポリシーを無効に設定した場合、登録済みデバイスは詳細なレポート コントロールを受けません。</translation>

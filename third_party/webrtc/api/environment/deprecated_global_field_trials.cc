@@ -10,18 +10,64 @@
 #include "api/environment/deprecated_global_field_trials.h"
 
 #include <cstddef>
+#include <map>
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 namespace {
 
 constinit const char* global_field_trial_string = nullptr;
 
+// Validates the given field trial string.
+//  E.g.:
+//    "WebRTC-experimentFoo/Enabled/WebRTC-experimentBar/Enabled100kbps/"
+//    Assigns the process to group "Enabled" on WebRTCExperimentFoo trial
+//    and to group "Enabled100kbps" on WebRTCExperimentBar.
+//
+//  E.g. invalid config:
+//    "WebRTC-experiment1/Enabled"  (note missing / separator at the end).
+bool FieldTrialsStringIsValid(absl::string_view trials) {
+  if (trials.empty())
+    return true;
+
+  size_t next_item = 0;
+  std::map<absl::string_view, absl::string_view> field_trials;
+  while (next_item < trials.length()) {
+    size_t name_end = trials.find('/', next_item);
+    if (name_end == absl::string_view::npos || next_item == name_end)
+      return false;
+    size_t group_name_end = trials.find('/', name_end + 1);
+    if (group_name_end == absl::string_view::npos ||
+        name_end + 1 == group_name_end)
+      return false;
+    absl::string_view name = trials.substr(next_item, name_end - next_item);
+    absl::string_view group_name =
+        trials.substr(name_end + 1, group_name_end - name_end - 1);
+
+    next_item = group_name_end + 1;
+
+    // Fail if duplicate with different group name.
+    auto [it, inserted] = field_trials.emplace(name, group_name);
+    if (!inserted && it->second != group_name) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace
 
 void DeprecatedGlobalFieldTrials::Set(const char* field_trials) {
+  RTC_LOG(LS_INFO) << "Setting field trial string:" << field_trials;
+  if (field_trials != nullptr) {
+    RTC_DCHECK(FieldTrialsStringIsValid(field_trials))
+        << "Invalid field trials string:" << field_trials;
+  }
   global_field_trial_string = field_trials;
 }
 

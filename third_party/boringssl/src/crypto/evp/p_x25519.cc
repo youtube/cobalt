@@ -23,6 +23,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 namespace {
 
 struct X25519_KEY {
@@ -135,9 +137,9 @@ static size_t x25519_get1_tls_encodedpoint(const EVP_PKEY *pkey,
   return *out_ptr == nullptr ? 0 : 32;
 }
 
-static evp_decode_result_t x25519_pub_decode(const EVP_PKEY_ALG *alg,
-                                             EVP_PKEY *out, CBS *params,
-                                             CBS *key) {
+static bssl::evp_decode_result_t x25519_pub_decode(const EVP_PKEY_ALG *alg,
+                                                   EVP_PKEY *out, CBS *params,
+                                                   CBS *key) {
   // See RFC 8410, section 4.
 
   // The parameters must be omitted. Public keys have length 32.
@@ -177,9 +179,9 @@ static int x25519_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
   return OPENSSL_memcmp(a_key->pub, b_key->pub, 32) == 0;
 }
 
-static evp_decode_result_t x25519_priv_decode(const EVP_PKEY_ALG *alg,
-                                              EVP_PKEY *out, CBS *params,
-                                              CBS *key) {
+static bssl::evp_decode_result_t x25519_priv_decode(const EVP_PKEY_ALG *alg,
+                                                    EVP_PKEY *out, CBS *params,
+                                                    CBS *key) {
   // See RFC 8410, section 7.
 
   // Parameters must be empty. The key is a 32-byte value wrapped in an extra
@@ -256,7 +258,7 @@ const EVP_PKEY_ASN1_METHOD x25519_asn1_meth = {
 
 }  // namespace
 
-const EVP_PKEY_ALG *EVP_pkey_x25519(void) {
+const EVP_PKEY_ALG *EVP_pkey_x25519() {
   static const EVP_PKEY_ALG kAlg = {&x25519_asn1_meth};
   return &kAlg;
 }
@@ -326,7 +328,7 @@ static int pkey_x25519_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
   }
 }
 
-const EVP_PKEY_CTX_METHOD x25519_pkey_meth = {
+const EVP_PKEY_CTX_METHOD bssl::x25519_pkey_meth = {
     /*pkey_id=*/EVP_PKEY_X25519,
     /*init=*/nullptr,
     /*copy=*/pkey_x25519_copy,

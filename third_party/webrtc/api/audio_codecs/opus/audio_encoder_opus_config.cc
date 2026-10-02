@@ -14,40 +14,8 @@
 
 namespace webrtc {
 
-namespace {
-
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
-constexpr int kDefaultComplexity = 5;
-#else
-constexpr int kDefaultComplexity = 9;
-#endif
-
-constexpr int kDefaultLowRateComplexity =
+const int AudioEncoderOpusConfig::kDefaultLowRateComplexity =
     WEBRTC_OPUS_VARIABLE_COMPLEXITY ? 9 : kDefaultComplexity;
-
-}  // namespace
-
-AudioEncoderOpusConfig::AudioEncoderOpusConfig()
-    : frame_size_ms(kDefaultFrameSizeMs),
-      sample_rate_hz(48000),
-      num_channels(1),
-      application(ApplicationMode::kVoip),
-      bitrate_bps(32000),
-      fec_enabled(false),
-      cbr_enabled(false),
-      max_playback_rate_hz(48000),
-      complexity(kDefaultComplexity),
-      low_rate_complexity(kDefaultLowRateComplexity),
-      complexity_threshold_bps(12500),
-      complexity_threshold_window_bps(1500),
-      dtx_enabled(false),
-      uplink_bandwidth_update_interval_ms(200),
-      payload_type(-1) {}
-AudioEncoderOpusConfig::AudioEncoderOpusConfig(const AudioEncoderOpusConfig&) =
-    default;
-AudioEncoderOpusConfig::~AudioEncoderOpusConfig() = default;
-AudioEncoderOpusConfig& AudioEncoderOpusConfig::operator=(
-    const AudioEncoderOpusConfig&) = default;
 
 bool AudioEncoderOpusConfig::IsOk() const {
   if (frame_size_ms <= 0 || frame_size_ms % 10 != 0)

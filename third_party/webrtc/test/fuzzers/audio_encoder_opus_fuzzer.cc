@@ -30,7 +30,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
 
   FuzzAudioEncoder(
       /*data_view=*/{data, size},
-      /*encoder=*/AudioEncoderOpus::MakeAudioEncoder(*env, config,
+      /*encoder=*/AudioEncoderOpus::MakeAudioEncoder(*env, std::move(config),
                                                      {.payload_type = 100}));
 }
 
