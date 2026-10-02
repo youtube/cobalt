@@ -14,10 +14,21 @@ inputs:
   use_gcloud:
     description: "Whether to run gcloud config set account."
     default: 'false'
+  publish_golden_workspace:
+    description: "Whether or not to publish the golden workspace archive."
+    default: 'false'
+  platform:
+    description: "Target platform for platform-specific golden archive."
+    default: ''
 
 runs:
   using: "composite"
   steps:
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
     - name: Set Cache Path
       id: cache-path
       shell: bash
@@ -25,15 +36,10 @@ runs:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
         if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
-          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+          echo "path=/runner-cache" >> "${GITHUB_OUTPUT}"
         else
-          echo "path=" >> ${GITHUB_OUTPUT}
+          echo "path=" >> "${GITHUB_OUTPUT}"
         fi
-
-    - name: Authenticate with GoB
-      uses: ./.github/actions/gob_auth
-      with:
-        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Clone Depot Tools
       uses: ./.github/actions/checkout
@@ -47,7 +53,7 @@ runs:
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> ${GITHUB_PATH}
+      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> "${GITHUB_PATH}"
       shell: bash
 
     - name: Set CIPD Cache Directory
@@ -60,7 +66,12 @@ runs:
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as ${DEPOT_TOOLS_UPDATE} is 0 in CI, skipping the bootstrap.
-        source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
+        if [ -f "${GITHUB_WORKSPACE}/cobalt/depot_tools/python3_bin_reldir.txt" ] && \
+           [ -x "${GITHUB_WORKSPACE}/cobalt/depot_tools/$(tr -d '\r\n' < "${GITHUB_WORKSPACE}/cobalt/depot_tools/python3_bin_reldir.txt")/python3" ]; then
+          echo "Bundled python3 already bootstrapped in depot_tools. Skipping."
+        else
+          source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
+        fi
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -115,9 +126,25 @@ runs:
         fi
         gclient validate
 
+    - name: Check Golden Workspace DEPS Match
+      id: check-deps
+      if: inputs.run_sync == 'true'
+      shell: bash
+      working-directory: cobalt
+      run: |
+        git config --global --add safe.directory '*'
+        if cmp -s /runner-cache/golden-workspace/src/DEPS src/DEPS && cmp -s /runner-cache/golden-workspace/.gclient .gclient; then
+          echo "Golden workspace DEPS and .gclient match local workspace. Skipping gclient sync and runhooks."
+          python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE --filter='\(#[1-9][0-9]*\)'
+          python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h
+          echo "deps_match=true" >> "${GITHUB_OUTPUT}"
+        else
+          echo "deps_match=false" >> "${GITHUB_OUTPUT}"
+        fi
+
     - name: Clean dirty sub-repositories
       shell: bash
-      if: inputs.run_sync == 'true'
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
       working-directory: cobalt/src
       run: |
         # Identify and delete dirty sub-repositories
@@ -132,7 +159,7 @@ runs:
 
     - name: Run gclient sync
       shell: bash
-      if: inputs.run_sync == 'true'
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
       working-directory: cobalt
       env:
         REF: ${{ github.sha }}
@@ -147,8 +174,16 @@ runs:
           --revision "${REF}"
 
     - name: Run gclient runhooks
-      if: inputs.run_sync == 'true'
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
       working-directory: cobalt
       run: |
         gclient runhooks --verbose
       shell: bash
+
+    - name: Publish Golden Workspace
+      if: inputs.publish_golden_workspace == 'true' && steps.check-deps.outputs.deps_match != 'true'
+      uses: ./.github/actions/publish_golden_workspace
+      with:
+        platform: ${{ inputs.platform }}
+        workspace_path: cobalt
+        use_gcloud: ${{ inputs.use_gcloud }}

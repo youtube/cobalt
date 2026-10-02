@@ -73,4 +73,4 @@ runs:
             sleep $((attempt * 2))
           done
         fi
-        git -C "${DEST_PATH}" checkout "${REF}"
+        git -C "${DEST_PATH}" checkout -f "${REF}"
