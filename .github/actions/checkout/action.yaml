@@ -26,6 +26,7 @@ runs:
         REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
         FETCH_DEPTH: ${{ inputs.fetch_depth }}
+        USE_CACHE: ${{ inputs.use_cache }}
       shell: bash
       run: |
         set -ex
@@ -35,10 +36,30 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
+        ref_args=()
         if [ ! -d "${DEST_PATH}/.git" ]; then
+          if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+            MIRROR_HASH=$(echo -n "${REPO_URL}" | sha256sum | cut -c1-16)
+            MIRROR="/runner-cache/git-cache/checkout/${MIRROR_HASH}.git"
+            mkdir -p "$(dirname "${MIRROR}")"
+            if (
+              flock -w 60 9
+              if [ ! -f "${MIRROR}/config" ]; then
+                git clone --mirror --no-tags "${REPO_URL}" "${MIRROR}" || rm -rf "${MIRROR}"
+              else
+                git -C "${MIRROR}" fetch --prune origin 2>/dev/null || rm -rf "${MIRROR}"
+              fi
+            ) 9>"${MIRROR}.lock" 2>/dev/null; then
+              if [ -d "${MIRROR}" ]; then
+                ref_args=(--reference-if-able "${MIRROR}")
+              fi
+            fi
+          fi
+
           for attempt in 1 2 3; do
             if git clone \
               --filter=blob:none \
+              "${ref_args[@]}" \
               "${depth_arg[@]}" \
               "${REPO_URL}" \
               "${DEST_PATH}"; then
@@ -73,4 +94,4 @@ runs:
             sleep $((attempt * 2))
           done
         fi
-        git -C "${DEST_PATH}" checkout "${REF}"
+        git -C "${DEST_PATH}" checkout -f "${REF}"
