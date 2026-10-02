@@ -77,6 +77,11 @@ class GlobalFeatures {
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
+  // Instantiates the MetricsServicesManager's field trial list and marks the
+  // session as unclean at startup. If the session exits cleanly, it will be
+  // marked as clean in Shutdown().
+  void InitializeMetricsState();
+
   // Explicitly shuts down the metrics service. This is to ensure the
   // CobaltMetricsServiceClient destructor is called, which logs a clean
   // shutdown. The specific shutdown order here is required to nullify

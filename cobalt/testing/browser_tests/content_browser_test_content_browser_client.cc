@@ -21,6 +21,7 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/global_features.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -97,6 +98,11 @@ ContentBrowserTestContentBrowserClient::CreateBrowserMainParts(
       std::make_unique<ContentBrowserTestBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
+}
+
+void ContentBrowserTestContentBrowserClient::CreateFeatureListAndFieldTrials() {
+  cobalt::GlobalFeatures::GetInstance()->InitializeMetricsState();
+  ShellContentBrowserClient::CreateFeatureListAndFieldTrials();
 }
 
 void ContentBrowserTestContentBrowserClient::OnWebContentsCreated(

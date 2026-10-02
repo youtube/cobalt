@@ -31,6 +31,7 @@
 #include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
+#include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry.h"
@@ -210,6 +211,18 @@ base::FilePath GlobalFeatures::GetPrefFilePath(std::string_view filename,
       << "Failed to create directory for " << label << ": "
       << path.DirName().value();
   return path;
+}
+
+void GlobalFeatures::InitializeMetricsState() {
+  if (metrics_services_manager_client()->IsMetricsStateManagerCreated()) {
+    return;
+  }
+  metrics_services_manager()->InstantiateFieldTrialList();
+  // Mark the session as unclean at startup. If the session exits cleanly, it
+  // will be marked as clean in CobaltMetricsServiceClient's destructor.
+  metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->LogHasSessionShutdownCleanly(false, false);
 }
 
 void GlobalFeatures::Shutdown() {

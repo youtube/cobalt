@@ -520,6 +520,7 @@ void CobaltBrowserMainParts::PostDestroyThreads() {
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
+  GlobalFeatures::GetInstance()->InitializeMetricsState();
   metrics::MetricsService* metrics =
       GlobalFeatures::GetInstance()->metrics_service();
   metrics->InitializeMetricsRecordingState();

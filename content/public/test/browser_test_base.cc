@@ -164,7 +164,13 @@ int g_browser_process_pid;
 base::OnceCallback<void(int)> ShutdownHandler;
 
 void SignalHandler(int signal) {
+#if BUILDFLAG(IS_COBALT)
+  if (ShutdownHandler) {
+    std::move(ShutdownHandler).Run(signal);
+  }
+#else
   std::move(ShutdownHandler).Run(signal);
+#endif
 
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableInProcessStackTraces) &&
@@ -952,6 +958,10 @@ void BrowserTestBase::ProxyRunTestOnMainThreadLoop() {
   // On Android, browser main runner is not shut down, so stop trace recording
   // here.
   StartupTracingController::GetInstance().WaitUntilStopped();
+#endif
+
+#if BUILDFLAG(IS_POSIX) && BUILDFLAG(IS_COBALT)
+  ShutdownHandler.Reset();
 #endif
 }
 

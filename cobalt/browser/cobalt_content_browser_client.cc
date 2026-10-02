@@ -740,12 +740,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   auto* global_features = GlobalFeatures::GetInstance();
-  global_features->metrics_services_manager()->InstantiateFieldTrialList();
-  // Mark the session as unclean at startup. If the session exits cleanly, it
-  // will be marked as clean in CobaltMetricsServiceClient's destructor.
-  global_features->metrics_services_manager_client()
-      ->GetMetricsStateManager()
-      ->LogHasSessionShutdownCleanly(false, false);
+  global_features->InitializeMetricsState();
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
