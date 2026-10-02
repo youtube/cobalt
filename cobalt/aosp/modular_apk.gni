@@ -67,15 +67,6 @@ template("modular_apk") {
       "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
 
-<<<<<<< HEAD
-    foreach(_cert, network_certs) {
-      renaming_sources += [ _cert ]
-      renaming_destinations +=
-          [ "app/cobalt/content/ssl/certs/" + get_path_info(_cert, "file") ]
-    }
-
-=======
->>>>>>> 5bdc6021f (starboard: Unify CA certificate lookup (#13068))
     if (icu_use_data_file) {
       renaming_sources += [ "$root_build_dir/icudtl.dat" ]
       renaming_destinations += [ "app/cobalt/content/icudtl.dat" ]

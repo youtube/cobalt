@@ -6,11 +6,7 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-<<<<<<< HEAD
-    "CrashpadConfigTest.VerifyUploadCert",
     "NativeStabilityTest.VerifyNativeStabilityExtension",
-=======
->>>>>>> 5bdc6021f (starboard: Unify CA certificate lookup (#13068))
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
