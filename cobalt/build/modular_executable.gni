@@ -15,6 +15,7 @@
 import("//build/compiled_action.gni")
 import("//starboard/build/platform_path.gni")
 import("//starboard/content/fonts/variables.gni")
+import("//starboard/content/ssl/certs.gni")
 import("//third_party/icu/config.gni")
 
 if (is_android) {
@@ -154,7 +155,6 @@ template("evergreen_final_target") {
         ":copy_${original_target_name}_lib",
         ":copy_${original_target_name}_uncompressed_lib",
         ":copy_${original_target_name}_zstd_lib",
-        "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       ]
     }
 
@@ -181,7 +181,15 @@ template("evergreen_final_target") {
         "//cobalt/shell:pak",
         "//third_party/icu:icudata",
       ]
-      data_deps = [ ":copy_${original_target_name}_empty_fonts" ]
+      data_deps = [
+        ":copy_${original_target_name}_certs",
+        ":copy_${original_target_name}_empty_fonts",
+      ]
+    }
+
+    copy("copy_${original_target_name}_certs") {
+      sources = network_certs
+      outputs = [ "$root_out_dir/app/${original_target_name}/content/ssl/certs/{{source_file_part}}" ]
     }
 
     copy("copy_${original_target_name}_empty_fonts") {
