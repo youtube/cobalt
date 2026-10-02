@@ -535,6 +535,12 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
              "CobaltInPlaceMediaSourceParser",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, WebMediaPlayerImpl does not include demuxer (SourceBuffer)
+// memory in the external memory it reports to V8. This memory is already
+// bounded by the platform media buffer budget and is not reclaimable by GC.
+BASE_FEATURE(kCobaltExcludeDemuxerMemoryFromV8,
+             "CobaltExcludeDemuxerMemoryFromV8",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
