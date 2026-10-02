@@ -53,10 +53,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 
 // When enabled, V8 runs with --optimize-for-size, favoring memory reduction over
-// execution speed. Enabled by default on Cobalt to preserve existing status quo,
-// while allowing experimentation tiers or partners to disable it dynamically
-// via Finch (--disable-features=CobaltV8OptimizeForSize) or command line to
-// evaluate UI framerate and latency improvements.
+// execution speed. Enabled by default on Android to preserve existing status
+// quo, and disabled by default on 3P (non-Android) platforms to unlock locked
+// 30 FPS UI framerates, while allowing dynamic control via Finch or command
+// line.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
 
 // When enabled, overrides the compositor skewport target times, which control
