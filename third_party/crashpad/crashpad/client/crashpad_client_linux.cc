@@ -159,7 +159,7 @@ std::vector<std::string> BuildArgsToLaunchWithLinker(
   } else {
     argv.push_back("/system/bin/linker");
   }
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
   argv.push_back(handler_trampoline);
 #else
   argv.push_back(handler_trampoline);

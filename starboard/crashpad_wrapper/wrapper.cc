@@ -16,10 +16,11 @@
 
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #if defined(OS_ANDROID)
-#include <android/api-level.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 #endif  // defined(OS_ANDROID)
 
 #include <map>
@@ -87,10 +88,7 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
     return base::FilePath("");
   }
 #if defined(OS_ANDROID)
-  // The executable path is the app's native library directory, where the
-  // handler is extracted alongside the loader.
-  return base::FilePath(exe_path.data())
-      .Append("libchrome_crashpad_handler.so");
+  return base::FilePath(exe_path.data()).Append("libcrashpad_handler.so");
 #else   // defined(OS_ANDROID)
   base::FilePath exe_dir_path = base::FilePath(exe_path.data()).DirName();
   std::string handler_path(exe_dir_path.value());
@@ -99,28 +97,6 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
   return base::FilePath(handler_path.c_str());
 #endif  // defined(OS_ANDROID)
 }
-
-#if defined(OS_ANDROID)
-// Copies the current environment with |library_dir| prepended to
-// LD_LIBRARY_PATH, so the handler can load the libraries packaged with it.
-std::vector<std::string> BuildHandlerEnvironment(
-    const base::FilePath& library_dir) {
-  static constexpr char kLdLibraryPathPrefix[] = "LD_LIBRARY_PATH=";
-  const size_t prefix_length = strlen(kLdLibraryPathPrefix);
-  std::string library_path = kLdLibraryPathPrefix + library_dir.value();
-  std::vector<std::string> env;
-  for (char** envp = environ; *envp != nullptr; ++envp) {
-    if (strncmp(*envp, kLdLibraryPathPrefix, prefix_length) == 0) {
-      library_path += ':';
-      library_path += *envp + prefix_length;
-      continue;
-    }
-    env.push_back(*envp);
-  }
-  env.push_back(library_path);
-  return env;
-}
-#endif  // defined(OS_ANDROID)
 
 base::FilePath GetDatabasePath() {
   if (g_database_path_override_for_testing) {
@@ -147,6 +123,91 @@ base::FilePath GetDatabasePath() {
 
   return base::FilePath(crashpad_directory_path.c_str());
 }
+
+#if defined(OS_ANDROID)
+bool CopyFile(const std::string& src_path, const std::string& dst_path) {
+  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
+  // which bypasses -Wl,--wrap=open.
+  const int src = open(src_path.c_str(), O_RDONLY, 0);
+  if (src < 0) {
+    PLOG(ERROR) << "Couldn't open " << src_path;
+    return false;
+  }
+  const int dst =
+      open(dst_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+  if (dst < 0) {
+    PLOG(ERROR) << "Couldn't create " << dst_path;
+    close(src);
+    return false;
+  }
+  bool ok = true;
+  char buffer[4096];
+  while (true) {
+    const ssize_t bytes_read = read(src, buffer, sizeof(buffer));
+    if (bytes_read == 0) {
+      break;
+    }
+    if (bytes_read < 0 || write(dst, buffer, bytes_read) != bytes_read) {
+      ok = false;
+      break;
+    }
+  }
+  close(src);
+  return close(dst) == 0 && ok;
+}
+
+// Copies the files in |src_dir_path| into |dst_dir_path|.
+bool CopyDirContents(const std::string& src_dir_path,
+                     const std::string& dst_dir_path) {
+  DIR* src_dir = opendir(src_dir_path.c_str());
+  if (!src_dir) {
+    PLOG(ERROR) << "Couldn't open " << src_dir_path;
+    return false;
+  }
+  bool ok = true;
+  while (struct dirent* entry = readdir(src_dir)) {
+    const std::string name(entry->d_name);
+    if (name == "." || name == "..") {
+      continue;
+    }
+    if (!CopyFile(src_dir_path + kSbFileSepChar + name,
+                  dst_dir_path + kSbFileSepChar + name)) {
+      ok = false;
+      break;
+    }
+  }
+  closedir(src_dir);
+  return ok;
+}
+
+// Copies the CA certificates out of the APK into the cache directory. Returns
+// the path of the copy, or an empty path on failure. This process reads APK
+// assets through Starboard's file emulation, but the handler is a separate
+// process and can't.
+base::FilePath CopyCACertificatesToCache(
+    const std::string& ca_certificates_path) {
+  std::vector<char> cache_directory_path(kSbFileMaxPath);
+  if (ca_certificates_path.empty() ||
+      !SbSystemGetPath(kSbSystemPathCacheDirectory, cache_directory_path.data(),
+                       kSbFileMaxPath)) {
+    return base::FilePath();
+  }
+
+  std::string copy_path(cache_directory_path.data());
+  copy_path.push_back(kSbFileSepChar);
+  copy_path.append("certs");
+  struct stat info;
+  if (mkdir(copy_path.c_str(), 0700) != 0 &&
+      !(stat(copy_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode))) {
+    return base::FilePath();
+  }
+
+  if (!CopyDirContents(ca_certificates_path, copy_path)) {
+    return base::FilePath();
+  }
+  return base::FilePath(copy_path);
+}
+#endif  // defined(OS_ANDROID)
 
 bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
   std::unique_ptr<::crashpad::CrashReportDatabase> database =
@@ -314,15 +375,6 @@ std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
-#if defined(OS_ANDROID)
-  // The linker only launches an executable passed on its command line from
-  // Android Q. Like Android TV, don't report crashes below that.
-  if (android_get_device_api_level() < __ANDROID_API_Q__) {
-    LOG(INFO) << "Crashpad handler not installed: requires Android Q or later";
-    return;
-  }
-#endif  // defined(OS_ANDROID)
-
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -373,23 +425,21 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   client->SetUnhandledSignals({});
 
 #if defined(OS_ANDROID)
-  // The handler runs outside the app's linker namespace, so it is launched
-  // through the system linker with its library directory in its environment.
-  // This path doesn't pass a CA certificates path, so Crashpad uses the
-  // Android system CA store.
-  const std::vector<std::string> handler_env =
-      BuildHandlerEnvironment(handler_path.DirName());
-  const bool handler_started = client->StartHandlerWithLinkerAtCrash(
-      handler_path.value(), /*handler_library=*/std::string(),
-      /*is_64_bit=*/sizeof(void*) == 8, &handler_env, database_directory_path,
-      default_metrics_dir, kUploadUrl, default_annotations, default_arguments);
+  const base::FilePath handler_ca_certificates_path =
+      CopyCACertificatesToCache(ca_certificates_path);
+  if (handler_ca_certificates_path.empty()) {
+    LOG(ERROR) << "Failed to copy the CA certificates, not installing the "
+                  "Crashpad handler";
+    return;
+  }
 #else   // defined(OS_ANDROID)
-  const bool handler_started = client->StartHandlerAtCrash(
-      handler_path, database_directory_path, default_metrics_dir, kUploadUrl,
-      base::FilePath(ca_certificates_path.c_str()), default_annotations,
-      default_arguments);
+  const base::FilePath handler_ca_certificates_path(ca_certificates_path);
 #endif  // defined(OS_ANDROID)
-  if (!handler_started) {
+
+  if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
+                                   default_metrics_dir, kUploadUrl,
+                                   handler_ca_certificates_path,
+                                   default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
