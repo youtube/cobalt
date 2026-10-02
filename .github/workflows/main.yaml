@@ -668,6 +668,7 @@ jobs:
           test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}_e2e/${{ github.run_id }}/${{ github.run_attempt }}
 
   yts-test:
     needs: [initialize, build]
