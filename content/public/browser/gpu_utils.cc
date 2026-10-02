@@ -57,8 +57,22 @@ bool ShouldEnableAndroidSurfaceControl(const base::CommandLine& cmd_line) {
 #if !BUILDFLAG(IS_ANDROID)
   return false;
 #else
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // With kCobaltRemoveUiPlaneDuringFullscreenVideo, skip
+  // PreferRGB565ResourcesForDisplay(): it returns true under the low-end device
+  // mode Cobalt enables by default, which would disable the SurfaceControl
+  // path.
+  // NOTE: Cobalt's UI needs alpha for punch-out video, so it is always
+  // RGBA8888 (never RGB565) regardless of this check.
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltRemoveUiPlaneDuringFullscreenVideo) &&
+      viz::PreferRGB565ResourcesForDisplay()) {
+    return false;
+  }
+#else
   if (viz::PreferRGB565ResourcesForDisplay())
     return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return features::IsAndroidSurfaceControlEnabled();
 #endif
 }
