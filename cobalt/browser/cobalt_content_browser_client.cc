@@ -257,7 +257,6 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
-#if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "enable-gpu-shader-disk-cache")) {
@@ -281,7 +280,6 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   }
   return base::FilePath();
 }
-#endif
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
