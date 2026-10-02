@@ -587,7 +587,7 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
-          upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
+          upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
@@ -961,17 +961,19 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
-  chromedriver-smoketest:
+  build-chromedriver:
     needs: [initialize, docker-build-image]
     if: needs.initialize.outputs.chromedriver_smoketest == 'true'
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
-    name: ${{ matrix.name }}_chromedriver_smoke_tests
+    name: ${{ matrix.name }}_chromedriver_${{ matrix.config }}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        platform: [linux-x64x11-no-starboard]
+        include:
+          - name: x64-no-starboard
+            platform: linux-x64x11-no-starboard
         config: [qa]
     container:
       image: ${{ needs.docker-build-image.outputs.docker_tag }}
@@ -979,6 +981,7 @@ jobs:
       volumes:
         - /runner-cache:/runner-cache
     env:
+      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
@@ -1026,12 +1029,58 @@ jobs:
         uses: ./.github/actions/depot_tools
         with:
           use_gcloud: true
+      - name: Build Chromedriver (linux-x64x11-no-starboard)
+        uses: ./.github/actions/build
+        with:
+          targets: '["chromedriver"]'
+          test_root_target: 'null'
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
+          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
+      - name: Upload Chromedriver to GCS
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+          CHROMEDRIVER_ARTIFACTS_KEY: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
+        run: |
+          set -eux
+          project_name=$(gcloud config get-value project)
+          gcloud storage cp \
+            "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/chromedriver" \
+            "gs://${project_name}-test-artifacts/${CHROMEDRIVER_ARTIFACTS_KEY}/chromedriver"
+
+  chromedriver-smoketest:
+    needs: [initialize, docker-unittest-image, build, build-chromedriver]
+    if: needs.initialize.outputs.chromedriver_smoketest == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_chromedriver_smoke_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [qa]
+    container:
+      image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
+    env:
+      TEST_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11-no-starboard
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run Chromedriver Smoke Test
         uses: ./.github/actions/chromedriver_smoketest
         with:
+          platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
-          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
-          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          chromedriver_artifacts_key: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
@@ -1192,6 +1241,7 @@ jobs:
       - yts-test
       - yts-finch-test
       - browser-test-on-host
+      - build-chromedriver
       - chromedriver-smoketest
     if: always() && needs.initialize.result == 'success'
     permissions: {}

@@ -38,10 +38,16 @@ fi
 
 OUT_DIR="${COBALT_PATH}/out/linux-x64x11_${CONFIG}"
 COBALT_BIN="${OUT_DIR}/cobalt"
+COBALT_STRIPPED_BIN="${OUT_DIR}/cobalt.stripped"
 CHROMEDRIVER_BIN="${OUT_DIR}/chromedriver"
 
 if [[ ! -f "${COBALT_BIN}" ]]; then
   echo "Error: Cobalt binary not found at ${COBALT_BIN}"
+  exit 1
+fi
+
+if [[ ! -f "${COBALT_STRIPPED_BIN}" ]]; then
+  echo "Error: Stripped Cobalt binary not found at ${COBALT_STRIPPED_BIN}"
   exit 1
 fi
 

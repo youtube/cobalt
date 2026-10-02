@@ -13,98 +13,97 @@
 # limitations under the License.
 
 name: Cobalt Chromedriver Smoke Test
-description: Builds Cobalt and Chromedriver and runs the Chromedriver smoke test.
+description: Downloads Cobalt and Chromedriver artifacts from GCS and runs the Chromedriver smoke test.
 inputs:
+  platform:
+    description: "The Cobalt platform being tested (e.g. linux-x64x11)."
+    required: false
+    default: "linux-x64x11"
   config:
     description: "The build config (e.g. qa, devel)."
     required: false
     default: "qa"
-  enable_sccache:
-    description: "Use sccache for build acceleration."
-    required: false
-    default: "false"
-  sccache_gcs_key:
-    description: "GCS SA key to read/write to bucket."
-    required: false
-    default: ""
+  test_artifacts_key:
+    description: "GCS artifact key for the Cobalt release package and symbols."
+    required: true
+  chromedriver_artifacts_key:
+    description: "GCS artifact key for the linux-x64x11-no-starboard Chromedriver binary."
+    required: true
   download_chromedriver:
-    description: "Download official Chromedriver instead of building locally."
+    description: "Download official Chromedriver instead of using the built binary."
     required: false
     default: "false"
 
 runs:
   using: "composite"
   steps:
-    - name: Clean out dir from previous runner
-      shell: bash
-      run: |
-        rm -rf cobalt/src/out
-
-    - name: Install sccache
-      if: inputs.enable_sccache == 'true'
-      uses: ./.github/actions/sccache
-      with:
-        sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
-
-    - name: Configure Siso Credential Helper
-      shell: bash
-      run: |
-        echo "SISO_CREDENTIAL_HELPER=gcloud" >> "${GITHUB_ENV}"
-
-    - name: Build Cobalt (linux-x64x11)
-      shell: bash
-      working-directory: cobalt/src
-      env:
-        CONFIG: ${{ inputs.config }}
-        ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
-      run: |
-        set -ex
-        gn_flags=()
-        if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
-          gn_flags+=(--use-sccache)
-        fi
-        cobalt/build/gn.py -p "linux-x64x11" -C "${CONFIG}" "${gn_flags[@]}"
-        gn args --list --short --overrides-only "out/linux-x64x11_${CONFIG}"
-        time autoninja -C "out/linux-x64x11_${CONFIG}" cobalt strip_cobalt_binary
-
-    - name: Build Chromedriver (linux-x64x11-no-starboard)
-      if: inputs.download_chromedriver != 'true'
-      shell: bash
-      working-directory: cobalt/src
-      env:
-        CONFIG: ${{ inputs.config }}
-        ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
-      run: |
-        set -ex
-        gn_flags=()
-        if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
-          gn_flags+=(--use-sccache)
-        fi
-        cobalt/build/gn.py -p "linux-x64x11-no-starboard" -C "${CONFIG}" "${gn_flags[@]}"
-        gn args --list --short --overrides-only "out/linux-x64x11-no-starboard_${CONFIG}"
-        time autoninja -C "out/linux-x64x11-no-starboard_${CONFIG}" chromedriver
-        cp -f "out/linux-x64x11-no-starboard_${CONFIG}/chromedriver" "out/linux-x64x11_${CONFIG}/chromedriver"
-
     - name: Install Smoke Test Runtime Dependencies
       shell: bash
       run: |
         set -ex
-        if ! command -v Xvfb >/dev/null 2>&1 || ! dpkg -s python3-venv libegl1-mesa libgles2-mesa >/dev/null 2>&1; then
+        required_pkgs=(
+          dbus-x11
+          libatomic1
+          libegl1
+          libegl1-mesa
+          libegl-mesa0
+          libgbm1
+          libgl1-mesa-dri
+          libglapi-mesa
+          libgles2-mesa
+          python3-venv
+          unzip
+          x11-xserver-utils
+          xvfb
+        )
+        if ! dpkg -s "${required_pkgs[@]}" >/dev/null 2>&1; then
           apt-get update
-          apt-get install -y --no-install-recommends \
-            dbus-x11 \
-            libatomic1 \
-            libegl1 \
-            libegl1-mesa \
-            libegl-mesa0 \
-            libgbm1 \
-            libgl1-mesa-dri \
-            libglapi-mesa \
-            libgles2-mesa \
-            python3-venv \
-            x11-xserver-utils \
-            xvfb
+          apt-get install -y --no-install-recommends "${required_pkgs[@]}"
         fi
+
+    - name: Download Cobalt QA Release Package from GCS
+      uses: ./.github/actions/download_test_artifacts
+      with:
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: ${{ inputs.platform }}_${{ inputs.config }}.zip
+        destination_path: artifacts
+
+    - name: Download Chromedriver QA Binary from GCS
+      uses: ./.github/actions/download_test_artifacts
+      with:
+        test_artifacts_key: ${{ inputs.chromedriver_artifacts_key }}
+        archive_name: chromedriver
+        destination_path: artifacts/chromedriver_no_starboard
+
+    - name: Prepare Cobalt and Chromedriver Binaries
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
+      run: |
+        set -euxo pipefail
+        project_name=$(gcloud config get-value project)
+        out_root="${GITHUB_WORKSPACE}/cobalt/src/out"
+        out_dir="${out_root}/${PLATFORM}_${CONFIG}"
+        mkdir -p "${out_root}"
+
+        unzip -q -o "${GITHUB_WORKSPACE}/artifacts/${PLATFORM}_${CONFIG}.zip" -d "${out_root}"
+
+        # packager.py renames cobalt.stripped -> cobalt inside the release zip.
+        # Keep the stripped binary at cobalt.stripped and download the unstripped
+        # cobalt binary from the packaged symbol directory in GCS.
+        mv "${out_dir}/cobalt" "${out_dir}/cobalt.stripped"
+        gcloud storage cp \
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/${PLATFORM}_${CONFIG}/symbol/cobalt" \
+          "${out_dir}/cobalt"
+
+        mkdir -p "${out_dir}/starboard"
+        cp -f "${out_dir}/libstarboard.so.18" "${out_dir}/starboard/libstarboard.so.18"
+
+        cp -f "${GITHUB_WORKSPACE}/artifacts/chromedriver_no_starboard/chromedriver" "${out_dir}/chromedriver"
+        chmod +x "${out_dir}/cobalt" "${out_dir}/cobalt.stripped" "${out_dir}/chromedriver"
+        ls -la "${out_dir}"
 
     - name: Run Chromedriver Smoke Test
       shell: bash
