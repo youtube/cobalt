@@ -36,6 +36,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -491,6 +492,20 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
+
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    // Hand the client hint headers to the network service once, so it can add
+    // them to every request itself, rather than asking the browser through a
+    // TrustedHeaderClient on every request (see WillCreateURLLoaderFactory()).
+    // The values are captured here, when the NetworkContext is created. This
+    // works because all of them are set before the browser starts. If a value
+    // ever needs to change at runtime, add a NetworkContext setter for it, like
+    // SetAcceptLanguage().
+    for (const auto& [name, value] :
+         browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
+      network_context_params->cobalt_extra_request_headers.emplace(name, value);
+    }
+  }
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -563,7 +578,10 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
-  if (header_client) {
+  // With kCobaltSkipTrustedHeaderClient, the network service adds the client
+  // hint headers itself (see ConfigureNetworkContextParams()).
+  if (header_client &&
+      !base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
         header_client->InitWithNewPipeAndPassReceiver());
