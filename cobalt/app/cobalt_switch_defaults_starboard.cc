@@ -70,6 +70,12 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kForceDarkMode,
       // Hide scrollbars to avoid memory allocation.
       ::switches::kHideScrollbars,
+      // Persist compiled GPU shaders (Skia's GrShaderCache and the GL program
+      // cache) under the user data directory. Without it every launch
+      // recompiles all shaders before the first frame; on Tizen that was
+      // ~850 ms on the GPU thread. CobaltMainDelegate appends
+      // --disable-gpu-shader-disk-cache unless this switch is present.
+      "enable-gpu-shader-disk-cache",
   };
   return kCobaltToggleSwitches;
 }

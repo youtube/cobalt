@@ -171,6 +171,14 @@ class AppEventDelegate {
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
+  // True when a kSbEventTypeStart carrying "launch=preload" was treated as
+  // kSbEventTypePreload, until the application first reaches kStarted. Some
+  // launchers (e.g. Samsung Tizen) believe the app is already started in this
+  // case, so on user launch they only dispatch kSbEventTypeLink without a
+  // preceding kSbEventTypeReveal/Focus. While set, a link event brings the app
+  // to kStarted.
+  bool awaiting_first_reveal_from_rewritten_start_ GUARDED_BY(lock_) = false;
+
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.
   // Non-Starboard platforms (like Android) handle these events natively.
