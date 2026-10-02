@@ -1,0 +1,133 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Cobalt Chromedriver Smoke Test
+description: Builds Cobalt and Chromedriver and runs the Chromedriver smoke test.
+inputs:
+  config:
+    description: "The build config (e.g. qa, devel)."
+    required: false
+    default: "qa"
+  enable_sccache:
+    description: "Use sccache for build acceleration."
+    required: false
+    default: "false"
+  sccache_gcs_key:
+    description: "GCS SA key to read/write to bucket."
+    required: false
+    default: ""
+  download_chromedriver:
+    description: "Download official Chromedriver instead of building locally."
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clean out dir from previous runner
+      shell: bash
+      run: |
+        rm -rf cobalt/src/out
+
+    - name: Install sccache
+      if: inputs.enable_sccache == 'true'
+      uses: ./.github/actions/sccache
+      with:
+        sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
+
+    - name: Configure Siso Credential Helper
+      shell: bash
+      run: |
+        echo "SISO_CREDENTIAL_HELPER=gcloud" >> "${GITHUB_ENV}"
+
+    - name: Build Cobalt (linux-x64x11)
+      shell: bash
+      working-directory: cobalt/src
+      env:
+        CONFIG: ${{ inputs.config }}
+        ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
+      run: |
+        set -ex
+        gn_flags=()
+        if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
+          gn_flags+=(--use-sccache)
+        fi
+        cobalt/build/gn.py -p "linux-x64x11" -C "${CONFIG}" "${gn_flags[@]}"
+        gn args --list --short --overrides-only "out/linux-x64x11_${CONFIG}"
+        time autoninja -C "out/linux-x64x11_${CONFIG}" cobalt strip_cobalt_binary
+
+    - name: Build Chromedriver (linux-x64x11-no-starboard)
+      if: inputs.download_chromedriver != 'true'
+      shell: bash
+      working-directory: cobalt/src
+      env:
+        CONFIG: ${{ inputs.config }}
+        ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
+      run: |
+        set -ex
+        gn_flags=()
+        if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
+          gn_flags+=(--use-sccache)
+        fi
+        cobalt/build/gn.py -p "linux-x64x11-no-starboard" -C "${CONFIG}" "${gn_flags[@]}"
+        gn args --list --short --overrides-only "out/linux-x64x11-no-starboard_${CONFIG}"
+        time autoninja -C "out/linux-x64x11-no-starboard_${CONFIG}" chromedriver
+        cp -f "out/linux-x64x11-no-starboard_${CONFIG}/chromedriver" "out/linux-x64x11_${CONFIG}/chromedriver"
+
+    - name: Install Smoke Test Runtime Dependencies
+      shell: bash
+      run: |
+        set -ex
+        if ! command -v Xvfb >/dev/null 2>&1 || ! dpkg -s python3-venv libegl1-mesa libgles2-mesa >/dev/null 2>&1; then
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            dbus-x11 \
+            libatomic1 \
+            libegl1 \
+            libegl1-mesa \
+            libegl-mesa0 \
+            libgbm1 \
+            libgl1-mesa-dri \
+            libglapi-mesa \
+            libgles2-mesa \
+            python3-venv \
+            x11-xserver-utils \
+            xvfb
+        fi
+
+    - name: Run Chromedriver Smoke Test
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        DOWNLOAD_CHROMEDRIVER: ${{ inputs.download_chromedriver }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -ex
+        chmod +x "${ACTION_PATH}/run_smoke_test.sh"
+        extra_args=()
+        if [[ "${DOWNLOAD_CHROMEDRIVER}" == "true" ]]; then
+          extra_args+=(--download-chromedriver)
+        fi
+        "${ACTION_PATH}/run_smoke_test.sh" \
+          --cobalt-path "${GITHUB_WORKSPACE}/cobalt/src" \
+          --config "${CONFIG}" \
+          --output-dir "${GITHUB_WORKSPACE}/chromedriver_tests" \
+          "${extra_args[@]}"
+
+    - name: Archive Chromedriver Smoke Test Artifacts
+      if: always()
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      with:
+        name: chromedriver_smoketest_results_${{ github.run_attempt }}
+        path: chromedriver_tests/**
