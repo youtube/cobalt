@@ -9813,7 +9813,6 @@ crbug.com/475047610 [ Debug Linux ] external/wpt/webdriver/tests/bidi/input/perf
 crbug.com/475126745 [ Debug Linux ] external/wpt/mathml/presentation-markup/scripts/underover-stretchy-003.html [ Failure ]
 crbug.com/465849685 [ Debug Linux ] media/media-playback-while-not-visible-permission-policy-cant-play-if-hidden.html [ Failure Pass ]
 
-<<<<<<< HEAD
 crbug.com/407750386 http/tests/devtools/elements/edit/edit-after-model-changed.js [ Failure Pass ]
 crbug.com/407750386 http/tests/devtools/elements/styles-2/metrics-box-sizing.js [ Failure Pass ]
 crbug.com/407750386 http/tests/devtools/elements/styles-4/style-update-during-selector-edit.js [ Failure Pass ]
@@ -9827,7 +9826,7 @@ crbug.com/476257809 [ Linux ] external/wpt/fedcm/fedcm-storage-access-api-autogr
 # Gardener 2026-01-16
 crbug.com/476320947 [ Linux ] external/wpt/webdriver/tests/bidi/script/get_realms/context.py [ Failure Pass ]
 crbug.com/476320947 [ Linux ] external/wpt/webdriver/tests/bidi/script/get_realms/sandbox.py [ Failure Pass ]
-=======
+
 # Cobalt bug: b/461834934.
 wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
 
@@ -9840,4 +9839,3 @@ wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Time
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

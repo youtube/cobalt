@@ -60,23 +60,6 @@ std::string HostedProcessTypesToString(
   return str;
 }
 
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
-const char* GetProcessPriorityString(const base::Process& process) {
-  switch (process.GetPriority()) {
-    case base::Process::Priority::kBestEffort:
-      return "Best effort";
-    case base::Process::Priority::kUserVisible:
-      return "User visible";
-    case base::Process::Priority::kUserBlocking:
-      return "User blocking";
-  }
-  NOTREACHED();
-}
-#endif
-
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 base::Value GetProcessValueDict(const base::Process& process) {
   base::Value::Dict ret;
 
@@ -110,13 +93,8 @@ base::Value GetProcessValueDict(const base::Process& process) {
   if (process.IsValid()) {
     // These properties can only be accessed for valid processes.
     ret.Set("os_priority", process.GetOSPriority());
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_APPLE)
-    ret.Set("priority", base::ProcessPriorityToString(process.GetPriority()));
-=======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
-    ret.Set("priority", GetProcessPriorityString(process));
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    ret.Set("priority", base::ProcessPriorityToString(process.GetPriority()));
 #endif
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("creation_time",

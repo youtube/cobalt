@@ -281,24 +281,6 @@ void LoadV8SnapshotFile(const base::CommandLine& command_line) {
 
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
-<<<<<<< HEAD
-=======
-#if defined(ADDRESS_SANITIZER)
-NO_SANITIZE("address")
-void AsanProcessInfoCB(const char* reason,
-                       bool* should_exit_cleanly,
-                       bool* should_abort) {
-  auto* cmd_line = base::CommandLine::ForCurrentProcess();
-#if BUILDFLAG(IS_WIN)
-  std::string cmd_string = base::WideToUTF8(cmd_line->GetCommandLineString());
-#else
-  std::string cmd_string = cmd_line->GetCommandLineString();
-#endif
-  base::debug::AsanService::GetInstance()->Log("\nCommand line: `%s`\n",
-                                               cmd_string.c_str());
-}
-#endif  // defined(ADDRESS_SANITIZER)
-
 void LoadV8SnapshotIfNeeded(const base::CommandLine& command_line,
                             const std::string& process_type) {
 #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
@@ -306,8 +288,6 @@ void LoadV8SnapshotIfNeeded(const base::CommandLine& command_line,
     LoadV8SnapshotFile(command_line);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 }
-
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if BUILDFLAG(USE_ZYGOTE)
 pid_t LaunchZygoteHelper(base::CommandLine* cmd_line,
                          base::ScopedFD* control_fd) {

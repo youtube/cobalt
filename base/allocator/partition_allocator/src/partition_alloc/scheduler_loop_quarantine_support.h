@@ -91,31 +91,14 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 
  public:
   PA_ALWAYS_INLINE ScopedSchedulerLoopQuarantineDisallowScanlessPurge() {
-<<<<<<< HEAD
-    ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
-=======
-    active_ = ThreadCache::IsInitialized();
-    if (!active_) {
-      return;
-    }
-
-    ThreadCache* tcache = ThreadCache::EnsureAndGet();
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
     PA_CHECK(ThreadCache::IsValid(tcache));
 
     tcache->GetSchedulerLoopQuarantineBranch().DisallowScanlessPurge();
   }
 
   PA_ALWAYS_INLINE ~ScopedSchedulerLoopQuarantineDisallowScanlessPurge() {
-<<<<<<< HEAD
-    ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
-=======
-    if (!active_) {
-      return;
-    }
-
-    ThreadCache* tcache = ThreadCache::EnsureAndGet();
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
     PA_CHECK(ThreadCache::IsValid(tcache));
 
     tcache->GetSchedulerLoopQuarantineBranch().AllowScanlessPurge();

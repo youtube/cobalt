@@ -36,19 +36,18 @@ generate_jar_jni("system_jni") {
   visibility = [ ":*" ]
 }
 
-<<<<<<< HEAD
 generate_jar_jni("system_jni_unchecked_exceptions") {
   classes = [ "java/nio/ByteBuffer.class" ]
   visibility = [ ":*" ]
   unchecked_exceptions = true
-=======
+}
+
 buildflag_header("cobalt_for_google3_buildflags") {
   header = "cobalt_for_google3_buildflags.h"
   header_dir = "third_party/jni_zero"
   flags = [
     "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
   ]
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 # This is the public target that we intend others to use.
@@ -94,15 +93,9 @@ component("jni_zero") {
   }
 
   deps = [
-<<<<<<< HEAD
-    ":generate_jni($default_toolchain)",
+":generate_jni($default_toolchain)",
     ":system_jni($default_toolchain)",
     ":system_jni_unchecked_exceptions($default_toolchain)",
-=======
-    ":cobalt_for_google3_buildflags",
-    ":generate_jni($android_toolchain)",
-    ":system_jni($android_toolchain)",
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ]
   
   if (is_cobalt) {

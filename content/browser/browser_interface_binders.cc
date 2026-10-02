@@ -722,54 +722,7 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
 
 // Documents/frames
 void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
-<<<<<<< HEAD
-=======
-  map->Add<media::mojom::VideoDecodePerfHistory>(
-      base::BindRepeating(&RenderProcessHost::BindVideoDecodePerfHistory,
-                          base::Unretained(host->GetProcess())));
-
-  map->Add<network::mojom::RestrictedCookieManager>(
-      base::BindRepeating(&RenderFrameHostImpl::BindRestrictedCookieManager,
-                          base::Unretained(host)));
-
-  map->Add<network::mojom::TrustTokenQueryAnswerer>(
-      base::BindRepeating(&RenderFrameHostImpl::BindTrustTokenQueryAnswerer,
-                          base::Unretained(host)));
-
-  map->Add<shape_detection::mojom::BarcodeDetectionProvider>(
-      &BindBarcodeDetectionProvider);
-
-  map->Add<shape_detection::mojom::FaceDetectionProvider>(
-      &BindFaceDetectionProvider);
-
-  map->Add<shape_detection::mojom::TextDetection>(&BindTextDetection);
-
-  auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kEnableGpuBenchmarking)) {
-    map->Add<mojom::InputInjector>(
-        base::BindRepeating(&RenderFrameHostImpl::BindInputInjectorReceiver,
-                            base::Unretained(host)));
-  }
-
-#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 #if !BUILDFLAG(IS_COBALT)
-  map->Add<device::mojom::NFC>(base::BindRepeating(
-      &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
-#else
-#if !BUILDFLAG(IS_COBALT)
-  map->Add<blink::mojom::HidService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetHidService, base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
-
-  map->Add<blink::mojom::InstalledAppProvider>(
-      base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
-                          base::Unretained(host)));
-#endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
-        // !BUILDFLAG(IS_IOS_TVOS))
-
-#if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
 #endif

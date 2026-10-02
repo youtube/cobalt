@@ -11,15 +11,10 @@
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
 #include "third_party/jni_zero/logging.h"
-<<<<<<< HEAD
-
 #ifdef UNSAFE_BUFFERS_BUILD
 // TODO(crbug.com/393091624): Remove this and convert code to safer constructs.
 #pragma allow_unsafe_buffers
 #endif
-
-=======
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if defined(JNI_ZERO_MULTIPLEXING_ENABLED)
 extern const int64_t kJniZeroHashWhole;
 extern const int64_t kJniZeroHashPriority;
