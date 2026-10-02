@@ -13,8 +13,6 @@
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/14",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/15",
     "PosixSetPriorityTests.ErrorOnPermissionDenied",
-    "PosixTimezoneTests.HandlesUnsetTZEnvironmentVariable",
-    "PosixTimezoneTests.TimezoneIsNotSet",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/105",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/106",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/107",
