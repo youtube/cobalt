@@ -87,6 +87,16 @@ class WindowPerformanceTest : public testing::Test,
     performance_->observer_filter_options_ = PerformanceEntry::kInvalid;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  void AddCobaltFrameObserver() {
+    performance_->observer_filter_options_ |= PerformanceEntry::kCobaltFrame;
+  }
+
+  void RemoveCobaltFrameObserver() {
+    performance_->observer_filter_options_ &= ~PerformanceEntry::kCobaltFrame;
+  }
+#endif
+
   void SimulateJustPaintFinished() { performance_->OnPaintFinished(); }
   void SimulateJustCommitFinished(base::TimeTicks commit_time) {
     performance_->SetCommitFinishTimeStampForPendingEvents(commit_time);
@@ -2186,6 +2196,52 @@ TEST_P(WindowPerformanceTest, ContainerTimingTraceEvent) {
   ASSERT_TRUE(identifier);
   EXPECT_EQ(*identifier, "identifier");
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithoutObserver) {
+  viz::FrameTimingDetails details;
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  performance_->QueueCobaltFrameTiming(1, details, std::nullopt);
+  EXPECT_FALSE(performance_->HasCobaltFrameObserver());
+}
+
+TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithObserver) {
+  AddCobaltFrameObserver();
+  EXPECT_TRUE(performance_->HasCobaltFrameObserver());
+
+  // First frame with main snapshot.
+  viz::FrameTimingDetails details1;
+  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details1.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = GetTimeOrigin() + base::Milliseconds(0);
+  snapshot.metrics = std::make_unique<cc::BeginMainFrameMetrics>();
+  snapshot.metrics->animate = base::Milliseconds(2);
+  snapshot.metrics->style_update = base::Milliseconds(3);
+  snapshot.metrics->layout_update = base::Milliseconds(4);
+  snapshot.metrics->prepaint = base::Milliseconds(1);
+  snapshot.metrics->paint = base::Milliseconds(2);
+
+  performance_->QueueCobaltFrameTiming(100, details1, std::move(snapshot));
+
+  // Second frame: compositor-only (no main snapshot), tests framePrepDuration.
+  viz::FrameTimingDetails details2;
+  details2.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details2.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details2.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details2.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+
+  performance_->QueueCobaltFrameTiming(101, details2, std::nullopt);
+
+  RemoveCobaltFrameObserver();
+}
+#endif
 
 INSTANTIATE_TEST_SUITE_P(All, InteractionIdTest, ::testing::Bool());
 }  // namespace blink

@@ -466,6 +466,10 @@ void LayerTreeView::DidPresentCompositorFrame(
     presentation_callbacks_.erase(front);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  delegate_->DidPresentCobaltFrame(frame_token, frame_timing_details);
+#endif
+
 #if BUILDFLAG(IS_APPLE)
   while (!core_animation_error_code_callbacks_.empty()) {
     const auto& front = core_animation_error_code_callbacks_.begin();

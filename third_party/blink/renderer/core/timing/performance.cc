@@ -34,6 +34,8 @@
 #include <algorithm>
 #include <optional>
 
+#include "build/build_config.h"
+
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/metrics/histogram_functions.h"
@@ -575,6 +577,11 @@ PerformanceEntryVector Performance::getEntriesByTypeInternal(
                           WebFeature::kLongAnimationFrameRequested);
         entries = &long_animation_frame_buffer_;
       break;
+
+#if BUILDFLAG(IS_COBALT)
+    case PerformanceEntry::kCobaltFrame:
+      break;
+#endif
 
     case PerformanceEntry::kInvalid:
       break;

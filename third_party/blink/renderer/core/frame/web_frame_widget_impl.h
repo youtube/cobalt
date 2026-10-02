@@ -39,6 +39,9 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
+#endif
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/event_listener_properties.h"
 #include "cc/input/overscroll_behavior.h"
@@ -785,6 +788,14 @@ class CORE_EXPORT WebFrameWidgetImpl
   void BeginCommitCompositorFrame() override;
   void EndCommitCompositorFrame(base::TimeTicks commit_start_time,
                                 base::TimeTicks commit_finish_time) override;
+#if BUILDFLAG(IS_COBALT)
+  void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) override;
+  void OnCobaltPresentationCallback(
+      CobaltMainFrameSnapshot snapshot,
+      const viz::FrameTimingDetails& frame_timing_details);
+#endif
   void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) override;
   void RecordDispatchRafAlignedInputTime(
       base::TimeTicks raf_aligned_input_start_time) override;
@@ -1293,6 +1304,12 @@ class CORE_EXPORT WebFrameWidgetImpl
   std::optional<float> browser_controls_top_height_override_;
 
   bool throttling_frame_rate_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks cobalt_bmf_start_time_;
+  std::unique_ptr<cc::BeginMainFrameMetrics> pending_cobalt_bmf_metrics_;
+  std::optional<CobaltMainFrameSnapshot> pending_cobalt_main_snapshot_;
+#endif
 };
 
 }  // namespace blink

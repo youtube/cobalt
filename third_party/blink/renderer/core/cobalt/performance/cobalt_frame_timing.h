@@ -1,0 +1,94 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_COBALT_FRAME_TIMING_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_COBALT_FRAME_TIMING_H_
+
+#include <memory>
+#include <optional>
+
+#include "base/time/time.h"
+#include "cc/metrics/begin_main_frame_metrics.h"
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
+#include "third_party/blink/renderer/core/frame/dom_window.h"
+#include "third_party/blink/renderer/core/timing/performance_entry.h"
+
+namespace blink {
+
+struct CORE_EXPORT CobaltMainFrameSnapshot {
+  base::TimeTicks bmf_start;
+  std::unique_ptr<cc::BeginMainFrameMetrics> metrics;
+
+  CobaltMainFrameSnapshot();
+  CobaltMainFrameSnapshot(CobaltMainFrameSnapshot&&);
+  CobaltMainFrameSnapshot& operator=(CobaltMainFrameSnapshot&&);
+  ~CobaltMainFrameSnapshot();
+};
+
+class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
+  DEFINE_WRAPPERTYPEINFO();
+
+ public:
+  CobaltFrameTiming(double duration,
+                    DOMHighResTimeStamp start_time,
+                    uint32_t frame_token,
+                    DOMHighResTimeStamp presentation_time,
+                    std::optional<double> animate_duration,
+                    std::optional<double> style_duration,
+                    std::optional<double> layout_duration,
+                    std::optional<double> prepaint_duration,
+                    std::optional<double> paint_duration,
+                    double frame_prep_duration,
+                    double draw_duration,
+                    double swap_duration,
+                    DOMWindow* source);
+  ~CobaltFrameTiming() override;
+
+  const AtomicString& entryType() const override;
+  PerformanceEntryType EntryTypeEnum() const override;
+
+  uint32_t frameToken() const { return frame_token_; }
+  DOMHighResTimeStamp presentationTime() const { return presentation_time_; }
+
+  std::optional<double> animateDuration() const { return animate_duration_; }
+  std::optional<double> styleDuration() const { return style_duration_; }
+  std::optional<double> layoutDuration() const { return layout_duration_; }
+  std::optional<double> prepaintDuration() const { return prepaint_duration_; }
+  std::optional<double> paintDuration() const { return paint_duration_; }
+
+  double framePrepDuration() const { return frame_prep_duration_; }
+  double drawDuration() const { return draw_duration_; }
+  double swapDuration() const { return swap_duration_; }
+
+  void Trace(Visitor*) const override;
+
+ private:
+  void BuildJSONValue(V8ObjectBuilder&) const override;
+
+  uint32_t frame_token_;
+  DOMHighResTimeStamp presentation_time_;
+  std::optional<double> animate_duration_;
+  std::optional<double> style_duration_;
+  std::optional<double> layout_duration_;
+  std::optional<double> prepaint_duration_;
+  std::optional<double> paint_duration_;
+  double frame_prep_duration_;
+  double draw_duration_;
+  double swap_duration_;
+};
+
+}  // namespace blink
+
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_COBALT_FRAME_TIMING_H_
