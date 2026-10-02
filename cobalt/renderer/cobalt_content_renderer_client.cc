@@ -263,6 +263,17 @@ void CobaltContentRendererClient::
   // which Cobalt still supports.
   blink::WebRuntimeFeatures::EnableFeatureFromString(
       "ScriptedSpeechRecognition", /*enable=*/false);
+
+  // Hide SourceBuffer.changeType(). Cobalt 25 and earlier did not expose it.
+  // Ports that link the SbMediaCanChangeType() stub reject every type change,
+  // so each call throws NotSupportedError. Web apps that feature-detect
+  // changeType() would then switch codecs on a SourceBuffer that cannot handle
+  // it, instead of creating a new one (b/555427247). A port that implements
+  // SbMediaCanChangeType() can expose the method again with
+  // --enable-blink-features=MediaSourceChangeType, because command line
+  // switches are applied after this function.
+  // TODO(b/132743206): Expose changeType() based on platform support instead.
+  blink::WebRuntimeFeatures::EnableMediaSourceChangeType(/*enable=*/false);
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
