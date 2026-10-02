@@ -121,12 +121,4 @@ void H5vccSystemImpl::HideSplashScreen() {
   StarboardBridge::GetInstance()->HideSplashScreen(env);
 }
 
-void H5vccSystemImpl::GetWasLowMemoryKilled(
-    GetWasLowMemoryKilledCallback callback) {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  JNIEnv* env = base::android::AttachCurrentThread();
-  std::move(callback).Run(
-      StarboardBridge::GetInstance()->GetWasLowMemoryKilled(env));
-}
-
 }  // namespace h5vcc_system

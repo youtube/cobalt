@@ -45,6 +45,7 @@ class H5vccNativeStabilityImpl
   void AcknowledgeReports(
       const std::vector<std::string>& native_stability_event_uuids,
       AcknowledgeReportsCallback callback) override;
+  void GetWasLowMemoryKilled(GetWasLowMemoryKilledCallback callback) override;
 
  private:
   H5vccNativeStabilityImpl(

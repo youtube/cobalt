@@ -15,6 +15,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_NATIVE_STABILITY_H_5_VCC_NATIVE_STABILITY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_NATIVE_STABILITY_H_5_VCC_NATIVE_STABILITY_H_
 
+#include <optional>
+
 #include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -56,6 +58,8 @@ class MODULES_EXPORT H5vccNativeStability final
       const Vector<String>& native_stability_event_uuids,
       ExceptionState&);
 
+  ScriptPromise<IDLBoolean> wasLowMemoryKilled(ScriptState*, ExceptionState&);
+
   void Trace(Visitor*) const override;
 
  private:
@@ -64,10 +68,15 @@ class MODULES_EXPORT H5vccNativeStability final
 
   void OnGetPendingReports(
       ScriptPromiseResolver<IDLSequence<V8NativeStabilityReport>>* resolver,
-      Vector<h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>
+      std::optional<Vector<
+          h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>>
           mojo_reports);
 
-  void OnAcknowledgeReports(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnAcknowledgeReports(ScriptPromiseResolver<IDLUndefined>* resolver,
+                            bool supported);
+
+  void OnGetWasLowMemoryKilled(ScriptPromiseResolver<IDLBoolean>* resolver,
+                               bool result);
 
   HeapHashSet<Member<ScriptPromiseResolverBase>> ongoing_requests_;
 
