@@ -8,7 +8,6 @@
     "*VerticalVideoTest*",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
-    "PosixSetPriorityTests.ErrorOnPermissionDenied",
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
