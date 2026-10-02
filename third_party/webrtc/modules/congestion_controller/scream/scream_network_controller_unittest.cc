@@ -278,6 +278,7 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   DataRate send_rate = DataRate::KilobitsPerSec(50);
   DataRate target_rate = DataRate::Zero();
   bool padding_set = false;
+  Timestamp padding_stop = Timestamp::Zero();
   Timestamp start_time = clock.CurrentTime();
   while (clock.CurrentTime() < start_time + TimeDelta::Seconds(1)) {
     TransportPacketsFeedback feedback =
@@ -298,6 +299,8 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
         EXPECT_LT(
             update.pacer_config->pad_rate(),
             update.target_rate->target_rate + DataRate::KilobitsPerSec(1));
+      } else if (padding_set && padding_stop.IsZero()) {
+        padding_stop = clock.CurrentTime();
       }
     }
     if (update.target_rate) {
@@ -310,6 +313,78 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   // But not much more, since seen data in flight should limit the target rate
   // increase.
   EXPECT_LE(target_rate, 1.5 * (*streams_config.max_total_allocated_bitrate));
+  // Padding should stop when target is reached.
+  EXPECT_LT(padding_stop - start_time, TimeDelta::Seconds(1));
+}
+
+struct PaddingTestResult {
+  DataRate target_rate;
+  Timestamp padding_start;
+  Timestamp padding_stop;
+};
+
+PaddingTestResult ProcessUntilPaddingStartAndStop(
+    SimulatedClock& clock,
+    ScreamNetworkController& scream_controller,
+    CcFeedbackGenerator& feedback_generator,
+    bool increase_send_rate = true) {
+  DataRate target_rate = DataRate::Zero();
+  Timestamp padding_start = Timestamp::Zero();
+  Timestamp padding_stop = Timestamp::Zero();
+  Timestamp start_time = clock.CurrentTime();
+  DataRate send_rate = DataRate::KilobitsPerSec(50);
+
+  while (clock.CurrentTime() < start_time + TimeDelta::Seconds(10)) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    NetworkControlUpdate update =
+        scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.pacer_config.has_value()) {
+      if (update.pacer_config->pad_rate() != DataRate::Zero()) {
+        padding_start = clock.CurrentTime();
+        if (increase_send_rate) {
+          // Set the send rate equal to the padding rate.
+          send_rate = update.pacer_config->pad_rate();
+        }
+      } else if (!padding_start.IsZero() && padding_stop.IsZero()) {
+        padding_stop = clock.CurrentTime();
+      }
+    }
+    if (update.target_rate) {
+      target_rate = update.target_rate->target_rate;
+    }
+    if (!padding_stop.IsZero()) {
+      break;
+    }
+  }
+  EXPECT_FALSE(padding_start.IsZero());
+  EXPECT_FALSE(padding_stop.IsZero());
+  return {.target_rate = target_rate,
+          .padding_start = padding_start,
+          .padding_stop = padding_stop};
+}
+
+TEST(ScreamControllerTest, PaddingStopIfNetworkCongested) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  ScreamNetworkController scream_controller(config);
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 10,
+                          .link_capacity = DataRate::KilobitsPerSec(500)},
+       .send_as_ect1 = true});
+  StreamsConfig streams_config;
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
+  scream_controller.OnStreamsConfig(streams_config);
+
+  PaddingTestResult result = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator);
+
+  EXPECT_LE(result.target_rate, DataRate::KilobitsPerSec(600));
+  // Padding should stop when congestion is detected.
+  EXPECT_LT(result.padding_stop - result.padding_start, TimeDelta::Seconds(1));
 }
 
 TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
@@ -324,47 +399,51 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   ScreamNetworkController scream_controller(config);
 
   StreamsConfig streams_config;
-  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(5000);
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
   scream_controller.OnStreamsConfig(streams_config);
 
-  Timestamp padding_start_1 = Timestamp::Zero();
-  Timestamp padding_start_2 = Timestamp::Zero();
-  Timestamp padding_stop = Timestamp::Zero();
-  Timestamp start_time = clock.CurrentTime();
+  PaddingTestResult result_1 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator,
+      /*increase_send_rate=*/false);
+  PaddingTestResult result_2 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator);
 
-  DataRate send_rate = DataRate::KilobitsPerSec(50);
-  DataRate padding_rate = DataRate::Zero();
-  while (clock.CurrentTime() < start_time + TimeDelta::Seconds(20)) {
-    // Use a send rate much lower than the target rate just to ramp up very slow
-    // to be able to test that padding stops and resumes.
-    TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(
-            send_rate + padding_rate / 4, clock,
-            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
-    NetworkControlUpdate update =
-        scream_controller.OnTransportPacketsFeedback(feedback);
-    if (update.pacer_config.has_value()) {
-      padding_rate = update.pacer_config->pad_rate();
-      if (update.pacer_config->pad_rate() != DataRate::Zero()) {
-        if (padding_start_1.IsZero()) {
-          padding_start_1 = clock.CurrentTime();
-        }
-        if (!padding_stop.IsZero() && padding_start_2.IsZero()) {
-          padding_start_2 = clock.CurrentTime();
-        }
-      } else {
-        if (padding_stop.IsZero()) {
-          padding_stop = clock.CurrentTime();
-        }
-      }
-    }
-  }
-  TimeDelta padding_duration = padding_stop - padding_start_1;
-  TimeDelta time_betwee_padding = padding_start_2 - padding_stop;
-  EXPECT_GT(padding_duration, TimeDelta::Millis(900));
-  EXPECT_LT(padding_duration, TimeDelta::Millis(1100));
-  EXPECT_GT(time_betwee_padding, TimeDelta::Millis(8900));
-  EXPECT_LT(time_betwee_padding, TimeDelta::Millis(11000));
+  TimeDelta padding_duration = result_1.padding_stop - result_1.padding_start;
+  TimeDelta time_between_padding =
+      result_2.padding_start - result_1.padding_stop;
+  EXPECT_GT(padding_duration, TimeDelta::Millis(2900));
+  EXPECT_LT(padding_duration, TimeDelta::Millis(3100));
+  EXPECT_GT(time_between_padding, TimeDelta::Millis(2900));
+  EXPECT_LT(time_between_padding, TimeDelta::Millis(3200));
+}
+
+TEST(ScreamControllerTest, PadsToMinOf2xCurrentMaxAndEverSeenMax) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  ScreamNetworkController scream_controller(config);
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 50,
+                          .link_capacity = DataRate::KilobitsPerSec(5000)},
+       .send_as_ect1 = true});
+  StreamsConfig streams_config;
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
+  scream_controller.OnStreamsConfig(streams_config);
+  // Even if max_total_allocated_bitrate is lowered, padding is still allowed up
+  // to 2x the new max and previous max.
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(300);
+  scream_controller.OnStreamsConfig(streams_config);
+
+  PaddingTestResult result_1 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator);
+  EXPECT_LT(result_1.target_rate, DataRate::KilobitsPerSec(700));
+
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(800);
+  scream_controller.OnStreamsConfig(streams_config);
+
+  PaddingTestResult result_2 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator);
+  EXPECT_LT(result_2.target_rate, DataRate::KilobitsPerSec(1100));
 }
 
 }  // namespace

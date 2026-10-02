@@ -35,12 +35,12 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ArrayToMap(
 //
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject>
-ListGet(JNIEnv* env, const JavaRef<jobject>& list, jint idx);
+ListGet(JNIEnv* env, const JavaRef<jobject>& list, int32_t idx);
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ListSet(
     JNIEnv* env,
     const JavaRef<jobject>& list,
-    jint idx,
+    int32_t idx,
     const JavaRef<jobject>& value);
 // Use ToJniType on the value.
 #if BUILDFLAG(IS_COBALT)
@@ -58,7 +58,7 @@ template <typename V>
 #endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject> ListSet(JNIEnv* env,
                                            const JavaRef<jobject>& list,
-                                           jint idx,
+                                           int32_t idx,
                                            const V& value) {
   return ListSet(env, list, idx, ToJniType(env, value));
 }
@@ -103,7 +103,7 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionContains(
     const JavaRef<jobject>& collection,
     const JavaRef<jobject>& value);
 
-JNI_ZERO_COMPONENT_BUILD_EXPORT jint
+JNI_ZERO_COMPONENT_BUILD_EXPORT int32_t
 CollectionSize(JNIEnv* env, const JavaRef<jobject>& collection);
 
 //
@@ -150,8 +150,8 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> MapRemove(
     const JavaRef<jobject>& map,
     const JavaRef<jobject>& key);
 
-JNI_ZERO_COMPONENT_BUILD_EXPORT jint MapSize(JNIEnv* env,
-                                             const JavaRef<jobject>& map);
+JNI_ZERO_COMPONENT_BUILD_EXPORT int32_t MapSize(JNIEnv* env,
+                                                const JavaRef<jobject>& map);
 //
 // Boxed types
 //
@@ -182,6 +182,14 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ToJavaLong(
 //
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT bool ProcessIsIsolated(JNIEnv* env);
+
+//
+// java.nio.ByteBuffer
+//
+
+// This returns nullptr in the case of an exception.
+JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject>
+ByteBufferAllocateDirect(JNIEnv* env, int size);
 
 }  // namespace jni_zero
 

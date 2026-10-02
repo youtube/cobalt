@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_scoped_keyword_value.h"
 #include "third_party/blink/renderer/core/css/css_value.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_local_context.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/layout/geometry/axis.h"
@@ -65,6 +66,7 @@ class CSSParserTokenStream;
 class TryTacticTransform;
 class WritingDirectionMode;
 class CSSMathExpressionNode;
+class CSSParserLocalContext;
 
 // The order of this enum should not change since its elements are used as
 // indices in the addSubtractResult matrix.
@@ -194,6 +196,7 @@ class CORE_EXPORT CSSMathExpressionNode
       CSSValueID function_id,
       CSSParserTokenStream& stream,
       const CSSParserContext&,
+      CSSParserLocalContext& local_context,
       const Flags parsing_flags,
       CSSAnchorQueryTypes allowed_anchor_queries,
       // Variable substitutions for relative color syntax.
@@ -201,18 +204,6 @@ class CORE_EXPORT CSSMathExpressionNode
       const CSSColorChannelMap& color_channel_map = {});
 
   virtual CSSMathExpressionNode* Copy() const = 0;
-
-  // Checks if a CSS random() function is present in the value. If so, creates a
-  // deep copy and binds the random value's identifier to the specified property
-  // name and index. This ensures the random() function's internal identifier is
-  // uniquely associated with the provided property name and value index for
-  // caching purposes.
-  virtual const CSSMathExpressionNode*
-  CopyRandomWithPropertyNameAndValueIndexIfNeeded(
-      const CSSPropertyName& property_name,
-      wtf_size_t& property_value_index) const {
-    return this;
-  }
 
   virtual bool IsNumericLiteral() const { return false; }
   virtual bool IsOperation() const { return false; }
@@ -316,9 +307,6 @@ class CORE_EXPORT CSSMathExpressionNode
   bool HasComparisons() const { return has_comparisons_; }
   bool HasAnchorFunctions() const { return has_anchor_functions_; }
   bool IsScopedValue() const { return !needs_tree_scope_population_; }
-  bool NeedsPropertyNameAndValueIndexForRandom() const {
-    return needs_property_name_and_value_index_for_random_;
-  }
 
   const CSSMathExpressionNode& EnsureScopedValue(
       const TreeScope* tree_scope) const {
@@ -376,7 +364,6 @@ class CORE_EXPORT CSSMathExpressionNode
   bool has_comparisons_;
   bool has_anchor_functions_;
   bool needs_tree_scope_population_;
-  bool needs_property_name_and_value_index_for_random_ = false;
 };
 
 class CORE_EXPORT CSSMathExpressionNumericLiteral final
@@ -729,10 +716,6 @@ class CORE_EXPORT CSSMathExpressionOperation final
     return MakeGarbageCollected<CSSMathExpressionOperation>(
         category_, std::move(operands), operator_, type_);
   }
-
-  const CSSMathExpressionNode* CopyRandomWithPropertyNameAndValueIndexIfNeeded(
-      const CSSPropertyName& property_name,
-      wtf_size_t& property_value_index) const final;
 
   const Operands& GetOperands() const { return operands_; }
   CSSMathOperator OperatorType() const { return operator_; }
@@ -1171,34 +1154,14 @@ struct DowncastTraits<CSSMathExpressionSiblingFunction> {
 class RandomValueSharing : public GarbageCollected<RandomValueSharing> {
  public:
   static const RandomValueSharing* Parse(CSSParserTokenStream& stream,
-                                         const CSSParserContext&);
-  static const RandomValueSharing* Auto() {
-    DEFINE_THREAD_SAFE_STATIC_LOCAL(
-        ThreadSpecific<Persistent<RandomValueSharing>>, thread_specific_random,
-        ());
-
-    Persistent<RandomValueSharing>& random_value_sharing =
-        *thread_specific_random;
-    if (!random_value_sharing) {
-      random_value_sharing = MakeGarbageCollected<RandomValueSharing>();
-      LEAK_SANITIZER_IGNORE_OBJECT(&random_value_sharing);
-    }
-    return random_value_sharing;
-  }
+                                         const CSSParserContext&,
+                                         CSSParserLocalContext&);
+  static const RandomValueSharing* Auto(const CSSParserLocalContext&);
   static const RandomValueSharing* Fixed(double fixed_value);
-  // Returns the current object if a name is already set or if it's fixed
-  // value. Otherwise, returns a copy with the name bound to the specified
-  // property name and index.
-  const RandomValueSharing* CopyWithPropertyValueIndexNameIfNeeded(
-      const CSSPropertyName& property_name,
-      wtf_size_t& property_value_index) const;
 
-  RandomValueSharing() = default;
-
+  RandomValueSharing() = delete;
   using ElementShared = base::StrongAlias<class ElementSharedTag, bool>;
-  explicit RandomValueSharing(ElementShared element_shared)
-      : value_(NameAndElementShared(element_shared)) {}
-  RandomValueSharing(AtomicString name, ElementShared element_shared)
+  RandomValueSharing(const AtomicString& name, ElementShared element_shared)
       : value_(NameAndElementShared(name, element_shared)) {}
   explicit RandomValueSharing(const CSSPrimitiveValue* fixed_value)
       : value_(fixed_value) {}
@@ -1206,7 +1169,7 @@ class RandomValueSharing : public GarbageCollected<RandomValueSharing> {
   bool IsFixed() const;
   const CSSPrimitiveValue* GetFixed() const;
   bool IsAuto() const;
-  AtomicString Name() const;
+  const AtomicString& Name() const;
   bool IsElementShared() const;
 
   bool operator==(const RandomValueSharing& other) const;
@@ -1217,23 +1180,20 @@ class RandomValueSharing : public GarbageCollected<RandomValueSharing> {
   // Used for non fixed <random-value-sharing> values, i.e.:
   // [ [ auto | <dashed-ident> ] || element-shared ]
   // "name" can refer to either the property name and property value index, or
-  // the random identifier. NameAndElementShared are created without a "name"
-  // when random identifier is not provided. But they will be replaced later
-  // populated with the property name and property value index "name".
+  // the random identifier.
   struct NameAndElementShared {
-    NameAndElementShared() = default;
-    explicit NameAndElementShared(ElementShared element_shared)
-        : element_shared(element_shared) {}
-    NameAndElementShared(AtomicString random_name, ElementShared element_shared)
-        : name(random_name), element_shared(element_shared) {}
+    NameAndElementShared() = delete;
+    explicit NameAndElementShared(
+        const AtomicString& random_name,
+        ElementShared element_shared = ElementShared(false))
+        : name(random_name), is_element_shared(element_shared) {}
     bool operator==(const NameAndElementShared& other) const {
-      return name == other.name && element_shared == other.element_shared;
+      return name == other.name && is_element_shared == other.is_element_shared;
     }
-    AtomicString name;
-    ElementShared element_shared = ElementShared(false);
+    const AtomicString name;
+    ElementShared is_element_shared;
   };
-  std::variant<NameAndElementShared, Member<const CSSPrimitiveValue>> value_ =
-      NameAndElementShared();
+  std::variant<NameAndElementShared, Member<const CSSPrimitiveValue>> value_;
 };
 
 // <random()> = random( <random-value-sharing>? , <calc-sum>, <calc-sum>,
@@ -1254,9 +1214,6 @@ class CORE_EXPORT CSSMathExpressionRandomFunction final
       HeapVector<Member<const CSSMathExpressionNode>>&& nodes);
 
   CSSMathExpressionNode* Copy() const override;
-  const CSSMathExpressionNode* CopyRandomWithPropertyNameAndValueIndexIfNeeded(
-      const CSSPropertyName& property_name,
-      wtf_size_t& property_value_index) const final;
   bool IsRandomFunction() const final { return true; }
   double DoubleValue() const final { NOTREACHED(); }
   const CSSMathExpressionNode* ConvertLiteralsFromPercentageToNumber()

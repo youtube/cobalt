@@ -25,6 +25,7 @@
 #include "p2p/base/packet_transport_internal.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/callback_list.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -87,8 +88,15 @@ class DtlsTransportInternal : public PacketTransportInternal {
   virtual std::unique_ptr<SSLCertChain> GetRemoteSSLCertChain() const = 0;
 
   // Allows key material to be extracted for external encryption.
-  virtual bool ExportSrtpKeyingMaterial(
+  virtual bool AppendSrtpKeyingMaterial(
       ZeroOnFreeBuffer<uint8_t>& keying_material) = 0;
+
+  // Older API. If not overridden in subclasses, will fail.
+  [[deprecated]] virtual bool ExportSrtpKeyingMaterial(
+      ZeroOnFreeBuffer<uint8_t>& keying_material) {
+    RTC_DCHECK_NOTREACHED() << "Superseded by AppendSrtpKeyingMaterial";
+    return false;
+  }
 
   // Set DTLS remote fingerprint and role. Must be after local identity set.
   virtual RTCError SetRemoteParameters(absl::string_view digest_alg,

@@ -145,7 +145,7 @@ std::unique_ptr<PermissionDialogDelegate> PermissionDialogDelegate::Create(
   CHECK(web_contents);
   // If we don't have a window, just act as though the prompt was dismissed.
   if (!web_contents->GetTopLevelNativeWindow()) {
-    permission_prompt->Dismiss();
+    permission_prompt->Dismiss(/*prompt_options=*/std::monostate());
     return nullptr;
   }
   std::unique_ptr<PermissionDialogJavaDelegate> java_delegate(
@@ -166,22 +166,22 @@ PermissionDialogDelegate::CreateForTesting(
 
 void PermissionDialogDelegate::Accept(JNIEnv* env) {
   CHECK(permission_prompt_);
-  permission_prompt_->Accept();
+  permission_prompt_->Accept(prompt_options_);
 }
 
 void PermissionDialogDelegate::AcceptThisTime(JNIEnv* env) {
   CHECK(permission_prompt_);
-  permission_prompt_->AcceptThisTime();
+  permission_prompt_->AcceptThisTime(prompt_options_);
 }
 
 void PermissionDialogDelegate::Acknowledge(JNIEnv* env) {
   CHECK(permission_prompt_);
-  permission_prompt_->Acknowledge();
+  permission_prompt_->Acknowledge(prompt_options_);
 }
 
 void PermissionDialogDelegate::Deny(JNIEnv* env) {
   CHECK(permission_prompt_);
-  permission_prompt_->Deny();
+  permission_prompt_->Deny(prompt_options_);
 }
 
 void PermissionDialogDelegate::Resumed(JNIEnv* env) {
@@ -228,7 +228,7 @@ void PermissionDialogDelegate::Dismissed(JNIEnv* env, int dismissalType) {
     // signal as a way to tell if the `PermissionPrompt` creation failed.
     DestroyJavaDelegate();
   }
-  permission_prompt_->Dismiss();
+  permission_prompt_->Dismiss(prompt_options_);
 }
 
 void PermissionDialogDelegate::Destroy(JNIEnv* env) {
@@ -288,18 +288,17 @@ void PermissionDialogDelegate::WebContentsDestroyed() {
 }
 
 void PermissionDialogDelegate::OnGeolocationAccuracySelected(JNIEnv* env,
-                                                             jint accuracy) {
-  CHECK(permission_prompt_);
-
-  permission_prompt_->SetPromptOptions(GeolocationPromptOptions{
-      .selected_accuracy = static_cast<GeolocationAccuracy>(accuracy)});
+                                                             int32_t accuracy) {
+  prompt_options_ = GeolocationPromptOptions{
+      .selected_accuracy = static_cast<GeolocationAccuracy>(accuracy)};
 }
 
-static jint JNI_PermissionDialogDelegate_GetRequestTypeEnumSize(JNIEnv* env) {
+static int32_t JNI_PermissionDialogDelegate_GetRequestTypeEnumSize(
+    JNIEnv* env) {
   return static_cast<int>(RequestType::kMaxValue) + 1;
 }
 
-jint PermissionDialogDelegate::GetInitialGeolocationAccuracySelection(
+int32_t PermissionDialogDelegate::GetInitialGeolocationAccuracySelection(
     JNIEnv* env) const {
   CHECK(permission_prompt_);
   CHECK_EQ(permission_prompt_->PermissionCount(), 1u);

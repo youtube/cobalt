@@ -10,48 +10,91 @@ export enum LineFocusType {
   WINDOW = 2,
 }
 
-export class LineFocus {
-  static readonly OFF = new LineFocus(
-      LineFocusType.NONE, 0, () => chrome.readingMode.lineFocusOff);
-  static readonly ONE_LINE_WINDOW = new LineFocus(
-      LineFocusType.WINDOW, 1, () => chrome.readingMode.lineFocusOneLineWindow);
-  static readonly THREE_LINE_WINDOW = new LineFocus(
-      LineFocusType.WINDOW, 3,
-      () => chrome.readingMode.lineFocusThreeLineWindow);
-  static readonly FIVE_LINE_WINDOW = new LineFocus(
-      LineFocusType.WINDOW, 5,
-      () => chrome.readingMode.lineFocusFiveLineWindow);
-  static readonly STATIC_LINE = new LineFocus(
-      LineFocusType.LINE, 1, () => chrome.readingMode.lineFocusStaticLine);
-  static readonly CURSOR_LINE = new LineFocus(
-      LineFocusType.LINE, 1, () => chrome.readingMode.lineFocusCursorLine);
+export enum LineFocusMovement {
+  STATIC = 0,
+  CURSOR = 1,
+}
 
-  private static readonly VALUES = [
-    LineFocus.OFF,
-    LineFocus.ONE_LINE_WINDOW,
-    LineFocus.THREE_LINE_WINDOW,
-    LineFocus.FIVE_LINE_WINDOW,
-    LineFocus.STATIC_LINE,
-    LineFocus.CURSOR_LINE,
-  ] as const;
+export class LineFocusStyle {
+  static readonly OFF = new LineFocusStyle(LineFocusType.NONE, 0);
+  static readonly SMALL_WINDOW = new LineFocusStyle(LineFocusType.WINDOW, 1);
+  static readonly MEDIUM_WINDOW = new LineFocusStyle(LineFocusType.WINDOW, 3);
+  static readonly LARGE_WINDOW = new LineFocusStyle(LineFocusType.WINDOW, 5);
+  static readonly UNDERLINE = new LineFocusStyle(LineFocusType.LINE, 1);
 
-  // Private constructor prevents others from creating new options.
-  // enumValue is a function because that value can change in tests after the
-  // LineFocus values are already initialized.
   private constructor(
-      public readonly type: LineFocusType, public readonly lines: number,
-      public readonly enumValue: () => number) {}
-
-  static fromEnumValue(enumValue: number): LineFocus|undefined {
-    return this.VALUES.find(value => value.enumValue() === enumValue);
-  }
+      public readonly type: LineFocusType, public readonly lines: number) {}
 
   // TODO(crbug.com/447427066): Finalize the default mode. This is a
   // placeholder.
-  static defaultValue(): LineFocus {
-    return this.THREE_LINE_WINDOW;
+  static defaultValue(): LineFocusStyle {
+    return this.MEDIUM_WINDOW;
+  }
+
+  equals(other: LineFocusStyle): boolean {
+    return this.type === other.type && this.lines === other.lines;
   }
 }
+
+interface LineFocusValue {
+  value: number;
+  style: LineFocusStyle;
+  movement: LineFocusMovement;
+}
+
+let lineFocusValues: Record<number, LineFocusValue>;
+export const getLineFocusValues = (): Record<number, LineFocusValue> => {
+  if (!lineFocusValues || !lineFocusValues[chrome.readingMode.lineFocusOff]) {
+    lineFocusValues = {
+      [chrome.readingMode.lineFocusOff]: {
+        value: chrome.readingMode.lineFocusOff,
+        style: LineFocusStyle.OFF,
+        movement: LineFocusMovement.STATIC,
+      },
+      [chrome.readingMode.lineFocusSmallCursorWindow]: {
+        value: chrome.readingMode.lineFocusSmallCursorWindow,
+        style: LineFocusStyle.SMALL_WINDOW,
+        movement: LineFocusMovement.CURSOR,
+      },
+      [chrome.readingMode.lineFocusSmallStaticWindow]: {
+        value: chrome.readingMode.lineFocusSmallStaticWindow,
+        style: LineFocusStyle.SMALL_WINDOW,
+        movement: LineFocusMovement.STATIC,
+      },
+      [chrome.readingMode.lineFocusMediumCursorWindow]: {
+        value: chrome.readingMode.lineFocusMediumCursorWindow,
+        style: LineFocusStyle.MEDIUM_WINDOW,
+        movement: LineFocusMovement.CURSOR,
+      },
+      [chrome.readingMode.lineFocusMediumStaticWindow]: {
+        value: chrome.readingMode.lineFocusMediumStaticWindow,
+        style: LineFocusStyle.MEDIUM_WINDOW,
+        movement: LineFocusMovement.STATIC,
+      },
+      [chrome.readingMode.lineFocusLargeCursorWindow]: {
+        value: chrome.readingMode.lineFocusLargeCursorWindow,
+        style: LineFocusStyle.LARGE_WINDOW,
+        movement: LineFocusMovement.CURSOR,
+      },
+      [chrome.readingMode.lineFocusLargeStaticWindow]: {
+        value: chrome.readingMode.lineFocusLargeStaticWindow,
+        style: LineFocusStyle.LARGE_WINDOW,
+        movement: LineFocusMovement.STATIC,
+      },
+      [chrome.readingMode.lineFocusCursorLine]: {
+        value: chrome.readingMode.lineFocusCursorLine,
+        style: LineFocusStyle.UNDERLINE,
+        movement: LineFocusMovement.CURSOR,
+      },
+      [chrome.readingMode.lineFocusStaticLine]: {
+        value: chrome.readingMode.lineFocusStaticLine,
+        style: LineFocusStyle.UNDERLINE,
+        movement: LineFocusMovement.STATIC,
+      },
+    };
+  }
+  return lineFocusValues;
+};
 
 // Events emitted from the toolbar to the app
 export enum ToolbarEvent {
@@ -74,10 +117,12 @@ export enum ToolbarEvent {
   LANGUAGE_MENU_CLOSE = 'language-menu-close',
   VOICE_MENU_OPEN = 'voice-menu-open',
   VOICE_MENU_CLOSE = 'voice-menu-close',
-  LINE_FOCUS = 'line-focus-change',
+  LINE_FOCUS_STYLE = 'line-focus-style-change',
+  LINE_FOCUS_MOVEMENT = 'line-focus-movement-change',
   CLOSE_ALL_MENUS = 'close-all-menus',
   OPEN_SETTINGS_SUBMENU = 'open-settings-submenu',
   PRESENTATION_CHANGE = 'presentation-change',
+  CLOSE_SUBMENU_REQUESTED = 'close-submenu-requested',
 }
 
 // The available menu items in Reading mode

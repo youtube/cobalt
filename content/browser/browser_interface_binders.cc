@@ -722,6 +722,8 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
 
 // Documents/frames
 void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
+<<<<<<< HEAD
+=======
   map->Add<media::mojom::VideoDecodePerfHistory>(
       base::BindRepeating(&RenderProcessHost::BindVideoDecodePerfHistory,
                           base::Unretained(host->GetProcess())));
@@ -767,6 +769,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         // !BUILDFLAG(IS_IOS_TVOS))
 
 #if !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
 #endif
@@ -1147,6 +1150,58 @@ void PopulateBinderMapWithContext(
         host->GetProcess()->CreatePeriodicSyncService(
             host->GetStorageKey().origin(), std::move(receiver));
       }));
+
+  map->Add<media::mojom::VideoDecodePerfHistory>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<media::mojom::VideoDecodePerfHistory> receiver) {
+        host->GetProcess()->BindVideoDecodePerfHistory(std::move(receiver));
+      }));
+
+  map->Add<network::mojom::RestrictedCookieManager>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::BindRestrictedCookieManager>);
+
+  map->Add<network::mojom::TrustTokenQueryAnswerer>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::BindTrustTokenQueryAnswerer>);
+
+  map->Add<shape_detection::mojom::BarcodeDetectionProvider>(
+      base::BindRepeating(
+          [](RenderFrameHost* host,
+             mojo::PendingReceiver<
+                 shape_detection::mojom::BarcodeDetectionProvider> receiver) {
+            BindBarcodeDetectionProvider(std::move(receiver));
+          }));
+
+  map->Add<shape_detection::mojom::FaceDetectionProvider>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<shape_detection::mojom::FaceDetectionProvider>
+             receiver) { BindFaceDetectionProvider(std::move(receiver)); }));
+
+  map->Add<shape_detection::mojom::TextDetection>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<shape_detection::mojom::TextDetection>
+             receiver) { BindTextDetection(std::move(receiver)); }));
+
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kEnableGpuBenchmarking)) {
+    map->Add<mojom::InputInjector>(
+        &BindRenderFrameHostImpl<
+            &RenderFrameHostImpl::BindInputInjectorReceiver>);
+  }
+
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
+  map->Add<device::mojom::NFC>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindNFCReceiver>);
+#else
+  map->Add<blink::mojom::HidService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
+
+  map->Add<blink::mojom::InstalledAppProvider>(
+      &BindRenderFrameHostImpl<
+          &RenderFrameHostImpl::CreateInstalledAppProvider>);
+#endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
+        // !BUILDFLAG(IS_IOS_TVOS))
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);

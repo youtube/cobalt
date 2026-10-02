@@ -68,8 +68,8 @@ namespace webrtc {
 class VideoFrame;
 struct VideoFormat;
 
-webrtc::RTCError InvokeSetParametersCallback(SetParametersCallback& callback,
-                                             RTCError error);
+RTCError InvokeSetParametersCallback(SetParametersCallback& callback,
+                                     RTCError error);
 
 class VideoMediaSendChannelInterface;
 class VideoMediaReceiveChannelInterface;
@@ -239,9 +239,11 @@ class MediaSendChannelInterface {
   //
   // Note for implementations: It's important that the callback is not invoked
   // if the parameters haven't actually changed.
-  virtual void SetOnRtpSendParametersChanged(
+  virtual void SubscribeRtpSendParametersChanged(
+      const void* tag,
       absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
           callback) = 0;
+  virtual void UnsubscribeRtpSendParametersChanged(const void* tag) = 0;
 
   virtual void SetEncoderToPacketizerFrameTransformer(
       uint32_t ssrc,
@@ -614,7 +616,7 @@ struct VideoSenderInfo : public MediaSenderInfo {
   std::optional<uint64_t> qp_sum;
   VideoContentType content_type = VideoContentType::UNSPECIFIED;
   // https://w3c.github.io/webrtc-stats/#dom-rtcoutboundrtpstreamstats-psnrsum
-  webrtc::EncodedImage::Psnr psnr_sum;
+  EncodedImage::Psnr psnr_sum;
   uint32_t psnr_measurements = 0;
   uint32_t frames_sent = 0;
   // https://w3c.github.io/webrtc-stats/#dom-rtcvideosenderstats-hugeframessent

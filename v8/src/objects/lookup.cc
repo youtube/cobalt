@@ -612,7 +612,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
 // private field, otherwise JSProxy has to be handled via a trap.
 // Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
-    DirectHandle<JSReceiver> receiver, DirectHandle<Object> value,
+    DirectHandle<JSTransitionableReceiver> receiver, DirectHandle<Object> value,
     PropertyAttributes attributes, StoreOrigin store_origin) {
   DCHECK_IMPLIES(IsJSProxy(*receiver, isolate_), name()->IsAnyPrivate());
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
@@ -675,7 +675,8 @@ void LookupIterator::PrepareTransitionToDataProperty(
 }
 
 Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
-    DirectHandle<JSReceiver> receiver, Maybe<ShouldThrow> should_throw) {
+    DirectHandle<JSTransitionableReceiver> receiver,
+    Maybe<ShouldThrow> should_throw) {
   DCHECK_EQ(TRANSITION, state_);
 
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
@@ -721,6 +722,8 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (!IsJSProxy(*receiver, isolate_)) {
+    static_assert(std::is_same_v<JSTransitionableReceiver::Without<JSProxy>,
+                                 Union<JSObject>>);
     JSObject::MigrateToMap(isolate_, Cast<JSObject>(receiver), transition);
   }
 
@@ -735,16 +738,17 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
     }
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       DirectHandle<SwissNameDictionary> dictionary(
-          receiver->property_dictionary_swiss(isolate_), isolate_);
+          Cast<JSReceiver>(receiver)->property_dictionary_swiss(isolate_),
+          isolate_);
 
       dictionary =
           SwissNameDictionary::Add(isolate(), dictionary, name(),
                                    isolate_->factory()->uninitialized_value(),
                                    property_details_, &number_);
-      receiver->SetProperties(*dictionary);
+      Cast<JSReceiver>(receiver)->SetProperties(*dictionary);
     } else {
       DirectHandle<NameDictionary> dictionary(
-          receiver->property_dictionary(isolate_), isolate_);
+          Cast<JSReceiver>(receiver)->property_dictionary(isolate_), isolate_);
 
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, dictionary,
@@ -752,7 +756,7 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
                               isolate_->factory()->uninitialized_value(),
                               property_details_, &number_),
           Nothing<bool>());
-      receiver->SetProperties(*dictionary);
+      Cast<JSReceiver>(receiver)->SetProperties(*dictionary);
       // TODO(pthier): Add flags to swiss dictionaries.
       if (name()->IsInteresting(isolate())) {
         dictionary->set_may_have_interesting_properties(true);
@@ -926,7 +930,7 @@ Tagged<JSObject> LookupIterator::GetHolderForApi() const {
 bool LookupIterator::HolderIsReceiver() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
-         state_ == TYPED_ARRAY_INDEX_NOT_FOUND);
+         state_ == TYPED_ARRAY_INDEX_NOT_FOUND || state_ == MODULE_NAMESPACE);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   return *receiver_ == *holder_;
@@ -934,7 +938,8 @@ bool LookupIterator::HolderIsReceiver() const {
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
-  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
+         state_ == MODULE_NAMESPACE);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   if (*receiver_ == *holder_) return true;
@@ -1325,6 +1330,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (IsJSProxyMap(map)) {
         if (is_element || !name_->IsAnyPrivate()) return JSPROXY;
       }
+      if (IsJSModuleNamespaceMap(map)) {
+        if (is_element || !name_->IsAnyPrivate()) return MODULE_NAMESPACE;
+      }
 #if V8_ENABLE_WEBASSEMBLY
       if (IsWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1358,6 +1366,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
             return ACCESSOR;
         }
       }
+      [[fallthrough]];
+    case MODULE_NAMESPACE:
       return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:

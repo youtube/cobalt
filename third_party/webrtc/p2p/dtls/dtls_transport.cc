@@ -488,6 +488,11 @@ bool DtlsTransportInternalImpl::ExportSrtpKeyingMaterial(
   return dtls_ ? dtls_->ExportSrtpKeyingMaterial(keying_material) : false;
 }
 
+bool DtlsTransportInternalImpl::AppendSrtpKeyingMaterial(
+    ZeroOnFreeBuffer<uint8_t>& keying_material) {
+  return dtls_ ? dtls_->AppendSrtpKeyingMaterial(keying_material) : false;
+}
+
 bool DtlsTransportInternalImpl::SetupDtls() {
   RTC_DCHECK(dtls_role_);
 

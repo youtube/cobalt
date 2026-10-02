@@ -21,6 +21,9 @@
 #include "../internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
+
 int X509_CRL_set_version(X509_CRL *x, long version) {
   if (x == nullptr) {
     return 0;

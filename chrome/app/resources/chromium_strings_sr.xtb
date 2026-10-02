@@ -356,6 +356,7 @@
 <translation id="4814736265800133385">Користите Chromium без налога</translation>
 <translation id="4888717733111232871">Правило за долазни саобраћај за Chromium да би се омогућио mDNS саобраћај.</translation>
 <translation id="4893347770495441059">Поново покрени да би се &amp;Chromium ажурирао</translation>
+<translation id="4918086044614829423">Прихвати</translation>
 <translation id="4918844574251943176">Слика је копирана</translation>
 <translation id="4943838377383847465">Chromium је у позадинском режиму.</translation>
 <translation id="494490797786467921">Кликните да бисте затворили дијалог за пријављивање у Chromium</translation>
@@ -533,6 +534,9 @@
 <translation id="6901631050894301805">Подесите Chromium као подразумевани прегледач и закачите га на траку задатака</translation>
 <translation id="6909503629704372277">&amp;Управљајте Chromium профилима</translation>
 <translation id="6934579572334859869">Поставите питање претрази слика о овој слици</translation>
+<translation id="6948031725951063910">Достигли сте ограничење Chromium-а за обележиваче (<ph name="BOOKMARK_LIMIT" />), па неки обележивачи још увек нису сачувани на Google налогу.
+
+Не можете да сачувате нове обележиваче на налогу док не избришете неке. Ако се одјавите одмах, избрисаћете несачуване обележиваче.</translation>
 <translation id="6964305034639999644">Отвори линк у Chromium прозору без архи&amp;вирања</translation>
 <translation id="6965382102122355670">Потврди</translation>
 <translation id="6978145336957848883">Слабе лозинке лако могу да се погоде. Дозволите да Chromium <ph name="BEGIN_LINK" />прави и памти јаке лозинке за вас<ph name="END_LINK" />.</translation>
@@ -634,6 +638,7 @@ Chromium не може да врати подешавања.</translation>
 <translation id="8118331347066725040">Пошаљите повратне информације за претрагу помоћу Објектива</translation>
 <translation id="8133124826068723441">Chromium ОС не може да синхронизује податке јер Синхронизација није доступна за домен.</translation>
 <translation id="813913629614996137">Покреће се…</translation>
+<translation id="8164014945047474187">Додатни услови коришћења услуге за Chromium</translation>
 <translation id="81770708095080097">Ова датотека је опасна, па ју је Chromium блокирао.</translation>
 <translation id="8177472873527554730">Не можемо да пронађемо садржај на страници</translation>
 <translation id="8200109504272824693">Унесите приступну фразу да бисте користили и сачували Chromium податке на налогу, <ph name="USER_EMAIL" /></translation>
@@ -701,6 +706,7 @@ Chromium не може да врати подешавања.</translation>
 <translation id="8880203542552872219">Ако је тако, измените сачувану лозинку у Chromium-у тако да се подудара са новом лозинком.</translation>
 <translation id="8891709362986793894">Организација захтева да се пријавите у Chromium</translation>
 <translation id="8907580949721785412">Chromium покушава да прикаже лозинке. Унесите лозинку за Windows да бисте то омогућили.</translation>
+<translation id="8932992523185907506">Chromium више није подразумевани прегледач. Желите да подесите Chromium као подразумевани прегледач?</translation>
 <translation id="8941642502866065432">Не можете да ажурирате Chromium</translation>
 <translation id="897581876605952338">Логотип Chromium-а за предузећа</translation>
 <translation id="8981150672034878610">Не можете да покренете Chromium јер је дошло до грешке при отварању профила. Пробајте да рестартујете Chromium.</translation>

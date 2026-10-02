@@ -207,18 +207,19 @@ ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
   static_assert(IsFixedInputNode<NodeT>());
 
   std::array<ValueNode*, NodeT::kInputCount> inputs;
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     int i = 0;
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     for (ValueNode* raw_input : raw_inputs) {
       if (convert_inputs) {
         GET_VALUE_OR_ABORT(
-            inputs[i], ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]));
+            inputs[i],
+            ConvertInputTo<hint>(raw_input, NodeT::kInputRepresentations[i]));
       } else {
         CHECK(ValueRepresentationIs(
             raw_input->properties().value_representation(),
-            NodeT::kInputTypes[i]));
+            NodeT::kInputRepresentations[i]));
         inputs[i] = raw_input;
       }
       i++;
@@ -311,15 +312,16 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
 template <typename BaseT>
 template <typename NodeT, typename InputsT>
 ReduceResult MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
       ValueNode* converted;
-      GET_VALUE_OR_ABORT(converted,
-                         ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      GET_VALUE_OR_ABORT(
+          converted,
+          ConvertInputTo<hint>(input, NodeT::kInputRepresentations[i]));
       node->set_input(i, converted);
       i++;
     }
@@ -331,13 +333,13 @@ template <typename BaseT>
 template <typename NodeT, typename InputsT>
 void MaglevReducer<BaseT>::SetNodeInputsNoConversion(NodeT* node,
                                                      InputsT inputs) {
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
       CHECK(ValueRepresentationIs(input->properties().value_representation(),
-                                  NodeT::kInputTypes[i]));
+                                  NodeT::kInputRepresentations[i]));
       node->set_input(i, input);
       i++;
     }
@@ -1544,6 +1546,47 @@ ReduceResult MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
                                                          conversion_type);
     }
   }
+}
+
+template <typename BaseT>
+compiler::OptionalStringRef MaglevReducer<BaseT>::GetStringFromInt32(
+    int32_t value) {
+  switch (value) {
+    case 0:
+      return broker()->zero_string();
+    case 1:
+      return broker()->one_string();
+    case 2:
+      return broker()->two_string();
+    case 3:
+      return broker()->three_string();
+    case 4:
+      return broker()->four_string();
+    case 5:
+      return broker()->five_string();
+    case 6:
+      return broker()->six_string();
+    case 7:
+      return broker()->seven_string();
+    case 8:
+      return broker()->eight_string();
+    case 9:
+      return broker()->nine_string();
+    // TODO(victorgomes): Should we embed the string instead?
+    default:
+      return {};
+  }
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldNumberToString(
+    ValueNode* value) {
+  if (auto cst_value = TryGetInt32Constant(value)) {
+    if (auto cst_string = GetStringFromInt32(*cst_value)) {
+      return GetConstant(*cst_string);
+    }
+  }
+  return {};
 }
 
 template <typename BaseT>

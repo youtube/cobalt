@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 
+#include "base/notimplemented.h"
 #include "chrome/browser/page_load_metrics/page_load_metrics_initialize.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_command_controller.h"
@@ -15,12 +16,18 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/zoom/zoom_controller.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -29,13 +36,41 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 
+namespace {
+
+class ZoomBlockingWebView : public views::WebView {
+  METADATA_HEADER(ZoomBlockingWebView, views::WebView)
+
+ public:
+  explicit ZoomBlockingWebView(content::BrowserContext* browser_context)
+      : views::WebView(browser_context) {}
+  ~ZoomBlockingWebView() override = default;
+
+  // Content::WebContentsDelegate:
+  bool PreHandleGestureEvent(content::WebContents* source,
+                             const blink::WebGestureEvent& event) override {
+    // Block pinch-to-zoom and double-tap-to-zoom.
+    // TODO(crbug.com/475836809) Disable this for all webviews.
+    if (blink::WebInputEvent::IsPinchGestureEventType(event.GetType()) ||
+        (event.GetType() == blink::WebInputEvent::Type::kGestureDoubleTap)) {
+      return true;
+    }
+    return views::WebView::PreHandleGestureEvent(source, event);
+  }
+};
+
+BEGIN_METADATA(ZoomBlockingWebView)
+END_METADATA
+
+}  // namespace
+
 WebUIToolbarWebView::WebUIToolbarWebView(
     BrowserWindowInterface* browser,
     chrome::BrowserCommandController* controller)
     : browser_(browser), controller_(controller), reload_control_(this) {
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
-  auto web_view = std::make_unique<views::WebView>(browser->GetProfile());
+  auto web_view = std::make_unique<ZoomBlockingWebView>(browser->GetProfile());
   const GURL kUrl(chrome::kChromeUIWebUIToolbarURL);
   auto* web_contents = web_view->GetWebContents(kUrl);
   // PLM has to be initialized before loading the URL.
@@ -49,7 +84,6 @@ WebUIToolbarWebView::WebUIToolbarWebView(
   // We must save the pointer to the WebView so we can load the URL after the
   // view is added to a widget.
   web_view_ = AddChildView(std::move(web_view));
-  web_contents->SetDelegate(this);
   Observe(web_contents);
 
   // The accessibility and tooltip attributes are handled by the WebUI.
@@ -60,40 +94,73 @@ WebUIToolbarWebView::~WebUIToolbarWebView() = default;
 
 void WebUIToolbarWebView::AddedToWidget() {
   CHECK(web_view_);
-  if (webui_toolbar_ui_) {
+  if (reload_control_.is_initialized()) {
     return;
   }
+
   // Ensure the browser window interface is associated with the WebContents
   // before the WebUI acts on it.
   webui::SetBrowserWindowInterface(web_view_->GetWebContents(), browser_);
   web_view_->LoadInitialURL(GURL(chrome::kChromeUIWebUIToolbarURL));
-  webui_toolbar_ui_ = web_view_->GetWebContents()
-                          ->GetWebUI()
-                          ->GetController()
-                          ->GetAs<WebUIToolbarUI>();
+  GetWebUIToolbarUI()->SetDelegate(this);
   reload_control_.Init();
 }
 
-bool WebUIToolbarWebView::HandleContextMenu(
-    content::RenderFrameHost& render_frame_host,
-    const content::ContextMenuParams& params) {
+void WebUIToolbarWebView::HandleContextMenu(
+    webui_toolbar::mojom::ContextMenuType menu_type,
+    gfx::Point viewport_coordinate_css_pixels,
+    ui::mojom::MenuSourceType source) {
+  CHECK(web_view_);
+  // The coordinates are in CSS pixels relative the viewport origin. We need
+  // to multiply by the page scaling factor to convert them to DIPs before we
+  // can use them as the offset from the viewport origin to show the menu.
+  double page_zoom_scale = blink::ZoomLevelToZoomFactor(
+      zoom::ZoomController::GetZoomLevelForWebContents(
+          web_view_->web_contents()));
   gfx::Point screen_location = GetBoundsInScreen().origin();
-  screen_location.Offset(params.x, params.y);
+  screen_location +=
+      ScaleToRoundedPoint(viewport_coordinate_css_pixels, page_zoom_scale)
+          .OffsetFromOrigin();
 
-  // TODO(crbug.com/470955454): Dispatch context menu based on which context
-  // menu was triggered.
-  return reload_control_.HandleContextMenu(GetWidget(), screen_location,
-                                           params);
+  switch (menu_type) {
+    case webui_toolbar::mojom::ContextMenuType::kReload:
+      reload_control_.HandleContextMenu(GetWidget(), screen_location, source);
+      break;
+  }
 }
 
-void WebUIToolbarWebView::DidFinishLoad(
-    content::RenderFrameHost* render_frame_host,
-    const GURL& validated_url) {
+void WebUIToolbarWebView::OnPageInitialized() {
   InitialWebUIManager::From(browser_)->OnWebUIToolbarLoaded();
 }
 
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
   return &reload_control_;
+}
+
+void WebUIToolbarWebView::DidFirstVisuallyNonEmptyPaint() {
+  has_finished_first_non_empty_paint_ = true;
+  if (did_first_non_empty_paint_callback_) {
+    std::move(did_first_non_empty_paint_callback_).Run();
+  }
+}
+
+void WebUIToolbarWebView::SetDidFirstNonEmptyPaintCallbackForTesting(
+    base::OnceClosure callback) {
+  if (callback.is_null()) {
+    return;
+  }
+  if (has_finished_first_non_empty_paint_) {
+    std::move(callback).Run();
+    return;
+  }
+  did_first_non_empty_paint_callback_ = std::move(callback);
+}
+
+WebUIToolbarUI* WebUIToolbarWebView::GetWebUIToolbarUI() {
+  return web_view_->GetWebContents()
+      ->GetWebUI()
+      ->GetController()
+      ->GetAs<WebUIToolbarUI>();
 }
 
 BEGIN_METADATA(WebUIToolbarWebView)

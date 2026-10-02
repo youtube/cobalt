@@ -24,9 +24,14 @@ use alloc::{fmt::Debug, vec::Vec};
 use core::ptr::{null, null_mut};
 
 /// An elliptic curve.
-pub trait Curve: Debug {
-    #[doc(hidden)]
-    fn group(_: sealed::Sealed) -> Group;
+///
+/// ## Safety
+/// The current EC implementation are thread-safe.
+/// Implementers should make sure that further additions to the curve family
+/// should respect thread-safety, too.
+pub trait Curve: Debug + Sync + Send + sealed::Sealed {
+    /// Return the underlying [`Group`] of the curve
+    fn group() -> Group;
 
     /// Hash `data` using a hash function suitable for the curve. (I.e.
     /// SHA-256 for P-256 and SHA-384 for P-384.)
@@ -38,8 +43,10 @@ pub trait Curve: Debug {
 #[derive(Debug)]
 pub struct P256;
 
+impl sealed::Sealed for P256 {}
+
 impl Curve for P256 {
-    fn group(_: sealed::Sealed) -> Group {
+    fn group() -> Group {
         Group::P256
     }
 
@@ -52,8 +59,10 @@ impl Curve for P256 {
 #[derive(Debug)]
 pub struct P384;
 
+impl sealed::Sealed for P384 {}
+
 impl Curve for P384 {
-    fn group(_: sealed::Sealed) -> Group {
+    fn group() -> Group {
         Group::P384
     }
 
@@ -283,7 +292,7 @@ impl Point {
 //
 // An `EC_POINT` can be used concurrently from multiple threads so long as no
 // mutating operations are performed. The mutating operations used here are
-// `EC_POINT_mul` and `EC_POINT_oct2point` (which can be observed by setting
+// `EC_POINT_mul` and `EC_POINT_oct2point`, which can be observed by setting
 // `point` to be `*const` in the struct and seeing what errors trigger.
 //
 // Both those operations are done internally, however, before a `Point` is
@@ -508,6 +517,15 @@ impl Drop for Key {
         // Safety: `self.0` must be valid because only valid `Key`s can
         // be constructed.
         unsafe { bssl_sys::EC_KEY_free(self.0) }
+    }
+}
+
+impl Clone for Key {
+    fn clone(&self) -> Self {
+        unsafe {
+            bssl_sys::EC_KEY_up_ref(self.0);
+        }
+        Self(self.0)
     }
 }
 

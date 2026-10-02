@@ -99,9 +99,13 @@ static int i2d_x509_name_entry(const X509_NAME_ENTRY *entry, uint8_t **out) {
   });
 }
 
+BSSL_NAMESPACE_BEGIN
+
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_NAME_ENTRY, X509_NAME_ENTRY_new,
                              X509_NAME_ENTRY_free, CBS_ASN1_SEQUENCE,
                              x509_parse_name_entry, i2d_x509_name_entry)
+
+BSSL_NAMESPACE_END
 
 X509_NAME_ENTRY *X509_NAME_ENTRY_dup(const X509_NAME_ENTRY *entry) {
   ScopedCBB cbb;
@@ -126,11 +130,11 @@ static void x509_name_cache_free(X509_NAME_CACHE *cache) {
   }
 }
 
-void x509_name_init(X509_NAME *name) {
+void bssl::x509_name_init(X509_NAME *name) {
   OPENSSL_memset(name, 0, sizeof(X509_NAME));
 }
 
-void x509_name_cleanup(X509_NAME *name) {
+void bssl::x509_name_cleanup(X509_NAME *name) {
   sk_X509_NAME_ENTRY_pop_free(name->entries, X509_NAME_ENTRY_free);
   x509_name_cache_free(name->cache.exchange(nullptr));
 }
@@ -146,7 +150,7 @@ void X509_NAME_free(X509_NAME *name) {
   }
 }
 
-int x509_parse_name(CBS *cbs, X509_NAME *out) {
+int bssl::x509_parse_name(CBS *cbs, X509_NAME *out) {
   // Reset the old state.
   x509_name_cleanup(out);
   x509_name_init(out);
@@ -215,7 +219,7 @@ static int x509_marshal_name_entries(CBB *out, const X509_NAME *name,
   return CBB_flush_asn1_set_of(&rdn) && CBB_flush(out);
 }
 
-const X509_NAME_CACHE *x509_name_get_cache(const X509_NAME *name) {
+const X509_NAME_CACHE *bssl::x509_name_get_cache(const X509_NAME *name) {
   const X509_NAME_CACHE *cache = name->cache.load();
   if (cache != nullptr) {
     return cache;
@@ -254,11 +258,11 @@ const X509_NAME_CACHE *x509_name_get_cache(const X509_NAME *name) {
   return expected;
 }
 
-void x509_name_invalidate_cache(X509_NAME *name) {
+void bssl::x509_name_invalidate_cache(X509_NAME *name) {
   x509_name_cache_free(name->cache.exchange(nullptr));
 }
 
-int x509_marshal_name(CBB *out, const X509_NAME *in) {
+int bssl::x509_marshal_name(CBB *out, const X509_NAME *in) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(in);
   if (cache == nullptr) {
     return 0;
@@ -266,7 +270,7 @@ int x509_marshal_name(CBB *out, const X509_NAME *in) {
   return CBB_add_bytes(out, cache->der, cache->der_len);
 }
 
-int x509_name_copy(X509_NAME *dst, const X509_NAME *src) {
+int bssl::x509_name_copy(X509_NAME *dst, const X509_NAME *src) {
   const X509_NAME_CACHE *cache = x509_name_get_cache(src);
   if (cache == nullptr) {
     return 0;

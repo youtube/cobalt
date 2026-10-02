@@ -318,6 +318,8 @@ chromium-metrics-reviews@google.com.
       summary="Gemini contextual cue chip on the omnibox"/>
   <variant name="IPH_iOSGeminiFullscreenPromoFeature"
       summary="showing the fullscreen Gemini promo on iOS"/>
+  <variant name="IPH_iOSGeminiImageRemix"
+      summary="showing the Gemini Image Remix IPH on iOS"/>
   <variant name="IPH_iOSHistoryOnOverflowMenuFeature"
       summary="history item on the overflow menu on iOS"/>
   <variant name="IPH_iOSHomepageCustomizationNewBadge"
@@ -349,6 +351,9 @@ chromium-metrics-reviews@google.com.
       summary="showing the iOS password promo on desktop"/>
   <variant name="IPH_iOSPaymentPromoDesktop"
       summary="showing the iOS payment promo on desktop"/>
+  <variant name="IPH_iOSPinMostVisitedSiteFeature"
+      summary="showing the in-product help for customizing sites on the most
+               visited tiles on iOS"/>
   <variant name="IPH_iOSPostDefaultAbandonmentPromo"
       summary="showing the iOS post-default browser abandonment promo on iOS"/>
   <variant name="IPH_iOSPromoAllTabs"
@@ -892,7 +897,7 @@ In the future, Desktop IPH may be completely moved to the user_education folder.
 </histogram>
 
 <histogram name="UserEducation.MessageShown.TimeInQueue.{IPHFeature}"
-    units="ms" expires_after="2026-05-10">
+    units="ms" expires_after="2026-07-12">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>

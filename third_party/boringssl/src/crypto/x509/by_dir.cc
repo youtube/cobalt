@@ -23,6 +23,11 @@
 #include "../internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
+
+BSSL_NAMESPACE_BEGIN
+
 typedef struct lookup_dir_hashes_st {
   uint32_t hash;
   int suffix;
@@ -39,8 +44,10 @@ typedef struct lookup_dir_st {
   STACK_OF(BY_DIR_ENTRY) *dirs;
 } BY_DIR;
 
-DEFINE_STACK_OF(BY_DIR_HASH)
-DEFINE_STACK_OF(BY_DIR_ENTRY)
+DEFINE_NAMESPACED_STACK_OF(BY_DIR_HASH)
+DEFINE_NAMESPACED_STACK_OF(BY_DIR_ENTRY)
+
+BSSL_NAMESPACE_END
 
 static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
                     char **ret);
@@ -189,8 +196,8 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type) {
 
 static int get_cert_by_subject(X509_LOOKUP *xl, int type, const X509_NAME *name,
                                X509_OBJECT *ret) {
-  bssl::UniquePtr<X509> lookup_cert;
-  bssl::UniquePtr<X509_CRL> lookup_crl;
+  UniquePtr<X509> lookup_cert;
+  UniquePtr<X509_CRL> lookup_crl;
   int ok = 0;
   size_t i;
   int k;

@@ -101,7 +101,7 @@ bool RetryAsync(SSL *ssl, int ret) {
         }
         timeval *clock = PacketedBioGetClock(test_state->packeted_bio);
         clock->tv_sec += config->private_key_delay_ms / 1000;
-        clock->tv_usec += config->private_key_delay_ms * 1000;
+        clock->tv_usec += (config->private_key_delay_ms % 1000) * 1000;
         if (clock->tv_usec >= 1000000) {
           clock->tv_usec -= 1000000;
           clock->tv_sec++;

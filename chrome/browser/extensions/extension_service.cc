@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -15,7 +16,6 @@
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/debug/alias.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
@@ -49,7 +49,6 @@
 #include "chrome/browser/extensions/external_install_manager.h"
 #include "chrome/browser/extensions/external_provider_impl.h"
 #include "chrome/browser/extensions/external_provider_manager.h"
-#include "chrome/browser/extensions/forced_extensions/install_stage_tracker.h"
 #include "chrome/browser/extensions/install_verifier_factory.h"
 #include "chrome/browser/extensions/installed_loader.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
@@ -89,6 +88,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/external_install_info.h"
+#include "extensions/browser/forced_extensions/install_stage_tracker.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/management_policy.h"
@@ -512,7 +512,7 @@ void ExtensionService::DisableUserExtensionsExcept(
       continue;
     }
     const std::string& id = extension->id();
-    if (!base::Contains(except_ids, id)) {
+    if (!std::ranges::contains(except_ids, id)) {
       extension_registrar_->DisableExtension(
           id, {disable_reason::DISABLE_USER_ACTION});
     }

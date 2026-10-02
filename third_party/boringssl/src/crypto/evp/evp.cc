@@ -73,26 +73,13 @@ int EVP_PKEY_is_opaque(const EVP_PKEY *pkey) {
 }
 
 int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
-  if (EVP_PKEY_id(a) != EVP_PKEY_id(b)) {
-    return -1;
+  // This also checks that |EVP_PKEY_id| matches.
+  if (!EVP_PKEY_cmp_parameters(a, b)) {
+    return 0;
   }
 
-  if (a->ameth) {
-    int ret;
-    // Compare parameters if the algorithm has them
-    if (a->ameth->param_cmp) {
-      ret = a->ameth->param_cmp(a, b);
-      if (ret <= 0) {
-        return ret;
-      }
-    }
-
-    if (a->ameth->pub_cmp) {
-      return a->ameth->pub_cmp(a, b);
-    }
-  }
-
-  return -2;
+  return a->ameth != nullptr && a->ameth->pub_equal != nullptr &&
+         a->ameth->pub_equal(a, b);
 }
 
 int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
@@ -319,10 +306,10 @@ int EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, uint8_t *out,
 
 int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
   if (EVP_PKEY_id(a) != EVP_PKEY_id(b)) {
-    return -1;
+    return 0;
   }
-  if (a->ameth && a->ameth->param_cmp) {
-    return a->ameth->param_cmp(a, b);
+  if (a->ameth && a->ameth->param_equal) {
+    return a->ameth->param_equal(a, b);
   }
   // If the algorithm does not use parameters, the two null value compare as
   // vacuously equal.

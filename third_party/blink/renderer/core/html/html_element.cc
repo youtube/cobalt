@@ -2752,9 +2752,7 @@ CommandEventType HTMLElement::GetCommandEventType(
   if (EqualIgnoringASCIICase(action, keywords::kShowModal)) {
     return CommandEventType::kShowModal;
   }
-
-  if (RuntimeEnabledFeatures::HTMLCommandRequestCloseEnabled() &&
-      EqualIgnoringASCIICase(action, keywords::kRequestClose)) {
+  if (EqualIgnoringASCIICase(action, keywords::kRequestClose)) {
     return CommandEventType::kRequestClose;
   }
 
@@ -2769,6 +2767,12 @@ CommandEventType HTMLElement::GetCommandEventType(
     if (EqualIgnoringASCIICase(action, keywords::kHideMenu)) {
       return CommandEventType::kHideMenu;
     }
+  }
+
+  // Overscroll gestures.
+  if (RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
+      EqualIgnoringASCIICase(action, keywords::kToggleOverscroll)) {
+    return CommandEventType::kToggleOverscroll;
   }
 
   // V2 commands go below this point
@@ -2850,11 +2854,6 @@ CommandEventType HTMLElement::GetCommandEventType(
     if (EqualIgnoringASCIICase(action, keywords::kPageInlineEnd)) {
       return CommandEventType::kPageInlineEnd;
     }
-  }
-
-  if (RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
-      EqualIgnoringASCIICase(action, keywords::kToggleOverscroll)) {
-    return CommandEventType::kToggleOverscroll;
   }
 
   return CommandEventType::kNone;

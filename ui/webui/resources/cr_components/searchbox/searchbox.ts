@@ -11,7 +11,7 @@ import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/recent_tab_chip.js';
 import '//resources/cr_components/search/animated_glow.js';
 
-import type {ComposeboxFile, ContextualUpload, FileUpload, TabUpload} from '//resources/cr_components/composebox/common.js';
+import type {ComposeboxFile, ContextualUpload, FileUpload, TabUpload, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
 import {GlifAnimationState} from '//resources/cr_components/composebox/context_menu_entrypoint.js';
 import type {ContextualEntrypointAndCarouselElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {ComposeboxMode} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
@@ -30,6 +30,7 @@ import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -402,6 +403,7 @@ export class SearchboxElement extends SearchboxElementBase implements
       },
       tabSuggestions_: {type: Array},
       recentTabForChip_: {type: Object},
+      inputState_: {type: Object},
       isDraggingFile: {
         reflect: true,
         type: Boolean,
@@ -467,6 +469,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   protected accessor recentTabForChip_: TabInfo|null = null;
   protected showVoiceSearchInExpandedRealbox: boolean =
       loadTimeData.getBoolean('expandedSearchboxShowVoiceSearch') ?? false;
+  protected accessor inputState_: InputState|null = null;
 
   protected get shouldShowVoiceSearch_(): boolean {
     return this.dropdownIsVisible && this.showVoiceSearchInExpandedRealbox;
@@ -481,6 +484,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   private inputTextChangedListenerId_: number|null = null;
   private thumbnailChangedListenerId_: number|null = null;
   private onTabStripChangedListenerId_: number|null = null;
+  private onInputStateChangedListenerId_: number|null = null;
   private placeholderCycler_: PlaceholderTextCycler|null = null;
 
   constructor() {
@@ -505,6 +509,9 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.onTabStripChangedListenerId_ =
         this.callbackRouter_.onTabStripChanged.addListener(
             this.refreshTabSuggestions_.bind(this));
+    this.onInputStateChangedListenerId_ =
+        this.callbackRouter_.onInputStateChanged.addListener(
+            this.onInputStateChanged_.bind(this));
 
     if (this.cyclingPlaceholders) {
       const {config} = await this.pageHandler_.getPlaceholderConfig();
@@ -537,6 +544,8 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.callbackRouter_.removeListener(this.thumbnailChangedListenerId_);
     assert(this.onTabStripChangedListenerId_);
     this.callbackRouter_.removeListener(this.onTabStripChangedListenerId_);
+    assert(this.onInputStateChangedListenerId_);
+    this.callbackRouter_.removeListener(this.onInputStateChangedListenerId_);
 
     this.placeholderCycler_?.stop();
   }
@@ -696,6 +705,10 @@ export class SearchboxElement extends SearchboxElementBase implements
   private onSetThumbnail_(thumbnailUrl: string, isDeletable: boolean) {
     this.thumbnailUrl_ = thumbnailUrl;
     this.isThumbnailDeletable_ = isDeletable;
+  }
+
+  private onInputStateChanged_(inputState: InputState) {
+    this.inputState_ = inputState;
   }
 
   //============================================================================
@@ -1147,12 +1160,14 @@ export class SearchboxElement extends SearchboxElementBase implements
     url: Url,
     delayUpload: boolean,
     onContextAdded: (file: ComposeboxFile) => void,
+    origin: TabUploadOrigin,
   }>) {
     const attachment: TabUpload = {
       tabId: e.detail.id,
       url: e.detail.url,
       title: e.detail.title,
       delayUpload: e.detail.delayUpload,
+      origin: e.detail.origin,
     };
     this.openComposebox_([attachment]);
   }
@@ -1182,6 +1197,10 @@ export class SearchboxElement extends SearchboxElementBase implements
 
     this.focusInput();
     this.onInputMouseDown_(null);
+  }
+
+  protected onContextMenuClosed_() {
+    this.focusInput();
   }
 
   protected onComposeButtonClick_(e: CustomEvent<ClickEventDetail>) {

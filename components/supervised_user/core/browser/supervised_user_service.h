@@ -21,7 +21,6 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
 #include "components/supervised_user/core/browser/remote_web_approvals_manager.h"
-#include "components/supervised_user/core/browser/supervised_user_content_filters_service.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -78,8 +77,7 @@ class Custodian {
 // * `profile.managed_user_id` for url filtering, remove approvals and custodian
 //    data,
 // * `incognito.mode_availability` for incognito mode.
-class SupervisedUserService : public KeyedService,
-                              public DeviceParentalControls::Observer {
+class SupervisedUserService : public KeyedService {
  public:
   // Delegate encapsulating platform-specific logic that is invoked from this
   // service.
@@ -148,7 +146,6 @@ class SupervisedUserService : public KeyedService,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       PrefService& user_prefs,
       SupervisedUserSettingsService& settings_service,
-      SupervisedUserContentFiltersService* content_filters_service,
       syncer::SyncService* sync_service,
       std::unique_ptr<SupervisedUserURLFilter> url_filter,
       std::unique_ptr<SupervisedUserService::PlatformDelegate>
@@ -181,8 +178,6 @@ class SupervisedUserService : public KeyedService,
 
   // Adds url filtering change handlers, originating from Family Link.
   void AddURLFilterPrefChangeHandlers();
-  // Adds sentinel handlers that prevent unintended changes to url filtering.
-  void AddURLFilterPrefChangeSentinels();
   // Removes all url filtering change handlers. Intentionally idempotent.
   void RemoveURLFilterPrefChangeHandlers();
   // Add or remove all pref handlers related to custodians. The removal method
@@ -194,20 +189,9 @@ class SupervisedUserService : public KeyedService,
   // any parental controls are enabled and incognito mode is not available.
   void OnIncognitoModeAvailabilityChanged();
 
-  // DeviceParentalControls::Observer:
-  void OnAndroidParentalControlsBrowserContentFiltersChanged() override;
-  void OnAndroidParentalControlsSearchContentFiltersChanged() override;
-
-  void OnSearchContentFiltersEnabled();
-  void OnSearchContentFiltersDisabled();
-  void OnBrowserContentFiltersEnabled();
-  void OnBrowserContentFiltersDisabled();
-
   const raw_ref<PrefService> user_prefs_;
 
   const raw_ref<SupervisedUserSettingsService> settings_service_;
-
-  const raw_ptr<SupervisedUserContentFiltersService> content_filters_service_;
 
   const raw_ptr<syncer::SyncService> sync_service_;
 
@@ -239,10 +223,6 @@ class SupervisedUserService : public KeyedService,
   RemoteWebApprovalsManager remote_web_approvals_manager_;
 
   base::ObserverList<SupervisedUserServiceObserver>::Unchecked observer_list_;
-
-  base::ScopedObservation<const DeviceParentalControls,
-                          DeviceParentalControls::Observer>
-      device_parental_controls_observation_{this};
 
 #if BUILDFLAG(IS_CHROMEOS)
   bool signout_required_after_supervision_enabled_ = false;

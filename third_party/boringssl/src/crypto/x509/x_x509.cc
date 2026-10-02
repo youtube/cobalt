@@ -231,7 +231,7 @@ static UniquePtr<X509> x509_parse(CBS *cbs) {
   return UniquePtr<X509>(X509_parse_from_buffer(buf.get()));
 }
 
-int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
+int bssl::x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
   if (x509->buf != nullptr) {
     // Replay the saved TBSCertificate from the |CRYPTO_BUFFER|, to verify
     // exactly what we parsed. The |CRYPTO_BUFFER| contains the full

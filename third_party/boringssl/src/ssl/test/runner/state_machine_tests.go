@@ -64,6 +64,14 @@ func addAllStateMachineCoverageTests() {
 func addStateMachineCoverageTests(config stateMachineTestConfig) {
 	var tests []testCase
 
+	// TODO(crbug.com/42290035): Asynchronous fatal alerts are never sent.
+	ifSync := func(expectedLocalError string) string {
+		if config.async {
+			return ""
+		}
+		return expectedLocalError
+	}
+
 	// Basic handshake, with resumption. Client and server,
 	// session ID and session ticket.
 	// The following tests have a max version of 1.2, so they are not suitable
@@ -575,12 +583,6 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 				"-use-ocsp-callback",
 			},
 		})
-		var expectedLocalError string
-		if !config.async {
-			// TODO(davidben): Asynchronous fatal alerts are never
-			// sent. https://crbug.com/boringssl/130.
-			expectedLocalError = "remote error: bad certificate status response"
-		}
 		tests = append(tests, testCase{
 			testType: clientTest,
 			name:     "ClientOCSPCallback-Fail-" + vers.name,
@@ -594,7 +596,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 				"-fail-ocsp-callback",
 			},
 			shouldFail:         true,
-			expectedLocalError: expectedLocalError,
+			expectedLocalError: ifSync("remote error: bad certificate status response"),
 			expectedError:      ":OCSP_CB_ERROR:",
 		})
 		// The callback still runs if the server does not send an OCSP
@@ -612,7 +614,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 				"-fail-ocsp-callback",
 			},
 			shouldFail:         true,
-			expectedLocalError: expectedLocalError,
+			expectedLocalError: ifSync("remote error: bad certificate status response"),
 			expectedError:      ":OCSP_CB_ERROR:",
 		})
 
@@ -692,12 +694,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 				if useCustomCallback {
 					verifyFailLocalError = "remote error: unknown certificate"
 				}
-
-				// We do not reliably send asynchronous fatal alerts. See
-				// https://crbug.com/boringssl/130.
-				if config.async {
-					verifyFailLocalError = ""
-				}
+				verifyFailLocalError = ifSync(verifyFailLocalError)
 
 				flags := []string{"-verify-peer"}
 				if testType == serverTest {
@@ -1249,9 +1246,18 @@ read alert 1 0
 						InvalidChannelIDSignature: true,
 					},
 				},
-				flags:         []string{"-enable-channel-id"},
-				shouldFail:    true,
-				expectedError: ":CHANNEL_ID_SIGNATURE_INVALID:",
+				flags:              []string{"-enable-channel-id"},
+				shouldFail:         true,
+				expectedError:      ":CHANNEL_ID_SIGNATURE_INVALID:",
+				expectedLocalError: ifSync("remote error: error decrypting message"),
+				// In TLS 1.3 and later, the client (runner) sends Channel ID in
+				// the last flight. Although the server (shim) will reject it,
+				// the handshake has already completed from the client's
+				// perspective. That means, from the client's perspective,
+				// Channel ID is successfully negotiated.
+				expectations: connectionExpectations{
+					channelID: ver.version >= VersionTLS13,
+				},
 			})
 
 			if ver.version < VersionTLS13 {

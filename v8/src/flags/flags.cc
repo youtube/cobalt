@@ -526,7 +526,7 @@ uint32_t ComputeFlagListHash() {
         flag.PointsTo(&v8_flags.concurrent_sweeping) ||
         flag.PointsTo(&v8_flags.parallel_compaction) ||
         flag.PointsTo(&v8_flags.parallel_pointer_update) ||
-        flag.PointsTo(&v8_flags.parallel_weak_ref_clearing) ||
+        flag.PointsTo(&v8_flags.parallel_gc_clearing) ||
         flag.PointsTo(&v8_flags.memory_reducer) ||
         flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
         flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||
@@ -897,6 +897,7 @@ void FlagList::PrintHelp() {
        << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
+  os.flush();
 }
 
 // static
@@ -905,6 +906,7 @@ void FlagList::PrintValues() {
   for (const Flag& f : flags) {
     os << f << "\n";
   }
+  os.flush();
 }
 
 namespace {
@@ -1013,6 +1015,7 @@ void FlagList::PrintFeatureFlagsJSON() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   os << "}\n";
+  os.flush();
 
 #undef ADD_JS_INPROGRESS_FLAG
 #undef ADD_JS_STAGED_FLAG

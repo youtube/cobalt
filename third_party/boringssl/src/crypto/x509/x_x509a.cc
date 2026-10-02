@@ -27,7 +27,11 @@
 // encoding when the *_X509_AUX routines are used. This means that the
 // "traditional" X509 routines will simply ignore the extra data.
 
+using namespace bssl;
+
 static X509_CERT_AUX *aux_get(X509 *x);
+
+BSSL_NAMESPACE_BEGIN
 
 ASN1_SEQUENCE(X509_CERT_AUX) = {
     ASN1_SEQUENCE_OF_OPT(X509_CERT_AUX, trust, ASN1_OBJECT),
@@ -37,6 +41,8 @@ ASN1_SEQUENCE(X509_CERT_AUX) = {
 } ASN1_SEQUENCE_END(X509_CERT_AUX)
 
 IMPLEMENT_ASN1_FUNCTIONS_const(X509_CERT_AUX)
+
+BSSL_NAMESPACE_END
 
 static X509_CERT_AUX *aux_get(X509 *x) {
   if (!x) {
@@ -109,7 +115,7 @@ const uint8_t *X509_keyid_get0(const X509 *x, int *out_len) {
 }
 
 int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj) {
-  bssl::UniquePtr<ASN1_OBJECT> objtmp(OBJ_dup(obj));
+  UniquePtr<ASN1_OBJECT> objtmp(OBJ_dup(obj));
   if (objtmp == nullptr) {
     return 0;
   }
@@ -120,11 +126,11 @@ int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj) {
       return 0;
     }
   }
-  return bssl::PushToStack(aux->trust, std::move(objtmp));
+  return PushToStack(aux->trust, std::move(objtmp));
 }
 
 int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj) {
-  bssl::UniquePtr<ASN1_OBJECT> objtmp(OBJ_dup(obj));
+  UniquePtr<ASN1_OBJECT> objtmp(OBJ_dup(obj));
   if (objtmp == nullptr) {
     return 0;
   }
@@ -135,7 +141,7 @@ int X509_add1_reject_object(X509 *x, const ASN1_OBJECT *obj) {
       return 0;
     }
   }
-  return bssl::PushToStack(aux->reject, std::move(objtmp));
+  return PushToStack(aux->reject, std::move(objtmp));
 }
 
 void X509_trust_clear(X509 *x) {

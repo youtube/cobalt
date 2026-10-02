@@ -141,7 +141,7 @@ TEST_F(PeerConnectionAudioOptionsTest, AudioOptionsAppliedOnCreateChannel) {
   auto transceivers = pc()->GetTransceiversInternal();
   ASSERT_EQ(transceivers.size(), 1u);
   auto* transceiver_impl = transceivers[0]->internal();
-  ASSERT_THAT(transceiver_impl->channel(), IsNull());
+  ASSERT_FALSE(transceiver_impl->HasChannel());
 
   // Create offer and set local description to trigger CreateChannel.
   auto offer_observer = make_ref_counted<QuitOnSuccessCreateObserver>(loop_);
@@ -157,9 +157,9 @@ TEST_F(PeerConnectionAudioOptionsTest, AudioOptionsAppliedOnCreateChannel) {
 
   // Verify that now the channel() exists and that the options were applied to
   // the voice engine.
-  ASSERT_THAT(transceiver_impl->channel(), NotNull());
+  ASSERT_TRUE(transceiver_impl->HasChannel());
 
-  auto* media_channel = transceiver_impl->channel()->media_receive_channel();
+  auto* media_channel = transceiver_impl->media_receive_channel();
   ASSERT_TRUE(media_channel);
   auto* voice_channel =
       static_cast<FakeVoiceMediaReceiveChannel*>(media_channel);

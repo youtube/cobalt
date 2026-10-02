@@ -120,14 +120,12 @@ found in the LICENSE file.
 
     <!-- NTP dimensions -->
     <dimen name="tile_layout_no_logo_top_margin">20dp</dimen>
-    <dimen name="mvt_container_lateral_margin">@dimen/signin_promo_lateral_paddings</dimen>
     <dimen name="mvt_container_top_padding">17dp</dimen>
     <dimen name="mvt_container_bottom_padding">22dp</dimen>
     <dimen name="mvt_container_top_margin">23dp</dimen>
     <dimen name="ntp_search_box_bottom_margin">1dp</dimen>
     <dimen name="ntp_search_box_transition_start_offset">16dp</dimen>
     <dimen name="ntp_search_box_transition_end_offset">4dp</dimen>
-    <dimen name="ntp_search_box_lateral_margin_tablet">100dp</dimen>
     <dimen name="snippets_article_header_height">40dp</dimen>
     <dimen name="content_suggestions_card_bottom_margin">12dp</dimen>
     <!-- This is in sp because we want the icon to scale with the TextView it sits alongside. -->
@@ -295,7 +293,6 @@ found in the LICENSE file.
     <dimen name="dialog_width_unit">56dp</dimen>  <!-- MD dialog widths are multiples of this. -->
 
     <!--  Used as a margin to force the shadow view to overlap other views. -->
-    <dimen name="action_bar_shadow_margin_negative">-10dp</dimen>
     <dimen name="legacy_sync_promo_view_padding">16dp</dimen>
     <!-- 18dp padding is added to each side of the remove button to limit the image width to 20dp (56dp - 2 * 18dp). -->
     <dimen name="history_item_remove_button_lateral_padding">18dp</dimen>

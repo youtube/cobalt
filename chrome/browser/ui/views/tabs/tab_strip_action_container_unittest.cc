@@ -19,7 +19,7 @@
 #include "chrome/browser/ui/views/commerce/product_specifications_button.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
-#include "chrome/browser/ui/views/tabs/glic_button.h"
+#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
 #include "chrome/common/chrome_features.h"
@@ -100,7 +100,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
             gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED)) {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {features::kGlic, {}},
-        {features::kTabstripComboButton, {}},
         {features::kGlicActor, {}},
         {features::kGlicActorUi,
          {{features::kGlicActorUiTaskIconName, "true"}}}};
@@ -186,8 +185,8 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
         browser_window_interface_.get());
 
     tab_strip_action_container_ = std::make_unique<TabStripActionContainer>(
-        tab_strip_->controller(), tab_declutter_controller_.get(),
-        glic_nudge_controller_.get());
+        tab_strip_->GetBrowserWindowInterface(),
+        tab_declutter_controller_.get(), glic_nudge_controller_.get());
   }
 
   void SetActiveTabChangedCallback(

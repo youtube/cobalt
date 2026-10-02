@@ -21,6 +21,7 @@
 #include "api/audio/audio_view.h"
 #include "common_audio/channel_buffer.h"
 #include "common_audio/include/audio_util.h"
+#include "modules/audio_processing/capture_mixer/capture_mixer.h"
 #include "rtc_base/gtest_prod_util.h"
 
 namespace webrtc {
@@ -45,22 +46,21 @@ class AudioBuffer {
               size_t output_rate,
               size_t output_num_channels);
 
-  AudioBuffer(size_t input_rate,
-              size_t input_num_channels,
-              size_t buffer_rate,
-              size_t buffer_num_channels,
-              size_t output_rate);
+  AudioBuffer(
+      size_t input_rate,
+      size_t input_num_channels,
+      size_t buffer_rate,
+      size_t buffer_num_channels,
+      size_t output_rate,
+      AudioProcessing::Config::Pipeline::DownmixMethod downmix_method =
+          AudioProcessing::Config::Pipeline::DownmixMethod::kAverageChannels,
+      AudioProcessing::Config::Pipeline::DownmixMethod downmix_method_stereo =
+          AudioProcessing::Config::Pipeline::DownmixMethod::kAverageChannels);
 
   virtual ~AudioBuffer();
 
   AudioBuffer(const AudioBuffer&) = delete;
   AudioBuffer& operator=(const AudioBuffer&) = delete;
-
-  // Specify that downmixing should be done by selecting a single channel.
-  void set_downmixing_to_specific_channel(size_t channel);
-
-  // Specify that downmixing should be done by averaging all channels,.
-  void set_downmixing_by_averaging();
 
   // Set the number of channels in the buffer. The specified number of channels
   // cannot be larger than the specified buffer_num_channels. The number is also
@@ -163,10 +163,13 @@ class AudioBuffer {
                            SetNumChannelsSetsChannelBuffersNumChannels);
   void RestoreNumChannels();
 
+  const AudioProcessing::Config::Pipeline::DownmixMethod downmix_method_;
+  const AudioProcessing::Config::Pipeline::DownmixMethod downmix_method_stereo_;
   const size_t input_num_frames_;
   const size_t input_num_channels_;
   const size_t buffer_num_frames_;
   const size_t buffer_num_channels_;
+  const size_t buffer_internal_num_channels_;
   const size_t output_num_frames_;
   const size_t output_num_channels_;
 
@@ -181,6 +184,7 @@ class AudioBuffer {
   std::vector<std::unique_ptr<PushSincResampler>> output_resamplers_;
   bool downmix_by_averaging_ = true;
   size_t channel_for_downmixing_ = 0;
+  CaptureMixer capture_mixer_;
 };
 
 }  // namespace webrtc

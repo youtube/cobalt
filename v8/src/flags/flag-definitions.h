@@ -1491,12 +1491,6 @@ DEFINE_INT(max_inlined_bytecode_size, 460,
 // and use {max_inlined_bytecode_size_small_total} instead.
 DEFINE_INT(max_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining")
-// Turbolev (currently) is different enough from Turbofan wrt inlining that
-// it needs a separate budget. For example: TF inlines before peeling; whereas
-// TL inlines after peeling, duplicating calls inside the loop. Due to this,
-// we use double the TF budget by default.
-DEFINE_INT(max_turbolev_inlined_bytecode_size_cumulative, 1840,
-           "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_absolute, 4600,
            "maximum absolute size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
@@ -1504,7 +1498,7 @@ DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
 DEFINE_FLOAT(
     reserve_inline_budget_scale_factor, 1.2,
     "scale factor of bytecode size used to calculate the inlining budget")
-DEFINE_INT(max_inlined_bytecode_size_small, 27,
+DEFINE_INT(max_inlined_bytecode_size_small, 30,
            "maximum size of bytecode considered for small function inlining")
 DEFINE_INT(max_inlined_bytecode_size_small_with_heapnum_in_out, 75,
            "maximum size of bytecode considered for small function inlining, "
@@ -2170,7 +2164,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(trace_wasm_revectorize, false, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_LOONG64
 DEFINE_BOOL(wasm_memory64_trap_handling, true,
             "Use trap handling for Wasm memory64 bounds checks")
 #else
@@ -2178,6 +2173,7 @@ DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
                      "Use trap handling for Wasm memory64 bounds checks (not "
                      "supported for this architecture)")
 #endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
+        // || V8_TARGET_ARCH_LOONG64
 
 #ifdef V8_ENABLE_DRUMBRAKE
 // DrumBrake flags.
@@ -2220,6 +2216,10 @@ DEFINE_BOOL(drumbrake_register_optimization, true,
             "enable passing the top stack value in a register in drumbrake")
 DEFINE_BOOL(drumbrake_fuzzing_mode, false,
             "enable drumbrake fuzzer mode (for testing)")
+DEFINE_INT(drumbrake_gc_check_interval, 1000,
+           "number of stack checks between GC threshold checks for wasmgc")
+DEFINE_SIZE_T(drumbrake_gc_threshold, 100 * MB,
+              "old space size threshold in bytes to trigger GC for wasmgc")
 
 // Directly interpret asm.js code as regular JavaScript code, instead of
 // translating it to Wasm bytecode first and then interpreting that with
@@ -2443,7 +2443,7 @@ DEFINE_NEG_NEG_IMPLICATION(concurrent_sweeping,
 DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(parallel_pointer_update, true,
             "use parallel pointer update during compaction")
-DEFINE_BOOL(parallel_weak_ref_clearing, true,
+DEFINE_BOOL(parallel_gc_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
@@ -2459,6 +2459,8 @@ DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "failure near heap limit.")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
+DEFINE_BOOL(print_gc_clearing_dependency_graph, false,
+            "print clearing dependency graph in dot format")
 DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
 DEFINE_BOOL(trace_stress_scavenge, false, "trace stress scavenge progress")
 DEFINE_BOOL(track_gc_object_stats, false,
@@ -3247,10 +3249,9 @@ DEFINE_INT(regexp_tier_up_ticks, 1,
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
-DEFINE_BOOL(regexp_assemble_from_bytecode, false,
+DEFINE_BOOL(regexp_assemble_from_bytecode, true,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
-DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
@@ -3916,7 +3917,7 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
-DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_weak_ref_clearing)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_gc_clearing)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)

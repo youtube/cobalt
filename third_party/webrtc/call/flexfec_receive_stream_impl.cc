@@ -20,6 +20,7 @@
 #include "api/sequence_checker.h"
 #include "call/flexfec_receive_stream.h"
 #include "call/rtp_stream_receiver_controller_interface.h"
+#include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 #include "modules/rtp_rtcp/include/flexfec_receiver.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
@@ -106,7 +107,8 @@ FlexfecReceiveStreamImpl::FlexfecReceiveStreamImpl(
     Config config,
     RecoveredPacketReceiver* recovered_packet_receiver,
     RtcpRttStats* rtt_stats)
-    : remote_ssrc_(config.rtp.remote_ssrc),
+    : env_(env),
+      remote_ssrc_(config.rtp.remote_ssrc),
       payload_type_(config.payload_type),
       receiver_(MaybeCreateFlexfecReceiver(&env.clock(),
                                            config,
@@ -155,6 +157,7 @@ void FlexfecReceiveStreamImpl::UnregisterFromTransport() {
 
 void FlexfecReceiveStreamImpl::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
+  env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
   if (!receiver_)
     return;
 

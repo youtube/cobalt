@@ -12,7 +12,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <utility>
 
 #include "absl/memory/memory.h"
@@ -54,6 +53,57 @@ std::unique_ptr<AsyncPacketSocket> BasicPacketSocketFactory::CreateUdpSocket(
   if (BindSocket(*socket, address, min_port, max_port) < 0) {
     RTC_LOG(LS_ERROR) << "UDP bind failed with error " << socket->GetError();
     return nullptr;
+  }
+  return std::make_unique<AsyncUDPSocket>(env, std::move(socket));
+}
+
+std::unique_ptr<AsyncPacketSocket>
+BasicPacketSocketFactory::CreateClientUdpSocket(
+    const Environment& env,
+    const SocketAddress& local_address,
+    const SocketAddress& remote_address,
+    uint16_t min_port,
+    uint16_t max_port,
+    const PacketSocketTcpOptions& udp_options) {
+  std::unique_ptr<Socket> socket =
+      socket_factory_->Create(local_address.family(), SOCK_DGRAM);
+  if (!socket) {
+    return nullptr;
+  }
+  if (BindSocket(*socket, local_address, min_port, max_port) < 0) {
+    RTC_LOG(LS_ERROR) << "UDP bind failed with error " << socket->GetError();
+    return nullptr;
+  }
+  // Assert that at most one DTLS option is used.
+  int udp_opts = udp_options.opts & (PacketSocketFactory::OPT_DTLS |
+                                     PacketSocketFactory::OPT_DTLS_INSECURE);
+
+  RTC_DCHECK(!((udp_opts & PacketSocketFactory::OPT_DTLS) &&
+               (udp_opts & PacketSocketFactory::OPT_DTLS_INSECURE)));
+  if ((udp_opts & PacketSocketFactory::OPT_DTLS) ||
+      (udp_opts & PacketSocketFactory::OPT_DTLS_INSECURE)) {
+    if (socket->Connect(remote_address) < 0) {
+      RTC_LOG(LS_ERROR) << "UDP connect failed with error "
+                        << socket->GetError();
+      return nullptr;
+    }
+    // Using TLS, wrap the socket in an SSL adapter.
+    SSLAdapter* ssl_adapter = SSLAdapter::Create(socket.release(), true);
+    if (!ssl_adapter) {
+      return nullptr;
+    }
+
+    if (udp_opts & PacketSocketFactory::OPT_DTLS_INSECURE) {
+      ssl_adapter->SetIgnoreBadCert(true);
+    }
+
+    ssl_adapter->SetAlpnProtocols(udp_options.tls_alpn_protocols);
+    ssl_adapter->SetEllipticCurves(udp_options.tls_elliptic_curves);
+    ssl_adapter->SetCertVerifier(udp_options.tls_cert_verifier);
+    socket = absl::WrapUnique(ssl_adapter);
+    if (ssl_adapter->StartSSL(remote_address.hostname()) != 0) {
+      return nullptr;
+    }
   }
   return std::make_unique<AsyncUDPSocket>(env, std::move(socket));
 }
@@ -149,7 +199,7 @@ BasicPacketSocketFactory::CreateClientTcpSocket(
     ssl_adapter->SetEllipticCurves(tcp_options.tls_elliptic_curves);
     ssl_adapter->SetCertVerifier(tcp_options.tls_cert_verifier);
 
-    if (ssl_adapter->StartSSL(remote_address.hostname().c_str()) != 0) {
+    if (ssl_adapter->StartSSL(remote_address.hostname()) != 0) {
       return nullptr;
     }
     socket = std::move(ssl_adapter);

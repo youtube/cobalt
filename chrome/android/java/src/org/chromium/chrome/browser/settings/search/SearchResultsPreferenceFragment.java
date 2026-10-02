@@ -8,15 +8,18 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
+import android.widget.TextView;
 
-import androidx.annotation.Nullable;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceScreen;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.MainSettings;
@@ -31,7 +34,7 @@ public class SearchResultsPreferenceFragment extends ChromeBaseSettingsFragment 
     // |MultiColumnTitleUpdater| from adding titles every time a new fragment instance is created
     // and replaced with the existing one upon user keystrokes entering queries.
     // TODO(crbug.com/444464896): Avoid using the static instance.
-    private static @Nullable ObservableSupplier<String> sTitleSupplier;
+    private static @Nullable MonotonicObservableSupplier<String> sTitleSupplier;
 
     /** Interface for opening the setting selected from the search results. */
     public interface SelectedCallback {
@@ -42,9 +45,16 @@ public class SearchResultsPreferenceFragment extends ChromeBaseSettingsFragment 
          * @param key A unique key associated with the chosen setting.
          * @param extras The additional args required to launch the pref.
          * @param highlight Whether or not to highlight the item.
+         * @param highlightKey The key to highlight if it is different from {@code key}.
+         * @param subViewPos Position of the view to highlight among the child views.
          */
         void onSelected(
-                @Nullable String preferenceFragment, String key, Bundle extras, boolean highlight);
+                @Nullable String preferenceFragment,
+                String key,
+                Bundle extras,
+                boolean highlight,
+                @Nullable String highlightKey,
+                int subViewPos);
     }
 
     private final List<SettingsIndexData.Entry> mPreferenceData;
@@ -91,7 +101,13 @@ public class SearchResultsPreferenceFragment extends ChromeBaseSettingsFragment 
                         String mainSettingsFragment = MainSettings.class.getName();
                         var isMain = TextUtils.equals(info.parentFragment, mainSettingsFragment);
                         String fragment = isMain ? info.fragment : info.parentFragment;
-                        mSelectedCallback.onSelected(fragment, info.key, info.extras, !isMain);
+                        mSelectedCallback.onSelected(
+                                fragment,
+                                info.key,
+                                info.extras,
+                                !isMain,
+                                info.highlightKey,
+                                info.subViewPos);
                         return true;
                     });
             preference.setIconSpaceReserved(false);
@@ -101,7 +117,7 @@ public class SearchResultsPreferenceFragment extends ChromeBaseSettingsFragment 
     }
 
     @Override
-    public ObservableSupplier<String> getPageTitle() {
+    public MonotonicObservableSupplier<String> getPageTitle() {
         if (sTitleSupplier == null) {
             var title = assumeNonNull(getContext()).getString(R.string.search_in_settings_results);
             sTitleSupplier = new ObservableSupplierImpl<String>(title);
@@ -117,4 +133,43 @@ public class SearchResultsPreferenceFragment extends ChromeBaseSettingsFragment 
     public @AnimationType int getAnimationType() {
         return AnimationType.PROPERTY;
     }
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        getListView().addOnChildAttachStateChangeListener(mChildAttachListener);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        if (getListView() != null) {
+            getListView().removeOnChildAttachStateChangeListener(mChildAttachListener);
+        }
+    }
+
+    private final RecyclerView.OnChildAttachStateChangeListener mChildAttachListener =
+            new RecyclerView.OnChildAttachStateChangeListener() {
+                @Override
+                public void onChildViewAttachedToWindow(View view) {
+                    // Limit Title to 2 lines and append "..."
+                    TextView titleView = view.findViewById(android.R.id.title);
+                    if (titleView != null) {
+                        titleView.setMaxLines(2);
+                        titleView.setEllipsize(TextUtils.TruncateAt.END);
+                    }
+
+                    // Limit Body (Summary) to 2 lines and append "..."
+                    TextView summaryView = view.findViewById(android.R.id.summary);
+                    if (summaryView != null) {
+                        summaryView.setMaxLines(2);
+                        summaryView.setEllipsize(TextUtils.TruncateAt.END);
+                    }
+                }
+
+                @Override
+                public void onChildViewDetachedFromWindow(View view) {}
+            };
 }

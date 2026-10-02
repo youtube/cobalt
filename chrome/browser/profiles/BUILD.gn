@@ -240,6 +240,10 @@ source_set("profile_util_impl") {
     ]
   }
 
+  if (is_android) {
+    deps += [ "//components/supervised_user/core/browser/android" ]
+  }
+
   if (is_chromeos) {
     deps += [
       "//chrome/browser/ash/login/users",
@@ -281,6 +285,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/consent_auditor",
     "//chrome/browser/content_index",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/contextual_cueing",
     "//chrome/browser/contextual_search",
     "//chrome/browser/contextual_tasks",
     "//chrome/browser/custom_handlers",
@@ -381,10 +386,10 @@ source_set("profiles_extra_parts_impl") {
   } else {
     deps += [
       "//chrome/browser/accessibility/tree_fixing:service",
+      "//chrome/browser/accessibility_annotator",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/autofill",
       "//chrome/browser/badging",
-      "//chrome/browser/contextual_cueing",
       "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/device_api",
       "//chrome/browser/devtools",

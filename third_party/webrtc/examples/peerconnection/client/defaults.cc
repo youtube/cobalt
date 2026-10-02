@@ -47,6 +47,14 @@ std::string GetDefaultServerName() {
   return GetEnvVarOrDefault("WEBRTC_SERVER", "localhost");
 }
 
+std::string GetTurnUserName() {
+  return GetEnvVarOrDefault("WEBRTC_TURN_USER", "");
+}
+
+std::string GetTurnPassword() {
+  return GetEnvVarOrDefault("WEBRTC_TURN_PASSWORD", "");
+}
+
 std::string GetPeerName() {
   char computer_name[256];
   std::string ret(GetEnvVarOrDefault("USERNAME", "user"));

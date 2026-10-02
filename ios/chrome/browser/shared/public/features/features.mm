@@ -4,10 +4,12 @@
 
 #import "ios/chrome/browser/shared/public/features/features.h"
 
+#import <algorithm>
 #import <string>
 #import <vector>
 
 #import "base/metrics/field_trial_params.h"
+#import "base/strings/string_split.h"
 #import "components/country_codes/country_codes.h"
 #import "components/segmentation_platform/public/features.h"
 #import "components/sync/base/features.h"
@@ -547,7 +549,7 @@ constexpr base::FeatureParam<base::TimeDelta> kMultiProfileMigrationGracePeriod{
     /*default_value=*/base::Days(90)};
 
 BASE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOmahaResyncTimerOnForeground, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -599,7 +601,24 @@ bool IsIOSReactivationNotificationsEnabled() {
   return base::FeatureList::IsEnabled(kIOSReactivationNotifications);
 }
 
-BASE_FEATURE(kIOSExpandedTips, base::FEATURE_DISABLED_BY_DEFAULT);
+const char kIOSExpandedSetupListVariationParam[] =
+    "kIOSExpandedSetupListVariationParam";
+const char kIOSExpandedSetupListVariationParamSafariImport[] =
+    "kIOSExpandedSetupListVariationParamSafariImport";
+const char kIOSExpandedSetupListVariationParamBackgroundCustomization[] =
+    "kIOSExpandedSetupListVariationParamBackgroundCustomization";
+const char kIOSExpandedSetupListVariationParamAll[] =
+    "kIOSExpandedSetupListVariationParamAll";
+
+BASE_FEATURE(kIOSExpandedSetupList, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSExpandedSetupListEnabled() {
+  return base::FeatureList::IsEnabled(kIOSExpandedSetupList);
+}
+
+BASE_FEATURE(kIOSExpandedTips,
+             "kIOSExpandedTips",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const char kIOSExpandedTipsOrderParam[] = "expanded_tips_order";
 
 bool IsIOSExpandedTipsEnabled() {
@@ -776,9 +795,6 @@ constexpr base::FeatureParam<double>
         /*name=*/kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName,
         /*default_value=*/0};
 
-BASE_FEATURE(kIOSOneTapMiniMapRemoveSectionsBreaks,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
 }
@@ -821,9 +837,15 @@ bool IsBestOfAppFREEnabled() {
   return base::FeatureList::IsEnabled(kBestOfAppFRE);
 }
 
+std::vector<std::string> GetBestOfAppFREActiveVariants() {
+  std::string variants_string =
+      base::GetFieldTrialParamValueByFeature(kBestOfAppFRE, "variant");
+  return SplitString(variants_string, ",", base::TRIM_WHITESPACE,
+                     base::SPLIT_WANT_NONEMPTY);
+}
+
 bool IsBestOfAppGuidedTourEnabled() {
-  return base::GetFieldTrialParamValueByFeature(kBestOfAppFRE, "variant") ==
-         "4";
+  return std::ranges::contains(GetBestOfAppFREActiveVariants(), "4");
 }
 
 bool IsManualUploadForBestOfAppEnabled() {
@@ -834,13 +856,12 @@ bool IsManualUploadForBestOfAppEnabled() {
 bool IsBestOfAppLensInteractivePromoEnabled() {
   return (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) &&
          IsBestOfAppFREEnabled() &&
-         (base::GetFieldTrialParamValueByFeature(kBestOfAppFRE, "variant") ==
-          "1");
+         std::ranges::contains(GetBestOfAppFREActiveVariants(), "1");
 }
 
 bool IsBestOfAppLensAnimatedPromoEnabled() {
-  return IsBestOfAppFREEnabled() && (base::GetFieldTrialParamValueByFeature(
-                                         kBestOfAppFRE, "variant") == "2");
+  return IsBestOfAppFREEnabled() &&
+         std::ranges::contains(GetBestOfAppFREActiveVariants(), "2");
 }
 
 bool IsDefaultBrowserPromoPropensityModelEnabled() {
@@ -1066,4 +1087,10 @@ BASE_FEATURE(kComposeboxAIMDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxAIMDisabled() {
   return base::FeatureList::IsEnabled(kComposeboxAIMDisabled);
+}
+
+BASE_FEATURE(kEnableNewStartupFlow, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsEnableNewStartupFlowEnabled() {
+  return base::FeatureList::IsEnabled(kEnableNewStartupFlow);
 }

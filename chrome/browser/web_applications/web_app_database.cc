@@ -147,7 +147,7 @@ void WebAppDatabase::Write(
 
 // static
 int WebAppDatabase::GetCurrentDatabaseVersion() {
-  return 6;
+  return 7;
 }
 
 WebAppDatabase::ProtobufState::ProtobufState() = default;
@@ -247,7 +247,25 @@ void WebAppDatabase::MigrateDatabase(ProtobufState& state) {
     did_change_metadata = true;
   }
 
-  CHECK_EQ(state.metadata.version(), GetCurrentDatabaseVersion());
+  // Upgrade from version 6 to version 7.
+  bool declined_to_upgrade = false;
+  if (state.metadata.version() < 7 && GetCurrentDatabaseVersion() >= 7) {
+    if (base::FeatureList::IsEnabled(
+            features::kWebAppUpgradeToDatabaseVersion6)) {
+      MigrateScopeToStartUrlGetWithoutFilenameIfInvalid(state, changed_apps);
+      base::UmaHistogramSparse("WebApp.Database.VersionUpgradedTo", 7);
+      state.metadata.set_version(7);
+      did_change_metadata = true;
+    } else {
+      declined_to_upgrade = true;
+    }
+  }
+
+  int expected_version = declined_to_upgrade ? 6 : GetCurrentDatabaseVersion();
+  CHECK_EQ(state.metadata.version(), expected_version)
+      << "Mismatch between web app database state metadata version: "
+      << state.metadata.version()
+      << " and current version: " << expected_version;
 
   if (did_change_metadata || !changed_apps.empty()) {
     std::unique_ptr<syncer::DataTypeStore::WriteBatch> write_batch =
@@ -656,28 +674,65 @@ void WebAppDatabase::MigrateDisplayModeOverrideToDisplayOverrides(
   CHECK_LT(state.metadata.version(), 6);
   int apps_migrated_count = 0;
   for (auto& [app_id, app_proto] : state.apps) {
-    if (app_proto.display_mode_override_size() == 0) {
+    if (app_proto.display_mode_override_deprecated_size() == 0) {
       // This app does not have the deprecated field, nothing to migrate.
       continue;
     }
 
     // Ignore the deprecated field if the new field is set.
     if (app_proto.display_overrides_size() == 0) {
-      for (int i = 0; i < app_proto.display_mode_override_size(); ++i) {
-        auto old_mode = app_proto.display_mode_override(i);
+      for (int i = 0; i < app_proto.display_mode_override_deprecated_size();
+           ++i) {
+        auto old_mode = app_proto.display_mode_override_deprecated(i);
         auto* new_item = app_proto.add_display_overrides();
         new_item->set_display_mode(old_mode);
       }
     }
 
     // At this point both fields are non-empty. Clear the deprecated field.
-    app_proto.clear_display_mode_override();
+    app_proto.clear_display_mode_override_deprecated();
     changed_apps.insert(app_id);
     apps_migrated_count++;
   }
   base::UmaHistogramCounts1000(
       "WebApp.Migrations.DisplayModeOverrideToDisplayOverrides",
       apps_migrated_count);
+}
+
+void WebAppDatabase::MigrateScopeToStartUrlGetWithoutFilenameIfInvalid(
+    ProtobufState& state,
+    std::set<webapps::AppId>& changed_apps) {
+  // Migrating from version 6 to version 7.
+  CHECK_LT(state.metadata.version(), 7);
+  int apps_migrated_count = 0;
+
+  for (auto& [app_id, app_proto] : state.apps) {
+    if (!app_proto.has_sync_data() || !app_proto.sync_data().has_start_url() ||
+        !app_proto.has_scope()) {
+      continue;
+    }
+
+    GURL start_url(app_proto.sync_data().start_url());
+    GURL scope(app_proto.scope());
+
+    if (!start_url.is_valid()) {
+      continue;
+    }
+
+    if (scope.is_valid() && base::StartsWith(start_url.spec(), scope.spec(),
+                                             base::CompareCase::SENSITIVE)) {
+      continue;
+    }
+
+    // If start_url is not within scope, update scope.
+    GURL new_scope = start_url.GetWithoutFilename();
+    app_proto.set_scope(new_scope.spec());
+    changed_apps.insert(app_id);
+    apps_migrated_count++;
+  }
+
+  base::UmaHistogramCounts1000("WebApp.Migrations.ScopeMismatchedWithStartUrl",
+                               apps_migrated_count);
 }
 
 void WebAppDatabase::OnDatabaseOpened(
@@ -719,7 +774,7 @@ void WebAppDatabase::OnAllDataAndMetadataRead(
 
   Registry registry;
   for (const auto& [app_id, app_proto] : state.apps) {
-    std::unique_ptr<WebApp> web_app = ParseWebAppProto(app_proto);
+    std::unique_ptr<WebApp> web_app = ParseWebAppProto(app_proto, app_id);
     base::UmaHistogramBoolean("WebApp.Database.ValidProto", web_app != nullptr);
     if (!web_app) {
       // TODO(https://crbug.com/40224498): Have ParseWebAppProto return a string

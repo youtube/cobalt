@@ -36,7 +36,7 @@
 //! assert_eq!(shared_key1, shared_key2);
 //! ```
 
-use crate::{ec, sealed, with_output_vec, Buffer};
+use crate::{ec, with_output_vec, Buffer};
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
@@ -50,7 +50,7 @@ impl<C: ec::Curve> PublicKey<C> {
     /// Parse a public key in uncompressed X9.62 format. (This is the common
     /// format for elliptic curve points beginning with an 0x04 byte.)
     pub fn from_x962_uncompressed(x962: &[u8]) -> Option<Self> {
-        let point = ec::Point::from_x962_uncompressed(C::group(sealed::Sealed), x962)?;
+        let point = ec::Point::from_x962_uncompressed(C::group(), x962)?;
         Some(Self {
             point,
             marker: PhantomData,
@@ -69,18 +69,27 @@ pub struct PrivateKey<C: ec::Curve> {
     marker: PhantomData<C>,
 }
 
+impl<C: ec::Curve> Clone for PrivateKey<C> {
+    fn clone(&self) -> Self {
+        Self {
+            key: self.key.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+
 impl<C: ec::Curve> PrivateKey<C> {
     /// Generate a random private key.
     pub fn generate() -> Self {
         Self {
-            key: ec::Key::generate(C::group(sealed::Sealed)),
+            key: ec::Key::generate(C::group()),
             marker: PhantomData,
         }
     }
 
     /// Parse a `PrivateKey` from a zero-padded, big-endian representation of the secret scalar.
     pub fn from_big_endian(scalar: &[u8]) -> Option<Self> {
-        let key = ec::Key::from_big_endian(C::group(sealed::Sealed), scalar)?;
+        let key = ec::Key::from_big_endian(C::group(), scalar)?;
         Some(Self {
             key,
             marker: PhantomData,
@@ -95,7 +104,7 @@ impl<C: ec::Curve> PrivateKey<C> {
     /// Parse an ECPrivateKey structure (from RFC 5915). The key must be on the
     /// specified curve.
     pub fn from_der_ec_private_key(der: &[u8]) -> Option<Self> {
-        let key = ec::Key::from_der_ec_private_key(C::group(sealed::Sealed), der)?;
+        let key = ec::Key::from_der_ec_private_key(C::group(), der)?;
         Some(Self {
             key,
             marker: PhantomData,
@@ -110,7 +119,7 @@ impl<C: ec::Curve> PrivateKey<C> {
     /// Parse a PrivateKeyInfo structure (from RFC 5208). The key must be on the
     /// specified curve.
     pub fn from_der_private_key_info(der: &[u8]) -> Option<Self> {
-        let key = ec::Key::from_der_private_key_info(C::group(sealed::Sealed), der)?;
+        let key = ec::Key::from_der_private_key_info(C::group(), der)?;
         Some(Self {
             key,
             marker: PhantomData,

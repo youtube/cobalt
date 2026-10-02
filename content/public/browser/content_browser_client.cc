@@ -1599,6 +1599,12 @@ void ContentBrowserClient::IsClipboardCopyAllowedByPolicy(
   std::move(callback).Run(metadata.format_type, data, std::nullopt);
 }
 
+bool ContentBrowserClient::IsDragAllowedByPolicy(
+    const ClipboardEndpoint& source,
+    const DropData& drop_data) {
+  return true;
+}
+
 #if BUILDFLAG(ENABLE_VR)
 XrIntegrationClient* ContentBrowserClient::GetXrIntegrationClient() {
   return nullptr;
@@ -1770,12 +1776,6 @@ bool ContentBrowserClient::AreIsolatedWebAppsEnabled(
   // The whole logic of the IWAs lives in //chrome. So IWAs should be
   // enabled at that layer.
   return false;
-}
-
-bool ContentBrowserClient::IsThirdPartyStoragePartitioningAllowed(
-    content::BrowserContext*,
-    const url::Origin&) {
-  return true;
 }
 
 bool ContentBrowserClient::AreDeprecatedAutomaticBeaconCredentialsAllowed(

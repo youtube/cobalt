@@ -17,7 +17,6 @@
 #include "base/barrier_callback.h"
 #include "base/barrier_closure.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/queue.h"
 #include "base/files/file_path.h"
@@ -26,6 +25,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_string_value_serializer.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
@@ -1143,7 +1143,7 @@ void UpdateServiceImplImpl::UpdateAll(
 
   auto app_ids = config_->GetUpdaterPersistedData()->GetAppIds();
 
-  CHECK(base::Contains(
+  CHECK(std::ranges::contains(
       app_ids, base::ToLowerASCII(kUpdaterAppId),
       static_cast<std::string (*)(std::string_view)>(&base::ToLowerASCII)));
 
@@ -1577,7 +1577,7 @@ void UpdateServiceImplImpl::GetUpdaterState(
       {base::MayBlock(), base::WithBaseSyncPrimitives(),
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})
       ->PostTaskAndReplyWithResult(
-          FROM_HERE, base::BindOnce([]() {
+          FROM_HERE, base::BindOnce([] {
             std::vector<std::string> inactive_versions;
             for (const base::FilePath& version_executable_path :
                  GetVersionExecutablePaths(GetUpdaterScope())) {
@@ -1606,8 +1606,11 @@ void UpdateServiceImplImpl::GetUpdaterPolicies(
 
   main_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(std::move(callback),
-                     config_->GetPolicyService()->GetUpdaterPolicies()));
+      base::BindOnce(
+          std::move(callback),
+          config_->GetPolicyService()
+              ->GetUpdaterPolicies<
+                  base::flat_map<std::string, UpdateService::PolicyValue>>()));
 }
 
 void UpdateServiceImplImpl::GetAppPolicies(
@@ -1619,8 +1622,24 @@ void UpdateServiceImplImpl::GetAppPolicies(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   main_task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback),
-                                config_->GetPolicyService()->GetAppPolicies()));
+      FROM_HERE,
+      base::BindOnce(
+          std::move(callback),
+          config_->GetPolicyService()
+              ->GetAppPolicies<
+                  base::flat_map<std::string, UpdateService::PolicyValue>>()));
+}
+
+void UpdateServiceImplImpl::GetPoliciesJson(
+    base::OnceCallback<void(const std::string&)> callback) {
+  VLOG(1) << __func__;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::string policies_json;
+  base::JSONWriter::Write(config_->GetPolicyService()->GetAllPolicies(),
+                          &policies_json);
+  main_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::move(policies_json)));
 }
 
 bool UpdateServiceImplImpl::IsUpdateDisabledByPolicy(const std::string& app_id,

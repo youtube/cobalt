@@ -866,7 +866,6 @@ TEST(EVPExtraTest, ECKeygen) {
     EVP_PKEY *raw = nullptr;
     ASSERT_TRUE(EVP_PKEY_paramgen(ctx.get(), &raw));
     UniquePtr<EVP_PKEY> pkey(raw);
-    raw = nullptr;
     ExpectECGroupOnly(pkey.get(), NID_X9_62_prime256v1);
 
     // That resulting |EVP_PKEY| may be used as a template for key generation.
@@ -878,7 +877,6 @@ TEST(EVPExtraTest, ECKeygen) {
     raw = nullptr;
     ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw));
     pkey.reset(raw);
-    raw = nullptr;
     ExpectECGroupAndKey(pkey.get(), NID_X9_62_prime256v1);
 
     // |EVP_PKEY_paramgen| may also be skipped.
@@ -892,9 +890,26 @@ TEST(EVPExtraTest, ECKeygen) {
     ASSERT_TRUE(maybe_copy(&ctx));
     raw = nullptr;
     ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw));
-    pkey.reset(raw);
+    UniquePtr<EVP_PKEY> pkey2(raw);
+    ExpectECGroupAndKey(pkey2.get(), NID_X9_62_prime256v1);
+
+    // The two keys should compare as different.
+    EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), pkey2.get()), 0);
+
+    // Keys of different groups should also compare as different.
+    ctx.reset(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(maybe_copy(&ctx));
+    ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+    ASSERT_TRUE(maybe_copy(&ctx));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx.get(), NID_secp384r1));
+    ASSERT_TRUE(maybe_copy(&ctx));
     raw = nullptr;
-    ExpectECGroupAndKey(pkey.get(), NID_X9_62_prime256v1);
+    ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw));
+    UniquePtr<EVP_PKEY> pkey3(raw);
+    ExpectECGroupAndKey(pkey3.get(), NID_secp384r1);
+    EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), pkey3.get()), 0);
   }
 }
 
@@ -1116,6 +1131,18 @@ TEST(EVPExtraTest, Parameters) {
   EXPECT_EQ(EVP_PKEY_RSA, EVP_PKEY_id(rsa.get()));
   EXPECT_FALSE(EVP_PKEY_copy_parameters(rsa.get(), p256.get()));
   EXPECT_EQ(EVP_PKEY_RSA, EVP_PKEY_id(rsa.get()));
+}
+
+TEST(EVPExtraTest, CompareDifferentTypes) {
+  UniquePtr<EVP_PKEY> rsa = ParsePrivateKey(EVP_PKEY_RSA, kExampleRSAKeyDER);
+  UniquePtr<EVP_PKEY> dsa = ParsePrivateKey(EVP_PKEY_DSA, kExampleDSAKeyDER);
+  UniquePtr<EVP_PKEY> ec = ParsePrivateKey(EVP_PKEY_EC, kExampleECKeyDER);
+  EXPECT_EQ(EVP_PKEY_cmp(rsa.get(), dsa.get()), 0);
+  EXPECT_EQ(EVP_PKEY_cmp(rsa.get(), ec.get()), 0);
+  EXPECT_EQ(EVP_PKEY_cmp(dsa.get(), ec.get()), 0);
+  EXPECT_EQ(EVP_PKEY_cmp_parameters(rsa.get(), dsa.get()), 0);
+  EXPECT_EQ(EVP_PKEY_cmp_parameters(rsa.get(), ec.get()), 0);
+  EXPECT_EQ(EVP_PKEY_cmp_parameters(dsa.get(), ec.get()), 0);
 }
 
 TEST(EVPExtraTest, RawKeyUnsupported) {

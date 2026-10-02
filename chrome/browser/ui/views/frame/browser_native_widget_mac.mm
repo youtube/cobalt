@@ -162,13 +162,14 @@ void BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
   if (browser_view_ && browser_view_->browser_widget() &&
       browser_view_->browser_widget()->GetFrameView()) {
     *override_titlebar_height = true;
+    const auto top_element_info = browser_view_->GetFrameElementInfo();
+
     *titlebar_height =
-        browser_view_->GetTabStripHeight() +
+        std::max(top_element_info.tabstrip_preferred_height,
+                 top_element_info.toolbar_minimum_height) +
         browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
     if (!browser_view_->ShouldDrawTabStrip()) {
-      *titlebar_height +=
-          browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
-          kWebAppMenuMargin * 2;
+      *titlebar_height += kWebAppMenuMargin * 2;
     }
   } else {
     *override_titlebar_height = false;

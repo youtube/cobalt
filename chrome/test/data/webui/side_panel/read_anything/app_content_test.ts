@@ -4,7 +4,7 @@
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
 import type {AppElement, LanguageToastElement, SpEmptyStateElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {BrowserProxy, ContentController, ContentType, LineFocusController, NodeStore, ReadAloudNode, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceClientSideStatusCode, VoiceLanguageController, VoiceNotificationManager} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {BrowserProxy, ContentController, ContentType, LineFocusController, LineFocusMovement, LineFocusStyle, NodeStore, ReadAloudNode, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceClientSideStatusCode, VoiceLanguageController, VoiceNotificationManager} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertStringContains, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome-untrusted://webui-test/keyboard_mock_interactions.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
@@ -73,8 +73,11 @@ suite('AppContent', () => {
       async () => {
         chrome.readingMode.isLineFocusEnabled = true;
         emitEvent(
-            app, ToolbarEvent.LINE_FOCUS,
-            {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+            app, ToolbarEvent.LINE_FOCUS_MOVEMENT,
+            {detail: {data: LineFocusMovement.CURSOR}});
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS_STYLE,
+            {detail: {data: LineFocusStyle.UNDERLINE}});
         const newPos = 202;
         app.connectedCallback();
         await microtasksFinished();
@@ -95,8 +98,11 @@ suite('AppContent', () => {
   test('connected callback adds line focus mouse listener', async () => {
     chrome.readingMode.isLineFocusEnabled = true;
     emitEvent(
-        app, ToolbarEvent.LINE_FOCUS,
-        {detail: {data: chrome.readingMode.lineFocusCursorLine}});
+        app, ToolbarEvent.LINE_FOCUS_MOVEMENT,
+        {detail: {data: LineFocusMovement.CURSOR}});
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS_STYLE,
+        {detail: {data: LineFocusStyle.UNDERLINE}});
     await microtasksFinished();
 
     app.connectedCallback();
@@ -129,6 +135,27 @@ suite('AppContent', () => {
     assertStringContains(emptyState.darkImagePath, spinner);
     assertStringContains(emptyState.imagePath, spinner);
   });
+
+  test(
+      'read aloud state resets on new content (Readability enabled)',
+      async () => {
+        chrome.readingMode.isReadabilityEnabled = true;
+        chrome.readingMode.isTsTextSegmentationEnabled = true;
+
+        let resetCallCount = 0;
+        speechController.resetForNewContent = () => {
+          resetCallCount++;
+        };
+
+        readingMode.htmlContent = '<div> My name is Regina George.</div>';
+
+        app.updateContent();
+        await microtasksFinished();
+
+        assertEquals(
+            1, resetCallCount,
+            'resetForNewContent() should have been called once');
+      });
 
   test('showLoading clears read aloud state', () => {
     setContent('My name is Regina George', readAloudModel);

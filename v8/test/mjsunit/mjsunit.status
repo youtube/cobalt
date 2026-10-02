@@ -571,6 +571,7 @@
   'tools/compiler-trace-flags-wasm': [SKIP],
 
   'compiler/fast-api-calls-wasm': [SKIP],
+  'compiler/fast-api-calls-exception': [SKIP],
 }],  # not has_webassembly or (variant == jitless and not has_wasm_interpreter)
 
 ##############################################################################
@@ -764,6 +765,7 @@
 
   # --experimental-wasm-shared
   'regress/wasm/regress-454276076': [SKIP],
+  'regress/wasm/regress-475896261': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -2532,6 +2534,7 @@
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
   'regress/wasm/regress-454276076': [SKIP],
+  'regress/wasm/regress-475896261': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],
@@ -2586,7 +2589,7 @@
 ##############################################################################
 # TODO(14716): memory64 trap handling doesn't work on arm64 without pointer
 # compression.
-['(arch != x64 and arch != arm64 and arch != riscv64) or (arch == arm64 and not pointer_compression)', {
+['(arch != x64 and arch != arm64 and arch != riscv64 and arch != loong64) or (arch == arm64 and not pointer_compression)', {
   # this test requires memory64 trap handling.
   'regress/wasm/regress-332939161': [SKIP],
 }],
@@ -2910,6 +2913,11 @@
 
 ##############################################################################
 ['clang_coverage and mode == debug', {
+  # Slow tests.
+  'es6/big-weakmap': [PASS, SLOW],
+  'regress/wasm/regress-1010272': [PASS, SLOW],
+  'wasm/table': [PASS, SLOW],
+
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],

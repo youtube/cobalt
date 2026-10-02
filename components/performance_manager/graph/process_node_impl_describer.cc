@@ -60,6 +60,8 @@ std::string HostedProcessTypesToString(
   return str;
 }
 
+<<<<<<< HEAD
+=======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
 const char* GetProcessPriorityString(const base::Process& process) {
   switch (process.GetPriority()) {
@@ -74,6 +76,7 @@ const char* GetProcessPriorityString(const base::Process& process) {
 }
 #endif
 
+>>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 base::Value GetProcessValueDict(const base::Process& process) {
   base::Value::Dict ret;
 
@@ -107,8 +110,13 @@ base::Value GetProcessValueDict(const base::Process& process) {
   if (process.IsValid()) {
     // These properties can only be accessed for valid processes.
     ret.Set("os_priority", process.GetOSPriority());
+<<<<<<< HEAD
+#if !BUILDFLAG(IS_APPLE)
+    ret.Set("priority", base::ProcessPriorityToString(process.GetPriority()));
+=======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("priority", GetProcessPriorityString(process));
+>>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("creation_time",
@@ -169,7 +177,7 @@ base::Value::Dict ProcessNodeImplDescriber::DescribeProcessNodeData(
     ret.Set("metrics_name", impl->GetMetricsName());
   }
 
-  ret.Set("priority", base::TaskPriorityToString(impl->GetPriority()));
+  ret.Set("priority", base::ProcessPriorityToString(impl->GetPriority()));
 
   if (!impl->GetPrivateFootprint().is_zero()) {
     ret.Set("private_footprint_kb",

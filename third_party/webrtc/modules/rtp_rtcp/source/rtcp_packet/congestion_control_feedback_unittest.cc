@@ -129,10 +129,14 @@ TEST(CongestionControlFeedbackTest, CreateReturnsTrueForBasicPacket) {
        .arrival_time_offset = TimeDelta::Millis(2)}};
   CongestionControlFeedback fb(std::move(packets), /*compact_ntp_timestamp=*/1);
 
-  Buffer buf = Buffer::CreateUninitializedWithSize(fb.BlockLength());
-  size_t position = 0;
-  FunctionView<void(ArrayView<const uint8_t> packet)> callback;
-  EXPECT_TRUE(fb.Create(buf.data(), &position, buf.capacity(), callback));
+  Buffer buf = Buffer::CreateWithCapacity(fb.BlockLength());
+  buf.AppendData(fb.BlockLength(), [&](ArrayView<uint8_t> buf_view) {
+    size_t position = 0;
+    FunctionView<void(ArrayView<const uint8_t> packet)> callback;
+    EXPECT_TRUE(
+        fb.Create(buf_view.data(), &position, buf_view.size(), callback));
+    return position;
+  });
 }
 
 TEST(CongestionControlFeedbackTest, CanCreateAndParseWithoutPackets) {

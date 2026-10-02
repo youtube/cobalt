@@ -39,7 +39,6 @@ group("resources") {
       "autofill_ml_internals:resources",
       "bookmarks:resources",
       "certificate_manager:resources",
-      "commerce/product_specifications:resources",
       "contextual_tasks:resources",
       "data_sharing:resources",
       "downloads:resources",
@@ -119,6 +118,10 @@ group("resources") {
 
   if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
     public_deps += [ "discards:resources" ]
+  }
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    public_deps += [ "skills:resources" ]
   }
 
   if (is_win || is_mac || is_linux) {

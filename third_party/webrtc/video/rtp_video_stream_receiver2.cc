@@ -50,6 +50,7 @@
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
+#include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 #include "media/base/media_constants.h"
 #include "modules/include/module_common_types.h"
 #include "modules/pacing/packet_router.h"
@@ -756,9 +757,14 @@ void RtpVideoStreamReceiver2::OnRecoveredPacket(
 }
 
 // This method handles both regular RTP packets and packets recovered
-// via FlexFEC.
+// via RTX or FlexFEC.
 void RtpVideoStreamReceiver2::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
+
+  if (!packet.recovered()) {
+    // Recovery packets (RTX or FlexFEC) are logged in their respective streams.
+    env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
+  }
 
   if (!receiving_)
     return;

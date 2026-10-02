@@ -76,7 +76,7 @@ void DtlsStunPiggybackController::CapturePacket(ArrayView<const uint8_t> data) {
 
   // BoringSSL writes burst of packets...but the interface
   // is made for 1-packet at a time. Use the writing_packets_ variable to keep
-  // track of a full batch. The writing_packets_ is reset in Flush.
+  // track of a full flight. The writing_packets_ is reset in Flush.
   if (!writing_packets_) {
     pending_packets_.clear();
     writing_packets_ = true;
@@ -91,6 +91,8 @@ void DtlsStunPiggybackController::ClearCachedPacketForTesting() {
 }
 
 void DtlsStunPiggybackController::Flush() {
+  // Flush is called by the StreamInterface (and the underlying SSL BIO)
+  // after a flight of packets has been sent.
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   writing_packets_ = false;
 }

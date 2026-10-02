@@ -45,6 +45,15 @@ namespace
 {
 const int kWebGLMaxStructNesting = 4;
 
+// Arbitrarily enforce that all types declared with a size in bytes of over 2 GB will cause
+// compilation failure.
+//
+// For local and global variables, the limit is much lower (64KB) as that much memory won't fit in
+// the GPU registers anyway.
+constexpr size_t kWebGLMaxVariableSizeInBytes        = static_cast<size_t>(2) * 1024 * 1024 * 1024;
+constexpr size_t kWebGLMaxPrivateVariableSizeInBytes = static_cast<size_t>(64) * 1024;
+constexpr size_t kWebGLMaxTotalPrivateVariableSizeInBytes = static_cast<size_t>(16) * 1024 * 1024;
+
 bool ShouldEnforceESSL100LoopAndIndexingLimitations(ShShaderSpec spec,
                                                     int shaderVersion,
                                                     const ShCompileOptions &compileOptions)
@@ -370,6 +379,58 @@ bool IsESSL100ConstantExpression(TIntermNode *node)
 {
     return node->getAsConstantUnion() != nullptr && node->getAsTyped()->getQualifier() == EvqConst;
 }
+
+// Calculate the size of a variable for validation purposes.  If the variable is a UBO, add padding
+// that makes the calculated size _at least_ as large as std140 requires.  Given the limits are
+// arbitrary and overly large, there is no need to be precise about this calculation as long as the
+// calculated size is an overestimation of the real size (which could be, by a small amount).
+angle::base::CheckedNumeric<size_t> CalculateVariableSize(const TType *type, bool isStd140)
+{
+    constexpr size_t kVec4Size = sizeof(float) * 4;
+
+    if (type->isArray())
+    {
+        TType elementType = *type;
+        elementType.toArrayElementType();
+        angle::base::CheckedNumeric<size_t> elementSize =
+            CalculateVariableSize(&elementType, isStd140);
+
+        return elementSize * type->getArraySizeProduct();
+    }
+
+    if (type->getBasicType() == EbtStruct)
+    {
+        const TStructure *structure                   = type->getStruct();
+        angle::base::CheckedNumeric<size_t> totalSize = 0;
+        for (const TField *field : structure->fields())
+        {
+            const TType *fieldType = field->type();
+            totalSize += CalculateVariableSize(fieldType, isStd140);
+        }
+        return totalSize;
+    }
+
+    if (type->isMatrix())
+    {
+        if (isStd140)
+        {
+            // Ignore row vs column major, and get the biggest size of the two possibilities as a
+            // possibly slight overestimation.  Note that the size according to std140 is either
+            // rows times vec4 or cols times vec4 based on how the matrix is laid out.
+            return std::max(type->getRows(), type->getCols()) * kVec4Size;
+        }
+        else
+        {
+            return type->getRows() * type->getCols() * sizeof(float);
+        }
+    }
+
+    // For vectors and scalars, return the size of a vec4 for std140.  This is a slight
+    // overestimation.  If this is the element of an array though, it's accurate (which is why it's
+    // a slight overestimation, e.g. the size of a large array of a scalar type is not
+    // overestimated).
+    return isStd140 ? kVec4Size : type->getNominalSize() * sizeof(float);
+}
 }  // namespace
 
 // This tracks each binding point's current default offset for inheritance of subsequent
@@ -417,6 +478,7 @@ TParseContext::TParseContext(TSymbolTable &symt,
       mShaderType(type),
       mShaderSpec(spec),
       mCompileOptions(options),
+      mResources(resources),
       mShaderVersion(100),
       mTreeRoot(nullptr),
       mStructNestingLevel(0),
@@ -437,30 +499,9 @@ TParseContext::TParseContext(TSymbolTable &symt,
       mDirectiveHandler(ext, *mDiagnostics, *this, mShaderType),
       mPreprocessor(mDiagnostics, &mDirectiveHandler, angle::pp::PreprocessorSettings(spec)),
       mScanner(nullptr),
-      mMaxExpressionComplexity(static_cast<size_t>(options.limitExpressionComplexity
-                                                       ? resources.MaxExpressionComplexity
-                                                       : std::numeric_limits<size_t>::max())),
-      mMaxStatementDepth(static_cast<size_t>(resources.MaxStatementDepth)),
-      mMinProgramTexelOffset(resources.MinProgramTexelOffset),
-      mMaxProgramTexelOffset(resources.MaxProgramTexelOffset),
-      mMinProgramTextureGatherOffset(resources.MinProgramTextureGatherOffset),
-      mMaxProgramTextureGatherOffset(resources.MaxProgramTextureGatherOffset),
-      mMaxCombinedClipAndCullDistances(resources.MaxCombinedClipAndCullDistances),
       mComputeShaderLocalSizeDeclared(false),
       mComputeShaderLocalSize(-1),
       mNumViews(-1),
-      mMaxNumViews(resources.MaxViewsOVR),
-      mMaxImageUnits(resources.MaxImageUnits),
-      mMaxCombinedTextureImageUnits(resources.MaxCombinedTextureImageUnits),
-      mMaxUniformLocations(resources.MaxUniformLocations),
-      mMaxUniformBufferBindings(resources.MaxUniformBufferBindings),
-      mMaxVertexAttribs(resources.MaxVertexAttribs),
-      mMaxAtomicCounterBindings(resources.MaxAtomicCounterBindings),
-      mMaxAtomicCounterBufferSize(resources.MaxAtomicCounterBufferSize),
-      mMaxShaderStorageBufferBindings(resources.MaxShaderStorageBufferBindings),
-      mMaxPixelLocalStoragePlanes(resources.MaxPixelLocalStoragePlanes),
-      mMaxFunctionParameters(resources.MaxFunctionParameters),
-      mMaxCallStackDepth(resources.MaxCallStackDepth),
       mDeclaringFunction(false),
       mDeclaringMain(false),
       mMainFunction(nullptr),
@@ -471,10 +512,7 @@ TParseContext::TParseContext(TSymbolTable &symt,
       mGeometryShaderOutputPrimitiveType(EptUndefined),
       mGeometryShaderInvocations(0),
       mGeometryShaderMaxVertices(-1),
-      mMaxGeometryShaderInvocations(resources.MaxGeometryShaderInvocations),
-      mMaxGeometryShaderMaxVertices(resources.MaxGeometryOutputVertices),
       mGeometryInputArraySize(0),
-      mMaxPatchVertices(resources.MaxPatchVertices),
       mTessControlShaderOutputVertices(0),
       mTessEvaluationShaderInputPrimitiveType(EtetUndefined),
       mTessEvaluationShaderInputVertexSpacingType(EtetUndefined),
@@ -1442,27 +1480,14 @@ unsigned int TParseContext::checkIsValidArraySize(const TSourceLoc &line, TInter
         return 1u;
     }
 
-    if (IsOutputHLSL(getOutputType()))
-    {
-        // The size of arrays is restricted here to prevent issues further down the
-        // compiler/translator/driver stack. Shader Model 5 generation hardware is limited to
-        // 4096 registers so this should be reasonable even for aggressively optimizable code.
-        const unsigned int sizeLimit = 65536;
-
-        if (size > sizeLimit)
-        {
-            error(line, "array size too large", "");
-            return 1u;
-        }
-    }
-
     return size;
 }
 
 bool TParseContext::checkIsValidArrayDimension(const TSourceLoc &line,
                                                TVector<unsigned int> *arraySizes)
 {
-    if (arraySizes->size() > mMaxExpressionComplexity)
+    if (mCompileOptions.limitExpressionComplexity &&
+        arraySizes->size() > static_cast<size_t>(mResources.MaxExpressionComplexity))
     {
         error(line, "array has too many dimensions", "");
         return false;
@@ -1567,7 +1592,7 @@ bool TParseContext::checkIsValidTypeAndQualifierForArray(const TSourceLoc &index
 
 void TParseContext::checkNestingLevel(const TSourceLoc &line)
 {
-    if (mControlFlow.size() > mMaxStatementDepth)
+    if (mControlFlow.size() > static_cast<size_t>(mResources.MaxStatementDepth))
     {
         error(line, "statement is too deeply nested", "");
     }
@@ -1615,6 +1640,92 @@ void TParseContext::checkDeclarationIsValidArraySize(const TSourceLoc &line,
               "implicitly sized arrays only allowed for tessellation shaders "
               "or geometry shader inputs",
               identifier);
+    }
+}
+
+void TParseContext::checkVariableSize(const TSourceLoc &line,
+                                      const ImmutableString &identifier,
+                                      const TType *type)
+{
+    // Prevent unrealistically large variable sizes in shaders.  This works around driver bugs
+    // around int-size limits (such as 2GB).  The limits are generously large enough that no real
+    // shader should ever hit it.
+    //
+    // The size check does not take std430 into account as it is intended for WebGL shaders.  For
+    // the same reason, other shader stages than vertex/fragment are ignored as defer-sized
+    // variables e.g. in geometry shaders are not handled.
+    //
+    // Additionally, if the shader has already failed compilation, do not validate the type sizes.
+    // For example, if previously an error is generated due to too-deep struct nesting the
+    // calculation here could overflow the stack if performed.
+    if (!mCompileOptions.rejectWebglShadersWithLargeVariables || numErrors() > 0 ||
+        (mShaderType != GL_VERTEX_SHADER && mShaderType != GL_FRAGMENT_SHADER))
+    {
+        return;
+    }
+
+    // Note: the only allowed interface block in webgl shaders is UBOs in std140 mode, so the size
+    // is unconditionally calculated with std140 rules if the variable is an interface block.
+    // Uniform variables are treated the same way as UBOs, as they are often packed the same way
+    // later on.
+    const size_t variableSize =
+        CalculateVariableSize(type, type->isInterfaceBlock() || type->getQualifier() == EvqUniform)
+            .ValueOrDefault(std::numeric_limits<size_t>::max());
+    if (variableSize > kWebGLMaxVariableSizeInBytes)
+    {
+        error(line, "Size of declared variable exceeds implementation-defined limit", identifier);
+        return;
+    }
+
+    switch (type->getQualifier())
+    {
+        // List of all types that need to be limited (for example because they cause overflows
+        // in drivers, or create trouble for the SPIR-V gen as the number of an instruction's
+        // arguments cannot be more than 64KB (see OutputSPIRVTraverser::cast)).
+
+        // Local/global variables
+        case EvqTemporary:
+        case EvqGlobal:
+        case EvqConst:
+
+        // Function arguments
+        case EvqParamIn:
+        case EvqParamOut:
+        case EvqParamInOut:
+        case EvqParamConst:
+
+        // Varyings
+        case EvqVaryingIn:
+        case EvqVaryingOut:
+        case EvqSmoothOut:
+        case EvqFlatOut:
+        case EvqNoPerspectiveOut:
+        case EvqCentroidOut:
+        case EvqSampleOut:
+        case EvqNoPerspectiveCentroidOut:
+        case EvqNoPerspectiveSampleOut:
+        case EvqSmoothIn:
+        case EvqFlatIn:
+        case EvqNoPerspectiveIn:
+        case EvqCentroidIn:
+        case EvqNoPerspectiveCentroidIn:
+        case EvqNoPerspectiveSampleIn:
+        case EvqVertexOut:
+        case EvqFragmentIn:
+        case EvqPerVertexIn:
+        case EvqPerVertexOut:
+
+            if (variableSize > kWebGLMaxPrivateVariableSizeInBytes)
+            {
+                error(line,
+                      "Size of declared private variable exceeds implementation-defined limit",
+                      identifier);
+                return;
+            }
+            mTotalPrivateVariablesSize += variableSize;
+            break;
+        default:
+            break;
     }
 }
 
@@ -1860,6 +1971,8 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
 
     if (!checkIsNonVoid(line, identifier, type->getBasicType()))
         return false;
+
+    checkVariableSize(line, identifier, type);
 
     // Declare the variable in IR
     declareIRVariable(*variable, sized);
@@ -2528,7 +2641,7 @@ void TParseContext::checkImageBindingIsValid(const TSourceLoc &location,
                                              int arrayTotalElementCount)
 {
     // Expects arraySize to be 1 when setting binding for only a single variable.
-    if (binding >= 0 && binding + arrayTotalElementCount > mMaxImageUnits)
+    if (binding >= 0 && binding + arrayTotalElementCount > mResources.MaxImageUnits)
     {
         error(location, "image binding greater than gl_MaxImageUnits", "binding");
     }
@@ -2539,7 +2652,7 @@ void TParseContext::checkSamplerBindingIsValid(const TSourceLoc &location,
                                                int arrayTotalElementCount)
 {
     // Expects arraySize to be 1 when setting binding for only a single variable.
-    if (binding >= 0 && binding + arrayTotalElementCount > mMaxCombinedTextureImageUnits)
+    if (binding >= 0 && binding + arrayTotalElementCount > mResources.MaxCombinedTextureImageUnits)
     {
         error(location, "sampler binding greater than maximum texture units", "binding");
     }
@@ -2553,7 +2666,7 @@ void TParseContext::checkBlockBindingIsValid(const TSourceLoc &location,
     int size = (arraySize == 0 ? 1 : arraySize);
     if (qualifier == EvqUniform)
     {
-        if (binding + size > mMaxUniformBufferBindings)
+        if (binding + size > mResources.MaxUniformBufferBindings)
         {
             error(location, "uniform block binding greater than MAX_UNIFORM_BUFFER_BINDINGS",
                   "binding");
@@ -2561,7 +2674,7 @@ void TParseContext::checkBlockBindingIsValid(const TSourceLoc &location,
     }
     else if (qualifier == EvqBuffer)
     {
-        if (binding + size > mMaxShaderStorageBufferBindings)
+        if (binding + size > mResources.MaxShaderStorageBufferBindings)
         {
             error(location,
                   "shader storage block binding greater than MAX_SHADER_STORAGE_BUFFER_BINDINGS",
@@ -2571,7 +2684,7 @@ void TParseContext::checkBlockBindingIsValid(const TSourceLoc &location,
 }
 void TParseContext::checkAtomicCounterBindingIsValid(const TSourceLoc &location, int binding)
 {
-    if (binding >= mMaxAtomicCounterBindings)
+    if (binding >= mResources.MaxAtomicCounterBindings)
     {
         error(location, "atomic counter binding greater than gl_MaxAtomicCounterBindings",
               "binding");
@@ -2593,7 +2706,7 @@ void TParseContext::checkPixelLocalStorageBindingIsValid(const TSourceLoc &locat
         error(location, "pixel local storage requires a binding index", "layout qualifier");
     }
     // TODO(anglebug.com/40096838):
-    else if (layoutQualifier.binding >= mMaxPixelLocalStoragePlanes)
+    else if (layoutQualifier.binding >= mResources.MaxPixelLocalStoragePlanes)
     {
         error(location, "pixel local storage binding out of range", "layout qualifier");
     }
@@ -2626,9 +2739,10 @@ void TParseContext::checkUniformLocationInRange(const TSourceLoc &location,
     int loc = layoutQualifier.location;
     if (loc >= 0)  // Shader-specified location
     {
-        if (loc >= mMaxUniformLocations || objectLocationCount > mMaxUniformLocations ||
+        if (loc >= mResources.MaxUniformLocations ||
+            objectLocationCount > mResources.MaxUniformLocations ||
             static_cast<unsigned int>(loc) + static_cast<unsigned int>(objectLocationCount) >
-                static_cast<unsigned int>(mMaxUniformLocations))
+                static_cast<unsigned int>(mResources.MaxUniformLocations))
         {
             error(location, "Uniform location out of range", "location");
         }
@@ -2642,9 +2756,10 @@ void TParseContext::checkAttributeLocationInRange(const TSourceLoc &location,
     int loc = layoutQualifier.location;
     if (loc >= 0)  // Shader-specified location
     {
-        if (loc >= mMaxVertexAttribs || objectLocationCount > mMaxVertexAttribs ||
+        if (loc >= mResources.MaxVertexAttribs ||
+            objectLocationCount > mResources.MaxVertexAttribs ||
             static_cast<unsigned int>(loc) + static_cast<unsigned int>(objectLocationCount) >
-                static_cast<unsigned int>(mMaxVertexAttribs))
+                static_cast<unsigned int>(mResources.MaxVertexAttribs))
         {
             error(location, "Attribute location out of range", "location");
         }
@@ -2954,6 +3069,18 @@ ir::VariableId TParseContext::declareBuiltInOnFirstUse(const TVariable *variable
             unsizedArrayType->toArrayBaseType();
             unsizedArrayType->makeArray(0);
             variableType = unsizedArrayType;
+        }
+
+        // For gl_FragData, change the array size to 1 if MRT is not supported; only index 0 is
+        // valid for access.  Note that gl_FragData usage itself is restricted to ESSL 100, so a
+        // version check is unnecessary.
+        if (variableType->getQualifier() == EvqFragData &&
+            !isExtensionEnabled(TExtension::EXT_draw_buffers))
+        {
+            TType *singleElementArrayType = new TType(*variableType);
+            singleElementArrayType->toArrayBaseType();
+            singleElementArrayType->makeArray(1);
+            variableType = singleElementArrayType;
         }
 
         const ir::TypeId typeId = getTypeId(*variableType);
@@ -4195,7 +4322,7 @@ void TParseContext::checkAtomicCounterOffsetLimit(const TSourceLoc &location, co
 {
     TLayoutQualifier layoutQualifier = type.getLayoutQualifier();
 
-    if (layoutQualifier.offset >= mMaxAtomicCounterBufferSize)
+    if (layoutQualifier.offset >= mResources.MaxAtomicCounterBufferSize)
     {
         error(location, "Offset must not exceed the maximum atomic counter buffer size",
               "atomic counter");
@@ -4298,10 +4425,11 @@ void TParseContext::checkTessellationShaderUnsizedArraysAndSetSize(const TSource
         // gl_in in both tessellation stages should be sized as gl_MaxPatchVertices
         if (type->getOutermostArraySize() == 0)
         {
-            ASSERT(mMaxPatchVertices > 0);
-            type->sizeOutermostUnsizedArray(mMaxPatchVertices);
+            ASSERT(mResources.MaxPatchVertices > 0);
+            type->sizeOutermostUnsizedArray(mResources.MaxPatchVertices);
         }
-        else if (type->getOutermostArraySize() != static_cast<unsigned int>(mMaxPatchVertices))
+        else if (type->getOutermostArraySize() !=
+                 static_cast<unsigned int>(mResources.MaxPatchVertices))
         {
             error(location,
                   "If a size is specified for a tessellation control or evaluation gl_in "
@@ -4369,8 +4497,8 @@ void TParseContext::checkTessellationShaderUnsizedArraysAndSetSize(const TSource
             case EvqNoPerspectiveSampleIn:
                 // Declaring an array size is optional. If no size is specified, it will be taken
                 // from the implementation-dependent maximum patch size (gl_MaxPatchVertices).
-                ASSERT(mMaxPatchVertices > 0);
-                type->sizeOutermostUnsizedArray(mMaxPatchVertices);
+                ASSERT(mResources.MaxPatchVertices > 0);
+                type->sizeOutermostUnsizedArray(mResources.MaxPatchVertices);
                 break;
             case EvqTessControlOut:
             case EvqTessEvaluationOut:
@@ -4404,7 +4532,7 @@ void TParseContext::checkTessellationShaderUnsizedArraysAndSetSize(const TSource
     if (IsTessellationControlShaderInput(mShaderType, qualifier) ||
         IsTessellationEvaluationShaderInput(mShaderType, qualifier))
     {
-        if (outermostSize != static_cast<unsigned int>(mMaxPatchVertices))
+        if (outermostSize != static_cast<unsigned int>(mResources.MaxPatchVertices))
         {
             error(location,
                   "If a size is specified for a tessellation control or evaluation user-defined "
@@ -5336,7 +5464,7 @@ void TParseContext::parseGlobalLayoutQualifier(const TTypeQualifierBuilder &type
             return;
         }
 
-        if (layoutQualifier.numViews > mMaxNumViews)
+        if (layoutQualifier.numViews > mResources.MaxViewsOVR)
         {
             error(typeQualifier.line, "num_views greater than the value of GL_MAX_VIEWS_OVR",
                   "layout");
@@ -5539,6 +5667,8 @@ TIntermFunctionDefinition *TParseContext::addFunctionDefinition(
     TIntermBlock *functionBody,
     const TSourceLoc &location)
 {
+    ASSERT(functionPrototype->getFunction() == mCurrentFunction);
+
     // Undo push at end of parseFunctionDefinitionHeader() below for ESSL1.00 case
     if (mFunctionBodyNewScope)
     {
@@ -5549,15 +5679,19 @@ TIntermFunctionDefinition *TParseContext::addFunctionDefinition(
     // Check that non-void functions have at least one return statement.
     if (mCurrentFunction->getReturnType().getBasicType() != EbtVoid && !mFunctionReturnsValue)
     {
-        error(location, "Function does not return a value",
-              functionPrototype->getFunction()->name());
+        error(location, "Function does not return a value", mCurrentFunction->name());
     }
     if (mCompileOptions.limitExpressionComplexity &&
-        functionPrototype->getFunction()->getParamCount() >
-            static_cast<unsigned int>(mMaxFunctionParameters))
+        mCurrentFunction->getParamCount() >
+            static_cast<unsigned int>(mResources.MaxFunctionParameters))
     {
-        error(location, "Function has too many parameters",
-              functionPrototype->getFunction()->name());
+        error(location, "Function has too many parameters", mCurrentFunction->name());
+    }
+
+    for (size_t paramIndex = 0; paramIndex < mCurrentFunction->getParamCount(); ++paramIndex)
+    {
+        const TVariable *param = mCurrentFunction->getParam(paramIndex);
+        checkVariableSize(functionPrototype->getLine(), param->name(), &param->getType());
     }
 
     if (functionBody == nullptr)
@@ -5569,7 +5703,6 @@ TIntermFunctionDefinition *TParseContext::addFunctionDefinition(
         new TIntermFunctionDefinition(functionPrototype, functionBody);
     functionNode->setLine(location);
 
-    ASSERT(functionPrototype->getFunction() == mCurrentFunction);
     if (mDeclaringMain)
     {
         mMainFunction = mCurrentFunction;
@@ -7320,7 +7453,7 @@ void TParseContext::parseInvocations(int intValue,
 {
     // Although SPEC isn't clear whether invocations can be less than 1, we add this limit because
     // it doesn't make sense to accept invocations <= 0.
-    if (intValue < 1 || intValue > mMaxGeometryShaderInvocations)
+    if (intValue < 1 || intValue > mResources.MaxGeometryShaderInvocations)
     {
         error(intValueLine,
               "out of range: invocations must be in the range of [1, "
@@ -7340,7 +7473,7 @@ void TParseContext::parseMaxVertices(int intValue,
 {
     // Although SPEC isn't clear whether max_vertices can be less than 0, we add this limit because
     // it doesn't make sense to accept max_vertices < 0.
-    if (intValue < 0 || intValue > mMaxGeometryShaderMaxVertices)
+    if (intValue < 0 || intValue > mResources.MaxGeometryOutputVertices)
     {
         error(
             intValueLine,
@@ -7358,7 +7491,7 @@ void TParseContext::parseVertices(int intValue,
                                   const std::string &intValueString,
                                   int *vertices)
 {
-    if (intValue < 1 || intValue > mMaxPatchVertices)
+    if (intValue < 1 || intValue > mResources.MaxPatchVertices)
     {
         error(intValueLine,
               "out of range : vertices must be in the range of [1, gl_MaxPatchVertices]",
@@ -8892,10 +9025,12 @@ void TParseContext::checkTextureOffset(TIntermAggregate *functionCall)
     bool isTextureGatherOffsets            = BuiltInGroup::IsTextureGatherOffsets(op);
     bool useTextureGatherOffsetConstraints = isTextureGatherOffset || isTextureGatherOffsets;
 
-    int minOffsetValue =
-        useTextureGatherOffsetConstraints ? mMinProgramTextureGatherOffset : mMinProgramTexelOffset;
-    int maxOffsetValue =
-        useTextureGatherOffsetConstraints ? mMaxProgramTextureGatherOffset : mMaxProgramTexelOffset;
+    int minOffsetValue = useTextureGatherOffsetConstraints
+                             ? mResources.MinProgramTextureGatherOffset
+                             : mResources.MinProgramTexelOffset;
+    int maxOffsetValue = useTextureGatherOffsetConstraints
+                             ? mResources.MaxProgramTextureGatherOffset
+                             : mResources.MaxProgramTexelOffset;
 
     if (isTextureGatherOffsets)
     {
@@ -9675,10 +9810,10 @@ void TParseContext::checkCallGraph()
 
         visitState[function].callDepth = callDepth;
 
-        if (callDepth > static_cast<uint32_t>(mMaxCallStackDepth))
+        if (callDepth > static_cast<uint32_t>(mResources.MaxCallStackDepth))
         {
             std::stringstream errorStream = sh::InitializeStream<std::stringstream>();
-            errorStream << "Call stack too deep (larger than " << mMaxCallStackDepth
+            errorStream << "Call stack too deep (larger than " << mResources.MaxCallStackDepth
                         << ") in function: " << function->name();
             mDiagnostics->globalError(errorStream.str().c_str());
             return false;
@@ -9769,18 +9904,19 @@ bool TParseContext::postParseChecks()
 
     // When cull distances are not supported, i.e., when GL_ANGLE_clip_cull_distance is
     // exposed but GL_EXT_clip_cull_distance is not exposed, the combined limit is 0.
-    if (usedCullDistances > 0 && mMaxCombinedClipAndCullDistances == 0)
+    if (usedCullDistances > 0 && mResources.MaxCombinedClipAndCullDistances == 0)
     {
         error(mCullDistanceInfo.firstEncounter, "Cull distance functionality is not available",
               "gl_CullDistance");
     }
 
-    if (static_cast<int>(combinedClipAndCullDistances) > mMaxCombinedClipAndCullDistances)
+    if (static_cast<int>(combinedClipAndCullDistances) > mResources.MaxCombinedClipAndCullDistances)
     {
         std::stringstream strstr = sh::InitializeStream<std::stringstream>();
         strstr << "The sum of 'gl_ClipDistance' and 'gl_CullDistance' size is greater than "
                   "gl_MaxCombinedClipAndCullDistances ("
-               << combinedClipAndCullDistances << " > " << mMaxCombinedClipAndCullDistances << ")";
+               << combinedClipAndCullDistances << " > "
+               << mResources.MaxCombinedClipAndCullDistances << ")";
         error(mClipDistanceInfo.firstEncounter, strstr.str().c_str(), "gl_ClipDistance");
     }
 
@@ -9811,6 +9947,17 @@ bool TParseContext::postParseChecks()
     }
 
     ValidateFragColorAndFragData(mShaderType, mShaderVersion, symbolTable, mDiagnostics);
+
+    if (mCompileOptions.rejectWebglShadersWithLargeVariables)
+    {
+        if (mTotalPrivateVariablesSize.ValueOrDefault(std::numeric_limits<size_t>::max()) >
+            kWebGLMaxTotalPrivateVariableSizeInBytes)
+        {
+            error(TSourceLoc{},
+                  "Total size of declared private variables exceeds implementation-defined limit",
+                  "");
+        }
+    }
 
     if (mCompileOptions.rejectWebglShadersWithUndefinedBehavior)
     {

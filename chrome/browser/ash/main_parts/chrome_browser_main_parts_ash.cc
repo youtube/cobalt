@@ -305,7 +305,6 @@
 
 #if BUILDFLAG(PLATFORM_CUTTLEFISH)
 #include "chrome/browser/ash/dbus/fjord_oobe_service_provider.h"
-#include "chrome/browser/ash/login/fjord_oobe/fjord_oobe_state_manager.h"
 #endif
 
 #if BUILDFLAG(USE_CUPS)
@@ -536,13 +535,11 @@ class DBusServices {
             std::make_unique<ArcCroshServiceProvider>()));
 
 #if BUILDFLAG(PLATFORM_CUTTLEFISH)
-    if (features::IsFjordOobeEnabled()) {
-      fjord_oobe_service_ = CrosDBusService::Create(
-          system_bus, chromeos::kFjordOobeServiceName,
-          dbus::ObjectPath(chromeos::kFjordOobeServicePath),
-          CrosDBusService::CreateServiceProviderList(
-              std::make_unique<FjordOobeServiceProvider>()));
-    }
+    fjord_oobe_service_ = CrosDBusService::Create(
+        system_bus, chromeos::kFjordOobeServiceName,
+        dbus::ObjectPath(chromeos::kFjordOobeServicePath),
+        CrosDBusService::CreateServiceProviderList(
+            std::make_unique<FjordOobeServiceProvider>()));
 #endif
 
     // Initialize PowerDataCollector after DBusThreadManager is initialized.
@@ -897,10 +894,6 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
 #if BUILDFLAG(PLATFORM_CFM)
   cfm::InitializeCfmServices();
 #endif  // BUILDFLAG(PLATFORM_CFM)
-
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
-  FjordOobeStateManager::Initialize();
-#endif  // BUILDFLAG(PLATFORM_CUTTLEFISH)
 
   SystemProxyManager::Initialize(g_browser_process->local_state());
 
@@ -1766,10 +1759,6 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // critical services are destroyed
   cfm::ShutdownCfmServices();
 #endif  // BUILDFLAG(PLATFORM_CFM)
-
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
-  FjordOobeStateManager::Shutdown();
-#endif
 
   // Cleans up dbus services depending on ash.
   dbus_services_->PreAshShutdown();

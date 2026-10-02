@@ -10,7 +10,7 @@ import android.content.Context;
 import android.os.Bundle;
 
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -89,7 +89,7 @@ public class ThemeSettingsFragment extends ChromeBaseSettingsFragment
     }
 
     @Override
-    public ObservableSupplier<String> getPageTitle() {
+    public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
     }
 
@@ -125,20 +125,57 @@ public class ThemeSettingsFragment extends ChromeBaseSettingsFragment
                             NightModeUtils.getThemeSettingTitle(context, ThemeType.SYSTEM_DEFAULT);
                     String defaultSummary =
                             context.getString(R.string.themes_system_default_summary);
-                    indexData.addEntryForKey(
+                    addEntryForKey(
+                            indexData,
                             prefFragment,
                             PREF_UI_THEME_PREF,
+                            PREF_UI_THEME_PREF,
+                            0,
                             defaultTitle,
                             defaultSummary,
                             mExtras);
 
                     String lightTitle =
                             NightModeUtils.getThemeSettingTitle(context, ThemeType.LIGHT);
-                    indexData.addEntryForKey(
-                            prefFragment, PREF_UI_THEME_PREF_LIGHT, lightTitle, null, mExtras);
+                    addEntryForKey(
+                            indexData,
+                            prefFragment,
+                            PREF_UI_THEME_PREF_LIGHT,
+                            PREF_UI_THEME_PREF,
+                            1,
+                            lightTitle,
+                            null,
+                            mExtras);
                     String darkTitle = NightModeUtils.getThemeSettingTitle(context, ThemeType.DARK);
-                    indexData.addEntryForKey(
-                            prefFragment, PREF_UI_THEME_PREF_DARK, darkTitle, null, mExtras);
+                    addEntryForKey(
+                            indexData,
+                            prefFragment,
+                            PREF_UI_THEME_PREF_DARK,
+                            PREF_UI_THEME_PREF,
+                            2,
+                            darkTitle,
+                            null,
+                            mExtras);
+                }
+
+                private void addEntryForKey(
+                        SettingsIndexData indexData,
+                        String parentFragment,
+                        String key,
+                        String highlightKey,
+                        int subViewPos,
+                        String title,
+                        @Nullable String summary,
+                        Bundle extras) {
+                    String id = getUniqueId(key);
+                    indexData.addEntry(
+                            id,
+                            new SettingsIndexData.Entry.Builder(id, key, title, parentFragment)
+                                    .setSummary(summary)
+                                    .setHighlightKey(highlightKey)
+                                    .setSubViewPos(subViewPos)
+                                    .setArguments(extras)
+                                    .build());
                 }
 
                 @Override

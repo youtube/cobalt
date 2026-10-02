@@ -57,6 +57,11 @@ AsyncUDPSocket::AsyncUDPSocket(const Environment& env,
                               [this](Socket* socket) { OnReadEvent(socket); });
   socket_->SubscribeWriteEvent(
       this, [this](Socket* socket) { OnWriteEvent(socket); });
+  // need to forward that also for UDP case (DTLS) once the SSL handshake is
+  // finished
+
+  socket_->SubscribeConnectEvent(
+      this, [this](Socket* socket) { OnConnectEvent(socket); });
 }
 
 SocketAddress AsyncUDPSocket::GetLocalAddress() const {
@@ -123,6 +128,10 @@ int AsyncUDPSocket::GetError() const {
 
 void AsyncUDPSocket::SetError(int error) {
   return socket_->SetError(error);
+}
+
+void AsyncUDPSocket::OnConnectEvent(Socket* socket) {
+  NotifyConnect(this);
 }
 
 void AsyncUDPSocket::OnReadEvent(Socket* socket) {

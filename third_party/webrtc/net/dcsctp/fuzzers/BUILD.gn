@@ -15,9 +15,7 @@ rtc_library("dcsctp_fuzzers") {
     "../../../api/task_queue",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
-    "../../../rtc_base:logging",
     "../common:internal_types",
-    "../common:math",
     "../packet:chunk",
     "../packet:data",
     "../packet:error_cause",
@@ -41,15 +39,9 @@ if (rtc_include_tests) {
     deps = [
       ":dcsctp_fuzzers",
       "../../../api:array_view",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:gunit_helpers",
-      "../../../rtc_base:logging",
       "../../../test:test_support",
-      "../packet:sctp_packet",
-      "../public:socket",
       "../public:types",
       "../socket:dcsctp_socket",
-      "../testing:testing_macros",
     ]
     sources = [ "dcsctp_fuzzers_test.cc" ]
   }

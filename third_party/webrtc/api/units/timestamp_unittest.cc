@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "absl/strings/str_cat.h"
 #include "api/units/time_delta.h"
 #include "test/gtest.h"
 
@@ -99,6 +100,11 @@ TEST(TimestampTest, CanBeInititializedFromLargeInt) {
             static_cast<int64_t>(kMaxInt) * 1000000);
   EXPECT_EQ(Timestamp::Millis(kMaxInt).us(),
             static_cast<int64_t>(kMaxInt) * 1000);
+}
+
+TEST(TimestampTest, CanBeNegative) {
+  EXPECT_EQ(Timestamp::Micros(-1).us(), -1);
+  EXPECT_EQ(absl::StrCat(Timestamp::Millis(-100)), "-100 ms");
 }
 
 TEST(TimestampTest, ConvertsToAndFromDouble) {

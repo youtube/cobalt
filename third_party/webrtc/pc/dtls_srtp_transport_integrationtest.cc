@@ -156,10 +156,8 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
         GetSrtpKeyAndSaltLengths((selected_crypto_suite), &key_len, &salt_len));
 
     // Extract the keys. The order depends on the role!
-    ZeroOnFreeBuffer<uint8_t> dtls_buffer =
-        ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(key_len * 2 +
-                                                               salt_len * 2);
-    ASSERT_TRUE(server_dtls_transport_->ExportSrtpKeyingMaterial(dtls_buffer));
+    ZeroOnFreeBuffer<uint8_t> dtls_buffer;
+    ASSERT_TRUE(server_dtls_transport_->AppendSrtpKeyingMaterial(dtls_buffer));
 
     ZeroOnFreeBuffer<unsigned char> client_write_key(&dtls_buffer[0], key_len,
                                                      key_len + salt_len);

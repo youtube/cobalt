@@ -17,8 +17,8 @@ import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -50,6 +50,7 @@ import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
+import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
@@ -107,7 +108,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private @Nullable ReloadButtonCoordinator mReloadButtonCoordinator;
     private @Nullable final BackButtonCoordinator mBackButtonCoordinator;
-    private ObservableSupplier<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
+    private MonotonicObservableSupplier<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
 
     /** Null until {@link #initializeWithNative} is called. */
     private @Nullable TabStripTransitionCoordinator mTabStripTransitionCoordinator;
@@ -129,7 +130,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private final BrowserControlsStateProvider mBrowserControls;
     private final TopControlsStacker mTopControlsStacker;
 
-    private ObservableSupplier<Integer> mTabCountSupplier;
+    private MonotonicObservableSupplier<Integer> mTabCountSupplier;
 
     /** Token used to block the tab strip transition when find in page toolbar is showing. */
     private int mFindToolbarToken = TokenHolder.INVALID_TOKEN;
@@ -171,11 +172,12 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      * @param desktopWindowStateManager The {@link DesktopWindowStateManager} instance.
      * @param tabStripTransitionDelegateSupplier Supplier for the {@link
      *     TabStripTransitionDelegate}.
+     * @param tabStripTransitionHandler TabStripTransitionHandler instance.
      * @param onLongClickListener OnLongClickListener for the toolbar.
      * @param homeButtonDisplay The {@link HomeButtonDisplay} to manage the display and behavior of
      *     home button(s). Should be null on custom tabs.
      * @param topControlsStacker The TopControlsStacker for child objects to check state from.
-     * @param browserControlsStateProvider BrowserControlsStateProvider instance.
+     * @param browserControlsVisibilityManager BrowserControlsStateProvider instance.
      */
     public TopToolbarCoordinator(
             ToolbarControlContainer controlContainer,
@@ -188,31 +190,32 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             ThemeColorProvider normalThemeColorProvider,
             IncognitoStateProvider incognitoStateProvider,
             MenuButtonCoordinator browsingModeMenuButtonCoordinator,
-            ObservableSupplier<AppMenuButtonHelper> appMenuButtonHelperSupplier,
+            MonotonicObservableSupplier<AppMenuButtonHelper> appMenuButtonHelperSupplier,
             @Nullable ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator,
-            ObservableSupplier<Integer> tabCountSupplier,
-            ObservableSupplier<Boolean> homepageEnabledSupplier,
-            ObservableSupplier<Boolean> homepageNonNtpSupplier,
+            MonotonicObservableSupplier<Integer> tabCountSupplier,
+            MonotonicObservableSupplier<Boolean> homepageEnabledSupplier,
+            MonotonicObservableSupplier<Boolean> homepageNonNtpSupplier,
             Supplier<ResourceManager> resourceManagerSupplier,
             HistoryDelegate historyDelegate,
             boolean initializeWithIncognitoColors,
             NullableObservableSupplier<@BrowserControlsState Integer> constraintsSupplier,
-            ObservableSupplier<Boolean> compositorInMotionSupplier,
+            MonotonicObservableSupplier<Boolean> compositorInMotionSupplier,
             BrowserStateBrowserControlsVisibilityDelegate
                     browserStateBrowserControlsVisibilityDelegate,
             FullscreenManager fullscreenManager,
             TabObscuringHandler tabObscuringHandler,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
+            TabStripTransitionHandler tabStripTransitionHandler,
             @Nullable OnLongClickListener onLongClickListener,
             ToolbarProgressBar progressBar,
             NullableObservableSupplier<Tab> tabSupplier,
-            ObservableSupplier<Boolean> toolbarNavControlsEnabledSupplier,
+            MonotonicObservableSupplier<Boolean> toolbarNavControlsEnabledSupplier,
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
             @Nullable HomeButtonDisplay homeButtonDisplay,
             TopControlsStacker topControlsStacker,
-            BrowserControlsStateProvider browserControlsStateProvider,
+            BrowserControlsVisibilityManager browserControlsVisibilityManager,
             Supplier<Integer> incognitoWindowCountSupplier) {
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
@@ -236,7 +239,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         mToolbarLayout.setOnLongClickListener(onLongClickListener);
         mLocationBarView = mToolbarLayout.findViewById(R.id.location_bar);
         mIndexOfLocationBarInToolbar = mToolbarLayout.indexOfChild(mLocationBarView);
-        mBrowserControls = browserControlsStateProvider;
+        mBrowserControls = browserControlsVisibilityManager;
         mTopControlsStacker = topControlsStacker;
 
         ImageButton reloadButton = mControlContainer.findViewById(R.id.refresh_button);
@@ -297,6 +300,23 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         homepageNonNtpSupplier.addObserver(
                 (isNonNtp) -> mToolbarLayout.onHomepageIsNonNtpUpdate(isNonNtp));
 
+        // When we can force height adjustment on start up, we need to create tab strip transition
+        // earlier, before native is ready.
+        // TODO(crbug.com/450970998): Once launched, it's safe to always call
+        // maybeInitializeTabStripTransitionCoordinator on all form factors.
+        if (BrowserControlsUtils.isForceTopChromeHeightAdjustmentOnStartupEnabled(
+                toolbarLayout.getContext())) {
+            mTabStripTransitionCoordinator =
+                    maybeInitializeTabStripTransitionCoordinator(
+                            mToolbarLayout,
+                            browserControlsVisibilityManager,
+                            mControlContainer,
+                            mTabObscuringHandler,
+                            mDesktopWindowStateManager,
+                            mTabStripTransitionDelegateSupplier,
+                            tabStripTransitionHandler);
+        }
+
         // Add the layer after toolbar / control container is initialized.
         mTopControlsStacker.addControl(this);
         mTopControlsStacker.requestLayerUpdatePost(false);
@@ -341,10 +361,10 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             NullableObservableSupplier<Tab> tabSupplier,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
             TopUiThemeColorProvider topUiThemeColorProvider,
-            ObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
-            ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
+            MonotonicObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
+            MonotonicObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             Callback<DrawingInfo> progressInfoCallback,
-            ObservableSupplier<Long> captureResourceIdSupplier,
+            MonotonicObservableSupplier<Long> captureResourceIdSupplier,
             TabStripTransitionHandler tabStripTransitionHandler) {
         mTrackerSupplier.set(TrackerFactory.getTrackerForProfile(profile));
         mToolbarLayout.setTabCountSupplier(mTabCountSupplier);
@@ -383,22 +403,52 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             mToolbarLayout.getProgressBar());
             layoutManager.addSceneOverlay(mOverlayCoordinator);
             mToolbarLayout.setOverlayCoordinator(mOverlayCoordinator);
+
+            // mOverlayCoordinator needs to receive the latest yOffset and offset tags to position
+            // the scene layer. It's better to request another update to avoid stale values.
+            if (BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                    && mBrowserControls.getControlsPosition() == ControlsPosition.TOP) {
+                mTopControlsStacker.requestLayerUpdatePost(false);
+            }
         }
 
-        int tabStripHeightResource = mToolbarLayout.getTabStripHeightFromResource();
-        if (tabStripHeightResource > 0) {
+        if (mTabStripTransitionCoordinator == null) {
             mTabStripTransitionCoordinator =
-                    new TabStripTransitionCoordinator(
+                    maybeInitializeTabStripTransitionCoordinator(
+                            mToolbarLayout,
                             browserControlsVisibilityManager,
                             mControlContainer,
-                            tabStripHeightResource,
                             mTabObscuringHandler,
                             mDesktopWindowStateManager,
                             mTabStripTransitionDelegateSupplier,
                             tabStripTransitionHandler);
-            mToolbarLayout.getContext().registerComponentCallbacks(mTabStripTransitionCoordinator);
-            mToolbarLayout.setTabStripTransitionCoordinator(mTabStripTransitionCoordinator);
         }
+    }
+
+    private static @Nullable TabStripTransitionCoordinator
+            maybeInitializeTabStripTransitionCoordinator(
+                    ToolbarLayout toolbarLayout,
+                    BrowserControlsVisibilityManager browserControlsVisibilityManager,
+                    ControlContainer controlContainer,
+                    TabObscuringHandler tabObscuringHandler,
+                    @Nullable DesktopWindowStateManager desktopWindowStateManager,
+                    OneshotSupplier<TabStripTransitionDelegate> tabStripTransitionDelegateSupplier,
+                    TabStripTransitionHandler tabStripTransitionHandler) {
+        int tabStripHeightResource = toolbarLayout.getTabStripHeightFromResource();
+        if (tabStripHeightResource <= 0) return null;
+
+        var coordinator =
+                new TabStripTransitionCoordinator(
+                        browserControlsVisibilityManager,
+                        controlContainer,
+                        tabStripHeightResource,
+                        tabObscuringHandler,
+                        desktopWindowStateManager,
+                        tabStripTransitionDelegateSupplier,
+                        tabStripTransitionHandler);
+        toolbarLayout.getContext().registerComponentCallbacks(coordinator);
+        toolbarLayout.setTabStripTransitionCoordinator(coordinator);
+        return coordinator;
     }
 
     /**

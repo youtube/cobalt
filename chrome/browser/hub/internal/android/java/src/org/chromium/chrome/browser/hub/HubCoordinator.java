@@ -17,10 +17,11 @@ import android.widget.FrameLayout;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -99,9 +100,9 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
             NullableObservableSupplier<Tab> currentTabSupplier,
             MenuButtonCoordinator menuButtonCoordinator,
             SearchActivityClient searchActivityClient,
-            ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
+            MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             HubColorMixer hubColorMixer,
-            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            @Nullable MonotonicObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             @PaneId int defaultPaneId) {
         Context context = containerView.getContext();
         mBackPressStateChangeCallback = (ignored) -> updateHandleBackPressSupplier();
@@ -149,7 +150,6 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
                         userEducationHelper,
                         hubLayoutController.getIsAnimatingSupplier(),
                         bottomToolbarVisibilitySupplier,
-                        currentTabSupplier,
                         () -> {
                             RecordUserAction.record("Hub.BackButtonPressed");
                             selectCurrentTabAndHideHub();
@@ -311,6 +311,11 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
     public void onPaneSwipe(boolean isSwipeLeft) {
         Pane currentPane = getFocusedPane();
         if (currentPane == null) return;
+
+        RecordUserAction.record("Android.Hub.PaneSwiped");
+        String direction = isSwipeLeft ? "Left" : "Right";
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.Hub.PaneSwiped." + direction, currentPane.getPaneId(), PaneId.COUNT);
 
         List<Integer> orderedPaneIds =
                 mPaneManager.getPaneOrderController().getPaneOrder().asList();

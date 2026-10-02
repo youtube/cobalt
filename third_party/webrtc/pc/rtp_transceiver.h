@@ -42,6 +42,7 @@
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
+#include "media/base/stream_params.h"
 #include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
@@ -138,10 +139,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
   RtpTransceiver& operator=(const RtpTransceiver&) = delete;
   RtpTransceiver(RtpTransceiver&&) = delete;
   RtpTransceiver& operator=(RtpTransceiver&&) = delete;
-
-  // Returns the Voice/VideoChannel set for this transceiver. May be null if
-  // the transceiver is not in the currently set local/remote description.
-  ChannelInterface* channel() const { return channel_.get(); }
 
   // Creates the Voice/VideoChannel and sets it.
   RTCError CreateChannel(
@@ -345,6 +342,36 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // moved into the transceiver.
   void OnNegotiationUpdate(SdpType sdp_type,
                            const MediaContentDescription* content);
+
+  // Wrappers for ChannelInterface
+  bool HasChannel() const {
+    // Accessed from multiple threads.
+    // See https://issues.webrtc.org/475126742
+    return channel_ != nullptr;
+  }
+
+  bool SetChannelRtpTransport(RtpTransportInternal* rtp_transport);
+  bool SetChannelLocalContent(const MediaContentDescription* content,
+                              SdpType type,
+                              std::string& error_desc);
+  bool SetChannelRemoteContent(const MediaContentDescription* content,
+                               SdpType type,
+                               std::string& error_desc);
+  bool SetChannelPayloadTypeDemuxingEnabled(bool enabled);
+  void EnableChannel(bool enable);
+  const std::vector<StreamParams>& channel_local_streams() const;
+  const std::vector<StreamParams>& channel_remote_streams() const;
+  absl::string_view channel_transport_name() const;
+
+  // Accessors for media channels. These return null if there is no channel.
+  MediaSendChannelInterface* media_send_channel();
+  const MediaSendChannelInterface* media_send_channel() const;
+  MediaReceiveChannelInterface* media_receive_channel();
+  const MediaReceiveChannelInterface* media_receive_channel() const;
+  VideoMediaSendChannelInterface* video_media_send_channel();
+  VoiceMediaSendChannelInterface* voice_media_send_channel();
+  VideoMediaReceiveChannelInterface* video_media_receive_channel();
+  VoiceMediaReceiveChannelInterface* voice_media_receive_channel();
 
  private:
   MediaEngineInterface* media_engine() RTC_RUN_ON(context()->worker_thread());

@@ -14,12 +14,13 @@
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
-#include <cstdint>
 #include <memory>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
@@ -62,8 +63,9 @@ class OpenSLESRecorder : public AudioInput {
   // TODO(henrika): perhaps set this value dynamically based on OS version.
   static const int kNumOfOpenSLESBuffers = 2;
 
-  OpenSLESRecorder(const AudioParameters& audio_parameters,
-                   webrtc::scoped_refptr<OpenSLEngineManager> engine_manager);
+  OpenSLESRecorder(const Environment& env,
+                   const AudioParameters& audio_parameters,
+                   scoped_refptr<OpenSLEngineManager> engine_manager);
   ~OpenSLESRecorder() override;
 
   int Init() override;
@@ -125,6 +127,8 @@ class OpenSLESRecorder : public AudioInput {
   // purposes.
   void LogBufferState() const;
 
+  const Environment env_;
+
   // Ensures that methods are called from the same thread as this object is
   // created on.
   SequenceChecker thread_checker_;
@@ -182,7 +186,7 @@ class OpenSLESRecorder : public AudioInput {
   int buffer_index_;
 
   // Last time the OpenSL ES layer delivered recorded audio data.
-  uint32_t last_rec_time_;
+  Timestamp last_rec_time_;
 };
 
 }  // namespace jni

@@ -1992,11 +1992,6 @@ inline constexpr char kChromeDataRegionSetting[] = "chrome_data_region_setting";
 inline constexpr char kNetworkAnnotationBlocklist[] =
     "network_annotation_blocklist";
 
-// A dictionary pref that can contain a list of configured endpoints for
-// reports to be sent to.
-inline constexpr char kReportingEndpoints[] =
-    "enterprise_reporting.reporting_endpoints";
-
 // A boolean indicating if the "Line wrap" checkbox on view source pages should
 // be prepopulated.
 inline constexpr char kViewSourceLineWrappingEnabled[] =
@@ -3346,6 +3341,9 @@ inline constexpr char kChromeForTestingAllowed[] = "chrome_for_testing.allowed";
 #if BUILDFLAG(IS_WIN)
 inline constexpr char kUiAutomationProviderEnabled[] =
     "accessibility.ui_automation_provider_enabled";
+
+inline constexpr char kForegroundLaunchOnLogin[] =
+    "launch_on_login.foreground.enabled";
 #endif
 
 // A boolean pref which determines whether the QR Code generator feature is

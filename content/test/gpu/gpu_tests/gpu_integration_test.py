@@ -239,7 +239,7 @@ class GpuIntegrationTest(
     if cls._finder_options.browser_type in [
         'web-engine-shell', 'cast-streaming-shell'
     ]:
-      page_action.DEFAULT_TIMEOUT = 120
+      page_action.DEFAULT_TIMEOUT = 240
 
   @classmethod
   def AddCommandlineArgs(cls, parser: ct.CmdArgParser) -> None:
@@ -314,6 +314,9 @@ class GpuIntegrationTest(
         # TODO(crbug.com/458424927): Remove this once the feature no longer
         # causes test failures.
         '--disable-features=SessionRestoreInfobar',
+        # TODO(crbug.com/458424927): Remove this once the feature no longer
+        # causes trace_test speed regression on Android devices.
+        '--disable-features=AndroidWarmUpSpareRendererWithTimeout',
     ]
     if cls._SuiteSupportsParallelTests():
       # When running tests in parallel, windows can be treated as occluded if a

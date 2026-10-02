@@ -181,12 +181,8 @@ const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
     &kDevToolsGdpProfiles, "starter_badge_enabled",
     /*default_value=*/true};
 
-// Whether DevTools Live Edit (Debugger.setScriptSource usage in CDP) is
-// enabled.
-BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kDevToolsIndividualRequestThrottling,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether the AI Prompt API (https://developer.chrome.com/docs/ai/prompt-api)
 // is available in DevTools.
@@ -210,5 +206,14 @@ BASE_FEATURE(kDevToolsShowPolicyDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDevToolsAiAssistanceContextSelectionAgent,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether Console Insights Teasers are enabled.
+BASE_FEATURE(kDevToolsConsoleInsightsTeasers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether Console Insights Teasers are allowed to run on devices without a
+// dedicated GPU.
+const base::FeatureParam<bool> kDevToolsConsoleInsightsTeasersAllowWithoutGpu{
+    &kDevToolsConsoleInsightsTeasers, "allow_without_gpu",
+    /*default_value=*/false};
 
 }  // namespace features

@@ -162,7 +162,7 @@ static int ed25519_pub_encode(CBB *out, const EVP_PKEY *pkey) {
   return 1;
 }
 
-static int ed25519_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool ed25519_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
   const ED25519_KEY *a_key = reinterpret_cast<const ED25519_KEY *>(a->pkey);
   const ED25519_KEY *b_key = reinterpret_cast<const ED25519_KEY *>(b->pkey);
   return OPENSSL_memcmp(a_key->key + ED25519_PUBLIC_KEY_OFFSET,
@@ -226,7 +226,7 @@ const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth = {
     &ed25519_pkey_meth,
     ed25519_pub_decode,
     ed25519_pub_encode,
-    ed25519_pub_cmp,
+    ed25519_pub_equal,
     ed25519_priv_decode,
     ed25519_priv_encode,
     ed25519_set_priv_raw,
@@ -242,7 +242,7 @@ const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth = {
     ed25519_bits,
     /*param_missing=*/nullptr,
     /*param_copy=*/nullptr,
-    /*param_cmp=*/nullptr,
+    /*param_equal=*/nullptr,
     ed25519_free,
 };
 

@@ -25,6 +25,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 char *i2s_ASN1_OCTET_STRING(const X509V3_EXT_METHOD *method,
                             const ASN1_OCTET_STRING *oct) {
   return x509v3_bytes_to_hex(oct->data, oct->length);
@@ -108,7 +110,7 @@ err:
   return nullptr;
 }
 
-const X509V3_EXT_METHOD v3_skey_id = {
+const X509V3_EXT_METHOD bssl::v3_skey_id = {
     NID_subject_key_identifier,
     0,
     ASN1_ITEM_ref(ASN1_OCTET_STRING),

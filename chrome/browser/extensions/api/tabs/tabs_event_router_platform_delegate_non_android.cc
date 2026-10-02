@@ -51,18 +51,14 @@ namespace extensions {
 
 namespace {
 
-constexpr char kFromIndexKey[] = "fromIndex";
 constexpr char kGroupIdKey[] = "groupId";
 constexpr char kSplitIdKey[] = "splitViewId";
-constexpr char kNewPositionKey[] = "newPosition";
-constexpr char kNewWindowIdKey[] = "newWindowId";
 constexpr char kOldPositionKey[] = "oldPosition";
 constexpr char kOldWindowIdKey[] = "oldWindowId";
 constexpr char kFrozenKey[] = "frozen";
 constexpr char kDiscardedKey[] = "discarded";
 constexpr char kTabIdKey[] = "tabId";
 constexpr char kTabIdsKey[] = "tabIds";
-constexpr char kToIndexKey[] = "toIndex";
 
 }  // namespace
 
@@ -77,6 +73,15 @@ TabsEventRouterPlatformDelegate::TabsEventRouterPlatformDelegate(
   BrowserList::AddObserver(this);
   browser_tab_strip_tracker_.Init();
 
+  // Track any existing browsers. The `browser_tab_strip_tracker_` does this for
+  // TabStripModel observations, but we need the parent router to also observe
+  // TabListInterface.
+  ForEachCurrentAndNewBrowserWindowInterfaceOrderedByActivation(
+      [this](BrowserWindowInterface* browser) {
+        OnBrowserAdded(browser->GetBrowserForMigrationOnly());
+        return true;  // Keep iterating.
+      });
+
   tab_source_scoped_observation_.Observe(
       resource_coordinator::GetTabLifecycleUnitSource());
 }
@@ -87,9 +92,7 @@ TabsEventRouterPlatformDelegate::~TabsEventRouterPlatformDelegate() {
 
 bool TabsEventRouterPlatformDelegate::ShouldTrackBrowser(
     BrowserWindowInterface* browser) {
-  return profile_->IsSameOrParent(browser->GetProfile()) &&
-         ExtensionTabUtil::BrowserSupportsTabs(
-             browser->GetBrowserForMigrationOnly());
+  return router_->ShouldTrackBrowser(*browser);
 }
 
 void TabsEventRouterPlatformDelegate::OnBrowserSetLastActive(Browser* browser) {
@@ -100,19 +103,24 @@ void TabsEventRouterPlatformDelegate::OnBrowserSetLastActive(Browser* browser) {
   }
 }
 
+void TabsEventRouterPlatformDelegate::OnBrowserAdded(Browser* browser) {
+  if (ShouldTrackBrowser(browser)) {
+    TabListInterface* tab_list = TabListInterface::From(browser);
+    CHECK(tab_list);
+    router_->TrackTabList(*tab_list);
+  }
+}
+
 void TabsEventRouterPlatformDelegate::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   switch (change.type()) {
-    case TabStripModelChange::kInserted: {
-      for (const auto& contents : change.GetInsert()->contents) {
-        DispatchTabInsertedAt(tab_strip_model, contents.contents,
-                              contents.index,
-                              selection.new_contents == contents.contents);
-      }
+    case TabStripModelChange::kInserted:
+    case TabStripModelChange::kMoved:
+      // These are handled via the TabsEventRouter's observation of
+      // TabListInterface.
       break;
-    }
     case TabStripModelChange::kRemoved: {
       for (const auto& contents : change.GetRemove()->contents) {
         if (contents.remove_reason ==
@@ -126,11 +134,6 @@ void TabsEventRouterPlatformDelegate::OnTabStripModelChanged(
         DispatchTabDetachedAt(contents.contents, contents.index,
                               selection.old_contents == contents.contents);
       }
-      break;
-    }
-    case TabStripModelChange::kMoved: {
-      auto* move = change.GetMove();
-      DispatchTabMoved(move->contents, move->from_index, move->to_index);
       break;
     }
     case TabStripModelChange::kReplaced: {
@@ -252,38 +255,6 @@ void TabsEventRouterPlatformDelegate::OnLifecycleUnitStateChanged(
         lifecycle_unit->AsTabLifecycleUnitExternal()->GetWebContents(),
         std::move(changed_property_names));
   }
-}
-
-void TabsEventRouterPlatformDelegate::DispatchTabInsertedAt(
-    TabStripModel* tab_strip_model,
-    WebContents* contents,
-    int index,
-    bool active) {
-  if (!router_->GetTabEntry(*contents)) {
-    // We've never seen this tab, send create event as long as we're not in the
-    // constructor.
-    if (browser_tab_strip_tracker_.is_processing_initial_browsers()) {
-      router_->RegisterForTabNotifications(*contents);
-    } else {
-      TabCreatedAt(contents, index, active);
-    }
-    return;
-  }
-
-  int tab_id = ExtensionTabUtil::GetTabId(contents);
-  base::Value::List args;
-  args.Append(tab_id);
-
-  base::Value::Dict object_args;
-  object_args.Set(kNewWindowIdKey,
-                  Value(ExtensionTabUtil::GetWindowIdOfTab(contents)));
-  object_args.Set(kNewPositionKey, Value(index));
-  args.Append(std::move(object_args));
-
-  Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-  router_->DispatchEvent(profile, events::TABS_ON_ATTACHED,
-                         api::tabs::OnAttached::kEventName, std::move(args),
-                         EventRouter::UserGestureState::kUnknown);
 }
 
 void TabsEventRouterPlatformDelegate::DispatchTabClosingAt(
@@ -412,25 +383,6 @@ void TabsEventRouterPlatformDelegate::DispatchTabSelectionChanged(
                          EventRouter::UserGestureState::kUnknown);
 }
 
-void TabsEventRouterPlatformDelegate::DispatchTabMoved(WebContents* contents,
-                                                       int from_index,
-                                                       int to_index) {
-  base::Value::List args;
-  args.Append(ExtensionTabUtil::GetTabId(contents));
-
-  base::Value::Dict object_args;
-  object_args.Set(tabs_constants::kWindowIdKey,
-                  ExtensionTabUtil::GetWindowIdOfTab(contents));
-  object_args.Set(kFromIndexKey, from_index);
-  object_args.Set(kToIndexKey, to_index);
-  args.Append(std::move(object_args));
-
-  Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-  router_->DispatchEvent(profile, events::TABS_ON_MOVED,
-                         api::tabs::OnMoved::kEventName, std::move(args),
-                         EventRouter::UserGestureState::kUnknown);
-}
-
 void TabsEventRouterPlatformDelegate::DispatchTabReplacedAt(
     WebContents* old_contents,
     WebContents* new_contents,
@@ -454,13 +406,6 @@ void TabsEventRouterPlatformDelegate::DispatchTabReplacedAt(
   if (!router_->GetTabEntry(*new_contents)) {
     router_->RegisterForTabNotifications(*new_contents);
   }
-}
-
-void TabsEventRouterPlatformDelegate::TabCreatedAt(WebContents* contents,
-                                                   int index,
-                                                   bool active) {
-  router_->DispatchTabCreatedEvent(contents, active);
-  router_->RegisterForTabNotifications(*contents);
 }
 
 }  // namespace extensions

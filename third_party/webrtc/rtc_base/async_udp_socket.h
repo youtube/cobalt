@@ -63,6 +63,8 @@ class AsyncUDPSocket : public AsyncPacketSocket {
   void SetError(int error) override;
 
  private:
+  // called when the underlying socket is connected - DTLS handshake case
+  void OnConnectEvent(Socket* socket);
   // Called when the underlying socket is ready to be read from.
   void OnReadEvent(Socket* socket);
   // Called when the underlying socket is ready to send.

@@ -72,7 +72,7 @@ struct evp_pkey_asn1_method_st {
   // to |out|. It returns one on success and zero on error.
   int (*pub_encode)(CBB *out, const EVP_PKEY *key);
 
-  int (*pub_cmp)(const EVP_PKEY *a, const EVP_PKEY *b);
+  bool (*pub_equal)(const EVP_PKEY *a, const EVP_PKEY *b);
 
   // priv_decode decodes |params| and |key| as a PrivateKeyInfo and writes the
   // result into |out|.  It returns |evp_decode_ok| on success, and
@@ -117,7 +117,7 @@ struct evp_pkey_asn1_method_st {
 
   int (*param_missing)(const EVP_PKEY *pk);
   int (*param_copy)(EVP_PKEY *to, const EVP_PKEY *from);
-  int (*param_cmp)(const EVP_PKEY *a, const EVP_PKEY *b);
+  bool (*param_equal)(const EVP_PKEY *a, const EVP_PKEY *b);
 
   void (*pkey_free)(EVP_PKEY *pkey);
 } /* EVP_PKEY_ASN1_METHOD */;

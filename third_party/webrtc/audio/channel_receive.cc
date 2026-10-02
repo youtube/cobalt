@@ -55,6 +55,7 @@
 #include "call/syncable.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_playout.h"
 #include "logging/rtc_event_log/events/rtc_event_neteq_set_minimum_delay.h"
+#include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 #include "modules/audio_coding/acm2/acm_resampler.h"
 #include "modules/audio_coding/acm2/call_statistics.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
@@ -677,6 +678,7 @@ void ChannelReceive::SetReceiveCodecs(
 
 void ChannelReceive::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
   Timestamp now = env_.clock().CurrentTime();
 
   last_received_rtp_timestamp_ = packet.Timestamp();

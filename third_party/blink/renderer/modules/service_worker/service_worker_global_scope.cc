@@ -152,6 +152,7 @@
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 
 namespace blink {
 
@@ -915,11 +916,11 @@ void ServiceWorkerGlobalScope::DidHandleInstallEvent(
   SetFetchHandlerExistence(HasEventListeners(event_type_names::kFetch)
                                ? FetchHandlerExistence::EXISTS
                                : FetchHandlerExistence::DOES_NOT_EXIST);
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleInstallEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(install_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleInstallEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  install_event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   GlobalFetch::ScopedFetcher* fetcher = GlobalFetch::ScopedFetcher::From(*this);
   RunEventCallback(&install_event_callbacks_, event_queue_.get(),
                    install_event_id, status, fetcher->FetchCount());
@@ -929,11 +930,11 @@ void ServiceWorkerGlobalScope::DidHandleActivateEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleActivateEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleActivateEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&activate_event_callbacks_, event_queue_.get(), event_id,
                    status);
 }
@@ -942,12 +943,11 @@ void ServiceWorkerGlobalScope::DidHandleBackgroundFetchAbortEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleBackgroundFetchAbortEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleBackgroundFetchAbortEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&background_fetch_abort_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -956,12 +956,11 @@ void ServiceWorkerGlobalScope::DidHandleBackgroundFetchClickEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleBackgroundFetchClickEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleBackgroundFetchClickEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&background_fetch_click_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -969,12 +968,11 @@ void ServiceWorkerGlobalScope::DidHandleBackgroundFetchClickEvent(
 void ServiceWorkerGlobalScope::DidHandleBackgroundFetchFailEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleBackgroundFetchFailEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleBackgroundFetchFailEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&background_fetch_fail_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -983,12 +981,11 @@ void ServiceWorkerGlobalScope::DidHandleBackgroundFetchSuccessEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleBackgroundFetchSuccessEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleBackgroundFetchSuccessEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&background_fetched_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -997,12 +994,11 @@ void ServiceWorkerGlobalScope::DidHandleExtendableMessageEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleExtendableMessageEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleExtendableMessageEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&message_event_callbacks_, event_queue_.get(), event_id,
                    status);
 }
@@ -1016,12 +1012,10 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse(
     base::TimeTicks event_dispatch_time,
     base::TimeTicks respond_with_settled_time) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(fetch_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse",
+              perfetto::Flow::ProcessScoped(
+                  fetch_event_id, kServiceWorkerGlobalScopeTraceScope));
   // `fetch_response_callbacks_` does not have the entry when the event timed
   // out.
   if (!fetch_response_callbacks_.Contains(fetch_event_id))
@@ -1053,11 +1047,9 @@ void ServiceWorkerGlobalScope::RespondToFetchEvent(
     base::TimeTicks event_dispatch_time,
     base::TimeTicks respond_with_settled_time) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::RespondToFetchEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(fetch_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::RespondToFetchEvent",
+              perfetto::Flow::ProcessScoped(
+                  fetch_event_id, kServiceWorkerGlobalScopeTraceScope));
   // `fetch_response_callbacks_` does not have the entry when the event timed
   // out.
   if (!fetch_response_callbacks_.Contains(fetch_event_id))
@@ -1084,12 +1076,10 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream(
     base::TimeTicks event_dispatch_time,
     base::TimeTicks respond_with_settled_time) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(fetch_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream",
+              perfetto::Flow::ProcessScoped(
+                  fetch_event_id, kServiceWorkerGlobalScopeTraceScope));
   // `fetch_response_callbacks_` does not have the entry when the event timed
   // out.
   if (!fetch_response_callbacks_.Contains(fetch_event_id))
@@ -1113,11 +1103,10 @@ void ServiceWorkerGlobalScope::DidHandleFetchEvent(
   DCHECK(IsContextThread());
   // This TRACE_EVENT is used for perf benchmark to confirm if all of fetch
   // events have completed. (crbug.com/736697)
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleFetchEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DidHandleFetchEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
 
   // Delete the URLLoaderFactory for the RaceNetworkRequest if it's not used.
   RemoveItemFromRaceNetworkRequests(event_id);
@@ -1138,12 +1127,11 @@ void ServiceWorkerGlobalScope::DidHandleNotificationClickEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleNotificationClickEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleNotificationClickEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&notification_click_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -1152,12 +1140,11 @@ void ServiceWorkerGlobalScope::DidHandleNotificationCloseEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandleNotificationCloseEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleNotificationCloseEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&notification_close_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -1166,11 +1153,10 @@ void ServiceWorkerGlobalScope::DidHandlePushEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandlePushEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DidHandlePushEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   if (should_record_network_requests_ ==
       RecordNetworkRequestsDuringPushEvent::kRecord) {
     RunEventCallback(&push_event_recording_network_requests_callback_,
@@ -1186,12 +1172,11 @@ void ServiceWorkerGlobalScope::DidHandlePushSubscriptionChangeEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DidHandlePushSubscriptionChangeEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandlePushSubscriptionChangeEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&push_subscription_change_event_callbacks_,
                    event_queue_.get(), event_id, status);
 }
@@ -1200,11 +1185,10 @@ void ServiceWorkerGlobalScope::DidHandleSyncEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleSyncEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DidHandleSyncEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&sync_event_callbacks_, event_queue_.get(), event_id,
                    status);
 }
@@ -1213,11 +1197,11 @@ void ServiceWorkerGlobalScope::DidHandlePeriodicSyncEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandlePeriodicSyncEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandlePeriodicSyncEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&periodic_sync_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -1226,11 +1210,10 @@ void ServiceWorkerGlobalScope::RespondToAbortPaymentEvent(
     int event_id,
     bool payment_aborted) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::RespondToAbortPaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::RespondToAbortPaymentEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
   DCHECK(abort_payment_result_callbacks_.Contains(event_id));
   payments::mojom::blink::PaymentHandlerResponseCallback* result_callback =
       abort_payment_result_callbacks_.Take(event_id)->Value().get();
@@ -1241,11 +1224,11 @@ void ServiceWorkerGlobalScope::DidHandleAbortPaymentEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleAbortPaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleAbortPaymentEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   if (RunEventCallback(&abort_payment_event_callbacks_, event_queue_.get(),
                        event_id, status)) {
     abort_payment_result_callbacks_.erase(event_id);
@@ -1256,11 +1239,10 @@ void ServiceWorkerGlobalScope::RespondToCanMakePaymentEvent(
     int event_id,
     payments::mojom::blink::CanMakePaymentResponsePtr response) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::RespondToCanMakePaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::RespondToCanMakePaymentEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
   DCHECK(can_make_payment_result_callbacks_.Contains(event_id));
   payments::mojom::blink::PaymentHandlerResponseCallback* result_callback =
       can_make_payment_result_callbacks_.Take(event_id)->Value().get();
@@ -1271,11 +1253,11 @@ void ServiceWorkerGlobalScope::DidHandleCanMakePaymentEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleCanMakePaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleCanMakePaymentEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   if (RunEventCallback(&can_make_payment_event_callbacks_, event_queue_.get(),
                        event_id, status)) {
     can_make_payment_result_callbacks_.erase(event_id);
@@ -1286,11 +1268,10 @@ void ServiceWorkerGlobalScope::RespondToPaymentRequestEvent(
     int payment_event_id,
     payments::mojom::blink::PaymentHandlerResponsePtr response) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::RespondToPaymentRequestEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(payment_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::RespondToPaymentRequestEvent",
+              perfetto::Flow::ProcessScoped(
+                  payment_event_id, kServiceWorkerGlobalScopeTraceScope));
   DCHECK(payment_response_callbacks_.Contains(payment_event_id));
   payments::mojom::blink::PaymentHandlerResponseCallback* response_callback =
       payment_response_callbacks_.Take(payment_event_id)->Value().get();
@@ -1301,11 +1282,11 @@ void ServiceWorkerGlobalScope::DidHandlePaymentRequestEvent(
     int payment_event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandlePaymentRequestEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(payment_event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandlePaymentRequestEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  payment_event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   if (RunEventCallback(&payment_request_event_callbacks_, event_queue_.get(),
                        payment_event_id, status)) {
     payment_response_callbacks_.erase(payment_event_id);
@@ -1316,11 +1297,11 @@ void ServiceWorkerGlobalScope::DidHandleCookieChangeEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleCookieChangeEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleCookieChangeEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&cookie_change_event_callbacks_, event_queue_.get(),
                    event_id, status);
 }
@@ -1329,11 +1310,11 @@ void ServiceWorkerGlobalScope::DidHandleContentDeleteEvent(
     int event_id,
     mojom::ServiceWorkerEventStatus status) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DidHandleContentDeleteEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DidHandleContentDeleteEvent",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "status", MojoEnumToString(status));
   RunEventCallback(&content_delete_callbacks_, event_queue_.get(), event_id,
                    status);
 }
@@ -1538,12 +1519,11 @@ void ServiceWorkerGlobalScope::StartFetchEvent(
 
   // This TRACE_EVENT is used for perf benchmark to confirm if all of fetch
   // events have completed. (crbug.com/736697)
-  TRACE_EVENT_WITH_FLOW1(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchFetchEventInternal",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT, "url",
-      params->request->url.ElidedString().Utf8());
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchFetchEventInternal",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope),
+              "url", params->request->url.ElidedString().Utf8());
 
   // Set up for navigation preload (FetchEvent#preloadResponse) if needed.
   bool navigation_preload_sent = !!params->preload_url_loader_client_receiver;
@@ -1789,11 +1769,9 @@ void ServiceWorkerGlobalScope::AbortInstallEvent(
 
 void ServiceWorkerGlobalScope::StartInstallEvent(int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchInstallEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DispatchInstallEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kInstall, event_id);
@@ -1819,11 +1797,10 @@ void ServiceWorkerGlobalScope::DispatchActivateEvent(
 
 void ServiceWorkerGlobalScope::StartActivateEvent(int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchActivateEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchActivateEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kActivate, event_id);
@@ -1851,12 +1828,10 @@ void ServiceWorkerGlobalScope::StartBackgroundFetchAbortEvent(
     mojom::blink::BackgroundFetchRegistrationPtr registration,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchBackgroundFetchAbortEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchBackgroundFetchAbortEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kBackgroundFetchAbort, event_id);
@@ -1895,12 +1870,10 @@ void ServiceWorkerGlobalScope::StartBackgroundFetchClickEvent(
     mojom::blink::BackgroundFetchRegistrationPtr registration,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchBackgroundFetchClickEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchBackgroundFetchClickEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kBackgroundFetchClick, event_id);
@@ -1934,12 +1907,10 @@ void ServiceWorkerGlobalScope::StartBackgroundFetchFailEvent(
     mojom::blink::BackgroundFetchRegistrationPtr registration,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchBackgroundFetchFailEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchBackgroundFetchFailEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kBackgroundFetchFail, event_id);
@@ -1978,12 +1949,10 @@ void ServiceWorkerGlobalScope::StartBackgroundFetchSuccessEvent(
     mojom::blink::BackgroundFetchRegistrationPtr registration,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchBackgroundFetchSuccessEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchBackgroundFetchSuccessEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kBackgroundFetchSuccess, event_id);
@@ -2022,12 +1991,10 @@ void ServiceWorkerGlobalScope::StartExtendableMessageEvent(
     mojom::blink::ExtendableMessageEventPtr event,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchExtendableMessageEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchExtendableMessageEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
   DispatchExtendableMessageEventInternal(event_id, std::move(event));
 }
 
@@ -2083,12 +2050,10 @@ void ServiceWorkerGlobalScope::StartNotificationClickEvent(
     int action_index,
     String reply,
     int event_id) {
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchNotificationClickEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchNotificationClickEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kNotificationClick, event_id);
@@ -2126,12 +2091,10 @@ void ServiceWorkerGlobalScope::StartNotificationCloseEvent(
     mojom::blink::NotificationDataPtr notification_data,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchNotificationCloseEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchNotificationCloseEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kNotificationClose, event_id);
   NotificationEventInit* event_init = NotificationEventInit::Create();
@@ -2186,11 +2149,9 @@ void ServiceWorkerGlobalScope::MaybeRecordNetworkRequestUrlForPushEvents(
 
 void ServiceWorkerGlobalScope::StartPushEvent(String payload, int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchPushEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DispatchPushEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kPush, event_id);
@@ -2221,12 +2182,10 @@ void ServiceWorkerGlobalScope::StartPushSubscriptionChangeEvent(
     mojom::blink::PushSubscriptionPtr new_subscription,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker",
-      "ServiceWorkerGlobalScope::DispatchPushSubscriptionChangeEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchPushSubscriptionChangeEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kPushSubscriptionChange, event_id);
@@ -2262,11 +2221,9 @@ void ServiceWorkerGlobalScope::StartSyncEvent(String tag,
                                               bool last_chance,
                                               int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchSyncEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::DispatchSyncEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kSync, event_id);
@@ -2293,11 +2250,10 @@ void ServiceWorkerGlobalScope::DispatchPeriodicSyncEvent(
 void ServiceWorkerGlobalScope::StartPeriodicSyncEvent(String tag,
                                                       int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchPeriodicSyncEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchPeriodicSyncEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kPeriodicSync, event_id);
@@ -2336,11 +2292,10 @@ void ServiceWorkerGlobalScope::StartAbortPaymentEvent(
               GetThread()->GetTaskRunner(TaskType::kUserInteraction));
   abort_payment_result_callbacks_.Set(event_id,
                                       WrapDisallowNew(std::move(remote)));
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchAbortPaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchAbortPaymentEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* wait_until_observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kAbortPayment, event_id);
@@ -2389,11 +2344,10 @@ void ServiceWorkerGlobalScope::StartCanMakePaymentEvent(
               GetThread()->GetTaskRunner(TaskType::kUserInteraction));
   can_make_payment_result_callbacks_.Set(event_id,
                                          WrapDisallowNew(std::move(remote)));
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchCanMakePaymentEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchCanMakePaymentEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* wait_until_observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kCanMakePayment, event_id);
@@ -2443,11 +2397,10 @@ void ServiceWorkerGlobalScope::StartPaymentRequestEvent(
   remote.Bind(std::move(response_callback),
               GetThread()->GetTaskRunner(TaskType::kUserInteraction));
   payment_response_callbacks_.Set(event_id, WrapDisallowNew(std::move(remote)));
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchPaymentRequestEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchPaymentRequestEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* wait_until_observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kPaymentRequest, event_id);
@@ -2510,11 +2463,10 @@ void ServiceWorkerGlobalScope::StartCookieChangeEvent(
     network::mojom::blink::CookieChangeInfoPtr change,
     int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchCookieChangeEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchCookieChangeEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kCookieChange, event_id);
@@ -2549,11 +2501,10 @@ void ServiceWorkerGlobalScope::DispatchContentDeleteEvent(
 void ServiceWorkerGlobalScope::StartContentDeleteEvent(String id,
                                                        int event_id) {
   DCHECK(IsContextThread());
-  TRACE_EVENT_WITH_FLOW0(
-      "ServiceWorker", "ServiceWorkerGlobalScope::DispatchContentDeleteEvent",
-      TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
-                          TRACE_ID_LOCAL(event_id)),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("ServiceWorker",
+              "ServiceWorkerGlobalScope::DispatchContentDeleteEvent",
+              perfetto::Flow::ProcessScoped(
+                  event_id, kServiceWorkerGlobalScopeTraceScope));
 
   auto* observer = MakeGarbageCollected<WaitUntilObserver>(
       this, WaitUntilObserver::kContentDelete, event_id);

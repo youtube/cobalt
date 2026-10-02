@@ -274,6 +274,15 @@ UIView* IconInSquare(NSString* symbol,
           kCheckmarkSealFillSymbol, _compactLayout,
           @[ [UIColor whiteColor], [UIColor colorNamed:kBlue500Color] ]);
     }
+    case SetUpListItemType::kSafariImport:
+      return _inSquare
+                 ? IconInSquare(kSaveImageActionSymbol, NO, kGreen500Color)
+                 : IconInCircle(kSaveImageActionSymbol, _compactLayout,
+                                kGreen500Color);
+    case SetUpListItemType::kBackgroundCustomization:
+      return _inSquare ? IconInSquare(kEditActionSymbol, NO, kPurple500Color)
+                       : IconInCircle(kEditActionSymbol, _compactLayout,
+                                      kPurple500Color);
   }
 }
 

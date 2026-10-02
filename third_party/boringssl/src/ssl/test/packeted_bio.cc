@@ -20,12 +20,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
 #include <functional>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include <openssl/bio.h>
 #include <openssl/mem.h>
+#include <openssl/span.h>
 
 #include "../../crypto/internal.h"
 
@@ -44,15 +47,9 @@ struct PacketedBio {
               std::function<bool(uint32_t)> set_mtu_arg)
       : clock(clock_arg),
         get_timeout(std::move(get_timeout_arg)),
-        set_mtu(std::move(set_mtu_arg)) {
-    OPENSSL_memset(&timeout, 0, sizeof(timeout));
-  }
+        set_mtu(std::move(set_mtu_arg)) {}
 
-  bool HasTimeout() const {
-    return timeout.tv_sec != 0 || timeout.tv_usec != 0;
-  }
-
-  timeval timeout;
+  std::optional<timeval> timeout;
   timeval *clock;
   std::function<bool(timeval *)> get_timeout;
   std::function<bool(uint32_t)> set_mtu;
@@ -76,18 +73,14 @@ PacketedBio *GetData(BIO *bio) {
 
 // ReadAll reads |len| bytes from |bio| into |out|. It returns 1 on success and
 // 0 or -1 on error.
-static int ReadAll(BIO *bio, uint8_t *out, size_t len) {
-  while (len > 0) {
-    int chunk_len = INT_MAX;
-    if (len <= INT_MAX) {
-      chunk_len = (int)len;
-    }
-    int ret = BIO_read(bio, out, chunk_len);
+static int ReadAll(BIO *bio, bssl::Span<uint8_t> out) {
+  while (!out.empty()) {
+    int ret = BIO_read(bio, out.data(),
+                       static_cast<int>(std::min(out.size(), size_t{INT_MAX})));
     if (ret <= 0) {
       return ret;
     }
-    out += ret;
-    len -= ret;
+    out = out.subspan(ret);
   }
   return 1;
 }
@@ -103,10 +96,7 @@ static int PacketedWrite(BIO *bio, const char *in, int inl) {
   // Write the header.
   uint8_t header[5];
   header[0] = kOpcodePacket;
-  header[1] = (inl >> 24) & 0xff;
-  header[2] = (inl >> 16) & 0xff;
-  header[3] = (inl >> 8) & 0xff;
-  header[4] = inl & 0xff;
+  CRYPTO_store_u32_be(header + 1, inl);
   int ret = BIO_write(next, header, sizeof(header));
   if (ret <= 0) {
     BIO_copy_next_retry(bio);
@@ -135,7 +125,7 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
   for (;;) {
     // Read the opcode.
     uint8_t opcode;
-    int ret = ReadAll(next, &opcode, sizeof(opcode));
+    int ret = ReadAll(next, bssl::Span(&opcode, 1));
     if (ret <= 0) {
       BIO_copy_next_retry(bio);
       return ret;
@@ -144,14 +134,14 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
     if (opcode == kOpcodeTimeout) {
       // The caller is required to advance any pending timeouts before
       // continuing.
-      if (data->HasTimeout()) {
+      if (data->timeout.has_value()) {
         fprintf(stderr, "Unprocessed timeout!\n");
         return -1;
       }
 
       // Process the timeout.
       uint8_t buf[8];
-      ret = ReadAll(next, buf, sizeof(buf));
+      ret = ReadAll(next, buf);
       if (ret <= 0) {
         BIO_copy_next_retry(bio);
         return ret;
@@ -159,8 +149,9 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
       uint64_t timeout = CRYPTO_load_u64_be(buf);
       timeout /= 1000;  // Convert nanoseconds to microseconds.
 
-      data->timeout.tv_usec = timeout % 1000000;
-      data->timeout.tv_sec = timeout / 1000000;
+      data->timeout.emplace();
+      data->timeout->tv_sec = timeout / 1000000;
+      data->timeout->tv_usec = timeout % 1000000;
 
       // Send an ACK to the peer.
       ret = BIO_write(next, &kOpcodeTimeoutAck, 1);
@@ -176,7 +167,7 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
 
     if (opcode == kOpcodeMTU) {
       uint8_t buf[4];
-      ret = ReadAll(next, buf, sizeof(buf));
+      ret = ReadAll(next, buf);
       if (ret <= 0) {
         BIO_copy_next_retry(bio);
         return ret;
@@ -192,7 +183,7 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
 
     if (opcode == kOpcodeExpectNextTimeout) {
       uint8_t buf[8];
-      ret = ReadAll(next, buf, sizeof(buf));
+      ret = ReadAll(next, buf);
       if (ret <= 0) {
         BIO_copy_next_retry(bio);
         return ret;
@@ -241,14 +232,14 @@ static int PacketedRead(BIO *bio, char *out, int outl) {
 
     // Read the length prefix.
     uint8_t len_bytes[4];
-    ret = ReadAll(next, len_bytes, sizeof(len_bytes));
+    ret = ReadAll(next, len_bytes);
     if (ret <= 0) {
       BIO_copy_next_retry(bio);
       return ret;
     }
 
     std::vector<uint8_t> buf(CRYPTO_load_u32_be(len_bytes), 0);
-    ret = ReadAll(next, buf.data(), buf.size());
+    ret = ReadAll(next, bssl::Span(buf));
     if (ret <= 0) {
       fprintf(stderr, "Packeted BIO was truncated\n");
       return -1;
@@ -272,11 +263,6 @@ static long PacketedCtrl(BIO *bio, int cmd, long num, void *ptr) {
   long ret = BIO_ctrl(next, cmd, num, ptr);
   BIO_copy_next_retry(bio);
   return ret;
-}
-
-static int PacketedNew(BIO *bio) {
-  BIO_set_init(bio, 1);
-  return 1;
 }
 
 static int PacketedFree(BIO *bio) {
@@ -303,7 +289,6 @@ static const BIO_METHOD *PacketedBioMethod() {
     BSSL_CHECK(BIO_meth_set_write(ret, PacketedWrite));
     BSSL_CHECK(BIO_meth_set_read(ret, PacketedRead));
     BSSL_CHECK(BIO_meth_set_ctrl(ret, PacketedCtrl));
-    BSSL_CHECK(BIO_meth_set_create(ret, PacketedNew));
     BSSL_CHECK(BIO_meth_set_destroy(ret, PacketedFree));
     BSSL_CHECK(BIO_meth_set_callback_ctrl(ret, PacketedCallbackCtrl));
     return ret;
@@ -322,6 +307,7 @@ bssl::UniquePtr<BIO> PacketedBioCreate(
   }
   BIO_set_data(bio.get(), new PacketedBio(clock, std::move(get_timeout),
                                           std::move(set_mtu)));
+  BIO_set_init(bio.get(), 1);
   return bio;
 }
 
@@ -331,15 +317,15 @@ bool PacketedBioAdvanceClock(BIO *bio) {
     return false;
   }
 
-  if (!data->HasTimeout()) {
+  if (!data->timeout.has_value()) {
     return false;
   }
 
-  data->clock->tv_usec += data->timeout.tv_usec;
+  data->clock->tv_usec += data->timeout->tv_usec;
   data->clock->tv_sec += data->clock->tv_usec / 1000000;
   data->clock->tv_usec %= 1000000;
-  data->clock->tv_sec += data->timeout.tv_sec;
-  OPENSSL_memset(&data->timeout, 0, sizeof(data->timeout));
+  data->clock->tv_sec += data->timeout->tv_sec;
+  data->timeout = std::nullopt;
   return true;
 }
 

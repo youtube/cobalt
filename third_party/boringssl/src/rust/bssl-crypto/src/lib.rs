@@ -56,6 +56,7 @@ pub mod mldsa;
 pub mod mlkem;
 pub mod rsa;
 pub mod slhdsa;
+pub mod tls12_prf;
 pub mod x25519;
 
 mod scoped;
@@ -489,5 +490,6 @@ fn cbb_to_vec<F: FnOnce(*mut bssl_sys::CBB)>(len: usize, func: F) -> Vec<u8> {
 
 /// Used to prevent external implementations of internal traits.
 mod sealed {
-    pub struct Sealed;
+    pub struct SealedType;
+    pub trait Sealed {}
 }

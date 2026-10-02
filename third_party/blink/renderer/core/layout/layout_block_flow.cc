@@ -366,6 +366,14 @@ void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
     // inline without the need for anonymous blocks, then do that.
     MakeChildrenInlineIfPossible();
   }
+
+  if (RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+    if (!FirstChild() && IsMergeableAnonymousBlock(this)) {
+      // If we don't have any children, and this was created as an anonymous
+      // block, remove this object as we aren't needed anymore.
+      Destroy();
+    }
+  }
 }
 
 bool LayoutBlockFlow::CanMergeWith(const LayoutBoxModelObject& other) const {
@@ -380,6 +388,8 @@ bool LayoutBlockFlow::CanMergeWith(const LayoutBoxModelObject& other) const {
 
 void LayoutBlockFlow::ChildBecameFloatingOrOutOfFlow(LayoutBox* child) {
   NOT_DESTROYED();
+  DCHECK(!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
+
   if (IsAnonymousBlockFlow()) {
     if (auto* parent_inline = DynamicTo<LayoutInline>(Parent())) {
       // The child used to be an in-flow block-in-inline, which requires an
@@ -640,6 +650,7 @@ void LayoutBlockFlow::MakeChildrenNonInline(LayoutObject* insertion_point) {
 
 void LayoutBlockFlow::ChildBecameNonInline(LayoutObject*) {
   NOT_DESTROYED();
+  DCHECK(!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
   MakeChildrenNonInline();
   auto* parent_layout_block = DynamicTo<LayoutBlock>(Parent());
   if (IsAnonymousBlockFlow() && parent_layout_block) {
@@ -673,30 +684,6 @@ Node* LayoutBlockFlow::NodeForHitTest() const {
     return Parent()->NodeForHitTest();
   }
   return LayoutBlock::NodeForHitTest();
-}
-
-bool LayoutBlockFlow::HitTestChildren(HitTestResult& result,
-                                      const HitTestLocation& hit_test_location,
-                                      const PhysicalOffset& accumulated_offset,
-                                      HitTestPhase phase) {
-  NOT_DESTROYED();
-  PhysicalOffset scrolled_offset = accumulated_offset;
-  if (IsScrollContainer())
-    scrolled_offset -= PhysicalOffset(PixelSnappedScrolledContentOffset());
-
-  // TODO(1229581): Layout objects that don't allow fragment traversal for paint
-  // and hit-testing (see CanTraversePhysicalFragments()) still end up here. We
-  // may even end up here if ChildrenInline(). That's just the initial state of
-  // a block, though. As soon as a non-fragment-traversale object gets children,
-  // they will be blocks, and *they* will be fragment-traversable.
-  DCHECK(!ChildrenInline() || !FirstChild());
-  if (!ChildrenInline() &&
-      LayoutBlock::HitTestChildren(result, hit_test_location,
-                                   accumulated_offset, phase)) {
-    return true;
-  }
-
-  return false;
 }
 
 void LayoutBlockFlow::AddOutlineRects(

@@ -43,8 +43,8 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -443,7 +443,7 @@ public class FeedSurfaceCoordinator
             @Nullable ViewGroup viewportView,
             FeedActionDelegate actionDelegate,
             NonNullObservableSupplier<Integer> tabStripHeightSupplier,
-            ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier) {
+            MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier) {
         mActivity = activity;
         mSnackbarManager = snackbarManager;
         mNtpHeader = ntpHeader;
@@ -763,12 +763,10 @@ public class FeedSurfaceCoordinator
             return;
         }
 
-        // Apply negative margins to the NTP header in order to compensate the containment paddings
-        // applied to the whole NTP for non-wide display. This is to allow all the elements in the
-        // NTP header to keep using their existing margins/paddings settings.
-        int feed_containment_margin =
-                mActivity.getResources().getDimensionPixelSize(R.dimen.feed_containment_margin);
-        int margin = mUiConfig.getCurrentDisplayStyle().isWide() ? 0 : -feed_containment_margin;
+        int margin =
+                FeedStreamViewResizerUtils.getFeedNtpCompensationMargin(
+                        mRootView.getResources(), mUiConfig);
+
         FrameLayout.LayoutParams layoutParams =
                 new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1486,7 +1484,7 @@ public class FeedSurfaceCoordinator
     }
 
     @Override
-    public ObservableSupplier<Integer> getRestoringStateSupplier() {
+    public MonotonicObservableSupplier<Integer> getRestoringStateSupplier() {
         return mMediator.getRestoringStateSupplier();
     }
 

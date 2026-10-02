@@ -27,7 +27,6 @@
 #include "compiler/translator/ParseContext.h"
 #include "compiler/translator/SizeClipCullDistance.h"
 #include "compiler/translator/ValidateOutputs.h"
-#include "compiler/translator/ValidateTypeSizeLimitations.h"
 #include "compiler/translator/ValidateVaryingLocations.h"
 #include "compiler/translator/VariablePacker.h"
 #include "compiler/translator/ir/src/compile.h"
@@ -413,7 +412,6 @@ int GetMaxShaderVersionForSpec(ShShaderSpec spec)
         case SH_WEBGL2_SPEC:
             return 300;
         case SH_GLES3_1_SPEC:
-        case SH_WEBGL3_SPEC:
             return 310;
         case SH_GLES3_2_SPEC:
             return 320;
@@ -436,14 +434,14 @@ TShHandleBase::~TShHandleBase()
 }
 
 TCompiler::TCompiler(sh::GLenum type, ShShaderSpec spec, ShShaderOutput output)
-    : mVariablesCollected(false),
-      mGLPositionInitialized(false),
-      mShaderType(type),
+    : mShaderType(type),
       mShaderSpec(spec),
       mOutputType(output),
       mBuiltInFunctionEmulator(),
       mDiagnostics(mInfoSink.info),
       mSourcePath(nullptr),
+      mVariablesCollected(false),
+      mGLPositionInitialized(false),
       mComputeShaderLocalSizeDeclared(false),
       mComputeShaderLocalSize(1),
       mGeometryShaderMaxVertices(-1),
@@ -470,17 +468,6 @@ bool TCompiler::shouldRunLoopAndIndexingValidation(const ShCompileOptions &compi
     // of ESSL 1.00 as in Appendix A of the spec).
     return (IsWebGLBasedSpec(mShaderSpec) && mShaderVersion == 100) ||
            compileOptions.validateLoopIndexing;
-}
-
-bool TCompiler::shouldLimitTypeSizes() const
-{
-    // Prevent unrealistically large variable sizes in shaders.  This works around driver bugs
-    // around int-size limits (such as 2GB).  The limits are generously large enough that no real
-    // shader should ever hit it.
-    //
-    // The size check does not take std430 into account, so this is limited to WebGL and shaders
-    // up to ES3.
-    return mShaderVersion <= 300;
 }
 
 bool TCompiler::Init(const ShBuiltInResources &resources)
@@ -550,7 +537,7 @@ TIntermBlock *TCompiler::compileTreeImpl(angle::Span<const char *const> shaderSt
     }
 
     TParseContext parseContext(mSymbolTable, mExtensionBehavior, mShaderType, mShaderSpec,
-                               compileOptions, &mDiagnostics, getResources(), getOutputType());
+                               compileOptions, &mDiagnostics, mResources, getOutputType());
 
     // We preserve symbols at the built-in level from compile-to-compile.
     // Start pushing the user-defined symbols at global level.
@@ -1210,13 +1197,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    // Run after RemoveUnreferencedVariables, validate that the shader does not have excessively
-    // large variables.
-    if (shouldLimitTypeSizes() && !ValidateTypeSizeLimitations(root, &mSymbolTable, &mDiagnostics))
-    {
-        return false;
-    }
-
     GetGlobalPoolAllocator()->lock();
     initBuiltInFunctionEmulator(&mBuiltInFunctionEmulator, compileOptions);
     GetGlobalPoolAllocator()->unlock();
@@ -1231,16 +1211,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     }
 
     collectVariables(root);
-    const bool hlslFragmentOutputsNeedInit =
-        IsOutputHLSL(mOutputType) && mShaderType == GL_FRAGMENT_SHADER &&
-        (compileOptions.initOutputVariables || compileOptions.initFragmentOutputVariables);
-    if (hlslFragmentOutputsNeedInit)
-    {
-        for (sh::ShaderVariable &outputVariable : mOutputVariables)
-        {
-            outputVariable.active = true;
-        }
-    }
 
     if (compileOptions.useUnusedStandardSharedBlocks)
     {
@@ -1273,9 +1243,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // For the MSL output, keep the inactive fragment outputs, but remove them otherwise.
     if (compileOptions.removeInactiveVariables)
     {
-        const bool keepInactiveFragmentOutputsForInit = hlslFragmentOutputsNeedInit;
-        const bool removeFragmentOutputs =
-            mOutputType != SH_MSL_METAL_OUTPUT && !keepInactiveFragmentOutputsForInit;
+        const bool removeFragmentOutputs = mOutputType != SH_MSL_METAL_OUTPUT;
 
         if (!RemoveInactiveInterfaceVariables(
                 this, root, &getSymbolTable(), getAttributes(), getInputVaryings(),
@@ -1285,11 +1253,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    bool needInitializeOutputVariables =
-        compileOptions.initOutputVariables && mShaderType != GL_COMPUTE_SHADER;
-    needInitializeOutputVariables |=
-        compileOptions.initFragmentOutputVariables && mShaderType == GL_FRAGMENT_SHADER;
-    if (needInitializeOutputVariables)
+    if (compileOptions.initOutputVariables)
     {
         if (!initializeOutputVariables(root))
         {
@@ -1307,11 +1271,9 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    // gl_Position is always written in compatibility output mode.
-    // It may have been already initialized among other output variables, in that case we don't
-    // need to initialize it twice.
-    if (mShaderType == GL_VERTEX_SHADER && !mGLPositionInitialized &&
-        (compileOptions.initGLPosition || mOutputType == SH_GLSL_COMPATIBILITY_OUTPUT))
+    // gl_Position may have already been initialized among other output variables, in that case we
+    // don't need to initialize it twice.
+    if (!mGLPositionInitialized && compileOptions.initGLPosition)
     {
         if (!initializeGLPosition(root))
         {
@@ -1402,6 +1364,36 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     return true;
 }
 
+ShCompileOptions TCompiler::adjustOptions(const ShCompileOptions &compileOptionsIn)
+{
+    ShCompileOptions compileOptions = compileOptionsIn;
+
+    // Apply key workarounds.
+    if (shouldFlattenPragmaStdglInvariantAll())
+    {
+        // This should be harmless to do in all cases, but for the moment, do it only conditionally.
+        compileOptions.flattenPragmaSTDGLInvariantAll = true;
+    }
+
+    // Disable options that are not applicable.
+    if (mShaderType == GL_COMPUTE_SHADER)
+    {
+        compileOptions.initOutputVariables = false;
+    }
+    if (mShaderType != GL_VERTEX_SHADER)
+    {
+        compileOptions.initGLPosition = false;
+    }
+
+    // gl_Position should always be written in GLSL compatibility output mode.
+    if (mOutputType == SH_GLSL_COMPATIBILITY_OUTPUT && mShaderType == GL_VERTEX_SHADER)
+    {
+        compileOptions.initGLPosition = true;
+    }
+
+    return compileOptions;
+}
+
 bool TCompiler::compile(angle::Span<const char *const> shaderStrings,
                         const ShCompileOptions &compileOptionsIn)
 {
@@ -1415,14 +1407,7 @@ bool TCompiler::compile(angle::Span<const char *const> shaderStrings,
         return true;
     }
 
-    ShCompileOptions compileOptions = compileOptionsIn;
-
-    // Apply key workarounds.
-    if (shouldFlattenPragmaStdglInvariantAll())
-    {
-        // This should be harmless to do in all cases, but for the moment, do it only conditionally.
-        compileOptions.flattenPragmaSTDGLInvariantAll = true;
-    }
+    const ShCompileOptions compileOptions = adjustOptions(compileOptionsIn);
 
     TScopedPoolAllocator scopedAlloc;
     TIntermBlock *root = compileTreeImpl(shaderStrings, compileOptions);

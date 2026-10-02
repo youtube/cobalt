@@ -366,9 +366,6 @@ void TabStripModelObserver::OnTabPinnedStateChanged(tabs::TabInterface* tab,
 void TabStripModelObserver::OnTabBlockedStateChanged(tabs::TabInterface* tab,
                                                      int index) {}
 
-void TabStripModelObserver::OnTabNeedsAttentionChanged(int index,
-                                                       bool attention) {}
-
 void TabStripModelObserver::TabGroupedStateChanged(
     TabStripModel* tab_strip_model,
     std::optional<tab_groups::TabGroupId> old_group,
@@ -381,10 +378,6 @@ void TabStripModelObserver::OnTabGroupChanged(const TabGroupChange& change) {}
 void TabStripModelObserver::OnTabGroupFocusChanged(
     std::optional<tab_groups::TabGroupId> new_focused_group_id,
     std::optional<tab_groups::TabGroupId> old_focused_group_id) {}
-
-void TabStripModelObserver::OnTabGroupNeedsAttentionChanged(
-    const tab_groups::TabGroupId& group,
-    bool attention) {}
 
 void TabStripModelObserver::OnTabGroupAdded(
     const tab_groups::TabGroupId& group_id) {}

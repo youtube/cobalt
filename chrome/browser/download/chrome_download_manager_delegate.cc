@@ -504,8 +504,8 @@ download::DownloadDangerType SavePackageDangerType(
       return download::DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE;
     case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_GDRIVE:
       return download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE;
-    // TODO(crbug.com/458033434): Add a danger type for FORCE_SAVE_TO_ONEDRIVE.
     case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_ONEDRIVE:
+      return download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_ONEDRIVE;
     case safe_browsing::DownloadCheckResult::SENSITIVE_CONTENT_BLOCK:
       return download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK;
     case safe_browsing::DownloadCheckResult::BLOCKED_SCAN_FAILED:
@@ -852,7 +852,8 @@ bool ChromeDownloadManagerDelegate::IsDangerTypeBlocked(
          danger_type ==
              download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK ||
          danger_type == download::DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED ||
-         danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE;
+         danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE ||
+         danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_ONEDRIVE;
 }
 
 bool ChromeDownloadManagerDelegate::IsDownloadReadyForCompletion(
@@ -938,7 +939,9 @@ bool ChromeDownloadManagerDelegate::IsDownloadReadyForCompletion(
             // Specifying a dangerous type here would take precedence over the
             // blocking of the file.
             download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-            download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
+            danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE
+                ? download::DOWNLOAD_INTERRUPT_REASON_LOCAL_DOWNLOAD_BLOCKED
+                : download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
       } else {
         item->OnContentCheckCompleted(
             download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE,
@@ -1771,14 +1774,14 @@ void ChromeDownloadManagerDelegate::CheckClientDownloadDone(
       case safe_browsing::DownloadCheckResult::SENSITIVE_CONTENT_WARNING:
         danger_type = download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING;
         break;
-
-      // TODO(eliashomsi): Add a new danger type for FORCE_SAVE_TO_ONEDRIVE.
-      case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_ONEDRIVE:
       case safe_browsing::DownloadCheckResult::SENSITIVE_CONTENT_BLOCK:
         danger_type = download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK;
         break;
       case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_GDRIVE:
         danger_type = download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE;
+        break;
+      case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_ONEDRIVE:
+        danger_type = download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_ONEDRIVE;
         break;
       case safe_browsing::DownloadCheckResult::DEEP_SCANNED_SAFE:
         danger_type = download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_SAFE;
@@ -1852,7 +1855,10 @@ void ChromeDownloadManagerDelegate::CheckClientDownloadDone(
             item->GetTargetFilePath().AsUTF8Unsafe(), item);
       }
       item->OnContentCheckCompleted(
-          danger_type, download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
+          danger_type,
+          danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE
+              ? download::DOWNLOAD_INTERRUPT_REASON_LOCAL_DOWNLOAD_BLOCKED
+              : download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
     } else {
       item->OnContentCheckCompleted(danger_type,
                                     download::DOWNLOAD_INTERRUPT_REASON_NONE);

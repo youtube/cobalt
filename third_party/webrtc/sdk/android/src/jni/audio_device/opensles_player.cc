@@ -25,11 +25,13 @@
 
 #include "api/array_view.h"
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread_types.h"
-#include "rtc_base/time_utils.h"
 #include "sdk/android/src/jni/audio_device/opensles_common.h"
 
 #define TAG "OpenSLESPlayer"
@@ -53,9 +55,11 @@ namespace webrtc {
 namespace jni {
 
 OpenSLESPlayer::OpenSLESPlayer(
+    const Environment& env,
     const AudioParameters& audio_parameters,
-    webrtc::scoped_refptr<OpenSLEngineManager> engine_manager)
-    : audio_parameters_(audio_parameters),
+    scoped_refptr<OpenSLEngineManager> engine_manager)
+    : env_(env),
+      audio_parameters_(audio_parameters),
       audio_device_buffer_(nullptr),
       initialized_(false),
       playing_(false),
@@ -65,7 +69,7 @@ OpenSLESPlayer::OpenSLESPlayer(
       player_(nullptr),
       simple_buffer_queue_(nullptr),
       volume_(nullptr),
-      last_play_time_(0) {
+      last_play_time_(Timestamp::Zero()) {
   ALOGD("ctor[tid=%d]", webrtc::CurrentThreadId());
   // Use native audio output parameters provided by the audio manager and
   // define the PCM format structure.
@@ -141,7 +145,7 @@ int OpenSLESPlayer::StartPlayout() {
   // starts when mode is later changed to SL_PLAYSTATE_PLAYING.
   // TODO(henrika): we can save some delay by only making one call to
   // EnqueuePlayoutData. Most likely not worth the risk of adding a glitch.
-  last_play_time_ = Time();
+  last_play_time_ = env_.clock().CurrentTime();
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
     EnqueuePlayoutData(true);
   }
@@ -405,10 +409,10 @@ void OpenSLESPlayer::EnqueuePlayoutData(bool silence) {
   // Check delta time between two successive callbacks and provide a warning
   // if it becomes very large.
   // TODO(henrika): using 150ms as upper limit but this value is rather random.
-  const uint32_t current_time = Time();
-  const uint32_t diff = current_time - last_play_time_;
-  if (diff > 150) {
-    ALOGW("Bad OpenSL ES playout timing, dT=%u [ms]", diff);
+  const Timestamp current_time = env_.clock().CurrentTime();
+  const TimeDelta diff = current_time - last_play_time_;
+  if (diff > TimeDelta::Millis(150)) {
+    ALOGW("Bad OpenSL ES playout timing, dT=%u [ms]", diff.ms<uint32_t>());
   }
   last_play_time_ = current_time;
   SLint8* audio_ptr8 =

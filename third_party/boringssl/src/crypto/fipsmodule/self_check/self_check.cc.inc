@@ -899,7 +899,7 @@ static int boringssl_self_test_fast() {
   }
 
   // TLS KDF KAT
-  static const char kTLSLabel[] = "FIPS self test";
+  static const uint8_t kTLSLabel[] = "FIPS self test";
   static const uint8_t kTLSSeed1[16] = {
       0x8f, 0x0d, 0xe8, 0xb6, 0x90, 0x8f, 0xb1, 0xd2,
       0x6d, 0x51, 0xf4, 0x79, 0x18, 0x63, 0x51, 0x65,
@@ -920,6 +920,7 @@ static int boringssl_self_test_fast() {
       0x7a, 0x8d, 0x80, 0xfb, 0x44, 0xd8, 0x81, 0x60, 0xe5, 0xf8,
   };
   uint8_t tls10_output[sizeof(kTLS10Output)];
+  // For this test, labels null-terminated
   if (!CRYPTO_tls1_prf(EVP_md5_sha1(), tls10_output, sizeof(tls10_output),
                        kTLS10Secret, sizeof(kTLS10Secret), kTLSLabel,
                        sizeof(kTLSLabel), kTLSSeed1, sizeof(kTLSSeed1),

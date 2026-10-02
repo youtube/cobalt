@@ -94,6 +94,18 @@ enum class GeminiViewState {
   kExpanded,
 };
 
+// Enum representing the UI element type for which a change is requested.
+// This needs to stay in sync with GCRGeminiUIElementType (and its SDK
+// counterpart).
+enum class GeminiUIElementType {
+  // The element type is unknown.
+  kUnknown,
+  // The context attachment element.
+  kContextAttachment,
+  // The zero state element.
+  kZeroState,
+};
+
 // Starts the overlay experience with the given configuration.
 void StartBwgOverlay(GeminiConfiguration* gemini_configuration);
 
@@ -135,11 +147,19 @@ GeminiSettingsAction* ActionForSettingsContext(GeminiSettingsContext context);
 // viewport.
 void UpdateOverlayOffsetWithOpacity(CGFloat offset, CGFloat opacity);
 
+// TODO(crbug.com/475205334): Remove this method after function below is
+// implemented.
 // Updates Gemini floaty view state.
 void UpdateGeminiViewState(GeminiViewState view_state);
 
+// Updates Gemini floaty view state with an animation flag.
+void UpdateGeminiViewState(GeminiViewState view_state, bool animated);
+
 // Returns the current `GeminiViewState` of the floaty.
 GeminiViewState GetCurrentGeminiViewState();
+
+// Requests a UI change for a specific element type.
+void RequestUIChange(GeminiUIElementType ui_element_type);
 
 }  // namespace ios::provider
 

@@ -69,7 +69,7 @@ std::u16string GetEntitySuggestionMainText(
           trigger_attribute.type().entity_type()),
       client.GetAppLocale(), trigger_field.field->format_string());
   if (should_obfuscate_main_text) {
-    main_text = GetObfuscatedValue(main_text);
+    main_text = GetObfuscatedValue(main_text, /*visible_suffix_length=*/4);
   }
   return main_text;
 }
@@ -79,9 +79,9 @@ std::u16string GetEntitySuggestionMainText(
 // Note that an AutofillField may have multiple AttributeTypes of distinct
 // EntityTypes assigned. That is, it may happen that both of the following are
 // true:
-//   base::Contains(assignment.Find(EntityType(kVehicle)),
+//   std::ranges::contains(assignment.Find(EntityType(kVehicle)),
 //                  {field, AttributeType(kVehicleOwner));
-//   base::Contains(assignment.Find(EntityType(kDriversLicense)),
+//   std::ranges::contains(assignment.Find(EntityType(kDriversLicense)),
 //                  {field, AttributeType(kDriversLicenseName));
 class AttributeTypeAssignment {
  public:
@@ -195,7 +195,8 @@ std::vector<std::u16string> GetLabelsForSuggestions(
 
   std::vector<EntityLabel> labels =
       GetLabelsForEntities(entities, trigger_field_attributes,
-                           /*only_disambiguating_types=*/true, app_locale);
+                           /*only_disambiguating_types=*/true,
+                           /*obfuscate_sensitive_types=*/false, app_locale);
 
   // Drop the labels for the `other_entities_that_can_fill_section`.
   if (labels.size() > entities_to_suggest.size()) {
@@ -559,7 +560,8 @@ void AutofillAiSuggestionGenerator::FetchSuggestionData(
   if (!GetFieldsFillableByAutofillAi(*form_structure, client)
            .contains(trigger_field.global_id()) ||
       SuppressSuggestionsForAutocompleteUnrecognizedField(
-          *trigger_autofill_field)) {
+          *trigger_autofill_field,
+          /*suppress_if_ac_unrecognized=*/!client.IsTabInActorMode())) {
     callback({SuggestionDataSource::kAutofillAi, {}});
     return;
   }

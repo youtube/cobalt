@@ -9,10 +9,7 @@
 import("../../../webrtc.gni")
 
 rtc_source_set("internal_types") {
-  deps = [
-    "../../../rtc_base:strong_alias",
-    "../public:types",
-  ]
+  deps = [ "../../../rtc_base:strong_alias" ]
   sources = [ "internal_types.h" ]
 }
 
@@ -37,9 +34,6 @@ if (rtc_include_tests) {
     deps = [
       ":math",
       ":sequence_numbers",
-      "../../../api:array_view",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:gunit_helpers",
       "../../../rtc_base:strong_alias",
       "../../../test:test_support",
     ]

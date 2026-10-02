@@ -8,7 +8,6 @@
 #include "bench/BigPath.h"
 #include "include/codec/SkCodec.h"
 #include "include/codec/SkJpegDecoder.h"
-#include "include/codec/SkPngDecoder.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkPicture.h"
@@ -28,6 +27,7 @@
 #include "src/gpu/ganesh/SkGr.h"
 #include "src/gpu/ganesh/image/GrImageUtils.h"
 #include "src/utils/SkOSPath.h"
+#include "tools/DeserialProcsUtils.h"
 #include "tools/EncodeUtils.h"
 #include "tools/SkSharingProc.h"
 #include "tools/flags/CommandLineFlags.h"
@@ -45,6 +45,12 @@
 #include "modules/skshaper/utils/FactoryHelpers.h"
 #include "modules/svg/include/SkSVGDOM.h"
 #include "src/xml/SkDOM.h"
+#endif
+
+#if defined(SK_CODEC_DECODES_PNG_WITH_RUST)
+#include "include/codec/SkPngRustDecoder.h"
+#else
+#include "include/codec/SkPngDecoder.h"
 #endif
 
 #include <stdlib.h>
@@ -525,7 +531,11 @@ int main(int argc, char** argv) {
     }
 
     SkGraphics::Init();
+#if defined(SK_CODEC_DECODES_PNG_WITH_RUST)
+    SkCodecs::Register(SkPngRustDecoder::Decoder());
+#else
     SkCodecs::Register(SkPngDecoder::Decoder());
+#endif
     SkCodecs::Register(SkJpegDecoder::Decoder());
 
     sk_sp<SkPicture> skp;
@@ -547,7 +557,8 @@ int main(int argc, char** argv) {
             // populate skp with it's first frame, for width height determination.
             skp = mskp->frame(0);
         } else {
-            skp = SkPicture::MakeFromStream(srcstream.get());
+            SkDeserialProcs procs = ToolUtils::get_default_skp_deserial_procs();
+            skp = SkPicture::MakeFromStream(srcstream.get(), &procs);
         }
         if (!skp) {
             exitf(ExitErr::kData, "failed to parse file %s", srcfile.c_str());

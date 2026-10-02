@@ -42,6 +42,7 @@ export function getHtml(this: SearchboxElement) {
         @open-voice-search="${this.onVoiceSearchClick_}"
         @get-tab-preview="${this.getTabPreview_}"
         @context-menu-container-click="${this.onContextMenuContainerClick_}"
+        @context-menu-closed="${this.onContextMenuClosed_}"
         ?show-dropdown="${this.dropdownIsVisible}"
         ?show-recent-tab-chip="${this.computeShowRecentTabChip_()}"
         ?show-voice-search="${this.shouldShowVoiceSearch_}"
@@ -121,10 +122,6 @@ export function getHtml(this: SearchboxElement) {
     ` : nothing}`;
 
   return html`<!--_html_template_start_-->
-${this.ntpRealboxNextEnabled ? html`
-<ntp-error-scrim id="errorScrim"
-    ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
-</ntp-error-scrim>` : nothing}
 <div id="inputWrapper" @focusout="${this.onInputWrapperFocusout_}"
     @keydown="${this.onInputWrapperKeydown_}"
     @dragenter="${this.dragAndDropHandler?.handleDragEnter}"
@@ -133,6 +130,9 @@ ${this.ntpRealboxNextEnabled ? html`
     @drop="${this.dragAndDropHandler?.handleDrop}">
   ${this.ntpRealboxNextEnabled ?
     html`
+      <ntp-error-scrim id="errorScrim"
+          ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
+      </ntp-error-scrim>
       <search-animated-glow animation-state="${this.animationState}" part="animated-glow">
       </search-animated-glow>
       ${compactLayout ? html`
@@ -147,7 +147,7 @@ ${this.ntpRealboxNextEnabled ? html`
         </div>
         <div class="dropdownContainer">
           ${dropdown}
-          ${this.recentTabForChip_ && this.dropdownIsVisible ? html`
+          ${this.recentTabForChip_ && this.dropdownIsVisible && this.isInputEmpty() ? html`
           <div id="recentTabChipContainer">
             <composebox-recent-tab-chip
                 .recentTab="${this.recentTabForChip_}"

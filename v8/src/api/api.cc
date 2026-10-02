@@ -257,7 +257,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     i_isolate->heap()->RecordStats(&heap_stats);
     i_isolate->heap()->ReportStatsAsCrashKeys(heap_stats);
 
-    i_isolate->ReportStackAsCrashKey();
+    if (i_isolate->thread_id() == ThreadId::Current()) {
+      i_isolate->ReportStackAsCrashKey();
+    }
 
     if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(heap_stats.last_few_messages, '\n');
@@ -4134,6 +4136,10 @@ size_t v8::BackingStore::MaxByteLength() const {
 
 bool v8::BackingStore::IsShared() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
+}
+
+bool v8::BackingStore::IsImmutable() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->is_immutable();
 }
 
 bool v8::BackingStore::IsResizableByUserJavaScript() const {
@@ -8746,9 +8752,9 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 
 Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
 #if V8_ENABLE_WEBASSEMBLY
-  auto obj = Utils::OpenDirectHandle(this);
+  i::DirectHandle<i::WasmMemoryObject> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
-  return Utils::ToLocal(i::direct_handle(obj->array_buffer(), i_isolate));
+  return Utils::ToLocal(i::WasmMemoryObject::GetArrayBuffer(i_isolate, obj));
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8854,6 +8860,10 @@ bool v8::ArrayBuffer::IsDetachable() const {
 
 bool v8::ArrayBuffer::WasDetached() const {
   return Utils::OpenDirectHandle(this)->was_detached();
+}
+
+bool v8::ArrayBuffer::IsImmutable() const {
+  return Utils::OpenDirectHandle(this)->is_immutable();
 }
 
 namespace {
@@ -8972,6 +8982,11 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
       "Cannot construct ArrayBuffer with a BackingStore of SharedArrayBuffer");
   i::DirectHandle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(std::move(i_backing_store));
+  if (obj->backing_store() &&
+      static_cast<i::BackingStore*>(obj->GetBackingStore().get())
+          ->is_immutable()) {
+    obj->set_is_immutable(true);
+  }
   return Utils::ToLocal(obj);
 }
 

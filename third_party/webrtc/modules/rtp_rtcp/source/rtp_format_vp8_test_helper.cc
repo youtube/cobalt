@@ -55,11 +55,13 @@ int Bit(uint8_t byte, int position) {
 
 RtpFormatVp8TestHelper::RtpFormatVp8TestHelper(const RTPVideoHeaderVP8* hdr,
                                                size_t payload_len)
-    : hdr_info_(hdr),
-      payload_(Buffer::CreateUninitializedWithSize(payload_len)) {
-  for (size_t i = 0; i < payload_.size(); ++i) {
-    payload_[i] = i;
-  }
+    : hdr_info_(hdr), payload_(Buffer::CreateWithCapacity(payload_len)) {
+  payload_.AppendData(payload_len, [](ArrayView<uint8_t> payload_view) {
+    for (size_t i = 0; i < payload_view.size(); ++i) {
+      payload_view[i] = i;
+    }
+    return payload_view.size();
+  });
 }
 
 RtpFormatVp8TestHelper::~RtpFormatVp8TestHelper() = default;

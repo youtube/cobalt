@@ -28,13 +28,13 @@ class ComputedStyle;
 class CSSNumericLiteralValue;
 class CSSStyleValue;
 class CSSValue;
+class FlowTolerance;
 class FontFamily;
 class PositionArea;
 class StyleColor;
 class StyleIntrinsicLength;
 class StylePropertyShorthand;
 class StyleTimeline;
-class ItemTolerance;
 
 enum class CSSGapDecorationPropertyDirection : int;
 
@@ -76,8 +76,8 @@ class CORE_EXPORT ComputedStyleUtils {
                                                     CSSValuePhase value_phase);
   static const CSSValue* ValueForFillSize(const FillSize&,
                                           const ComputedStyle&);
-  static const CSSValue* BackgroundImageOrMaskSize(const ComputedStyle&,
-                                                   const FillLayer&);
+  static const CSSValue* BackgroundSizeOrMaskSize(const ComputedStyle&,
+                                                  const FillLayer&);
   static const CSSValueList* CreatePositionListForLayer(const CSSProperty&,
                                                         const FillLayer&,
                                                         const ComputedStyle&);
@@ -166,7 +166,7 @@ class CORE_EXPORT ComputedStyleUtils {
                                          const ComputedStyle&,
                                          bool force_computed_value = false);
   static CSSValue* ValueForGridPosition(const GridPosition&);
-  static CSSValue* ValueForItemTolerance(const ItemTolerance&,
+  static CSSValue* ValueForFlowTolerance(const FlowTolerance&,
                                          const ComputedStyle&);
   static CSSValue* ValueForGridLanesDirection(const GridLanesDirection&,
                                               const ComputedStyle&);

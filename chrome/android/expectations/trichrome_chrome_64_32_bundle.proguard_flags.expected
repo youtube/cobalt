@@ -11,14 +11,6 @@
   @androidx.annotation.Keep <methods>;
 }
 
-# File: ../../third_party/androidx/androidx_biometric.flags
-# Copyright 2026 The Chromium Authors
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
-# Temporary fix until this change is landed upstream in AndroidX.
--dontwarn android.hardware.fingerprint.FingerprintManager**
-
 # File: ../../third_party/androidx/androidx_fragment.flags
 # Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
@@ -316,6 +308,10 @@
 # removed due to being unused.
 -dontwarn org.chromium.chrome.modules.on_demand.OnDemandModuleEntryPointsImpl
 
+# Test APK targets do not include the XR bundle code, but do include XrModule.java,
+# which references XrModuleProvider via an @IdentifierNameString.
+-dontwarn org.chromium.chrome.browser.xr.scenecore.XrModuleProviderImpl
+
 # File: ../../third_party/android_deps/material_design.flags
 # Copyright 2021 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
@@ -469,7 +465,7 @@
 
 # We supply these as stubs and will only use them in older Android versions which had a framework
 # implementation. We don't want R8 to complain about them not being there during optimization.
--dontwarn android.hardware.fingerprint.FingerprintManager.**
+-dontwarn android.hardware.fingerprint.FingerprintManager**
 
 # Never inline methods, but allow shrinking and obfuscation.
 -keepclassmembernames,allowobfuscation,allowshrinking

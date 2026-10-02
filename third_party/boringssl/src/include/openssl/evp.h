@@ -61,11 +61,10 @@ OPENSSL_EXPORT int EVP_PKEY_up_ref(EVP_PKEY *pkey);
 // an error to attempt to duplicate, export, or compare an opaque key.
 OPENSSL_EXPORT int EVP_PKEY_is_opaque(const EVP_PKEY *pkey);
 
-// EVP_PKEY_cmp compares |a| and |b| and returns one if they are equal, zero if
-// not and a negative number on error.
+// EVP_PKEY_cmp compares |a| and |b| and returns one if their public keys are
+// equal and zero otherwise.
 //
-// WARNING: this differs from the traditional return value of a "cmp"
-// function.
+// WARNING: this differs from the traditional return value of a "cmp" function.
 OPENSSL_EXPORT int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
 
 // EVP_PKEY_copy_parameters sets the parameters of |to| to equal the parameters
@@ -77,9 +76,8 @@ OPENSSL_EXPORT int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
 OPENSSL_EXPORT int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
 
 // EVP_PKEY_cmp_parameters compares the parameters of |a| and |b|. It returns
-// one if they match, zero if not, or a negative number on error. In algorithms
-// that do not use parameters, this function returns one; null parameters are
-// vacuously equal.
+// one if they match and zero otherwise. In algorithms that do not use
+// parameters, this function returns one; null parameters are vacuously equal.
 //
 // WARNING: this differs from the traditional return value of a "cmp" function.
 OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,

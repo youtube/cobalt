@@ -65,7 +65,7 @@ static int rsa_pss_decode(const X509_ALGOR *alg, rsa_pss_params_t *out) {
          CBS_len(&cbs) == 0;
 }
 
-int x509_rsa_ctx_to_pss(EVP_MD_CTX *ctx, X509_ALGOR *algor) {
+int bssl::x509_rsa_ctx_to_pss(EVP_MD_CTX *ctx, X509_ALGOR *algor) {
   const EVP_MD *sigmd, *mgf1md;
   int saltlen;
   if (!EVP_PKEY_CTX_get_signature_md(ctx->pctx, &sigmd) ||
@@ -121,8 +121,8 @@ int x509_rsa_ctx_to_pss(EVP_MD_CTX *ctx, X509_ALGOR *algor) {
   return 1;
 }
 
-int x509_rsa_pss_to_ctx(EVP_MD_CTX *ctx, const X509_ALGOR *sigalg,
-                        EVP_PKEY *pkey) {
+int bssl::x509_rsa_pss_to_ctx(EVP_MD_CTX *ctx, const X509_ALGOR *sigalg,
+                              EVP_PKEY *pkey) {
   assert(OBJ_obj2nid(sigalg->algorithm) == NID_rsassaPss);
   rsa_pss_params_t params;
   if (!rsa_pss_decode(sigalg, &params)) {
@@ -142,8 +142,8 @@ int x509_rsa_pss_to_ctx(EVP_MD_CTX *ctx, const X509_ALGOR *sigalg,
   return 1;
 }
 
-int x509_print_rsa_pss_params(BIO *bp, const X509_ALGOR *sigalg, int indent,
-                              ASN1_PCTX *pctx) {
+int bssl::x509_print_rsa_pss_params(BIO *bp, const X509_ALGOR *sigalg,
+                                    int indent, ASN1_PCTX *pctx) {
   assert(OBJ_obj2nid(sigalg->algorithm) == NID_rsassaPss);
   rsa_pss_params_t params;
   if (!rsa_pss_decode(sigalg, &params)) {

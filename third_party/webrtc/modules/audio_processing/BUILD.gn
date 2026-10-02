@@ -64,6 +64,7 @@ rtc_library("audio_buffer") {
     "../../common_audio:common_audio_c",
     "../../rtc_base:checks",
     "../../rtc_base:gtest_prod",
+    "capture_mixer",
   ]
 }
 

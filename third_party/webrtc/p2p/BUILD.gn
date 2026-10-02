@@ -331,6 +331,7 @@ rtc_library("dtls_transport_internal") {
     "../api:scoped_refptr",
     "../rtc_base:buffer",
     "../rtc_base:callback_list",
+    "../rtc_base:checks",
     "../rtc_base:ssl",
     "../rtc_base:ssl_adapter",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -1348,6 +1349,7 @@ rtc_library("p2p_server_utils") {
   ]
   deps = [
     ":async_stun_tcp_socket",
+    ":port",
     ":port_interface",
     "../api:array_view",
     "../api:packet_socket_factory",

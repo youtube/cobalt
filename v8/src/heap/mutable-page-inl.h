@@ -10,20 +10,23 @@
 
 #include "src/heap/base-page-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/sandbox/hardware-support.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+// static
+MutablePage* MutablePage::FromAddress(Address a) {
+  return SbxCast<MutablePage>(BasePage::FromAddress(a));
+}
 
 // static
 MutablePage* MutablePage::FromAddress(const Isolate* i, Address a) {
-  return cast(BasePage::FromAddress(i, a));
+  return SbxCast<MutablePage>(BasePage::FromAddress(i, a));
 }
 
 // static
 MutablePage* MutablePage::FromHeapObject(const Isolate* i,
                                          Tagged<HeapObject> o) {
-  return cast(BasePage::FromHeapObject(i, o));
+  return SbxCast<MutablePage>(BasePage::FromHeapObject(i, o));
 }
 
 template <AccessMode mode>
@@ -99,7 +102,6 @@ void MutablePage::ClearFlagUnlocked(MemoryChunk::Flag flag) {
   RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_.without(flag));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MUTABLE_PAGE_INL_H_

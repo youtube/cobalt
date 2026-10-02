@@ -10,6 +10,7 @@
 
 #include "pc/dtls_srtp_transport.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -240,9 +241,6 @@ bool DtlsSrtpTransport::ExtractParams(DtlsTransportInternal* dtls_transport,
     return false;
   }
 
-  RTC_LOG(LS_INFO) << "Extracting keys from transport: "
-                   << dtls_transport->transport_name();
-
   int key_len;
   int salt_len;
   if (!GetSrtpKeyAndSaltLengths((*selected_crypto_suite), &key_len,
@@ -252,16 +250,19 @@ bool DtlsSrtpTransport::ExtractParams(DtlsTransportInternal* dtls_transport,
     return false;
   }
 
-  // OK, we're now doing DTLS (RFC 5764)
-  auto dtls_buffer = ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
-      key_len * 2 + salt_len * 2);
+  RTC_LOG(LS_INFO) << "Extracting keys from transport: "
+                   << dtls_transport->transport_name();
 
   // RFC 5705 exporter using the RFC 5764 parameters
-  if (!dtls_transport->ExportSrtpKeyingMaterial(dtls_buffer)) {
+  ZeroOnFreeBuffer<uint8_t> dtls_buffer;
+  if (!dtls_transport->AppendSrtpKeyingMaterial(dtls_buffer)) {
     RTC_LOG(LS_ERROR) << "DTLS-SRTP key export failed";
     RTC_DCHECK_NOTREACHED();  // This should never happen
     return false;
   }
+  // Verify that key material size is as expected.
+  RTC_DCHECK_EQ(dtls_buffer.size(),
+                static_cast<size_t>(2 * key_len + 2 * salt_len));
 
   // Sync up the keys with the DTLS-SRTP interface
   // https://datatracker.ietf.org/doc/html/rfc5764#section-4.2

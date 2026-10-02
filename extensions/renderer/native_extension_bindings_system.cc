@@ -4,6 +4,7 @@
 
 #include "extensions/renderer/native_extension_bindings_system.h"
 
+#include <algorithm>
 #include <string_view>
 #include <utility>
 
@@ -24,7 +25,6 @@
 #include "extensions/common/extension_api.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
-#include "extensions/common/features/feature.h"
 #include "extensions/common/features/feature_provider.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/content_capabilities_handler.h"
@@ -216,30 +216,6 @@ bool IsAPIFeatureAvailable(v8::Local<v8::Context> context,
                            const std::string& name) {
   ScriptContext* script_context = GetScriptContextFromV8ContextChecked(context);
   return script_context->GetAvailability(name).is_available();
-}
-
-// Returns true if the specified |context| is allowed to use promise based
-// returns from APIs.
-bool ArePromisesAllowed(v8::Local<v8::Context> context) {
-  ScriptContext* script_context = GetScriptContextFromV8ContextChecked(context);
-  const Extension* extension = script_context->extension();
-  if (extension && extension->manifest_version() >= 3) {
-    return true;
-  }
-  switch (script_context->context_type()) {
-    case mojom::ContextType::kWebUi:
-    case mojom::ContextType::kUntrustedWebUi:
-    case mojom::ContextType::kWebPage:
-      return true;
-    case mojom::ContextType::kUnspecified:
-    case mojom::ContextType::kPrivilegedWebPage:
-    case mojom::ContextType::kPrivilegedExtension:
-    case mojom::ContextType::kOffscreenExtension:
-    case mojom::ContextType::kUnprivilegedExtension:
-    case mojom::ContextType::kUserScript:
-    case mojom::ContextType::kContentScript:
-      return false;
-  }
 }
 
 // Instantiates the binding object for the given |name|. |name| must specify a
@@ -441,7 +417,7 @@ bool ShouldCollectJSStackTrace(const APIRequestHandler::Request& request) {
           extensions_features::kIncludeJSCallStackInExtensionApiRequest)) {
     return false;
   }
-  if (!base::Contains(kApiMethods, request.method_name)) {
+  if (!std::ranges::contains(kApiMethods, request.method_name)) {
     return false;
   }
   return true;
@@ -484,7 +460,6 @@ NativeExtensionBindingsSystem::NativeExtensionBindingsSystem(
       api_system_(
           base::BindRepeating(&GetAPISchema),
           base::BindRepeating(&IsAPIFeatureAvailable),
-          base::BindRepeating(&ArePromisesAllowed),
           base::BindRepeating(&NativeExtensionBindingsSystem::SendRequest,
                               base::Unretained(this)),
           std::make_unique<ExtensionInteractionProvider>(),

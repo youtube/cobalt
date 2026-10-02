@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "api/transport/network_types.h"
+#include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -100,7 +101,7 @@ void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample) {
   } else {
     double g = params_.smoothed_rtt_avg_g_up.Get();
     if (rtt_sample < last_smoothed_rtt_) {
-      g = params_.smoothed_l4s_avg_g_down.Get();
+      g = params_.smoothed_rtt_avg_g_down.Get();
     }
     last_smoothed_rtt_ = rtt_sample * g + last_smoothed_rtt_ * (1.0 - g);
   }
@@ -120,13 +121,8 @@ void DelayBasedCongestionControl::ResetQueueDelay() {
 }
 
 bool DelayBasedCongestionControl::IsQueueDelayDetected() const {
-  return queue_delay_avg_ > params_.queue_delay_target.Get() *
-                                params_.queue_delay_increased_threshold.Get();
-}
-
-bool DelayBasedCongestionControl::ShouldReduceReferenceWindow() const {
-  return (queue_delay_avg_ > params_.queue_delay_target.Get() *
-                                 params_.queue_delay_threshold.Get());
+  return queue_delay_avg_.IsFinite() &&
+         queue_delay_avg_ > params_.queue_delay_first_reaction.Get();
 }
 
 DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
@@ -140,7 +136,7 @@ DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
     return min_allowed_reference_window;
   }
 
-  double backoff = l4s_alpha_v() * params_.queue_delay_threshold.Get();
+  double backoff = l4s_alpha_v() / 2.0;  // Reduce by 50% if l4s_alpha_v = 1.0;
   backoff /= std::max(1.0, last_smoothed_rtt_ / params_.virtual_rtt);
   backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio);
 
@@ -148,12 +144,11 @@ DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
 }
 
 double DelayBasedCongestionControl::l4s_alpha_v() const {
-  return std::clamp(
-      (queue_delay_avg_ -
-       params_.queue_delay_target.Get() * params_.queue_delay_threshold.Get()) /
-          (params_.queue_delay_target.Get() *
-           params_.queue_delay_threshold.Get()),
-      0.0, 1.0);
+  const TimeDelta range = params_.queue_delay_max_reaction.Get() -
+                          params_.queue_delay_first_reaction.Get();
+  double l4s_alpha_v =
+      (queue_delay_avg_ - params_.queue_delay_first_reaction.Get()) / range;
+  return std::clamp(l4s_alpha_v, 0.0, 1.0);
 }
 
 }  // namespace webrtc

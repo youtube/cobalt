@@ -10,13 +10,11 @@ import("../../../webrtc.gni")
 
 rtc_library("timer") {
   deps = [
-    "../../../api:array_view",
     "../../../api/task_queue",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base:strong_alias",
-    "../../../rtc_base/containers:flat_map",
     "../../../rtc_base/containers:flat_set",
     "../public:socket",
     "../public:types",
@@ -32,7 +30,6 @@ rtc_library("timer") {
 
 rtc_library("task_queue_timeout") {
   deps = [
-    "../../../api:array_view",
     "../../../api:scoped_refptr",
     "../../../api:sequence_checker",
     "../../../api/task_queue",
@@ -59,13 +56,10 @@ if (rtc_include_tests) {
     deps = [
       ":task_queue_timeout",
       ":timer",
-      "../../../api:array_view",
       "../../../api/task_queue",
       "../../../api/task_queue/test:mock_task_queue_base",
       "../../../api/units:time_delta",
       "../../../api/units:timestamp",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:gunit_helpers",
       "../../../rtc_base:threading",
       "../../../test:test_support",
       "../../../test/time_controller",

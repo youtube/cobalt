@@ -1233,11 +1233,6 @@ PeerConnection::AddTransceiver(MediaType media_type,
   return scoped_refptr<RtpTransceiverInterface>(transceiver);
 }
 
-void PeerConnection::OnNegotiationNeeded() {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_DCHECK(!IsClosed());
-  sdp_handler_->UpdateNegotiationNeeded();
-}
 
 scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
     const std::string& kind,
@@ -1269,16 +1264,17 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
 
   scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> new_sender;
   if (kind == MediaStreamTrackInterface::kAudioKind) {
-    auto audio_sender = AudioRtpSender::Create(
-        env_, worker_thread(), CreateRandomUuid(), legacy_stats_.get(), nullptr,
-        rtp_manager()->voice_media_send_channel());
+    auto audio_sender =
+        AudioRtpSender::Create(env_, signaling_thread(), worker_thread(),
+                               CreateRandomUuid(), legacy_stats_.get(), nullptr,
+                               rtp_manager()->voice_media_send_channel());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), audio_sender);
     rtp_manager()->GetAudioTransceiver()->internal()->AddSenderPlanB(
         new_sender);
   } else if (kind == MediaStreamTrackInterface::kVideoKind) {
     auto video_sender = VideoRtpSender::Create(
-        env_, worker_thread(), CreateRandomUuid(), nullptr,
+        env_, signaling_thread(), worker_thread(), CreateRandomUuid(), nullptr,
         rtp_manager()->video_media_send_channel());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), video_sender);
@@ -2429,21 +2425,6 @@ bool PeerConnection::GetSslRole(const std::string& content_name,
   return false;
 }
 
-bool PeerConnection::GetTransportDescription(
-    const SessionDescription* description,
-    const std::string& content_name,
-    TransportDescription* tdesc) {
-  if (!description || !tdesc) {
-    return false;
-  }
-  const TransportInfo* transport_info =
-      description->GetTransportInfoByName(content_name);
-  if (!transport_info) {
-    return false;
-  }
-  *tdesc = transport_info->description;
-  return true;
-}
 
 std::vector<DataChannelStats> PeerConnection::GetDataChannelStats() const {
   RTC_DCHECK_RUN_ON(network_thread());
@@ -2561,7 +2542,7 @@ void PeerConnection::OnTransportControllerConnectionState(
         std::vector<std::pair<std::string, MediaType>> transceiver_info;
         if (ConfiguredForMedia()) {
           for (const auto& t : rtp_manager()->transceivers()->List()) {
-            if (t->internal()->channel()) {
+            if (t->internal()->HasChannel()) {
               std::optional<std::string> mid = t->mid();
               if (mid) {
                 transceiver_info.emplace_back(*mid, t->media_type());
@@ -3084,9 +3065,9 @@ bool PeerConnection::OnTransportChanged(
   if (ConfiguredForMedia()) {
     for (const auto& transceiver :
          rtp_manager()->transceivers()->UnsafeList()) {
-      ChannelInterface* channel = transceiver->internal()->channel();
-      if (channel && channel->mid() == mid) {
-        ret = channel->SetRtpTransport(rtp_transport);
+      auto internal = transceiver->internal();
+      if (internal->HasChannel() && internal->mid() == mid) {
+        ret = internal->SetChannelRtpTransport(rtp_transport);
       }
     }
   }

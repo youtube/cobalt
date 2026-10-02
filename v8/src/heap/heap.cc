@@ -213,7 +213,7 @@ class Heap::AllocationTrackerForDebugging final
     Address object_address = object.address();
     MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
     AllocationSpace allocation_space =
-        MutablePage::cast(memory_chunk->Metadata())->owner_identity();
+        SbxCast<MutablePage>(memory_chunk->Metadata())->owner_identity();
 
     static_assert(kSpaceTagSize + kPageSizeBits <= 32);
     uint32_t value =
@@ -1945,6 +1945,9 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
       ResetOldGenerationAndGlobalAllocationLimit();
     } else if (preconfigured_old_generation_size_) {
       EnsureMinimumRemainingAllocationLimit(initial_old_generation_size_);
+      // Reset using_initial_limit() to prevent the sweeper from overwriting
+      // this limit right after this operation.
+      set_using_initial_limit(true);
     }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
@@ -2591,7 +2594,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
+  MutablePage* mutable_page = SbxCast<MutablePage>(chunk->Metadata());
   if (mutable_page->SweepingDone()) {
     return;
   }
@@ -2599,7 +2602,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   // SweepingDone() is always true for large pages.
   DCHECK(!mutable_page->is_large());
 
-  NormalPage* page = NormalPage::cast(mutable_page);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page);
   sweeper()->EnsurePageIsSwept(page);
 }
 
@@ -2692,6 +2695,8 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
                  preliminary_old_generation_allocation_limit);
         dict.Add("old_gen_consumed_bytes_at_last_gc",
                  old_gen_consumed_bytes_at_last_gc);
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 OldGenerationAllocationLimitConsumedBytes());
         dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
         dict.Add("global_gc_speed", embedder_gc_speed.value_or(0));
         dict.Add("global_mutator_speed", embedder_speed);
@@ -3154,38 +3159,18 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
 // there is more memory available then that, the limits remain as-is.
 void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
   base::MutexGuard guard(old_space()->mutex());
-  size_t new_old_generation_allocation_limit =
-      std::max(OldGenerationConsumedBytes() + at_least_remaining,
-               old_generation_allocation_limit());
-  new_old_generation_allocation_limit =
-      std::max(new_old_generation_allocation_limit, min_old_generation_size());
-  new_old_generation_allocation_limit =
-      std::min(new_old_generation_allocation_limit, max_old_generation_size());
 
-  size_t new_global_allocation_limit = std::max(
-      GlobalConsumedBytes() + GlobalMemorySizeFromV8Size(at_least_remaining),
-      global_allocation_limit());
-  new_global_allocation_limit =
-      std::max(new_global_allocation_limit, min_global_memory_size_);
-  new_global_allocation_limit =
-      std::min(new_global_allocation_limit, max_global_memory_size_);
-  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
-                                           new_global_allocation_limit);
-  // Reset using_initial_limit() to prevent the sweeper from overwriting this
-  // limit right after this operation.
-  set_using_initial_limit(true);
-}
-
-void Heap::EnsureAllocationLimitAboveCurrentSize() {
-  if (OldGenerationSpaceAvailable() > 0 && GlobalMemoryAvailable() > 0) {
+  if (OldGenerationSpaceAvailable() > at_least_remaining &&
+      GlobalMemoryAvailable() >
+          GlobalMemorySizeFromV8Size(at_least_remaining)) {
     return;
   }
 
-  base::MutexGuard guard(old_space()->mutex());
   // At least with ArrayBufferExtensions, external memory could overflow size_t
   // on 32-bit. Use a saturated cast here to defend against this.
   size_t new_old_generation_allocation_limit = std::max(
-      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
+      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes() +
+                                   at_least_remaining),
       old_generation_allocation_limit());
   // We need to clamp the new limit between the allowed minimum and maximum
   // value. We do not currently cap allocated external memory, so either the old
@@ -3205,13 +3190,36 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
     // by manually adding it.
     current_global_bytes += AllocatedExternalMemorySinceMarkCompact();
   }
-  size_t new_global_allocation_limit =
-      std::max(current_global_bytes, global_allocation_limit());
+  size_t new_global_allocation_limit = std::max(
+      current_global_bytes + GlobalMemorySizeFromV8Size(at_least_remaining),
+      global_allocation_limit());
   new_global_allocation_limit =
       std::clamp(new_global_allocation_limit, min_global_memory_size_,
                  max_global_memory_size_);
+
+  TRACE_EVENT_INSTANT(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      "V8.GCEnsureMinimumRemainingAllocationLimit", "value",
+      [&](perfetto::TracedValue ctx) {
+        auto dict = std::move(ctx).WriteDictionary();
+        dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
+        dict.Add("next_old_gen_allocation_limit",
+                 new_old_generation_allocation_limit);
+        dict.Add("global_allocation_limit", global_allocation_limit());
+        dict.Add("next_global_allocation_limit", new_global_allocation_limit);
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 OldGenerationAllocationLimitConsumedBytes());
+        dict.Add("global_consumed_bytes", GlobalConsumedBytes());
+        dict.Add("external_memory_since_mark_compact",
+                 AllocatedExternalMemorySinceMarkCompact());
+      });
+
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
+}
+
+void Heap::EnsureAllocationLimitAboveCurrentSize() {
+  EnsureMinimumRemainingAllocationLimit(0);
   CHECK_LE(OldGenerationConsumedBytes(), old_generation_allocation_limit());
   set_using_initial_limit(false);
 }
@@ -3267,7 +3275,7 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
   if (chunk->InReadOnlySpace()) return;
   if (!v8_flags.sticky_mark_bits && chunk->InYoungGeneration()) return;
-  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
+  MutablePage* mutable_page = SbxCast<MutablePage>(chunk->Metadata());
   BaseSpace* space = mutable_page->owner();
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
@@ -4181,13 +4189,15 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   DCHECK(!HeapLayout::InAnyLargeSpace(object));
   if (new_size == old_size) return;
 
-  const bool is_main_thread = LocalHeap::Current()->is_main_thread();
-
-  DCHECK_IMPLIES(!is_main_thread,
+  const LocalHeap* current = LocalHeap::TryGetCurrent();
+  DCHECK_IMPLIES(!current, gc_state() == MARK_COMPACT);
+  const bool is_non_main_thread = current && !current->is_main_thread();
+  DCHECK_IMPLIES(is_non_main_thread,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
 
-  const auto verify_no_slots_recorded =
-      is_main_thread ? VerifyNoSlotsRecorded::kYes : VerifyNoSlotsRecorded::kNo;
+  const auto verify_no_slots_recorded = !is_non_main_thread
+                                            ? VerifyNoSlotsRecorded::kYes
+                                            : VerifyNoSlotsRecorded::kNo;
 
   const auto clear_memory_mode = ClearFreedMemoryMode::kDontClearFreedMemory;
 
@@ -6135,7 +6145,7 @@ class StressConcurrentAllocationTask : public CancelableTask {
     const int kSmallObjectSize = 10 * kTaggedSize;
     const int kMediumObjectSize = 8 * KB;
     const int kLargeObjectSize =
-        static_cast<int>(MutablePage::kPageSize -
+        static_cast<int>(NormalPage::kPageSize -
                          MemoryChunkLayout::ObjectStartOffsetInDataPage());
 
     for (int i = 0; i < kNumIterations; i++) {
@@ -6905,7 +6915,7 @@ int Heap::InsertIntoRememberedSetFromCode(MutablePage* chunk,
 #ifdef DEBUG
 void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  NormalPage* page = NormalPage::FromAddress(start);
+  MutablePage* page = MutablePage::FromAddress(start);
   RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_SHARED>::CheckNoneInRange(page, start, end);
@@ -6952,7 +6962,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!chunk->InYoungGeneration())
 #endif
   {
-    NormalPage* page = NormalPage::cast(chunk->Metadata());
+    NormalPage* page = SbxCast<NormalPage>(chunk->Metadata());
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||
@@ -7280,7 +7290,7 @@ void Heap::UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
 void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
   // We're either on the main thread, or in a background thread with an active
   // local heap.
-  DCHECK(LocalHeap::Current()->IsRunning());
+  DCHECK(gc_state() == MARK_COMPACT || LocalHeap::Current()->IsRunning());
 
   base::MutexGuard guard(&strong_roots_mutex_);
 

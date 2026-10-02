@@ -36,7 +36,6 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "p2p/test/fake_port_allocator.h"
-#include "pc/channel_interface.h"
 #include "pc/dtls_transport.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection.h"
@@ -273,7 +272,7 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
       if (transceiver->media_type() == MediaType::AUDIO) {
         auto dtls_transport =
             pc->transport_controller_s()->LookupDtlsTransportByMid(
-                transceiver->internal()->channel()->mid());
+                *transceiver->internal()->mid());
         return dtls_transport->ice_transport()->internal()->GetIceRole();
       }
     }

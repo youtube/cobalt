@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -44,7 +44,6 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
@@ -176,7 +175,7 @@ credential_provider::UiExitCodes ValidateSigninEmail(
       GetEmailDomainsFromParameter(email_domains_parameter);
   std::string email_domain = gaia::ExtractDomainName(signin_email);
 
-  return base::Contains(all_email_domains, email_domain)
+  return std::ranges::contains(all_email_domains, email_domain)
              ? credential_provider::kUiecSuccess
              : credential_provider::kUiecInvalidEmailDomain;
 }
@@ -284,11 +283,9 @@ void OnSigninComplete(Profile* profile,
   }
 
   if (!can_be_managed) {
-    BrowserList::CloseAllBrowsersWithProfile(
-        profile, base::BindRepeating(&LockProfileAndShowUserManager),
-        // Cannot be called because skip_beforeunload is true.
-        BrowserList::CloseCallback(),
-        /*skip_beforeunload=*/true);
+    chrome::CloseAllBrowsersWithProfile(
+        profile, /*skip_beforeunload=*/true,
+        base::BindRepeating(&LockProfileAndShowUserManager));
   }
 }
 
@@ -435,11 +432,11 @@ void InlineSigninHelper::UntrustedSigninConfirmed(
   }
 
   base::RecordAction(base::UserMetricsAction("Signin_Undo_Signin"));
-  BrowserList::CloseAllBrowsersWithProfile(
-      profile_, base::BindRepeating(&LockProfileAndShowUserManager),
+  chrome::CloseAllBrowsersWithProfile(
+      profile_, /*skip_beforeunload=*/true,
+      base::BindRepeating(&LockProfileAndShowUserManager),
       // Cannot be called because  skip_beforeunload is true.
-      BrowserList::CloseCallback(),
-      /*skip_beforeunload=*/true);
+      chrome::ProfileBrowsersCloseCallback());
 }
 
 void InlineSigninHelper::CreateSyncStarter(const std::string& refresh_token) {

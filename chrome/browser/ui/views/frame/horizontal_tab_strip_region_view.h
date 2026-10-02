@@ -45,7 +45,6 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:TabSearchPosition)
 
   explicit HorizontalTabStripRegionView(BrowserView* browser_view);
-  explicit HorizontalTabStripRegionView(std::unique_ptr<TabStrip> tab_strip);
   HorizontalTabStripRegionView(const HorizontalTabStripRegionView&) = delete;
   HorizontalTabStripRegionView& operator=(const HorizontalTabStripRegionView&) =
       delete;
@@ -90,8 +89,6 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   void ChildPreferredSizeChanged(views::View* child) override;
   views::View* GetDefaultFocusableChild() override;
 
-  views::View* GetTabStripContainerForTesting() { return tab_strip_container_; }
-
   const Profile* profile() { return profile_; }
 
   TabStrip* tab_strip() { return tab_strip_; }
@@ -118,6 +115,7 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
       gfx::Point loc_in_local_coords) override;
   views::View* GetViewForDrop() override;
   void SetTabStripObserver(TabStripObserver* observer) override;
+  views::View* GetTabStripView() override;
 
   void LogTabSearchPositionForTesting();
 

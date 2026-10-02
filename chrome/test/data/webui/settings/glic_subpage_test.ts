@@ -401,12 +401,6 @@ suite('GlicSubpage', function() {
       assertFalse(infoCard.opened);
     });
 
-    test('ClosedCaptionsToggleFeatureDisabled', () => {
-      const closedCaptionsToggle =
-          $<SettingsToggleButtonElement>('closedCaptionsToggle')!;
-      assertFalse(isVisible(closedCaptionsToggle));
-    });
-
     test('DefaultTabContextSettingFeatureDisabled', () => {
       const defaultTabAccessToggle =
           $<SettingsToggleButtonElement>('defaultTabAccessToggle')!;
@@ -529,28 +523,36 @@ suite('GlicSubpage', function() {
     });
   });
 
-  suite('ClosedCaptionsToggleEnabled', () => {
-    test('ClosedCaptionsToggleFeatureEnabled', () => {
+  suite('ClosedCaptionsToggleHidden', () => {
+    test('IsNotVisible', () => {
+      const closedCaptionsToggle =
+          $<SettingsToggleButtonElement>('closedCaptionsToggle')!;
+      assertFalse(isVisible(closedCaptionsToggle));
+    });
+  });
+
+  suite('ClosedCaptionsToggleVisible', () => {
+    test('IsVisible', () => {
       const closedCaptionsToggle =
           $<SettingsToggleButtonElement>('closedCaptionsToggle')!;
       assertTrue(isVisible(closedCaptionsToggle));
     });
 
-    test('ClosedCaptionsToggleEnabled', () => {
+    test('Enabled', () => {
       page.setPrefValue(PrefName.CLOSED_CAPTIONS_ENABLED, true);
 
       assertTrue(
           $<SettingsToggleButtonElement>('closedCaptionsToggle')!.checked);
     });
 
-    test('ClosedCaptionsToggleDisabled', () => {
+    test('Disabled', () => {
       page.setPrefValue(PrefName.CLOSED_CAPTIONS_ENABLED, false);
 
       assertFalse(
           $<SettingsToggleButtonElement>('closedCaptionsToggle')!.checked);
     });
 
-    test('ClosedCaptionsToggleChanged', async () => {
+    test('Changed', async () => {
       page.setPrefValue(PrefName.CLOSED_CAPTIONS_ENABLED, false);
 
       const closedCaptionsToggle =
@@ -804,7 +806,7 @@ suite('GlicSubpage', function() {
     });
   });
 
-  suite('WebActuationToggleVisibleForAllowedTier', () => {
+  suite('WebActuationToggleVisible', () => {
     test('assert toggle is visible', () => {
       const webActuationToggle =
           $<SettingsToggleButtonElement>('webActuationToggle')!;
@@ -812,7 +814,7 @@ suite('GlicSubpage', function() {
     });
   });
 
-  suite('WebActuationToggleHiddenForDisallowedTier', () => {
+  suite('WebActuationToggleHidden', () => {
     test('assert toggle is hidden', () => {
       const webActuationToggle =
           $<SettingsToggleButtonElement>('webActuationToggle')!;
@@ -840,7 +842,9 @@ suite('GlicSubpage', function() {
       // Verify initial state (enabled).
       let webActuationToggle =
           $<SettingsToggleButtonElement>('webActuationToggle')!;
-      assertTrue(isVisible(webActuationToggle));
+      assertTrue(
+          isVisible(webActuationToggle),
+          'webActuationToggle should be visible');
       assertFalse(webActuationToggle.disabled);
 
       // Simulate enterprise DISABLING the feature.

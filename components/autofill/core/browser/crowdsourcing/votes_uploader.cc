@@ -404,14 +404,17 @@ void VotesUploader::UploadVote(
 
   // If the form is submitted, we don't need to send pending votes from blur
   // (un-focus) events.
-  if (ShouldRunHeuristics(*submitted_form) ||
+  if (ShouldRunHeuristics(
+          *submitted_form,
+          /*ignore_small_forms=*/!client_->IsTabInActorMode()) ||
       ShouldRunHeuristicsForSingleFields(*submitted_form) ||
       ShouldBeQueried(*submitted_form)) {
     autofill_metrics::LogQualityMetrics(
         *submitted_form, submitted_form->form_parsed_timestamp(),
         initial_interaction_timestamp, submission_timestamp,
         client_->GetFormInteractionsUkmLogger(), ukm_source_id,
-        observed_submission);
+        observed_submission,
+        /*suppress_if_ac_unrecognized=*/!client_->IsTabInActorMode());
   }
   if (!ShouldBeUploaded(*submitted_form)) {
     return;

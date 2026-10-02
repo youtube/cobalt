@@ -71,8 +71,8 @@ void ScreamV2::SetTargetBitrateConstraints(DataRate min, DataRate max) {
   RTC_DCHECK_GE(max, min);
   min_target_bitrate_ = min;
   max_target_bitrate_ = max;
-  RTC_LOG_F(LS_INFO) << "min_target_bitrate_=" << min_target_bitrate_
-                     << " max_target_bitrate_=" << max_target_bitrate_;
+  RTC_LOG_F(LS_VERBOSE) << "min_target_bitrate_=" << min_target_bitrate_
+                        << " max_target_bitrate_=" << max_target_bitrate_;
 }
 
 void ScreamV2::OnPacketSent(DataSize data_in_flight) {
@@ -132,8 +132,7 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
   bool is_ce = msg.HasPacketWithEcnCe();
   bool is_loss = HasLostPackets(msg);
   bool is_virtual_ce = false;
-  if (delay_based_congestion_control_.ShouldReduceReferenceWindow()) {
-    // L4S does not seem to be enabled and queue has grown.
+  if (delay_based_congestion_control_.IsQueueDelayDetected()) {
     is_virtual_ce = true;
   }
 
@@ -278,6 +277,9 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
     // It means that `ref_window_i` can increase if `rew_window` increase and
     // there is a congestion event.
     allow_ref_window_i_update_ = true;
+  }
+  if (previous_ref_window > ref_window_) {
+    last_ref_window_decrease_time_ = msg.feedback_time;
   }
 
   RTC_LOG_IF(LS_VERBOSE, previous_ref_window != ref_window_)

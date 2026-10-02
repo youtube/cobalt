@@ -2237,34 +2237,36 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
             Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
             for (auto& stats : transceiver_stats_infos) {
-              ChannelInterface* channel = stats.transceiver->channel();
-              if (!channel) {
+              if (!stats.transceiver->HasChannel()) {
                 continue;
               }
 
-              stats.transport_name = std::string(channel->transport_name());
+              stats.transport_name =
+                  std::string(stats.transceiver->channel_transport_name());
 
               if (stats.media_type == MediaType::AUDIO) {
-                auto voice_send_channel = channel->voice_media_send_channel();
+                auto voice_send_channel =
+                    stats.transceiver->voice_media_send_channel();
                 RTC_DCHECK(voice_send_stats.find(voice_send_channel) ==
                            voice_send_stats.end());
                 voice_send_stats.insert(
                     std::make_pair(voice_send_channel, VoiceMediaSendInfo()));
 
                 auto voice_receive_channel =
-                    channel->voice_media_receive_channel();
+                    stats.transceiver->voice_media_receive_channel();
                 RTC_DCHECK(voice_receive_stats.find(voice_receive_channel) ==
                            voice_receive_stats.end());
                 voice_receive_stats.insert(std::make_pair(
                     voice_receive_channel, VoiceMediaReceiveInfo()));
               } else if (stats.media_type == MediaType::VIDEO) {
-                auto video_send_channel = channel->video_media_send_channel();
+                auto video_send_channel =
+                    stats.transceiver->video_media_send_channel();
                 RTC_DCHECK(video_send_stats.find(video_send_channel) ==
                            video_send_stats.end());
                 video_send_stats.insert(
                     std::make_pair(video_send_channel, VideoMediaSendInfo()));
                 auto video_receive_channel =
-                    channel->video_media_receive_channel();
+                    stats.transceiver->video_media_receive_channel();
                 RTC_DCHECK(video_receive_stats.find(video_receive_channel) ==
                            video_receive_stats.end());
                 video_receive_stats.insert(std::make_pair(
@@ -2324,18 +2326,19 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
       auto transceiver = stats.transceiver;
       std::optional<VoiceMediaInfo> voice_media_info;
       std::optional<VideoMediaInfo> video_media_info;
-      auto channel = transceiver->channel();
-      if (channel) {
+      if (transceiver->HasChannel()) {
         MediaType media_type = transceiver->media_type();
         if (media_type == MediaType::AUDIO) {
-          auto voice_send_channel = channel->voice_media_send_channel();
-          auto voice_receive_channel = channel->voice_media_receive_channel();
+          auto voice_send_channel = transceiver->voice_media_send_channel();
+          auto voice_receive_channel =
+              transceiver->voice_media_receive_channel();
           voice_media_info = VoiceMediaInfo(
               std::move(voice_send_stats[voice_send_channel]),
               std::move(voice_receive_stats[voice_receive_channel]));
         } else if (media_type == MediaType::VIDEO) {
-          auto video_send_channel = channel->video_media_send_channel();
-          auto video_receive_channel = channel->video_media_receive_channel();
+          auto video_send_channel = transceiver->video_media_send_channel();
+          auto video_receive_channel =
+              transceiver->video_media_receive_channel();
           video_media_info = VideoMediaInfo(
               std::move(video_send_stats[video_send_channel]),
               std::move(video_receive_stats[video_receive_channel]));

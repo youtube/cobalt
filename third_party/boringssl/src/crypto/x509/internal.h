@@ -23,11 +23,6 @@
 #include "../asn1/internal.h"
 #include "../internal.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-
 // Internal structures.
 
 struct X509_pubkey_st {
@@ -35,6 +30,8 @@ struct X509_pubkey_st {
   ASN1_BIT_STRING public_key;
   EVP_PKEY *pkey;
 } /* X509_PUBKEY */;
+
+BSSL_NAMESPACE_BEGIN
 
 void x509_pubkey_init(X509_PUBKEY *key);
 void x509_pubkey_cleanup(X509_PUBKEY *key);
@@ -50,11 +47,15 @@ int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey);
 // depend on the tables.
 DECLARE_ASN1_ITEM(X509_PUBKEY)
 
+BSSL_NAMESPACE_END
+
 struct X509_name_entry_st {
   ASN1_OBJECT *object;
   ASN1_STRING value;
   int set;
 } /* X509_NAME_ENTRY */;
+
+BSSL_NAMESPACE_BEGIN
 
 // X509_NAME_ENTRY is an |ASN1_ITEM| whose ASN.1 type is AttributeTypeAndValue
 // (RFC 5280) and C type is |X509_NAME_ENTRY*|.
@@ -70,15 +71,19 @@ struct X509_NAME_CACHE {
   size_t der_len;
 };
 
+BSSL_NAMESPACE_END
+
 struct X509_name_st {
   STACK_OF(X509_NAME_ENTRY) *entries;
-  mutable bssl::Atomic<X509_NAME_CACHE *> cache;
+  mutable bssl::Atomic<bssl::X509_NAME_CACHE *> cache;
 } /* X509_NAME */;
 
 struct x509_attributes_st {
   ASN1_OBJECT *object;
   STACK_OF(ASN1_TYPE) *set;
 } /* X509_ATTRIBUTE */;
+
+BSSL_NAMESPACE_BEGIN
 
 // X509_ATTRIBUTE is an |ASN1_ITEM| whose ASN.1 type is Attribute (RFC 2986) and
 // C type is |X509_ATTRIBUTE*|.
@@ -93,6 +98,8 @@ typedef struct x509_cert_aux_st {
 
 DECLARE_ASN1_FUNCTIONS_const(X509_CERT_AUX)
 
+BSSL_NAMESPACE_END
+
 struct X509_extension_st {
   ASN1_OBJECT *object;
   ASN1_BOOLEAN critical;
@@ -103,9 +110,13 @@ struct X509_extension_st {
 // 5280) and C type is |X509_EXTENSION*|.
 DECLARE_ASN1_ITEM(X509_EXTENSION)
 
+BSSL_NAMESPACE_BEGIN
+
 // X509_EXTENSIONS is an |ASN1_ITEM| whose ASN.1 type is SEQUENCE of Extension
 // (RFC 5280) and C type is |STACK_OF(X509_EXTENSION)*|.
 DECLARE_ASN1_ITEM(X509_EXTENSIONS)
+
+BSSL_NAMESPACE_END
 
 struct x509_st {
   // TBSCertificate fields:
@@ -141,9 +152,11 @@ struct x509_st {
   STACK_OF(GENERAL_NAME) *altname;
   NAME_CONSTRAINTS *nc;
   unsigned char cert_hash[SHA256_DIGEST_LENGTH];
-  X509_CERT_AUX *aux;
+  bssl::X509_CERT_AUX *aux;
   CRYPTO_MUTEX lock;
 } /* X509 */;
+
+BSSL_NAMESPACE_BEGIN
 
 int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509);
 
@@ -162,15 +175,21 @@ typedef struct {
 
 DECLARE_ASN1_FUNCTIONS_const(X509_REQ_INFO)
 
+BSSL_NAMESPACE_END
+
 struct X509_req_st {
-  X509_REQ_INFO *req_info;
+  bssl::X509_REQ_INFO *req_info;
   X509_ALGOR *sig_alg;
   ASN1_BIT_STRING *signature;
 } /* X509_REQ */;
 
+BSSL_NAMESPACE_BEGIN
+
 // X509_REQ is an |ASN1_ITEM| whose ASN.1 type is CertificateRequest (RFC 2986)
 // and C type is |X509_REQ*|.
 DECLARE_ASN1_ITEM(X509_REQ)
+
+BSSL_NAMESPACE_END
 
 struct x509_revoked_st {
   ASN1_INTEGER *serialNumber;
@@ -179,6 +198,8 @@ struct x509_revoked_st {
   // Revocation reason
   int reason;
 } /* X509_REVOKED */;
+
+BSSL_NAMESPACE_BEGIN
 
 // X509_REVOKED is an |ASN1_ITEM| whose ASN.1 type is an element of the
 // revokedCertificates field of TBSCertList (RFC 5280) and C type is
@@ -198,6 +219,8 @@ typedef struct {
 
 DECLARE_ASN1_FUNCTIONS_const(X509_CRL_INFO)
 
+BSSL_NAMESPACE_END
+
 // Values in idp_flags field
 // IDP present
 #define IDP_PRESENT 0x1
@@ -216,7 +239,7 @@ DECLARE_ASN1_FUNCTIONS_const(X509_CRL_INFO)
 
 struct X509_crl_st {
   // actual signature
-  X509_CRL_INFO *crl;
+  bssl::X509_CRL_INFO *crl;
   X509_ALGOR *sig_alg;
   ASN1_BIT_STRING *signature;
   CRYPTO_refcount_t references;
@@ -229,6 +252,8 @@ struct X509_crl_st {
   unsigned char crl_hash[SHA256_DIGEST_LENGTH];
 } /* X509_CRL */;
 
+BSSL_NAMESPACE_BEGIN
+
 // X509_CRL is an |ASN1_ITEM| whose ASN.1 type is X.509 CertificateList (RFC
 // 5280) and C type is |X509_CRL*|.
 DECLARE_ASN1_ITEM(X509_CRL)
@@ -240,6 +265,8 @@ DECLARE_ASN1_ITEM(GENERAL_NAME)
 // GENERAL_NAMES is an |ASN1_ITEM| whose ASN.1 type is SEQUENCE OF GeneralName
 // and C type is |GENERAL_NAMES*|, aka |STACK_OF(GENERAL_NAME)*|.
 DECLARE_ASN1_ITEM(GENERAL_NAMES)
+
+BSSL_NAMESPACE_END
 
 struct X509_VERIFY_PARAM_st {
   int64_t check_time;               // POSIX time to use
@@ -269,6 +296,8 @@ struct x509_object_st {
   } data;
 } /* X509_OBJECT */;
 
+BSSL_NAMESPACE_BEGIN
+
 // NETSCAPE_SPKI is an |ASN1_ITEM| whose ASN.1 type is
 // SignedPublicKeyAndChallenge and C type is |NETSCAPE_SPKI*|.
 DECLARE_ASN1_ITEM(NETSCAPE_SPKI)
@@ -276,6 +305,8 @@ DECLARE_ASN1_ITEM(NETSCAPE_SPKI)
 // NETSCAPE_SPKAC is an |ASN1_ITEM| whose ASN.1 type is PublicKeyAndChallenge
 // and C type is |NETSCAPE_SPKAC*|.
 DECLARE_ASN1_ITEM(NETSCAPE_SPKAC)
+
+BSSL_NAMESPACE_END
 
 // This is a static that defines the function interface
 struct x509_lookup_method_st {
@@ -287,7 +318,13 @@ struct x509_lookup_method_st {
                         X509_OBJECT *ret);
 } /* X509_LOOKUP_METHOD */;
 
-DEFINE_STACK_OF(X509_LOOKUP)
+BSSL_NAMESPACE_BEGIN
+
+DEFINE_NAMESPACED_STACK_OF(X509_LOOKUP)
+
+using StackOfX509Lookup = STACK_OF(X509_LOOKUP);
+
+BSSL_NAMESPACE_END
 
 // This is used to hold everything.  It is used for all certificate
 // validation.  Once we have a certificate chain, the 'verify'
@@ -298,7 +335,7 @@ struct x509_store_st {
   CRYPTO_MUTEX objs_lock;
 
   // These are external lookup methods
-  STACK_OF(X509_LOOKUP) *get_cert_methods;
+  bssl::StackOfX509Lookup *get_cert_methods;
 
   X509_VERIFY_PARAM *param;
 
@@ -351,6 +388,8 @@ struct x509_store_ctx_st {
 
   CRYPTO_EX_DATA ex_data;
 } /* X509_STORE_CTX */;
+
+BSSL_NAMESPACE_BEGIN
 
 ASN1_TYPE *ASN1_generate_v3(const char *str, const X509V3_CTX *cnf);
 
@@ -610,9 +649,7 @@ extern const X509V3_EXT_METHOD v3_policy_mappings, v3_policy_constraints;
 extern const X509V3_EXT_METHOD v3_name_constraints, v3_inhibit_anyp, v3_idp;
 extern const X509V3_EXT_METHOD v3_addr, v3_asid;
 
+BSSL_NAMESPACE_END
 
-#if defined(__cplusplus)
-}  // extern C
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_X509_INTERNAL_H

@@ -28,6 +28,8 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
@@ -62,10 +64,15 @@ VerticalTabGroupView::VerticalTabGroupView(TabCollectionNode* collection_node)
       group_line_(AddChildView(std::make_unique<views::View>())),
       layout_manager_(*SetLayoutManager(
           std::make_unique<TabCollectionAnimatingLayoutManager>(
-              std::make_unique<views::DelegatingLayoutManager>(this)))) {
+              std::make_unique<views::DelegatingLayoutManager>(this),
+              this))) {
   collection_node->set_remove_child_from_node(base::BindRepeating(
-      &TabCollectionAnimatingLayoutManager::AnimateAndRemoveChildView,
+      &TabCollectionAnimatingLayoutManager::AnimateAndDestroyChildView,
       base::Unretained(&layout_manager_.get())));
+  collection_node->set_attach_child_to_node(base::BindRepeating(
+      &TabCollectionAnimatingLayoutManager::AnimateAndReparentView,
+      base::Unretained(&layout_manager_.get())));
+
   node_destroyed_subscription_ =
       collection_node_->RegisterWillDestroyCallback(base::BindOnce(
           &VerticalTabGroupView::ResetCollectionNode, base::Unretained(this)));
@@ -174,8 +181,20 @@ void VerticalTabGroupView::ToggleCollapsedState(
 views::Widget* VerticalTabGroupView::ShowGroupEditorBubble(
     bool stop_context_menu_propagation) {
   return collection_node_->GetController()->ShowGroupEditorBubble(
-      GetTabGroupFromNode(collection_node_)->id(), group_header_,
-      stop_context_menu_propagation);
+      GetTabGroupFromNode(collection_node_)->id(),
+      group_header_->editor_bubble_button(), stop_context_menu_propagation);
+}
+
+bool VerticalTabGroupView::IsViewDragging(const views::View& child_view) const {
+  return GetDragHandler().IsViewDragging(child_view);
+}
+
+void VerticalTabGroupView::OnAnimationEnded() {
+  // For collapsed tab groups update child visibility only once animations have
+  // completed. This allows tabs to remain visible as the group animates closed.
+  if (tab_group_visual_data_.is_collapsed()) {
+    UpdateChildVisibilityForCollapseState(true);
+  }
 }
 
 void VerticalTabGroupView::ResetCollectionNode() {
@@ -186,10 +205,13 @@ void VerticalTabGroupView::OnDataChanged() {
   tab_group_visual_data_ =
       *GetTabGroupFromNode(collection_node_)->visual_data();
   group_header_->OnDataChanged(&tab_group_visual_data_);
-  // TODO(crbug.com/459824840): Call UpdateChildVisibilityForCollapseState via
-  // some sort of PostOrQueueAction method when collapsing so that children are
-  // set to not visible only after the collapse animation has completed.
-  UpdateChildVisibilityForCollapseState(tab_group_visual_data_.is_collapsed());
+
+  // If the tab group is not collapsed update child visibility immediately. This
+  // allows tabs to be visible as they are animated in.
+  if (!tab_group_visual_data_.is_collapsed()) {
+    UpdateChildVisibilityForCollapseState(false);
+  }
+
   if (GetColorProvider()) {
     SkColor color = GetColorProvider()->GetColor(GetTabGroupTabStripColorId(
         tab_group_visual_data_.color(), GetWidget()->ShouldPaintAsActive()));
@@ -218,23 +240,31 @@ VerticalTabDragHandler& VerticalTabGroupView::GetDragHandler() {
   return collection_node_->GetController()->GetDragHandler();
 }
 
+const VerticalTabDragHandler& VerticalTabGroupView::GetDragHandler() const {
+  CHECK(collection_node_);
+  CHECK(collection_node_->GetController());
+  return collection_node_->GetController()->GetDragHandler();
+}
+
+views::ScrollView* VerticalTabGroupView::GetScrollViewForContainer() const {
+  return views::ScrollView::GetScrollViewForContents(
+      const_cast<views::View*>(parent()));
+}
+
 void VerticalTabGroupView::UpdateLayoutForDrag() {
   layout_manager_->ResetToTargetLayout();
 }
 
 void VerticalTabGroupView::HandleTabDragInContainer(
     const gfx::Point point_in_container) {
-  // If the drag is on or above the group header, treat this as a drag over
-  // group as a whole, rather than a drag over an individual tab.
-  if (point_in_container.y() <= group_header_->bounds().bottom()) {
-    GetDragHandler().DraggedTabsOverNode(*collection_node_);
-    return;
-  }
-
   views::View* view_at_point =
       GetViewAtPoint(layout_manager_->target_layout(), point_in_container);
   if (auto* tab_view = views::AsViewClass<VerticalTabView>(view_at_point)) {
     tab_view->OnTabDragOver();
+  } else {
+    // If the drag isn't over any tab views including the header, then treat it
+    // as a drag over the group view container.
+    GetDragHandler().DraggedTabsOverNode(*collection_node_);
   }
 }
 

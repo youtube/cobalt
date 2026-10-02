@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -43,7 +44,6 @@
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/port.h"
 #include "p2p/dtls/dtls_transport_internal.h"
-#include "pc/channel.h"
 #include "pc/channel_interface.h"
 #include "pc/data_channel_utils.h"
 #include "pc/jsep_transport_controller.h"
@@ -1133,9 +1133,9 @@ void LegacyStatsCollector::ExtractBweInfo() {
     if (transceiver->media_type() != MediaType::VIDEO) {
       continue;
     }
-    auto* video_channel = transceiver->internal()->channel();
-    if (video_channel) {
-      video_media_channels.push_back(video_channel->video_media_send_channel());
+    if (transceiver->internal()->HasChannel()) {
+      video_media_channels.push_back(
+          transceiver->internal()->video_media_send_channel());
     }
   }
 
@@ -1156,6 +1156,10 @@ namespace {
 
 class ChannelStatsGatherer {
  public:
+  explicit ChannelStatsGatherer(RtpTransceiver* absl_nonnull transceiver)
+      : transceiver_(transceiver) {
+    RTC_DCHECK(transceiver_);
+  }
   virtual ~ChannelStatsGatherer() = default;
 
   virtual bool GetStatsOnWorkerThread() = 0;
@@ -1183,21 +1187,25 @@ class ChannelStatsGatherer {
     ExtractStatsFromList(sender_data, transport_id, collector,
                          StatsReport::kSend, sender_track_id_by_ssrc);
   }
+  RtpTransceiver* transceiver() { return transceiver_; }
+
+ private:
+  RtpTransceiver* const transceiver_;
 };
 
 class VoiceChannelStatsGatherer final : public ChannelStatsGatherer {
  public:
-  explicit VoiceChannelStatsGatherer(VoiceChannel* voice_channel)
-      : voice_channel_(voice_channel) {
-    RTC_DCHECK(voice_channel_);
+  explicit VoiceChannelStatsGatherer(RtpTransceiver* transceiver)
+      : ChannelStatsGatherer(transceiver) {
+    RTC_DCHECK_EQ(transceiver->media_type(), MediaType::AUDIO);
   }
 
   bool GetStatsOnWorkerThread() override {
     VoiceMediaSendInfo send_info;
     VoiceMediaReceiveInfo receive_info;
     bool success =
-        voice_channel_->voice_media_send_channel()->GetStats(&send_info);
-    success &= voice_channel_->voice_media_receive_channel()->GetStats(
+        transceiver()->voice_media_send_channel()->GetStats(&send_info);
+    success &= transceiver()->voice_media_receive_channel()->GetStats(
         &receive_info,
         /*get_and_clear_legacy_stats=*/true);
     if (success) {
@@ -1223,24 +1231,23 @@ class VoiceChannelStatsGatherer final : public ChannelStatsGatherer {
   }
 
  private:
-  VoiceChannel* voice_channel_;
   VoiceMediaInfo voice_media_info;
 };
 
 class VideoChannelStatsGatherer final : public ChannelStatsGatherer {
  public:
-  explicit VideoChannelStatsGatherer(VideoChannel* video_channel)
-      : video_channel_(video_channel) {
-    RTC_DCHECK(video_channel_);
+  explicit VideoChannelStatsGatherer(RtpTransceiver* transceiver)
+      : ChannelStatsGatherer(transceiver) {
+    RTC_DCHECK_EQ(transceiver->media_type(), MediaType::VIDEO);
   }
 
   bool GetStatsOnWorkerThread() override {
     VideoMediaSendInfo send_info;
     VideoMediaReceiveInfo receive_info;
     bool success =
-        video_channel_->video_media_send_channel()->GetStats(&send_info);
+        transceiver()->video_media_send_channel()->GetStats(&send_info);
     success &=
-        video_channel_->video_media_receive_channel()->GetStats(&receive_info);
+        transceiver()->video_media_receive_channel()->GetStats(&receive_info);
     if (success) {
       video_media_info =
           VideoMediaInfo(std::move(send_info), std::move(receive_info));
@@ -1256,20 +1263,18 @@ class VideoChannelStatsGatherer final : public ChannelStatsGatherer {
   bool HasRemoteAudio() const override { return false; }
 
  private:
-  VideoChannel* video_channel_;
   VideoMediaInfo video_media_info;
 };
 
 std::unique_ptr<ChannelStatsGatherer> CreateChannelStatsGatherer(
-    ChannelInterface* channel) {
-  RTC_DCHECK(channel);
-  if (channel->media_type() == MediaType::AUDIO) {
-    return std::make_unique<VoiceChannelStatsGatherer>(
-        channel->AsVoiceChannel());
+    RtpTransceiver* transceiver) {
+  RTC_DCHECK(transceiver);
+  RTC_DCHECK(transceiver->HasChannel());
+  if (transceiver->media_type() == MediaType::AUDIO) {
+    return std::make_unique<VoiceChannelStatsGatherer>(transceiver);
   } else {
-    RTC_DCHECK_EQ(channel->media_type(), MediaType::VIDEO);
-    return std::make_unique<VideoChannelStatsGatherer>(
-        channel->AsVideoChannel());
+    RTC_DCHECK_EQ(transceiver->media_type(), MediaType::VIDEO);
+    return std::make_unique<VideoChannelStatsGatherer>(transceiver);
   }
 }
 
@@ -1285,12 +1290,11 @@ void LegacyStatsCollector::ExtractMediaInfo(
   {
     Thread::ScopedDisallowBlockingCalls no_blocking_calls;
     for (const auto& transceiver : transceivers) {
-      ChannelInterface* channel = transceiver->internal()->channel();
-      if (!channel) {
+      if (!transceiver->internal()->HasChannel()) {
         continue;
       }
       std::unique_ptr<ChannelStatsGatherer> gatherer =
-          CreateChannelStatsGatherer(channel);
+          CreateChannelStatsGatherer(transceiver->internal());
       if (transceiver->mid()) {
         gatherer->mid = *transceiver->mid();
       }
@@ -1318,8 +1322,7 @@ void LegacyStatsCollector::ExtractMediaInfo(
     // Populate `receiver_track_id_by_ssrc` for the gatherers.
     int i = 0;
     for (const auto& transceiver : transceivers) {
-      ChannelInterface* channel = transceiver->internal()->channel();
-      if (!channel)
+      if (!transceiver->internal()->HasChannel())
         continue;
       ChannelStatsGatherer* gatherer = gatherers[i++].get();
       for (const auto& receiver : transceiver->internal()->receivers()) {

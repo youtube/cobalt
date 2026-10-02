@@ -14,8 +14,11 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
+<<<<<<< HEAD
+=======
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+>>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
@@ -484,12 +487,12 @@ void ResourcePool::ReleaseResource(InUsePoolResource in_use_resource) {
 
     // Maybe this is a double free - see if the resource exists in our busy
     // list.
-    CHECK(!base::Contains(busy_resources_, pool_resource->unique_id(),
-                          &PoolResource::unique_id));
+    CHECK(!std::ranges::contains(busy_resources_, pool_resource->unique_id(),
+                                 &PoolResource::unique_id));
 
     // Also check if the resource exists in our unused resources list.
-    CHECK(!base::Contains(unused_resources_, pool_resource->unique_id(),
-                          &PoolResource::unique_id));
+    CHECK(!std::ranges::contains(unused_resources_, pool_resource->unique_id(),
+                                 &PoolResource::unique_id));
 
     // Resource doesn't exist in any of our lists. NOTREACHED().
     NOTREACHED();

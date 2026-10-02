@@ -377,6 +377,9 @@ extern const char kIOSGeminiContextualCueChipTriggered[];
 // Event fired when the omnibox Gemini contextual cue chip is tapped.
 extern const char kIOSGeminiContextualCueChipUsed[];
 
+// Event fired when the Gemini Image Remix IPH is triggered.
+extern const char kIOSGeminiImageRemixIPHTrigger[];
+
 // Event fired when the Gemini Promo is completed for the first time on iOS.
 extern const char kIOSGeminiPromoFirstCompletion[];
 
@@ -398,6 +401,9 @@ extern const char kIOSGeminiFlowStartedNonPromo[];
 
 // Event fired when the Gemini consent is given.
 extern const char kIOSGeminiConsentGiven[];
+
+// Event fired when the user pins a site to the most visited tile.
+extern const char kIOSPinMVTSiteUsed[];
 
 #endif  // BUILDFLAG(IS_IOS)
 

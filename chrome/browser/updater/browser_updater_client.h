@@ -22,7 +22,7 @@
 namespace base {
 class Version;
 class FilePath;
-}
+}  // namespace base
 
 namespace updater {
 
@@ -73,6 +73,13 @@ class BrowserUpdaterClient
   // will be run on the same sequence.
   void IsBrowserRegistered(base::OnceCallback<void(bool)> callback);
 
+  // Queries the current state of the updater.
+  void GetUpdaterState(
+      base::OnceCallback<void(const UpdateService::UpdaterState&)> callback);
+
+  // Gets the current enterprise policies for the updater as a JSON blob.
+  void GetPoliciesJson(base::OnceCallback<void(const std::string&)> callback);
+
   // Returns the browser's app ID. App IDs are case-insensitive and it may not
   // be in the same case used elsewhere in the browser.
   static std::string GetAppId();
@@ -89,6 +96,10 @@ class BrowserUpdaterClient
   static bool AppMatches(const UpdateService::AppState& app);
   RegistrationRequest GetRegistrationRequest();
 
+  // Methods which call into updater_service_ should have a "Completed" function
+  // to ensure that the BrowserUpdaterClient outlives the request. Otherwise,
+  // sequential calls from methods in updater.h can cause multiple service
+  // proxies to be instantiated, which causes interference and dropped messages.
   void RegistrationCompleted(base::OnceClosure complete, int result);
   void GetUpdaterVersionCompleted(
       base::OnceCallback<void(const base::Version&)> callback,
@@ -100,6 +111,12 @@ class BrowserUpdaterClient
   void IsBrowserRegisteredCompleted(
       base::OnceCallback<void(bool)> callback,
       const std::vector<UpdateService::AppState>& apps);
+  void GetUpdaterStateCompleted(
+      base::OnceCallback<void(const UpdateService::UpdaterState&)> callback,
+      const UpdateService::UpdaterState& updater_state);
+  void GetPoliciesJsonCompleted(
+      base::OnceCallback<void(const std::string&)> callback,
+      const std::string& policies);
 
   template <UpdaterScope scope>
   static scoped_refptr<BrowserUpdaterClient> GetClient(

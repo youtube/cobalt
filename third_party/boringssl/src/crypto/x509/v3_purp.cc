@@ -25,6 +25,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 struct x509_purpose_st {
   int purpose;
   int trust;  // Default trust ID
@@ -125,7 +127,7 @@ int X509_PURPOSE_get_by_sname(const char *sname) {
 
 int X509_PURPOSE_get_id(const X509_PURPOSE *xp) { return xp->purpose; }
 
-int X509_PURPOSE_get_trust(const X509_PURPOSE *xp) { return xp->trust; }
+int bssl::X509_PURPOSE_get_trust(const X509_PURPOSE *xp) { return xp->trust; }
 
 int X509_supported_extension(const X509_EXTENSION *ex) {
   int nid = OBJ_obj2nid(X509_EXTENSION_get_object(ex));
@@ -174,7 +176,7 @@ static int setup_crldp(X509 *x) {
   return 1;
 }
 
-int x509v3_cache_extensions(X509 *x) {
+int bssl::x509v3_cache_extensions(X509 *x) {
   BASIC_CONSTRAINTS *bs;
   ASN1_BIT_STRING *usage;
   EXTENDED_KEY_USAGE *extusage;
@@ -484,7 +486,7 @@ int X509_check_issued(const X509 *issuer, const X509 *subject) {
   return X509_V_OK;
 }
 
-int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid) {
+int bssl::X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid) {
   if (!akid) {
     return X509_V_OK;
   }

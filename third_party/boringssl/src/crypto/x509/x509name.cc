@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 int X509_NAME_get_text_by_NID(const X509_NAME *name, int nid, char *buf,
                               int len) {
   const ASN1_OBJECT *obj;
@@ -236,7 +238,7 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *entry, int loc,
     }
   }
 
-  bssl::UniquePtr<X509_NAME_ENTRY> new_entry(X509_NAME_ENTRY_dup(entry));
+  UniquePtr<X509_NAME_ENTRY> new_entry(X509_NAME_ENTRY_dup(entry));
   if (new_entry == nullptr) {
     return 0;
   }

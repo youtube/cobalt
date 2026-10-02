@@ -764,7 +764,7 @@ const std::vector<Codec>& WebRtcVoiceEngine::LegacyRecvCodecs() const {
 
 std::vector<RtpHeaderExtensionCapability>
 WebRtcVoiceEngine::GetRtpHeaderExtensions(
-    const webrtc::FieldTrialsView* field_trials) const {
+    const FieldTrialsView* field_trials) const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
   std::vector<RtpHeaderExtensionCapability> result;
   // id is *not* incremented for non-default extensions, UsedIds needs to
@@ -1359,8 +1359,8 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
         if (needs_update) {
           RTCError error =
               send_stream->SetRtpParameters(rtp_parameters, nullptr);
-          if (error.ok() && on_rtp_send_parameters_changed_callback_) {
-            on_rtp_send_parameters_changed_callback_(ssrc, rtp_parameters);
+          if (error.ok()) {
+            on_rtp_send_parameters_changed_callback_.Send(ssrc, rtp_parameters);
           }
         } else {
           RTC_DCHECK(rtp_parameters == send_stream->rtp_parameters());
@@ -1686,12 +1686,19 @@ void WebRtcVoiceSendChannel::SetSsrcListChangedCallback(
   ssrc_list_changed_callback_ = std::move(callback);
 }
 
-void WebRtcVoiceSendChannel::SetOnRtpSendParametersChanged(
+void WebRtcVoiceSendChannel::SubscribeRtpSendParametersChanged(
+    const void* tag,
     absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
         callback) {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_DCHECK(!on_rtp_send_parameters_changed_callback_);
-  on_rtp_send_parameters_changed_callback_ = std::move(callback);
+  on_rtp_send_parameters_changed_callback_.AddReceiver(tag,
+                                                       std::move(callback));
+}
+
+void WebRtcVoiceSendChannel::UnsubscribeRtpSendParametersChanged(
+    const void* tag) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  on_rtp_send_parameters_changed_callback_.RemoveReceivers(tag);
 }
 
 bool WebRtcVoiceSendChannel::SetLocalSource(uint32_t ssrc,
@@ -2027,8 +2034,8 @@ RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
   reduced_params.codecs.clear();
   RTCError error =
       it->second->SetRtpParameters(reduced_params, std::move(callback));
-  if (error.ok() && on_rtp_send_parameters_changed_callback_) {
-    on_rtp_send_parameters_changed_callback_(ssrc, parameters);
+  if (error.ok()) {
+    on_rtp_send_parameters_changed_callback_.Send(ssrc, reduced_params);
   }
   return error;
 }
@@ -2069,7 +2076,7 @@ class WebRtcVoiceReceiveChannel::WebRtcAudioReceiveStream {
     stream_->SetNackHistory(use_nack ? kNackRtpHistoryMs : 0);
   }
 
-  void SetRtcpMode(::webrtc::RtcpMode mode) {
+  void SetRtcpMode(webrtc::RtcpMode mode) {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     stream_->SetRtcpMode(mode);
   }
@@ -2375,7 +2382,7 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
   return true;
 }
 
-void WebRtcVoiceReceiveChannel::SetRtcpMode(::webrtc::RtcpMode mode) {
+void WebRtcVoiceReceiveChannel::SetRtcpMode(webrtc::RtcpMode mode) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   // Check if the reduced size RTCP status changed on the
   // preferred send codec, and in that case reconfigure all receive streams.

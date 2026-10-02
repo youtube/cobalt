@@ -110,11 +110,6 @@ BASE_DECLARE_FEATURE(kWebAuthnPasskeyUpgrade);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnEnclaveAttestation);
 
-// Enables using the Microsoft Software Key Storage Provider to store
-// unexportable keys when a TPM is not available.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnMicrosoftSoftwareUnexportableKeyProvider);
-
 // Enables hiding passkeys instead of hard deleting them when reported as
 // obsolete by the signal API.
 COMPONENT_EXPORT(FIDO_PUBLIC)
@@ -173,6 +168,14 @@ BASE_DECLARE_FEATURE(kWebAuthenticationHashClientDataJsonForEnclave);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
 
+// Parameter controlling the time window (in seconds) for keeping the cached
+// opportunistically retrieved key in case its Gaia Id doesn't match to primary
+// signed-in account.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kWebAuthnOpportunisticRetrievalTimeToKeepCachedKeySeconds);
+
 // Enable support for WebAuthn hints through the Windows WebAuthn API.
 // https://w3c.github.io/webauthn/#enum-hints.
 COMPONENT_EXPORT(FIDO_PUBLIC)
@@ -181,6 +184,10 @@ BASE_DECLARE_FEATURE(kWebAuthenticationWindowsHints);
 // Enables the logic of refreshing the state of GPM Enclave Controller.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnEnableRefreshingStateOfGpmEnclaveController);
+
+// Support CTAP2.2 hmac-secret-mc extension in make credential request.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(kWebAuthnHmacSecretMcExtension);
 
 }  // namespace device
 

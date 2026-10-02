@@ -8,7 +8,7 @@
 
 import("../../../webrtc.gni")
 
-rtc_library("stereo_remixer") {
+rtc_library("capture_mixer") {
   visibility = [ "*" ]
 
   sources = [
@@ -49,7 +49,7 @@ rtc_library("capture_mixer_unittests") {
     "saturation_estimator_unittest.cc",
   ]
   deps = [
-    ":stereo_remixer",
+    ":capture_mixer",
     "..:audioproc_test_utils",
     "../../../api:array_view",
     "../../../rtc_base:gunit_helpers",

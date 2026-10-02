@@ -39,14 +39,8 @@ class DelayBasedCongestionControl {
     min_delay_based_bwe_ = min_delay_based_bwe;
   }
 
-  // Returns true if queue delay is detected, but it may be low and does not
-  // necessarily mean reference window should be reduced. From 4.2.2.1.
-  // (queue_qdelay >= queue_delay_target * 0.25)
+  // Returns true if queue delay is detected and above a threshold.
   bool IsQueueDelayDetected() const;
-
-  // Returns true if queue delay is detected and reference window should be
-  // reduced. From 4.2.2.1. (queue_qdelay >= queue_delay_target*0.5)
-  bool ShouldReduceReferenceWindow() const;
 
   DataSize UpdateReferenceWindow(DataSize rew_window,
                                  double ref_window_mss_ratio) const;
@@ -65,9 +59,9 @@ class DelayBasedCongestionControl {
   void ResetQueueDelay();
 
   double scale_increase() const {
-    return std::clamp(1 - queue_delay_avg_ / (params_.queue_delay_target.Get() *
-                                              params_.queue_delay_threshold),
-                      0.1, 1.0);
+    return std::clamp(
+        1 - queue_delay_avg_ / params_.queue_delay_first_reaction.Get(), 0.1,
+        1.0);
   }
 
   TimeDelta queue_delay() const { return queue_delay_avg_; }

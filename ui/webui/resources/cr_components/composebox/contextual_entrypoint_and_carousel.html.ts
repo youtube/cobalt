@@ -97,8 +97,8 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
 
   // clang-format off
   return html`<!--_html_template_start_-->
-  ${this.searchboxLayoutMode === 'Compact' ? contextMenu : ''}
-  <div part="carousel-container">
+  ${this.searchboxLayoutMode === 'Compact' && !this.isOmniboxInCompactMode_ ? contextMenu : ''}
+    <div part="carousel-container">
     ${this.showFileCarousel_ ? html`
       <cr-composebox-file-carousel
         part="cr-composebox-file-carousel"
@@ -122,7 +122,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
     <div class="context-menu-container" id="toolChipsContainer"
         part="tool-chips-container">${toolChips}</div>
   ` : ''}
-  ${this.searchboxLayoutMode === 'TallBottomContext' || this.searchboxLayoutMode === '' ? html`
+  ${this.searchboxLayoutMode === 'TallBottomContext' || this.searchboxLayoutMode === '' || this.isOmniboxInCompactMode_ ? html`
     ${this.contextMenuEnabled_ ? contextMenu : html`
       <div part="upload-container" id="uploadContainer" class="icon-fade">
           <cr-icon-button

@@ -6,10 +6,10 @@
 
 #include "base/notimplemented.h"
 #include "build/build_config.h"
+#include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
@@ -68,7 +68,7 @@ void OpenGlicSettingsPage(Profile* profile) {
 }
 
 void OpenGlicOsToggleSetting(Profile* profile) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
   ShowPromoInPage::Params params;
   params.bubble_anchor_id = kGlicOsToggleElementId;
   params.bubble_arrow = user_education::HelpBubbleArrow::kBottomRight;
@@ -82,7 +82,7 @@ void OpenGlicOsToggleSetting(Profile* profile) {
 }
 
 void OpenGlicKeyboardShortcutSetting(Profile* profile) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
   ShowPromoInPage::Params params;
   params.bubble_anchor_id = kGlicOsWidgetKeyboardShortcutElementId;
   params.bubble_arrow = user_education::HelpBubbleArrow::kBottomRight;
@@ -99,7 +99,7 @@ void OpenPasswordManagerSettingsPage(Profile* profile) {
   NavigateParams params(profile, GURL(GetGooglePasswordManagerSubPageURLStr()),
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
-  Navigate(&params);
+  DoNavigate(&params);
 }
 
 }  // namespace glic

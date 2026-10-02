@@ -23,6 +23,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 // X509_VERIFY_PARAM functions
 
 #define SET_HOST 0
@@ -420,7 +422,7 @@ static const X509_VERIFY_PARAM kSSLServerParam = {
     /*poison=*/0,
 };
 
-const X509_VERIFY_PARAM *X509_VERIFY_PARAM_lookup(const char *name) {
+const X509_VERIFY_PARAM *bssl::X509_VERIFY_PARAM_lookup(const char *name) {
   if (strcmp(name, "default") == 0) {
     return &kDefaultParam;
   }

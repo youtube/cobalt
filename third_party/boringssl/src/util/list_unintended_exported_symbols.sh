@@ -88,8 +88,10 @@ lib_sources() {
 }
 
 public_c_includes() {
+	# Note: using |hdrs| of _all_ modules. The assumption is that all
+	# |hdrs| are public.
 	jq  -r '
-			[.bcm, .crypto, .decrepit] |
+			del(.pki) |
 			.[] |
 			.hdrs |
 			.[]?
@@ -139,7 +141,7 @@ filter_stl() {
 	# These symbols are often declared to support the STL and are benign,
 	# as they have C++ linkage and very specific arguments and thus
 	# non-conflicting mangled names.
-	grep -vE 'extern "C\+\+" function (begin|end);' || true
+	grep -vE 'extern "C\+\+" inline function (begin|end);' || true
 }
 
 filter_enum() {
@@ -157,7 +159,7 @@ filter_difference() {
 
 fix_c_cc_include_deltas() {
 	# OPENSSL_INLINE behaves differently in C and C++.
-	sed -e 's,^static ,extern "C" ,g' |\
+	sed -e 's,^static inline ,extern "C" inline ,g' |\
 		filter_bssl |\
 		filter_stl |\
 		filter_enum |\
@@ -195,6 +197,7 @@ cat "${workdir}"/include.c.syms "${workdir}"/include.cc.syms "${workdir}"/includ
 echo >&2 'Comparing C includes across including language...'
 fix_c_cc_include_deltas < "${workdir}"/include.c.ids > "${workdir}"/include.c.common.ids
 fix_c_cc_include_deltas < "${workdir}"/include.c_as_cc.ids > "${workdir}"/include.c_as_cc.common.ids
+diff -u "${workdir}"/include.c.common.ids "${workdir}"/include.c_as_cc.common.ids
 
 # Check that no source file defines any public symbols that are not in the
 # public headers, namespaced or otherwise OK'd.

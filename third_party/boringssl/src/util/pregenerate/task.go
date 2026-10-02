@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -33,14 +34,54 @@ type Task interface {
 	Run() ([]byte, error)
 }
 
+type WaitableTask interface {
+	Task
+
+	// Wait waits for the task to finish, and returns its status.
+	Wait() error
+}
+
+// WaitableTaskImpl is an implementation of a waitable task.
+type WaitableTaskImpl struct {
+	Task
+	FinishedC chan struct{}
+	Err       error
+}
+
+func WrapWaitable(t Task) WaitableTask {
+	return &WaitableTaskImpl{Task: t, FinishedC: make(chan struct{})}
+}
+
+// Run performs the task, taking care of infrastructure so it can be waited on.
+func (t *WaitableTaskImpl) Run() (out []byte, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("panic caught: %v", p)
+		}
+		t.Err = err
+		close(t.FinishedC)
+	}()
+	return t.Task.Run()
+}
+
+// Wait waits for the task to finish, and returns its status.
+func (t *WaitableTaskImpl) Wait() error {
+	<-t.FinishedC
+	return t.Err
+}
+
 type SimpleTask struct {
 	Dst     string
 	RunFunc func() ([]byte, error)
 }
 
-func (t *SimpleTask) Destination() string  { return t.Dst }
+// Destination returns where this task will write to.
+func (t *SimpleTask) Destination() string { return t.Dst }
+
+// Run performs the task.
 func (t *SimpleTask) Run() ([]byte, error) { return t.RunFunc() }
 
+// NewSimpleTask creates a new task based on a lambda for what it does.
 func NewSimpleTask(dst string, runFunc func() ([]byte, error)) *SimpleTask {
 	return &SimpleTask{Dst: dst, RunFunc: runFunc}
 }

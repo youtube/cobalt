@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <tuple>
@@ -6351,13 +6352,14 @@ class TestPrerenderCancellerSubframeNavigationThrottle
     FrameTreeNode* frame_tree_node = navigation_request_->frame_tree_node();
     if (frame_tree_node->frame_tree().is_prerendering() &&
         !frame_tree_node->IsMainFrame()) {
+      PrerenderHost& prerender_host =
+          PrerenderHost::GetFromFrameTreeNode(*frame_tree_node);
       PrerenderHostRegistry* prerender_host_registry =
-          frame_tree_node->current_frame_host()
+          prerender_host.GetPrerenderedMainFrameHost()
               ->delegate()
               ->GetPrerenderHostRegistry();
-      prerender_host_registry->CancelHost(
-          frame_tree_node->frame_tree().root()->frame_tree_node_id(),
-          PrerenderFinalStatus::kMaxValue);
+      prerender_host_registry->CancelHost(prerender_host.prerender_host_id(),
+                                          PrerenderFinalStatus::kMaxValue);
     }
     return PROCEED;
   }
@@ -8782,7 +8784,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MultipleNewTabPrerendering) {
     PrerenderHostId host_id = prerender_helper()->AddPrerender(
         prerendering_url, /*eagerness=*/std::nullopt, "_blank");
 
-    EXPECT_FALSE(base::Contains(prerender_host_ids, host_id));
+    EXPECT_FALSE(std::ranges::contains(prerender_host_ids, host_id));
     prerender_host_ids.push_back(host_id);
 
     // Make sure that prerendering in a new tab creates new WebContentsImpl, not
@@ -8792,8 +8794,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MultipleNewTabPrerendering) {
     ASSERT_TRUE(prerender_web_contents);
     EXPECT_NE(prerender_web_contents, web_contents_impl());
     ExpectWebContentsIsForNewTabPrerendering(*prerender_web_contents);
-    EXPECT_FALSE(
-        base::Contains(prerender_web_contents_list, prerender_web_contents));
+    EXPECT_FALSE(std::ranges::contains(prerender_web_contents_list,
+                                       prerender_web_contents));
     prerender_web_contents_list.push_back(prerender_web_contents);
   }
 
