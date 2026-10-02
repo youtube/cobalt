@@ -14,6 +14,7 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "base/memory/cobalt_frame_metrics.h"
 #include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -226,6 +227,11 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       context->CrossOriginIsolatedCapability()));
 
   return promise;
+}
+
+double PerformanceExtensions::measureCpuFramePrepTime(ScriptState*,
+                                                      const Performance&) {
+  return base::cobalt::GetLastCpuFramePrepTimeMs();
 }
 
 }  // namespace blink

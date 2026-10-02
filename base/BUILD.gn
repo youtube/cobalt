@@ -2444,6 +2444,8 @@ component("base") {
 
   if (is_cobalt) {
     sources += [
+      "memory/cobalt_frame_metrics.cc",
+      "memory/cobalt_frame_metrics.h",
       "memory/cobalt_memory_context.cc",
       "memory/cobalt_memory_context.h",
       "memory/cobalt_memory_attribution_observer.cc",
