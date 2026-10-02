@@ -91,6 +91,27 @@ BASE_FEATURE_PARAM(int,
                    "force_gpu_mem_available_mb",
                    64);
 
+// Enabled by default on 3P/Starboard platforms so that they use the 1 MB GPU
+// discardable cache limit that upstream only applies to low-end Android
+// devices, instead of the upstream desktop default of 192 MB (256 MB with 4 GB+
+// of RAM). Disabled by default on Android, where Cobalt runs in low-end device
+// mode and upstream already uses 1 MB. Setting the parameter to a larger value
+// restores a bigger cache via Finch without requiring a binary change;
+// disabling the feature falls back to the upstream per-platform defaults.
+BASE_FEATURE(kCobaltGpuDiscardableCacheLimit,
+             "CobaltGpuDiscardableCacheLimit",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuDiscardableCacheLimitMb,
+                   &kCobaltGpuDiscardableCacheLimit,
+                   "CobaltGpuDiscardableCacheLimit_mb",
+                   1);
+
 BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
              "CobaltV8MaxOldSpaceSize",
              FEATURE_DISABLED_BY_DEFAULT);
