@@ -957,6 +957,10 @@
       status: "test",
     },
     {
+      name: "CobaltFrameTiming",
+      status: "stable",
+    },
+    {
       name: "CollapseZeroWidthSpaceWhenReuseItem",
       status: "stable",
     },

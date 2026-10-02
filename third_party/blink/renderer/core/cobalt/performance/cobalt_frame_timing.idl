@@ -1,0 +1,36 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Non-standard interface used for Cobalt only.
+// Emits one PerformanceEntry per presented compositor frame.
+// Note: Drops are detectable via frameToken gaps or presentationTime deltas;
+// no synthetic entries are generated for skipped BeginFrames.
+[Exposed=Window, RuntimeEnabled=CobaltFrameTiming]
+interface CobaltFrameTiming : PerformanceEntry {
+    readonly attribute unsigned long frameToken;
+    readonly attribute DOMHighResTimeStamp presentationTime;
+
+    // --- Main thread 5 representative UMAs (null for compositor-only frames, e.g. CSS transform anims)
+    readonly attribute double? animateDuration;
+    readonly attribute double? styleDuration;
+    readonly attribute double? layoutDuration;
+    readonly attribute double? prepaintDuration;
+    readonly attribute double? paintDuration;
+
+    // --- EGL swap buffer timings (always present)
+    readonly attribute double framePrepDuration;
+    readonly attribute double swapDuration;
+
+    [CallWith=ScriptState, ImplementedAs=toJSONForBinding] object toJSON();
+};
