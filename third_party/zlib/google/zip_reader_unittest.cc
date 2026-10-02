@@ -917,7 +917,7 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryFlushFailure) {
 
   EXPECT_CALL(mock_writer, PrepareOutput())
       .WillOnce(Return(true));
-  EXPECT_CALL(mock_writer, WriteBytes(_, _))
+  EXPECT_CALL(mock_writer, WriteBytes(_))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(mock_writer, SetPosixFilePermissions(_));
   EXPECT_CALL(mock_writer, SetTimeModified(_));
