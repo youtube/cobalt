@@ -943,6 +943,15 @@ WebInputEventResult WebFrameWidgetImpl::HandleKeyEvent(
   // event.
   suppress_next_keypress_event_ = false;
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (HandleCobaltMysteryCode(event)) {
+    if (event.GetType() == WebInputEvent::Type::kRawKeyDown) {
+      suppress_next_keypress_event_ = true;
+    }
+    return WebInputEventResult::kHandledSystem;
+  }
+#endif
+
   // If there is a popup open, it should be the one processing the event,
   // not the page.
   scoped_refptr<WebPagePopupImpl> page_popup = View()->GetPagePopup();
@@ -4802,6 +4811,239 @@ void WebFrameWidgetImpl::SetLayerTreeDebugState(
   }
   widget_base_->LayerTreeHost()->SetDebugState(state);
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+void WebFrameWidgetImpl::ResetMysteryMenuTimer() {
+  mystery_menu_deadline_ = base::TimeTicks::Now() + base::Seconds(10);
+  uint64_t gen = ++mystery_menu_generation_;
+  if (local_root_) {
+    local_root_->GetTaskRunner(TaskType::kInternalDefault)
+        ->PostDelayedTask(
+            FROM_HERE,
+            WTF::BindOnce(&WebFrameWidgetImpl::OnMysteryMenuTimeout,
+                          WrapWeakPersistent(this), gen),
+            base::Seconds(10));
+  }
+}
+
+void WebFrameWidgetImpl::OnMysteryMenuTimeout(uint64_t generation) {
+  if (mystery_hud_menu_active_ && generation == mystery_menu_generation_) {
+    LOG(INFO) << "Cobalt Mystery HUD Menu auto-closed after 10s inactivity.";
+    CloseMysteryHudMenu(/*reset_all=*/false);
+  }
+}
+
+void WebFrameWidgetImpl::CloseMysteryHudMenu(bool reset_all) {
+  if (!mystery_hud_menu_active_) {
+    return;
+  }
+  mystery_hud_menu_active_ = false;
+  ++mystery_menu_generation_;
+  const cc::LayerTreeDebugState* current = GetLayerTreeDebugState();
+  if (!current) {
+    return;
+  }
+  cc::LayerTreeDebugState debug_state = *current;
+  debug_state.mystery_hud_menu_active = false;
+  if (reset_all) {
+    debug_state.show_fps_counter = false;
+    debug_state.show_debug_borders.reset();
+    debug_state.show_paint_rects = false;
+    debug_state.show_layout_shift_regions = false;
+  }
+  SetLayerTreeDebugState(debug_state);
+}
+
+// Detects the 6-button TV remote Mystery Code key sequence to unlock the
+// interactive compositor HUD menu and routes subsequent remote button presses
+// to toggle HUD overlays (see docs/mystery_hud_menu.md).
+bool WebFrameWidgetImpl::HandleCobaltMysteryCode(
+    const WebKeyboardEvent& event) {
+  auto is_up = [](int key) { return key == VKEY_UP; };
+  auto is_down = [](int key) { return key == VKEY_DOWN; };
+  auto is_left = [](int key) { return key == VKEY_LEFT; };
+  auto is_right = [](int key) { return key == VKEY_RIGHT; };
+  auto is_back = [](int key) {
+    return key == VKEY_ESCAPE || key == VKEY_BACK || key == VKEY_BROWSER_BACK ||
+           key == VKEY_B;
+  };
+  auto is_ok = [](int key) {
+    return key == VKEY_RETURN || key == VKEY_SELECT || key == VKEY_ACCEPT ||
+           key == VKEY_A;
+  };
+
+  int key = event.windows_key_code;
+
+  if (mystery_hud_menu_active_) {
+    if (base::TimeTicks::Now() > mystery_menu_deadline_) {
+      CloseMysteryHudMenu(/*reset_all=*/false);
+      return false;
+    } else {
+      if (event.GetType() == WebInputEvent::Type::kKeyUp) {
+        return true;
+      }
+      if (event.GetType() != WebInputEvent::Type::kRawKeyDown &&
+          event.GetType() != WebInputEvent::Type::kKeyDown) {
+        return true;
+      }
+
+      const cc::LayerTreeDebugState* current = GetLayerTreeDebugState();
+      if (!current) {
+        CloseMysteryHudMenu(/*reset_all=*/false);
+        return false;
+      }
+      cc::LayerTreeDebugState debug_state = *current;
+
+      if (is_up(key) || key == VKEY_1) {
+        debug_state.show_fps_counter = !debug_state.show_fps_counter;
+        SetLayerTreeDebugState(debug_state);
+        ResetMysteryMenuTimer();
+        LOG(INFO) << "Mystery HUD: FPS & GPU Memory = "
+                  << (debug_state.show_fps_counter ? "ON" : "OFF");
+        return true;
+      }
+      if (is_right(key) || key == VKEY_2) {
+        if (debug_state.show_debug_borders.any()) {
+          debug_state.show_debug_borders.reset();
+        } else {
+          debug_state.show_debug_borders.set();
+        }
+        SetLayerTreeDebugState(debug_state);
+        ResetMysteryMenuTimer();
+        LOG(INFO) << "Mystery HUD: Layer Borders = "
+                  << (debug_state.show_debug_borders.any() ? "ON" : "OFF");
+        return true;
+      }
+      if (is_down(key) || key == VKEY_3) {
+        debug_state.show_paint_rects = !debug_state.show_paint_rects;
+        SetLayerTreeDebugState(debug_state);
+        ResetMysteryMenuTimer();
+        LOG(INFO) << "Mystery HUD: Paint Flashing = "
+                  << (debug_state.show_paint_rects ? "ON" : "OFF");
+        return true;
+      }
+      if (is_left(key) || key == VKEY_4) {
+        debug_state.show_layout_shift_regions =
+            !debug_state.show_layout_shift_regions;
+        SetLayerTreeDebugState(debug_state);
+        ResetMysteryMenuTimer();
+        LOG(INFO) << "Mystery HUD: Layout Shift Regions = "
+                  << (debug_state.show_layout_shift_regions ? "ON" : "OFF");
+        return true;
+      }
+      if (is_ok(key)) {
+        LOG(INFO) << "Cobalt Mystery HUD Menu closed (overlays kept).";
+        CloseMysteryHudMenu(/*reset_all=*/false);
+        return true;
+      }
+      if (is_back(key) || key == VKEY_0) {
+        LOG(INFO) << "Cobalt Mystery HUD Menu closed (all overlays reset).";
+        CloseMysteryHudMenu(/*reset_all=*/true);
+        return true;
+      }
+      return true;
+    }
+  }
+
+  // Only advance sequence on key down.
+  if (event.GetType() != WebInputEvent::Type::kRawKeyDown &&
+      event.GetType() != WebInputEvent::Type::kKeyDown) {
+    return false;
+  }
+
+  switch (mystery_sequence_index_) {
+    case 0:
+      if (is_up(key)) {
+        mystery_sequence_index_ = 1;
+      }
+      return false;
+    case 1:
+      if (is_up(key)) {
+        mystery_sequence_index_ = 2;
+      } else {
+        mystery_sequence_index_ = 0;
+      }
+      return false;
+    case 2:
+      if (is_down(key)) {
+        mystery_sequence_index_ = 3;
+      } else if (!is_up(key)) {
+        mystery_sequence_index_ = 0;
+      }
+      return false;
+    case 3:
+      if (is_down(key)) {
+        mystery_sequence_index_ = 4;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 4:
+      if (is_left(key)) {
+        mystery_sequence_index_ = 5;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 5:
+      if (is_right(key)) {
+        mystery_sequence_index_ = 6;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 6:
+      if (is_left(key)) {
+        mystery_sequence_index_ = 7;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 7:
+      if (is_right(key)) {
+        mystery_sequence_index_ = 8;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 8:
+      if (is_back(key) || is_ok(key)) {
+        mystery_sequence_index_ = 9;
+        return true;
+      }
+      if (is_left(key)) {
+        mystery_sequence_index_ = 7;
+      } else {
+        mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      }
+      return false;
+    case 9:
+      if (is_ok(key)) {
+        mystery_sequence_index_ = 0;
+        mystery_hud_menu_active_ = true;
+        if (const cc::LayerTreeDebugState* current = GetLayerTreeDebugState()) {
+          cc::LayerTreeDebugState debug_state = *current;
+          debug_state.mystery_hud_menu_active = true;
+          if (!debug_state.show_fps_counter &&
+              !debug_state.show_debug_borders.any() &&
+              !debug_state.show_paint_rects &&
+              !debug_state.show_layout_shift_regions) {
+            debug_state.show_fps_counter = true;
+          }
+          SetLayerTreeDebugState(debug_state);
+        }
+        ResetMysteryMenuTimer();
+        LOG(INFO) << "Cobalt Mystery HUD Menu activated (10s active window).";
+        return true;
+      }
+      mystery_sequence_index_ = is_up(key) ? 1 : 0;
+      return false;
+    default:
+      mystery_sequence_index_ = 0;
+      return false;
+  }
+}
+#endif
 
 void WebFrameWidgetImpl::NotifyCompositingScaleFactorChanged(
     float compositing_scale_factor) {
