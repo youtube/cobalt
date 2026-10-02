@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/animation/animation_timeline.h"
 #include "cc/mojo_embedder/async_layer_tree_frame_sink.h"
 #include "cc/paint/element_id.h"
@@ -190,6 +191,11 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   void WillCommitCompositorFrame() override;
   void DidCommitCompositorFrame(base::TimeTicks commit_start_time,
                                 base::TimeTicks commit_finish_time) override;
+#if BUILDFLAG(IS_COBALT)
+  void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) override;
+#endif
   void DidCompletePageScaleAnimation() override;
   void RecordStartOfFrameMetrics() override;
   void RecordEndOfFrameMetrics(
