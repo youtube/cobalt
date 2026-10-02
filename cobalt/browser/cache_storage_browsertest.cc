@@ -64,8 +64,10 @@ class CacheStorageBrowserTest : public content::ContentBrowserTest {
     content::StoragePartition::SetDefaultQuotaSettingsForTesting(
         &quota_settings);
 
+    // Matches the 6 MiB CacheStorage quota enforced by
+    // CobaltContentBrowserClient::GetCacheQuotaSettings.
     static storage::QuotaSettings cache_quota_settings(
-        storage::GetHardCodedSettings(24 * 1024 * 1024));
+        storage::GetHardCodedSettings(6 * 1024 * 1024));
     content::StoragePartition::SetDefaultCacheQuotaSettingsForTesting(
         &cache_quota_settings);
   }
@@ -243,6 +245,78 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest, PutAndOverwriteOneMegabyte) {
            << (error ? *error : "Unknown error");
   }
   EXPECT_TRUE(*success);
+}
+
+// Verifies that the 6MiB CacheStorage quota is enforced. Writes 1MiB entries
+// via cache.put until one is rejected, expecting a QuotaExceededError before
+// 8MiB have been written. Only applies when cache storage has its own quota
+// (split quota), which is always the case on Starboard.
+IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest,
+                       FailToWriteMoreThanSixMegabytesToCacheStorage) {
+  content::StoragePartition* partition = shell()
+                                             ->web_contents()
+                                             ->GetBrowserContext()
+                                             ->GetDefaultStoragePartition();
+  if (!static_cast<content::StoragePartitionImpl*>(partition)
+           ->HasSplitQuota()) {
+    GTEST_SKIP() << "CacheStorage does not have a separate quota.";
+  }
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  const char kScript[] = R"(
+    (async () => {
+      const cache = await caches.open('cobalt-test-quota-cache');
+      const kChunkSize = 1024 * 1024;  // 1MiB
+      const kMaxChunks = 8;            // Up to 8MiB, above the 6MiB quota.
+      const chunk = new Uint8Array(kChunkSize);
+      for (let i = 0; i < kChunkSize; i++) {
+        chunk[i] = i % 256;
+      }
+
+      for (let i = 0; i < kMaxChunks; i++) {
+        try {
+          await cache.put(new Request(`/test-quota-chunk-${i}`),
+                          new Response(chunk));
+        } catch (err) {
+          return {
+            failedAsExpected: true,
+            errorName: err.name,
+            chunksWritten: i
+          };
+        }
+      }
+      return {
+        failedAsExpected: false,
+        error: `Writing ${kMaxChunks}MiB to CacheStorage unexpectedly succeeded!`
+      };
+    })()
+  )";
+
+  content::EvalJsResult eval_result =
+      content::EvalJs(shell()->web_contents(), kScript);
+  ASSERT_TRUE(eval_result.value.is_dict());
+  const base::Value::Dict& dict = eval_result.value.GetDict();
+
+  std::optional<bool> failed_as_expected = dict.FindBool("failedAsExpected");
+  ASSERT_TRUE(failed_as_expected.has_value())
+      << "Response dictionary missing 'failedAsExpected' field";
+  if (!*failed_as_expected) {
+    const std::string* error = dict.FindString("error");
+    FAIL() << "Test failed: " << (error ? *error : "Unknown error");
+  }
+
+  const std::string* error_name = dict.FindString("errorName");
+  ASSERT_NE(error_name, nullptr);
+  EXPECT_EQ(*error_name, "QuotaExceededError");
+
+  // At least 5 of the 1MiB chunks should fit within the 6MiB quota.
+  std::optional<int> chunks_written = dict.FindInt("chunksWritten");
+  ASSERT_TRUE(chunks_written.has_value());
+  EXPECT_GE(*chunks_written, 5);
+  EXPECT_LE(*chunks_written, 6);
 }
 
 // Verifies that the persistent storage quota is applied correctly.
