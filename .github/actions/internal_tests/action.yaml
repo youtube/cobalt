@@ -96,7 +96,8 @@ runs:
           --dimensions "${TEST_DIMENSIONS}" \
           --artifact_name "${artifact_name}" \
           --device_family "${TEST_DEVICE_FAMILY}" \
-          --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
+          --cobalt_path "${GCS_ARTIFACTS_PATH}" \
+          --local_result_dir "${GITHUB_WORKSPACE}/results/${PLATFORM}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
             # Fail the job so it's easy to retrigger.
