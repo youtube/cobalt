@@ -17,6 +17,9 @@
 #include "starboard/extension/graphics.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_url.h"
+#include "url/gurl.h"
 
 namespace {
 
@@ -50,10 +53,19 @@ namespace renderer {
 
 class CobaltRenderFrameObserverTest : public ::testing::Test {
  protected:
+  static void SetUpTestSuite() {
+    static bool initialized = []() {
+      blink::Platform::InitializeBlink();
+      return true;
+    }();
+    (void)initialized;
+  }
+
   void SetUp() override {
     g_mock_graphics_extension = &mock_graphics_extension_;
     // Passing nullptr for RenderFrame is acceptable here because the
-    // DidMeaningfulLayout method doesn't use the render_frame member.
+    // DidMeaningfulLayout and AllowRunningInsecureContent methods don't use the
+    // render_frame member.
     observer_ = std::make_unique<CobaltRenderFrameObserver>(nullptr);
   }
 
@@ -74,6 +86,53 @@ TEST_F(CobaltRenderFrameObserverTest,
   EXPECT_CALL(mock_graphics_extension_, ReportFullyDrawn()).Times(0);
   observer_->DidMeaningfulLayout(blink::WebMeaningfulLayout::kFinishedParsing);
   observer_->DidMeaningfulLayout(blink::WebMeaningfulLayout::kFinishedLoading);
+}
+
+TEST_F(CobaltRenderFrameObserverTest,
+       AllowsInsecureContentWhenEnabledPerSettings) {
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      true, blink::WebURL(GURL("http://example.com/script.js"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      true, blink::WebURL(GURL("ws://example.com:8080"))));
+}
+
+TEST_F(CobaltRenderFrameObserverTest, AllowsInsecureWebSocketToLocalhost) {
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://localhost:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://127.0.0.1:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://[::1]:8080"))));
+}
+
+TEST_F(CobaltRenderFrameObserverTest, AllowsInsecureWebSocketToPrivateNetwork) {
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://10.0.0.1:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://172.16.0.1:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://192.168.1.100:8080"))));
+  EXPECT_TRUE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://[fd00::1]:8080"))));
+}
+
+TEST_F(CobaltRenderFrameObserverTest, BlocksInsecureWebSocketToPublicEndpoint) {
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://example.com:8080"))));
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://8.8.8.8:8080"))));
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("ws://[2001:4860:4860::8888]:8080"))));
+}
+
+TEST_F(CobaltRenderFrameObserverTest,
+       BlocksNonWebSocketInsecureContentWhenDisabledPerSettings) {
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("http://localhost:8080/script.js"))));
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("http://192.168.1.100:8080/script.js"))));
+  EXPECT_FALSE(observer_->AllowRunningInsecureContent(
+      false, blink::WebURL(GURL("http://example.com/script.js"))));
 }
 
 }  // namespace renderer
