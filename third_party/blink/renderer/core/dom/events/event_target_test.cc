@@ -211,4 +211,19 @@ TEST_F(EventTargetTest, UseCountOnMove) {
   EXPECT_TRUE(GetDocument().IsUseCounted(WebFeature::kMoveEvent));
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(EventTargetTest, RemoveEventListenerMatchesCapture) {
+  GetDocument().GetSettings()->SetScriptEnabled(true);
+  ClassicScript::CreateUnspecifiedScript(R"HTML(
+    const target = new EventTarget();
+    const fn = () => {};
+    target.addEventListener('test', fn, {capture: true});
+    target.removeEventListener('test', fn, false);
+    window.stillHasCaptureListener = true;
+    target.removeEventListener('test', fn, true);
+  )HTML")
+      ->RunScript(GetDocument().domWindow());
+}
+#endif
+
 }  // namespace blink

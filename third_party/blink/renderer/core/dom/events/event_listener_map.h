@@ -33,6 +33,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_EVENT_LISTENER_MAP_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_EVENT_LISTENER_MAP_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/events/registered_event_listener.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -41,7 +42,9 @@
 
 namespace blink {
 
+#if !BUILDFLAG(IS_COBALT)
 class EventListenerOptions;
+#endif
 class EventTarget;
 
 using EventListenerVector = GCedHeapVector<Member<RegisteredEventListener>, 1>;
@@ -72,10 +75,17 @@ class CORE_EXPORT EventListenerMap final {
   // Remove an event listener. If the listener is found the result will be
   // true and `registered_listener` will be updated to the
   // `RegisteredEventListener` that was removed from the map.
+#if BUILDFLAG(IS_COBALT)
+  bool Remove(const AtomicString& event_type,
+              const EventListener* listener,
+              const RegisteredEventListener::OptionsForMatching& options,
+              RegisteredEventListener** registered_listener);
+#else
   bool Remove(const AtomicString& event_type,
               const EventListener*,
               const EventListenerOptions*,
               RegisteredEventListener** registered_listener);
+#endif
   EventListenerVector* Find(const AtomicString& event_type);
   Vector<AtomicString> EventTypes() const;
 
