@@ -31,7 +31,6 @@
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/containers/contains.h"
 #include "base/strings/string_split.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
