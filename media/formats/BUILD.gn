@@ -23,6 +23,8 @@ source_set("formats") {
     "ac3/ac3_util.h",
     "common/offset_byte_queue.cc",
     "common/offset_byte_queue.h",
+    "common/offset_segmented_byte_queue.cc",
+    "common/offset_segmented_byte_queue.h",
     "common/opus_constants.cc",
     "common/opus_constants.h",
     "mp4/bitstream_converter.cc",
@@ -297,6 +299,7 @@ source_set("unit_tests") {
   sources = [
     "ac3/ac3_util_unittest.cc",
     "common/offset_byte_queue_unittest.cc",
+    "common/offset_segmented_byte_queue_unittest.cc",
     "mpeg/mpeg1_audio_stream_parser_unittest.cc",
     "webm/webm_cluster_parser_unittest.cc",
     "webm/webm_content_encodings_client_unittest.cc",
