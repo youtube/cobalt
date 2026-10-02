@@ -377,8 +377,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   CHECK(content::RenderThread::IsMainThread());
 
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-  renderer_factory_traits->audio_write_duration_local =
-      base::Microseconds(kSbPlayerWriteDurationLocal);
+  // Note: The local audio write duration intentionally differs from
+  // |kSbPlayerWriteDurationLocal| (0.5s) to align with Cobalt C25 and earlier,
+  // which use 1s. It can be overridden by the "CobaltAudioWriteDuration"
+  // feature for experiments (e.g., 0.5s). See b/433993748.
+  renderer_factory_traits->audio_write_duration_local = base::Seconds(1);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
