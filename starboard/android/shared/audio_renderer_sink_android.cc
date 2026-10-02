@@ -21,8 +21,11 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -60,6 +63,7 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
 }  // namespace
 
 AudioRendererSinkAndroid::AudioRendererSinkAndroid(
+    const AudioStreamInfo& audio_stream_info,
     std::optional<int> tunnel_mode_audio_session_id,
     bool allow_audio_writing_on_pause,
     bool enable_video_renderer_vsp_adjustment,
@@ -75,7 +79,11 @@ AudioRendererSinkAndroid::AudioRendererSinkAndroid(
       is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
       enable_video_renderer_vsp_adjustment_(
           enable_video_renderer_vsp_adjustment),
-      allow_flush_during_seek_(allow_flush_during_seek) {}
+      allow_flush_during_seek_(allow_flush_during_seek),
+      platform_required_format_(
+          is_tunnel_mode_enabled_
+              ? std::make_optional(GetPlatformRequiredFormat(audio_stream_info))
+              : std::nullopt) {}
 
 bool AudioRendererSinkAndroid::AllowOverflowAudioSamples() const {
   return is_tunnel_mode_enabled_;
@@ -100,14 +108,18 @@ void AudioRendererSinkAndroid::GetAudioRendererParams(
 
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+  // Note that only int16 is supported in tunnel mode.
   const auto sample_type =
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+      IsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
           ? kSbMediaAudioSampleTypeFloat32
           : kSbMediaAudioSampleTypeInt16Deprecated;
+  const int output_channels =
+      GetOutputNumberOfChannels(audio_stream_info.number_of_channels);
+  const int output_sampling_frequency_hz =
+      GetNearestSupportedSampleFrequency(audio_stream_info.samples_per_second);
 
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-      audio_stream_info.number_of_channels, sample_type,
-      audio_stream_info.samples_per_second);
+      output_channels, sample_type, output_sampling_frequency_hz);
 
   if (is_tunnel_mode_enabled_) {
     // AudioTrack.setPlaybackParams() might need extra buffer to support
@@ -117,8 +129,7 @@ void AudioRendererSinkAndroid::GetAudioRendererParams(
     min_frames_required = std::max<int>(
         min_frames_required,
         AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
-            env, sample_type, audio_stream_info.number_of_channels,
-            audio_stream_info.samples_per_second) *
+            env, sample_type, output_channels, output_sampling_frequency_hz) *
             kMaxPlaybackSpeed);
   }
 
@@ -131,6 +142,14 @@ void AudioRendererSinkAndroid::GetAudioRendererParams(
       AlignUp(*max_cached_frames, AudioRendererSink::kAudioSinkFramesAlignment);
 }
 
+int AudioRendererSinkAndroid::GetOutputNumberOfChannels(
+    int number_of_channels) const {
+  if (platform_required_format_) {
+    return platform_required_format_->channels;
+  }
+  return number_of_channels;
+}
+
 void AudioRendererSinkAndroid::Start(int64_t media_start_time,
                                      int channels,
                                      int sampling_frequency_hz,
@@ -141,9 +160,10 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
-  if (allow_flush_during_seek_ && audio_sink_ && channels == channels_ &&
-      sampling_frequency_hz == sampling_frequency_hz_ &&
-      audio_sample_type == audio_sample_type_) {
+  const AudioFormat audio_format = {channels, audio_sample_type,
+                                    sampling_frequency_hz};
+  if (allow_flush_during_seek_ && audio_sink_ &&
+      audio_format == current_audio_format_) {
     SB_LOG(INFO) << "Audio sink is already started with the same config, "
                  << "skipping Start().";
     // |audio_sink_| is always an AudioSinkAndroid (an AudioTrackAudioSink by
@@ -165,9 +185,7 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
     is_flushed_ = false;
   }
 
-  channels_ = channels;
-  sampling_frequency_hz_ = sampling_frequency_hz;
-  audio_sample_type_ = audio_sample_type;
+  current_audio_format_ = audio_format;
 
   AudioRendererSinkImpl::Start(
       media_start_time, channels, sampling_frequency_hz, audio_sample_type,
@@ -195,13 +213,76 @@ void AudioRendererSinkAndroid::Stop() {
 
 bool AudioRendererSinkAndroid::IsAudioSampleTypeSupported(
     SbMediaAudioSampleType audio_sample_type) const {
-  if (is_tunnel_mode_enabled_) {
-    // Currently the implementation only supports tunnel mode with int16 audio
-    // samples.
-    return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
+  if (platform_required_format_) {
+    return audio_sample_type == platform_required_format_->sample_type;
   }
 
   return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
+}
+
+int AudioRendererSinkAndroid::GetNearestSupportedSampleFrequency(
+    int sampling_frequency_hz) const {
+  if (platform_required_format_) {
+    return platform_required_format_->sampling_frequency_hz;
+  }
+
+  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
+}
+
+// static
+AudioRendererSinkAndroid::AudioFormat
+AudioRendererSinkAndroid::GetPlatformRequiredFormat(
+    const AudioStreamInfo& audio_stream_info) {
+  // Currently the implementation only supports tunnel mode with int16 audio
+  // samples.
+  const SbMediaAudioSampleType sample_type =
+      kSbMediaAudioSampleTypeInt16Deprecated;
+  const int encoding =
+      GetAudioFormatSampleType(kSbMediaAudioCodingTypePcm, sample_type);
+
+  // Used when none of the formats below is reported as supported.
+  const AudioFormat kFallbackFormat = {
+      .channels = 2,
+      .sample_type = sample_type,
+      .sampling_frequency_hz = 48000,
+  };
+
+  // In non-tunnel mode, Android's AudioMixer (MixerThread) automatically
+  // upmixes mono to stereo and resamples to supported sampling rates in
+  // software. In tunnel mode (FLAG_HW_AV_SYNC), the software mixer is
+  // bypassed, and PCM buffers are routed directly to the hardware via
+  // DirectOutputThread. So the audio may have to be converted to a format that
+  // the hardware supports before being written to the audio sink.
+  // The formats are tried in order:
+  //   1. The original number of channels and sampling rate.
+  //   2. Stereo with the original sampling rate, if the original audio isn't
+  //      stereo.
+  // If neither is supported, |kFallbackFormat| is used.
+  const int channels = audio_stream_info.number_of_channels;
+  const int sampling_frequency_hz =
+      static_cast<int>(audio_stream_info.samples_per_second);
+  MediaCapabilitiesCache* cache = MediaCapabilitiesCache::GetInstance();
+
+  if (cache->IsTunneledAudioSupported(encoding, sampling_frequency_hz,
+                                      channels)) {
+    return {
+        .channels = channels,
+        .sample_type = sample_type,
+        .sampling_frequency_hz = sampling_frequency_hz,
+    };
+  }
+
+  if (channels != kFallbackFormat.channels &&
+      cache->IsTunneledAudioSupported(encoding, sampling_frequency_hz,
+                                      kFallbackFormat.channels)) {
+    return {
+        .channels = kFallbackFormat.channels,
+        .sample_type = sample_type,
+        .sampling_frequency_hz = sampling_frequency_hz,
+    };
+  }
+
+  return kFallbackFormat;
 }
 
 }  // namespace starboard
