@@ -29,7 +29,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -103,8 +102,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
 
@@ -963,25 +960,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             }
           }
         });
-  }
-
-  public void toggleKeepScreenOn(boolean keepOn) {
-    if (mIsKeepScreenOnEnabled != keepOn) {
-      runOnUiThread(
-          new Runnable() {
-            @Override
-            public void run() {
-              if (keepOn) {
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on enabled for video playback");
-              } else {
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on disabled");
-              }
-            }
-          });
-      mIsKeepScreenOnEnabled = keepOn;
-    }
   }
 
   private void updateShellActivityVisible(boolean isVisible) {

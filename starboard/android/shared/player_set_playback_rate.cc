@@ -16,8 +16,12 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include <jni.h>
+
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {
@@ -31,5 +35,20 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   }
 
   player->SetPlaybackRate(playback_rate);
+
+  // Keep the screen on while any player is playing. Note that a newly created
+  // player isn't reported as playing, even though its playback rate defaults to
+  // 1.0, as it cannot present anything before it is seeked, and the playback
+  // rate is always set explicitly before playback starts (SbPlayerBridge sets
+  // it to 0 on kSbPlayerStateInitialized, and to the pipeline's playback rate
+  // after the seek).
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  if (playback_rate > 0.0) {
+    starboard::StarboardBridge::GetInstance()->AddActivePlayer(
+        env, reinterpret_cast<jlong>(player));
+  } else {
+    starboard::StarboardBridge::GetInstance()->RemoveActivePlayer(
+        env, reinterpret_cast<jlong>(player));
+  }
   return true;
 }

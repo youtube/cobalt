@@ -396,6 +396,22 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
       env, j_starboard_bridge_, x, y, width, height);
 }
 
+void StarboardBridge::AddActivePlayer(JNIEnv* env, jlong player) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return;
+  }
+  Java_BaseStarboardBridge_addActivePlayer(env, j_starboard_bridge_, player);
+}
+
+void StarboardBridge::RemoveActivePlayer(JNIEnv* env, jlong player) {
+  SB_DCHECK(env);
+  if (!j_starboard_bridge_) {
+    return;
+  }
+  Java_BaseStarboardBridge_removeActivePlayer(env, j_starboard_bridge_, player);
+}
+
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
     JNIEnv* env) {
   SB_DCHECK(env);

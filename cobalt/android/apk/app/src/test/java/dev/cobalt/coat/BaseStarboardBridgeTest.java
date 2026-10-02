@@ -27,6 +27,7 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.view.Surface;
+import android.view.WindowManager;
 import dev.cobalt.coat.CobaltService.ResponseToClient;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.media.VideoSurfaceViewJni;
@@ -39,8 +40,10 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.shadows.ShadowLooper;
 
 /** Unit tests for BaseStarboardBridge. */
 @RunWith(RobolectricTestRunner.class)
@@ -425,5 +428,108 @@ public class BaseStarboardBridgeTest {
 
     assertNull(result);
     assertNull(bridge.getOpenedCobaltService("nullResponseService"));
+  }
+
+  @Test
+  public void addActivePlayer_multiplePlayers_keepsScreenOnUntilAllRemoved() {
+    Activity activity = startActivity();
+    assertFalse(isKeepScreenOnSet(activity));
+
+    bridge.addActivePlayer(1L);
+    bridge.addActivePlayer(2L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(2L);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void addAndRemoveActivePlayer_repeatedCalls_areIdempotent() {
+    Activity activity = startActivity();
+
+    // The playback rate of a player can be set to a positive value multiple times, e.g. after each
+    // seek or when the playback rate changes.
+    bridge.addActivePlayer(1L);
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity));
+
+    // A player is removed both when it's paused and when it's destroyed. The second removal must
+    // not affect other players.
+    bridge.addActivePlayer(2L);
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void onActivityStart_playbackChangedWhileStopped_appliesLatestState() {
+    // A player starts playing before any activity is started.
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+
+    Activity activity = startActivity();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    // Playback stops while the activity is stopped.
+    bridge.onActivityStop(activity);
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+
+    bridge.onActivityStart(activity);
+    assertFalse(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void onActivityStart_recreatedActivity_reappliesKeepScreenOn() {
+    Activity activity1 = startActivity();
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity1));
+
+    // During recreation, the new activity is started before the old one is stopped and destroyed.
+    Activity activity2 = startActivity();
+    bridge.onActivityStop(activity1);
+    bridge.onActivityDestroy(activity1);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity1));
+    assertTrue(isKeepScreenOnSet(activity2));
+  }
+
+  @Test
+  public void onActivityStop_playerStillPlaying_clearsKeepScreenOnUntilStarted() {
+    Activity activity = startActivity();
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.onActivityStop(activity);
+    assertFalse(isKeepScreenOnSet(activity));
+
+    bridge.onActivityStart(activity);
+    assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  private Activity startActivity() {
+    Activity activity = Robolectric.buildActivity(Activity.class).create().get();
+    bridge.onActivityCreate(activity);
+    bridge.onActivityStart(activity);
+    return activity;
+  }
+
+  private static boolean isKeepScreenOnSet(Activity activity) {
+    return (activity.getWindow().getAttributes().flags
+            & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        != 0;
   }
 }

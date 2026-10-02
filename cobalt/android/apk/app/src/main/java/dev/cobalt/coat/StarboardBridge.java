@@ -43,7 +43,7 @@ public class StarboardBridge extends BaseStarboardBridge {
       String[] args,
       String startDeepLink) {
     super(appContext, activityHolder, serviceHolder, args, startDeepLink);
-    mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
+    mCobaltMediaSession = new CobaltMediaSession(appContext, artworkDownloader);
     mVolumeStateReceiver = new VolumeStateReceiver(appContext);
   }
 

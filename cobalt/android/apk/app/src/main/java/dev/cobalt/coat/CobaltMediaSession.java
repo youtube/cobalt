@@ -16,7 +16,6 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -25,7 +24,6 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import androidx.annotation.Nullable;
-import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.util.List;
 import java.util.Set;
@@ -40,8 +38,7 @@ import org.chromium.services.media_session.MediaPosition;
 
 /**
  * Cobalt MediaSession glue, as well as collection of state and logic to switch on/off Android OS
- * features used in media playback, such as audio focus, "KEEP_SCREEN_ON" mode, and "visible
- * behind".
+ * features used in media playback, such as audio focus and "visible behind".
  */
 public class CobaltMediaSession implements ArtworkLoader.Callback {
   // We do handle transport controls and set this flag on all API levels, even though it's
@@ -53,7 +50,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final Context mContext;
   private final ArtworkLoader mArtworkLoader;
-  private final Holder<Activity> mActivityHolder;
   private WebContents mWebContents;
   private WebContentsObserver mWebContentsObserver;
   private MediaSessionCompat mMediaSession;
@@ -80,10 +76,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
   }
 
-  public CobaltMediaSession(
-      Context context, Holder<Activity> activityHolder, ArtworkDownloader artworkDownloader) {
+  public CobaltMediaSession(Context context, ArtworkDownloader artworkDownloader) {
     mContext = context;
-    mActivityHolder = activityHolder;
     mArtworkLoader = new ArtworkLoader(this, artworkDownloader);
     mMediaSessionCallback =
         new MediaSessionCompat.Callback() {
@@ -290,17 +284,9 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
   }
 
-  private void toggleKeepScreenOn(boolean keepScreenOn) {
-    CobaltActivity activity = (CobaltActivity) mActivityHolder.get();
-    if (activity != null) {
-      activity.toggleKeepScreenOn(keepScreenOn);
-    }
-  }
-
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
-      toggleKeepScreenOn(false);
       return;
     }
 
@@ -315,8 +301,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     if (mMetadata != null) {
       state = mIsPaused ? PlaybackStateCompat.STATE_PAUSED : PlaybackStateCompat.STATE_PLAYING;
     }
-
-    toggleKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
 
     if (mPosition != null) {
       playbackStateBuilder.setState(
