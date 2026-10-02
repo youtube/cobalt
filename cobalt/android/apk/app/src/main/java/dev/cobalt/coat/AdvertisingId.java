@@ -80,12 +80,18 @@ public class AdvertisingId {
   // Devices without Google Play Services can publish the IfA in secure settings instead.
   private AdvertisingIdClient.Info getAdvertisingIdInfoFromSettings() {
     ContentResolver resolver = mContext.getContentResolver();
-    String id = Settings.Secure.getString(resolver, "advertising_id");
-    if (TextUtils.isEmpty(id)) {
+    try {
+      String id = Settings.Secure.getString(resolver, "advertising_id");
+      if (TextUtils.isEmpty(id)) {
+        return null;
+      }
+      boolean limitAdTracking = Settings.Secure.getInt(resolver, "limit_ad_tracking", 0) != 0;
+      return new AdvertisingIdClient.Info(id, limitAdTracking);
+    } catch (SecurityException e) {
+      // The device may not let apps read these settings.
+      Log.w(TAG, "Failed to read Advertising ID (IfA) from system settings.", e);
       return null;
     }
-    boolean limitAdTracking = Settings.Secure.getInt(resolver, "limit_ad_tracking", 0) != 0;
-    return new AdvertisingIdClient.Info(id, limitAdTracking);
   }
 
   public String getId() {
