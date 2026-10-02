@@ -57,7 +57,7 @@ runs:
           gn args --list --short --overrides-only out/"${PLATFORM}_${CONFIG}"
         shell: bash
       - name: Get list of changed files
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         id: changed-files
         env:
           CHANGED_FILES_LIST: changed_files.txt

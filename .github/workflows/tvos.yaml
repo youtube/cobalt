@@ -8,6 +8,7 @@ on:
       - experimental/*
       - feature/*
       - 'stack/**'
+  merge_group:
   workflow_dispatch:
     inputs:
       nightly:
