@@ -2687,6 +2687,10 @@ void WebFrameWidgetImpl::BeginMainFrame(const viz::BeginFrameArgs& args) {
   DCHECK(!last_frame_time.is_null());
   CHECK(LocalRootImpl());
 
+#if BUILDFLAG(IS_COBALT)
+  cobalt_bmf_start_time_ = last_frame_time;
+#endif
+
   if (animation_frame_timing_monitor_) {
     animation_frame_timing_monitor_->BeginMainFrame(
         *LocalRootImpl()->GetFrame()->DomWindow(), args.frame_id);
@@ -2748,6 +2752,21 @@ void WebFrameWidgetImpl::BeginCommitCompositorFrame() {
       base::debug::DumpWithoutCrashing();
     }
   }
+#if BUILDFLAG(IS_COBALT)
+  if (LocalRootImpl() && LocalRootImpl()->GetFrame() &&
+      LocalRootImpl()->GetFrame()->DomWindow()) {
+    WindowPerformance* performance = DOMWindowPerformance::performance(
+        *LocalRootImpl()->GetFrame()->DomWindow());
+    if (performance && performance->HasCobaltFrameObserver()) {
+      LocalFrameView* view = LocalRootImpl()->GetFrame()->View();
+      if (view && view->GetUkmAggregator() &&
+          view->GetUkmAggregator()->InMainFrameUpdate()) {
+        pending_cobalt_bmf_metrics_ =
+            view->GetUkmAggregator()->GetBeginMainFrameMetrics();
+      }
+    }
+  }
+#endif
 }
 
 void WebFrameWidgetImpl::EndCommitCompositorFrame(
@@ -2764,10 +2783,53 @@ void WebFrameWidgetImpl::EndCommitCompositorFrame(
       *LocalRootImpl()->GetFrame()->DomWindow());
   performance->SetCommitFinishTimeStampForPendingEvents(commit_finish_time);
 
+#if BUILDFLAG(IS_COBALT)
+  if (pending_cobalt_bmf_metrics_) {
+    CobaltMainFrameSnapshot snapshot;
+    snapshot.bmf_start = cobalt_bmf_start_time_;
+    snapshot.metrics = std::move(pending_cobalt_bmf_metrics_);
+    if (commit_compositor_frame_start_time_.has_value()) {
+      snapshot.composite_commit_duration =
+          commit_start_time - commit_compositor_frame_start_time_.value();
+    }
+    snapshot.commit_duration = commit_finish_time - commit_start_time;
+
+    LayerTreeHost()->RequestSuccessfulPresentationTimeForNextFrame(
+        WTF::BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,
+                      WrapWeakPersistent(this), std::move(snapshot)));
+  }
+#endif
+
   commit_compositor_frame_start_time_ =
       next_commit_compositor_frame_start_time_;
   next_commit_compositor_frame_start_time_.reset();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebFrameWidgetImpl::OnCobaltPresentationCallback(
+    CobaltMainFrameSnapshot snapshot,
+    const viz::FrameTimingDetails& /*frame_timing_details*/) {
+  pending_cobalt_main_snapshot_ = std::move(snapshot);
+}
+
+void WebFrameWidgetImpl::DidPresentCobaltFrame(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& frame_timing_details) {
+  if (!LocalRootImpl() || !LocalRootImpl()->GetFrame() ||
+      !LocalRootImpl()->GetFrame()->DomWindow()) {
+    pending_cobalt_main_snapshot_.reset();
+    return;
+  }
+  WindowPerformance* performance = DOMWindowPerformance::performance(
+      *LocalRootImpl()->GetFrame()->DomWindow());
+  if (performance) {
+    performance->QueueCobaltFrameTiming(
+        frame_token, frame_timing_details,
+        std::move(pending_cobalt_main_snapshot_));
+  }
+  pending_cobalt_main_snapshot_.reset();
+}
+#endif
 
 void WebFrameWidgetImpl::ApplyViewportChanges(
     const ApplyViewportChangesArgs& args) {

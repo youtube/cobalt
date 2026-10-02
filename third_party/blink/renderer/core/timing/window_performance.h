@@ -53,6 +53,11 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
+#endif
+
 namespace viz {
 struct FrameTimingDetails;
 }
@@ -141,6 +146,15 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   void QueueLongAnimationFrameTiming(
       AnimationFrameTimingInfo*,
       std::optional<DOMPaintTimingInfo> paint_timing_info = std::nullopt);
+#if BUILDFLAG(IS_COBALT)
+  bool HasCobaltFrameObserver() const {
+    return HasObserverFor(PerformanceEntry::kCobaltFrame);
+  }
+  void QueueCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot);
+#endif
   void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info,
                            bool is_triggered_by_soft_navigation);
 
@@ -281,6 +295,10 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   Member<ResponsivenessMetrics> responsiveness_metrics_;
   // The event we are currently processing.
   WeakMember<const Event> current_event_;
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks last_cobalt_swap_end_;
+#endif
 };
 
 }  // namespace blink
