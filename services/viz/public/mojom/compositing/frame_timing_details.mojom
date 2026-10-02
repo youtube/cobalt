@@ -17,4 +17,6 @@ struct FrameTimingDetails {
   gfx.mojom.SwapTimings swap_timings;
   gfx.mojom.PresentationFeedback presentation_feedback;
   BeginFrameId frame_id;
+  [EnableIf=is_cobalt]
+  float cobalt_root_damage_percentage;
 };

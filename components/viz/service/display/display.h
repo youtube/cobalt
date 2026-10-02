@@ -277,6 +277,15 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
       return draw_start_timestamp_;
     }
 
+#if BUILDFLAG(IS_COBALT)
+    void set_cobalt_root_damage_percentage(float pct) {
+      cobalt_root_damage_percentage_ = pct;
+    }
+    float cobalt_root_damage_percentage() const {
+      return cobalt_root_damage_percentage_;
+    }
+#endif
+
    private:
     base::TimeTicks frame_time_;
     base::TimeTicks draw_start_timestamp_;
@@ -286,6 +295,9 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
     std::vector<std::unique_ptr<Surface::PresentationHelper>>
         presentation_helpers_;
     HintSession::BoostType boost_type_;
+#if BUILDFLAG(IS_COBALT)
+    float cobalt_root_damage_percentage_ = -1.0f;
+#endif
   };
 
   void InitializeRenderer();

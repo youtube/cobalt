@@ -54,8 +54,10 @@
 #include "services/viz/public/cpp/compositing/surface_id_mojom_traits.h"
 #include "services/viz/public/cpp/compositing/surface_info_mojom_traits.h"
 #include "services/viz/public/cpp/compositing/transferable_resource_mojom_traits.h"
+#include "components/viz/common/frame_timing_details.h"
 #include "services/viz/public/mojom/compositing/begin_frame_args.mojom.h"
 #include "services/viz/public/mojom/compositing/compositor_frame.mojom.h"
+#include "services/viz/public/mojom/compositing/frame_timing_details.mojom.h"
 #include "services/viz/public/mojom/compositing/filter_operation.mojom.h"
 #include "services/viz/public/mojom/compositing/filter_operations.mojom.h"
 #include "services/viz/public/mojom/compositing/returned_resource.mojom.h"
@@ -1459,6 +1461,37 @@ TEST_F(StructTraitsTest, CopyOutputResult_Texture) {
   // If the CopyOutputResult callback is called (which is the intended
   // behaviour), this will exit. Otherwise, this test will time out and fail.
   run_loop.Run();
+}
+
+TEST_F(StructTraitsTest, FrameTimingDetails) {
+  FrameTimingDetails input;
+  input.received_compositor_frame_timestamp = base::TimeTicks::Now();
+  input.embedded_frame_timestamp = base::TimeTicks::Now();
+  input.draw_start_timestamp = base::TimeTicks::Now();
+  input.swap_timings.swap_start = base::TimeTicks::Now();
+  input.swap_timings.swap_end = base::TimeTicks::Now();
+  input.presentation_feedback = gfx::PresentationFeedback(
+      base::TimeTicks::Now(), base::Milliseconds(16), 0);
+  input.frame_id = BeginFrameId(1, 2);
+#if BUILDFLAG(IS_COBALT)
+  input.cobalt_root_damage_percentage = 42.5f;
+#endif
+
+  FrameTimingDetails output;
+  mojo::test::SerializeAndDeserialize<mojom::FrameTimingDetails>(input, output);
+  EXPECT_EQ(input.received_compositor_frame_timestamp,
+            output.received_compositor_frame_timestamp);
+  EXPECT_EQ(input.embedded_frame_timestamp, output.embedded_frame_timestamp);
+  EXPECT_EQ(input.draw_start_timestamp, output.draw_start_timestamp);
+  EXPECT_EQ(input.swap_timings.swap_start, output.swap_timings.swap_start);
+  EXPECT_EQ(input.swap_timings.swap_end, output.swap_timings.swap_end);
+  EXPECT_EQ(input.presentation_feedback.timestamp,
+            output.presentation_feedback.timestamp);
+  EXPECT_EQ(input.frame_id, output.frame_id);
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_FLOAT_EQ(input.cobalt_root_damage_percentage,
+                  output.cobalt_root_damage_percentage);
+#endif
 }
 
 }  // namespace viz

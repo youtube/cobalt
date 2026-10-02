@@ -18,6 +18,7 @@
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/frame_timing_details_map.h"
 #include "components/viz/common/quads/compositor_frame.h"
@@ -177,6 +178,9 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   void OnSurfacePresented(uint32_t frame_token,
                           base::TimeTicks draw_start_timestamp,
                           const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+                          float cobalt_root_damage_percentage,
+#endif
                           const gfx::PresentationFeedback& feedback) override;
   bool IsVideoCaptureStarted() override;
   std::vector<Thread> GetThreads() override;
@@ -298,6 +302,9 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   void DidPresentCompositorFrame(uint32_t frame_token,
                                  base::TimeTicks draw_start_timestamp,
                                  const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+                                 float cobalt_root_damage_percentage,
+#endif
                                  const gfx::PresentationFeedback& feedback);
   void DidRejectCompositorFrame(
       uint32_t frame_token,

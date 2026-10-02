@@ -45,6 +45,13 @@ struct StructTraits<viz::mojom::FrameTimingDetailsDataView,
     return frame_timing_details.frame_id;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  static float cobalt_root_damage_percentage(
+      const viz::FrameTimingDetails& frame_timing_details) {
+    return frame_timing_details.cobalt_root_damage_percentage;
+  }
+#endif
+
   static bool Read(viz::mojom::FrameTimingDetailsDataView data,
                    viz::FrameTimingDetails* out);
 };

@@ -425,11 +425,17 @@ void CompositorFrameSinkSupport::OnSurfacePresented(
     uint32_t frame_token,
     base::TimeTicks draw_start_timestamp,
     const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+    float cobalt_root_damage_percentage,
+#endif
     const gfx::PresentationFeedback& feedback) {
   // If the frame was submitted locally (from inside viz), do not tell the
   // client about it, since the client did not send it.
   if (frame_token != kLocalFrameToken) {
     DidPresentCompositorFrame(frame_token, draw_start_timestamp, swap_timings,
+#if BUILDFLAG(IS_COBALT)
+                              cobalt_root_damage_percentage,
+#endif
                               feedback);
   }
 }
@@ -1022,6 +1028,9 @@ void CompositorFrameSinkSupport::DidPresentCompositorFrame(
     uint32_t frame_token,
     base::TimeTicks draw_start_timestamp,
     const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+    float cobalt_root_damage_percentage,
+#endif
     const gfx::PresentationFeedback& feedback) {
   CHECK_NE(frame_token, kInvalidFrameToken);
   CHECK_NE(frame_token, kLocalFrameToken);
@@ -1043,6 +1052,9 @@ void CompositorFrameSinkSupport::DidPresentCompositorFrame(
   details.swap_timings = swap_timings;
   details.presentation_feedback = feedback;
   details.frame_id = received_frame_timestamp->second->frame_id();
+#if BUILDFLAG(IS_COBALT)
+  details.cobalt_root_damage_percentage = cobalt_root_damage_percentage;
+#endif
   AdjustPresentationFeedback(&details.presentation_feedback,
                              swap_timings.swap_start);
   // Override with the throttled interval if one has been set. Otherwise,
@@ -1082,6 +1094,9 @@ void CompositorFrameSinkSupport::DidRejectCompositorFrame(
   ReturnResources(std::move(resources));
   DidReceiveCompositorFrameAck();
   DidPresentCompositorFrame(frame_token, base::TimeTicks(), gfx::SwapTimings(),
+#if BUILDFLAG(IS_COBALT)
+                            -1.0f,
+#endif
                             gfx::PresentationFeedback::Failure());
 }
 

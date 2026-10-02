@@ -10,6 +10,7 @@
 #include "components/viz/service/surfaces/surface_client.h"
 
 #include "base/memory/weak_ptr.h"
+#include "build/build_config.h"
 
 namespace viz {
 
@@ -41,6 +42,9 @@ class StubSurfaceClient : public SurfaceClient {
   void OnSurfacePresented(uint32_t frame_token,
                           base::TimeTicks draw_start_timestamp,
                           const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+                          float cobalt_root_damage_percentage,
+#endif
                           const gfx::PresentationFeedback& feedback) override {}
   bool IsVideoCaptureStarted() override;
   std::vector<Thread> GetThreads() override;

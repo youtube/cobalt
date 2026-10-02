@@ -21,6 +21,7 @@
 #include "base/containers/flat_set.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/checked_math.h"
 #include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -258,6 +259,9 @@ void Display::PresentationGroupTiming::OnPresent(
     const gfx::PresentationFeedback& feedback) {
   for (auto& presentation_helper : presentation_helpers_) {
     presentation_helper->DidPresent(draw_start_timestamp_, swap_timings_,
+#if BUILDFLAG(IS_COBALT)
+                                    cobalt_root_damage_percentage_,
+#endif
                                     feedback);
   }
 }
@@ -1096,6 +1100,24 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
   if (should_swap) {
     PresentationGroupTiming& presentation_group_timing =
         pending_presentation_group_timings_.emplace_back();
+
+#if BUILDFLAG(IS_COBALT)
+    base::CheckedNumeric<int64_t> viewport_area =
+        last_render_pass.output_rect.size().GetCheckedArea();
+    base::CheckedNumeric<int64_t> damage_area =
+        last_render_pass.damage_rect.size().GetCheckedArea();
+    float damage_percentage = 0.0f;
+    int64_t viewport_val = 0;
+    int64_t damage_val = 0;
+    if (viewport_area.AssignIfValid(&viewport_val) &&
+        damage_area.AssignIfValid(&damage_val) && viewport_val > 0) {
+      damage_percentage = static_cast<float>(
+          (static_cast<double>(damage_val) * 100.0) /
+          static_cast<double>(viewport_val));
+    }
+    presentation_group_timing.set_cobalt_root_damage_percentage(
+        damage_percentage);
+#endif
 
     const auto& main_surfaces =
         surface_manager_->GetSurfacesReferencedByParent(current_surface_id_);

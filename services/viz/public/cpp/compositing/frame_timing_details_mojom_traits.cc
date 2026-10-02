@@ -15,6 +15,9 @@ using Traits = StructTraits<viz::mojom::FrameTimingDetailsDataView,
 // static
 bool Traits::Read(viz::mojom::FrameTimingDetailsDataView data,
                   viz::FrameTimingDetails* out) {
+#if BUILDFLAG(IS_COBALT)
+  out->cobalt_root_damage_percentage = data.cobalt_root_damage_percentage();
+#endif
   return data.ReadReceivedCompositorFrameTimestamp(
              &out->received_compositor_frame_timestamp) &&
          data.ReadEmbeddedFrameTimestamp(&out->embedded_frame_timestamp) &&

@@ -62,6 +62,9 @@ mojom("mojom") {
   } else {
     enabled_features += [ "thread_id_is_32_bit" ]
   }
+  if (is_cobalt) {
+    enabled_features += [ "is_cobalt" ]
+  }
 
   public_deps = [
     ":shared_image_format",

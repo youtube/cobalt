@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "build/build_config.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/tick_clock.h"
@@ -68,16 +69,26 @@ Surface::PresentationHelper::~PresentationHelper() {
   // should have called present on this helper. If not, give a Failure feedback
   // to the appropriate surface client.
   DidPresent(base::TimeTicks(), gfx::SwapTimings(),
+#if BUILDFLAG(IS_COBALT)
+             -1.0f,
+#endif
              gfx::PresentationFeedback::Failure());
 }
 
 void Surface::PresentationHelper::DidPresent(
     base::TimeTicks draw_start_timestamp,
     const gfx::SwapTimings& swap_timings,
+#if BUILDFLAG(IS_COBALT)
+    float cobalt_root_damage_percentage,
+#endif
     const gfx::PresentationFeedback& feedback) {
   if (surface_client_) {
     surface_client_->OnSurfacePresented(frame_token_, draw_start_timestamp,
-                                        swap_timings, feedback);
+                                        swap_timings,
+#if BUILDFLAG(IS_COBALT)
+                                        cobalt_root_damage_percentage,
+#endif
+                                        feedback);
   }
 
   surface_client_ = nullptr;
@@ -850,6 +861,9 @@ void Surface::UnrefFrameResourcesAndRunCallbacks(
   if (!frame_data->will_be_notified_of_presentation && surface_client_) {
     surface_client_->OnSurfacePresented(frame_data->frame.metadata.frame_token,
                                         base::TimeTicks(), gfx::SwapTimings(),
+#if BUILDFLAG(IS_COBALT)
+                                        -1.0f,
+#endif
                                         gfx::PresentationFeedback::Failure());
   }
 
