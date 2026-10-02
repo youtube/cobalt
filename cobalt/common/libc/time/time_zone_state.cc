@@ -349,6 +349,15 @@ char TimeZoneState::std_name_buffer_[TZNAME_MAX + 1];
 char TimeZoneState::dst_name_buffer_[TZNAME_MAX + 1];
 
 TimeZoneState::TimeZoneState() {
+  // Set the ICU default timezone so EnsureTimeZoneIsCreated() doesn't need ICU
+  // to detect it. ICU looks for /etc/localtime, and where it is missing, as on
+  // Android, it calls localtime_r(), which deadlocks waiting for this object
+  // to be constructed. This default is temporary: EnsureTimeZoneIsCreated()
+  // replaces it with the timezone from TZ.
+  const char* platform_timezone_name = SbTimeZoneGetName();
+  icu::TimeZone::adoptDefault(
+      icu::TimeZone::createTimeZone(icu::UnicodeString::fromUTF8(
+          platform_timezone_name ? platform_timezone_name : "")));
   EnsureTimeZoneIsCreated();
 }
 
