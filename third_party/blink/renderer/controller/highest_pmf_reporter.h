@@ -7,12 +7,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/controller/controller_export.h"
 #include "third_party/blink/renderer/controller/memory_usage_monitor.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
+
 #if BUILDFLAG(IS_COBALT)
 #include "base/cancelable_callback.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
