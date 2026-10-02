@@ -16,6 +16,7 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
+#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -120,6 +121,11 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-decommit-pooled-pages "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
+      // Default to a single tile texture clamped strictly to the visible
+      // viewport per PictureLayerImpl (override with
+      // --cobalt-tiling-mode=single, --cobalt-tiling-mode=raw-draw, or
+      // --cobalt-tiling-mode=tiled).
+      {::switches::kCobaltTilingMode, "single-visible"},
   };
   return kCobaltSwitchDefaults;
 }
