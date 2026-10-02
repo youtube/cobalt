@@ -19,8 +19,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_frame_metrics.h"
+#endif
 #include "cc/base/math_util.h"
 #include "cc/paint/filter_operations.h"
 #include "components/viz/common/color_space_utils.h"
@@ -242,6 +244,19 @@ void DirectRenderer::DrawFrame(
   current_frame()->root_damage_rect.Intersect(gfx::Rect(device_viewport_size));
   current_frame()->device_viewport_size = device_viewport_size;
   current_frame()->display_color_spaces = display_color_spaces;
+
+#if BUILDFLAG(IS_COBALT)
+  base::CheckedNumeric<int64_t> display_area =
+      device_viewport_size.GetCheckedArea();
+  base::CheckedNumeric<int64_t> root_damage_area =
+      current_frame()->root_damage_rect.size().GetCheckedArea();
+  if (display_area.IsValid() && root_damage_area.IsValid() &&
+      display_area.ValueOrDie() > 0) {
+    int64_t percentage =
+        ((root_damage_area * 100ll) / display_area).ValueOrDie();
+    base::cobalt::SetLastPaintDamagePercentage(static_cast<double>(percentage));
+  }
+#endif
 
   output_surface_->SetNeedsMeasureNextDrawLatency();
   BeginDrawingFrame();
