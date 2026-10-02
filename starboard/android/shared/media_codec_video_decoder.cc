@@ -528,6 +528,17 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
+  if (awaiting_first_input_after_reset_) {
+    if (input_buffer_written_ > 0 &&
+        NeedsCodecTransition(input_buffers.front())) {
+      SB_LOG(INFO) << "Video color metadata changed at "
+                   << input_buffers.front()->timestamp()
+                   << " after a reset; rebuilding the codec.";
+      ResetInternal(/*skip_flush=*/true);
+    }
+    awaiting_first_input_after_reset_ = false;
+  }
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -1247,11 +1258,23 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
+  awaiting_first_input_after_reset_ = true;
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+bool MediaCodecVideoDecoder::NeedsCodecTransition(
+    const scoped_refptr<InputBuffer>& input_buffer) const {
+  if (!media_decoder_) {
+    return false;
+  }
+  const bool stream_is_hdr =
+      !IsIdentity(input_buffer->video_stream_info().color_metadata);
+  const bool codec_is_hdr = color_metadata_.has_value();
+  return stream_is_hdr != codec_is_hdr;
 }
 
 }  // namespace starboard
