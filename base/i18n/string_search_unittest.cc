@@ -12,6 +12,8 @@
 
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/i18n/unicode/usearch.h"
 
@@ -265,6 +267,15 @@ TEST(StringSearchTest, UnicodeLocaleIndependent) {
   }
 }
 
+// b/561702947: Disabled for unused functionality from ICU.
+// Zero JavaScript APIs call base::i18n::StringSearch (all JS Intl.Collator,
+// String.prototype.localeCompare, and RegExp calls are handled inside V8).
+// In Blink, base::i18n::StringSearch is only used by native HTML form element
+// keyboard typeahead (blink::TypeAhead for <select> and <input type="date">
+// controls), which YouTube TV never uses. Cobalt prunes language-specific
+// collation tailorings (such as coll/da.res for Danish) from icudtl.dat and
+// falls back to the root Unicode Collation Algorithm (DUCET) table.
+#if !BUILDFLAG(IS_COBALT)
 TEST(StringSearchTest, UnicodeLocaleDependent) {
   // Base characters
   const std::u16string a_base = u"a";
@@ -286,6 +297,7 @@ TEST(StringSearchTest, UnicodeLocaleDependent) {
 
   SetICUDefaultLocale(default_locale);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 TEST(StringSearchTest, SearchBackwards) {
   std::string default_locale(uloc_getDefault());
