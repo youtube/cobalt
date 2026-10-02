@@ -1,0 +1,88 @@
+name: Publish Golden Workspace
+description: Packages and publishes the golden workspace archive to Google Cloud Storage.
+
+inputs:
+  platform:
+    description: Platform name for the platform-specific archive.
+    required: false
+    default: ''
+  workspace_path:
+    description: Path to the workspace directory (e.g. cobalt).
+    required: false
+    default: 'cobalt'
+  use_gcloud:
+    description: Whether to set gcloud account from metadata server.
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Publish Golden Workspace to GCS
+      shell: bash
+      env:
+        PLATFORM_INPUT: ${{ inputs.platform }}
+        INPUT_WORKSPACE_PATH: ${{ inputs.workspace_path }}
+        USE_GCLOUD: ${{ inputs.use_gcloud }}
+      run: |
+        set -euo pipefail
+
+        if [ "${USE_GCLOUD}" = "true" ]; then
+          SERVICE_ACCOUNT=$(curl -s -f -m 2 -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || true)
+          if [ -n "${SERVICE_ACCOUNT}" ]; then
+            gcloud config set account "${SERVICE_ACCOUNT}" 2>/dev/null || true
+          fi
+        fi
+
+        PROJECT_NAME=$(gcloud config get-value project 2>/dev/null || true)
+        if [ -z "${PROJECT_NAME}" ] || [ "${PROJECT_NAME}" = "(unset)" ]; then
+          PROJECT_NAME=$(curl -s -f --retry 3 --retry-delay 2 --retry-connrefused \
+            -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/project/project-id" 2>/dev/null || true)
+        fi
+
+        if [ -z "${PROJECT_NAME}" ]; then
+          echo "GCP project could not be determined. Skipping golden workspace publish."
+          exit 0
+        fi
+
+        if [[ "${INPUT_WORKSPACE_PATH}" = /* ]]; then
+          TARGET_DIR="${INPUT_WORKSPACE_PATH}"
+        else
+          TARGET_DIR="${GITHUB_WORKSPACE}/${INPUT_WORKSPACE_PATH}"
+        fi
+
+        if [ ! -d "${TARGET_DIR}/src" ] || [ ! -d "${TARGET_DIR}/depot_tools" ]; then
+          echo "Workspace directory ${TARGET_DIR} is missing src or depot_tools. Skipping publish."
+          exit 0
+        fi
+
+        PLATFORM="${PLATFORM_INPUT:-linux}"
+        ARCHIVE_DIR="gs://${PROJECT_NAME}-test-artifacts/golden-workspace"
+        PLATFORM_ARCHIVE="${ARCHIVE_DIR}/${PLATFORM}/golden-workspace-latest.tar.zst"
+        LATEST_ARCHIVE="${ARCHIVE_DIR}/golden-workspace-latest.tar.zst"
+        STAGING_ARCHIVE="${ARCHIVE_DIR}/${PLATFORM}/golden-workspace-staging-${GITHUB_RUN_ID:-$$}.tar.zst"
+
+        echo "Updating golden revision metadata in ${TARGET_DIR}..."
+        git -C "${TARGET_DIR}/src" rev-parse HEAD > "${TARGET_DIR}/.golden_revision" 2>/dev/null || true
+
+        echo "Packaging and uploading golden workspace stream to ${STAGING_ARCHIVE}..."
+        if tar --exclude='.runner_cache_ready' --exclude='./.runner_cache_ready' \
+               --exclude='out' --exclude='./src/out' \
+               --warning=no-file-changed \
+               --use-compress-program="zstd -T0 -3" -cf - -C "${TARGET_DIR}" . \
+             | gcloud storage cp - "${STAGING_ARCHIVE}"; then
+          echo "Atomically moving staging snapshot to ${PLATFORM_ARCHIVE}..."
+          gcloud storage cp "${STAGING_ARCHIVE}" "${PLATFORM_ARCHIVE}"
+          gcloud storage rm "${STAGING_ARCHIVE}" 2>/dev/null || true
+
+          if [[ "${PLATFORM}" == "linux"* ]] || [[ "${PLATFORM}" == "chromium_linux"* ]]; then
+            echo "Updating canonical fallback snapshot at ${LATEST_ARCHIVE}..."
+            gcloud storage cp "${PLATFORM_ARCHIVE}" "${LATEST_ARCHIVE}" || true
+          fi
+          echo "Golden workspace snapshot published successfully."
+        else
+          echo "Failed to stream or upload golden workspace archive."
+          gcloud storage rm "${STAGING_ARCHIVE}" 2>/dev/null || true
+        fi

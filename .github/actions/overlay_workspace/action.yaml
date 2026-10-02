@@ -1,135 +1,71 @@
-name: OverlayFS Workspace Checkout
-description: Uses an OverlayFS mount of a golden workspace to provide zero-copy, instant checkouts.
+name: OverlayFS Workspace Layer
+description: Layers a pre-warmed golden workspace using fuse-overlayfs for zero-copy, instant checkouts.
 
 inputs:
   path:
     description: Destination path (e.g. cobalt).
     required: true
-  use_gcloud:
-    description: "Whether to run gcloud config set account."
-    default: 'false'
+  enabled:
+    description: "Whether golden workspace caching is enabled."
+    default: 'true'
 
 outputs:
   cache_hit:
-    description: "Whether the golden workspace cache was hit on the node SSD."
+    description: "Whether the pre-warmed golden workspace was applied."
     value: ${{ steps.prepare.outputs.cache_hit }}
 
 runs:
   using: "composite"
   steps:
-    - name: Authenticate with GoB
-      uses: ./.github/actions/gob_auth
-      with:
-        use_gcloud: ${{ inputs.use_gcloud }}
-
-    - name: Check OverlayFS Cache
+    - name: Layer OverlayFS Workspace
       id: prepare
       shell: bash
       env:
         INPUT_PATH: ${{ inputs.path }}
+        ENABLED: ${{ inputs.enabled }}
       run: |
-        # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
+        set -euo pipefail
+
         LOWER_DIR="/runner-cache/golden-workspace"
 
-        # UPPER_DIR (Read-Write): The temporary layer where all file changes, build artifacts, and PR-specific git objects are written.
-        UPPER_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/upper"
-
-        # WORK_DIR: Required by OverlayFS for atomic file operations. Must be on the same filesystem as UPPER_DIR.
-        WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
-
-        # MERGED_DIR: The directory the CI job actually sees and works in. It seamlessly combines LOWER_DIR and UPPER_DIR.
-        MERGED_DIR="${GITHUB_WORKSPACE}/${INPUT_PATH}"
-
-        # Failsafe cleanup: Unmount and delete any orphaned workspaces from cancelled jobs
-        # Since this node only runs one pod at a time, we can safely wipe all workspaces.
-        echo "Cleaning up any orphaned overlay workspaces..."
-        fusermount3 -u "${MERGED_DIR}" || fusermount -u "${MERGED_DIR}" || umount "${MERGED_DIR}" || true
-        rm -rf /runner-cache/workspaces/*
-
-        # Ensure the directories exist
-        mkdir -p "${UPPER_DIR}" "${WORK_DIR}" "${MERGED_DIR}"
-
-        # If the golden workspace does not exist or is corrupted (missing .runner_cache_ready), initialize it.
-        # This will only happen once per node!
-        if [ ! -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+        # If caching is disabled or the node cache is not yet ready, exit cleanly without error
+        if [ "${ENABLED}" != "true" ] || [ ! -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+          echo "Golden workspace cache bypassed or not ready on node SSD."
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
-          echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
-
-          # Aggressively clean up any corrupted state from previous bad runs
-          rm -rf "${LOWER_DIR}"
-          mkdir -p "${LOWER_DIR}"
-        else
-          echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
+          exit 0
         fi
 
-    - name: Clone Cobalt into Golden Workspace
-      if: steps.prepare.outputs.cache_hit == 'false'
-      uses: ./.github/actions/checkout
-      with:
-        repository: ${{ github.server_url }}/${{ github.repository }}.git
-        ref: main
-        fetch_depth: 0
-        path: /runner-cache/golden-workspace/src
-
-    - name: Clone Depot Tools into Golden Workspace
-      if: steps.prepare.outputs.cache_hit == 'false'
-      uses: ./.github/actions/checkout
-      with:
-        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-        # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
-        # `--end-of-options` to `git checkout`. Need to update git on runners.
-        ref: 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
-        fetch_depth: 0
-        path: /runner-cache/golden-workspace/depot_tools
-
-    - name: Sync Golden Workspace
-      if: steps.prepare.outputs.cache_hit == 'false'
-      shell: bash
-      working-directory: /runner-cache/golden-workspace
-      env:
-        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-      run: |
-        echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
-        export PATH="/runner-cache/golden-workspace/depot_tools:${PATH}"
-
-        gclient config \
-          --name=src \
-          --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "${REPO_URL}"
-        echo "target_os=['android', 'linux']" >> .gclient
-        echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
-        gclient sync -D --no-history
-
-        # Create marker file to indicate the cache is fully populated and valid
-        touch /runner-cache/golden-workspace/.runner_cache_ready
-
-    - name: Mount OverlayFS Workspace
-      shell: bash
-      env:
-        INPUT_PATH: ${{ inputs.path }}
-        IS_CACHE_HOT: ${{ steps.prepare.outputs.cache_hit }}
-      run: |
-        LOWER_DIR="/runner-cache/golden-workspace"
-        UPPER_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/upper"
-        WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
+        # Scope upper and work directories uniquely to this runner job
+        SESSION_ID="${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${RUNNER_NAME:-runner}"
+        UPPER_DIR="/runner-cache/workspaces/${SESSION_ID}/upper"
+        WORK_DIR="/runner-cache/workspaces/${SESSION_ID}/work"
         MERGED_DIR="${GITHUB_WORKSPACE}/${INPUT_PATH}"
 
-        echo "Logging workspace cache status to Cloud Logging..."
+        # Clean up any stale mount on this specific destination
+        fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
+
+        # Reclaim space from finished or cancelled jobs on this dedicated runner node
+        rm -rf /runner-cache/workspaces/*
+
+        mkdir -p "${UPPER_DIR}" "${WORK_DIR}" "${MERGED_DIR}"
+
+        echo "Logging workspace cache hit to Cloud Logging..."
         LOG_PAYLOAD=$(jq -n \
           --arg workflow "${GITHUB_WORKFLOW}" \
           --arg job "${GITHUB_JOB}" \
-          --arg runner "${RUNNER_NAME}" \
+          --arg runner "${RUNNER_NAME:-runner}" \
           --arg run_id "${GITHUB_RUN_ID}" \
           --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-          --argjson cache_hit "${IS_CACHE_HOT}" \
+          --argjson cache_hit true \
           '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
+        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json 2>/dev/null || true
 
-        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json || true
-
-        echo "Mounting OverlayFS..."
-        # Depending on your runner's privilege, use sudo mount or fuse-overlayfs
+        echo "Mounting OverlayFS (${LOWER_DIR}) to ${MERGED_DIR}..."
         fuse-overlayfs -o lowerdir="${LOWER_DIR}",upperdir="${UPPER_DIR}",workdir="${WORK_DIR}" "${MERGED_DIR}"
 
-        # Avoid git ownership errors inside the container
         git config --global --add safe.directory "${MERGED_DIR}"
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
+        echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
+        echo "OVERLAY_LOWER_DIR=${LOWER_DIR}" >> "${GITHUB_ENV}"
+        echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
