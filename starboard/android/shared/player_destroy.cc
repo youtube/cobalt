@@ -16,12 +16,21 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include <jni.h>
+
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/starboard/player/player_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
     return;
   }
+
+  // This has to be done before |player| is deleted, as a new player may be
+  // allocated at the same address afterwards, and must not be affected.
+  starboard::StarboardBridge::GetInstance()->RemoveActivePlayer(
+      jni_zero::AttachCurrentThread(), reinterpret_cast<jlong>(player));
 
   delete player;
 }
