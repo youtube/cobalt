@@ -94,4 +94,10 @@ runs:
             sleep $((attempt * 2))
           done
         fi
-        git -C "${DEST_PATH}" checkout -f "${REF}"
+        CURRENT_HEAD=$(git -C "${DEST_PATH}" rev-parse HEAD 2>/dev/null || echo "")
+        if [ -n "${CURRENT_HEAD}" ] && [ "${CURRENT_HEAD}" = "${REF}" ]; then
+          echo "Workspace HEAD is already at ${REF}. Skipping checkout."
+        elif ! git -C "${DEST_PATH}" checkout "${REF}" 2>/dev/null; then
+          echo "Delta checkout encountered conflicts; falling back to forced checkout."
+          git -C "${DEST_PATH}" checkout -f "${REF}"
+        fi

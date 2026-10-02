@@ -64,6 +64,9 @@ runs:
                 mv "${STAGING_DIR}" "${LOWER_DIR}"
                 touch "${LOWER_DIR}/.runner_cache_ready"
                 echo "Extracted golden workspace snapshot from ${archive}"
+                if [ -d "${LOWER_DIR}/src/.git" ]; then
+                  git -C "${LOWER_DIR}/src" update-index --refresh -q 2>/dev/null || true
+                fi
                 break
               fi
             done
