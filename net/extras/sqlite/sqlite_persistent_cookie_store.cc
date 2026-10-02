@@ -27,11 +27,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
-<<<<<<< HEAD
-#include "base/trace_event/trace_event.h"
-=======
 #include "base/timer/elapsed_timer.h"
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "base/trace_event/trace_event.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -1612,11 +1609,9 @@ void SQLitePersistentCookieStore::Backend::BackgroundDeleteAllInList(
 void SQLitePersistentCookieStore::Backend::FinishedLoadingCookies(
     LoadedCallback loaded_callback,
     bool success) {
-<<<<<<< HEAD
-  TRACE_EVENT("loading",
+TRACE_EVENT("loading",
               "SQLitePersistentCookieStore::Backend::FinishedLoadingCookies",
               perfetto::Flow::FromPointer(this));
-=======
 #if BUILDFLAG(IS_COBALT)
   if (load_timer_) {
     UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.LoadDuration",
@@ -1624,7 +1619,6 @@ void SQLitePersistentCookieStore::Backend::FinishedLoadingCookies(
     load_timer_.reset();
   }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   PostClientTask(FROM_HERE,
                  base::BindOnce(&Backend::NotifyLoadCompleteInForeground, this,
                                 std::move(loaded_callback), success));
