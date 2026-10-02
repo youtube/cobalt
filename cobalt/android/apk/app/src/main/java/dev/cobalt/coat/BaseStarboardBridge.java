@@ -75,6 +75,10 @@ public class BaseStarboardBridge {
     sInstance = bridge;
   }
 
+  public Context getApplicationContext() {
+    return mAppContext;
+  }
+
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
     void setStarboardBridge(BaseStarboardBridge starboardBridge);
@@ -1077,23 +1081,28 @@ public class BaseStarboardBridge {
   }
 
   @RequiresApi(Build.VERSION_CODES.R)
-  private static final class ApiHelperForR {
+  public static final class ApiHelperForR {
     private ApiHelperForR() {}
 
-    static boolean getWasLowMemoryKilled(ActivityManager am) {
+    public static @Nullable ApplicationExitInfo getLatestApplicationExitInfo(ActivityManager am) {
       try {
         // Query the latest process exit reason for this package (pid <= 0).
         List<ApplicationExitInfo> reasons =
             am.getHistoricalProcessExitReasons(
                 /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
         if (reasons == null || reasons.isEmpty() || reasons.get(0) == null) {
-          return false;
+          return null;
         }
-        return reasons.get(0).getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
+        return reasons.get(0);
       } catch (RuntimeException e) {
         Log.w(TAG, "Failed to get historical process exit reasons", e);
-        return false;
+        return null;
       }
+    }
+
+    public static boolean getWasLowMemoryKilled(ActivityManager am) {
+      ApplicationExitInfo info = getLatestApplicationExitInfo(am);
+      return info != null && info.getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
     }
   }
 
