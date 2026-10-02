@@ -6,6 +6,8 @@
 #define BASE_ANDROID_MEMORY_PRESSURE_LISTENER_ANDROID_H_
 
 #include "base/android/jni_android.h"
+#include "base/functional/callback.h"
+#include "base/memory/memory_pressure_listener.h"
 
 namespace base {
 namespace android {
@@ -19,8 +21,13 @@ class BASE_EXPORT MemoryPressureListenerAndroid {
   MemoryPressureListenerAndroid& operator=(
       const MemoryPressureListenerAndroid&) = delete;
 
-  // Called by JNI.
-  static void OnMemoryPressure(int memory_pressure_type);
+  using MemoryPressureForwarderCallback =
+      base::RepeatingCallback<void(base::MemoryPressureListener::MemoryPressureLevel)>;
+  static void SetMemoryPressureForwarderCallback(
+      MemoryPressureForwarderCallback callback);
+
+  static const MemoryPressureForwarderCallback&
+  GetForwarderCallbackForTesting();
 };
 
 }  // namespace android

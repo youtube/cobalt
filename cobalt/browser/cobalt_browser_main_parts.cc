@@ -47,9 +47,14 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/memory/android_os_signal_evaluator.h"
+#endif
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -288,6 +293,8 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 
 }  // namespace
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
     base::FilePath base_dir;
@@ -433,6 +440,22 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
 
   MaybeApplyMemoryAblation();
+
+#if BUILDFLAG(IS_ANDROID)
+  if (auto* base_monitor = base::MemoryPressureMonitor::Get()) {
+    auto* multi_source_monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base_monitor);
+    android_os_signal_evaluator_ =
+        std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+            multi_source_monitor->CreateVoter());
+    LOG(INFO) << "[CobaltMemoryPressure] CobaltBrowserMainParts attached "
+                 "AndroidOsSignalEvaluator to MultiSourceMemoryPressureMonitor";
+  } else {
+    LOG(WARNING) << "[CobaltMemoryPressure] CobaltBrowserMainParts: "
+                    "base::MemoryPressureMonitor::Get() returned null!";
+  }
+#endif
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();

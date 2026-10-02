@@ -259,11 +259,16 @@ public class MemoryPressureMonitor {
             return mThrottlingIntervalMs;
         }
         int cooldownSeconds = MemoryPressureListener.getMemoryPressureCooldownSeconds();
-        return cooldownSeconds > 0 ? cooldownSeconds * 1000 : DEFAULT_THROTTLING_INTERVAL_MS;
+        return cooldownSeconds >= 0 ? cooldownSeconds * 1000 : DEFAULT_THROTTLING_INTERVAL_MS;
     }
 
     private void startThrottlingInterval() {
-        ThreadUtils.postOnUiThreadDelayed(mThrottlingIntervalTask, getThrottlingIntervalMs());
+        int intervalMs = getThrottlingIntervalMs();
+        if (intervalMs <= 0) {
+            mIsInsideThrottlingInterval = false;
+            return;
+        }
+        ThreadUtils.postOnUiThreadDelayed(mThrottlingIntervalTask, intervalMs);
         mIsInsideThrottlingInterval = true;
     }
 
