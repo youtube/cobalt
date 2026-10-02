@@ -40,7 +40,6 @@
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #include <atomic>
 
-#include "base/containers/contains.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/synchronization/lock.h"
