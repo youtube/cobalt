@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "base/base64.h"
-#include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/metrics/histogram_macros.h"
@@ -222,7 +221,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // the resource map.
     const bool supports_splash_caching =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
-        base::Contains(resource_map, key);
+        resource_map.contains(key);
 
     // For png/webm, override resource_key with "fallback" query param.
     // If requested key is not found in cache, loader returns the fallback
