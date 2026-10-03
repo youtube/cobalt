@@ -15,12 +15,49 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
+#include "media/starboard/starboard_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
 
 namespace content {
+
+namespace {
+
+class FakeStarboardRendererBarrier {
+ public:
+  FakeStarboardRendererBarrier() {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting(
+        base::BindRepeating(&FakeStarboardRendererBarrier::OnSuspend,
+                            base::Unretained(this)),
+        base::BindRepeating(&FakeStarboardRendererBarrier::OnResume,
+                            base::Unretained(this)));
+  }
+
+  ~FakeStarboardRendererBarrier() {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting({}, {});
+  }
+
+  void OnSuspend(base::OnceClosure done_cb) {
+    suspend_called_ = true;
+    pending_callback_ = std::move(done_cb);
+  }
+
+  void OnResume() { resume_called_ = true; }
+
+  bool suspend_called() const { return suspend_called_; }
+  bool resume_called() const { return resume_called_; }
+
+  void CompleteSuspend() { std::move(pending_callback_).Run(); }
+
+ private:
+  bool suspend_called_ = false;
+  bool resume_called_ = false;
+  base::OnceClosure pending_callback_;
+};
+
+}  // namespace
 
 class LifecycleTest : public ShellTestBase {
  public:
@@ -52,6 +89,7 @@ class LifecycleTest : public ShellTestBase {
   }
 
   void TearDown() override {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting({}, {});
     if (shell_) {
       EXPECT_CALL(*platform_, DestroyShell(shell_));
       EXPECT_CALL(*platform_, CleanUp(shell_));
@@ -193,6 +231,77 @@ TEST_F(LifecycleTest, BlurFocus) {
   // Trigger focus.
   EXPECT_CALL(*platform_, OnFocus());
   Shell::OnFocus();
+}
+
+TEST_F(LifecycleTest, ConcealSequencesConcealShellBeforeOnConcealCompleted) {
+  CreateTestShell(true /* is_visible */);
+
+  class MockLifecycleObserver : public cobalt::CobaltLifecycleManagerObserver {
+   public:
+    MOCK_METHOD(void,
+                OnAllFramesVisible,
+                (content::WebContents * web_contents),
+                (override));
+    MOCK_METHOD(void,
+                OnConcealCompleted,
+                (content::WebContents * web_contents),
+                (override));
+  };
+
+  testing::StrictMock<MockLifecycleObserver> observer;
+  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(&observer);
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(0);
+  Shell::OnConceal();
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  testing::InSequence seq;
+  EXPECT_CALL(*platform_, ConcealShell(shell_));
+  EXPECT_CALL(observer, OnConcealCompleted(shell_->web_contents()));
+
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  base::RunLoop().RunUntilIdle();
+
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(&observer);
+}
+
+TEST_F(LifecycleTest, ConcealWaitsForMediaServiceBarrierBeforeConcealShell) {
+  CreateTestShell(true /* is_visible */);
+
+  FakeStarboardRendererBarrier fake_barrier;
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+
+  // Before the StarboardRenderer barrier replies, ConcealShell must not be
+  // called.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(0);
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.suspend_called());
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Once the StarboardRenderer barrier replies, ConcealShell runs.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  fake_barrier.CompleteSuspend();
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(platform_->IsVisible());
+
+  // OnReveal clears the StarboardRenderer concealed state.
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.resume_called());
 }
 
 }  // namespace content
