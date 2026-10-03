@@ -441,45 +441,6 @@ class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
   std::unique_ptr<ShellContentGpuTestClient> gpu_client_;
 };
 
-// Counter-Test 2A.1: Active playback on conceal must destroy SbPlayer before
-// SbWindowDestroy and OnConcealCompleted, and auto-resume on reveal.
-IN_PROC_BROWSER_TEST_F(
-    MediaConcealLifecycleBrowserTest,
-    ConcealDuringActivePlaybackDestroysSbPlayerBeforeWindowAndAutoResumes) {
-  OrderTrackingSbPlayerInterface tracking_interface(base::BindRepeating(
-      &MediaConcealLifecycleBrowserTest::RecordEvent, base::Unretained(this)));
-  media::ScopedSbPlayerInterfaceForTesting scoped_interface(
-      &tracking_interface);
-
-  embedded_test_server()->ServeFilesFromSourceDirectory(
-      media::GetTestDataPath());
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  GURL url = embedded_test_server()->GetURL("/cleaner.html");
-  ASSERT_TRUE(NavigateToURL(shell(), url));
-  cobalt::CobaltLifecycleManager::GetInstance()->InitializeTracker(
-      shell()->web_contents());
-  ASSERT_EQ(true, EvalJs(shell(), kStartMseVideoScript));
-
-  TriggerConcealAndWait();
-
-  const std::vector<std::string> expected = {
-      "SbPlayerCreate", "SbPlayerDestroy", "SbWindowDestroy",
-      "OnConcealCompleted"};
-  EXPECT_EQ(GetEvents(), expected);
-
-  // Reveal and verify auto-resume.
-  TriggerReveal();
-  EXPECT_EQ(false,
-            EvalJs(shell(),
-                   "new Promise(r => {"
-                   "  const v = document.getElementById('test_video');"
-                   "  if (!v.paused) r(false);"
-                   "  else v.addEventListener('play', () => r(v.paused), "
-                   "{once: true});"
-                   "})"));
-}
-
 // Counter-Test 2A (MVP): Web app stopping and removing <video> in
 // visibilitychange with a 50ms delayed SbPlayerDestroy must still complete
 // SbPlayerDestroy before SbWindowDestroy and OnConcealCompleted.

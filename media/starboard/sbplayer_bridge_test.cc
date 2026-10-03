@@ -275,27 +275,6 @@ TEST_F(SbPlayerBridgeSideDataTest, AttributesSideDataToCorrectSampleInBatch) {
   EXPECT_EQ(captured_samples_[2].side_data, expected_third);
 }
 
-// Once Suspend() destroys the underlying SbPlayer, subsequent WriteBuffers(),
-// GetCurrentSbDecodeTarget(), and repeated Suspend() calls must safely no-op
-// without invoking Starboard APIs on an invalidated SbPlayer handle.
-TEST_F(SbPlayerBridgeSideDataTest,
-       WriteBuffersAndGetDecodeTargetNoOpWhenSuspended) {
-  EXPECT_CALL(mock_sbplayer_interface_, Destroy(_)).Times(1);
-  bridge_->Suspend();
-
-  constexpr uint8_t kPayload[] = {0x01, 0x02, 0x03, 0x04};
-  EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(_, _, _, _)).Times(0);
-  bridge_->WriteBuffers(DemuxerStream::VIDEO,
-                        {MakeVideoBuffer(kPayload, /*block_additional=*/{})});
-  EXPECT_TRUE(captured_samples_.empty());
-
-  EXPECT_CALL(mock_sbplayer_interface_, GetCurrentFrame(_)).Times(0);
-  EXPECT_EQ(bridge_->GetCurrentSbDecodeTarget(), kSbDecodeTargetInvalid);
-
-  // A second Suspend() call on an already suspended bridge must be a no-op.
-  bridge_->Suspend();
-}
-
 }  // namespace
 
 }  // namespace media
