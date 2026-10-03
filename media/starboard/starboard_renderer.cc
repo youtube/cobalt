@@ -24,7 +24,6 @@
 #include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -50,6 +49,24 @@ namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
+
+// Tracks active StarboardRenderer instances and the StarboardRenderer sequence
+// so FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
+// thread during kSbEventTypeConceal.
+struct StarboardRendererConcealRegistry {
+  base::Lock lock;
+  base::flat_set<StarboardRenderer*> active_renderers GUARDED_BY(lock);
+  scoped_refptr<base::SequencedTaskRunner> renderer_task_runner
+      GUARDED_BY(lock);
+  base::RepeatingCallback<void(base::OnceClosure)> suspend_hook_for_testing
+      GUARDED_BY(lock);
+  base::RepeatingClosure resume_hook_for_testing GUARDED_BY(lock);
+};
+
+StarboardRendererConcealRegistry& GetConcealRegistry() {
+  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
+  return *registry;
+}
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -130,32 +147,6 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
-
-// Process-wide registry of active StarboardRenderer instances and conceal
-// state, protected by a lock so the browser UI thread can coordinate the
-// conceal barrier directly with the StarboardRenderer sequence.
-struct StarboardRendererConcealRegistry {
-  base::Lock lock;
-  base::flat_set<StarboardRenderer*> active_renderers GUARDED_BY(lock);
-  scoped_refptr<base::SequencedTaskRunner> renderer_task_runner
-      GUARDED_BY(lock);
-  bool is_concealed GUARDED_BY(lock) = false;
-  base::RepeatingCallback<void(base::OnceClosure)> suspend_hook_for_testing
-      GUARDED_BY(lock);
-  base::RepeatingClosure resume_hook_for_testing GUARDED_BY(lock);
-};
-
-StarboardRendererConcealRegistry& GetConcealRegistry() {
-  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
-  return *registry;
-}
-
-bool IsApplicationConcealed() {
-  auto& registry = GetConcealRegistry();
-  base::AutoLock auto_lock(registry.lock);
-  return registry.is_concealed;
-}
-
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -260,14 +251,6 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
-
-  // If the application is concealed, abort initialization immediately so
-  // SbPlayerCreate is not invoked on a destroyed native window.
-  if (IsApplicationConcealed()) {
-    state_ = STATE_ERROR;
-    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
-    return;
-  }
 
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
@@ -778,15 +761,6 @@ void StarboardRenderer::UpdateAudioWriteDuration() {
 
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  // If concealed while waiting for an asynchronous window handle or overlay,
-  // abort before constructing SbPlayerBridge on a destroyed native window.
-  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
-    state_ = STATE_ERROR;
-    if (init_cb_) {
-      std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
-    }
-    return;
-  }
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -1001,14 +975,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  if (state_ == STATE_ERROR || !player_bridge_) {
-    if (stream == audio_stream_) {
-      audio_read_in_progress_ = false;
-    } else if (stream == video_stream_) {
-      video_read_in_progress_ = false;
-    }
-    return;
-  }
+  DCHECK(player_bridge_);
 
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
@@ -1279,7 +1246,7 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
   // pointer dereference in `MojoRenderer::OnError()`.
   if (init_cb_) {
     std::move(init_cb_).Run(status);
-  } else if (client_) {
+  } else {
     client_->OnError(status);
   }
 }
@@ -1292,7 +1259,6 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
   {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
-    registry.is_concealed = true;
     hook = registry.suspend_hook_for_testing;
     target_task_runner = registry.renderer_task_runner;
   }
@@ -1318,34 +1284,9 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
   }
 
   // Post to the tail of the StarboardRenderer sequence so any queued
-  // MojoRendererService disconnect tasks execute first, then fallback-suspend
-  // any remaining StarboardRenderer instances before replying to the conceal
-  // barrier.
-  target_task_runner->PostTask(
-      FROM_HERE, base::BindOnce(
-                     [](base::OnceClosure cb) {
-                       std::vector<StarboardRenderer*> renderers;
-                       {
-                         auto& registry = GetConcealRegistry();
-                         base::AutoLock auto_lock(registry.lock);
-                         renderers.assign(registry.active_renderers.begin(),
-                                          registry.active_renderers.end());
-                       }
-                       for (StarboardRenderer* renderer : renderers) {
-                         bool still_active = false;
-                         {
-                           auto& registry = GetConcealRegistry();
-                           base::AutoLock auto_lock(registry.lock);
-                           still_active =
-                               registry.active_renderers.contains(renderer);
-                         }
-                         if (still_active) {
-                           renderer->OnConcealFallbackSuspend();
-                         }
-                       }
-                       std::move(cb).Run();
-                     },
-                     std::move(reply_cb)));
+  // MojoRendererService disconnect tasks execute first before replying to the
+  // conceal barrier.
+  target_task_runner->PostTask(FROM_HERE, std::move(reply_cb));
 }
 
 // static
@@ -1354,7 +1295,6 @@ void StarboardRenderer::ResumeActiveRenderers() {
   {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
-    registry.is_concealed = false;
     hook = registry.resume_hook_for_testing;
   }
   if (hook) {
@@ -1370,18 +1310,6 @@ void StarboardRenderer::SetSuspendCallbacksForTesting(
   base::AutoLock auto_lock(registry.lock);
   registry.suspend_hook_for_testing = std::move(suspend_cb);
   registry.resume_hook_for_testing = std::move(resume_cb);
-}
-
-void StarboardRenderer::OnConcealFallbackSuspend() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (player_bridge_) {
-    player_bridge_->Suspend();
-  }
-  if (state_ == STATE_ERROR) {
-    return;
-  }
-  state_ = STATE_ERROR;
-  NotifyError(PIPELINE_ERROR_ABORT);
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
