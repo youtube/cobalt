@@ -14,7 +14,7 @@ inputs:
 
 outputs:
   cache_hit:
-    description: "Whether the golden workspace cache was applied on the node SSD."
+    description: "Whether the golden workspace cache was hit on the node SSD."
     value: ${{ steps.prepare.outputs.cache_hit }}
 
 runs:
@@ -43,36 +43,42 @@ runs:
         fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
         rm -rf /runner-cache/workspaces/*
 
+        # Determine whether the runner started warm (golden workspace hit on SSD)
+        cache_hit=false
+        if [ -w "/runner-cache" ] && [ -d "${LOWER_DIR}" ]; then
+          cache_hit=true
+        fi
+        echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
+
+        echo "Logging workspace cache status to Cloud Logging..."
+        LOG_PAYLOAD=$(jq -n \
+          --arg workflow "${GITHUB_WORKFLOW}" \
+          --arg job "${GITHUB_JOB}" \
+          --arg runner "${RUNNER_NAME:-runner}" \
+          --arg run_id "${GITHUB_RUN_ID}" \
+          --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+          --argjson cache_hit "${cache_hit}" \
+          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
+        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json 2>/dev/null || true
+
         # Hydrate golden workspace from GCS snapshot if cache is cold
         if [ -w "/runner-cache" ] && [ ! -d "${LOWER_DIR}" ]; then
-          PROJECT_NAME=$(curl -s -f -m 2 -H "Metadata-Flavor: Google" \
-            "http://metadata.google.internal/computeMetadata/v1/project/project-id" 2>/dev/null || true)
-          if [ -z "${PROJECT_NAME}" ]; then
-            PROJECT_NAME=$(gcloud config get-value project 2>/dev/null || true)
+          PROJECT_NAME=$(gcloud config get-value project)
+          ARCHIVE="gs://${PROJECT_NAME}-test-artifacts/golden-workspace/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
+          STAGING_DIR="${LOWER_DIR}.staging.$$"
+
+          rm -rf "${LOWER_DIR}.staging."*
+          mkdir -p "${STAGING_DIR}"
+
+          if gcloud storage cp "${ARCHIVE}" - 2>/dev/null | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
+            if [ -d "${STAGING_DIR}/src/.git" ]; then
+              git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+            fi
+            rm -rf "${LOWER_DIR}"
+            mv "${STAGING_DIR}" "${LOWER_DIR}"
+            echo "Extracted golden workspace snapshot from ${ARCHIVE}"
           fi
-
-          if [ -n "${PROJECT_NAME}" ]; then
-            ARCHIVE_DIR="gs://${PROJECT_NAME}-test-artifacts/golden-workspace"
-            PLATFORM_ARCHIVE="${ARCHIVE_DIR}/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
-            LATEST_ARCHIVE="${ARCHIVE_DIR}/golden-workspace-latest.tar.zst"
-            STAGING_DIR="${LOWER_DIR}.staging.$$"
-
-            rm -rf "${LOWER_DIR}.staging."*
-
-            for archive in "${PLATFORM_ARCHIVE}" "${LATEST_ARCHIVE}"; do
-              rm -rf "${STAGING_DIR}" && mkdir -p "${STAGING_DIR}"
-              if gcloud storage cp "${archive}" - 2>/dev/null | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
-                if [ -d "${STAGING_DIR}/src/.git" ]; then
-                  git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
-                fi
-                rm -rf "${LOWER_DIR}"
-                mv "${STAGING_DIR}" "${LOWER_DIR}"
-                echo "Extracted golden workspace snapshot from ${archive}"
-                break
-              fi
-            done
-            rm -rf "${STAGING_DIR}"
-          fi
+          rm -rf "${STAGING_DIR}"
         fi
 
         if [ ! -d "${LOWER_DIR}" ]; then
@@ -89,5 +95,3 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}"
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
-
-        echo "cache_hit=true" >> "${GITHUB_OUTPUT}"

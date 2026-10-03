@@ -42,21 +42,13 @@ runs:
             MIRROR="/runner-cache/git-cache/checkout/$(echo -n "${REPO_URL}" | sha256sum | cut -c1-16).git"
             mkdir -p "$(dirname "${MIRROR}")"
 
-            # Use flock to serialize mirror initialization and updates across concurrent jobs
-            # sharing the same node cache, preventing repository corruption during clone/fetch.
-            lock_acquired=false
-            if (
-              flock -w 60 9 || exit 1
-              if [ ! -f "${MIRROR}/config" ]; then
-                git clone --mirror --no-tags "${REPO_URL}" "${MIRROR}" || rm -rf "${MIRROR}"
-              elif ! git -C "${MIRROR}" fetch --prune origin 2>/dev/null; then
-                echo "Warning: git fetch failed for mirror ${MIRROR}; keeping existing cache objects."
-              fi
-            ) 9>"${MIRROR}.lock" 2>/dev/null; then
-              lock_acquired=true
+            if [ ! -f "${MIRROR}/config" ]; then
+              git clone --mirror --no-tags "${REPO_URL}" "${MIRROR}" || rm -rf "${MIRROR}"
+            elif ! git -C "${MIRROR}" fetch --prune origin 2>/dev/null; then
+              echo "Warning: git fetch failed for mirror ${MIRROR}; keeping existing cache objects."
             fi
 
-            if [ "${lock_acquired}" = "true" ] && [ -d "${MIRROR}" ]; then
+            if [ -d "${MIRROR}" ]; then
               ref_args=(--reference-if-able "${MIRROR}")
             fi
           fi
@@ -99,10 +91,4 @@ runs:
             sleep $((attempt * 2))
           done
         fi
-        CURRENT_HEAD=$(git -C "${DEST_PATH}" rev-parse HEAD 2>/dev/null || echo "")
-        if [ -n "${CURRENT_HEAD}" ] && [ "${CURRENT_HEAD}" = "${REF}" ]; then
-          echo "Workspace HEAD is already at ${REF}. Skipping checkout."
-        elif ! git -C "${DEST_PATH}" checkout "${REF}" 2>/dev/null; then
-          echo "Delta checkout encountered conflicts; falling back to forced checkout."
-          git -C "${DEST_PATH}" checkout -f "${REF}"
-        fi
+        git -C "${DEST_PATH}" checkout "${REF}"
