@@ -39,20 +39,25 @@ runs:
         ref_args=()
         if [ ! -d "${DEST_PATH}/.git" ]; then
           if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
-            MIRROR_HASH=$(echo -n "${REPO_URL}" | sha256sum | cut -c1-16)
-            MIRROR="/runner-cache/git-cache/checkout/${MIRROR_HASH}.git"
+            MIRROR="/runner-cache/git-cache/checkout/$(echo -n "${REPO_URL}" | sha256sum | cut -c1-16).git"
             mkdir -p "$(dirname "${MIRROR}")"
+
+            # Use flock to serialize mirror initialization and updates across concurrent jobs
+            # sharing the same node cache, preventing repository corruption during clone/fetch.
+            lock_acquired=false
             if (
-              flock -w 60 9
+              flock -w 60 9 || exit 1
               if [ ! -f "${MIRROR}/config" ]; then
                 git clone --mirror --no-tags "${REPO_URL}" "${MIRROR}" || rm -rf "${MIRROR}"
-              else
-                git -C "${MIRROR}" fetch --prune origin 2>/dev/null || rm -rf "${MIRROR}"
+              elif ! git -C "${MIRROR}" fetch --prune origin 2>/dev/null; then
+                echo "Warning: git fetch failed for mirror ${MIRROR}; keeping existing cache objects."
               fi
             ) 9>"${MIRROR}.lock" 2>/dev/null; then
-              if [ -d "${MIRROR}" ]; then
-                ref_args=(--reference-if-able "${MIRROR}")
-              fi
+              lock_acquired=true
+            fi
+
+            if [ "${lock_acquired}" = "true" ] && [ -d "${MIRROR}" ]; then
+              ref_args=(--reference-if-able "${MIRROR}")
             fi
           fi
 

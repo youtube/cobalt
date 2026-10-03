@@ -526,6 +526,15 @@ jobs:
           platform: ${{ matrix.platform || inputs.platform }}
           use_gcloud: true
 
+      - name: Runner Cache Hot
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
+
       - name: Checkout
         uses: ./.github/actions/checkout
         with:
@@ -912,6 +921,15 @@ jobs:
         with:
           path: cobalt
           platform: ${{ matrix.platform || inputs.platform }}
+
+      - name: Runner Cache Hot
+        if: steps.overlay_workspace.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: steps.overlay_workspace.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
         uses: ./.github/actions/checkout

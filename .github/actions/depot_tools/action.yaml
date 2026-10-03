@@ -47,7 +47,9 @@ runs:
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> ${GITHUB_PATH}
+      run: |
+        echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
+        echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> "${GITHUB_PATH}"
       shell: bash
 
     - name: Set CIPD and Git Cache Directory
@@ -62,12 +64,7 @@ runs:
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as ${DEPOT_TOOLS_UPDATE} is 0 in CI, skipping the bootstrap.
-        if [ -f "${GITHUB_WORKSPACE}/cobalt/depot_tools/python3_bin_reldir.txt" ] && \
-           [ -x "${GITHUB_WORKSPACE}/cobalt/depot_tools/$(tr -d '\r\n' < "${GITHUB_WORKSPACE}/cobalt/depot_tools/python3_bin_reldir.txt")/python3" ]; then
-          echo "Bundled python3 already bootstrapped in depot_tools. Skipping."
-        else
-          source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
-        fi
+        source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -92,22 +89,32 @@ runs:
         fi
       shell: bash
 
-    - name: Set target OS and CPU
+    - name: Set target OS
       shell: bash
       working-directory: cobalt
       env:
         PLATFORM: ${{ matrix.platform }}
       run: |
-        if [[ "${PLATFORM}" == *"tvos"* ]]; then
-          if ! grep -q "target_os" .gclient; then
+        if ! grep -q "target_os" .gclient; then
+          if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          elif [[ "${PLATFORM}" == *"tvos"* ]]; then
             echo "target_os=['ios']" >> .gclient
           fi
-        else
-          if ! grep -q "target_os" .gclient; then
-            echo "target_os=['android', 'linux']" >> .gclient
-          fi
-          if ! grep -q "target_cpu" .gclient; then
-            echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
+        fi
+        gclient validate
+
+    - name: Set target CPU
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        if ! grep -q "target_cpu" .gclient; then
+          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
+            echo "target_cpu=['x64', 'arm64']" >> .gclient
+          elif [[ "${PLATFORM}" == *"evergreen-arm"* ]]; then
+            echo "target_cpu=['x64', 'arm']" >> .gclient
           fi
         fi
         gclient validate
@@ -163,7 +170,5 @@ runs:
       if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
       working-directory: cobalt
       run: |
-        python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE --filter='\(#[1-9][0-9]*\)' 2>/dev/null || true
-        python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h 2>/dev/null || true
         gclient runhooks --verbose
       shell: bash
