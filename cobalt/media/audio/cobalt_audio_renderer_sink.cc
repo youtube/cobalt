@@ -55,8 +55,8 @@ void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
         "Cobalt.Media.SbAudioSink.Create.LatencyTiming.First", elapsed, kMin,
         kMax, kBuckets);
   }
-  LOG(INFO) << "SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us"
-            << (is_first_call ? " (first call in process)" : "");
+  VLOG(1) << "SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us"
+          << (is_first_call ? " (first call in process)" : "");
 }
 
 // Wraps SbAudioSinkCreate() and records its latency to UMA, mirroring the
