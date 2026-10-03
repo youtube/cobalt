@@ -152,10 +152,14 @@ grep -q "JS_EVENT: visibilitychange visible" $LOG_FILE || { echo "FAILURE: visib
 [ $(grep -c "JS_EVENT: focus" $LOG_FILE) -ge 2 ] || { echo "FAILURE: expected at least 2 focus events in logs"; exit 1; }
 
 # ---------------------------------------------------------------------------
-# Media Playback Conceal/Reveal Counter-Test (MVP)
+# Media Playback Conceal/Reveal Counter-Test
 # Verifies:
-#   Web-app-removed <video> on conceal -> destroys SbPlayer BEFORE
-#   "Transition to kConcealed complete".
+#   1. Active playback on conceal -> auto-pauses, destroys SbPlayer BEFORE
+#      "Transition to kConcealed complete", and auto-resumes on reveal.
+#   2. Web-app-paused playback on conceal -> destroys SbPlayer BEFORE
+#      "Transition to kConcealed complete", and stays paused on reveal.
+#   3. Web-app-removed <video> on conceal -> destroys SbPlayer BEFORE
+#      "Transition to kConcealed complete".
 # ---------------------------------------------------------------------------
 echo "[TEST] Starting Media Playback Conceal/Reveal Counter-Test..."
 WEBM_B64=$(base64 -w 0 media/test/data/four-colors-vp9.webm)
@@ -196,7 +200,7 @@ verify_sbplayer_destroyed_before_conceal_complete() {
   echo "[TEST] SUCCESS [$label]: SbPlayerDestroy (line $destroy_line) < Transition to kConcealed complete (line $conceal_line)"
 }
 
-# --- Scenario 1 (MVP): Web app removes <video> on conceal ---
+# --- Scenario 1: Active playback (app does NOT pause or destroy <video>) ---
 echo "[TEST] Scenario 1: Launching MSE VP9 playback..."
 execute_js "
   window.startTestVideo = async () => {
@@ -232,8 +236,46 @@ grep -q "Creating SbPlayerPrivateImpl. There are 1 players." "$LOG_FILE" || {
   exit 1
 }
 
-echo "[TEST] Scenario 1: Registering visibilitychange listener that stops and removes <video>..."
+# Note: 1st conceal in test_lifecycle.sh was at line 106 (without media).
+# Therefore this media conceal is conceal #2, and SbPlayerDestroy #1.
+echo "[TEST] Scenario 1: Sending SIGUSR1 (CONCEAL) during active playback..."
+kill -SIGUSR1 $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 10 $HOST || exit 1
+
+verify_sbplayer_destroyed_before_conceal_complete 1 2 "Scenario 1"
+
+echo "[TEST] Scenario 1: Sending SIGCONT (REVEAL) and verifying auto-resume..."
+kill -SIGCONT $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 10 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.getElementById('test_video').paused" "False" $PORT 10 $HOST || exit 1
+
+# --- Scenario 2: Web app explicitly calls video.pause() on conceal ---
+echo "[TEST] Scenario 2: Registering visibilitychange listener that pauses video..."
 execute_js "
+  document.addEventListener('visibilitychange', function onHidePause() {
+    if (document.visibilityState === 'hidden') {
+      document.removeEventListener('visibilitychange', onHidePause);
+      document.getElementById('test_video').pause();
+    }
+  });
+"
+
+echo "[TEST] Scenario 2: Sending SIGUSR1 (CONCEAL)..."
+kill -SIGUSR1 $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 10 $HOST || exit 1
+
+verify_sbplayer_destroyed_before_conceal_complete 2 3 "Scenario 2"
+
+echo "[TEST] Scenario 2: Sending SIGCONT (REVEAL) and verifying video stays PAUSED..."
+kill -SIGCONT $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 10 $HOST || exit 1
+sleep 1
+bash cobalt/tools/wait_for_state.sh "document.getElementById('test_video').paused" "True" $PORT 5 $HOST || exit 1
+
+# --- Scenario 3: Web app removes <video> on conceal ---
+echo "[TEST] Scenario 3: Resuming playback and registering visibilitychange listener that removes <video>..."
+execute_js "
+  document.getElementById('test_video').play();
   document.addEventListener('visibilitychange', function onHideRemove() {
     if (document.visibilityState === 'hidden') {
       document.removeEventListener('visibilitychange', onHideRemove);
@@ -246,14 +288,13 @@ execute_js "
     }
   });
 "
+bash cobalt/tools/wait_for_state.sh "document.getElementById('test_video').paused" "False" $PORT 10 $HOST || exit 1
 
-# Note: 1st conceal in test_lifecycle.sh was at line 106 (without media).
-# Therefore this media conceal is conceal #2, and SbPlayerDestroy #1.
-echo "[TEST] Scenario 1: Sending SIGUSR1 (CONCEAL)..."
+echo "[TEST] Scenario 3: Sending SIGUSR1 (CONCEAL)..."
 kill -SIGUSR1 $COBALT_PID
 bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 10 $HOST || exit 1
 
-verify_sbplayer_destroyed_before_conceal_complete 1 2 "Scenario 1"
+verify_sbplayer_destroyed_before_conceal_complete 3 4 "Scenario 3"
 
 echo "[TEST] Killing Cobalt..."
 kill -9 $COBALT_PID 2>/dev/null || true

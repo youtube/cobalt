@@ -550,6 +550,107 @@ TEST_F(
   task_environment_.RunUntilIdle();
 }
 
+TEST_F(StarboardRendererTest,
+       FlushAndSuspendActiveRenderersSuspendsRunningPlayer) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 0.0))
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _));
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(player))
+      .WillOnce(Invoke(
+          [](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); }));
+  EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_ABORT)));
+
+  base::MockOnceClosure barrier_cb;
+  EXPECT_CALL(barrier_cb, Run()).Times(1);
+  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  // Subsequent renderer destruction must not double-destroy SbPlayer.
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(_)).Times(0);
+  renderer_.reset();
+}
+
+TEST_F(StarboardRendererTest,
+       FlushAndSuspendActiveRenderersAbortsInitializingPlayerBeforeCreate) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  bool window_requested = false;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      /*get_sb_window_handle_cb=*/
+      base::BindRepeating([](bool* requested) { *requested = true; },
+                          &window_requested)
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  EXPECT_TRUE(window_requested);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_ERROR_ABORT)))
+      .Times(1);
+
+  base::MockOnceClosure barrier_cb;
+  EXPECT_CALL(barrier_cb, Run()).Times(1);
+  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  // A late SbWindow handle callback arriving after conceal must not create an
+  // SbPlayer.
+  renderer_->OnSbWindowHandleReady(1);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererTest,
+       InitializeWhileConcealedAbortsWithoutCreatingPlayer) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  base::MockOnceClosure barrier_cb;
+  EXPECT_CALL(barrier_cb, Run()).Times(1);
+  // Conceal before Initialize() is called.
+  renderer_.reset();
+  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  renderer_ = std::make_unique<StarboardRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      std::make_unique<NullMediaLog>(),
+      /*overlay_plane_id=*/base::UnguessableToken::Create(),
+      /*audio_write_duration_local=*/base::Seconds(1),
+      /*audio_write_duration_remote=*/base::Seconds(1),
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      StarboardRendererConfig::ExperimentalFeatures{},
+      /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_ERROR_ABORT)))
+      .Times(1);
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+}
+
 }  // namespace
 
 }  // namespace media
