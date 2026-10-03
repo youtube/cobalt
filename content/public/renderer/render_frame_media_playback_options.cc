@@ -9,7 +9,10 @@
 
 namespace content {
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
+// Cobalt destroys the native SbWindow on conceal and must suspend media
+// pipelines when the page is hidden so SbPlayer instances are released.
+#if (BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)) || \
+    BUILDFLAG(IS_COBALT)
 const bool kIsBackgroundMediaSuspendEnabled = true;
 #else
 const bool kIsBackgroundMediaSuspendEnabled = false;
