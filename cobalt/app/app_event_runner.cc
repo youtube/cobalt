@@ -487,6 +487,11 @@ class AppEventRunnerImpl : public AppEventRunner,
       base::AutoUnlock unlock(lock_);
       run_loop.Run();
     }
+    if (quit_closure_) {
+      LOG(WARNING) << "WaitForAck timed out after " << kTransitionTimeout
+                   << " for ack_type=" << static_cast<int>(ack_type);
+      quit_closure_.Reset();
+    }
     pending_ack_ = PendingAck::kNone;
   }
 
