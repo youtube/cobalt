@@ -18,7 +18,6 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "cc/layers/video_frame_provider.h"
 #include "cc/metrics/video_playback_roughness_reporter.h"
 #include "cc/test/layer_test_common.h"
@@ -207,16 +206,10 @@ class VideoFrameSubmitterTest : public testing::Test {
 
   void MakeSubmitter(
       cc::VideoPlaybackRoughnessReporter::ReportingCallback reporting_cb) {
-    MakeSubmitter(base::DoNothing(), std::move(reporting_cb));
-  }
-
-  void MakeSubmitter(
-      WebContextProviderCallback context_provider_cb,
-      cc::VideoPlaybackRoughnessReporter::ReportingCallback reporting_cb) {
     resource_provider_ = new StrictMock<MockVideoFrameResourceProvider>(
         context_provider_.get(), nullptr);
     submitter_ = std::make_unique<VideoFrameSubmitter>(
-        std::move(context_provider_cb), reporting_cb,
+        base::DoNothing(), reporting_cb,
         base::WrapUnique<MockVideoFrameResourceProvider>(
             resource_provider_.get()));
 
@@ -1220,41 +1213,5 @@ TEST_F(VideoFrameSubmitterTest, OpaqueFramesNotifyEmbedder) {
   submitter_->DidReceiveFrame();
   DrainMainThread();
 }
-
-#if BUILDFLAG(IS_COBALT)
-TEST_F(
-    VideoFrameSubmitterTest,
-    CobaltContextLostWhilePageHiddenDefersContextProviderRequestUntilPageVisible) {
-  int context_provider_requests = 0;
-  MakeSubmitter(
-      base::BindLambdaForTesting(
-          [&](scoped_refptr<viz::RasterContextProvider>,
-              base::OnceCallback<void(
-                  bool, scoped_refptr<viz::RasterContextProvider>,
-                  scoped_refptr<gpu::ClientSharedImageInterface>)>) {
-            ++context_provider_requests;
-          }),
-      base::DoNothing());
-  EXPECT_EQ(context_provider_requests, 1);
-
-  EXPECT_CALL(*sink_, SetNeedsBeginFrame(false));
-  submitter_->SetIsPageVisible(false);
-  task_environment_.RunUntilIdle();
-
-  // Losing the context while the page is concealed must not request a new
-  // ContextProvider immediately (which would block the renderer main thread in
-  // EstablishGpuChannelSync while the GPU service is backgrounded).
-  EXPECT_CALL(*video_frame_provider_, OnContextLost()).Times(1);
-  submitter_->OnContextLost();
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(context_provider_requests, 1);
-  EXPECT_FALSE(resource_provider_->IsInitialized());
-
-  // Revealing the page must now trigger the deferred ContextProvider request.
-  submitter_->SetIsPageVisible(true);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(context_provider_requests, 2);
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
