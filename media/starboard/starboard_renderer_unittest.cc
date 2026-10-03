@@ -21,9 +21,11 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_simple_task_runner.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -86,7 +88,10 @@ class StarboardRendererTest : public testing::Test {
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
   }
 
-  ~StarboardRendererTest() override = default;
+  ~StarboardRendererTest() override {
+    renderer_.reset();
+    StarboardRenderer::ResumeActiveRenderers();
+  }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
     streams_.push_back(CreateMockDemuxerStream(type, encrypted));
@@ -472,6 +477,76 @@ TEST_F(StarboardRendererTest,
   ASSERT_TRUE(player_status_cb_);
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(
+    StarboardRendererTest,
+    FlushAndSuspendActiveRenderersCoordinatesMultipleTaskRunnersAndDestroyedRenderer) {
+  auto create_renderer =
+      [](scoped_refptr<base::SequencedTaskRunner> task_runner) {
+        return std::make_unique<StarboardRenderer>(
+            std::move(task_runner), std::make_unique<NullMediaLog>(),
+            /*overlay_plane_id=*/base::UnguessableToken::Create(),
+            /*audio_write_duration_local=*/base::Seconds(1),
+            /*audio_write_duration_remote=*/base::Seconds(1),
+            /*max_video_capabilities=*/"",
+            /*max_video_resolution=*/"",
+            StarboardRendererConfig::ExperimentalFeatures{},
+            /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+                ,
+            /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+        );
+      };
+
+  auto second_task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
+  std::unique_ptr<StarboardRenderer> second_renderer =
+      create_renderer(second_task_runner);
+
+  scoped_refptr<base::SequencedTaskRunner> third_task_runner =
+      base::ThreadPool::CreateSequencedTaskRunner({});
+  std::unique_ptr<StarboardRenderer> third_renderer;
+  third_task_runner->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](std::unique_ptr<StarboardRenderer>* out_renderer,
+                        scoped_refptr<base::SequencedTaskRunner> runner,
+                        decltype(create_renderer) factory) {
+                       *out_renderer = factory(std::move(runner));
+                     },
+                     &third_renderer, third_task_runner, create_renderer));
+  task_environment_.RunUntilIdle();
+  ASSERT_NE(third_renderer, nullptr);
+
+  std::unique_ptr<StarboardRenderer> destroyed_renderer =
+      create_renderer(task_environment_.GetMainThreadTaskRunner());
+
+  bool barrier_completed = false;
+  StarboardRenderer::FlushAndSuspendActiveRenderers(base::BindOnce(
+      [](bool* completed) { *completed = true; }, &barrier_completed));
+
+  // Destroy `destroyed_renderer` and allocate a new renderer before the queued
+  // main-thread barrier task executes to verify WeakPtr invalidation prevents
+  // dangling or ABA access while still advancing the BarrierClosure.
+  destroyed_renderer.reset();
+  std::unique_ptr<StarboardRenderer> post_conceal_renderer =
+      create_renderer(task_environment_.GetMainThreadTaskRunner());
+
+  // Run the main-thread and thread-pool sequences; `second_task_runner` still
+  // has its barrier task pending so `barrier_completed` must remain false.
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(second_task_runner->HasPendingTask());
+  EXPECT_FALSE(barrier_completed);
+
+  // Drain `second_task_runner` and deliver the barrier completion callback.
+  second_task_runner->RunUntilIdle();
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(barrier_completed);
+
+  post_conceal_renderer.reset();
+  second_renderer.reset();
+  third_task_runner->DeleteSoon(FROM_HERE, std::move(third_renderer));
   task_environment_.RunUntilIdle();
 }
 

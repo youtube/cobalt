@@ -15,12 +15,58 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
+#include "media/starboard/starboard_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
 
 namespace content {
+
+namespace {
+
+// Scoped test helper that intercepts
+// StarboardRenderer::FlushAndSuspendActiveRenderers and ResumeActiveRenderers
+// callbacks so unit tests can deterministically control when the media barrier
+// completes. Stack-allocated by the test on the main test thread; clears the
+// global testing hooks on destruction.
+class FakeStarboardRendererBarrier {
+ public:
+  FakeStarboardRendererBarrier() {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting(
+        base::BindRepeating(&FakeStarboardRendererBarrier::OnSuspend,
+                            base::Unretained(this)),
+        base::BindRepeating(&FakeStarboardRendererBarrier::OnResume,
+                            base::Unretained(this)));
+  }
+
+  ~FakeStarboardRendererBarrier() {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting({}, {});
+  }
+
+  void OnSuspend(base::OnceClosure done_cb) {
+    suspend_called_ = true;
+    pending_callback_ = std::move(done_cb);
+  }
+
+  void OnResume() { resume_called_ = true; }
+
+  bool suspend_called() const { return suspend_called_; }
+  bool resume_called() const { return resume_called_; }
+
+  void CompleteSuspend() { std::move(pending_callback_).Run(); }
+
+  base::OnceClosure TakePendingCallback() {
+    return std::move(pending_callback_);
+  }
+
+ private:
+  bool suspend_called_ = false;
+  bool resume_called_ = false;
+  base::OnceClosure pending_callback_;
+};
+
+}  // namespace
 
 class LifecycleTest : public ShellTestBase {
  public:
@@ -52,6 +98,7 @@ class LifecycleTest : public ShellTestBase {
   }
 
   void TearDown() override {
+    media::StarboardRenderer::SetSuspendCallbacksForTesting({}, {});
     if (shell_) {
       EXPECT_CALL(*platform_, DestroyShell(shell_));
       EXPECT_CALL(*platform_, CleanUp(shell_));
@@ -193,6 +240,127 @@ TEST_F(LifecycleTest, BlurFocus) {
   // Trigger focus.
   EXPECT_CALL(*platform_, OnFocus());
   Shell::OnFocus();
+}
+
+TEST_F(LifecycleTest, ConcealSequencesConcealShellBeforeOnConcealCompleted) {
+  CreateTestShell(true /* is_visible */);
+
+  class MockLifecycleObserver : public cobalt::CobaltLifecycleManagerObserver {
+   public:
+    MOCK_METHOD(void,
+                OnAllFramesVisible,
+                (content::WebContents * web_contents),
+                (override));
+    MOCK_METHOD(void,
+                OnConcealCompleted,
+                (content::WebContents * web_contents),
+                (override));
+  };
+
+  testing::StrictMock<MockLifecycleObserver> observer;
+  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(&observer);
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(0);
+  Shell::OnConceal();
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  testing::InSequence seq;
+  EXPECT_CALL(*platform_, ConcealShell(shell_));
+  EXPECT_CALL(observer, OnConcealCompleted(shell_->web_contents()));
+
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  base::RunLoop().RunUntilIdle();
+
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(&observer);
+}
+
+TEST_F(LifecycleTest, ConcealWaitsForMediaServiceBarrierBeforeConcealShell) {
+  CreateTestShell(true /* is_visible */);
+
+  FakeStarboardRendererBarrier fake_barrier;
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+
+  // Before the StarboardRenderer barrier replies, ConcealShell must not be
+  // called.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(0);
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.suspend_called());
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Once the StarboardRenderer barrier replies, ConcealShell runs.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  fake_barrier.CompleteSuspend();
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(platform_->IsVisible());
+
+  // OnReveal clears the StarboardRenderer concealed state.
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.resume_called());
+}
+
+TEST_F(LifecycleTest, RapidRevealAndConcealIgnoresStaleMediaBarrierCallback) {
+  CreateTestShell(true /* is_visible */);
+
+  FakeStarboardRendererBarrier fake_barrier;
+
+  // First Conceal: enter media barrier and capture its pending callback.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  task_environment()->RunUntilIdle();
+  base::OnceClosure stale_barrier_cb = fake_barrier.TakePendingCallback();
+  ASSERT_FALSE(stale_barrier_cb.is_null());
+
+  // Rapid Reveal before the first media barrier finishes.
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(platform_->IsVisible());
+
+  // Second Conceal: enter media barrier again and capture the new callback.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  task_environment()->RunUntilIdle();
+  base::OnceClosure active_barrier_cb = fake_barrier.TakePendingCallback();
+  ASSERT_FALSE(active_barrier_cb.is_null());
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Running the stale callback from the first conceal must be ignored and must
+  // not trigger ConcealShell prematurely while the second barrier is pending.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(0);
+  std::move(stale_barrier_cb).Run();
+  task_environment()->RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Running the active callback from the second conceal completes ConcealShell.
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  std::move(active_barrier_cb).Run();
+  task_environment()->RunUntilIdle();
 }
 
 }  // namespace content
