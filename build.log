@@ -1,0 +1,103 @@
+ninja: Entering directory `out/linux-x64x11_devel'
+
+
+init credentials by "credhelper" done 63.620437ms
+use RBE instance "projects/cobalt-actions-prod/instances/default_instance"
+loading fs state done 708.182725ms
+loading/recompacting deps log done 21.98µs
+load siso config done 597.18314ms
+load build.ninja done 721.943673ms
+schedule pending:0+ready:1 (node:323591 edge:2)
+
+build start: Ready 1 Pending 1
+rebuild manifest finished	
+schedule pending:0+ready:1 (node:323591 edge:3)
+
+build start: Ready 5137 Pending 46762
+[0/1155] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/shell_render_frame_observer.o
+[0/1079] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/test_shell.o
+[0/1066] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/resource_load_observer.o
+[0/1075] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/shell_content_renderer_test_client.o
+[0/1034] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/shell_content_browser_test_client.o
+[0/905] 3.67s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/render_frame_test_helper.o
+[0/764] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_scheme_url_loader_factory_browsertest.o
+[0/751] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/privacy_sandbox_disabled_browsertest.o
+[0/748] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test.o
+[0/744] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/media_source_browsertest.o
+[0/748] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/picture_in_picture_browsertest.o
+[0/736] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_memory_browsertest.o
+[0/736] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/webrtc_content_browsertest_base.o
+[0/743] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_metrics_browsertest.o
+[0/748] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/granular_memory_browsertest.o
+[0/729] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/experiment_config_browsertest.o
+[0/715] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_runtime_browsertest.o
+[0/713] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/highest_pmf_reporter_browsertest.o
+[0/711] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_memory_threshold_browsertest.o
+[0/710] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/custom_mime_type_browsertest.o
+[0/708] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_system_browsertest.o
+[0/704] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/i18n_browsertest.o
+[0/701] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test_utils.o
+[0/676] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/font_metrics_browsertest.o
+[0/657] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cache_storage_browsertest.o
+[0/556] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test_utils_internal.o
+[0/423] 3.68s S CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/navigation_browsertest.o
+[0/31] 4.13s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/render_frame_test_helper.o
+[0/31] 4.13s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_memory_browsertest.o
+[0/31] 4.14s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/resource_load_observer.o
+[0/31] 4.14s c CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/shell_content_renderer_test_client.o
+[0/31] 4.14s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_memory_threshold_browsertest.o
+[0/31] 4.14s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cache_storage_browsertest.o
+[0/31] 4.14s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/custom_mime_type_browsertest.o
+[0/31] 4.33s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_runtime_browsertest.o
+[0/31] 4.34s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/granular_memory_browsertest.o
+[0/31] 4.34s F CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/shell_content_renderer_test_client.o
+[1/31] 4.35s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/custom_mime_type_browsertest.o
+[2/31] 4.35s c CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/test_shell.o
+[2/31] 4.35s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/privacy_sandbox_disabled_browsertest.o
+[2/31] 4.35s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/font_metrics_browsertest.o
+[2/31] 4.36s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/highest_pmf_reporter_browsertest.o
+[2/31] 4.36s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/experiment_config_browsertest.o
+[2/31] 4.36s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_system_browsertest.o
+[2/31] 4.43s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_metrics_browsertest.o
+[2/31] 4.43s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/webrtc_content_browsertest_base.o
+[2/31] 4.47s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/highest_pmf_reporter_browsertest.o
+[3/31] 4.52s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_runtime_browsertest.o
+[4/31] 4.53s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/resource_load_observer.o
+[5/31] 4.54s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_memory_browsertest.o
+[6/31] 4.56s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/render_frame_test_helper.o
+[7/31] 4.56s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cache_storage_browsertest.o
+[8/31] 4.56s c CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/shell_render_frame_observer.o
+[8/31] 4.57s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_memory_threshold_browsertest.o
+[9/31] 4.74s F CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/test_shell.o
+[10/31] 4.77s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/experiment_config_browsertest.o
+[11/31] 4.77s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/font_metrics_browsertest.o
+[12/31] 4.81s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/privacy_sandbox_disabled_browsertest.o
+[13/31] 4.85s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/cobalt_metrics_browsertest.o
+[14/31] 4.85s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/webrtc_content_browsertest_base.o
+[15/31] 4.94s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_support/shell_render_frame_observer.o
+[16/30] 4.98s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/granular_memory_browsertest.o
+[17/30] 5.01s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_system_browsertest.o
+[18/30] 16.56s F CXX obj/cobalt/testing/browser_tests/cobalt_shell_test_lib/shell_content_browser_test_client.o
+[19/30] 16.58s S AR obj/cobalt/testing/browser_tests/libcobalt_shell_test_lib.a
+[19/30] 17.89s F AR obj/cobalt/testing/browser_tests/libcobalt_shell_test_lib.a
+[20/30] 21.98s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/picture_in_picture_browsertest.o
+[21/30] 22.60s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/h5vcc_scheme_url_loader_factory_browsertest.o
+[22/30] 24.33s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/media_source_browsertest.o
+[23/30] 24.52s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/i18n_browsertest.o
+[24/30] 39.33s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test.o
+[25/30] 46.92s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests/navigation_browsertest.o
+[26/30] 48.71s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test_utils.o
+[27/30] 52.20s F CXX obj/cobalt/testing/browser_tests/cobalt_browsertests_test_runner/content_browser_test_utils_internal.o
+[28/30] 52.20s S AR obj/cobalt/testing/browser_tests/libcobalt_browsertests_test_runner.a
+[28/30] 53.40s F AR obj/cobalt/testing/browser_tests/libcobalt_browsertests_test_runner.a
+[29/30] 53.43s S LINK ./cobalt_browsertests
+[29/30] 1m04.10s F LINK ./cobalt_browsertests
+build finished	
+
+	
+local:3 remote:9 cache:18 cache-write:0(err:0) fallback:0 retry:0 skip:51869
+reapi: ops: 61(err:9) / r:50(err:0) 13.80MiB / w:22(err:0) 36.36KiB
+fs: ops: 21190(err:8765) / r:7862(err:0) 1.50GiB / w:26(err:0) 9.64MiB
+
+
+1m04.81s Build Succeeded: 30 steps - 0.46/s

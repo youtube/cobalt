@@ -254,14 +254,6 @@ void VideoFrameSubmitter::Initialize(cc::VideoFrameProvider* provider,
   roughness_reporter_->set_is_media_stream(is_media_stream_);
 
   task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
-#if BUILDFLAG(IS_COBALT)
-  // Defer acquiring a ContextProvider while the page is concealed so that
-  // PostContextProviderToCallback does not block the renderer main thread
-  // inside EstablishGpuChannelSync() while the GPU service is backgrounded.
-  if (!is_page_visible_) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   context_provider_callback_.Run(
       nullptr, base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
                               weak_ptr_factory_.GetWeakPtr()));
@@ -293,17 +285,6 @@ void VideoFrameSubmitter::SetIsSurfaceVisible(bool is_visible) {
 void VideoFrameSubmitter::SetIsPageVisible(bool is_visible) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   is_page_visible_ = is_visible;
-#if BUILDFLAG(IS_COBALT)
-  // If the context provider was lost or deferred while the page was concealed,
-  // acquire a new ContextProvider now that the page is visible again.
-  if (is_page_visible_ && video_frame_provider_ &&
-      !resource_provider_->IsInitialized()) {
-    context_provider_callback_.Run(
-        context_provider_,
-        base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
-                       weak_ptr_factory_.GetWeakPtr()));
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   UpdateSubmissionState();
 }
 
@@ -344,18 +325,6 @@ void VideoFrameSubmitter::OnContextLost() {
   compositor_frame_sink_ = nullptr;
   remote_frame_sink_.reset();
   bundle_proxy_.reset();
-
-#if BUILDFLAG(IS_COBALT)
-  // When the page is concealed (!is_page_visible_), Cobalt tears down all GPU
-  // channels and shuts down the EGL display via OnBackgroundCleanup(), queuing
-  // any subsequent EstablishGpuChannel requests until OnForegrounded(). Defer
-  // requesting a new ContextProvider until SetIsPageVisible(true) so that
-  // PostContextProviderToCallback does not block the renderer main thread
-  // inside EstablishGpuChannelSync() while concealed.
-  if (!is_page_visible_) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
   context_provider_callback_.Run(
       context_provider_,
@@ -595,11 +564,6 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
   if (!use_gpu_compositing) {
     shared_image_interface_ = std::move(shared_image_interface);
     if (!shared_image_interface_) {
-#if BUILDFLAG(IS_COBALT)
-      if (!is_page_visible_) {
-        return;
-      }
-#endif  // BUILDFLAG(IS_COBALT)
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(
@@ -619,11 +583,6 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
   }
 
   if (!MaybeAcceptContextProvider(std::move(context_provider))) {
-#if BUILDFLAG(IS_COBALT)
-    if (!is_page_visible_) {
-      return;
-    }
-#endif  // BUILDFLAG(IS_COBALT)
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(

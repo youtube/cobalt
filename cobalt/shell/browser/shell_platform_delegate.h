@@ -200,8 +200,6 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
 #endif
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnAllFramesConcealed(content::WebContents* web_contents) override;
-  void CompleteConcealAfterMediaBarrier(
-      base::WeakPtr<content::WebContents> web_contents);
 
   // Flag to remember that an OS-initiated focus event arrived while we were
   // waiting for Reveal ACK. If true, focus will be applied to the window
