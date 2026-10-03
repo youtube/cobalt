@@ -2969,6 +2969,13 @@ class WebMediaPlayerImplBackgroundBehaviorTest
 
 TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, AudioOnly) {
   SCOPED_TRACE(testing::Message() << PrintValues());
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt pauses all media playback when hidden so SbPlayer resources can be
+  // suspended on conceal.
+  SetMetadata(true, false);
+  EXPECT_TRUE(ShouldPausePlaybackWhenHidden());
+  EXPECT_FALSE(ShouldDisableVideoWhenHidden());
+#else
   if (base::FeatureList::IsEnabled(media::kPauseBackgroundMutedAudio)) {
     // Audio only players should pause if they are muted and not captured.
     EXPECT_CALL(client_, WasAlwaysMuted()).WillRepeatedly(Return(true));
@@ -3014,6 +3021,7 @@ TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, AudioOnly) {
     EXPECT_FALSE(ShouldPausePlaybackWhenHidden());
   }
   EXPECT_FALSE(ShouldDisableVideoWhenHidden());
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, VideoOnly) {
@@ -3026,6 +3034,9 @@ TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, VideoOnly) {
   // Never disable video track for a video only stream.
   EXPECT_FALSE(ShouldDisableVideoWhenHidden());
 
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_TRUE(ShouldPausePlaybackWhenHidden());
+#else
   // There's no optimization criteria for video only in Picture-in-Picture.
   bool matches_requirements =
       !IsPictureInPictureOn() && !IsVideoBeingCaptured();
@@ -3040,11 +3051,16 @@ TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, VideoOnly) {
                         !IsPictureInPictureOn();
     EXPECT_EQ(should_pause, ShouldPausePlaybackWhenHidden());
   }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, AudioVideo) {
   SCOPED_TRACE(testing::Message() << PrintValues());
 
+#if BUILDFLAG(IS_COBALT)
+  bool always_pause = true;
+  bool should_pause = true;
+#else
   bool always_pause =
       (!IsBackgroundVideoPlaybackEnabled() ||
        (IsMediaSuspendOn() && IsResumeBackgroundVideoEnabled())) &&
@@ -3058,6 +3074,7 @@ TEST_P(WebMediaPlayerImplBackgroundBehaviorTest, AudioVideo) {
     always_pause = true;
     should_pause = true;
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (base::FeatureList::IsEnabled(media::kPauseBackgroundMutedAudio)) {
     EXPECT_CALL(client_, WasAlwaysMuted()).WillRepeatedly(Return(true));
@@ -3156,5 +3173,155 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Bool(),
         ::testing::Bool(),
         ::testing::Bool()));
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealPausesAndSuspendsAndRevealAutoResumesWhenAppDidNotPause) {
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  ON_CALL(*demuxer, IsSeekable()).WillByDefault(Return(true));
+  SetUpMediaSuspend(true);
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  Load(kVideoOnlyTestFile);
+  EXPECT_FALSE(IsSuspended());
+
+  media::PipelineMetadata metadata;
+  metadata.has_video = true;
+  metadata.video_decoder_config = TestVideoConfig::Normal();
+  metadata.has_audio = true;
+  metadata.audio_decoder_config = TestAudioConfig::Normal();
+  OnMetadata(metadata);
+
+  SetReadyState(WebMediaPlayer::kReadyStateHaveFutureData);
+  SetSeeking(false);
+  Play();
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+  EXPECT_FALSE(IsSuspended());
+
+  // Concealing the page pauses playback with kPageHidden and suspends the
+  // media pipeline so the underlying SbPlayer is released.
+  EXPECT_CALL(client_, PausePlayback(WebMediaPlayer::PauseReason::kPageHidden))
+      .WillOnce(Invoke([this](WebMediaPlayer::PauseReason reason) {
+        Pause(reason);
+      }));
+  HidePlayerPage();
+  EXPECT_TRUE(IsPausedBecausePageHidden());
+  EXPECT_TRUE(IsSuspended());
+
+  // Revealing the page when the web app did not explicitly pause playback
+  // automatically resumes playback and unsuspends the pipeline.
+  EXPECT_CALL(client_, ResumePlayback()).WillOnce(Invoke([this]() {
+    Play();
+  }));
+  ShowPlayerPage();
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+  EXPECT_FALSE(IsSuspended());
+}
+
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealDoesNotAutoResumeWhenAppExplicitlyPaused) {
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  ON_CALL(*demuxer, IsSeekable()).WillByDefault(Return(true));
+  SetUpMediaSuspend(true);
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  Load(kVideoOnlyTestFile);
+
+  media::PipelineMetadata metadata;
+  metadata.has_video = true;
+  metadata.video_decoder_config = TestVideoConfig::Normal();
+  metadata.has_audio = true;
+  metadata.audio_decoder_config = TestAudioConfig::Normal();
+  OnMetadata(metadata);
+
+  SetReadyState(WebMediaPlayer::kReadyStateHaveFutureData);
+  SetSeeking(false);
+  Play();
+
+  EXPECT_CALL(client_, PausePlayback(WebMediaPlayer::PauseReason::kPageHidden))
+      .WillOnce(Invoke([this](WebMediaPlayer::PauseReason reason) {
+        Pause(reason);
+      }));
+  HidePlayerPage();
+  EXPECT_TRUE(IsPausedBecausePageHidden());
+  EXPECT_TRUE(IsSuspended());
+
+  // Simulate the web application explicitly calling video.pause() during
+  // conceal handling.
+  Pause(WebMediaPlayer::PauseReason::kPauseCalled);
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+  EXPECT_TRUE(IsSuspended());
+
+  // Revealing the page must not auto-resume playback when the web application
+  // explicitly paused it.
+  EXPECT_CALL(client_, ResumePlayback()).Times(0);
+  ShowPlayerPage();
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+}
+
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealSuspendsButDoesNotAutoResumeWhenAppPausedInVisibilityChange) {
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  ON_CALL(*demuxer, IsSeekable()).WillByDefault(Return(false));
+  SetUpMediaSuspend(true);
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  Load(kVideoOnlyTestFile);
+  SetDuration(media::kInfiniteDuration);
+
+  media::PipelineMetadata metadata;
+  metadata.has_video = true;
+  metadata.video_decoder_config = TestVideoConfig::Normal();
+  OnMetadata(metadata);
+
+  SetReadyState(WebMediaPlayer::kReadyStateHaveFutureData);
+  SetSeeking(false);
+  Play();
+
+  // In WebViewImpl::SetVisibilityState(kHidden), synchronous JS
+  // 'visibilitychange' runs before WebMediaPlayerImpl::OnPageHidden().
+  // Simulate the web app calling video.pause() during visibilitychange.
+  Pause(WebMediaPlayer::PauseReason::kPauseCalled);
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+
+  // OnPageHidden() must still suspend the pipeline (releasing SbPlayer)
+  // without overwriting the pause reason with kPageHidden.
+  EXPECT_CALL(client_, PausePlayback(_)).Times(0);
+  HidePlayerPage();
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+  EXPECT_TRUE(IsSuspended());
+
+  // OnPageShown() must not auto-resume playback.
+  EXPECT_CALL(client_, ResumePlayback()).Times(0);
+  ShowPlayerPage();
+  EXPECT_FALSE(IsPausedBecausePageHidden());
+}
+
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealSuspendsStreamingAndPreFutureDataAndSeekingPlayers) {
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  ON_CALL(*demuxer, IsSeekable()).WillByDefault(Return(false));
+  SetUpMediaSuspend(true);
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  Load(kVideoOnlyTestFile);
+  SetDuration(media::kInfiniteDuration);
+
+  media::PipelineMetadata metadata;
+  metadata.has_video = true;
+  metadata.video_decoder_config = TestVideoConfig::Normal();
+  OnMetadata(metadata);
+
+  // Player is at kReadyStateHaveMetadata (prior to kReadyStateHaveFutureData)
+  // and currently seeking when conceal occurs.
+  SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
+  Play();
+  SetSeeking(true);
+
+  EXPECT_CALL(client_, PausePlayback(WebMediaPlayer::PauseReason::kPageHidden))
+      .WillOnce(Invoke([this](WebMediaPlayer::PauseReason reason) {
+        Pause(reason);
+      }));
+  HidePlayerPage();
+  EXPECT_TRUE(IsPausedBecausePageHidden());
+  EXPECT_TRUE(IsSuspended());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
