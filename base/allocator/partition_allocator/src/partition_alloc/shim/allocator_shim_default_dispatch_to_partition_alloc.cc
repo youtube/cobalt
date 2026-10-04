@@ -759,18 +759,18 @@ bool SettingsMatch(
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_global_config,
+          current_root->settings_.scheduler_loop_quarantine_global_config,
           scheduler_loop_quarantine_global_config)) {
     return false;
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_thread_local_config,
+          current_root->settings_.scheduler_loop_quarantine_thread_local_config,
           scheduler_loop_quarantine_thread_local_config)) {
     return false;
   }
 
-  if (current_root->settings.eventually_zero_freed_memory !=
+  if (current_root->settings_.eventually_zero_freed_memory !=
       eventually_zero_freed_memory.value()) {
     return false;
   }
