@@ -161,8 +161,6 @@ declare_args() {
   use_sized_deallocation = is_clang && (is_asan || !optimize_for_size)
 }
 
-<<<<<<< HEAD
-=======
 if (is_starboard) {
   use_relative_vtables_abi =
       sb_is_evergreen && (current_toolchain == default_toolchain)
@@ -171,13 +169,6 @@ if (is_starboard) {
                              use_custom_libcxx && !is_component_build
 }
 
-# To try out this combination, delete this assert.
-assert(
-    !use_relative_vtables_abi || !is_cfi,
-    "is_cfi=true is known to conflict with use_relative_vtables_abi=true.\n" +
-        "See https://bugs.chromium.org/p/chromium/issues/detail?id=1375035#c53")
-
->>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")
 assert(!enable_profiling || !is_component_build,
        "Cannot profile component builds (crbug.com/1199271).")
