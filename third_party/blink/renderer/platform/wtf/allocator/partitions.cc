@@ -289,7 +289,7 @@ size_t Partitions::TotalSizeOfCommittedPages() {
           base::features::kPartitionAllocReuseMainPartitionForBuffers)) {
     if (buffer_root_) {
       total_size +=
-          TS_UNCHECKED_READ(buffer_root_->total_size_of_committed_pages);
+          TS_UNCHECKED_READ(buffer_root_->total_size_of_committed_pages_);
     }
     return total_size;
   }
