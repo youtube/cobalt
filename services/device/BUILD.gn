@@ -517,6 +517,7 @@ if (is_android) {
     ]
     if (is_cobalt) {
       deps -= [
+        "//services/device/serial:java",
         "//services/device/usb:java",
       ]
     }
