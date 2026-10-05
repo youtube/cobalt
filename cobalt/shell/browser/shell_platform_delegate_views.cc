@@ -23,7 +23,6 @@
 #include <memory>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
@@ -266,7 +265,7 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
-  DCHECK(!base::Contains(shell_data_map_, shell));
+  DCHECK(!shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
@@ -305,19 +304,19 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
 }
 
 gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   return shell_data.window_widget->GetNativeWindow();
 }
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   shell_data_map_.erase(shell);
 }
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.window_widget) {
@@ -420,7 +419,7 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.window_widget) {
@@ -443,7 +442,7 @@ void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
 
 void ShellPlatformDelegate::SetTitle(Shell* shell,
                                      const std::u16string& title) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.window_widget) {
@@ -455,7 +454,7 @@ void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   VLOG(1) << "ShellPlatformDelegate::DestroyShell() called";
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.window_widget) {

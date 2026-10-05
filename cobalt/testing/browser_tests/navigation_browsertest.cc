@@ -21,7 +21,6 @@
 #include <string_view>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -1801,8 +1800,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   // 1) There is no "header_name" header in the initial request.
   shell()->LoadURL(embedded_test_server()->GetURL("/doc"));
   response_1.WaitForRequest();
-  EXPECT_FALSE(
-      base::Contains(response_1.http_request()->headers, "header_name"));
+  EXPECT_FALSE(response_1.http_request()->headers.contains("header_name"));
   response_1.Send(
       "HTTP/1.1 302 Moved Temporarily\r\nLocation: /new_doc\r\n\r\n");
   response_1.Done();
@@ -1915,8 +1913,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 
   // 2) The header is removed from the second request after the redirect.
   response_2.WaitForRequest();
-  EXPECT_FALSE(
-      base::Contains(response_2.http_request()->headers, "header_name"));
+  EXPECT_FALSE(response_2.http_request()->headers.contains("header_name"));
 }
 
 // Test NavigationRequest::CheckAboutSrcDoc()
@@ -5149,7 +5146,7 @@ class SubresourceLoadingTest : public NavigationBrowserTest {
       WebContents* current_contents =
           WebContents::FromRenderFrameHost(current_frame);
       DCHECK(current_contents);
-      if (base::Contains(visited_contents, current_contents)) {
+      if (visited_contents.contains(current_contents)) {
         break;
       }
       visited_contents.insert(current_contents);
@@ -8799,7 +8796,7 @@ class NavigationBrowserTestPaintHoldingSubframe
 
     constexpr gfx::Size kOutputSize(10, 10);
     view->CopyFromSurface(
-        gfx::Rect(), kOutputSize,
+        gfx::Rect(), kOutputSize, base::TimeDelta(),
         base::BindOnce(&NavigationBrowserTestPaintHoldingSubframe::OnCopyDone,
                        base::Unretained(this)));
 
