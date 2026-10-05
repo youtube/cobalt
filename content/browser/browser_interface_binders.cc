@@ -769,7 +769,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         // !BUILDFLAG(IS_IOS_TVOS))
 
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
 #endif

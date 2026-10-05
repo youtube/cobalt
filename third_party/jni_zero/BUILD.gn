@@ -48,7 +48,7 @@ buildflag_header("cobalt_for_google3_buildflags") {
   flags = [
     "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
   ]
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 # This is the public target that we intend others to use.
@@ -102,7 +102,7 @@ component("jni_zero") {
     ":cobalt_for_google3_buildflags",
     ":generate_jni($android_toolchain)",
     ":system_jni($android_toolchain)",
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ]
   
   if (is_cobalt) {

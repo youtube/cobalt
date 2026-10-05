@@ -19,7 +19,7 @@
 #endif
 
 =======
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if defined(JNI_ZERO_MULTIPLEXING_ENABLED)
 extern const int64_t kJniZeroHashWhole;
 extern const int64_t kJniZeroHashPriority;

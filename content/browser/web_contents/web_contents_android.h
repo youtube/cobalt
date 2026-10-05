@@ -109,7 +109,7 @@ class CONTENT_EXPORT WebContentsAndroid {
   void OnFreeze(JNIEnv* env);
   void OnResume(JNIEnv* env);
 
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void SuspendAllMediaPlayers(JNIEnv* env);
   void SetAudioMuted(JNIEnv* env, bool mute);
   bool IsAudioMuted(JNIEnv* env);

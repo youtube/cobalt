@@ -1250,7 +1250,7 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
 
   if (visibility_changed_callback_) {
     visibility_changed_callback_.Run(true);
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (gpu_preferences_.enable_gpu_benchmarking_extension) {
       ++gpu_info_.visibility_callback_call_count;
       UpdateGPUInfoGL();

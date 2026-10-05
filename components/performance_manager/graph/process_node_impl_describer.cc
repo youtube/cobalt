@@ -76,7 +76,7 @@ const char* GetProcessPriorityString(const base::Process& process) {
 }
 #endif
 
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 base::Value GetProcessValueDict(const base::Process& process) {
   base::Value::Dict ret;
 
@@ -116,7 +116,7 @@ base::Value GetProcessValueDict(const base::Process& process) {
 =======
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("priority", GetProcessPriorityString(process));
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("creation_time",

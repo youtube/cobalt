@@ -100,7 +100,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
     }
 
     ThreadCache* tcache = ThreadCache::EnsureAndGet();
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     PA_CHECK(ThreadCache::IsValid(tcache));
 
     tcache->GetSchedulerLoopQuarantineBranch().DisallowScanlessPurge();
@@ -115,7 +115,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
     }
 
     ThreadCache* tcache = ThreadCache::EnsureAndGet();
->>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 42a4c395026 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     PA_CHECK(ThreadCache::IsValid(tcache));
 
     tcache->GetSchedulerLoopQuarantineBranch().AllowScanlessPurge();
