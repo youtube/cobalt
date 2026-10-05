@@ -35,11 +35,15 @@ from conflicts import (
     extract_conflict_blocks,
     resolve_file_conflicts,
 )
+import differences
+import diff_metrics
 from engine_client import ReasoningEngineClient
 from gclient_sync import GClientSyncDiagnostic
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
 from reasoning_engine import deploy
+import review_pipeline
+import roll_partition
 from token_usage import TokenUsage
 
 SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
@@ -1374,6 +1378,139 @@ target("foo") {{}}
     )
     self.assertEqual(staging_custom, "gs://my-custom-bucket")
 
+  def test_file_inventory_and_functional_prefilter(self):
+    """Guards the deterministic half of the comparison.
+
+    The similarity score this test used to assert on was removed: exact
+    line overlap punished semantically equivalent fixes written
+    differently. What remains deterministic is the file inventory and
+    the pre-filter that decides which shared files are worth an expert
+    look, so that is what is pinned here.
+    """
+
+    # 1. Test comment & whitespace line filter
+    self.assertTrue(diff_metrics.is_comment_or_whitespace("   "))
+    self.assertTrue(
+        diff_metrics.is_comment_or_whitespace("+  // Cobalt: update macro"))
+    self.assertTrue(
+        diff_metrics.is_comment_or_whitespace("-  # Python comment"))
+    self.assertTrue(
+        diff_metrics.is_comment_or_whitespace("+  /* Block comment start"))
+    self.assertTrue(
+        diff_metrics.is_comment_or_whitespace("+   * Block comment body"))
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("+  int x = 42;"))
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("-  return false;"))
+
+    # File sets are derived from the diffs, so the fixture declares every
+    # touched file as a real header rather than passing sets separately.
+    human_diff = (
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  // Human comment explaining rebase\n"
+        "+  #include \"new_header.h\"\n"
+        "-  old_call();\n"
+        "+  new_call();\n"
+        "diff --git a/cobalt/media/sandbox.h b/cobalt/media/sandbox.h\n"
+        "--- a/cobalt/media/sandbox.h\n"
+        "+++ b/cobalt/media/sandbox.h\n"
+        "diff --git a/DEPS b/DEPS\n"
+        "--- a/DEPS\n"
+        "+++ b/DEPS\n")
+    ai_diff = (
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  // AI comment with different wording\n"
+        "+  #include \"new_header.h\"\n"
+        "-  old_call();\n"
+        "+  new_call();\n"
+        "+  extra_ai_workaround();\n"
+        "diff --git a/DEPS b/DEPS\n"
+        "--- a/DEPS\n"
+        "+++ b/DEPS\n"
+        "diff --git a/cobalt/unnecessary.cc b/cobalt/unnecessary.cc\n"
+        "--- a/cobalt/unnecessary.cc\n"
+        "+++ b/cobalt/unnecessary.cc\n")
+
+    inventory = diff_metrics.build_file_inventory(human_diff, ai_diff)
+
+    self.assertEqual(inventory["shared"], ["DEPS", "cobalt/media/sandbox.cc"])
+    self.assertEqual(inventory["reference_only"], ["cobalt/media/sandbox.h"])
+    self.assertEqual(inventory["candidate_only"], ["cobalt/unnecessary.cc"])
+
+    # DEPS is touched by both with no content, so it carries nothing to
+    # explain and must be filtered out. sandbox.cc differs only by the
+    # AI's extra_ai_workaround() line, since the differing comment
+    # wording is not functional.
+    self.assertEqual(inventory["shared_differing"], ["cobalt/media/sandbox.cc"])
+
+  def test_interactive_review_tool_execution(self):
+    """Guards single-file diff extraction and review tool execution."""
+
+    sample_diff = (
+        "diff --git a/DEPS b/DEPS\n"
+        "--- a/DEPS\n"
+        "+++ b/DEPS\n"
+        "+  'cpuinfo': 'hash123',\n"
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  #include \"sandbox.h\"\n")
+
+    # 1. Test single file diff extraction
+    deps_diff = review_pipeline.extract_single_file_diff(sample_diff, "DEPS")
+    self.assertIn("diff --git a/DEPS b/DEPS", deps_diff)
+    self.assertIn("+  'cpuinfo': 'hash123',", deps_diff)
+    self.assertNotIn("sandbox.cc", deps_diff)
+
+    media_diff = review_pipeline.extract_single_file_diff(
+        sample_diff, "cobalt/media/sandbox.cc")
+    self.assertIn("cobalt/media/sandbox.cc", media_diff)
+    self.assertNotIn("DEPS", media_diff)
+
+    # 2. Test TOOL_DIFF_FILE execution with and without contaminated commentary
+    tool_out = review_pipeline.execute_review_tool(
+        cmd="TOOL_DIFF_FILE: cobalt/media/sandbox.cc (inspect includes)",
+        repo_root=".",
+        human_diff=sample_diff,
+        ai_diff=(
+            "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+            "+++ b/cobalt/media/sandbox.cc\n"
+            "+  ai_edit();\n"),
+    )
+    self.assertIn("Target File: cobalt/media/sandbox.cc", tool_out)
+    self.assertIn("Human Ground-Truth Fix Diff", tool_out)
+    self.assertIn("AI Rebase Attempt Diff", tool_out)
+    self.assertIn("+  #include \"sandbox.h\"", tool_out)
+    self.assertIn("+  ai_edit();", tool_out)
+
+  def test_tool_argument_hygiene_sanitization(self):
+    """Guards filepath token sanitization against argument contamination."""
+    raw1 = "base/threading/platform_thread_cobalt.cc (to inspect priority)"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw1),
+        "base/threading/platform_thread_cobalt.cc",
+    )
+
+    raw2 = "`base/BUILD.gn` - check if Starboard sources were included"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw2),
+        "base/BUILD.gn",
+    )
+
+    raw3 = "./content/browser/BUILD.gn: inspect targets"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw3),
+        "content/browser/BUILD.gn",
+    )
+
+    raw4 = "DEPS"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw4),
+        "DEPS",
+    )
+
   def test_has_cobalt_git_history(self):
     """Verifies that has_cobalt_git_history accurately identifies Cobalt PRs."""
     _COBALT_GIT_HISTORY_CACHE.clear()
@@ -2317,6 +2454,207 @@ target("foo") {{}}
     self.assertEqual(extract_meaningful_error_summary(direct_err), direct_err)
 
 
+class DiffMetricsTest(unittest.TestCase):
+  """Tests the shared scoring module that replaced two drifted copies."""
+
+  DIFF_WITH_DELETE_AND_RENAME = """diff --git a/media/BUILD.gn b/media/BUILD.gn
+index 111..222 100644
+--- a/media/BUILD.gn
++++ b/media/BUILD.gn
+@@ -1,3 +1,4 @@
++  enabled_features = [ "use_starboard_media" ]
+diff --git a/cobalt/removed.cc b/cobalt/removed.cc
+deleted file mode 100644
+index 333..0000000
+--- a/cobalt/removed.cc
++++ /dev/null
+@@ -1,2 +0,0 @@
+-int gone() { return 1; }
+diff --git a/base/old.h b/base/new.h
+similarity index 100%
+rename from base/old.h
+rename to base/new.h
+"""
+
+  def test_deleted_and_renamed_files_are_counted(self):
+    """Deleted and renamed files must not vanish from the file set.
+
+    The prior '+++ b/'-only reader missed both, hiding exactly the kind
+    of divergence a reviewer needs to be asked about.
+    """
+    files = diff_metrics.extract_modified_files(
+        self.DIFF_WITH_DELETE_AND_RENAME)
+    self.assertIn("media/BUILD.gn", files)
+    self.assertIn("cobalt/removed.cc", files)
+    self.assertIn("base/new.h", files)
+    self.assertEqual(len(files), 3)
+
+  def test_preprocessor_directives_count_as_code(self):
+    """#error and #warning change compilation and are functional."""
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("+#error boom"))
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("+#warning hmm"))
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("+#include <f>"))
+
+  def test_docstrings_and_comments_are_not_code(self):
+    self.assertTrue(diff_metrics.is_comment_or_whitespace('+  """doc"""'))
+    self.assertTrue(diff_metrics.is_comment_or_whitespace("+  '''doc'''"))
+    self.assertTrue(diff_metrics.is_comment_or_whitespace("+  // comment"))
+    self.assertTrue(diff_metrics.is_comment_or_whitespace("+   * continued"))
+    self.assertTrue(diff_metrics.is_comment_or_whitespace("+  */"))
+
+  def test_pointer_dereference_is_not_a_comment(self):
+    """A leading '*' must not swallow real C++ statements."""
+    self.assertFalse(diff_metrics.is_comment_or_whitespace("+  *ptr = 5;"))
+
+  def test_identical_diffs_have_no_functional_differences(self):
+    """A file with identical content on both sides needs no expert look."""
+    inventory = diff_metrics.build_file_inventory(
+        self.DIFF_WITH_DELETE_AND_RENAME, self.DIFF_WITH_DELETE_AND_RENAME)
+    self.assertEqual(len(inventory["shared"]), 3)
+    self.assertEqual(inventory["shared_differing"], [])
+    self.assertEqual(inventory["reference_only"], [])
+    self.assertEqual(inventory["candidate_only"], [])
+
+  def test_disjoint_diffs_share_no_files(self):
+    other = ("diff --git a/x/y.cc b/x/y.cc\n"
+             "--- a/x/y.cc\n"
+             "+++ b/x/y.cc\n"
+             "@@ -1 +1 @@\n"
+             "+int totally_different();\n")
+    inventory = diff_metrics.build_file_inventory(
+        self.DIFF_WITH_DELETE_AND_RENAME, other)
+    self.assertEqual(inventory["shared"], [])
+    self.assertEqual(inventory["shared_differing"], [])
+    self.assertEqual(inventory["candidate_only"], ["x/y.cc"])
+
+  def test_comment_only_divergence_is_not_functional(self):
+    """Differing comment wording must not be flagged for review."""
+    base = ("diff --git a/a/b.cc b/a/b.cc\n"
+            "--- a/a/b.cc\n"
+            "+++ b/a/b.cc\n"
+            "+  // {}\n"
+            "+  int x = 1;\n")
+    inventory = diff_metrics.build_file_inventory(
+        base.format("human wording"), base.format("ai wording"))
+    self.assertEqual(inventory["shared"], ["a/b.cc"])
+    self.assertEqual(inventory["shared_differing"], [])
+
+  def test_bare_filename_ambiguity_is_reported_not_guessed(self):
+    """'foo.h' must not silently resolve to 'ui/foo.html'.
+
+    The previous substring match concatenated both sections, so the
+    model reasoned about a file it had not asked for.
+    """
+    diff = ("diff --git a/ui/foo.html b/ui/foo.html\n"
+            "+<div>unrelated</div>\n"
+            "diff --git a/base/foo.h b/base/foo.h\n"
+            "+int real();\n")
+    sections = diff_metrics.split_diff_by_file(diff)
+    self.assertEqual(
+        diff_metrics.resolve_diff_path(sections, "base/foo.h"), ["base/foo.h"])
+    self.assertEqual(
+        diff_metrics.resolve_diff_path(sections, "foo.h"), ["base/foo.h"])
+    self.assertEqual(diff_metrics.resolve_diff_path(sections, "missing.cc"), [])
+    self.assertNotIn("unrelated", sections["base/foo.h"])
+
+
+class DifferencesParsingTest(unittest.TestCase):
+  """Tests the parsed difference blocks that produce the headline count.
+
+  The count must be a function of enumerated, reviewable items rather
+  than a number the model asserts, so these tests pin what does and does
+  not get counted.
+  """
+
+  VALID_BLOCK = """```difference
+FILE: media/mojo/mojom/BUILD.gn
+CATEGORY: MISSED
+SEVERITY: HIGH
+HUMAN: Added enabled_features to the new media_types target.
+AI: no change
+IMPACT: kStarboard is never emitted.
+QUESTION: Was the target split the intended place for this?
+```"""
+
+  def test_parses_a_well_formed_block(self):
+    found = differences.parse_differences(self.VALID_BLOCK)
+    self.assertEqual(len(found), 1)
+    item = found[0]
+    self.assertEqual(item.file, "media/mojo/mojom/BUILD.gn")
+    self.assertEqual(item.category, "MISSED")
+    self.assertEqual(item.severity, "HIGH")
+    self.assertIn("enabled_features", item.human)
+    self.assertIn("kStarboard", item.impact)
+
+  def test_prose_around_blocks_is_ignored(self):
+    text = ("Here is my analysis.\n\n" + self.VALID_BLOCK +
+            "\n\n## Summary\nThe AI diverged on build config.\n")
+    self.assertEqual(len(differences.parse_differences(text)), 1)
+
+  def test_empty_shell_blocks_are_not_counted(self):
+    """A block naming no file or no behavior must not inflate the count."""
+    text = ("```difference\nCATEGORY: MISSED\nSEVERITY: HIGH\n```\n"
+            "```difference\nFILE: a/b.cc\nSEVERITY: LOW\n```\n")
+    self.assertEqual(differences.parse_differences(text), [])
+
+  def test_multi_line_field_values_are_joined(self):
+    text = ("```difference\n"
+            "FILE: a/b.cc\n"
+            "HUMAN: First line of reasoning\n"
+            "  continued on a second line\n"
+            "AI: no change\n"
+            "```")
+    found = differences.parse_differences(text)
+    self.assertEqual(len(found), 1)
+    self.assertEqual(found[0].human,
+                     "First line of reasoning continued on a second line")
+
+  def test_unknown_enum_values_fall_back_to_defaults(self):
+    text = ("```difference\n"
+            "FILE: a/b.cc\n"
+            "CATEGORY: TOTALLY_MADE_UP\n"
+            "SEVERITY: CATASTROPHIC\n"
+            "HUMAN: did a thing\n"
+            "```")
+    found = differences.parse_differences(text)
+    self.assertEqual(found[0].category, "DIVERGENT")
+    self.assertEqual(found[0].severity, "MEDIUM")
+
+  def test_count_by_severity_and_summary_ranking(self):
+    text = "\n".join([
+        "```difference\nFILE: a.cc\nSEVERITY: LOW\nHUMAN: x\n```",
+        "```difference\nFILE: b.cc\nSEVERITY: HIGH\nHUMAN: y\n```",
+        "```difference\nFILE: c.cc\nSEVERITY: HIGH\nAI: z\n```",
+    ])
+    found = differences.parse_differences(text)
+    self.assertEqual(len(found), 3)
+    counts = differences.count_by(found, "severity")
+    self.assertEqual(counts["HIGH"], 2)
+    self.assertEqual(counts["LOW"], 1)
+
+    inventory = {
+        "shared": ["a.cc"],
+        "shared_differing": ["a.cc"],
+        "reference_only": [],
+        "candidate_only": [],
+    }
+    summary = differences.format_summary(found, "#1", "#2", inventory)
+    self.assertIn("Functional differences found: 3", summary)
+    # HIGH items must be ranked ahead of the LOW one for a busy reviewer.
+    self.assertLess(summary.index("b.cc"), summary.index("a.cc"))
+
+  def test_no_differences_states_the_caveat(self):
+    inventory = {
+        "shared": [],
+        "shared_differing": [],
+        "reference_only": [],
+        "candidate_only": [],
+    }
+    summary = differences.format_summary([], "#1", "#2", inventory)
+    self.assertIn("Functional differences found: 0", summary)
+    self.assertIn("not that none exist", summary)
+
+
 class ToolDirectiveExtractionTest(unittest.TestCase):
   """Pins the two tool-directive parsers against each other.
 
@@ -2416,6 +2754,98 @@ class FormatHistoryRecordsTest(unittest.TestCase):
     self.assertEqual(format_history_records([]), ("", ""))
 
 
+class RollPartitionTest(unittest.TestCase):
+  """Tests subject-anchored separation of roller commits from fixes."""
+
+  # The real M143 baseline, oldest first.
+  BASELINE = [
+      {
+          "oid": "02e01ed",
+          "messageHeadline": "CONFLICTED Chromium Cherry pick: Revert Cobalt."
+      },
+      {
+          "oid": "ebc9531",
+          "messageHeadline": "Restore submodules."
+      },
+      {
+          "oid": "5bab67f",
+          "messageHeadline": "Update to 143.7471."
+      },
+      {
+          "oid": "2865b8f",
+          "messageHeadline": "Remove submodules."
+      },
+      {
+          "oid":
+              "c068cf5",
+          "messageHeadline":
+              "CONFLICTED Cherry pick commit 8bbb3c4: Update to 143.7471."
+      },
+  ]
+
+  def test_partitions_real_five_commit_baseline(self):
+    fixes = [
+        {
+            "oid": "aaa1",
+            "messageHeadline": "Fix mojom enabled_features"
+        },
+        {
+            "oid": "aaa2",
+            "messageHeadline": "Fix JNI registration"
+        },
+    ]
+    baseline, got_fixes = roll_partition.partition_roll_commits(self.BASELINE +
+                                                                fixes)
+    self.assertEqual(len(baseline), 5)
+    self.assertEqual([c["oid"] for c in got_fixes], ["aaa1", "aaa2"])
+
+  def test_partition_is_not_hardcoded_to_five(self):
+    """A baseline of a different length must still partition correctly."""
+    short = self.BASELINE[2:]  # 3 commits, still ending with the anchor.
+    fixes = [{"oid": "bbb1", "messageHeadline": "Fix something"}]
+    baseline, got_fixes = roll_partition.partition_roll_commits(short + fixes)
+    self.assertEqual(len(baseline), 3)
+    self.assertEqual([c["oid"] for c in got_fixes], ["bbb1"])
+
+  def test_no_fix_commits_yields_empty_fix_list(self):
+    baseline, fixes = roll_partition.partition_roll_commits(self.BASELINE)
+    self.assertEqual(len(baseline), 5)
+    self.assertEqual(fixes, [])
+
+  def test_missing_anchor_raises_rather_than_guessing(self):
+    """Without the anchor we must fail loudly, not score the whole roll."""
+    commits = [
+        {
+            "oid": "x1",
+            "messageHeadline": "Some random commit"
+        },
+        {
+            "oid": "x2",
+            "messageHeadline": "Another commit"
+        },
+    ]
+    with self.assertRaises(roll_partition.RollPartitionError):
+      roll_partition.partition_roll_commits(commits)
+
+  def test_empty_commit_list_raises(self):
+    with self.assertRaises(roll_partition.RollPartitionError):
+      roll_partition.partition_roll_commits([])
+
+  def test_anchor_picks_latest_when_repeated(self):
+    """Earlier rolls in history must not be mistaken for the baseline tip."""
+    older_roll = {
+        "oid": "old1",
+        "messageHeadline": "CONFLICTED Cherry pick commit z: Update to 142.1."
+    }
+    commits = [older_roll] + self.BASELINE + [{
+        "oid": "fix1",
+        "messageHeadline": "Real fix"
+    }]
+    baseline, fixes = roll_partition.partition_roll_commits(commits)
+    self.assertEqual(baseline[-1]["oid"], "c068cf5")
+    self.assertEqual([c["oid"] for c in fixes], ["fix1"])
+
+
 class MemoryReadOnlyTest(unittest.TestCase):
   """Guards that read-only mode never writes to the GCS knowledge bank."""
 
@@ -2511,6 +2941,14 @@ class MemoryReadOnlyTest(unittest.TestCase):
         project_id="test-proj", local=True, memory_read_only=True)
     engine = client._get_engine()  # pylint: disable=protected-access
     self.assertTrue(engine.memory_read_only)
+
+  def test_persist_lessons_counts_only_saved(self):
+    review = ("```lesson\nTARGET: media/foo.cc\nISSUE: kFoo removed\n"
+              "RULE: use kBar\n```")
+    client = ReasoningEngineClient(
+        resource_id="123", project_id="test-proj", memory_read_only=True)
+    self.assertEqual(
+        review_pipeline.persist_lessons_to_memory(review, client), 0)
 
   def test_pipeline_flag_parsing(self):
     import run_rebase_pipeline  # pylint: disable=import-outside-toplevel

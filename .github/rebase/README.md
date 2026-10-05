@@ -247,6 +247,7 @@ export REBASE_MEMORY_READ_ONLY=1
 * `record_successful_fix` is skipped in both the client and the in-process
   engine, so nothing is uploaded to GCS. The client-side guard also applies
   when talking to the hosted Reasoning Engine.
+* `review_pipeline.py` honors the same flag and does not persist lessons.
 * To disable the knowledge bank entirely (no reads either), pass
   `--gcs-memory-uri none`.
 
