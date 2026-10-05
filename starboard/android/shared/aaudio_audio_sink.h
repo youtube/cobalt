@@ -57,7 +57,7 @@ class AaudioAudioSink final : public AudioSinkAndroid {
 
   static std::unique_ptr<AaudioAudioSink> Create(
       int channels,
-      int sampling_frequency_hz,
+      int sample_rate,
       SbMediaAudioSampleType sample_type,
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
@@ -85,6 +85,10 @@ class AaudioAudioSink final : public AudioSinkAndroid {
  private:
   struct AAudioStreamDeleter {
     void operator()(AAudioStream* stream) const;
+
+    // How long to sleep between stopping and closing the stream before
+    // Android 12. See operator().
+    int64_t delay_before_close_us = 0;
   };
 
   void CopyFromFrameBuffer(int offset_in_frames,

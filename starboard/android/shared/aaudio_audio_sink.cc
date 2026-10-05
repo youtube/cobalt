@@ -15,6 +15,7 @@
 #include "starboard/android/shared/aaudio_audio_sink.h"
 
 #include <android/api-level.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstring>
@@ -66,6 +67,18 @@ void CopyWithVolume(const float* src,
   }
 }
 
+// Same as Oboe's AudioStream::calculateDefaultDelayBeforeCloseMillis(): one
+// burst plus 1 ms of margin, clamped to [10, 100] ms.
+int64_t GetDelayBeforeCloseUs(int burst_frames, int sample_rate) {
+  constexpr int64_t kMinDelayBeforeCloseMs = 10;
+  constexpr int64_t kMaxDelayBeforeCloseMs = 100;
+  const int64_t burst_ms =
+      sample_rate > 0 ? burst_frames * 1'000LL / sample_rate : 0;
+  const int64_t delay_ms =
+      std::clamp(1 + burst_ms, kMinDelayBeforeCloseMs, kMaxDelayBeforeCloseMs);
+  return delay_ms * 1'000;
+}
+
 }  // namespace
 
 void AaudioAudioSink::AAudioStreamDeleter::operator()(
@@ -75,6 +88,13 @@ void AaudioAudioSink::AAudioStreamDeleter::operator()(
   }
 
   AAudio::Stream_RequestStop(stream);
+  // Before Android 12 (S, API level 31), AAudioStream_close() doesn't wait
+  // for the callback thread, so callbacks may still run after requestStop()
+  // and even after close() returns (crbug.com/1183255). Like Oboe's
+  // sleepBeforeClose(), give them time to finish.
+  if (android_get_device_api_level() < __ANDROID_API_S__) {
+    usleep(delay_before_close_us);
+  }
   AAudio::Stream_Close(stream);
 }
 
@@ -87,7 +107,7 @@ bool AaudioAudioSink::IsSupported(SbMediaAudioSampleType sample_type) {
 // static
 std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
     int channels,
-    int sampling_frequency_hz,
+    int sample_rate,
     SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
@@ -114,7 +134,7 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
       raw_builder);
 
   AAudio::StreamBuilder_SetDirection(builder.get(), AAUDIO_DIRECTION_OUTPUT);
-  AAudio::StreamBuilder_SetSampleRate(builder.get(), sampling_frequency_hz);
+  AAudio::StreamBuilder_SetSampleRate(builder.get(), sample_rate);
   AAudio::StreamBuilder_SetChannelCount(builder.get(), channels);
   AAudio::StreamBuilder_SetFormat(builder.get(), AAUDIO_FORMAT_PCM_FLOAT);
   AAudio::StreamBuilder_SetSharingMode(builder.get(),
@@ -145,9 +165,10 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
                   << AAudio::ConvertResultToText(result);
     return nullptr;
   }
-  std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream(raw_stream);
-
-  int32_t burst_frames = AAudio::Stream_GetFramesPerBurst(stream.get());
+  int32_t burst_frames = AAudio::Stream_GetFramesPerBurst(raw_stream);
+  std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream(
+      raw_stream,
+      AAudioStreamDeleter{GetDelayBeforeCloseUs(burst_frames, sample_rate)});
   if (burst_frames > 0) {
     AAudio::Stream_SetBufferSizeInFrames(stream.get(), burst_frames * 2);
   }
@@ -160,7 +181,7 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
   }
 
   SB_LOG(INFO) << "AaudioAudioSink (Pull Mode) created: channels=" << channels
-               << ", rate=" << sampling_frequency_hz
+               << ", rate=" << sample_rate
                << ", buffer_size=" << frames_per_channel
                << ", burst=" << burst_frames;
   sink->stream_ = std::move(stream);
@@ -186,8 +207,9 @@ AaudioAudioSink::AaudioAudioSink(PassKey<AaudioAudioSink>,
 AaudioAudioSink::~AaudioAudioSink() {
   quit_.store(true, std::memory_order_release);
   if (stream_) {
-    // Blocks until the AAudio callback thread exits. Must run before other
-    // members are destroyed.
+    // Blocks until the AAudio callback thread exits (best effort before
+    // Android 12, see AAudioStreamDeleter). Must run before other members are
+    // destroyed.
     stream_.reset();
   }
 }
