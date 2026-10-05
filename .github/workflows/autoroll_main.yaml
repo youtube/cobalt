@@ -140,7 +140,7 @@ jobs:
         run: |
           set -x
 
-          git push origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+          git push --force-with-lease origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
 
           PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
 

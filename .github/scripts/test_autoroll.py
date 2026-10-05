@@ -46,50 +46,17 @@ class TestAutorollLib(unittest.TestCase):
         'Cherry pick PR #12800: some feature\n'
         '(cherry picked from commit 2222222222222222222222222222222222222222)\n'
     )
-    with patch('subprocess.run') as mock_run:
-      mock_run.return_value.returncode = 0
-      shas, prs = lib.get_rolled_source_items('27.lts')
-      self.assertEqual(
-          shas, {
-              '1111111111111111111111111111111111111111',
-              '2222222222222222222222222222222222222222',
-          })
-      self.assertEqual(prs, {12799, 12800})
-      self.assertEqual(lib.get_rolled_source_shas('27.lts'), shas)
-
-  @patch('autoroll_lib.get_out')
-  def test_prefetch_and_get_pr_labels(self, mock_get_out):
-    graphql_response = {
-        'data': {
-            'repository': {
-                'pr_100': {
-                    'labels': {
-                        'nodes': [{
-                            'name': 'cp-27.lts'
-                        }, {
-                            'name': 'bug'
-                        }, None]
-                    }
-                },
-                'pr_101': {
-                    'labels': None
-                },
-            }
-        }
-    }
-    mock_get_out.return_value = json.dumps(graphql_response)
-
-    with patch.dict(os.environ, {'GITHUB_REPOSITORY': 'youtube/cobalt'}):
-      # Pass duplicate 100 to ensure deduplication works
-      lib.prefetch_pr_labels([100, 101, 100])
-
-    self.assertEqual(lib.get_pr_labels(100), {'cp-27.lts', 'bug'})
-    self.assertEqual(lib.get_pr_labels(101), set())
+    shas, prs = lib.get_rolled_source_items('27.lts')
+    self.assertEqual(
+        shas, {
+            '1111111111111111111111111111111111111111',
+            '2222222222222222222222222222222222222222',
+        })
+    self.assertEqual(prs, {12799, 12800})
+    self.assertEqual(lib.get_rolled_source_shas('27.lts'), shas)
 
   @patch('builtins.open')
-  @patch('os.path.exists')
-  def test_load_pr_labels_from_file(self, mock_exists, mock_open):
-    mock_exists.return_value = True
+  def test_load_pr_labels_from_file(self, mock_open):
     prs_data = [
         {
             'number': 123,
@@ -110,17 +77,8 @@ class TestAutorollLib(unittest.TestCase):
     lib.load_pr_labels_from_file('/fake/path/open_prs.json')
     self.assertEqual(lib.get_pr_labels(123), {'cp-27.lts', 'feature'})
     self.assertEqual(lib.get_pr_labels(456), set())
-
-  @patch('autoroll_lib.get_out')
-  def test_get_pr_labels_fallback_on_uncached(self, mock_get_out):
-    mock_get_out.return_value = 'cp-27.lts\ncustom-label\n'
-    labels = lib.get_pr_labels(200)
-    self.assertEqual(labels, {'cp-27.lts', 'custom-label'})
-    # Check that subsequent call hits cache
-    mock_get_out.reset_mock()
-    labels2 = lib.get_pr_labels(200)
-    self.assertEqual(labels2, {'cp-27.lts', 'custom-label'})
-    mock_get_out.assert_not_called()
+    # Uncached PR number should return empty set
+    self.assertEqual(lib.get_pr_labels(999), set())
 
 
 class TestAutorollMain(unittest.TestCase):
@@ -138,11 +96,10 @@ class TestAutorollMain(unittest.TestCase):
   @patch('autoroll_lib.get_start_sha')
   @patch('autoroll_lib.get_commits')
   @patch('autoroll_lib.get_rolled_source_items')
-  @patch('autoroll_lib.prefetch_pr_labels')
   @patch('autoroll_lib.get_pr_labels')
   @patch('autoroll_lib.get_cherry_pick_metadata')
   def test_only_migrates_prs_with_target_cherry_pick_label(
-      self, mock_metadata, mock_get_pr_labels, mock_prefetch, mock_rolled_items,
+      self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
       mock_get_commits, mock_start_sha, mock_cherry_pick):
     mock_start_sha.side_effect = ['sha0', 'sha0']
     mock_rolled_items.return_value = (set(), set())
@@ -283,11 +240,10 @@ class TestAutorollMain(unittest.TestCase):
   @patch('autoroll_lib.get_start_sha')
   @patch('autoroll_lib.get_commits')
   @patch('autoroll_lib.get_rolled_source_items')
-  @patch('autoroll_lib.prefetch_pr_labels')
   @patch('autoroll_lib.get_pr_labels')
   @patch('autoroll_lib.get_cherry_pick_metadata')
   def test_preserves_already_rolled_prs_and_picks_new(
-      self, mock_metadata, mock_get_pr_labels, mock_prefetch, mock_rolled_items,
+      self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
       mock_get_commits, mock_start_sha, mock_cherry_pick):
     mock_start_sha.side_effect = ['sha0', 'sha1']
     # sha1 is already in HEAD (cherry-picked previously)
@@ -342,11 +298,10 @@ class TestAutorollMain(unittest.TestCase):
   @patch('autoroll_lib.get_start_sha')
   @patch('autoroll_lib.get_commits')
   @patch('autoroll_lib.get_rolled_source_items')
-  @patch('autoroll_lib.prefetch_pr_labels')
   @patch('autoroll_lib.get_pr_labels')
   @patch('autoroll_lib.get_cherry_pick_metadata')
   def test_skips_commit_if_pr_number_already_rolled(
-      self, mock_metadata, mock_get_pr_labels, mock_prefetch, mock_rolled_items,
+      self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
       mock_get_commits, mock_start_sha, mock_cherry_pick):
     mock_start_sha.side_effect = ['sha0', 'sha0']
     # PR 101 was already rolled, but under a different SHA in target
@@ -394,12 +349,10 @@ class TestAutorollMain(unittest.TestCase):
   @patch('autoroll_lib.get_start_sha')
   @patch('autoroll_lib.get_commits')
   @patch('autoroll_lib.get_rolled_source_items')
-  @patch('autoroll_lib.prefetch_pr_labels')
   @patch('autoroll_lib.get_pr_labels')
-  def test_respects_max_commits(self, mock_get_pr_labels, mock_prefetch,
-                                mock_rolled_items, mock_get_commits,
-                                mock_start_sha, mock_cherry_pick,
-                                mock_metadata):
+  def test_respects_max_commits(self, mock_get_pr_labels, mock_rolled_items,
+                                mock_get_commits, mock_start_sha,
+                                mock_cherry_pick, mock_metadata):
     mock_metadata.return_value = ('date', 'author', 'msg')
     mock_start_sha.side_effect = ['sha0', 'sha0']
     mock_rolled_items.return_value = (set(), set())
