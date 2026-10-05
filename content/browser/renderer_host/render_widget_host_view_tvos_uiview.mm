@@ -649,13 +649,9 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   return NO;
 }
 
-<<<<<<< HEAD
-=======
 - (CGRect)accessibilityFrame {
   return CGRectZero;
 }
-
->>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIResponder
 
 - (BOOL)canBecomeFirstResponder {

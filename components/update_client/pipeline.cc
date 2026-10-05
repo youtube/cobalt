@@ -277,16 +277,12 @@ std::queue<Operation> MakeErrorOperations(
     const int event_type) {
   std::queue<Operation> error_ops;
   error_ops.push(base::BindOnce(
-<<<<<<< HEAD
-      [](base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
-      [](base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+[](base::RepeatingCallback<void(base::DictValue)> event_adder,
 #if BUILDFLAG(IS_STARBOARD)
          CategorizedError error, const int event_type, const OperationResult&,
          base::OnceCallback<void(
              base::expected<OperationResult, CategorizedError>)> callback)
 #else
->>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
          CategorizedError error, const int event_type, const base::FilePath&,
          base::OnceCallback<void(
              base::expected<base::FilePath, CategorizedError>)> callback)

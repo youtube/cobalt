@@ -285,14 +285,13 @@ source_set("audio") {
         "android/opensles_wrapper.cc",
       ]
     }
-<<<<<<< HEAD
-    if (enable_passthrough_audio_codecs) {
+if (enable_passthrough_audio_codecs) {
       sources += [
         "android/audio_track_output_stream.cc",
         "android/audio_track_output_stream.h",
       ]
     }
-=======
+
     # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
     # if (!is_cobalt) {
     #   libs += [ "aaudio" ]
@@ -300,7 +299,6 @@ source_set("audio") {
     #
     # b/551753897 - 141.7351 rebase: link against AAudio unconditionally after
     # https://crrev.com/c/6818228 to proceed with the rebase.
->>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     libs += [ "aaudio" ]
 
     deps += [ "//media/base/android:media_jni_headers" ]

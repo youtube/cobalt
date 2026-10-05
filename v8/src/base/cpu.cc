@@ -361,7 +361,6 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
         // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
-<<<<<<< HEAD
 #if defined(V8_OS_STARBOARD)
 
 bool CPU::StarboardDetectCPU() {
@@ -409,9 +408,6 @@ bool CPU::StarboardDetectCPU() {
 }
 
 #endif
-
-=======
->>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 CPU::CPU()
     : stepping_(0),
       model_(0),
