@@ -386,8 +386,8 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   [self updatePlayerState:kSbPlayerStateEndOfStream];
 }
 
-- (void)playerItemStatusDidChange {
-  switch (_player.currentItem.status) {
+- (void)playerItemStatusDidChange:(AVPlayerItem*)playerItem {
+  switch (playerItem.status) {
     case AVPlayerItemStatusReadyToPlay: {
       dispatch_async(dispatch_get_main_queue(), ^{
         if (self->_playbackStartTime) {
@@ -407,7 +407,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
       return;
     }
     case AVPlayerItemStatusFailed: {
-      NSError* error = _player.currentItem.error;
+      NSError* error = playerItem.error;
       NSString* errorMessage = [NSString stringWithFormat:@"%@", error];
       dispatch_async(dispatch_get_main_queue(), ^{
         [self updatePlayerError:kSbPlayerErrorDecode message:errorMessage];
@@ -439,7 +439,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
                         change:(NSDictionary<NSKeyValueChangeKey, id>*)change
                        context:(void*)context {
   if (context == &kPlayerItemStatusContext) {
-    [self playerItemStatusDidChange];
+    [self playerItemStatusDidChange:object];
     return;
   } else if (context == &kPlayerRateContext) {
     __weak AVPlayer* player = _player;
