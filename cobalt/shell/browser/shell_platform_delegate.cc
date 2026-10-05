@@ -143,6 +143,7 @@ void ShellPlatformDelegate::OnConceal() {
   if (!IsVisible()) {
     return;
   }
+  weak_factory_.InvalidateWeakPtrs();
 
   // Save the set of WebContents that were visible before conceal.
   // This is used on reveal to decide which WebContents we should wait for
@@ -183,6 +184,7 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
+  weak_factory_.InvalidateWeakPtrs();
   content::RestoreGpuProcessOnUI();
   // Clear the concealed state in StarboardRenderer so subsequent playback or
   // pipeline resume requests can create new SbPlayer instances.
@@ -366,6 +368,7 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
     cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
         static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
     is_visible_ = false;
+    weak_factory_.InvalidateWeakPtrs();
 
     base::WeakPtr<content::WebContents> wc_weak =
         web_contents ? web_contents->GetWeakPtr() : nullptr;

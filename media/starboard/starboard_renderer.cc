@@ -14,7 +14,8 @@
 
 #include "media/starboard/starboard_renderer.h"
 
-#include "base/containers/flat_set.h"
+#include "base/barrier_closure.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -50,13 +51,16 @@ namespace {
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
 
-// Tracks active StarboardRenderer instances and the StarboardRenderer sequence
-// so FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
-// thread during kSbEventTypeConceal.
+struct ActiveRendererEntry {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  base::WeakPtr<StarboardRenderer> weak_this;
+};
+
+// Tracks active StarboardRenderer instances so FlushAndSuspendActiveRenderers()
+// can be safely invoked from the browser UI thread during kSbEventTypeConceal.
 struct StarboardRendererConcealRegistry {
   base::Lock lock;
-  base::flat_set<StarboardRenderer*> active_renderers GUARDED_BY(lock);
-  scoped_refptr<base::SequencedTaskRunner> renderer_task_runner
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
       GUARDED_BY(lock);
   base::RepeatingCallback<void(base::OnceClosure)> suspend_hook_for_testing
       GUARDED_BY(lock);
@@ -188,8 +192,8 @@ StarboardRenderer::StarboardRenderer(
   {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
-    registry.active_renderers.insert(this);
-    registry.renderer_task_runner = task_runner_;
+    registry.active_renderers.emplace(
+        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
   }
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
@@ -203,6 +207,7 @@ StarboardRenderer::StarboardRenderer(
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
@@ -211,9 +216,6 @@ StarboardRenderer::~StarboardRenderer() {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
     registry.active_renderers.erase(this);
-    if (registry.active_renderers.empty()) {
-      registry.renderer_task_runner = nullptr;
-    }
   }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
@@ -1255,12 +1257,15 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
 void StarboardRenderer::FlushAndSuspendActiveRenderers(
     base::OnceClosure done_cb) {
   base::RepeatingCallback<void(base::OnceClosure)> hook;
-  scoped_refptr<base::SequencedTaskRunner> target_task_runner;
+  std::vector<ActiveRendererEntry> entries;
   {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
     hook = registry.suspend_hook_for_testing;
-    target_task_runner = registry.renderer_task_runner;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
   }
 
   if (hook) {
@@ -1273,7 +1278,7 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
           ? base::BindPostTaskToCurrentDefault(std::move(done_cb))
           : std::move(done_cb);
 
-  if (!target_task_runner) {
+  if (entries.empty()) {
     if (base::SequencedTaskRunner::HasCurrentDefault()) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, std::move(reply_cb));
@@ -1283,10 +1288,23 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
     return;
   }
 
-  // Post to the tail of the StarboardRenderer sequence so any queued
+  // Post to the tail of each active StarboardRenderer's sequence so any queued
   // MojoRendererService disconnect tasks execute first before replying to the
   // conceal barrier.
-  target_task_runner->PostTask(FROM_HERE, std::move(reply_cb));
+  base::RepeatingClosure barrier_cb =
+      base::BarrierClosure(entries.size(), std::move(reply_cb));
+  for (auto& entry : entries) {
+    entry.task_runner->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](base::WeakPtr<StarboardRenderer> renderer,
+                          base::OnceClosure done) {
+                         if (renderer) {
+                           renderer->OnConcealFallbackSuspend();
+                         }
+                         std::move(done).Run();
+                       },
+                       std::move(entry.weak_this), barrier_cb));
+  }
 }
 
 // static
@@ -1310,6 +1328,10 @@ void StarboardRenderer::SetSuspendCallbacksForTesting(
   base::AutoLock auto_lock(registry.lock);
   registry.suspend_hook_for_testing = std::move(suspend_cb);
   registry.resume_hook_for_testing = std::move(resume_cb);
+}
+
+void StarboardRenderer::OnConcealFallbackSuspend() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {

@@ -242,6 +242,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnBufferingStateChange(BufferingState state);
 
   void NotifyError(PipelineStatus status);
+  void OnConcealFallbackSuspend();
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
