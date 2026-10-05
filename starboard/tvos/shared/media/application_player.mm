@@ -327,16 +327,23 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
                       AVKeyValueStatus status =
                           [URLAsset statusOfValueForKey:kTracksKey
                                                   error:&error];
-                      if (status == AVKeyValueStatusLoaded) {
-                        dispatch_async(dispatch_get_main_queue(), ^{
+                      dispatch_async(dispatch_get_main_queue(), ^{
+                        if (self->_destroyCalled) {
+                          return;
+                        }
+                        if (status == AVKeyValueStatusLoaded) {
                           [self assetTracksLoadedForAsset:URLAsset];
-                        });
-                      } else {
+                          return;
+                        }
+                        SB_LOG(ERROR)
+                            << "[UrlPlayer] Failed to load the asset tracks: "
+                            <<
+                            [NSString stringWithFormat:@"%@", error].UTF8String;
                         [self
                             updatePlayerError:
                                 (SbPlayerError)kSbUrlPlayerErrorSrcNotSupported
                                       message:@"AV key value is not loaded."];
-                      }
+                      });
                     }];
 }
 
