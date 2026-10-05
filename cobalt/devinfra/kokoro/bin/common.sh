@@ -79,7 +79,7 @@ get_registry_authentication_token () {
   # go/gcs-tpc-bigstore-user-guide#authentication-http-bearer-tokensaccess-tokens
   local svc_account="${REGISTRY_METADATA}/instance/service-accounts/default"
   gcloud config set account "$(curl -s -H 'Metadata-Flavor: Google' "${svc_account}/email")"
-  local access_token=$(curl -H 'Metadata-Flavor: Google' ${svc_account}/token | cut -d'"' -f 4)
+  local access_token=$(curl --fail --retry 5 --retry-delay 2 -sS -H 'Metadata-Flavor: Google' "${svc_account}/token" | cut -d'"' -f 4)
   echo "${access_token}"
   set -x
 }
