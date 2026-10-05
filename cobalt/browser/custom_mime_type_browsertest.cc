@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
 #include <algorithm>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -244,13 +244,15 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   test_media_.SetSupportType(kSbMediaSupportTypeMaybe);
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
-  EXPECT_TRUE(std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
+  EXPECT_TRUE(
+      std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
 
   test_media_.ClearIntercepted();
   test_media_.SetSupportType(kSbMediaSupportTypeNotSupported);
   EXPECT_FALSE(
       content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
-  EXPECT_TRUE(std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
+  EXPECT_TRUE(
+      std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
 }
 
 // canPlayType() is implemented once, on HTMLMediaElement, and inherited
@@ -290,8 +292,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
         test_case.expected,
         content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-    EXPECT_TRUE(
-        std::ranges::contains(test_media_.GetInterceptedMimes(), test_case.mime));
+    EXPECT_TRUE(std::ranges::contains(test_media_.GetInterceptedMimes(),
+                                      test_case.mime));
   }
 }
 

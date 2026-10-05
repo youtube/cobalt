@@ -45,9 +45,7 @@ generate_jar_jni("system_jni_unchecked_exceptions") {
 buildflag_header("cobalt_for_google3_buildflags") {
   header = "cobalt_for_google3_buildflags.h"
   header_dir = "third_party/jni_zero"
-  flags = [
-    "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
-  ]
+  flags = [ "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3" ]
 }
 
 # This is the public target that we intend others to use.
@@ -97,11 +95,9 @@ component("jni_zero") {
     ":system_jni($android_toolchain)",
     ":system_jni_unchecked_exceptions($android_toolchain)",
   ]
-  
+
   if (is_cobalt) {
-    deps += [ 
-      ":cobalt_for_google3_buildflags",
-    ]
+    deps += [ ":cobalt_for_google3_buildflags" ]
   }
 }
 
