@@ -1,0 +1,2528 @@
+#!/usr/bin/env python3
+"""Comprehensive test suite for Cobalt Chromium rebase automation tools."""
+
+import ast
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from unittest import mock
+
+from autoninja import (
+    AutoninjaResolver,
+    CompilerDiagnostic,
+    find_build_file_for_object,
+    parse_compiler_errors,
+)
+from base_resolver import (
+    AgentChangeRecord,
+    BaseResolver,
+    _COBALT_GIT_HISTORY_CACHE,
+    apply_patch_or_replacement,
+    execute_local_tool,
+    extract_build_progress,
+    extract_line_anchored_tool_commands,
+    extract_meaningful_error_summary,
+    extract_tool_commands,
+    format_history_records,
+    get_chromium_milestone,
+    has_cobalt_git_history,
+    is_unmodified_third_party,
+)
+from conflicts import (
+    detect_language,
+    extract_conflict_blocks,
+    resolve_file_conflicts,
+)
+from engine_client import ReasoningEngineClient
+from gclient_sync import GClientSyncDiagnostic
+from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
+from reasoning_engine import CobaltReasoningEngine
+from reasoning_engine import deploy
+from token_usage import TokenUsage
+
+SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
+
+vars = {
+  "build_with_chromium": True,
+  "checkout_cobalt_internal": False,
+<<<<<<< HEAD
+  "skia_revision": "aaaa111122223333444455556666777788889999",
+=======
+  "skia_revision": "bbbb111122223333444455556666777788889999",
+>>>>>>> origin/main
+  "checkout_copybara": False,
+}
+"""
+
+SAMPLE_CPP_CONFLICT = """#include "base/logging.h"
+
+void InitializeMedia() {
+<<<<<<< HEAD
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  InitStarboardMediaPipeline();
+#endif
+=======
+  InitChromiumDefaultMediaPipeline();
+>>>>>>> origin/main
+}
+"""
+
+SAMPLE_COMPILER_OUTPUT = (
+    "[1420/5400] CXX obj/content/browser/keep_alive_url_loader_service.o\n"
+    "../../content/browser/loader/keep_alive_url_loader_service.cc:123:45: "
+    "error: no matching function for call to \"NavigationThrottle\"\n"
+    "  NavigationThrottle throttle(registry);\n"
+    "                     ^~~~~~~~\n"
+    "../../content/public/browser/navigation_throttle.h:45:3: note: candidate "
+    "function not viable\n"
+    "  NavigationThrottle(NavigationThrottleRegistry& registry);\n"
+    "  ^\n"
+    "[1421/5400] CXX obj/media/audio/audio/audio_manager_android.o\n")
+
+
+class TestRebaseAutomationSuite(unittest.TestCase):
+  """Comprehensive unit test suite for Cobalt rebase automation."""
+
+  def test_language_detection(self):
+    """Tests language identification from file extension."""
+    self.assertEqual(detect_language("DEPS"), "Python (Chromium DEPS)")
+    self.assertEqual(detect_language("cobalt/browser/main.cc"), "C++")
+    self.assertEqual(detect_language("cobalt/BUILD.gn"), "GN Build File")
+    self.assertEqual(detect_language("cobalt/App.java"), "Java")
+
+  def test_conflict_extraction(self):
+    """Tests extraction of conflict blocks with context."""
+    blocks = extract_conflict_blocks(SAMPLE_DEPS_CONFLICT)
+    self.assertEqual(len(blocks), 1)
+    self.assertEqual(blocks[0].index, 1)
+    self.assertIn("aaaa1111", blocks[0].ours_content)
+    self.assertIn("bbbb1111", blocks[0].theirs_content)
+
+  def test_local_tool_read_file(self):
+    """Tests execution of local file inspection tool."""
+    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp:
+      tmp.write("line 1\nline 2\nline 3\nline 4\nline 5\n")
+      tmp_path = tmp.name
+
+    try:
+      res = execute_local_tool(
+          f"TOOL_READ_FILE: {tmp_path} 2-4",
+          repo_path=os.path.dirname(tmp_path),
+      )
+      self.assertIn("line 2", res)
+      self.assertIn("line 4", res)
+      self.assertNotIn("line 1", res)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_deps_mock_resolution_and_ast(self):
+    """Tests mock DEPS resolution and syntax verification."""
+    with tempfile.NamedTemporaryFile("w+", suffix="DEPS", delete=False) as tmp:
+      tmp.write(SAMPLE_DEPS_CONFLICT)
+      tmp_path = tmp.name
+
+    try:
+      tracker = TokenUsage()
+      escalations = []
+      ok = resolve_file_conflicts(
+          file_path=tmp_path,
+          repo_path=os.path.dirname(tmp_path),
+          git_context="",
+          mock_mode=True,
+          token_tracker=tracker,
+          escalations=escalations,
+      )
+      self.assertTrue(ok)
+      self.assertEqual(len(escalations), 0)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        resolved = f.read()
+
+      self.assertNotIn("<<<<<<<", resolved)
+      self.assertNotIn(">>>>>>>", resolved)
+      self.assertIn("bbbb1111", resolved)
+      self.assertIn("checkout_copybara", resolved)
+
+      # Validate AST syntax
+      tree = ast.parse(resolved)
+      self.assertIsNotNone(tree)
+      self.assertEqual(tracker.calls, 1)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_source_mock_resolution(self):
+    """Tests mock C++ conflict resolution."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      tmp.write(SAMPLE_CPP_CONFLICT)
+      tmp_path = tmp.name
+
+    try:
+      tracker = TokenUsage()
+      escalations = []
+      ok = resolve_file_conflicts(
+          file_path=tmp_path,
+          repo_path=os.path.dirname(tmp_path),
+          git_context="",
+          mock_mode=True,
+          token_tracker=tracker,
+          escalations=escalations,
+      )
+      self.assertTrue(ok)
+      self.assertEqual(len(escalations), 0)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        resolved = f.read()
+
+      self.assertNotIn("<<<<<<<", resolved)
+      self.assertNotIn(">>>>>>>", resolved)
+      self.assertIn("InitChromiumDefaultMediaPipeline", resolved)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_unmodified_third_party_fast_path(self):
+    """Tests fast-path resolution for pure third-party files."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      tp_dir = os.path.join(tmp_dir, "third_party", "xnnpack")
+      os.makedirs(tp_dir, exist_ok=True)
+      tp_file = os.path.join(tp_dir, "BUILD.gn")
+      with open(tp_file, "w", encoding="utf-8") as f:
+        f.write("source_set(\"xnnpack\") {\n"
+                "<<<<<<< HEAD\n"
+                "  sources = [ \"new.c\" ]\n"
+                "=======\n"
+                "  sources = [ \"old.c\" ]\n"
+                ">>>>>>> parent of 65ea0fa (CONFLICTED Chromium Cherry pick: "
+                "Revert Cobalt.)\n"
+                "}\n")
+
+      tracker = TokenUsage()
+      escalations = []
+      ok = resolve_file_conflicts(
+          file_path=tp_file,
+          repo_path=tmp_dir,
+          git_context="",
+          mock_mode=False,  # Should not invoke API at all
+          token_tracker=tracker,
+          escalations=escalations,
+      )
+      self.assertTrue(ok)
+      self.assertEqual(tracker.calls, 0)
+      with open(tp_file, "r", encoding="utf-8") as f:
+        resolved = f.read()
+      self.assertNotIn("<<<<<<<", resolved)
+      self.assertNotIn(">>>>>>>", resolved)
+      self.assertIn("sources = [ \"new.c\" ]", resolved)
+
+  def test_compiler_error_parsing(self):
+    """Tests parsing of Clang error logs."""
+    diags = parse_compiler_errors(SAMPLE_COMPILER_OUTPUT, repo_path="/repo")
+    self.assertEqual(len(diags), 1)
+    self.assertEqual(diags[0].line_number, 123)
+    self.assertIn("NavigationThrottle", diags[0].error_message)
+
+  def test_gn_search_replace_with_slash_prefix(self):
+    """Tests search and replace patch application on GN files."""
+    with tempfile.NamedTemporaryFile(
+        "w+", suffix="BUILD.gn", delete=False) as tmp:
+      tmp.write("deps = [\n  \"//third_party/mesa_headers\",\n"
+                "  \"//third_party/re2\",\n]\n")
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      ai_patch = f"""FILE: //{rel}
+<<<<<<< SEARCH
+deps = [
+  "//third_party/mesa_headers",
+  "//third_party/re2",
+]
+=======
+deps = [
+  "//third_party/re2",
+]
+>>>>>>> REPLACE
+"""
+      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertNotIn("mesa_headers", content)
+      self.assertIn("third_party/re2", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_search_replace_sanitizes_rogue_markers(self):
+    """Tests that apply_search_replace strips rogue ======= markers."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".gn", delete=False) as tmp:
+      tmp.write("enable_rust_png = false\n")
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      # Simulates model repeating ======= in replacement
+      ai_patch = f"""FILE: //{rel}
+<<<<<<< SEARCH
+enable_rust_png = false
+=======
+=======
+# enable_rust_png = false
+>>>>>>> REPLACE
+"""
+      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertNotIn("=======", content)
+      self.assertIn("# enable_rust_png = false", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_search_replace_token_normalized_matching(self):
+    """Tests matching auto-generated files with quirky internal whitespace."""
+    file_content = (
+        "DAWN_NO_SANITIZE(\"cfi-icall\")\n"
+        "__attribute__((weak)) WGPUStatus  wgpuGetInstanceCapabilities("
+        "WGPUInstanceCapabilities * capabilities) {\n"
+        "return     procs.getInstanceCapabilities(capabilities);\n"
+        "}\n")
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      tmp.write(file_content)
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      ai_patch = (f"FILE: //{rel}\n"
+                  "<<<<<<< SEARCH\n"
+                  "55: DAWN_NO_SANITIZE(\"cfi-icall\")\n"
+                  "56: __attribute__((weak)) WGPUStatus "
+                  "wgpuGetInstanceCapabilities("
+                  "WGPUInstanceCapabilities * capabilities) {\n"
+                  "57:   return procs.getInstanceCapabilities(capabilities);\n"
+                  "58: }\n"
+                  "=======\n"
+                  "DAWN_NO_SANITIZE(\"cfi-icall\")\n"
+                  "__attribute__((weak)) WGPUStatus "
+                  "wgpuGetInstanceCapabilities(void* capabilities) {\n"
+                  "  return 0;\n"
+                  "}\n"
+                  ">>>>>>> REPLACE\n")
+      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("void* capabilities", content)
+      self.assertNotIn("WGPUInstanceCapabilities", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_apply_explicit_delete_block(self):
+    """Tests that <<<<<<< DELETE ... >>>>>>> DELETE removes code cleanly."""
+    file_content = ("void KeepBefore() {}\n"
+                    "void ObsoleteFunc() {\n"
+                    "  // To be removed\n"
+                    "}\n"
+                    "void KeepAfter() {}\n")
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      tmp.write(file_content)
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      del_patch = f"""FILE: //{rel}
+<<<<<<< DELETE
+void ObsoleteFunc() {{
+  // To be removed
+}}
+>>>>>>> DELETE
+"""
+      modified = apply_patch_or_replacement(del_patch, repo_path=parent)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertNotIn("ObsoleteFunc", content)
+      self.assertIn("KeepBefore", content)
+      self.assertIn("KeepAfter", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_reject_empty_search_replace_block(self):
+    """Tests that empty REPLACE in SEARCH/REPLACE is rejected as a glitch."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      tmp.write("void Foo() {}\n")
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      glitch_patch = f"""FILE: //{rel}
+<<<<<<< SEARCH
+void Foo() {{}}
+=======
+>>>>>>> REPLACE
+"""
+      modified = apply_patch_or_replacement(glitch_patch, repo_path=parent)
+      self.assertEqual(modified, [])
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("void Foo() {}", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_extract_build_progress(self):
+    """Tests extraction of Ninja and Siso build step progress."""
+    # Ninja format
+    sample_ninja = ("[11464/39292] 3m35.89s F ACTION //foo:bar\n"
+                    "[11465/39291] 3m35.90s S ACTION //foo:baz\n")
+    res = extract_build_progress(sample_ninja)
+    self.assertIn("11465/39291", res)
+    self.assertIn("29.2%", res)
+
+    # Siso format
+    sample_siso = "build finished: Stats{Done:50222, Fail:1, Total:50832}"
+    res_siso = extract_build_progress("", sample_siso)
+    self.assertIn("50222/50832", res_siso)
+    self.assertIn("98.8%", res_siso)
+
+  def test_autoninja_sends_full_file_context_on_repeated_errors(self):
+    """Tests sending full source files when error count >= 3."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      # Write 100 lines of dummy C++ code
+      tmp.write("\n".join(f"// Line {i}" for i in range(1, 101)) + "\n")
+      tmp_path = tmp.name
+
+    try:
+      repo_dir = os.path.dirname(tmp_path)
+      resolver = AutoninjaResolver(
+          repo_path=repo_dir,
+          out_dir="out/dummy",
+          target="cobalt_apk",
+      )
+      diag = CompilerDiagnostic(
+          file_path=tmp_path,
+          line_number=50,
+          column=1,
+          error_message="sample error",
+          raw_snippet="snippet",
+          notes=[],
+      )
+
+      # 1st attempt: should send 60-line window
+      called_contexts = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          called_contexts.append(kwargs.get("file_context", ""))
+          return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
+
+      resolver.reasoning_engine = MockEngine()
+      resolver.file_error_counts[tmp_path] = 1
+      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      self.assertTrue(len(called_contexts[0].splitlines()) < 80)
+
+      # 3rd error: should send full 100-line file
+      resolver.file_error_counts[tmp_path] = 3
+      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      self.assertEqual(len(called_contexts[1].splitlines()), 100)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_autoninja_resolves_raw_string_diagnostic(self):
+    """Tests that AutoninjaResolver handles unstructured string error traces."""
+    resolver = AutoninjaResolver(
+        repo_path="/tmp", out_dir="out/test", target="cobalt_apk")
+    called_traces = []
+
+    class MockEngine:
+      flash_model = "gemini-2.5-flash"
+      pro_model = "gemini-2.5-pro"
+
+      def heal_compiler_error(self, **kwargs):
+        called_traces.append(kwargs.get("error_trace", ""))
+        return {"patch": "PATCH", "model_used": "gemini-2.5-flash"}
+
+    resolver.reasoning_engine = MockEngine()
+    raw_error = (
+        "FAILED: obj/cobalt/apk/cobalt_apk.jar\njavac: package not found")
+    patch, model_used, rel_target = resolver.resolve_diagnostic(
+        raw_error, [], use_pro=False)
+    self.assertEqual(patch, "PATCH")
+    self.assertEqual(model_used, "gemini-2.5-flash")
+    self.assertEqual(rel_target, "cobalt_apk")
+    self.assertIn("FAILED: obj/cobalt/apk/cobalt_apk.jar", called_traces[0])
+
+  def test_parse_linker_errors_and_map_build_file(self):
+    """Tests that linker errors map to the offending component's BUILD.gn."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      ft_dir = os.path.join(tmp_dir, "third_party", "freetype")
+      os.makedirs(ft_dir, exist_ok=True)
+      gn_file = os.path.join(ft_dir, "BUILD.gn")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.write("component(\"freetype\") {}\n")
+
+      linker_output = (
+          "build step: solink \"./libchrobalt.so\"\n"
+          "ld.lld: error: obj/third_party/freetype/libfreetype.a(autofit.o) "
+          "is incompatible with armelf_linux_eabi\n"
+          "clang++: error: linker command failed with exit code 1")
+
+      diags = parse_compiler_errors(linker_output, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertEqual(diags[0].file_path, os.path.abspath(gn_file))
+      self.assertIn("incompatible with armelf_linux_eabi",
+                    diags[0].error_message)
+      self.assertIn("ld.lld: error:", diags[0].raw_snippet)
+
+      # Test direct helper
+      found_gn = find_build_file_for_object(
+          "obj/third_party/freetype/libfreetype.a(autofit.o)", tmp_dir)
+      self.assertEqual(found_gn, os.path.abspath(gn_file))
+
+  def test_gn_stray_conflict_marker_auto_removal(self):
+    """Tests that GNGenResolver automatically removes stray conflict markers."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".gn", delete=False) as tmp:
+      tmp.write("is_cobalt = true\n=======\nenable_vulkan = false\n")
+      tmp_path = tmp.name
+
+    try:
+      repo_dir = os.path.dirname(tmp_path)
+      rel = os.path.basename(tmp_path)
+      resolver = GNGenResolver(
+          repo_path=repo_dir, platform="android", build_type="devel")
+      diag = GNDiagnostic(
+          error_message="Unexpected token '=='",
+          raw_output=f"ERROR at //{rel}:2:1: Unexpected token '=='",
+          target_files={tmp_path: 2},
+          is_structural_break=True,
+      )
+      patch, model_used, rel_target = resolver.resolve_diagnostic(
+          diag, [], use_pro=False)
+      self.assertEqual(model_used, "auto-stray-marker-cleaner")
+      self.assertEqual(rel_target, rel)
+      modified = apply_patch_or_replacement(patch, repo_path=repo_dir)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertNotIn("=======", content)
+      self.assertIn("is_cobalt = true", content)
+      self.assertIn("enable_vulkan = false", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_compiler_stray_conflict_marker_auto_removal(self):
+    """Tests that AutoninjaResolver removes stray conflict markers."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
+      tmp.write("#include <iostream>\n=======\nvoid Init() {}\n")
+      tmp_path = tmp.name
+
+    try:
+      repo_dir = os.path.dirname(tmp_path)
+      rel = os.path.basename(tmp_path)
+      resolver = AutoninjaResolver(
+          repo_path=repo_dir, out_dir="out", target="cobalt")
+      diag = CompilerDiagnostic(
+          file_path=tmp_path,
+          line_number=2,
+          column=1,
+          error_message="expected unqualified-id",
+          raw_snippet="=======",
+          notes=[],
+      )
+      patch, model_used, rel_target = resolver.resolve_diagnostic(
+          diag, [], use_pro=False)
+      self.assertEqual(model_used, "auto-stray-marker-cleaner")
+      self.assertEqual(rel_target, rel)
+      modified = apply_patch_or_replacement(patch, repo_path=repo_dir)
+      self.assertTrue(modified)
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertNotIn("=======", content)
+      self.assertIn("#include <iostream>", content)
+      self.assertIn("void Init() {}", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_execute_local_tool_multi_arg_grep_and_list_dir(self):
+    """Tests execute_local_tool with path filter and list_dir."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      sub_dir = os.path.join(tmp_dir, "content", "browser")
+      os.makedirs(sub_dir, exist_ok=True)
+      gn_file = os.path.join(sub_dir, "BUILD.gn")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.write('sources = [ "fenced_frame/observer.cc" ]\n')
+
+      # Test TOOL_LIST_DIR
+      list_res = execute_local_tool("TOOL_LIST_DIR: content/browser", tmp_dir)
+      self.assertIn("BUILD.gn", list_res)
+
+      # Test TOOL_READ_FILE with line numbers
+      read_res = execute_local_tool(
+          "TOOL_READ_FILE: content/browser/BUILD.gn 1-1", tmp_dir)
+      self.assertIn('1: sources = [ "fenced_frame/observer.cc" ]', read_res)
+
+  def test_upstream_diff_skips_conflicted_cherry_pick(self):
+    """TOOL_UPSTREAM_DIFF must select the pure upstream roll commit.
+
+    An autoroll lands as three commits: "Revert Cobalt", then
+    "Update to <milestone>" (pure upstream), then a "CONFLICTED Cherry
+    pick ...: Update to <milestone>" that re-applies Cobalt. Only the
+    middle one is pure upstream. Regression test: the original filter
+    checked line.startswith("CONFLICTED") against a "%H %s" line that
+    always begins with a SHA, so it never excluded anything and the tool
+    returned Cobalt's own conflicted merge labelled as upstream.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+      def git(*args):
+        subprocess.run(
+            ["git"] + list(args),
+            cwd=tmp_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+      def commit(content, message):
+        with open(
+            os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+          f.write(content)
+        git("add", "BUILD.gn")
+        git("commit", "-m", message)
+
+      git("init")
+      git("config", "user.email", "test@example.com")
+      git("config", "user.name", "Test")
+
+      commit("mojom(\"mojom\") {\n}\n", "Revert Cobalt.")
+      commit(
+          "mojom(\"mojom\") {\n}\nUPSTREAM_ONLY_MARKER\n",
+          "Update to 143.7471.",
+      )
+      commit(
+          "mojom(\"mojom\") {\n}\nUPSTREAM_ONLY_MARKER\nCOBALT_ONLY_MARKER\n",
+          "CONFLICTED Cherry pick commit abc123: Update to 143.7471.",
+      )
+
+      res = execute_local_tool("TOOL_UPSTREAM_DIFF: BUILD.gn", tmp_dir)
+
+      # The pure upstream commit introduced UPSTREAM_ONLY_MARKER.
+      self.assertIn("UPSTREAM_ONLY_MARKER", res)
+      # The CONFLICTED cherry-pick introduced COBALT_ONLY_MARKER. Its
+      # presence means the wrong commit was selected.
+      self.assertNotIn("COBALT_ONLY_MARKER", res)
+
+      # TOOL_COBALT_DIFF must select the complementary commit: the Cobalt
+      # cherry-pick, which is the one that adds COBALT_ONLY_MARKER.
+      cobalt_res = execute_local_tool("TOOL_COBALT_DIFF: BUILD.gn", tmp_dir)
+      self.assertIn("COBALT_ONLY_MARKER", cobalt_res)
+      # UPSTREAM_ONLY_MARKER was already present in the cherry-pick's parent,
+      # so it must not appear as an added line in the Cobalt delta.
+      self.assertNotIn("+UPSTREAM_ONLY_MARKER", cobalt_res)
+
+  def test_upstream_diff_not_hardcoded_to_milestone_14x(self):
+    """Milestone matching must not be hardcoded to 'Update to 14'."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+
+      def git(*args):
+        subprocess.run(
+            ["git"] + list(args),
+            cwd=tmp_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+      git("init")
+      git("config", "user.email", "test@example.com")
+      git("config", "user.name", "Test")
+      with open(os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("base\n")
+      git("add", "BUILD.gn")
+      git("commit", "-m", "Revert Cobalt.")
+      with open(os.path.join(tmp_dir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("base\nM152_MARKER\n")
+      git("add", "BUILD.gn")
+      git("commit", "-m", "Update to 152.8000.")
+
+      res = execute_local_tool("TOOL_UPSTREAM_DIFF: BUILD.gn", tmp_dir)
+      self.assertIn("M152_MARKER", res)
+      self.assertNotIn("Could not find upstream roll commit", res)
+
+  def test_extract_tool_commands_multi_tool_and_think_tags(self):
+    """Tests that extract_tool_commands parses tools and strips think tags."""
+    glm_output = (
+        "<think>\n"
+        "I need to read BUILD.gn around line 1060 and check filter_exclude.\n"
+        "</think>\n"
+        "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075\n"
+        "TOOL_READ_FILE: content/browser/BUILD.gn 3720-3750\n"
+        "TOOL_GREP: fenced_frame content/browser/BUILD.gn\n")
+    cmds = extract_tool_commands(glm_output)
+    self.assertEqual(len(cmds), 3)
+    self.assertEqual(cmds[0],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075")
+    self.assertEqual(cmds[1],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 3720-3750")
+    self.assertEqual(cmds[2],
+                     "TOOL_GREP: fenced_frame content/browser/BUILD.gn")
+
+    # Test inline tag leak
+    inline_leak = ("TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075</think>"
+                   "The results confirm\n")
+    cmds2 = extract_tool_commands(inline_leak)
+    self.assertEqual(len(cmds2), 1)
+    self.assertEqual(cmds2[0],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075")
+
+    # Test conversational preambles, markdown backticks, and bullet points
+    conversational_output = (
+        "Let's investigate how `character_data` action works.\n\n"
+        "Tool Call: `TOOL_FIND_FILE: icudtl.dat`\n"
+        "Tool Call: `TOOL_READ_FILE: "
+        "third_party/blink/renderer/platform/text/"
+        "character_property_data_generator.cc 50-105`\n"
+        "- `TOOL_GREP: character_data "
+        "third_party/blink/renderer/platform/BUILD.gn`\n"
+        "* Tool: TOOL_LIST_DIR: third_party/icu/common\n")
+    # Default cap truncates a batch to _MAX_TOOL_CMDS_PER_TURN directives.
+    cmds3 = extract_tool_commands(conversational_output)
+    self.assertEqual(len(cmds3), 3)
+    # Raising the cap parses every directive in the batch.
+    cmds3_all = extract_tool_commands(conversational_output, max_commands=10)
+    self.assertEqual(len(cmds3_all), 4)
+    self.assertEqual(cmds3_all[0], "TOOL_FIND_FILE: icudtl.dat")
+    self.assertEqual(
+        cmds3_all[1],
+        "TOOL_READ_FILE: third_party/blink/renderer/platform/text/"
+        "character_property_data_generator.cc 50-105",
+    )
+    self.assertEqual(
+        cmds3_all[2],
+        "TOOL_GREP: character_data "
+        "third_party/blink/renderer/platform/BUILD.gn",
+    )
+    self.assertEqual(cmds3_all[3], "TOOL_LIST_DIR: third_party/icu/common")
+
+    # Test that valid SEARCH/REPLACE block is not mistaken for a tool command
+    patch_output = ("Here is the patch to fix the file:\n"
+                    "<<<<<<< SEARCH\n"
+                    "void InitializeIcu();\n"
+                    "=======\n"
+                    "void InitializeIcu(const char* exec_path);\n"
+                    ">>>>>>> REPLACE\n")
+    self.assertEqual(extract_tool_commands(patch_output), [])
+
+  def test_extract_tool_commands_run_on_directives(self):
+    """Tests recovery of directives concatenated without separators.
+
+    Regression for the Phase 4 circuit-breaker stall on
+    media/mojo/mojom/audio_decoder_config_mojom_traits.cc, where the model
+    emitted several TOOL_ directives run together on one line with a trailing
+    FILE: patch header glued onto the last one.
+    """
+    run_on = (
+        "TOOL_GREP: struct AudioDecoderConfig media/mojo/mojom/media_types."
+        "mojom"
+        "TOOL_READ_FILE: media/mojo/mojom/media_types.mojom 240 320"
+        "TOOL_READ_FILE: media/mojo/mojom/audio_decoder_config_mojom_traits.h"
+        " 1 50")
+    cmds = extract_tool_commands(run_on)
+    self.assertEqual(len(cmds), 3)
+    self.assertEqual(
+        cmds[0], "TOOL_GREP: struct AudioDecoderConfig media/mojo/mojom/"
+        "media_types.mojom")
+    self.assertEqual(
+        cmds[1], "TOOL_READ_FILE: media/mojo/mojom/media_types.mojom "
+        "240 320")
+
+    # A FILE: patch header glued to the last directive must terminate it.
+    run_on_with_header = (
+        "TOOL_GREP: mime_type media/mojo/mojom/media_types.mojom"
+        "FILE: media/mojo/mojom/media_types.mojom\n"
+        "some trailing text")
+    cmds_hdr = extract_tool_commands(run_on_with_header)
+    self.assertEqual(
+        cmds_hdr, ["TOOL_GREP: mime_type media/mojo/mojom/media_types.mojom"])
+
+    # Directives mixed with a patch block yield no tool commands: the patch
+    # wins so the investigation loop terminates instead of cycling.
+    mixed = (
+        run_on + "FILE: media/mojo/mojom/media_types.mojom\n"
+        "<<<<<<< SEARCH\n"
+        "  bool should_discard_decoder_delay;\n"
+        "=======\n"
+        "  bool should_discard_decoder_delay;\n"
+        "  string mime_type;\n"
+        ">>>>>>> REPLACE\n")
+    self.assertEqual(extract_tool_commands(mixed), [])
+
+    # DELETE blocks are likewise treated as terminal patches.
+    delete_block = ("TOOL_GREP: foo bar\n"
+                    "FILE: a.cc\n"
+                    "<<<<<<< DELETE\n"
+                    "int x = 1;\n"
+                    ">>>>>>> DELETE\n")
+    self.assertEqual(extract_tool_commands(delete_block), [])
+
+  def test_parse_linker_undefined_symbol_ignores_command_line_noise(self):
+    """Tests that linker parser does not match noise in command line."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      content_dir = os.path.join(tmp_dir, "content", "browser")
+      os.makedirs(content_dir, exist_ok=True)
+      gn_file = os.path.join(content_dir, "BUILD.gn")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.write('source_set("browser") {}\n')
+
+      noisy_output = (
+          "FAILED: ./libchrobalt.so\n"
+          "clang++ -o ./libchrobalt.so "
+          "obj/third_party/rust/cxx/v1/lib/libcxx.rlib\n"
+          "ld.lld: error: undefined symbol: "
+          "content::FencedFrameViewportObserver::"
+          "FencedFrameViewportObserver()\n"
+          ">>> referenced by web_contents_impl.cc:1405\n"
+          ">>>               obj/content/browser/browser/web_contents_impl.o\n")
+      diags = parse_compiler_errors(noisy_output, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertEqual(diags[0].file_path, os.path.abspath(gn_file))
+      self.assertIn("undefined symbol", diags[0].error_message)
+
+  def test_parse_compiler_errors_universal_catch_all(self):
+    """Tests that arbitrary non-standard errors trigger raw trace fallback."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      java_output = (
+          "FAILED: obj/cobalt/android/cobalt_apk.javac.jar\n"
+          "Traceback (most recent call last):\n"
+          "  File '../../build/android/gyp/javac.py', line 45, in <module>\n"
+          "    sys.exit(main())\n"
+          "Java compilation failed with 2 errors in CobaltActivity.java\n")
+      resolver = AutoninjaResolver(
+          repo_path=tmp_dir, out_dir="out/test", target="cobalt_apk")
+      diags = resolver.extract_diagnostics(
+          build_output="", siso_output=java_output)
+      self.assertEqual(len(diags), 1)
+      self.assertIsInstance(diags[0], str)
+      self.assertIn("Java compilation failed", diags[0])
+
+  def test_record_and_load_memory(self):
+    """Tests recording and loading knowledge memory bank entries on engine."""
+    engine = CobaltReasoningEngine()
+    engine.record_successful_fix(
+        issue_description="no member named 'InitStarboardMediaPipeline'",
+        solution_diff="InitStarboardMediaPipelineV2();",
+        target_file="cobalt/media.cc",
+    )
+    # Re-recording identical fix should be a no-op / update
+    engine.record_successful_fix(
+        issue_description="no member named 'InitStarboardMediaPipeline'",
+        solution_diff="InitStarboardMediaPipelineV2();",
+        target_file="cobalt/media.cc",
+    )
+    exp = engine.get_past_experience(
+        query="no member named 'InitStarboardMediaPipeline'", max_items=5)
+    self.assertIn("Target File: cobalt/media.cc", exp)
+    self.assertIn("InitStarboardMediaPipelineV2();", exp)
+
+  def test_token_usage_multi_model_tracking(self):
+    """Tests that TokenUsage tracks Flash and Pro models separately."""
+    tracker = TokenUsage()
+    tracker.add(prompt=100, completion=20, total=120, model="gemini-2.5-flash")
+    tracker.add(prompt=150, completion=30, total=180, model="gemini-2.5-flash")
+    tracker.add(prompt=500, completion=100, total=600, model="gemini-2.5-pro")
+
+    self.assertEqual(tracker.calls, 3)
+    self.assertEqual(tracker.prompt_tokens, 750)
+    self.assertEqual(tracker.completion_tokens, 150)
+    self.assertEqual(tracker.total_tokens, 900)
+
+    self.assertIn("gemini-2.5-flash", tracker.by_model)
+    self.assertIn("gemini-2.5-pro", tracker.by_model)
+    self.assertEqual(tracker.by_model["gemini-2.5-flash"].calls, 2)
+    self.assertEqual(tracker.by_model["gemini-2.5-flash"].total_tokens, 300)
+    self.assertEqual(tracker.by_model["gemini-2.5-pro"].calls, 1)
+    self.assertEqual(tracker.by_model["gemini-2.5-pro"].total_tokens, 600)
+
+    table = tracker.format_summary_table()
+    self.assertIn("`gemini-2.5-flash`", table)
+    self.assertIn("`gemini-2.5-pro`", table)
+    self.assertIn("**Total**", table)
+
+  def test_get_chromium_milestone(self):
+    """Tests reading Chromium major milestone from VERSION file."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      chrome_dir = os.path.join(tmp_dir, "chrome")
+      os.makedirs(chrome_dir, exist_ok=True)
+      version_file = os.path.join(chrome_dir, "VERSION")
+      with open(version_file, "w", encoding="utf-8") as f:
+        f.write("MAJOR=138\nMINOR=0\nBUILD=7204\nPATCH=311\n")
+
+      milestone = get_chromium_milestone(tmp_dir)
+      self.assertEqual(milestone, "M138")
+
+  def test_extract_gn_target_files_universal(self):
+    """Tests that GN file extraction captures all referenced .gn/.gni files."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      buildconfig = os.path.join(tmp_dir, "build/config/BUILDCONFIG.gn")
+      rtc_gn = os.path.join(tmp_dir, "third_party/webrtc/rtc_tools/BUILD.gn")
+      os.makedirs(os.path.dirname(buildconfig), exist_ok=True)
+      os.makedirs(os.path.dirname(rtc_gn), exist_ok=True)
+      with open(buildconfig, "w", encoding="utf-8") as f:
+        f.write("# buildconfig")
+      with open(rtc_gn, "w", encoding="utf-8") as f:
+        f.write("# rtc_gn")
+
+      gn_trace = ("ERROR at //build/config/BUILDCONFIG.gn:703:5: "
+                  "Source file not found.\n"
+                  "See //third_party/webrtc/rtc_tools/BUILD.gn:167:3: for "
+                  "'rtp_generator'\n")
+      res = extract_gn_target_files(gn_trace, tmp_dir)
+      self.assertIn(buildconfig, res)
+      self.assertEqual(res[buildconfig], 703)
+      self.assertIn(rtc_gn, res)
+      self.assertEqual(res[rtc_gn], 167)
+
+  def test_gn_duplicate_object_file_extraction_and_summary(self):
+    """Tests 'The target //dir:name' without colon and unique GN summaries."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      buildconfig = os.path.join(tmp_dir, "build/config/BUILDCONFIG.gn")
+      gfx_gn = os.path.join(tmp_dir, "ui/gfx/BUILD.gn")
+      os.makedirs(os.path.dirname(buildconfig), exist_ok=True)
+      os.makedirs(os.path.dirname(gfx_gn), exist_ok=True)
+      with open(buildconfig, "w", encoding="utf-8") as f:
+        f.write("# buildconfig")
+      with open(gfx_gn, "w", encoding="utf-8") as f:
+        f.write("# gfx")
+
+      gn_out_1 = ("WARNING: Existing args.gn was overwritten.\n"
+                  "Running gn gen out/android-arm_devel --check\n"
+                  "ERROR at //build/config/BUILDCONFIG.gn:602:5: "
+                  "Duplicate object file\n"
+                  "    target(_target_type, target_name) {\n"
+                  "    ^----------------------------------\n"
+                  "The target //ui/gfx:gfx\n"
+                  "generates two object files with the same name:\n"
+                  "  clang_x64/obj/ui/gfx/gfx/achoreographer_compat.o\n")
+      gn_out_2 = gn_out_1.replace("achoreographer_compat.o", "blit.o")
+
+      # 1. Target files must prioritize ui/gfx/BUILD.gn first and defer
+      # BUILDCONFIG.gn to the end.
+      files = list(extract_gn_target_files(gn_out_1, tmp_dir).keys())
+      self.assertEqual(files, [gfx_gn, buildconfig])
+
+      # 2. Error summaries must include the specific object file so distinct
+      # duplicate object files do not compare equal or increment stuck_count.
+      resolver = GNGenResolver(tmp_dir, "android-arm", "devel")
+      sum1 = resolver.extract_diagnostics(gn_out_1, "")[0].error_message
+      sum2 = resolver.extract_diagnostics(gn_out_2, "")[0].error_message
+      self.assertNotEqual(sum1, sum2)
+      self.assertIn("//ui/gfx:gfx", sum1)
+      self.assertIn("achoreographer_compat.o", sum1)
+      self.assertIn("blit.o", sum2)
+
+  def test_libcxx_plus_path_and_conflict_newline_and_siso_uuid(self):
+    """Tests '+' path parsing/patching, conflict trailing newline, and UUID."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      rel_msg = "third_party/libc++/src/include/__locale_dir/messages.h"
+      msg_path = os.path.join(tmp_dir, rel_msg)
+      os.makedirs(os.path.dirname(msg_path), exist_ok=True)
+      with open(msg_path, "w", encoding="utf-8") as f:
+        f.write("#if defined(__unix__)\n"
+                "<<<<<<< HEAD\n"
+                "#  if !defined(__BIONIC__)\n"
+                "=======\n"
+                "#  if !defined(__BIONIC__) && !defined(STARBOARD)\n"
+                ">>>>>>> upstream\n"
+                "#    define _LIBCPP_HAS_CATOPEN 1\n"
+                "#  endif\n"
+                "#endif\n")
+
+      class _FakeEngine:
+
+        def generate_expert_guidance(self, **_kwargs):
+          return {"guidance": ""}
+
+        def resolve_conflict(self, **_kwargs):
+          return {
+              "replacement": ("```cpp\n#  if !defined(__BIONIC__) && "
+                              "!defined(STARBOARD)\n```"),
+              "model_used": "flash",
+          }
+
+      ok = resolve_file_conflicts(
+          file_path=msg_path,
+          repo_path=tmp_dir,
+          git_context="",
+          engine=_FakeEngine(),
+          mock_mode=False,
+      )
+      self.assertTrue(ok)
+      with open(msg_path, "r", encoding="utf-8") as f:
+        resolved = f.read()
+      self.assertIn(
+          "#  if !defined(__BIONIC__) && !defined(STARBOARD)\n"
+          "#    define _LIBCPP_HAS_CATOPEN 1\n",
+          resolved,
+      )
+
+      # Parse compiler error on a path containing '+'
+      err_out = (f"../../{rel_msg}:25:104: error: token is not a valid binary "
+                 "operator in a preprocessor subexpression\n")
+      diags = parse_compiler_errors(err_out, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertEqual(diags[0].file_path, msg_path)
+      self.assertEqual(diags[0].line_number, 25)
+
+      # Apply FILE:-directed SEARCH/REPLACE patch to a path containing '+'
+      patch = (f"FILE: {rel_msg}\n"
+               "<<<<<<< SEARCH\n"
+               "#    define _LIBCPP_HAS_CATOPEN 1\n"
+               "=======\n"
+               "#    define _LIBCPP_HAS_CATOPEN 0\n"
+               ">>>>>>> REPLACE\n")
+      modified = apply_patch_or_replacement(
+          patch, tmp_dir, default_file="build/BUILD.gn")
+      self.assertEqual(modified, [msg_path])
+
+      # Strip Siso UUIDs in extract_meaningful_error_summary
+      s1 = extract_meaningful_error_summary(
+          "FAILED: 8b3a1832-a70f-430a-980d-9c5ac4c8b11c \"./foo.o\" CXX foo.o")
+      s2 = extract_meaningful_error_summary(
+          "FAILED: 11112222-3333-4444-5555-666677778888 \"./foo.o\" CXX foo.o")
+      self.assertEqual(s1, s2)
+      self.assertEqual(s1, 'FAILED: "./foo.o" CXX foo.o')
+
+  def test_execute_investigation_tools_preserves_guidance_and_synthesizes(self):
+    """Tests tool loop preserves guidance/history and synthesizes on break."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      calls = []
+
+      class _ToolLoopResolver(BaseResolver):
+        """Stub resolver for testing execute_investigation_tools."""
+
+        @property
+        def name(self):
+          return "ToolLoopTest"
+
+        def run_command(self, iteration):
+          del iteration
+          return True, "", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return []
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+            **_kwargs,
+        ):
+          del diagnostic, use_expert
+          calls.append({
+              "history": list(history_records),
+              "guidance": expert_guidance,
+          })
+          if any(r.get("iteration") == "Tool-Final" for r in history_records):
+            return (
+                "FILE: h_5_vcc.h\n<<<<<<< SEARCH\nold\n=======\nnew\n"
+                ">>>>>>> REPLACE\n",
+                "gemini-3.8-flash",
+                "h_5_vcc.h",
+            )
+          return ("TOOL_FIND_FILE: *supplementable*", "gemini-3.8-flash",
+                  "h_5_vcc.h")
+
+      resolver = _ToolLoopResolver(tmp_dir)
+      base_hist = [{"iteration": 1, "file": "h_5_vcc.h", "error": "missing"}]
+      patch, _ = resolver.execute_investigation_tools(
+          initial_patch="TOOL_FIND_FILE: *supplementable*",
+          diagnostic="diag",
+          base_history_records=base_hist,
+          expert_guidance="Migrate Supplement<LocalDOMWindow>",
+      )
+      self.assertIn(">>>>>>> REPLACE", patch)
+      self.assertNotIn("TOOL_FIND_FILE", patch)
+      self.assertTrue(
+          all(c["guidance"] == "Migrate Supplement<LocalDOMWindow>"
+              for c in calls))
+      hist_str, inv_str = format_history_records(calls[-1]["history"], window=2)
+      self.assertIn("Iteration 1: Modified h_5_vcc.h", hist_str)
+      self.assertIn("TOOL BUDGET EXHAUSTED", inv_str)
+
+  def test_reject_nested_file_in_search_replace(self):
+    """Tests that SEARCH/REPLACE blocks with nested FILE: are rejected."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".gn", delete=False) as tmp:
+      tmp.write("var_a = true\n")
+      tmp_path = tmp.name
+
+    try:
+      rel = os.path.basename(tmp_path)
+      parent = os.path.dirname(tmp_path)
+      bad_patch = f"""FILE: //{rel}
+<<<<<<< SEARCH
+var_a = true
+=======
+FILE: //other/BUILD.gn
+target("foo") {{}}
+>>>>>>> REPLACE
+"""
+      modified = apply_patch_or_replacement(bad_patch, repo_path=parent)
+      self.assertEqual(modified, [])
+      with open(tmp_path, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("var_a = true", content)
+    finally:
+      if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+  def test_autoninja_sends_full_context_for_build_files(self):
+    """Tests that AutoninjaResolver sends full context for build files."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      ft_dir = os.path.join(tmp_dir, "third_party", "freetype")
+      os.makedirs(ft_dir, exist_ok=True)
+      gn_file = os.path.join(ft_dir, "BUILD.gn")
+      lines = [f"# Line {i}\n" for i in range(1, 150)]
+      lines.append(
+          "component(\"freetype\") { visibility = [ \"//public\" ] }\n")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+
+      called_contexts = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          called_contexts.append(kwargs.get("file_context", ""))
+          return {"status": "SUCCESS", "patch": "PATCH", "model_used": "gemini"}
+
+      resolver = AutoninjaResolver(
+          repo_path=tmp_dir,
+          out_dir="out",
+          target="cobalt",
+          engine=MockEngine(),
+      )
+      diag = CompilerDiagnostic(
+          file_path=gn_file,
+          line_number=1,
+          column=1,
+          error_message="incompatible with arm",
+          raw_snippet="ld.lld: error",
+          notes=[],
+      )
+      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      self.assertEqual(len(called_contexts), 1)
+      self.assertIn("component(\"freetype\")", called_contexts[0])
+      self.assertIn("150: component(\"freetype\")", called_contexts[0])
+
+  def test_reasoning_engine_client_dispatch(self):
+    """Tests that ReasoningEngineClient routes calls to remote mock engine."""
+    client = ReasoningEngineClient(
+        resource_id="projects/p/locations/l/reasoningEngines/123",
+        project_id="test-p",
+        location="us-central1",
+    )
+    mock_remote = mock.MagicMock()
+    mock_remote.query.return_value = {
+        "status": "SUCCESS",
+        "patch": "TEST_PATCH",
+        "model_used": "gemini-2.5-flash",
+    }
+    client._remote_engine = mock_remote  # pylint: disable=protected-access
+
+    res = client.heal_compiler_error(
+        target="cobalt",
+        diagnostics="error: foo",
+    )
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertEqual(res["patch"], "TEST_PATCH")
+    mock_remote.query.assert_called_once_with(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: foo",
+        source_contexts="",
+        past_experience="",
+        investigation_history="",
+        expert_guidance="",
+        use_expert=False,
+    )
+
+  def test_reasoning_engine_client_local_in_process(self):
+    """Tests ReasoningEngineClient with local=True uses in-process engine."""
+    client = ReasoningEngineClient(
+        project_id="test-p",
+        location="us-central1",
+        local=True,
+    )
+    self.assertTrue(client.local)
+    mock_local = mock.MagicMock()
+    mock_local.query.return_value = {
+        "status": "SUCCESS",
+        "patch": "LOCAL_PATCH",
+        "model_used": "gemini-3.7-flash",
+    }
+    client._local_engine = mock_local  # pylint: disable=protected-access
+
+    res = client.heal_compiler_error(
+        target="cobalt",
+        diagnostics="error: local_foo",
+    )
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertEqual(res["patch"], "LOCAL_PATCH")
+    mock_local.query.assert_called_once_with(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: local_foo",
+        source_contexts="",
+        past_experience="",
+        investigation_history="",
+        expert_guidance="",
+        use_expert=False,
+    )
+
+  def test_engine_kwargs_safety_and_tolerance(self):
+    """Guards kwargs safety when client sends unexpected arguments."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine._generate_content_with_retry = mock.MagicMock(
+        return_value=mock.MagicMock(text="SEARCH / REPLACE"))
+    engine._generate_expert_content = mock.MagicMock(
+        return_value="Strategic guidance")
+
+    # 1. generate_expert_guidance with unknown client kwargs and expert_model
+    res1 = engine.query(
+        action="generate_expert_guidance",
+        target="cobalt/media/sandbox.cc",
+        diagnostics="error: no member AddSample",
+        expert_model="claude-sonnet-5",
+        unexpected_future_flag="extra_value",
+        arbitrary_metadata={"client_ver": "2.0"},
+    )
+    self.assertEqual(res1["status"], "SUCCESS")
+    self.assertEqual(res1["model_used"], "claude-sonnet-5")
+
+    # 2. resolve_conflict with extra kwargs
+    res2 = engine.query(
+        action="resolve_conflict",
+        file_path="DEPS",
+        language="Python",
+        raw_conflict="conflict",
+        expert_model="gemini-3.7-flash",
+        use_expert=True,
+        unknown_kwarg_1=True,
+        unknown_kwarg_2=42,
+    )
+    self.assertEqual(res2["status"], "SUCCESS")
+
+    # 3. heal_gn_error with extra kwargs
+    res3 = engine.query(
+        action="heal_gn_error",
+        error_trace="gn error: undefined identifier",
+        expert_model="zai-org/glm-5.2-maas",
+        use_expert=True,
+        extra_server_option="test",
+    )
+    self.assertEqual(res3["status"], "SUCCESS")
+
+    # 4. heal_compiler_error with extra kwargs
+    res4 = engine.query(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: undefined symbol",
+        expert_model="claude-sonnet-5",
+        use_expert=True,
+        client_timestamp=12345678,
+    )
+    self.assertEqual(res4["status"], "SUCCESS")
+
+    # 5. chat with extra kwargs
+    res5 = engine.query(
+        action="chat",
+        message="hello",
+        unexpected_field="xyz",
+    )
+    self.assertEqual(res5["status"], "SUCCESS")
+
+  def test_anthropic_thinking_block_parsing(self):
+    """Guards against AttributeError when Anthropic returns ThinkingBlock."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+
+    class FakeThinkingBlock:
+      type = "thinking"
+      thinking = "Step 1: analyze root cause..."
+
+    class FakeTextBlock:
+      type = "text"
+      text = ("## Concrete Refactoring Directive\n"
+              "Replace AddSample with WriteSample.")
+
+    fake_response = mock.MagicMock()
+    fake_response.content = [FakeThinkingBlock(), FakeTextBlock()]
+
+    mock_anthropic = mock.MagicMock()
+    mock_anthropic.messages.create.return_value = fake_response
+    engine._get_anthropic_client = mock.MagicMock(return_value=mock_anthropic)
+
+    extracted_text = engine._generate_expert_content(
+        contents="Diagnose error",
+        system_instruction="You are Senior Architect",
+        expert_model="claude-sonnet-5",
+    )
+    self.assertIn("## Concrete Refactoring Directive", extracted_text)
+    self.assertIn("Replace AddSample with WriteSample.", extracted_text)
+
+  def test_glm_maas_content_and_reasoning_extraction(self):
+    """Guards OpenAI/GLM parsing when response has content or reasoning."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine.glm_api_key = "test_key"
+
+    fake_json_resp1 = json.dumps({
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": "GLM Final Solution",
+                "reasoning_content": "GLM Internal Reasoning"
+            }
+        }]
+    }).encode("utf-8")
+
+    with mock.patch(
+        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
+      with mock.patch("urllib.request.urlopen") as mock_url:
+        mock_cm1 = mock.MagicMock()
+        mock_cm1.read.return_value = fake_json_resp1
+        mock_cm1.__enter__.return_value = mock_cm1
+        mock_url.return_value = mock_cm1
+
+        res1 = engine._generate_openai_compatible_content(
+            model="zai-org/glm-5.2-maas",
+            contents="Prompt",
+            system_instruction="Sys",
+        )
+        self.assertEqual(res1, "GLM Final Solution")
+
+    fake_json_resp2 = json.dumps({
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": "GLM Reasoning Content"
+            }
+        }]
+    }).encode("utf-8")
+
+    with mock.patch(
+        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
+      with mock.patch("urllib.request.urlopen") as mock_url:
+        mock_cm2 = mock.MagicMock()
+        mock_cm2.read.return_value = fake_json_resp2
+        mock_cm2.__enter__.return_value = mock_cm2
+        mock_url.return_value = mock_cm2
+
+        res2 = engine._generate_openai_compatible_content(
+            model="zai-org/glm-5.2-maas",
+            contents="Prompt",
+            system_instruction="Sys",
+        )
+        self.assertEqual(res2, "GLM Reasoning Content")
+
+  def test_gcs_memory_and_staging_bucket_isolation(self):
+    """Guards GCS bucket names are decoupled and independent of project_id."""
+    # pylint: disable=protected-access
+
+    # Verify engine memory bank default is independent of project_id
+    engine_custom_proj = CobaltReasoningEngine(
+        project_id="arbitrary-gcp-project-12345")
+    self.assertEqual(
+        engine_custom_proj.gcs_memory_uri,
+        "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json",
+    )
+
+    # Verify deploy staging bucket helper does not synthesize gs://{project_id}
+    staging_b = deploy._get_effective_staging_bucket(
+        staging_bucket=None,
+        project_id="arbitrary-gcp-project-12345",
+    )
+    self.assertEqual(staging_b, "gs://lxn-test-vertex-staging")
+
+    # Verify explicit override works cleanly
+    staging_custom = deploy._get_effective_staging_bucket(
+        staging_bucket="gs://my-custom-bucket",
+        project_id="arbitrary-gcp-project-12345",
+    )
+    self.assertEqual(staging_custom, "gs://my-custom-bucket")
+
+  def test_has_cobalt_git_history(self):
+    """Verifies that has_cobalt_git_history accurately identifies Cobalt PRs."""
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 1. Pure upstream Chromium commits should return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "jlulejian@chromium.org\t[M138] Revert \"[Extensions] Log crash"
+              " keys\"\n"
+              "upstream@chromium.org\tRoll third_party/foo\n"),
+      )
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 2. Automated rolling PRs should be skipped and return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "cobalt-github-releaser-bot@google.com\tCONFLICTED Cherry pick"
+              " commit f9d38917: Update to 139.7258. (#12003)\n"
+              "95661244+cobalt-github-releaser-bot@users.noreply.github.com\t"
+              "Autoroll from main to staging (#11194)\n"
+              "jlulejian@chromium.org\tUpstream change\n"),
+      )
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 3. Genuine Cobalt PR from Googler should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=(
+              "cobalt-github-releaser-bot@google.com\tCONFLICTED Cherry pick"
+              " commit f9d38917: Update to 139.7258. (#12003)\n"
+              "andrewsavage@google.com\tAdd copied_base to crashpad build and"
+              " compile with c++17 (#7599)\n"
+              "jlulejian@chromium.org\tUpstream change\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 4. Genuine Cobalt PR from Igalia contractor should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=("kubo@igalia.com\tFix staging build after #12126, #12123"
+                  " (#12141)\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 5. Genuine Cobalt PR from Collabora contractor should return True
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.return_value = mock.Mock(
+          returncode=0,
+          stdout=("denis.shimizu@collabora.com\tCherry pick PR #10222:"
+                  " starboard/tests: wire opus_tests\n"),
+      )
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+    # 6. Cache verification: repeated call should not invoke subprocess.run
+    with mock.patch("subprocess.run") as mock_run:
+      self.assertTrue(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+      mock_run.assert_not_called()
+
+    _COBALT_GIT_HISTORY_CACHE.clear()
+
+    # 7. Subprocess error should gracefully return False
+    with mock.patch("subprocess.run") as mock_run:
+      mock_run.side_effect = OSError("git not found")
+      self.assertFalse(
+          has_cobalt_git_history("third_party/foo/bar.h", "/mock/repo"))
+
+  def test_is_unmodified_third_party(self):
+    """Verifies third-party file classification guards against clobbering."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # 1. Non-third-party files are never treated as unmodified third-party
+      base_file = os.path.join(tmpdir, "base", "logging.cc")
+      os.makedirs(os.path.dirname(base_file), exist_ok=True)
+      with open(base_file, "w", encoding="utf-8") as f:
+        f.write("// normal file")
+      self.assertFalse(is_unmodified_third_party(base_file, tmpdir))
+
+      # 2. Tooling under third_party (e.g. jni_zero) is allowed to be modified
+      jni_file = os.path.join(tmpdir, "third_party", "jni_zero", "tool.py")
+      os.makedirs(os.path.dirname(jni_file), exist_ok=True)
+      with open(jni_file, "w", encoding="utf-8") as f:
+        f.write("# tooling")
+      self.assertFalse(is_unmodified_third_party(jni_file, tmpdir))
+
+      # 3. Pure third-party file with no Cobalt git history or macros
+      pure_tp = os.path.join(tmpdir, "third_party", "zlib", "zlib.h")
+      os.makedirs(os.path.dirname(pure_tp), exist_ok=True)
+      with open(pure_tp, "w", encoding="utf-8") as f:
+        f.write("// upstream zlib header\n")
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=False):
+        self.assertTrue(is_unmodified_third_party(pure_tp, tmpdir))
+
+      # 4. Third-party file with Cobalt git history is recognized as modified
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=True):
+        self.assertFalse(is_unmodified_third_party(pure_tp, tmpdir))
+
+      # 5. Third-party file containing Cobalt macro is recognized as modified
+      cobalt_tp = os.path.join(tmpdir, "third_party", "absl", "traits.h")
+      os.makedirs(os.path.dirname(cobalt_tp), exist_ok=True)
+      with open(cobalt_tp, "w", encoding="utf-8") as f:
+        f.write("#if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)\n")
+      with mock.patch(
+          "base_resolver.has_cobalt_git_history", return_value=False):
+        self.assertFalse(is_unmodified_third_party(cobalt_tp, tmpdir))
+
+  def test_forked_third_party_metadata_is_not_patchable(self):
+    """Verifies the jni_zero exception unlocks code but not dir metadata."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      jni_dir = os.path.join(tmpdir, "third_party", "jni_zero")
+      os.makedirs(jni_dir, exist_ok=True)
+
+      # Source and build files in the forked dir stay patchable.
+      for name in ("jni_generator.py", "BUILD.gn"):
+        path = os.path.join(jni_dir, name)
+        with open(path, "w", encoding="utf-8") as f:
+          f.write("# upstream content\n")
+        self.assertFalse(
+            is_unmodified_third_party(path, tmpdir),
+            f"{name} should remain patchable")
+
+      # Repository metadata is blocked even inside the forked dir.
+      for name in ("DEPS", "LICENSE", "OWNERS", "README.chromium"):
+        path = os.path.join(jni_dir, name)
+        with open(path, "w", encoding="utf-8") as f:
+          f.write("upstream metadata\n")
+        self.assertTrue(
+            is_unmodified_third_party(path, tmpdir),
+            f"{name} should be blocked")
+
+      # The top-level DEPS file is outside third_party/ and unaffected, so
+      # Phase 0/1 DEPS conflict resolution still works.
+      top_deps = os.path.join(tmpdir, "DEPS")
+      with open(top_deps, "w", encoding="utf-8") as f:
+        f.write("deps = {}\n")
+      self.assertFalse(is_unmodified_third_party(top_deps, tmpdir))
+
+  def test_base_resolver_circuit_breaker_abort(self):
+    """Verifies BaseResolver aborts loops when error repeats 8 times."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      iteration_count = 0
+
+      class DummyBreakerResolver(BaseResolver):
+        """Mock resolver for testing circuit breaker abort."""
+
+        @property
+        def name(self) -> str:
+          return "DummyBreakerResolver"
+
+        def run_command(self, iteration: int):
+          del iteration  # Unused.
+          nonlocal iteration_count
+          iteration_count += 1
+          return False, "persistent_syntax_error.cc:10: error: bad token", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out  # Unused.
+          return [output]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records  # Unused.
+          del use_expert, expert_guidance  # Unused.
+          return "", "flash", "persistent_syntax_error.cc"
+
+      resolver = DummyBreakerResolver(repo_path=tmpdir, max_iterations=20)
+      res = resolver.run_resolution_loop()
+      self.assertFalse(res)
+      # Iteration 1: stuck_count = 0; Iteration 2: stuck_count = 1; ...
+      # Iteration 9: stuck_count = 8 -> circuit breaker triggers and halts loop
+      self.assertEqual(iteration_count, 9)
+
+  def test_distinct_errors_on_same_file_do_not_trigger_anti_loop(self):
+    """Distinct errors on one file must not trigger Anti-Loop or breaker."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      build_gn = os.path.join(tmpdir, "BUILD.gn")
+      with open(build_gn, "w", encoding="utf-8") as f:
+        f.write("# baseline\n")
+      expert_flags = []
+
+      class MultiErrorResolver(BaseResolver):
+        """Simulates 5 distinct linker errors targeting the same BUILD.gn."""
+
+        @property
+        def name(self) -> str:
+          return "MultiErrorResolver"
+
+        def run_command(self, iteration: int):
+          if iteration <= 5:
+            msg = f"BUILD.gn:1: error: undefined symbol sym_{iteration}"
+            return False, msg, ""
+          return True, "build passed", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out
+          return [
+              CompilerDiagnostic(
+                  file_path=build_gn,
+                  line_number=1,
+                  column=1,
+                  error_message=output,
+                  raw_snippet=output,
+                  notes=[],
+              )
+          ]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records, expert_guidance
+          expert_flags.append(use_expert)
+          return "", "flash", build_gn
+
+      resolver = MultiErrorResolver(repo_path=tmpdir, max_iterations=10)
+      with mock.patch("subprocess.run") as mock_run:
+        res = resolver.run_resolution_loop()
+      self.assertTrue(res)
+      # Anti-Loop git checkout must never be invoked when errors are distinct.
+      for call in mock_run.call_args_list:
+        args = call[0][0] if call[0] else []
+        self.assertNotIn("checkout", args)
+      # use_expert escalates once file_error_counts reaches 3 (iterations 3..5).
+      self.assertEqual(expert_flags, [False, False, True, True, True])
+
+  def test_base_resolver_delayed_fix_recording(self):
+    """Verifies fix is only recorded in engine when verified cleared."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "test.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("original code\n")
+
+      clean_patch = ("FILE: cobalt/test.cc\n"
+                     "<<<<<<< SEARCH\n"
+                     "original code\n"
+                     "=======\n"
+                     "fixed code\n"
+                     ">>>>>>> REPLACE\n")
+
+      call_step = 0
+      recorded_fixes = []
+
+      class MockEngine:
+
+        def record_successful_fix(self, **kwargs):
+          recorded_fixes.append(kwargs)
+
+      class DummyVerifyResolver(BaseResolver):
+        """Mock resolver for verifying delayed fix recording."""
+
+        @property
+        def name(self) -> str:
+          return "DummyVerifyResolver"
+
+        def run_command(self, iteration: int):
+          del iteration  # Unused.
+          nonlocal call_step
+          call_step += 1
+          if call_step == 1:
+            return False, "cobalt/test.cc:1: error: original error", ""
+          # Iteration 2: build succeeds
+          return True, "", ""
+
+        def extract_diagnostics(self, output: str, siso_out: str):
+          del siso_out  # Unused.
+          return [output]
+
+        def resolve_diagnostic(
+            self,
+            diagnostic,
+            history_records,
+            use_expert=False,
+            expert_guidance="",
+        ):
+          del diagnostic, history_records  # Unused.
+          del use_expert, expert_guidance  # Unused.
+          return clean_patch, "flash", "cobalt/test.cc"
+
+      resolver = DummyVerifyResolver(repo_path=tmpdir, max_iterations=5)
+      resolver.reasoning_engine = MockEngine()
+      success = resolver.run_resolution_loop()
+      self.assertTrue(success)
+      # Fix should be recorded upon verified success on iteration 2
+      self.assertEqual(len(recorded_fixes), 1)
+      self.assertEqual(recorded_fixes[0]["target_file"], "cobalt/test.cc")
+      self.assertIn("original error", recorded_fixes[0]["issue_description"])
+
+  def test_parse_compiler_errors_full_include_stack(self):
+    """Verifies parse_compiler_errors captures up to 30 lines of stack."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      leaf_file = os.path.join(tmpdir, "mojo", "public", "cpp", "bindings",
+                               "pending_receiver.h")
+      os.makedirs(os.path.dirname(leaf_file), exist_ok=True)
+      with open(leaf_file, "w", encoding="utf-8") as f:
+        f.write("// header\n")
+
+      build_output = (
+          "In file included from ../../third_party/blink/renderer/modules/"
+          "cobalt_modules_stubs.cc:451:\n"
+          "In file included from ../../third_party/blink/renderer/modules/xr/"
+          "xr_webgl_layer.h:11:\n"
+          "In file included from ../../third_party/blink/renderer/modules/xr/"
+          "xr_webgl_rendering_context.h:11:\n"
+          "In file included from ../../third_party/blink/renderer/platform/"
+          "mojo/cross_variant_mojo_util.h:15:\n"
+          "../../mojo/public/cpp/bindings/pending_receiver.h:25:3: error: "
+          "no template named 'PendingReceiverConverter'; did you mean "
+          "'::mojo::PendingReceiverConverter'?\n"
+          "  PendingReceiverConverter<T>::Convert();\n"
+          "  ^~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+      diags = parse_compiler_errors(build_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      diag = diags[0]
+      self.assertEqual(diag.file_path, leaf_file)
+      self.assertEqual(diag.line_number, 25)
+      self.assertEqual(diag.column, 3)
+      self.assertIn("no template named 'PendingReceiverConverter'",
+                    diag.error_message)
+      # Full 30-line window ensures the entire include stack is in raw_snippet
+      self.assertIn("cobalt_modules_stubs.cc:451", diag.raw_snippet)
+      self.assertIn("xr_webgl_layer.h:11", diag.raw_snippet)
+      self.assertIn("cross_variant_mojo_util.h:15", diag.raw_snippet)
+
+  def test_autoninja_resolve_diagnostic_passes_full_snippet_and_guard(self):
+    """Verifies resolve_diagnostic passes raw_snippet and guard directly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      source_file = os.path.join(tmpdir, "third_party", "blink", "util.h")
+      os.makedirs(os.path.dirname(source_file), exist_ok=True)
+      with open(source_file, "w", encoding="utf-8") as f:
+        f.write("// third party header\n")
+
+      resolver = AutoninjaResolver(
+          repo_path=tmpdir, out_dir="out/test", target="cobalt_apk")
+      snippet_with_stack = (
+          "In file included from ../../cobalt/stubs.cc:451:\n"
+          "../../third_party/blink/util.h:25:3: error: invalid type\n")
+      diag = CompilerDiagnostic(
+          file_path=source_file,
+          line_number=25,
+          column=3,
+          error_message="invalid type",
+          raw_snippet=snippet_with_stack,
+          notes=[],
+      )
+
+      called_error_trace = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          called_error_trace.append(kwargs.get("error_trace", ""))
+          return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
+
+      resolver.reasoning_engine = MockEngine()
+      with unittest.mock.patch(
+          "autoninja.is_unmodified_third_party", return_value=True):
+        resolver.resolve_diagnostic(diag, [])
+
+      self.assertEqual(len(called_error_trace), 1)
+      # Verifies snippet with stack was passed unadulterated to the LLM
+      self.assertIn("cobalt/stubs.cc:451", called_error_trace[0])
+      self.assertIn("invalid type", called_error_trace[0])
+      # Verifies standard read-only guard is included
+      self.assertIn("CRITICAL GUARD", called_error_trace[0])
+      self.assertIn("strictly READ-ONLY", called_error_trace[0])
+
+  def test_parse_compiler_errors_linker_build_file_mapping(self):
+    """Verifies that linker errors map archives to their BUILD.gn."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      build_gn = os.path.join(tmpdir, "third_party", "blink", "renderer",
+                              "bindings", "modules", "v8", "BUILD.gn")
+      os.makedirs(os.path.dirname(build_gn), exist_ok=True)
+      with open(build_gn, "w", encoding="utf-8") as f:
+        f.write("# BUILD.gn\n")
+
+      build_output = (
+          "ld.lld: error: undefined symbol: "
+          "blink::V8GPUTextureViewDimension::string_table_\n"
+          ">>> referenced by xr_gpu_sub_image.h:0 "
+          "(../../third_party/blink/renderer/modules/xr/xr_gpu_sub_image.h:0)\n"
+          ">>>               v8/v8_xr_gpu_sub_image.o:"
+          "(blink::XRGPUSubImage::getViewDescriptor() const) in archive "
+          "obj/third_party/blink/renderer/bindings/modules/v8/libv8.a\n"
+          "ld.lld: error: undefined symbol: "
+          "blink::GPUTextureViewDescriptor::GPUTextureViewDescriptor()\n")
+
+      diags = parse_compiler_errors(build_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      diag = diags[0]
+      self.assertEqual(diag.file_path, build_gn)
+      self.assertIn(
+          "undefined symbol: blink::V8GPUTextureViewDimension::string_table_",
+          diag.error_message)
+      self.assertIn("v8_xr_gpu_sub_image.o", diag.raw_snippet)
+
+  def test_apply_patch_or_replacement_code_fence_and_bold_file(self):
+    """Verifies parser handles code fences between FILE and SEARCH."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "config.gni")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write('target_os = "linux"\nfoo_flag = false\n')
+
+      patch_text = ("Let me analyze the build failure.\n"
+                    "### **FILE**: `cobalt/config.gni`\n"
+                    "```gn\n"
+                    "<<<<<<< SEARCH\n"
+                    "foo_flag = false\n"
+                    "=======\n"
+                    "foo_flag = true\n"
+                    ">>>>>>> REPLACE\n"
+                    "```\n")
+
+      modified = apply_patch_or_replacement(patch_text, tmpdir)
+      self.assertEqual(len(modified), 1)
+      with open(test_file, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("foo_flag = true", content)
+
+  def test_apply_patch_or_replacement_with_default_file(self):
+    """Verifies apply_patch_or_replacement falls back to default_file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "settings.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("void Init() {\n  int val = 1;\n}\n")
+
+      patch_text = ("Fixing settings:\n"
+                    "<<<<<<< SEARCH\n"
+                    "  int val = 1;\n"
+                    "=======\n"
+                    "  int val = 2;\n"
+                    ">>>>>>> REPLACE\n")
+
+      modified = apply_patch_or_replacement(
+          patch_text, tmpdir, default_file="cobalt/settings.cc")
+      self.assertEqual(len(modified), 1)
+      with open(test_file, "r", encoding="utf-8") as f:
+        content = f.read()
+      self.assertIn("int val = 2;", content)
+
+  def test_linker_diagnostic_file_context_inclusion(self):
+    """Verifies file_context is sent for text files on linker diagnostics."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      gni_file = os.path.join(tmpdir, "cobalt", "build.gni")
+      os.makedirs(os.path.dirname(gni_file), exist_ok=True)
+      with open(gni_file, "w", encoding="utf-8") as f:
+        f.write('cobalt_exclude = [\n  "pattern1",\n]\n')
+
+      resolver = AutoninjaResolver(
+          repo_path=tmpdir, out_dir="out/test", target="cobalt_apk")
+      diag = CompilerDiagnostic(
+          file_path=gni_file,
+          line_number=2,
+          column=1,
+          error_message="Linker error: undefined symbol: foo",
+          raw_snippet="ld.lld: error: undefined symbol: foo",
+          notes=[],
+      )
+
+      captured_context = []
+
+      class MockEngine:
+        flash_model = "gemini-2.5-flash"
+        pro_model = "gemini-2.5-pro"
+
+        def heal_compiler_error(self, **kwargs):
+          captured_context.append(kwargs.get("file_context", ""))
+          return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
+
+      resolver.reasoning_engine = MockEngine()
+      resolver.resolve_diagnostic(diag, [])
+
+      self.assertEqual(len(captured_context), 1)
+      self.assertIn("cobalt_exclude = [", captured_context[0])
+
+  def test_tier2_preflight_diagnostic_attribute_safety(self):
+    """Verifies that diagnostics work without missing attribute errors."""
+    sync_diag = GClientSyncDiagnostic(
+        error_message="Hook 'python3 configure_siso.py' failed",
+        raw_output="raw error",
+        diagnostic_trace="diagnostic trace text",
+    )
+    self.assertTrue(hasattr(sync_diag, "file_path"))
+    self.assertTrue(hasattr(sync_diag, "line_number"))
+
+    gn_diag = GNDiagnostic(
+        error_message="GN Error",
+        raw_output="raw gn output",
+        target_files={"BUILD.gn": 10},
+        is_structural_break=False,
+        file_path="BUILD.gn",
+        line_number=10,
+    )
+    self.assertTrue(hasattr(gn_diag, "file_path"))
+    self.assertEqual(gn_diag.file_path, "BUILD.gn")
+    self.assertEqual(gn_diag.line_number, 10)
+
+  def test_agent_change_record_data_structure(self):
+    """Verifies AgentChangeRecord initialization, dict, and prompt string."""
+    record = AgentChangeRecord(
+        phase="autoninja",
+        iteration=3,
+        target_file="cobalt/browser/features.cc",
+        file_changes={
+            "cobalt/browser/features.cc":
+                ("<<<<<<< SEARCH\nfoo();\n=======\nbar();\n>>>>>>> REPLACE")
+        },
+        error="features.cc:42: error: undefined symbol bar",
+        command_output=("FAILED: obj/cobalt/browser/features.o\n"
+                        "features.cc:42: error: undefined symbol bar"),
+        applied_cleanly=True,
+    )
+    d = record.to_dict()
+    self.assertEqual(d["phase"], "autoninja")
+    self.assertEqual(d["iteration"], 3)
+    self.assertEqual(d["target_file"], "cobalt/browser/features.cc")
+    self.assertEqual(d["error"], "features.cc:42: error: undefined symbol bar")
+    self.assertTrue(d["applied_cleanly"])
+    self.assertEqual(d["modified_files"], ["cobalt/browser/features.cc"])
+
+    p_str = record.to_prompt_str()
+    self.assertIn(
+        "#### [autoninja] Iteration 3 -> Target: `cobalt/browser/features.cc`",
+        p_str)
+    self.assertIn("Patch Applied Cleanly: True", p_str)
+    self.assertIn("FAILED: features.cc:42: error: undefined symbol bar", p_str)
+    self.assertIn("bar();", p_str)
+    self.assertIn("features.cc:42: error: undefined symbol bar", p_str)
+
+  def test_agent_change_record_multi_file_changes(self):
+    """Verifies AgentChangeRecord with multi-file dictionary changes."""
+    record = AgentChangeRecord(
+        phase="autoninja",
+        iteration=2,
+        target_file="foo.py",
+        file_changes={
+            "goo.cc": ("<<<<<<< SEARCH\nvoid Old();\n=======\n"
+                       "void New();\n>>>>>>> REPLACE"),
+            "hoo.java": ("<<<<<<< SEARCH\nint a = 1;\n=======\n"
+                         "int a = 2;\n>>>>>>> REPLACE"),
+        },
+        error="hoo.java:10: error: incompatible types",
+        applied_cleanly=True,
+    )
+    self.assertEqual(record.modified_files, ["goo.cc", "hoo.java"])
+    self.assertEqual(
+        record.file_changes["goo.cc"],
+        "<<<<<<< SEARCH\nvoid Old();\n=======\nvoid New();\n>>>>>>> REPLACE",
+    )
+    self.assertEqual(
+        record.file_changes["hoo.java"],
+        "<<<<<<< SEARCH\nint a = 1;\n=======\nint a = 2;\n>>>>>>> REPLACE",
+    )
+    d = record.to_dict()
+    self.assertEqual(d["modified_files"], ["goo.cc", "hoo.java"])
+    self.assertIn("goo.cc", d["file_changes"])
+    self.assertIn("hoo.java", d["file_changes"])
+    self.assertIn("FILE: goo.cc", record.changes)
+    self.assertIn("FILE: hoo.java", record.changes)
+    p_str = record.to_prompt_str()
+    self.assertIn("Modified Files (2): `goo.cc`, `hoo.java`", p_str)
+
+  def test_expert_agent_omniscience_and_model_defaults(self):
+    """Verifies workhorse and expert defaults and omniscience guidance."""
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    self.assertEqual(engine.flash_model, "gemini-3.7-flash")
+    self.assertEqual(engine.expert_model, "gemini-3.8-flash")
+
+    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    self.assertEqual(client.flash_model, "gemini-3.7-flash")
+    self.assertEqual(client.expert_model, "gemini-3.8-flash")
+
+    captured_prompts = []
+
+    def mock_expert_content(contents, system_inst, expert_model=None, **kwargs):
+      del kwargs
+      captured_prompts.append((str(contents), system_inst, expert_model))
+      return "Directives:\n1. Update header include\n2. Fix type signature"
+
+    # pylint: disable=protected-access
+    engine._generate_expert_content = mock_expert_content
+
+    res = engine.generate_expert_guidance(
+        target="cobalt",
+        diagnostics="fatal error: 'v8.h' file not found",
+        source_contexts="void Init() { ... }",
+        trajectory_history="#### Iteration 1: Attempted #include <v8.h>",
+        working_diff="diff --git a/file.cc b/file.cc\n+#include <v8.h>",
+        raw_log="[1/100] CXX obj/test.o\nfatal error: 'v8.h' file not found",
+        all_diagnostics="1. fatal error: 'v8.h' file not found",
+        mode="compiler",
+    )
+
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertIn("Directives:", res["guidance"])
+    self.assertEqual(res["model_used"], "gemini-3.8-flash")
+    self.assertEqual(len(captured_prompts), 1)
+
+    prompt_text, sys_inst, model_called = captured_prompts[0]
+    self.assertEqual(model_called, "gemini-3.8-flash")
+    self.assertIn("OMNISCIENT visibility", sys_inst)
+    self.assertIn("--- Full Raw Build Output Log (Tail) ---", prompt_text)
+    self.assertIn("--- All Extracted Diagnostics in Current Build ---",
+                  prompt_text)
+    self.assertIn("--- Git Diff of Modifications in Current Session ---",
+                  prompt_text)
+    self.assertIn("--- Prior Iteration Attempt Trajectory ---", prompt_text)
+
+  def test_base_resolver_session_changes_tracking(self):
+    """Verifies BaseResolver records AgentChangeRecord into session_changes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "cobalt", "sample.cc")
+      os.makedirs(os.path.dirname(test_file), exist_ok=True)
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("int value = 1;\n")
+
+      session_changes = []
+
+      class DummyTrackingResolver(BaseResolver):
+        """Dummy tracking resolver for testing session changes."""
+
+        @property
+        def name(self):
+          return "DummyTracking"
+
+        def run_command(self, iteration):
+          if iteration == 1:
+            return False, "sample.cc:1: error: mismatch", ""
+          return True, "Build succeeded", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return ["sample.cc:1: error: mismatch"]
+
+        def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
+          del diagnostic, history_records, kwargs
+          patch = ("### **FILE**: `cobalt/sample.cc`\n"
+                   "<<<<<<< SEARCH\n"
+                   "int value = 1;\n"
+                   "=======\n"
+                   "int value = 2;\n"
+                   ">>>>>>> REPLACE\n")
+          return patch, "gemini-3.7-flash", "cobalt/sample.cc"
+
+      resolver = DummyTrackingResolver(
+          repo_path=tmpdir,
+          max_iterations=5,
+          session_changes=session_changes,
+      )
+
+      # Run resolution loop: Iteration 1 will apply patch and record it;
+      # Iteration 2 will succeed.
+      ok = resolver.run_resolution_loop()
+      self.assertTrue(ok)
+      self.assertGreaterEqual(len(session_changes), 1)
+      first_change = session_changes[0]
+      self.assertEqual(first_change.phase, "DummyTracking")
+      self.assertEqual(first_change.target_file, "cobalt/sample.cc")
+      self.assertTrue(first_change.applied_cleanly)
+      self.assertIn("int value = 2;", first_change.changes)
+
+  def test_conflict_resolver_records_session_changes(self):
+    """Verifies resolve_file_conflicts appends records to session_changes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+
+      session_changes = []
+      ok = resolve_file_conflicts(
+          file_path=test_file,
+          repo_path=tmpdir,
+          git_context="branch: test",
+          session_changes=session_changes,
+          mock_mode=True,
+      )
+      self.assertTrue(ok)
+      self.assertEqual(len(session_changes), 1)
+      rec = session_changes[0]
+      self.assertEqual(rec.phase, "resolve_conflicts")
+      self.assertEqual(rec.target_file, "sample_conflict.cc")
+      self.assertTrue(rec.applied_cleanly)
+      self.assertIn("InitChromiumDefaultMediaPipeline()", rec.changes)
+
+  def test_expert_prompt_modified_files_sorted_by_iteration(self):
+    """Verifies modified files in prompt are sorted by iteration number."""
+    mock_engine = mock.MagicMock()
+    captured_kwargs = {}
+
+    def mock_guidance(**kwargs):
+      captured_kwargs.update(kwargs)
+      return {"status": "SUCCESS", "guidance": "Fix it."}
+
+    mock_engine.generate_expert_guidance.side_effect = mock_guidance
+
+    session_changes = [
+        AgentChangeRecord(
+            phase="resolve_conflicts",
+            iteration=2,
+            target_file="z_conflict.cc",
+            file_changes={"z_conflict.cc": "// diff z"},
+        ),
+        AgentChangeRecord(
+            phase="resolve_conflicts",
+            iteration=1,
+            target_file="a_conflict.cc",
+            file_changes={"a_conflict.cc": "// diff a"},
+        ),
+        AgentChangeRecord(
+            phase="autoninja",
+            iteration=2,
+            target_file="z_compiler.cc",
+            file_changes={"z_compiler.cc": "// diff z compiler"},
+        ),
+        AgentChangeRecord(
+            phase="autoninja",
+            iteration=1,
+            target_file="a_compiler.cc",
+            file_changes={"a_compiler.cc": "// diff a compiler"},
+        ),
+    ]
+
+    class TestResolver(BaseResolver):
+      """Mock resolver for testing expert prompt injection."""
+
+      @property
+      def name(self):
+        return "autoninja"
+
+      def run_command(self, iteration):
+        if iteration == 1:
+          return False, "FAILED: test.o\ntest.cc:1: error: test", ""
+        return True, "Build succeeded", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return ["test.cc:1: error: test"]
+
+      def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
+        del diagnostic, history_records, kwargs
+        return "patch", "flash", "test.cc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_file = os.path.join(tmpdir, "test.cc")
+      with open(test_file, "w", encoding="utf-8") as f:
+        f.write("int a = 1;\n")
+
+      resolver = TestResolver(
+          repo_path=tmpdir,
+          max_iterations=2,
+          engine=mock_engine,
+          session_changes=session_changes,
+      )
+
+      ok = resolver.run_resolution_loop()
+      self.assertTrue(ok)
+      self.assertGreaterEqual(len(captured_kwargs),
+                              1)  # Captured expert guidance calls
+      traj = captured_kwargs.get("trajectory_history", "")
+      self.assertIn("=== Files Modified in Current Session (4 files) ===", traj)
+
+    # Verify order is by phase and iteration number, not alphabetically
+    # by filename
+    lines = [
+        line.strip()
+        for line in traj.splitlines()
+        if line.strip().startswith("- ") and "Iteration" in line
+    ]
+    self.assertEqual(len(lines), 4)
+    self.assertEqual(lines[0],
+                     "- [resolve_conflicts] Iteration 1: `a_conflict.cc`")
+    self.assertEqual(lines[1],
+                     "- [resolve_conflicts] Iteration 2: `z_conflict.cc`")
+    self.assertEqual(lines[2], "- Iteration 1: `a_compiler.cc`")
+    self.assertEqual(lines[3], "- Iteration 2: `z_compiler.cc`")
+
+  def test_tool_get_history_and_last_ten_default(self):
+    """Verifies trajectory defaults to 10 and TOOL_GET_HISTORY handler."""
+    session_changes = [
+        AgentChangeRecord(
+            phase="Phase4",
+            iteration=i,
+            target_file=f"file_{i}.cc",
+            file_changes={f"file_{i}.cc": f"// change {i}"},
+            error=f"error in {i}" if i % 2 == 0 else None,
+        ) for i in range(1, 26)  # 25 records
+    ]
+
+    # 1. TOOL_GET_HISTORY: 5 (last 5 records)
+    res_last_5 = execute_local_tool(
+        "TOOL_GET_HISTORY: 5", ".", session_changes=session_changes)
+    self.assertIn("=== Last 5 Change Records (out of 25) ===", res_last_5)
+    self.assertIn("file_25.cc", res_last_5)
+    self.assertIn("file_21.cc", res_last_5)
+    self.assertNotIn("file_19.cc", res_last_5)
+
+    # 2. TOOL_GET_HISTORY: iteration 3
+    res_iter_3 = execute_local_tool(
+        "TOOL_GET_HISTORY: iteration 3", ".", session_changes=session_changes)
+    self.assertIn("=== Change Record for Iteration 3 ===", res_iter_3)
+    self.assertIn("file_3.cc", res_iter_3)
+    self.assertNotIn("file_4.cc", res_iter_3)
+
+    # 3. TOOL_GET_HISTORY: 2-4 (iteration range)
+    res_range = execute_local_tool(
+        "TOOL_GET_HISTORY: 2-4", ".", session_changes=session_changes)
+    self.assertIn("=== Change Records for Iterations 2-4 (3 records) ===",
+                  res_range)
+    self.assertIn("file_2.cc", res_range)
+    self.assertIn("file_3.cc", res_range)
+    self.assertIn("file_4.cc", res_range)
+    self.assertNotIn("file_5.cc", res_range)
+
+    # 4. TOOL_GET_HISTORY: all
+    res_all = execute_local_tool(
+        "TOOL_GET_HISTORY: all", ".", session_changes=session_changes)
+    self.assertIn("=== Full Change History (25 records) ===", res_all)
+    self.assertIn("file_1.cc", res_all)
+    self.assertIn("file_25.cc", res_all)
+
+    # 5. TOOL_GET_HISTORY: file_7.cc (filepath lookup)
+    res_file = execute_local_tool(
+        "TOOL_GET_HISTORY: file_7.cc", ".", session_changes=session_changes)
+    self.assertIn("=== Change Records for 'file_7.cc' (1 records) ===",
+                  res_file)
+    self.assertIn("file_7.cc", res_file)
+    self.assertNotIn("file_8.cc", res_file)
+
+    # 6. TOOL_GET_HISTORY: non_existent.cc
+    res_none = execute_local_tool(
+        "TOOL_GET_HISTORY: non_existent.cc",
+        ".",
+        session_changes=session_changes)
+    self.assertIn("No change records found matching file 'non_existent.cc'",
+                  res_none)
+
+  def test_parse_compiler_errors_fatal_and_action_failures(self):
+    """Verifies parse_compiler_errors matches FATAL logs and action errors."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # Set up mock blink directory and BUILD.gn
+      blink_dir = os.path.join(tmpdir, "third_party", "blink", "renderer",
+                               "platform")
+      os.makedirs(blink_dir, exist_ok=True)
+      gn_path = os.path.join(blink_dir, "BUILD.gn")
+      with open(gn_path, "w", encoding="utf-8") as f:
+        f.write("# Dummy BUILD.gn\n"
+                "compiled_action(\"character_data\") {\n"
+                "  tool = \":character_data_generator\"\n"
+                "}\n")
+
+      # Case 1: FATAL crash inside compiled action generator
+      siso_output = (
+          "FAILED: ./gen/third_party/blink/renderer/platform/"
+          "character_property_data.cc ACTION "
+          "//third_party/blink/renderer/platform:character_data\n"
+          "[0910/211026.345187:FATAL:third_party/blink/renderer/platform/text/"
+          "character_property_data_generator.cc:48] Check failed: "
+          "U_SUCCESS(error). ulocdata_getCLDRVersion: "
+          "(2)U_MISSING_RESOURCE_ERROR\n")
+      diags = parse_compiler_errors(siso_output, tmpdir)
+      self.assertEqual(len(diags), 1)
+      d = diags[0]
+      self.assertIn("character_property_data_generator.cc", d.file_path)
+      self.assertEqual(d.line_number, 48)
+      self.assertIn("ulocdata_getCLDRVersion", d.error_message)
+      self.assertTrue(
+          any("Failing Action: "
+              "//third_party/blink/renderer/platform:character_data" in n
+              for n in d.notes))
+
+      # Case 2: Pure GN Action failure without fatal log (fallback to BUILD.gn)
+      action_only_output = (
+          "FAILED: obj/stamp ACTION "
+          "//third_party/blink/renderer/platform:character_data\n"
+          "command failed with exit code 1\n")
+      diags_act = parse_compiler_errors(action_only_output, tmpdir)
+      self.assertEqual(len(diags_act), 1)
+      self.assertEqual(diags_act[0].file_path, gn_path)
+      self.assertEqual(diags_act[0].line_number, 2)
+      self.assertIn("character_data", diags_act[0].error_message)
+
+      # Case 3: Python traceback in action script
+      py_script = os.path.join(tmpdir, "generate.py")
+      with open(py_script, "w", encoding="utf-8") as f:
+        f.write("print('hello')\n")
+      py_output = ("FAILED: out/gen.cc ACTION "
+                   "//third_party/blink/renderer/platform:character_data\n"
+                   "Traceback (most recent call last):\n"
+                   f"  File \"{py_script}\", line 1, in <module>\n"
+                   "    raise ValueError('broken config')\n"
+                   "ValueError: broken config\n")
+      diags_py = parse_compiler_errors(py_output, tmpdir)
+      self.assertEqual(len(diags_py), 1)
+      self.assertEqual(diags_py[0].file_path, py_script)
+      self.assertEqual(diags_py[0].line_number, 1)
+      self.assertIn("ValueError: broken config", diags_py[0].error_message)
+
+  def test_extract_meaningful_error_summary(self):
+    """Verifies generic headers are stripped from error_summary."""
+    raw = ("Siso output:\n"
+           "ninja: Entering directory out/android\n"
+           "FAILED: out/obj.o\n"
+           "foo.cc:10: error: undefined bar\n")
+    summary = extract_meaningful_error_summary(raw)
+    self.assertEqual(summary, "FAILED: out/obj.o")
+
+    direct_err = "foo.cc:10: error: undefined bar"
+    self.assertEqual(extract_meaningful_error_summary(direct_err), direct_err)
+
+
+class ToolDirectiveExtractionTest(unittest.TestCase):
+  """Pins the two tool-directive parsers against each other.
+
+  conflicts.py previously used a local '^TOOL_...$' regex that missed
+  every indented directive and merged run-on directives into one
+  corrupted path. The fix routes prose through extract_tool_commands and
+  code through extract_line_anchored_tool_commands; these tests pin why
+  both exist, since collapsing them would reintroduce one bug or the
+  other.
+  """
+
+  CPP_WITH_TOOL_ENUM = ("switch (kind) {\n"
+                        "  case TOOL_TIP: return 1;\n"
+                        "  case TOOL_BAR: return 2;\n"
+                        "}")
+
+  def test_indented_directive_is_found(self):
+    """The old column-0 anchor missed these entirely."""
+    text = "I need:\n  TOOL_READ_FILE: a/b.h 1-10"
+    self.assertEqual(
+        extract_line_anchored_tool_commands(text),
+        ["TOOL_READ_FILE: a/b.h 1-10"])
+
+  def test_in_code_enum_is_not_a_directive(self):
+    """An indented C++ 'case TOOL_TIP:' must not be run as a tool."""
+    self.assertEqual(
+        extract_line_anchored_tool_commands(self.CPP_WITH_TOOL_ENUM), [])
+
+  def test_prose_scanner_does_flag_in_code_enum(self):
+    """Documents why the code path may not use the prose scanner."""
+    self.assertEqual(len(extract_tool_commands(self.CPP_WITH_TOOL_ENUM)), 2)
+
+  def test_prose_scanner_splits_run_on_directives(self):
+    """Documents why the prose path may not use the line-anchored one."""
+    runon = ("TOOL_READ_FILE: media/types.mojom"
+             "TOOL_READ_FILE: media/base/decoder.h 1-40")
+    self.assertEqual(len(extract_tool_commands(runon)), 2)
+    self.assertEqual(len(extract_line_anchored_tool_commands(runon)), 1)
+
+  def test_plain_code_yields_no_directives(self):
+    self.assertEqual(
+        extract_line_anchored_tool_commands("int x = 1;\nreturn x;"), [])
+
+  def test_duplicates_are_collapsed(self):
+    text = "TOOL_GREP: kStarboard\nTOOL_GREP: kStarboard"
+    self.assertEqual(
+        extract_line_anchored_tool_commands(text), ["TOOL_GREP: kStarboard"])
+
+  def test_directive_cap_is_honored(self):
+    text = "\n".join(f"TOOL_GREP: sym{i}" for i in range(10))
+    self.assertEqual(len(extract_line_anchored_tool_commands(text)), 3)
+
+
+class FormatHistoryRecordsTest(unittest.TestCase):
+  """Pins the formatter deduplicated out of three resolvers.
+
+  gn_gen, autoninja and gclient_sync each held a byte-identical copy of
+  this block. One definition now, with the window and the 'Tool-'
+  convention pinned here.
+  """
+
+  def test_splits_patches_from_investigations(self):
+    records = [
+        {
+            "iteration": 1,
+            "file": "a.cc",
+            "error": "boom"
+        },
+        {
+            "iteration": "Tool-1",
+            "file": "TOOL_GREP: x",
+            "error": "hit"
+        },
+    ]
+    history, investigation = format_history_records(records)
+    self.assertEqual(history, '- Iteration 1: Modified a.cc to fix "boom"')
+    self.assertEqual(investigation,
+                     "Tool Call: `TOOL_GREP: x`\nResult:\n```\nhit\n```")
+
+  def test_window_keeps_only_trailing_records(self):
+    records = [{
+        "iteration": i,
+        "file": f"f{i}.cc",
+        "error": "e"
+    } for i in range(12)]
+    history, _ = format_history_records(records)
+    self.assertEqual(len(history.splitlines()), 6)
+    self.assertIn("f11.cc", history)
+    self.assertNotIn("f5.cc", history)
+
+  def test_missing_keys_do_not_raise(self):
+    history, investigation = format_history_records([{}, {"iteration": 3}])
+    self.assertEqual(investigation, "")
+    self.assertEqual(len(history.splitlines()), 2)
+
+  def test_empty_input_yields_empty_strings(self):
+    self.assertEqual(format_history_records([]), ("", ""))
+
+
+class MemoryReadOnlyTest(unittest.TestCase):
+  """Guards that read-only mode never writes to the GCS knowledge bank."""
+
+  def setUp(self):
+    super().setUp()
+    patcher = mock.patch.dict(os.environ, {}, clear=False)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+    os.environ.pop("REBASE_MEMORY_READ_ONLY", None)
+
+  def _engine_with_mock_storage(self, **kwargs):
+    engine = CobaltReasoningEngine(
+        project_id="test-proj",
+        gcs_memory_uri="gs://test-bucket/rebase_memory/knowledge_bank.json",
+        **kwargs)
+    blob = mock.MagicMock()
+    blob.exists.return_value = True
+    blob.download_as_text.return_value = json.dumps([{
+        "target_file": "media/foo.cc",
+        "issue_description": "undeclared identifier kFoo",
+        "solution_diff": "old fix",
+    }])
+    client = mock.MagicMock()
+    client.bucket.return_value.blob.return_value = blob
+    engine.storage_client = client
+    return engine, blob
+
+  def test_engine_read_only_skips_upload_but_still_reads(self):
+    engine, blob = self._engine_with_mock_storage(memory_read_only=True)
+    self.assertFalse(
+        engine.record_successful_fix(
+            issue_description="new error",
+            solution_diff="new fix",
+            target_file="media/bar.cc",
+        ))
+    blob.upload_from_string.assert_not_called()
+    self.assertIn("old fix", engine.get_past_experience("kFoo media/foo.cc"))
+
+  def test_engine_read_write_uploads(self):
+    engine, blob = self._engine_with_mock_storage(memory_read_only=False)
+    self.assertTrue(
+        engine.record_successful_fix(
+            issue_description="new error",
+            solution_diff="new fix",
+            target_file="media/bar.cc",
+        ))
+    blob.upload_from_string.assert_called_once()
+
+  def test_engine_read_only_from_env(self):
+    os.environ["REBASE_MEMORY_READ_ONLY"] = "1"
+    engine, blob = self._engine_with_mock_storage()
+    self.assertTrue(engine.memory_read_only)
+    engine.record_successful_fix(
+        issue_description="e", solution_diff="d", target_file="f")
+    blob.upload_from_string.assert_not_called()
+
+  def test_engine_without_attribute_defaults_to_read_write(self):
+    """Older pickled engine instances lack memory_read_only entirely."""
+    engine, blob = self._engine_with_mock_storage()
+    del engine.memory_read_only
+    engine.record_successful_fix(
+        issue_description="e", solution_diff="d", target_file="f")
+    blob.upload_from_string.assert_called_once()
+
+  def test_client_read_only_blocks_write_actions_without_engine_call(self):
+    client = ReasoningEngineClient(
+        resource_id="123", project_id="test-proj", memory_read_only=True)
+    with mock.patch.object(client, "_get_engine") as get_engine:
+      self.assertFalse(
+          client.record_successful_fix(
+              issue_description="e", solution_diff="d", target_file="f"))
+      res = client.query(action="record_fix", target_file="f")
+      self.assertEqual(res, {"success": False, "read_only": True})
+      get_engine.assert_not_called()
+
+  def test_client_read_only_still_allows_reads(self):
+    client = ReasoningEngineClient(
+        project_id="test-proj", local=True, memory_read_only=True)
+    fake_engine = mock.MagicMock()
+    fake_engine.query.return_value = {"experience": "Example #1"}
+    with mock.patch.object(client, "_get_engine", return_value=fake_engine):
+      self.assertEqual(client.get_past_experience("kFoo"), "Example #1")
+    fake_engine.query.assert_called_once_with(
+        action="get_past_experience", query="kFoo", max_items=3)
+
+  def test_client_read_only_from_env(self):
+    os.environ["REBASE_MEMORY_READ_ONLY"] = "true"
+    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    self.assertTrue(client.memory_read_only)
+
+  def test_client_passes_read_only_to_local_engine(self):
+    client = ReasoningEngineClient(
+        project_id="test-proj", local=True, memory_read_only=True)
+    engine = client._get_engine()  # pylint: disable=protected-access
+    self.assertTrue(engine.memory_read_only)
+
+  def test_pipeline_flag_parsing(self):
+    import run_rebase_pipeline  # pylint: disable=import-outside-toplevel
+    parser = run_rebase_pipeline.build_arg_parser()
+    self.assertFalse(parser.parse_args([]).memory_read_only)
+    self.assertTrue(parser.parse_args(["--memory-read-only"]).memory_read_only)
+    self.assertEqual(
+        parser.parse_args([]).gcs_memory_uri,
+        os.environ.get(
+            "GCS_MEMORY_URI",
+            "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"))
+
+
+if __name__ == "__main__":
+  unittest.main()
