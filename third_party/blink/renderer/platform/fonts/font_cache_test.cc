@@ -29,9 +29,17 @@ TEST_F(FontCacheTest, getLastResortFallbackFont) {
   // term of font/glyph selection.
   // TODO(crbug.com/1065468): Remove the test for kWebkitBodyFamily when
   // -webkit-body in unshipped.
+#if BUILDFLAG(IS_COBALT)
+  for (FontDescription::GenericFamilyType family_type :
+       {FontDescription::kStandardFamily, FontDescription::kWebkitBodyFamily,
+        FontDescription::kSansSerifFamily, FontDescription::kSerifFamily,
+        FontDescription::kMonospaceFamily, FontDescription::kCursiveFamily,
+        FontDescription::kFantasyFamily}) {
+#else
   for (FontDescription::GenericFamilyType family_type :
        {FontDescription::kStandardFamily, FontDescription::kWebkitBodyFamily,
         FontDescription::kSansSerifFamily}) {
+#endif  // BUILDFLAG(IS_COBALT)
     FontDescription font_description;
     font_description.SetGenericFamily(family_type);
     const SimpleFontData* font_data =
