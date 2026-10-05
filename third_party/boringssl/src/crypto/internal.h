@@ -15,12 +15,9 @@
 #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
-<<<<<<< HEAD
-#include <openssl/base.h>
-=======
-#include "build/build_config.h" 
+#include "build/build_config.h"
 
->>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include <openssl/base.h>
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
 #include <openssl/stack.h>
