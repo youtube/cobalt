@@ -1361,7 +1361,7 @@ target("foo") {{}}
         project_id="arbitrary-gcp-project-12345")
     self.assertEqual(
         engine_custom_proj.gcs_memory_uri,
-        "gs://lxn-test/rebase_memory/knowledge_bank.json",
+        "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json",
     )
 
     # Verify deploy staging bucket helper does not synthesize gs://{project_id}
@@ -2844,6 +2844,122 @@ class RollPartitionTest(unittest.TestCase):
     baseline, fixes = roll_partition.partition_roll_commits(commits)
     self.assertEqual(baseline[-1]["oid"], "c068cf5")
     self.assertEqual([c["oid"] for c in fixes], ["fix1"])
+
+
+class MemoryReadOnlyTest(unittest.TestCase):
+  """Guards that read-only mode never writes to the GCS knowledge bank."""
+
+  def setUp(self):
+    super().setUp()
+    patcher = mock.patch.dict(os.environ, {}, clear=False)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+    os.environ.pop("REBASE_MEMORY_READ_ONLY", None)
+
+  def _engine_with_mock_storage(self, **kwargs):
+    engine = CobaltReasoningEngine(
+        project_id="test-proj",
+        gcs_memory_uri="gs://test-bucket/rebase_memory/knowledge_bank.json",
+        **kwargs)
+    blob = mock.MagicMock()
+    blob.exists.return_value = True
+    blob.download_as_text.return_value = json.dumps([{
+        "target_file": "media/foo.cc",
+        "issue_description": "undeclared identifier kFoo",
+        "solution_diff": "old fix",
+    }])
+    client = mock.MagicMock()
+    client.bucket.return_value.blob.return_value = blob
+    engine.storage_client = client
+    return engine, blob
+
+  def test_engine_read_only_skips_upload_but_still_reads(self):
+    engine, blob = self._engine_with_mock_storage(memory_read_only=True)
+    self.assertFalse(
+        engine.record_successful_fix(
+            issue_description="new error",
+            solution_diff="new fix",
+            target_file="media/bar.cc",
+        ))
+    blob.upload_from_string.assert_not_called()
+    self.assertIn("old fix", engine.get_past_experience("kFoo media/foo.cc"))
+
+  def test_engine_read_write_uploads(self):
+    engine, blob = self._engine_with_mock_storage(memory_read_only=False)
+    self.assertTrue(
+        engine.record_successful_fix(
+            issue_description="new error",
+            solution_diff="new fix",
+            target_file="media/bar.cc",
+        ))
+    blob.upload_from_string.assert_called_once()
+
+  def test_engine_read_only_from_env(self):
+    os.environ["REBASE_MEMORY_READ_ONLY"] = "1"
+    engine, blob = self._engine_with_mock_storage()
+    self.assertTrue(engine.memory_read_only)
+    engine.record_successful_fix(
+        issue_description="e", solution_diff="d", target_file="f")
+    blob.upload_from_string.assert_not_called()
+
+  def test_engine_without_attribute_defaults_to_read_write(self):
+    """Older pickled engine instances lack memory_read_only entirely."""
+    engine, blob = self._engine_with_mock_storage()
+    del engine.memory_read_only
+    engine.record_successful_fix(
+        issue_description="e", solution_diff="d", target_file="f")
+    blob.upload_from_string.assert_called_once()
+
+  def test_client_read_only_blocks_write_actions_without_engine_call(self):
+    client = ReasoningEngineClient(
+        resource_id="123", project_id="test-proj", memory_read_only=True)
+    with mock.patch.object(client, "_get_engine") as get_engine:
+      self.assertFalse(
+          client.record_successful_fix(
+              issue_description="e", solution_diff="d", target_file="f"))
+      res = client.query(action="record_fix", target_file="f")
+      self.assertEqual(res, {"success": False, "read_only": True})
+      get_engine.assert_not_called()
+
+  def test_client_read_only_still_allows_reads(self):
+    client = ReasoningEngineClient(
+        project_id="test-proj", local=True, memory_read_only=True)
+    fake_engine = mock.MagicMock()
+    fake_engine.query.return_value = {"experience": "Example #1"}
+    with mock.patch.object(client, "_get_engine", return_value=fake_engine):
+      self.assertEqual(client.get_past_experience("kFoo"), "Example #1")
+    fake_engine.query.assert_called_once_with(
+        action="get_past_experience", query="kFoo", max_items=3)
+
+  def test_client_read_only_from_env(self):
+    os.environ["REBASE_MEMORY_READ_ONLY"] = "true"
+    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    self.assertTrue(client.memory_read_only)
+
+  def test_client_passes_read_only_to_local_engine(self):
+    client = ReasoningEngineClient(
+        project_id="test-proj", local=True, memory_read_only=True)
+    engine = client._get_engine()  # pylint: disable=protected-access
+    self.assertTrue(engine.memory_read_only)
+
+  def test_persist_lessons_counts_only_saved(self):
+    review = ("```lesson\nTARGET: media/foo.cc\nISSUE: kFoo removed\n"
+              "RULE: use kBar\n```")
+    client = ReasoningEngineClient(
+        resource_id="123", project_id="test-proj", memory_read_only=True)
+    self.assertEqual(
+        review_pipeline.persist_lessons_to_memory(review, client), 0)
+
+  def test_pipeline_flag_parsing(self):
+    import run_rebase_pipeline  # pylint: disable=import-outside-toplevel
+    parser = run_rebase_pipeline.build_arg_parser()
+    self.assertFalse(parser.parse_args([]).memory_read_only)
+    self.assertTrue(parser.parse_args(["--memory-read-only"]).memory_read_only)
+    self.assertEqual(
+        parser.parse_args([]).gcs_memory_uri,
+        os.environ.get(
+            "GCS_MEMORY_URI",
+            "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"))
 
 
 if __name__ == "__main__":

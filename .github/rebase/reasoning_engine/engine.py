@@ -49,6 +49,20 @@ SKILLS_DIR = os.path.join(
 )
 _SKILL_CACHE: Dict[str, str] = {}
 
+# Production knowledge bank used when no explicit URI is configured.
+DEFAULT_GCS_MEMORY_URI = (
+    "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json")
+
+# Environment variable that disables knowledge bank writes when truthy.
+MEMORY_READ_ONLY_ENV = "REBASE_MEMORY_READ_ONLY"
+
+
+def is_memory_read_only_env() -> bool:
+  """Returns True if REBASE_MEMORY_READ_ONLY is set to a truthy value."""
+  return os.environ.get(MEMORY_READ_ONLY_ENV,
+                        "").strip().lower() in ("1", "true", "yes")
+
+
 # Shared investigation-tool protocol injected into agent prompts.
 #
 # Rationale: prompts that only illustrated TOOL_ directives inline within prose
@@ -142,6 +156,7 @@ class CobaltReasoningEngine:
       pro_model: Optional[str] = None,
       skills_dir: Optional[str] = None,
       gcs_memory_uri: Optional[str] = None,
+      memory_read_only: Optional[bool] = None,
       **kwargs,
   ):
     self.project_id = (
@@ -167,7 +182,13 @@ class CobaltReasoningEngine:
     self.skills_dir = skills_dir or SKILLS_DIR
     self.gcs_memory_uri = (
         gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
-        "gs://lxn-test/rebase_memory/knowledge_bank.json")
+        DEFAULT_GCS_MEMORY_URI)
+    # When enabled, the knowledge bank is still read for past experience but
+    # record_successful_fix never writes back to GCS (e.g. external partners
+    # running the pipeline locally).
+    self.memory_read_only = (
+        memory_read_only
+        if memory_read_only is not None else is_memory_read_only_env())
     self.memory_cache: Optional[List[Dict[str, Any]]] = None
     self.storage_client: Any = None
     self.anthropic_client: Any = None
@@ -281,6 +302,14 @@ class CobaltReasoningEngine:
       **kwargs,
   ) -> bool:
     """Records a verified fix into GCS knowledge memory bank."""
+    if getattr(self, "memory_read_only", False):
+      label = target_file or "<unknown>"
+      print(
+          "  [REASONING_ENGINE] Knowledge bank is read-only; skipping record "
+          f"for: {label}",
+          file=sys.stderr,
+      )
+      return False
     memory = self._load_memory()
     for item in memory:
       if item.get("solution_diff") == solution_diff:

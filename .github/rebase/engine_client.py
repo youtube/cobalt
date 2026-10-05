@@ -22,6 +22,10 @@ from typing import Any, Dict, List, Optional
 import vertexai
 from vertexai.preview import reasoning_engines
 
+# Engine actions that write to the GCS knowledge bank. Blocked when the client
+# is in memory read-only mode.
+_MEMORY_WRITE_ACTIONS = frozenset({"record_successful_fix", "record_fix"})
+
 
 @dataclasses.dataclass
 class ModelResponseWrapper:
@@ -46,6 +50,7 @@ class ReasoningEngineClient:
       expert_location: Optional[str] = None,
       skills_dir: Optional[str] = None,
       gcs_memory_uri: Optional[str] = None,
+      memory_read_only: bool = False,
       local: bool = False,
       max_connect_retries: int = 3,
       max_query_retries: int = 5,
@@ -68,6 +73,12 @@ class ReasoningEngineClient:
     self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
     self.skills_dir = skills_dir
     self.gcs_memory_uri = gcs_memory_uri
+    # Enforced client-side so it also applies to the hosted engine, whose
+    # writes would otherwise use the engine's own service account.
+    self.memory_read_only = (
+        memory_read_only or
+        os.environ.get("REBASE_MEMORY_READ_ONLY",
+                       "").strip().lower() in ("1", "true", "yes"))
     self.local = (
         local or os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true") or
         not self.resource_id)
@@ -109,6 +120,7 @@ class ReasoningEngineClient:
           expert_location=self.expert_location,
           skills_dir=self.skills_dir,
           gcs_memory_uri=self.gcs_memory_uri,
+          memory_read_only=self.memory_read_only,
       )
       return self._local_engine
 
@@ -159,6 +171,14 @@ class ReasoningEngineClient:
 
   def query(self, action: str, **kwargs) -> Any:
     """Dispatches query to hosted or in-process Reasoning Engine."""
+    if self.memory_read_only and action in _MEMORY_WRITE_ACTIONS:
+      label = kwargs.get("target_file") or "<unknown>"
+      print(
+          "  [REASONING_ENGINE_CLIENT] Knowledge bank is read-only; skipping "
+          f"\"{action}\" for: {label}",
+          file=sys.stderr,
+      )
+      return {"success": False, "read_only": True}
     engine = self._get_engine()
     if self.local:
       return engine.query(action=action, **kwargs)

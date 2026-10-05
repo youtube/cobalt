@@ -145,10 +145,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
       "--gcs-memory-uri",
-      default=os.environ.get("GCS_MEMORY_URI",
-                             "gs://lxn-test/rebase_memory/knowledge_bank.json"),
+      default=os.environ.get(
+          "GCS_MEMORY_URI",
+          "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"),
       help=(
-          "Optional GCS bucket URI (gs://bucket/path) to sync knowledge bank."),
+          "Optional GCS bucket URI (gs://bucket/path) to sync knowledge bank. "
+          "Pass a non-gs:// value (e.g. 'none') to disable it entirely."),
+  )
+  parser.add_argument(
+      "--memory-read-only",
+      action="store_true",
+      default=os.environ.get("REBASE_MEMORY_READ_ONLY", "").strip().lower()
+      in ("1", "true", "yes"),
+      help=("Read past fixes from the knowledge bank but never write new ones "
+            "back to GCS (env: REBASE_MEMORY_READ_ONLY=1)."),
   )
   return parser
 
@@ -190,7 +200,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
   print(f"  - Out Dir:    out/{out_dir}", file=sys.stderr)
   print(f"  - Target:     {effective_target}", file=sys.stderr)
   if args.gcs_memory_uri:
-    print(f"  - GCS Memory: {args.gcs_memory_uri}", file=sys.stderr)
+    mem_mode = "read-only" if args.memory_read_only else "read-write"
+    print(
+        f"  - GCS Memory: {args.gcs_memory_uri} ({mem_mode})", file=sys.stderr)
   print("=" * 80, file=sys.stderr)
 
   # -------------------------------------------------------------------------
@@ -204,6 +216,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       expert_model=effective_expert,
       skills_dir=args.skills_dir,
       gcs_memory_uri=args.gcs_memory_uri,
+      memory_read_only=args.memory_read_only,
       local=args.local,
   )
 

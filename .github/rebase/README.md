@@ -229,10 +229,30 @@ The Reasoning Engine natively manages the knowledge memory bank on Google Cloud 
 * **Auto-Retrieval**: When diagnosing errors, the Reasoning Engine automatically queries its cloud memory bank and injects relevant past lessons into prompts.
 * **Real-time Synchronization**: When an AI fix is verified and passes compilation, `CobaltReasoningEngine` records the resolution directly into GCS in real-time.
 
-Configure your GCS bucket URI (or set default `$GCS_MEMORY_URI`):
+Configure your GCS bucket URI (defaults to `gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json`):
 ```bash
 export GCS_MEMORY_URI="gs://your-bucket-name/rebase_memory/knowledge_bank.json"
 ```
+
+### Read-Only Mode (External / Local Runs)
+
+Runs that should benefit from past fixes without writing new ones back (e.g.
+external partners running the pipeline locally) should enable read-only mode:
+```bash
+python3 .github/rebase/run_rebase_pipeline.py --local --memory-read-only ...
+# or
+export REBASE_MEMORY_READ_ONLY=1
+```
+* Past experience is still retrieved and injected into prompts.
+* `record_successful_fix` is skipped in both the client and the in-process
+  engine, so nothing is uploaded to GCS. The client-side guard also applies
+  when talking to the hosted Reasoning Engine.
+* `review_pipeline.py` honors the same flag and does not persist lessons.
+* To disable the knowledge bank entirely (no reads either), pass
+  `--gcs-memory-uri none`.
+
+> Read-only mode is a client-side convenience. Enforce it with IAM by granting
+> external users only `roles/storage.objectViewer` on the bucket.
 
 ---
 

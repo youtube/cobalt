@@ -483,19 +483,21 @@ def persist_lessons_to_memory(review_text: str, engine_or_client: Any) -> int:
           f"  [KNOWLEDGE_BANK] Persisting lesson for: {target}...",
           file=sys.stderr)
       if hasattr(engine_or_client, "record_successful_fix"):
-        engine_or_client.record_successful_fix(
+        ok = engine_or_client.record_successful_fix(
             issue_description=desc,
             solution_diff=rule,
             target_file=target,
         )
       else:
-        engine_or_client.query(
+        res = engine_or_client.query(
             action="record_successful_fix",
             issue_description=desc,
             solution_diff=rule,
             target_file=target,
         )
-      saved += 1
+        ok = res.get("success", True) if isinstance(res, dict) else bool(res)
+      if ok:
+        saved += 1
 
   return saved
 
@@ -555,9 +557,18 @@ def main():
   )
   parser.add_argument(
       "--gcs-memory-uri",
-      default=os.environ.get("GCS_MEMORY_URI",
-                             "gs://lxn-test/rebase_memory/knowledge_bank.json"),
+      default=os.environ.get(
+          "GCS_MEMORY_URI",
+          "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"),
       help="GCS URI for knowledge memory bank",
+  )
+  parser.add_argument(
+      "--memory-read-only",
+      action="store_true",
+      default=os.environ.get("REBASE_MEMORY_READ_ONLY", "").strip().lower()
+      in ("1", "true", "yes"),
+      help=("Do not persist extracted lessons to the knowledge bank "
+            "(env: REBASE_MEMORY_READ_ONLY=1)."),
   )
   parser.add_argument(
       "--out",
@@ -639,6 +650,7 @@ def main():
         expert_model=args.expert_model,
         expert_location=args.expert_location,
         gcs_memory_uri=args.gcs_memory_uri,
+        memory_read_only=args.memory_read_only,
     )
   else:
     print(
@@ -650,6 +662,7 @@ def main():
         resource_id=args.resource_id,
         project_id=args.project_id,
         location=args.location,
+        memory_read_only=args.memory_read_only,
     )
 
   review_report = generate_comparative_review(
