@@ -53,10 +53,14 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 }
 
 DecodeTarget::~DecodeTarget() {
-  ANativeWindow_release(native_window_);
+  if (native_window_) {
+    ANativeWindow_release(native_window_);
+  }
 
-  glDeleteTextures(1, &info_.planes[0].texture);
-  SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  if (info_.planes[0].texture != 0) {
+    glDeleteTextures(1, &info_.planes[0].texture);
+    SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  }
 }
 
 void DecodeTarget::CreateOnContextRunner() {

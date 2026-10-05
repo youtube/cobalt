@@ -825,6 +825,19 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!SbDecodeTargetIsValid(decode_target)) {
         return Failure("Could not acquire a decode target from provider.");
       }
+      if (!decode_target->is_initialized()) {
+        // The GLES context runner could not run the creation closure (see
+        // StarboardRendererWrapper::GraphicsContextRunner), so the target has
+        // no SurfaceTexture. Passing it to SetOnFrameAvailableListener() would
+        // abort the process with a JNI "obj == null" error (b/565889635).
+        // Free it (it was never AddRef'd, so balance before releasing) and
+        // fail the codec initialization instead; the player reports a decode
+        // error and the web app can retry.
+        decode_target->AddRef();
+        decode_target->Release();
+        return Failure(
+            "Decode target was not initialized by the GLES context runner.");
+      }
       j_output_surface =
           jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target->surface());
 

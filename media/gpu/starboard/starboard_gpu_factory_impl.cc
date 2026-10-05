@@ -49,7 +49,9 @@ void StarboardGpuFactoryImpl::Initialize(base::UnguessableToken channel_token,
                                          int32_t route_id,
                                          base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  stub_ = get_stub_cb_.Run(channel_token, route_id);
+  channel_token_ = channel_token;
+  route_id_ = route_id;
+  stub_ = get_stub_cb_.Run(channel_token_, route_id_);
   if (stub_) {
     stub_->AddDestructionObserver(this);
   }
@@ -59,12 +61,42 @@ void StarboardGpuFactoryImpl::Initialize(base::UnguessableToken channel_token,
 void StarboardGpuFactoryImpl::RunSbDecodeTargetFunctionOnGpu(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context,
-    base::WaitableEvent* done_event) {
+    scoped_refptr<GlesClosureRun> run) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (MakeContextCurrent(stub_)) {
-    target_function(target_function_context);
+  DCHECK(run);
+  using Outcome = GlesClosureRun::Outcome;
+
+  // Hold the lock for the whole execution so that a caller which timed out
+  // cannot return (and free |target_function_context|) while the closure is
+  // running; see StarboardRendererWrapper::GraphicsContextRunner().
+  base::AutoLock lock(run->lock);
+  if (run->abandoned) {
+    run->done.Signal();
+    return;
   }
-  done_event->Signal();
+
+  // The stub is cleared in OnWillDestroyStub(); the channel may since have
+  // created a new one for the same route, so try to re-acquire it.
+  if (!stub_) {
+    stub_ = get_stub_cb_.Run(channel_token_, route_id_);
+    if (stub_) {
+      stub_->AddDestructionObserver(this);
+    }
+  }
+
+  if (!stub_) {
+    LOG(WARNING) << "RunSbDecodeTargetFunctionOnGpu: no command buffer stub; "
+                 << "decode target closure not run.";
+    run->outcome = Outcome::kNoStub;
+  } else if (!MakeContextCurrent(stub_)) {
+    LOG(WARNING) << "RunSbDecodeTargetFunctionOnGpu: could not make the GL "
+                 << "context current; decode target closure not run.";
+    run->outcome = Outcome::kContextNotCurrent;
+  } else {
+    target_function(target_function_context);
+    run->outcome = Outcome::kRan;
+  }
+  run->done.Signal();
 }
 
 void StarboardGpuFactoryImpl::RunCallbackOnGpu(
