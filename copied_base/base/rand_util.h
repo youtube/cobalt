@@ -45,6 +45,9 @@ BASE_EXPORT uint64_t RandUint64();
 // Returns a random number between min and max (inclusive). Thread-safe.
 BASE_EXPORT int RandInt(int min, int max);
 
+// Alias for RandInt during migration for https://crbug.com/40283703.
+BASE_EXPORT int RandIntInclusive(int min, int max);
+
 // Returns a random number in range [0, range).  Thread-safe.
 BASE_EXPORT uint64_t RandGenerator(uint64_t range);
 
