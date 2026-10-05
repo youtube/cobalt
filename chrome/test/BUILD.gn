@@ -1703,12 +1703,9 @@ source_set("platform_browser_tests") {
       "//chrome/browser/extensions/api/bookmarks/test:test_support",
       "//chrome/browser/prefetch",
       "//chrome/browser/prefs",
-<<<<<<< HEAD
       "//chrome/browser/prefs:util",
-      "//chrome/browser/profiles/keep_alive",
-=======
       "//chrome/browser/preloading:prefs",
->>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      "//chrome/browser/profiles/keep_alive",
       "//chrome/browser/reading_list",
       "//chrome/browser/sessions",
       "//chrome/browser/sync",
