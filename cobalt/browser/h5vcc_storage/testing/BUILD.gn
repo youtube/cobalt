@@ -12,22 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//third_party/blink/renderer/modules/modules.gni")
-
-blink_modules_sources("h5vcc_storage") {
+source_set("testing") {
   sources = [
-    "h_5_vcc_storage.cc",
-    "h_5_vcc_storage.h",
+    "h5vcc_storage_for_testing_impl.cc",
+    "h5vcc_storage_for_testing_impl.h",
   ]
 
-  deps = [ "//cobalt/browser/h5vcc_storage/public/mojom:mojom_blink" ]
-
-  if (!cobalt_is_release_build) {
-    sources += [
-      "testing/h_5_vcc_storage_for_testing.cc",
-      "testing/h_5_vcc_storage_for_testing.h",
-    ]
-    deps +=
-        [ "//cobalt/browser/h5vcc_storage/testing/public/mojom:mojom_blink" ]
-  }
+  deps = [
+    "public/mojom",
+    "//base",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
+  ]
 }

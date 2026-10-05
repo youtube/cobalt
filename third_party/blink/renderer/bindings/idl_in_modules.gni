@@ -1370,6 +1370,14 @@ if (!use_webrtc_peer_connection) {
   static_idl_files_in_modules = _filtered_static_idl
 }
 
+if (!cobalt_is_release_build) {
+  static_idl_files_in_modules += get_path_info(
+          [
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_storage/testing/h_5_vcc_storage.idl",
+          ],
+          "abspath")
+}
+
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set
 # from) for the case of generating the v8 context snapshot for android. When

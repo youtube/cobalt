@@ -49,6 +49,7 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       experiments_(MakeGarbageCollected<H5vccExperiments>(window)),
       memory_(MakeGarbageCollected<H5vccMemory>(window)),
       metrics_(MakeGarbageCollected<H5vccMetrics>(window)),
+      storage_(MakeGarbageCollected<H5vccStorage>(window)),
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)),
@@ -62,6 +63,7 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(experiments_);
   visitor->Trace(memory_);
   visitor->Trace(metrics_);
+  visitor->Trace(storage_);
   visitor->Trace(system_);
   visitor->Trace(runtime_);
   visitor->Trace(storage_);
