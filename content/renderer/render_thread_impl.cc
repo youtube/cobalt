@@ -569,13 +569,8 @@ void RenderThreadImpl::Init() {
   base::DiscardableMemoryAllocator::SetInstance(
       discardable_memory_allocator_.get());
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  ChildProcess::current()->SetIOThreadType(base::ThreadType::kPresentation);
-=======
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
-  ChildProcess::current()->SetIOThreadType(base::ThreadType::kDisplayCritical);
->>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  ChildProcess::current()->SetIOThreadType(base::ThreadType::kPresentation);
 #endif
 
   process_foregrounded_count_ = 0;
