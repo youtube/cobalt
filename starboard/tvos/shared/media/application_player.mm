@@ -627,11 +627,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   if (CMTIME_IS_INDEFINITE(endTime)) {
     return NSIntegerMax;
   }
-  if (!endTime.timescale) {
-    return 0;
+  if (!CMTIME_IS_NUMERIC(endTime)) {
+    return SB_PLAYER_NO_DURATION;
   }
-  float timeSeconds = (float)endTime.value / endTime.timescale;
-  return timeSeconds * 1000000;
+  return static_cast<NSInteger>(CMTimeGetSeconds(endTime) * 1000000);
 }
 
 - (void)disableCallbacks {
