@@ -19,12 +19,6 @@ on:
         type: string
         #TODO(b/557260018): Create a dedicated branch prefix for AI agent.
         default: 'experimental/rebase_agent_pr_'
-      agent_ref:
-        description: 'Branch containing the AI rebase agent scripts (e.g. experimental/rebase_agent to test unmerged changes)'
-        required: false
-        type: string
-        #TODO(b/552561778): Move the agent script to main branch once it is stable.
-        default: 'staging'
       dry_run:
         description: 'Dry run mode (runs AI resolver but skips pushing commit & creating PR)'
         type: boolean
@@ -88,17 +82,6 @@ jobs:
         with:
           path: src
           fetch-depth: 100
-          token: ${{ env.GITHUB_TOKEN }}
-
-      - name: Checkout Rebase Agent Scripts (Sparse)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: ${{ github.repository }}
-          ref: ${{ inputs.agent_ref || 'staging' }}
-          path: rebase_agent
-          sparse-checkout: |
-            .github/rebase
-          sparse-checkout-cone-mode: false
           token: ${{ env.GITHUB_TOKEN }}
 
       - name: GoB Authentication
@@ -195,7 +178,7 @@ jobs:
         run: |
           set -x
           python3 --version
-          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/requirements.txt"
+          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r .github/rebase/requirements.txt
 
       - name: Run AI Rebase Agent
         id: run_ai
@@ -207,7 +190,7 @@ jobs:
           EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-3.8-flash' }}
         run: |
           set +e
-          python3 "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/run_rebase_pipeline.py" \
+          python3 .github/rebase/run_rebase_pipeline.py \
             --repo-path . \
             --model "${MODEL}" \
             --expert-model "${EXPERT_MODEL}" \
