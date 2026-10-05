@@ -132,6 +132,14 @@ class StarboardRendererWrapper
     test_gpu_factory_ = gpu_factory;
   }
 
+  // Runs CreateVideoFrame_OnImageReady() and returns the resulting frame.
+  scoped_refptr<VideoFrame> CreateVideoFrameForTesting(
+      VideoPixelFormat format,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      scoped_refptr<gpu::ClientSharedImage> shared_image);
+
  private:
   void ContinueInitialization(MediaResource* media_resource,
                               RendererClient* client,
@@ -182,6 +190,9 @@ class StarboardRendererWrapper
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_ = {};
   bool is_gpu_factory_initialized_ = false;
+  // Set once a CDM is attached. Decode-to-texture frames produced while a CDM
+  // is attached may contain decrypted content and are marked as protected.
+  bool has_cdm_ = false;
   scoped_refptr<VideoFrame> current_frame_;
   scoped_refptr<gpu::ClientSharedImage> current_shared_image_;
   std::vector<uint32_t> last_texture_service_ids_;

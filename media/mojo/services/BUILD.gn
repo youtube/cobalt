@@ -363,6 +363,7 @@ source_set("unit_tests") {
     sources += [ "starboard/starboard_renderer_wrapper_unittest.cc" ]
     deps += [
       "//cobalt/media/service",
+      "//gpu/command_buffer/client",
       "//starboard/common",
     ]
   }
