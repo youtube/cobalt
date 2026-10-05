@@ -50,11 +50,10 @@ def main():
       args.target_branch)
 
   if args.mode == 'label':
-    if args.prs_json:
-      lib.load_pr_labels_from_file(args.prs_json)
-    else:
-      pr_nums = [pr_num for _, _, pr_num in commits_to_target if pr_num]
-      lib.prefetch_pr_labels(pr_nums)
+    if not args.prs_json:
+      lib.log('Error: --prs-json is required in label mode.')
+      sys.exit(1)
+    lib.load_pr_labels_from_file(args.prs_json)
 
   target_label = f'cp-{args.target_branch}'
   commits_added = []

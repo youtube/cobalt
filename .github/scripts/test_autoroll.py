@@ -68,15 +68,11 @@ class TestAutorollLib(unittest.TestCase):
                             'name': 'cp-27.lts'
                         }, {
                             'name': 'bug'
-                        }]
+                        }, None]
                     }
                 },
                 'pr_101': {
-                    'labels': {
-                        'nodes': [{
-                            'name': 'kokoro:run'
-                        }]
-                    }
+                    'labels': None
                 },
             }
         }
@@ -84,10 +80,11 @@ class TestAutorollLib(unittest.TestCase):
     mock_get_out.return_value = json.dumps(graphql_response)
 
     with patch.dict(os.environ, {'GITHUB_REPOSITORY': 'youtube/cobalt'}):
-      lib.prefetch_pr_labels([100, 101])
+      # Pass duplicate 100 to ensure deduplication works
+      lib.prefetch_pr_labels([100, 101, 100])
 
     self.assertEqual(lib.get_pr_labels(100), {'cp-27.lts', 'bug'})
-    self.assertEqual(lib.get_pr_labels(101), {'kokoro:run'})
+    self.assertEqual(lib.get_pr_labels(101), set())
 
   @patch('builtins.open')
   @patch('os.path.exists')
@@ -182,11 +179,14 @@ class TestAutorollMain(unittest.TestCase):
         '',
         '--mode',
         'label',
+        '--prs-json',
+        '/dummy/path.json',
     ]
 
-    captured_out = io.StringIO()
-    with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
-      autoroll.main()
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
 
     # Only PR 101 and PR 104 should be cherry-picked
     self.assertEqual(mock_cherry_pick.call_count, 2)
@@ -252,6 +252,33 @@ class TestAutorollMain(unittest.TestCase):
     output = captured_out.getvalue().strip()
     self.assertEqual(output, '- #101\n- sha2\n- #103')
 
+  def test_label_mode_requires_prs_json(self):
+    test_args = [
+        'autoroll.py',
+        '--source-branch',
+        'main',
+        '--target-branch',
+        '27.lts',
+        '--autoroll-file',
+        '.github/AUTOROLL',
+        '--max-commits',
+        '10',
+        '--existing-pr-sha',
+        '',
+        '--mode',
+        'label',
+    ]
+
+    with patch('autoroll_lib.get_start_sha', return_value='sha0'):
+      with patch('autoroll_lib.get_commits', return_value=[]):
+        with patch(
+            'autoroll_lib.get_rolled_source_items',
+            return_value=(set(), set())):
+          with patch('sys.argv', test_args):
+            with self.assertRaises(SystemExit) as cm:
+              autoroll.main()
+            self.assertEqual(cm.exception.code, 1)
+
   @patch('autoroll.cherry_pick')
   @patch('autoroll_lib.get_start_sha')
   @patch('autoroll_lib.get_commits')
@@ -294,11 +321,14 @@ class TestAutorollMain(unittest.TestCase):
         '',
         '--mode',
         'label',
+        '--prs-json',
+        '/dummy/path.json',
     ]
 
-    captured_out = io.StringIO()
-    with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
-      autoroll.main()
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
 
     # Only sha3 should be cherry picked (sha1 was already rolled)
     self.assertEqual(mock_cherry_pick.call_count, 1)
@@ -344,11 +374,14 @@ class TestAutorollMain(unittest.TestCase):
         '',
         '--mode',
         'label',
+        '--prs-json',
+        '/dummy/path.json',
     ]
 
-    captured_out = io.StringIO()
-    with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
-      autoroll.main()
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
 
     # Only sha2 should be cherry-picked
     self.assertEqual(mock_cherry_pick.call_count, 1)
@@ -392,11 +425,14 @@ class TestAutorollMain(unittest.TestCase):
         '',
         '--mode',
         'label',
+        '--prs-json',
+        '/dummy/path.json',
     ]
 
-    captured_out = io.StringIO()
-    with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
-      autoroll.main()
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
 
     # Only 2 commits should be cherry-picked
     self.assertEqual(mock_cherry_pick.call_count, 2)

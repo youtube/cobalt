@@ -127,7 +127,8 @@ def load_pr_labels_from_file(json_path):
 
 def prefetch_pr_labels(pr_nums):
   """Pre-fetches labels for a collection of PR numbers via GraphQL batch."""
-  needed = [int(n) for n in pr_nums if int(n) not in _PR_LABELS_CACHE]
+  needed = sorted(
+      list({int(n) for n in pr_nums if int(n) not in _PR_LABELS_CACHE}))
   if not needed:
     return
 
@@ -155,13 +156,14 @@ def prefetch_pr_labels(pr_nums):
              f'{{ {fields} }} }}')
     try:
       out = get_out(['gh', 'api', 'graphql', '-f', f'query={query}'])
-      data = json.loads(out).get('data', {}).get('repository', {})
+      resp = json.loads(out) or {}
+      data = (resp.get('data') or {}).get('repository') or {}
       for num in chunk:
         pr_data = data.get(f'pr_{num}')
-        if pr_data and 'labels' in pr_data:
-          nodes = pr_data['labels'].get('nodes', [])
+        if pr_data:
+          nodes = (pr_data.get('labels') or {}).get('nodes') or []
           _PR_LABELS_CACHE[num] = {
-              node['name'] for node in nodes if 'name' in node
+              node['name'] for node in nodes if node and 'name' in node
           }
     except Exception as e:  # pylint: disable=broad-except
       log('Warning: GraphQL prefetch failed, falling back to individual '
