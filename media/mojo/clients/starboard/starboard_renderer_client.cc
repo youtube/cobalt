@@ -515,7 +515,6 @@ void StarboardRendererClient::InitAndConstructMojoRenderer(
 
 void StarboardRendererClient::OnMojoRendererInitialized(PipelineStatus status) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  // No rendering mode is sent on an init error, so don't wait for one.
   if (!status.is_ok() || rendering_mode_ != StarboardRenderingMode::kInvalid) {
     DCHECK(!init_cb_.is_null());
     std::move(init_cb_).Run(status);
