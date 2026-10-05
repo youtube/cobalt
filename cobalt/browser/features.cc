@@ -146,12 +146,6 @@ const base::FeatureParam<int> kMemoryAblationSizeMBParam{
 const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
     &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
 
-<<<<<<< HEAD
-BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
-             "CobaltSkipTrustedHeaderClient",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-=======
 BASE_FEATURE(kCobaltGpuMemoryAblation,
              "CobaltGpuMemoryAblation",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -163,6 +157,9 @@ const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
     &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
     base::Seconds(0)};
 
->>>>>>> ddbd81ede (cobalt: Add GPU memory ablation study (#12968))
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
