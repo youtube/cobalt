@@ -237,6 +237,8 @@ TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
                         renderer_init_cb_.Get());
 
   task_environment_.RunUntilIdle();
+
+  renderer_.reset();
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
