@@ -155,6 +155,7 @@ TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
   int call_errno = errno;
   ExpectGetPrioritySuccess(current_priority, call_errno);
 
+#if defined(RLIMIT_NICE)
   // An unprivileged process may only lower its nice value down to
   // 20 - RLIMIT_NICE, so going below both that and the current value fails.
   struct rlimit nice_limit;
@@ -167,6 +168,9 @@ TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
     GTEST_SKIP() << "RLIMIT_NICE (" << nice_limit.rlim_cur
                  << ") permits every priority.";
   }
+#else   // defined(RLIMIT_NICE)
+  const int denied_priority = current_priority - 1;
+#endif  // defined(RLIMIT_NICE)
 
   errno = 0;
   EXPECT_EQ(-1, setpriority(PRIO_PROCESS, 0, denied_priority));
