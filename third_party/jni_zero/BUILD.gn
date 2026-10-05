@@ -91,14 +91,11 @@ component("jni_zero") {
   }
 
   deps = [
+    ":cobalt_for_google3_buildflags",
     ":generate_jni($android_toolchain)",
     ":system_jni($android_toolchain)",
     ":system_jni_unchecked_exceptions($android_toolchain)",
   ]
-
-  if (is_cobalt) {
-    deps += [ ":cobalt_for_google3_buildflags" ]
-  }
 }
 
 if (enable_java_templates && is_android) {
