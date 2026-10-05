@@ -204,6 +204,10 @@ BASE_FEATURE(kPartialLowEndModeOnMidRangeDevices,
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
+             "CobaltAndroidDisplayCriticalInProcessRenderer",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable not perceptible binding without cpu priority boosting.
 BASE_FEATURE(kBackgroundNotPerceptibleBinding,
              "BackgroundNotPerceptibleBinding",

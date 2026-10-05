@@ -98,6 +98,13 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, sets InProcessRendererThread to kDisplayCritical thread type
+// on Android, matching multi-process Chromium renderer main thread priority.
+// Disabled by default to enable controlled Finch experimentation
+// (--enable-features=CobaltAndroidDisplayCriticalInProcessRenderer).
+// This is strictly turned off / omitted on Starboard/Linux.
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltAndroidDisplayCriticalInProcessRenderer);
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundNotPerceptibleBinding);
 BASE_EXPORT BASE_DECLARE_FEATURE(kCollectAndroidFrameTimelineMetrics);
 BASE_EXPORT BASE_DECLARE_FEATURE(
