@@ -412,15 +412,12 @@ BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
-// Enabled by default on Starboard, disabled by default on Android.
+// Disabled by default on all platforms: on 3P Starboard devices (RDK) the extra
+// composited layers regress YTS Tile-to-Tile P95 from 30 FPS to 20 FPS. Can be
+// enabled via Finch for experimentation.
 BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
-#if BUILDFLAG(IS_STARBOARD)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
