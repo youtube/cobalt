@@ -38,12 +38,8 @@ void Done(const OperationResult& in_file_result,
 #else
 void Done(base::OnceCallback<
               void(base::expected<base::FilePath, CategorizedError>)> callback,
-<<<<<<< HEAD
-          base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
 #endif
-          base::RepeatingCallback<void(base::Value::Dict)> event_adder,
->>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+          base::RepeatingCallback<void(base::DictValue)> event_adder,
           const base::FilePath& out_file,
           bool success) {
   base::DictValue event;
