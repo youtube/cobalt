@@ -1,23 +1,8 @@
-# Cobalt Chromium Roll & Rebase Ground-Truth Catalog
+# Cobalt Chromium Roll & Rebase Ground-Truth Guidelines
 
-Historical catalog of upstream Chromium rolls into Cobalt staging (`M139` – `M141`).
+How to use historical upstream Chromium rolls into Cobalt staging as ground truth.
 
 In each merged **Bot Roll PR**, the initial commits represent the conflicted upstream roll baseline created by infra bots, while the trailing commits represent the human ground-truth resolution.
-
----
-
-## Rebase PR Catalog
-
-| Milestone | Roll Target | Bot Roll PR | Vertex AI PR |
-| :--- | :--- | :--- | :--- |
-| **M141** | **M141.7364** | [#12257](https://github.com/youtube/cobalt/pull/12257) *(Active)* | — |
-| | **M141.7351** | [#12228](https://github.com/youtube/cobalt/pull/12228) | [#12259](https://github.com/youtube/cobalt/pull/12259) |
-| **M140** | **M140.7339** | [#12161](https://github.com/youtube/cobalt/pull/12161) | [#12176](https://github.com/youtube/cobalt/pull/12176) |
-| | **M140.7318** | [#12155](https://github.com/youtube/cobalt/pull/12155) | — |
-| | **M140.7298** | [#12086](https://github.com/youtube/cobalt/pull/12086) | — |
-| | **M140.7278** | [#12051](https://github.com/youtube/cobalt/pull/12051) | [#12136](https://github.com/youtube/cobalt/pull/12136) |
-| **M139** | **M139.7244** | [#11890](https://github.com/youtube/cobalt/pull/11890) | [#12038](https://github.com/youtube/cobalt/pull/12038) |
-| | **M139.7217** | [#11722](https://github.com/youtube/cobalt/pull/11722) | [#12258](https://github.com/youtube/cobalt/pull/12258) |
 
 ---
 
@@ -28,7 +13,7 @@ In each merged **Bot Roll PR**, the initial commits represent the conflicted ups
      - **Infra Baseline Commits**: Initial bot commits bringing in upstream Chromium changes.
      - **Human Ground-Truth Fix Commits**: Trailing commits resolving merge conflicts, GN build breaks, and compiler errors.
 2. **AI Comparison**:
-   - When a corresponding **Vertex AI PR** is listed, compare the AI's resolution diff against the trailing human fix commits of the **Bot Roll PR** to analyze discrepancies and extract reusable lessons.
+   - When a corresponding **Vertex AI PR** exists for the same roll target, compare the AI's resolution diff against the trailing human fix commits of the **Bot Roll PR** to analyze discrepancies and extract reusable lessons.
 
 
 ---
@@ -71,6 +56,6 @@ this is definitive evidence of an **incorrect commit-range or merge-base computa
 **Mandatory reviewer response:**
 - Do NOT produce a "no differences found" or "AI matched Human" conclusion under any framing.
 - Mark the entire comparative review as **UNVERIFIED** in the Executive Summary.
-- Still surface the milestone-appropriate known breaking-pattern checklist (from Section 4 of `cobalt_rebase.md`, extended by milestone-specific Expert Review Insights) as a manual fallback checklist.
+- Still surface a manual fallback checklist built from the general rules in `cobalt_rebase.md` ("Post-Conflict-Resolution Checklist" and "Core Behavior Preservation Principles") and the Expert Review Insights in `compiler_healing.md` / `gn_healing.md`.
 - Explicitly recommend escalation to fix PR ref/commit-range resolution (e.g., verify the diff tool is pointed at the correct base/head SHAs for both PR #s, not a stale or default branch) before any further automated comparative review is attempted for this PR pair.
 - Do not spend additional tool-call budget re-probing the same files with reworded arguments once this compound signature is detected after 2-3 corroborating probes; escalate immediately instead.

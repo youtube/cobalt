@@ -279,42 +279,39 @@ When something that used to work has broken after a roll, **run both on the rele
 
 ## Expert Review Insights
 
-### M140 Constructor & API Signature Evolutions
+### Upstream API Signature Changes Reaching Cobalt Code
 
-1. **WebGL Extension Constructors**:
-   - Upstream M140 adds `ExecutionContext*` to WebGL extension constructors.
-   - Update `OESEGLImageExternal(WebGLRenderingContextBase*, ExecutionContext*)` in both `.h` and `.cc`.
-   - Add `class ExecutionContext;` forward declaration in the header alongside other forward declarations (e.g., `class ExceptionState;`).
+1. **Upstream adds a constructor parameter to a class Cobalt subclasses or instantiates**:
+   - Update the Cobalt class in BOTH `.h` and `.cc`, and every Cobalt call site. Pass the real object upstream now expects; do not pass `nullptr` to make it compile.
+   - If the new parameter type is only referenced by pointer/reference in the header, add a forward declaration next to the existing ones instead of a new `#include`.
+   - **Example (M140)**: upstream added `ExecutionContext*` to WebGL extension constructors, so Cobalt's `OESEGLImageExternal(WebGLRenderingContextBase*)` became `OESEGLImageExternal(WebGLRenderingContextBase*, ExecutionContext*)`, with `class ExecutionContext;` added next to `class ExceptionState;`.
 
-2. **`DecoderBuffer::discard_padding()` Returns `std::optional`**:
-   - In `media/starboard/sbplayer_bridge.cc`, `buffer->discard_padding()` now returns `std::optional`.
-   - Cache the result: `const std::optional<::media::DecoderBuffer::DiscardPadding> discard_padding = buffer->discard_padding();`
-   - Only call `SetDiscardPadding` if `discard_padding.has_value()`.
-   - Ensure `#include <optional>` is added.
+2. **A getter starts returning `std::optional<T>`**:
+   - Read it once into a local, then act only when `has_value()`. Do not call `.value()` unconditionally, and do not substitute a default value that changes behavior.
+   - Add `#include <optional>` where needed.
+   - **Example (M140, `media/starboard/sbplayer_bridge.cc`)**:
+     ```cpp
+     const std::optional<::media::DecoderBuffer::DiscardPadding> discard_padding =
+         buffer->discard_padding();
+     if (discard_padding.has_value()) {
+       SetDiscardPadding(*discard_padding, ...);
+     }
+     ```
 
 3. **Avoid Macro Hacks for JNI**:
    - Never use preprocessor macros (e.g., `#define SetPrimaryPageImportance...`) to intercept or redirect JNI generated calls.
    - Always resolve API changes at the C++ method level by updating signatures in both `.h` and `.cc` files.
 
-4. **Adopting Upstream JNI `JavaRef<T>` Over Internal `jni_zero::JavaParamRef<T>`**:
-   - When `base::android::JavaParamRef<T>` is deprecated/removed upstream, accept upstream Chromium's migration to `base::android::JavaRef<T>` rather than switching to internal `jni_zero::JavaParamRef<T>`:
+4. **Type migrations and cross-layer signature propagation**:
+   - **JNI parameter types**: when upstream widens a JNI parameter from `const base::android::JavaParamRef<T>&` to `const base::android::JavaRef<T>&`, update the Cobalt override/implementation to the exact new type in both `.h` and `.cc`. Do not add overloads or wrappers that keep the old type.
      ```cpp
-     // [BAD] Switching to internal jni_zero::JavaParamRef:
-     static void JNI_CobaltInterfaceRegistrar_RegisterMojoInterfaces(
-         JNIEnv* env, const jni_zero::JavaParamRef<jobject>& j_web_contents)
-
-     // [GOOD] Accepting upstream Chromium's migration to base::android::JavaRef:
-     static void JNI_CobaltInterfaceRegistrar_RegisterMojoInterfaces(
-         JNIEnv* env, const base::android::JavaRef<jobject>& j_web_contents)
+     // [BAD]  void Foo(JNIEnv* env, const base::android::JavaParamRef<jobject>& obj);
+     // [GOOD] void Foo(JNIEnv* env, const base::android::JavaRef<jobject>& obj);
      ```
+   - **`std::optional<T>` replaced by a value type**: when a getter stops returning `std::optional<T>` and returns `T` directly, replace `has_value()` / `operator bool` checks with the type's own emptiness API (for example `gfx::HDRMetadata` uses `!IsEmpty()`, not `IsValid()`). Check the new header for the exact method name instead of guessing.
+   - **Cross-layer propagation**: when an interface in `content/` or `third_party/blink/` changes signature, update the `cobalt/` implementation to match. Do not keep the old Cobalt signature behind an adapter. Example: a changed `DecodeAudioFileData` signature in the Blink/content audio decoder interface must be carried through to Cobalt's implementation.
 
-5. **`std::optional<T>` to Value-Type Getter Migrations (e.g., `gfx::HDRMetadata`)**:
-   - When upstream changes a getter from returning `std::optional<T>` to returning `T` (or `const T&`) directly (e.g., `VideoDecoderConfig::hdr_metadata()`, `StreamParserBuffer::GetHDRMetadata()`), replace `.has_value()` with the semantic emptiness check `!config.hdr_metadata().IsEmpty()`, NOT `.IsValid()` (which checks strict SMPTE validation rules rather than presence).
-
-6. **Propagating Upstream Interface Signatures Into `cobalt/` (e.g., `DecodeAudioFileData`)**:
-   - When upstream changes a platform/renderer interface signature in `content/` or `blink/` (e.g., `RendererBlinkPlatformImpl::DecodeAudioFileData` changing from `bool(WebAudioBus*, ...)` to `std::unique_ptr<WebAudioBus>(...)`), update the underlying `cobalt/` implementation (`cobalt/media/audio/audio_decoder.{h,cc}`) to return `std::unique_ptr<blink::WebAudioBus>` directly rather than wrapping the legacy signature in `content/`.
-
-7. **Signature Change on a Cobalt Manual Init Call: Check for a Duplicate Call Before Patching Arguments**:
+5. **Signature Change on a Cobalt Manual Init Call: Check for a Duplicate Call Before Patching Arguments**:
    - A compile error on a Cobalt call to an upstream one-time initialization function (tracing, feature list, field trials, crash keys, Perfetto, etc.) is a signal to re-check WHY Cobalt calls it at all, not just to add the new argument.
    - Before patching the arguments, grep the upstream callers (`TOOL_GREP: <function_name>`). Cobalt's browser process DOES go through the standard `content::RunContentProcess()` -> `ContentMainRunnerImpl::Run()` -> `ContentMainRunnerImpl::RunBrowser()` path (via `cobalt::AppEventRunnerImpl::Run()`), so anything `RunBrowser()` / `BrowserMainLoop` already calls is also called for Cobalt. If `//content` already calls the function on that path, delete Cobalt's manual call instead of adapting it. A duplicate call compiles fine but hits a runtime `DCHECK` in `devel`/`debug` builds, which `autoninja` alone will not catch.
    - Because this changes runtime startup behavior, add `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` in the commit/PR notes (or next to the removed call's former location) so the original author can confirm the removal.

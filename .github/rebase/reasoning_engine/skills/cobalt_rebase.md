@@ -9,9 +9,9 @@ When rebasing Cobalt onto a new Chromium milestone (e.g., M138 -> M139) or resol
 
 ---
 
-## 1. Pipeline Iteration & Retry Budget Guidelines (Empirical M139 Rebase Data)
+## 1. Pipeline Iteration & Retry Budget Guidelines
 
-Based on empirical data from the M139 rebase (56 merge conflicts resolved, ~50 breaking API/linker issues fixed, and 62 `autoninja` invocations across Desktop Linux and Android):
+These budgets apply to every roll. They were calibrated on the M139 rebase (56 merge conflicts resolved, ~50 breaking API/linker issues fixed, 62 `autoninja` invocations across Desktop Linux and Android):
 
 | Pipeline Phase | Recommended Retry / Iteration Budget | Rationale & Progress Tracking |
 | :--- | :---: | :--- |
@@ -131,20 +131,7 @@ When upstream changes deprecate APIs or remove interfaces:
 
 ---
 
-## 4. Known M139 Breaking Patterns & Resolutions Reference
-
-* **`base/notimplemented.h` Separation:** In M139, `NOTIMPLEMENTED()` and `NOTIMPLEMENTED_LOG_ONCE()` were moved from `notreached.h` to `base/notimplemented.h`. Add `#include "base/notimplemented.h"` wherever used.
-* **Skia `pathops` Merge:** Removed `//third_party/skia/modules/pathops/pathops.gni` imports (Skia integrated `pathops` into core).
-* **Deleted Tracing Flags:** Removed deleted `enable_base_tracing` from GN build targets.
-* **`NavigationThrottle` Signature:** Updated constructor signature to `content::NavigationThrottleRegistry& registry`.
-* **CapturedSurfaceController Linker Duplication:** Added desktop screen capture files to `sources -=` under `if (is_cobalt)` in `content/browser/BUILD.gn`.
-* **Java Feature Template Parsing:** Ensure `package ...` declaration starts at column 0 in `StarboardFeatures.java.tmpl`.
-* **`JavascriptInjector` API:** Use the updated 3-argument signature (`addPossiblyUnsafeInterface`).
-* **Submodule Index Drift:** Align Git index with DEPS (`git add third_party/fuzztest/src && git commit --amend --no-verify --no-edit`).
-
----
-
-## 5. Reporting in `result.md`
+## 4. Reporting in `result.md`
 
 Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST generate or update `result.md`** in the rebase workspace root with:
 1. Target roll commit & upstream SHA.
@@ -158,19 +145,14 @@ Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST gen
 
 ## Expert Review Insights
 
-### M140 API Migrations & Behavioral Preservation
+### Follow Upstream Type Migrations in Cobalt-Only Code
 
-1. **`MediaClient` Allocator Initialization**:
-   - The `DecoderBuffer::Allocator` must no longer be installed in the `MediaClient` constructor.
-   - Add `void InstallDecoderBufferAllocator();` to `media/base/media_client.h`.
-   - Implement it in `media/base/media_client.cc` under `#if BUILDFLAG(USE_STARBOARD_MEDIA)`.
-   - Call `client->InstallDecoderBufferAllocator();` in `content/renderer/media/render_media_client.cc` inside `RenderMediaClient::Initialize()`.
+When upstream migrates a type or helper across the codebase (for example `absl::optional` -> `std::optional`, `base::Contains` -> `.contains()` / `std::ranges::contains`, `jint` -> `int32_t` in JNI signatures), Cobalt-only files (`cobalt/`, `h5vcc_*` Blink modules, `media/starboard/`, Cobalt `#if BUILDFLAG(IS_COBALT)` blocks) must be migrated the same way, including their `#include`s. Upstream's mechanical CLs do not touch Cobalt files, so these show up as build errors only in Cobalt code.
 
-3. **`absl::optional` to `std::optional` Migration**:
-   - In Cobalt-specific Blink modules (e.g., `h5vcc_system`), replace `absl::optional` with `std::optional` and update includes from `"third_party/abseil-cpp/absl/types/optional.h"` to `<optional>`.
+- Grep for the old symbol across Cobalt-only paths (`TOOL_GREP: <old_symbol>`) and migrate every use, not just the one in the current error.
+- Do not keep the old type alive with a local alias, shim, or re-added header.
 
-4. **Android JNI `ScopedJavaGlobalRef` Safety**:
-   - In `starboard/android/shared/media_codec_video_decoder.cc`, add a `SurfaceViewToGlobalRef` helper to convert raw `jobject` to `jni_zero::ScopedJavaGlobalRef` via `NewLocalRef` to satisfy `jni_zero` type requirements.
+**Example (M140, `h5vcc_system`)**: replace `absl::optional` with `std::optional` and change `#include "third_party/abseil-cpp/absl/types/optional.h"` to `#include <optional>`.
 
 
 ---
@@ -181,7 +163,7 @@ Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST gen
 
 If the interactive diff/upstream-diff tools return empty or malformed results for all probed files (including historically high-conflict files like `DEPS`), the final `result.md` / post-mortem report MUST:
 - Explicitly state that file-level comparative analysis is **UNVERIFIED** due to tooling failure, rather than reporting a false "no differences found" or "parity" conclusion.
-- Still surface the empirically known M139/M140 breaking-pattern checklist (Section 4 of this skill) as a manual verification checklist for the reviewer/human to re-run once tooling is restored.
+- Still surface the Post-Conflict-Resolution Checklist (below) as a manual verification checklist for the reviewer/human to re-run once tooling is restored.
 - Recommend escalation to fix the dispatcher's argument-parsing (tool-call isolation from prose) before resuming automated comparative reviews.
 
 
@@ -253,7 +235,7 @@ Before an AI rebase attempt is finalized, packaged, or surfaced as a completed P
 1. **Non-Empty Diff Check**: Compute `git diff --stat` against the merge-base. If the diff is empty (0 files changed) while the roll commit's CONFLICTED file manifest lists 1+ files, HALT and mark the attempt as **FAILED — no resolution attempted**, not as a completed (if minimal) rebase.
 2. **DEPS Canary Check**: For any named/versioned milestone roll (`Update to <milestone>.<build>`), require that `DEPS` appears in the produced diff. A missing `DEPS` diff on a named roll PR is near-certain evidence of an incomplete or aborted rebase — treat as a blocking defect requiring retry, not a silent pass.
 3. **AUTOROLL_CHROMIUM Canary Check**: Require `.github/AUTOROLL_CHROMIUM` to reflect the new target milestone/revision. Its absence is a fast, cheap signal that the roll was never actually advanced.
-4. **Cherry-Pick Revert Detection**: If the roll commit message contains `Cherry pick` and `Revert Cobalt`, explicitly flag this as a special-case conflict pattern (see Section 3.2, "Revert / Cherry-Pick Artifacts") requiring semantic (not wholesale ours/theirs) reconciliation of Cobalt-specific DEPS overrides (`siso_version`, `icu`, `perfetto`, `webrtc`, and similar `# Cobalt: imported` blocks).
+4. **Cherry-Pick Revert Detection**: If the roll commit message contains `Cherry pick` and `Revert Cobalt`, explicitly flag this as a special-case conflict pattern (see "Semantic Conflict Resolution vs. Cherry-Pick Artifacts", item 2) requiring semantic (not wholesale ours/theirs) reconciliation of Cobalt-specific DEPS overrides (`siso_version`, `icu`, `perfetto`, `webrtc`, and similar `# Cobalt: imported` blocks).
 
 **Escalation**: If any of the above gates fail, the orchestrator must NOT close/merge the AI PR as a completed attempt. Instead, log a pipeline-failure diagnostic (last known state, last successful tool call, retry count) and either auto-retry within the budget (Section 1 iteration guidelines) or escalate to human review with an explicit "ZERO-DIFF FAILURE" tag.
 
@@ -273,10 +255,10 @@ Extending the existing Diff-Tooling Sanity Check Protocol: reviewers and orchest
 
 ## Expert Review Insights
 
-### Section 5 Addendum: Reporting UNVERIFIED Reviews in result.md
+### Section 4 Addendum: Reporting UNVERIFIED Reviews in result.md
 
 If the Pre-Submission Empty-Diff Hard Gate or Zero-Inventory Hard Stop conditions are triggered during a comparative post-mortem review (as opposed to during the AI rebase attempt itself), `result.md` (or the final review report) MUST:
 1. Tag the review status explicitly as `UNVERIFIED — TOOLING DEFECT`, distinct from `PASS`, `FAIL`, or `ZERO-DIFF FAILURE` (which apply to the rebase attempt itself, not the review process).
 2. Include the exact list of canary files probed and their zero-diff results as supporting evidence for the escalation.
 3. Avoid emitting any per-file "Divergence" or "Missed by AI" analysis sections with fabricated or assumed content — these sections must be explicitly marked UNVERIFIED rather than left silently blank or populated with speculative content.
-4. Include a fallback manual-verification checklist derived from the milestone's known Expert Review Insights (e.g., M140/M141 API migrations) so human reviewers retain actionable next steps despite the tooling failure.
+4. Include a fallback manual-verification checklist (the Post-Conflict-Resolution Checklist above, plus any skill rules that match the conflicted files) so human reviewers retain actionable next steps despite the tooling failure.

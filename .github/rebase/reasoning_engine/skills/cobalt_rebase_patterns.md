@@ -233,6 +233,20 @@ Cobalt optimizes and strips runtime data bundles (such as `third_party/icu/cobal
      ```
    - This ensures `clang_x64/icudtl.dat` receives the full common ICU dataset containing CLDR tables, allowing `character_data_generator` to succeed with zero modifications to third-party Blink code.
 
+5. **Never Patch `build/` Scripts to Work Around the Build Host Environment**:
+   - If a Python build script under `build/` (for example `build/android/gyp/**`) fails because of the machine running the build (the installed protobuf/python package version, missing host tools, PATH, locale), do NOT edit the script, and do NOT set environment variables inside it. The script is upstream code and works in Chromium's pinned environment, so the root cause is the CI container or the vpython spec, not the rebase.
+   - Do not commit any such workaround. Report it in `result.md` and raise a flag (`ESCALATE_TO_HUMAN` / `[HUMAN_REVIEW_REQUIRED]`) naming the host dependency that needs fixing.
+   - Only edit a `build/` script when the failure comes from the rebase itself (an upstream API or path change that Cobalt code depends on), and say so in the commit.
+   - **Real Example (`build/android/gyp/util/protoresources.py`, M145.7632 AI #13054 and M146.7644 AI #13072)**:
+     ```python
+     # [BAD] AI (both milestones): environment workaround baked into upstream code.
+     # Ensure legacy protoc-generated _pb2 files can be imported on protobuf >= 4.21
+     os.environ.setdefault('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', 'python')
+
+     # [GOOD] Human: no change to protoresources.py. Igalia removed the line in
+     #        M146.7644 (#13071). Fix the CI host's protobuf instead.
+     ```
+
 ---
 
 ### JNI Zero Registration & Missing Native Stubs (`libchrobalt__jni_registration`)

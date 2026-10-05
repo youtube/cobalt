@@ -279,6 +279,54 @@ The goal of a milestone rebase is **not** a mechanical "use A over B" replacemen
    #endif
    ```
 
+   - **Moved definitions (verify the symbol still exists)**: When one side of a conflict is empty because upstream MOVED a function elsewhere in the file (or to another file), the old copy on the Cobalt side can be dropped only after you confirm the moved definition is present in the merged result. Before deleting a function body from a conflict, `TOOL_GREP` the function name and check that (a) a definition still exists and (b) every remaining caller can see it. Pay special attention to code under build-config guards that the `cobalt_apk` devel build does not compile (`ADDRESS_SANITIZER`, `IS_WIN`, `IS_IOS`, other sanitizers): Phase 4 will not catch a missing definition there.
+
+   **Real Example (`content/app/content_main_runner_impl.cc`, M146.7644, AI #13072 vs Human #13071)**:
+   ```cpp
+   // [BAD] AI: deleted AsanProcessInfoCB() from the conflict hunk. The merged
+   //       file has no definition left, but ContentMainRunnerImpl::Initialize()
+   //       still calls AddErrorCallback(AsanProcessInfoCB) under
+   //       #if defined(ADDRESS_SANITIZER). ASAN builds fail; devel builds pass.
+
+   // [GOOD] Human: keep exactly one definition before its first use.
+   #if defined(ADDRESS_SANITIZER)
+   NO_SANITIZE("address")
+   void AsanProcessInfoCB(const char* reason,
+                          bool* should_exit_cleanly,
+                          bool* should_abort) {
+     ...
+   }
+   #endif  // defined(ADDRESS_SANITIZER)
+   ```
+
+   - **Cobalt early-return guards around an upstream call**: When upstream only changes the call inside a Cobalt guard (for example `EnsureAndGet()` becomes `EnsureAndGetForQuarantine()`), take the new upstream call AND keep the Cobalt guard. Do not assume the new upstream API makes the guard unnecessary. A leftover Cobalt member or helper that nothing uses after your resolution (for example `bool active_` or `ThreadCache::IsInitialized()`) is a sign that you dropped the guard. Keep the helper's original semantics when adapting it to renamed upstream globals.
+
+   **Real Example (`partition_alloc/scheduler_loop_quarantine_support.h` and `thread_cache.cc`, M146.7644, AI #13072 vs Human #13071)**:
+   ```cpp
+   // [BAD] AI: took only upstream's line. Without the guard, an uninitialized
+   //       thread cache reaches PA_CHECK(ThreadCache::IsValid(nullptr)).
+   //       active_ and IsInitialized() became dead code, and IsInitialized()
+   //       was rewritten to check ANY root instead of the default root.
+   ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
+   PA_CHECK(ThreadCache::IsValid(tcache));
+
+   // [GOOD] Human: Cobalt guard + new upstream call.
+   active_ = ThreadCache::IsInitialized();
+   if (!active_) {
+     return;
+   }
+   ThreadCache* tcache = ThreadCache::EnsureAndGetForQuarantine();
+   PA_CHECK(ThreadCache::IsValid(tcache));
+
+   // thread_cache.cc: same meaning as before (default root only), adapted to
+   // upstream's g_thread_cache_root -> g_thread_cache_roots[] rename.
+   bool ThreadCache::IsInitialized() {
+     return PA_UNSAFE_TODO(
+                g_thread_cache_roots[internal::kDefaultRootThreadCacheIndex])
+                .load(std::memory_order_acquire) != nullptr;
+   }
+   ```
+
 ## Local Investigation Tool Commands (When More Context is Needed)
 If a conflict requires inspecting external type definitions, headers, or git history before resolving, you may request tool output by returning ONE of these commands on a single line:
 - `TOOL_READ_FILE: <path_to_file> [optional line range e.g. 1-100]` -> Reads a header or source file.

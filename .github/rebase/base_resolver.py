@@ -120,6 +120,13 @@ def get_clean_build_env(
   if os.path.isdir(depot_tools):
     orig_path = clean_env.get("PATH", "")
     clean_env["PATH"] = f"{depot_tools}:{orig_path}"
+  # Sets PYTHONNOUSERSITE=1: CI installs the agent's own requirements with
+  # `pip install --user` (e.g. protobuf 6.x for google-cloud-aiplatform).
+  # Without this, Chromium build scripts such as
+  # build/android/gyp/compile_resources.py import those user-site packages
+  # and fail ("Descriptors cannot be created directly"). Chromium build
+  # scripts must only see the system/vendored Python packages.
+  clean_env["PYTHONNOUSERSITE"] = "1"
   return clean_env
 
 

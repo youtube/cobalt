@@ -220,3 +220,31 @@ if (is_cobalt) {
   default_min_sdk_version = 28
 }
 ```
+
+### Cobalt `$android_toolchain` Substitutions in Android GN Files
+Cobalt replaces upstream `$default_toolchain` with `$android_toolchain` (from `//starboard/build/config/android_toolchain.gni`) in some Android GN files, for example on JNI generation deps. In Cobalt modular builds (`build_with_separate_cobalt_toolchain`), `default_toolchain` is a Linux/Evergreen toolchain where `is_android = false`, so Android targets must be evaluated in `starboard_toolchain`. In the plain `cobalt_apk` build both names resolve to the same toolchain, so reverting the substitution still compiles and Phase 4 will NOT catch the regression.
+
+1. **Never revert `$android_toolchain` back to `$default_toolchain`** when a conflict touches these lines. If HEAD (upstream) shows `$default_toolchain` and the Cobalt side shows `$android_toolchain`, keep `$android_toolchain`.
+2. **Apply it to new upstream deps in the same list.** If upstream adds a new `:foo_jni($default_toolchain)` next to entries that Cobalt converted, convert the new entry too.
+3. **Signal to check:** if the file still has `import("//starboard/build/config/android_toolchain.gni")` but no remaining `$android_toolchain` use after your resolution, you have dropped the Cobalt substitution.
+4. Keep Cobalt-only deps (for example `:cobalt_for_google3_buildflags`) where the Cobalt side had them. Do not move them into a new `if (is_cobalt)` block unless a build error requires it.
+
+**Real Example (`third_party/jni_zero/BUILD.gn`, M146.7644, AI #13072 vs Human #13071)**:
+Upstream added `system_jni_unchecked_exceptions` to the `jni_zero` component deps.
+```gn
+# [BAD] AI: took upstream's toolchain and left the android_toolchain.gni import
+#       unused. Breaks Cobalt modular builds; cobalt_apk still compiles.
+deps = [
+  ":generate_jni($default_toolchain)",
+  ":system_jni($default_toolchain)",
+  ":system_jni_unchecked_exceptions($default_toolchain)",
+]
+
+# [GOOD] Human: keep Cobalt's toolchain and extend it to the new upstream dep.
+deps = [
+  ":cobalt_for_google3_buildflags",
+  ":generate_jni($android_toolchain)",
+  ":system_jni($android_toolchain)",
+  ":system_jni_unchecked_exceptions($android_toolchain)",
+]
+```
