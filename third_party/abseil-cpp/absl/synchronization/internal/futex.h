@@ -15,19 +15,16 @@
 #define ABSL_SYNCHRONIZATION_INTERNAL_FUTEX_H_
 
 #include "absl/base/config.h"
-#include "build/build_config.h"
 
 #ifndef _WIN32
 #include <sys/time.h>
 #include <unistd.h>
 #endif
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #endif
-#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <errno.h>
 #include <stdio.h>
@@ -42,7 +39,7 @@
 
 #ifdef ABSL_INTERNAL_HAVE_FUTEX
 #error ABSL_INTERNAL_HAVE_FUTEX may not be set on the command line
-#elif defined(__BIONIC__) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#elif defined(__BIONIC__)
 // Bionic supports all the futex operations we need even when some of the futex
 // definitions are missing.
 #define ABSL_INTERNAL_HAVE_FUTEX

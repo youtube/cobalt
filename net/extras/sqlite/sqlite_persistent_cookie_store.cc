@@ -27,7 +27,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
-#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
@@ -496,11 +495,6 @@ class SQLitePersistentCookieStore::Backend
 
   // Crypto instance, or nullptr if encryption is disabled.
   std::unique_ptr<CookieCryptoDelegate> crypto_;
-
-#if BUILDFLAG(IS_COBALT)
-  // Timer for the total load time of the cookie database.
-  std::unique_ptr<base::ElapsedTimer> load_timer_;
-#endif  // BUILDFLAG(IS_COBALT)
 };
 
 namespace {
@@ -731,9 +725,6 @@ bool CreateV24Schema(sql::Database* db) {
 
 void SQLitePersistentCookieStore::Backend::Load(
     LoadedCallback loaded_callback) {
-#if BUILDFLAG(IS_COBALT)
-  load_timer_ = std::make_unique<base::ElapsedTimer>();
-#endif  // BUILDFLAG(IS_COBALT)
   LoadCookiesForKey(std::nullopt, std::move(loaded_callback));
 }
 
@@ -1288,13 +1279,8 @@ void SQLitePersistentCookieStore::Backend::DeleteCookie(
 void SQLitePersistentCookieStore::Backend::BatchOperation(
     PendingOperation::OperationType op,
     const CanonicalCookie& cc) {
-#if BUILDFLAG(IS_COBALT)
-  // Commit every 1 second.
-  constexpr base::TimeDelta kCommitInterval = base::Seconds(1);
-#else
   // Commit every 30 seconds.
   constexpr base::TimeDelta kCommitInterval = base::Seconds(30);
-#endif
   // Commit right away if we have more than 512 outstanding operations.
   constexpr size_t kCommitAfterBatchSize = 512;
   DCHECK(!background_task_runner()->RunsTasksInCurrentSequence());
@@ -1355,10 +1341,6 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
 
 void SQLitePersistentCookieStore::Backend::DoCommit() {
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
-#if BUILDFLAG(IS_COBALT)
-  size_t op_count = 0;
-  base::ElapsedTimer commit_timer;
-#endif  // BUILDFLAG(IS_COBALT)
 
   PendingOperationsMap ops;
   {
@@ -1366,14 +1348,6 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     pending_.swap(ops);
     num_pending_ = 0;
   }
-
-#if BUILDFLAG(IS_COBALT)
-  for (const auto& op : ops) {
-    op_count += op.second.size();
-  }
-  UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
-                           op_count);
-#endif  // BUILDFLAG(IS_COBALT)
 
   // Maybe an old timer fired or we are already Close()'ed.
   if (!db() || ops.empty())
@@ -1519,14 +1493,6 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   if (!commit_ok) {
     RecordCookieCommitProblem(CookieCommitProblem::kTransactionCommit);
   }
-
-#if BUILDFLAG(IS_COBALT)
-  base::TimeDelta elapsed = commit_timer.Elapsed();
-  if (op_count > 0) {
-    UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.CommitDurationPerOperation",
-                        elapsed / op_count);
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 size_t SQLitePersistentCookieStore::Backend::GetQueueLengthForTesting() {
@@ -1612,13 +1578,6 @@ void SQLitePersistentCookieStore::Backend::FinishedLoadingCookies(
   TRACE_EVENT("loading",
               "SQLitePersistentCookieStore::Backend::FinishedLoadingCookies",
               perfetto::Flow::FromPointer(this));
-#if BUILDFLAG(IS_COBALT)
-  if (load_timer_) {
-    UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.LoadDuration",
-                        load_timer_->Elapsed());
-    load_timer_.reset();
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   PostClientTask(FROM_HERE,
                  base::BindOnce(&Backend::NotifyLoadCompleteInForeground, this,
                                 std::move(loaded_callback), success));

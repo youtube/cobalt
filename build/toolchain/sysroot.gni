@@ -2,10 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_cobalt) {
-  import("//cobalt/build/configs/starboard.gni")
-}
-
 declare_args() {
   # Controls default is_linux sysroot. If set to true, and sysroot
   # is empty, default sysroot is calculated.
@@ -15,10 +11,4 @@ declare_args() {
       current_cpu == "x86" || current_cpu == "x64" || current_cpu == "arm" ||
       current_cpu == "arm64" || current_cpu == "mipsel" ||
       current_cpu == "mips64el" || current_cpu == "riscv64"
-}
-
-if (is_cobalt_hermetic_build) {
-  # We want to avoid adding the sysroot and bringing in unneeded
-  # dependencies in cobalt.
-  use_sysroot = use_sysroot && current_toolchain != default_toolchain
 }

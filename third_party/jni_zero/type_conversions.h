@@ -12,8 +12,6 @@
 #include <optional>
 #include <type_traits>
 
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "third_party/jni_zero/java_refs.h"
 
 #define JNI_ZERO_ENABLE_TYPE_CONVERSIONS 1
@@ -29,8 +27,6 @@ namespace jni_zero {
   "_jni.h one."
 
 namespace internal {
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
 
@@ -74,55 +70,6 @@ concept HasSpecificSpecialization = requires(T t) {
   requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
                IsPrimitive<T> || IsJavaRef<T>;
 };
-#else   // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-template <typename T>
-inline constexpr bool IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
-
-template <typename T>
-concept HasReserve = requires(T t) { t.reserve(0); };
-
-template <typename T>
-concept HasPushBack = requires(T t, T::value_type v) { t.push_back(v); };
-
-template <typename T>
-concept HasInsert = requires(T t, T::value_type v) { t.insert(v); };
-
-template <typename T>
-concept IsMap = requires(T t) {
-  typename T::key_type;
-  typename T::mapped_type;
-};
-
-template <typename T>
-concept IsContainer = requires(T t) {
-  requires !IsMap<T>;
-  typename T::value_type;
-  t.begin();
-  t.end();
-  t.size();
-};
-
-template <typename T>
-concept IsObjectContainer =
-    IsContainer<T> && !std::is_arithmetic_v<typename T::value_type>;
-
-template <typename T>
-concept IsOptional = !std::is_arithmetic_v<T> &&
-                     std::same_as<T, std::optional<typename T::value_type>>;
-
-template <typename T>
-concept IsPrimitive = std::is_arithmetic<T>::value;
-
-template <typename T>
-concept HasSpecificSpecialization = requires(T t) {
-  requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
-               IsPrimitive<T> || IsJavaRef<T>;
-};
-#endif  // BUILDFLAG(IS_COBALT)
 
 // Used to allow for the c++ type to be non-primitive even if the java type is
 // primitive, when doing type conversions. primitive<->primitive conversions use
@@ -132,23 +79,17 @@ struct PrimitiveConvert {
   static constexpr CppType FromJniType(JNIEnv* env, JavaType v) {
     if constexpr (std::is_arithmetic_v<CppType> || std::is_enum_v<CppType>) {
       return static_cast<CppType>(v);
-    }
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-    else {
+    } else {
       return FromJniType<CppType>(env, v);
     }
-#endif
   }
 
   static constexpr JavaType ToJniType(JNIEnv* env, CppType v) {
     if constexpr (std::is_arithmetic_v<CppType> || std::is_enum_v<CppType>) {
       return static_cast<JavaType>(v);
-    }
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-    else {
+    } else {
       return ToJniType<JavaType>(env, v);
     }
-#endif
   }
 };
 
@@ -159,7 +100,6 @@ inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniType"));
 }
 
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
   requires(!internal::HasSpecificSpecialization<T>)
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& obj) {
@@ -171,19 +111,7 @@ template <typename T>
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniType"));
 }
-#else
-template <typename T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& obj) {
-  static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniType"));
-}
-template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
-  static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniType"));
-}
-#endif
 
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
   requires(internal::IsJavaRef<T>)
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
@@ -191,22 +119,6 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
   // for catching coding errors?
   static_assert(sizeof(T) == 0, "Type does not require conversion.");
 }
-#else   // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-template <typename T,
-          std::enable_if_t<internal::IsJavaRef<T>, int> = 0>
-inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
-  static_assert(sizeof(T) == 0, "Type does not require conversion.");
-}
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-  requires(internal::IsJavaRef<T>)
-inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
-  // Might want to change this to an identity function, but maybe it's useful
-  // for catching coding errors?
-  static_assert(sizeof(T) == 0, "Type does not require conversion.");
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 // Allow conversions using pointers by wrapping non-pointer conversions.
 // Cannot live in default_conversions.h because we want code to be able to
@@ -231,7 +143,6 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T* value) {
 
 // Convert from an stl container to a Java array. Uses ToJniType() on each
 // element.
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 inline ScopedJavaLocalRef<jobjectArray> ToJniArray(JNIEnv* env,
                                                    const T& obj,
@@ -251,33 +162,6 @@ template <typename T>
 inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniArray"));
 }
-#else
-template <typename T, std::enable_if_t<!std::is_class_v<T>, int> = 0>
-inline ScopedJavaLocalRef<jobjectArray> ToJniArray(JNIEnv* env,
-                                                   const T& obj,
-                                                   jclass array_class) {
-  static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniArray"));
-}
-
-template <typename T>
-inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env, const T& obj) {
-  static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniArray"));
-}
-
-namespace internal {
-template <typename T, typename Enable = void>
-struct FromJniArrayImpl {
-  static T Act(JNIEnv* env, const JavaRef<jobject>& obj) {
-    static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniArray"));
-  }
-};
-}  // namespace internal
-
-template <typename T>
-inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& obj) {
-  return internal::FromJniArrayImpl<T>::Act(env, obj);
-}
-#endif
 
 // Convert from an stl container to a Java List<> by using ToJniType() on each
 // element.
