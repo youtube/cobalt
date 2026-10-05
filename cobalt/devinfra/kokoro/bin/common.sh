@@ -57,6 +57,56 @@ configure_environment () {
   env | sort
 }
 
+configure_gob_auth () {
+  # Authenticates all git access to *.googlesource.com (depot_tools clone,
+  # gclient sync, partial-clone blob fetches) as the build's service account
+  # instead of anonymous, quota-limited access. See go/gob-gce. The token comes
+  # from gcloud: the GCE service account on Linux workers, or the keystore
+  # service account activated by setup_mac on macOS workers.
+  local cookie_file="$(mktemp)"
+  write_gob_cookie "${cookie_file}"  # Fails the build if no token is available.
+  git config --global http.cookiefile "${cookie_file}"
+  # Keep the cookie fresh until this script exits, then delete it.
+  ( while kill -0 "$$" 2>/dev/null; do
+      sleep 120
+      kill -0 "$$" 2>/dev/null || break
+      write_gob_cookie "${cookie_file}" || true
+    done
+    rm -f "${cookie_file}" ) > /dev/null 2>&1 &
+}
+
+cleanup_gob_auth () {
+  # Unsets http.cookiefile and removes the cookie file if set.
+  local cookie_file="$(git config --global --get http.cookiefile 2>/dev/null || true)"
+  git config --global --unset http.cookiefile 2>/dev/null || true
+  if [[ -n "${cookie_file}" ]]; then
+    rm -f "${cookie_file}"
+  fi
+}
+
+write_gob_cookie () {
+  # Atomically writes a cookie jar with a fresh access token. gcloud returns
+  # tokens valid for more than 5 minutes; the cookie expires after 4, so git
+  # never sends a stale token (GoB rejects those) if a refresh stalls. Runs in a
+  # subshell with xtrace off to keep the token out of build logs.
+  local target_file="$1"
+  ( set +x
+    local token
+    token="$(gcloud auth print-access-token 2>/dev/null)" || {
+      echo "ERROR: Failed to retrieve access token via gcloud auth print-access-token" >&2
+      exit 1
+    }
+    if [[ -z "${token}" ]]; then
+      echo "ERROR: Empty access token returned by gcloud auth print-access-token" >&2
+      exit 1
+    fi
+    umask 077
+    local expiry=$(( $(date +%s) + 240 ))
+    printf '.googlesource.com\tTRUE\t/\tTRUE\t%s\to\t%s\n' \
+      "${expiry}" "${token}" > "${target_file}.tmp" && \
+      mv -f "${target_file}.tmp" "${target_file}" )
+}
+
 configure_dind_environment () {
   export REGISTRY_PATH="$(get_registry_bucket_path)"
 
