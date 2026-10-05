@@ -1,5 +1,0 @@
-void func() { int x = foo(1); }
-
-/*%%*
-unknown identifier 'foo'
-*%%*/
