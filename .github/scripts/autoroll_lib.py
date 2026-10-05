@@ -76,12 +76,6 @@ def get_rolled_source_items(target_branch):
   return shas, prs
 
 
-def get_rolled_source_shas(target_branch):
-  """Returns a set of source commit SHAs already cherry-picked into HEAD."""
-  shas, _ = get_rolled_source_items(target_branch)
-  return shas
-
-
 _PR_LABELS_CACHE = {}
 
 

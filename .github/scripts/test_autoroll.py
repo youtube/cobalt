@@ -53,7 +53,6 @@ class TestAutorollLib(unittest.TestCase):
             '2222222222222222222222222222222222222222',
         })
     self.assertEqual(prs, {12799, 12800})
-    self.assertEqual(lib.get_rolled_source_shas('27.lts'), shas)
 
   @patch('builtins.open')
   def test_load_pr_labels_from_file(self, mock_open):
