@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
@@ -44,11 +45,6 @@ namespace {
 
 #if !BUILDFLAG(IS_ANDROID)
 
-// TODO(crbug.com/452968646): Update this link with a `p=...` param once it's
-// known.
-constexpr char kBookmarksLimitExceededHelpCenter[] =
-    "https://support.google.com/chrome/answer/165139";
-
 void OpenTabForSyncTrustedVaultUserAction(
     Browser* browser,
     const GURL& url,
@@ -74,6 +70,11 @@ void OpenTabForSyncTrustedVaultUserAction(
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
+
+// TODO(crbug.com/452968646): Update this link with a `p=...` param once it's
+// known.
+const char kBookmarksLimitExceededHelpCenter[] =
+    "https://support.google.com/chrome/answer/165139";
 
 #if !BUILDFLAG(IS_ANDROID)
 SyncStatusLabels GetSyncStatusLabelsForSettings(
@@ -354,11 +355,13 @@ void OpenTabForSyncKeyRecoverabilityDegraded(
   OpenTabForSyncTrustedVaultUserAction(browser, url, std::nullopt);
 }
 
-void ShowBookmarksLimitExceededHelp(Browser* browser,
-                                    syncer::SyncService* sync_service) {
+void ShowBookmarksLimitExceededHelp(
+    Browser* browser,
+    syncer::SyncService* sync_service,
+    syncer::SyncService::BookmarksLimitExceededHelpClickedSource source) {
   CHECK(browser);
   CHECK(sync_service);
-  sync_service->AcknowledgeBookmarksLimitExceededError();
+  sync_service->AcknowledgeBookmarksLimitExceededError(source);
   NavigateParams params(browser, GURL(kBookmarksLimitExceededHelpCenter),
                         ui::PAGE_TRANSITION_AUTO_BOOKMARK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;

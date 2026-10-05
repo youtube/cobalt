@@ -9,7 +9,6 @@
 <translation id="1016498331642356377">Бързо търсене с гласа ви. За да редактирате този пряк път, докоснете и задръжте.</translation>
 <translation id="1028699632127661925">Изпраща се до <ph name="DEVICE_NAME" />...</translation>
 <translation id="103269572468856066">Изчиств. и на данните от тези сайтове и прил.?</translation>
-<translation id="1034259925032978114">Отворен прозорец</translation>
 <translation id="1035113036584565771">Долният лист за известия със съвети е затворен</translation>
 <translation id="1036348656032585052">Изключване</translation>
 <translation id="1045899828449635435">Изчиств. и на данните от тези сайтове?</translation>
@@ -330,7 +329,6 @@
 <translation id="2451607499823206582">Проследяване</translation>
 <translation id="2453860139492968684">Край</translation>
 <translation id="2461378706168271257">Търсете в разделите</translation>
-<translation id="2461822463642141190">Ток</translation>
 <translation id="2466378451804467735"><ph name="TAB_TITLE" /> – раздел, чийто звук е спрян и който е избран заедно с други</translation>
 <translation id="2468444275314013497">Всичко е наред с браузъра ви</translation>
 <translation id="2471632347767899461">Потърсете в Помощния център</translation>
@@ -408,7 +406,6 @@
 <translation id="2789486458103222910">OK</translation>
 <translation id="2791129728587938169">{NUM_PASSWORDS,plural, =1{Chrome откри повторно използвана парола, която можете да подобрите}other{Chrome откри # повторно използвани пароли, които можете да подобрите}}</translation>
 <translation id="2794551654724114396">Включете известията за полезни съвети, с чиято помощ да се възползвате от най-добрите функции на Chrome</translation>
-<translation id="2800066122460699237">Разделът <ph name="TAB_TITLE" /> ще бъде затворен</translation>
 <translation id="2805210243313393104">Получете своите отметки и др. на всичките си устройства</translation>
 <translation id="2805756323405976993">Приложения</translation>
 <translation id="2819849308549746319">Отписване от всички</translation>
@@ -725,6 +722,7 @@
 <translation id="4180726336228139707">Само на това устройство</translation>
 <translation id="4181841719683918333">Езици</translation>
 <translation id="4188221736490993796">Сортиране от Я до А</translation>
+<translation id="4189344235004694858">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome спря изпращането на известия от този сайт поради спам или подвеждащо съдържание}other{Chrome спря изпращането на известия от тези сайтове поради спам или подвеждащо съдържание}}</translation>
 <translation id="4195643157523330669">Отваряне в нов раздел</translation>
 <translation id="4197828496439691735">{NUM_TABS,plural, =1{1 раздел на това устройство}other{# раздела на това устройство}}</translation>
 <translation id="4198423547019359126">Няма местоположения за изтегляне</translation>
@@ -911,7 +909,6 @@
 <translation id="4908869848243824489">Discover от Google</translation>
 <translation id="4910889077668685004">Приложения за плащане</translation>
 <translation id="4911042367886397055">Добре дошли отново, <ph name="USER_NAME" />!</translation>
-<translation id="4912413785358399818">Преместване на раздел</translation>
 <translation id="4913169188695071480">Спиране на опресняването</translation>
 <translation id="4921224083091001889">Влезте в Chrome с профила <ph name="EMAIL" />, за да получите паролите си и др. на всичките си устройства</translation>
 <translation id="4923173329789776645">Изтеглянето не се препоръчва от организацията ви</translation>
@@ -1117,6 +1114,7 @@
 <translation id="5833984609253377421">Споделяне на връзката</translation>
 <translation id="5839058148541733625">Динозавърът в Chrome</translation>
 <translation id="5841444063256914865">Искате ли да изтеглите „<ph name="FILE_NAME" />“ въпреки това?</translation>
+<translation id="5847265694842662173">Chrome спря изпращането на известия от злоупотребяващите и неизползваните сайтове</translation>
 <translation id="5848257610304005265">Да се отвори ли PDF файлът чрез <ph name="APP_NAME" />?</translation>
 <translation id="5849288995120328556">Да се спре ли споделянето?</translation>
 <translation id="5853623416121554550">на пауза</translation>
@@ -1145,6 +1143,7 @@
 <translation id="5956665950594638604">Отваряне на Помощния център на Chrome в нов раздел</translation>
 <translation id="59577092665511740">Изберете профил.</translation>
 <translation id="5958275228015807058">Намерете файловете и страниците си в „Изтегляния“</translation>
+<translation id="5962499136121615854">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome спря изпращането на известия от сайт, който не сте посещавали наскоро}other{Chrome спря изпращането на известия от сайтовете, които не сте посещавали наскоро}}</translation>
 <translation id="5962718611393537961">Докоснете за свиване</translation>
 <translation id="5964869237734432770">Спиране на описанията</translation>
 <translation id="5972844218283131174">Премахване на избора от всички</translation>
@@ -1304,7 +1303,6 @@
 <translation id="6550891580932862748">Няма защита срещу опасни уебсайтове, изтегляния и разширения. Настройките ви за Безопасно сърфиране в други продукти на Google няма да бъдат засегнати.</translation>
 <translation id="6554822972009632311">Филтърът за съдържанието е включен</translation>
 <translation id="6556501700899673703">Lexend</translation>
-<translation id="6556542240154580383">{TAB_COUNT,plural, =1{<ph name="TAB_TITLE" /> и още <ph name="TAB_COUNT_ONE" /> раздел ще бъдат затворени}other{<ph name="TAB_TITLE" /> и още <ph name="TAB_COUNT_MANY" /> раздела ще бъдат затворени}}</translation>
 <translation id="6560414384669816528">Търсене със Sogou</translation>
 <translation id="656065428026159829">Вижте още</translation>
 <translation id="6564820424018738527">Възможно е устройството ви с Android да има подобна настройка. Ако функцията за измерване на рекламите е включена в Chrome и на устройството ви с Android, дадена компания може да измерва ефективността на рекламите в посещаваните от вас уебсайтове и използваните от вас приложения.</translation>
@@ -1805,6 +1803,7 @@
 <translation id="847433688444405067">Разглеждане от всички устройства</translation>
 <translation id="8477178913400731244">Изтриване на данните</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /><ph name="SEPARATOR" /><ph name="DESCRIPTION" /></translation>
+<translation id="8491317241605644838">Няма неактивни прозорци</translation>
 <translation id="8493948351860045254">Освобождаване на място</translation>
 <translation id="8497242791509864205">Отваряне на опциите за сортиране</translation>
 <translation id="8497480609928300907">Обяснение на ръководството за поверителност</translation>
@@ -1903,7 +1902,6 @@
 <translation id="8957528460562961174">За да запазите достъпа до паролите си, експортирайте ги сега, след което ги импортирайте в предпочитания от вас мениджър на пароли. Google Мениджър на пароли спря да работи, защото услугите за Google Play не са налице.</translation>
 <translation id="8963117664422609631">Към настройките за сайта</translation>
 <translation id="8965591936373831584">изчаква</translation>
-<translation id="8968085728801125376">{TAB_COUNT,plural, =1{Следните раздели ще бъдат затворени: <ph name="INCOGNITO_TAB_COUNT" /> в режим „инкогнито“ и още <ph name="TAB_COUNT_ONE" />}other{Следните раздели ще бъдат затворени: <ph name="INCOGNITO_TAB_COUNT" /> в режим „инкогнито“ и още <ph name="TAB_COUNT_MANY" />}}</translation>
 <translation id="8969796057708736017">Изтеглянето ще завърши, ако файлът отговаря на правилата на организацията ви</translation>
 <translation id="8970887620466824814">Нещо се обърка.</translation>
 <translation id="8972098258593396643">Да се изтегли ли файлът в стандартната папка?</translation>

@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -252,6 +253,24 @@ class FakeDtlsTransport : public DtlsTransportInternal {
       ZeroOnFreeBuffer<uint8_t>& keying_material) override {
     if (do_dtls_) {
       std::memset(keying_material.data(), 0xff, keying_material.size());
+    }
+    return do_dtls_;
+  }
+  bool AppendSrtpKeyingMaterial(
+      ZeroOnFreeBuffer<uint8_t>& keying_material) override {
+    if (do_dtls_) {
+      int crypto_suite;
+      if (!GetSrtpCryptoSuite(&crypto_suite)) {
+        return false;
+      }
+      int key_len;
+      int salt_len;
+      if (!GetSrtpKeyAndSaltLengths(crypto_suite, &key_len, &salt_len)) {
+        return false;
+      }
+      size_t data_size = 2 * key_len + 2 * salt_len;
+      std::vector<uint8_t> data(data_size, 0xff);
+      keying_material.AppendData(data);
     }
     return do_dtls_;
   }

@@ -57,7 +57,6 @@ TEST(DelayBasedCongestionControlTest,
     EXPECT_EQ(delay_controller.rtt(), TimeDelta::Millis(58));
     EXPECT_EQ(delay_controller.queue_delay(), TimeDelta::Millis(0));
     EXPECT_FALSE(delay_controller.IsQueueDelayDetected());
-    EXPECT_FALSE(delay_controller.ShouldReduceReferenceWindow());
   }
 }
 
@@ -82,7 +81,6 @@ TEST(DelayBasedCongestionControlTest, QueueDelayIncreaseIfSendRateIsHigh) {
   }
   EXPECT_GT(delay_controller.queue_delay(), TimeDelta::Millis(50));
   EXPECT_TRUE(delay_controller.IsQueueDelayDetected());
-  EXPECT_TRUE(delay_controller.ShouldReduceReferenceWindow());
 }
 
 TEST(DelayBasedCongestionControlTest, ReferenceWindowNotChangedOnLowDelay) {

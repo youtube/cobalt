@@ -26,6 +26,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -38,10 +39,11 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -351,7 +353,7 @@ class QuitDraggingObserver {
 //   by releasing the mouse or cancelling the DnD session;
 // - else, that the move loop ends, i.e. attaching to an existing browser or
 //   fully ending the tab drag.
-class BrowserChangeWaiter : public BrowserListObserver {
+class BrowserChangeWaiter : public BrowserCollectionObserver {
  public:
   enum class ChangeType {
     kAdded,
@@ -359,11 +361,12 @@ class BrowserChangeWaiter : public BrowserListObserver {
   };
 
   explicit BrowserChangeWaiter(ChangeType type) : type_(type) {
-    BrowserList::AddObserver(this);
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
   }
   BrowserChangeWaiter(const BrowserChangeWaiter&) = delete;
   BrowserChangeWaiter& operator=(const BrowserChangeWaiter&) = delete;
-  ~BrowserChangeWaiter() override { BrowserList::RemoveObserver(this); }
+  ~BrowserChangeWaiter() override = default;
 
   // The closure must ensure the system DnD session/move loop ends (see comment
   // above).
@@ -372,14 +375,14 @@ class BrowserChangeWaiter : public BrowserListObserver {
     run_loop_.Run();
   }
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override {
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) override {
     if (type_ == ChangeType::kAdded) {
       Quit();
     }
   }
 
-  void OnBrowserRemoved(Browser* browser) override {
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
     if (type_ == ChangeType::kRemoved) {
       Quit();
     }
@@ -418,6 +421,8 @@ class BrowserChangeWaiter : public BrowserListObserver {
   bool quit_called_ = false;
   base::OnceClosure closure_;
   base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 void SetID(WebContents* web_contents, int id) {
@@ -4277,15 +4282,14 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Place the first browser directly below the second in such a way that
   // dragging a tab upwards will drag it directly into the second browser's
   // tabstrip.
-  const BrowserView* const browser_view2 =
+  BrowserView* const browser_view2 =
       BrowserView::GetBrowserViewForBrowser(browser2);
-  const gfx::Rect tabstrip_region2_bounds =
-      browser_view2->browser_widget()
-          ->GetFrameView()
-          ->GetBoundsForTabStripRegion(
-              browser_view2->tab_strip_view()->GetMinimumSize());
+  browser_view2->GetWidget()->LayoutRootViewIfNecessary();
+  auto* const tabstrip = browser_view2->tab_strip_view()->GetTabStripView();
+  gfx::Rect tabstrip_bounds = tabstrip->GetLocalBounds();
+  tabstrip_bounds = tabstrip->ConvertRectToWidget(tabstrip_bounds);
   gfx::Rect bounds = initial_bounds;
-  bounds.Offset(0, tabstrip_region2_bounds.bottom());
+  bounds.Offset(0, tabstrip_bounds.bottom());
   browser()->window()->SetBounds(bounds);
 
   // Ensure the first browser is on top so clicks go to it.

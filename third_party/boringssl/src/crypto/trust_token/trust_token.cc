@@ -30,6 +30,8 @@
 // protocol for issuing and redeeming tokens built on top of the PMBTokens
 // construction.
 
+using namespace bssl;
+
 const TRUST_TOKEN_METHOD *TRUST_TOKEN_experiment_v1() {
   static const TRUST_TOKEN_METHOD kMethod = {
       pmbtoken_exp1_generate_key,
@@ -116,7 +118,7 @@ const TRUST_TOKEN_METHOD *TRUST_TOKEN_pst_v1_pmb() {
 }
 
 
-void TRUST_TOKEN_PRETOKEN_free(TRUST_TOKEN_PRETOKEN *pretoken) {
+void bssl::TRUST_TOKEN_PRETOKEN_free(TRUST_TOKEN_PRETOKEN *pretoken) {
   OPENSSL_free(pretoken);
 }
 
@@ -538,7 +540,7 @@ int TRUST_TOKEN_ISSUER_set_metadata_key(TRUST_TOKEN_ISSUER *ctx,
   return 1;
 }
 
-static const struct trust_token_issuer_key_st *trust_token_issuer_get_key(
+static const struct bssl::trust_token_issuer_key_st *trust_token_issuer_get_key(
     const TRUST_TOKEN_ISSUER *ctx, uint32_t key_id) {
   for (size_t i = 0; i < ctx->num_keys; i++) {
     if (ctx->keys[i].id == key_id) {

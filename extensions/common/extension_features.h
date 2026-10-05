@@ -271,7 +271,11 @@ BASE_DECLARE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch);
 // If enabled, the ContentVerifier cache key will include the extension root
 // path. This prevents collisions when an extension is updated or reloaded
 // to a new directory while keeping the same version ID.
-BASE_DECLARE_FEATURE(kContentVerifierCacheIncludesExtensionRoot);
+// This also controls content verifier behavior when starting new
+// ContentVerifyJobs: it will ensure that only jobs matching the currently
+// loaded extension's root directory are allowed to start. This helps avoid
+// memory leaks from stale cache entries and false-positive corruption reports.
+BASE_DECLARE_FEATURE(kExtensionContentVerificationUsesExtensionRoot);
 
 // Addresses content verification race conditions during extension updates. When
 // an extension updates, a content verification job for a previous version can
@@ -295,6 +299,12 @@ BASE_DECLARE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport);
 // Enables the shouldShowPromotion API to determine which promotion to show for
 // Chrome Enterprise on CWS.
 BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
+
+// When enabled, web searches with a newly-installed search engine-changing
+// extension will be blocked behind a new explicit-choice dialog. The dialog
+// must be used to confirm the choice of using the new search engine, or
+// returning to the previous provider.
+BASE_DECLARE_FEATURE(kSearchEngineExplicitChoiceDialog);
 
 // When enabled, all search extensions will unconditionally get the search
 // engine override dialog.

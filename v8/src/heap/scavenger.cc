@@ -76,7 +76,7 @@ template <RememberedSetType kType>
 void AddToRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
                         Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-  MutablePage* page = MutablePage::cast(chunk->Metadata(heap->isolate()));
+  MutablePage* page = SbxCast<MutablePage>(chunk->Metadata(heap->isolate()));
   RememberedSet<kType>::template Insert<AccessMode::ATOMIC>(
       page, chunk->Offset(slot));
 }
@@ -519,6 +519,11 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
+    ArrayBufferExtension* array_buffer_extension =
+        slot.tag_range() == kArrayBufferExtensionTag
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  table.Get(handle, kArrayBufferExtensionTag))
+            : nullptr;
     if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
@@ -534,20 +539,21 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
                      heap->old_external_pointer_space(), handle, slot.address(),
                      ExternalPointerTable::EvacuateMarkMode::kTransferMark);
     }
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object,
-                                      MaybeObjectSize) {
-    if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
-      object->YoungMarkExtension();
-    } else {
-      object->YoungMarkExtensionPromoted();
+#else   // !V8_COMPRESS_POINTERS
+    ArrayBufferExtension* array_buffer_extension =
+        slot.tag_range() == kArrayBufferExtensionTag
+            ? reinterpret_cast<ArrayBufferExtension*>(
+                  slot.load(scavenger_->heap()->isolate()))
+            : nullptr;
+#endif  // !V8_COMPRESS_POINTERS
+    if (array_buffer_extension) {
+      array_buffer_extension->InitializationBarrier();
+      if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+        array_buffer_extension->YoungMark();
+      } else {
+        array_buffer_extension->YoungMarkPromoted();
+      }
     }
-    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
   }
 
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
@@ -1095,7 +1101,7 @@ class ObjectPinningVisitorBase : public RootVisitor {
     }
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     MutablePage* metadata =
-        MutablePage::cast(chunk->Metadata(heap_->isolate()));
+        SbxCast<MutablePage>(chunk->Metadata(heap_->isolate()));
     DCHECK(!metadata->is_large());
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));

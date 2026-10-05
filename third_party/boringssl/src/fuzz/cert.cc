@@ -18,8 +18,10 @@
 
 #include "../crypto/x509/internal.h"
 
+using namespace bssl;
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
-  bssl::UniquePtr<X509> x509(d2i_X509(nullptr, &buf, len));
+  UniquePtr<X509> x509(d2i_X509(nullptr, &buf, len));
   if (x509 != nullptr) {
     // Extract the public key.
     EVP_PKEY_free(X509_get_pubkey(x509.get()));
@@ -39,7 +41,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
         // parse it.
         // TODO(crbug.com/boringssl/352): Ideally we would also assert that
         // |new_ext| is identical to |ext|, but our parser is not strict enough.
-        bssl::UniquePtr<X509_EXTENSION> new_ext(
+        UniquePtr<X509_EXTENSION> new_ext(
             X509V3_EXT_i2d(nid, X509_EXTENSION_get_critical(ext), parsed));
         BSSL_CHECK(new_ext != nullptr);
 

@@ -35,7 +35,7 @@
 
 using namespace bssl;
 
-void x509_pubkey_init(X509_PUBKEY *key) {
+void bssl::x509_pubkey_init(X509_PUBKEY *key) {
   OPENSSL_memset(key, 0, sizeof(X509_PUBKEY));
   x509_algor_init(&key->algor);
   asn1_string_init(&key->public_key, V_ASN1_BIT_STRING);
@@ -50,7 +50,7 @@ X509_PUBKEY *X509_PUBKEY_new() {
   return ret.release();
 }
 
-void x509_pubkey_cleanup(X509_PUBKEY *key) {
+void bssl::x509_pubkey_cleanup(X509_PUBKEY *key) {
   x509_algor_cleanup(&key->algor);
   asn1_string_cleanup(&key->public_key);
   EVP_PKEY_free(key->pkey);
@@ -86,8 +86,8 @@ static void x509_pubkey_changed(X509_PUBKEY *pub,
   pub->pkey = pkey.release();
 }
 
-int x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
-                          Span<const EVP_PKEY_ALG *const> algs) {
+int bssl::x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
+                                Span<const EVP_PKEY_ALG *const> algs) {
   CBS seq;
   if (!CBS_get_asn1(cbs, &seq, CBS_ASN1_SEQUENCE) ||
       !x509_parse_algorithm(&seq, &out->algor) ||
@@ -104,7 +104,7 @@ static int x509_parse_public_key_default(CBS *cbs, X509_PUBKEY *out) {
   return x509_parse_public_key(cbs, out, GetDefaultEVPAlgorithms());
 }
 
-int x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in) {
+int bssl::x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in) {
   CBB seq;
   return CBB_add_asn1(cbb, &seq, CBS_ASN1_SEQUENCE) &&
          x509_marshal_algorithm(&seq, &in->algor) &&
@@ -128,13 +128,17 @@ int i2d_X509_PUBKEY(const X509_PUBKEY *key, uint8_t **outp) {
   });
 }
 
+BSSL_NAMESPACE_BEGIN
+
 // TODO(crbug.com/42290417): Remove this when |X509| and |X509_REQ| no longer
 // depend on the tables.
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
                              CBS_ASN1_SEQUENCE, x509_parse_public_key_default,
                              i2d_X509_PUBKEY)
 
-int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
+BSSL_NAMESPACE_END
+
+int bssl::x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
   ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 64) || !EVP_marshal_public_key(cbb.get(), pkey)) {
     OPENSSL_PUT_ERROR(X509, X509_R_PUBLIC_KEY_ENCODE_ERROR);

@@ -2275,9 +2275,10 @@ TEST_F(AutofillMetricsTest, FormFillDurationFromInteraction_MultipleForms) {
 }
 
 // Test class that shares setup code for testing ParseQueryResponse.
-class AutofillMetricsParseQueryResponseTest : public testing::Test {
+class AutofillMetricsParseQueryResponseTest : public AutofillMetricsTest {
  public:
   void SetUp() override {
+    AutofillMetricsTest::SetUp();
     FormData form;
     form.set_host_frame(test::MakeLocalFrameToken());
     form.set_renderer_id(test::MakeFormRendererId());
@@ -2303,9 +2304,11 @@ class AutofillMetricsParseQueryResponseTest : public testing::Test {
         FormFieldData::CheckStatus::kCheckableButUnchecked);
     test_api(form).Append(checkable_field);
 
+    SeeForm(form);
     owned_forms_.push_back(std::make_unique<FormStructure>(form));
     forms_.emplace_back(*owned_forms_.back());
 
+    form.set_renderer_id(test::MakeFormRendererId());
     field.set_label(u"email");
     field.set_name(u"email");
     test_api(form).Append(field);
@@ -2315,14 +2318,16 @@ class AutofillMetricsParseQueryResponseTest : public testing::Test {
     field.set_form_control_type(FormControlType::kInputPassword);
     test_api(form).Append(field);
 
+    SeeForm(form);
     owned_forms_.push_back(std::make_unique<FormStructure>(form));
     forms_.emplace_back(*owned_forms_.back());
+    forms_data_.push_back(form);
   }
 
  protected:
-  test::AutofillUnitTestEnvironment autofill_test_environment_;
   std::vector<std::unique_ptr<FormStructure>> owned_forms_;
   std::vector<raw_ref<FormStructure>> forms_;
+  std::vector<FormData> forms_data_;
 };
 
 TEST_F(AutofillMetricsParseQueryResponseTest, ServerHasData) {
@@ -2339,8 +2344,9 @@ TEST_F(AutofillMetricsParseQueryResponseTest, ServerHasData) {
 
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
-  ParseServerPredictionsQueryResponse(
-      response_string, forms_, test::GetEncodedSignatures(forms_), nullptr);
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(
+          response_string, test::GetEncodedSignatures(forms_), forms_data_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(true, 2)));
@@ -2362,8 +2368,9 @@ TEST_F(AutofillMetricsParseQueryResponseTest, OneFormNoServerData) {
                            form_suggestion);
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
-  ParseServerPredictionsQueryResponse(
-      response_string, forms_, test::GetEncodedSignatures(forms_), nullptr);
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(
+          response_string, test::GetEncodedSignatures(forms_), forms_data_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(false, 1), Bucket(true, 1)));
@@ -2383,8 +2390,9 @@ TEST_F(AutofillMetricsParseQueryResponseTest, AllFormsNoServerData) {
 
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
-  ParseServerPredictionsQueryResponse(
-      response_string, forms_, test::GetEncodedSignatures(forms_), nullptr);
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(
+          response_string, test::GetEncodedSignatures(forms_), forms_data_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(false, 2)));
@@ -2407,8 +2415,9 @@ TEST_F(AutofillMetricsParseQueryResponseTest, PartialNoServerData) {
 
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
-  ParseServerPredictionsQueryResponse(
-      response_string, forms_, test::GetEncodedSignatures(forms_), nullptr);
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(
+          response_string, test::GetEncodedSignatures(forms_), forms_data_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(true, 2)));

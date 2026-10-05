@@ -156,12 +156,9 @@
   padding-top: 16px;
 }
 
-:host-context(:not([ntp-realbox-next-enabled])) input {
+:host(:not([ntp-realbox-next-enabled])) input,
+:host([searchbox-layout-mode='Compact']) input {
   align-self: center;
-  padding-top: 0;
-}
-
-:host-context([searchbox-layout-mode='Compact']) input {
   padding-top: 2px;
 }
 
@@ -188,6 +185,7 @@ input::-webkit-search-cancel-button {
 :is(input, textarea)::placeholder {
   color: var(--color-searchbox-placeholder);
   opacity: var(--placeholder-opacity);
+  white-space: nowrap;
 }
 
 :is(input, textarea):focus::placeholder {
@@ -600,10 +598,13 @@ cr-searchbox-dropdown::part(dropdown-content) {
   opacity: 0;
 }
 
-#recentTabChipContainer {
+:host([searchbox-layout-mode='Compact'][dropdown-is-visible]) .dropdownContainer {
   padding-bottom: 10px;
+}
+
+#recentTabChipContainer {
+  padding-block: 6px;
   padding-inline: 16px;
-  padding-top: 6px;
 }
 
 :host([ntp-realbox-next-enabled][searchbox-layout-mode='Compact'])

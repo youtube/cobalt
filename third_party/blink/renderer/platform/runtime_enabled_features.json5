@@ -686,6 +686,11 @@
       name: "AvoidForcedLayoutOnInvisibleDocumentClose",
       status: "test",
     },
+    {
+      // Fix for https://crbug.com/471876082
+      name: "AvoidMergingStyledSpanWithSiblings",
+      status: "stable",
+    },
     { // If the start and end positions are the same in MoveParagraph,
       // there is no need to collapse the whitespace between them.
       // https://crbug.com/406053617
@@ -915,21 +920,6 @@
     {
       name: "CanvasHDR",
       status: "experimental",
-    },
-    {
-      // crbug.com/389726691.
-      name: "CanvasTextMemoryPressure",
-      status: "stable",
-    },
-    {
-      // crbug.com/450531794.
-      name: "CanvasTextSwitchFrameOnFinalize",
-      status: "stable",
-    },
-    {
-      // crbug.com/450531794.
-      name: "CanvasTextTexImage2DFix",
-      status: "stable",
     },
     {
       // Canvas2D API for specifying HDR tone mapping behavior.
@@ -1751,7 +1741,11 @@
     {
       // crbug.com/434361099
       name: "CssTextIndent",
-      status: "test",
+      status: "experimental",
+    },
+    {
+      name: "CssTextIndentAsPrimitive",
+      status: "stable",
     },
     {
       // crbug.com/40321528
@@ -1767,6 +1761,13 @@
     {
       // https://issues.chromium.org/41297237: CSS `text-transform: full-width` value
       name: "CSSTextTransformFullWidth",
+      status: "experimental",
+    },
+    {
+      // Support for the 'all' keyword of the 'timeline-scope' property.
+      //
+      // https://drafts.csswg.org/scroll-animations-1/#timeline-scope
+      name: "CSSTimelineScopeAll",
       status: "experimental",
     },
     {
@@ -2641,12 +2642,6 @@
       status: "experimental",
     },
     {
-      name: "FluentOverlayScrollbars",
-      // The associated base feature is defined in
-      // ui/native_theme/features/native_theme_features.cc.
-      base_feature: "none",
-    },
-    {
       // https://open-ui.org/components/scoped-focusgroup.explainer/
       name: "Focusgroup",
       status: "experimental",
@@ -2911,12 +2906,6 @@
       name: "HTMLCommandForScrollCommands",
       status: "experimental",
     },
-    // Adds support for the 'request-close' command.
-    // https://open-ui.org/components/invokers.explainer/
-    {
-      name: "HTMLCommandRequestClose",
-      status: "stable",
-    },
     {
       name: "HTMLElementScrollParent",
       status: "experimental",
@@ -3145,6 +3134,14 @@
       status: "stable",
     },
     {
+      // Checks interactive content using EventPath captured at
+      // dispatch start instead of current DOM state. This was
+      // added in M145 and can be removed after M147.
+      // https://issues.chromium.org/issues/452084024
+      name: "LabelInteractiveContentCheckBeforeHandler",
+      status: "stable",
+    },
+    {
       name: "LangAttributeAwareFormControlUI",
       settable_from_internals: true,
     },
@@ -3186,7 +3183,21 @@
       status: "stable",
     },
     {
+      name: "LayoutReinsertOnInFlowStateChange",
+      depends_on: ["LayoutMergeAnonymousFix", "DisableDocumentBeingDestroyed"],
+      status: "stable",
+    },
+    {
       name: "LayoutTableCellAlignmentSafe",
+      status: "stable",
+    },
+    {
+      // When enabled, brings chromium into compliance with the resolution of:
+      //   https://github.com/whatwg/html/issues/10671
+      // This flag can be used to easily revert to the old behavior if the new
+      // behavior causes breakage; otherwise, it can be removed after M145
+      // reaches stable.
+      name: "LazyImageConformantLoadEventTiming",
       status: "stable",
     },
     {
@@ -5262,11 +5273,6 @@
       status: "stable",
     },
     {
-      // crbug.com/414858401
-      name: "TextareaLineEndingsAsBr",
-      status: "stable",
-    },
-    {
       // crbug.com/461332428
       name: "TextCombineNoSideways",
       status: "stable",
@@ -6280,10 +6286,5 @@
       // crbug.com/435623334.
       name: "XSLTSpecialTrial",
     },
-    {
-      // If enabled, the `getDisplayMedia()` family of APIs will ask for NV12
-      // frames, which should trigger a zero-copy path in the tab capture code.
-      name: "ZeroCopyTabCapture",
-    }
   ],
 }

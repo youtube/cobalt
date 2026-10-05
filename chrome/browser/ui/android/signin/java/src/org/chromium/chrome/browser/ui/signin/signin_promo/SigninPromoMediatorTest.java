@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,12 +39,14 @@ import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.sync.SyncService;
 
 @RunWith(BaseRobolectricTestRunner.class)
+@EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
 public class SigninPromoMediatorTest {
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
@@ -143,7 +146,7 @@ public class SigninPromoMediatorTest {
         String newPrimaryButtonText = "newPrimaryButtonText";
         String newSecondaryButtonText = "newSecondaryButtonText";
         doReturn(true).when(mPromoDelegate).refreshPromoState(any());
-        doReturn(true).when(mPromoDelegate).shouldHideDismissButton();
+        doReturn(false).when(mPromoDelegate).canBeDismissedPermanently();
         doReturn(newTitle).when(mPromoDelegate).getTitle();
         doReturn(newDescription).when(mPromoDelegate).getDescription(any());
         doReturn(newPrimaryButtonText).when(mPromoDelegate).getTextForPrimaryButton(any());
@@ -233,6 +236,26 @@ public class SigninPromoMediatorTest {
                 mContext.getString(R.string.signin_promo_choose_another_account),
                 mMediator.getModel().get(SigninPromoProperties.SECONDARY_BUTTON_TEXT));
         assertFalse(mMediator.getModel().get(SigninPromoProperties.SHOULD_HIDE_SECONDARY_BUTTON));
+    }
+
+    @Test
+    public void testCannotDismissPromo_UndoSigninNeverDismissesPromo() {
+        doReturn(false).when(mPromoDelegate).canBeDismissedPermanently();
+        createSigninPromoMediator(mPromoDelegate);
+
+        mMediator.onSigninUndone();
+
+        verify(mPromoDelegate, never()).permanentlyDismissPromo();
+    }
+
+    @Test
+    public void testCanDismissPromo_UndoSigninDismissesPromo() {
+        doReturn(true).when(mPromoDelegate).canBeDismissedPermanently();
+        createSigninPromoMediator(mPromoDelegate);
+
+        mMediator.onSigninUndone();
+
+        verify(mPromoDelegate).permanentlyDismissPromo();
     }
 
     private void createSigninPromoMediator(SigninPromoDelegate delegate) {

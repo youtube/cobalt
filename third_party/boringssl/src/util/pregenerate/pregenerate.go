@@ -114,17 +114,32 @@ func run() error {
 	}
 
 	var tasks []Task
+	var perlAsmTasks []WaitableTask
+	var allAsmSrcs []string
 	targetsOut := make(map[string]build.Target)
 	for name, targetIn := range targetsIn {
-		targetOut, targetTasks, err := targetIn.Pregenerate(name)
+		targetOut, targetTasks, targetAsmSrcs, err := targetIn.Pregenerate(name)
 		if err != nil {
 			return err
 		}
 		targetsOut[name] = targetOut
 		tasks = append(tasks, targetTasks...)
+		for _, task := range targetTasks {
+			waitable, ok := task.(WaitableTask)
+			if !ok {
+				continue
+			}
+			if !slices.Contains(targetAsmSrcs, task.Destination()) {
+				return errors.New("asm destination is not contained in target asm sources")
+			}
+			perlAsmTasks = append(perlAsmTasks, waitable)
+
+		}
+		allAsmSrcs = append(allAsmSrcs, targetAsmSrcs...)
 	}
 
 	tasks = append(tasks, MakeBuildFiles(targetsOut)...)
+	tasks = append(tasks, MakeCollectAsmGlobalTask(perlAsmTasks, allAsmSrcs))
 	tasks = append(tasks, NewSimpleTask("gen/README.md", func() ([]byte, error) {
 		return []byte(readme), nil
 	}))

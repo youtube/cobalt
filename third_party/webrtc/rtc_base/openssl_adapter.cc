@@ -196,7 +196,8 @@ bool OpenSSLAdapter::CleanupSSL() {
 
 OpenSSLAdapter::OpenSSLAdapter(Socket* socket,
                                OpenSSLSessionCache* ssl_session_cache,
-                               SSLCertificateVerifier* ssl_cert_verifier)
+                               SSLCertificateVerifier* ssl_cert_verifier,
+                               bool dtls)
     : SSLAdapter(socket),
       ssl_session_cache_(ssl_session_cache),
       ssl_cert_verifier_(ssl_cert_verifier),
@@ -206,7 +207,7 @@ OpenSSLAdapter::OpenSSLAdapter(Socket* socket,
       ssl_write_needs_read_(false),
       ssl_(nullptr),
       ssl_ctx_(nullptr),
-      ssl_mode_(SSL_MODE_TLS),
+      ssl_mode_(dtls ? SSL_MODE_DTLS : SSL_MODE_TLS),
       ignore_bad_cert_(false),
       custom_cert_verifier_status_(false) {
   // If a factory is used, take a reference on the factory's SSL_CTX.

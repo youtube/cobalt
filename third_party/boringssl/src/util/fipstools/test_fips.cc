@@ -32,6 +32,7 @@
 #include <openssl/nid.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/span.h>
 #include <openssl/tls_prf.h>
 
 #include "../../crypto/fipsmodule/bcm_interface.h"
@@ -388,13 +389,15 @@ static int run_test() {
   printf("  got ");
   hexdump(hkdf_output, sizeof(hkdf_output));
 
+  const char kTLSLabel[] = "foo";
+  const auto label = StringAsBytes(kTLSLabel);
   /* TLS v1.0 KDF */
   printf("About to run TLS v1.0 KDF\n");
   uint8_t tls10_output[32];
   if (!CRYPTO_tls1_prf(EVP_md5_sha1(), tls10_output, sizeof(tls10_output),
-                       kAESKey, sizeof(kAESKey), "foo", 3, kPlaintextSHA256,
-                       sizeof(kPlaintextSHA256), kPlaintextSHA256,
-                       sizeof(kPlaintextSHA256))) {
+                       kAESKey, sizeof(kAESKey), label.data(), label.size(),
+                       kPlaintextSHA256, sizeof(kPlaintextSHA256),
+                       kPlaintextSHA256, sizeof(kPlaintextSHA256))) {
     fprintf(stderr, "TLS v1.0 KDF failed.\n");
     return 0;
   }
@@ -405,9 +408,9 @@ static int run_test() {
   printf("About to run TLS v1.2 KDF\n");
   uint8_t tls12_output[32];
   if (!CRYPTO_tls1_prf(EVP_sha256(), tls12_output, sizeof(tls12_output),
-                       kAESKey, sizeof(kAESKey), "foo", 3, kPlaintextSHA256,
-                       sizeof(kPlaintextSHA256), kPlaintextSHA256,
-                       sizeof(kPlaintextSHA256))) {
+                       kAESKey, sizeof(kAESKey), label.data(), label.size(),
+                       kPlaintextSHA256, sizeof(kPlaintextSHA256),
+                       kPlaintextSHA256, sizeof(kPlaintextSHA256))) {
     fprintf(stderr, "TLS v1.2 KDF failed.\n");
     return 0;
   }
@@ -419,7 +422,7 @@ static int run_test() {
   uint8_t tls13_output[32];
   if (!CRYPTO_tls13_hkdf_expand_label(
           tls13_output, sizeof(tls13_output), EVP_sha256(), kAESKey,
-          sizeof(kAESKey), (const uint8_t *)"foo", 3, kPlaintextSHA256,
+          sizeof(kAESKey), label.data(), label.size(), kPlaintextSHA256,
           sizeof(kPlaintextSHA256))) {
     fprintf(stderr, "TLS v1.3 KDF failed.\n");
     return 0;

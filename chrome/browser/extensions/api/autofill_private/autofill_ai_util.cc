@@ -60,12 +60,14 @@ using autofill::EntityTypeName;
 void EntityInstanceToPrivateApiEntityInstanceWithLabels(
     base::span<const EntityInstance*> entity_instances,
     const std::string& app_locale,
+    bool obfuscate_sensitive_types,
     std::vector<autofill_private::EntityInstanceWithLabels>& output) {
   // Step 1#, get all available labels for `entity_instances`.
   const std::vector<autofill::EntityLabel> labels_for_entities =
       autofill::GetLabelsForEntities(entity_instances,
                                      /*attribute_types_to_ignore=*/{},
                                      /*only_disambiguating_types=*/false,
+                                     /*obfuscate_sensitive_types=*/obfuscate_sensitive_types,
                                      app_locale);
 
   // Step 2#
@@ -209,6 +211,7 @@ autofill_private::EntityInstance EntityInstanceToPrivateApiEntityInstance(
     const std::string& app_locale) {
   std::vector<autofill_private::AttributeInstance>
       private_api_attribute_instances;
+  bool should_authenticate_to_view = false;
   for (const AttributeInstance& attribute_instance :
        entity_instance.attributes()) {
     private_api_attribute_instances.emplace_back();
@@ -216,6 +219,11 @@ autofill_private::EntityInstance EntityInstanceToPrivateApiEntityInstance(
         std::to_underlying(attribute_instance.type().name());
     private_api_attribute_instances.back().type.type_name_as_string =
         base::UTF16ToUTF8(attribute_instance.type().GetNameForI18n());
+
+    if (attribute_instance.type().is_obfuscated() &&
+        !attribute_instance.GetCompleteRawInfo().empty()) {
+      should_authenticate_to_view = true;
+    }
 
     AttributeType::DataType data_type = attribute_instance.type().data_type();
     private_api_attribute_instances.back().type.data_type =
@@ -265,12 +273,15 @@ autofill_private::EntityInstance EntityInstanceToPrivateApiEntityInstance(
       std::move(private_api_attribute_instances);
   private_api_entity_instance.guid = *entity_instance.guid();
   private_api_entity_instance.nickname = entity_instance.nickname();
+  private_api_entity_instance.should_authenticate_to_view =
+      should_authenticate_to_view;
   return private_api_entity_instance;
 }
 
 std::vector<autofill_private::EntityInstanceWithLabels>
 EntityInstancesToPrivateApiEntityInstancesWithLabels(
     base::span<const EntityInstance> entity_instances,
+    bool obfuscate_sensitive_types,
     const std::string& app_locale) {
   // Entity labels should be generated based on other entities of the same
   // type. This is because the disambiguation values of attributes are only
@@ -282,8 +293,8 @@ EntityInstancesToPrivateApiEntityInstancesWithLabels(
   std::vector<autofill_private::EntityInstanceWithLabels> response;
   response.reserve(entity_instances.size());
   for (auto& [entity_type, entities] : entities_per_type) {
-    EntityInstanceToPrivateApiEntityInstanceWithLabels(entities, app_locale,
-                                                       response);
+    EntityInstanceToPrivateApiEntityInstanceWithLabels(
+        entities, app_locale, obfuscate_sensitive_types, response);
   }
   return response;
 }

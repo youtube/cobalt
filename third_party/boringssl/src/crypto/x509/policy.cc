@@ -24,6 +24,10 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
+BSSL_NAMESPACE_BEGIN
+
 // This file computes the X.509 policy graph, as described in RFC 9618.
 // Implementation notes:
 //
@@ -68,7 +72,7 @@ typedef struct x509_policy_node_st {
   int reachable;
 } X509_POLICY_NODE;
 
-DEFINE_STACK_OF(X509_POLICY_NODE)
+DEFINE_NAMESPACED_STACK_OF(X509_POLICY_NODE)
 
 // An X509_POLICY_LEVEL is the collection of nodes at the same depth in the
 // policy graph. This structure can also be used to represent a level's
@@ -83,7 +87,9 @@ typedef struct x509_policy_level_st {
   int has_any_policy;
 } X509_POLICY_LEVEL;
 
-DEFINE_STACK_OF(X509_POLICY_LEVEL)
+DEFINE_NAMESPACED_STACK_OF(X509_POLICY_LEVEL)
+
+BSSL_NAMESPACE_END
 
 static int is_any_policy(const ASN1_OBJECT *obj) {
   return OBJ_obj2nid(obj) == NID_any_policy;
@@ -659,9 +665,9 @@ static int asn1_object_cmp(const ASN1_OBJECT *const *a,
   return OBJ_cmp(*a, *b);
 }
 
-int X509_policy_check(const STACK_OF(X509) *certs,
-                      const STACK_OF(ASN1_OBJECT) *user_policies,
-                      unsigned long flags, X509 **out_current_cert) {
+int bssl::X509_policy_check(const STACK_OF(X509) *certs,
+                            const STACK_OF(ASN1_OBJECT) *user_policies,
+                            unsigned long flags, X509 **out_current_cert) {
   *out_current_cert = nullptr;
   int ret = X509_V_ERR_OUT_OF_MEM;
   X509_POLICY_LEVEL *level = nullptr;

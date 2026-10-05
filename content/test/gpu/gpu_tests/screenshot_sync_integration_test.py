@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import logging
 import math
 import os
 import random
@@ -121,6 +122,7 @@ class ScreenshotSyncIntegrationTest(gpu_integration_test.GpuIntegrationTest):
                            green=canvasRGB.g,
                            blue=canvasRGB.b)
     screenshot = tab.Screenshot(10)
+
     effective_dpr = screenshot_utils.GetEffectiveDpr(tab)
     # Avoid checking along antialiased boundary due to limited Adreno 3xx
     # interpolation precision (crbug.com/847984). We inset by one CSS pixel
@@ -143,7 +145,8 @@ class ScreenshotSyncIntegrationTest(gpu_integration_test.GpuIntegrationTest):
     self.RestartBrowserIfNecessaryWithArgs([browser_arg])
     self._Navigate(test_path)
     repetitions = 20
-    for _ in range(0, repetitions):
+    for i in range(0, repetitions):
+      logging.info('Running iteration %d out of %d', i + 1, repetitions)
       self._CheckScreenshot()
 
   @classmethod

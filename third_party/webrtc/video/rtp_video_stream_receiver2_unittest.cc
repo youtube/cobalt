@@ -43,6 +43,7 @@
 #include "call/test/mock_rtp_packet_sink_interface.h"
 #include "call/video_receive_stream.h"
 #include "common_video/h264/h264_common.h"
+#include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "media/base/media_constants.h"
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -68,6 +69,7 @@
 #include "test/mock_transport.h"
 #include "test/rtcp_packet_parser.h"
 #include "test/time_controller/simulated_time_controller.h"
+#include "test/time_controller/simulated_time_controller_impl.h"
 
 namespace webrtc {
 
@@ -186,7 +188,8 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
       : time_controller_(Timestamp::Millis(100)),
         env_(CreateEnvironment(CreateTestFieldTrialsPtr(field_trials),
                                time_controller_.GetClock(),
-                               time_controller_.GetTaskQueueFactory())),
+                               time_controller_.GetTaskQueueFactory(),
+                               &log_)),
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "RtpVideoStreamReceiver2Test",
             TaskQueueFactory::Priority::NORMAL)),
@@ -267,6 +270,7 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
   }
 
   GlobalSimulatedTimeController time_controller_;
+  MockRtcEventLog log_;
   Environment env_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue_;
   TokenTaskQueue::CurrentTaskQueueSetter task_queue_setter_;
@@ -1824,5 +1828,20 @@ TEST_F(RtpVideoStreamReceiver2TestH265, H265Bitstream) {
       CopyOnWriteBuffer(idr, sizeof(idr)), rtp_packet, video_header, 0);
 }
 #endif  // RTC_ENABLE_H265
+
+TEST_F(RtpVideoStreamReceiver2Test, LogsReceivedPacketToEventLog) {
+  RtpPacketReceived rtp_packet;
+
+  EXPECT_CALL(log_, LogProxy(_));
+  rtp_video_stream_receiver_->OnRtpPacket(rtp_packet);
+}
+
+TEST_F(RtpVideoStreamReceiver2Test, DoesNotLogRecoveredPacketToEventLog) {
+  RtpPacketReceived recovered_packet;
+  recovered_packet.set_recovered(true);
+
+  EXPECT_CALL(log_, LogProxy(_)).Times(0);
+  rtp_video_stream_receiver_->OnRtpPacket(recovered_packet);
+}
 
 }  // namespace webrtc

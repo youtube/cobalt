@@ -280,22 +280,16 @@ bool ssl_compare_public_and_private_key(const EVP_PKEY *pubkey,
     return true;
   }
 
-  switch (EVP_PKEY_cmp(pubkey, privkey)) {
-    case 1:
-      return true;
-    case 0:
-      OPENSSL_PUT_ERROR(X509, X509_R_KEY_VALUES_MISMATCH);
-      return false;
-    case -1:
+  if (EVP_PKEY_cmp(pubkey, privkey) != 1) {
+    if (EVP_PKEY_id(pubkey) != EVP_PKEY_id(privkey)) {
       OPENSSL_PUT_ERROR(X509, X509_R_KEY_TYPE_MISMATCH);
-      return false;
-    case -2:
-      OPENSSL_PUT_ERROR(X509, X509_R_UNKNOWN_KEY_TYPE);
-      return false;
+    } else {
+      OPENSSL_PUT_ERROR(X509, X509_R_KEY_VALUES_MISMATCH);
+    }
+    return false;
   }
 
-  assert(0);
-  return false;
+  return true;
 }
 
 bool ssl_cert_check_key_usage(const CBS *in, enum ssl_key_usage_t bit) {

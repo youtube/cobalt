@@ -5,12 +5,14 @@
 package org.chromium.chrome.browser.ntp_customization.theme.upload_image;
 
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.BITMAP_FOR_PREVIEW;
-import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.BOTTOM_MARGIN;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.LOGO_BITMAP;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.LOGO_PARAMS;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.LOGO_VISIBILITY;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.PREVIEW_CANCEL_CLICK_LISTENER;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.PREVIEW_SAVE_CLICK_LISTENER;
+import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.SEARCH_BOX_HEIGHT;
+import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.SEARCH_BOX_WIDTH;
+import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.SIDE_AND_BOTTOM_INSETS;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.TOP_INSETS;
 
 import android.widget.TextView;
@@ -44,8 +46,12 @@ public class UploadImagePreviewLayoutViewBinder {
             layout.setLogoVisibility(model.get(LOGO_VISIBILITY));
         } else if (propertyKey == TOP_INSETS) {
             layout.setTopInsets(model.get(TOP_INSETS));
-        } else if (propertyKey == BOTTOM_MARGIN) {
-            layout.setBottomInsets(model.get(BOTTOM_MARGIN));
+        } else if (SIDE_AND_BOTTOM_INSETS == propertyKey) {
+            layout.setSideAndBottomInsets(model.get(SIDE_AND_BOTTOM_INSETS));
+        } else if (propertyKey == SEARCH_BOX_WIDTH) {
+            layout.setSearchBoxWidth(model.get(SEARCH_BOX_WIDTH));
+        } else if (propertyKey == SEARCH_BOX_HEIGHT) {
+            layout.setSearchBoxHeight(model.get(SEARCH_BOX_HEIGHT));
         }
     }
 }

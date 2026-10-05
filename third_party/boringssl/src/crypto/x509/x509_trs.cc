@@ -21,6 +21,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 typedef struct x509_trust_st X509_TRUST;
 
 struct x509_trust_st {
@@ -73,7 +75,7 @@ int X509_check_trust(X509 *x, int id, int flags) {
   return pt->check_trust(pt, x);
 }
 
-int X509_is_valid_trust_id(int trust) {
+int bssl::X509_is_valid_trust_id(int trust) {
   return X509_TRUST_get0(trust) != nullptr;
 }
 

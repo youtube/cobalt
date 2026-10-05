@@ -12,6 +12,9 @@ source_set("model") {
     "bwg_page_state_change_handler.mm",
     "bwg_session_handler.h",
     "bwg_session_handler.mm",
+    "gemini_camera_delegate.h",
+    "gemini_camera_handler.h",
+    "gemini_camera_handler.mm",
     "gemini_session_delegate.h",
     "gemini_suggestion_delegate.h",
     "gemini_suggestion_handler.h",
@@ -32,7 +35,10 @@ source_set("model") {
     "//ios/web/public",
   ]
   public_deps = [ "//base" ]
-  frameworks = [ "UIKit.framework" ]
+  frameworks = [
+    "UIKit.framework",
+    "AVFoundation.framework",
+  ]
 }
 
 source_set("browser_agent") {
@@ -101,6 +107,7 @@ source_set("tab_helper") {
     "//ios/chrome/browser/optimization_guide/mojom",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/url",
     "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/snackbar",
@@ -197,6 +204,7 @@ source_set("unit_tests") {
     "bwg_session_handler_unittest.mm",
     "bwg_snapshot_utils_unittest.mm",
     "bwg_tab_helper_unittest.mm",
+    "gemini_camera_handler_unittest.mm",
   ]
   deps = [
     ":browser_agent",
@@ -209,12 +217,14 @@ source_set("unit_tests") {
     "//components/favicon/ios",
     "//components/feature_engagement/public",
     "//components/feature_engagement/test:test_support",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/prefs:test_support",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync/base",
     "//components/sync/service",
     "//components/sync_preferences",
     "//components/sync_preferences:test_support",
+    "//components/unified_consent",
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/intelligence/bwg/metrics",
@@ -222,7 +232,9 @@ source_set("unit_tests") {
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/intelligence/proto_wrappers",
     "//ios/chrome/browser/intelligence/proto_wrappers:page_context_extractor_feature",
+    "//ios/chrome/browser/intelligence/zero_state_suggestions/model",
     "//ios/chrome/browser/optimization_guide/model",
+    "//ios/chrome/browser/optimization_guide/mojom",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
     "//ios/chrome/browser/shared/model/prefs:browser_prefs",

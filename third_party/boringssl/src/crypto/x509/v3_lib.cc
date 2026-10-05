@@ -26,6 +26,9 @@
 #include "../mem_internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
+
 // This is indirected though a pointer to avoid a global destructor. If we ever
 // add bssl::NoDestructor, we can avoid this, but this API is already
 // problematic and not thread-safe.

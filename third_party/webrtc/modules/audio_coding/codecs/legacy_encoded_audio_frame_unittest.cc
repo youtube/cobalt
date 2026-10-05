@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "api/array_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -131,12 +132,15 @@ TEST_P(SplitBySamplesTest, PayloadSizes) {
     // resulting frames can be checked and we can be reasonably certain no
     // sample was missed or repeated.
     const auto generate_payload = [](size_t num_bytes) {
-      Buffer payload = Buffer::CreateUninitializedWithSize(num_bytes);
-      uint8_t value = 0;
-      // Allow wrap-around of value in counter below.
-      for (size_t i = 0; i != payload.size(); ++i, ++value) {
-        payload[i] = value;
-      }
+      Buffer payload = Buffer::CreateWithCapacity(num_bytes);
+      payload.AppendData(num_bytes, [](ArrayView<uint8_t> payload_view) {
+        uint8_t value = 0;
+        // Allow wrap-around of value in counter below.
+        for (size_t i = 0; i != payload_view.size(); ++i, ++value) {
+          payload_view[i] = value;
+        }
+        return payload_view.size();
+      });
       return payload;
     };
 

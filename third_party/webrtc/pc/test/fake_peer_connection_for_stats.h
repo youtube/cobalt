@@ -375,12 +375,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(webrtc::MediaType::AUDIO, mid)
             ->internal();
-    if (transceiver->channel()) {
+    if (transceiver->HasChannel()) {
       // This transceiver already has a channel, create a new one.
       transceiver =
           CreateTransceiverOfType(webrtc::MediaType::AUDIO, mid)->internal();
     }
-    RTC_DCHECK(!transceiver->channel());
+    RTC_DCHECK(!transceiver->HasChannel());
     RTC_DCHECK(transceiver->mid());
     transceiver->SetChannel(std::move(voice_channel),
                             [](const std::string&) { return nullptr; });
@@ -410,12 +410,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(webrtc::MediaType::VIDEO, mid)
             ->internal();
-    if (transceiver->channel()) {
+    if (transceiver->HasChannel()) {
       // This transceiver already has a channel, create a new one.
       transceiver =
           CreateTransceiverOfType(webrtc::MediaType::VIDEO, mid)->internal();
     }
-    RTC_DCHECK(!transceiver->channel());
+    RTC_DCHECK(!transceiver->HasChannel());
     RTC_DCHECK(transceiver->mid());
     transceiver->SetChannel(std::move(video_channel),
                             [](const std::string&) { return nullptr; });

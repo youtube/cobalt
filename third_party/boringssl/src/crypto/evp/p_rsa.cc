@@ -87,7 +87,7 @@ static bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-static int rsa_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool rsa_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
   // We currently assume that all |EVP_PKEY_RSA_PSS| keys have the same
   // parameters, so this vacuously compares parameters. If we ever support
   // multiple PSS parameter sets, we probably should compare them too. Note,
@@ -261,7 +261,7 @@ const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
 
     rsa_pub_decode,
     rsa_pub_encode,
-    rsa_pub_cmp,
+    rsa_pub_equal,
 
     rsa_priv_decode,
     rsa_priv_encode,
@@ -282,7 +282,7 @@ const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
 
     /*param_missing=*/nullptr,
     /*param_copy=*/nullptr,
-    /*param_cmp=*/nullptr,
+    /*param_equal=*/nullptr,
 
     int_rsa_free,
 };
@@ -297,7 +297,7 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth = {
 
     rsa_pub_decode_pss,
     rsa_pub_encode_pss,
-    rsa_pub_cmp,
+    rsa_pub_equal,
 
     rsa_priv_decode_pss,
     rsa_priv_encode_pss,
@@ -318,7 +318,7 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth = {
 
     /*param_missing=*/nullptr,
     /*param_copy=*/nullptr,
-    /*param_cmp=*/nullptr,
+    /*param_equal=*/nullptr,
 
     int_rsa_free,
 };

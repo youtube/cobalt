@@ -66,6 +66,7 @@
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
@@ -351,9 +352,8 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
       }
       bool changed = (parameters_iterator->second != parameters);
       parameters_iterator->second = parameters;
-      // Invoke the callback if set.
-      if (changed && on_rtp_send_parameters_changed_callback_) {
-        on_rtp_send_parameters_changed_callback_(ssrc, parameters);
+      if (changed) {
+        on_rtp_send_parameters_changed_callback_.Send(ssrc, parameters);
       }
       InvokeSetParametersCallback(callback, RTCError::OK());
       return RTCError::OK();
@@ -409,11 +409,16 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   }
 
   // Stuff that deals with encryptors, transformers and the like
-  void SetOnRtpSendParametersChanged(
+  void SubscribeRtpSendParametersChanged(
+      const void* tag,
       absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
           callback) override {
-    RTC_DCHECK(!on_rtp_send_parameters_changed_callback_);
-    on_rtp_send_parameters_changed_callback_ = std::move(callback);
+    on_rtp_send_parameters_changed_callback_.AddReceiver(tag,
+                                                         std::move(callback));
+  }
+
+  void UnsubscribeRtpSendParametersChanged(const void* tag) override {
+    on_rtp_send_parameters_changed_callback_.RemoveReceivers(tag);
   }
 
   void SetFrameEncryptor(uint32_t /* ssrc */,
@@ -488,7 +493,7 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   MediaChannelNetworkInterface* network_interface_ = nullptr;
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ = nullptr;
-  absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
+  mutable CallbackList<std::optional<uint32_t>, const RtpParameters&>
       on_rtp_send_parameters_changed_callback_;
 };
 
@@ -543,8 +548,8 @@ class FakeVoiceMediaReceiveChannel
   void SetDefaultRawAudioSink(
       std::unique_ptr<AudioSinkInterface> sink) override;
 
-  ::webrtc::RtcpMode RtcpMode() const override { return recv_rtcp_mode_; }
-  void SetRtcpMode(::webrtc::RtcpMode mode) override { recv_rtcp_mode_ = mode; }
+  webrtc::RtcpMode RtcpMode() const override { return recv_rtcp_mode_; }
+  void SetRtcpMode(webrtc::RtcpMode mode) override { recv_rtcp_mode_ = mode; }
   std::vector<RtpSource> GetSources(uint32_t ssrc) const override;
   void SetReceiveNackEnabled(bool /* enabled */) override {}
   void SetReceiveNonSenderRttEnabled(bool /* enabled */) override {}
@@ -580,7 +585,7 @@ class FakeVoiceMediaReceiveChannel
   std::map<uint32_t, std::unique_ptr<VoiceChannelAudioSink>> local_sinks_;
   std::unique_ptr<AudioSinkInterface> sink_;
   int max_bps_;
-  ::webrtc::RtcpMode recv_rtcp_mode_ = RtcpMode::kCompound;
+  webrtc::RtcpMode recv_rtcp_mode_ = RtcpMode::kCompound;
 };
 
 class FakeVoiceMediaSendChannel

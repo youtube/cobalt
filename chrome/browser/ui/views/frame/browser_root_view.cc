@@ -329,9 +329,10 @@ bool BrowserRootView::OnMouseWheel(const ui::MouseWheelEvent& event) {
   // TODO(dfried): See if it's possible to move this logic deeper into the view
   // hierarchy - ideally to HorizontalTabStripRegionView.
 
-  // Scroll-event-changes-tab is incompatible with scrolling tabstrip, so
+  // Scroll-event-changes-tab is incompatible with vertical tabstrip, so
   // disable it if the latter feature is enabled.
-  if (browser_defaults::kScrollEventChangesTab) {
+  if (browser_defaults::kScrollEventChangesTab &&
+      !browser_view_->ShouldDrawVerticalTabStrip()) {
     // Switch to the left/right tab if the wheel-scroll happens over the
     // tabstrip, or the empty space beside the tabstrip.
     views::View* hit_view = GetEventHandlerForPoint(event.location());
@@ -426,7 +427,7 @@ void BrowserRootView::PaintChildren(const views::PaintInfo& paint_info) {
   }
 
   views::View* tab_strip_view =
-      browser_view_->tab_strip_view()->GetViewByElementId(kTabStripElementId);
+      browser_view_->tab_strip_view()->GetTabStripView();
   CHECK(tab_strip_view);
 
   gfx::RectF tabstrip_bounds(tab_strip_view->GetLocalBounds());

@@ -28,6 +28,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -861,34 +862,33 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
 
 namespace {
 
-bool IsReadOnlyLengthDescriptor(Isolate* isolate,
-                                DirectHandle<Map> jsarray_map) {
-  DCHECK(!jsarray_map->is_dictionary_map());
-  Tagged<DescriptorArray> descriptors =
-      jsarray_map->instance_descriptors(isolate, kAcquireLoad);
+bool IsReadOnlyLengthDescriptor(JSHeapBroker* broker, MapRef jsarray_map) {
+  DCHECK(!jsarray_map.is_dictionary_map());
+  DescriptorArrayRef descriptors = jsarray_map.instance_descriptors(broker);
   static_assert(
       JSArray::kLengthOffset == JSObject::kHeaderSize,
       "The length should be the first property on the descriptor array");
   InternalIndex offset(0);
-  return descriptors->GetDetails(offset).IsReadOnly();
+  return descriptors.GetPropertyDetails(offset).IsReadOnly();
 }
 
 // Important: this predicate does not check Protectors::IsNoElementsIntact. The
 // compiler checks protectors through the compilation dependency mechanism; it
 // doesn't make sense to do that here as part of every MapData construction.
 // Callers *must* take care to take the correct dependency themselves.
-bool SupportsFastArrayIteration(JSHeapBroker* broker, DirectHandle<Map> map) {
-  return map->instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(map->elements_kind()) &&
-         IsJSArray(map->prototype()) &&
-         broker->IsArrayOrObjectPrototype(broker->CanonicalPersistentHandle(
-             Cast<JSArray>(map->prototype())));
+bool SupportsFastArrayIteration(JSHeapBroker* broker, MapRef map) {
+  if (map.instance_type() != JS_ARRAY_TYPE ||
+      !IsFastElementsKind(map.elements_kind())) {
+    return false;
+  }
+  HeapObjectRef prototype = map.prototype(broker);
+  return prototype.IsJSArray() &&
+         prototype.AsJSArray().IsArrayOrObjectPrototype(broker);
 }
 
-bool SupportsFastArrayResize(JSHeapBroker* broker, DirectHandle<Map> map) {
-  return SupportsFastArrayIteration(broker, map) && map->is_extensible() &&
-         !map->is_dictionary_map() &&
-         !IsReadOnlyLengthDescriptor(broker->isolate(), map);
+bool SupportsFastArrayResize(JSHeapBroker* broker, MapRef map) {
+  return SupportsFastArrayIteration(broker, map) && map.is_extensible() &&
+         !map.is_dictionary_map() && !IsReadOnlyLengthDescriptor(broker, map);
 }
 
 }  // namespace
@@ -1276,11 +1276,11 @@ bool MapRef::PrototypesElementsDoNotHaveAccessorsOrThrow(
 }
 
 bool MapRef::supports_fast_array_iteration(JSHeapBroker* broker) const {
-  return SupportsFastArrayIteration(broker, object());
+  return SupportsFastArrayIteration(broker, *this);
 }
 
 bool MapRef::supports_fast_array_resize(JSHeapBroker* broker) const {
-  return SupportsFastArrayResize(broker, object());
+  return SupportsFastArrayResize(broker, *this);
 }
 
 namespace {
@@ -1852,15 +1852,38 @@ MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
                                   object()->FindRootMap(broker->cage_base()));
 }
 
-ObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->GetConstructor());
+OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
+  // Keep in sync with Map::GetConstructor.
+  HeapObjectRef current = *this;
+  do {
+    // Follow any back pointers.
+    OptionalObjectRef maybe_ctor = TryMakeRef(
+        broker,
+        current.AsMap().object()->constructor_or_back_pointer(kRelaxedLoad));
+    if (!maybe_ctor.has_value()) return {};
+    current = maybe_ctor->AsHeapObject();
+  } while (current.IsMap());
+
+  if (current.IsTuple2()) {
+    // Get constructor from the {constructor, non-instance_prototype} tuple.
+    return current.AsTuple2().value1(broker);
+  }
+
+  return current;
 }
 
-HeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
+NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
   // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker,
-                                  Cast<HeapObject>(object()->GetBackPointer()));
+  return MakeRefAssumeMemoryFence(broker, object()->native_context());
+}
+
+OptionalHeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
+  // Keep in sync with Map::GetBackpointer.
+  OptionalObjectRef maybe_bptr =
+      TryMakeRef(broker, object()->constructor_or_back_pointer(kRelaxedLoad));
+  if (!maybe_bptr.has_value()) return {};
+  if (maybe_bptr->IsMap()) return maybe_bptr->AsMap();
+  return broker->undefined_value();
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
@@ -2266,6 +2289,14 @@ OptionalObjectRef SourceTextModuleRef::import_meta(JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->import_meta(kAcquireLoad));
 }
 
+OptionalObjectRef Tuple2Ref::value1(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->value1(kRelaxedLoad));
+}
+
+OptionalObjectRef Tuple2Ref::value2(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->value2(kRelaxedLoad));
+}
+
 OptionalMapRef HeapObjectRef::map_direct_read(JSHeapBroker* broker) const {
   PtrComprCageBase cage_base = broker->cage_base();
   return TryMakeRef(broker, object()->map(cage_base, kAcquireLoad),
@@ -2527,6 +2558,18 @@ OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
 
   return MapRef(broker->GetOrCreateData(
       maybe_object_create_map.GetHeapObjectAssumeWeak(), kAssumeMemoryFence));
+}
+
+bool JSObjectRef::IsArrayOrObjectPrototype(JSHeapBroker* broker) const {
+  MapRef map = this->map(broker);
+  if (map.instance_type() == JS_OBJECT_PROTOTYPE_TYPE) return true;
+  // Keep in sync with Isolate::IsInCreationContext:
+  MapRef metamap = map.map(broker);
+  // Filter out native-context independent objects.
+  if (*metamap.object() == GetReadOnlyRoots().meta_map()) return false;
+  OptionalNativeContextRef native_context = metamap.native_context(broker);
+  if (!native_context.has_value()) return false;
+  return native_context->initial_array_prototype(broker).equals(*this);
 }
 
 bool PropertyCellRef::Cache(JSHeapBroker* broker) const {

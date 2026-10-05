@@ -70,7 +70,6 @@
 #include "chrome/browser/chrome_content_browser_client_navigation_throttles.h"
 #include "chrome/browser/chrome_content_browser_client_parts.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
-#include "chrome/browser/content_settings/generated_javascript_optimizer_pref.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/data_saver/data_saver.h"
@@ -214,6 +213,7 @@
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/captive_portal/core/buildflags.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
+#include "components/content_settings/browser/ui/javascript_optimizer_setting.h"
 #include "components/content_settings/core/browser/content_settings_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -268,6 +268,7 @@
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/permissions/content_setting_permission_context_base.h"
 #include "components/policy/core/browser/url_list/policy_blocklist_service.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -509,6 +510,7 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_url_loader_factory_interceptor.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
@@ -711,7 +713,6 @@
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 #include "chrome/browser/on_device_translation/component_manager.h"
-#include "components/on_device_translation/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
@@ -985,13 +986,24 @@ GetRendererConfiguration(content::RenderProcessHost* render_process_host) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 bool ShouldHonorPolicies() {
+  bool management_check_required = false;
+
 #if BUILDFLAG(IS_WIN)
-  return policy::ManagementServiceFactory::GetForPlatform()
-             ->GetManagementAuthorityTrustworthiness() >=
-         policy::ManagementAuthorityTrustworthiness::TRUSTED;
-#else
-  return true;
+  management_check_required = true;
+#elif BUILDFLAG(IS_MAC)
+  if (base::FeatureList::GetInstance() &&
+      base::FeatureList::IsEnabled(
+          policy::features::kUseManagementServiceForSensitivePolicies)) {
+    management_check_required = true;
+  }
 #endif
+
+  if (management_check_required) {
+    return policy::ManagementServiceFactory::GetForPlatform()
+               ->GetManagementAuthorityTrustworthiness() >=
+           policy::ManagementAuthorityTrustworthiness::TRUSTED;
+  }
+  return true;
 }
 
 // Used by Enterprise policy. Disable blocking of navigations toward external
@@ -1451,9 +1463,6 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
   registry->RegisterListPref(prefs::kSSLErrorOverrideAllowedForOrigins);
   registry->RegisterBooleanPref(prefs::kCompressionDictionaryTransportEnabled,
                                 true);
-#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
-  registry->RegisterBooleanPref(prefs::kTranslatorAPIAllowed, true);
-#endif
   registry->RegisterBooleanPref(
       prefs::kSuppressDifferentOriginSubframeJSDialogs, true);
 #if BUILDFLAG(IS_ANDROID)
@@ -6391,6 +6400,12 @@ void ChromeContentBrowserClient::WillCreateURLLoaderFactory(
   }
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    contextual_tasks::MaybeInterceptURLLoaderFactory(frame, factory_builder);
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // WARNING: This must be the last interceptor in the chain as the proxying
   // URLLoaderFactory installed by this needs to be the one actually sending
   // packets over the network (to effectively target `bound_network`).
@@ -7634,6 +7649,16 @@ void ChromeContentBrowserClient::IsClipboardCopyAllowedByPolicy(
 #endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS) && !BUILDFLAG(IS_ANDROID)
 }
 
+bool ChromeContentBrowserClient::IsDragAllowedByPolicy(
+    const content::ClipboardEndpoint& source,
+    const content::DropData& drop_data) {
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+  return enterprise_data_protection::IsDragAllowedByPolicy(source, drop_data);
+#else
+  return true;
+#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+}
+
 #if BUILDFLAG(ENABLE_VR)
 content::XrIntegrationClient*
 ChromeContentBrowserClient::GetXrIntegrationClient() {
@@ -8226,23 +8251,6 @@ bool ChromeContentBrowserClient::AreIsolatedWebAppsEnabled(
 #else  // BUILDFLAG(IS_ANDROID)
   return false;
 #endif
-}
-
-bool ChromeContentBrowserClient::IsThirdPartyStoragePartitioningAllowed(
-    content::BrowserContext* browser_context,
-    const url::Origin& top_level_origin) {
-  const HostContentSettingsMap* const content_settings =
-      HostContentSettingsMapFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context));
-  if (!content_settings) {
-    // We fail permissive as this function is used to check whether partitioning
-    // should be blocked, but isn't the final word on if it's allowed.
-    return true;
-  }
-  return content_settings->GetContentSetting(
-             top_level_origin.GetURL(), top_level_origin.GetURL(),
-             ContentSettingsType::THIRD_PARTY_STORAGE_PARTITIONING) ==
-         CONTENT_SETTING_ALLOW;
 }
 
 bool ChromeContentBrowserClient::AreDeprecatedAutomaticBeaconCredentialsAllowed(

@@ -158,9 +158,7 @@ class TestReportingContext : public ReportingContext {
       base::Clock* clock,
       const base::TickClock* tick_clock,
       const ReportingPolicy& policy,
-      ReportingCache::PersistentReportingStore* store = nullptr,
-      const base::flat_map<std::string, GURL>& enterprise_reporting_endpoints =
-          {});
+      ReportingCache::PersistentReportingStore* store = nullptr);
 
   TestReportingContext(const TestReportingContext&) = delete;
   TestReportingContext& operator=(const TestReportingContext&) = delete;
@@ -346,9 +344,6 @@ class TestReportingService : public ReportingService {
       const url::Origin& origin,
       const IsolationInfo& isolation_info,
       const base::flat_map<std::string, std::string>& endpoints) override {}
-
-  void SetEnterpriseReportingEndpoints(
-      const base::flat_map<std::string, GURL>& endpoints) override {}
 
   void SendReportsAndRemoveSource(
       const base::UnguessableToken& reporting_source) override {}

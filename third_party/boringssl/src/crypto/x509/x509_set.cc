@@ -21,6 +21,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 long X509_get_version(const X509 *x509) { return x509->version; }
 
 int X509_set_version(X509 *x, long version) {

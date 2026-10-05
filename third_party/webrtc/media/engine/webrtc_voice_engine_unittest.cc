@@ -917,8 +917,8 @@ TEST_P(WebRtcVoiceEngineTestFake, OnRtpSendParametersChangedCallback) {
   std::optional<uint32_t> callback_ssrc;
   RtpParameters callback_params;
   int callback_count = 0;
-  send_channel_->SetOnRtpSendParametersChanged(
-      [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
+  send_channel_->SubscribeRtpSendParametersChanged(
+      this, [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
         callback_ssrc = ssrc;
         callback_params = params;
         ++callback_count;
@@ -934,6 +934,8 @@ TEST_P(WebRtcVoiceEngineTestFake, OnRtpSendParametersChangedCallback) {
   EXPECT_EQ(callback_count, 1);
   EXPECT_EQ(callback_ssrc, kSsrcX);  // SetupSendStream adds kSsrcX.
   EXPECT_EQ(callback_params.encodings[0].max_bitrate_bps, 132000);
+
+  send_channel_->UnsubscribeRtpSendParametersChanged(this);
 }
 
 INSTANTIATE_TEST_SUITE_P(TestBothWithAndWithoutNullApm,

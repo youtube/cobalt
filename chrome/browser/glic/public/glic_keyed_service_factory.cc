@@ -10,12 +10,13 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
-#include "extensions/browser/api/declarative/rules_registry_service.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "extensions/browser/api/declarative/rules_registry_service.h"
 #endif
 
 namespace glic {
@@ -40,8 +41,9 @@ GlicKeyedServiceFactory::GlicKeyedServiceFactory()
           BrowserContextDependencyManager::GetInstance()) {
   DependsOn(IdentityManagerFactory::GetInstance());
 #if !BUILDFLAG(IS_ANDROID)
-  DependsOn(ThemeServiceFactory::GetInstance());
-  DependsOn(contextual_cueing::ContextualCueingServiceFactory::GetInstance());
+  DependsOn(ThemeServiceFactory::GetInstance());  // NEEDS_ANDROID_IMPL
+  DependsOn(contextual_cueing::ContextualCueingServiceFactory::
+                GetInstance());  // NEEDS_ANDROID_IMPL
   DependsOn(actor::ActorKeyedServiceFactory::GetInstance());
 #endif
   DependsOn(subscription_eligibility::SubscriptionEligibilityServiceFactory::

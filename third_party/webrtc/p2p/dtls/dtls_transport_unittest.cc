@@ -475,9 +475,13 @@ class FakeSSLStreamAdapter : public SSLStreamAdapter {
   bool GetSslVersionBytes(int* version) const override {
     return impl_->GetSslVersionBytes(version);
   }
-  bool ExportSrtpKeyingMaterial(
+  [[deprecated]] bool ExportSrtpKeyingMaterial(
       ZeroOnFreeBuffer<uint8_t>& keying_material) override {
     return impl_->ExportSrtpKeyingMaterial(keying_material);
+  }
+  bool AppendSrtpKeyingMaterial(
+      ZeroOnFreeBuffer<uint8_t>& keying_material) override {
+    return impl_->AppendSrtpKeyingMaterial(keying_material);
   }
   uint16_t GetPeerSignatureAlgorithm() const override {
     return impl_->GetPeerSignatureAlgorithm();
@@ -866,19 +870,10 @@ TEST_F(DtlsTransportInternalImplTest, KeyingMaterialExporter) {
   PrepareDtls(KT_DEFAULT);
   ASSERT_TRUE(Connect());
 
-  int crypto_suite;
-  EXPECT_TRUE(client1_.dtls_transport()->GetSrtpCryptoSuite(&crypto_suite));
-  int key_len;
-  int salt_len;
-  EXPECT_TRUE(GetSrtpKeyAndSaltLengths(crypto_suite, &key_len, &salt_len));
-  ZeroOnFreeBuffer<uint8_t> client1_out =
-      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
-          2 * (key_len + salt_len));
-  ZeroOnFreeBuffer<uint8_t> client2_out =
-      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
-          2 * (key_len + salt_len));
-  EXPECT_TRUE(client1_.dtls_transport()->ExportSrtpKeyingMaterial(client1_out));
-  EXPECT_TRUE(client2_.dtls_transport()->ExportSrtpKeyingMaterial(client2_out));
+  ZeroOnFreeBuffer<uint8_t> client1_out;
+  ZeroOnFreeBuffer<uint8_t> client2_out;
+  EXPECT_TRUE(client1_.dtls_transport()->AppendSrtpKeyingMaterial(client1_out));
+  EXPECT_TRUE(client2_.dtls_transport()->AppendSrtpKeyingMaterial(client2_out));
   EXPECT_EQ(client1_out, client2_out);
 }
 

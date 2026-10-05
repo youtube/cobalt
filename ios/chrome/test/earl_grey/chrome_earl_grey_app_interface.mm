@@ -6,12 +6,12 @@
 
 #import <WebKit/WebKit.h>
 
+#import <algorithm>
 #import <string>
 
 #import "base/apple/foundation_util.h"
 #import "base/barrier_closure.h"
 #import "base/command_line.h"
-#import "base/containers/contains.h"
 #import "base/files/file.h"
 #import "base/files/file_util.h"
 #import "base/ios/ios_util.h"
@@ -274,11 +274,6 @@ NSString* GetIdForWebState(web::WebState* web_state) {
 + (void)startReloading {
   WebNavigationBrowserAgent::FromBrowser(chrome_test_util::GetMainBrowser())
       ->Reload();
-}
-
-+ (void)openURLFromExternalApp:(NSString*)URL {
-  chrome_test_util::OpenChromeFromExternalApp(
-      GURL(base::SysNSStringToUTF8(URL)));
 }
 
 + (void)dismissSettings {
@@ -1186,7 +1181,7 @@ NSString* GetIdForWebState(web::WebState* web_state) {
   std::vector<variations::VariationID> ids = provider->GetVariationsVector(
       {variations::GOOGLE_WEB_PROPERTIES_ANY_CONTEXT,
        variations::GOOGLE_WEB_PROPERTIES_FIRST_PARTY});
-  return base::Contains(ids, variationID);
+  return std::ranges::contains(ids, variationID);
 }
 
 + (BOOL)isTriggerVariationEnabled:(int)variationID {
@@ -1195,7 +1190,7 @@ NSString* GetIdForWebState(web::WebState* web_state) {
   std::vector<variations::VariationID> ids = provider->GetVariationsVector(
       {variations::GOOGLE_WEB_PROPERTIES_TRIGGER_ANY_CONTEXT,
        variations::GOOGLE_WEB_PROPERTIES_TRIGGER_FIRST_PARTY});
-  return base::Contains(ids, variationID);
+  return std::ranges::contains(ids, variationID);
 }
 
 + (BOOL)isUKMEnabled {

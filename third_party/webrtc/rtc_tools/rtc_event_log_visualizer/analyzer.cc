@@ -1584,14 +1584,30 @@ void EventLogAnalyzer::CreateScreamSimulationBitrateGraph(Plot* plot) const {
 }
 
 void EventLogAnalyzer::CreateScreamSimulationRefWindowGraph(Plot* plot) const {
+  using SendWindowUsage = LogScreamSimulation::State::SendWindowUsage;
   TimeSeries ref_window_series("RefWindow", LineStyle::kStep);
   TimeSeries ref_window_i_series("RefWindowI", LineStyle::kStep);
   TimeSeries max_data_in_flight("Max allowed data in flight", LineStyle::kStep);
   TimeSeries data_in_flight("Data in flight", LineStyle::kStep);
+  IntervalSeries send_window_above_max_series(
+      "Data in flight > Max allowed", "#ff8e82", IntervalSeries::kHorizontal);
+  IntervalSeries send_window_below_ref_window_series(
+      "Data in flight < RefWindow", "#c5dff2", IntervalSeries::kHorizontal);
+  IntervalSeries send_window_above_ref_window_series(
+      "Data in flight >= RefWindow", "#b9fad8", IntervalSeries::kHorizontal);
+  IntervalSeries* last_series = &send_window_below_ref_window_series;
 
   LogScreamSimulation simulation({.rate_window = config_.window_duration_},
                                  env_);
   simulation.ProcessEventsInLog(parsed_log_);
+  if (simulation.updates().empty()) {
+    RTC_LOG(LS_ERROR) << "Empty simulation.";
+    return;
+  }
+
+  float send_window_state_switch =
+      config_.GetCallTimeSec(simulation.updates().front().time);
+  SendWindowUsage send_window_usage = SendWindowUsage::kBelowRefWindow;
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
     ref_window_series.points.emplace_back(config_.GetCallTimeSec(state.time),
@@ -1602,11 +1618,33 @@ void EventLogAnalyzer::CreateScreamSimulationRefWindowGraph(Plot* plot) const {
                                            state.max_data_in_flight.bytes());
     data_in_flight.points.emplace_back(config_.GetCallTimeSec(state.time),
                                        state.data_in_flight.bytes());
+    if (state.send_window_usage != send_window_usage) {
+      last_series->intervals.emplace_back(send_window_state_switch,
+                                          config_.GetCallTimeSec(state.time));
+      send_window_usage = state.send_window_usage;
+      send_window_state_switch = config_.GetCallTimeSec(state.time);
+      switch (send_window_usage) {
+        case SendWindowUsage::kAboveRefWindow:
+          last_series = &send_window_above_ref_window_series;
+          break;
+        case SendWindowUsage::kBelowRefWindow:
+          last_series = &send_window_below_ref_window_series;
+          break;
+        case SendWindowUsage::kAboveScreamMax:
+          last_series = &send_window_above_max_series;
+          break;
+      }
+    }
   }
+  last_series->intervals.emplace_back(send_window_state_switch,
+                                      config_.CallEndTimeSec());
   plot->AppendTimeSeries(std::move(ref_window_series));
   plot->AppendTimeSeries(std::move(ref_window_i_series));
   plot->AppendTimeSeries(std::move(max_data_in_flight));
   plot->AppendTimeSeries(std::move(data_in_flight));
+  plot->AppendIntervalSeries(std::move(send_window_above_max_series));
+  plot->AppendIntervalSeries(std::move(send_window_below_ref_window_series));
+  plot->AppendIntervalSeries(std::move(send_window_above_ref_window_series));
 
   plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
                  "Time (s)", kLeftMargin, kRightMargin);

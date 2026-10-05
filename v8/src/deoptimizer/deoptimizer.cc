@@ -571,12 +571,10 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
 
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
-#if V8_ENABLE_WEBASSEMBLY
   // TODO(mliedtke,415707239): Ideally we'd only reset this when destroying this
   // object, however when calling the WasmLiftoffDeoptFinish builtin, we read
   // from the heap (probably in DEBUG-only code).
-  deoptimizer->no_sandbox_access_during_wasm_deopt_.reset();
-#endif
+  deoptimizer->disallow_sandbox_access_.reset();
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
@@ -635,12 +633,17 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   disallow_garbage_collection_ = new DisallowGarbageCollection();
 #endif  // DEBUG
 
+  // From now on we should not be accessing any in-sandbox data as all deopt
+  // data is trusted and so stored outside the heap.
+  if (!tracing_enabled()) {
+    // When tracing is enabled, we will print a lot of in-sandbox objects. To
+    // avoid needing many AllowSandboxAccess scopes for those, we disable
+    // no-sandbox-access enforcement when tracing is enabled.
+    disallow_sandbox_access_.emplace("No sandbox access during deopt");
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
-    // From now on we should not be accessing any in-sandbox data as all deopt
-    // data is trusted and so stored outside the heap.
-    no_sandbox_access_during_wasm_deopt_.emplace();
-
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
     compiled_optimized_wasm_code_ = code;
@@ -688,7 +691,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   DCHECK(!compiled_code_.is_null());
   DCHECK(IsCode(compiled_code_));
 
-  DCHECK(IsJSFunction(function));
+  DCHECK_WITH_SANDBOX_ACCESS(IsJSFunction(function));
   CHECK(CodeKindCanDeoptimize(compiled_code_->kind()));
   {
     HandleScope scope(isolate_);
@@ -697,8 +700,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count = compiled_code_->parameter_count();
-  DCHECK_EQ(
-      parameter_count,
+  DCHECK_WITH_SANDBOX_ACCESS(
+      parameter_count ==
       function->shared()->internal_formal_parameter_count_with_receiver());
   input_ = FrameDescription::Create(size, parameter_count, isolate_);
 
@@ -718,9 +721,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                     static_cast<int>(kLastDeoptimizeKind),
                 "lazy deopts are expected to be emitted last");
   // from_ is the value of the link register after the call to the
-  // deoptimizer, so for the last lazy deopt, from_ points to the first
-  // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
-  // the first deopt with resume entry.
+  // deoptimizer, so for the last eager deopt, from_ points to the first
+  // lazy deopt, so we use <=
   if (from_ <= lazy_deopt_start) {
     DCHECK_EQ(kind, DeoptimizeKind::kEager);
     int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
@@ -1447,9 +1449,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
       wasm::declared_function_index(native_module->module(), code->index());
   {
     // We're running under a DisallowSandboxAccess scope, which also removes
-    // write access into the sandbox. As such, we need to temporarily allow
-    // sandbox access for this store.
-    AllowSandboxAccess sandbox_access_for_write;
+    // write access into the sandbox.
+    AllowSandboxAccess sandbox_access_for_write(
+        "Writing in-sandbox tiering budget. Not reading any untrusted data.");
     wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
   }
@@ -1708,59 +1710,66 @@ void Deoptimizer::DoComputeOutputFrames() {
 #endif  // V8_ENABLE_RISCV_SHADOW_STACK
 
   // Determine if the code object must be replaced or not.
-  if (IsJSFunction(function_)) {
-    code_validity_ = CodeValidity::kUnaffected;
-    // Lazy deopts don't invalidate the underlying optimized code since the code
-    // object itself is still valid (as far as we know); the called function
-    // caused the deopt, not the function we're currently looking at.
-    if (deopt_kind_ == DeoptimizeKind::kEager &&
-        !IsDeoptimizationWithoutCodeInvalidation(GetDeoptInfo().deopt_reason) &&
-        !compiled_code_->marked_for_deoptimization()) {
-      if (compiled_code_->osr_offset().IsNone()) {
-        // TODO(saelo): We have to use full pointer comparisons here while not
-        // all Code objects have been migrated into trusted space.
-        static_assert(!kAllCodeObjectsLiveInTrustedSpace);
-        if (function_->code(isolate()).SafeEquals(compiled_code_)) {
-          // Deopting code is the currently active tier.
-          code_validity_ = CodeValidity::kInvalidated;
-        }
-      } else {
-        DCHECK_NE(GetDeoptInfo().deopt_reason, DeoptimizeReason::kOSREarlyExit);
-        if (DeoptExitIsInsideOsrLoop(
-                isolate(), function_, bytecode_offset_in_outermost_frame_,
-                compiled_code_->osr_offset(), compiled_code_->kind())) {
-          // Deopting inside OSR loop.
-          // TODO(olivf): We should also check if this osr code is actually the
-          // active one.
-          code_validity_ = CodeValidity::kInvalidatedOsr;
-        }
-      }
-    }
-
-    // Only invalidated code affects tiering decisions.
-    if (code_validity_ != CodeValidity::kUnaffected) {
-      if (v8_flags.profile_guided_optimization &&
-          function_->shared()->cached_tiering_decision() !=
-              CachedTieringDecision::kDelayMaglev) {
-        if (DeoptimizedMaglevvedCodeEarly(isolate(), function_,
-                                          compiled_code_)) {
-          function_->shared()->set_cached_tiering_decision(
-              CachedTieringDecision::kDelayMaglev);
+  {
+    AllowSandboxAccess sandbox_access(
+        "Sandbox access for tiering decisions. These only affect the state of "
+        "the in-sandbox JSFunction object.");
+    if (IsJSFunction(function_)) {
+      code_validity_ = CodeValidity::kUnaffected;
+      // Lazy deopts don't invalidate the underlying optimized code since the
+      // code object itself is still valid (as far as we know); the called
+      // function caused the deopt, not the function we're currently looking at.
+      if (deopt_kind_ == DeoptimizeKind::kEager &&
+          !IsDeoptimizationWithoutCodeInvalidation(
+              GetDeoptInfo().deopt_reason) &&
+          !compiled_code_->marked_for_deoptimization()) {
+        if (compiled_code_->osr_offset().IsNone()) {
+          // TODO(saelo): We have to use full pointer comparisons here while not
+          // all Code objects have been migrated into trusted space.
+          static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+          if (function_->code(isolate()).SafeEquals(compiled_code_)) {
+            // Deopting code is the currently active tier.
+            code_validity_ = CodeValidity::kInvalidated;
+          }
         } else {
-          function_->shared()->set_cached_tiering_decision(
-              CachedTieringDecision::kNormal);
+          DCHECK_NE(GetDeoptInfo().deopt_reason,
+                    DeoptimizeReason::kOSREarlyExit);
+          if (DeoptExitIsInsideOsrLoop(
+                  isolate(), function_, bytecode_offset_in_outermost_frame_,
+                  compiled_code_->osr_offset(), compiled_code_->kind())) {
+            // Deopting inside OSR loop.
+            // TODO(olivf): We should also check if this osr code is actually
+            // the active one.
+            code_validity_ = CodeValidity::kInvalidatedOsr;
+          }
         }
       }
 
-      function_->ResetTieringRequests();
-      // This allows us to quickly re-spawn a new compilation request even if
-      // there is already one running. In particular it helps to squeeze in a
-      // maglev compilation when there is a long running turbofan one that was
-      // started right before the deopt.
-      function_->SetTieringInProgress(isolate_, false);
-      function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
-                                    CodeKind::INTERPRETED_FUNCTION);
-      function_->feedback_vector()->set_was_once_deoptimized();
+      // Only invalidated code affects tiering decisions.
+      if (code_validity_ != CodeValidity::kUnaffected) {
+        if (v8_flags.profile_guided_optimization &&
+            function_->shared()->cached_tiering_decision() !=
+                CachedTieringDecision::kDelayMaglev) {
+          if (DeoptimizedMaglevvedCodeEarly(isolate(), function_,
+                                            compiled_code_)) {
+            function_->shared()->set_cached_tiering_decision(
+                CachedTieringDecision::kDelayMaglev);
+          } else {
+            function_->shared()->set_cached_tiering_decision(
+                CachedTieringDecision::kNormal);
+          }
+        }
+
+        function_->ResetTieringRequests();
+        // This allows us to quickly re-spawn a new compilation request even if
+        // there is already one running. In particular it helps to squeeze in a
+        // maglev compilation when there is a long running turbofan one that
+        // was started right before the deopt.
+        function_->SetTieringInProgress(isolate_, false);
+        function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
+                                      CodeKind::INTERPRETED_FUNCTION);
+        function_->feedback_vector()->set_was_once_deoptimized();
+      }
     }
   }
 
@@ -1908,11 +1917,16 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
-  std::optional<Tagged<DebugInfo>> debug_info =
-      translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
-  if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-    // TODO(leszeks): Validate this bytecode.
-    bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
+  {
+    AllowSandboxAccess sandbox_access(
+        "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
+        "only do it when debugging is enabled. See the TODO below");
+    std::optional<Tagged<DebugInfo>> debug_info =
+        translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
+    if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+      // TODO(leszeks): Validate this bytecode.
+      bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
+    }
   }
 
   // Allocate and store the output frame description.

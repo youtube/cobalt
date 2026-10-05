@@ -10,27 +10,51 @@
 
 #include "call/rtx_receive_stream.h"
 
-
 #include <cstdint>
 #include <map>
+#include <memory>
+#include <optional>
 #include <utility>
 
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "call/rtp_packet_sink_interface.h"
+#include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
 
+// Deprecated, don't use.
 RtxReceiveStream::RtxReceiveStream(
     RtpPacketSinkInterface* media_sink,
     std::map<int, int> associated_payload_types,
     uint32_t media_ssrc,
     ReceiveStatistics* rtp_receive_statistics /* = nullptr */)
-    : media_sink_(media_sink),
+    : env_(std::nullopt),
+      media_sink_(media_sink),
+      associated_payload_types_(std::move(associated_payload_types)),
+      media_ssrc_(media_ssrc),
+      rtp_receive_statistics_(rtp_receive_statistics) {
+  packet_checker_.Detach();
+  if (associated_payload_types_.empty()) {
+    RTC_LOG(LS_WARNING)
+        << "RtxReceiveStream created with empty payload type mapping.";
+  }
+}
+
+RtxReceiveStream::RtxReceiveStream(
+    const Environment& env,
+    RtpPacketSinkInterface* media_sink,
+    std::map<int, int> associated_payload_types,
+    uint32_t media_ssrc,
+    ReceiveStatistics* rtp_receive_statistics /* = nullptr */)
+    : env_(env),
+      media_sink_(media_sink),
       associated_payload_types_(std::move(associated_payload_types)),
       media_ssrc_(media_ssrc),
       rtp_receive_statistics_(rtp_receive_statistics) {
@@ -57,6 +81,7 @@ void RtxReceiveStream::OnRtpPacket(const RtpPacketReceived& rtx_packet) {
   ArrayView<const uint8_t> payload = rtx_packet.payload();
 
   if (payload.size() < kRtxHeaderSize) {
+    LogRtpPacketToEventLog(rtx_packet, /*osn=*/std::nullopt);
     return;
   }
 
@@ -65,21 +90,39 @@ void RtxReceiveStream::OnRtpPacket(const RtpPacketReceived& rtx_packet) {
     RTC_DLOG(LS_VERBOSE) << "Unknown payload type "
                          << static_cast<int>(rtx_packet.PayloadType())
                          << " on rtx ssrc " << rtx_packet.Ssrc();
+    LogRtpPacketToEventLog(rtx_packet, /*osn=*/std::nullopt);
     return;
   }
+
+  RTC_DCHECK_GE(payload.size(), 2);
+  // The RTX payload header is two bytes that represents the original sequence
+  // number ('osn') of the associated original packet.
+  // https://datatracker.ietf.org/doc/html/rfc4588#section-4
+  uint16_t osn = (payload[0] << 8) + payload[1];
+  LogRtpPacketToEventLog(rtx_packet, osn);
+
   RtpPacketReceived media_packet;
   media_packet.CopyHeaderFrom(rtx_packet);
 
   media_packet.SetSsrc(media_ssrc_);
-  media_packet.SetSequenceNumber((payload[0] << 8) + payload[1]);
+  media_packet.SetSequenceNumber(osn);
   media_packet.SetPayloadType(it->second);
   media_packet.set_recovered(true);
   media_packet.set_arrival_time(rtx_packet.arrival_time());
 
-  // Skip the RTX header.
+  // Skip the RTX payload header.
   media_packet.SetPayload(payload.subview(kRtxHeaderSize));
 
   media_sink_->OnRtpPacket(media_packet);
+}
+
+void RtxReceiveStream::LogRtpPacketToEventLog(const RtpPacketReceived& packet,
+                                              std::optional<uint16_t> osn) {
+  if (!env_) {
+    return;
+  }
+  env_->event_log().Log(
+      std::make_unique<RtcEventRtpPacketIncoming>(packet, osn));
 }
 
 }  // namespace webrtc

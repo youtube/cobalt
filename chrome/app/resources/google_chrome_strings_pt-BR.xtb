@@ -356,6 +356,7 @@
 <translation id="4885446229353981848">Sempre mostrar o atalho do Google Lens</translation>
 <translation id="4891791193823137474">Executar o Google Chrome em segundo plano</translation>
 <translation id="4895437082222824641">Abrir link em nova &amp;guia do Chrome</translation>
+<translation id="4918086044614829423">Aceitar</translation>
 <translation id="4918844574251943176">Imagem copiada</translation>
 <translation id="4926882258455737990">Para usar outra Conta do Google com o Gemini no Chrome, <ph name="BEGIN_LINK" />crie um novo perfil<ph name="END_LINK" /> e faça login com a conta desejada</translation>
 <translation id="492720062778050435">O Chrome recomenda que você verifique essa extensão.</translation>
@@ -369,6 +370,7 @@
 <translation id="5003967926796347400">Clique em "Gerenciador de senhas do Google"</translation>
 <translation id="5043786843026425788">Saiba mais sobre como pesquisar com o Google Lens no Chrome</translation>
 <translation id="504867494566807945">Abra links no Chrome a partir de qualquer app. E para facilitar o acesso, ele fica fixado na barra de tarefas.</translation>
+<translation id="5105120510934353742">Para receber as próximas atualizações do Google Chrome, você vai precisar do macOS 13 ou versão mais recente. Este computador está usando o macOS 12.</translation>
 <translation id="5114340746415930644">Digite a senha longa para usar e salvar os dados do Chrome na sua conta <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Fazer login no Chrome ao acessar Serviços do Google</translation>
 <translation id="5126049312684316860">O Chrome pré-carrega mais páginas que você provavelmente vai visitar para que elas sejam carregadas mais rapidamente ao serem acessadas</translation>
@@ -423,6 +425,7 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">Não foi possível se conectar à Internet. O servidor proxy requer autenticação.</translation>
 <translation id="5709557627224531708">Defina o Chrome como seu navegador padrão</translation>
+<translation id="5719246646468301581">Termos adicionais de Serviço do Google Chrome e do ChromeOS</translation>
 <translation id="5719324992913248873">Essa ação vai:
         <ph name="LINE_BREAKS" />
           • redefinir alguns atalhos e configurações do Chrome;
@@ -503,6 +506,7 @@
 <translation id="6326175484149238433">Remover do Google Chrome</translation>
 <translation id="6327105987658262776">Nenhuma atualização disponível.</translation>
 <translation id="6334815226785304306">Definir o Google Chrome como navegador padrão e fixar na barra de tarefas</translation>
+<translation id="63540178978900677">O Chrome não é mais seu navegador padrão. Definir o Chrome como navegador padrão?</translation>
 <translation id="6360449101159168105">Enquanto esta guia estava inativa, a memória foi liberada para manter o Chrome rápido. Você pode optar por sempre excluir este site do status de inatividade.</translation>
 <translation id="6388799252195623474">me ajude com isso</translation>
 <translation id="6412673304250309937">Verifica se os URLs estão em uma lista de sites não seguros armazenada no Chrome. Se um site tentar roubar sua senha ou se você fizer o download de um arquivo nocivo, o Chrome também poderá enviar URLs, incluindo partes do conteúdo da página, para o "Navegação segura".</translation>
@@ -704,6 +708,9 @@
 <translation id="8418845734693287262">O ChromeOS não pôde sincronizar seus dados porque os detalhes de login da sua conta estão desatualizados.</translation>
 <translation id="842386925677997438">Ferramentas de segurança do Chrome</translation>
 <translation id="8425765582779547329">Para usar as configurações escolhidas pelos seus familiares responsáveis e ter mais segurança on-line, faça login no Chrome</translation>
+<translation id="842852285618875960">Você atingiu o limite de <ph name="BOOKMARK_LIMIT" /> favoritos no Google Chrome. Por isso, alguns favoritos ainda não foram salvos na sua Conta do Google.
+
+Exclua alguns dos favoritos da sua conta para poder salvar novos. Se você sair agora, os favoritos que não foram salvos serão excluídos.</translation>
 <translation id="8433638294851456451">Para enviar um número daqui para seu smartphone Android, faça login no Chrome nos dois dispositivos.</translation>
 <translation id="8496177819998570653">Gerenciador de senhas do Google</translation>
 <translation id="8498858610309223613">Uma atualização especial de segurança para o Google Chrome acabou de ser aplicada. Reinicie agora, e suas guias serão restauradas.</translation>

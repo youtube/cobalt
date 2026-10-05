@@ -45,6 +45,16 @@ class MockPacketSocketFactory : public PacketSocketFactory {
               CreateAsyncDnsResolver,
               (),
               (override));
+
+  MOCK_METHOD(std::unique_ptr<AsyncPacketSocket>,
+              CreateClientUdpSocket,
+              (const Environment&,
+               const SocketAddress&,
+               const SocketAddress&,
+               uint16_t,
+               uint16_t,
+               const PacketSocketTcpOptions&),
+              (override));
 };
 
 static_assert(!std::is_abstract_v<MockPacketSocketFactory>, "");

@@ -24,6 +24,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
                                       const X509_NAME *name);
 static X509_OBJECT *X509_OBJECT_retrieve_by_subject(STACK_OF(X509_OBJECT) *h,

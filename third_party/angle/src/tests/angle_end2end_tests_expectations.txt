@@ -126,7 +126,6 @@
 42266963 WIN NVIDIA OPENGL : PbufferTest.BindTexImageOverwriteNoCrashOnReleaseTexImage/* = SKIP
 42266963 WIN NVIDIA GLES : PbufferTest.UseAsFramebufferColorThenDeferredDestroy/* = SKIP
 42266963 WIN NVIDIA OPENGL : PbufferTest.UseAsFramebufferColorThenDeferredDestroy/* = SKIP
-377537290 WIN D3D11 : ReadPixelsMultisampleTest.DefaultFramebufferPBO/* = SKIP
 234602034 WIN INTEL D3D9 : ImageTest.SourceCubeAndSameTargetTextureWithEachCubeFace/* = SKIP
 234602034 WIN NVIDIA D3D9 : ImageTest.SourceCubeAndSameTargetTextureWithEachCubeFace/* = SKIP
 42266127 WIN INTEL OPENGL : StateChangeTestES3.LogicOp/* = SKIP
@@ -932,7 +931,9 @@
 40096874 IOS METAL : PixelLocalStorageTest.RGBA8/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.RGBA8_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.RasterizerDiscard/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+474583528 IOS METAL : PixelLocalStorageTest.Texture2DArrayMultipleLayers/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.TextureCubeFaces/* = SKIP
+474583528 IOS METAL : PixelLocalStorageTest.TextureCubeMultipleFaces/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096874 IOS METAL : PixelLocalStorageTest.TextureLevelsAndLayers/* = SKIP
 40096874 IOS METAL : PointSpritesTest.PointSizeAboveMaxIsClamped/* = SKIP
 40096874 IOS METAL : RobustBufferAccessWebGL2ValidationStateChangeTest.BindZeroSizeBufferThenDeleteBufferBug/* = SKIP
@@ -1174,6 +1175,7 @@
 // Adreno drivers erroneously reject certain sub-image uploads
 42265943 PIXEL4ORXL GLES : CompressedTextureASTCTest.Test/* = SKIP
 42265943 PIXEL4ORXL GLES : CompressedTextureASTCSliced3DTest.Test/* = SKIP
+42265943 PIXEL4ORXL GLES : CompressedTextureASTC3DTest.Test/* = SKIP
 42265943 PIXEL4ORXL GLES : CompressedTextureETC1SubTest.Test/* = SKIP
 42265943 PIXEL4ORXL GLES : CompressedTextureEACR11STest.Test/* = SKIP
 42265943 PIXEL4ORXL GLES : CompressedTextureEACR11UTest.Test/* = SKIP

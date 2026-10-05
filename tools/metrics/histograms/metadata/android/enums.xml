@@ -89,6 +89,13 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="FALLBACK_ON_TIMEOUT_UNSANDBOXED"/>
 </enum>
 
+<enum name="AndroidChildProcessConnectionServiceNames">
+  <int value="0" label="JavaSandboxed"/>
+  <int value="1" label="NativeOnlySandboxed"/>
+  <int value="2" label="Privileged"/>
+  <int value="3" label="Other"/>
+</enum>
+
 <!-- LINT.IfChange(AndroidDefaultBrowserState) -->
 
 <enum name="AndroidDefaultBrowserPromoOutcomeType">
@@ -692,7 +699,7 @@ chromium-metrics-reviews@google.com.
   <int value="158" label="BackForwardCacheSettings.getMaxPagesInCache"/>
   <int value="159" label="Profile.preconnect"/>
   <int value="160" label="WebSettingsCompat.setHyperlinkContextMenuItems"/>
-  <int value="161" label="Page.isPrerendering"/>
+  <int value="161" label="Page.isPrerendering (deprecated)"/>
   <int value="162" label="Profile.addCustomHeader"/>
   <int value="163" label="Profile.getCustomHeaders"/>
   <int value="164" label="WebSettingsCompat.setRendererLibraryPrefetchMode"/>
@@ -702,6 +709,7 @@ chromium-metrics-reviews@google.com.
   <int value="168" label="WebSettingsCompat.addWebNavigationListener"/>
   <int value="169" label="WebSettingsCompat.removeWebNavigationListener"/>
   <int value="170" label="Profile.addQuicHints"/>
+  <int value="171" label="Page.getUrl"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -808,13 +816,13 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="(17) FIND_TOOLBAR"/>
   <int value="17" label="(14) LOCATION_BAR"/>
   <int value="18" label="(01) XR_DELEGATE"/>
-  <int value="19" label="(04) PAGE_INSIGHTS_BOTTOM_SHEET"/>
+  <int value="19" label="(XX) PAGE_INSIGHTS_BOTTOM_SHEET (Deprecated)"/>
   <int value="20" label="(18) BOTTOM_CONTROLS"/>
   <int value="21" label="(07) HUB"/>
   <int value="22" label="(06) ARCHIVED_TABS_DIALOG"/>
   <int value="23" label="(20) NATIVE_PAGE"/>
   <int value="24" label="(12) CANCEL_TAB_STRIP_DRAG"/>
-  <int value="25" label="(13) CANCEL_TAB_SWITCHER_DRAG"/>
+  <int value="25" label="(04) CANCEL_TAB_SWITCHER_DRAG"/>
 </enum>
 
 <!-- LINT.IfChange(BackPressTabCloseType) -->
@@ -1951,7 +1959,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="SelectionHandlesActive"/>
   <int value="5" label="(Obsolete) CanTriggerBackGesture"/>
   <int value="6" label="ImeIsActive"/>
-  <int value="7" label="RequestedByEmbedder"/>
+  <int value="7" label="(Obsolete) RequestedByEmbedder"/>
   <int value="8" label="SystemServerDidNotTransfer"/>
   <int value="9" label="BrowserTokenChanged"/>
   <int value="10" label="MultipleBrowserWindowsOpen"/>

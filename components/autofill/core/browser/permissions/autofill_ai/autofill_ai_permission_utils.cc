@@ -4,10 +4,10 @@
 
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 
+#include <algorithm>
 #include <string_view>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
@@ -96,7 +96,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   // Parses `parameter` can returns whether any of the country codes is contains
   // match `country_code`.
   auto contains_geo_ip = [&country_code](std::string_view parameter) {
-    return base::Contains(
+    return std::ranges::contains(
         base::SplitStringPiece(parameter, ",",
                                base::WhitespaceHandling::TRIM_WHITESPACE,
                                base::SplitResult::SPLIT_WANT_NONEMPTY),
@@ -146,6 +146,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kIphForOptIn:
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
     case AutofillAiAction::kImportToWallet:
@@ -188,6 +189,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
       return true;
+    case AutofillAiAction::kEnableOrDisable:
+      return is_enabled(features::kAutofillAiAvailableByDefault);
   }
   NOTREACHED();
 }
@@ -214,6 +217,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kListEntityInstancesInSettings:
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
       return true;
   }
   NOTREACHED();
@@ -280,6 +284,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kListEntityInstancesInSettings:
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
       return true;
   }
   NOTREACHED();
@@ -348,6 +353,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       // The IPH should only show if the user has not opted in yet.
       return policy_pref_enabled && !autofill_ai_available;
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
       if (!policy_pref_enabled) {
         MaybeOutputReason(debug_message, "Enterprise policy is not enabled.");
       }
@@ -383,40 +389,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 
   // All other states (sign-in and sync including their paused/error states)
   // are sufficient for us to validate the user's account information.
-  const bool result = [&]() {
-    if (identity_manager
-            ->FindExtendedAccountInfo(identity_manager->GetPrimaryAccountInfo(
-                signin::ConsentLevel::kSignin))
-            .capabilities.can_use_model_execution_features() ==
-        signin::Tribool::kTrue) {
-      return true;
-    }
-    switch (action) {
-      case AutofillAiAction::kAddLocalEntityInstanceInSettings:
-      case AutofillAiAction::kCrowdsourcingVote:
-      case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
-      case AutofillAiAction::kFilling:
-      case AutofillAiAction::kImport:
-      case AutofillAiAction::kIphForOptIn:
-      case AutofillAiAction::kListEntityInstancesInSettings:
-      case AutofillAiAction::kOptIn:
-      case AutofillAiAction::kImportToWallet:
-        return base::FeatureList::IsEnabled(
-            features::kAutofillAiIgnoreCapabilityCheck);
-      case AutofillAiAction::kLogToMqls:
-      case AutofillAiAction::kServerClassificationModel:
-      case AutofillAiAction::kUseCachedServerClassificationModelResults:
-        return base::FeatureList::IsEnabled(
-            features::kAutofillAiIgnoreCapabilityCheck);
-    }
-    NOTREACHED();
-  }();
-
-  if (!result) {
-    MaybeOutputReason(debug_message,
-                      "User cannot use model execution features.");
-  }
-  return result;
+  return true;
 }
 
 // Checks whether miscellaneous "other" requirements (OTR, app-locale, Geo-IP)
@@ -439,6 +412,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kListEntityInstancesInSettings:
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
     case AutofillAiAction::kImportToWallet:
     case AutofillAiAction::kServerClassificationModel: {
       if (is_off_the_record) {
@@ -468,6 +442,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kListEntityInstancesInSettings:
     case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
+    case AutofillAiAction::kEnableOrDisable:
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:

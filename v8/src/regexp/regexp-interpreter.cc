@@ -89,9 +89,8 @@ void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
         current_char <= std::numeric_limits<unsigned char>::max();
     const bool printable = is_single_char ? std::isprint(current_char) : false;
     const char* format =
-        printable
-            ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = "
-            : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = ";
+        printable ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), "
+                  : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., ";
     PrintF(format, pc - code_base, stack_depth, current_position, current_char,
            printable ? current_char : '.');
 
@@ -566,12 +565,6 @@ IrregexpInterpreter::Result RawMatch(
   BacktrackStack backtrack_stack;
 
   uint32_t backtrack_count = 0;
-
-#ifdef ENABLE_DISASSEMBLER
-  if (v8_flags.trace_regexp_bytecodes) {
-    PrintF("\n\nStart bytecode interpreter\n\n");
-  }
-#endif
 
   while (true) {
     const uint8_t* next_pc = pc;
@@ -1259,6 +1252,22 @@ int IrregexpInterpreter::Match(Isolate* isolate,
       output_register_count / registers_per_match;
 
   int backtrack_limit = regexp_data->backtrack_limit();
+
+#ifdef ENABLE_DISASSEMBLER
+  if (v8_flags.trace_regexp_bytecodes) {
+    static constexpr uint32_t kTruncateSubjectAtLength = 64;
+    const char* opt_truncated = "";
+    uint32_t subject_length = subject_string->length();
+    if (subject_length > kTruncateSubjectAtLength) {
+      subject_length = kTruncateSubjectAtLength;
+      opt_truncated = " (truncated)";
+    }
+    Tagged<String> pattern = Cast<String>(regexp_data->source());
+    PrintF("\n\nStart bytecode interpreter. Pattern /%s/ Subject '%s'%s\n",
+           pattern->ToCString().get(),
+           subject_string->ToCString(0, subject_length).get(), opt_truncated);
+  }
+#endif
 
   int num_matches = 0;
   int* current_output_registers = output_registers;

@@ -225,6 +225,16 @@ BASE_FEATURE(kWebViewEarlyStartupTracing, base::FEATURE_DISABLED_BY_DEFAULT);
 // calling content code.
 BASE_FEATURE(kWebViewEarlyPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables Perfetto init on a background thread. This is mutually exclusive with
+// `kWebViewEarlyPerfettoInit`. If both flags are enabled,
+// `kWebViewEarlyPerfettoInit` will take precedent.
+BASE_FEATURE(kWebViewBackgroundPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Completely disables Perfetto init. If this flag is enabled, neither
+// `kWebViewEarlyPerfettoInit` nor `kWebViewBackgroundPerfettoInit` will be
+// used.
+BASE_FEATURE(kWebViewDisablePerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Caches reflective methods in AndroidX instead of looking them up every time.
 // This should make calling AndroidX methods faster.
 BASE_FEATURE(kWebViewCacheBoundaryInterfaceMethods,
@@ -262,4 +272,7 @@ BASE_FEATURE(kPrerender2WarmUpCompositorForWebView,
 BASE_FEATURE(kWebViewFetchOriginTrialsComponent,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables recording user actions for API calls.
+BASE_FEATURE(kWebViewEnableApiCallUserActions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace android_webview::features

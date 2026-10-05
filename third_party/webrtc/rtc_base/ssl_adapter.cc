@@ -23,8 +23,8 @@ std::unique_ptr<SSLAdapterFactory> SSLAdapterFactory::Create() {
   return std::make_unique<OpenSSLAdapterFactory>();
 }
 
-SSLAdapter* SSLAdapter::Create(Socket* socket) {
-  return new OpenSSLAdapter(socket);
+SSLAdapter* SSLAdapter::Create(Socket* socket, bool dtls) {
+  return new OpenSSLAdapter(socket, nullptr, nullptr, dtls);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

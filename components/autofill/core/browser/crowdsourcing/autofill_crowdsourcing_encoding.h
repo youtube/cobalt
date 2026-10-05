@@ -154,13 +154,38 @@ std::vector<AutofillUploadContents> EncodeUploadRequest(
 std::pair<AutofillPageQueryRequest, std::vector<FormSignature>>
 EncodeAutofillPageQueryRequest(const std::vector<FormData>& forms);
 
+// Holds the predictions used in ProcessServerPredictionsQueryResponse.
+class ServerPredictions {
+ public:
+  ServerPredictions(bool may_run_autofill_ai_model,
+                    std::map<std::pair<FormSignature, FieldSignature>,
+                             std::deque<FieldSuggestion>>& field_suggestion_map,
+                    const FormStructure& form);
+  ServerPredictions(const ServerPredictions&);
+  ServerPredictions(ServerPredictions&&);
+  ServerPredictions& operator=(const ServerPredictions&);
+  ServerPredictions& operator=(ServerPredictions&&);
+  ~ServerPredictions();
+
+  // Sets the information in the stored `FieldSuggestion`s to the appropriate
+  // `AutofillField`s in `form`.
+  void ApplyTo(FormStructure& form) const;
+
+ private:
+  bool may_run_autofill_ai_model_;
+  std::vector<std::optional<FieldSuggestion>> predictions_;
+};
+
 // Parses `payload` as AutofillQueryResponse proto and calls
-// `ProcessServerPredictionsQueryResponse`.
+// `ProcessServerPredictionsQueryResponse`. `ignore_small_forms` determines
+// whether forms with less than `kSmallFormThreshold` fields (all of
+// which are address related), should have server predictions cleared.
 void ParseServerPredictionsQueryResponse(
     std::string_view payload,
     const std::vector<raw_ref<FormStructure>>& forms,
     const std::vector<FormSignature>& queried_form_signatures,
-    LogManager* log_manager);
+    LogManager* log_manager,
+    bool ignore_small_forms);
 
 // Parses the field types from the server query response. `forms` must be the
 // same as the one passed to `EncodeAutofillPageQueryRequest()` when
@@ -169,7 +194,8 @@ void ProcessServerPredictionsQueryResponse(
     AutofillQueryResponse response,
     const std::vector<raw_ref<FormStructure>>& forms,
     const std::vector<FormSignature>& queried_form_signatures,
-    LogManager* log_manager);
+    LogManager* log_manager,
+    bool ignore_small_forms);
 
 void ClearSmallAddressFormPredictionsForTesting(
     AutofillQueryResponse::FormSuggestion& form_suggestion);

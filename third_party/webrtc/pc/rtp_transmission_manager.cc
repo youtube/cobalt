@@ -136,31 +136,27 @@ VoiceMediaSendChannelInterface*
 RtpTransmissionManager::voice_media_send_channel() const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
-  auto* voice_channel = GetAudioTransceiver()->internal()->channel();
-  return voice_channel ? voice_channel->voice_media_send_channel() : nullptr;
+  return GetAudioTransceiver()->internal()->voice_media_send_channel();
 }
 
 VideoMediaSendChannelInterface*
 RtpTransmissionManager::video_media_send_channel() const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
-  auto* video_channel = GetVideoTransceiver()->internal()->channel();
-  return video_channel ? video_channel->video_media_send_channel() : nullptr;
+  return GetVideoTransceiver()->internal()->video_media_send_channel();
 }
 VoiceMediaReceiveChannelInterface*
 RtpTransmissionManager::voice_media_receive_channel() const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
-  auto* voice_channel = GetAudioTransceiver()->internal()->channel();
-  return voice_channel ? voice_channel->voice_media_receive_channel() : nullptr;
+  return GetAudioTransceiver()->internal()->voice_media_receive_channel();
 }
 
 VideoMediaReceiveChannelInterface*
 RtpTransmissionManager::video_media_receive_channel() const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
-  auto* video_channel = GetVideoTransceiver()->internal()->channel();
-  return video_channel ? video_channel->video_media_receive_channel() : nullptr;
+  return GetVideoTransceiver()->internal()->video_media_receive_channel();
 }
 
 RTCErrorOr<scoped_refptr<RtpSenderInterface>>
@@ -171,9 +167,9 @@ RtpTransmissionManager::AddTrackPlanB(
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
   if (stream_ids.size() > 1u) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::UNSUPPORTED_OPERATION,
-                         "AddTrack with more than one stream is not "
-                         "supported with Plan B semantics.");
+    return LOG_ERROR(RTCError::UnsupportedOperation()
+                     << "AddTrack with more than one stream is not supported "
+                        "with Plan B semantics.");
   }
   std::vector<std::string> adjusted_stream_ids;
   if (stream_ids.empty()) {
@@ -226,8 +222,8 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
                      << MediaTypeToString(transceiver->media_type())
                      << " transceiver for AddTrack.";
     if (transceiver->stopping()) {
-      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
-                           "The existing transceiver is stopping.");
+      return LOG_ERROR(RTCError::InvalidParameter()
+                       << "The existing transceiver is stopping.");
     }
 
     if (transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
@@ -289,9 +285,10 @@ RtpTransmissionManager::CreateAndAddTransceiver(
       std::move(header_extensions_to_negotiate);
   if (env_.field_trials().IsEnabled("WebRTC-HeaderExtensionNegotiateMemory")) {
     // If we have already negotiated header extensions for this type,
+    // and it is not stopped,
     // reuse the negotiated state for new transceivers of the same type.
     for (const auto& transceiver : transceivers()->List()) {
-      if (transceiver->media_type() == media_type) {
+      if (transceiver->media_type() == media_type && !transceiver->stopping()) {
         header_extensions = transceiver->GetHeaderExtensionsToNegotiate();
         break;
       }

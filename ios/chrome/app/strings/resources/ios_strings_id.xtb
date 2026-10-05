@@ -104,6 +104,7 @@
 <translation id="1366297852155605523">Dibagikan Kepada Saya</translation>
 <translation id="1369286077209859800">Tampilkan semua tab dalam grup tab</translation>
 <translation id="136942498637440594">Anda dapat menelusuri gambar dan objek yang Anda lihat.</translation>
+<translation id="1373120905936431262">Upload gambar untuk membuat remix dengan Nano Banana</translation>
 <translation id="1377508275003315939">Sandi</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} dari {count} alamat}other{{position} dari {count} alamat}}</translation>
 <translation id="1383876407941801731">Telusuri</translation>
@@ -161,6 +162,7 @@
 <translation id="1554477036522844996">Jendela Baru</translation>
 <translation id="1558391695376153246">Tutup tab Samaran</translation>
 <translation id="1565371473877914088">Tab Samaran Baru</translation>
+<translation id="1567960978791353852">Tampilkan Mode Baca</translation>
 <translation id="1571780780926010134">Tab Samaran</translation>
 <translation id="1580715474678097352">Tetap terlindungi dari situs berbahaya</translation>
 <translation id="1580783302095112590">Email terkirim.</translation>
@@ -235,6 +237,7 @@
 <translation id="1836891464494477513">{count,plural, =1{Bookmark disimpan di Akun Google Anda, {email}}other{Bookmark disimpan di Akun Google Anda, {email}}}</translation>
 <translation id="1838089197478136166">Buka di Wallet?</translation>
 <translation id="183878838231635348">Kartu ini menampilkan setiap masalah privasi atau keamanan yang otomatis terdeteksi oleh Pemeriksaan Keamanan untuk Anda.</translation>
+<translation id="1840320537320704887">Preferensi halaman Tab Baru dihapus</translation>
 <translation id="1845230888742614096">Simpan Grup</translation>
 <translation id="1853692000353488670">Tab samaran baru</translation>
 <translation id="1854463785401910334">Telusuri tab yang terbuka</translation>
@@ -253,6 +256,7 @@
 <translation id="1901366738768303267">Bagaimana cara menggunakan fitur ini?</translation>
 <translation id="1901600657316773839">Simpan pilihan</translation>
 <translation id="1902277226107477495">Deteksi alamat dinonaktifkan. Aktifkan kembali di Setelan.</translation>
+<translation id="1909201414196501151">Situs ditambahkan dan disematkan</translation>
 <translation id="1911619930368729126">Upload ke Google Drive</translation>
 <translation id="1925706052394657380">Buka setelan <ph name="BEGIN_BOLD" />Aplikasi Default<ph name="END_BOLD" /> di iOS</translation>
 <translation id="1941314575388338491">Ketuk dua kali untuk menyalin.</translation>
@@ -288,6 +292,7 @@
 <translation id="2015722694326466240">Untuk melihat sandi, Anda harus menyetel kode sandi di perangkat terlebih dahulu.</translation>
 <translation id="201759455285471444">Luaskan grup tab.</translation>
 <translation id="202070562065520783">Jelaskan ini kepada saya</translation>
+<translation id="2023713324775943812">Akses Mode Baca dari kolom URL jika tersedia</translation>
 <translation id="2044394949148788042">Buka petak tab</translation>
 <translation id="2044681667265133332">Akun <ph name="USER_EMAIL" /> dikelola oleh <ph name="HOSTED_DOMAIN" />, yang mungkin dapat melihat beberapa informasi. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">item baru</translation>
@@ -357,6 +362,7 @@
 <translation id="2271452184061378400">Grup tab Anda disimpan di sini</translation>
 <translation id="2273327106802955778">Menu lainnya</translation>
 <translation id="2287614783861766820">{count,plural, =1{Alamat ini akan dihapus dari perangkat ini.}other{Alamat ini akan dihapus dari perangkat ini.}}</translation>
+<translation id="2295236662082735391">Tekan lama gambar di web untuk mengeditnya dengan Gemini</translation>
 <translation id="2297989278479054870">Setelah Anda logout, bookmark, sandi, dan data lainnya di Akun Google Anda akan dihapus dari perangkat ini.</translation>
 <translation id="2299218006564889602">Sandi Anda dienkripsi di perangkat sebelum disimpan ke Pengelola Sandi Google.</translation>
 <translation id="2306265833370324042">Tampilkan detail <ph name="SEARCH_ENGINE_NAME" /></translation>
@@ -478,6 +484,7 @@
 <translation id="2761788987260570878">Ambil foto penelusuran Anda</translation>
 <translation id="2761898608071930085">Gunakan Akun Lain</translation>
 <translation id="2762000892062317888">baru saja</translation>
+<translation id="2766178952536179189">{COUNT,plural, =1{Tambahkan maksimal 1 gambar}other{Tambahkan maksimal {COUNT} gambar}}</translation>
 <translation id="2772667768515195373">Anda dapat menggunakan alamat tersimpan di seluruh produk Google. Alamat ini disimpan di Akun Google Anda, <ph name="USER_EMAIL" />.</translation>
 <translation id="2773344962924806829">Notifikasi email</translation>
 <translation id="2781331604911854368">Aktif</translation>
@@ -598,6 +605,7 @@
 <translation id="3245744387817103524">Perubahan Anda tidak dapat disimpan.</translation>
 <translation id="3254806613790954367">Tab yang terakhir dibuka di semua perangkat Anda</translation>
 <translation id="325717987950204592">Ketuk "Privasi dan Keamanan"</translation>
+<translation id="3265736395246760288">Login lebih cepat dari perangkat Anda yang disinkronkan.</translation>
 <translation id="3272527697863656322">Batal</translation>
 <translation id="3273510436356991673">Sesuaikan layar utama Anda</translation>
 <translation id="3277021493514034324">Alamat situs disalin</translation>
@@ -615,10 +623,12 @@
 <translation id="3344485292736684439">{count,plural, =1{Bookmark disimpan ke "{title}" di akun Anda, {email}}other{Bookmark disimpan ke "{title}" di akun Anda, {email}}}</translation>
 <translation id="334690320928261823">Tab Terbaru</translation>
 <translation id="3349031117032695619">Blokir pop-up</translation>
+<translation id="3350976670663926380">Hasil edit disimpan</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Akun ini dikelola.</translation>
 <translation id="3365529507898144230">Simpan di Foto</translation>
 <translation id="3371831930909698441">Terjemahan tersedia. Opsi tersedia di dekat bagian bawah layar.</translation>
 <translation id="3377063233124932127">Kini bookmark, sandi, dan data tersimpan lainnya ada di bagian atas.</translation>
+<translation id="3378214228000661758">Buat kunci sandi untuk</translation>
 <translation id="3380352560400387991">Situs ini mencoba membuka aplikasi. Tindakan ini akan membuat Anda keluar dari mode Samaran.</translation>
 <translation id="3385742921291399323">Dapatkan sandi, tab, bookmark, dan info tersimpan Anda lainnya.</translation>
 <translation id="3392923070107623576">Tetap teratur dengan membuat grup tab</translation>
@@ -668,6 +678,7 @@
 <translation id="355765753469272474">Urungkan</translation>
 <translation id="3565012355885596568">Tidak dapat memuat gambar</translation>
 <translation id="3565930036634619844">Tab. <ph name="TAB_INDEX" /> dari <ph name="NUMBER_OF_TABS" />.</translation>
+<translation id="3567168891086460374">Simpan dengan cara lain</translation>
 <translation id="3572607909481582402">Di Akun Google Anda</translation>
 <translation id="3575234738189584619">Telusuri dengan Lens</translation>
 <translation id="3575426792457739946">Daftar ini berisi semua profil yang dimuat.</translation>
@@ -680,6 +691,7 @@
 <translation id="3602260545951981695">Pilih "Perlindungan yang Ditingkatkan"</translation>
 <translation id="3610041351087301930">Sembunyikan Pembaca</translation>
 <translation id="3610866916973186448">Ya, hapus</translation>
+<translation id="3616161326314492065">Ambil foto dan bagikan ke Gemini untuk membuat dan meremix gambar.</translation>
 <translation id="3622175633937495219">Histori Penelusuran (<ph name="COUNT" /> ditemukan)</translation>
 <translation id="3625008969091706597">Anda dapat menggeser tepi untuk kembali.</translation>
 <translation id="362709345066740529">Sesuaikan kartu, feed, dan lainnya di sini</translation>
@@ -696,6 +708,7 @@
 <translation id="368329460027487650">Logout. Buka opsi untuk login.</translation>
 <translation id="3695446226812920698">Pelajari caranya</translation>
 <translation id="3700134753671613714">Login untuk dapat mengakses bookmark Anda di semua perangkat.</translation>
+<translation id="3701167022068948696">Perbaiki sekarang</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} sandi hanya disimpan ke perangkat ini. Untuk menggunakannya di perangkat lain, simpan sandi di Akun Google Anda, {EMAIL}.}other{{COUNT} sandi hanya disimpan ke perangkat ini. Untuk menggunakannya di perangkat lain, simpan sandi di Akun Google Anda, {EMAIL}.}}</translation>
 <translation id="3709621342136814217">Pilih font, ukuran teks, dan lainnya di sini</translation>
 <translation id="371230970611282515">Memperkirakan dan memberikan peringatan terkait peristiwa berbahaya sebelum terjadi.</translation>
@@ -742,6 +755,7 @@
 <translation id="3888863481921783344">Ini akan digunakan untuk menampilkan calon tamu undangan untuk acara Anda.</translation>
 <translation id="3891414008432200754">Harga</translation>
 <translation id="3892144330757387737">Histori Anda akan ditampilkan di sini</translation>
+<translation id="3893858854379998374">Untuk menyimpan bookmark di akun Anda, hapus bookmark yang tidak digunakan</translation>
 <translation id="3897092660631435901">Menu</translation>
 <translation id="3904270275864974753">Edit carousel</translation>
 <translation id="3909222758573607742">Simpan sandi dan item lainnya di akun</translation>
@@ -859,6 +873,7 @@
 <translation id="4302061870579014542">Tetapkan posisi</translation>
 <translation id="4304713468139749426">Pengelola Sandi</translation>
 <translation id="4309403553630140242">Ketuk dua kali untuk mengetahui informasi selengkapnya</translation>
+<translation id="4310738531374808763">Menyesuaikan halaman beranda</translation>
 <translation id="4320848494125124980">Terbaru</translation>
 <translation id="4322394346347055525">Tutup Tab Lain</translation>
 <translation id="4324735664183300693">Aktifkan notifikasi</translation>
@@ -871,6 +886,7 @@
 <translation id="4338650699862464074">Mengirimkan URL halaman yang Anda buka ke Google.</translation>
 <translation id="4342946437867096381">Anda sudah menyimpan sandi untuk situs ini di Akun Google Anda. Google dapat memilih sandi terbaru untuk Anda.</translation>
 <translation id="4365121137632832185">Grup tab. Diluaskan.</translation>
+<translation id="4365685757967464989">Izinkan Gemini menggunakan kamera untuk mengambil foto</translation>
 <translation id="4367971618859387374">Nama tampilan</translation>
 <translation id="4375772272517383391">Tutup semua tab</translation>
 <translation id="4378154925671717803">Ponsel</translation>
@@ -954,6 +970,7 @@
 
        Pilih tindakan yang akan dilakukan pada data penjelajahan yang ada di perangkat ini.</translation>
 <translation id="4675298276894277358">Situs ini tidak akan ditampilkan lagi</translation>
+<translation id="4676647168422678078">Terapkan preferensi halaman Tab Baru?</translation>
 <translation id="4682496302933121474">Terjemahkan halaman?</translation>
 <translation id="4682686630151240767">1. Buka Settings di iPhone</translation>
 <translation id="4691892551491778176">Saat Anda menggunakan fitur ini, konten dan URL halaman akan dikirim ke Google, tetapi tidak akan digunakan untuk meningkatkan kualitas model AI generatif. Anda dapat menonaktifkannya di setelan kapan saja.</translation>
@@ -1002,6 +1019,7 @@
 <translation id="4840495572919996524">Bookmark, histori, sandi, dan informasi Anda lainnya tidak akan lagi disinkronkan ke Akun Google Anda.</translation>
 <translation id="484280513275854557">Anda telah logout; data penjelajahan dihapus</translation>
 <translation id="4850886885716139402">Lihat</translation>
+<translation id="4854068532375923088">Izinkan “Gemini” menggunakan kamera</translation>
 <translation id="4860895144060829044">Telepon</translation>
 <translation id="4861953997778766866">Siapa saja dapat melakukan perubahan pada grup tab bersama Anda</translation>
 <translation id="4865063548323785458">Simpan dan isi otomatis sandi Anda untuk memudahkan proses login ke situs dan aplikasi</translation>
@@ -1076,6 +1094,7 @@
 <translation id="508645147179720015">Catatan berisi lebih dari 1.000 karakter</translation>
 <translation id="5087098519049306025">Pemantauan Harga</translation>
 <translation id="5090832849094901128">Menghapus sandi ini tidak akan menghapus akun Anda di <ph name="WEBSITE" />.</translation>
+<translation id="5096619236864235">Kunci sandi disimpan di Pengelola Sandi Google untuk</translation>
 <translation id="510580293474170715">Tidak ada yang diimpor</translation>
 <translation id="5113960131843706315">Memuat data Anda…</translation>
 <translation id="5118462200606189584">Tambahkan akun…</translation>
@@ -1205,6 +1224,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="5579012242779565775">Sembunyikan Daftar bacaan</translation>
 <translation id="5581786858144165447">Mode Tanya AI</translation>
 <translation id="5585019845078534178">Kartu</translation>
+<translation id="5591526871732898147">Gambar terlampir {index}</translation>
 <translation id="5595485650161345191">Edit alamat</translation>
 <translation id="559567008082979829">Setel download Anda untuk dihapus setelah satu bulan.</translation>
 <translation id="5596627076506792578">Opsi lainnya</translation>
@@ -1340,6 +1360,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="605721222689873409">TT</translation>
 <translation id="6058415747854995776">Rekam Video</translation>
 <translation id="6059830886158432458">Kontrol artikel dan aktivitas Anda di sini</translation>
+<translation id="6063802271331271857">Remix gambar</translation>
 <translation id="6066301408025741299">Ketuk untuk membatalkan.</translation>
 <translation id="6074656473835429958">Dapatkan notifikasi</translation>
 <translation id="607620096698446287"><ph name="FILENAME" /> (<ph name="FILESIZE" />) tidak dapat diupload</translation>
@@ -1691,6 +1712,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> persen berhasil didownload</translation>
 <translation id="7345061034321640811">Impor tidak diizinkan</translation>
+<translation id="7347998088283246662">Impor sandi, histori, bookmark, dan lainnya</translation>
 <translation id="7352651011704765696">Terjadi error</translation>
 <translation id="7364796246159120393">Pilih File</translation>
 <translation id="736564850024123010">Ganti posisi kolom URL untuk mendapatkan pengalaman yang disesuaikan.</translation>
@@ -1750,6 +1772,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7522587739845660862">Info tentang lokasi Anda</translation>
 <translation id="7522948500476882302">Saat mendownload file, pilih untuk menghapusnya secara otomatis dalam 1 bulan</translation>
 <translation id="7524055474074101597">Akses sandi Anda dan lainnya di seluruh aplikasi.</translation>
+<translation id="7525067979554623046">Buat</translation>
 <translation id="75362970626182391">Grup Tab Baru</translation>
 <translation id="7537586195939242955">Maaf, Pass Anda tidak dapat dipasang ke Passbook saat ini.</translation>
 <translation id="754655535278952384">Diperiksa <ph name="TIME" /></translation>
@@ -1841,6 +1864,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7853202427316060426">Aktivitas</translation>
 <translation id="7854006015462979438">Buka General</translation>
 <translation id="7855678267851972597">Audio</translation>
+<translation id="7857520352710212030">Situs disematkan</translation>
 <translation id="7859988229622350291">Jangan pernah terjemahkan</translation>
 <translation id="7863211248337747225">Dapatkan aplikasi</translation>
 <translation id="7865127013871431856">Opsi Terjemahan</translation>
@@ -1856,6 +1880,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7899199123054742721">Tandai semua belum dibaca</translation>
 <translation id="7911190106180361398">Organisasi tidak mengizinkan Anda menyinkronkan semuanya.</translation>
 <translation id="7918999344502274923">Sembunyikan detail <ph name="SEARCH_ENGINE_NAME" /></translation>
+<translation id="7921559948846049514">Pilih tema, warna, atau hal lainnya untuk latar belakang Anda</translation>
 <translation id="792357691529995513">Tidak ditemukan masalah</translation>
 <translation id="7925108652071887026">Mengisi otomatis data</translation>
 <translation id="7926975587469166629">Nama panggilan kartu</translation>
@@ -1904,6 +1929,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8059312861912872211">{count,plural, =1{{count} bookmark}other{{count} bookmark}}</translation>
 <translation id="8059533439631660104">Ciutkan bagian.</translation>
 <translation id="8061584726507121204">Histori</translation>
+<translation id="8064946459644399612">Preferensi halaman Tab Baru diterapkan</translation>
 <translation id="8069168488983557089">Dapatkan insight poin-poin penting yang membantu Anda memahami topik apa pun</translation>
 <translation id="8069394452933076548">Pilih kapan tab yang tidak digunakan baru-baru ini dipindahkan ke bagian tab tidak aktif.</translation>
 <translation id="8073670137947914548">Download selesai</translation>
@@ -1934,6 +1960,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8161614462829037225">Buka kunci dengan <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="8173034266693057059">Panjang</translation>
 <translation id="8182037667962849780">{count,plural, =1{Untuk {website_1}}=2{Untuk {website_1}, {website_2}}=3{Untuk {website_1}, {website_2}, dan 1 lainnya}other{Untuk {website_1}, {website_2}, dan {more_count} lainnya}}</translation>
+<translation id="8184895727539791845">Untuk mengizinkan Gemini menggunakan kamera, aktifkan Kamera di setelan iOS</translation>
 <translation id="8185076488803799132">Impor</translation>
 <translation id="8189615296021678665">Ketuk "Simpan" untuk mengakses sandi ini dengan mudah saat Anda login lagi.</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Perangkat Anda<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
@@ -2002,6 +2029,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8428045167754449968">Kota</translation>
 <translation id="8428213095426709021">Setelan</translation>
 <translation id="8428634594422941299">Mengerti</translation>
+<translation id="8429455911440977338">Aktifkan Kamera</translation>
 <translation id="8434837876193928924">Detail grup tab</translation>
 <translation id="8438566539970814960">Jadikan penelusuran dan penjelajahan lebih baik</translation>
 <translation id="8439758443371991593">Sembunyikan Tambahkan ke Daftar Bacaan</translation>
@@ -2210,6 +2238,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="914781932147356857">Tandai semua…</translation>
 <translation id="9148126808321036104">Login sekali lagi</translation>
 <translation id="9149866541089851383">Edit...</translation>
+<translation id="9152637745605628097">Pilih dari tema, warna, atau upload gambar</translation>
 <translation id="9159628751968616911">Kirim halaman web</translation>
 <translation id="9162432979321511934">Aktifkan Isi Otomatis Sandi</translation>
 <translation id="9165320910061267720">Untuk mendapatkan notifikasi diskon, Anda harus mengaktifkan notifikasi di setelan iOS.</translation>
@@ -2243,6 +2272,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="956218893102219091">Gunakan lokasi presisi Anda untuk mendapatkan hasil Gemini yang paling akurat, bukan estimasi lokasi berdasarkan alamat IP Anda. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Hapus data penjelajahan</translation>
 <translation id="963102227019621224">Aktivitas Web &amp; Aplikasi</translation>
+<translation id="965259330007686240">Buat gambar dengan Gemini</translation>
 <translation id="965879457362663186">Tambahkan lampiran</translation>
 <translation id="966593914872420832">Penelusuran suara</translation>
 <translation id="972084300091883657">{COUNT,plural, =0{Gabung ke grup tab dengan <ph name="OWNER_NAME" />}=1{Gabung ke grup tab dengan <ph name="OWNER_NAME" /> dan {COUNT} orang lainnya}other{Gabung ke grup tab dengan <ph name="OWNER_NAME" /> dan {COUNT} orang lainnya}}</translation>

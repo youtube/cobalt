@@ -255,9 +255,6 @@ extern const char kCredentialProviderPasskeyPRFDescription[];
 extern const char kCredentialProviderPerformanceImprovementsName[];
 extern const char kCredentialProviderPerformanceImprovementsDescription[];
 
-extern const char kCredentialProviderSignalAPIName[];
-extern const char kCredentialProviderSignalAPIDescription[];
-
 extern const char kDataSharingDebugLogsName[];
 extern const char kDataSharingDebugLogsDescription[];
 
@@ -351,6 +348,9 @@ extern const char kEnableLensInOmniboxCopiedImageDescription[];
 extern const char kEnableLensOverlayName[];
 extern const char kEnableLensOverlayDescription[];
 
+extern const char kEnableNewStartupFlowName[];
+extern const char kEnableNewStartupFlowDescription[];
+
 extern const char kEnableReadingListAccountStorageName[];
 extern const char kEnableReadingListAccountStorageDescription[];
 
@@ -374,9 +374,6 @@ extern const char kFeedBackgroundRefreshDescription[];
 
 extern const char kFeedSwipeInProductHelpName[];
 extern const char kFeedSwipeInProductHelpDescription[];
-
-extern const char kFeedbackIncludeVariationsName[];
-extern const char kFeedbackIncludeVariationsDescription[];
 
 extern const char kForceStartupSigninPromoName[];
 extern const char kForceStartupSigninPromoDescription[];
@@ -471,6 +468,9 @@ extern const char kIOSEnableCloudProfileReportingDescription[];
 extern const char kIOSEnableRealtimeEventReportingName[];
 extern const char kIOSEnableRealtimeEventReportingDescription[];
 
+extern const char kIOSExpandedSetupListName[];
+extern const char kIOSExpandedSetupListDescription[];
+
 extern const char kIOSExpandedTipsName[];
 extern const char kIOSExpandedTipsDescription[];
 
@@ -491,9 +491,6 @@ extern const char kIOSOmniboxAimServerEligibilityDescription[];
 
 extern const char kIOSOmniboxAimShortcutName[];
 extern const char kIOSOmniboxAimShortcutDescription[];
-
-extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
-extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
 
 extern const char kIOSOneTapMiniMapRestrictionsName[];
 extern const char kIOSOneTapMiniMapRestrictionsDescription[];
@@ -822,17 +819,8 @@ extern const char kProvisionalNotificationAlertDescription[];
 extern const char kRcapsDynamicProfileCountryName[];
 extern const char kRcapsDynamicProfileCountryDescription[];
 
-extern const char kReaderModeName[];
-extern const char kReaderModeDescription[];
-
-extern const char kReaderModeNewCssName[];
-extern const char kReaderModeNewCssDescription[];
-
 extern const char kReaderModeOmniboxEntrypointInUSName[];
 extern const char kReaderModeOmniboxEntrypointInUSDescription[];
-
-extern const char kReaderModeOmniboxEntrypointName[];
-extern const char kReaderModeOmniboxEntrypointDescription[];
 
 extern const char kReaderModeOptimizationGuideEligibilityName[];
 extern const char kReaderModeOptimizationGuideEligibilityDescription[];
@@ -845,9 +833,6 @@ extern const char kReaderModeReadabilityHeuristicDescription[];
 
 extern const char kReaderModeSupportNewFontsName[];
 extern const char kReaderModeSupportNewFontsDescription[];
-
-extern const char kReaderModeTranslationName[];
-extern const char kReaderModeTranslationDescription[];
 
 extern const char kReaderModeTranslationWithInfobarName[];
 extern const char kReaderModeTranslationWithInfobarDescription[];

@@ -254,18 +254,23 @@ void PrintResult(std::ostream& os, const ValueNode* node,
          << node_info->live_range().end << "]";
     }
   } else {
-    os << ", " << node->use_count() << " uses";
-    if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        os << " 🪦";
-      }
-    } else if (!node->is_used()) {
-      if (node->opcode() != Opcode::kAllocationBlock &&
-          node->properties().is_required_when_unused()) {
-        os << ", but required";
-      } else {
-        os << " 🪦";
+    if (node->unused_inputs_were_visited()) {
+      // This node is dead, node sweeper will remove it.
+      os << "🪦";
+    } else {
+      os << ", " << node->use_count() << " uses";
+      if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+        os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          os << " 🪦";
+        }
+      } else if (!node->is_used()) {
+        if (node->opcode() != Opcode::kAllocationBlock &&
+            node->properties().is_required_when_unused()) {
+          os << ", but required";
+        } else {
+          os << " 🪦";
+        }
       }
     }
     // Don't print to tagged nodes, nor to nodes that we bypass the flag.
@@ -587,8 +592,12 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;
-    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
+      if (opcode() == Opcode::kIdentity) {
+        return UnwrapIdentities()->GetStaticType(broker);
+      }
+      [[fallthrough]];
+    case ValueRepresentation::kRawPtr:
       UNREACHABLE();
   }
   switch (opcode()) {
@@ -7181,6 +7190,18 @@ void SetContinuationPreservedEmbedderData::GenerateCode(
   __ Move(reference, data);
 }
 
+int FulfillPromise::MaxCallStackArgs() const { return 0; }
+
+void FulfillPromise::SetValueLocationConstraints() {
+  using D = FulfillPromiseDescriptor;
+  UseFixed(PromiseInput(), D::GetRegisterParameter(D::kPromise));
+  UseFixed(ValueInput(), D::GetRegisterParameter(D::kValue));
+}
+void FulfillPromise::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ Move(kContextRegister, masm->native_context().object());
+  __ CallBuiltin(Builtin::kFulfillPromise);
+}
 namespace {
 
 template <typename ResultReg>
@@ -8226,7 +8247,7 @@ void CheckInstanceType::PrintParams(std::ostream& os) const {
   if (first_instance_type_ != last_instance_type_) {
     os << " - " << last_instance_type_;
   }
-  os << ")";
+  os << ", " << check_type() << ")";
 }
 
 void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
@@ -8313,6 +8334,7 @@ void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   } else {
     os << "(compressed)";
   }
+  os << ", " << load_type();
 }
 
 void StoreFloat64::PrintParams(std::ostream& os) const {

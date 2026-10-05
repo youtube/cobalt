@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "chrome/browser/autofill/android/autofill_ai_save_update_entity_prompt_controller.h"
+#include "chrome/browser/autofill/android/entity_attribute_update_details_android.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/web_contents.h"
@@ -19,6 +20,7 @@
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/autofill/android/jni_headers/AutofillAiSaveUpdateEntityPrompt_jni.h"
+#include "chrome/browser/autofill/android/jni_headers/EntityDataManager_jni.h"
 
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
@@ -71,17 +73,16 @@ void AutofillAiSaveUpdateEntityPromptViewAndroid::SetContent(
   CHECK(java_object_);
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> title =
-      base::android::ConvertUTF16ToJavaString(env, controller->GetTitle());
-  ScopedJavaLocalRef<jstring> positive_button_text =
-      base::android::ConvertUTF16ToJavaString(
-          env, controller->GetPositiveButtonText());
-  ScopedJavaLocalRef<jstring> negative_button_text =
-      base::android::ConvertUTF16ToJavaString(
-          env, controller->GetNegativeButtonText());
 
   Java_AutofillAiSaveUpdateEntityPrompt_setDialogDetails(
-      env, java_object_, title, positive_button_text, negative_button_text);
+      env, java_object_, controller->GetTitle(),
+      controller->GetPositiveButtonText(), controller->GetNegativeButtonText());
+
+  Java_AutofillAiSaveUpdateEntityPrompt_setSaveOrMigrateDetails(
+      env, java_object_, controller->GetEntityUpdateDetails());
+
+  Java_AutofillAiSaveUpdateEntityPrompt_setSourceNotice(
+      env, java_object_, controller->GetSourceNotice());
 }
 
 }  // namespace autofill

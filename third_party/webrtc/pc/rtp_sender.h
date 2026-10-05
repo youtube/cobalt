@@ -124,6 +124,8 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
     virtual void OnSetStreams() = 0;
   };
 
+  ~RtpSenderBase() override;
+
   // Sets the underlying MediaEngine channel associated with this RtpSender.
   // A VoiceMediaChannel should be used for audio RtpSenders and
   // a VideoMediaChannel should be used for video RtpSenders.
@@ -135,6 +137,8 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
     RTC_DCHECK_RUN_ON(signaling_thread_);
     return track_;
   }
+
+  MediaType media_type() const final { return media_type_; }
 
   RtpParameters GetParameters() const override;
   RTCError SetParameters(const RtpParameters& parameters) override;
@@ -232,10 +236,13 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   // is called. `set_streams_observer` is not owned by this object. If not
   // null, it must be valid at least until this sender becomes stopped.
   RtpSenderBase(const Environment& env,
+                Thread* signaling_thread,
                 Thread* worker_thread,
                 absl::string_view id,
+                MediaType media_type,
                 SetStreamsObserver* set_streams_observer,
                 MediaSendChannelInterface* media_channel);
+
   // TODO(bugs.webrtc.org/8694): Since SSRC == 0 is technically valid, figure
   // out some other way to test if we have a valid SSRC.
   bool can_send_track() const RTC_RUN_ON(signaling_thread_) {
@@ -268,6 +275,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   bool stopped_ RTC_GUARDED_BY(signaling_thread_) = false;
   int attachment_id_ = 0;
   const std::string id_;
+  const MediaType media_type_;
 
   std::vector<std::string> stream_ids_;
   RtpParameters init_parameters_;
@@ -361,6 +369,7 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
   // null, it must be valid at least until this sender becomes stopped.
   static scoped_refptr<AudioRtpSender> Create(
       const Environment& env,
+      Thread* signaling_thread,
       Thread* worker_thread,
       absl::string_view id,
       LegacyStatsCollectorInterface* stats,
@@ -375,7 +384,6 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
   // ObserverInterface implementation.
   void OnChanged() override;
 
-  MediaType media_type() const override { return MediaType::AUDIO; }
   std::string track_kind() const override {
     return MediaStreamTrackInterface::kAudioKind;
   }
@@ -385,6 +393,7 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
 
  protected:
   AudioRtpSender(const Environment& env,
+                 Thread* signaling_thread,
                  Thread* worker_thread,
                  absl::string_view id,
                  LegacyStatsCollectorInterface* legacy_stats,
@@ -431,6 +440,7 @@ class VideoRtpSender : public RtpSenderBase {
   // null, it must be valid at least until this sender becomes stopped.
   static scoped_refptr<VideoRtpSender> Create(
       const Environment& env,
+      Thread* signaling_thread,
       Thread* worker_thread,
       absl::string_view id,
       SetStreamsObserver* set_streams_observer,
@@ -440,7 +450,6 @@ class VideoRtpSender : public RtpSenderBase {
   // ObserverInterface implementation
   void OnChanged() override;
 
-  MediaType media_type() const override { return MediaType::VIDEO; }
   std::string track_kind() const override {
     return MediaStreamTrackInterface::kVideoKind;
   }
@@ -450,6 +459,7 @@ class VideoRtpSender : public RtpSenderBase {
 
  protected:
   VideoRtpSender(const Environment& env,
+                 Thread* signaling_thread,
                  Thread* worker_thread,
                  absl::string_view id,
                  SetStreamsObserver* set_streams_observer,

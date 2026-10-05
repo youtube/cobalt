@@ -34,7 +34,7 @@ using namespace bssl;
 // form the seed parameter. It returns true on success and false on failure.
 static int tls1_P_hash(uint8_t *out, size_t out_len, const EVP_MD *md,
                        const uint8_t *secret, size_t secret_len,
-                       const char *label, size_t label_len,
+                       const uint8_t *label, size_t label_len,
                        const uint8_t *seed1, size_t seed1_len,
                        const uint8_t *seed2, size_t seed2_len) {
   HMAC_CTX ctx, ctx_tmp, ctx_init;
@@ -49,7 +49,7 @@ static int tls1_P_hash(uint8_t *out, size_t out_len, const EVP_MD *md,
 
   if (!HMAC_Init_ex(&ctx_init, secret, secret_len, md, nullptr) ||
       !HMAC_CTX_copy_ex(&ctx, &ctx_init) ||
-      !HMAC_Update(&ctx, (const uint8_t *)label, label_len) ||
+      !HMAC_Update(&ctx, label, label_len) ||
       !HMAC_Update(&ctx, seed1, seed1_len) ||
       !HMAC_Update(&ctx, seed2, seed2_len) ||  //
       !HMAC_Final(&ctx, A1, &A1_len)) {
@@ -102,8 +102,9 @@ err:
 }
 
 int CRYPTO_tls1_prf(const EVP_MD *digest, uint8_t *out, size_t out_len,
-                    const uint8_t *secret, size_t secret_len, const char *label,
-                    size_t label_len, const uint8_t *seed1, size_t seed1_len,
+                    const uint8_t *secret, size_t secret_len,
+                    const uint8_t *label, size_t label_len,
+                    const uint8_t *seed1, size_t seed1_len,
                     const uint8_t *seed2, size_t seed2_len) {
   if (out_len == 0) {
     return 1;

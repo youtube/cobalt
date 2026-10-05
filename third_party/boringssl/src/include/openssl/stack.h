@@ -47,6 +47,8 @@ extern "C" {
 // are |type| *. This macro makes the |sk_name_*| functions available.
 //
 // It is not necessary to use |DECLARE_STACK_OF| in files which use this macro.
+//
+// Must be used from the global namespace.
 #define DEFINE_NAMED_STACK_OF(name, type)                    \
   BORINGSSL_DEFINE_STACK_OF_IMPL(name, type *, const type *) \
   BORINGSSL_DEFINE_STACK_TRAITS(name, type, false)
@@ -55,15 +57,31 @@ extern "C" {
 // |type| *. This macro makes the |sk_type_*| functions available.
 //
 // It is not necessary to use |DECLARE_STACK_OF| in files which use this macro.
+//
+// Must be used from the global namespace.
 #define DEFINE_STACK_OF(type) DEFINE_NAMED_STACK_OF(type, type)
 
 // DEFINE_CONST_STACK_OF defines |STACK_OF(type)| to be a stack whose elements
 // are const |type| *. This macro makes the |sk_type_*| functions available.
 //
 // It is not necessary to use |DECLARE_STACK_OF| in files which use this macro.
+//
+// Must be used from the global namespace.
 #define DEFINE_CONST_STACK_OF(type)                                \
   BORINGSSL_DEFINE_STACK_OF_IMPL(type, const type *, const type *) \
   BORINGSSL_DEFINE_STACK_TRAITS(type, const type, true)
+
+// DEFINE_NAMESPACED_STACK_OF is same as |DEFINE_STACK_OF| but to be used for
+// internal stacks from within the bssl namespace.
+//
+// Such stacks then can only be accessed using |STACK_OF| if in the |bssl|
+// namespace or if the |bssl| namespace has been imported with a
+// using-directive.
+#define DEFINE_NAMESPACED_STACK_OF(type)                     \
+  BORINGSSL_DEFINE_STACK_OF_IMPL(type, type *, const type *) \
+  BSSL_NAMESPACE_END                                         \
+  BORINGSSL_DEFINE_STACK_TRAITS(type, type, false)           \
+  BSSL_NAMESPACE_BEGIN
 
 
 // Using stacks.

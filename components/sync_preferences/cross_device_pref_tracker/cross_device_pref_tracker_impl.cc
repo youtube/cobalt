@@ -48,6 +48,8 @@ namespace sync_preferences {
 
 namespace {
 
+using ServiceStatus = ::sync_preferences::CrossDevicePrefTracker::ServiceStatus;
+
 // Keys used for the cross-device syncable storage dictionary pref. For more
 // details on the design, see go/cross-device-pref-tracker.
 
@@ -68,6 +70,9 @@ constexpr char kUpdateTimeKey[] = "update_time";
 constexpr char kLastObservedChangeTimeKey[] = "last_observed_change_time";
 
 // Histogram name for tracking service availability at query time.
+//
+// Note: The UMA histogram is named
+// "Sync.CrossDevicePrefTracker.AvailabilityAtQuery" for legacy reasons.
 constexpr char kTrackerAvailabilityAtQueryHistogram[] =
     "Sync.CrossDevicePrefTracker.AvailabilityAtQuery";
 
@@ -84,28 +89,27 @@ bool IsDeviceExpired(const syncer::DeviceInfo& device_info,
 }
 
 // Helper to determine the current service availability state.
-CrossDevicePrefTrackerAvailabilityAtQuery GetAvailabilityState(
+ServiceStatus ComputeServiceStatus(
     const syncer::DeviceInfoTracker* device_info_tracker,
     bool is_local_device_info_ready,
     bool is_sync_configured_for_writes) {
   if (!device_info_tracker) {
-    return CrossDevicePrefTrackerAvailabilityAtQuery::kDeviceInfoTrackerMissing;
+    return ServiceStatus::kDeviceInfoTrackerMissing;
   }
 
   if (is_local_device_info_ready && is_sync_configured_for_writes) {
-    return CrossDevicePrefTrackerAvailabilityAtQuery::kAvailable;
+    return ServiceStatus::kAvailable;
   }
 
   if (is_local_device_info_ready && !is_sync_configured_for_writes) {
-    return CrossDevicePrefTrackerAvailabilityAtQuery::kSyncNotConfigured;
+    return ServiceStatus::kSyncNotConfigured;
   }
 
   if (!is_local_device_info_ready && is_sync_configured_for_writes) {
-    return CrossDevicePrefTrackerAvailabilityAtQuery::kLocalDeviceInfoMissing;
+    return ServiceStatus::kLocalDeviceInfoMissing;
   }
 
-  return CrossDevicePrefTrackerAvailabilityAtQuery::
-      kSyncNotConfiguredAndLocalDeviceInfoMissing;
+  return ServiceStatus::kSyncNotConfiguredAndLocalDeviceInfoMissing;
 }
 
 // Helper to record the Tracker's service availability metric.
@@ -113,8 +117,8 @@ void LogTrackerServiceAvailability(
     const syncer::DeviceInfoTracker* device_info_tracker,
     bool is_local_device_info_ready,
     bool is_sync_configured_for_writes) {
-  CrossDevicePrefTrackerAvailabilityAtQuery availability =
-      GetAvailabilityState(device_info_tracker, is_local_device_info_ready,
+  ServiceStatus availability =
+      ComputeServiceStatus(device_info_tracker, is_local_device_info_ready,
                            is_sync_configured_for_writes);
 
   base::UmaHistogramEnumeration(kTrackerAvailabilityAtQueryHistogram,
@@ -508,6 +512,10 @@ CrossDevicePrefTrackerImpl::CrossDevicePrefTrackerImpl(
 
   is_sync_configured_for_writes_ = IsSyncConfiguredForWrites();
 
+  service_status_ = ComputeServiceStatus(
+      device_info_sync_service_->GetDeviceInfoTracker(),
+      is_local_device_info_ready_, is_sync_configured_for_writes_);
+
   // Initialize `DeviceInfoTracker` observation and cache known GUIDs.
   if (syncer::DeviceInfoTracker* tracker =
           device_info_sync_service_->GetDeviceInfoTracker()) {
@@ -562,6 +570,10 @@ void CrossDevicePrefTrackerImpl::AddObserver(
 void CrossDevicePrefTrackerImpl::RemoveObserver(
     CrossDevicePrefTracker::Observer* observer) {
   observers_.RemoveObserver(observer);
+}
+
+ServiceStatus CrossDevicePrefTrackerImpl::GetServiceStatus() const {
+  return service_status_;
 }
 
 std::vector<TimestampedPrefValue> CrossDevicePrefTrackerImpl::GetValues(
@@ -659,10 +671,12 @@ void CrossDevicePrefTrackerImpl::OnDeviceInfoChange() {
   HandleLocalDeviceInfoIfAvailable();
   HandleRemoteDeviceInfoChanges();
   GarbageCollectStaleCacheGuids();
+  UpdateServiceStatus();
 }
 
 void CrossDevicePrefTrackerImpl::OnStateChanged(syncer::SyncService* sync) {
   OnSyncStateChanged();
+  UpdateServiceStatus();
 }
 
 void CrossDevicePrefTrackerImpl::OnSyncShutdown(syncer::SyncService* sync) {
@@ -1087,6 +1101,22 @@ CrossDevicePrefTrackerImpl::GetActiveDevices() const {
   }
 
   return active_devices;
+}
+
+void CrossDevicePrefTrackerImpl::UpdateServiceStatus() {
+  ServiceStatus new_status = ComputeServiceStatus(
+      device_info_sync_service_->GetDeviceInfoTracker(),
+      is_local_device_info_ready_, is_sync_configured_for_writes_);
+
+  if (new_status == service_status_) {
+    return;
+  }
+
+  service_status_ = new_status;
+
+  for (auto& observer : observers_) {
+    observer.OnServiceStatusChanged(service_status_);
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)

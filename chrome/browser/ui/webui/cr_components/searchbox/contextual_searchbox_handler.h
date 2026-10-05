@@ -24,6 +24,7 @@
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_search/contextual_search_types.h"
+#include "components/contextual_search/input_state_model.h"
 #include "components/lens/contextual_input.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
@@ -141,10 +142,6 @@ class ContextualSearchboxHandler
       const std::optional<contextual_search::FileUploadErrorType>& error_type)
       override;
 
-  // SearchboxHandler:
-  std::string AutocompleteIconToResourceName(
-      const gfx::VectorIcon& icon) const override;
-
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -163,10 +160,6 @@ class ContextualSearchboxHandler
       WindowOpenDisposition disposition,
       omnibox::ChromeAimEntryPoint aim_entry_point,
       std::map<std::string, std::string> additional_params);
-
-  // Returns the invocation source associated with the searchbox implementation.
-  virtual std::optional<lens::LensOverlayInvocationSource> GetInvocationSource()
-      const = 0;
 
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerBrowserTest,
                            CreateTabPreviewEncodingOptions_NotScaled);
@@ -200,6 +193,10 @@ class ContextualSearchboxHandler
   // file upload status updates if different from the one that's current.
   contextual_search::ContextualSearchSessionHandle*
   GetContextualSessionHandle();
+
+  // Records metrics for when a tab is added to the composebox.
+  void RecordTabAddedMetric(tabs::TabInterface* const tab,
+                            bool is_tab_suggestion_chip);
 
  private:
   // Helper to get the correct number of tab suggestions. Virtual so it
@@ -235,8 +232,6 @@ class ContextualSearchboxHandler
 
   std::optional<base::Uuid> GetTaskId();
 
-  void RecordTabClickedMetric(tabs::TabInterface* const tab);
-
   std::optional<std::pair<base::UnguessableToken,
                           std::unique_ptr<lens::ContextualInputData>>>
       tab_context_snapshot_;
@@ -254,6 +249,8 @@ class ContextualSearchboxHandler
 
   // Callback to get the contextual session handle from WebUI controller.
   GetSessionHandleCallback get_session_callback_;
+
+  std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
 
   base::WeakPtrFactory<ContextualSearchboxHandler> weak_ptr_factory_{this};
 };

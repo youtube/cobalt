@@ -794,8 +794,8 @@ TEST_F(WebRtcVideoEngineTest, OnRtpSendParametersChangedCallback) {
   std::optional<uint32_t> callback_ssrc;
   RtpParameters callback_params;
   int callback_count = 0;
-  send_channel->SetOnRtpSendParametersChanged(
-      [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
+  send_channel->SubscribeRtpSendParametersChanged(
+      this, [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
         callback_ssrc = ssrc;
         callback_params = params;
         ++callback_count;
@@ -818,6 +818,8 @@ TEST_F(WebRtcVideoEngineTest, OnRtpSendParametersChangedCallback) {
   EXPECT_TRUE(send_channel->SetRtpSendParameters(kSsrc, parameters).ok());
   // No additional callback should have been issued.
   EXPECT_EQ(callback_count, 1);
+
+  send_channel->UnsubscribeRtpSendParametersChanged(this);
 }
 
 // Test that when an encoder factory supports H264, we add an RTX

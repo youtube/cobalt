@@ -159,9 +159,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // Enable V8 optimizations for high-end Android Desktop devices.
   // TODO(crbug.com/425860368): Remove when the feature is stable.
   feature_overrides.EnableFeature(features::kV8AndroidDesktopHighEndConfig);
-  // TODO(b/432367402): Use a new Android API to replace this hack with a proper
-  // solution.
-  feature_overrides.EnableFeature(features::kAndroidCaptureKeyEvents);
   // TODO(crbug.com/438369690): Remove when we enable DevTools frontend for all
   // clank users.
   feature_overrides.EnableFeature(features::kAndroidDevToolsFrontend);
@@ -212,13 +209,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/427242080): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(
       chrome::android::kAndroidPinnedTabsTabletTabStrip);
-
-  // Three flags are required for the bookmarks bar feature.
-  // TODO(crbug.com/430059235): Remove once feature is launched to 100% on all
-  // form factors.
-  feature_overrides.EnableFeature(chrome::android::kAndroidBookmarkBar);
-  feature_overrides.EnableFeature(chrome::android::kAndroidAppearanceSettings);
-  feature_overrides.EnableFeature(chrome::android::kTopControlsRefactor);
 
   // Enable ANGLE/Vulkan features.
   // TODO (crbug.com//376280554): Enable these features with runtime checks

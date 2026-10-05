@@ -212,7 +212,7 @@ INSTANTIATE_TEST_SUITE_P(
              .l4s_network = true,
              .network_capacity = DataRate::KilobitsPerSec(500),
              .expected_bwe_min = DataRate::KilobitsPerSec(200),
-             .max_bwe = DataRate::KilobitsPerSec(500),
+             .max_bwe = DataRate::KilobitsPerSec(600),
          }}),
     [](const ::testing::TestParamInfo<InitialProbeTestParams>& info) {
       return info.param.test_name;

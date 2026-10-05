@@ -25,10 +25,7 @@
 #include <openssl/trust_token.h>
 
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
+BSSL_NAMESPACE_BEGIN
 
 // For the following cryptographic schemes, we use P-384 instead of our usual
 // choice of P-256. See Appendix I of
@@ -81,7 +78,7 @@ typedef struct pmb_pretoken_st {
 // TRUST_TOKEN_PRETOKEN_free releases the memory associated with |token|.
 OPENSSL_EXPORT void TRUST_TOKEN_PRETOKEN_free(TRUST_TOKEN_PRETOKEN *token);
 
-DEFINE_STACK_OF(TRUST_TOKEN_PRETOKEN)
+DEFINE_NAMESPACED_STACK_OF(TRUST_TOKEN_PRETOKEN)
 
 
 // PMBTokens.
@@ -254,6 +251,9 @@ int voprf_pst1_read(const TRUST_TOKEN_ISSUER_KEY *key,
                     size_t token_len, int include_message, const uint8_t *msg,
                     size_t msg_len);
 
+using StackOfTrustTokenPretoken = STACK_OF(TRUST_TOKEN_PRETOKEN);
+
+BSSL_NAMESPACE_END
 
 // Trust Tokens internals.
 
@@ -272,14 +272,14 @@ struct trust_token_method_st {
   // client_key_from_bytes decodes a client key from |in| and sets |key|
   // to the resulting key. It returns one on success and zero
   // on failure.
-  int (*client_key_from_bytes)(TRUST_TOKEN_CLIENT_KEY *key, const uint8_t *in,
-                               size_t len);
+  int (*client_key_from_bytes)(bssl::TRUST_TOKEN_CLIENT_KEY *key,
+                               const uint8_t *in, size_t len);
 
   // issuer_key_from_bytes decodes a issuer key from |in| and sets |key|
   // to the resulting key. It returns one on success and zero
   // on failure.
-  int (*issuer_key_from_bytes)(TRUST_TOKEN_ISSUER_KEY *key, const uint8_t *in,
-                               size_t len);
+  int (*issuer_key_from_bytes)(bssl::TRUST_TOKEN_ISSUER_KEY *key,
+                               const uint8_t *in, size_t len);
 
   // blind generates a new issuance request for |count| tokens. If
   // |include_message| is set, then |msg| is used to derive the token nonces. On
@@ -289,9 +289,9 @@ struct trust_token_method_st {
   // when the server responds.
   //
   // This function implements the AT.Usr0 operation.
-  STACK_OF(TRUST_TOKEN_PRETOKEN) *(*blind)(CBB *cbb, size_t count,
-                                           int include_message,
-                                           const uint8_t *msg, size_t msg_len);
+  bssl::StackOfTrustTokenPretoken *(*blind)(CBB *cbb, size_t count,
+                                            int include_message,
+                                            const uint8_t *msg, size_t msg_len);
 
   // sign parses a request for |num_requested| tokens from |cbs| and
   // issues |num_to_issue| tokens with |key| and a private metadata value of
@@ -299,7 +299,7 @@ struct trust_token_method_st {
   // success and zero on failure.
   //
   // This function implements the AT.Sig operation.
-  int (*sign)(const TRUST_TOKEN_ISSUER_KEY *key, CBB *cbb, CBS *cbs,
+  int (*sign)(const bssl::TRUST_TOKEN_ISSUER_KEY *key, CBB *cbb, CBS *cbs,
               size_t num_requested, size_t num_to_issue,
               uint8_t private_metadata);
 
@@ -312,8 +312,8 @@ struct trust_token_method_st {
   //
   // This function implements the AT.Usr1 operation.
   STACK_OF(TRUST_TOKEN) *(*unblind)(
-      const TRUST_TOKEN_CLIENT_KEY *key,
-      const STACK_OF(TRUST_TOKEN_PRETOKEN) *pretokens, CBS *cbs, size_t count,
+      const bssl::TRUST_TOKEN_CLIENT_KEY *key,
+      const bssl::StackOfTrustTokenPretoken *pretokens, CBS *cbs, size_t count,
       uint32_t key_id);
 
   // read parses a token from |token| and verifies it using |key|. If
@@ -322,7 +322,7 @@ struct trust_token_method_st {
   // metadata bit in |out_nonce| and |*out_private_metadata|. Otherwise, it
   // returns zero. Note that, unlike the output of |unblind|, |token| does not
   // have a four-byte key ID prepended.
-  int (*read)(const TRUST_TOKEN_ISSUER_KEY *key,
+  int (*read)(const bssl::TRUST_TOKEN_ISSUER_KEY *key,
               uint8_t out_nonce[TRUST_TOKEN_NONCE_SIZE],
               uint8_t *out_private_metadata, const uint8_t *token,
               size_t token_len, int include_message, const uint8_t *msg,
@@ -338,6 +338,8 @@ struct trust_token_method_st {
   int has_srr;
 };
 
+BSSL_NAMESPACE_BEGIN
+
 // Structure representing a single Trust Token public key with the specified ID.
 struct trust_token_client_key_st {
   uint32_t id;
@@ -351,6 +353,8 @@ struct trust_token_issuer_key_st {
   TRUST_TOKEN_ISSUER_KEY key;
 };
 
+BSSL_NAMESPACE_END
+
 struct trust_token_client_st {
   const TRUST_TOKEN_METHOD *method;
 
@@ -361,13 +365,13 @@ struct trust_token_client_st {
   // issuance/redemptions.
   // TODO(crbug.com/42290036): Replace this and |num_keys| with an
   // InplaceVector.
-  struct trust_token_client_key_st keys[6];
+  struct bssl::trust_token_client_key_st keys[6];
 
   // num_keys is the number of keys currently configured.
   size_t num_keys;
 
   // pretokens is the intermediate state during an active issuance.
-  STACK_OF(TRUST_TOKEN_PRETOKEN) *pretokens;
+  bssl::StackOfTrustTokenPretoken *pretokens;
 
   // srr_key is the public key used to verify the signature of the SRR.
   EVP_PKEY *srr_key;
@@ -383,7 +387,7 @@ struct trust_token_issuer_st {
   // keys is the set of private keys that are supported by the issuer for
   // issuance/redemptions. The public metadata is an index into this list of
   // keys.
-  struct trust_token_issuer_key_st keys[6];
+  struct bssl::trust_token_issuer_key_st keys[6];
 
   // num_keys is the number of keys currently configured.
   size_t num_keys;
@@ -397,19 +401,10 @@ struct trust_token_issuer_st {
   size_t metadata_key_len;
 };
 
-
-#if defined(__cplusplus)
-}  // extern C
-
-extern "C++" {
-
 BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(TRUST_TOKEN_PRETOKEN, TRUST_TOKEN_PRETOKEN_free)
 
 BSSL_NAMESPACE_END
-
-}  // extern C++
-#endif
 
 #endif  // OPENSSL_HEADER_CRYPTO_TRUST_TOKEN_INTERNAL_H

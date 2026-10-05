@@ -57,6 +57,16 @@ ValueNode* Value(ValueNode* node) { return node; }
     DCHECK(IsFail(result));                 \
   } while (false)
 
+#define REMOVE_AND_RETURN_IF_DONE(result)   \
+  do {                                      \
+    auto res = (result);                    \
+    if (res.IsDoneWithAbort()) {            \
+      return ProcessResult::kTruncateBlock; \
+    } else if (res.IsDone()) {              \
+      return ProcessResult::kRemove;        \
+    }                                       \
+  } while (false)
+
 namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
@@ -451,6 +461,19 @@ ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
   return ProcessResult::kContinue;
 }
 
+MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
+                                                   NodeType type,
+                                                   DeoptimizeReason reason) {
+  if (IsEmptyNodeType(
+          IntersectType(known_node_aspects().GetType(broker(), node), type))) {
+    return EmitUnconditionalDeopt(reason);
+  }
+  if (!known_node_aspects().EnsureType(broker(), node, type)) {
+    return {};
+  }
+  return ReduceResult::Done();
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
     AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -524,7 +547,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
     CheckHeapObject* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REMOVE_AND_RETURN_IF_DONE(EnsureType(
+      node->input_node(0), NodeType::kAnyHeapObject, DeoptimizeReason::kSmi));
   return ProcessResult::kContinue;
 }
 
@@ -626,7 +650,9 @@ ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckJSReceiverOrNullOrUndefined(
     CheckJSReceiverOrNullOrUndefined* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  REMOVE_AND_RETURN_IF_DONE(
+      EnsureType(input, NodeType::kJSReceiverOrNullOrUndefined));
   return ProcessResult::kContinue;
 }
 
@@ -722,6 +748,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
       return ProcessResult::kRemove;
     }
   }
+
+  if (node->first_instance_type() == FIRST_JS_RECEIVER_TYPE &&
+      node->last_instance_type() == LAST_JS_RECEIVER_TYPE) {
+    REMOVE_AND_RETURN_IF_DONE(EnsureType(input, NodeType::kJSReceiver,
+                                         DeoptimizeReason::kWrongInstanceType));
+  }
+
   return ProcessResult::kContinue;
 }
 
@@ -979,6 +1012,12 @@ ProcessResult MaglevGraphOptimizer::VisitSetContinuationPreservedEmbedderData(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFulfillPromise(
+    FulfillPromise* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement(
     TransitionAndStoreArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1068,6 +1107,12 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownApiFunction(
 ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction(
     CallKnownJSFunction* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (!node->NewTargetInput().node()->IsUndefinedValue() &&
+      node->shared_function_info().object()->construct_as_builtin()) {
+    // The invariant of such builtin targets is that the return value is a
+    // JSReceiver. Set the type accordingly here.
+    known_node_aspects().EnsureType(broker(), node, NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1091,7 +1136,10 @@ ProcessResult MaglevGraphOptimizer::VisitConstruct(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckConstructResult(
     CheckConstructResult* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // TODO(b/424157317): Consider optimizing other cases, too.
+  if (node->ConstructResultInput().node()->IsUndefinedValue()) {
+    return ReplaceWith(node->ImplicitReceiverInput().node());
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1235,7 +1283,16 @@ ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain(
 
 ProcessResult MaglevGraphOptimizer::VisitInitialValue(
     InitialValue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // Set the type for the `this` register in sloppy mode.
+  const MaglevCompilationUnit* unit =
+      reducer_.graph()->compilation_info()->toplevel_compilation_unit();
+  if (node->source() == interpreter::Register::FromParameterIndex(0) &&
+      is_sloppy(unit->shared_function_info().language_mode())) {
+    DCHECK(unit->shared_function_info().IsUserJavaScript());
+    NodeInfo* node_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), node);
+    node_info->IntersectType(NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2052,25 +2109,29 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKind(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ToString(
     Int32ToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToString(
     Float64ToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitSmiToString(
     SmiToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitNumberToString(
     NumberToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 

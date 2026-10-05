@@ -32,7 +32,13 @@ namespace webrtc {
 
 class LogScreamSimulation {
  public:
+  // State of Scream at the time when a feedback report has been processed.
   struct State {
+    enum SendWindowUsage {
+      kBelowRefWindow,
+      kAboveRefWindow,
+      kAboveScreamMax,
+    };
     Timestamp time;
 
     DataRate target_rate = DataRate::Zero();
@@ -42,7 +48,11 @@ class LogScreamSimulation {
     DataSize ref_window = DataSize::Zero();
     DataSize ref_window_i = DataSize::Zero();
     DataSize max_data_in_flight = DataSize::Zero();
+    // Data in flight after last packet was sent before the state was captured.
     DataSize data_in_flight = DataSize::Zero();
+    // How the send window have been utilized. Based on data in flight when the
+    // last packet was sent before the state was captured.
+    SendWindowUsage send_window_usage = kBelowRefWindow;
 
     double queue_delay_dev_norm;
     double l4s_alpha = 0.0;
@@ -77,6 +87,8 @@ class LogScreamSimulation {
   Timestamp last_process_ = Timestamp::MinusInfinity();
   TransportFeedbackAdapter transport_feedback_;
   BitrateTracker send_rate_tracker_;
+  State::SendWindowUsage send_window_usage_ = State::kBelowRefWindow;
+  DataSize data_in_flight_ = DataSize::Zero();
 
   // With RFC 8888, transport sequence numbers are not stored per packet.
   // Instead, we generate one.

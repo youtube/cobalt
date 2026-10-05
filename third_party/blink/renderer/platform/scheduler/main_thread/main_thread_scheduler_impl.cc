@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump.h"
@@ -199,6 +198,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 // Treat "input handling" specially in V8.
 BASE_FEATURE(kInputHandlingModeFromUseCase, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInputHandlingModeFromPerformanceScenario,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLoadingModeFromRAILMode, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kLoadingModeFromPerformanceScenario,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 void MaybeSetBusyLoop(raw_ptr<base::MessagePump> message_pump,
@@ -391,6 +393,14 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
     trace_event::AddTraceSessionObserver(this);
   }
 
+  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario)) {
+    if (auto performance_scenario_observer_list =
+            performance_scenarios::PerformanceScenarioObserverList::GetForScope(
+                performance_scenarios::ScenarioScope::kCurrentProcess)) {
+      performance_scenario_observer_list->AddObserver(this);
+    }
+  }
+
   internal::ProcessState::Get()->is_process_backgrounded =
       main_thread_only().renderer_backgrounded;
 
@@ -429,6 +439,13 @@ MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
   CHECK(main_thread_only().detached_task_queues.empty());
   CHECK(!virtual_time_control_task_queue_);
 
+  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario)) {
+    if (auto performance_scenario_observer_list =
+            performance_scenarios::PerformanceScenarioObserverList::GetForScope(
+                performance_scenarios::ScenarioScope::kCurrentProcess)) {
+      performance_scenario_observer_list->RemoveObserver(this);
+    }
+  }
   trace_event::RemoveTraceSessionObserver(this);
 }
 
@@ -446,6 +463,29 @@ WebThreadScheduler& WebThreadScheduler::MainThreadScheduler() {
   // `WebThreadScheduler` is needed.
   CHECK(scheduler);
   return *scheduler;
+}
+
+void MainThreadSchedulerImpl::OnInputScenarioChanged(
+    performance_scenarios::ScenarioScope scope,
+    performance_scenarios::InputScenario old_scenario,
+    performance_scenarios::InputScenario new_scenario) {
+  DCHECK(
+      base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario));
+  if (isolate()) {
+    isolate()->SetIsInputHandling(
+        ComputeIsInputHandlingFromPerformanceScenario(new_scenario));
+  }
+}
+
+void MainThreadSchedulerImpl::OnLoadingScenarioChanged(
+    performance_scenarios::ScenarioScope scope,
+    performance_scenarios::LoadingScenario old_scenario,
+    performance_scenarios::LoadingScenario new_scenario) {
+  DCHECK(base::FeatureList::IsEnabled(kLoadingModeFromPerformanceScenario));
+  if (isolate()) {
+    isolate()->SetIsLoading(
+        ComputeIsLoadingFromPerformanceScenario(new_scenario));
+  }
 }
 
 MainThreadSchedulerImpl::MainThreadOnly::MainThreadOnly(
@@ -1580,11 +1620,6 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
         isolate()->SetIsInputHandling(
             ComputeIsInputHandlingFromUseCase(new_policy.use_case));
       }
-      if (base::FeatureList::IsEnabled(
-              kInputHandlingModeFromPerformanceScenario)) {
-        isolate()->SetIsInputHandling(
-            ComputeIsInputHandlingFromPerformanceScenario());
-      }
     }
   }
 
@@ -1592,7 +1627,11 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
   // changed.
   if (new_policy.rail_mode != main_thread_only().current_policy.rail_mode) {
     if (isolate()) {
-      isolate()->SetIsLoading(new_policy.rail_mode == RAILMode::kLoad);
+      if (base::FeatureList::IsEnabled(kLoadingModeFromRAILMode)) {
+        DCHECK(
+            !base::FeatureList::IsEnabled(kLoadingModeFromPerformanceScenario));
+        isolate()->SetIsLoading(new_policy.rail_mode == RAILMode::kLoad);
+      }
     }
     for (auto& observer : main_thread_only().rail_mode_observers) {
       observer.OnRAILModeChanged(new_policy.rail_mode);
@@ -1657,15 +1696,13 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-bool MainThreadSchedulerImpl::ComputeIsInputHandlingFromPerformanceScenario()
-    const {
+bool MainThreadSchedulerImpl::ComputeIsInputHandlingFromPerformanceScenario(
+    performance_scenarios::InputScenario input_scenario) const {
   DCHECK(!base::FeatureList::IsEnabled(kInputHandlingModeFromUseCase));
   using performance_scenarios::InputScenario;
   using performance_scenarios::ScenarioScope;
 
-  auto input_state = GetInputScenario(ScenarioScope::kCurrentProcess)
-                         ->load(std::memory_order_relaxed);
-  switch (input_state) {
+  switch (input_scenario) {
     case InputScenario::kTyping:
     case InputScenario::kTap:
     case InputScenario::kScroll:
@@ -1691,6 +1728,23 @@ bool MainThreadSchedulerImpl::ComputeIsInputHandlingFromUseCase(
       return true;
     default:
       return false;
+  }
+  NOTREACHED();
+}
+
+bool MainThreadSchedulerImpl::ComputeIsLoadingFromPerformanceScenario(
+    performance_scenarios::LoadingScenario loading_scenario) const {
+  DCHECK(!base::FeatureList::IsEnabled(kLoadingModeFromRAILMode));
+  using performance_scenarios::LoadingScenario;
+  using performance_scenarios::ScenarioScope;
+
+  switch (loading_scenario) {
+    case LoadingScenario::kNoPageLoading:
+      return false;
+    case LoadingScenario::kBackgroundPageLoading:
+    case LoadingScenario::kFocusedPageLoading:
+    case LoadingScenario::kVisiblePageLoading:
+      return true;
   }
   NOTREACHED();
 }
@@ -2138,7 +2192,9 @@ void MainThreadSchedulerImpl::DidCommitProvisionalLoad(
         isolate()) {
       // V8 was already informed that the load started, but now that the load is
       // committed, update the start timestamp.
-      isolate()->SetIsLoading(true);
+      if (base::FeatureList::IsEnabled(kLoadingModeFromRAILMode)) {
+        isolate()->SetIsLoading(true);
+      }
     }
   }
 

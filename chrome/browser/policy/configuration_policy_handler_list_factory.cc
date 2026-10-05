@@ -236,7 +236,7 @@
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
-#include "components/on_device_translation/pref_names.h"
+#include "components/on_device_translation/public/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -415,12 +415,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kHttpsUpgradesEnabled,
     prefs::kHttpsUpgradesEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kDefaultThirdPartyStoragePartitioningSetting,
-    prefs::kManagedDefaultThirdPartyStoragePartitioningSetting,
-    base::Value::Type::INTEGER },
-  { key::kThirdPartyStoragePartitioningBlockedForOrigins,
-    prefs::kManagedThirdPartyStoragePartitioningBlockedForOrigins,
-    base::Value::Type::LIST },
   { key::kDataUrlInSvgUseEnabled,
     prefs::kDataUrlInSvgUseEnabled,
     base::Value::Type::BOOLEAN },
@@ -442,9 +436,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kQRCodeGeneratorEnabled,
     prefs::kQRCodeGeneratorEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kReportingEndpoints,
-    prefs::kReportingEndpoints,
-    base::Value::Type::DICT },
   { key::kDownloadRestrictions,
     policy::policy_prefs::kDownloadRestrictions,
     base::Value::Type::INTEGER },
@@ -2949,12 +2940,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 
   handlers->AddHandler(std::make_unique<CloudOnlyPolicyChecker>(
       std::make_unique<URLSchemeListPolicyHandler>(
-          key::kSaaSReportDomainUrlsForBrowser,
-          enterprise_reporting::kSaaSReportDomainUrlsForBrowser)));
+          key::kSaasUsageReportingDomainUrlsForBrowsers,
+          enterprise_reporting::kSaasUsageDomainUrlsForBrowser)));
   handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<URLSchemeListPolicyHandler>(
-          key::kSaaSReportDomainUrlsForProfile,
-          enterprise_reporting::kSaaSReportDomainUrlsForProfile)));
+          key::kSaasUsageReportingDomainUrlsForProfiles,
+          enterprise_reporting::kSaasUsageDomainUrlsForProfile)));
 
 #elif BUILDFLAG(IS_CHROMEOS)
   handlers->AddHandler(

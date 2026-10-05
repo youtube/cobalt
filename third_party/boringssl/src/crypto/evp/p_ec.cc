@@ -100,20 +100,13 @@ static bssl::evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-static int eckey_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool eckey_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
   const EC_KEY *a_ec = reinterpret_cast<const EC_KEY *>(a->pkey);
   const EC_KEY *b_ec = reinterpret_cast<const EC_KEY *>(b->pkey);
   const EC_GROUP *group = EC_KEY_get0_group(b_ec);
   const EC_POINT *pa = EC_KEY_get0_public_key(a_ec),
                  *pb = EC_KEY_get0_public_key(b_ec);
-  int r = EC_POINT_cmp(group, pa, pb, nullptr);
-  if (r == 0) {
-    return 1;
-  } else if (r == 1) {
-    return 0;
-  } else {
-    return -2;
-  }
+  return EC_POINT_cmp(group, pa, pb, nullptr) == 0;
 }
 
 static bssl::evp_decode_result_t eckey_priv_decode(const EVP_PKEY_ALG *alg,
@@ -234,22 +227,19 @@ static int ec_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
   return EC_KEY_set_group(reinterpret_cast<EC_KEY *>(to->pkey), group);
 }
 
-static int ec_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool ec_equal_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
   const EC_KEY *a_ec = reinterpret_cast<const EC_KEY *>(a->pkey);
   const EC_KEY *b_ec = reinterpret_cast<const EC_KEY *>(b->pkey);
   if (a_ec == nullptr || b_ec == nullptr) {
-    return -2;
+    return false;
   }
   const EC_GROUP *group_a = EC_KEY_get0_group(a_ec),
                  *group_b = EC_KEY_get0_group(b_ec);
   if (group_a == nullptr || group_b == nullptr) {
-    return -2;
+    return false;
   }
-  if (EC_GROUP_cmp(group_a, group_b, nullptr) != 0) {
-    // mismatch
-    return 0;
-  }
-  return 1;
+  // EC_GROUP_cmp returns zero on equality.
+  return EC_GROUP_cmp(group_a, group_b, nullptr) == 0;
 }
 
 static void int_ec_free(EVP_PKEY *pkey) {
@@ -272,7 +262,7 @@ const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
 
     eckey_pub_decode,
     eckey_pub_encode,
-    eckey_pub_cmp,
+    eckey_pub_equal,
 
     eckey_priv_decode,
     eckey_priv_encode,
@@ -293,7 +283,7 @@ const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
 
     ec_missing_parameters,
     ec_copy_parameters,
-    ec_cmp_parameters,
+    ec_equal_parameters,
 
     int_ec_free,
 };

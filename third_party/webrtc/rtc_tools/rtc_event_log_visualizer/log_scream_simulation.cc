@@ -69,7 +69,15 @@ void LogScreamSimulation::OnPacketSent(const LoggedPacketInfo& packet) {
   std::optional<SentPacket> packet_info =
       transport_feedback_.ProcessSentPacket(sent_packet);
   if (packet_info.has_value()) {
+    send_window_usage_ = State::kBelowRefWindow;
+    if (packet_info->data_in_flight >= scream_->ref_window()) {
+      send_window_usage_ = State::kAboveRefWindow;
+    }
+    if (packet_info->data_in_flight > scream_->max_data_in_flight()) {
+      send_window_usage_ = State::kAboveScreamMax;
+    }
     scream_->OnPacketSent(packet_info->data_in_flight);
+    data_in_flight_ = packet_info->data_in_flight;
   }
 }
 
@@ -157,7 +165,8 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .ref_window = scream_->ref_window(),
       .ref_window_i = scream_->ref_window_i(),
       .max_data_in_flight = scream_->max_data_in_flight(),
-      .data_in_flight = msg.data_in_flight,
+      .data_in_flight = data_in_flight_,
+      .send_window_usage = send_window_usage_,
       .queue_delay_dev_norm =
           scream_->delay_based_congestion_control().queue_delay_dev_norm(),
       .l4s_alpha = scream_->l4s_alpha(),

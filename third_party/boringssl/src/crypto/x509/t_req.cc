@@ -24,6 +24,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 int X509_REQ_print_fp(FILE *fp, const X509_REQ *x) {
   BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
   if (bio == nullptr) {

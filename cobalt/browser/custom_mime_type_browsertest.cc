@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
@@ -228,7 +228,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
     EXPECT_TRUE(
         content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-    EXPECT_TRUE(base::Contains(test_media_.GetInterceptedMimes(), mime));
+    EXPECT_TRUE(std::ranges::contains(test_media_.GetInterceptedMimes(), mime));
   }
 
   // Verify the remaining SbMediaSupportType arms in MediaSource.isTypeSupported
@@ -244,13 +244,15 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   test_media_.SetSupportType(kSbMediaSupportTypeMaybe);
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
-  EXPECT_TRUE(base::Contains(test_media_.GetInterceptedMimes(), kProbeMime));
+  EXPECT_TRUE(
+      std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
 
   test_media_.ClearIntercepted();
   test_media_.SetSupportType(kSbMediaSupportTypeNotSupported);
   EXPECT_FALSE(
       content::EvalJs(shell()->web_contents(), probe_query).ExtractBool());
-  EXPECT_TRUE(base::Contains(test_media_.GetInterceptedMimes(), kProbeMime));
+  EXPECT_TRUE(
+      std::ranges::contains(test_media_.GetInterceptedMimes(), kProbeMime));
 }
 
 // canPlayType() is implemented once, on HTMLMediaElement, and inherited
@@ -290,8 +292,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
         test_case.expected,
         content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-    EXPECT_TRUE(
-        base::Contains(test_media_.GetInterceptedMimes(), test_case.mime));
+    EXPECT_TRUE(std::ranges::contains(test_media_.GetInterceptedMimes(),
+                                      test_case.mime));
   }
 }
 
@@ -319,7 +321,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
 
   std::vector<std::string> intercepted = test_media_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kCustomMime));
+  EXPECT_TRUE(std::ranges::contains(intercepted, kCustomMime));
 
   // addSourceBuffer also passes the raw MIME through to ChunkDemuxer::AddId().
   // Retention there is verified via current_mime in
@@ -357,14 +359,14 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
 
   std::vector<std::string> intercepted = test_media_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
-  EXPECT_TRUE(base::Contains(intercepted, kChangedMime));
+  EXPECT_TRUE(std::ranges::contains(intercepted, kInitialMime));
+  EXPECT_TRUE(std::ranges::contains(intercepted, kChangedMime));
 
   // changeType() must forward both the initial MIME (stored in
   // SourceBufferState by addSourceBuffer() -> ChunkDemuxer::AddId()) and the
   // target MIME to the Starboard codec transition check via
   // ChunkDemuxer::CanChangeType().
-  EXPECT_TRUE(base::Contains(
+  EXPECT_TRUE(std::ranges::contains(
       test_media_.GetInterceptedChangeTypes(),
       std::make_pair(std::string(kInitialMime), std::string(kChangedMime))));
 }
@@ -403,8 +405,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), script).ExtractBool());
 
   std::vector<std::string> intercepted = test_media_.GetInterceptedMimes();
-  EXPECT_TRUE(base::Contains(intercepted, kInitialMime));
-  EXPECT_TRUE(base::Contains(intercepted, kUnsupportedMime));
+  EXPECT_TRUE(std::ranges::contains(intercepted, kInitialMime));
+  EXPECT_TRUE(std::ranges::contains(intercepted, kUnsupportedMime));
 }
 
 // Unlike the test above, which is rejected by the isTypeSupported() probe, this
@@ -443,7 +445,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Both the current and target raw MIMEs must still reach the codec transition
   // check unmodified.
-  EXPECT_TRUE(base::Contains(
+  EXPECT_TRUE(std::ranges::contains(
       test_media_.GetInterceptedChangeTypes(),
       std::make_pair(std::string(kInitialMime), std::string(kChangedMime))));
 }

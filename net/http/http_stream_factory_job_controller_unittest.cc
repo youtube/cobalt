@@ -4,13 +4,13 @@
 
 #include "net/http/http_stream_factory_job_controller.h"
 
+#include <algorithm>
 #include <list>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -980,15 +980,6 @@ TEST_P(HttpStreamFactoryJobControllerDualPathTest, NoValidAlpns) {
 // get a QUIC session.
 TEST_P(HttpStreamFactoryJobControllerDualPathTest,
        AltServiceHasSameDestinationAsNoQuicRequest) {
-  // TODO(https://crbug.com/470288163): Remove this check once issue is
-  // addressed, and this test no longer gets stuck in an infinite loop when HEv3
-  // is enabled.
-  if (happy_eyeballs_v3_enabled()) {
-    GTEST_SKIP()
-        << "This test currently CHECKs in HEv3 mode, due to merging QUIC-only "
-           "and anything-but-quic ALPN lists, to get an empty list.";
-  }
-
   // The alt-service URL for the initial request, and the destination URL for
   // the second request.
   const GURL alt_service_url("https://alt.a.test");
@@ -5750,7 +5741,7 @@ TEST_F(HttpStreamFactoryJobControllerTest, GetAlternativeServiceInfoFor) {
   quic::ParsedQuicVersion unsupported_version_2 =
       quic::ParsedQuicVersion::Unsupported();
   for (const quic::ParsedQuicVersion& version : quic::AllSupportedVersions()) {
-    if (base::Contains(supported_versions, version)) {
+    if (std::ranges::contains(supported_versions, version)) {
       continue;
     }
     if (unsupported_version_1 == quic::ParsedQuicVersion::Unsupported()) {

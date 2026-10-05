@@ -629,6 +629,7 @@
   V(_, daysInYear_string, "daysInYear")                                       \
   V(_, default_string, "default")                                             \
   V(_, defer_string, "defer")                                                 \
+  V(_, Deferred_Module_string, "Deferred Module")                             \
   V(_, defineProperty_string, "defineProperty")                               \
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \
@@ -1068,6 +1069,7 @@
   F(MC_CLEAR_JOIN_JOB)                           \
   F(MC_CLEAR_JS_WEAK_REFERENCES)                 \
   F(MC_CLEAR_MAPS)                               \
+  F(MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY)        \
   F(MC_CLEAR_SLOTS_BUFFER)                       \
   F(MC_CLEAR_STRING_TABLE)                       \
   F(MC_CLEAR_WEAK_COLLECTIONS)                   \

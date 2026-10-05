@@ -106,7 +106,7 @@ class SSLAdapter : public AsyncSocketAdapter {
   // Create the default SSL adapter for this platform. On failure, returns null
   // and deletes `socket`. Otherwise, the returned SSLAdapter takes ownership
   // of `socket`.
-  static SSLAdapter* Create(Socket* socket);
+  static SSLAdapter* Create(Socket* socket, bool dtls = false);
 
  private:
   // Not supported.

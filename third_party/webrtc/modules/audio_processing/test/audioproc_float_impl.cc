@@ -137,6 +137,11 @@ ABSL_FLAG(bool,
           "Activate all of the default components (will be overridden by any "
           "other settings)");
 ABSL_FLAG(int,
+          use_adaptive_stereo_downmixing_for_aec,
+          kParameterNotSpecifiedValue,
+          "Activate (1) or deactivate (0) adaptive downmixing for stereo "
+          "microphones when aec is active");
+ABSL_FLAG(int,
           analog_agc_use_digital_adaptive_controller,
           kParameterNotSpecifiedValue,
           "Activate (1) or deactivate (0) digital adaptation in AGC1. "
@@ -501,6 +506,9 @@ SimulationSettings CreateSettings() {
   settings.report_performance = absl::GetFlag(FLAGS_performance_report);
   SetSettingIfSpecified(absl::GetFlag(FLAGS_performance_report_output_file),
                         &settings.performance_report_output_filename);
+  SetSettingIfFlagSet(
+      absl::GetFlag(FLAGS_use_adaptive_stereo_downmixing_for_aec),
+      &settings.use_adaptive_stereo_downmixing_for_aec);
   settings.use_verbose_logging = absl::GetFlag(FLAGS_verbose);
   settings.use_quiet_output = absl::GetFlag(FLAGS_quiet);
   settings.report_bitexactness = absl::GetFlag(FLAGS_bitexactness_report);

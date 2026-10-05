@@ -523,6 +523,7 @@ rtc_library("video_frame_writer") {
   ]
 
   deps = [
+    "../api:array_view",
     "../api:scoped_refptr",
     "../api/test/video:video_frame_writer",
     "../api/video:video_frame",

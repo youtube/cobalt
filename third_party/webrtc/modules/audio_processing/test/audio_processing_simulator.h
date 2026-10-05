@@ -160,6 +160,7 @@ struct SimulationSettings {
   std::optional<int> dump_end_frame;
   std::optional<int> init_to_process;
   std::optional<std::string> neural_echo_residual_estimator_model;
+  std::optional<bool> use_adaptive_stereo_downmixing_for_aec;
 };
 
 // State used by the audio processor, but not owned by it.

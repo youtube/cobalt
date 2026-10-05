@@ -53,6 +53,12 @@
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
+#ifdef V8_INTL_SUPPORT
+#define IF_NOT_INTL(Macro, ...)
+#else
+#define IF_NOT_INTL(Macro, ...) Macro(__VA_ARGS__)
+#endif  // V8_INTL_SUPPORT
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 #define IF_UD(Macro, ...) Macro(__VA_ARGS__)
 #define IF_NOT_UD(Macro, ...)
@@ -471,6 +477,7 @@ class ExceptionHandlerInfo;
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
+  V(FulfillPromise)                           \
   GAP_MOVE_NODE_LIST(V)                       \
   TURBOLEV_NON_VALUE_NODE_LIST(V)
 
@@ -3244,7 +3251,7 @@ class ArrayWrapper : public std::array<ValueRepresentation, Size> {
     static_assert(sizeof...(args) == Size);
   }
 };
-struct YouNeedToDefineAnInputTypesArrayInYourDerivedClass {};
+struct YouNeedToDefineAnInputRepresentationsArrayInYourDerivedClass {};
 }  // namespace detail
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -3267,11 +3274,11 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 
   void VerifyInputs() const {
     if constexpr (kInputCount != 0) {
-      static_assert(
-          std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
-      static_assert(kInputCount == Derived::kInputTypes.size());
+      static_assert(std::is_same_v<const InputRepresentations,
+                                   decltype(Derived::kInputRepresentations)>);
+      static_assert(kInputCount == Derived::kInputRepresentations.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        Base::CheckInputIs(i, Derived::kInputTypes[i]);
+        Base::CheckInputIs(i, Derived::kInputRepresentations[i]);
       }
     }
   }
@@ -3279,11 +3286,11 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
     if constexpr (kInputCount != 0) {
-      static_assert(
-          std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
-      static_assert(kInputCount == Derived::kInputTypes.size());
+      static_assert(std::is_same_v<const InputRepresentations,
+                                   decltype(Derived::kInputRepresentations)>);
+      static_assert(kInputCount == Derived::kInputRepresentations.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        if (Derived::kInputTypes[i] == ValueRepresentation::kTagged) {
+        if (Derived::kInputRepresentations[i] == ValueRepresentation::kTagged) {
           ValueNode* input_node = this->input(i).node();
           input_node->SetTaggedResultNeedsDecompress();
         }
@@ -3293,9 +3300,10 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 #endif
 
  protected:
-  using InputTypes = detail::ArrayWrapper<kInputCount>;
-  static constexpr detail::YouNeedToDefineAnInputTypesArrayInYourDerivedClass
-      kInputTypes = {};
+  using InputRepresentations = detail::ArrayWrapper<kInputCount>;
+  static constexpr detail::
+      YouNeedToDefineAnInputRepresentationsArrayInYourDerivedClass
+          kInputRepresentations = {};
 
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
@@ -3381,8 +3389,8 @@ class VarargsNodeTMixin : public NodeTMixin<BaseT, Derived> {
 
 #define VALUE_REPRESENTATION(x, idx) ValueRepresentation::k##x,
 
-#define DECLARE_INPUT_TYPES(...)                          \
-  static constexpr typename Base::InputTypes kInputTypes{ \
+#define DECLARE_INPUT_TYPES(...)                                              \
+  static constexpr typename Base::InputRepresentations kInputRepresentations{ \
       SELECT_MACRO(__VA_ARGS__)(VALUE_REPRESENTATION, __VA_ARGS__)};
 
 #define DECLARE_UNOP(Type) \
@@ -7680,7 +7688,7 @@ class MajorGCForCompilerTesting
   static constexpr OpProperties kProperties = OpProperties::NotIdempotent() |
                                               OpProperties::CanAllocate() |
                                               OpProperties::Call();
-  static constexpr typename Base::InputTypes kInputTypes{};
+  static constexpr typename Base::InputRepresentations kInputRepresentations{};
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -8223,6 +8231,7 @@ enum class LoadType {
   kNumber,
   kInternalizedString,
   kContext,
+  kAnyHeapObject,  // Can be a HeapNumber
   kLastLoadType = kContext,
 };
 constexpr int kLoadTypeBitSize =
@@ -8248,6 +8257,9 @@ inline std::ostream& operator<<(std::ostream& os, LoadType type) {
     case LoadType::kContext:
       os << "Context";
       break;
+    case LoadType::kAnyHeapObject:
+      os << "AnyHeapObject";
+      break;
   }
   return os;
 }
@@ -8266,6 +8278,8 @@ constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
       return NodeType::kInternalizedString;
     case LoadType::kContext:
       return NodeType::kContext;
+    case LoadType::kAnyHeapObject:
+      return NodeType::kAnyHeapObject;
   }
 }
 
@@ -8726,7 +8740,7 @@ class StoreFixedDoubleArrayElementT : public FixedInputNodeT<3, Derived> {
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Elements, Index, Value)
-  static constexpr typename Base::InputTypes kInputTypes{
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       value_input_rep};
 
@@ -9037,10 +9051,12 @@ enum class StoreTaggedMode : uint8_t {
   kInitializingToContext,
   kTransitioning,
 };
-inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
+inline bool IsInitializing(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kInitializing ||
-         mode == StoreTaggedMode::kTransitioning ||
          mode == StoreTaggedMode::kInitializingToContext;
+}
+inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
+  return IsInitializing(mode) || mode == StoreTaggedMode::kTransitioning;
 }
 inline bool IsDefaultStoreToContext(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kDefaultToContext ||
@@ -9123,6 +9139,16 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
+
+  bool is_transitioning() const {
+    switch (kind()) {
+      case Kind::kInitializing:
+      case Kind::kInlinedAllocation:
+        return false;
+      case Kind::kTransitioning:
+        return true;
+    }
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -10071,6 +10097,170 @@ class CallBuiltin : public VarargsValueNodeT<0, CallBuiltin> {
     return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
   }
 
+#define BUILTIN_RETURN_TYPE_MAP(V)                                       \
+  V(DatePrototypeGetMilliseconds, NodeType::kNumber)                     \
+  V(MathRandom, NodeType::kNumber)                                       \
+  V(MathFloor, NodeType::kNumber)                                        \
+  V(MathCeil, NodeType::kNumber)                                         \
+  V(MathRound, NodeType::kNumber)                                        \
+  V(MathTrunc, NodeType::kNumber)                                        \
+  V(MathAbs, NodeType::kNumber)                                          \
+  V(MathExp, NodeType::kNumber)                                          \
+  V(MathAcos, NodeType::kNumber)                                         \
+  V(MathAcosh, NodeType::kNumber)                                        \
+  V(MathAsin, NodeType::kNumber)                                         \
+  V(MathAsinh, NodeType::kNumber)                                        \
+  V(MathAtan, NodeType::kNumber)                                         \
+  V(MathAtanh, NodeType::kNumber)                                        \
+  V(MathCbrt, NodeType::kNumber)                                         \
+  V(MathCos, NodeType::kNumber)                                          \
+  V(MathExpm1, NodeType::kNumber)                                        \
+  V(MathFround, NodeType::kNumber)                                       \
+  V(MathLog, NodeType::kNumber)                                          \
+  V(MathLog1p, NodeType::kNumber)                                        \
+  V(MathLog10, NodeType::kNumber)                                        \
+  V(MathLog2, NodeType::kNumber)                                         \
+  V(MathSin, NodeType::kNumber)                                          \
+  V(MathSqrt, NodeType::kNumber)                                         \
+  V(MathTan, NodeType::kNumber)                                          \
+  V(MathSign, NodeType::kNumber)                                         \
+  V(MathAtan2, NodeType::kNumber)                                        \
+  V(MathPow, NodeType::kNumber)                                          \
+  V(MathMax, NodeType::kNumber)                                          \
+  V(MathMin, NodeType::kNumber)                                          \
+  V(MathHypot, NodeType::kNumber)                                        \
+  V(MathImul, NodeType::kNumber)                                         \
+  V(MathClz32, NodeType::kNumber)                                        \
+  V(NumberConstructor, NodeType::kNumber)                                \
+  V(NumberIsFinite, NodeType::kBoolean)                                  \
+  V(NumberIsInteger, NodeType::kBoolean)                                 \
+  V(NumberIsNaN, NodeType::kBoolean)                                     \
+  V(NumberIsSafeInteger, NodeType::kBoolean)                             \
+  V(NumberParseFloat, NodeType::kNumber)                                 \
+  V(NumberParseInt, NodeType::kNumber)                                   \
+  V(NumberToString, NodeType::kString)                                   \
+  V(SymbolConstructor, NodeType::kSymbol)                                \
+  V(SymbolPrototypeToString, NodeType::kString)                          \
+  V(SymbolPrototypeValueOf, NodeType::kSymbol)                           \
+  V(StringConstructor, NodeType::kString)                                \
+  V(StringPrototypeCharCodeAt, NodeType::kNumber)                        \
+  V(StringCharAt, NodeType::kString)                                     \
+  V(StringPrototypeCodePointAt,                                          \
+    UnionType(NodeType::kNumber, NodeType::kUndefined))                  \
+  V(StringPrototypeConcat, NodeType::kString)                            \
+  V(StringFromCharCode, NodeType::kString)                               \
+  V(StringFromCodePoint, NodeType::kString)                              \
+  V(StringPrototypeIndexOf, NodeType::kSmi)                              \
+  V(StringPrototypeLastIndexOf, NodeType::kSmi)                          \
+  V(StringPrototypeEndsWith, NodeType::kBoolean)                         \
+  V(StringPrototypeIncludes, NodeType::kBoolean)                         \
+  V(StringRaw, NodeType::kString)                                        \
+  V(StringRepeat, NodeType::kString)                                     \
+  V(StringPrototypeSlice, NodeType::kString)                             \
+  V(StringPrototypeStartsWith, NodeType::kBoolean)                       \
+  V(StringPrototypeSubstr, NodeType::kString)                            \
+  V(StringSubstring, NodeType::kString)                                  \
+  V(StringPrototypeToString, NodeType::kString)                          \
+  IF_INTL(V, StringPrototypeToLowerCaseIntl, NodeType::kString)          \
+  IF_INTL(V, StringPrototypeToUpperCaseIntl, NodeType::kString)          \
+  IF_NOT_INTL(V, StringPrototypeToLowerCase, NodeType::kString)          \
+  IF_NOT_INTL(V, StringPrototypeToUpperCase, NodeType::kString)          \
+  V(StringPrototypeTrim, NodeType::kString)                              \
+  V(StringPrototypeTrimEnd, NodeType::kString)                           \
+  V(StringPrototypeTrimStart, NodeType::kString)                         \
+  V(StringPrototypeValueOf, NodeType::kString)                           \
+  V(StringPrototypeIterator, NodeType::kAnyHeapObject)                   \
+  V(StringIteratorPrototypeNext, NodeType::kAnyHeapObject)               \
+  V(ArrayPrototypeEntries, NodeType::kAnyHeapObject)                     \
+  V(ArrayPrototypeKeys, NodeType::kAnyHeapObject)                        \
+  V(ArrayPrototypeValues, NodeType::kAnyHeapObject)                      \
+  V(TypedArrayPrototypeEntries, NodeType::kAnyHeapObject)                \
+  V(TypedArrayPrototypeKeys, NodeType::kAnyHeapObject)                   \
+  V(TypedArrayPrototypeValues, NodeType::kAnyHeapObject)                 \
+  V(ArrayIteratorPrototypeNext, NodeType::kAnyHeapObject)                \
+  V(MapIteratorPrototypeNext, NodeType::kAnyHeapObject)                  \
+  V(SetIteratorPrototypeNext, NodeType::kAnyHeapObject)                  \
+  V(TypedArrayPrototypeToStringTag,                                      \
+    UnionType(NodeType::kInternalizedString, NodeType::kUndefined))      \
+  V(ArrayIsArray, NodeType::kBoolean)                                    \
+  V(ArrayConcat, NodeType::kJSReceiver)                                  \
+  V(ArrayEvery, NodeType::kBoolean)                                      \
+  V(ArrayPrototypeFill, NodeType::kJSReceiver)                           \
+  V(ArrayFilter, NodeType::kJSReceiver)                                  \
+  V(ArrayPrototypeFindIndex, NodeType::kNumber)                          \
+  V(ArrayForEach, NodeType::kUndefined)                                  \
+  V(ArrayIncludes, NodeType::kBoolean)                                   \
+  V(ArrayIndexOf, NodeType::kNumber)                                     \
+  V(ArrayPrototypeJoin, NodeType::kString)                               \
+  V(ArrayPrototypeLastIndexOf, NodeType::kNumber)                        \
+  V(ArrayMap, NodeType::kJSReceiver)                                     \
+  V(ArrayPush, NodeType::kNumber)                                        \
+  V(ArrayPrototypeReverse, NodeType::kJSReceiver)                        \
+  V(ArrayPrototypeSlice, NodeType::kJSReceiver)                          \
+  V(ArraySome, NodeType::kBoolean)                                       \
+  V(ArrayPrototypeSplice, NodeType::kJSReceiver)                         \
+  V(ArrayUnshift, NodeType::kNumber)                                     \
+  V(ArrayBufferIsView, NodeType::kBoolean)                               \
+  V(ObjectAssign, NodeType::kJSReceiver)                                 \
+  V(ObjectCreate, NodeType::kAnyHeapObject)                              \
+  V(ObjectIs, NodeType::kBoolean)                                        \
+  V(ObjectHasOwn, NodeType::kBoolean)                                    \
+  V(ObjectPrototypeHasOwnProperty, NodeType::kBoolean)                   \
+  V(ObjectPrototypeIsPrototypeOf, NodeType::kBoolean)                    \
+  V(ObjectToString, NodeType::kString)                                   \
+  V(PromiseAll, NodeType::kJSReceiver)                                   \
+  V(PromisePrototypeThen, NodeType::kJSReceiver)                         \
+  V(PromiseRace, NodeType::kJSReceiver)                                  \
+  V(PromiseReject, NodeType::kJSReceiver)                                \
+  V(PromiseResolveTrampoline, NodeType::kJSReceiver)                     \
+  V(RegExpPrototypeCompile, NodeType::kAnyHeapObject)                    \
+  V(RegExpPrototypeExec, UnionType(NodeType::kJSArray, NodeType::kNull)) \
+  V(RegExpPrototypeTest, NodeType::kBoolean)                             \
+  V(RegExpPrototypeToString, NodeType::kString)                          \
+  V(FunctionPrototypeBind, NodeType::kCallable)                          \
+  V(FunctionPrototypeHasInstance, NodeType::kBoolean)                    \
+  V(GlobalDecodeURI, NodeType::kString)                                  \
+  V(GlobalDecodeURIComponent, NodeType::kString)                         \
+  V(GlobalEncodeURI, NodeType::kString)                                  \
+  V(GlobalEncodeURIComponent, NodeType::kString)                         \
+  V(GlobalEscape, NodeType::kString)                                     \
+  V(GlobalUnescape, NodeType::kString)                                   \
+  V(GlobalIsFinite, NodeType::kBoolean)                                  \
+  V(GlobalIsNaN, NodeType::kBoolean)                                     \
+  V(MapPrototypeClear, NodeType::kUndefined)                             \
+  V(MapPrototypeForEach, NodeType::kUndefined)                           \
+  V(MapPrototypeDelete, NodeType::kBoolean)                              \
+  V(MapPrototypeHas, NodeType::kBoolean)                                 \
+  V(MapPrototypeEntries, NodeType::kAnyHeapObject)                       \
+  V(MapPrototypeKeys, NodeType::kAnyHeapObject)                          \
+  V(MapPrototypeSet, NodeType::kAnyHeapObject)                           \
+  V(MapPrototypeValues, NodeType::kAnyHeapObject)                        \
+  V(SetPrototypeAdd, NodeType::kAnyHeapObject)                           \
+  V(SetPrototypeEntries, NodeType::kAnyHeapObject)                       \
+  V(SetPrototypeValues, NodeType::kAnyHeapObject)                        \
+  V(SetPrototypeClear, NodeType::kUndefined)                             \
+  V(SetPrototypeForEach, NodeType::kUndefined)                           \
+  V(SetPrototypeDelete, NodeType::kBoolean)                              \
+  V(SetPrototypeHas, NodeType::kBoolean)                                 \
+  V(WeakMapPrototypeDelete, NodeType::kBoolean)                          \
+  V(WeakMapPrototypeHas, NodeType::kBoolean)                             \
+  V(WeakMapPrototypeSet, NodeType::kAnyHeapObject)                       \
+  V(WeakSetPrototypeAdd, NodeType::kAnyHeapObject)                       \
+  V(WeakSetPrototypeDelete, NodeType::kBoolean)                          \
+  V(WeakSetPrototypeHas, NodeType::kBoolean)
+
+  NodeType type() const {
+    switch (builtin_) {
+#define CASE(Name, Type) \
+  case Builtin::k##Name: \
+    return Type;
+      BUILTIN_RETURN_TYPE_MAP(CASE)
+#undef CASE
+      default:
+        return NodeType::kUnknown;
+    }
+  }
+
   void VerifyInputs() const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -10311,7 +10501,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
 // This node overwrites CallKnownJSFunction in-place after inlining.
 // Although ReturnedValue has only a single input, it is not a
 // FixedInputValueNode, since it accepts any input type and it
-// cannot declare a kInputTypes.
+// cannot declare a kInputRepresentations.
 class ReturnedValue : public ValueNodeT<ReturnedValue> {
  public:
   static_assert(CallKnownJSFunction::kFixedInputCount > 1);
@@ -10795,6 +10985,27 @@ class SetContinuationPreservedEmbedderData
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
 };
 
+// FulfillPromise is eventually lowered to a builtin call to the
+// Builtin::kFulfillPromise builtin. However, this builtin cannot trigger lazy
+// deopt, which is the reason why FulfillPromise is a separate node and doesn't
+// use the BuiltinCall node: the latter assumes that all builtins can lazy deopt
+// and always records a FrameState, which would be wasteful for FulfillPromise.
+class FulfillPromise : public FixedInputNodeT<2, FulfillPromise> {
+ public:
+  explicit FulfillPromise(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanRead() |
+      OpProperties::CanWrite() | OpProperties::CanAllocate();
+
+  DECLARE_INPUTS(Promise, Value)
+  DECLARE_INPUT_TYPES(Tagged, Tagged)
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
 class ControlNode : public NodeBase {
  public:
   // A "hole" in control flow is a control node that unconditionally interrupts
@@ -11036,8 +11247,8 @@ class Throw : public TerminalControlNodeT<1, Throw> {
 #undef DECLARE_FUNCTION
   };
 
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
+      ValueRepresentation::kTagged};
 
   explicit Throw(uint64_t bitfield, Function function, bool has_input)
       : Base(HasInputBitField::update(

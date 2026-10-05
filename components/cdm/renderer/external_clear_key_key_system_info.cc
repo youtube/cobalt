@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "media/base/eme_constants.h"
@@ -58,7 +57,7 @@ bool ExternalClearKeyKeySystemInfo::IsSupportedKeySystem(
     const std::string& key_system) const {
   return (key_system == key_system_ ||
           media::IsSubKeySystemOf(key_system, key_system_)) &&
-         !base::Contains(excluded_key_systems_, key_system);
+         !std::ranges::contains(excluded_key_systems_, key_system);
 }
 
 bool ExternalClearKeyKeySystemInfo::IsSupportedInitDataType(

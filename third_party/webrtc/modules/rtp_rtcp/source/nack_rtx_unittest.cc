@@ -137,7 +137,10 @@ class RtpRtcpRtxNackTest : public ::testing::Test {
       : fake_clock_(123456),
         env_(CreateEnvironment(&fake_clock_)),
         transport_(kTestRtxSsrc),
-        rtx_stream_(&media_stream_, rtx_associated_payload_types_, kTestSsrc),
+        rtx_stream_(env_,
+                    &media_stream_,
+                    rtx_associated_payload_types_,
+                    kTestSsrc),
         retransmission_rate_limiter_(&fake_clock_, kMaxRttMs) {}
   ~RtpRtcpRtxNackTest() override {}
 

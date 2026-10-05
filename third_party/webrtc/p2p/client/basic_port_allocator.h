@@ -29,6 +29,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/enums.h"
 #include "api/turn_customizer.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/port_interface.h"
@@ -40,6 +41,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/memory/always_valid_pointer.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket_address.h"
@@ -341,6 +343,10 @@ struct RTC_EXPORT PortConfiguration {
   // Helper method returns the server addresses for the matching RelayType and
   // Protocol type.
   ServerAddresses GetRelayServerAddresses(ProtocolType type) const;
+
+  // Insert into stun_servers extra TURN servers that could be used as STUN
+  // servers
+  void InsertStunServersForProtocol(ProtocolType type);
 };
 
 // Performs the allocation of ports, in a sequenced (timed) manner, for a given

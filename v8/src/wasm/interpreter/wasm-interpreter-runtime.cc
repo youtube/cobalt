@@ -15,6 +15,7 @@
 #include "src/wasm/interpreter/wasm-interpreter-objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime-inl.h"
 #include "src/wasm/wasm-arguments.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 
@@ -660,7 +661,7 @@ void WasmInterpreterRuntime::UnpackException(
         UNREACHABLE();
     }
   }
-  DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(&tag), encoded_index);
+  DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(module_, &tag), encoded_index);
 }
 
 namespace {
@@ -679,7 +680,7 @@ WasmInterpreterRuntime::CreateWasmExceptionPackage(uint32_t tag_index) const {
       TrustedCast<WasmExceptionTag>(trusted_data->tags_table()->get(tag_index)),
       isolate_);
   const WasmTag& tag = GetWasmTag(tag_index);
-  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(&tag);
+  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(module_, &tag);
   DirectHandle<WasmExceptionPackage> exception_object =
       WasmExceptionPackage::New(isolate_, exception_tag, encoded_size);
   return exception_object;
@@ -851,10 +852,11 @@ int32_t WasmInterpreterRuntime::AtomicNotify(uint64_t buffer_offset,
     HandleScope handle_scope(isolate_);
     // TODO(paolosev@microsoft.com): Support multiple memories.
     uint32_t memory_index = 0;
-    DirectHandle<JSArrayBuffer> array_buffer(wasm_trusted_instance_data()
-                                                 ->memory_object(memory_index)
-                                                 ->array_buffer(),
-                                             isolate_);
+    DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+        isolate_,
+        direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                      isolate_));
+
     int result = FutexEmulation::Wake(*array_buffer, buffer_offset, val);
     return result;
   }
@@ -870,10 +872,14 @@ int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
   HandleScope handle_scope(isolate_);
   // TODO(paolosev@microsoft.com): Support multiple memories.
   uint32_t memory_index = 0;
-  DirectHandle<JSArrayBuffer> array_buffer(
-      wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
-      isolate_);
-  auto result = FutexEmulation::WaitWasm32(isolate_, array_buffer,
+  DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+      isolate_,
+      direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                    isolate_));
+
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
+  auto result = FutexEmulation::WaitWasm32(isolate_, backing_store.get(),
                                            buffer_offset, val, timeout);
   return result.ToSmi().value();
 }
@@ -888,10 +894,14 @@ int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
   HandleScope handle_scope(isolate_);
   // TODO(paolosev@microsoft.com): Support multiple memories.
   uint32_t memory_index = 0;
-  DirectHandle<JSArrayBuffer> array_buffer(
-      wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
-      isolate_);
-  auto result = FutexEmulation::WaitWasm64(isolate_, array_buffer,
+  DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+      isolate_,
+      direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                    isolate_));
+
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
+  auto result = FutexEmulation::WaitWasm64(isolate_, backing_store.get(),
                                            buffer_offset, val, timeout);
   return result.ToSmi().value();
 }
@@ -2396,6 +2406,7 @@ std::pair<DirectHandle<WasmStruct>, const StructType*>
 WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
   const TypeDefinition& type = module_->types[index];
   const StructType* struct_type = module_->struct_type({index});
+  current_thread_->AddWasmGCAllocation(WasmStruct::Size(struct_type));
   DirectHandle<Map> rtt = RttCanon(index);
   return {
       isolate_->factory()->NewWasmStructUninitialized(
@@ -2413,6 +2424,10 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
                       WasmArray::MaxLength(array_type))) {
     return {};
   }
+
+  int element_size = array_type->element_type().value_kind_size();
+  current_thread_->AddWasmGCAllocation(
+      WasmArray::SizeFor(element_size, length));
 
   DirectHandle<Map> rtt = RttCanon(array_index);
   return {
@@ -2448,6 +2463,11 @@ WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
   Address result =
       Runtime_WasmArrayNewSegment(kArgsLength, first_arg_addr, isolate_);
   if (isolate_->has_exception()) return {};
+
+  const ArrayType* array_type = GetArrayType(array_index);
+  int element_size = array_type->element_type().value_kind_size();
+  current_thread_->AddWasmGCAllocation(
+      WasmArray::SizeFor(element_size, length));
 
   return direct_handle(Tagged<Object>(result), isolate_);
 }

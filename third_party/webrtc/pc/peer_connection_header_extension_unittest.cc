@@ -739,7 +739,7 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
-       TransceiversAddedAfterFirstTransceiverCopyExtensions) {
+       TransceiversAddedAfterFirstTransceiverDoNotCopyExtensionsFromStopped) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
@@ -749,22 +749,29 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
   auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
   modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
   transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
-  auto transceiver2 = pc1->AddTransceiver(media_type);
-
+  // Create a description with two sections, and set it as local.
   auto session_description = pc1->CreateOffer();
+  pc1->SetLocalDescription(std::move(session_description));
+  // Stop the transceiver. That should make it ignored for copying purposes.
+  transceiver1->StopStandard();
+  auto transceiver2 = pc1->AddTransceiver(media_type);
+  session_description = pc1->CreateOffer();
+
+  ASSERT_THAT(session_description->description()->contents().size(), Eq(2));
   EXPECT_THAT(session_description->description()
                   ->contents()[0]
                   .media_description()
                   ->rtp_header_extensions(),
               ElementsAre(Field(&RtpExtension::uri, "uri2"),
                           Field(&RtpExtension::uri, "uri3")));
-  // the uri4 extension is disabled in the newly added transceiver too
+  // the uri4 extension is enabled in the newly added transceiver
   EXPECT_THAT(session_description->description()
                   ->contents()[1]
                   .media_description()
                   ->rtp_header_extensions(),
               ElementsAre(Field(&RtpExtension::uri, "uri2"),
-                          Field(&RtpExtension::uri, "uri3")));
+                          Field(&RtpExtension::uri, "uri3"),
+                          Field(&RtpExtension::uri, "uri4")));
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,

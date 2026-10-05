@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "base/check_deref.h"
-#include "base/containers/contains.h"
 #include "base/debug/alias.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -595,7 +594,7 @@ bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
 
   // Otherwise, the interesting nodes are leaf nodes with non-whitespace accessible name.
   return IsLeaf() && !base::ContainsOnlyChars(GetAccessibleNameUTF16(),
-                                               base::kWhitespaceUTF16);
+                                              base::kWhitespaceUTF16);
 }
 
 BrowserAccessibilityAndroid*
@@ -757,7 +756,7 @@ bool BrowserAccessibilityAndroid::IsChildOfLeaf() const {
 }
 
 bool BrowserAccessibilityAndroid::IsLeaf() const {
-  if (base::Contains(GetLeafMap(), this)) {
+  if (GetLeafMap().contains(this)) {
     return GetLeafMap()[this];
   }
 
@@ -1023,9 +1022,11 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
     text = std::move(value);
   }
 
+  // Append the URL/filename only if we don't already have an accessible name.
   if (text.empty() &&
       (ui::IsLink(GetRole()) || ui::IsImageOrVideo(GetRole())) &&
-      !HasExplicitlyEmptyName()) {
+      !HasExplicitlyEmptyName() &&
+      ComputeAndroidNameTo() == AndroidNameTo::kText) {
     std::u16string url = GetString16Attribute(ax::mojom::StringAttribute::kUrl);
     text = ui::AXUrlBaseText(url);
   }
@@ -2668,6 +2669,11 @@ BrowserAccessibilityAndroid::ComputeAndroidNameTo() const {
           GetData().HasIntListAttribute(
               ax::mojom::IntListAttribute::kLabelledbyIds)) {
         name_to_cache_ = AndroidNameTo::kLabeledBy;
+      } else if (base::FeatureList::IsEnabled(
+                     features::
+                         kAccessibilityPopulateSupplementalDescriptionApi)) {
+        // Fallback to supplemental description when labeledBy cannot be used.
+        name_to_cache_ = AndroidNameTo::kSupplementalDescription;
       } else {
         name_to_cache_ = AndroidNameTo::kText;
       }

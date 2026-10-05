@@ -264,7 +264,7 @@ struct MLDSAImplementation {
     return 1;
   }
 
-  static int ComparePublic(const EVP_PKEY *a, const EVP_PKEY *b) {
+  static bool EqualPublic(const EVP_PKEY *a, const EVP_PKEY *b) {
     const auto *a_pub = GetKeyData(a)->GetPublicKey();
     const auto *b_pub = GetKeyData(b)->GetPublicKey();
     return Traits::PublicKeysEqual(a_pub, b_pub);
@@ -406,7 +406,7 @@ struct MLDSAImplementation {
         &pkey_method,
         &DecodePublic,
         &EncodePublic,
-        &ComparePublic,
+        &EqualPublic,
         &DecodePrivate,
         &EncodePrivate,
         // While exporting the seed as the "raw" private key would be natural,
@@ -424,7 +424,7 @@ struct MLDSAImplementation {
         &PkeySize,
         &PkeyBits,
         /*param_missing=*/nullptr,
-        /*param_copy=*/nullptr,
+        /*param_equal=*/nullptr,
         /*param_cmp=*/nullptr,
         &PkeyFree,
     };

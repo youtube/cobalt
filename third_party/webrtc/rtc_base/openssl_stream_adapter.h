@@ -111,6 +111,8 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   // Key Extractor interface
   bool ExportSrtpKeyingMaterial(
       ZeroOnFreeBuffer<uint8_t>& keying_material) override;
+  bool AppendSrtpKeyingMaterial(
+      ZeroOnFreeBuffer<uint8_t>& keying_material) override;
 
   uint16_t GetPeerSignatureAlgorithm() const override;
 

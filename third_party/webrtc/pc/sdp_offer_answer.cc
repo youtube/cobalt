@@ -2022,8 +2022,8 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         if (!content) {
           continue;
         }
-        ChannelInterface* channel = transceiver->channel();
-        if (content->rejected || !channel || channel->local_streams().empty()) {
+        if (content->rejected || !transceiver->HasChannel() ||
+            transceiver->channel_local_streams().empty()) {
           // 0 is a special value meaning "this sender has no associated send
           // stream". Need to call this so the sender won't attempt to configure
           // a no longer existing stream and run into DCHECKs in the lower
@@ -2031,7 +2031,8 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
           transceiver->sender_internal()->SetSsrc(0);
         } else {
           // Get the StreamParams from the channel which could generate SSRCs.
-          const std::vector<StreamParams>& streams = channel->local_streams();
+          const std::vector<StreamParams>& streams =
+              transceiver->channel_local_streams();
           transceiver->sender_internal()->set_stream_ids(
               streams[0].stream_ids());
           auto encodings =
@@ -3459,11 +3460,12 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
         transceivers()->Remove(transceiver);
       }
     }
+    auto sender_internal = transceiver->internal()->sender_internal();
     if (stable_state.init_send_encodings()) {
-      transceiver->internal()->sender_internal()->set_init_send_encodings(
+      sender_internal->set_init_send_encodings(
           stable_state.init_send_encodings().value());
     }
-    transceiver->internal()->sender_internal()->set_transport(nullptr);
+    sender_internal->set_transport(nullptr);
     transceiver->internal()->receiver_internal()->set_transport(nullptr);
     if (stable_state.has_m_section()) {
       transceiver->internal()->set_mid(stable_state.mid());
@@ -4238,13 +4240,12 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiverChannel(
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateTransceiverChannel");
   RTC_DCHECK(IsUnifiedPlan());
   RTC_DCHECK(transceiver);
-  ChannelInterface* channel = transceiver->internal()->channel();
   if (content.rejected) {
-    if (channel) {
+    if (transceiver->internal()->HasChannel()) {
       transceiver->internal()->ClearChannel();
     }
   } else {
-    if (!channel) {
+    if (!transceiver->internal()->HasChannel()) {
       auto error = transceiver->internal()->CreateChannel(
           content.mid(), pc_->call_ptr(), pc_->configuration()->media_config,
           pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
@@ -5113,9 +5114,8 @@ void SdpOfferAnswerHandler::EnableSending() {
     return;
   }
   for (const auto& transceiver : transceivers()->ListInternal()) {
-    ChannelInterface* channel = transceiver->channel();
-    if (channel) {
-      channel->Enable(true);
+    if (transceiver->HasChannel()) {
+      transceiver->EnableChannel(true);
     }
   }
 }
@@ -5143,7 +5143,7 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
 
     // Push down the new SDP media section for each audio/video transceiver.
     auto rtp_transceivers = transceivers()->ListInternal();
-    std::vector<std::pair<ChannelInterface*, const MediaContentDescription*>>
+    std::vector<std::pair<RtpTransceiver*, const MediaContentDescription*>>
         channels;
     std::optional<RtcpFeedbackType> preferred_rtcp_cc_ack_type;
     bool all_rtp_have_same_cc_ack_type = true;
@@ -5153,8 +5153,8 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     for (const auto& transceiver : rtp_transceivers) {
       const ContentInfo* content_info =
           FindMediaSectionForTransceiver(transceiver, sdesc);
-      ChannelInterface* channel = transceiver->channel();
-      if (!channel || !content_info || content_info->rejected) {
+      if (!transceiver->HasChannel() || !content_info ||
+          content_info->rejected) {
         continue;
       }
       const MediaContentDescription* content_desc =
@@ -5176,7 +5176,7 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
       }
 
       transceiver->OnNegotiationUpdate(type, content_desc);
-      channels.push_back(std::make_pair(channel, content_desc));
+      channels.push_back(std::make_pair(transceiver, content_desc));
     }
 
     if (any_rtp_has_cc_ack_type && all_rtp_have_same_cc_ack_type) {
@@ -5199,9 +5199,10 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     for (const auto& entry : channels) {
       std::string error;
       bool success = context_->worker_thread()->BlockingCall([&]() {
-        return (source == CS_LOCAL)
-                   ? entry.first->SetLocalContent(entry.second, type, error)
-                   : entry.first->SetRemoteContent(entry.second, type, error);
+        return (source == CS_LOCAL) ? entry.first->SetChannelLocalContent(
+                                          entry.second, type, error)
+                                    : entry.first->SetChannelRemoteContent(
+                                          entry.second, type, error);
       });
       if (!success) {
         LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER, error);
@@ -5589,7 +5590,7 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   const ContentInfo* voice = GetFirstAudioContent(&desc);
   if (voice && !voice->rejected &&
-      !rtp_manager()->GetAudioTransceiver()->internal()->channel()) {
+      !rtp_manager()->GetAudioTransceiver()->internal()->HasChannel()) {
     auto error =
         rtp_manager()->GetAudioTransceiver()->internal()->CreateChannel(
             voice->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
@@ -5606,7 +5607,7 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
 
   const ContentInfo* video = GetFirstVideoContent(&desc);
   if (video && !video->rejected &&
-      !rtp_manager()->GetVideoTransceiver()->internal()->channel()) {
+      !rtp_manager()->GetVideoTransceiver()->internal()->HasChannel()) {
     auto error =
         rtp_manager()->GetVideoTransceiver()->internal()->CreateChannel(
             video->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
@@ -5848,16 +5849,15 @@ bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
 
   // Gather all updates ahead of time so that all channels can be updated in a
   // single BlockingCall; necessary due to thread guards.
-  std::vector<std::pair<bool, ChannelInterface*>> channels_to_update;
+  std::vector<std::pair<bool, RtpTransceiver*>> channels_to_update;
   for (const auto& transceiver : transceivers()->ListInternal()) {
-    ChannelInterface* channel = transceiver->channel();
     const ContentInfo* content =
         FindMediaSectionForTransceiver(transceiver, sdesc);
-    if (!channel || !content) {
+    if (!transceiver->HasChannel() || !content) {
       continue;
     }
 
-    const MediaType media_type = channel->media_type();
+    const MediaType media_type = transceiver->media_type();
     if (media_type != MediaType::AUDIO && media_type != MediaType::VIDEO) {
       continue;
     }
@@ -5891,7 +5891,7 @@ bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
       }
     }
 
-    channels_to_update.emplace_back(pt_demux_enabled, transceiver->channel());
+    channels_to_update.emplace_back(pt_demux_enabled, transceiver);
   }
 
   if (channels_to_update.empty()) {
@@ -5905,7 +5905,7 @@ bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
   // also do this without blocking.
   return context_->worker_thread()->BlockingCall([&channels_to_update]() {
     for (const auto& it : channels_to_update) {
-      if (!it.second->SetPayloadTypeDemuxingEnabled(it.first)) {
+      if (!it.second->SetChannelPayloadTypeDemuxingEnabled(it.first)) {
         // Note that the state has already been irrevocably changed at this
         // point. Is it useful to stop the loop?
         return false;

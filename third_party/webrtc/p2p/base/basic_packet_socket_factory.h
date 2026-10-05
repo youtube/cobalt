@@ -49,6 +49,14 @@ class RTC_EXPORT BasicPacketSocketFactory : public PacketSocketFactory {
 
   std::unique_ptr<AsyncDnsResolverInterface> CreateAsyncDnsResolver() override;
 
+  std::unique_ptr<AsyncPacketSocket> CreateClientUdpSocket(
+      const Environment& env,
+      const SocketAddress& local_address,
+      const SocketAddress& remote_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      const PacketSocketTcpOptions& options) override;
+
  private:
   int BindSocket(Socket& socket,
                  const SocketAddress& local_address,

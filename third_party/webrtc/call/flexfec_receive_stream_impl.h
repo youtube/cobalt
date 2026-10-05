@@ -77,6 +77,7 @@ class FlexfecReceiveStreamImpl : public FlexfecReceiveStream {
   }
 
  private:
+  const Environment env_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker packet_sequence_checker_;
 
   const uint32_t remote_ssrc_;

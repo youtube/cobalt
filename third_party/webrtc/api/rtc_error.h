@@ -147,6 +147,18 @@ class RTC_EXPORT RTCError {
   static RTCError InvalidParameter() {
     return RTCError(RTCErrorType::INVALID_PARAMETER);
   }
+  static RTCError InvalidState() {
+    return RTCError(RTCErrorType::INVALID_STATE);
+  }
+  static RTCError InvalidModification() {
+    return RTCError(RTCErrorType::INVALID_MODIFICATION);
+  }
+  static RTCError UnsupportedOperation() {
+    return RTCError(RTCErrorType::UNSUPPORTED_OPERATION);
+  }
+  static RTCError UnsupportedParameter() {
+    return RTCError(RTCErrorType::UNSUPPORTED_PARAMETER);
+  }
 
   // Error type.
   RTCErrorType type() const { return type_; }

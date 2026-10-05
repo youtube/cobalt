@@ -554,10 +554,9 @@ bool TurnServerConnection::operator<(const TurnServerConnection& c) const {
 }
 
 std::string TurnServerConnection::ToString() const {
-  const char* const kProtos[] = {"unknown", "udp", "tcp", "ssltcp"};
   StringBuilder ost;
   ost << src_.ToSensitiveString() << "-" << dst_.ToSensitiveString() << ":"
-      << kProtos[proto_];
+      << ProtoToString(proto_);
   return ost.Release();
 }
 

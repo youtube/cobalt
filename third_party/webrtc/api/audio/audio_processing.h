@@ -140,7 +140,8 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
       // Ways to downmix a multi-channel track to mono.
       enum class DownmixMethod {
         kAverageChannels,  // Average across channels.
-        kUseFirstChannel   // Use the first channel.
+        kUseFirstChannel,  // Use the first channel.
+        kAdaptive          // Adaptively choose how to downmix.
       };
 
       // Maximum allowed processing rate used internally. May only be set to
@@ -154,6 +155,8 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
       // Indicates how to downmix multi-channel capture audio to mono (when
       // needed).
       DownmixMethod capture_downmix_method = DownmixMethod::kAverageChannels;
+      DownmixMethod capture_downmix_method_stereo_aec =
+          DownmixMethod::kAverageChannels;
     } pipeline;
 
     // Enabled the pre-amplifier. It amplifies the capture signal

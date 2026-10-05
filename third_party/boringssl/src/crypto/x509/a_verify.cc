@@ -29,9 +29,11 @@
 #include "internal.h"
 
 
-int x509_verify_signature(const X509_ALGOR *sigalg,
-                          const ASN1_BIT_STRING *signature,
-                          bssl::Span<const uint8_t> in, EVP_PKEY *pkey) {
+using namespace bssl;
+
+int bssl::x509_verify_signature(const X509_ALGOR *sigalg,
+                                const ASN1_BIT_STRING *signature,
+                                Span<const uint8_t> in, EVP_PKEY *pkey) {
   if (!pkey) {
     OPENSSL_PUT_ERROR(X509, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
@@ -47,7 +49,7 @@ int x509_verify_signature(const X509_ALGOR *sigalg,
     sig_len = static_cast<size_t>(ASN1_STRING_length(signature));
   }
 
-  bssl::ScopedEVP_MD_CTX ctx;
+  ScopedEVP_MD_CTX ctx;
   if (!x509_digest_verify_init(ctx.get(), sigalg, pkey)) {
     return 0;
   }
@@ -67,6 +69,6 @@ int ASN1_item_verify(const ASN1_ITEM *it, const X509_ALGOR *sigalg,
   if (in_len < 0) {
     return 0;
   }
-  bssl::UniquePtr<uint8_t> free_in(in);
-  return x509_verify_signature(sigalg, signature, bssl::Span(in, in_len), pkey);
+  UniquePtr<uint8_t> free_in(in);
+  return x509_verify_signature(sigalg, signature, Span(in, in_len), pkey);
 }

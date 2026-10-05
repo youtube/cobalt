@@ -23,11 +23,13 @@
 
 #include "api/array_view.h"
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread_types.h"
-#include "rtc_base/time_utils.h"
 #include "sdk/android/src/jni/audio_device/opensles_common.h"
 
 #define TAG "OpenSLESRecorder"
@@ -52,9 +54,11 @@ namespace webrtc {
 namespace jni {
 
 OpenSLESRecorder::OpenSLESRecorder(
+    const Environment& env,
     const AudioParameters& audio_parameters,
     webrtc::scoped_refptr<OpenSLEngineManager> engine_manager)
-    : audio_parameters_(audio_parameters),
+    : env_(env),
+      audio_parameters_(audio_parameters),
       audio_device_buffer_(nullptr),
       initialized_(false),
       recording_(false),
@@ -63,7 +67,7 @@ OpenSLESRecorder::OpenSLESRecorder(
       recorder_(nullptr),
       simple_buffer_queue_(nullptr),
       buffer_index_(0),
-      last_rec_time_(0) {
+      last_rec_time_(Timestamp::Zero()) {
   ALOGD("ctor[tid=%d]", webrtc::CurrentThreadId());
   // Detach from this thread since we want to use the checker to verify calls
   // from the internal  audio thread.
@@ -148,7 +152,7 @@ int OpenSLESRecorder::StartRecording() {
   // Start audio recording by changing the state to SL_RECORDSTATE_RECORDING.
   // Given that buffers are already enqueued, recording should start at once.
   // The macro returns -1 if recording fails to start.
-  last_rec_time_ = Time();
+  last_rec_time_ = env_.clock().CurrentTime();
   if (LOG_ON_ERROR(
           (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING))) {
     return -1;
@@ -379,10 +383,10 @@ void OpenSLESRecorder::ReadBufferQueue() {
   // Check delta time between two successive callbacks and provide a warning
   // if it becomes very large.
   // TODO(henrika): using 150ms as upper limit but this value is rather random.
-  const uint32_t current_time = Time();
-  const uint32_t diff = current_time - last_rec_time_;
-  if (diff > 150) {
-    ALOGW("Bad OpenSL ES record timing, dT=%u [ms]", diff);
+  const Timestamp current_time = env_.clock().CurrentTime();
+  const TimeDelta diff = current_time - last_rec_time_;
+  if (diff > TimeDelta::Millis(150)) {
+    ALOGW("Bad OpenSL ES record timing, dT=%u [ms]", diff.ms<uint32_t>());
   }
   last_rec_time_ = current_time;
   // Send recorded audio data to the WebRTC sink.

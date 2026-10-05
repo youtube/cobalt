@@ -22,11 +22,11 @@
 #include "api/sequence_checker.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
-#include "p2p/base/port_interface.h"
 #include "p2p/test/turn_server.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
@@ -74,6 +74,16 @@ class PacketSocketFactoryWrapper : public webrtc::PacketSocketFactory {
   }
   std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
       override {
+    return nullptr;
+  }
+
+  std::unique_ptr<webrtc::AsyncPacketSocket> CreateClientUdpSocket(
+      const webrtc::Environment& env,
+      const webrtc::SocketAddress& local_address,
+      const webrtc::SocketAddress& remote_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      const webrtc::PacketSocketTcpOptions& udp_options) override {
     return nullptr;
   }
 

@@ -187,7 +187,7 @@ static int dsa_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
   return 1;
 }
 
-static int dsa_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool dsa_equal_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
   const DSA *a_dsa = reinterpret_cast<const DSA *>(a->pkey);
   const DSA *b_dsa = reinterpret_cast<const DSA *>(b->pkey);
   return BN_cmp(DSA_get0_p(a_dsa), DSA_get0_p(b_dsa)) == 0 &&
@@ -195,7 +195,7 @@ static int dsa_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
          BN_cmp(DSA_get0_g(a_dsa), DSA_get0_g(b_dsa)) == 0;
 }
 
-static int dsa_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool dsa_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
   const DSA *a_dsa = reinterpret_cast<const DSA *>(a->pkey);
   const DSA *b_dsa = reinterpret_cast<const DSA *>(b->pkey);
   return BN_cmp(DSA_get0_pub_key(b_dsa), DSA_get0_pub_key(a_dsa)) == 0;
@@ -216,7 +216,7 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
 
     dsa_pub_decode,
     dsa_pub_encode,
-    dsa_pub_cmp,
+    dsa_pub_equal,
 
     dsa_priv_decode,
     dsa_priv_encode,
@@ -237,7 +237,7 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
 
     dsa_missing_parameters,
     dsa_copy_parameters,
-    dsa_cmp_parameters,
+    dsa_equal_parameters,
 
     int_dsa_free,
 };

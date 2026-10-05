@@ -19,7 +19,6 @@
 #import <UIKit/UIKit.h>
 #include <dispatch/dispatch.h>
 
-#include "base/containers/contains.h"
 #include "base/files/file.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/sys_string_conversions.h"
@@ -761,7 +760,7 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
-  DCHECK(!base::Contains(shell_data_map_, shell));
+  DCHECK(!shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   UIWindow* window =
@@ -781,19 +780,19 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 }
 
 gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   return gfx::NativeWindow(shell_data.window);
 }
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   shell_data_map_.erase(shell);
 }
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   //  ShellData& shell_data = shell_data_map_[shell];
 
   //  UIView* web_contents_view = shell->web_contents()->GetNativeView();
@@ -802,7 +801,7 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   // Add the splash screen UIView on top of the main web contents view. It will
@@ -819,16 +818,16 @@ void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
 }
 
 void ShellPlatformDelegate::SetTitle(Shell* shell,
                                      const std::u16string& title) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
 }
 
 void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   // Change the default background color to match that of the UIWindow itself,
   // otherwise there can be a white flash while the page is being loaded.
   if (auto* view = shell->web_contents()->GetRenderWidgetHostView()) {
@@ -837,7 +836,7 @@ void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {
 }
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   [shell_data.window resignKeyWindow];
@@ -848,7 +847,7 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,
     WebContents* web_contents,
     bool enter_fullscreen) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.fullscreen == enter_fullscreen) {
@@ -860,14 +859,14 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
 bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
     Shell* shell,
     const WebContents* web_contents) const {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   auto iter = shell_data_map_.find(shell);
   return iter->second.fullscreen;
 }
 
 base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
 ShellPlatformDelegate::GetOrCreatePlatformOnScreenKeyboard(Shell* shell) {
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
   if (!shell_data.on_screen_keyboard) {
     shell_data.on_screen_keyboard =

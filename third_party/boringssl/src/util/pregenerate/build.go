@@ -57,7 +57,7 @@ type PerlasmSource struct {
 // Pregenerate converts an input target to an output target. It returns the
 // result alongside a list of tasks that must be run to build the referenced
 // files.
-func (in *InputTarget) Pregenerate(name string) (out build.Target, tasks []Task, err error) {
+func (in *InputTarget) Pregenerate(name string) (out build.Target, tasks []Task, asmSrcs []string, err error) {
 	// Expand wildcards.
 	out.Srcs, err = glob(in.Srcs)
 	if err != nil {
@@ -84,6 +84,9 @@ func (in *InputTarget) Pregenerate(name string) (out build.Target, tasks []Task,
 		return
 	}
 
+	asmSrcs = append(asmSrcs, out.Asm...)
+	asmSrcs = append(asmSrcs, out.Nasm...)
+
 	addTask := func(list *[]string, t Task) {
 		tasks = append(tasks, t)
 		*list = append(*list, t.Destination())
@@ -98,33 +101,37 @@ func (in *InputTarget) Pregenerate(name string) (out build.Target, tasks []Task,
 		addTask(&out.Srcs, &ErrDataTask{TargetName: name, Inputs: inputs})
 	}
 
-	addPerlasmTask := func(list *[]string, p *PerlasmSource, fileSuffix string, args []string) {
+	addPerlasmTask := func(list *[]string, p *PerlasmSource, fileSuffix string, args []string) string {
 		dst := p.Dst
 		if len(p.Dst) == 0 {
 			dst = strings.TrimSuffix(path.Base(p.Src), ".pl")
 		}
 		dst = path.Join("gen", name, dst+fileSuffix)
 		args = append(slices.Clone(args), p.Args...)
-		addTask(list, &PerlasmTask{Src: p.Src, Dst: dst, Args: args})
+		addTask(list, WrapWaitable(&PerlasmTask{Src: p.Src, Dst: dst, Args: args}))
+		return dst
 	}
 
 	for _, p := range in.PerlasmAarch64 {
-		addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"ios64"})
-		addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"linux64"})
-		addPerlasmTask(&out.Asm, &p, "-win.S", []string{"win64"})
+		asmSrcs = append(asmSrcs,
+			addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"ios64"}),
+			addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"linux64"}),
+			addPerlasmTask(&out.Asm, &p, "-win.S", []string{"win64"}))
 	}
 	for _, p := range in.PerlasmArm {
-		addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"linux32"})
+		asmSrcs = append(asmSrcs, addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"linux32"}))
 	}
 	for _, p := range in.PerlasmX86 {
-		addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"macosx", "-fPIC"})
-		addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"elf", "-fPIC"})
-		addPerlasmTask(&out.Nasm, &p, "-win.asm", []string{"win32n", "-fPIC"})
+		asmSrcs = append(asmSrcs,
+			addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"macosx", "-fPIC"}),
+			addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"elf", "-fPIC"}),
+			addPerlasmTask(&out.Nasm, &p, "-win.asm", []string{"win32n", "-fPIC"}))
 	}
 	for _, p := range in.PerlasmX86_64 {
-		addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"macosx"})
-		addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"elf"})
-		addPerlasmTask(&out.Nasm, &p, "-win.asm", []string{"nasm"})
+		asmSrcs = append(asmSrcs,
+			addPerlasmTask(&out.Asm, &p, "-apple.S", []string{"macosx"}),
+			addPerlasmTask(&out.Asm, &p, "-linux.S", []string{"elf"}),
+			addPerlasmTask(&out.Nasm, &p, "-win.asm", []string{"nasm"}))
 	}
 
 	// Re-sort the modified fields.
@@ -317,4 +324,28 @@ func MakeBuildFiles(targets map[string]build.Target) []Task {
 		buildVariablesTask(targets, "gen/sources.mk", "#", writeMakeVariable),
 		jsonTask(targets, "gen/sources.json"),
 	}
+}
+
+// Construct a task to collect assembly global symbols into the file "gen/asm.syms".
+// This task should only run after all the `PerlAsmTask`s in `perlAsmTasks` complete.
+func MakeCollectAsmGlobalTask(perlAsmTasks []WaitableTask, allAsmSrcs []string) Task {
+	return NewSimpleTask("gen/asm.syms", func() ([]byte, error) {
+		for _, t := range perlAsmTasks {
+			err := t.Wait()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		syms, err := CollectAsmGlobals(allAsmSrcs)
+		if err != nil {
+			return nil, err
+		}
+		var out []byte
+		for _, sym := range syms {
+			out = append(out, []byte(sym)...)
+			out = append(out, '\n')
+		}
+		return out, nil
+	})
 }

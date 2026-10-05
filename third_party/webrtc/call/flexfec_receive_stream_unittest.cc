@@ -20,6 +20,7 @@
 #include "api/rtp_headers.h"
 #include "call/flexfec_receive_stream_impl.h"
 #include "call/rtp_stream_receiver_controller.h"
+#include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "modules/rtp_rtcp/mocks/mock_recovered_packet_receiver.h"
 #include "modules/rtp_rtcp/mocks/mock_rtcp_rtt_stats.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
@@ -85,7 +86,8 @@ class FlexfecReceiveStreamTest : public ::testing::Test {
   FlexfecReceiveStreamTest()
       : config_(CreateDefaultConfig(&rtcp_send_transport_)) {
     receive_stream_ = std::make_unique<FlexfecReceiveStreamImpl>(
-        CreateEnvironment(), config_, &recovered_packet_receiver_, &rtt_stats_);
+        CreateEnvironment(&log_), config_, &recovered_packet_receiver_,
+        &rtt_stats_);
     receive_stream_->RegisterWithTransport(&rtp_stream_receiver_controller_);
   }
 
@@ -95,6 +97,7 @@ class FlexfecReceiveStreamTest : public ::testing::Test {
 
   AutoThread main_thread_;
   MockTransport rtcp_send_transport_;
+  MockRtcEventLog log_;
   FlexfecReceiveStream::Config config_;
   MockRecoveredPacketReceiver recovered_packet_receiver_;
   MockRtcpRttStats rtt_stats_;
@@ -147,6 +150,11 @@ TEST_F(FlexfecReceiveStreamTest, RecoversPacket) {
 
   // Tear-down
   receive_stream_->UnregisterFromTransport();
+}
+
+TEST_F(FlexfecReceiveStreamTest, LogsReceivedPacketToEventLog) {
+  EXPECT_CALL(log_, LogProxy);
+  receive_stream_->OnRtpPacket(RtpPacketReceived());
 }
 
 }  // namespace webrtc

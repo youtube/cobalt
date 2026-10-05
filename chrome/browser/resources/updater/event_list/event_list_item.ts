@@ -6,17 +6,19 @@ import './raw_event_details.js';
 import '//resources/cr_elements/cr_collapse/cr_collapse.js';
 import '//resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
+import '../scope_icon.js';
 import '../icons.html.js';
 
 import {assert} from '//resources/js/assert.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {Scope, UpdaterProcessMap} from '../event_history.js';
-import {getAppId, isMergedHistoryEvent, localizeScope} from '../event_history.js';
+import type {PolicySet, Scope, UpdaterProcessMap} from '../event_history.js';
+import {getAppId, isMergedHistoryEvent} from '../event_history.js';
 import type {HistoryEvent, MergedActivateEvent, MergedAppCommandEvent, MergedHistoryEvent, MergedInstallEvent, MergedQualifyEvent, MergedUninstallEvent, MergedUpdateEvent, MergedUpdaterProcessEvent, PersistedDataEvent} from '../event_history.js';
 import {loadTimeData} from '../i18n_setup.js';
 import {getKnownAppNamesById} from '../known_apps.js';
+import {formatDateLong, formatDuration} from '../tools.js';
 
 import {getCss} from './event_list_item.css.js';
 import {getHtml} from './event_list_item.html.js';
@@ -47,6 +49,7 @@ export class EventListItemElement extends CrLitElement {
       event: {type: Object},
       eventDate: {type: Object},
       processMap: {type: Object},
+      policies: {type: Object},
       expanded: {type: Boolean, notify: true},
       status: {type: String, reflect: true},
       scope: {type: String, reflect: true},
@@ -56,6 +59,7 @@ export class EventListItemElement extends CrLitElement {
   accessor event: HistoryEvent|MergedHistoryEvent|undefined = undefined;
   accessor eventDate: Date|undefined = undefined;
   accessor processMap: UpdaterProcessMap|undefined = undefined;
+  accessor policies: PolicySet|undefined = undefined;
   accessor expanded = false;
   accessor status: 'success'|'error'|'' = '';
   accessor scope: Scope|undefined = undefined;
@@ -110,16 +114,6 @@ export class EventListItemElement extends CrLitElement {
     this.expanded = e.detail.value;
   }
 
-  protected get scopeIcon(): string {
-    assert(this.scope !== undefined);
-    return this.scope === 'SYSTEM' ? 'cr:computer' : 'cr:person';
-  }
-
-  protected get scopeLabel(): string {
-    assert(this.scope !== undefined);
-    return localizeScope(this.scope);
-  }
-
   /**
    * Parses a base64-encoded string as JSON, discarding the `SAFE_JSON_PREFIX`
    * if present.
@@ -153,17 +147,7 @@ export class EventListItemElement extends CrLitElement {
   }
 
   private computeFormattedDate(): string|undefined {
-    return this.eventDate ? new Intl
-                                .DateTimeFormat(undefined, {
-                                  timeZoneName: 'short',
-                                  month: 'numeric',
-                                  day: 'numeric',
-                                  hour: 'numeric',
-                                  minute: 'numeric',
-                                  second: 'numeric',
-                                })
-                                .format(this.eventDate) :
-                            undefined;
+    return this.eventDate ? formatDateLong(this.eventDate) : undefined;
   }
 
   private computeFormattedDuration(): string|undefined {
@@ -185,12 +169,8 @@ export class EventListItemElement extends CrLitElement {
     remaining = Math.floor(remaining / 24);
     const days = remaining;
 
-    const durationString = new Intl
-                               .DurationFormat(undefined, {
-                                 style: 'narrow',
-                               })
-                               .format({days, hours, minutes, seconds});
-    return loadTimeData.getStringF('duration', durationString);
+    return loadTimeData.getStringF(
+        'duration', formatDuration(days, hours, minutes, seconds));
   }
 
   private computeErrors(): string[] {

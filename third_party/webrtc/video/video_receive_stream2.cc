@@ -300,7 +300,7 @@ VideoReceiveStream2::VideoReceiveStream2(
 
   if (!config_.rtp.rtx_associated_payload_types.empty()) {
     rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(
-        &rtp_video_stream_receiver_,
+        env_, &rtp_video_stream_receiver_,
         std::move(config_.rtp.rtx_associated_payload_types), remote_ssrc(),
         rtp_receive_statistics_.get());
   } else {

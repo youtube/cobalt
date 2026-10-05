@@ -18,7 +18,6 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/Shell_jni.h"
 #include "cobalt/shell/android/shell_manager.h"
@@ -56,7 +55,7 @@ ShellPlatformDelegate::~ShellPlatformDelegate() {
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
-  DCHECK(!base::Contains(shell_data_map_, shell));
+  DCHECK(!shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.java_object.Reset(CreateShellView(shell));
@@ -64,7 +63,7 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   RemoveShellView(shell_data.java_object);
@@ -78,7 +77,7 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_initFromNativeTabContents(
@@ -87,7 +86,7 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_loadSplashScreenNativeTabContents(
@@ -97,7 +96,7 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_updateNativeTabContents(
@@ -139,7 +138,7 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     WebContents* web_contents,
     bool enter_fullscreen) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_toggleFullscreenModeForTab(env, shell_data.java_object,
@@ -150,7 +149,7 @@ bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
     Shell* shell,
     const WebContents* web_contents) const {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   const ShellData& shell_data = shell_data_map_.find(shell)->second;
 
   return Java_Shell_isFullscreenForTabOrPending(env, shell_data.java_object);
@@ -159,7 +158,7 @@ bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
 void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
                                            bool use_overlay_mode) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_setOverlayMode(env, shell_data.java_object, use_overlay_mode);
@@ -167,7 +166,7 @@ void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
 
 void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
   JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
+  DCHECK(shell_data_map_.contains(shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_onLoadProgressChanged(env, shell_data.java_object, progress);

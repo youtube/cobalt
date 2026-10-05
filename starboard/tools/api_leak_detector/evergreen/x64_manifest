@@ -8,3 +8,4 @@ TLS init function for v8::internal::trap_handler::TrapHandlerGuard::is_active_
 dlopen
 dlsym
 dlerror
+sysinfo

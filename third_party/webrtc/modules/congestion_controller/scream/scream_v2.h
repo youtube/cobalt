@@ -64,6 +64,10 @@ class ScreamV2 {
   // Returns the average fraction of ECN-CE marked data units per RTT.
   double l4s_alpha() const { return l4s_alpha_; }
 
+  Timestamp last_reference_window_decrease_time() const {
+    return last_ref_window_decrease_time_;
+  }
+
   // Exposed for easier logging.
   const DelayBasedCongestionControl& delay_based_congestion_control() const {
     return delay_based_congestion_control_;
@@ -138,6 +142,10 @@ class ScreamV2 {
   // Last received feedback that contained a congestion event that may have
   // caused a reaction.
   Timestamp last_reaction_to_congestion_time_ = Timestamp::MinusInfinity();
+  // Last time the reference window decreased. This is not the same
+  // as `last_reaction_to_congestion_time_` since a single CE mark does not
+  // necessarily cause a reference window decrease.
+  Timestamp last_ref_window_decrease_time_ = Timestamp::MinusInfinity();
 
   Timestamp drain_queue_start_ = Timestamp::MinusInfinity();
 

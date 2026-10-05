@@ -10,14 +10,11 @@ import("../../../webrtc.gni")
 
 rtc_library("data_tracker") {
   deps = [
-    "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-    "../../../rtc_base:stringutils",
     "../common:internal_types",
     "../common:sequence_numbers",
     "../packet:chunk",
-    "../packet:data",
     "../public:socket",
     "../timer",
     "//third_party/abseil-cpp/absl/algorithm:container",
@@ -97,7 +94,6 @@ rtc_library("reassembly_queue") {
     "../common:sequence_numbers",
     "../packet:chunk",
     "../packet:data",
-    "../packet:parameter",
     "../public:socket",
     "../public:types",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
@@ -123,8 +119,6 @@ if (rtc_include_tests) {
       "../../../api/task_queue",
       "../../../api/units:time_delta",
       "../../../api/units:timestamp",
-      "../../../rtc_base:checks",
-      "../../../rtc_base:gunit_helpers",
       "../../../test:test_support",
       "../common:handover_testing",
       "../common:internal_types",

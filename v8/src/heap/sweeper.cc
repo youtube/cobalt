@@ -513,7 +513,11 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
                                       Tagged<JSArrayBuffer> object,
                                       MaybeObjectSize maybe_object_size) {
-    object->YoungMarkExtensionPromoted();
+    ArrayBufferExtension* extension = object->extension();
+    if (extension) {
+      extension->InitializationBarrier();
+      extension->YoungMarkPromoted();
+    }
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitJSArrayBuffer(map, object, maybe_object_size);
   }
@@ -659,7 +663,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
     const bool is_large_page = page->is_large();
     if (is_large_page) {
       DCHECK_EQ(LO_SPACE, page->owner_identity());
-      record_visitor.Process(LargePage::cast(page)->GetObject());
+      record_visitor.Process(SbxCast<LargePage>(page)->GetObject());
       page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
     } else {
       DCHECK_EQ(OLD_SPACE, page->owner_identity());

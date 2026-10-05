@@ -19,8 +19,10 @@
 #include <optional>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
@@ -60,8 +62,9 @@ class OpenSLESPlayer : public AudioOutput {
   // TODO(henrika): perhaps set this value dynamically based on OS version.
   static const int kNumOfOpenSLESBuffers = 2;
 
-  OpenSLESPlayer(const AudioParameters& audio_parameters,
-                 webrtc::scoped_refptr<OpenSLEngineManager> engine_manager);
+  OpenSLESPlayer(const Environment& env,
+                 const AudioParameters& audio_parameters,
+                 scoped_refptr<OpenSLEngineManager> engine_manager);
   ~OpenSLESPlayer() override;
 
   int Init() override;
@@ -118,6 +121,8 @@ class OpenSLESPlayer : public AudioOutput {
   void DestroyAudioPlayer();
 
   SLuint32 GetPlayState() const;
+
+  const Environment env_;
 
   // Ensures that methods are called from the same thread as this object is
   // created on.
@@ -188,7 +193,7 @@ class OpenSLESPlayer : public AudioOutput {
   SLVolumeItf volume_;
 
   // Last time the OpenSL ES layer asked for audio data to play out.
-  uint32_t last_play_time_;
+  Timestamp last_play_time_;
 };
 
 }  // namespace jni

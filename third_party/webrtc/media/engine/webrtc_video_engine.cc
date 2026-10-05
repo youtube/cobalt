@@ -860,10 +860,10 @@ std::vector<Codec> WebRtcVideoEngine::LegacyRecvCodecs(bool include_rtx) const {
 
 std::vector<RtpHeaderExtensionCapability>
 WebRtcVideoEngine::GetRtpHeaderExtensions(
-    const webrtc::FieldTrialsView* field_trials) const {
+    const FieldTrialsView* field_trials) const {
   // Use field trials from PeerConnection `field_trials` or from
   // PeerConnectionFactory `trials_`.
-  const webrtc::FieldTrialsView& trials =
+  const FieldTrialsView& trials =
       (field_trials != nullptr ? *field_trials : trials_);
 
   std::vector<RtpHeaderExtensionCapability> result;
@@ -1136,8 +1136,8 @@ bool WebRtcVideoSendChannel::GetChangedSenderParameters(
         if (needs_update) {
           RTCError error =
               send_stream->SetRtpParameters(rtp_parameters, nullptr);
-          if (error.ok() && on_rtp_send_parameters_changed_callback_) {
-            on_rtp_send_parameters_changed_callback_(ssrc, rtp_parameters);
+          if (error.ok()) {
+            on_rtp_send_parameters_changed_callback_.Send(ssrc, rtp_parameters);
           }
         } else {
           RTC_DCHECK(rtp_parameters == send_stream->GetRtpParameters());
@@ -1186,8 +1186,8 @@ bool WebRtcVideoSendChannel::GetChangedSenderParameters(
     if (needs_update) {
       RTC_DCHECK(send_stream->GetRtpParameters() != rtp_parameters);
       RTCError error = send_stream->SetRtpParameters(rtp_parameters, nullptr);
-      if (error.ok() && on_rtp_send_parameters_changed_callback_) {
-        on_rtp_send_parameters_changed_callback_(ssrc, rtp_parameters);
+      if (error.ok()) {
+        on_rtp_send_parameters_changed_callback_.Send(ssrc, rtp_parameters);
       }
     }
   }
@@ -1514,18 +1514,25 @@ RTCError WebRtcVideoSendChannel::SetRtpSendParameters(
   bool changed = (parameters != current_parameters);
   RTCError error =
       it->second->SetRtpParameters(parameters, std::move(callback));
-  if (changed && error.ok() && on_rtp_send_parameters_changed_callback_) {
-    on_rtp_send_parameters_changed_callback_(ssrc, parameters);
+  if (changed && error.ok()) {
+    on_rtp_send_parameters_changed_callback_.Send(ssrc, parameters);
   }
   return error;
 }
 
-void WebRtcVideoSendChannel::SetOnRtpSendParametersChanged(
+void WebRtcVideoSendChannel::SubscribeRtpSendParametersChanged(
+    const void* tag,
     absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
         callback) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  RTC_DCHECK(!on_rtp_send_parameters_changed_callback_);
-  on_rtp_send_parameters_changed_callback_ = std::move(callback);
+  on_rtp_send_parameters_changed_callback_.AddReceiver(tag,
+                                                       std::move(callback));
+}
+
+void WebRtcVideoSendChannel::UnsubscribeRtpSendParametersChanged(
+    const void* tag) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  on_rtp_send_parameters_changed_callback_.RemoveReceivers(tag);
 }
 std::optional<Codec> WebRtcVideoSendChannel::GetSendCodec() const {
   RTC_DCHECK_RUN_ON(&thread_checker_);

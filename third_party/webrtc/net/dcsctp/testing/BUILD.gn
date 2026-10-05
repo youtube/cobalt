@@ -16,8 +16,6 @@ rtc_source_set("testing_macros") {
 rtc_library("data_generator") {
   testonly = true
   deps = [
-    "../../../api:array_view",
-    "../../../rtc_base:checks",
     "../common:internal_types",
     "../packet:data",
     "../public:types",

@@ -374,6 +374,11 @@ class TestAutofillClientTemplate : public T {
     }
   }
 
+  bool IsTabInActorMode() const override { return is_tab_in_actor_mode_; }
+  void set_is_tab_in_actor_mode(bool is_in_actor_mode) {
+    is_tab_in_actor_mode_ = is_in_actor_mode;
+  }
+
   bool IsAutofillEnabled() const override {
     return IsAutofillProfileEnabled() ||
            AutofillClient::GetPaymentsAutofillClient()
@@ -427,22 +432,26 @@ class TestAutofillClientTemplate : public T {
 
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator()
       override {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
     if (device_authenticator_) {
       return std::move(device_authenticator_);
     }
     return std::make_unique<device_reauth::MockDeviceAuthenticator>();
 #else
     return nullptr;
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
   }
 
   device_reauth::MockDeviceAuthenticator* GetDeviceAuthenticatorPtr() {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
     return device_authenticator_.get();
 #else
     return nullptr;
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
   }
 
   void SetDeviceAuthenticator(
@@ -743,6 +752,8 @@ class TestAutofillClientTemplate : public T {
   bool is_cvc_saving_supported_ = true;
 
   bool is_credit_card_upload_enabled_ = true;
+
+  bool is_tab_in_actor_mode_ = false;
 
   SuggestionHidingReason popup_hidden_reason_;
 

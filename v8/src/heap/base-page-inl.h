@@ -13,8 +13,18 @@
 namespace v8::internal {
 
 // static
+BasePage* BasePage::FromAddress(Address a) {
+  return MemoryChunk::FromAddress(a)->Metadata();
+}
+
+// static
 BasePage* BasePage::FromAddress(const Isolate* i, Address a) {
   return MemoryChunk::FromAddress(a)->Metadata(i);
+}
+
+// static
+BasePage* BasePage::FromHeapObject(Tagged<HeapObject> o) {
+  return FromAddress(o.ptr());
 }
 
 // static
@@ -48,6 +58,13 @@ bool BasePage::IsWritable() const {
   DCHECK_IMPLIES(is_sealed_ro, owner_ == nullptr);
 #endif  // DEBUG
   return !is_sealed_ro;
+}
+
+AllocationSpace BasePage::owner_identity() const {
+  if (!owner()) {
+    return RO_SPACE;
+  }
+  return owner()->identity();
 }
 
 }  // namespace v8::internal

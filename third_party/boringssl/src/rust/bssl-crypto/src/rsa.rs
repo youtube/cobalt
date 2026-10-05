@@ -60,6 +60,7 @@ use crate::{
     ForeignTypeRef, InvalidSignatureError,
 };
 use alloc::vec::Vec;
+use bssl_sys::RSA_up_ref;
 use core::ptr::null_mut;
 
 /// An RSA public key.
@@ -127,7 +128,7 @@ impl PublicKey {
     ) -> Result<(), InvalidSignatureError> {
         let digest = Hash::hash_to_vec(signed_msg);
         // Safety: `get_md` always returns a valid pointer.
-        let hash_nid = unsafe { bssl_sys::EVP_MD_nid(Hash::get_md(sealed::Sealed).as_ptr()) };
+        let hash_nid = unsafe { bssl_sys::EVP_MD_nid(Hash::get_md(sealed::SealedType).as_ptr()) };
         let result = unsafe {
             // Safety: all buffers are valid and `self.0` is valid by construction.
             bssl_sys::RSA_verify(
@@ -181,6 +182,16 @@ pub enum KeySize {
 
 /// An RSA private key.
 pub struct PrivateKey(*mut bssl_sys::RSA);
+
+impl Clone for PrivateKey {
+    fn clone(&self) -> Self {
+        // Safety:
+        // `self.0` is valid by construction and
+        // at this point we definitely own one reference to the object.
+        unsafe { RSA_up_ref(self.0) };
+        Self(self.0)
+    }
+}
 
 impl PrivateKey {
     /// Generate a fresh RSA private key of the given size.
@@ -252,7 +263,7 @@ impl PrivateKey {
     pub fn sign_pkcs1<Hash: digest::Algorithm>(&self, to_be_signed: &[u8]) -> Vec<u8> {
         let digest = Hash::hash_to_vec(to_be_signed);
         // Safety: `get_md` always returns a valid pointer.
-        let hash_nid = unsafe { bssl_sys::EVP_MD_nid(Hash::get_md(sealed::Sealed).as_ptr()) };
+        let hash_nid = unsafe { bssl_sys::EVP_MD_nid(Hash::get_md(sealed::SealedType).as_ptr()) };
         let max_output = unsafe { bssl_sys::RSA_size(self.0) } as usize;
 
         unsafe {

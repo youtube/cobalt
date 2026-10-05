@@ -11,7 +11,7 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.Callback;
 import org.chromium.base.ObserverList.RewindableIterator;
 import org.chromium.base.UserData;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsOffsetTagModifications;
@@ -47,7 +47,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
     }
 
     private static @Nullable TabBrowserControlsConstraintsHelper safeGet(@Nullable Tab tab) {
-        return tab == null ? null : get(tab);
+        return tab == null || tab.isDestroyed() ? null : get(tab);
     }
 
     public static @Nullable TabBrowserControlsConstraintsHelper get(Tab tab) {
@@ -74,8 +74,8 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      * @param tab Tab whose browser controls state is looked into.
      * @return Observable supplier for the current visibility constraints.
      */
-    public static @Nullable
-            ObservableSupplier<@BrowserControlsState Integer> getObservableConstraints(Tab tab) {
+    public static @Nullable MonotonicObservableSupplier<@BrowserControlsState Integer>
+            getObservableConstraints(Tab tab) {
         TabBrowserControlsConstraintsHelper helper = safeGet(tab);
         if (helper == null) return null;
         return helper.mVisibilityDelegate;

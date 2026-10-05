@@ -123,7 +123,7 @@ class Timestamp final : public rtc_units_impl::UnitBase<Timestamp> {
  private:
   friend class rtc_units_impl::UnitBase<Timestamp>;
   using UnitBase::UnitBase;
-  static constexpr bool one_sided = true;
+  static constexpr bool one_sided = false;
 };
 
 RTC_EXPORT std::string ToString(Timestamp value);

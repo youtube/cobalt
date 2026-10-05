@@ -9,3 +9,4 @@ __clock_gettime64
 dlopen
 dlsym
 dlerror
+sysinfo

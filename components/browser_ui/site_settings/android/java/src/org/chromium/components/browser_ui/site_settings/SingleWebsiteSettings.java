@@ -29,9 +29,9 @@ import androidx.preference.PreferenceScreen;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
-import org.chromium.base.supplier.SettableObservableSupplier;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
@@ -275,7 +275,7 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     // A boolean to configure whether the requested notifications permission should be shown.
     private boolean mHasRequestedNotificationsPermission;
 
-    private final SettableObservableSupplier<String> mPageTitle =
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
 
     private class SingleWebsitePermissionsPopulator
@@ -401,7 +401,7 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     }
 
     @Override
-    public ObservableSupplier<String> getPageTitle() {
+    public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
     }
 
@@ -712,7 +712,10 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
             fragmentArgs.putSerializable(EXTRA_SITE, mSite);
             getSettingsNavigation()
                     .startSettings(
-                            getActivity(), LocationPermissionSubpageSettings.class, fragmentArgs);
+                            getActivity(),
+                            LocationPermissionSubpageSettings.class,
+                            fragmentArgs,
+                            /* addToBackStack= */ true);
         } else if (mWebsiteSettingsObserver != null) {
             mWebsiteSettingsObserver.onLocationPermissionSubpageClicked();
         } else {
@@ -873,14 +876,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                     view -> {
                         if (mWebsiteSettingsObserver != null) {
                             mWebsiteSettingsObserver.onNotificationSubscribeClicked();
-                        }
-
-                        // Reset the requested permission state to false, as the permission has
-                        // been granted and is not longer in request.
-                        mHasRequestedNotificationsPermission = false;
-
-                        if (mSite != null) {
-                            displaySitePermissions();
                         }
                     });
             return;

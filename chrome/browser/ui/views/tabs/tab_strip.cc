@@ -20,7 +20,6 @@
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -270,8 +269,6 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
                       const ui::LocatedEvent& event,
                       ui::ListSelectionModel original_selection) {
     std::vector<TabSlotView*> dragging_views;
-    int x = source->GetMirroredXInView(event.x());
-    int y = event.y();
 
     // Build the set of selected tabs to drag and calculate the offset from the
     // source.
@@ -317,9 +314,6 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
         }
 
         dragging_views.push_back(other_tab);
-        if (other_tab == source) {
-          x += GetSizeNeededForViews(dragging_views) - other_tab->width();
-        }
       }
       if (!original_selection.IsSelected(
               tab_strip_->GetModelIndexOf(source).value())) {
@@ -329,7 +323,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
     CHECK(!dragging_views.empty())
         << "Dragging views cannot be empty during drag initialization.";
-    CHECK(base::Contains(dragging_views, source))
+    CHECK(std::ranges::contains(dragging_views, source))
         << "Source must be part of dragging views.";
 
     // Delete the existing DragController before creating a new one. We do this
@@ -349,8 +343,8 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     // TabStrip, and the TabDragController, and may end the drag and destroy
     // `tab_drag_controller_`. If Init returns DELETED, then `drag_controller_`
     // is nullptr or it points to a *different instance*.
-    if (drag_controller_->Init(this, source, dragging_views, gfx::Point(x, y),
-                               event.location(), std::move(selection_model),
+    if (drag_controller_->Init(this, source, dragging_views, event.location(),
+                               std::move(selection_model),
                                EventSourceFromEvent(event)) ==
         TabDragController::Liveness::kDeleted) {
       return;
@@ -403,6 +397,8 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     return tab_strip_->GetModelIndexOf(view);
   }
 
+  int GetTabCount() const { return tab_strip_->GetTabCount(); }
+
   // TabDragContext:
   TabDragContext* GetContextForNewBrowser(
       BrowserView* browser_view) const override {
@@ -433,17 +429,11 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
              GetIndexOf(view) == 0);
   }
 
-  int GetTabCount() const override { return tab_strip_->GetTabCount(); }
-
   bool IsTabPinned(const TabSlotView* tab) const override {
     return tab_strip_->IsTabPinned(tab);
   }
 
-  int GetPinnedTabCount() const override {
-    return tab_strip_->NumPinnedTabsInModel();
-  }
-
-  TabGroupHeader* GetTabGroupHeader(
+  TabSlotView* GetTabGroupHeader(
       const tab_groups::TabGroupId& group) const override {
     return tab_strip_->group_header(group);
   }
@@ -1520,15 +1510,6 @@ void TabStrip::OnWidgetActivationChanged(views::Widget* widget, bool active) {
   }
 
   UpdateHoverCard(nullptr, HoverCardUpdateType::kEvent);
-}
-
-void TabStrip::SetTabNeedsAttention(int model_index, bool attention) {
-  tab_at(model_index)->SetTabNeedsAttention(attention);
-}
-
-void TabStrip::SetTabGroupNeedsAttention(const tab_groups::TabGroupId& id,
-                                         bool attention) {
-  group_header(id)->SetTabGroupNeedsAttention(attention);
 }
 
 TabGroup* TabStrip::GetTabGroup(const tab_groups::TabGroupId& id) const {

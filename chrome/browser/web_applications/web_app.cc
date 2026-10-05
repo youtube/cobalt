@@ -250,18 +250,12 @@ WebApp::CachedDerivedData& WebApp::CachedDerivedData::operator=(
   return *this;
 }
 
-WebApp::WebApp(const webapps::AppId& app_id)
-    : app_id_(app_id),
-      chromeos_data_(IsChromeOsDataMandatory()
-                         ? std::make_optional<WebAppChromeOsData>()
-                         : std::nullopt) {}
-
-WebApp::WebApp(const webapps::ManifestId& manifest_id,
+WebApp::WebApp(const webapps::AppId& app_id,
+               const webapps::ManifestId& manifest_id,
                const GURL& start_url,
                const GURL& scope,
-               std::optional<webapps::AppId> parent_app_id,
-               std::optional<webapps::ManifestId> parent_manifest_id)
-    : app_id_(GenerateAppIdFromManifestId(manifest_id, parent_manifest_id)),
+               std::optional<webapps::AppId> parent_app_id)
+    : app_id_(app_id),
       start_url_(start_url),
       scope_(scope),
       chromeos_data_(IsChromeOsDataMandatory()
@@ -281,12 +275,24 @@ WebApp::WebApp(const webapps::ManifestId& manifest_id,
   CHECK(base::StartsWith(start_url_.spec(), scope_.spec(),
                          base::CompareCase::SENSITIVE))
       << "Start URL " << start_url_ << " must be nested in scope " << scope_;
+  // Ensure sync proto is initialized.
+  SetSyncProto(sync_proto_);
+}
+
+WebApp::WebApp(const webapps::ManifestId& manifest_id,
+               const GURL& start_url,
+               const GURL& scope,
+               std::optional<webapps::AppId> parent_app_id,
+               std::optional<webapps::ManifestId> parent_manifest_id)
+    : WebApp(GenerateAppIdFromManifestId(manifest_id, parent_manifest_id),
+             manifest_id,
+             start_url,
+             scope,
+             parent_app_id) {
   if (parent_app_id_.has_value()) {
     CHECK(!parent_app_id_->empty());
   }
   CHECK(!!parent_app_id == !!parent_manifest_id);
-  // Ensure sync proto is initialized.
-  SetSyncProto(sync_proto_);
 }
 
 WebApp::~WebApp() = default;
@@ -338,6 +344,11 @@ const SortedSizesPx& WebApp::stored_trusted_icon_sizes(
 }
 
 void WebApp::AddSource(WebAppManagement::Type source) {
+  if (source == WebAppManagement::kSync) {
+    CHECK_NE(proto::SUGGESTED_FROM_MIGRATION, install_state_)
+        << "Synced apps should not have an install state suggested from "
+           "migration";
+  }
   sources_.Put(source);
 }
 
@@ -523,6 +534,11 @@ void WebApp::SetWebAppChromeOsData(
 }
 
 void WebApp::SetInstallState(proto::InstallState install_state) {
+  if (install_state == proto::SUGGESTED_FROM_MIGRATION) {
+    CHECK(!IsSynced())
+        << " Attempted to set an install state of suggested from migration "
+           "from an app that has been sync installed";
+  }
   install_state_ = install_state;
 }
 
@@ -919,9 +935,9 @@ void WebApp::SetValidatedMigrationSources(
 }
 
 void WebApp::SetPendingMigrationInfo(
-    std::vector<proto::PendingMigrationInfo> info) {
-  for (const auto& entry : info) {
-    GURL manifest_id(entry.manifest_id());
+    std::optional<proto::PendingMigrationInfo> info) {
+  if (info.has_value()) {
+    GURL manifest_id(info->manifest_id());
     CHECK(manifest_id.is_valid());
     CHECK(!url::Origin::Create(manifest_id).opaque());
   }
@@ -1345,11 +1361,7 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
                              [](const proto::WebAppMigrationSource& source) {
                                return proto::ToValue(source);
                              }));
-  root.Set("pending_migration_info",
-           base::ToValueList(pending_migration_info_,
-                             [](const proto::PendingMigrationInfo& info) {
-                               return proto::ToValue(info);
-                             }));
+  proto::MaybeToValue(pending_migration_info_, "pending_migration_info", root);
 
   base::Value::Dict stored_trusted_icon_sizes_json;
   for (IconPurpose purpose : kIconPurposes) {

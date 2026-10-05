@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
                                   const X509V3_CTX *ctx,
                                   const STACK_OF(CONF_VALUE) *nval);
@@ -43,7 +45,7 @@ static int nc_dns(const ASN1_IA5STRING *sub, const ASN1_IA5STRING *dns);
 static int nc_email(const ASN1_IA5STRING *sub, const ASN1_IA5STRING *eml);
 static int nc_uri(const ASN1_IA5STRING *uri, const ASN1_IA5STRING *base);
 
-const X509V3_EXT_METHOD v3_name_constraints = {
+const X509V3_EXT_METHOD bssl::v3_name_constraints = {
     NID_name_constraints,
     0,
     ASN1_ITEM_ref(NAME_CONSTRAINTS),

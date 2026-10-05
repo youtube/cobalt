@@ -4125,6 +4125,7 @@ public class StripLayoutHelperTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.TAB_STRIP_EMPTY_SPACE_CONTEXT_MENU_ANDROID)
     public void testRightClickingClearsTabHoverState() {
         // Initialize hover card, then hover on a tab.
         initializeTabHoverTest();
@@ -4725,7 +4726,7 @@ public class StripLayoutHelperTest {
         StripLayoutTab theClickedTab = tabs[5];
 
         // Clean active tab environment and ensure.
-        mStripLayoutHelper.stopReorderMode();
+        mStripLayoutHelper.stopReorderMode(false);
         assertFalse(
                 "Reorder should not be in progress.",
                 mStripLayoutHelper.getInReorderModeForTesting());
@@ -4742,7 +4743,7 @@ public class StripLayoutHelperTest {
                 "Dragged Tab should match selected tab during drag action.",
                 mStripLayoutHelper.getReorderDelegateForTesting().getInteractingTabForTesting()
                         == theClickedTab);
-        mStripLayoutHelper.stopReorderMode();
+        mStripLayoutHelper.stopReorderMode(false);
         assertFalse(
                 "Reorder should not be in progress.",
                 mStripLayoutHelper.getInReorderModeForTesting());

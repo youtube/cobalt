@@ -27,6 +27,9 @@
 #include "../internal.h"
 #include "internal.h"
 
+
+using namespace bssl;
+
 static CRYPTO_EX_DATA_CLASS g_ex_data_class =
     CRYPTO_EX_DATA_CLASS_INIT_WITH_APP_DATA;
 
@@ -423,8 +426,8 @@ static X509 *find_issuer(X509_STORE_CTX *ctx, STACK_OF(X509) *sk, X509 *x) {
 
 // Given a possible certificate and issuer check them
 
-int x509_check_issued_with_callback(X509_STORE_CTX *ctx, const X509 *x,
-                                    const X509 *issuer) {
+int bssl::x509_check_issued_with_callback(X509_STORE_CTX *ctx, const X509 *x,
+                                          const X509 *issuer) {
   int ret;
   ret = X509_check_issued(issuer, x);
   if (ret == X509_V_OK) {

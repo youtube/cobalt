@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -28,6 +29,7 @@ public class TabBottomSheetCoordinator {
     private @Nullable TabBottomSheetContent mSheetContent;
     private @Nullable BottomSheetObserver mSheetObserver;
     private @Nullable PropertyModelChangeProcessor mViewBinder;
+    private @Nullable View mContentView;
 
     private boolean mIsSheetCurrentlyManagedByController;
 
@@ -42,22 +44,26 @@ public class TabBottomSheetCoordinator {
         mBottomSheetController = bottomSheetController;
 
         mModel = TabBottomSheetProperties.createDefaultModel();
-        setModelProperties();
     }
 
     /** Shows the bottom sheet. */
-    public void showBottomSheet() {
+    public void showBottomSheet(TabBottomSheetToolbar tabBottomSheetToolbar) {
         if (mIsSheetCurrentlyManagedByController) {
             return;
         }
 
+        setModelProperties();
+
         // Build the bottom sheet.
-        View contentView = LayoutInflater.from(mContext).inflate(R.layout.tab_bottom_sheet, null);
+        mContentView = LayoutInflater.from(mContext).inflate(R.layout.tab_bottom_sheet, null);
+        ViewGroup toolbarContainer = mContentView.findViewById(R.id.toolbar_container);
+
+        toolbarContainer.addView(tabBottomSheetToolbar.getToolbarView());
 
         mViewBinder =
                 PropertyModelChangeProcessor.create(
-                        mModel, contentView, TabBottomSheetViewBinder::bind);
-        mSheetContent = new TabBottomSheetContent(contentView);
+                        mModel, mContentView, TabBottomSheetViewBinder::bind);
+        mSheetContent = new TabBottomSheetContent(mContentView);
         mSheetObserver = buildBottomSheetObserver();
 
         if (mBottomSheetController.requestShowContent(mSheetContent, true)) {
@@ -101,6 +107,7 @@ public class TabBottomSheetCoordinator {
         mIsSheetCurrentlyManagedByController = false;
     }
 
+    // Observer methods.
     private BottomSheetObserver buildBottomSheetObserver() {
         return new EmptyBottomSheetObserver() {
             @Override

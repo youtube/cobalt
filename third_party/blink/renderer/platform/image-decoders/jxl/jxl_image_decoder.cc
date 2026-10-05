@@ -195,6 +195,8 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
     }
     ImageFrame& frame = frame_buffer_cache_[frame_index];
     if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
+      frame.SetPremultiplyAlpha(premultiply_alpha_);
+      InitializeNewFrame(frame_index);
       if (!InitFrameBuffer(frame_index)) {
         SetFailed();
         return;
@@ -264,11 +266,17 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
             high_bit_depth_decoding_option_ == kHighBitDepthToHalfFloat;
 
         // Set pixel format on decoder.
-        // Use BGRA8 for 8-bit decoding (Skia's native format on little-endian).
-        // Use RGBA F16 for high bit depth (Skia's kRGBA_F16_SkColorType).
+        // Use native 8-bit ordering for kN32, and RGBA F16 for half float.
+#if SK_PMCOLOR_BYTE_ORDER(B, G, R, A)
+        constexpr JxlRsPixelFormat kNativePixelFormat = JxlRsPixelFormat::Bgra8;
+#elif SK_PMCOLOR_BYTE_ORDER(R, G, B, A)
+        constexpr JxlRsPixelFormat kNativePixelFormat = JxlRsPixelFormat::Rgba8;
+#else
+#error "Unsupported Skia pixel order"
+#endif
         JxlRsPixelFormat pixel_format = decode_to_half_float_
                                             ? JxlRsPixelFormat::RgbaF16
-                                            : JxlRsPixelFormat::Bgra8;
+                                            : kNativePixelFormat;
         (*decoder_)->set_pixel_format(pixel_format,
                                       basic_info_.num_extra_channels);
 
@@ -353,12 +361,17 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           frame_buffer_cache_.resize(frame_index + 1);
         }
 
+        ImageFrame& frame = frame_buffer_cache_[frame_index];
+        if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
+          frame.SetPremultiplyAlpha(premultiply_alpha_);
+          InitializeNewFrame(frame_index);
+        }
+
         if (!InitFrameBuffer(frame_index)) {
           SetFailed();
           return;
         }
 
-        ImageFrame& frame = frame_buffer_cache_[frame_index];
         frame.SetHasAlpha(basic_info_.has_alpha);
 
         const uint32_t width = basic_info_.width;
@@ -444,15 +457,24 @@ bool JXLImageDecoder::FrameIsReceivedAtIndex(wtf_size_t index) const {
 
 std::optional<base::TimeDelta> JXLImageDecoder::FrameTimestampAtIndex(
     wtf_size_t index) const {
-  return index < frame_buffer_cache_.size()
-             ? frame_buffer_cache_[index].Timestamp()
-             : std::nullopt;
+  // Use frame_info_ which is populated at header parsing time,
+  // not frame_buffer_cache_ which is only set after decoding.
+  if (index < frame_info_.size()) {
+    return frame_info_[index].timestamp;
+  }
+  return std::nullopt;
 }
 
 base::TimeDelta JXLImageDecoder::FrameDurationAtIndex(wtf_size_t index) const {
-  return index < frame_buffer_cache_.size()
-             ? frame_buffer_cache_[index].Duration()
-             : base::TimeDelta();
+  // Use frame_info_ which is populated at header parsing time.
+  // If the frame hasn't been discovered yet, trigger decoding to get its info.
+  if (index >= frame_info_.size() && !all_frames_discovered_ && !Failed()) {
+    const_cast<JXLImageDecoder*>(this)->Decode(index, /*only_size=*/false);
+  }
+  if (index < frame_info_.size()) {
+    return frame_info_[index].duration;
+  }
+  return base::TimeDelta();
 }
 
 int JXLImageDecoder::RepetitionCount() const {

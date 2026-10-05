@@ -26,6 +26,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 int X509_print_ex_fp(FILE *fp, const X509 *x, unsigned long nmflag,
                      unsigned long cflag) {
   BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);

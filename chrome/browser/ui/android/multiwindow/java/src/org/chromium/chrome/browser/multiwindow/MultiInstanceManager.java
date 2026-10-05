@@ -12,16 +12,15 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.ObserverList;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
-import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.lang.annotation.Retention;
@@ -137,21 +136,6 @@ public abstract class MultiInstanceManager {
     protected static int sMergedInstanceTaskId;
 
     protected static List<Integer> sTestDisplayIds = new ArrayList<>();
-
-    /** The type of tab/profile the activity supports. */
-    @IntDef({
-        SupportedProfileType.UNSET,
-        SupportedProfileType.REGULAR,
-        SupportedProfileType.OFF_THE_RECORD,
-        SupportedProfileType.MIXED
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface SupportedProfileType {
-        int UNSET = 0;
-        int REGULAR = 1;
-        int OFF_THE_RECORD = 2;
-        int MIXED = 3;
-    }
 
     /**
      * Called during activity startup to check whether the activity is recreated because the
@@ -436,21 +420,17 @@ public abstract class MultiInstanceManager {
      * running activities have been finished after an instance limit downgrade causing existence of
      * more active instances than the instance limit.
      *
-     * @param messageDispatcher The {@link MessageDispatcher} to enqueue the instance restoration
-     *     message.
      * @return {@code true} if the instance restoration message was shown, {@code false} otherwise.
      */
-    public boolean showInstanceRestorationMessage(@Nullable MessageDispatcher messageDispatcher) {
+    public boolean showInstanceRestorationMessage() {
         return false;
     }
 
     /**
      * Shows a message to notify the user that a new window cannot be created because {@link
      * MultiWindowUtils#getMaxInstances()} activities already exist.
-     *
-     * @param messageDispatcher The {@link MessageDispatcher} to enqueue the instance limit message.
      */
-    public void showInstanceCreationLimitMessage(@Nullable MessageDispatcher messageDispatcher) {
+    public void showInstanceCreationLimitMessage() {
         // Not implemented
     }
 
@@ -476,46 +456,6 @@ public abstract class MultiInstanceManager {
 
     public abstract void setTabModelObserverForTesting(
             TabModelSelectorTabModelObserver tabModelObserver);
-
-    protected ObserverList<InstanceStateObserver> mInstanceStateObservers = new ObserverList<>();
-
-    /** Observer interface to notify about instance closure and restoration events. */
-    public interface InstanceStateObserver {
-        /**
-         * Notifies when an instance is closed. Closure can be system-initiated (for e.g. low-memory
-         * kill), app-initiated (for e.g. instance retention expiration) or user-initiated (for e.g.
-         * window manager closure).
-         *
-         * @param instanceInfo The {@link InstanceInfo} for the closed instance.
-         * @param isPermanentDeletion Whether the closed instance is permanently deleted.
-         */
-        void onInstanceClosed(InstanceInfo instanceInfo, boolean isPermanentDeletion);
-
-        /**
-         * Notifies when an inactive instance is restored.
-         *
-         * @param instanceId The id for the restored instance.
-         */
-        void onInstanceRestored(int instanceId);
-    }
-
-    /**
-     * Registers an observer to receive notifications about changes to the instance state.
-     *
-     * @param instanceStateObserver The observer to be added.
-     */
-    public void addInstanceStateObserver(InstanceStateObserver instanceStateObserver) {
-        mInstanceStateObservers.addObserver(instanceStateObserver);
-    }
-
-    /**
-     * Unregisters an observer, stopping notifications about changes to the instance state.
-     *
-     * @param instanceStateObserver The observer to be removed.
-     */
-    public void removeInstanceStateObserver(InstanceStateObserver instanceStateObserver) {
-        mInstanceStateObservers.removeObserver(instanceStateObserver);
-    }
 
     // The instance types are defined as bit flags, so they can be or-ed to reflect
     // more than one value. Or-ed values should be validated at points of access.

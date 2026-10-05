@@ -285,7 +285,7 @@ void GlicProfileManager::ShowProfilePicker() {
   // TODO(crbug.com/450679848): Profile Picker doesn't make sense on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
 // TODO(b/470059315): Decide if this makes sense on desktop android.
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
   ProfilePicker::Show(
       ProfilePicker::Params::ForGlicManager(std::move(callback)));
 #endif

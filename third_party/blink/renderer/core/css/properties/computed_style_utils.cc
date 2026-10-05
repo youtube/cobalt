@@ -267,7 +267,7 @@ const CSSValue* ComputedStyleUtils::ValueForFillSize(
       CSSValuePair::kKeepIdenticalValues);
 }
 
-const CSSValue* ComputedStyleUtils::BackgroundImageOrMaskSize(
+const CSSValue* ComputedStyleUtils::BackgroundSizeOrMaskSize(
     const ComputedStyle& style,
     const FillLayer& fill_layer) {
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
@@ -2240,15 +2240,15 @@ CSSValue* ComputedStyleUtils::ValueForGridPosition(
   return list;
 }
 
-CSSValue* ComputedStyleUtils::ValueForItemTolerance(
-    const ItemTolerance& item_tolerance,
+CSSValue* ComputedStyleUtils::ValueForFlowTolerance(
+    const FlowTolerance& flow_tolerance,
     const ComputedStyle& style) {
-  if (item_tolerance.IsNormal()) {
+  if (flow_tolerance.IsNormal()) {
     return CSSIdentifierValue::Create(CSSValueID::kNormal);
-  } else if (item_tolerance.IsInfinite()) {
+  } else if (flow_tolerance.IsInfinite()) {
     return CSSIdentifierValue::Create(CSSValueID::kInfinite);
   }
-  return ZoomAdjustedPixelValueForLength(item_tolerance.GetLength(), style);
+  return ZoomAdjustedPixelValueForLength(flow_tolerance.GetLength(), style);
 }
 
 CSSValue* ComputedStyleUtils::ValueForGridLanesDirection(
@@ -3718,7 +3718,7 @@ void PopulateRepeaterGapData(CSSValueList* list,
         CSSPrimitiveValue::UnitType::kNumber);
   }
 
-  CSSValueList* repeated_values = CSSValueList::CreateSpaceSeparated();
+  CSSValueList* repeated_values = CSSValueList::CreateCommaSeparated();
 
   for (const auto& value : gap_data.GetValueRepeater()->RepeatedValues()) {
     const CSSValue* css_value =
@@ -3747,7 +3747,7 @@ const CSSValue* ValueForGapDecorationPropertyDataList(
                                          value_phase);
   }
 
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
 
   for (const auto& gap_data : gap_color_list.GetGapDataList()) {
     if (gap_data.IsRepeaterData()) {
@@ -4212,12 +4212,6 @@ CSSValueList* ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
   const size_t count = width_values->length();
 
   // If the longhands differ in length, return nullptr.
-  // Constructing a shorthand from misaligned longhands is non-trivial and
-  // currently not supported.
-  //
-  // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-  // need to construct the shorthand from individual separate longhands that
-  // don't align.
   if (count != style_values->length() || count != color_values->length()) {
     return nullptr;
   }
@@ -4236,20 +4230,12 @@ CSSValueList* ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
     if (const auto* width_repeat_value =
             DynamicTo<cssvalue::CSSRepeatValue>(width_values->Item(i))) {
       // Return nullptr if values don't align.
-      //
-      // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-      // need to construct the shorthand from individual separate longhands that
-      // don't align.
       if (!style_repeat_value || !color_repeat_value) {
         return nullptr;
       }
 
       const bool is_auto_repeat_value = width_repeat_value->IsAutoRepeatValue();
       // Return nullptr if values don't align.
-      //
-      // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-      // need to construct the shorthand from individual separate longhands that
-      // don't align.
       if (is_auto_repeat_value != style_repeat_value->IsAutoRepeatValue() ||
           is_auto_repeat_value != color_repeat_value->IsAutoRepeatValue()) {
         return nullptr;
@@ -4259,10 +4245,6 @@ CSSValueList* ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
       if (!is_auto_repeat_value) {
         repetitions = width_repeat_value->Repetitions();
         // Return nullptr if values don't align.
-        //
-        // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-        // need to construct the shorthand from individual separate longhands
-        // that don't align.
         if (!base::ValuesEquivalent(repetitions,
                                     style_repeat_value->Repetitions()) ||
             !base::ValuesEquivalent(repetitions,
@@ -4276,10 +4258,6 @@ CSSValueList* ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
       wtf_size_t rules_count = width_repeat_value->Values().length();
 
       // Return nullptr if values don't align.
-      //
-      // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-      // need to construct the shorthand from individual separate longhands that
-      // don't align.
       if (rules_count != style_repeat_value->Values().length() ||
           rules_count != color_repeat_value->Values().length()) {
         return nullptr;
@@ -4301,10 +4279,6 @@ CSSValueList* ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
       // A simple gap rule, just append width, style and color values.
 
       // Return nullptr if values don't align.
-      //
-      // TODO(crbug.com/416535734): Figure out a way to handle cases where we
-      // need to construct the shorthand from individual separate longhands
-      // that don't align.
       if (style_repeat_value || color_repeat_value) {
         return nullptr;
       }

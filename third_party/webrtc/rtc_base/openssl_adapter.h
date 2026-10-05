@@ -51,7 +51,8 @@ class OpenSSLAdapter final : public SSLAdapter {
   // immutable after the the SSL connection starts.
   explicit OpenSSLAdapter(Socket* socket,
                           OpenSSLSessionCache* ssl_session_cache = nullptr,
-                          SSLCertificateVerifier* ssl_cert_verifier = nullptr);
+                          SSLCertificateVerifier* ssl_cert_verifier = nullptr,
+                          bool dtls = false);
   ~OpenSSLAdapter() override;
 
   void SetIgnoreBadCert(bool ignore) override;

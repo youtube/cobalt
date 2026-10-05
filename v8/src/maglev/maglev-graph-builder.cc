@@ -4725,9 +4725,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   if (CanElideWriteBarrier(object, value)) {
@@ -4757,10 +4756,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
   DCHECK(CanElideWriteBarrier(object, value));
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
@@ -4912,7 +4910,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   for (compiler::MapRef receiver_map : receiver_maps) {
     compiler::ObjectRef receiver_prototype = receiver_map.prototype(broker());
     if (!receiver_prototype.IsJSObject() ||
-        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
+        !receiver_prototype.AsJSObject().IsArrayOrObjectPrototype(broker())) {
       return false;
     }
   }
@@ -5063,8 +5061,9 @@ LoadType FieldRepresentationToLoadType(Representation repr) {
   switch (repr.kind()) {
     case Representation::kSmi:
       return LoadType::kSmi;
-    case Representation::kDouble:
     case Representation::kHeapObject:
+      return LoadType::kAnyHeapObject;
+    case Representation::kDouble:
     case Representation::kNone:
     case Representation::kTagged:
     case Representation::kWasmValue:
@@ -5140,11 +5139,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
                                 load_source, field_index.offset(), type,
                                 AccessInfoGuaranteedConst(access_info), name));
   // Insert stable field information if present.
+  NodeInfo* known_info = GetOrCreateInfoFor(value);
   if (access_info.field_representation().IsSmi()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     known_info->IntersectType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
@@ -5293,7 +5291,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   compiler::OptionalMapRef original_map;
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
-    original_map = transition.GetBackPointer(broker()).AsMap();
+    auto back_pointer = transition.GetBackPointer(broker());
+    if (!back_pointer.has_value()) {
+      return ReduceResult::Fail();
+    }
+    original_map = back_pointer->AsMap();
 
     if (original_map->UnusedPropertyFields() == 0) {
       DCHECK(!field_index.is_inobject());
@@ -8101,7 +8103,8 @@ bool MaglevGraphBuilder::HasValidInitialMap(
   if (!new_target.map(broker()).has_prototype_slot()) return false;
   if (!new_target.has_initial_map(broker())) return false;
   compiler::MapRef initial_map = new_target.initial_map(broker());
-  return initial_map.GetConstructor(broker()).equals(constructor);
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker());
+  return ctor.has_value() && ctor->equals(constructor);
 }
 
 MaybeReduceResult
@@ -12632,27 +12635,96 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionEnter(
   return ReduceResult::Done();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionReject(
+    ValueNode* async_function_object, ValueNode* reason) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  ValueNode* promise;
+  GET_VALUE_OR_ABORT(
+      promise, BuildLoadTaggedField(async_function_object,
+                                    JSAsyncFunctionObject::kPromiseOffset));
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // JSRejectPromise operation (which yields undefined).
+  LazyDeoptFrameScope deopt_continuation(
+      this, Builtin::kAsyncFunctionLazyDeoptContinuation, {},
+      base::VectorOf<ValueNode*>({promise}));
+
+  // Disable the additional debug event for the rejection since a
+  // debug event already happened for the exception that got us here.
+  ValueNode* debug_event = GetRootConstant(RootIndex::kFalseValue);
+  BuildCallBuiltin<Builtin::kRejectPromise>({promise, reason, debug_event});
+
+  return promise;
+}
+
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionReject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
+
+  ValueNode* async_function_object;
+  GET_VALUE_OR_ABORT(async_function_object, GetTaggedValue(args[0]));
+  ValueNode* reason;
+  GET_VALUE_OR_ABORT(reason, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(
+      TryReduceAsyncFunctionReject(async_function_object, reason),
+      SetAccumulator);
+
   SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionReject>(
-      {tagged_arg_0, tagged_arg_1}));
+      {async_function_object, reason}));
+
   return ReduceResult::Done();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
+    ValueNode* async_function_object, ValueNode* value) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  ValueNode* promise;
+  GET_VALUE_OR_ABORT(
+      promise, BuildLoadTaggedField(async_function_object,
+                                    JSAsyncFunctionObject::kPromiseOffset));
+
+  if (NodeTypeIs(GetType(value), NodeType::kJSPrimitive)) {
+    // We can strength-reduce JSResolvePromise to JSFulfillPromise  if the
+    // {resolution} is known to be a primitive, as in that case we don't perform
+    // the implicit chaining (via "then").
+    AddNewNodeNoInputConversion<FulfillPromise>({promise, value});
+  } else {
+    // Create a nested frame state inside the current method's most-recent
+    // {frame_state} that will ensure that lazy deoptimizations at this
+    // point will still return the {promise} instead of the result of the
+    // JSResolvePromise operation (which yields undefined).
+    LazyDeoptFrameScope deopt_continuation(
+        this, Builtin::kAsyncFunctionLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>({promise}));
+
+    // TODO(dmercadier): optimize-away to FulfillPromise if possible; cf
+    // JSNativeContextSpecialization::ReduceJSResolvePromise in Turboshaft.
+    BuildCallBuiltin<Builtin::kResolvePromise>({promise, value});
+  }
+
+  return promise;
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionResolve(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
+
+  ValueNode* async_function_object;
+  GET_VALUE_OR_ABORT(async_function_object, GetTaggedValue(args[0]));
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(
+      TryReduceAsyncFunctionResolve(async_function_object, value),
+      SetAccumulator);
+
   SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionResolve>(
-      {tagged_arg_0, tagged_arg_1}));
+      {async_function_object, value}));
   return ReduceResult::Done();
 }
 
@@ -12775,12 +12847,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   compiler::JSFunctionRef function = maybe_constant.value();
   if (!function.has_initial_map(broker())) return {};
 
+  // The shared function info of this JSFunction should be the same as the
+  // current one we are compiling.
+  DCHECK_EQ(compilation_unit()->shared_function_info(),
+            function.shared(broker()));
+
   // Create the register file.
-  compiler::SharedFunctionInfoRef shared = function.shared(broker());
-  DCHECK(shared.HasBytecodeArray());
-  compiler::BytecodeArrayRef bytecode_array = shared.GetBytecodeArray(broker());
-  int parameter_count_no_receiver = bytecode_array.parameter_count() - 1;
-  int length = parameter_count_no_receiver + bytecode_array.register_count();
+  int length = parameter_count_without_receiver() + register_count();
   if (FixedArray::SizeFor(length) > kMaxRegularHeapObjectSize) {
     return {};
   }
@@ -12824,7 +12897,8 @@ compiler::OptionalMapRef TryGetDerivedMap(compiler::JSHeapBroker* broker,
     return {};
   }
   compiler::MapRef initial_map = new_target.initial_map(broker);
-  if (!initial_map.GetConstructor(broker).equals(target)) {
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker);
+  if (!ctor.has_value() || !ctor->equals(target)) {
     return {};
   }
   DCHECK(target.map(broker).is_constructor());
@@ -13818,6 +13892,7 @@ ReduceResult MaglevGraphBuilder::VisitToName() {
 ReduceResult MaglevGraphBuilder::BuildToString(ValueNode* value,
                                                ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
+  RETURN_IF_DONE(reducer_.TryFoldNumberToString(value));
   // TODO(victorgomes): Add fast path for constant primitives.
   if (CheckType(value, NodeType::kSmi)) {
     ValueNode* smi_value;
@@ -17370,6 +17445,11 @@ MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
     if (constant->object().IsString()) {
       return handle(Cast<String>(*constant->object().object()),
                     local_isolate());
+    }
+  } else if (RootConstant* root = value->TryCast<RootConstant>()) {
+    Handle<Object> handle = local_isolate_->root_handle(root->index());
+    if (IsString(*handle)) {
+      return Cast<String>(handle);
     }
   }
   return {};

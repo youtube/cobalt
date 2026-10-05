@@ -156,10 +156,10 @@ scoped_refptr<AudioDeviceModule> CreateOpenSLESAudioDeviceModule(
   // Create ADM from OpenSLESRecorder and OpenSLESPlayer.
   scoped_refptr<jni::OpenSLEngineManager> engine_manager(
       new jni::OpenSLEngineManager());
-  auto audio_input =
-      std::make_unique<jni::OpenSLESRecorder>(input_parameters, engine_manager);
+  auto audio_input = std::make_unique<jni::OpenSLESRecorder>(
+      webrtc_env, input_parameters, engine_manager);
   auto audio_output = std::make_unique<jni::OpenSLESPlayer>(
-      output_parameters, std::move(engine_manager));
+      webrtc_env, output_parameters, std::move(engine_manager));
   return CreateAudioDeviceModuleFromInputAndOutput(
       webrtc_env, AudioDeviceModule::kAndroidOpenSLESAudio,
       /*is_stereo_playout_supported=*/false,
@@ -192,7 +192,7 @@ CreateJavaInputAndOpenSLESOutputAudioDeviceModule(JNIEnv* env,
   scoped_refptr<jni::OpenSLEngineManager> engine_manager(
       new jni::OpenSLEngineManager());
   auto audio_output = std::make_unique<jni::OpenSLESPlayer>(
-      output_parameters, std::move(engine_manager));
+      webrtc_env, output_parameters, std::move(engine_manager));
   return CreateAudioDeviceModuleFromInputAndOutput(
       webrtc_env, AudioDeviceModule::kAndroidJavaInputAndOpenSLESOutputAudio,
       /*is_stereo_playout_supported=*/false,

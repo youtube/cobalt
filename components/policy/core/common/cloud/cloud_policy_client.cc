@@ -281,6 +281,44 @@ std::string FormatMacAddress(const CloudPolicyClient::MacAddress& mac_address) {
   return mac_address_string;
 }
 
+// Returns a string representation of the given `type_to_fetch`, for logging.
+// Does not include the `extension_ids_and_version` field.
+std::string TypeToFetchToDebugString(const PolicyTypeToFetch& type_to_fetch) {
+  std::string result = "{ policy_type: '";
+  result += type_to_fetch.policy_type();
+  result += "'";
+  if (!type_to_fetch.settings_entity_id().empty()) {
+    result += ", settings_entity_id: '";
+    result += type_to_fetch.settings_entity_id();
+    result += "'";
+  }
+  result += " }";
+  return result;
+}
+
+// Returns a string representation of the given `extension_ids_and_versions`,
+// for logging.
+std::string JoinExtensionIdsAndVersions(
+    const std::set<ExtensionIdAndVersion>& extension_ids_and_versions) {
+  std::string result;
+  if (extension_ids_and_versions.empty()) {
+    return result;
+  }
+
+  auto it = extension_ids_and_versions.begin();
+  CHECK(it != extension_ids_and_versions.end());
+  result += base::StringPrintf("'%s@%s'", it->extension_id.c_str(),
+                               it->extension_version.c_str());
+  ++it;
+
+  for (; it != extension_ids_and_versions.end(); ++it) {
+    result += ", ";
+    result += base::StringPrintf("'%s@%s'", it->extension_id.c_str(),
+                                 it->extension_version.c_str());
+  }
+  return result;
+}
+
 // Returns the histogram variant for the corresponding `type`. Returns nullopt
 // if there is no variant for the type.
 std::optional<std::string_view> HistogramVariantForType(std::string_view type) {
@@ -293,6 +331,18 @@ std::optional<std::string_view> HistogramVariantForType(std::string_view type) {
   }
   return std::nullopt;
 }
+
+class SingleExtensionProvider : public PolicyTypeToFetch::ExtensionsProvider {
+ public:
+  explicit SingleExtensionProvider(const ExtensionIdAndVersion& extension)
+      : extension_(extension) {}
+  std::set<ExtensionIdAndVersion> GetExtensions() override {
+    return {extension_.get()};
+  }
+
+ private:
+  const raw_ref<const ExtensionIdAndVersion> extension_;
+};
 
 }  // namespace
 
@@ -708,19 +758,25 @@ CloudPolicyClient::GetPolicyFetchRequestSignatureType() {
 
 em::PolicyFetchRequest* CloudPolicyClient::AddPolicyFetchRequest(
     em::DevicePolicyRequest* policy_request,
-    const CloudPolicyClientTypeParams& type_to_fetch) {
+    const PolicyTypeToFetch& type_to_fetch) {
   em::PolicyFetchRequest* fetch_request = policy_request->add_requests();
   fetch_request->set_policy_type(type_to_fetch.policy_type());
   VLOG_POLICY(2, POLICY_FETCHING)
-      << "Fetching policy type: " << type_to_fetch.policy_type() << " -> "
-      << type_to_fetch.settings_entity_id();
+      << "Fetching policy: " << TypeToFetchToDebugString(type_to_fetch);
 
   if (!type_to_fetch.settings_entity_id().empty()) {
     fetch_request->set_settings_entity_id(type_to_fetch.settings_entity_id());
   }
 
+  std::set<ExtensionIdAndVersion> extension_ids_and_version =
+      type_to_fetch.extension_ids_and_version();
+  if (!extension_ids_and_version.empty()) {
+    VLOG_POLICY(2, POLICY_FETCHING)
+        << "extension_ids_and_version = ["
+        << JoinExtensionIdsAndVersions(extension_ids_and_version) << "]";
+  }
   for (const auto& [extension_id, extension_version] :
-       type_to_fetch.extension_ids_and_version()) {
+       extension_ids_and_version) {
     if (!extension_id.empty()) {
       em::ExtensionIdAndVersion* extension_id_and_version =
           fetch_request->add_extension_ids_and_version();
@@ -756,7 +812,7 @@ em::PolicyFetchRequest* CloudPolicyClient::AddPolicyFetchRequest(
 
 void CloudPolicyClient::FetchPolicyInternal(
     PolicyFetchReason reason,
-    const CloudPolicyClientTypeParamsSet& types_to_fetch,
+    const PolicyTypeToFetchSet& types_to_fetch,
     base::OnceCallback<void(DMServerJobResult)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -857,10 +913,9 @@ void CloudPolicyClient::FetchExtensionInstallPolicy(
     PolicyFetchReason reason,
     const ExtensionIdAndVersion& extension_id_and_version,
     base::OnceCallback<void(DMServerJobResult)> callback) {
-  FetchPolicyInternal(
-      reason,
-      {CloudPolicyClientTypeParams(policy_type, extension_id_and_version)},
-      std::move(callback));
+  SingleExtensionProvider provider(extension_id_and_version);
+  FetchPolicyInternal(reason, {PolicyTypeToFetch(policy_type, &provider)},
+                      std::move(callback));
 }
 
 void CloudPolicyClient::FetchPolicy(PolicyFetchReason reason) {
@@ -1475,12 +1530,10 @@ void CloudPolicyClient::AddPolicyTypeToFetch(
     const std::string& settings_entity_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  AddPolicyTypeToFetch(
-      CloudPolicyClientTypeParams(policy_type, settings_entity_id));
+  AddPolicyTypeToFetch(PolicyTypeToFetch(policy_type, settings_entity_id));
 }
 
-void CloudPolicyClient::AddPolicyTypeToFetch(
-    const CloudPolicyClientTypeParams& params) {
+void CloudPolicyClient::AddPolicyTypeToFetch(const PolicyTypeToFetch& params) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   types_to_fetch_.insert(params);
 }
@@ -1489,12 +1542,11 @@ void CloudPolicyClient::RemovePolicyTypeToFetch(
     const std::string& policy_type,
     const std::string& settings_entity_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  RemovePolicyTypeToFetch(
-      CloudPolicyClientTypeParams(policy_type, settings_entity_id));
+  RemovePolicyTypeToFetch(PolicyTypeToFetch(policy_type, settings_entity_id));
 }
 
 void CloudPolicyClient::RemovePolicyTypeToFetch(
-    const CloudPolicyClientTypeParams& params) {
+    const PolicyTypeToFetch& params) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   types_to_fetch_.erase(params);
 }
@@ -1512,7 +1564,7 @@ const em::PolicyFetchResponse* CloudPolicyClient::GetPolicyFor(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto it = last_policy_fetch_responses_.find(
-      CloudPolicyClientTypeParams(policy_type, settings_entity_id));
+      PolicyTypeToFetch(policy_type, settings_entity_id));
   return it == last_policy_fetch_responses_.end() ? nullptr : &it->second;
 }
 
@@ -1769,7 +1821,7 @@ void CloudPolicyClient::OnPolicyFetchCompleted(base::Time start_time,
       if (policy_data.has_settings_entity_id()) {
         entity_id = policy_data.settings_entity_id();
       }
-      CloudPolicyClientTypeParams key(type, entity_id);
+      PolicyTypeToFetch key(type, entity_id);
       if (last_policy_fetch_responses_.contains(key)) {
         LOG_POLICY(WARNING, CBCM_ENROLLMENT)
             << "Duplicate PolicyFetchResponse for type: " << type

@@ -26,12 +26,14 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 static void *v2i_crld(const X509V3_EXT_METHOD *method, const X509V3_CTX *ctx,
                       const STACK_OF(CONF_VALUE) *nval);
 static int i2r_crldp(const X509V3_EXT_METHOD *method, void *pcrldp, BIO *out,
                      int indent);
 
-const X509V3_EXT_METHOD v3_crld = {
+const X509V3_EXT_METHOD bssl::v3_crld = {
     NID_crl_distribution_points,
     0,
     ASN1_ITEM_ref(CRL_DIST_POINTS),
@@ -48,7 +50,7 @@ const X509V3_EXT_METHOD v3_crld = {
     nullptr,
 };
 
-const X509V3_EXT_METHOD v3_freshest_crl = {
+const X509V3_EXT_METHOD bssl::v3_freshest_crl = {
     NID_freshest_crl, 0,        ASN1_ITEM_ref(CRL_DIST_POINTS),
     nullptr,          nullptr,  nullptr,
     nullptr,          nullptr,  nullptr,
@@ -374,7 +376,7 @@ static int i2r_idp(const X509V3_EXT_METHOD *method, void *pidp, BIO *out,
 static void *v2i_idp(const X509V3_EXT_METHOD *method, const X509V3_CTX *ctx,
                      const STACK_OF(CONF_VALUE) *nval);
 
-const X509V3_EXT_METHOD v3_idp = {
+const X509V3_EXT_METHOD bssl::v3_idp = {
     NID_issuing_distribution_point,
     X509V3_EXT_MULTILINE,
     ASN1_ITEM_ref(ISSUING_DIST_POINT),
@@ -517,7 +519,7 @@ static int i2r_crldp(const X509V3_EXT_METHOD *method, void *pcrldp, BIO *out,
   return 1;
 }
 
-int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, X509_NAME *iname) {
+int bssl::DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, X509_NAME *iname) {
   size_t i;
   STACK_OF(X509_NAME_ENTRY) *frag;
   X509_NAME_ENTRY *ne;

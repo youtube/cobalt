@@ -10,8 +10,10 @@
 
 #include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
 
+#include <cstddef>
 #include <cstdint>
 
+#include "api/array_view.h"
 #include "api/units/data_rate.h"
 #include "api/video/video_layers_allocation.h"
 #include "rtc_base/buffer.h"
@@ -22,10 +24,15 @@ namespace {
 
 TEST(RtpVideoLayersAllocationExtension, WriteEmptyLayersAllocationReturnsTrue) {
   VideoLayersAllocation written_allocation;
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
 }
 
 TEST(RtpVideoLayersAllocationExtension,
@@ -35,11 +42,15 @@ TEST(RtpVideoLayersAllocationExtension,
   VideoLayersAllocation written_allocation;
   written_allocation.resolution_and_frame_rate_is_valid = true;
   written_allocation.rtp_stream_index = 0;
-
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
 
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
@@ -73,10 +84,15 @@ TEST(RtpVideoLayersAllocationExtension,
           /*frame_rate_fps*/ .frame_rate_fps = 0,
       },
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -110,10 +126,15 @@ TEST(RtpVideoLayersAllocationExtension,
        /*height*/ .height = 0,
        /*frame_rate_fps*/ .frame_rate_fps = 0},
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -140,10 +161,15 @@ TEST(RtpVideoLayersAllocationExtension,
        /*height*/ .height = 0,
        /*frame_rate_fps*/ .frame_rate_fps = 0},
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -170,10 +196,15 @@ TEST(RtpVideoLayersAllocationExtension,
        /*height*/ .height = 0,
        /*frame_rate_fps*/ .frame_rate_fps = 0},
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -205,10 +236,15 @@ TEST(RtpVideoLayersAllocationExtension,
           /*frame_rate_fps*/ .frame_rate_fps = 0,
       },
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -243,10 +279,15 @@ TEST(RtpVideoLayersAllocationExtension,
       },
   };
 
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
   VideoLayersAllocation parsed_allocation;
   EXPECT_TRUE(
       RtpVideoLayersAllocationExtension::Parse(buffer, &parsed_allocation));
@@ -257,10 +298,15 @@ TEST(RtpVideoLayersAllocationExtension,
      WriteEmptyAllocationCanHaveAnyRtpStreamIndex) {
   VideoLayersAllocation written_allocation;
   written_allocation.rtp_stream_index = 1;
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  EXPECT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        EXPECT_TRUE(RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation));
+        return buffer_view.size();
+      });
 }
 
 TEST(RtpVideoLayersAllocationExtension, DiscardsOverLargeDataRate) {
@@ -286,10 +332,18 @@ TEST(RtpVideoLayersAllocationExtension, DiscardsInvalidHeight) {
           /*frame_rate_fps*/ .frame_rate_fps = 8,
       },
   };
-  Buffer buffer = Buffer::CreateUninitializedWithSize(
+  Buffer buffer = Buffer::CreateWithCapacity(
       RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
-  ASSERT_TRUE(
-      RtpVideoLayersAllocationExtension::Write(buffer, written_allocation));
+  size_t written = buffer.AppendData(
+      RtpVideoLayersAllocationExtension::ValueSize(written_allocation),
+      [&](ArrayView<uint8_t> buffer_view) {
+        bool result = RtpVideoLayersAllocationExtension::Write(
+            buffer_view, written_allocation);
+        EXPECT_TRUE(result);
+        return result ? buffer_view.size() : 0;
+      });
+  ASSERT_EQ(written,
+            RtpVideoLayersAllocationExtension::ValueSize(written_allocation));
 
   // Modify the height to be invalid.
   buffer[buffer.size() - 3] = 0xff;

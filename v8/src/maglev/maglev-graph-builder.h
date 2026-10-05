@@ -257,7 +257,7 @@ class MaglevGraphBuilder {
   }
   int max_inlined_bytecode_size_cumulative() {
     if (is_turbolev()) {
-      return v8_flags.max_turbolev_inlined_bytecode_size_cumulative;
+      return v8_flags.max_inlined_bytecode_size_cumulative;
     } else {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
@@ -1048,6 +1048,10 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceAsyncFunctionEnter(ValueNode* closure,
                                                 ValueNode* reducer);
+  MaybeReduceResult TryReduceAsyncFunctionReject(
+      ValueNode* async_function_object, ValueNode* reason);
+  MaybeReduceResult TryReduceAsyncFunctionResolve(
+      ValueNode* async_function_object, ValueNode* value);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   bool IsTheHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
@@ -2138,6 +2142,11 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   if (is_loop_effect_tracking()) {
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       loop_effects_->keys_cleared.insert(PropertyKey::Elements());
+    } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
+      // Only transitioning Map stores can invalidate unstable maps.
+      if (node->template Cast<StoreMap>()->is_transitioning()) {
+        loop_effects_->unstable_aspects_cleared = true;
+      }
     } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
                          !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
       loop_effects_->unstable_aspects_cleared = true;

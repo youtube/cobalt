@@ -14,8 +14,9 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
 
 import {deduplicateEvents, mergeEvents, parseEvents, UpdaterProcessMap} from '../event_history.js';
-import type {HistoryEvent, MergedHistoryEvent} from '../event_history.js';
+import type {HistoryEvent, MergedHistoryEvent, PolicySet} from '../event_history.js';
 import {loadTimeData} from '../i18n_setup.js';
+import {formatDateShort, formatRelativeDate} from '../tools.js';
 
 import {getCss} from './event_list.css.js';
 import {getHtml} from './event_list.html.js';
@@ -23,6 +24,17 @@ import type {EventListItemElement} from './event_list_item.js';
 import {applyFilterSettings, createDefaultFilterSettings} from './filter_settings.js';
 import type {FilterSettings} from './filter_settings.js';
 
+/**
+ * Returns the effective policy set for an event if one exists and should be
+ * presented.
+ */
+function getEffectivePolicySet(
+    processMap: UpdaterProcessMap, event: HistoryEvent|MergedHistoryEvent,
+    allEvents: Array<HistoryEvent|MergedHistoryEvent>): PolicySet|undefined {
+  return event.eventType === 'UPDATE' || event.eventType === 'INSTALL' ?
+      processMap.effectivePolicySet(event, allEvents) :
+      undefined;
+}
 
 /**
  * Maps a set of events to EventEntry objects, which have all of the necessary
@@ -31,52 +43,22 @@ import type {FilterSettings} from './filter_settings.js';
  */
 function getEventEntries(
     processMap: UpdaterProcessMap|undefined,
-    events: Array<HistoryEvent|MergedHistoryEvent>): EventEntry[] {
+    filteredEvents: Array<HistoryEvent|MergedHistoryEvent>,
+    allEvents: Array<HistoryEvent|MergedHistoryEvent>): EventEntry[] {
   if (processMap === undefined) {
     return [];
   }
-  return events.map(event => {
+  return filteredEvents.map(event => {
     const eventDate = processMap.eventDate(event);
     assert(eventDate !== undefined);
     return {
       event,
       eventDate,
-      formattedEventDate: getFormattedDate(eventDate),
-      formattedRelativeEventDate: getRelativeDate(eventDate),
+      formattedEventDate: formatDateShort(eventDate),
+      formattedRelativeEventDate: formatRelativeDate(eventDate),
+      policies: getEffectivePolicySet(processMap, event, allEvents),
     };
   });
-}
-
-function getFormattedDate(date: Date): string {
-  return new Intl
-      .DateTimeFormat(undefined, {
-        timeZoneName: 'short',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-      })
-      .format(date);
-}
-
-function getRelativeDate(date: Date): string {
-  const now = new Date();
-  const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
-  const rtf = new Intl.RelativeTimeFormat();
-
-  if (diffInSeconds < 60) {
-    return rtf.format(-Math.floor(diffInSeconds), 'second');
-  }
-  const diffInMinutes = diffInSeconds / 60;
-  if (diffInMinutes < 60) {
-    return rtf.format(-Math.floor(diffInMinutes), 'minute');
-  }
-  const diffInHours = diffInMinutes / 60;
-  if (diffInHours < 24) {
-    return rtf.format(-Math.floor(diffInHours), 'hour');
-  }
-  const diffInDays = diffInHours / 24;
-  return rtf.format(-Math.floor(diffInDays), 'day');
 }
 
 export interface EventEntry {
@@ -84,6 +66,7 @@ export interface EventEntry {
   eventDate: Date;
   formattedEventDate: string;
   formattedRelativeEventDate: string;
+  policies: PolicySet|undefined;
 }
 
 export class EventListElement extends CrLitElement {
@@ -180,7 +163,8 @@ export class EventListElement extends CrLitElement {
   updateEventEntries() {
     const filteredEvents = applyFilterSettings(
         this.processMap, this.sortedEventsWithDates, this.filterSettings);
-    this.events = getEventEntries(this.processMap, filteredEvents);
+    this.events = getEventEntries(
+        this.processMap, filteredEvents, this.sortedEventsWithDates);
   }
 
   protected onFiltersChanged() {

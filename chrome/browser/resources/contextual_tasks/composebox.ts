@@ -16,8 +16,19 @@ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
+import {VoiceSearchState} from './constants.js';
 import type {ContextualTasksOnboardingTooltipElement} from './onboarding_tooltip.js';
 
+function recordVoiceSearchAction(voiceSearchState: VoiceSearchState) {
+  // Safety return statement in rare case chrome metrics is not available.
+  if (!chrome.metricsPrivate) {
+    return;
+  }
+
+  chrome.metricsPrivate.recordEnumerationValue(
+      'ContextualTasks.VoiceSearch.State', voiceSearchState,
+      VoiceSearchState.MAX_VALUE + 1);
+}
 export interface ContextualTasksComposeboxElement {
   $: {
     composebox: ComposeboxElement,
@@ -90,6 +101,9 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       loadTimeData.getBoolean('isOnboardingTooltipDismissCountBelowCap');
   private userDismissedTooltip_: boolean = false;
   private resizeObserver_: ResizeObserver|null = null;
+  private tooltipImpressionTimer_: number|null = null;
+  private readonly tooltipImpressionDelay_: number =
+      loadTimeData.getInteger('composeboxShowOnboardingTooltipImpressionDelay');
 
   constructor() {
     super();
@@ -141,7 +155,31 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
             this.updateTooltipVisibility_();
           });
 
+      this.eventTracker_.add(
+          composebox, 'composebox-voice-search-start', () => {
+            recordVoiceSearchAction(
+                VoiceSearchState.VOICE_SEARCH_BUTTON_CLICKED);
+          });
 
+      this.eventTracker_.add(
+          composebox, 'composebox-voice-search-transcription-success', () => {
+            recordVoiceSearchAction(VoiceSearchState.SUCCESSFUL_TRANSCRIPT);
+          });
+
+      this.eventTracker_.add(
+          composebox, 'composebox-voice-search-error', () => {
+            recordVoiceSearchAction(VoiceSearchState.VOICE_SEARCH_ERROR);
+          });
+      this.eventTracker_.add(
+          composebox, 'composebox-voice-search-error-and-canceled', () => {
+            recordVoiceSearchAction(
+                VoiceSearchState.VOICE_SEARCH_ERROR_AND_CANCELED);
+          });
+      this.eventTracker_.add(
+          composebox, 'composebox-voice-search-user-canceled', () => {
+            recordVoiceSearchAction(VoiceSearchState.VOICE_SEARCH_CANCELED);
+          });
+      // Initial check.
       this.updateTooltipVisibility_();
 
       this.resizeObserver_ = new ResizeObserver(() => {
@@ -161,24 +199,34 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       return;
     }
 
-
     if (this.onboardingTooltipIsVisible_ &&
         !this.$.composebox.getHasAutomaticActiveTabChipToken()) {
       tooltip.hide();
       this.onboardingTooltipIsVisible_ = false;
       this.stopObservingResize_();
+      // Clear the timer if the tooltip is hidden. This will prevent it being
+      // count as an impression if the chip only showed up briefly.
+      this.clearTooltipImpressionTimer_();
     } else if (this.$.composebox.getHasAutomaticActiveTabChipToken()) {
       const target = this.$.composebox.getAutomaticActiveTabChipElement();
       if (target) {
         tooltip.target = target;
       }
 
-      const shouldShow = this.shouldShowOnboardingTooltip();
-      if (shouldShow) {
+      if (this.onboardingTooltipIsVisible_) {
+        tooltip.updatePosition();
+      } else if (this.shouldShowOnboardingTooltip()) {
         tooltip.show();
         this.startObservingResize_(target);
-        this.numberOfTimesTooltipShown_++;
         this.onboardingTooltipIsVisible_ = true;
+
+        // Start the impression timer if the tooltip is newly shown.
+        this.tooltipImpressionTimer_ = setTimeout(() => {
+          // If the timer is not cleared, that means the delay passed since the
+          // tooltip was shown. Increment the impression count.
+          this.numberOfTimesTooltipShown_++;
+          this.tooltipImpressionTimer_ = null;
+        }, this.tooltipImpressionDelay_);
       }
     }
     tooltip.shouldShow = this.onboardingTooltipIsVisible_;
@@ -195,10 +243,19 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     this.userDismissedTooltip_ = true;
     this.onboardingTooltipIsVisible_ = false;
     this.stopObservingResize_();
+    this.clearTooltipImpressionTimer_();
+  }
+
+  private clearTooltipImpressionTimer_() {
+    if (this.tooltipImpressionTimer_) {
+      clearTimeout(this.tooltipImpressionTimer_);
+      this.tooltipImpressionTimer_ = null;
+    }
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.clearTooltipImpressionTimer_();
     this.stopObservingResize_();
     if (this.resizeObserver_) {
       this.resizeObserver_.disconnect();
@@ -264,6 +321,22 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
   get composeboxHeightForTesting() {
     return this.composeboxHeight_;
+  }
+
+  get numberOfTimesTooltipShownForTesting() {
+    return this.numberOfTimesTooltipShown_;
+  }
+
+  set numberOfTimesTooltipShownForTesting(n: number) {
+    this.numberOfTimesTooltipShown_ = n;
+  }
+
+  set userDismissedTooltipForTesting(dismissed: boolean) {
+    this.userDismissedTooltip_ = dismissed;
+  }
+
+  updateTooltipVisibilityForTesting() {
+    this.updateTooltipVisibility_();
   }
 }
 

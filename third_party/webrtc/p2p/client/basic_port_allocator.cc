@@ -1739,13 +1739,23 @@ ServerAddresses PortConfiguration::StunServers() {
   // Every UDP TURN server should also be used as a STUN server if
   // use_turn_server_as_stun_server is not disabled or the stun servers are
   // empty.
-  ServerAddresses turn_servers = GetRelayServerAddresses(PROTO_UDP);
+
+  InsertStunServersForProtocol(PROTO_UDP);
+
+  // Every DTLS TURN server should also be used as a STUN server if
+  // use_turn_server_as_stun_server is not disabled or the stun servers are
+  // empty.
+  InsertStunServersForProtocol(PROTO_DTLS);
+  return stun_servers;
+}
+
+void PortConfiguration::InsertStunServersForProtocol(ProtocolType type) {
+  ServerAddresses turn_servers = GetRelayServerAddresses(type);
   for (const SocketAddress& turn_server : turn_servers) {
     if (stun_servers.find(turn_server) == stun_servers.end()) {
       stun_servers.insert(turn_server);
     }
   }
-  return stun_servers;
 }
 
 void PortConfiguration::AddRelay(const RelayServerConfig& config) {

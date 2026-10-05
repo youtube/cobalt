@@ -151,6 +151,7 @@ chromium-metrics-reviews@google.com.
   <owner>vmiura@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     The time delta between the draw times of back-to-back BeginImplFrames,
     regardless of whether or not they result in a swap.
@@ -283,7 +284,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.ActiveIntervalOnCpuPercentage.Short.{NamedThread}"
-    units="%" expires_after="2026-05-10">
+    units="%" expires_after="2026-07-12">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>

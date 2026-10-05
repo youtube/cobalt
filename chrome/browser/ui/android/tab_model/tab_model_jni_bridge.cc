@@ -256,7 +256,7 @@ void TabModelJniBridge::SetMuteSetting(JNIEnv* env,
   }
 }
 
-jint TabModelJniBridge::GetSessionIdForTesting(JNIEnv* env) {
+int32_t TabModelJniBridge::GetSessionIdForTesting(JNIEnv* env) {
   return GetSessionId().id();
 }
 
@@ -678,15 +678,13 @@ void TabModelJniBridge::SetTabGroupVisualData(
     const tab_groups::TabGroupVisualData& visual_data) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
-  Java_TabModelJniBridge_setTabGroupTitle(env, jobj, group_id.token(),
-                                          visual_data.title());
 
-  // The cast is safe because the enum values are synced across C++ and Java.
-  Java_TabModelJniBridge_setTabGroupColor(
-      env, jobj, group_id.token(), static_cast<jint>(visual_data.color()));
-  Java_TabModelJniBridge_setTabGroupCollapsed(env, jobj, group_id.token(),
-                                              visual_data.is_collapsed(),
-                                              /*animate=*/false);
+  // The color cast is safe because the enum values are synced across C++ and
+  // Java.
+  Java_TabModelJniBridge_setTabGroupVisualData(
+      env, jobj, group_id.token(), visual_data.title(),
+      static_cast<jint>(visual_data.color()), visual_data.is_collapsed(),
+      /*animate=*/false);
 }
 
 std::optional<tab_groups::TabGroupId> TabModelJniBridge::AddTabsToGroup(
@@ -795,6 +793,13 @@ bool TabModelJniBridge::IsTabLaunchedInForeground(
 }
 
 TabModelJniBridge::~TabModelJniBridge() {
+  // We need to explicitly do this here (instead of e.g. in the
+  // TabModelObserverJniBridge dtor) because otherwise, callers might call back
+  // into a partially-destructed TabModel.
+  if (observer_bridge_) {
+    observer_bridge_->NotifyShutdown();
+  }
+
   if (is_archived_tab_model_) {
     TabModelList::SetArchivedTabModel(nullptr);
   } else {
@@ -805,7 +810,7 @@ TabModelJniBridge::~TabModelJniBridge() {
 static jlong JNI_TabModelJniBridge_Init(JNIEnv* env,
                                         const JavaRef<jobject>& obj,
                                         Profile* profile,
-                                        jint j_activity_type,
+                                        int32_t j_activity_type,
                                         unsigned char is_archived_tab_model) {
   TabModel* tab_model = new TabModelJniBridge(
       env, obj, profile, static_cast<ActivityType>(j_activity_type),

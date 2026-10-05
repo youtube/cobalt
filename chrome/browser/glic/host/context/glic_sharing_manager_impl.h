@@ -31,8 +31,7 @@ class GlicSharingManagerImpl : public GlicSharingManager {
 #endif
   GlicSharingManagerImpl(
       std::unique_ptr<GlicFocusedTabManagerInterface> focused_tab_manager,
-      std::unique_ptr<GlicFocusedBrowserManagerInterface>
-          focused_browser_manager,
+      std::unique_ptr<GlicFocusedBrowserManager> focused_browser_manager,
       GlicPinnedTabManager* pinned_tab_manager,
       Profile* profile,
       GlicMetrics* metrics);
@@ -122,7 +121,7 @@ class GlicSharingManagerImpl : public GlicSharingManager {
 
   void OnConversationTurnSubmitted() override;
 
-  GlicFocusedBrowserManagerInterface& focused_browser_manager() override;
+  GlicFocusedBrowserManager& focused_browser_manager() override;
 
   base::WeakPtr<GlicSharingManager> GetWeakPtr() override;
 
@@ -134,7 +133,7 @@ class GlicSharingManagerImpl : public GlicSharingManager {
 
   GlicPinnedTabManager* pinned_tab_manager() const;
 
-  std::unique_ptr<GlicFocusedBrowserManagerInterface> focused_browser_manager_;
+  std::unique_ptr<GlicFocusedBrowserManager> focused_browser_manager_;
   std::unique_ptr<GlicFocusedTabManagerInterface> focused_tab_manager_;
   std::variant<std::unique_ptr<GlicPinnedTabManager>,
                raw_ptr<GlicPinnedTabManager>>

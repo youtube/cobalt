@@ -184,6 +184,12 @@ TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
     GTEST_SKIP() << "Needs boringssl.";
   }
 
+  if (client_.config.dtls_in_stun != server_.config.dtls_in_stun) {
+    // TODO jonaso, webrtc:404763475 : re-enable once
+    // boringssl has been merged and test cases updated.
+    GTEST_SKIP() << "TODO jonaso.";
+  }
+
   ConfigureEmulatedNetwork();
   Prepare();
 
@@ -215,6 +221,12 @@ TEST_P(DtlsIceIntegrationTest, TestWithPacketLoss) {
 TEST_P(DtlsIceIntegrationTest, LongRunningTestWithPacketLoss) {
   if (!IsBoringSsl()) {
     GTEST_SKIP() << "Needs boringssl.";
+  }
+
+  if (client_.config.dtls_in_stun != server_.config.dtls_in_stun) {
+    // TODO jonaso, webrtc:404763475 : re-enable once
+    // boringssl has been merged and test cases updated.
+    GTEST_SKIP() << "TODO jonaso.";
   }
 
   int seed = absl::GetFlag(FLAGS_long_running_seed);
@@ -426,6 +438,16 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(DtlsIceIntegrationPerformanceTest, ConnectTime) {
   if (!dtls_ice_integration_fixture::Base::IsBoringSsl()) {
     GTEST_SKIP() << "Needs boringssl.";
+  }
+
+  {
+    TestConfig config = GetParam();
+    if (config.client_config.pqc == 1 && config.server_config.pqc &&
+        config.server_config.ice_lite) {
+      // TODO jonaso, webrtc:404763475 : re-enable once
+      // boringssl has been merged and test cases updated.
+      GTEST_SKIP() << "TODO jonaso.";
+    }
   }
 
   int iter = 50;

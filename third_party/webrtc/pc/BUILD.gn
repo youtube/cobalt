@@ -131,6 +131,7 @@ rtc_library("dtls_srtp_transport") {
   ]
   deps = [
     ":srtp_transport",
+    "../api:array_view",
     "../api:dtls_transport_interface",
     "../api:field_trials_view",
     "../p2p:dtls_transport_internal",
@@ -1404,7 +1405,6 @@ rtc_library("legacy_stats_collector") {
     "legacy_stats_collector.h",
   ]
   deps = [
-    ":channel",
     ":channel_interface",
     ":data_channel_utils",
     ":jsep_transport_controller",
@@ -1447,6 +1447,7 @@ rtc_library("legacy_stats_collector") {
     "../rtc_base:threading",
     "../rtc_base:timeutils",
     "../system_wrappers",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1701,6 +1702,7 @@ rtc_library("rtp_transceiver") {
     "../media:media_channel",
     "../media:media_engine",
     "../media:rtc_media_config",
+    "../media:stream_params",
     "../rtc_base:checks",
     "../rtc_base:crypto_random",
     "../rtc_base:logging",
@@ -2516,8 +2518,6 @@ if (rtc_include_tests && !build_with_chromium) {
     deps = [
       ":audio_rtp_receiver",
       ":audio_track",
-      ":channel",
-      ":channel_interface",
       ":codec_vendor",
       ":connection_context",
       ":dtls_srtp_transport",
@@ -2528,6 +2528,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":ice_server_parsing",
       ":integration_test_helpers",
       ":jitter_buffer_delay",
+      ":jsep_transport_controller",
       ":legacy_stats_collector",
       ":local_audio_source",
       ":media_protocol_names",
@@ -2623,6 +2624,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/environment:environment_factory",
       "../api/rtc_event_log",
       "../api/rtc_event_log:rtc_event_log_factory",
+      "../api/task_queue",
       "../api/task_queue:pending_task_safety_flag",
       "../api/transport:bitrate_settings",
       "../api/transport:datagram_transport_interface",

@@ -92,14 +92,15 @@ err:
   return 0;
 }
 
-int X509V3_add_value(const char *name, const char *value,
-                     STACK_OF(CONF_VALUE) **extlist) {
+int bssl::X509V3_add_value(const char *name, const char *value,
+                           STACK_OF(CONF_VALUE) **extlist) {
   return x509V3_add_len_value(name, value, value != nullptr ? strlen(value) : 0,
                               /*omit_value=*/value == nullptr, extlist);
 }
 
-int x509V3_add_value_asn1_string(const char *name, const ASN1_STRING *value,
-                                 STACK_OF(CONF_VALUE) **extlist) {
+int bssl::x509V3_add_value_asn1_string(const char *name,
+                                       const ASN1_STRING *value,
+                                       STACK_OF(CONF_VALUE) **extlist) {
   return x509V3_add_len_value(name, (const char *)value->data, value->length,
                               /*omit_value=*/0, extlist);
 }
@@ -116,8 +117,8 @@ void X509V3_conf_free(CONF_VALUE *conf) {
   OPENSSL_free(conf);
 }
 
-int X509V3_add_value_bool(const char *name, int asn1_bool,
-                          STACK_OF(CONF_VALUE) **extlist) {
+int bssl::X509V3_add_value_bool(const char *name, int asn1_bool,
+                                STACK_OF(CONF_VALUE) **extlist) {
   if (asn1_bool) {
     return X509V3_add_value(name, "TRUE", extlist);
   }
@@ -238,8 +239,8 @@ ASN1_INTEGER *s2i_ASN1_INTEGER(const X509V3_EXT_METHOD *method,
   return aint;
 }
 
-int X509V3_add_value_int(const char *name, const ASN1_INTEGER *aint,
-                         STACK_OF(CONF_VALUE) **extlist) {
+int bssl::X509V3_add_value_int(const char *name, const ASN1_INTEGER *aint,
+                               STACK_OF(CONF_VALUE) **extlist) {
   char *strtmp;
   int ret;
   if (!aint) {
@@ -253,7 +254,7 @@ int X509V3_add_value_int(const char *name, const ASN1_INTEGER *aint,
   return ret;
 }
 
-int X509V3_bool_from_string(const char *str, ASN1_BOOLEAN *out_bool) {
+int bssl::X509V3_bool_from_string(const char *str, ASN1_BOOLEAN *out_bool) {
   if (!strcmp(str, "TRUE") || !strcmp(str, "true") || !strcmp(str, "Y") ||
       !strcmp(str, "y") || !strcmp(str, "YES") || !strcmp(str, "yes")) {
     *out_bool = ASN1_BOOLEAN_TRUE;
@@ -268,7 +269,8 @@ int X509V3_bool_from_string(const char *str, ASN1_BOOLEAN *out_bool) {
   return 0;
 }
 
-int X509V3_get_value_bool(const CONF_VALUE *value, ASN1_BOOLEAN *out_bool) {
+int bssl::X509V3_get_value_bool(const CONF_VALUE *value,
+                                ASN1_BOOLEAN *out_bool) {
   const char *btmp = value->value;
   if (btmp == nullptr) {
     OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_BOOLEAN_STRING);
@@ -284,7 +286,7 @@ err:
   return 0;
 }
 
-int X509V3_get_value_int(const CONF_VALUE *value, ASN1_INTEGER **aint) {
+int bssl::X509V3_get_value_int(const CONF_VALUE *value, ASN1_INTEGER **aint) {
   ASN1_INTEGER *itmp;
   if (!(itmp = s2i_ASN1_INTEGER(nullptr, value->value))) {
     X509V3_conf_err(value);
@@ -300,7 +302,7 @@ int X509V3_get_value_int(const CONF_VALUE *value, ASN1_INTEGER **aint) {
 
 // #define DEBUG
 
-STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line) {
+STACK_OF(CONF_VALUE) *bssl::X509V3_parse_list(const char *line) {
   char *p, *q, c;
   char *ntmp, *vtmp;
   STACK_OF(CONF_VALUE) *values = nullptr;
@@ -416,7 +418,7 @@ static char *strip_spaces(char *name) {
 
 // hex string utilities
 
-char *x509v3_bytes_to_hex(const uint8_t *in, size_t len) {
+char *bssl::x509v3_bytes_to_hex(const uint8_t *in, size_t len) {
   CBB cbb;
   if (!CBB_init(&cbb, len * 3 + 1)) {
     goto err;
@@ -442,7 +444,7 @@ err:
   return nullptr;
 }
 
-unsigned char *x509v3_hex_to_bytes(const char *str, size_t *len) {
+unsigned char *bssl::x509v3_hex_to_bytes(const char *str, size_t *len) {
   unsigned char *hexbuf, *q;
   unsigned char ch, cl, *p;
   uint8_t high, low;
@@ -490,7 +492,7 @@ badhex:
   return nullptr;
 }
 
-int x509v3_conf_name_matches(const char *name, const char *cmp) {
+int bssl::x509v3_conf_name_matches(const char *name, const char *cmp) {
   // |name| must begin with |cmp|.
   size_t len = strlen(cmp);
   if (strncmp(name, cmp, len) != 0) {
@@ -828,7 +830,7 @@ static int equal_wildcard(const unsigned char *pattern, size_t pattern_len,
                         subject_len, flags);
 }
 
-int x509v3_looks_like_dns_name(const unsigned char *in, size_t len) {
+int bssl::x509v3_looks_like_dns_name(const unsigned char *in, size_t len) {
   // This function is used as a heuristic for whether a common name is a
   // hostname to be matched, or merely a decorative name to describe the
   // subject. This heuristic must be applied to both name constraints and the
@@ -1109,7 +1111,7 @@ err:
   return nullptr;
 }
 
-int x509v3_a2i_ipadd(uint8_t ipout[16], const char *ipasc) {
+int bssl::x509v3_a2i_ipadd(uint8_t ipout[16], const char *ipasc) {
   // If string contains a ':' assume IPv6
 
   if (strchr(ipasc, ':')) {
@@ -1310,8 +1312,9 @@ static int ipv6_hex(uint8_t *out, const char *in, size_t inlen) {
   return 1;
 }
 
-int X509V3_NAME_from_section(X509_NAME *nm, const STACK_OF(CONF_VALUE) *dn_sk,
-                             int chtype) {
+int bssl::X509V3_NAME_from_section(X509_NAME *nm,
+                                   const STACK_OF(CONF_VALUE) *dn_sk,
+                                   int chtype) {
   if (!nm) {
     return 0;
   }

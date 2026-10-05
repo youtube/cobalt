@@ -57,6 +57,7 @@ rtc_library("emulated_network") {
     "../../rtc_base:ip_address",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
+    "../../rtc_base:net_helper",
     "../../rtc_base:net_helpers",
     "../../rtc_base:network",
     "../../rtc_base:network_constants",

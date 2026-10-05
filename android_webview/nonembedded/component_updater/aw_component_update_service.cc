@@ -21,7 +21,6 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -135,7 +134,7 @@ void AwComponentUpdateService::CheckForUpdates(UpdateCallback on_finished,
   std::vector<std::string> secure_ids;    // Require HTTPS for update checks.
   std::vector<std::string> unsecure_ids;  // Can fallback to HTTP.
   for (const auto& id : components_order_) {
-    DCHECK(base::Contains(components_, id));
+    DCHECK(components_.contains(id));
 
     const auto component = component_updater::GetComponent(components_, id);
     if (!component || component->requires_network_encryption)

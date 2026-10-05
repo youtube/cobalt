@@ -63,6 +63,7 @@ class ScreamNetworkController : public NetworkControllerInterface {
   TargetRateConstraints target_rate_constraints_;
   std::optional<DataRate> remote_bitrate_report_;
   StreamsConfig streams_config_;
+  DataRate max_seen_total_allocated_bitrate_ = DataRate::Zero();
 
   Timestamp last_padding_interval_started_;
 

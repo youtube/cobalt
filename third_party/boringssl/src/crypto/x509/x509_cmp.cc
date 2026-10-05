@@ -28,6 +28,8 @@
 #include "internal.h"
 
 
+using namespace bssl;
+
 int X509_issuer_name_cmp(const X509 *a, const X509 *b) {
   return X509_NAME_cmp(&a->issuer, &b->issuer);
 }

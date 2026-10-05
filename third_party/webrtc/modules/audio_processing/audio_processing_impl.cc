@@ -321,19 +321,6 @@ int HandleUnsupportedAudioFormats(const float* const* src,
   return error_code;
 }
 
-using DownmixMethod = AudioProcessing::Config::Pipeline::DownmixMethod;
-
-void SetDownmixMethod(AudioBuffer& buffer, DownmixMethod method) {
-  switch (method) {
-    case DownmixMethod::kAverageChannels:
-      buffer.set_downmixing_by_averaging();
-      break;
-    case DownmixMethod::kUseFirstChannel:
-      buffer.set_downmixing_to_specific_channel(/*channel=*/0);
-      break;
-  }
-}
-
 bool NeedEchoController(const AudioProcessing::Config& config,
                         bool has_echo_control_factory) {
   // For legacy reasons, having an echo control factory overrides the config.
@@ -584,16 +571,20 @@ void AudioProcessingImpl::InitializeLocked() {
     render_.render_converter.reset(nullptr);
   }
 
+  // Enforce adaptive downmixing when the echo canceller is active and
+  // multi-channel processing is used.
+  AudioProcessing::Config::Pipeline::DownmixMethod downmixing_method =
+      config_.pipeline.capture_downmix_method;
+  AudioProcessing::Config::Pipeline::DownmixMethod downmixing_method_stereo =
+      config_.pipeline.capture_downmix_method_stereo_aec;
+
   capture_.capture_audio.reset(new AudioBuffer(
       formats_.api_format.input_stream().sample_rate_hz(),
       formats_.api_format.input_stream().num_channels(),
       capture_nonlocked_.capture_processing_format.sample_rate_hz(),
       formats_.api_format.output_stream().num_channels(),
-      formats_.api_format.output_stream().sample_rate_hz(),
-      formats_.api_format.output_stream().num_channels()));
-  SetDownmixMethod(*capture_.capture_audio,
-                   config_.pipeline.capture_downmix_method);
-
+      formats_.api_format.output_stream().sample_rate_hz(), downmixing_method,
+      downmixing_method_stereo));
   if (capture_nonlocked_.capture_processing_format.sample_rate_hz() <
           formats_.api_format.output_stream().sample_rate_hz() &&
       formats_.api_format.output_stream().sample_rate_hz() == 48000) {
@@ -603,9 +594,7 @@ void AudioProcessingImpl::InitializeLocked() {
                         formats_.api_format.output_stream().sample_rate_hz(),
                         formats_.api_format.output_stream().num_channels(),
                         formats_.api_format.output_stream().sample_rate_hz(),
-                        formats_.api_format.output_stream().num_channels()));
-    SetDownmixMethod(*capture_.capture_fullband_audio,
-                     config_.pipeline.capture_downmix_method);
+                        downmixing_method, downmixing_method_stereo));
   } else {
     capture_.capture_fullband_audio.reset();
   }
@@ -705,7 +694,9 @@ void AudioProcessingImpl::ApplyConfig(const AudioProcessing::Config& config) {
       config_.pipeline.maximum_internal_processing_rate !=
           config.pipeline.maximum_internal_processing_rate ||
       config_.pipeline.capture_downmix_method !=
-          config.pipeline.capture_downmix_method;
+          config.pipeline.capture_downmix_method ||
+      config_.pipeline.capture_downmix_method_stereo_aec !=
+          config.pipeline.capture_downmix_method_stereo_aec;
 
   const bool aec_config_changed =
       config_.echo_canceller.enabled != config.echo_canceller.enabled ||

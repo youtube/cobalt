@@ -311,12 +311,18 @@ void CreateReportingServiceProxyForSharedStorageWorklet(
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(shared_storage_worklet_host->GetProcessHost());
+  // The worklet may outlive its document, leaving no valid NetworkIsolationKey.
+  const net::NetworkIsolationKey& network_isolation_key =
+      shared_storage_worklet_host->MaybeGetNetworkIsolationKey();
+  if (network_isolation_key.IsEmpty()) {
+    return;
+  }
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<ReportingServiceProxyImpl>(
           shared_storage_worklet_host->GetProcessHost()->GetDeprecatedID(),
           shared_storage_worklet_host->GetWorkletToken(),
           net::NetworkAnonymizationKey::CreateFromNetworkIsolationKey(
-              shared_storage_worklet_host->MaybeGetNetworkIsolationKey())),
+              network_isolation_key)),
       std::move(receiver));
 }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
