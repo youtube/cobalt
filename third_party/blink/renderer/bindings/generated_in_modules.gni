@@ -3270,6 +3270,10 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_base_native_stability_report.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_hang_report.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_hang_report.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_native_crash_report.cc",
@@ -3303,15 +3307,6 @@ if (is_cobalt) {
       "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_response.h",
       "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_server.cc",
       "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_server.h",
-    ]
-  }
-
-  if (!cobalt_is_release_build) {
-    generated_dictionary_sources_in_modules += [
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.cc",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.h",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.cc",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.h",
     ]
   }
 }

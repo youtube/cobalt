@@ -15,6 +15,9 @@
 #ifndef COBALT_BROWSER_H5VCC_STORAGE_H5VCC_STORAGE_IMPL_H_
 #define COBALT_BROWSER_H5VCC_STORAGE_H5VCC_STORAGE_IMPL_H_
 
+#include <string>
+
+#include "base/files/file_path.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
 #include "content/public/browser/document_service.h"
@@ -40,6 +43,12 @@ class H5vccStorageImpl : public content::DocumentService<mojom::H5vccStorage> {
   H5vccStorageImpl& operator=(const H5vccStorageImpl&) = delete;
 
   void ClearCrashpadDatabase(ClearCrashpadDatabaseCallback) override;
+  void WriteTest(uint32_t test_size,
+                 const std::string& test_string,
+                 WriteTestCallback) override;
+  void VerifyTest(uint32_t test_size,
+                  const std::string& test_string,
+                  VerifyTestCallback) override;
 
  private:
   H5vccStorageImpl(content::RenderFrameHost& render_frame_host,
@@ -47,6 +56,7 @@ class H5vccStorageImpl : public content::DocumentService<mojom::H5vccStorage> {
   ~H5vccStorageImpl();
 
   THREAD_CHECKER(thread_checker_);
+  base::FilePath user_data_path_;
 };
 
 }  // namespace h5vcc_storage
