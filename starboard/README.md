@@ -5,13 +5,6 @@ all the platform-specific functionality that Cobalt actually uses, and nothing
 that it does not.
 
 
-## GN Migration Notice
-
-Cobalt and Starboard have been migrated from the GYP build system to the GN
-build system. This readme only contains instructions for GN, as GYP is no
-longer supported.
-
-
 ## Documentation
 
 See [`starboard/doc`](doc) for more detailed documentation.

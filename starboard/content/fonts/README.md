@@ -34,11 +34,9 @@ Example:
     This example uses the 'limited' package, but overrides it to include bold
     non-CJK language fallback and to not include any CJK language fallback.
 
-    'variables': {
-        'cobalt_font_package': 'limited',
-        'cobalt_font_package_override_fallback_lang_non_cjk': 2,
-        'cobalt_font_package_override_fallback_lang_cjk_low_quality': 0,
-    }
+    cobalt_font_package = "limited"
+    cobalt_font_package_override_fallback_lang_non_cjk = 2
+    cobalt_font_package_override_fallback_lang_cjk_low_quality = 0
 
 ### Package Profiles
 *  'standard' -- The default package. It includes all sans-serif, serif, and FCC
