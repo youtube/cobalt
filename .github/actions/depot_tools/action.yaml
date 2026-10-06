@@ -30,6 +30,11 @@ runs:
           echo "path=" >> ${GITHUB_OUTPUT}
         fi
 
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
     - name: Clone Depot Tools
       uses: ./.github/actions/checkout
       with:
@@ -66,7 +71,6 @@ runs:
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
         set -x
         cd cobalt
@@ -110,11 +114,6 @@ runs:
           fi
         fi
         gclient validate
-
-    - name: Authenticate with GoB
-      uses: ./.github/actions/gob_auth
-      with:
-        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Clean dirty sub-repositories
       shell: bash

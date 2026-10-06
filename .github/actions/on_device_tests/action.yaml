@@ -154,7 +154,7 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${PLATFORM}"
-        gsutil -q cp -r "${GCS_RESULTS_PATH}/" "${test_output}/${PLATFORM}"
+        gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
         # Check for missing result xml files.
         target_failed=0
@@ -185,7 +185,7 @@ runs:
 
           # If no XML result was found, try to generate one from the logs.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log)
             target_out_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
             mkdir -p "$(dirname "${target_out_xml}")"
             if [ -f "${log_paths[0]:-}" ]; then
@@ -212,5 +212,5 @@ runs:
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
       if: always()
       with:
-        name: ${{ inputs.test_results_key }}
+        name: ${{ inputs.test_results_key }}_${{ github.run_attempt }}
         path: ${{ env.test_output }}/*

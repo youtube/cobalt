@@ -90,9 +90,6 @@ public class JavaSwitches {
   /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
   public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
 
-  /** flag to globally configure max HTTP cache size ceiling in bytes. */
-  public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
-
   /** flag to limit GPU image cache working set budget bytes */
   public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
       "DecodedImageWorkingSetBudgetBytes";
@@ -443,12 +440,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
-    }
-
-    String maxHttpCacheSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.MAX_HTTP_CACHE_SIZE);
-    if (maxHttpCacheSize != null) {
-      extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
     }
 
     if (jsFlags.length() > 0) {

@@ -56,6 +56,8 @@ jobs:
           git fetch --depth=1 --no-recurse-submodules origin main:main
           git show main:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
           git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
+          mkdir -p "${GITHUB_WORKSPACE}/.github/actions/gob_auth"
+          git show main:.github/actions/gob_auth/action.yaml > "${GITHUB_WORKSPACE}/.github/actions/gob_auth/action.yaml"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
           if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
@@ -66,6 +68,20 @@ jobs:
 
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
+
+      - name: Set Up GitHub CLI
+        env:
+          GH_VERSION: '2.101.0'
+          GH_SHA256SUM: '9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8'
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            GH_TARBALL="${RUNNER_TEMP}/gh_${GH_VERSION}_linux_amd64.tar.gz"
+            curl -sSL --fail "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+              --output "${GH_TARBALL}"
+            echo "${GH_SHA256SUM}  ${GH_TARBALL}" | sha256sum --check
+            tar -xzf "${GH_TARBALL}" -C "${RUNNER_TEMP}"
+            echo "${RUNNER_TEMP}/gh_${GH_VERSION}_linux_amd64/bin" >> "${GITHUB_PATH}"
+          fi
 
       - name: Get Existing PR Info
         id: pr_info

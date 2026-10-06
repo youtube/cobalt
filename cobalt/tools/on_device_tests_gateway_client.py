@@ -268,25 +268,25 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = []
       if test_type == 'yts_wpt_test':
         test_type = 'e2e_test'
-        params = []
+      yt_binary_name = os.path.splitext(os.path.basename(args.artifact_name))[0]
+      params = [f'yt_binary_name={yt_binary_name}']
+      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
-        yt_binary_name = os.path.splitext(os.path.basename(
-            args.artifact_name))[0]
-        params = [f'yt_binary_name={yt_binary_name}']
-        if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
-          params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+        if test_type in ('yts_test', 'yts_playback_test', 'yts_finch_test'):
+          files.append(f'build_apk={bigstore_path}')
+          params.append('app=dev.cobalt.coat')
         else:
-          bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-          if test_type in ('yts_test', 'yts_playback_test', 'yts_finch_test'):
-            files.append(f'build_apk={bigstore_path}')
-            params.append('app=dev.cobalt.coat')
-          else:
-            files.append(f'cobalt_path={bigstore_path}')
+          files.append(f'cobalt_path={bigstore_path}')
 
       if args.gcs_result_path:
         params.append(f'gcs_result_path={args.gcs_result_path}')
         params.append(f'gcs_result_filename={target_name}_testoutput.xml')
-        params.append(f'gcs_log_filename={target_name}_log.txt')
+        if test_type == 'e2e_test':
+          params.append(f'gcs_log_filename={target_name}_cobalt.log')
+        else:
+          params.append(f'gcs_log_filename={target_name}_log.txt')
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')

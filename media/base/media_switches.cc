@@ -496,15 +496,23 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
-// audio write duration during SbPlayer prerolling.
-// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
-// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
+// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as the audio
+// write duration for SbPlayer.
+// For example, '--enable-features=CobaltAudioWriteDuration' uses
+// |kSbPlayerWriteDurationLocal| (0.5s) for local, or
+// '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/2s' to
+// set a custom value.
+// When disabled, Cobalt uses the values set in
+// CobaltContentRendererClient::GetStarboardRendererFactoryTraits(), i.e., 1s
+// for local (intentionally different from |kSbPlayerWriteDurationLocal| to
+// align with Cobalt C25) and |kSbPlayerWriteDurationRemote| for remote.
+// See b/433993748.
 BASE_FEATURE(kCobaltAudioWriteDuration,
              "CobaltAudioWriteDuration",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
+    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal",
+    base::Microseconds(kSbPlayerWriteDurationLocal)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
 #if BUILDFLAG(IS_ANDROID)
@@ -523,11 +531,18 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
              base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt routes media frame buffer allocations into Starboard's
-// media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
-BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
-             "CobaltUseExternalMediaMemoryPool",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// When enabled, the MediaSource stream parsers parse appended data in place
+// rather than copying it into an internal byte queue. Cobalt retains the
+// ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
+// done with it. The data is handed to the parser as a borrowed `base::span`
+// paired with a release closure; the parser destroys the closure to drop
+// Cobalt's reference to the ArrayBuffer.
+//
+// NOTE: This deviates from the MSE specification, which allows the web app to
+// modify or reuse the appended buffer as soon as appendBuffer() returns.
+BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
+             "CobaltInPlaceMediaSourceParser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

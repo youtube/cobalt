@@ -277,7 +277,7 @@
     "build": false
   },
   {
-    "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
+    "target": "testing/container/wpt:yts_wpt_test_ci_android_arm_devices",
     "runs_on": "device",
     "test_type": "yts_wpt_test",
     "build": false
