@@ -1,2 +1,0 @@
-uniform float x;
-float4 y = float4x4(half3x3(float2x2(x)))[2];
