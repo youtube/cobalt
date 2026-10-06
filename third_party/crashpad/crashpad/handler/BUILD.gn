@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/toolchain_variables.gni")
 import("../build/crashpad_buildconfig.gni")
+
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
 
 static_library("handler") {
   sources = [
