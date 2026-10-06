@@ -157,12 +157,6 @@ const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
     &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
     base::Seconds(0)};
 
-<<<<<<< HEAD
-BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
-             "CobaltSkipTrustedHeaderClient",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-=======
 BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
              "CobaltSystemMemoryPressureEvaluator",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -182,6 +176,9 @@ const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
 const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
     &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
 
->>>>>>> dac4d572c (Introduce native CobaltSystemMemoryPressureEvaluator (#12575))
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
