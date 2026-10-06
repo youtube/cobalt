@@ -157,21 +157,21 @@ const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
     &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
     base::Seconds(0)};
 
-BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
-             "CobaltSystemMemoryPressureEvaluator",
+BASE_FEATURE(kEnableCobaltMemoryPressureEvaluator,
+             "EnableCobaltMemoryPressureEvaluator",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
-    &kCobaltSystemMemoryPressureEvaluator, "moderate_fraction", 0.85};
+    &kEnableCobaltMemoryPressureEvaluator, "moderate_fraction", 0.85};
 
 const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
-    &kCobaltSystemMemoryPressureEvaluator, "critical_fraction", 0.95};
+    &kEnableCobaltMemoryPressureEvaluator, "critical_fraction", 0.95};
 
 const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
-    &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
+    &kEnableCobaltMemoryPressureEvaluator, "budget_mb", 0};
 
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
+    &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
 }  // namespace features
 }  // namespace cobalt

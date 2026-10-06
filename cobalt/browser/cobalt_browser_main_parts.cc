@@ -476,16 +476,15 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
-  // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
-  // implementation of MemoryPressureMonitor.
-  auto* monitor =
-      static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
-          base::MemoryPressureMonitor::Get());
-
-  // Register the Cobalt system memory pressure evaluator when enabled via
-  // Finch or command line.
+  // Register Cobalt memory pressure evaluators when enabled via Finch or
+  // command line.
   if (base::FeatureList::IsEnabled(
-          features::kCobaltSystemMemoryPressureEvaluator)) {
+          features::kEnableCobaltMemoryPressureEvaluator)) {
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
     // |monitor| may be nullptr in browser tests or if memory monitoring is
     // disabled.
     if (monitor) {
@@ -500,28 +499,23 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
               monitor->CreateVoter(), std::move(media_allowance_getter)));
       LOG(INFO)
           << "CobaltSystemMemoryPressureEvaluator registered successfully.";
-    } else {
-      LOG(WARNING)
-          << "No MemoryPressureMonitor available; cannot register evaluator.";
-    }
-  } else {
-    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
-  }
-#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
-  // Register evaluator for Android OS memory pressure signals.
-  if (monitor) {
-    monitor->SetSystemEvaluator(
-        std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
-            monitor->CreateVoter()));
-    LOG(INFO) << "[CobaltMemoryPressure] CobaltBrowserMainParts attached "
-                 "AndroidOsSignalEvaluator to MultiSourceMemoryPressureMonitor";
-  } else {
-    LOG(WARNING) << "[CobaltMemoryPressure] CobaltBrowserMainParts: "
-                    "base::MemoryPressureMonitor::Get() returned null!";
-  }
+      // Register evaluator for Android OS memory pressure signals.
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+              monitor->CreateVoter()));
+      LOG(INFO) << "[CobaltMemoryPressure] CobaltBrowserMainParts attached "
+                   "AndroidOsSignalEvaluator to MultiSourceMemoryPressureMonitor";
 #endif  // BUILDFLAG(IS_ANDROID)
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluators.";
+    }
+  } else {
+    LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
   StartStorageMigration();
 
