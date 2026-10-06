@@ -1,0 +1,1449 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/
+en_XA{
+    Keys{
+        calendar{"[Çåļéñðåŕ one two]"}
+        cf{"[Çûŕŕéñçý Ƒöŕɱåţ one two three]"}
+        colAlternate{"[Îĝñöŕé Šýɱƀöļš Šöŕţîñĝ one two three]"}
+        colBackwards{"[Ŕéṽéŕšéð Åççéñţ Šöŕţîñĝ one two three]"}
+        colCaseFirst{"[Ûþþéŕçåšé⁄Ļöŵéŕçåšé Öŕðéŕîñĝ one two three four]"}
+        colCaseLevel{"[Çåšé Šéñšîţîṽé Šöŕţîñĝ one two three]"}
+        colNormalization{"[Ñöŕɱåļîžéð Šöŕţîñĝ one two three]"}
+        colNumeric{"[Ñûɱéŕîç Šöŕţîñĝ one two three]"}
+        colReorder{"[Šçŕîþţ⁄Ɓļöçķ Ŕéöŕðéŕîñĝ one two three]"}
+        colStrength{"[Šöŕţîñĝ Šţŕéñĝţĥ one two three]"}
+        collation{"[Šöŕţ Öŕðéŕ one two]"}
+        currency{"[Çûŕŕéñçý one two]"}
+        d0{"[Ţŕåñšƒöŕɱ Ðéšţîñåţîöñ one two three]"}
+        dx{"[Ðîçţîöñåŕý Ɓŕéåķ Éẋçļûšîöñš one two three four]"}
+        em{"[Éɱöĵî Þŕéšéñţåţîöñ Šţýļé one two three]"}
+        fw{"[Ƒîŕšţ ðåý öƒ ŵééķ one two three]"}
+        h0{"[Ṁîẋéð‐îñ one two]"}
+        hc{"[Ĥöûŕ Çýçļé (①② ṽš ②④) one two three]"}
+        i0{"[Îñþûţ Ṁéţĥöð one two]"}
+        k0{"[Ķéýƀöåŕð one two]"}
+        kv{"[Ĥîĝĥéšţ Îĝñöŕéð one two three]"}
+        lb{"[Ļîñé Ɓŕéåķ Šţýļé one two three]"}
+        lw{"[Ļîñé Ɓŕéåķš Îñ Ŵöŕðš Šéţţîñĝ one two three four]"}
+        m0{"[Ţŕåñšƒöŕɱ Ŕûļéš one two three]"}
+        ms{"[Ṁéåšûŕéɱéñţ Šýšţéɱ one two three]"}
+        mu{"[Ṁéåšûŕéɱéñţ Ûñîţ one two three]"}
+        numbers{"[Ñûɱƀéŕš one two]"}
+        rg{"[Ŕéĝîöñ Ƒöŕ Šûþþļéɱéñţåļ Ðåţå one two three four]"}
+        s0{"[Ţŕåñšƒöŕɱ Šöûŕçé one two three]"}
+        sd{"[Ŕéĝîöñ Šûƀðîṽîšîöñ one two three]"}
+        ss{"[Šéñţéñçé Ɓŕéåķ Šûþþŕéššîöñš Ţýþé one two three four]"}
+        t{"[Ţŕåñšƒöŕɱ one two]"}
+        t0{"[Ṁåçĥîñé Ţŕåñšļåţéð one two three]"}
+        timezone{"[Ţîɱé Žöñé one two]"}
+        va{"[Ļöçåļé Ṽåŕîåñţ one two]"}
+        x{"[Þŕîṽåţé‐Ûšé one two]"}
+        x0{"[Þŕîṽåţé‐Ûšé Ţŕåñšƒöŕɱ one two three]"}
+    }
+    Languages{
+        aa{"[Åƒåŕ one]"}
+        ab{"[Åƀķĥåžîåñ one two]"}
+        ace{"[Åçéĥñéšé one two]"}
+        ach{"[Åçöļî one]"}
+        ada{"[Åðåñĝɱé one two]"}
+        ady{"[Åðýĝĥé one]"}
+        ae{"[Åṽéšţåñ one two]"}
+        aeb{"[Ţûñîšîåñ Åŕåƀîç one two three]"}
+        af{"[Åƒŕîķååñš one two]"}
+        afh{"[Åƒŕîĥîļî one two]"}
+        agq{"[Åĝĥéɱ one]"}
+        ain{"[Åîñû one]"}
+        ak{"[Åķåñ one]"}
+        akk{"[Åķķåðîåñ one two]"}
+        akz{"[Åļåƀåɱå one two]"}
+        ale{"[Åļéûţ one]"}
+        aln{"[Ĝĥéĝ Åļƀåñîåñ one two]"}
+        alt{"[Šöûţĥéŕñ Åļţåî one two]"}
+        am{"[Åɱĥåŕîç one two]"}
+        an{"[Åŕåĝöñéšé one two]"}
+        ang{"[Öļð Éñĝļîšĥ one two]"}
+        ann{"[Öƀöļö one]"}
+        anp{"[Åñĝîķå one]"}
+        ar{"[Åŕåƀîç one]"}
+        ar_001{"[Ṁöðéŕñ Šţåñðåŕð Åŕåƀîç one two three]"}
+        arc{"[Åŕåɱåîç one two]"}
+        arn{"[Ṁåþûçĥé one two]"}
+        aro{"[Åŕåöñå one]"}
+        arp{"[Åŕåþåĥö one two]"}
+        arq{"[Åļĝéŕîåñ Åŕåƀîç one two three]"}
+        ars{"[Ñåĵðî Åŕåƀîç one two]"}
+        arw{"[Åŕåŵåķ one]"}
+        ary{"[Ṁöŕöççåñ Åŕåƀîç one two three]"}
+        arz{"[Éĝýþţîåñ Åŕåƀîç one two three]"}
+        as{"[Åššåɱéšé one two]"}
+        asa{"[Åšû one]"}
+        ase{"[Åɱéŕîçåñ Šîĝñ Ļåñĝûåĝé one two three]"}
+        ast{"[Åšţûŕîåñ one two]"}
+        atj{"[Åţîķåɱéķŵ one two]"}
+        av{"[Åṽåŕîç one]"}
+        avk{"[Ķöţåṽå one]"}
+        awa{"[Åŵåðĥî one]"}
+        ay{"[Åýɱåŕå one]"}
+        az{"[Åžéŕƀåîĵåñî one two]"}
+        ba{"[Ɓåšĥķîŕ one two]"}
+        bal{"[Ɓåļûçĥî one two]"}
+        ban{"[Ɓåļîñéšé one two]"}
+        bar{"[Ɓåṽåŕîåñ one two]"}
+        bas{"[Ɓåšåå one]"}
+        bax{"[Ɓåɱûñ one]"}
+        bbc{"[Ɓåţåķ Ţöƀå one two]"}
+        bbj{"[Ĝĥöɱåļå one two]"}
+        be{"[Ɓéļåŕûšîåñ one two]"}
+        bej{"[Ɓéĵå one]"}
+        bem{"[Ɓéɱƀå one]"}
+        bew{"[Ɓéţåŵî one]"}
+        bez{"[Ɓéñå one]"}
+        bfd{"[Ɓåƒûţ one]"}
+        bfq{"[Ɓåðåĝå one]"}
+        bg{"[Ɓûļĝåŕîåñ one two]"}
+        bgc{"[Ĥåŕýåñṽî one two]"}
+        bgn{"[Ŵéšţéŕñ Ɓåļöçĥî one two three]"}
+        bho{"[Ɓĥöĵþûŕî one two]"}
+        bi{"[Ɓîšļåɱå one two]"}
+        bik{"[Ɓîķöļ one]"}
+        bin{"[Ɓîñî one]"}
+        bjn{"[Ɓåñĵåŕ one]"}
+        bkm{"[Ķöɱ one]"}
+        bla{"[Šîķšîķá one two]"}
+        blo{"[Åñîî one]"}
+        blt{"[Ţåî Ðåɱ one two]"}
+        bm{"[Ɓåɱƀåŕå one two]"}
+        bn{"[Ɓåñĝļå one]"}
+        bo{"[Ţîƀéţåñ one two]"}
+        bpy{"[Ɓîšĥñûþŕîýå one two]"}
+        bqi{"[Ɓåķĥţîåŕî one two]"}
+        br{"[Ɓŕéţöñ one]"}
+        bra{"[Ɓŕåĵ one]"}
+        brh{"[Ɓŕåĥûî one]"}
+        brx{"[Ɓöðö one]"}
+        bs{"[Ɓöšñîåñ one two]"}
+        bss{"[Åķööšé one]"}
+        bua{"[Ɓûŕîåţ one]"}
+        bug{"[Ɓûĝîñéšé one two]"}
+        bum{"[Ɓûļû one]"}
+        byn{"[Ɓļîñ one]"}
+        byv{"[Ṁéðûɱƀå one two]"}
+        ca{"[Çåţåļåñ one two]"}
+        cad{"[Çåððö one]"}
+        car{"[Çåŕîƀ one]"}
+        cay{"[Çåýûĝå one]"}
+        cch{"[Åţšåɱ one]"}
+        ccp{"[Çĥåķɱå one]"}
+        ce{"[Çĥéçĥéñ one two]"}
+        ceb{"[Çéƀûåñö one two]"}
+        cgg{"[Çĥîĝå one]"}
+        ch{"[Çĥåɱöŕŕö one two]"}
+        chb{"[Çĥîƀçĥå one two]"}
+        chg{"[Çĥåĝåţåî one two]"}
+        chk{"[Çĥûûķéšé one two]"}
+        chm{"[Ṁåŕî one]"}
+        chn{"[Çĥîñööķ Ĵåŕĝöñ one two]"}
+        cho{"[Çĥöçţåŵ one two]"}
+        chp{"[Çĥîþéŵýåñ one two]"}
+        chr{"[Çĥéŕöķéé one two]"}
+        chy{"[Çĥéýéññé one two]"}
+        cic{"[Çĥîçķåšåŵ one two]"}
+        ckb{"[Çéñţŕåļ Ķûŕðîšĥ one two three]"}
+        clc{"[Çĥîļçöţîñ one two]"}
+        co{"[Çöŕšîçåñ one two]"}
+        cop{"[Çöþţîç one]"}
+        cps{"[Çåþîžñöñ one two]"}
+        cr{"[Çŕéé one]"}
+        crg{"[Ṁîçĥîƒ one]"}
+        crh{"[Çŕîɱéåñ Ţåţåŕ one two]"}
+        crj{"[Šöûţĥéŕñ Éåšţ Çŕéé one two three]"}
+        crk{"[Þļåîñš Çŕéé one two]"}
+        crl{"[Ñöŕţĥéŕñ Éåšţ Çŕéé one two three]"}
+        crm{"[Ṁööšé Çŕéé one two]"}
+        crr{"[Çåŕöļîñå Åļĝöñǫûîåñ one two three]"}
+        crs{"[Šéšéļŵå Çŕéöļé Ƒŕéñçĥ one two three]"}
+        cs{"[Çžéçĥ one]"}
+        csb{"[Ķåšĥûƀîåñ one two]"}
+        csw{"[Šŵåɱþý Çŕéé one two]"}
+        cu{"[Çĥûŕçĥ Šļåṽîç one two]"}
+        cv{"[Çĥûṽåšĥ one two]"}
+        cy{"[Ŵéļšĥ one]"}
+        da{"[Ðåñîšĥ one]"}
+        dak{"[Ðåķöţå one]"}
+        dar{"[Ðåŕĝŵå one]"}
+        dav{"[Ţåîţå one]"}
+        de{"[Ĝéŕɱåñ one]"}
+        de_AT{"[Åûšţŕîåñ Ĝéŕɱåñ one two three]"}
+        de_CH{"[Šŵîšš Ĥîĝĥ Ĝéŕɱåñ one two three]"}
+        del{"[Ðéļåŵåŕé one two]"}
+        den{"[Šļåṽé one]"}
+        dgr{"[Ðöĝŕîƀ one]"}
+        din{"[Ðîñķå one]"}
+        dje{"[Žåŕɱå one]"}
+        doi{"[Ðöĝŕî one]"}
+        dsb{"[Ļöŵéŕ Šöŕƀîåñ one two]"}
+        dtp{"[Çéñţŕåļ Ðûšûñ one two]"}
+        dua{"[Ðûåļå one]"}
+        dum{"[Ṁîððļé Ðûţçĥ one two]"}
+        dv{"[Ðîṽéĥî one]"}
+        dyo{"[Ĵöļå‐Ƒöñýî one two]"}
+        dyu{"[Ðýûļå one]"}
+        dz{"[Ðžöñĝķĥå one two]"}
+        dzg{"[Ðåžåĝå one]"}
+        ebu{"[Éɱƀû one]"}
+        ee{"[Éŵé one]"}
+        efi{"[Éƒîķ one]"}
+        egl{"[Éɱîļîåñ one two]"}
+        egy{"[Åñçîéñţ Éĝýþţîåñ one two three]"}
+        eka{"[Éķåĵûķ one]"}
+        el{"[Ĝŕééķ one]"}
+        elx{"[Éļåɱîţé one two]"}
+        en{"[Éñĝļîšĥ one two]"}
+        en_AU{"[Åûšţŕåļîåñ Éñĝļîšĥ one two three]"}
+        en_CA{"[Çåñåðîåñ Éñĝļîšĥ one two three]"}
+        en_GB{"[Ɓŕîţîšĥ Éñĝļîšĥ one two three]"}
+        en_US{"[Åɱéŕîçåñ Éñĝļîšĥ one two three]"}
+        enm{"[Ṁîððļé Éñĝļîšĥ one two]"}
+        eo{"[Éšþéŕåñţö one two]"}
+        es{"[Šþåñîšĥ one two]"}
+        es_419{"[Ļåţîñ Åɱéŕîçåñ Šþåñîšĥ one two three]"}
+        es_ES{"[Éûŕöþéåñ Šþåñîšĥ one two three]"}
+        es_MX{"[Ṁéẋîçåñ Šþåñîšĥ one two three]"}
+        esu{"[Çéñţŕåļ Ýûþîķ one two]"}
+        et{"[Éšţöñîåñ one two]"}
+        eu{"[Ɓåšǫûé one]"}
+        ewo{"[Éŵöñðö one]"}
+        ext{"[Éẋţŕéɱåðûŕåñ one two]"}
+        fa{"[Þéŕšîåñ one two]"}
+        fa_AF{"[Ðåŕî one]"}
+        fan{"[Ƒåñĝ one]"}
+        fat{"[Ƒåñţî one]"}
+        ff{"[Ƒûļå one]"}
+        fi{"[Ƒîññîšĥ one two]"}
+        fil{"[Ƒîļîþîñö one two]"}
+        fit{"[Ţöŕñéðåļéñ Ƒîññîšĥ one two three]"}
+        fj{"[Ƒîĵîåñ one]"}
+        fo{"[Ƒåŕöéšé one two]"}
+        fon{"[Ƒöñ one]"}
+        fr{"[Ƒŕéñçĥ one]"}
+        fr_CA{"[Çåñåðîåñ Ƒŕéñçĥ one two three]"}
+        fr_CH{"[Šŵîšš Ƒŕéñçĥ one two]"}
+        frc{"[Çåĵûñ Ƒŕéñçĥ one two]"}
+        frm{"[Ṁîððļé Ƒŕéñçĥ one two]"}
+        fro{"[Öļð Ƒŕéñçĥ one two]"}
+        frp{"[Åŕþîţåñ one two]"}
+        frr{"[Ñöŕţĥéŕñ Ƒŕîšîåñ one two three]"}
+        frs{"[Éåšţéŕñ Ƒŕîšîåñ one two three]"}
+        fur{"[Ƒŕîûļîåñ one two]"}
+        fy{"[Ŵéšţéŕñ Ƒŕîšîåñ one two three]"}
+        ga{"[Îŕîšĥ one]"}
+        gaa{"[Ĝå one]"}
+        gag{"[Ĝåĝåûž one]"}
+        gan{"[Ĝåñ Çĥîñéšé one two]"}
+        gay{"[Ĝåýö one]"}
+        gba{"[Ĝƀåýå one]"}
+        gbz{"[Žöŕöåšţŕîåñ Ðåŕî one two three]"}
+        gd{"[Šçöţţîšĥ Ĝåéļîç one two three]"}
+        gez{"[Ĝééž one]"}
+        gil{"[Ĝîļƀéŕţéšé one two]"}
+        gl{"[Ĝåļîçîåñ one two]"}
+        glk{"[Ĝîļåķî one]"}
+        gmh{"[Ṁîððļé Ĥîĝĥ Ĝéŕɱåñ one two three]"}
+        gn{"[Ĝûåŕåñî one two]"}
+        goh{"[Öļð Ĥîĝĥ Ĝéŕɱåñ one two three]"}
+        gon{"[Ĝöñðî one]"}
+        gor{"[Ĝöŕöñţåļö one two]"}
+        got{"[Ĝöţĥîç one]"}
+        grb{"[Ĝŕéƀö one]"}
+        grc{"[Åñçîéñţ Ĝŕééķ one two]"}
+        gsw{"[Šŵîšš Ĝéŕɱåñ one two]"}
+        gu{"[Ĝûĵåŕåţî one two]"}
+        guc{"[Ŵåýûû one]"}
+        gur{"[Ƒŕåƒŕå one]"}
+        guz{"[Ĝûšîî one]"}
+        gv{"[Ṁåñẋ one]"}
+        gwi{"[Ĝŵîçĥʼîñ one two]"}
+        ha{"[Ĥåûšå one]"}
+        hai{"[Ĥåîðå one]"}
+        hak{"[Ĥåķķå Çĥîñéšé one two]"}
+        haw{"[Ĥåŵåîîåñ one two]"}
+        hax{"[Šöûţĥéŕñ Ĥåîðå one two]"}
+        he{"[Ĥéƀŕéŵ one]"}
+        hi{"[Ĥîñðî one]"}
+        hi_Latn{"[Ĥîñðî (Ļåţîñ) one two]"}
+        hif{"[Ƒîĵî Ĥîñðî one two]"}
+        hil{"[Ĥîļîĝåýñöñ one two]"}
+        hit{"[Ĥîţţîţé one two]"}
+        hmn{"[Ĥɱöñĝ one]"}
+        hnj{"[Ĥɱöñĝ Ñĵûå one two]"}
+        ho{"[Ĥîŕî Ṁöţû one two]"}
+        hr{"[Çŕöåţîåñ one two]"}
+        hsb{"[Ûþþéŕ Šöŕƀîåñ one two]"}
+        hsn{"[Ẋîåñĝ Çĥîñéšé one two]"}
+        ht{"[Ĥåîţîåñ Çŕéöļé one two]"}
+        hu{"[Ĥûñĝåŕîåñ one two]"}
+        hup{"[Ĥûþå one]"}
+        hur{"[Ĥåļķöɱéļéɱ one two]"}
+        hy{"[Åŕɱéñîåñ one two]"}
+        hz{"[Ĥéŕéŕö one]"}
+        ia{"[Îñţéŕļîñĝûå one two]"}
+        iba{"[Îƀåñ one]"}
+        ibb{"[Îƀîƀîö one]"}
+        id{"[Îñðöñéšîåñ one two]"}
+        ie{"[Îñţéŕļîñĝûé one two]"}
+        ig{"[Îĝƀö one]"}
+        ii{"[Šîçĥûåñ Ýî one two]"}
+        ik{"[Îñûþîåǫ one two]"}
+        ikt{"[Ŵéšţéŕñ Çåñåðîåñ Îñûķţîţûţ one two three]"}
+        ilo{"[Îļöķö one]"}
+        inh{"[Îñĝûšĥ one]"}
+        io{"[Îðö one]"}
+        is{"[Îçéļåñðîç one two]"}
+        it{"[Îţåļîåñ one two]"}
+        iu{"[Îñûķţîţûţ one two]"}
+        izh{"[Îñĝŕîåñ one two]"}
+        ja{"[Ĵåþåñéšé one two]"}
+        jam{"[Ĵåɱåîçåñ Çŕéöļé Éñĝļîšĥ one two three]"}
+        jbo{"[Ļöĵƀåñ one]"}
+        jgo{"[Ñĝöɱƀå one]"}
+        jmc{"[Ṁåçĥåɱé one two]"}
+        jpr{"[Ĵûðéö‐Þéŕšîåñ one two]"}
+        jrb{"[Ĵûðéö‐Åŕåƀîç one two]"}
+        jut{"[Ĵûţîšĥ one]"}
+        jv{"[Ĵåṽåñéšé one two]"}
+        ka{"[Ĝéöŕĝîåñ one two]"}
+        kaa{"[Ķåŕå‐Ķåļþåķ one two]"}
+        kab{"[Ķåƀýļé one]"}
+        kac{"[Ķåçĥîñ one]"}
+        kaj{"[Ĵĵû one]"}
+        kam{"[Ķåɱƀå one]"}
+        kaw{"[Ķåŵî one]"}
+        kbd{"[Ķåƀåŕðîåñ one two]"}
+        kbl{"[Ķåñéɱƀû one two]"}
+        kcg{"[Ţýåþ one]"}
+        kde{"[Ṁåķöñðé one two]"}
+        kea{"[Ķåƀûṽéŕðîåñû one two]"}
+        ken{"[Ķéñýåñĝ one two]"}
+        kfo{"[Ķöŕö one]"}
+        kg{"[Ķöñĝö one]"}
+        kgp{"[Ķåîñĝåñĝ one two]"}
+        kha{"[Ķĥåšî one]"}
+        kho{"[Ķĥöţåñéšé one two]"}
+        khq{"[Ķöýŕå Çĥîîñî one two]"}
+        khw{"[Ķĥöŵåŕ one]"}
+        ki{"[Ķîķûýû one]"}
+        kiu{"[Ķîŕɱåñĵķî one two]"}
+        kj{"[Ķûåñýåɱå one two]"}
+        kk{"[Ķåžåķĥ one]"}
+        kkj{"[Ķåķö one]"}
+        kl{"[Ķåļååļļîšûţ one two]"}
+        kln{"[Ķåļéñĵîñ one two]"}
+        km{"[Ķĥɱéŕ one]"}
+        kmb{"[Ķîɱƀûñðû one two]"}
+        kn{"[Ķåññåðå one two]"}
+        ko{"[Ķöŕéåñ one]"}
+        koi{"[Ķöɱî‐Þéŕɱýåķ one two]"}
+        kok{"[Ķöñķåñî one two]"}
+        kos{"[Ķöšŕåéåñ one two]"}
+        kpe{"[Ķþéļļé one]"}
+        kr{"[Ķåñûŕî one]"}
+        krc{"[Ķåŕåçĥåý‐Ɓåļķåŕ one two three]"}
+        kri{"[Ķŕîö one]"}
+        krj{"[Ķîñåŕåý‐å one two]"}
+        krl{"[Ķåŕéļîåñ one two]"}
+        kru{"[Ķûŕûķĥ one]"}
+        ks{"[Ķåšĥɱîŕî one two]"}
+        ksb{"[Šĥåɱƀåļå one two]"}
+        ksf{"[Ɓåƒîå one]"}
+        ksh{"[Çöļöĝñîåñ one two]"}
+        ku{"[Ķûŕðîšĥ one two]"}
+        kum{"[Ķûɱýķ one]"}
+        kut{"[Ķûţéñåî one two]"}
+        kv{"[Ķöɱî one]"}
+        kw{"[Çöŕñîšĥ one two]"}
+        kwk{"[Ķŵåķʼŵåļå one two]"}
+        kxv{"[Ķûṽî one]"}
+        ky{"[Ķýŕĝýž one]"}
+        la{"[Ļåţîñ one]"}
+        lad{"[Ļåðîñö one]"}
+        lag{"[Ļåñĝî one]"}
+        lah{"[Ŵéšţéŕñ Þåñĵåƀî one two three]"}
+        lam{"[Ļåɱƀå one]"}
+        lb{"[Ļûẋéɱƀöûŕĝîšĥ one two]"}
+        lez{"[Ļéžĝĥîåñ one two]"}
+        lfn{"[Ļîñĝûå Ƒŕåñçå Ñöṽå one two three]"}
+        lg{"[Ĝåñðå one]"}
+        li{"[Ļîɱƀûŕĝîšĥ one two]"}
+        lij{"[Ļîĝûŕîåñ one two]"}
+        lil{"[Ļîļļööéţ one two]"}
+        liv{"[Ļîṽöñîåñ one two]"}
+        lkt{"[Ļåķöţå one]"}
+        lmo{"[Ļöɱƀåŕð one two]"}
+        ln{"[Ļîñĝåļå one two]"}
+        lo{"[Ļåö one]"}
+        lol{"[Ṁöñĝö one]"}
+        lou{"[Ļöûîšîåñå Çŕéöļé one two three]"}
+        loz{"[Ļöžî one]"}
+        lrc{"[Ñöŕţĥéŕñ Ļûŕî one two]"}
+        lsm{"[Šååɱîå one]"}
+        lt{"[Ļîţĥûåñîåñ one two]"}
+        ltg{"[Ļåţĝåļîåñ one two]"}
+        lu{"[Ļûƀå‐Ķåţåñĝå one two]"}
+        lua{"[Ļûƀå‐Ļûļûå one two]"}
+        lui{"[Ļûîšéñö one two]"}
+        lun{"[Ļûñðå one]"}
+        luo{"[Ļûö one]"}
+        lus{"[Ṁîžö one]"}
+        luy{"[Ļûýîå one]"}
+        lv{"[Ļåţṽîåñ one two]"}
+        lzh{"[Ļîţéŕåŕý Çĥîñéšé one two three]"}
+        lzz{"[Ļåž one]"}
+        mad{"[Ṁåðûŕéšé one two]"}
+        maf{"[Ṁåƒå one]"}
+        mag{"[Ṁåĝåĥî one]"}
+        mai{"[Ṁåîţĥîļî one two]"}
+        mak{"[Ṁåķåšåŕ one two]"}
+        man{"[Ṁåñðîñĝö one two]"}
+        mas{"[Ṁåšåî one]"}
+        mde{"[Ṁåƀå one]"}
+        mdf{"[Ṁöķšĥå one]"}
+        mdr{"[Ṁåñðåŕ one]"}
+        men{"[Ṁéñðé one]"}
+        mer{"[Ṁéŕû one]"}
+        mfe{"[Ṁöŕîšýéñ one two]"}
+        mg{"[Ṁåļåĝåšý one two]"}
+        mga{"[Ṁîððļé Îŕîšĥ one two]"}
+        mgh{"[Ṁåķĥûŵå‐Ṁééţţö one two]"}
+        mgo{"[Ṁéţåʼ one]"}
+        mh{"[Ṁåŕšĥåļļéšé one two]"}
+        mi{"[Ṁāöŕî one]"}
+        mic{"[Ṁî'ķɱåŵ one two]"}
+        min{"[Ṁîñåñĝķåƀåû one two]"}
+        mk{"[Ṁåçéðöñîåñ one two]"}
+        ml{"[Ṁåļåýåļåɱ one two]"}
+        mn{"[Ṁöñĝöļîåñ one two]"}
+        mnc{"[Ṁåñçĥû one]"}
+        mni{"[Ṁåñîþûŕî one two]"}
+        moe{"[Îññû‐åîɱûñ one two]"}
+        moh{"[Ṁöĥåŵķ one]"}
+        mos{"[Ṁöššî one]"}
+        mr{"[Ṁåŕåţĥî one two]"}
+        mrj{"[Ŵéšţéŕñ Ṁåŕî one two]"}
+        ms{"[Ṁåļåý one]"}
+        mt{"[Ṁåļţéšé one two]"}
+        mua{"[Ṁûñðåñĝ one two]"}
+        mul{"[Ṁûļţîþļé ļåñĝûåĝéš one two three]"}
+        mus{"[Ṁûšçöĝéé one two]"}
+        mwl{"[Ṁîŕåñðéšé one two]"}
+        mwr{"[Ṁåŕŵåŕî one two]"}
+        mwv{"[Ṁéñţåŵåî one two]"}
+        my{"[Ɓûŕɱéšé one two]"}
+        mye{"[Ṁýéñé one]"}
+        myv{"[Éŕžýå one]"}
+        mzn{"[Ṁåžåñðéŕåñî one two]"}
+        na{"[Ñåûŕû one]"}
+        nan{"[Ṁîñ Ñåñ Çĥîñéšé one two three]"}
+        nap{"[Ñéåþöļîţåñ one two]"}
+        naq{"[Ñåɱå one]"}
+        nb{"[Ñöŕŵéĝîåñ Ɓöķɱåļ one two three]"}
+        nd{"[Ñöŕţĥ Ñðéƀéļé one two]"}
+        nds{"[Ļöŵ Ĝéŕɱåñ one two]"}
+        nds_NL{"[Ļöŵ Šåẋöñ one two]"}
+        ne{"[Ñéþåļî one]"}
+        new{"[Ñéŵåŕî one]"}
+        ng{"[Ñðöñĝå one]"}
+        nia{"[Ñîåš one]"}
+        niu{"[Ñîûéåñ one]"}
+        njo{"[Åö Ñåĝå one two]"}
+        nl{"[Ðûţçĥ one]"}
+        nl_BE{"[Ƒļéɱîšĥ one two]"}
+        nmg{"[Ķŵåšîö one]"}
+        nn{"[Ñöŕŵéĝîåñ Ñýñöŕšķ one two three]"}
+        nnh{"[Ñĝîéɱƀööñ one two]"}
+        no{"[Ñöŕŵéĝîåñ one two]"}
+        nog{"[Ñöĝåî one]"}
+        non{"[Öļð Ñöŕšé one two]"}
+        nov{"[Ñöṽîåļ one]"}
+        nqo{"[Ñ’Ķö one]"}
+        nr{"[Šöûţĥ Ñðéƀéļé one two]"}
+        nso{"[Ñöŕţĥéŕñ Šöţĥö one two]"}
+        nus{"[Ñûéŕ one]"}
+        nv{"[Ñåṽåĵö one]"}
+        nwc{"[Çļåššîçåļ Ñéŵåŕî one two three]"}
+        ny{"[Ñýåñĵå one]"}
+        nym{"[Ñýåɱŵéžî one two]"}
+        nyn{"[Ñýåñķöļé one two]"}
+        nyo{"[Ñýöŕö one]"}
+        nzi{"[Ñžîɱå one]"}
+        oc{"[Öççîţåñ one two]"}
+        oj{"[Öĵîƀŵå one]"}
+        ojb{"[Ñöŕţĥŵéšţéŕñ Öĵîƀŵå one two three]"}
+        ojc{"[Çéñţŕåļ Öĵîƀŵå one two]"}
+        ojs{"[Öĵî‐Çŕéé one two]"}
+        ojw{"[Ŵéšţéŕñ Öĵîƀŵå one two]"}
+        oka{"[Öķåñåĝåñ one two]"}
+        om{"[Öŕöɱö one]"}
+        or{"[Öðîå one]"}
+        os{"[Öššéţîç one two]"}
+        osa{"[Öšåĝé one]"}
+        ota{"[Öţţöɱåñ Ţûŕķîšĥ one two three]"}
+        pa{"[Þûñĵåƀî one two]"}
+        pag{"[Þåñĝåšîñåñ one two]"}
+        pal{"[Þåĥļåṽî one two]"}
+        pam{"[Þåɱþåñĝå one two]"}
+        pap{"[Þåþîåɱéñţö one two]"}
+        pau{"[Þåļåûåñ one two]"}
+        pcd{"[Þîçåŕð one]"}
+        pcm{"[Ñîĝéŕîåñ Þîðĝîñ one two three]"}
+        pdc{"[Þéññšýļṽåñîå Ĝéŕɱåñ one two three]"}
+        pdt{"[Þļåûţðîéţšçĥ one two]"}
+        peo{"[Öļð Þéŕšîåñ one two]"}
+        pfl{"[Þåļåţîñé Ĝéŕɱåñ one two three]"}
+        phn{"[Þĥöéñîçîåñ one two]"}
+        pi{"[Þåļî one]"}
+        pis{"[Þîĵîñ one]"}
+        pl{"[Þöļîšĥ one]"}
+        pms{"[Þîéðɱöñţéšé one two]"}
+        pnt{"[Þöñţîç one]"}
+        pon{"[Þöĥñþéîåñ one two]"}
+        pqm{"[Ṁåļîšééţ‐Þåššåɱåǫûöððý one two three]"}
+        prg{"[Þŕûššîåñ one two]"}
+        pro{"[Öļð Þŕöṽéñçåļ one two]"}
+        ps{"[Þåšĥţö one]"}
+        pt{"[Þöŕţûĝûéšé one two]"}
+        pt_BR{"[Ɓŕåžîļîåñ Þöŕţûĝûéšé one two three]"}
+        pt_PT{"[Éûŕöþéåñ Þöŕţûĝûéšé one two three]"}
+        qu{"[Ǫûéçĥûå one two]"}
+        quc{"[Ķʼîçĥéʼ one two]"}
+        qug{"[Çĥîɱƀöŕåžö Ĥîĝĥļåñð Ǫûîçĥûå one two three four]"}
+        raj{"[Ŕåĵåšţĥåñî one two]"}
+        rap{"[Ŕåþåñûî one two]"}
+        rar{"[Ŕåŕöţöñĝåñ one two]"}
+        rgn{"[Ŕöɱåĝñöļ one two]"}
+        rhg{"[Ŕöĥîñĝýå one two]"}
+        rif{"[Ŕîƒƒîåñ one two]"}
+        rm{"[Ŕöɱåñšĥ one two]"}
+        rn{"[Ŕûñðî one]"}
+        ro{"[Ŕöɱåñîåñ one two]"}
+        ro_MD{"[Ṁöļðåṽîåñ one two]"}
+        rof{"[Ŕöɱƀö one]"}
+        rom{"[Ŕöɱåñý one]"}
+        rtm{"[Ŕöţûɱåñ one two]"}
+        ru{"[Ŕûššîåñ one two]"}
+        rue{"[Ŕûšýñ one]"}
+        rug{"[Ŕöṽîåñå one two]"}
+        rup{"[Åŕöɱåñîåñ one two]"}
+        rw{"[Ķîñýåŕŵåñðå one two]"}
+        rwk{"[Ŕŵå one]"}
+        sa{"[Šåñšķŕîţ one two]"}
+        sad{"[Šåñðåŵé one two]"}
+        sah{"[Ýåķûţ one]"}
+        sam{"[Šåɱåŕîţåñ Åŕåɱåîç one two three]"}
+        saq{"[Šåɱƀûŕû one two]"}
+        sas{"[Šåšåķ one]"}
+        sat{"[Šåñţåļî one two]"}
+        saz{"[Šåûŕåšĥţŕå one two]"}
+        sba{"[Ñĝåɱƀåý one two]"}
+        sbp{"[Šåñĝû one]"}
+        sc{"[Šåŕðîñîåñ one two]"}
+        scn{"[Šîçîļîåñ one two]"}
+        sco{"[Šçöţš one]"}
+        sd{"[Šîñðĥî one]"}
+        sdc{"[Šåššåŕéšé Šåŕðîñîåñ one two three]"}
+        sdh{"[Šöûţĥéŕñ Ķûŕðîšĥ one two three]"}
+        se{"[Ñöŕţĥéŕñ Šåɱî one two]"}
+        see{"[Šéñéçå one]"}
+        seh{"[Šéñå one]"}
+        sei{"[Šéŕî one]"}
+        sel{"[Šéļķûþ one]"}
+        ses{"[Ķöýŕåƀöŕö Šéññî one two three]"}
+        sg{"[Šåñĝö one]"}
+        sga{"[Öļð Îŕîšĥ one two]"}
+        sgs{"[Šåɱöĝîţîåñ one two]"}
+        sh{"[Šéŕƀö‐Çŕöåţîåñ one two]"}
+        shi{"[Ţåçĥéļĥîţ one two]"}
+        shn{"[Šĥåñ one]"}
+        shu{"[Çĥåðîåñ Åŕåƀîç one two]"}
+        si{"[Šîñĥåļå one two]"}
+        sid{"[Šîðåɱö one]"}
+        sk{"[Šļöṽåķ one]"}
+        sl{"[Šļöṽéñîåñ one two]"}
+        slh{"[Šöûţĥéŕñ Ļûšĥööţšééð one two three]"}
+        sli{"[Ļöŵéŕ Šîļéšîåñ one two]"}
+        sly{"[Šéļåýåŕ one two]"}
+        sm{"[Šåɱöåñ one]"}
+        sma{"[Šöûţĥéŕñ Šåɱî one two]"}
+        smj{"[Ļûļé Šåɱî one two]"}
+        smn{"[Îñåŕî Šåɱî one two]"}
+        sms{"[Šķöļţ Šåɱî one two]"}
+        sn{"[Šĥöñå one]"}
+        snk{"[Šöñîñķé one two]"}
+        so{"[Šöɱåļî one]"}
+        sog{"[Šöĝðîéñ one two]"}
+        sq{"[Åļƀåñîåñ one two]"}
+        sr{"[Šéŕƀîåñ one two]"}
+        sr_ME{"[Ṁöñţéñéĝŕîñ one two]"}
+        srn{"[Šŕåñåñ Ţöñĝö one two]"}
+        srr{"[Šéŕéŕ one]"}
+        ss{"[Šŵåţî one]"}
+        ssy{"[Šåĥö one]"}
+        st{"[Šöûţĥéŕñ Šöţĥö one two]"}
+        stq{"[Šåţéŕļåñð Ƒŕîšîåñ one two three]"}
+        str{"[Šţŕåîţš Šåļîšĥ one two]"}
+        su{"[Šûñðåñéšé one two]"}
+        suk{"[Šûķûɱå one]"}
+        sus{"[Šûšû one]"}
+        sux{"[Šûɱéŕîåñ one two]"}
+        sv{"[Šŵéðîšĥ one two]"}
+        sw{"[Šŵåĥîļî one two]"}
+        sw_CD{"[Çöñĝö Šŵåĥîļî one two]"}
+        swb{"[Çöɱöŕîåñ one two]"}
+        syc{"[Çļåššîçåļ Šýŕîåç one two three]"}
+        syr{"[Šýŕîåç one]"}
+        szl{"[Šîļéšîåñ one two]"}
+        ta{"[Ţåɱîļ one]"}
+        tce{"[Šöûţĥéŕñ Ţûţçĥöñé one two three]"}
+        tcy{"[Ţûļû one]"}
+        te{"[Ţéļûĝû one]"}
+        tem{"[Ţîɱñé one]"}
+        teo{"[Ţéšö one]"}
+        ter{"[Ţéŕéñö one]"}
+        tet{"[Ţéţûɱ one]"}
+        tg{"[Ţåĵîķ one]"}
+        tgx{"[Ţåĝîšĥ one]"}
+        th{"[Ţĥåî one]"}
+        tht{"[Ţåĥļţåñ one two]"}
+        ti{"[Ţîĝŕîñýå one two]"}
+        tig{"[Ţîĝŕé one]"}
+        tiv{"[Ţîṽ one]"}
+        tk{"[Ţûŕķɱéñ one two]"}
+        tkl{"[Ţöķéļåû one two]"}
+        tkr{"[Ţšåķĥûŕ one two]"}
+        tl{"[Ţåĝåļöĝ one two]"}
+        tlh{"[Ķļîñĝöñ one two]"}
+        tli{"[Ţļîñĝîţ one two]"}
+        tly{"[Ţåļýšĥ one]"}
+        tmh{"[Ţåɱåšĥéķ one two]"}
+        tn{"[Ţšŵåñå one]"}
+        to{"[Ţöñĝåñ one]"}
+        tog{"[Ñýåšå Ţöñĝå one two]"}
+        tok{"[Ţöķî Þöñå one two]"}
+        tpi{"[Ţöķ Þîšîñ one two]"}
+        tr{"[Ţûŕķîšĥ one two]"}
+        tru{"[Ţûŕöýö one]"}
+        trv{"[Ţåŕöķö one]"}
+        trw{"[Ţöŕŵåļî one two]"}
+        ts{"[Ţšöñĝå one]"}
+        tsd{"[Ţšåķöñîåñ one two]"}
+        tsi{"[Ţšîɱšĥîåñ one two]"}
+        tt{"[Ţåţåŕ one]"}
+        ttm{"[Ñöŕţĥéŕñ Ţûţçĥöñé one two three]"}
+        ttt{"[Ṁûšļîɱ Ţåţ one two]"}
+        tum{"[Ţûɱƀûķå one two]"}
+        tvl{"[Ţûṽåļû one]"}
+        tw{"[Ţŵî one]"}
+        twq{"[Ţåšåŵåǫ one two]"}
+        ty{"[Ţåĥîţîåñ one two]"}
+        tyv{"[Ţûṽîñîåñ one two]"}
+        tzm{"[Çéñţŕåļ Åţļåš Ţåɱåžîĝĥţ one two three]"}
+        udm{"[Ûðɱûŕţ one]"}
+        ug{"[Ûýĝĥûŕ one]"}
+        uga{"[Ûĝåŕîţîç one two]"}
+        uk{"[Ûķŕåîñîåñ one two]"}
+        umb{"[Ûɱƀûñðû one two]"}
+        und{"[Ûñķñöŵñ ļåñĝûåĝé one two three]"}
+        ur{"[Ûŕðû one]"}
+        uz{"[Ûžƀéķ one]"}
+        vai{"[Ṽåî one]"}
+        ve{"[Ṽéñðå one]"}
+        vec{"[Ṽéñéţîåñ one two]"}
+        vep{"[Ṽéþš one]"}
+        vi{"[Ṽîéţñåɱéšé one two]"}
+        vls{"[Ŵéšţ Ƒļéɱîšĥ one two]"}
+        vmf{"[Ṁåîñ‐Ƒŕåñçöñîåñ one two three]"}
+        vmw{"[Ṁåķĥûŵå one two]"}
+        vo{"[Ṽöļåþüķ one two]"}
+        vot{"[Ṽöţîç one]"}
+        vro{"[Ṽõŕö one]"}
+        vun{"[Ṽûñĵö one]"}
+        wa{"[Ŵåļļööñ one two]"}
+        wae{"[Ŵåļšéŕ one]"}
+        wal{"[Ŵöļåýţţå one two]"}
+        war{"[Ŵåŕåý one]"}
+        was{"[Ŵåšĥö one]"}
+        wbp{"[Ŵåŕļþîŕî one two]"}
+        wo{"[Ŵöļöƒ one]"}
+        wuu{"[Ŵû Çĥîñéšé one two]"}
+        xal{"[Ķåļɱýķ one]"}
+        xh{"[Ẋĥöšå one]"}
+        xmf{"[Ṁîñĝŕéļîåñ one two]"}
+        xnr{"[Ķåñĝŕî one]"}
+        xog{"[Šöĝå one]"}
+        yao{"[Ýåö one]"}
+        yap{"[Ýåþéšé one]"}
+        yav{"[Ýåñĝƀéñ one two]"}
+        ybb{"[Ýéɱƀå one]"}
+        yi{"[Ýîððîšĥ one two]"}
+        yo{"[Ýöŕûƀå one]"}
+        yrl{"[Ñĥééñĝåţû one two]"}
+        yue{"[Çåñţöñéšé one two]"}
+        za{"[Žĥûåñĝ one]"}
+        zap{"[Žåþöţéç one two]"}
+        zbl{"[Ɓļîššýɱƀöļš one two]"}
+        zea{"[Žééļåñðîç one two]"}
+        zen{"[Žéñåĝå one]"}
+        zgh{"[Šţåñðåŕð Ṁöŕöççåñ Ţåɱåžîĝĥţ one two three four]"}
+        zh{"[Çĥîñéšé one two]"}
+        zh_Hans{"[Šîɱþļîƒîéð Çĥîñéšé one two three]"}
+        zh_Hant{"[Ţŕåðîţîöñåļ Çĥîñéšé one two three]"}
+        zu{"[Žûļû one]"}
+        zun{"[Žûñî one]"}
+        zxx{"[Ñö ļîñĝûîšţîç çöñţéñţ one two three]"}
+        zza{"[Žåžå one]"}
+    }
+    Languages%long{
+        cr{"[Ŵööðš Çŕéé one two]"}
+        zh{"[Ṁåñðåŕîñ Çĥîñéšé one two three]"}
+        zh_Hans{"[Šîɱþļîƒîéð Ṁåñðåŕîñ Çĥîñéšé one two three four]"}
+        zh_Hant{"[Ţŕåðîţîöñåļ Ṁåñðåŕîñ Çĥîñéšé one two three four]"}
+    }
+    Languages%menu{
+        ars{"[Åŕåƀîç، Ñåĵðî one two]"}
+        ckb{"[Ķûŕðîšĥ، Çéñţŕåļ one two three]"}
+        se{"[Šåɱî، Ñöŕţĥéŕñ one two]"}
+        sma{"[Šåɱî، Šöûţĥéŕñ one two]"}
+        smj{"[Šåɱî، Ļûļé one two]"}
+        smn{"[Šåɱî، Îñåŕî one two]"}
+        sms{"[Šåɱî، Šķöļţ one two]"}
+        yue{"[Çĥîñéšé، Çåñţöñéšé one two three]"}
+        zh{"[Çĥîñéšé، Ṁåñðåŕîñ one two three]"}
+    }
+    Languages%official{
+        mus{"[Ṁṽšķöķé one two]"}
+    }
+    Languages%short{
+        az{"[Åžéŕî one]"}
+        en_GB{"[ÛĶ Éñĝļîšĥ one two]"}
+        en_US{"[ÛŠ Éñĝļîšĥ one two]"}
+    }
+    Languages%variant{
+        ckb{"[Ķûŕðîšĥ، Šöŕåñî one two three]"}
+        hi_Latn{"[Ĥîñĝļîšĥ one two]"}
+        ky{"[Ķîŕĝĥîž one two]"}
+        my{"[Ṁýåñɱåŕ Ļåñĝûåĝé one two three]"}
+        ps{"[Þûšĥţö one]"}
+        ug{"[Ûîĝĥûŕ one]"}
+    }
+    Scripts{
+        Adlm{"[Åðļåɱ one]"}
+        Afak{"[Åƒåķå one]"}
+        Aghb{"[Çåûçåšîåñ Åļƀåñîåñ one two three]"}
+        Ahom{"[Åĥöɱ one]"}
+        Arab{"[Åŕåƀîç one]"}
+        Aran{"[Ñåšţåļîǫ one two]"}
+        Armi{"[Îɱþéŕîåļ Åŕåɱåîç one two three]"}
+        Armn{"[Åŕɱéñîåñ one two]"}
+        Avst{"[Åṽéšţåñ one two]"}
+        Bali{"[Ɓåļîñéšé one two]"}
+        Bamu{"[Ɓåɱûɱ one]"}
+        Bass{"[Ɓåššå Ṽåĥ one two]"}
+        Batk{"[Ɓåţåķ one]"}
+        Beng{"[Ɓåñĝļå one]"}
+        Bhks{"[Ɓĥåîķšûķî one two]"}
+        Blis{"[Ɓļîššýɱƀöļš one two]"}
+        Bopo{"[Ɓöþöɱöƒö one two]"}
+        Brah{"[Ɓŕåĥɱî one]"}
+        Brai{"[Ɓŕåîļļé one two]"}
+        Bugi{"[Ɓûĝîñéšé one two]"}
+        Buhd{"[Ɓûĥîð one]"}
+        Cakm{"[Çĥåķɱå one]"}
+        Cans{"[Ûñîƒîéð Çåñåðîåñ Åƀöŕîĝîñåļ Šýļļåƀîçš one two three four five]"}
+        Cari{"[Çåŕîåñ one]"}
+        Cham{"[Çĥåɱ one]"}
+        Cher{"[Çĥéŕöķéé one two]"}
+        Chrs{"[Çĥöŕåšɱîåñ one two]"}
+        Cirt{"[Çîŕţĥ one]"}
+        Copt{"[Çöþţîç one]"}
+        Cpmn{"[Çýþŕö‐Ṁîñöåñ one two]"}
+        Cprt{"[Çýþŕîöţ one two]"}
+        Cyrl{"[Çýŕîļļîç one two]"}
+        Cyrs{"[Öļð Çĥûŕçĥ Šļåṽöñîç Çýŕîļļîç one two three four]"}
+        Deva{"[Ðéṽåñåĝåŕî one two]"}
+        Diak{"[Ðîṽéš Åķûŕû one two]"}
+        Dogr{"[Ðöĝŕå one]"}
+        Dsrt{"[Ðéšéŕéţ one two]"}
+        Dupl{"[Ðûþļöýåñ šĥöŕţĥåñð one two three]"}
+        Egyd{"[Éĝýþţîåñ ðéɱöţîç one two three]"}
+        Egyh{"[Éĝýþţîåñ ĥîéŕåţîç one two three]"}
+        Egyp{"[Éĝýþţîåñ ĥîéŕöĝļýþĥš one two three]"}
+        Elba{"[Éļƀåšåñ one two]"}
+        Elym{"[Éļýɱåîç one two]"}
+        Ethi{"[Éţĥîöþîç one two]"}
+        Gara{"[Ĝåŕåý one]"}
+        Geok{"[Ĝéöŕĝîåñ Ķĥûţšûŕî one two three]"}
+        Geor{"[Ĝéöŕĝîåñ one two]"}
+        Glag{"[Ĝļåĝöļîţîç one two]"}
+        Gong{"[Ĝûñĵåļå Ĝöñðî one two]"}
+        Gonm{"[Ṁåšåŕåɱ Ĝöñðî one two]"}
+        Goth{"[Ĝöţĥîç one]"}
+        Gran{"[Ĝŕåñţĥå one two]"}
+        Grek{"[Ĝŕééķ one]"}
+        Gujr{"[Ĝûĵåŕåţî one two]"}
+        Gukh{"[Ĝûŕûñĝ Ķĥéɱå one two]"}
+        Guru{"[Ĝûŕɱûķĥî one two]"}
+        Hanb{"[Ĥåñ ŵîţĥ Ɓöþöɱöƒö one two three]"}
+        Hang{"[Ĥåñĝûļ one]"}
+        Hani{"[Ĥåñ one]"}
+        Hano{"[Ĥåñûñöö one two]"}
+        Hans{"[Šîɱþļîƒîéð one two]"}
+        Hant{"[Ţŕåðîţîöñåļ one two]"}
+        Hatr{"[Ĥåţŕåñ one]"}
+        Hebr{"[Ĥéƀŕéŵ one]"}
+        Hira{"[Ĥîŕåĝåñå one two]"}
+        Hluw{"[Åñåţöļîåñ Ĥîéŕöĝļýþĥš one two three]"}
+        Hmng{"[Þåĥåŵĥ Ĥɱöñĝ one two]"}
+        Hmnp{"[Ñýîåķéñĝ Þûåçĥûé Ĥɱöñĝ one two three]"}
+        Hrkt{"[Ĵåþåñéšé šýļļåƀåŕîéš one two three]"}
+        Hung{"[Öļð Ĥûñĝåŕîåñ one two]"}
+        Inds{"[Îñðûš one]"}
+        Ital{"[Öļð Îţåļîç one two]"}
+        Jamo{"[Ĵåɱö one]"}
+        Java{"[Ĵåṽåñéšé one two]"}
+        Jpan{"[Ĵåþåñéšé one two]"}
+        Jurc{"[Ĵûŕçĥéñ one two]"}
+        Kali{"[Ķåýåĥ Ļî one two]"}
+        Kana{"[Ķåţåķåñå one two]"}
+        Kawi{"[Ķåŵî one]"}
+        Khar{"[Ķĥåŕöšĥţĥî one two]"}
+        Khmr{"[Ķĥɱéŕ one]"}
+        Khoj{"[Ķĥöĵķî one]"}
+        Kits{"[Ķĥîţåñ šɱåļļ šçŕîþţ one two three]"}
+        Knda{"[Ķåññåðå one two]"}
+        Kore{"[Ķöŕéåñ one]"}
+        Kpel{"[Ķþéļļé one]"}
+        Krai{"[Ķîŕåţ Ŕåî one two]"}
+        Kthi{"[Ķåîţĥî one]"}
+        Lana{"[Ļåññå one]"}
+        Laoo{"[Ļåö one]"}
+        Latf{"[Ƒŕåķţûŕ Ļåţîñ one two]"}
+        Latg{"[Ĝåéļîç Ļåţîñ one two]"}
+        Latn{"[Ļåţîñ one]"}
+        Lepc{"[Ļéþçĥå one]"}
+        Limb{"[Ļîɱƀû one]"}
+        Lina{"[Ļîñéåŕ Å one two]"}
+        Linb{"[Ļîñéåŕ Ɓ one two]"}
+        Lisu{"[Ƒŕåšéŕ one]"}
+        Loma{"[Ļöɱå one]"}
+        Lyci{"[Ļýçîåñ one]"}
+        Lydi{"[Ļýðîåñ one]"}
+        Mahj{"[Ṁåĥåĵåñî one two]"}
+        Maka{"[Ṁåķåšåŕ one two]"}
+        Mand{"[Ṁåñðåéåñ one two]"}
+        Mani{"[Ṁåñîçĥåéåñ one two]"}
+        Marc{"[Ṁåŕçĥéñ one two]"}
+        Maya{"[Ṁåýåñ ĥîéŕöĝļýþĥš one two three]"}
+        Medf{"[Ṁéðéƒåîðŕîñ one two]"}
+        Mend{"[Ṁéñðé one]"}
+        Merc{"[Ṁéŕöîţîç Çûŕšîṽé one two three]"}
+        Mero{"[Ṁéŕöîţîç one two]"}
+        Mlym{"[Ṁåļåýåļåɱ one two]"}
+        Modi{"[Ṁöðî one]"}
+        Mong{"[Ṁöñĝöļîåñ one two]"}
+        Moon{"[Ṁööñ one]"}
+        Mroo{"[Ṁŕö one]"}
+        Mtei{"[Ṁéîţéî Ṁåýéķ one two]"}
+        Mult{"[Ṁûļţåñî one two]"}
+        Mymr{"[Ṁýåñɱåŕ one two]"}
+        Nagm{"[Ñåĝ Ṁûñðåŕî one two]"}
+        Nand{"[Ñåñðîñåĝåŕî one two]"}
+        Narb{"[Öļð Ñöŕţĥ Åŕåƀîåñ one two three]"}
+        Nbat{"[Ñåƀåţåéåñ one two]"}
+        Newa{"[Ñéŵå one]"}
+        Nkgb{"[Ñåẋî Ĝéƀå one two]"}
+        Nkoo{"[Ñ’Ķö one]"}
+        Nshu{"[Ñüšĥû one]"}
+        Ogam{"[Öĝĥåɱ one]"}
+        Olck{"[Öļ Çĥîķî one two]"}
+        Onao{"[Öļ Öñåļ one two]"}
+        Orkh{"[Öŕķĥöñ one]"}
+        Orya{"[Öðîå one]"}
+        Osge{"[Öšåĝé one]"}
+        Osma{"[Öšɱåñýå one two]"}
+        Ougr{"[Öļð Ûýĝĥûŕ one two]"}
+        Palm{"[Þåļɱýŕéñé one two]"}
+        Pauc{"[Þåû Çîñ Ĥåû one two]"}
+        Perm{"[Öļð Þéŕɱîç one two]"}
+        Phag{"[Þĥåĝš‐þå one two]"}
+        Phli{"[Îñšçŕîþţîöñåļ Þåĥļåṽî one two three]"}
+        Phlp{"[Þšåļţéŕ Þåĥļåṽî one two three]"}
+        Phlv{"[Ɓööķ Þåĥļåṽî one two]"}
+        Phnx{"[Þĥöéñîçîåñ one two]"}
+        Plrd{"[Þöļļåŕð Þĥöñéţîç one two three]"}
+        Prti{"[Îñšçŕîþţîöñåļ Þåŕţĥîåñ one two three]"}
+        Qaag{"[Žåŵĝýî one]"}
+        Rjng{"[Ŕéĵåñĝ one]"}
+        Rohg{"[Ĥåñîƒî one]"}
+        Roro{"[Ŕöñĝöŕöñĝö one two]"}
+        Runr{"[Ŕûñîç one]"}
+        Samr{"[Šåɱåŕîţåñ one two]"}
+        Sara{"[Šåŕåţî one]"}
+        Sarb{"[Öļð Šöûţĥ Åŕåƀîåñ one two three]"}
+        Saur{"[Šåûŕåšĥţŕå one two]"}
+        Sgnw{"[ŠîĝñŴŕîţîñĝ one two]"}
+        Shaw{"[Šĥåṽîåñ one two]"}
+        Shrd{"[Šĥåŕåðå one two]"}
+        Sidd{"[Šîððĥåɱ one two]"}
+        Sind{"[Ķĥûðåŵåðî one two]"}
+        Sinh{"[Šîñĥåļå one two]"}
+        Sogd{"[Šöĝðîåñ one two]"}
+        Sogo{"[Öļð Šöĝðîåñ one two]"}
+        Sora{"[Šöŕå Šöɱþéñĝ one two]"}
+        Soyo{"[Šöýöɱƀö one two]"}
+        Sund{"[Šûñðåñéšé one two]"}
+        Sunu{"[Šûñûŵåŕ one two]"}
+        Sylo{"[Šýļöţî Ñåĝŕî one two]"}
+        Syrc{"[Šýŕîåç one]"}
+        Syre{"[Éšţŕåñĝéļö Šýŕîåç one two three]"}
+        Syrj{"[Ŵéšţéŕñ Šýŕîåç one two]"}
+        Syrn{"[Éåšţéŕñ Šýŕîåç one two]"}
+        Tagb{"[Ţåĝƀåñŵå one two]"}
+        Takr{"[Ţåķŕî one]"}
+        Tale{"[Ţåî Ļé one]"}
+        Talu{"[Ñéŵ Ţåî Ļûé one two]"}
+        Taml{"[Ţåɱîļ one]"}
+        Tang{"[Ţåñĝûţ one]"}
+        Tavt{"[Ţåî Ṽîéţ one two]"}
+        Telu{"[Ţéļûĝû one]"}
+        Teng{"[Ţéñĝŵåŕ one two]"}
+        Tfng{"[Ţîƒîñåĝĥ one two]"}
+        Tglg{"[Ţåĝåļöĝ one two]"}
+        Thaa{"[Ţĥååñå one]"}
+        Thai{"[Ţĥåî one]"}
+        Tibt{"[Ţîƀéţåñ one two]"}
+        Tirh{"[Ţîŕĥûţå one two]"}
+        Tnsa{"[Ţåñĝšå one]"}
+        Todr{"[Ţöðĥŕî one]"}
+        Toto{"[Ţöţö one]"}
+        Tutg{"[Ţûļû‐Ţîĝåļåŕî one two]"}
+        Ugar{"[Ûĝåŕîţîç one two]"}
+        Vaii{"[Ṽåî one]"}
+        Visp{"[Ṽîšîƀļé Šþééçĥ one two]"}
+        Vith{"[Ṽîţĥķûǫî one two]"}
+        Wara{"[Ṽåŕåñĝ Ķšĥîţî one two]"}
+        Wcho{"[Ŵåñçĥö one]"}
+        Wole{"[Ŵöļéåî one]"}
+        Xpeo{"[Öļð Þéŕšîåñ one two]"}
+        Xsux{"[Šûɱéŕö‐Åķķåðîåñ Çûñéîƒöŕɱ one two three]"}
+        Yezi{"[Ýéžîðî one]"}
+        Yiii{"[Ýî one]"}
+        Zanb{"[Žåñåƀåžåŕ Šǫûåŕé one two three]"}
+        Zinh{"[Îñĥéŕîţéð one two]"}
+        Zmth{"[Ṁåţĥéɱåţîçåļ Ñöţåţîöñ one two three]"}
+        Zsye{"[Éɱöĵî one]"}
+        Zsym{"[Šýɱƀöļš one two]"}
+        Zxxx{"[Ûñŵŕîţţéñ one two]"}
+        Zyyy{"[Çöɱɱöñ one]"}
+        Zzzz{"[Ûñķñöŵñ Šçŕîþţ one two]"}
+    }
+    Scripts%short{
+        Cans{"[ÛÇÅŠ one]"}
+        Xsux{"[Š‐Å Çûñéîƒöŕɱ one two]"}
+    }
+    Scripts%stand-alone{
+        Hans{"[Šîɱþļîƒîéð Ĥåñ one two]"}
+        Hant{"[Ţŕåðîţîöñåļ Ĥåñ one two three]"}
+        Rohg{"[Ĥåñîƒî Ŕöĥîñĝýå one two three]"}
+    }
+    Scripts%variant{
+        Arab{"[Þéŕšö‐Åŕåƀîç one two]"}
+    }
+    Types{
+        calendar{
+            buddhist{"[Ɓûððĥîšţ Çåļéñðåŕ one two three]"}
+            chinese{"[Çĥîñéšé Çåļéñðåŕ one two three]"}
+            coptic{"[Çöþţîç Çåļéñðåŕ one two three]"}
+            dangi{"[Ðåñĝî Çåļéñðåŕ one two]"}
+            ethiopic{"[Éţĥîöþîç Çåļéñðåŕ one two three]"}
+            ethiopic-amete-alem{"[Éţĥîöþîç Åɱéţé Åļéɱ Çåļéñðåŕ one two three four]"}
+            gregorian{"[Ĝŕéĝöŕîåñ Çåļéñðåŕ one two three]"}
+            hebrew{"[Ĥéƀŕéŵ Çåļéñðåŕ one two three]"}
+            indian{"[Îñðîåñ Ñåţîöñåļ Çåļéñðåŕ one two three]"}
+            islamic{"[Ĥîĵŕî Çåļéñðåŕ one two]"}
+            islamic-civil{"[Ĥîĵŕî Çåļéñðåŕ (ţåƀûļåŕ، çîṽîļ éþöçĥ) one two three four five]"}
+            islamic-rgsa{"[Ĥîĵŕî Çåļéñðåŕ (Šåûðî Åŕåƀîå، šîĝĥţîñĝ) one two three four five]"}
+            islamic-tbla{
+                "[Ĥîĵŕî Çåļéñðåŕ (ţåƀûļåŕ، åšţŕöñöɱîçåļ éþöçĥ) one two three four fiv"
+                "e]"
+            }
+            islamic-umalqura{"[Ĥîĵŕî Çåļéñðåŕ (Ûɱɱ åļ‐Ǫûŕå) one two three four]"}
+            iso8601{"[ÎŠÖ‐⑧⑥⓪① Çåļéñðåŕ one two three]"}
+            japanese{"[Ĵåþåñéšé Çåļéñðåŕ one two three]"}
+            persian{"[Þéŕšîåñ Çåļéñðåŕ one two three]"}
+            roc{"[Ṁîñĝûö Çåļéñðåŕ one two three]"}
+        }
+        cf{
+            account{"[Åççöûñţîñĝ Çûŕŕéñçý Ƒöŕɱåţ one two three]"}
+            standard{"[Šţåñðåŕð Çûŕŕéñçý Ƒöŕɱåţ one two three]"}
+        }
+        colAlternate{
+            non-ignorable{"[Šöŕţ Šýɱƀöļš one two]"}
+            shifted{"[Šöŕţ Îĝñöŕîñĝ Šýɱƀöļš one two three]"}
+        }
+        colBackwards{
+            no{"[Šöŕţ Åççéñţš Ñöŕɱåļļý one two three]"}
+            yes{"[Šöŕţ Åççéñţš Ŕéṽéŕšéð one two three]"}
+        }
+        colCaseFirst{
+            lower{"[Šöŕţ Ļöŵéŕçåšé Ƒîŕšţ one two three]"}
+            no{"[Šöŕţ Ñöŕɱåļ Çåšé Öŕðéŕ one two three]"}
+            upper{"[Šöŕţ Ûþþéŕçåšé Ƒîŕšţ one two three]"}
+        }
+        colCaseLevel{
+            no{"[Šöŕţ Çåšé Îñšéñšîţîṽé one two three]"}
+            yes{"[Šöŕţ Çåšé Šéñšîţîṽé one two three]"}
+        }
+        colNormalization{
+            no{"[Šöŕţ Ŵîţĥöûţ Ñöŕɱåļîžåţîöñ one two three]"}
+            yes{"[Šöŕţ Ûñîçöðé Ñöŕɱåļîžéð one two three]"}
+        }
+        colNumeric{
+            no{"[Šöŕţ Ðîĝîţš Îñðîṽîðûåļļý one two three]"}
+            yes{"[Šöŕţ Ðîĝîţš Ñûɱéŕîçåļļý one two three]"}
+        }
+        colReorder{
+            currency{"[Çûŕŕéñçý one two]"}
+            digit{"[Ðîĝîţš one]"}
+            punct{"[Þûñçţûåţîöñ one two]"}
+            space{"[Ŵĥîţéšþåçé one two]"}
+            symbol{"[Šýɱƀöļ one]"}
+        }
+        colStrength{
+            identical{"[Šöŕţ Åļļ one two]"}
+            primary{"[Šöŕţ Ɓåšé Ļéţţéŕš Öñļý one two three]"}
+            quaternary{"[Šöŕţ Åççéñţš⁄Çåšé⁄Ŵîðţĥ⁄Ķåñå one two three four]"}
+            secondary{"[Šöŕţ Åççéñţš one two]"}
+            tertiary{"[Šöŕţ Åççéñţš⁄Çåšé⁄Ŵîðţĥ one two three]"}
+        }
+        collation{
+            big5han{"[Ţŕåðîţîöñåļ Çĥîñéšé Šöŕţ Öŕðéŕ ‐ Ɓîĝ⑤ one two three four five]"}
+            compat{"[Þŕéṽîöûš Šöŕţ Öŕðéŕ، ƒöŕ çöɱþåţîƀîļîţý one two three four five]"}
+            dictionary{"[Ðîçţîöñåŕý Šöŕţ Öŕðéŕ one two three]"}
+            ducet{"[Ðéƒåûļţ Ûñîçöðé Šöŕţ Öŕðéŕ one two three]"}
+            emoji{"[Éɱöĵî Šöŕţ Öŕðéŕ one two three]"}
+            eor{"[Éûŕöþéåñ Öŕðéŕîñĝ Ŕûļéš one two three]"}
+            gb2312han{"[Šîɱþļîƒîéð Çĥîñéšé Šöŕţ Öŕðéŕ ‐ ĜƁ②③①② one two three four five]"}
+            phonebook{"[Þĥöñéƀööķ Šöŕţ Öŕðéŕ one two three]"}
+            phonetic{"[Þĥöñéţîç Šöŕţ Öŕðéŕ one two three]"}
+            pinyin{"[Þîñýîñ Šöŕţ Öŕðéŕ one two three]"}
+            search{"[Ĝéñéŕåļ‐Þûŕþöšé Šéåŕçĥ one two three]"}
+            searchjl{"[Šéåŕçĥ Ɓý Ĥåñĝûļ Îñîţîåļ Çöñšöñåñţ one two three four]"}
+            standard{"[Šţåñðåŕð Šöŕţ Öŕðéŕ one two three]"}
+            stroke{"[Šţŕöķé Šöŕţ Öŕðéŕ one two three]"}
+            traditional{"[Ţŕåðîţîöñåļ Šöŕţ Öŕðéŕ one two three]"}
+            unihan{"[Ŕåðîçåļ‐Šţŕöķé Šöŕţ Öŕðéŕ one two three]"}
+            zhuyin{"[Žĥûýîñ Šöŕţ Öŕðéŕ one two three]"}
+        }
+        d0{
+            accents{"[Ţö Åççéñţéð Çĥåŕåçţéŕš Ƒŕöɱ ÅŠÇÎÎ Šéǫûéñçé one two three four five]"}
+            ascii{"[Ţö ÅŠÇÎÎ one two]"}
+            casefold{"[Ţö Çåšéƒöļðéð one two]"}
+            charname{"[Ţö Ûñîçöðé Çĥåŕåçţéŕ Ñåɱéš one two three]"}
+            digit{"[Ţö Ðîĝîţ Ƒöŕɱ Öƒ Åççéñţ one two three]"}
+            fcc{"[Ţö Ûñîçöðé ƑÇÇ one two]"}
+            fcd{"[Ţö Ûñîçöðé ƑÇÐ one two]"}
+            fwidth{"[Ţö Ƒûļļŵîðţĥ one two]"}
+            hex{"[Ţö Ĥéẋåðéçîɱåļ Çöðéš one two three]"}
+            hwidth{"[Ţö Ĥåļƒŵîðţĥ one two]"}
+            lower{"[Ţö Ļöŵéŕçåšé one two]"}
+            morse{"[Ţö Ṁöŕšé Çöðé one two]"}
+            nfc{"[Ţö Ûñîçöðé ÑƑÇ one two]"}
+            nfd{"[Ţö Ûñîçöðé ÑƑÐ one two]"}
+            nfkc{"[Ţö Ûñîçöðé ÑƑĶÇ one two three]"}
+            nfkd{"[Ţö Ûñîçöðé ÑƑĶÐ one two three]"}
+            npinyin{"[Ţö Þîñýîñ Ŵîţĥ Ñûɱéŕîç Ţöñéš one two three four]"}
+            null{"[Ñö Çĥåñĝé one two]"}
+            publish{"[Ţö Þûƀļîšĥîñĝ Çĥåŕåçţéŕš Ƒŕöɱ ÅŠÇÎÎ one two three four]"}
+            remove{"[Ţö Éɱþţý Šţŕîñĝ one two three]"}
+            title{"[Ţö Ţîţļéçåšé one two]"}
+            upper{"[Ţö Ûþþéŕçåšé one two]"}
+            zawgyi{"[Ţö Žåŵĝýî Ṁýåñɱåŕ Éñçöðîñĝ one two three]"}
+        }
+        em{
+            default{
+                "[Ûšé Ðéƒåûļţ Þŕéšéñţåţîöñ Ƒöŕ Éɱöĵî Çĥåŕåçţéŕš one two three four fi"
+                "ve]"
+            }
+            emoji{
+                "[Þŕéƒéŕ Éɱöĵî Þŕéšéñţåţîöñ Ƒöŕ Éɱöĵî Çĥåŕåçţéŕš one two three four f"
+                "ive]"
+            }
+            text{
+                "[Þŕéƒéŕ Ţéẋţ Þŕéšéñţåţîöñ Ƒöŕ Éɱöĵî Çĥåŕåçţéŕš one two three four fi"
+                "ve]"
+            }
+        }
+        fw{
+            fri{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Ƒŕîðåý one two three four]"}
+            mon{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Ṁöñðåý one two three four]"}
+            sat{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Šåţûŕðåý one two three four]"}
+            sun{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Šûñðåý one two three four]"}
+            thu{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Ţĥûŕšðåý one two three four]"}
+            tue{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Ţûéšðåý one two three four]"}
+            wed{"[Ƒîŕšţ Ðåý öƒ Ŵééķ Îš Ŵéðñéšðåý one two three four]"}
+        }
+        h0{
+            hybrid{"[Ĥýƀŕîð one]"}
+        }
+        hc{
+            h11{"[①② Ĥöûŕ Šýšţéɱ (⓪–①①) one two three]"}
+            h12{"[①② Ĥöûŕ Šýšţéɱ (①–①②) one two three]"}
+            h23{"[②④ Ĥöûŕ Šýšţéɱ (⓪–②③) one two three]"}
+            h24{"[②④ Ĥöûŕ Šýšţéɱ (①–②④) one two three]"}
+        }
+        i0{
+            handwrit{"[Ĥåñðŵŕîţîñĝ Îñþûţ Ṁéţĥöð one two three]"}
+            pinyin{"[Þîñýîñ Îñþûţ Ṁéţĥöð one two three]"}
+            und{"[Ûñšþéçîƒîéð Îñþûţ Ṁéţĥöð one two three]"}
+            wubi{"[Ŵûƀî Îñþûţ Ṁéţĥöð one two three]"}
+        }
+        k0{
+            101key{"[①⓪①‐Ķéý Ķéýƀöåŕð one two three]"}
+            102key{"[①⓪②‐Ķéý Ķéýƀöåŕð one two three]"}
+            600dpi{"[⑥⓪⓪ ðþî Ķéýƀöåŕð one two three]"}
+            768dpi{"[⑦⑥⑧ ðþî Ķéýƀöåŕð one two three]"}
+            android{"[Åñðŕöîð Ķéýƀöåŕð one two three]"}
+            azerty{"[ÅŽÉŔŢÝ‐Ɓåšéð Ķéýƀöåŕð one two three]"}
+            chromeos{"[ÇĥŕöɱéÖŠ Ķéýƀöåŕð one two three]"}
+            colemak{"[Çöļéɱåķ Ķéýƀöåŕð one two three]"}
+            dvorak{"[Ðṽöŕåķ Ķéýƀöåŕð one two three]"}
+            dvorakl{"[Ðṽöŕåķ Ļéƒţ‐Ĥåñðéð Ķéýƀöåŕð one two three four]"}
+            dvorakr{"[Ðṽöŕåķ Ŕîĝĥţ‐Ĥåñðéð Ķéýƀöåŕð one two three four]"}
+            el220{"[Ĝŕééķ ②②⓪ Ķéýƀöåŕð one two three]"}
+            el319{"[Ĝŕééķ ③①⑨ Ķéýƀöåŕð one two three]"}
+            extended{"[Ķéýƀöåŕð Ŵîţĥ Ṁåñý Éẋţŕå Çĥåŕåçţéŕš one two three four]"}
+            googlevk{"[Ĝööĝļé Ṽîŕţûåļ Ķéýƀöåŕð one two three]"}
+            isiri{"[Þéŕšîåñ ÎŠÎŔÎ Ķéýƀöåŕð one two three]"}
+            legacy{"[Ļéĝåçý Ķéýƀöåŕð one two three]"}
+            lt1205{"[Ļîţĥûåñîåñ ĻŠŢ ①②⓪⑤ Ķéýƀöåŕð one two three four]"}
+            lt1582{"[Ļîţĥûåñîåñ ĻŠŢ ①⑤⑧② Ķéýƀöåŕð one two three four]"}
+            nutaaq{"[Îñûķţîţûţ Ñûţååǫ Ķéýƀöåŕð one two three]"}
+            osx{"[ɱåçÖŠ Ķéýƀöåŕð one two]"}
+            patta{"[Ţĥåî Þåţţåçĥöţé Ķéýƀöåŕð one two three]"}
+            qwerty{"[ǪŴÉŔŢÝ‐Ɓåšéð Ķéýƀöåŕð one two three]"}
+            qwertz{"[ǪŴÉŔŢŽ‐Ɓåšéð Ķéýƀöåŕð one two three]"}
+            ta99{"[Ţåɱîļ ⑨⑨ Ķéýƀöåŕð one two three]"}
+            und{"[Ûñšþéçîƒîéð Ķéýƀöåŕð one two three]"}
+            var{"[Ķéýƀöåŕð Ṽåŕîåñţ one two three]"}
+            viqr{"[Ṽîéţñåɱéšé ṼÎǪŔ Ķéýƀöåŕð one two three]"}
+            windows{"[Ŵîñðöŵš Ķéýƀöåŕð one two three]"}
+        }
+        kv{
+            currency{
+                "[Îĝñöŕé Šýɱƀöļš åƒƒéçţš šþåçéš، þûñçţûåţîöñ، åļļ šýɱƀöļš one two thr"
+                "ee four five six seven]"
+            }
+            punct{
+                "[Îĝñöŕé Šýɱƀöļš åƒƒéçţš šþåçéš åñð þûñçţûåţîöñ öñļý one two three fo"
+                "ur five six]"
+            }
+            space{"[Îĝñöŕé Šýɱƀöļš åƒƒéçţš šþåçéš öñļý one two three four]"}
+            symbol{
+                "[Îĝñöŕé Šýɱƀöļš åƒƒéçţš šþåçéš، þûñçţûåţîöñ، ñöñ‐çûŕŕéñçý šýɱƀöļš on"
+                "e two three four five six seven]"
+            }
+        }
+        lb{
+            loose{"[Ļööšé Ļîñé Ɓŕéåķ Šţýļé one two three]"}
+            normal{"[Ñöŕɱåļ Ļîñé Ɓŕéåķ Šţýļé one two three]"}
+            strict{"[Šţŕîçţ Ļîñé Ɓŕéåķ Šţýļé one two three]"}
+        }
+        lw{
+            breakall{"[Åļļöŵ Ļîñé Ɓŕéåķš Îñ Åļļ Ŵöŕðš one two three four]"}
+            keepall{"[Þŕéṽéñţ Ļîñé Ɓŕéåķš Îñ Åļļ Ŵöŕðš one two three four]"}
+            normal{"[Ñöŕɱåļ Ļîñé Ɓŕéåķš Ƒöŕ Ŵöŕðš one two three four]"}
+            phrase{"[Þŕéṽéñţ Ļîñé Ɓŕéåķš Îñ Þĥŕåšéš one two three four]"}
+        }
+        m0{
+            aethiopi{"[Éñçýļöþéðîå Åéţĥîöþîçå Ţŕåñšļîţéŕåţîöñ one two three four five]"}
+            alaloc{"[ÛŠ ÅĻÅ‐ĻÖÇ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            betamets{"[Ɓéţå Ṁåṣāḥǝƒţ Ţŕåñšļîţéŕåţîöñ one two three four]"}
+            bgn{"[ÛŠ ƁĜÑ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            buckwalt{"[Ɓûçķŵåļţéŕ Åŕåƀîç Ţŕåñšļîţéŕåţîöñ one two three four]"}
+            c11{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ Ç①① šýñţåẋ one two three four]"}
+            css{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ ÇŠŠ šýñţåẋ one two three four]"}
+            din{"[Ĝéŕɱåñ ÐÎÑ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            es3842{
+                "[Éţĥîöþîåñ Šţåñðåŕðš Åĝéñçý ÉŠ ③⑧④②∶②⓪①④ Éţĥîöþîç‐Ļåţîñ Ţŕåñšļîţéŕåţ"
+                "îöñ one two three four five six seven eight]"
+            }
+            ewts{"[Éẋţéñðéð Ŵýļîé Ţŕåñšļîţéŕåţîöñ Šçĥéɱé one two three four five]"}
+            gost{"[ÇÎŠ ĜÖŠŢ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            gurage{"[Ĝûŕåĝé Ļéĝåçý ţö Ṁöðéŕñ Ţŕåñšļîţéŕåţîöñ one two three four five]"}
+            gutgarts{
+                "[Ýåŕöš Ĝûţĝåŕţš Éţĥîöþîç‐Çýŕîļļîç Ţŕåñšļîţéŕåţîöñ one two three four"
+                " five six]"
+            }
+            iast{
+                "[Îñţéŕñåţîöñåļ Åļþĥåƀéţ öƒ Šåñšķŕîţ Ţŕåñšļîţéŕåţîöñ one two three fo"
+                "ur five six]"
+            }
+            iesjes{"[ÎÉŠ⁄ĴÉŠ Åɱĥåŕîç Ţŕåñšļîţéŕåţîöñ one two three four]"}
+            iso{"[ÎŠÖ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            java{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ Ĵåṽå šýñţåẋ one two three four]"}
+            lambdin{
+                "[Ţĥöɱåš Öðéñ Ļåɱƀðîñ Éţĥîöþîç‐Ļåţîñ Ţŕåñšļîţéŕåţîöñ one two three fo"
+                "ur five six]"
+            }
+            mcst{"[Ķöŕéåñ ṀÇŠŢ Ţŕåñšļîţéŕåţîöñ one two three four]"}
+            mns{
+                "[Ṁöñĝöļîåñ Ñåţîöñåļ Šţåñðåŕð Ţŕåñšļîţéŕåţîöñ one two three four five"
+                "]"
+            }
+            percent{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ þéŕçéñţ šýñţåẋ one two three four]"}
+            perl{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ Þéŕļ šýñţåẋ one two three four]"}
+            plain{"[Ĥéẋ ţŕåñšƒöŕɱ ŵîţĥ ñö šûŕŕöûñðîñĝ šýñţåẋ one two three four five]"}
+            prprname{"[Þéŕšöñåļ ñåɱé ţŕåñšļîţéŕåţîöñ ṽåŕîåñţ one two three four five]"}
+            satts{"[Šţåñðåŕð Åŕåƀîç Ţéçĥñîçåļ Ţŕåñšļîţéŕåţîöñ one two three four five]"}
+            sera{
+                "[Šýšţéɱ ƒöŕ Éţĥîöþîç Ŕéþŕéšéñţåţîöñ îñ ÅŠÇÎÎ one two three four five"
+                "]"
+            }
+            tekieali{"[Ţéķîé Åļîƀéķîţ Ɓļîñ‐Ļåţîñ Ţŕåñšļîţéŕåţîöñ one two three four five]"}
+            ungegn{"[ÛÑ ĜÉĜÑ Ţŕåñšļîţéŕåţîöñ one two three]"}
+            unicode{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ Ûñîçöðé šýñţåẋ one two three four]"}
+            xaleget{
+                "[Éŕîţŕéåñ Ṁîñîšţŕý öƒ Éðûçåţîöñ Ɓļîñ‐Ļåţîñ Ţŕåñšļîţéŕåţîöñ one two t"
+                "hree four five six seven]"
+            }
+            xml{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ ẊṀĻ šýñţåẋ one two three four]"}
+            xml10{"[Ĥéẋ ţŕåñšƒöŕɱ ûšîñĝ ẊṀĻ ðéçîɱåļ šýñţåẋ one two three four five]"}
+        }
+        ms{
+            metric{"[Ṁéţŕîç Šýšţéɱ one two]"}
+            uksystem{"[Îɱþéŕîåļ Ṁéåšûŕéɱéñţ Šýšţéɱ one two three four]"}
+            ussystem{"[ÛŠ Ṁéåšûŕéɱéñţ Šýšţéɱ one two three]"}
+        }
+        mu{
+            celsius{"[Çéļšîûš one two]"}
+            fahrenhe{"[Ƒåĥŕéñĥéîţ one two]"}
+            kelvin{"[Ķéļṽîñ one]"}
+        }
+        numbers{
+            adlm{"[Åðļåɱ Ðîĝîţš one two]"}
+            ahom{"[Åĥöɱ Ðîĝîţš one two]"}
+            arab{"[Åŕåƀîç‐Îñðîç Ðîĝîţš one two three]"}
+            arabext{"[Éẋţéñðéð Åŕåƀîç‐Îñðîç Ðîĝîţš one two three four]"}
+            armn{"[Åŕɱéñîåñ Ñûɱéŕåļš one two three]"}
+            armnlow{"[Åŕɱéñîåñ Ļöŵéŕçåšé Ñûɱéŕåļš one two three four]"}
+            bali{"[Ɓåļîñéšé Ðîĝîţš one two three]"}
+            beng{"[Ɓåñĝļå Ðîĝîţš one two]"}
+            bhks{"[Ɓĥåîķšûķî Ðîĝîţš one two three]"}
+            brah{"[Ɓŕåĥɱî Ðîĝîţš one two]"}
+            cakm{"[Çĥåķɱå Ðîĝîţš one two]"}
+            cham{"[Çĥåɱ Ðîĝîţš one two]"}
+            cyrl{"[Çýŕîļļîç Ñûɱéŕåļš one two three]"}
+            deva{"[Ðéṽåñåĝåŕî Ðîĝîţš one two three]"}
+            diak{"[Ðîṽéš Åķûŕû Ðîĝîţš one two three]"}
+            ethi{"[Éţĥîöþîç Ñûɱéŕåļš one two three]"}
+            finance{"[Ƒîñåñçîåļ Ñûɱéŕåļš one two three]"}
+            fullwide{"[Ƒûļļ‐Ŵîðţĥ Ðîĝîţš one two three]"}
+            gara{"[Ĝåŕåý Ðîĝîţš one two]"}
+            geor{"[Ĝéöŕĝîåñ Ñûɱéŕåļš one two three]"}
+            gong{"[Ĝûñĵåļå Ĝöñðî ðîĝîţš one two three]"}
+            gonm{"[Ṁåšåŕåɱ Ĝöñðî ðîĝîţš one two three]"}
+            grek{"[Ĝŕééķ Ñûɱéŕåļš one two]"}
+            greklow{"[Ĝŕééķ Ļöŵéŕçåšé Ñûɱéŕåļš one two three]"}
+            gujr{"[Ĝûĵåŕåţî Ðîĝîţš one two three]"}
+            gukh{"[Ĝûŕûñĝ Ķĥéɱå Ðîĝîţš one two three]"}
+            guru{"[Ĝûŕɱûķĥî Ðîĝîţš one two three]"}
+            hanidays{"[Çĥîñéšé Çåļéñðåŕ Ðåý‐öƒ‐Ṁöñţĥ Ñûɱéŕåļš one two three four five]"}
+            hanidec{"[Çĥîñéšé Ðéçîɱåļ Ñûɱéŕåļš one two three]"}
+            hans{"[Šîɱþļîƒîéð Çĥîñéšé Ñûɱéŕåļš one two three four]"}
+            hansfin{"[Šîɱþļîƒîéð Çĥîñéšé Ƒîñåñçîåļ Ñûɱéŕåļš one two three four five]"}
+            hant{"[Ţŕåðîţîöñåļ Çĥîñéšé Ñûɱéŕåļš one two three four]"}
+            hantfin{"[Ţŕåðîţîöñåļ Çĥîñéšé Ƒîñåñçîåļ Ñûɱéŕåļš one two three four five]"}
+            hebr{"[Ĥéƀŕéŵ Ñûɱéŕåļš one two three]"}
+            hmng{"[Þåĥåŵĥ Ĥɱöñĝ Ðîĝîţš one two three]"}
+            hmnp{"[Ñýîåķéñĝ Þûåçĥûé Ĥɱöñĝ Ðîĝîţš one two three four]"}
+            java{"[Ĵåṽåñéšé Ðîĝîţš one two three]"}
+            jpan{"[Ĵåþåñéšé Ñûɱéŕåļš one two three]"}
+            jpanfin{"[Ĵåþåñéšé Ƒîñåñçîåļ Ñûɱéŕåļš one two three four]"}
+            jpanyear{"[Ĵåþåñéšé Çåļéñðåŕ Ĝåññéñ Ýéåŕ Ñûɱéŕåļš one two three four five]"}
+            kali{"[Ķåýåĥ Ļî Ðîĝîţš one two three]"}
+            kawi{"[Ķåŵî Ðîĝîţš one two]"}
+            khmr{"[Ķĥɱéŕ Ðîĝîţš one two]"}
+            knda{"[Ķåññåðå Ðîĝîţš one two]"}
+            krai{"[Ķîŕåţ Ŕåî Ðîĝîţš one two three]"}
+            lana{"[Ţåî Ţĥåɱ Ĥöŕå Ðîĝîţš one two three]"}
+            lanatham{"[Ţåî Ţĥåɱ Ţĥåɱ Ðîĝîţš one two three]"}
+            laoo{"[Ļåö Ðîĝîţš one two]"}
+            latn{"[Ŵéšţéŕñ Ðîĝîţš one two]"}
+            lepc{"[Ļéþçĥå Ðîĝîţš one two]"}
+            limb{"[Ļîɱƀû Ðîĝîţš one two]"}
+            mathbold{"[Ṁåţĥéɱåţîçåļ Ɓöļð Ðîĝîţš one two three]"}
+            mathdbl{"[Ṁåţĥéɱåţîçåļ Ðöûƀļé‐Šţŕûçķ Ðîĝîţš one two three four]"}
+            mathmono{"[Ṁåţĥéɱåţîçåļ Ṁöñöšþåçé Ðîĝîţš one two three four]"}
+            mathsanb{"[Ṁåţĥéɱåţîçåļ Šåñš‐Šéŕîƒ Ɓöļð Ðîĝîţš one two three four]"}
+            mathsans{"[Ṁåţĥéɱåţîçåļ Šåñš‐Šéŕîƒ Ðîĝîţš one two three four]"}
+            mlym{"[Ṁåļåýåļåɱ Ðîĝîţš one two three]"}
+            modi{"[Ṁöðî Ðîĝîţš one two]"}
+            mong{"[Ṁöñĝöļîåñ Ðîĝîţš one two three]"}
+            mroo{"[Ṁŕö Ðîĝîţš one two]"}
+            mtei{"[Ṁééţéî Ṁåýéķ Ðîĝîţš one two three]"}
+            mymr{"[Ṁýåñɱåŕ Ðîĝîţš one two]"}
+            mymrepka{"[Ṁýåñɱåŕ Éåšţéŕñ Þŵö Ķåŕéñ Ðîĝîţš one two three four]"}
+            mymrpao{"[Ṁýåñɱåŕ Þåö Ðîĝîţš one two three]"}
+            mymrshan{"[Ṁýåñɱåŕ Šĥåñ Ðîĝîţš one two three]"}
+            mymrtlng{"[Ṁýåñɱåŕ Ţåî Ļåîñĝ Ðîĝîţš one two three]"}
+            nagm{"[Ñåĝ Ṁûñðåŕî Ðîĝîţš one two three]"}
+            native{"[Ñåţîṽé Ðîĝîţš one two]"}
+            newa{"[Ñéŵå Ðîĝîţš one two]"}
+            nkoo{"[Ñ’Ķö Ðîĝîţš one two]"}
+            olck{"[Öļ Çĥîķî Ðîĝîţš one two three]"}
+            onao{"[Öļ Öñåļ Ðîĝîţš one two]"}
+            orya{"[Öðîå Ðîĝîţš one two]"}
+            osma{"[Öšɱåñýå Ðîĝîţš one two]"}
+            outlined{"[Öûţļîñéð Ðîĝîţš one two three]"}
+            rohg{"[Ĥåñîƒî Ŕöĥîñĝýå ðîĝîţš one two three]"}
+            roman{"[Ŕöɱåñ Ñûɱéŕåļš one two]"}
+            romanlow{"[Ŕöɱåñ Ļöŵéŕçåšé Ñûɱéŕåļš one two three]"}
+            saur{"[Šåûŕåšĥţŕå Ðîĝîţš one two three]"}
+            segment{"[Šéĝɱéñţéð Ðîĝîţš one two three]"}
+            shrd{"[Šĥåŕåðå Ðîĝîţš one two]"}
+            sind{"[Ķĥûðåŵåðî Ðîĝîţš one two three]"}
+            sinh{"[Šîñĥåļå Ļîţĥ Ðîĝîţš one two three]"}
+            sora{"[Šöŕå Šöɱþéñĝ Ðîĝîţš one two three]"}
+            sund{"[Šûñðåñéšé Ðîĝîţš one two three]"}
+            sunu{"[Šûñûŵåŕ Ðîĝîţš one two]"}
+            takr{"[Ţåķŕî Ðîĝîţš one two]"}
+            talu{"[Ñéŵ Ţåî Ļûé Ðîĝîţš one two three]"}
+            taml{"[Ţŕåðîţîöñåļ Ţåɱîļ Ñûɱéŕåļš one two three]"}
+            tamldec{"[Ţåɱîļ Ðîĝîţš one two]"}
+            telu{"[Ţéļûĝû Ðîĝîţš one two]"}
+            thai{"[Ţĥåî Ðîĝîţš one two]"}
+            tibt{"[Ţîƀéţåñ Ðîĝîţš one two]"}
+            tirh{"[Ţîŕĥûţå Ðîĝîţš one two]"}
+            tnsa{"[Ţåñĝšå Ðîĝîţš one two]"}
+            traditional{"[Ţŕåðîţîöñåļ Ñûɱéŕåļš one two three]"}
+            vaii{"[Ṽåî Ðîĝîţš one two]"}
+            wara{"[Ŵåŕåñĝ Çîţî Ðîĝîţš one two three]"}
+            wcho{"[Ŵåñçĥö Ðîĝîţš one two]"}
+        }
+        s0{
+            accents{"[Ƒŕöɱ Åççéñţéð Çĥåŕåçţéŕš Ţö ÅŠÇÎÎ Šéǫûéñçé one two three four five]"}
+            ascii{"[Ƒŕöɱ ÅŠÇÎÎ one two]"}
+            hex{"[Ƒŕöɱ Ĥéẋåðéçîɱåļ Çöðéš one two three]"}
+            morse{"[Ƒŕöɱ Ṁöŕšé Çöðé one two three]"}
+            npinyin{"[Ƒŕöɱ Þîñýîñ Ŵîţĥ Ñûɱéŕîç Ţöñéš one two three four]"}
+            publish{"[Ƒŕöɱ Þûƀļîšĥîñĝ Þûñçţûåţîöñ Ţö ÅŠÇÎÎ one two three four]"}
+            zawgyi{"[Ƒŕöɱ Žåŵĝýî Ṁýåñɱåŕ Éñçöðîñĝ one two three four]"}
+        }
+        ss{
+            none{
+                "[Šéñţéñçé Ɓŕéåķš Ŵîţĥöûţ Åƀƀŕéṽîåţîöñ Ĥåñðļîñĝ one two three four fi"
+                "ve]"
+            }
+            standard{
+                "[Šûþþŕéšš Šéñţéñçé Ɓŕéåķš Åƒţéŕ Šţåñðåŕð Åƀƀŕéṽîåţîöñš one two three"
+                " four five six]"
+            }
+        }
+        t0{
+            und{"[Ûñšþéçîƒîéð Ṁåçĥîñé Ţŕåñšļåţîöñ one two three four]"}
+        }
+        va{
+            posix{"[ÞÖŠÎẊ Çöɱþļîåñţ Ļöçåļé one two three]"}
+        }
+    }
+    Types%short{
+        numbers{
+            arabext{"[Ẋ Åŕåƀîç‐Îñðîç Ðîĝîţš one two three]"}
+        }
+    }
+    Variants{
+        1606NICT{"[Ļåţé Ṁîððļé Ƒŕéñçĥ ţö ①⑥⓪⑥ one two three]"}
+        1694ACAD{"[Éåŕļý Ṁöðéŕñ Ƒŕéñçĥ one two three]"}
+        1901{"[Ţŕåðîţîöñåļ Ĝéŕɱåñ öŕţĥöĝŕåþĥý one two three four]"}
+        1959ACAD{"[Åçåðéɱîç one two]"}
+        1994{"[Šţåñðåŕðîžéð Ŕéšîåñ öŕţĥöĝŕåþĥý one two three four]"}
+        1996{"[Ĝéŕɱåñ öŕţĥöĝŕåþĥý öƒ ①⑨⑨⑥ one two three]"}
+        ABL1943{"[Öŕţĥöĝŕåþĥîç ƒöŕɱûļåţîöñ öƒ ①⑨④③ one two three four]"}
+        ALALC97{"[ÅĻÅ‐ĻÇ Ŕöɱåñîžåţîöñ، ①⑨⑨⑦ éðîţîöñ one two three four]"}
+        ALUKU{"[Åļûķû ðîåļéçţ one two]"}
+        AO1990{
+            "[Þöŕţûĝûéšé Ļåñĝûåĝé Öŕţĥöĝŕåþĥîç Åĝŕééɱéñţ öƒ ①⑨⑨⓪ one two three four f"
+            "ive six]"
+        }
+        AREVELA{"[Éåšţéŕñ Åŕɱéñîåñ one two three]"}
+        AREVMDA{"[Ŵéšţéŕñ Åŕɱéñîåñ one two three]"}
+        BAKU1926{"[Ûñîƒîéð Ţûŕķîç Ļåţîñ Åļþĥåƀéţ one two three four]"}
+        BALANKA{"[Ɓåļåñķå ðîåļéçţ öƒ Åñîî one two three]"}
+        BARLA{"[Ɓåŕļåṽéñţö ðîåļéçţ ĝŕöûþ öƒ Ķåƀûṽéŕðîåñû one two three four five]"}
+        BISKE{"[Šåñ Ĝîöŕĝîö⁄Ɓîļå ðîåļéçţ one two three]"}
+        BOHORIC{"[Ɓöĥöŕîč åļþĥåƀéţ one two three]"}
+        BOONT{"[Ɓööñţļîñĝ one two]"}
+        COLB1945{
+            "[Þöŕţûĝûéšé‐Ɓŕåžîļîåñ Öŕţĥöĝŕåþĥîç Çöñṽéñţîöñ öƒ ①⑨④⑤ one two three four"
+            " five six]"
+        }
+        DAJNKO{"[Ðåĵñķö åļþĥåƀéţ one two three]"}
+        EKAVSK{"[Šéŕƀîåñ ŵîţĥ Éķåṽîåñ þŕöñûñçîåţîöñ one two three four]"}
+        EMODENG{"[Éåŕļý Ṁöðéŕñ Éñĝļîšĥ one two three]"}
+        FONIPA{"[ÎÞÅ Þĥöñéţîçš one two]"}
+        FONUPA{"[ÛÞÅ Þĥöñéţîçš one two]"}
+        HEPBURN{"[Ĥéþƀûŕñ ŕöɱåñîžåţîöñ one two three]"}
+        IJEKAVSK{"[Šéŕƀîåñ ŵîţĥ Îĵéķåṽîåñ þŕöñûñçîåţîöñ one two three four]"}
+        KKCOR{"[Çöɱɱöñ Öŕţĥöĝŕåþĥý one two three]"}
+        KSCOR{"[Šţåñðåŕð Öŕţĥöĝŕåþĥý one two three]"}
+        LIPAW{"[Ţĥé Ļîþöṽåž ðîåļéçţ öƒ Ŕéšîåñ one two three four]"}
+        METELKO{"[Ṁéţéļķö åļþĥåƀéţ one two three]"}
+        MONOTON{"[Ṁöñöţöñîç one two]"}
+        NDYUKA{"[Ñðýûķå ðîåļéçţ one two]"}
+        NEDIS{"[Ñåţîšöñé ðîåļéçţ one two three]"}
+        NJIVA{"[Ĝñîṽå⁄Ñĵîṽå ðîåļéçţ one two three]"}
+        NULIK{"[Ṁöðéŕñ Ṽöļåþüķ one two]"}
+        OSOJS{"[Öšéåççö⁄Öšöĵåñé ðîåļéçţ one two three]"}
+        OXENDICT{"[Öẋƒöŕð Éñĝļîšĥ Ðîçţîöñåŕý šþéļļîñĝ one two three four]"}
+        PAMAKA{"[Þåɱåķå ðîåļéçţ one two]"}
+        PINYIN{"[Þîñýîñ Ŕöɱåñîžåţîöñ one two three]"}
+        POLYTON{"[Þöļýţöñîç one two]"}
+        POSIX{"[Çöɱþûţéŕ one two]"}
+        REVISED{"[Ŕéṽîšéð Öŕţĥöĝŕåþĥý one two three]"}
+        RIGIK{"[Çļåššîç Ṽöļåþüķ one two three]"}
+        ROZAJ{"[Ŕéšîåñ one]"}
+        SAAHO{"[Šåĥö one]"}
+        SCOTLAND{"[Šçöţţîšĥ Šţåñðåŕð Éñĝļîšĥ one two three]"}
+        SCOUSE{"[Šçöûšé one]"}
+        SOLBA{"[Šţöļṽîžžå⁄Šöļƀîçå ðîåļéçţ one two three]"}
+        SOTAV{"[Šöţåṽéñţö ðîåļéçţ ĝŕöûþ öƒ Ķåƀûṽéŕðîåñû one two three four five]"}
+        TARASK{"[Ţåŕåšķîéṽîçå öŕţĥöĝŕåþĥý one two three]"}
+        UCCOR{"[Ûñîƒîéð Öŕţĥöĝŕåþĥý one two three]"}
+        UCRCOR{"[Ûñîƒîéð Ŕéṽîšéð Öŕţĥöĝŕåþĥý one two three four]"}
+        UNIFON{"[Ûñîƒöñ þĥöñéţîç åļþĥåƀéţ one two three]"}
+        VALENCIA{"[Ṽåļéñçîåñ one two]"}
+        WADEGILE{"[Ŵåðé‐Ĝîļéš Ŕöɱåñîžåţîöñ one two three]"}
+    }
+    characterLabelPattern{
+        all{"[{0} — åļļ one two]"}
+        category-list{"[{0}∶ {1} one two]"}
+        compatibility{"[{0} — çöɱþåţîƀîļîţý one two three]"}
+        enclosed{"[{0} — éñçļöšéð one two]"}
+        extended{"[{0} — éẋţéñðéð one two]"}
+        facing-left{"[{0} ƒåçîñĝ ļéƒţ one two three]"}
+        facing-right{"[{0} ƒåçîñĝ ŕîĝĥţ one two three]"}
+        historic{"[{0} — ĥîšţöŕîç one two]"}
+        miscellaneous{"[{0} — ɱîšçéļļåñéöûš one two three]"}
+        other{"[{0} — öţĥéŕ one two]"}
+        scripts{"[šçŕîþţš — {0} one two]"}
+        strokes{
+            one{"[{0} šţŕöķé one two]"}
+            other{"[{0} šţŕöķéš one two]"}
+        }
+    }
+    codePatterns{
+        language{"[Ļåñĝûåĝé∶ {0} one two]"}
+        script{"[Šçŕîþţ∶ {0} one two]"}
+        territory{"[Ŕéĝîöñ∶ {0} one two]"}
+    }
+}
