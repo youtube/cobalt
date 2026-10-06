@@ -2571,10 +2571,15 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // leaked via GL_RENDERER. We workaround this too improve user security.
     ANGLE_FEATURE_CONDITION(features, sanitizeAMDGPURendererString, IsLinux() && hasAMD);
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext,
+                            IsPowerVR(vendor) || (IsAndroid() && isNvidia));
+#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     // http://crbug.com/1187513
     // Imagination drivers are buggy with context switching. It needs to unbind fbo before context
     // switching to workadround the driver issues.
     ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext, IsPowerVR(vendor));
+#endif // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // http://crbug.com/1181068 and http://crbug.com/783979
     ANGLE_FEATURE_CONDITION(features, flushOnFramebufferChange,
