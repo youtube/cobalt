@@ -24,7 +24,14 @@ struct GpuFeatureInfo;
 namespace features {
 
 #if BUILDFLAG(IS_COBALT)
+<<<<<<< HEAD
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+=======
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+#if BUILDFLAG(IS_ANDROID)
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+#endif  // BUILDFLAG(IS_ANDROID)
+>>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
 #endif  // BUILDFLAG(IS_COBALT)
 
 // All features in alphabetical order. The features should be documented

@@ -35,7 +35,16 @@ scoped_refptr<gl::Presenter> ImageTransportSurface::CreatePresenter(
       gl::GetGLImplementation() == gl::kGLImplementationStubGL)
     return nullptr;
 
+<<<<<<< HEAD
   if (!features::IsAndroidSurfaceControlEnabled()) {
+=======
+  if (gpu_feature_info
+          .status_values[GPU_FEATURE_TYPE_ANDROID_SURFACE_CONTROL] !=
+      gpu::kGpuFeatureStatusEnabled) {
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "Display compositor output: EGL (SurfaceControl disabled)";
+#endif
+>>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
     return nullptr;
   }
 
@@ -47,11 +56,16 @@ scoped_refptr<gl::Presenter> ImageTransportSurface::CreatePresenter(
       GpuSurfaceLookup::GetInstance()->AcquireJavaSurface(surface_handle);
 
   if (!surface_record.can_be_used_with_surface_control) {
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "Display compositor output: EGL (surface can't be used with "
+                 "SurfaceControl)";
+#endif
     return nullptr;
   }
 
   scoped_refptr<gl::Presenter> presenter;
   std::visit(
+<<<<<<< HEAD
       absl::Overload{[&](gl::ScopedJavaSurface&& scoped_java_surface) {
                        gl::ScopedANativeWindow window(scoped_java_surface);
                        if (!window) {
@@ -67,6 +81,31 @@ scoped_refptr<gl::Presenter> ImageTransportSurface::CreatePresenter(
                            std::move(surface_control),
                            base::SingleThreadTaskRunner::GetCurrentDefault());
                      }},
+=======
+      base::Overloaded{[&](gl::ScopedJavaSurface&& scoped_java_surface) {
+                         gl::ScopedANativeWindow window(scoped_java_surface);
+                         if (!window) {
+                           LOG(WARNING) << "Failed to acquire ANativeWindow";
+                           return;
+                         }
+#if BUILDFLAG(IS_COBALT)
+                         LOG(INFO) << "Display compositor output: "
+                                      "SurfaceControl (from window surface)";
+#endif
+                         presenter = new gl::GLSurfaceEGLSurfaceControl(
+                             std::move(window),
+                             base::SingleThreadTaskRunner::GetCurrentDefault());
+                       },
+                       [&](gl::ScopedJavaSurfaceControl&& surface_control) {
+#if BUILDFLAG(IS_COBALT)
+                         LOG(INFO) << "Display compositor output: "
+                                      "SurfaceControl (window SurfaceControl)";
+#endif
+                         presenter = new gl::GLSurfaceEGLSurfaceControl(
+                             std::move(surface_control),
+                             base::SingleThreadTaskRunner::GetCurrentDefault());
+                       }},
+>>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
       std::move(surface_record.surface_variant));
 
   return presenter;
