@@ -15,10 +15,6 @@ namespace base::features {
 // alongside the definition of their values in the .cc file.
 
 // Alphabetical:
-<<<<<<< HEAD
-=======
-BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
-
 #if BUILDFLAG(IS_COBALT)
 // When enabled, Cobalt will handle TRIM_MEMORY_RUNNING_LOW and
 // TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.
@@ -99,7 +95,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of bd328260efeca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFastFilePathIsParent);
