@@ -32,10 +32,6 @@
 #include "base/win/windows_version.h"
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/player.h"  // nogncheck
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace switches {
 
 namespace autoplay {
@@ -535,56 +531,6 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowAgcInTandem{
 const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
     &kEnforceSystemEchoCancellation, "allow_ns_in_tandem", false};
 #endif
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as the audio
-// write duration for SbPlayer.
-// For example, '--enable-features=CobaltAudioWriteDuration' uses
-// |kSbPlayerWriteDurationLocal| (0.5s) for local, or
-// '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/2s' to
-// set a custom value.
-// When disabled, Cobalt uses the values set in
-// CobaltContentRendererClient::GetStarboardRendererFactoryTraits(), i.e., 1s
-// for local (intentionally different from |kSbPlayerWriteDurationLocal| to
-// align with Cobalt C25) and |kSbPlayerWriteDurationRemote| for remote.
-// See b/433993748.
-BASE_FEATURE(kCobaltAudioWriteDuration,
-             "CobaltAudioWriteDuration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal",
-    base::Microseconds(kSbPlayerWriteDurationLocal)};
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
-#if BUILDFLAG(IS_ANDROID)
-// When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
-BASE_FEATURE(kCobaltUsingAndroidOverlay,
-             "CobaltUsingAndroidOverlay",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
-// Bypass Mojo for media pipeline in Cobalt single-process mode.
-BASE_FEATURE(kCobaltBypassMojoForMedia,
-             "CobaltBypassMojoForMedia",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt uses PartitionAlloc for DecoderBuffer storage instead of
-// DecoderBufferAllocator.
-// Experiment bug: b/563478845
-BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
-             "CobaltDisableDecoderBufferAllocator",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, the MediaSource stream parsers parse appended data in place
-// rather than copying it into an internal byte queue. Cobalt retains the
-// ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
-// done with it. The data is handed to the parser as a borrowed `base::span`
-// paired with a release closure; the parser destroys the closure to drop
-// Cobalt's reference to the ArrayBuffer.
-//
-// NOTE: This deviates from the MSE specification, which allows the web app to
-// modify or reuse the appended buffer as soon as appendBuffer() returns.
-BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
-             "CobaltInPlaceMediaSourceParser",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
 // To control running audio communication effect on Chrome OS Audio Server.
