@@ -35,9 +35,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#if BUILDFLAG(USE_EVERGREEN)
-#include "starboard/configuration_constants.h"  // nogncheck
-#endif
+#include "starboard/configuration_constants.h"
 
 namespace h5vcc_storage {
 
@@ -46,30 +44,24 @@ namespace {
 #if BUILDFLAG(USE_EVERGREEN)
 const char kCrashpadDBName[] = "crashpad_database";
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
 constexpr char kTestFileName[] = "cache_test_file.json";
 constexpr uint32_t kBufferSizeBytes = 16 * 1024;
 
 base::FilePath GetCacheDirectory() {
-  base::FilePath cache_path;
-  if (!base::PathService::Get(base::DIR_CACHE, &cache_path)) {
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                       kSbFileMaxPath)) {
     return base::FilePath();
   }
-  // On non-hermetic Linux (linux-x64x11), base::DIR_CACHE resolves to
-  // $XDG_CACHE_HOME (~/.cache). Scope it to "cobalt" to match Starboard
-  // and prevent operations on the user's root cache directory.
-  if (cache_path.BaseName() == base::FilePath(FILE_PATH_LITERAL(".cache"))) {
-    cache_path = cache_path.Append(FILE_PATH_LITERAL("cobalt"));
-  }
-  return cache_path;
+  return base::FilePath(cache_dir.data());
 }
 
 // Deletes everything inside `dir` (files, symlinks and subdirectories) while
-// leaving `dir` itself in place. Unlike base::DeletePathRecursively(), this
-// preserves the directory's inode, mode and ownership, which matters for
-// OS-managed locations such as Android's app cache directory and keeps any
-// open handles to `dir` valid. A non-existent `dir` is treated as already
-// empty. Returns false if `dir` could not be enumerated or if any entry could
-// not be deleted.
+// leaving `dir` itself in place. Unlike base::DeletePathRecursively(), which
+// also deletes `dir`. A non-existent `dir` is treated as already empty. Returns
+// false if `dir` could not be enumerated or if any entry could not be deleted.
 bool DeleteDirectoryContents(const base::FilePath& dir) {
   if (!base::DirectoryExists(dir)) {
     return true;
@@ -99,6 +91,7 @@ bool DeleteDirectoryContents(const base::FilePath& dir) {
   }
   return success;
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -161,6 +154,10 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
                                  const std::string& test_string,
                                  WriteTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  std::move(callback).Run(std::nullopt,
+                          "WriteTest is not supported on Android.");
+#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_written;
   std::optional<std::string> error;
@@ -225,12 +222,18 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
 
   bytes_written = total_bytes_written;
   std::move(callback).Run(bytes_written, error);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void H5vccStorageImpl::VerifyTest(uint32_t test_size,
                                   const std::string& test_string,
                                   VerifyTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  std::move(callback).Run(std::nullopt,
+                          "VerifyTest is not supported on Android.",
+                          /*verified=*/false);
+#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_read;
   std::optional<std::string> error;
@@ -257,8 +260,8 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   // `kBufferSize` per write.
   uint32_t total_bytes_read = 0;
 
+  auto read_buffer = std::make_unique<char[]>(kBufferSizeBytes);
   do {
-    auto read_buffer = std::make_unique<char[]>(kBufferSizeBytes);
     auto current_bytes_read = test_file.ReadAtCurrentPosNoBestEffort(
         read_buffer.get(),
         std::min(kBufferSizeBytes, test_size - total_bytes_read));
@@ -273,6 +276,7 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
     for (auto i = 0; i < current_bytes_read; ++i) {
       if (read_buffer.get()[i] !=
           test_string[(total_bytes_read + i) % test_string.size()]) {
+        base::DeleteFile(test_file_path);
         error = "File test data does not match with test data string";
         std::move(callback).Run(bytes_read, error, verified);
         return;
@@ -293,6 +297,7 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   verified = true;
   bytes_read = total_bytes_read;
   std::move(callback).Run(bytes_read, error, verified);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace h5vcc_storage
