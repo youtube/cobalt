@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_POSIX_EMU_INCLUDE_PTHREAD_H_
-#define STARBOARD_ANDROID_SHARED_POSIX_EMU_INCLUDE_PTHREAD_H_
+#include <sys/random.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
-#include_next <pthread.h>
-
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#if __ANDROID_API__ < 26
-int pthread_getname_np(pthread_t thread, char* name, size_t len);
-#endif  // __ANDROID_API__ < 26
-
-#ifdef __cplusplus
+#if __ANDROID_API__ < 28
+ssize_t getrandom(void* buf, size_t buflen, unsigned flags) {
+  return syscall(__NR_getrandom, buf, buflen, flags);
 }
-#endif
+#endif  // __ANDROID_API__ < 28
 
-#endif  // STARBOARD_ANDROID_SHARED_POSIX_EMU_INCLUDE_PTHREAD_H_
+}  // extern "C"
