@@ -39,6 +39,22 @@ void RunOnContextRunner(void* context) {
 
 }  // namespace
 
+// static
+scoped_refptr<DecodeTarget> DecodeTarget::Create(
+    SbDecodeTargetGraphicsContextProvider* provider) {
+  scoped_refptr<DecodeTarget> decode_target(new DecodeTarget(provider));
+  if (decode_target->surface_texture_.is_null() ||
+      decode_target->surface_.is_null()) {
+    // The GLES context runner did not run CreateOnContextRunner() (see
+    // StarboardRendererWrapper::GraphicsContextRunner). Nothing GL-side was
+    // created, so the target can be destroyed here, off the GL context.
+    SB_LOG(ERROR) << "Decode target was not initialized by the GLES context "
+                     "runner.";
+    return nullptr;
+  }
+  return decode_target;
+}
+
 DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
   std::function<void()> closure =
       std::bind(&DecodeTarget::CreateOnContextRunner, this);
@@ -53,10 +69,14 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 }
 
 DecodeTarget::~DecodeTarget() {
-  ANativeWindow_release(native_window_);
+  if (native_window_) {
+    ANativeWindow_release(native_window_);
+  }
 
-  glDeleteTextures(1, &info_.planes[0].texture);
-  SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  if (info_.planes[0].texture != 0) {
+    glDeleteTextures(1, &info_.planes[0].texture);
+    SB_CHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  }
 }
 
 void DecodeTarget::CreateOnContextRunner() {
