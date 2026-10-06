@@ -848,8 +848,8 @@ void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Persist deferred shader cache entries; the app may be killed while in the
-  // background. Defer for CobaltGpuShaderDiskCache experiment.
+  // With kCobaltGpuShaderDiskCache, shader disk writes are deferred; write the
+  // pending entries now since the app may be killed while in the background.
   if (gr_shader_cache_ &&
       base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
     gr_shader_cache_->FlushPendingDiskWrites();
