@@ -120,7 +120,8 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
     if (total_cpu_memory > 0) {
       total_physical_memory_bytes = static_cast<uint64_t>(total_cpu_memory);
     } else {
-      total_physical_memory_bytes = base::SysInfo::AmountOfPhysicalMemory();
+      total_physical_memory_bytes =
+          base::SysInfo::AmountOfPhysicalMemory().InBytesUnsigned();
     }
     LOG(INFO) << "CobaltSystemMemoryPressureEvaluator: Resolved total physical "
               << "RAM: " << (total_physical_memory_bytes / (1024 * 1024))
@@ -271,7 +272,7 @@ void CobaltSystemMemoryPressureEvaluator::CheckMemoryPressure() {
   UpdateMemoryPressureLevel(CalculateCurrentMemoryPressureLevel());
 }
 
-base::MemoryPressureListener::MemoryPressureLevel
+base::MemoryPressureLevel
 CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
   uint64_t effective_budget = process_memory_budget_bytes_;
   if (media_allowance_getter_) {
@@ -279,12 +280,12 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
   }
 
   if (effective_budget == 0 || !process_memory_info_getter_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+    return base::MEMORY_PRESSURE_LEVEL_NONE;
   }
 
   auto maybe_info = process_memory_info_getter_.Run();
   if (!maybe_info.has_value()) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+    return base::MEMORY_PRESSURE_LEVEL_NONE;
   }
 
   const auto& info = maybe_info.value();
@@ -297,34 +298,34 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
   }
 
   if (private_bytes == 0) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+    return base::MEMORY_PRESSURE_LEVEL_NONE;
   }
 
   const float ratio =
       static_cast<float>(private_bytes) / static_cast<float>(effective_budget);
 
   if (ratio >= critical_process_memory_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
+    return base::MEMORY_PRESSURE_LEVEL_CRITICAL;
   }
   if (ratio >= moderate_process_memory_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE;
+    return base::MEMORY_PRESSURE_LEVEL_MODERATE;
   }
-  return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+  return base::MEMORY_PRESSURE_LEVEL_NONE;
 }
 
 void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
-    base::MemoryPressureListener::MemoryPressureLevel new_level) {
-  base::MemoryPressureListener::MemoryPressureLevel old_vote = current_vote();
+    base::MemoryPressureLevel new_level) {
+  base::MemoryPressureLevel old_vote = current_vote();
   SetCurrentVote(new_level);
 
   // |notify| will be set to true if MemoryPressureListeners need to be
   // notified of a memory pressure level state change.
   bool notify = false;
   switch (current_vote()) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;
 
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
       if (old_vote != current_vote()) {
         // This is a new transition to moderate pressure so notify.
         moderate_pressure_repeat_count_ = 0;
@@ -342,7 +343,7 @@ void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
       }
       break;
 
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       // Always notify of critical pressure levels.
       notify = true;
       break;
