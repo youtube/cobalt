@@ -300,9 +300,22 @@ void DrmSystem::GenerateSessionUpdateRequest(
       OnProvisioningRequest(media_drm_bridge_->GenerateProvisionRequest());
       return;
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
-    default:
+    default: {
       SB_LOG(ERROR) << "Generate failed: " << result;
+      const int ticket = request->TakeTicket();
+      // The provisioning request already answered this ticket.
+      if (ticket == kSpontaneousDrmTicketId) {
+        return;
+      }
+      // A NULL session id signals the failure, so Cobalt rejects the promise
+      // waiting on this ticket instead of leaving it pending.
+      callbacks_.update_request(
+          this, context_, ticket, kSbDrmStatusUnknownError,
+          kSbDrmSessionRequestTypeLicenseRequest, result.error_message.c_str(),
+          /*session_id=*/nullptr, /*session_id_size=*/0,
+          /*content=*/nullptr, /*content_size=*/0, kNoUrl);
       return;
+    }
   }
 }
 
