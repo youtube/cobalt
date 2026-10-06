@@ -14,7 +14,7 @@
 # limitations under the License.
 """Filters fonts.xml to include only desired font packages.
 
-This is meant to be used in a GYP file to generate the list of fonts as the
+This is meant to be used from a GN file to generate the list of fonts as the
 input files for a target, as well as to re-write fonts.xml to include only
 desired fonts.
 """
@@ -170,7 +170,7 @@ def DoMain(argv):
       '-f',
       '--fonts_dir',
       help='prints a list of font files prefixed by the '
-      'specified FONTS_DIR (for GYP inputs)')
+      'specified FONTS_DIR (for GN inputs)')
   parser.add_argument('package_categories', nargs=argparse.REMAINDER)
   options = parser.parse_args(argv)
 
@@ -195,7 +195,7 @@ def DoMain(argv):
       f.write(fonts_doc.toprettyxml(indent='  '))
 
   if options.fonts_dir:
-    # Join with '/' rather than os.path.join() because this is for GYP, which
+    # Join with '/' rather than os.path.join() because this is for GN, which
     # even on Windows wants slashes rather than backslashes.
     # Make a set for unique fonts since .ttc files may be listed more than once.
     result = [
