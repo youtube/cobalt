@@ -296,6 +296,7 @@ source_set("common") {
     "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
+    "//gpu/config",
     "//media",
     "//sandbox/policy",
     "//services/device/time_zone_monitor",

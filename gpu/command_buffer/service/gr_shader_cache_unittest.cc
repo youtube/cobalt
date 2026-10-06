@@ -9,6 +9,7 @@
 
 #include "gpu/command_buffer/service/gr_shader_cache.h"
 
+#include <optional>
 #include <thread>
 
 #include "base/base64.h"
@@ -265,6 +266,117 @@ TEST_F(GrShaderCacheTest, MultipleThreadsUsingSameCache) {
   EXPECT_EQ(cache_.num_cache_entries(), 2u);
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), 2 * shader->size());
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
+                                        public testing::Test {
+ public:
+  void StoreShader(const std::string& key, const std::string& shader) override {
+    disk_cache_[key] = shader;
+    ++num_disk_writes_;
+  }
+
+ protected:
+  static constexpr int32_t kClientId = 3;
+
+  void CreateCache(bool feature_enabled) {
+    feature_list_.InitWithFeatureState(::features::kCobaltGpuShaderDiskCache,
+                                       feature_enabled);
+    cache_.emplace(kCacheLimit, this);
+  }
+
+  // Simulates Skia compiling a shader: a cache miss, a store, then a hit.
+  void StoreAndLoad(const SkData& key, const SkData& shader) {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_.value(), kClientId);
+    EXPECT_EQ(cache_->load(key), nullptr);
+    cache_->store(key, shader);
+    EXPECT_NE(cache_->load(key), nullptr);
+  }
+
+  static std::string EncodedKey(const SkData& key) {
+    return base::Base64Encode(
+        std::string(static_cast<const char*>(key.data()), key.size()));
+  }
+
+  base::test::ScopedFeatureList feature_list_;
+  std::unordered_map<std::string, std::string> disk_cache_;
+  size_t num_disk_writes_ = 0u;
+  std::optional<GrShaderCache> cache_;
+};
+
+TEST_F(GrShaderCacheDeferredWritesTest, WritesOnlyOnFlush) {
+  CreateCache(/*feature_enabled=*/true);
+  auto key = SkData::MakeWithCString(kShaderKey);
+  auto shader = SkData::MakeWithCString(kShader);
+
+  StoreAndLoad(*key, *shader);
+  EXPECT_EQ(num_disk_writes_, 0u);
+
+  cache_->FlushPendingDiskWrites();
+  EXPECT_EQ(num_disk_writes_, 1u);
+  ASSERT_EQ(disk_cache_.count(EncodedKey(*key)), 1u);
+  EXPECT_EQ(
+      disk_cache_[EncodedKey(*key)],
+      std::string(static_cast<const char*>(shader->data()), shader->size()));
+
+  // Entries are written only once.
+  cache_->FlushPendingDiskWrites();
+  EXPECT_EQ(num_disk_writes_, 1u);
+}
+
+TEST_F(GrShaderCacheDeferredWritesTest, DoesNotFlushEntriesLoadedFromDisk) {
+  CreateCache(/*feature_enabled=*/true);
+  auto key = SkData::MakeWithCString(kShaderKey);
+  cache_->PopulateCache(EncodedKey(*key), kShader);
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_.value(), kClientId);
+    EXPECT_NE(cache_->load(*key), nullptr);
+  }
+
+  cache_->FlushPendingDiskWrites();
+  EXPECT_EQ(num_disk_writes_, 0u);
+}
+
+TEST_F(GrShaderCacheDeferredWritesTest, FlushesBeforeMemoryPressureEviction) {
+  CreateCache(/*feature_enabled=*/true);
+  auto key = SkData::MakeWithCString(kShaderKey);
+  auto shader = SkData::MakeWithCString(kShader);
+  StoreAndLoad(*key, *shader);
+  EXPECT_EQ(num_disk_writes_, 0u);
+
+  cache_->PurgeMemory(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  EXPECT_EQ(cache_->num_cache_entries(), 0u);
+  EXPECT_EQ(num_disk_writes_, 1u);
+  EXPECT_EQ(disk_cache_.count(EncodedKey(*key)), 1u);
+}
+
+TEST_F(GrShaderCacheDeferredWritesTest, DoesNotFlushForIncognito) {
+  CreateCache(/*feature_enabled=*/true);
+  auto key = SkData::MakeWithCString(kShaderKey);
+  auto shader = SkData::MakeWithCString(kShader);
+
+  base::CommandLine::ForCurrentProcess()->AppendSwitch("incognito");
+  StoreAndLoad(*key, *shader);
+  cache_->FlushPendingDiskWrites();
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch("incognito");
+
+  EXPECT_EQ(num_disk_writes_, 0u);
+}
+
+TEST_F(GrShaderCacheDeferredWritesTest, WritesImmediatelyWhenFeatureDisabled) {
+  CreateCache(/*feature_enabled=*/false);
+  auto key = SkData::MakeWithCString(kShaderKey);
+  auto shader = SkData::MakeWithCString(kShader);
+
+  StoreAndLoad(*key, *shader);
+  EXPECT_EQ(num_disk_writes_, 1u);
+  EXPECT_EQ(disk_cache_.count(EncodedKey(*key)), 1u);
+
+  cache_->FlushPendingDiskWrites();
+  EXPECT_EQ(num_disk_writes_, 1u);
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 }  // namespace raster
 }  // namespace gpu

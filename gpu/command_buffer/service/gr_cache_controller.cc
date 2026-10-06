@@ -131,6 +131,14 @@ void GrCacheController::PurgeGrCache(uint64_t idle_id) {
   // Skia store VkPipeline cache only on demand. We do it when we're idle idle
   // as it might take time.
   context_state_->StoreVkPipelineCacheIfNeeded();
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Write the shaders whose disk writes were deferred. Only the
+  // CobaltGpuShaderDiskCache experiment defers them.
+  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+    context_state_->FlushGrShaderCacheDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace raster

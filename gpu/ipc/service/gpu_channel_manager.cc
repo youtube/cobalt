@@ -805,6 +805,15 @@ void GpuChannelManager::OnBackgroundCleanup() {
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Persist deferred shader cache entries; the app may be killed while in the
+  // background. Defer for CobaltGpuShaderDiskCache experiment.
+  if (gr_shader_cache_ &&
+      base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
   for (auto& kv : gpu_channels_) {
     kv.second->MarkAllContextsLost();
@@ -837,6 +846,15 @@ void GpuChannelManager::OnBackgroundCleanup() {
 
 void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Persist deferred shader cache entries; the app may be killed while in the
+  // background. Defer for CobaltGpuShaderDiskCache experiment.
+  if (gr_shader_cache_ &&
+      base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   if (shared_context_state_) {
     shared_context_state_->PurgeMemory(
