@@ -50,6 +50,7 @@ pipeline () {
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
+  configure_gob_auth
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
   # `--end-of-options` to `git checkout`. Need to update git on runners.
