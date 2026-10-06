@@ -58,7 +58,7 @@
 // #include "base/memory/memory_pressure_monitor.h"
 // #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
 // #include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
-// // nogncheck #include "media/media_buildflags.h"
+// #include "media/media_buildflags.h"
 //
 // #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // #include "media/base/media_client.h"
