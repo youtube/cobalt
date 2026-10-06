@@ -52,13 +52,11 @@ runs:
         echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> "${GITHUB_PATH}"
       shell: bash
 
-    - name: Set CIPD and Git Cache Directory
+    - name: Set CIPD Cache Directory
       if: steps.cache-path.outputs.path != ''
       env:
         CACHE_PATH: ${{ steps.cache-path.outputs.path }}
-      run: |
-        echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
-        echo "GIT_CACHE_PATH=${CACHE_PATH}/git-cache" >> "${GITHUB_ENV}"
+      run: echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Bootstrap Bundled python3
@@ -158,13 +156,15 @@ runs:
       working-directory: cobalt
       env:
         REF: ${{ github.sha }}
-        HAS_GIT_CACHE: ${{ steps.cache-path.outputs.path != '' }}
       run: |
-        sync_args=(--verbose --force --delete_unversioned_trees --nohooks)
-        if [ "${HAS_GIT_CACHE}" != "true" ]; then
-          sync_args+=(--shallow --no-history)
-        fi
-        gclient sync "${sync_args[@]}" --revision "src@${REF}"
+        gclient sync \
+          --verbose \
+          --shallow \
+          --no-history \
+          --nohooks \
+          --force \
+          --delete_unversioned_trees \
+          --revision "${REF}"
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
