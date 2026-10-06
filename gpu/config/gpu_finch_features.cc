@@ -57,11 +57,6 @@ BASE_FEATURE(kUseGles2ForOopR,
 BASE_FEATURE(kCobaltInProcessDirectRaster,
              "CobaltInProcessDirectRaster",
              base::FEATURE_DISABLED_BY_DEFAULT);
-<<<<<<< HEAD
-=======
-#else   // BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, uses Android SurfaceControl for the display compositor with
@@ -72,7 +67,6 @@ BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
              "CobaltRemoveUiPlaneDuringFullscreenVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
->>>>>>> cffc8bcc2 (android: Use SurfaceControl for display compositor output (#12981))
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not
