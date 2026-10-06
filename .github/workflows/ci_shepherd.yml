@@ -325,7 +325,7 @@ jobs:
             .agent
 
       - name: Run Gemini PR Shepherd Analysis
-        id: gemini-analysis
+        id: trigger_gemini_analysis
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
@@ -341,11 +341,19 @@ jobs:
 
             For a flaky verdict all retries of a workflow run must be analyzed/triaged.
 
+
+      - name: Validate JSON Output
+        if: always() && !cancelled()
+        env:
+          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
+        run: |
+          echo "${AGENT_SUMMARY:-{}}" | jq -e . >/dev/null || exit 1
+
       - name: Extract Analysis Results
         id: extract
         if: always() && !cancelled()
         env:
-          AGENT_SUMMARY: ${{ steps.gemini-analysis.outputs.summary }}
+          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
         shell: bash
         run: |
           set -euo pipefail
@@ -411,7 +419,7 @@ jobs:
                 echo "- **Verdict**: ${VERDICT}"
               fi
               if [[ -n "${CONFIDENCE:-}" ]]; then
-                echo "- **Confidence**: ${CONFIDENCE}"
+                echo "- **Confidence**: $(echo "$CONFIDENCE" | awk "{printf \"%.0f%%\", \$1 * 100}")"
               fi
               if [[ -n "${VERDICT:-}" || -n "${CONFIDENCE:-}" ]]; then
                 echo ""
