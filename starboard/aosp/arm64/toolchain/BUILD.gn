@@ -54,9 +54,13 @@ android_clang_toolchain("starboard") {
     is_starboard = true
     use_cxx17 = true
     build_base_with_cpp17 = true
+<<<<<<< HEAD
 
     # 'aligned_alloc' is only available on Android 28 or newer.
     android_ndk_api_level = 28
+=======
+    enable_base_tracing = false
+>>>>>>> 4fdb36ac565 (aosp: Support devices older than Android 9 (#13108))
   }
 }
 
