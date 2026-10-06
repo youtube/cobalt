@@ -4,7 +4,18 @@
     "*MaximumPlayerConfigurationExplorer*",
     "*MultiplePlayer*",
     "*SbMediaSetAudioWriteDuration*",
-    "*SbPlayer*",
+    "*SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
+    "*SbPlayerGetAudioConfigurationTest.SunnyDay/*",
+    "*SbPlayerGetMediaTimeTest.*",
+    "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
+    "*SbPlayerWriteSampleTest.DiscardAllAudio/*",
+    "*SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "*SbPlayerWriteSampleTest.PartialAudio/*",
+    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*",
+    "*SbPlayerWriteSampleTest.SeekAndDestroy/*",
+    "*SbPlayerWriteSampleTest.VideoCodecSwitching/*",
+    "*SbPlayerWriteSampleTest.WriteMultipleBatches/*",
+    "*SbPlayerWriteSampleTest.WriteSingleBatch/*",
     "*VerticalVideoTest*",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
@@ -22,6 +33,9 @@
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/79",
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbPlayerGetPreferredOutputModeTest.*",
+    "SbPlayerTest.*",
+    "SbPlayerUrlTest.*"
   ]
 }
