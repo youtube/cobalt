@@ -14,10 +14,10 @@
 
 #include "starboard/crashpad_wrapper/native_stability_reader.h"
 
-#include <string.h>
 #include <sys/time.h>
 
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
@@ -112,8 +112,8 @@ std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
       static_cast<int64_t>(snapshot_time.tv_sec);
   native_stability_report.report_type = report_type;
 
-  memcpy(native_stability_report.native_stability_event_uuid,
-         event_uuid.c_str(), kExpectedUuidLength);
+  std::memcpy(native_stability_report.native_stability_event_uuid,
+              event_uuid.c_str(), kExpectedUuidLength);
   native_stability_report.native_stability_event_uuid[kExpectedUuidLength] =
       '\0';
   return native_stability_report;
