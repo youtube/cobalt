@@ -29,16 +29,13 @@ namespace starboard {
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
   // Creates the GL texture / SurfaceTexture / Surface via |provider|'s GLES
-  // context runner. The runner may fail to execute the closure (e.g. the GL
-  // context could not be made current); callers must check is_initialized()
-  // before using surface() or surface_texture().
-  explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
+  // context runner. Returns nullptr if the runner could not execute the
+  // creation closure (e.g. the GL context could not be made current), so an
+  // uninitialized target is never handed to callers.
+  static scoped_refptr<DecodeTarget> Create(
+      SbDecodeTargetGraphicsContextProvider* provider);
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
-
-  bool is_initialized() const {
-    return !surface_texture_.is_null() && !surface_.is_null();
-  }
 
   const jni_zero::ScopedJavaGlobalRef<jobject>& surface_texture() const {
     return surface_texture_;
@@ -60,6 +57,8 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   }
 
  private:
+  explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
+  // Safe to run on a target whose CreateOnContextRunner() never ran.
   ~DecodeTarget() final;
 
   void CreateOnContextRunner();

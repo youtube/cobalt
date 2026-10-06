@@ -726,23 +726,28 @@ void StarboardRendererWrapper::GraphicsContextRunner(
   using GlesClosureRun = StarboardGpuFactory::GlesClosureRun;
   using Outcome = GlesClosureRun::Outcome;
 
-  // Upper bound on the time this call may block its caller (normally an
-  // SbPlayer worker thread, during decode target creation in
+  // The constants below bound the time this call may block its caller
+  // (normally an SbPlayer worker thread, during decode target creation in
   // MediaCodecVideoDecoder::InitializeCodec() or release in TeardownCodec()).
-  //
-  // - kRetryBudget: how long to keep retrying while the gpu thread reports
-  //   that the GL context could not be made current. This is a transient
-  //   condition after the app sat idle; in the lab the context was always
-  //   back within a few hundred ms. There is no retry at all when the command
-  //   buffer stub is gone (kNoStub), which is what happens when a player is
-  //   torn down after its renderer lost the stub: waiting cannot help, and
-  //   this path used to stall SbPlayerDestroy().
-  // - kGpuWaitTimeout: how long to wait for the gpu thread to service one
-  //   request. If it does not respond (wedged gpu main thread) the request is
-  //   abandoned and the caller fails the decode target, which surfaces as a
-  //   decode error on the player rather than a hang or a process abort.
+  // Worst case is ~kGpuWaitTimeout (wedged gpu thread) or ~kRetryBudget plus
+  // one gpu round trip (persistent context loss).
+
+  // How long to keep retrying while the gpu thread reports that the GL
+  // context could not be made current. This is a transient condition after
+  // the app sat idle; in the lab the context was always back within a few
+  // hundred ms. There is no retry at all when the command buffer stub is gone
+  // (kNoStub), which is what happens when a player is torn down after its
+  // renderer lost the stub: waiting cannot help, and this path used to stall
+  // SbPlayerDestroy().
   constexpr base::TimeDelta kRetryBudget = base::Seconds(1);
+
+  // Pause between two retries of a kContextNotCurrent request.
   constexpr base::TimeDelta kRetryDelay = base::Milliseconds(100);
+
+  // How long to wait for the gpu thread to service one request. If it does
+  // not respond (wedged gpu main thread) the request is abandoned and the
+  // caller fails the decode target, which surfaces as a decode error on the
+  // player rather than a hang or a process abort.
   constexpr base::TimeDelta kGpuWaitTimeout = base::Seconds(2);
 
   auto provider = reinterpret_cast<StarboardRendererWrapper*>(

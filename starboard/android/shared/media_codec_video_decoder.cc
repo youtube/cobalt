@@ -820,23 +820,14 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!decode_target_graphics_context_provider_) {
         return Failure("Invalid decode target graphics context provider.");
       }
-      DecodeTarget* decode_target =
-          new DecodeTarget(decode_target_graphics_context_provider_);
-      if (!SbDecodeTargetIsValid(decode_target)) {
+      scoped_refptr<DecodeTarget> decode_target =
+          DecodeTarget::Create(decode_target_graphics_context_provider_);
+      if (!SbDecodeTargetIsValid(decode_target.get())) {
+        // Either the provider is unusable or the GLES context runner could
+        // not run the creation closure (b/565889635). Fail the codec
+        // initialization; the player reports a decode error and the web app
+        // can retry.
         return Failure("Could not acquire a decode target from provider.");
-      }
-      if (!decode_target->is_initialized()) {
-        // The GLES context runner could not run the creation closure (see
-        // StarboardRendererWrapper::GraphicsContextRunner), so the target has
-        // no SurfaceTexture. Passing it to SetOnFrameAvailableListener() would
-        // abort the process with a JNI "obj == null" error (b/565889635).
-        // Free it (it was never AddRef'd, so balance before releasing) and
-        // fail the codec initialization instead; the player reports a decode
-        // error and the web app can retry.
-        decode_target->AddRef();
-        decode_target->Release();
-        return Failure(
-            "Decode target was not initialized by the GLES context runner.");
       }
       j_output_surface =
           jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target->surface());
@@ -845,12 +836,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
-      decode_target_ = decode_target;
-      // We manually call AddRef() here because `decode_target_` is stored as a
-      // raw pointer. This ensures Starboard claims its initial ownership of the
-      // target, preventing it from stealing Chromium's reference and deleting
-      // the texture prematurely during TeardownCodec().
-      decode_target_->AddRef();
+      SB_DCHECK(!decode_target_);
+      // Transfer the reference into the raw `decode_target_` pointer. Starboard
+      // keeps this initial ownership so that handing out references to
+      // Chromium (GetCurrentDecodeTarget()) cannot delete the texture
+      // prematurely during TeardownCodec().
+      decode_target.swap(&decode_target_);
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
