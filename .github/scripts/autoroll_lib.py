@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Library for autoroller scripts using worktree-free git plumbing."""
+"""Library for autoroller scripts."""
 from collections import defaultdict
 import enum
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -126,101 +125,56 @@ def get_cherry_pick_metadata(sha, title, pr_num):
   return date, author, msg
 
 
-# --------------------------------------------------------------------------
-# Tree editing (O(depth) mktree calls, no working-tree checkout).
-# --------------------------------------------------------------------------
-def put(tree, path, entry):
-  """Returns a new tree with `path` set to entry=(mode, oid) or removed (None)."""
-  head, _, rest = path.partition('/')
-  raw = get_out(['git', 'ls-tree', '-z', tree]) if tree else ''
-  entries = {}
-  for item in filter(None, raw.split('\0')):
-    meta, name = item.split('\t', 1)
-    entries[name] = meta
-  if rest:
-    sub = entries.get(head, '').split()
-    sub_tree = sub[2] if len(sub) == 3 and sub[1] == 'tree' else None
-    new_sub = put(sub_tree, rest, entry)
-    entry = ('040000', new_sub) if new_sub else None
-  if entry is None:
-    entries.pop(head, None)
-  else:
-    mode, oid = entry
-    kind = {'040000': 'tree', '160000': 'commit'}.get(mode, 'blob')
-    entries[head] = f'{mode} {kind} {oid}'
-  if not entries:
-    return None  # Empty trees vanish.
-  data = ''.join(f'{m}\t{n}\0' for n, m in entries.items())
-  res = subprocess.run(['git', 'mktree', '-z', '--missing'], input=data,
-                       capture_output=True, text=True, check=True)
-  return res.stdout.strip()
+def get_unmerged_files():
+  """Returns a dict of files with conflicts mapping to named stages.
 
-
-def edit_tree(tree, edits):
-  """Applies path edits {path: (mode, oid) or None} to `tree`."""
-  for path, entry in edits.items():
-    tree = put(tree, path, entry)
-  return tree
-
-
-def write_blob(content):
-  """Writes blob string directly into the Git object store and returns OID."""
-  res = subprocess.run(['git', 'hash-object', '-w', '--stdin'],
-                       input=content, capture_output=True, text=True, check=True)
-  return res.stdout.strip()
-
-
-# --------------------------------------------------------------------------
-# Merge (cherry-pick / revert) without a working tree.
-# --------------------------------------------------------------------------
-def merge_trees(action, sha, onto):
-  """Returns (tree, conflicts) where conflicts: path -> {stage: (mode, oid)}."""
-  base, theirs = (f'{sha}^', sha) if action == 'cherry-pick' else (sha, f'{sha}^')
-  res = subprocess.run(
-      ['git', 'merge-tree', '--write-tree', '--no-messages', '-z',
-       f'--merge-base={base}', onto, theirs],
-      capture_output=True, text=True)
-  if res.returncode not in (0, 1):
-    raise subprocess.CalledProcessError(res.returncode, res.args, res.stdout,
-                                        res.stderr)
-
-  fields = res.stdout.split('\0')
-  tree = fields[0]
-  conflicts = defaultdict(dict)
+  Stages are mapped as follows:
+  - '1': 'ancestor'
+  - '2': 'ours'
+  - '3': 'theirs'
+  """
+  lines = get_out(['git', 'ls-files', '-u']).splitlines()
+  files = defaultdict(set)
   stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
-  for item in fields[1:]:
-    if not item:
-      break
-    meta, path = item.split('\t', 1)
-    mode, oid, stage = meta.split()
-    conflicts[path][stage_map[stage]] = (mode, oid)
-  return tree, dict(conflicts)
+  for line in lines:
+    parts = line.split('\t', 1)
+    if len(parts) < 2:
+      log(f'Warning: Malformed line (missing tab): {line}')
+      continue
+    metadata, path = parts
+    meta_parts = metadata.split()
+    if len(meta_parts) < 3:
+      log(f'Warning: Malformed metadata: {metadata}')
+      continue
+    _, _, stage = meta_parts[:3]
+    stage_name = stage_map.get(stage, stage)
+    files[path].add(stage_name)
+  return files
 
 
-def resolve_conflicts(tree, conflicts):
+def resolve_conflicts(unmerged_files):
   """Attempts to resolve conflicts automatically.
 
   Returns:
-    (edits, unmerged_files):
-      edits: dict mapping path -> (mode, oid) or None (to delete)
-      unmerged_files: list of paths with unresolved conflicts
+    bool: True if all conflicts were resolved, False otherwise.
   """
-  edits = {}
-  conflicts = dict(conflicts)
-
-  # Special handling for .gitmodules to prevent "bad config" errors
-  if '.gitmodules' in conflicts:
-    gitmodules_blob = get_out(['git', 'rev-parse', f'{tree}:.gitmodules']).strip()
-    edits['.gitmodules_conflict'] = ('100644', gitmodules_blob)
-    edits['.gitmodules'] = conflicts.pop('.gitmodules')['ours']
+  # Special handling for .gitmodules to prevent "bad config" fatal errors
+  if '.gitmodules' in unmerged_files:
+    shutil.move('.gitmodules', '.gitmodules_conflict')
+    run(['git', 'checkout', '--ours', '--', '.gitmodules'])
+    run(['git', 'add', '--', '.gitmodules', '.gitmodules_conflict'])
+    unmerged_files.pop('.gitmodules', None)
 
   deleted_by_us = []
   deleted_by_them = []
   submodule_conflicts = []
-  unresolved = []
+  other_conflicts = []
 
-  for path, stages in conflicts.items():
-    is_submodule = any(m == '160000' for m, _ in stages.values())
+  for path, stages in unmerged_files.items():
+    # Check if this path is a submodule (mode 160000)
+    file_info = get_out(['git', 'ls-files', '-u', '--', path])
+    is_submodule = '160000' in file_info
+
     if 'theirs' in stages and 'ours' not in stages:
       deleted_by_us.append(path)
     elif 'theirs' not in stages and 'ours' in stages:
@@ -228,107 +182,89 @@ def resolve_conflicts(tree, conflicts):
     elif is_submodule:
       submodule_conflicts.append(path)
     else:
-      unresolved.append(path)
+      other_conflicts.append(path)
 
   if deleted_by_us:
     log(f'Resolving \'deleted by us\' conflicts: {deleted_by_us}')
+    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_us)
     for path in deleted_by_us:
-      edits[path] = None
+      unmerged_files.pop(path, None)
 
   if deleted_by_them:
     log(f'Resolving \'deleted by them\' conflicts: {deleted_by_them}')
+    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_them)
     for path in deleted_by_them:
-      edits[path] = None
+      unmerged_files.pop(path, None)
 
   if submodule_conflicts:
     log(f'Resolving submodule conflicts: {submodule_conflicts}')
     for path in submodule_conflicts:
-      theirs_sha = conflicts[path]['theirs'][1]
-      edits[path] = ('160000', theirs_sha)
+      ls_files_out = get_out(['git', 'ls-files', '-u', '--', path])
+      match = re.search(r'160000 ([a-f0-9]+) 3', ls_files_out)
+      theirs_sha = match.group(1)
+      run([
+          'git', 'update-index', '--add', '--cacheinfo',
+          f'160000,{theirs_sha},{path}'
+      ])
+      unmerged_files.pop(path, None)
 
-  if unresolved:
-    log(f'Cannot resolve conflicts: {unresolved}')
+  if other_conflicts:
+    log(f'Cannot resolve conflicts: {other_conflicts}')
+    return False
 
-  return edits, unresolved
-
-
-def commit_tree(tree, parent, date, author, msg):
-  """Creates a commit object pointing to `tree` and `parent`."""
-  name_match = re.match(r'^(.*) <(.*)>$', author)
-  if name_match:
-    name, email = name_match.groups()
-  else:
-    name, email = author, 'cobalt-github-releaser-bot@google.com'
-  env = dict(os.environ, GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email,
-             GIT_AUTHOR_DATE=date)
-  clean_msg = subprocess.run(['git', 'stripspace'], input=msg,
-                             capture_output=True, text=True, check=True).stdout
-  res = subprocess.run(['git', 'commit-tree', tree, '-p', parent, '-F', '-'],
-                       input=clean_msg, capture_output=True, text=True,
-                       check=True, env=env)
-  return res.stdout.strip()
+  return True
 
 
 def apply_and_commit(action,
                      sha,
                      metadata,
                      first_commit,
-                     autoroll_metadata=None,
-                     head=None):
-  """Attempts to apply a single commit using pure git plumbing (no checkout).
-
-  Args:
-    action: 'cherry-pick' or 'revert'.
-    sha: SHA to cherry-pick or revert.
-    metadata: (date, author, msg) tuple.
-    first_commit: bool, True if this is the first commit in the batch.
-    autoroll_metadata: (autoroll_file, autoroll_sha[, update_on_success]) tuple.
-    head: Optional commit SHA to apply onto. Defaults to HEAD.
+                     autoroll_metadata=None):
+  """Attempts to apply a single commit.
 
   Returns:
-    CommitStatus: SUCCESS, CONFLICTED, or FAILED.
-    unmerged_files: List of files with conflicts (or None).
+    CommitStatus: Enum indicating the outcome of the operation.
+      - SUCCESS: Successfully committed.
+      - CONFLICTED: Committed with conflicts.
+      - FAILED: The commit failed due to conflicts or other errors.
+    unmerged_files: List of files with conflicts.
   """
-  if head is None:
-    head = get_out(['git', 'rev-parse', 'HEAD']).strip()
-
   date, author, msg = metadata
-  status = CommitStatus.SUCCESS
+  result = CommitStatus.SUCCESS
   unmerged_files = None
 
-  tree, conflicts = merge_trees(action, sha, head)
-  edits, unresolved = resolve_conflicts(tree, conflicts)
-
-  if unresolved:
-    if not first_commit:
-      return CommitStatus.FAILED, unresolved
-    msg = f'CONFLICTED {msg}'
-    status = CommitStatus.CONFLICTED
-    unmerged_files = unresolved
-
-  if autoroll_metadata:
-    if len(autoroll_metadata) == 2:
-      autoroll_file, autoroll_sha = autoroll_metadata
-      update_on_success = True
+  # Apply
+  try:
+    run(['git', action, '--no-commit', sha])
+  except subprocess.CalledProcessError:
+    unmerged_files = get_unmerged_files()
+    if resolve_conflicts(unmerged_files):
+      unmerged_files = None
     else:
-      autoroll_file, autoroll_sha, update_on_success = autoroll_metadata
-    if status == CommitStatus.CONFLICTED or update_on_success:
-      prefix = 'CONFLICTED:' if status == CommitStatus.CONFLICTED else ''
-      blob_content = f'{prefix}{autoroll_sha}\n'
-      edits[autoroll_file] = ('100644', write_blob(blob_content))
+      unmerged_files = list(unmerged_files)
 
-  tree = edit_tree(tree, edits)
+      if not first_commit:
+        run(['git', 'reset', '--hard', 'HEAD'])
+        return CommitStatus.FAILED, unmerged_files
 
-  new_commit = commit_tree(tree, head, date, author, msg)
-  run(['git', 'update-ref', 'HEAD', new_commit])
+      run(['git', 'add', '--'] + unmerged_files)
+      msg = f'CONFLICTED {msg}'
+      result = CommitStatus.CONFLICTED
 
-  # Keep local working copy in sync if file/directory exists
+  # Update autoroll file
   if autoroll_metadata:
-    try:
-      os.makedirs(os.path.dirname(autoroll_file) or '.', exist_ok=True)
+    autoroll_file, autoroll_sha, update_on_success = autoroll_metadata
+    if result == CommitStatus.CONFLICTED or update_on_success:
       with open(autoroll_file, 'w', encoding='utf-8') as f:
-        f.write(blob_content)
-    except OSError:
-      pass
+        if result == CommitStatus.CONFLICTED:
+          f.write(f'CONFLICTED:{autoroll_sha}\n')
+        else:
+          f.write(f'{autoroll_sha}\n')
+      run(['git', 'add', '--', autoroll_file])
 
-  return status, unmerged_files
+  # Commit
+  run([
+      'git', 'commit', '--no-verify', f'--date={date}', f'--author={author}',
+      '-m', msg
+  ])
+  return result, unmerged_files
