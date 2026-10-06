@@ -36,6 +36,7 @@ void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
 
 void CobaltTrustedURLLoaderHeaderClient::CreateAndBindCobaltTrustedHeaderClient(
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
+  ScopedHeaderClientUiCpuLogger cpu_logger;
   mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltTrustedHeaderClient>(),
                               std::move(receiver));
 }

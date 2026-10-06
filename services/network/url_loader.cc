@@ -307,8 +307,10 @@ int32_t PopulateOptions(int32_t initial_options,
   }
 
 #if BUILDFLAG(IS_COBALT)
-  options |= mojom::kURLLoadOptionUseHeaderClient;
-  options |= mojom::kURLLoadOptionAsCorsPreflight;
+  if (!base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    options |= mojom::kURLLoadOptionUseHeaderClient;
+    options |= mojom::kURLLoadOptionAsCorsPreflight;
+  }
 #endif
 
   return options;
@@ -349,6 +351,57 @@ uint32_t GetCobaltContentLengthAwarePipeCapacity(int64_t content_length,
                static_cast<uint64_t>(kCobaltMinDataPipeAllocationSize));
   return static_cast<uint32_t>(
       std::min(capacity, static_cast<uint64_t>(default_capacity)));
+}
+
+std::atomic<int64_t> g_header_client_net_cpu_ns{0};
+std::atomic<int> g_header_client_net_ipc_count{0};
+std::atomic<int64_t> g_header_client_stall_us{0};
+std::atomic<int64_t> g_header_client_max_stall_us{0};
+std::atomic<int> g_header_client_stall_count{0};
+std::atomic<int64_t> g_header_client_direct_cpu_ns{0};
+std::atomic<int> g_header_client_direct_count{0};
+
+struct ScopedHeaderClientNetCpuLogger {
+  base::ThreadTicks start = base::ThreadTicks::Now();
+  ~ScopedHeaderClientNetCpuLogger() {
+    const int64_t ns = (base::ThreadTicks::Now() - start).InNanoseconds();
+    const int64_t total_ns = g_header_client_net_cpu_ns.fetch_add(ns) + ns;
+    const int count = g_header_client_net_ipc_count.fetch_add(1) + 1;
+    if (count % 50 == 0) {
+      LOG(INFO) << "[HeaderClientCPU][Net] ipcs=" << count
+                << " cumulative_cpu_ms=" << (total_ns / 1e6)
+                << " stall_hops=" << g_header_client_stall_count.load()
+                << " cumulative_stall_ms="
+                << (g_header_client_stall_us.load() / 1000.0)
+                << " max_stall_ms="
+                << (g_header_client_max_stall_us.load() / 1000.0);
+    }
+  }
+};
+
+void ApplyCobaltClientHintHeadersDirectly(net::URLRequest& url_request) {
+  const base::ThreadTicks start = base::ThreadTicks::Now();
+  for (const auto& [name, value] : GetCobaltClientHintHeaders()) {
+    url_request.SetExtraRequestHeaderByName(name, value, /*overwrite=*/true);
+  }
+  const int64_t ns = (base::ThreadTicks::Now() - start).InNanoseconds();
+  const int64_t total_ns = g_header_client_direct_cpu_ns.fetch_add(ns) + ns;
+  const int count = g_header_client_direct_count.fetch_add(1) + 1;
+  if (count % 50 == 0) {
+    LOG(INFO) << "[HeaderClientCPU][Direct] requests=" << count
+              << " cumulative_cpu_ms=" << (total_ns / 1e6)
+              << " ipcs=0 stall_hops=0 cumulative_stall_ms=0";
+  }
+}
+
+void RecordHeaderClientStall(base::TimeTicks start) {
+  const int64_t us = (base::TimeTicks::Now() - start).InMicroseconds();
+  g_header_client_stall_us.fetch_add(us);
+  g_header_client_stall_count.fetch_add(1);
+  int64_t prev_max = g_header_client_max_stall_us.load();
+  while (us > prev_max &&
+         !g_header_client_max_stall_us.compare_exchange_weak(prev_max, us)) {
+  }
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -506,6 +559,9 @@ URLLoader::URLLoader(
       context.GetUrlLoaderHeaderClient();
   if (url_loader_header_client &&
       (options_ & mojom::kURLLoadOptionUseHeaderClient)) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
     if (options_ & mojom::kURLLoadOptionAsCorsPreflight) {
       url_loader_header_client->OnLoaderForCorsPreflightCreated(
           request, header_client_.BindNewPipeAndPassReceiver());
@@ -535,6 +591,11 @@ URLLoader::URLLoader(
   url_loader_util::ConfigureUrlRequest(request, *factory_params_,
                                        *origin_access_list_, *url_request_,
                                        shared_resource_checker);
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    ApplyCobaltClientHintHeadersDirectly(*url_request_);
+  }
+#endif
   if (context.ShouldRequireIsolationInfo()) {
     DCHECK(!url_request_->isolation_info().IsEmpty());
   }
@@ -821,6 +882,11 @@ void URLLoader::FollowRedirect(
                           request_destination_, *deferred_redirect_url_,
                           *factory_params_, *origin_access_list_,
                           request_credentials_mode_);
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    ApplyCobaltClientHintHeadersDirectly(*url_request_);
+  }
+#endif
 
   // Set seen_raw_request_headers_ to false in order to make sure this redirect
   // also calls the devtools observer.
@@ -1824,10 +1890,24 @@ int URLLoader::OnBeforeStartTransaction(
   }
 
   if (header_client_) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+    auto timed_callback = base::BindOnce(
+        [](base::TimeTicks start,
+           net::NetworkDelegate::OnBeforeStartTransactionCallback cb,
+           int result, const std::optional<net::HttpRequestHeaders>& hdrs) {
+          RecordHeaderClientStall(start);
+          std::move(cb).Run(result, hdrs);
+        },
+        base::TimeTicks::Now(), std::move(callback));
+#else
+    auto timed_callback = std::move(callback);
+#endif
     header_client_->OnBeforeSendHeaders(
         *used_headers,
         base::BindOnce(&URLLoader::OnBeforeSendHeadersComplete,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(timed_callback)));
     return net::ERR_IO_PENDING;
   }
 
@@ -1851,10 +1931,22 @@ int URLLoader::OnHeadersReceived(
     const net::IPEndPoint& endpoint,
     std::optional<GURL>* preserve_fragment_on_redirect_url) {
   if (header_client_) {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+    auto timed_callback = base::BindOnce(
+        [](base::TimeTicks start, net::CompletionOnceCallback cb, int result) {
+          RecordHeaderClientStall(start);
+          std::move(cb).Run(result);
+        },
+        base::TimeTicks::Now(), std::move(callback));
+#else
+    auto timed_callback = std::move(callback);
+#endif
     header_client_->OnHeadersReceived(
         original_response_headers->raw_headers(), endpoint,
         base::BindOnce(&URLLoader::OnHeadersReceivedComplete,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(timed_callback),
                        override_response_headers,
                        preserve_fragment_on_redirect_url));
     return net::ERR_IO_PENDING;
@@ -2340,12 +2432,18 @@ void URLLoader::OnBeforeSendHeadersComplete(
     net::NetworkDelegate::OnBeforeStartTransactionCallback callback,
     int result,
     const std::optional<net::HttpRequestHeaders>& headers) {
-  if (include_request_cookies_with_response_ && headers) {
-    request_cookies_.clear();
-    std::string cookie_header =
-        headers->GetHeader(net::HttpRequestHeaders::kCookie)
-            .value_or(std::string());
-    net::cookie_util::ParseRequestCookieLine(cookie_header, &request_cookies_);
+  {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
+    if (include_request_cookies_with_response_ && headers) {
+      request_cookies_.clear();
+      std::string cookie_header =
+          headers->GetHeader(net::HttpRequestHeaders::kCookie)
+              .value_or(std::string());
+      net::cookie_util::ParseRequestCookieLine(cookie_header,
+                                               &request_cookies_);
+    }
   }
   std::move(callback).Run(result, headers);
 }
@@ -2357,11 +2455,16 @@ void URLLoader::OnHeadersReceivedComplete(
     int result,
     const std::optional<std::string>& headers,
     const std::optional<GURL>& preserve_fragment_on_redirect_url) {
-  if (headers) {
-    *out_headers =
-        base::MakeRefCounted<net::HttpResponseHeaders>(headers.value());
+  {
+#if BUILDFLAG(IS_COBALT)
+    ScopedHeaderClientNetCpuLogger cpu_logger;
+#endif
+    if (headers) {
+      *out_headers =
+          base::MakeRefCounted<net::HttpResponseHeaders>(headers.value());
+    }
+    *out_preserve_fragment_on_redirect_url = preserve_fragment_on_redirect_url;
   }
-  *out_preserve_fragment_on_redirect_url = preserve_fragment_on_redirect_url;
   std::move(callback).Run(result);
 }
 
