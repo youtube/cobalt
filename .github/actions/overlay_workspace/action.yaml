@@ -85,23 +85,35 @@ runs:
             else
               ARCHIVE_GCS="gs://${GOLDEN_WORKSPACE_BUCKET}/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
               STAGING_DIR="/runner-cache/staging.$$"
+              rm -rf "${STAGING_DIR}"
               mkdir -p "${STAGING_DIR}"
 
-              if gcloud storage cp "${ARCHIVE_GCS}" "${STAGING_DIR}/archive.tar.zst" 2>/dev/null && \
-                 [ "$(sha256sum "${STAGING_DIR}/archive.tar.zst" | awk '{print $1}')" = "${ARCHIVE_SHA}" ] && \
-                 tar --no-same-owner --use-compress-program="zstd -d -T0" -xf "${STAGING_DIR}/archive.tar.zst" -C "${STAGING_DIR}"; then
-                rm -f "${STAGING_DIR}/archive.tar.zst"
+              STREAM_SHA=$(
+                gcloud storage cat "${ARCHIVE_GCS}" 2>/dev/null \
+                  | tee >(tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") \
+                  | sha256sum \
+                  | awk '{print $1}'
+              )
+
+              if [ "${STREAM_SHA}" = "${ARCHIVE_SHA}" ]; then
                 # Refresh git stat cache so files extracted from the tarball match
                 # the recorded index mtime/size, preventing false-positive dirty status.
                 if [ -d "${STAGING_DIR}/src/.git" ]; then
                   git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
                 fi
+                # Seed vpython cache directory on the runner if present in snapshot
+                if [ -d "${STAGING_DIR}/vpython" ]; then
+                  mkdir -p /runner-cache/vpython
+                  cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
+                fi
                 mkdir -p "/runner-cache/snapshots"
                 mv "${STAGING_DIR}" "${SNAPSHOT_DIR}"
                 LOWER_DIR="${SNAPSHOT_DIR}"
                 echo "Extracted and verified golden workspace snapshot ${ARCHIVE_SHA}"
+              else
+                echo "Snapshot verification failed (expected ${ARCHIVE_SHA}, got ${STREAM_SHA}). Discarding."
+                rm -rf "${STAGING_DIR}"
               fi
-              rm -rf "${STAGING_DIR}"
             fi
           fi
           rm -rf "${MANIFEST_DIR}"

@@ -39,6 +39,12 @@ configure_environment () {
   # Use Kokor's default credentials instead of boto file.
   unset BOTO_PATH
 
+  # Ensure vpython virtualenvs are populated in a persistent directory for snapshot packaging
+  if [ -n "${KOKORO_ARTIFACTS_DIR:-}" ]; then
+    export VPYTHON_VIRTUALENV_ROOT="${KOKORO_ARTIFACTS_DIR}/git/vpython"
+    mkdir -p "${VPYTHON_VIRTUALENV_ROOT}"
+  fi
+
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
@@ -245,10 +251,18 @@ publish_golden_workspace_snapshot () {
   mkdir -p "${staging_dir}"
 
   local archive="${staging_dir}/golden-workspace-latest.tar.zst"
+  local extra_tar_args=()
+  if [[ -d "${gclient_root}/vpython" ]]; then
+    extra_tar_args+=("vpython")
+  elif [[ -d "${HOME}/.cache/vpython" ]]; then
+    extra_tar_args+=("-C" "${HOME}/.cache" "vpython")
+  fi
+
   tar --exclude='src/out' \
       --use-compress-program="zstd -T0 -3" \
       -cf "${archive}" \
-      -C "${gclient_root}" src tools/depot_tools .gclient
+      -C "${gclient_root}" src tools/depot_tools .gclient \
+      "${extra_tar_args[@]}"
 
   local archive_sha
   archive_sha=$(sha256sum "${archive}" | awk '{print $1}')
