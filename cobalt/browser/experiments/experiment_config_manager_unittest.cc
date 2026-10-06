@@ -76,11 +76,11 @@ class ExperimentConfigManagerTest : public testing::Test {
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWhenNotExpired) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -95,11 +95,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyWhenExpired) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -114,11 +114,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWhenExpiredButFeatureDisabled) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, false);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -135,11 +135,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWhenAgeEqualsThreshold) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -154,11 +154,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyForZeroDayThreshold) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 0);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -173,7 +173,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWhenTimestampIsMissing) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
@@ -184,7 +184,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesDefaultThresholdWhenMissing) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
@@ -199,11 +199,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesDefaultThresholdWhenMalformed) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", "thirty");
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -218,11 +218,11 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWithNegativeThreshold) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", -5);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -235,7 +235,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsRegularWithMalformedFeatureFlag) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, "true");
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
@@ -251,7 +251,7 @@ TEST_F(ExperimentConfigManagerTest,
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     kDefaultCrashStreakSafeConfigThreshold);
 
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   // Enable the feature in the SAFE config.
   pref_service_->SetDict(kSafeConfigFeatures, std::move(feature_map));
@@ -268,11 +268,11 @@ TEST_F(ExperimentConfigManagerTest,
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     kDefaultCrashStreakSafeConfigThreshold);
 
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kSafeConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -300,11 +300,11 @@ TEST_F(ExperimentConfigManagerTest,
 }
 
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeIsCached) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -362,11 +362,11 @@ TEST_F(ExperimentConfigManagerTest,
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     0);
 
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -392,7 +392,7 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForEmptyConfig) {
 }
 
 TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsOnlyCalledOnce) {
-  base::Value::Dict initial_features;
+  base::DictValue initial_features;
   initial_features.Set("feature1", true);
   pref_service_->SetDict(kExperimentConfigFeatures, initial_features.Clone());
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
@@ -407,7 +407,7 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsOnlyCalledOnce) {
   EXPECT_EQ(pref_service_->GetDict(kSafeConfigFeatures), initial_features);
 
   // Modify the regular config.
-  base::Value::Dict updated_features;
+  base::DictValue updated_features;
   updated_features.Set("feature2", false);
   pref_service_->SetDict(kExperimentConfigFeatures, updated_features.Clone());
 
@@ -632,7 +632,7 @@ TEST_F(ExperimentConfigManagerTest, CompareVersions) {
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesServerConfiguredThresholds_Regular) {
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
   finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
@@ -647,7 +647,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesServerConfiguredThresholds_Safe) {
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
   finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
@@ -662,7 +662,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesServerConfiguredThresholds_SafeBetween) {
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
   finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
@@ -677,7 +677,7 @@ TEST_F(ExperimentConfigManagerTest,
 
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeUsesServerConfiguredThresholds_Empty) {
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
   finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
@@ -691,11 +691,11 @@ TEST_F(ExperimentConfigManagerTest,
 }
 
 TEST_F(ExperimentConfigManagerTest, HistogramsConfigOutcomeRegular) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
@@ -723,11 +723,11 @@ TEST_F(ExperimentConfigManagerTest, HistogramsSafeModeTriggered) {
 }
 
 TEST_F(ExperimentConfigManagerTest, HistogramsConfigDiscardedExpiration) {
-  base::Value::Dict feature_map;
+  base::DictValue feature_map;
   feature_map.Set(features::kExperimentConfigExpiration.name, true);
   pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
 
-  base::Value::Dict finch_params;
+  base::DictValue finch_params;
   finch_params.Set("experiment_expiration_threshold_days", 30);
   pref_service_->SetDict(kFinchParameters, std::move(finch_params));
 
