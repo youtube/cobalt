@@ -519,7 +519,7 @@ bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
 #endif
 }
 
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     ui::OverlaySurfaceCandidate* candidate,
     const gpu::Mailbox& mailbox,

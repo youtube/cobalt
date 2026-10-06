@@ -792,7 +792,7 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 #endif  // !BUILDFLAG(IS_COBALT)
 }
 
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void PopulateBinderMapWithContext(
     RenderFrameHostImpl* host,
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {

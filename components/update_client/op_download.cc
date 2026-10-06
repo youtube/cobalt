@@ -119,7 +119,7 @@ void DownloadComplete(
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,
@@ -193,7 +193,7 @@ void HandleAvailableSpace(
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,

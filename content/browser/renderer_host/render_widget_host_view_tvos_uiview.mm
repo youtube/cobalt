@@ -655,7 +655,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   return CGRectZero;
 }
 
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #pragma mark - UIResponder
 
 - (BOOL)canBecomeFirstResponder {

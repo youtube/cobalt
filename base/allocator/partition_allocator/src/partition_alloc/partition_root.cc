@@ -1058,7 +1058,7 @@ void PartitionRoot::Init(PartitionOptions opts) {
         opts.scheduler_loop_quarantine_global_config;
 #endif  // BUILDFLAG(IS_COBALT)
     settings.scheduler_loop_quarantine_thread_local_config =
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         opts.scheduler_loop_quarantine_thread_local_config;
 
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)

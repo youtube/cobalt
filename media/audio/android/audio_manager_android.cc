@@ -120,7 +120,7 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
 =======
             reinterpret_cast<jlong>(audio_manager))) {
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     Java_AudioManagerAndroid_init(AttachCurrentThread(), j_audio_manager_);
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   }
