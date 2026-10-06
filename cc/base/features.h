@@ -14,6 +14,14 @@
 
 namespace features {
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, allows the compositor scheduler to send the next
+// BeginMainFrame before the previous commit has activated on the impl tree
+// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
+// frame production with pending tree rasterization and activation.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+#endif  // BUILDFLAG(IS_COBALT)
+
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
@@ -313,14 +321,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 // will cancel the ongoing animation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(
     kBrowserControlsHeightChangeCancelAnimations);
-
-#if BUILDFLAG(IS_COBALT)
-// When enabled, allows the compositor scheduler to send the next
-// BeginMainFrame before the previous commit has activated on the impl tree
-// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
-// frame production with pending tree rasterization and activation.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace features
 
