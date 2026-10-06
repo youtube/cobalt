@@ -108,32 +108,7 @@ config("unwind_starboard_config") {
     "//starboard/build/config:starboard_implementation",
   ]
 
-<<<<<<< HEAD
-  cflags = [
-    "-Wno-unused-command-line-argument",
-    "-Wno-unreachable-code",
-  ]
-  cflags_cc = [
-    "-std=c++17",
-    "-fPIC",
-    "-Werror=return-type",
-    "-fvisibility-inlines-hidden",
-    "-funwind-tables",
-    "-Wall",
-    "-Wextra",
-    "-Wwrite-strings",
-    "-Wno-error",
-    "-Wno-unused-parameter",
-  ]
-  defines = [
-    # Build libunwind with concurrency built upon Starboard mutexes and
-    # condition variables.
-    "_LIBUNWIND_HAS_STARBOARD_THREADS",
-    "NDEBUG",
-  ]
-=======
   defines = [ "NDEBUG" ]
->>>>>>> 9ea4a9616 (starboard: Remove _LIBUNWIND_HAS_STARBOARD_THREADS (#13139))
 }
 
 config("unwind_hide_symbols_config") {
