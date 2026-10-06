@@ -25,7 +25,7 @@ extern "C" {
 
 #if __ANDROID_API__ < 28
 void* aligned_alloc(size_t alignment, size_t size) {
-  if ((alignment & (alignment - 1)) != 0) {
+  if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
     errno = EINVAL;
     return nullptr;
   }
