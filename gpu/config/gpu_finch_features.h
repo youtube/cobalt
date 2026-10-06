@@ -26,6 +26,10 @@ GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
 GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltDecodedImagesMetrics);
 GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                        kCobaltDecodedImagesMetricsInterval);
+
+#if BUILDFLAG(IS_ANDROID)
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // All features in alphabetical order. The features should be documented
