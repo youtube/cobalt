@@ -332,24 +332,13 @@ target(link_target_type, "gles2_sources") {
     "webgpu_decoder.h",
   ]
 
-<<<<<<< HEAD
-=======
-  if (is_android) {
-    sources += [
-      "abstract_texture_android.cc",
-      "abstract_texture_android.h",
-    ]
-  }
-
-  if (is_cobalt && use_starboard_media) {
+if (is_cobalt && use_starboard_media) {
     sources += [
       "shared_image/starboard/starboard_gl_texture_image_backing.cc",
       "shared_image/starboard/starboard_gl_texture_image_backing.h",
     ]
     deps += [ "//starboard:starboard_headers_only" ]
   }
-
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (use_dawn) {
     deps += [ "//gpu/webgpu:common" ]
     sources += [

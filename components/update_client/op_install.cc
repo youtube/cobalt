@@ -98,14 +98,10 @@ void InstallComplete(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,
-<<<<<<< HEAD
-    base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+base::RepeatingCallback<void(base::DictValue)> event_adder,
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& crx_operation_result,
 #else
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::FilePath crx_file,
 #endif
     const CrxInstaller::Result& result) {
@@ -328,14 +324,10 @@ base::OnceClosure InstallOperation(
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
-<<<<<<< HEAD
-    base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>

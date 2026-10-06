@@ -3544,16 +3544,15 @@ test("content_unittests") {
     ]
   }
 
-<<<<<<< HEAD
-  if (enable_smart_card) {
+if (enable_smart_card) {
     sources += [ "../browser/smart_card/emulation/emulated_smart_card_context_factory_unittest.cc" ]
     deps += [ "//content/browser/smart_card/emulation" ]
-=======
+  }
+
   if (!enable_devtools_backend) {
     deps -= [
       "//content/browser/devtools:devtools_background_services_proto",
     ]
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (enable_nocompile_tests) {

@@ -21,16 +21,12 @@ namespace update_client {
 
 // Convenience function to make a simple event for an operation
 // from the error contained by a base::expected, if one exists.
-<<<<<<< HEAD
-base::DictValue MakeSimpleOperationEvent(
-=======
 #if BUILDFLAG(IS_STARBOARD)
-base::Value::Dict MakeSimpleOperationEvent(
+base::DictValue MakeSimpleOperationEvent(
     base::expected<OperationResult, CategorizedError> result,
     const int operation_type);
 #else
-base::Value::Dict MakeSimpleOperationEvent(
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+base::DictValue MakeSimpleOperationEvent(
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type);
 #endif
