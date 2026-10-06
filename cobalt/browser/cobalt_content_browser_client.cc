@@ -493,18 +493,26 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 
-  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
-    // Hand the client hint headers to the network service once, so it can add
-    // them to every request itself, rather than asking the browser through a
-    // TrustedHeaderClient on every request (see WillCreateURLLoaderFactory()).
-    // The values are captured here, when the NetworkContext is created. This
-    // works because all of them are set before the browser starts. If a value
-    // ever needs to change at runtime, add a NetworkContext setter for it, like
-    // SetAcceptLanguage().
-    for (const auto& [name, value] :
-         browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
-      network_context_params->cobalt_extra_request_headers.emplace(name, value);
-    }
+  PopulateCobaltExtraRequestHeaders(network_context_params);
+}
+
+// static
+void CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    return;
+  }
+
+  // Hand the client hint headers to the network service once, so it can add
+  // them to every request itself, rather than asking the browser through a
+  // TrustedHeaderClient on every request (see WillCreateURLLoaderFactory()).
+  // The values are captured here, when the NetworkContext is created. This
+  // works because all of them are set before the browser starts. If a value
+  // ever needs to change at runtime, add a NetworkContext setter for it, like
+  // SetAcceptLanguage().
+  for (const auto& [name, value] :
+       browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
+    network_context_params->cobalt_extra_request_headers.emplace(name, value);
   }
 }
 

@@ -18,7 +18,6 @@
 #include <string>
 #include <variant>
 
-#include "base/files/file_path.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
@@ -108,10 +107,7 @@ class CobaltContentBrowserClientHeaderTest
 
   network::mojom::NetworkContextParamsPtr ConfigureNetworkContextParams() {
     auto params = network::mojom::NetworkContextParams::New();
-    client_.ConfigureNetworkContextParams(
-        /*context=*/nullptr, /*in_memory=*/true,
-        /*relative_partition_path=*/base::FilePath(), params.get(),
-        /*cert_verifier_creation_params=*/nullptr);
+    CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(params.get());
     return params;
   }
 
