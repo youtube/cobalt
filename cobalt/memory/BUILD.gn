@@ -23,16 +23,18 @@ source_set("memory") {
     "//cobalt/browser:features",
   ]
 
-  if (is_starboard) {
-    sources += [
-      "cobalt_system_memory_pressure_evaluator.cc",
-      "cobalt_system_memory_pressure_evaluator.h",
-    ]
-    deps += [
-      "//components/memory_pressure",
-      "//starboard:starboard_headers_only",
-    ]
-  }
+  # TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to
+  # be adapted to the staging branch.
+  # if (is_starboard) {
+  #   sources += [
+  #     "cobalt_system_memory_pressure_evaluator.cc",
+  #     "cobalt_system_memory_pressure_evaluator.h",
+  #   ]
+  #   deps += [
+  #     "//components/memory_pressure",
+  #     "//starboard:starboard_headers_only",
+  #   ]
+  # }
 }
 
 source_set("unit_tests") {
@@ -46,11 +48,13 @@ source_set("unit_tests") {
     "//testing/gtest",
   ]
 
-  if (is_starboard) {
-    sources += [ "cobalt_system_memory_pressure_evaluator_unittest.cc" ]
-    deps += [
-      "//components/memory_pressure",
-      "//starboard:starboard_headers_only",
-    ]
-  }
+  # TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to
+  # be adapted to the staging branch.
+  # if (is_starboard) {
+  #   sources += [ "cobalt_system_memory_pressure_evaluator_unittest.cc" ]
+  #   deps += [
+  #     "//components/memory_pressure",
+  #     "//starboard:starboard_headers_only",
+  #   ]
+  # }
 }
