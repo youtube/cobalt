@@ -56,18 +56,18 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   config->setLatestExperimentConfigHashData(
       String::FromUTF8("latest_hash_data"));
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
 
   ASSERT_TRUE(result.has_value());
-  const base::Value::Dict& dict = result.value();
+  const base::DictValue& dict = result.value();
 
-  const base::Value::Dict* features_dict =
+  const base::DictValue* features_dict =
       dict.FindDict(cobalt::kExperimentConfigFeatures);
   ASSERT_NE(nullptr, features_dict);
   EXPECT_EQ(true, features_dict->FindBool("FeatureA").value_or(false));
   EXPECT_EQ(false, features_dict->FindBool("FeatureB").value_or(true));
 
-  const base::Value::Dict* feature_params_dict =
+  const base::DictValue* feature_params_dict =
       dict.FindDict(cobalt::kExperimentConfigFeatureParams);
   ASSERT_NE(nullptr, feature_params_dict);
   EXPECT_EQ("value1", *feature_params_dict->FindString("ParamString"));
@@ -92,7 +92,7 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatures) {
   config->setActiveExperimentConfigData(String::FromUTF8(""));
   config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -103,7 +103,7 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatureParams) {
   config->setActiveExperimentConfigData(String::FromUTF8(""));
   config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -115,7 +115,7 @@ TEST(ExperimentsUtilsTest,
   config->setLatestExperimentConfigHashData(String::FromUTF8(""));
   // setActiveExperimentConfigData NOT called in this test.
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -127,7 +127,7 @@ TEST(ExperimentsUtilsTest,
   config->setActiveExperimentConfigData(String::FromUTF8(""));
   // setLatestExperimentConfigHashData NOT called in this test.
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -140,16 +140,16 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_AllFieldsPresentButEmpty) {
   config->setActiveExperimentConfigData(String::FromUTF8(""));
   config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_TRUE(result.has_value());
-  const base::Value::Dict& dict = result.value();
+  const base::DictValue& dict = result.value();
 
-  const base::Value::Dict* features_dict =
+  const base::DictValue* features_dict =
       dict.FindDict(cobalt::kExperimentConfigFeatures);
   ASSERT_NE(nullptr, features_dict);
   EXPECT_TRUE(features_dict->empty());
 
-  const base::Value::Dict* feature_params_dict =
+  const base::DictValue* feature_params_dict =
       dict.FindDict(cobalt::kExperimentConfigFeatureParams);
   ASSERT_NE(nullptr, feature_params_dict);
   EXPECT_TRUE(feature_params_dict->empty());
@@ -288,9 +288,9 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionaryDoubleConversion) {
 
   config->setFeatureParams(feature_params_vector);
 
-  std::optional<base::Value::Dict> result = ParseConfigToDictionary(config);
+  std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_TRUE(result.has_value());
-  const base::Value::Dict* params =
+  const base::DictValue* params =
       result->FindDict(cobalt::kExperimentConfigFeatureParams);
   ASSERT_NE(nullptr, params);
 
