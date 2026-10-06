@@ -51,7 +51,7 @@ def _GenerateSabiId(sabi_json, omaha):
 
 
 def DoMain(argv=None):
-  """Function to allow the use of this script from GYP's pymod_do_main."""
+  """Returns the ID of the Starboard ABI JSON file specified in |argv|."""
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument(
       '-o',
