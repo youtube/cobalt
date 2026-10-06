@@ -148,6 +148,11 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   bool CheckIfFamilyMatchesLocaleScript(sk_sp<SkFontStyleSet_Cobalt> new_family,
                                         const char* script);
 
+  // Schedules the background deletion of the font cache files that do not
+  // belong to the current version of one of the local fonts. Only called when
+  // the CobaltMmapFontCache feature is enabled; see SkWoff2FontCache_cobalt.h.
+  void ScheduleMmapFontCacheCleanup();
+
   // Returns the first encountered fallback family that matches the language tag
   // and supports the specified character.
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
