@@ -21,6 +21,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
@@ -32,7 +33,10 @@
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
+#include "media/mojo/mojom/media_service.mojom.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "media/mojo/services/media_service.h"
+#include "media/mojo/services/mojo_media_client.h"
 #include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -506,6 +510,74 @@ TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
   EXPECT_CALL(flush_cb, Run());
   renderer_wrapper_->Flush(flush_cb.Get());
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest,
+       MediaServiceForwardsConcealToWrapperAndStarboardRenderer) {
+  class ConcealTestMojoMediaClient final : public MojoMediaClient {
+   public:
+    explicit ConcealTestMojoMediaClient(
+        StarboardRendererConcealRegistry* registry)
+        : registry_(registry) {}
+
+    void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb) override {
+      registry_->FlushAndSuspendActiveRenderers(std::move(done_cb));
+    }
+
+    void ResumeActiveRenderers() override {
+      registry_->ResumeActiveRenderers();
+    }
+
+   private:
+    raw_ptr<StarboardRendererConcealRegistry> registry_;
+  };
+
+  StarboardRendererConcealRegistry conceal_registry;
+  mojo::Remote<mojom::MediaService> media_service_remote;
+  MediaService media_service(
+      std::make_unique<ConcealTestMojoMediaClient>(&conceal_registry),
+      media_service_remote.BindNewPipeAndPassReceiver());
+
+  mojo::PendingReceiver<mojom::MediaLog> media_log;
+  mojo::Remote<RendererExtension> renderer_extension;
+  mojo::PendingReceiver<ClientExtension> client_extension;
+  StarboardRendererTraits traits(
+      task_environment_.GetMainThreadTaskRunner(),
+      task_environment_.GetMainThreadTaskRunner(),
+      media_log.InitWithNewPipeAndPassRemote(), &video_geometry_setter_service_,
+      base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
+      std::string(), std::string(),
+      StarboardRendererConfig::ExperimentalFeatures{}, gfx::Size(),
+      renderer_extension.BindNewPipeAndPassReceiver(),
+      client_extension.InitWithNewPipeAndPassRemote(), base::NullCallback());
+  traits.conceal_registry = &conceal_registry;
+
+  StarboardRendererWrapper wrapper(std::move(traits)
+#if BUILDFLAG(IS_ANDROID)
+                                       ,
+                                   /*ref_counted_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+  wrapper.SetGpuFactoryForTesting(&gpu_factory_);
+
+  EXPECT_FALSE(conceal_registry.IsConcealed());
+
+  base::RunLoop conceal_loop;
+  media_service_remote->FlushAndSuspendActiveRenderers(
+      conceal_loop.QuitClosure());
+  conceal_loop.Run();
+  EXPECT_TRUE(conceal_registry.IsConcealed());
+
+  // Initializing the wrapper's real StarboardRenderer while concealed fails
+  // immediately with PIPELINE_ERROR_ABORT.
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_ERROR_ABORT)));
+  wrapper.Initialize(&media_resource_, &renderer_client_,
+                     renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  media_service_remote->ResumeActiveRenderers();
+  media_service_remote.FlushForTesting();
+  EXPECT_FALSE(conceal_registry.IsConcealed());
 }
 
 }  // namespace

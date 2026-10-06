@@ -194,7 +194,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-              ),
+              ,
+          traits.conceal_registry),
       renderer_extension_receiver_(
           this,
           std::move(traits.renderer_extension_receiver)),

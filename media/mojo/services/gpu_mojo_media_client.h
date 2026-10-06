@@ -71,6 +71,7 @@ struct VideoDecoderTraits {
 };
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+class StarboardRendererConcealRegistry;
 using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
 
 // Encapsulate parameters to pass to StarboardRenderer.
@@ -96,6 +97,11 @@ struct StarboardRendererTraits {
   
   // StarboardRenderer uses this to create an AndroidOverlay.
   AndroidOverlayMojoFactoryCB android_overlay_factory_cb;
+
+#if BUILDFLAG(IS_COBALT)
+  // Owned by GpuMojoMediaClientStarboard to coordinate conceal teardown.
+  raw_ptr<StarboardRendererConcealRegistry> conceal_registry = nullptr;
+#endif  // BUILDFLAG(IS_COBALT)
 
   StarboardRendererTraits(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
