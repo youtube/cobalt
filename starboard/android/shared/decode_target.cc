@@ -75,7 +75,7 @@ DecodeTarget::~DecodeTarget() {
 
   if (info_.planes[0].texture != 0) {
     glDeleteTextures(1, &info_.planes[0].texture);
-    SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+    SB_CHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
   }
 }
 

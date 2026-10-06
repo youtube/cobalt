@@ -836,7 +836,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
-      SB_DCHECK(!decode_target_);
+      SB_CHECK(!decode_target_);
       // Transfer the reference into the raw `decode_target_` pointer. Starboard
       // keeps this initial ownership so that handing out references to
       // Chromium (GetCurrentDecodeTarget()) cannot delete the texture
