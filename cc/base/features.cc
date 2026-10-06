@@ -16,11 +16,25 @@ namespace {
 std::atomic<bool> s_is_eligible_for_throttle_main_frame_to_60hz = false;
 }  // namespace
 
+<<<<<<< HEAD
 // When enabled, this forces raster translation to be computed using screen
 // space and draw transforms scaled by external page scale factor.
 // Whithout this, text in OOPIFs that isn't aligned to the pixel grid may appear
 // blurry. https://crbug.com/399478935
 BASE_FEATURE(kComputeRasterTranslateForExternalScale,
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltMainFrameBeforeActivation,
+             "CobaltMainFrameBeforeActivation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
+// When enabled, this forces composited textures for SurfaceLayerImpls to be
+// aligned to the pixel grid. Lack of alignment can lead to blur, noticeably so
+// in text. https://crbug.com/359279545
+BASE_FEATURE(kAlignSurfaceLayerImplToPixelGrid,
+             "AlignSurfaceLayerImplToPixelGrid",
+>>>>>>> 861af764ec5 (cc/base/features.{cc,h}: Move kCobaltMainFrameBeforeActivation to the top of the files (#13134))
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether the compositor should attempt to sync with the scroll handlers before
@@ -276,11 +290,5 @@ BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kCobaltMainFrameBeforeActivation,
-             "CobaltMainFrameBeforeActivation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace features
