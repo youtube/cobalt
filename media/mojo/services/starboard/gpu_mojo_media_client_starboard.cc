@@ -41,6 +41,14 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
   }
   ~GpuMojoMediaClientStarboard() final = default;
 
+  void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb) final {
+    conceal_registry_.FlushAndSuspendActiveRenderers(std::move(done_cb));
+  }
+
+  void ResumeActiveRenderers() final {
+    conceal_registry_.ResumeActiveRenderers();
+  }
+
  protected:
   std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
       VideoDecoderTraits& traits) final {
@@ -69,6 +77,7 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
 
   std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
       StarboardRendererTraits traits) final {
+    traits.conceal_registry = &conceal_registry_;
 #if BUILDFLAG(IS_ANDROID)
     traits.android_overlay_factory_cb = android_overlay_factory_cb_;
     scoped_refptr<gpu::RefCountedLock> ref_counted_lock;
@@ -91,6 +100,7 @@ class GpuMojoMediaClientStarboard final : public GpuMojoMediaClient {
 #if BUILDFLAG(IS_ANDROID)
   AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+  StarboardRendererConcealRegistry conceal_registry_;
 };
 
 std::unique_ptr<GpuMojoMediaClient> CreateGpuMediaService(

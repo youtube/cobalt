@@ -16,11 +16,15 @@
 #include "base/unguessable_token.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "content/public/browser/media_service.h"
 #include "content/public/renderer/render_frame_media_playback_options.h"
 #include "content/test/test_web_contents.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
+#include "media/mojo/mojom/media_service.mojom.h"
 #include "media/starboard/starboard_renderer.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,23 +34,43 @@ namespace content {
 
 namespace {
 
-// Scoped test helper that registers a real media::StarboardRenderer on a
+// Scoped test helper that binds a media::mojom::MediaService receiver owning a
+// media::StarboardRendererConcealRegistry and a media::StarboardRenderer on a
 // manual base::TestSimpleTaskRunner so unit tests can deterministically step
-// the media conceal barrier and verify conceal/reveal state without test hooks
-// in StarboardRenderer.
-class FakeStarboardRendererBarrier {
+// the media conceal barrier and verify conceal/reveal state across Mojo.
+class FakeStarboardRendererBarrier final : public media::mojom::MediaService {
  public:
-  FakeStarboardRendererBarrier() : renderer_(CreateRenderer()) {}
+  FakeStarboardRendererBarrier() : renderer_(CreateRenderer()) {
+    OverrideMediaServiceForTesting(remote_.get());
+  }
 
-  ~FakeStarboardRendererBarrier() {
+  ~FakeStarboardRendererBarrier() override {
+    OverrideMediaServiceForTesting(nullptr);
+    ResumeMediaServiceOnUI();
+    remote_.reset();
+    receiver_.reset();
     renderer_.reset();
     media_task_runner_->ClearPendingTasks();
-    media::StarboardRenderer::ResumeActiveRenderers();
+  }
+
+  // media::mojom::MediaService implementation:
+  void CreateInterfaceFactory(
+      mojo::PendingReceiver<media::mojom::InterfaceFactory> receiver,
+      mojo::PendingRemote<media::mojom::FrameInterfaceFactory> frame_interfaces)
+      override {}
+
+  void FlushAndSuspendActiveRenderers(
+      FlushAndSuspendActiveRenderersCallback callback) override {
+    conceal_registry_.FlushAndSuspendActiveRenderers(std::move(callback));
+  }
+
+  void ResumeActiveRenderers() override {
+    conceal_registry_.ResumeActiveRenderers();
   }
 
   bool suspend_called() const { return media_task_runner_->HasPendingTask(); }
 
-  bool IsConcealed() const {
+  bool IsConcealed() {
     std::unique_ptr<media::StarboardRenderer> probe = CreateRenderer();
     testing::NiceMock<media::MockMediaResource> media_resource;
     testing::NiceMock<media::MockRendererClient> renderer_client;
@@ -61,6 +85,7 @@ class FakeStarboardRendererBarrier {
   void CompleteSuspend() { media_task_runner_->RunPendingTasks(); }
 
   base::OnceClosure TakePendingCallback() {
+    EXPECT_EQ(media_task_runner_->NumPendingTasks(), 1u);
     auto tasks = media_task_runner_->TakePendingTasks();
     if (tasks.empty()) {
       return {};
@@ -69,7 +94,7 @@ class FakeStarboardRendererBarrier {
   }
 
  private:
-  std::unique_ptr<media::StarboardRenderer> CreateRenderer() const {
+  std::unique_ptr<media::StarboardRenderer> CreateRenderer() {
     return std::make_unique<media::StarboardRenderer>(
         media_task_runner_, std::make_unique<media::NullMediaLog>(),
         /*overlay_plane_id=*/base::UnguessableToken::Create(),
@@ -78,17 +103,20 @@ class FakeStarboardRendererBarrier {
         /*max_video_capabilities=*/"",
         /*max_video_resolution=*/"",
         media::StarboardRendererConfig::ExperimentalFeatures{},
-        /*viewport_size=*/gfx::Size()
+        /*viewport_size=*/gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
-            ,
-        /*android_overlay_factory_cb=*/media::AndroidOverlayMojoFactoryCB()
+        /*android_overlay_factory_cb=*/media::AndroidOverlayMojoFactoryCB(),
 #endif  // BUILDFLAG(IS_ANDROID)
-    );
+        &conceal_registry_);
   }
 
   scoped_refptr<base::TestSimpleTaskRunner> media_task_runner_ =
       base::MakeRefCounted<base::TestSimpleTaskRunner>();
+  media::StarboardRendererConcealRegistry conceal_registry_;
   std::unique_ptr<media::StarboardRenderer> renderer_;
+  mojo::Remote<media::mojom::MediaService> remote_;
+  mojo::Receiver<media::mojom::MediaService> receiver_{
+      this, remote_.BindNewPipeAndPassReceiver()};
 };
 
 }  // namespace
@@ -123,7 +151,8 @@ class LifecycleTest : public ShellTestBase {
   }
 
   void TearDown() override {
-    media::StarboardRenderer::ResumeActiveRenderers();
+    OverrideMediaServiceForTesting(nullptr);
+    ResumeMediaServiceOnUI();
     if (shell_) {
       EXPECT_CALL(*platform_, DestroyShell(shell_));
       EXPECT_CALL(*platform_, CleanUp(shell_));
@@ -365,13 +394,13 @@ TEST_F(LifecycleTest, RapidRevealAndConcealIgnoresStaleMediaBarrierCallback) {
   task_environment()->RunUntilIdle();
   EXPECT_TRUE(platform_->IsVisible());
 
-  // Second Conceal: enter media barrier again and capture the new callback.
+  // Second Conceal (while web_contents is still hidden before reveal
+  // completes): OnConceal() enters the media barrier directly via the
+  // pending_conceal_web_contents_.empty() path.
   EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
     platform_->ShellPlatformDelegate::OnConceal();
   });
   Shell::OnConceal();
-  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
-      ->OnAllFramesConcealed(shell_->web_contents());
   task_environment()->RunUntilIdle();
   base::OnceClosure active_barrier_cb = fake_barrier.TakePendingCallback();
   ASSERT_FALSE(active_barrier_cb.is_null());
@@ -388,6 +417,40 @@ TEST_F(LifecycleTest, RapidRevealAndConcealIgnoresStaleMediaBarrierCallback) {
   EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
   std::move(active_barrier_cb).Run();
   task_environment()->RunUntilIdle();
+}
+
+TEST_F(LifecycleTest,
+       MediaServiceLazilyBoundWhileConcealedInheritsConcealedState) {
+  CreateTestShell(true /* is_visible */);
+
+  // Conceal before any MediaService is bound. ConcealShell completes
+  // immediately without waiting for an unbound service.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(platform_->IsVisible());
+
+  // Binding a MediaService while concealed propagates the concealed state.
+  FakeStarboardRendererBarrier fake_barrier;
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.suspend_called());
+  EXPECT_TRUE(fake_barrier.IsConcealed());
+  fake_barrier.CompleteSuspend();
+  task_environment()->RunUntilIdle();
+
+  // Revealing clears the concealed state on the now-bound MediaService.
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(fake_barrier.IsConcealed());
 }
 
 }  // namespace content

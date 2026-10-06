@@ -29,4 +29,16 @@ interface MediaService {
   CreateInterfaceFactory(
       pending_receiver<InterfaceFactory> factory,
       pending_remote<FrameInterfaceFactory> frame_interfaces);
+
+  // Drains pending renderer disconnects on active StarboardRenderer sequences,
+  // fallback-suspends any remaining active StarboardRenderer instances so
+  // SbPlayerDestroy completes before the native window is destroyed, and
+  // prevents new SbPlayerBridge creations while concealed.
+  [EnableIf=use_starboard_media]
+  FlushAndSuspendActiveRenderers() => ();
+
+  // Clears the concealed state so newly created or resumed renderers can
+  // create SbPlayerBridge instances again.
+  [EnableIf=use_starboard_media]
+  ResumeActiveRenderers();
 };

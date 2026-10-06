@@ -108,6 +108,15 @@ std::unique_ptr<Renderer> MojoMediaClient::CreateStarboardRenderer(
           client_extension_remote) {
   return nullptr;
 }
+
+#if BUILDFLAG(IS_COBALT)
+void MojoMediaClient::FlushAndSuspendActiveRenderers(
+    base::OnceClosure done_cb) {
+  std::move(done_cb).Run();
+}
+
+void MojoMediaClient::ResumeActiveRenderers() {}
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<CdmFactory> MojoMediaClient::CreateCdmFactory(

@@ -157,7 +157,7 @@ sequenceDiagram
   participant Delegate as AppEventDelegate <br/> (Sequencer)
   participant Runner as AppEventRunnerImpl <br/> (Orchestrator)
   participant Shell as ShellPlatformDelegate <br/> (Browser UI)
-  participant Media as StarboardRenderer <br/> (Media Sequence)
+  participant Media as MediaService / <br/> StarboardRenderer
   participant Manager as CobaltLifecycleManager <br/> (Observer)
   participant Blink as Blink Core & WMPI <br/> (Renderer)
   participant Controller as CobaltLifecycle <br/> Controller
@@ -175,9 +175,9 @@ sequenceDiagram
   Controller->>Manager: Mojo: OnPageVisibilityChanged(hidden)
   Note over Manager: All active frames completed Conceal!
   Manager->>Shell: OnAllFramesConcealed(web_contents)
-  Shell->>Media: StarboardRenderer::FlushAndSuspendActiveRenderers()
+  Shell->>Media: FlushAndSuspendMediaServiceOnUI()
   Note over Media: Flushes & destroys active SbPlayers<br/>(SbPlayerDestroy completes on media thread)
-  Media-->>Shell: FlushAndSuspendActiveRenderers callback
+  Media-->>Shell: FlushAndSuspendMediaServiceOnUI callback
   Note over Shell: CompleteConcealAfterMediaBarrier:<br/>1. ConcealShell() (SbWindowDestroy)<br/>2. CleanupGpuProcessOnUI() (eglTerminate)
   Shell->>Manager: OnConcealCompleted(web_contents)
   Manager->>Runner: OnConcealCompleted(web_contents)
@@ -251,7 +251,7 @@ sequenceDiagram
 ```
 
 ### D. Reveal Transition
-This sequence diagram illustrates how the browser restores GPU and `StarboardRenderer` state (`RestoreGpuProcessOnUI` and `StarboardRenderer::ResumeActiveRenderers`), recreates the platform window (`RevealShell`), blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and conditionally auto-resumes media playback when the web application did not explicitly pause or tear down the player on conceal:
+This sequence diagram illustrates how the browser restores GPU and `MediaService` state (`RestoreGpuProcessOnUI` and `ResumeMediaServiceOnUI`), recreates the platform window (`RevealShell`), blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and conditionally auto-resumes media playback when the web application did not explicitly pause or tear down the player on conceal:
 
 ```mermaid
 sequenceDiagram
@@ -260,7 +260,7 @@ sequenceDiagram
   participant Delegate as AppEventDelegate <br/> (Sequencer)
   participant Runner as AppEventRunnerImpl <br/> (Orchestrator)
   participant Shell as ShellPlatformDelegate <br/> (Browser UI)
-  participant Media as StarboardRenderer <br/> (Media Sequence)
+  participant Media as MediaService / <br/> StarboardRenderer
   participant Manager as CobaltLifecycleManager <br/> (Observer)
   participant Blink as Blink Core & WMPI <br/> (Renderer)
   participant Controller as CobaltLifecycle <br/> Controller
@@ -269,8 +269,8 @@ sequenceDiagram
   Note over Delegate: Resolve intermediate step:<br/>kConcealed ➔ kBlurred
   Delegate->>Runner: DoReveal()
   Runner->>Shell: ShellPlatformDelegate::OnReveal()
-  Note over Shell: 1. RestoreGpuProcessOnUI()<br/>2. StarboardRenderer::ResumeActiveRenderers()<br/>3. RevealShell() (SbWindowCreate)
-  Shell->>Media: StarboardRenderer::ResumeActiveRenderers()
+  Note over Shell: 1. RestoreGpuProcessOnUI()<br/>2. ResumeMediaServiceOnUI()<br/>3. RevealShell() (SbWindowCreate)
+  Shell->>Media: ResumeMediaServiceOnUI()
   Shell->>Blink: Mojo: blink::mojom::Widget::WasShown() <br/> (via WebContents::WasShown)
   Note over Runner: Initialize visual wait state:<br/>pending_ack_ = kReveal
   Note over Runner: WaitForAck(kReveal)<br/>(Blocks UI thread via nested RunLoop)
@@ -585,7 +585,7 @@ sequenceDiagram
 4.  **Wait-State Injection**: The runner caches any test mock callback, sets the active wait type (`pending_ack_ = kCookieFlush`), and calls its unified blocking helper `WaitForAck()`.
 5.  **UI Main Thread Sleep**: Inside `WaitForAck()`, the runner authorizes synchronous waits, triggers the transition work (either registering Mojo layout ACKs in `CobaltLifecycleManager` OR launching local Cookies and LocalStorage flushes in `ContentBrowserClient`), and **synchronously sleeps the UI thread inside a nested `base::RunLoop`**.
 6.  **Mojo/Hardware/Storage Completion**:
-    *   *Mojo Viewports & Conceal Hardware Barrier*: As the Blink frame processes visibility or focus changes, it sends ACKs over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals. On conceal, once all active frames report concealed (`OnAllFramesConcealed`), `ShellPlatformDelegate` executes the 3-step hardware teardown barrier: (a) `media::StarboardRenderer::FlushAndSuspendActiveRenderers` flushes and destroys any active `SbPlayer` instances (`SbPlayerDestroy`) on the media thread, (b) `ConcealShell` unmaps the platform window (`SbWindowDestroy`), and (c) `content::CleanupGpuProcessOnUI` tears down GPU resources (`eglTerminate`) and invokes `CobaltLifecycleManager::OnConcealCompleted`.
+    *   *Mojo Viewports & Conceal Hardware Barrier*: As the Blink frame processes visibility or focus changes, it sends ACKs over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals. On conceal, once all active frames report concealed (`OnAllFramesConcealed`), `ShellPlatformDelegate` executes the 3-step hardware teardown barrier: (a) `content::FlushAndSuspendMediaServiceOnUI` (`StarboardRendererConcealRegistry::FlushAndSuspendActiveRenderers` in `GpuMojoMediaClientStarboard`) flushes and destroys any active `SbPlayer` instances (`SbPlayerDestroy`) on the media thread, (b) `ConcealShell` unmaps the platform window (`SbWindowDestroy`), and (c) `content::CleanupGpuProcessOnUI` tears down GPU resources (`eglTerminate`) and invokes `CobaltLifecycleManager::OnConcealCompleted`.
     *   *Disk Storage*: Once the Cookies and LocalStorage storage thread finishes writing files to disk, the storage client executes the runner's local callback `OnCookieFlushComplete()`.
 7.  **Nested Loop Quit (or Timeout Warning)**: The runner's callback handler receives the completion signal (`OnConcealCompleted`, `OnAllFramesVisible`, `OnAllFramesBlurred`, or `OnCookieFlushComplete`) and calls `std::move(quit_closure_).Run()`, waking up the sleeping UI thread. If the transition exceeds `kTransitionTimeout` (5 seconds) and is unblocked by the delayed timeout task instead, `quit_closure_` remains non-null; `WaitForAck()` logs a `LOG(WARNING)` and resets `quit_closure_`.
 8.  **State Finalization**: The nested loop exits, `WaitForAck()` returns, the runner transition wrapper returns synchronously to `AppEventDelegate`, and the delegate immediately updates its canonical state (`SetApplicationState(...)`), safely triggering the next sequential step.
