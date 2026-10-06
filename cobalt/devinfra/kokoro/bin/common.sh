@@ -236,12 +236,6 @@ run_package_release_pipeline () {
 }
 
 publish_golden_workspace_snapshot () {
-  local signing_key="${KOKORO_KEYSTORE_DIR:-}/77805_cobalt-golden-workspace-signing-key"
-  if [[ ! -f "${signing_key}" ]]; then
-    echo "Notice: Golden workspace signing key not present at ${signing_key}. Skipping archive publish."
-    return 0
-  fi
-
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
   local platform="${PLATFORM:-linux}"
   local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
@@ -283,15 +277,10 @@ publish_golden_workspace_snapshot () {
 }
 EOF
 
-  echo "==> Signing manifest with Kokoro Keystore key..."
-  local signature="${staging_dir}/manifest.sig"
-  openssl dgst -sha256 -sign "${signing_key}" -out "${signature}" "${manifest}"
-
-  echo "==> Uploading golden workspace snapshot, manifest, and signature to gs://${bucket}/${platform}/..."
+  echo "==> Uploading golden workspace snapshot to gs://${bucket}/${platform}/..."
   init_gcloud
   "${GSUTIL}" cp "${archive}" "gs://${bucket}/${platform}/golden-workspace-latest.tar.zst"
   "${GSUTIL}" cp "${manifest}" "gs://${bucket}/${platform}/manifest.json"
-  "${GSUTIL}" cp "${signature}" "gs://${bucket}/${platform}/manifest.sig"
 
   rm -rf "${staging_dir}"
 }

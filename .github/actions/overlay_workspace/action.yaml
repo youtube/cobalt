@@ -57,46 +57,14 @@ runs:
           '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
         gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json 2>/dev/null || true
 
-    - name: Verify Signed Golden Snapshot Manifest
-      id: verify-manifest
-      shell: bash
-      env:
-        PLATFORM_INPUT: ${{ inputs.platform }}
-      run: |
-        PUBKEY="${GITHUB_WORKSPACE}/.github/security/golden-workspace-pubkey.pem"
-        verified_sha=""
-
-        if [ -w "/runner-cache" ] && [ -f "${PUBKEY}" ]; then
-          MANIFEST_DIR="${RUNNER_TEMP}/manifest-$$"
-          mkdir -p "${MANIFEST_DIR}"
-          # Store snapshots in Kokoro build-artifacts bucket with strict write isolation from presubmits
-          GOLDEN_WORKSPACE_BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
-          MANIFEST_GCS="gs://${GOLDEN_WORKSPACE_BUCKET}/${PLATFORM_INPUT}/manifest.json"
-          SIG_GCS="gs://${GOLDEN_WORKSPACE_BUCKET}/${PLATFORM_INPUT}/manifest.sig"
-
-          if gcloud storage cp "${MANIFEST_GCS}" "${MANIFEST_DIR}/manifest.json" 2>/dev/null && \
-             gcloud storage cp "${SIG_GCS}" "${MANIFEST_DIR}/manifest.sig" 2>/dev/null && \
-             openssl dgst -sha256 -verify "${PUBKEY}" -signature "${MANIFEST_DIR}/manifest.sig" "${MANIFEST_DIR}/manifest.json" >/dev/null 2>&1; then
-            verified_sha=$(jq -r '.archive_sha256' "${MANIFEST_DIR}/manifest.json")
-            echo "Manifest verified successfully: SHA256=${verified_sha}"
-          else
-            echo "Notice: Manifest verification failed or snapshot not found in GCS."
-          fi
-          rm -rf "${MANIFEST_DIR}"
-        fi
-        echo "verified_sha=${verified_sha}" >> "${GITHUB_OUTPUT}"
-
     - name: Hydrate Snapshot from GCS
       id: hydrate-snapshot
-      if: steps.verify-manifest.outputs.verified_sha != ''
       shell: bash
       env:
         PLATFORM_INPUT: ${{ inputs.platform }}
-        ARCHIVE_SHA: ${{ steps.verify-manifest.outputs.verified_sha }}
       run: |
-        SNAPSHOT_DIR="/runner-cache/snapshots/${ARCHIVE_SHA}"
-        if [ -d "${SNAPSHOT_DIR}" ]; then
-          echo "Snapshot ${ARCHIVE_SHA} already present on local SSD."
+        LOWER_DIR="/runner-cache/golden-workspace"
+        if [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
           exit 0
         fi
 
@@ -107,14 +75,8 @@ runs:
         mkdir -p "${STAGING_DIR}"
 
         echo "Streaming and decompressing snapshot from ${ARCHIVE_GCS}..."
-        STREAM_SHA=$(
-          gcloud storage cat "${ARCHIVE_GCS}" 2>/dev/null \
-            | tee >(tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") \
-            | sha256sum \
-            | awk '{print $1}'
-        )
-
-        if [ "${STREAM_SHA}" = "${ARCHIVE_SHA}" ]; then
+        if gcloud storage cat "${ARCHIVE_GCS}" 2>/dev/null \
+            | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
           # Refresh git stat cache so files extracted from the tarball match
           # the recorded index mtime/size, preventing false-positive dirty status.
           if [ -d "${STAGING_DIR}/src/.git" ]; then
@@ -125,25 +87,20 @@ runs:
             mkdir -p /runner-cache/vpython
             cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
           fi
-          mkdir -p "/runner-cache/snapshots"
-          mv "${STAGING_DIR}" "${SNAPSHOT_DIR}"
-          echo "Extracted and verified golden workspace snapshot ${ARCHIVE_SHA}"
+          rm -rf "${LOWER_DIR}"
+          mv "${STAGING_DIR}" "${LOWER_DIR}"
+          echo "Extracted golden workspace snapshot to ${LOWER_DIR}"
         else
-          echo "Error: Snapshot verification failed (expected ${ARCHIVE_SHA}, got ${STREAM_SHA}). Discarding."
+          echo "Notice: Golden workspace archive not found or failed to stream from GCS."
           rm -rf "${STAGING_DIR}"
-          exit 1
         fi
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
       shell: bash
-      env:
-        ARCHIVE_SHA: ${{ steps.verify-manifest.outputs.verified_sha }}
       run: |
         lower_dir=""
-        if [ -n "${ARCHIVE_SHA}" ] && [ -d "/runner-cache/snapshots/${ARCHIVE_SHA}" ]; then
-          lower_dir="/runner-cache/snapshots/${ARCHIVE_SHA}"
-        elif [ -d "/runner-cache/golden-workspace" ]; then
+        if [ -d "/runner-cache/golden-workspace" ]; then
           lower_dir="/runner-cache/golden-workspace"
         fi
 
