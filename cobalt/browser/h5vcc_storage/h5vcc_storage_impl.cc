@@ -19,12 +19,14 @@
 #include <optional>
 #include <vector>
 
+#include "base/base_paths.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -43,8 +45,24 @@ namespace {
 #if BUILDFLAG(USE_EVERGREEN)
 const char kCrashpadDBName[] = "crashpad_database";
 #endif
+#if !BUILDFLAG(IS_ANDROID)
 constexpr char kTestFileName[] = "cache_test_file.json";
-constexpr uint32_t kBufferSize = 16 * 1024;
+constexpr uint32_t kBufferSizeBytes = 16 * 1024;
+
+base::FilePath GetCacheDirectory() {
+  base::FilePath cache_path;
+  if (!base::PathService::Get(base::DIR_CACHE, &cache_path)) {
+    return base::FilePath();
+  }
+  // On non-hermetic Linux (linux-x64x11), base::DIR_CACHE resolves to
+  // $XDG_CACHE_HOME (~/.cache). Scope it to "cobalt" to match Starboard
+  // and prevent operations on the user's root cache directory.
+  if (cache_path.BaseName() == base::FilePath(FILE_PATH_LITERAL(".cache"))) {
+    cache_path = cache_path.Append(FILE_PATH_LITERAL("cobalt"));
+  }
+  return cache_path;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -107,29 +125,31 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
                                  const std::string& test_string,
                                  WriteTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  std::move(callback).Run(std::nullopt,
+                          "WriteTest is not supported on Android.");
+#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_written;
   std::optional<std::string> error;
 
-  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
-                       kSbFileMaxPath)) {
+  base::FilePath cache_path = GetCacheDirectory();
+  if (cache_path.empty()) {
     error = "Failed to get cache directory path.";
     std::move(callback).Run(bytes_written, error);
     return;
   }
-  base::FilePath cache_path = base::FilePath(cache_dir.data());
 
   if (!base::DeletePathRecursively(cache_path)) {
     error = "Failed to delete cache directory.";
     std::move(callback).Run(bytes_written, error);
     return;
-  };
+  }
   if (!base::CreateDirectory(cache_path)) {
     error = "Failed to create cache directory.";
     std::move(callback).Run(bytes_written, error);
     return;
-  };
+  }
 
   base::FilePath test_file_path = cache_path.Append(kTestFileName);
   base::File test_file(test_file_path,
@@ -157,7 +177,7 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   do {
     auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
         write_buffer.data() + total_bytes_written,
-        std::min(kBufferSize, test_size - total_bytes_written));
+        std::min(kBufferSizeBytes, test_size - total_bytes_written));
     if (current_bytes_written <= 0) {
       base::DeleteFile(test_file_path);
       error = "SbWrite -1 return value error";
@@ -171,27 +191,31 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
 
   bytes_written = total_bytes_written;
   std::move(callback).Run(bytes_written, error);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void H5vccStorageImpl::VerifyTest(uint32_t test_size,
                                   const std::string& test_string,
                                   VerifyTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  std::move(callback).Run(std::nullopt,
+                          "VerifyTest is not supported on Android.",
+                          /*verified=*/false);
+#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_read;
   std::optional<std::string> error;
   bool verified = false;
 
-  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
-                       kSbFileMaxPath)) {
+  base::FilePath cache_path = GetCacheDirectory();
+  if (cache_path.empty()) {
     error = "Failed to get cache directory path.";
     std::move(callback).Run(bytes_read, error, verified);
     return;
   }
 
-  base::FilePath test_file_path =
-      base::FilePath(cache_dir.data()).Append(kTestFileName);
+  base::FilePath test_file_path = cache_path.Append(kTestFileName);
   base::File test_file(test_file_path,
                        base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!test_file.IsValid()) {
@@ -206,9 +230,10 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   uint32_t total_bytes_read = 0;
 
   do {
-    auto read_buffer = std::make_unique<char[]>(kBufferSize);
+    auto read_buffer = std::make_unique<char[]>(kBufferSizeBytes);
     auto current_bytes_read = test_file.ReadAtCurrentPosNoBestEffort(
-        read_buffer.get(), std::min(kBufferSize, test_size - total_bytes_read));
+        read_buffer.get(),
+        std::min(kBufferSizeBytes, test_size - total_bytes_read));
     if (current_bytes_read <= 0) {
       base::DeleteFile(test_file_path);
       error = "SbRead -1 return value error";
@@ -240,6 +265,7 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   verified = true;
   bytes_read = total_bytes_read;
   std::move(callback).Run(bytes_read, error, verified);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace h5vcc_storage
