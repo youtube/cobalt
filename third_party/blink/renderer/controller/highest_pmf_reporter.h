@@ -72,6 +72,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   unsigned webpage_counts_at_current_highest_pmf_ = 0;
   unsigned report_count_ = 0;
 #if BUILDFLAG(IS_COBALT)
+  bool AreInitialMetricsReported() const;
+
   static HighestPmfReporter* instance_;
 
   struct MetricInfo {
@@ -83,8 +85,9 @@ class CONTROLLER_EXPORT HighestPmfReporter
   };
   WTF::Vector<MetricInfo> metrics_;
 
-  // True after the process has been backgrounded at least once. When false,
-  // metrics are reported for the initial startup navigation.
+  // True after the process has been backgrounded at least once following the
+  // initial startup metrics cycle. When false, metrics are reported for the
+  // initial startup navigation.
   bool has_been_backgrounded_once_ = false;
   base::CancelableOnceClosure cancelable_report_task_;
 #endif
