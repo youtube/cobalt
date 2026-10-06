@@ -56,11 +56,6 @@ BASE_FEATURE_PARAM(int,
 
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
-<<<<<<< HEAD
-BASE_FEATURE(kCobaltInProcessImageTransferCache,
-             "CobaltInProcessImageTransferCache",
-             FEATURE_DISABLED_BY_DEFAULT);
-=======
 // Disabled by default on Android and tvOS, enabled by default on other
 // platforms.
 BASE_FEATURE(kCobaltInProcessImageTransferCache,
@@ -70,7 +65,6 @@ BASE_FEATURE(kCobaltInProcessImageTransferCache,
 #else   // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
              FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
->>>>>>> d477e5f07 (cobalt: Disable in-process transfer cache on tvOS (#13107))
 
 BASE_FEATURE(kCobaltCCImageCacheLimitItems,
              "CobaltCCImageCacheLimitItems",
