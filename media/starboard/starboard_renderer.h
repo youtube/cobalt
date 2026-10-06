@@ -19,9 +19,13 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/cdm_context.h"
@@ -46,6 +50,51 @@ namespace media {
 using base::Time;
 using base::TimeDelta;
 
+class StarboardRenderer;
+
+// Tracks active StarboardRenderer instances and conceal state so
+// FlushAndSuspendActiveRenderers() can drain pending renderer disconnects and
+// fallback-suspend remaining renderers before the native window is destroyed on
+// kSbEventTypeConceal.
+//
+// Ownership and lifetime: Owned by GpuMojoMediaClientStarboard (via
+// MediaService::mojo_media_client_) in production, or by test fixtures in unit
+// tests. Must outlive all StarboardRenderer instances registered with it; in
+// MediaService, interface_factory_receivers_ is declared after
+// mojo_media_client_ and is therefore destroyed first.
+//
+// Threading model: Thread-safe. All public methods synchronize access via an
+// internal lock and may be called from any thread or sequence.
+class MEDIA_EXPORT StarboardRendererConcealRegistry {
+ public:
+  StarboardRendererConcealRegistry();
+  StarboardRendererConcealRegistry(const StarboardRendererConcealRegistry&) =
+      delete;
+  StarboardRendererConcealRegistry& operator=(
+      const StarboardRendererConcealRegistry&) = delete;
+  ~StarboardRendererConcealRegistry();
+
+  void Register(StarboardRenderer* renderer,
+                scoped_refptr<base::SequencedTaskRunner> task_runner,
+                base::WeakPtr<StarboardRenderer> weak_renderer);
+  void Unregister(StarboardRenderer* renderer);
+
+  void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
+  void ResumeActiveRenderers();
+  bool IsConcealed() const;
+
+ private:
+  struct ActiveRendererEntry {
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
+    base::WeakPtr<StarboardRenderer> weak_this;
+  };
+
+  mutable base::Lock lock_;
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers_
+      GUARDED_BY(lock_);
+  bool is_concealed_ GUARDED_BY(lock_) = false;
+};
+
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms. Every Starboard renderer is usually
 // owned by StarboardRendererWrapper and must live on a single
@@ -53,21 +102,23 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer : public Renderer,
                                        private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    std::unique_ptr<MediaLog> media_log,
-                    const base::UnguessableToken& overlay_plane_id,
-                    TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities,
-                    const std::string& max_video_resolution,
-                    const StarboardRendererConfig::ExperimentalFeatures&
-                        experimental_features,
-                    const gfx::Size& viewport_size
+  StarboardRenderer(
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      std::unique_ptr<MediaLog> media_log,
+      const base::UnguessableToken& overlay_plane_id,
+      TimeDelta audio_write_duration_local,
+      TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      const std::string& max_video_resolution,
+      const StarboardRendererConfig::ExperimentalFeatures&
+          experimental_features,
+      const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
-                    ,
-                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+      ,
+      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
-  );
+      ,
+      StarboardRendererConcealRegistry* conceal_registry = nullptr);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -161,18 +212,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
-  // Drains pending renderer disconnects on the StarboardRenderer sequence,
-  // fallback-suspends any remaining active StarboardRenderer instances so
-  // SbPlayerDestroy completes before the native window is destroyed, and
-  // prevents new SbPlayerBridge creations while concealed. Safe to call from
-  // any thread; |done_cb| is posted back to the caller's sequence.
-  static void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
-
-  // Clears the concealed state so newly created or resumed renderers can
-  // create SbPlayerBridge instances again. Safe to call from any thread.
-  static void ResumeActiveRenderers();
-
  private:
+  friend class StarboardRendererConcealRegistry;
+
   enum State {
     STATE_UNINITIALIZED,
     STATE_INIT_PENDING_CDM,  // Initialization is waiting for the CDM to be set.
@@ -255,6 +297,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+  const raw_ptr<StarboardRendererConcealRegistry> conceal_registry_;
 
 #if BUILDFLAG(IS_ANDROID)
   jobject surface_view_ = nullptr;
