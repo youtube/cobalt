@@ -1,5 +1,0 @@
-float a[b];
-
-/*%%*
-unknown identifier 'b'
-*%%*/
