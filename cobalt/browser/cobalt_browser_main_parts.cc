@@ -72,7 +72,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
-#include "cobalt/android/jni_headers/BaseStarboardBridge_jni.h"
+#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -252,7 +252,7 @@ void RecordPriorSessionExitReasons() {
     return;
   }
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_BaseStarboardBridge_recordHistoricalProcessExitReason(env);
+  Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
 }
 #endif
 

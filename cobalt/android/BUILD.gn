@@ -73,6 +73,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+    "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
   ]
 
   if (!use_evergreen) {
@@ -195,6 +196,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
+    "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
   ]
@@ -377,6 +379,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/ProcessExitReasonHelperTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]
   deps = [

@@ -37,9 +37,8 @@ import dev.cobalt.coat.CobaltService.ResponseToClient;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.media.VideoSurfaceViewJni;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.ProcessExitReasonHelper;
 import java.util.Collections;
-import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.UmaRecorderHolder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -106,9 +105,8 @@ public class BaseStarboardBridgeTest {
     BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(true);
     BaseStarboardBridgeJni.setInstanceForTesting(mockNatives);
     VideoSurfaceViewJni.setInstanceForTesting(mockVideoNatives);
-    BaseStarboardBridge.setActivityManagerForTesting(null);
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
     BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
-    UmaRecorderHolder.resetForTesting();
     context = RuntimeEnvironment.getApplication();
 
     activityHolder = new Holder<>();
@@ -125,8 +123,7 @@ public class BaseStarboardBridgeTest {
     VideoSurfaceViewJni.setInstanceForTesting(null);
     BaseStarboardBridge.setInstanceForTesting(null);
     BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
-    BaseStarboardBridge.setActivityManagerForTesting(null);
-    UmaRecorderHolder.resetForTesting();
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
   }
 
   @Test
@@ -460,164 +457,8 @@ public class BaseStarboardBridgeTest {
     when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
     when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
         .thenReturn(Collections.singletonList(info));
-    BaseStarboardBridge.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
 
     assertTrue(bridge.getWasLowMemoryKilled());
-  }
-
-  @Test
-  @Config(sdk = Build.VERSION_CODES.R)
-  public void getWasLowMemoryKilled_fromActivityManager_otherReason() {
-    ActivityManager am = mock(ActivityManager.class);
-    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
-    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_CRASH);
-    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
-        .thenReturn(Collections.singletonList(info));
-    BaseStarboardBridge.setActivityManagerForTesting(am);
-
-    assertFalse(bridge.getWasLowMemoryKilled());
-  }
-
-  @Test
-  @Config(sdk = Build.VERSION_CODES.R)
-  public void getWasLowMemoryKilled_fromActivityManager_nullReasons() {
-    ActivityManager am = mock(ActivityManager.class);
-    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1))).thenReturn(null);
-    BaseStarboardBridge.setActivityManagerForTesting(am);
-
-    assertFalse(bridge.getWasLowMemoryKilled());
-  }
-
-  @Test
-  @Config(sdk = Build.VERSION_CODES.R)
-  public void getWasLowMemoryKilled_cachesResultAcrossCalls() {
-    ActivityManager am = mock(ActivityManager.class);
-    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
-    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
-    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
-        .thenReturn(Collections.singletonList(info));
-    BaseStarboardBridge.setActivityManagerForTesting(am);
-
-    // First call queries ActivityManager
-    assertTrue(bridge.getWasLowMemoryKilled());
-    verify(am, org.mockito.Mockito.times(1))
-        .getHistoricalProcessExitReasons(isNull(), eq(0), eq(1));
-
-    // Subsequent calls return cached result without querying ActivityManager again
-    assertTrue(bridge.getWasLowMemoryKilled());
-    BaseStarboardBridge.recordHistoricalProcessExitReason();
-    verify(am, org.mockito.Mockito.times(1))
-        .getHistoricalProcessExitReasons(isNull(), eq(0), eq(1));
-  }
-
-  @Test
-  @Config(sdk = Build.VERSION_CODES.R)
-  public void recordHistoricalProcessExitReason_recordsUmaForeground() {
-    ActivityManager am = mock(ActivityManager.class);
-    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
-    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_ANR);
-    when(info.getImportance())
-        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
-    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
-        .thenReturn(Collections.singletonList(info));
-    BaseStarboardBridge.setActivityManagerForTesting(am);
-
-    BaseStarboardBridge.recordHistoricalProcessExitReason();
-
-    assertEquals(
-        1,
-        RecordHistogram.getHistogramValueCountForTesting(
-            BaseStarboardBridge.HISTOGRAM_SYSTEM_EXIT_REASON,
-            BaseStarboardBridge.ExitReason.REASON_ANR));
-    assertEquals(
-        1,
-        RecordHistogram.getHistogramValueCountForTesting(
-            BaseStarboardBridge.HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND,
-            BaseStarboardBridge.ExitReason.REASON_ANR));
-  }
-
-  @Test
-  @Config(sdk = Build.VERSION_CODES.R)
-  public void recordHistoricalProcessExitReason_recordsUmaBackground() {
-    ActivityManager am = mock(ActivityManager.class);
-    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
-    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_CRASH);
-    when(info.getImportance())
-        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND);
-    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
-        .thenReturn(Collections.singletonList(info));
-    BaseStarboardBridge.setActivityManagerForTesting(am);
-
-    BaseStarboardBridge.recordHistoricalProcessExitReason();
-
-    assertEquals(
-        1,
-        RecordHistogram.getHistogramValueCountForTesting(
-            BaseStarboardBridge.HISTOGRAM_SYSTEM_EXIT_REASON,
-            BaseStarboardBridge.ExitReason.REASON_CRASH));
-    assertEquals(
-        0,
-        RecordHistogram.getHistogramTotalCountForTesting(
-            BaseStarboardBridge.HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND));
-  }
-
-  @Test
-  public void testConvertToExitReason() {
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_API_FAILED),
-        BaseStarboardBridge.convertToExitReason(-1));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_ANR),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_ANR));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_CRASH),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_CRASH));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_CRASH_NATIVE),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_CRASH_NATIVE));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_DEPENDENCY_DIED),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_DEPENDENCY_DIED));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_EXCESSIVE_RESOURCE_USAGE),
-        BaseStarboardBridge.convertToExitReason(
-            ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_EXIT_SELF),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_EXIT_SELF));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_INITIALIZATION_FAILURE),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_LOW_MEMORY),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_LOW_MEMORY));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_OTHER),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_OTHER));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_PERMISSION_CHANGE),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_PERMISSION_CHANGE));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_SIGNALED),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_SIGNALED));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_UNKNOWN),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_UNKNOWN));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_USER_REQUESTED),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_USER_REQUESTED));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_USER_STOPPED),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_USER_STOPPED));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_FREEZER),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_FREEZER));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_PACKAGE_STATE_CHANGE),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE));
-    assertEquals(
-        Integer.valueOf(BaseStarboardBridge.ExitReason.REASON_PACKAGE_UPDATED),
-        BaseStarboardBridge.convertToExitReason(ApplicationExitInfo.REASON_PACKAGE_UPDATED));
-    assertNull(BaseStarboardBridge.convertToExitReason(99999));
   }
 }
