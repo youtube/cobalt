@@ -22,11 +22,8 @@
 #include "base/notreached.h"
 #include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
-<<<<<<< HEAD
-#include "base/threading/thread_restrictions.h"
-=======
 #include "base/threading/platform_thread.h"
->>>>>>> 1166e265759 (media: Fix crash in Decode-to-Texture pipeline (#13114))
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
