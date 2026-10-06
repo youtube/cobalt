@@ -37,27 +37,6 @@ class WebviewPort(linux.LinuxPort):
     FALLBACK_PATHS['webview'] = (
         ['webview'] + linux.LinuxPort.latest_platform_fallback_path())
 
-<<<<<<< HEAD
-    def default_expectations_files(self):
-        """Returns a list of paths to expectations files that apply by default.
-
-        There are other "test expectations" files that may be applied if
-        the --additional-expectations flag is passed; those aren't included
-        here.
-        """
-        return list(
-            filter(None, [
-                self.path_to_generic_test_expectations_file(),
-                self._filesystem.join(self.web_tests_dir(), 'NeverFixTests'),
-                self._filesystem.join(self.web_tests_dir(),
-                                      'StaleTestExpectations'),
-                self._filesystem.join(self.web_tests_dir(), 'SlowTests')
-            ]))
-=======
-    def configuration_specifier_macros(self):
-        return {self.port_name: list(self.SUPPORTED_VERSIONS)}
->>>>>>> 7394498f103 (BACKPORT: [blinkpy] Remove redundant default_expectations_files() ove… (#13103))
-
     def default_child_processes(self):
         # Test against a single device by default to avoid timeouts
         return 1
