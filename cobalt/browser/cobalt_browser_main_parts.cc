@@ -84,8 +84,14 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
 #include "base/android/android_info.h"
 #include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+=======
+#include "base/android/build_info.h"
+#include "base/android/jni_android.h"
+#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+>>>>>>> 41a116db6a1 (cobalt: Add foreground-filtered exit reason detection on Android (#13049))
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -264,18 +270,8 @@ void RecordPriorSessionExitReasons() {
       base::android::android_info::SDK_VERSION_R) {
     return;
   }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
-  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
 }
 #endif
 
