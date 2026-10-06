@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
@@ -51,9 +51,6 @@ static jlong JNI_ContentViewRenderView_Init(
   return reinterpret_cast<intptr_t>(content_view_render_view);
 }
 
-<<<<<<< HEAD
-void ContentViewRenderView::Destroy(JNIEnv* env, const JavaRef<jobject>& obj) {
-=======
 // static
 // Whether Java should create the window SurfaceControl (Android 14+). When
 // passed to SurfaceChanged(), CompositorImpl::SetSurface() uses it instead of
@@ -64,9 +61,7 @@ static jboolean JNI_ContentViewRenderView_ShouldUseWindowSurfaceControl(
          gfx::SurfaceControl::SupportsSurfacelessControl();
 }
 
-void ContentViewRenderView::Destroy(JNIEnv* env,
-                                    const JavaParamRef<jobject>& obj) {
->>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
+void ContentViewRenderView::Destroy(JNIEnv* env, const JavaRef<jobject>& obj) {
   delete this;
 }
 
@@ -119,25 +114,20 @@ void ContentViewRenderView::SurfaceChanged(
     jint format,
     jint width,
     jint height,
-<<<<<<< HEAD
     const JavaRef<jobject>& surface,
+    const JavaRef<jobject>& surface_control,
     const JavaRef<jobject>& host_input_token) {
-=======
-    const JavaParamRef<jobject>& surface,
-    const JavaParamRef<jobject>& surface_control,
-    const JavaParamRef<jobject>& host_input_token) {
->>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
     // Non-null only on Android 14+ (see ShouldUseWindowSurfaceControl()).
     compositor_->SetWindowSurfaceControl(surface_control);
-    const int sdk_int = base::android::BuildInfo::GetInstance()->sdk_int();
+    const int sdk_int = base::android::android_info::sdk_int();
     // Whether |surface| itself can be used to create SurfaceControls
     // (createFromWindow()): true only on Android 10-11. Android 14+ uses
     // |surface_control| instead, and SetSurface() ignores this flag then.
     const bool can_be_used_with_surface_control =
-        base::android::SDK_VERSION_Q <= sdk_int &&
-        sdk_int <= base::android::SDK_VERSION_R;
+        base::android::android_info::SDK_VERSION_Q <= sdk_int &&
+        sdk_int <= base::android::android_info::SDK_VERSION_R;
     compositor_->SetSurface(surface, can_be_used_with_surface_control,
                             host_input_token);
   }

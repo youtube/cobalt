@@ -808,17 +808,15 @@ bool IsAndroidSurfaceControlEnabled() {
   if (!gfx::SurfaceControl::IsSupported())
     return false;
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Starboard media renders video via VideoSurfaceView underlay rather than
   // AImageReader. With kCobaltRemoveUiPlaneDuringFullscreenVideo, use
   // SurfaceControl (GLSurfaceEGLSurfaceControl + VizBufferQueue) on Android
   // 10-11 (createFromWindow) and Android 14+ (window SurfaceControl from Java);
   // see ContentViewRenderView::SurfaceChanged() in cobalt/shell/android.
-  const int sdk_int = build_info->sdk_int();
-  if (((base::android::SDK_VERSION_Q <= sdk_int &&
-        sdk_int <= base::android::SDK_VERSION_R) ||
+  const int sdk_int = base::android::android_info::sdk_int();
+  if (((base::android::android_info::SDK_VERSION_Q <= sdk_int &&
+        sdk_int <= base::android::android_info::SDK_VERSION_R) ||
        gfx::SurfaceControl::SupportsSurfacelessControl()) &&
       base::FeatureList::IsEnabled(
           kCobaltRemoveUiPlaneDuringFullscreenVideo)) {
@@ -826,12 +824,6 @@ bool IsAndroidSurfaceControlEnabled() {
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  // We can use surface control only with AImageReader.
-  if (!base::android::EnableAndroidImageReader()) {
-    return false;
-  }
-
->>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())
     return false;

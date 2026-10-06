@@ -40,7 +40,6 @@ class ContentViewRenderView : public content::CompositorClient {
       jint height);
   void SurfaceCreated(JNIEnv* env, const base::android::JavaRef<jobject>& obj);
   void SurfaceDestroyed(JNIEnv* env,
-<<<<<<< HEAD
                         const base::android::JavaRef<jobject>& obj);
   void SurfaceChanged(JNIEnv* env,
                       const base::android::JavaRef<jobject>& obj,
@@ -48,19 +47,8 @@ class ContentViewRenderView : public content::CompositorClient {
                       jint width,
                       jint height,
                       const base::android::JavaRef<jobject>& surface,
+                      const base::android::JavaRef<jobject>& surface_control,
                       const base::android::JavaRef<jobject>& host_input_token);
-=======
-                        const base::android::JavaParamRef<jobject>& obj);
-  void SurfaceChanged(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
-      jint format,
-      jint width,
-      jint height,
-      const base::android::JavaParamRef<jobject>& surface,
-      const base::android::JavaParamRef<jobject>& surface_control,
-      const base::android::JavaParamRef<jobject>& host_input_token);
->>>>>>> cffc8bcc284 (android: Use SurfaceControl for display compositor output (#12981))
   void SetOverlayVideoMode(JNIEnv* env,
                            const base::android::JavaRef<jobject>& obj,
                            bool enabled);
