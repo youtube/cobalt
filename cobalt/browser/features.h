@@ -123,46 +123,11 @@ extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
 // Delay before performing memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 
-<<<<<<< HEAD
-=======
-// Enables GPU memory ablation study to allocate and hold GPU memory.
-BASE_DECLARE_FEATURE(kCobaltGpuMemoryAblation);
-
-// GPU memory ablation size to allocate in Megabytes (default: 0).
-extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
-
-// Delay before performing GPU memory ablation (default: 0s).
-extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
-
-// Enables Cobalt System Memory Pressure Evaluator on Starboard platforms.
-extern const base::Feature kCobaltSystemMemoryPressureEvaluator;
-
-// Threshold fraction of process memory budget for moderate memory pressure.
-extern const base::FeatureParam<double>
-    kCobaltMemoryPressureModerateFractionParam;
-
-// Threshold fraction of process memory budget for critical memory pressure.
-extern const base::FeatureParam<double>
-    kCobaltMemoryPressureCriticalFractionParam;
-
-// Process memory budget override in Megabytes (0 = auto-resolve from physical
-// RAM).
-extern const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam;
-
-// Polling interval in seconds for memory pressure evaluation.
-extern const base::FeatureParam<int>
-    kCobaltMemoryPressurePollIntervalSecondsParam;
-
-// Cooldown period in seconds before re-notifying listeners of sustained
-// pressure.
-extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
-
 // Hands the Cobalt client hint headers to the network service once, through
 // NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
->>>>>>> 728ab0ff3e (net: Send Cobalt client-hint headers once at startup instead of per-request Mojo IPCs (#13086))
 }  // namespace features
 }  // namespace cobalt
 
