@@ -16,6 +16,7 @@
 #include "base/unguessable_token.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "content/public/renderer/render_frame_media_playback_options.h"
 #include "content/test/test_web_contents.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
@@ -303,6 +304,7 @@ TEST_F(LifecycleTest, ConcealSequencesConcealShellBeforeOnConcealCompleted) {
 }
 
 TEST_F(LifecycleTest, ConcealWaitsForMediaServiceBarrierBeforeConcealShell) {
+  EXPECT_TRUE(content::kIsBackgroundMediaSuspendEnabled);
   CreateTestShell(true /* is_visible */);
 
   FakeStarboardRendererBarrier fake_barrier;
