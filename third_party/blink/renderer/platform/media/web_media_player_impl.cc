@@ -3138,7 +3138,14 @@ void WebMediaPlayerImpl::UpdatePlayState() {
   // video, and only if we know the length of the video. (If we don't know
   // the length, it might be a dynamically generated video, and suspending
   // will not work at all.)
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, concealing the application tears down the underlying SbWindow
+  // and requires releasing the SbPlayer regardless of whether the media source
+  // is streaming (such as MSE or live streams) or past the beginning.
+  if (IsStreaming() && !IsPageHidden()) {
+#else
   if (IsStreaming()) {
+#endif  // BUILDFLAG(IS_COBALT)
     bool at_beginning =
         ready_state_ == WebMediaPlayer::kReadyStateHaveNothing ||
         CurrentTime() == 0.0;
@@ -3296,8 +3303,16 @@ WebMediaPlayerImpl::UpdatePlayState_ComputePlayState(
 
   // Background suspend is only enabled for paused players.
   // In the case of players with audio the session should be kept.
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, backgrounded players must suspend their pipeline even if they
+  // have not yet reached kReadyStateHaveFutureData so that any active SbPlayer
+  // created during initialization or preroll is released on conceal.
+  bool background_suspended = can_auto_suspend && is_backgrounded && paused_ &&
+                              !is_in_picture_in_picture;
+#else
   bool background_suspended = can_auto_suspend && is_backgrounded && paused_ &&
                               have_future_data && !is_in_picture_in_picture;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Idle suspension is allowed prior to kReadyStateHaveMetadata since there
   // exist mechanisms to exit the idle state when the player is capable of
@@ -3713,6 +3728,12 @@ base::WeakPtr<WebMediaPlayer> WebMediaPlayerImpl::AsWeakPtr() {
 bool WebMediaPlayerImpl::ShouldPausePlaybackWhenHidden() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt does not support background media playback; concealing the
+  // application destroys the SbWindow and requires all active playbacks to
+  // pause so their SbPlayer resources can be suspended.
+  return true;
+#else
   if (should_pause_when_frame_is_hidden_ && IsFrameHidden()) {
     return true;
   }
@@ -3749,6 +3770,7 @@ bool WebMediaPlayerImpl::ShouldPausePlaybackWhenHidden() const {
     return false;
 
   return !preserve_audio;
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 bool WebMediaPlayerImpl::ShouldDisableVideoWhenHidden() const {
@@ -3825,11 +3847,20 @@ void WebMediaPlayerImpl::UpdateBackgroundVideoOptimizationState() {
 void WebMediaPlayerImpl::PauseVideoIfNeeded(PauseReason pause_reason) {
   DCHECK(IsPageHidden() || IsFrameHidden());
 
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, conceal must pause the player even if it is currently seeking
+  // or resuming the pipeline so that visibility_pause_reason_ is recorded as
+  // kPageHidden and the pipeline transitions to a paused state for suspension.
+  if (!pipeline_controller_->IsPipelineRunning() || paused_) {
+    return;
+  }
+#else
   // Don't pause video while the pipeline is stopped, resuming or seeking.
   // Also if the video is paused already.
   if (!pipeline_controller_->IsPipelineRunning() || is_pipeline_resuming_ ||
       seeking_ || paused_)
     return;
+#endif  // BUILDFLAG(IS_COBALT)
 
   visibility_pause_reason_ = pause_reason;
   client_->PausePlayback(pause_reason);
