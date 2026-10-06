@@ -267,7 +267,11 @@ if (is_starboard || is_androidtv) {
       "//base",
       "//cobalt/browser/h5vcc_native_stability:h5vcc_native_stability",
       "//cobalt/build/configs:buildflags",
+      "//starboard:starboard_headers_only",
     ]
+    if (is_androidtv) {
+      deps += [ ":cobalt_crash_annotations" ]
+    }
   }
 }
 
@@ -316,12 +320,12 @@ source_set("cobalt_crash_annotations") {
     "cobalt_crash_annotations.cc",
     "cobalt_crash_annotations.h",
   ]
-  deps = [
+  public_deps = [
     "//base",
     "//third_party/crashpad/crashpad/client",
   ]
   if (is_android && !use_evergreen) {
     sources += [ "crash_annotator/crash_annotator_jni.cc" ]
-    deps += [ "//cobalt/android:jni_headers" ]
+    deps = [ "//cobalt/android:jni_headers" ]
   }
 }

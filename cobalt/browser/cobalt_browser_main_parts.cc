@@ -444,15 +444,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   auto* native_stability_manager =
       h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Only 3P (Evergreen) platforms currently provide native stability tracking
+  // for crashes.
+  //
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
   native_stability_manager->ArmCrashUuidAnnotation();
-  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
+  native_stability_manager->PruneStorage();
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
