@@ -308,16 +308,18 @@ jobs:
             [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
 
             # Expected test targets for results processing and reporting.
+            run_flags=$(jq -cn \
+              --arg gtest_device "${run_on_device_test}" \
+              --arg gtest_host "${TEST_ON_HOST}" \
+              --arg e2e_test "${run_e2e_test}" \
+              --arg yts_test "${run_yts_test}" \
+              --arg yts_playback_test "${run_yts_playback_test}" \
+              --arg yts_wpt_test "${run_yts_wpt_test}" \
+              --arg yts_finch_test "${run_yts_finch_test}" \
+              '{"gtest_device": ($gtest_device == "true"), "gtest_host": ($gtest_host == "true"), "e2e_test": ($e2e_test == "true"), "yts_test": ($yts_test == "true"), "yts_playback_test": ($yts_playback_test == "true"), "yts_wpt_test": ($yts_wpt_test == "true"), "yts_finch_test": ($yts_finch_test == "true")}')
+
             expected_tests=$(jq -c \
-              --argjson run_flags "{
-                \"gtest_device\": ($run_on_device_test == \"true\"),
-                \"gtest_host\": (\"$TEST_ON_HOST\" == \"true\"),
-                \"e2e_test\": ($run_e2e_test == \"true\"),
-                \"yts_test\": ($run_yts_test == \"true\"),
-                \"yts_playback_test\": ($run_yts_playback_test == \"true\"),
-                \"yts_wpt_test\": ($run_yts_wpt_test == \"true\"),
-                \"yts_finch_test\": ($run_yts_finch_test == \"true\")
-              }" \
+              --argjson run_flags "${run_flags}" \
               '[
                 .[] | select(
                   .target != null and (
