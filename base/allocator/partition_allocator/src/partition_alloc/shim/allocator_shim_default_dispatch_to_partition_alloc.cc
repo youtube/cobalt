@@ -759,18 +759,18 @@ bool SettingsMatch(
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_global_config,
+          current_root->settings_.scheduler_loop_quarantine_global_config,
           scheduler_loop_quarantine_global_config)) {
     return false;
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_thread_local_config,
+          current_root->settings_.scheduler_loop_quarantine_thread_local_config,
           scheduler_loop_quarantine_thread_local_config)) {
     return false;
   }
 
-  if (current_root->settings.eventually_zero_freed_memory !=
+  if (current_root->settings_.eventually_zero_freed_memory !=
       eventually_zero_freed_memory.value()) {
     return false;
   }
@@ -830,14 +830,15 @@ void ConfigurePartitions(
 #if BUILDFLAG(IS_COBALT)
   // If the initial PartitionRoot already matches the required options, skip
   // re-creating the root allocator to avoid duplicate PartitionRoot overhead.
-  if (SettingsMatch(
-          current_root, enable_brp, brp_extra_extras_size,
+  if (auto* initial_root = g_roots[0].Get();
+      SettingsMatch(
+          initial_root, enable_brp, brp_extra_extras_size,
           enable_memory_tagging, memory_tagging_reporting_mode,
           scheduler_loop_quarantine_global_config,
           scheduler_loop_quarantine_thread_local_config,
           eventually_zero_freed_memory)) {
     if (distribution == BucketDistribution::kDenser) {
-      current_root->SwitchToDenserBucketDistribution();
+      initial_root->SwitchToDenserBucketDistribution();
     }
 
     PA_CHECK(!g_roots_finalized.exchange(true));  // Ensure configured once.

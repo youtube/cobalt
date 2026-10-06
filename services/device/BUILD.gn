@@ -506,7 +506,6 @@ if (is_android) {
       "//services/device/public/java:nfc_java",
       "//services/device/public/mojom:mojom_java",
       "//services/device/screen_orientation:java",
-      "//services/device/serial:java",
       "//services/device/time_zone_monitor:java",
       "//services/device/usb:java",
       "//services/device/vibration/android:vibration_manager_java",
