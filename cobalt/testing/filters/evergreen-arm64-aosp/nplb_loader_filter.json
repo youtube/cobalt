@@ -6,7 +6,6 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-    "CrashpadConfigTest.VerifyUploadCert",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
@@ -14,8 +13,6 @@
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/14",
     "PosixPathconfTests/PosixFilePathconfValidNameTest.PathconfDoesNotFailWithEinval/15",
     "PosixSetPriorityTests.ErrorOnPermissionDenied",
-    "PosixTimezoneTests.HandlesUnsetTZEnvironmentVariable",
-    "PosixTimezoneTests.TimezoneIsNotSet",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/105",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/106",
     "PosixUnistdSysconfTests/PosixUnistdSysconfOptionalValueTest.OptionalScValuesAreValidNames/107",
@@ -27,10 +24,6 @@
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
-    "SbSystemGetStackTest.SunnyDay",
-    "SbSystemGetStackTest.SunnyDayShortStack",
-    "SbSystemGetStackTest.SunnyDayStackDirection",
-    "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
 }

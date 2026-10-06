@@ -34,8 +34,6 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
-    "memory_ablation.cc",
-    "memory_ablation.h",
     "metrics/cobalt_stability_metrics_helper.cc",
     "metrics/cobalt_stability_metrics_helper.h",
   ]
@@ -55,6 +53,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    ":memory_ablation",
     "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
@@ -154,7 +153,12 @@ source_set("browser") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard" ]
+    deps += [
+      "//components/memory_pressure",
+      "//media",
+      "//media:media_buildflags",
+      "//ui/ozone/platform/starboard",
+    ]
   }
 
   if (enable_native_on_screen_keyboard) {
@@ -199,6 +203,23 @@ source_set("features") {
   deps = [
     "//base",
     "//cobalt/build/configs:buildflags",
+  ]
+}
+
+source_set("memory_ablation") {
+  sources = [
+    "memory_ablation.cc",
+    "memory_ablation.h",
+  ]
+  public = [ "memory_ablation.h" ]
+  deps = [
+    ":features",
+    "//base",
+    "//gpu/command_buffer/service",
+    "//gpu/command_buffer/service:gles2",
+    "//gpu/ipc/common",
+    "//gpu/ipc/service",
+    "//ui/gl",
   ]
 }
 
