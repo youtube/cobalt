@@ -97,8 +97,8 @@ class ErrorDialog extends Dialog {
       return;
     }
     // getContext() is a ContextThemeWrapper around the activity passed to the Builder.
-    if (ContextUtils.activityFromContext(getContext()) instanceof CobaltActivity cobaltActivity) {
-      StarboardBridge bridge = cobaltActivity.getStarboardBridge();
+    if (ContextUtils.activityFromContext(getContext()) instanceof BaseCobaltActivity activity) {
+      BaseStarboardBridge bridge = activity.getStarboardBridge();
       if (bridge != null) {
         bridge.requestSuspend();
       }
