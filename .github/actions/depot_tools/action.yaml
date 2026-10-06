@@ -52,11 +52,14 @@ runs:
         echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> "${GITHUB_PATH}"
       shell: bash
 
-    - name: Set CIPD Cache Directory
+    - name: Set CIPD and VPython Cache Directories
       if: steps.cache-path.outputs.path != ''
       env:
         CACHE_PATH: ${{ steps.cache-path.outputs.path }}
-      run: echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
+      run: |
+        mkdir -p "${CACHE_PATH}/cipd-cache" "${CACHE_PATH}/vpython"
+        echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
+        echo "VPYTHON_VIRTUALENV_ROOT=${CACHE_PATH}/vpython" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Bootstrap Bundled python3
@@ -128,9 +131,7 @@ runs:
         LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace}"
 
         if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
-          echo "Golden workspace DEPS and .gclient match. Skipping gclient sync and runhooks."
-          python3 src/build/util/lastchange.py -o src/build/util/LASTCHANGE --filter='\(#[1-9][0-9]*\)' 2>/dev/null || true
-          python3 src/build/util/lastchange.py -m GPU_LISTS_VERSION --revision-id-only --header src/gpu/config/gpu_lists_version.h 2>/dev/null || true
+          echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
           deps_match=true
         fi
         echo "deps_match=${deps_match}" >> "${GITHUB_OUTPUT}"
@@ -157,6 +158,11 @@ runs:
       env:
         REF: ${{ github.sha }}
       run: |
+        # Synchronize sub-repositories with minimal disk footprint and network transfer:
+        # --shallow / --no-history: fetch only latest commits without full commit history
+        # --nohooks: defer hooks so they run as an explicit, separately timed workflow step
+        # --force / --delete_unversioned_trees: clean up untracked or mismatched trees left by prior builds
+        # --revision: pin checkout to the exact triggering commit SHA
         gclient sync \
           --verbose \
           --shallow \
@@ -167,7 +173,7 @@ runs:
           --revision "${REF}"
 
     - name: Run gclient runhooks
-      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
+      if: inputs.run_sync == 'true'
       working-directory: cobalt
       run: |
         gclient runhooks --verbose

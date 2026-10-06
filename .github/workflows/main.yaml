@@ -498,6 +498,7 @@ jobs:
       DEPOT_TOOLS_COLLECT_METRICS: 0
       DEPOT_TOOLS_METRICS: 0
       IS_CI: 1
+      VPYTHON_VIRTUALENV_ROOT: /runner-cache/vpython
     steps:
       - name: Set TMPDIR
         shell: bash
@@ -908,6 +909,7 @@ jobs:
       DEPOT_TOOLS_METRICS: 0
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+      VPYTHON_VIRTUALENV_ROOT: /runner-cache/vpython
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

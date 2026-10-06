@@ -238,7 +238,7 @@ publish_golden_workspace_snapshot () {
 
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
   local platform="${PLATFORM:-linux}"
-  local bucket="cobalt-golden-workspace"
+  local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
   local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
 
   echo "==> Packaging golden workspace snapshot for ${platform}..."
