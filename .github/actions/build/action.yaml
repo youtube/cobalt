@@ -123,6 +123,7 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Archive test target JSON
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }}_test_targets_json

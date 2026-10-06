@@ -37,30 +37,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install Smoke Test Runtime Dependencies
-      shell: bash
-      run: |
-        set -ex
-        required_pkgs=(
-          dbus-x11
-          libatomic1
-          libegl1
-          libegl1-mesa
-          libegl-mesa0
-          libgbm1
-          libgl1-mesa-dri
-          libglapi-mesa
-          libgles2-mesa
-          python3-venv
-          unzip
-          x11-xserver-utils
-          xvfb
-        )
-        if ! dpkg -s "${required_pkgs[@]}" >/dev/null 2>&1; then
-          apt-get update
-          apt-get install -y --no-install-recommends "${required_pkgs[@]}"
-        fi
-
     - name: Download Cobalt QA Release Package from GCS
       uses: ./.github/actions/download_test_artifacts
       with:
