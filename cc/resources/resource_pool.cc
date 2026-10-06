@@ -38,6 +38,8 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include <atomic>
+
+#include "base/numerics/safe_conversions.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -757,8 +759,8 @@ void ResourcePool::OnMemoryPressure(
 
 #if BUILDFLAG(IS_COBALT)
 void ResourcePool::ScheduleRecordTileMemoryMetrics() {
-  if (!task_runner_ ||
-      !base::FeatureList::IsEnabled(features::kCobaltTileMemoryMetrics)) {
+  CHECK(task_runner_);
+  if (!base::FeatureList::IsEnabled(features::kCobaltTileMemoryMetrics)) {
     return;
   }
   task_runner_->PostDelayedTask(
@@ -769,13 +771,13 @@ void ResourcePool::ScheduleRecordTileMemoryMetrics() {
 }
 
 void ResourcePool::RecordTileMemoryMetrics() {
-  constexpr int kMiB = 1024 * 1024;
+  constexpr size_t kMiB = 1024 * 1024;
   base::UmaHistogramMemoryMB(
       "Memory.GPU.TileMemory",
-      static_cast<int>(total_memory_usage_bytes_ / kMiB));
+      base::checked_cast<int>(total_memory_usage_bytes_ / kMiB));
   base::UmaHistogramMemoryMB(
       "Memory.GPU.TileMemory.Peak",
-      static_cast<int>(peak_memory_usage_bytes_ / kMiB));
+      base::checked_cast<int>(peak_memory_usage_bytes_ / kMiB));
   peak_memory_usage_bytes_ = total_memory_usage_bytes_;
 
   ScheduleRecordTileMemoryMetrics();
