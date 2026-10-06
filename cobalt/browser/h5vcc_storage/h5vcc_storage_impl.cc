@@ -21,6 +21,7 @@
 
 #include "base/base_paths.h"
 #include "base/files/file.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -45,7 +46,6 @@ namespace {
 #if BUILDFLAG(USE_EVERGREEN)
 const char kCrashpadDBName[] = "crashpad_database";
 #endif
-#if !BUILDFLAG(IS_ANDROID)
 constexpr char kTestFileName[] = "cache_test_file.json";
 constexpr uint32_t kBufferSizeBytes = 16 * 1024;
 
@@ -62,7 +62,43 @@ base::FilePath GetCacheDirectory() {
   }
   return cache_path;
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+
+// Deletes everything inside `dir` (files, symlinks and subdirectories) while
+// leaving `dir` itself in place. Unlike base::DeletePathRecursively(), this
+// preserves the directory's inode, mode and ownership, which matters for
+// OS-managed locations such as Android's app cache directory and keeps any
+// open handles to `dir` valid. A non-existent `dir` is treated as already
+// empty. Returns false if `dir` could not be enumerated or if any entry could
+// not be deleted.
+bool DeleteDirectoryContents(const base::FilePath& dir) {
+  if (!base::DirectoryExists(dir)) {
+    return true;
+  }
+
+  bool success = true;
+  base::FileEnumerator enumerator(
+      dir, /*recursive=*/false,
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES |
+          base::FileEnumerator::SHOW_SYM_LINKS,
+      base::FilePath::StringType(),
+      base::FileEnumerator::FolderSearchPolicy::ALL,
+      base::FileEnumerator::ErrorPolicy::STOP_ENUMERATION);
+  for (base::FilePath path = enumerator.Next(); !path.empty();
+       path = enumerator.Next()) {
+    // base::DeletePathRecursively() does not follow symlinks, so a symlink to
+    // a directory is unlinked rather than having its target emptied.
+    if (!base::DeletePathRecursively(path)) {
+      DLOG(ERROR) << "Failed to delete " << path.value();
+      success = false;
+    }
+  }
+  if (enumerator.GetError() != base::File::FILE_OK) {
+    DLOG(ERROR) << "Failed to enumerate " << dir.value() << ": "
+                << base::File::ErrorToString(enumerator.GetError());
+    return false;
+  }
+  return success;
+}
 
 }  // namespace
 
@@ -125,10 +161,6 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
                                  const std::string& test_string,
                                  WriteTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROID)
-  std::move(callback).Run(std::nullopt,
-                          "WriteTest is not supported on Android.");
-#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_written;
   std::optional<std::string> error;
@@ -140,13 +172,15 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
     return;
   }
 
-  if (!base::DeletePathRecursively(cache_path)) {
-    error = "Failed to delete cache directory.";
+  // Make sure the cache directory exists, then empty it in place so that the
+  // directory itself (and its mode/ownership) is left untouched.
+  if (!base::CreateDirectory(cache_path)) {
+    error = "Failed to create cache directory.";
     std::move(callback).Run(bytes_written, error);
     return;
   }
-  if (!base::CreateDirectory(cache_path)) {
-    error = "Failed to create cache directory.";
+  if (!DeleteDirectoryContents(cache_path)) {
+    error = "Failed to clear cache directory.";
     std::move(callback).Run(bytes_written, error);
     return;
   }
@@ -191,18 +225,12 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
 
   bytes_written = total_bytes_written;
   std::move(callback).Run(bytes_written, error);
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void H5vccStorageImpl::VerifyTest(uint32_t test_size,
                                   const std::string& test_string,
                                   VerifyTestCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROID)
-  std::move(callback).Run(std::nullopt,
-                          "VerifyTest is not supported on Android.",
-                          /*verified=*/false);
-#else
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::optional<int32_t> bytes_read;
   std::optional<std::string> error;
@@ -265,7 +293,6 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   verified = true;
   bytes_read = total_bytes_read;
   std::move(callback).Run(bytes_read, error, verified);
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace h5vcc_storage
