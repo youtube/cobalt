@@ -173,5 +173,9 @@ const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
     &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt

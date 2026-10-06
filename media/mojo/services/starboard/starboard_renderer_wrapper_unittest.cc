@@ -145,8 +145,9 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
   void RunSbDecodeTargetFunctionOnGpu(
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
-      base::WaitableEvent* done_event) override {
-    done_event->Signal();
+      scoped_refptr<GlesClosureRun> run) override {
+    run->outcome = GlesClosureRun::Outcome::kRan;
+    run->done.Signal();
   }
 
   void RunCallbackOnGpu(base::OnceCallback<void()> callback,
