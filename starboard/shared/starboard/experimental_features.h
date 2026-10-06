@@ -204,10 +204,10 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
     "Media.ForceDualThreads");
 
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-        "Media.IgnoreMediaCodecCallbacksDuringFlushing",
-        true);
+// Decode-To-Texture (used by WebGL video shaders) may use this.
+// Main tracking bug: b/490474392, DRM exploration: b/494037632
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceSoftwareVideoDecoder(
+    "Media.ForceSoftwareVideoDecoder");
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(

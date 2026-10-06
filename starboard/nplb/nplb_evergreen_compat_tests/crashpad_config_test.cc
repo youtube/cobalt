@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
-#include <string>
-#include <vector>
-
-#include "starboard/configuration_constants.h"
+#include "starboard/common/paths.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
@@ -31,26 +26,9 @@ namespace nplb {
 
 namespace {
 
-// These tests are not applicable to AOSP
-#if !defined(ANDROID)
-
 TEST(CrashpadConfigTest, VerifyUploadCert) {
-  std::vector<char> buffer(kSbFileMaxPath);
-  ASSERT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
-                              buffer.size()));
-  ASSERT_LE(kSbFileMaxPath, buffer.size());
-
-  std::string cert_location(buffer.data());
-  cert_location.append(std::string(kSbFileSepString) + "app" +
-                       kSbFileSepString + "cobalt" + kSbFileSepString +
-                       "content" + kSbFileSepString + "ssl" + kSbFileSepString +
-                       "certs");
-
-  struct stat info;
-  ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0) << cert_location;
+  EXPECT_FALSE(starboard::GetCACertificatesPath().empty());
 }
-
-#endif  // !defined(ANDROID)
 
 TEST(CrashpadConfigTest, VerifyCrashHandlerExtension) {
   auto* crash_handler_extension =

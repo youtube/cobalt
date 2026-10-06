@@ -86,6 +86,13 @@ const base::FeatureParam<int> kCpuMetricsIntervalParam{
 const base::FeatureParam<int> kMemoryMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
 
+BASE_FEATURE(kCobaltVirtualAddressSpaceMetrics,
+             "CobaltVirtualAddressSpaceMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kVirtualAddressSpaceSampleProbabilityParam{
+    &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.01};
+
 BASE_FEATURE(kCobaltMemoryAttributionManager,
              "CobaltMemoryAttributionManager",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -138,6 +145,40 @@ const base::FeatureParam<int> kMemoryAblationSizeMBParam{
 
 const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
     &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
+
+BASE_FEATURE(kCobaltGpuMemoryAblation,
+             "CobaltGpuMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
+    base::Seconds(0)};
+
+BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
+             "CobaltSystemMemoryPressureEvaluator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "moderate_fraction", 0.85};
+
+const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "critical_fraction", 0.95};
+
+const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
+    &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
+
+const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
+
+const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
+
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 }  // namespace cobalt

@@ -44,8 +44,6 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
     paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-    // Enable low end device mode.
-    paramOverrides.add("--enable-low-end-device-mode");
     // Disables RGBA_4444 textures which
     // causes rendering artifacts when
     // low-end-device-mode is enabled.
@@ -54,8 +52,6 @@ public final class CommandLineOverrideHelper {
     // Starboard's stack).
     paramOverrides.add("--disable-accelerated-video-decode");
     paramOverrides.add("--disable-accelerated-video-encode");
-    // Rasterize Tiles directly to GPU memory.
-    paramOverrides.add("--enable-zero-copy");
     // Set default raster threads to 2 for smoother performance.
     paramOverrides.add("--num-raster-threads=2");
     // Enforce ANGLE to use GLES backend by default on Android platforms excluding arm64.
@@ -66,15 +62,14 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--hide-scrollbars");
     // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
     paramOverrides.add("--use-custom-android-fonts-xml");
+    // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
+    paramOverrides.add("--max-http-cache-size=26214400");
 
     return paramOverrides;
   }
 
   public static StringJoiner getDefaultJsFlagOverridesList() {
     StringJoiner paramOverrides = new StringJoiner(",");
-
-    // Trades a little V8 performance for significant memory savings.
-    paramOverrides.add("--optimize-for-size");
 
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
@@ -99,6 +94,10 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("SmallerInterestArea");
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
+    paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
+    // Commit localStorage/sessionStorage writes at the end of the JS task that
+    // made them so recent writes survive process termination.
+    paramOverrides.add("DomStorageSmartFlushing");
 
     return paramOverrides;
   }

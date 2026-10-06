@@ -28,6 +28,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -35,6 +36,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -108,6 +110,8 @@
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/proxy_server_support.h"
 #endif
+
+#include "starboard/configuration_constants.h"
 
 namespace cobalt {
 
@@ -259,25 +263,19 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
 
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-gpu-shader-disk-cache")) {
-    base::FilePath user_data_dir;
-    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-        !user_data_dir.empty()) {
-      return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
-    }
+  base::FilePath user_data_dir;
+  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+      !user_data_dir.empty()) {
+    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
   }
   return base::FilePath();
 }
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-gpu-shader-disk-cache")) {
-    base::FilePath user_data_dir;
-    if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-        !user_data_dir.empty()) {
-      return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
-    }
+  base::FilePath user_data_dir;
+  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
+      !user_data_dir.empty()) {
+    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
@@ -334,6 +332,25 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
                                              cache_path);
+}
+
+// static
+uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+    uint32_t total_dir_budget_bytes) {
+  // Reserve 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+  // - 5 MB for V8 JS code cache (Code Cache)
+  // - 6 MB for Service Worker CacheStorage
+  // - 1 MB non-HTTP-cache directory headroom (matching Cobalt 25's 1 << 20
+  //   reserve for index files, persistent metrics, and metadata)
+  constexpr uint32_t kNonHttpReserveBytes = 12 * 1024 * 1024;
+  constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
+
+  if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
+    // For small platform budgets, ensure we do not return 0 or negative.
+    return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
+  }
+
+  return total_dir_budget_bytes - kNonHttpReserveBytes;
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -437,8 +454,12 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kTransportSecurityPersisterFilename);
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
+
+    network_context_params->http_cache_max_size = base::checked_cast<int>(
+        ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
   }
 
+#if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "max-http-cache-size")) {
     std::string size_str =
@@ -449,6 +470,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
       network_context_params->http_cache_max_size = parsed_size;
     }
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
@@ -470,6 +492,28 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
+
+  PopulateCobaltExtraRequestHeaders(network_context_params);
+}
+
+// static
+void CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    return;
+  }
+
+  // Hand the client hint headers to the network service once, so it can add
+  // them to every request itself, rather than asking the browser through a
+  // TrustedHeaderClient on every request (see WillCreateURLLoaderFactory()).
+  // The values are captured here, when the NetworkContext is created. This
+  // works because all of them are set before the browser starts. If a value
+  // ever needs to change at runtime, add a NetworkContext setter for it, like
+  // SetAcceptLanguage().
+  for (const auto& [name, value] :
+       browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
+    network_context_params->cobalt_extra_request_headers.emplace(name, value);
+  }
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -542,6 +586,11 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    // With kCobaltSkipTrustedHeaderClient, the network service adds the client
+    // hint headers itself (see ConfigureNetworkContextParams()).
+    return;
+  }
   if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
@@ -666,9 +715,9 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
 
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
+  const base::DictValue& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-  const base::Value::Dict& param_map = experiment_config->GetDict(
+  const base::DictValue& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 

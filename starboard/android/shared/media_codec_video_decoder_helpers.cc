@@ -20,12 +20,20 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 
-bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
+bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
+                               const std::string& max_video_capabilities) {
+  if (features.GetBool(kMediaForceSoftwareVideoDecoder)) {
+    SB_LOG(INFO) << "Use software decoder as `kMediaForceSoftwareVideoDecoder` "
+                 << "is set in experimental features.";
+    return true;
+  }
+
   if (max_video_capabilities.empty()) {
     return false;
   }
@@ -35,20 +43,6 @@ bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
   if (!mime_type) {
     SB_LOG(INFO) << "Use hardware decoder as `max_video_capabilities` ("
                  << max_video_capabilities << ") is invalid.";
-    return false;
-  }
-
-  std::string software_decoder_expectation =
-      mime_type->GetParamStringValue("softwaredecoder", "");
-  if (software_decoder_expectation == "required" ||
-      software_decoder_expectation == "preferred") {
-    SB_LOG(INFO) << "Use software decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
-    return true;
-  } else if (software_decoder_expectation == "disallowed" ||
-             software_decoder_expectation == "unpreferred") {
-    SB_LOG(INFO) << "Use hardware decoder as `softwaredecoder` is set to \""
-                 << software_decoder_expectation << "\".";
     return false;
   }
 
@@ -70,24 +64,24 @@ bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities) {
   return true;
 }
 
-std::optional<Size> ParseMaxResolution(
-    const std::string& max_video_capabilities,
-    const Size& frame_size) {
+std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
+                                       std::string_view param_name,
+                                       const Size& frame_size) {
   SB_DCHECK_GT(frame_size.width, 0);
   SB_DCHECK_GT(frame_size.height, 0);
 
-  if (max_video_capabilities.empty()) {
+  if (max_video_param.empty()) {
     return std::nullopt;
   }
 
-  SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
-               << max_video_capabilities << ").";
+  SB_LOG(INFO) << "Try to parse max resolutions from `" << param_name << "` ("
+               << max_video_param << ").";
 
   auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_param);
   if (!mime_type) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`max_video_capabilities` is invalid.";
+    SB_LOG(WARNING) << "Failed to parse max resolutions as `" << param_name
+                    << "` is invalid.";
     return std::nullopt;
   }
 
@@ -209,6 +203,17 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
   content_region.top = top;
   content_region.bottom = bottom;
   return {content_region, coded_size};
+}
+
+std::optional<Size> GetLowestResolution(const std::optional<Size>& a,
+                                        const std::optional<Size>& b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return Size{std::min(a->width, b->width), std::min(a->height, b->height)};
 }
 
 }  // namespace starboard

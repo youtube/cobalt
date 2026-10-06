@@ -807,7 +807,6 @@ jobs:
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_finch_tests
-    continue-on-error: true # <-- Prevents this job from halting downstream jobs if it fails
     permissions: {}
     strategy:
       fail-fast: false
@@ -1008,7 +1007,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -1075,10 +1074,10 @@ jobs:
         run: echo "test_target=${test_target_with_path#*:}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Download Test Results
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         continue-on-error: true
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
         uses: ./.github/actions/process_test_results
@@ -1117,6 +1116,7 @@ jobs:
       - web-tests
       - e2e-test
       - yts-test
+      - yts-finch-test
       - browser-test-on-host
     if: always() && needs.initialize.result == 'success'
     permissions: {}
@@ -1135,7 +1135,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Test Results
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: ./.github/actions/download_test_results
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*

@@ -13,6 +13,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/eme_constants.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -56,6 +57,11 @@ class MEDIA_EXPORT MediaResource {
   // Forwards buffered ranges to DemuxerHost.
   virtual void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
                                                       base::TimeDelta length);
+
+  // Forwards encrypted init data to fire the EME `encrypted` event.
+  virtual void ForwardEncryptedMediaInitData(
+      EmeInitDataType init_data_type,
+      const std::vector<uint8_t>& init_data);
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

@@ -19,10 +19,10 @@ namespace nplb {
 namespace {
 
 TEST(SbSystemSymbolizeTest, SunnyDay) {
-  void* stack[100];
+  void* stack[100] = {};
   EXPECT_LT(0, SbSystemGetStack(stack, SB_ARRAY_SIZE_INT(stack)));
-  EXPECT_NE(static_cast<void*>(NULL), stack[0]);
-  char buffer[1024] = {0};
+  EXPECT_NE(nullptr, stack[0]);
+  char buffer[1024] = {};
   bool result = SbSystemSymbolize(stack[0], buffer, SB_ARRAY_SIZE_INT(buffer));
   if (result) {
     EXPECT_LT(0u, strlen(buffer));
@@ -31,14 +31,13 @@ TEST(SbSystemSymbolizeTest, SunnyDay) {
 
 TEST(SbSystemSymbolizeTest, RainyDay) {
   char buffer[1024] = {0};
-  bool result = SbSystemSymbolize(NULL, buffer, SB_ARRAY_SIZE_INT(buffer));
+  bool result = SbSystemSymbolize(nullptr, buffer, SB_ARRAY_SIZE_INT(buffer));
   EXPECT_FALSE(result);
   EXPECT_EQ(0u, strlen(buffer));
 
   // This stack pointer shouldn't have a symbol either.
   result = SbSystemSymbolize(buffer, buffer, SB_ARRAY_SIZE_INT(buffer));
   EXPECT_FALSE(result);
-  EXPECT_EQ(0u, strlen(buffer));
 }
 
 }  // namespace

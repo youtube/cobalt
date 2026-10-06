@@ -350,8 +350,18 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // per the MSE specification. App could use a back-off and retry strategy or
   // otherwise alter their behavior to attempt to buffer media for further
   // playback.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the stream parser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which must therefore copy it.
+  [[nodiscard]] bool AppendToParseBuffer(
+      const std::string& id,
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner = base::ScopedClosureRunner());
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(const std::string& id,
                                          base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser for the source buffer associated with `id` to parse
   // more of the data previously sent to it from this object's

@@ -347,7 +347,6 @@ test("nplb") {
   }
 
   deps = [
-    "//cobalt/common/icu_init",
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
@@ -366,6 +365,12 @@ test("nplb") {
 
   deps += cobalt_platform_dependencies
 
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
+
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }
@@ -374,10 +379,12 @@ test("nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
-  data_deps = [
-    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
-    "//third_party/icu:icudata",
-  ]
+  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
+
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//cobalt/common/icu_init" ]
+    data_deps += [ "//third_party/icu:icudata" ]
+  }
 
   if (is_starboard) {
     sources += [
@@ -397,15 +404,12 @@ test("nplb") {
       ]
     }
 
-    data_deps += [
-      "//starboard/content/fonts:copy_font_data",
-      "//starboard/content/ssl:copy_ssl_certificates_evergreen",
-      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
-    ]
+    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 
   if (is_ios && target_platform == "tvos" && is_internal_build) {
     sources += internal_tvos_test_sources
+    deps += [ "//cobalt/internal/third_party/platform_drm:headers" ]
   }
 }

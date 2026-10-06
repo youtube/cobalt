@@ -24,12 +24,6 @@ Before following these instructions, make sure you have set up your workstation 
    gclient sync
    ```
 
-3. Set up an Android debug keystore required for signing development APKs:
-
-   ```bash
-   keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
-   ```
-
 ## Running in Evergreen Mode
 
 Because Evergreen support is required for certification, partners deploy official Google prebuilt `.crx` packages (available on [GitHub Releases](https://github.com/youtube/cobalt/releases)) into the Slot 0 directory structure, compile the `cobalt_loader` APK, and deploy to target hardware.
@@ -45,7 +39,7 @@ Because Evergreen support is required for certification, partners deploy officia
    cobalt/build/gn.py -p evergreen-arm-softfp-aosp -c qa --no-rbe
 
    # For 64-bit ARM AOSP targets
-   # cobalt/build/gn.py -p evergreen-arm64-aosp -c qa --no-rbe
+   cobalt/build/gn.py -p evergreen-arm64-aosp -c qa --no-rbe
    ```
 
 2. Build the application loader APK:
@@ -79,7 +73,20 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
+   # zip -u does not recurse into subdirectories; use a file list so that
+   # content/ssl/certs/* and content/fonts/* are included
+   find assets -type f | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
+
+   # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore
+   cd $OLDPWD
+   APK="out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk"
+   BT=$(ls -d third_party/android_sdk/public/build-tools/* | tail -1)
+   $BT/zipalign -f -p 4 $APK $APK.aligned && mv $APK.aligned $APK
+   $BT/apksigner sign \
+     --ks build/android/chromium-debug.keystore \
+     --ks-key-alias chromiumdebugkey --ks-pass pass:chromium \
+     --in $APK --out $APK.signed && mv $APK.signed $APK
+   $BT/apksigner verify --verbose $APK
    ```
 
 5. Deploy and launch on an AOSP device or emulator:
@@ -194,6 +201,14 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest_shuffle
    ```
+
+Every test target is built and run the same way, so an upstream test suite only
+needs its own `<suite>_loader` target:
+
+```bash
+autoninja -C out/evergreen-arm-softfp-aosp_devel zlib_unittests_loader
+out/evergreen-arm-softfp-aosp_devel/bin/run_zlib_unittests_loader
+```
 
 ## Debugging
 

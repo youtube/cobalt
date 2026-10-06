@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_default.h"
 #include "base/message_loop/message_pump_for_ui.h"
+#include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_support_starboard.h"
 
 namespace {
 
@@ -61,6 +66,10 @@ std::unique_ptr<base::MessagePump> CreateMessagePumpForUIStub() {
   return std::unique_ptr<base::MessagePump>(new MessagePumpForUIStub());
 }
 
+// Directory the on-device test runner pushes a target's runtime dependencies
+// to on Android. Matches local_device_gtest_run.py's GetTestDataRoot().
+constexpr char kPushedTestDataDir[] = "/sdcard/chromium_tests_root";
+
 }  // namespace
 
 namespace base {
@@ -69,6 +78,16 @@ namespace base {
 void InitStarboardTestMessageLoop() {
   if (!MessagePump::IsMessagePumpForUIFactoryOveridden())
     MessagePump::OverrideMessagePumpForUIFactory(&CreateMessagePumpForUIStub);
+}
+
+void InitStarboardTestPaths() {
+  FilePath test_data_dir(kPushedTestDataDir);
+  if (!DirectoryExists(test_data_dir)) {
+    return;
+  }
+
+  PathService::Override(DIR_SRC_TEST_DATA_ROOT, test_data_dir);
+  PathService::Override(DIR_OUT_TEST_DATA_ROOT, test_data_dir);
 }
 
 }  // namespace base

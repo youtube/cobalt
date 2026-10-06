@@ -187,6 +187,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
+          traits.max_video_resolution,
           traits.experimental_features,
           traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)

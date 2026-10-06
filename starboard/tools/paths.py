@@ -22,7 +22,7 @@ STARBOARD_ROOT = path.abspath(path.join(path.dirname(__file__), path.pardir))
 # The absolute path to the root of the project.
 REPOSITORY_ROOT = path.abspath(path.join(STARBOARD_ROOT, path.pardir))
 
-# The absolute path to the directory where GYP base configs live.
+# The absolute path to the directory where the base build configs live.
 BUILD_ROOT = path.join(REPOSITORY_ROOT, 'starboard', 'build')
 
 # The absolute path to the third_party directory.
