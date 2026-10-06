@@ -84,14 +84,9 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
 #include "base/android/android_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
-=======
-#include "base/android/build_info.h"
 #include "base/android/jni_android.h"
-#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
->>>>>>> 41a116db6a1 (cobalt: Add foreground-filtered exit reason detection on Android (#13049))
+#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h")
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
