@@ -488,8 +488,9 @@ class AppEventRunnerImpl : public AppEventRunner,
       run_loop.Run();
     }
     if (quit_closure_) {
-      LOG(WARNING) << "WaitForAck timed out after " << kTransitionTimeout
-                   << " for ack_type=" << static_cast<int>(ack_type);
+      LOG(WARNING) << "WaitForAck timed out: timeout(msec)="
+                   << kTransitionTimeout.InMilliseconds()
+                   << ", ack_type=" << ack_type;
       quit_closure_.Reset();
     }
     pending_ack_ = PendingAck::kNone;

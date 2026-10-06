@@ -391,6 +391,8 @@ void SbPlayerBridge::WriteBuffers(
   // during a conceal transition so Starboard APIs are not called on an
   // invalid SbPlayer.
   if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    LOG(WARNING) << "Ignore WriteBuffers when SbPlayerBridge is suspended or "
+                    "SbPlayer is invalid.";
     return;
   }
 
