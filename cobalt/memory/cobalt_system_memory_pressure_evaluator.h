@@ -113,8 +113,7 @@ class CobaltSystemMemoryPressureEvaluator
   // Stops periodic polling.
   void Stop();
 
-  base::MemoryPressureListener::MemoryPressureLevel
-  CalculateCurrentMemoryPressureLevel();
+  base::MemoryPressureLevel CalculateCurrentMemoryPressureLevel();
 
   uint64_t process_memory_budget_bytes() const {
     return process_memory_budget_bytes_;
@@ -129,8 +128,7 @@ class CobaltSystemMemoryPressureEvaluator
 
  private:
   void Start();
-  void UpdateMemoryPressureLevel(
-      base::MemoryPressureListener::MemoryPressureLevel new_level);
+  void UpdateMemoryPressureLevel(base::MemoryPressureLevel new_level);
 
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
   ProcessMemoryInfoGetter process_memory_info_getter_;
