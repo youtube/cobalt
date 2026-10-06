@@ -23,6 +23,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import org.chromium.base.ContextUtils;
 
 /**
  * A fullscreen dialog to show an error, with up to 3 buttons. This has a look similar to the
@@ -86,6 +87,26 @@ class ErrorDialog extends Dialog {
   private ErrorDialog(Context context, Params params) {
     super(context);
     this.mParams = params;
+  }
+
+  /**
+   * Suspends the app instead of cancelling. Back reaches this via Dialog.onBackPressed() on every
+   * API level: through Dialog.onKeyUp() on API < 33, and through the dialog's default
+   * OnBackInvokedCallback with predictive back (API 33+). Does not call super.cancel to prevent
+   * dismissing the dialog.
+   */
+  @Override
+  public void cancel() {
+    if (!isShowing()) {
+      return;
+    }
+    // getContext() is a ContextThemeWrapper around the activity passed to the Builder.
+    if (ContextUtils.activityFromContext(getContext()) instanceof BaseCobaltActivity activity) {
+      BaseStarboardBridge bridge = activity.getStarboardBridge();
+      if (bridge != null) {
+        bridge.requestSuspend();
+      }
+    }
   }
 
   @Override
