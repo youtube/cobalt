@@ -132,12 +132,6 @@ extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
 // Delay before performing GPU memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
 
-<<<<<<< HEAD
-// Hands the Cobalt client hint headers to the network service once, through
-// NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
-// that costs Mojo round trips to the browser UI thread on every request.
-BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
-=======
 // Enables Cobalt System Memory Pressure Evaluator on Starboard platforms.
 extern const base::Feature kCobaltSystemMemoryPressureEvaluator;
 
@@ -160,7 +154,11 @@ extern const base::FeatureParam<int>
 // Cooldown period in seconds before re-notifying listeners of sustained
 // pressure.
 extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
->>>>>>> dac4d572c (Introduce native CobaltSystemMemoryPressureEvaluator (#12575))
+
+// Hands the Cobalt client hint headers to the network service once, through
+// NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
+// that costs Mojo round trips to the browser UI thread on every request.
+BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
 }  // namespace features
 }  // namespace cobalt
