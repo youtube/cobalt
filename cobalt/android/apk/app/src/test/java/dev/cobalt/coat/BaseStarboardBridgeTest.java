@@ -19,18 +19,26 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
+import android.os.Build;
 import android.view.Surface;
 import dev.cobalt.coat.CobaltService.ResponseToClient;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.media.VideoSurfaceViewJni;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.ProcessExitReasonHelper;
+import java.util.Collections;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,6 +49,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
 /** Unit tests for BaseStarboardBridge. */
 @RunWith(RobolectricTestRunner.class)
@@ -96,6 +105,8 @@ public class BaseStarboardBridgeTest {
     BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(true);
     BaseStarboardBridgeJni.setInstanceForTesting(mockNatives);
     VideoSurfaceViewJni.setInstanceForTesting(mockVideoNatives);
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
     context = RuntimeEnvironment.getApplication();
 
     activityHolder = new Holder<>();
@@ -111,6 +122,8 @@ public class BaseStarboardBridgeTest {
     BaseStarboardBridgeJni.setInstanceForTesting(null);
     VideoSurfaceViewJni.setInstanceForTesting(null);
     BaseStarboardBridge.setInstanceForTesting(null);
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
   }
 
   @Test
@@ -425,5 +438,27 @@ public class BaseStarboardBridgeTest {
 
     assertNull(result);
     assertNull(bridge.getOpenedCobaltService("nullResponseService"));
+  }
+
+  @Test
+  public void getWasLowMemoryKilled_testingOverride() {
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(true);
+    assertTrue(bridge.getWasLowMemoryKilled());
+
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(false);
+    assertFalse(bridge.getWasLowMemoryKilled());
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void getWasLowMemoryKilled_fromActivityManager_lowMemory() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
+    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info));
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+
+    assertTrue(bridge.getWasLowMemoryKilled());
   }
 }
