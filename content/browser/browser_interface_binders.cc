@@ -1103,8 +1103,10 @@ void PopulateBinderMapWithContext(
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(
@@ -1155,6 +1157,7 @@ void PopulateBinderMapWithContext(
             host->GetLastCommittedOrigin(), std::move(receiver));
       }));
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](RenderFrameHost* host,
@@ -1166,6 +1169,7 @@ void PopulateBinderMapWithContext(
                 &RenderFrameHostImpl::From(host)->document_associated_data(),
                 std::move(receiver));
           }));
+#endif  // !BUILDFLAG(IS_COBALT)
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);
