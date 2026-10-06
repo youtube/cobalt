@@ -24,7 +24,6 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
-import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -131,23 +130,6 @@ public class PlatformError
     }
     StartupGuard.getInstance().disarm();
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-
-    // When the user presses the back button, suspend the app without dismissing the dialog.
-    // With predictive back (API 33+), KEYCODE_BACK doesn't reach this listener; it is handled by
-    // ErrorDialog.cancel() instead.
-    mDialog.setOnKeyListener(
-        (dialog, keyCode, event) -> {
-          if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
-              && event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (mActivityHolder.get() instanceof CobaltActivity cobaltActivity) {
-              cobaltActivity.getStarboardBridge().requestSuspend();
-            }
-            // Consume the event and do not dismiss the dialog.
-            return true;
-          }
-          return false;
-        });
-
     mDialog.show();
   }
 

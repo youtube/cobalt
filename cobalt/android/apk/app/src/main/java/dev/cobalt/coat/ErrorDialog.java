@@ -89,8 +89,12 @@ class ErrorDialog extends Dialog {
     this.mParams = params;
   }
 
-  // With predictive back (API 33+), KEYCODE_BACK doesn't reach that listener; the dialog's
-  // default OnBackInvokedCallback calls onBackPressed() -> cancel() instead.
+  /**
+   * Suspends the app instead of cancelling. Back reaches this via Dialog.onBackPressed() on every
+   * API level: through Dialog.onKeyUp() on API < 33, and through the dialog's default
+   * OnBackInvokedCallback with predictive back (API 33+). Does not call super.cancel to prevent
+   * dismissing the dialog.
+   */
   @Override
   public void cancel() {
     if (!isShowing()) {
