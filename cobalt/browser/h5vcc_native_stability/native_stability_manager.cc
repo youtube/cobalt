@@ -114,13 +114,8 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
     return acked_uuids;
   }
 
-<<<<<<< HEAD
-  std::optional<base::Value::List> parsed_list = base::JSONReader::ReadList(
+  std::optional<base::ListValue> parsed_list = base::JSONReader::ReadList(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
-=======
-  std::optional<base::ListValue> parsed_list =
-      base::JSONReader::ReadList(file_content);
->>>>>>> ebd0f61fb99 (cobalt: Use base::{Dict,List}Value instead of base::Value::{List,Dict} (#13140))
   if (!parsed_list) {
     LOG(WARNING) << "Failed to parse acked UUIDs JSON list in: "
                  << file_path.value();
@@ -201,13 +196,8 @@ std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
     return hang_attributes;
   }
 
-<<<<<<< HEAD
-  std::optional<base::Value::Dict> parsed_dict = base::JSONReader::ReadDict(
+  std::optional<base::DictValue> parsed_dict = base::JSONReader::ReadDict(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
-=======
-  std::optional<base::DictValue> parsed_dict =
-      base::JSONReader::ReadDict(file_content);
->>>>>>> ebd0f61fb99 (cobalt: Use base::{Dict,List}Value instead of base::Value::{List,Dict} (#13140))
   if (!parsed_dict) {
     LOG(WARNING) << "Failed to parse hang attributes JSON dict in: "
                  << file_path.value();

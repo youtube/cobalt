@@ -67,13 +67,8 @@ std::unordered_set<std::string> ReadAckedUuidsFromDiskForTesting(
   if (!base::ReadFileToString(file_path, &file_content)) {
     return acked_uuids;
   }
-<<<<<<< HEAD
-  std::optional<base::Value::List> parsed_list = base::JSONReader::ReadList(
+  std::optional<base::ListValue> parsed_list = base::JSONReader::ReadList(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
-=======
-  std::optional<base::ListValue> parsed_list =
-      base::JSONReader::ReadList(file_content);
->>>>>>> ebd0f61fb99 (cobalt: Use base::{Dict,List}Value instead of base::Value::{List,Dict} (#13140))
   if (!parsed_list) {
     return acked_uuids;
   }
@@ -92,13 +87,8 @@ std::unordered_map<std::string, bool> ReadHangAttributesFromDiskForTesting(
   if (!base::ReadFileToString(file_path, &file_content)) {
     return hang_attributes;
   }
-<<<<<<< HEAD
-  std::optional<base::Value::Dict> parsed_dict = base::JSONReader::ReadDict(
+  std::optional<base::DictValue> parsed_dict = base::JSONReader::ReadDict(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
-=======
-  std::optional<base::DictValue> parsed_dict =
-      base::JSONReader::ReadDict(file_content);
->>>>>>> ebd0f61fb99 (cobalt: Use base::{Dict,List}Value instead of base::Value::{List,Dict} (#13140))
   if (!parsed_dict) {
     return hang_attributes;
   }
