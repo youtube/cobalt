@@ -32,7 +32,6 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "content/public/browser/browser_context.h"
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/configuration_constants.h"  // nogncheck
 #endif
@@ -45,17 +44,15 @@ namespace {
 const char kCrashpadDBName[] = "crashpad_database";
 #endif
 constexpr char kTestFileName[] = "cache_test_file.json";
-constexpr uint32_t kBufferSize = 16384;  // 16 KB
+constexpr uint32_t kBufferSize = 16 * 1024;
 
 }  // namespace
 
-// TODO (b/395126160): refactor mojom implementation on Android
 H5vccStorageImpl::H5vccStorageImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccStorage> receiver)
     : content::DocumentService<mojom::H5vccStorage>(render_frame_host,
-                                                    std::move(receiver)),
-      user_data_path_(render_frame_host.GetBrowserContext()->GetPath()) {
+                                                    std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -114,10 +111,27 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   std::optional<int32_t> bytes_written;
   std::optional<std::string> error;
 
-  base::DeletePathRecursively(user_data_path_);
-  base::CreateDirectory(user_data_path_);
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                       kSbFileMaxPath)) {
+    error = "Failed to get cache directory path.";
+    std::move(callback).Run(bytes_written, error);
+    return;
+  }
+  base::FilePath cache_path = base::FilePath(cache_dir.data());
 
-  base::FilePath test_file_path = user_data_path_.Append(kTestFileName);
+  if (!base::DeletePathRecursively(cache_path)) {
+    error = "Failed to delete cache directory.";
+    std::move(callback).Run(bytes_written, error);
+    return;
+  };
+  if (!base::CreateDirectory(cache_path)) {
+    error = "Failed to create cache directory.";
+    std::move(callback).Run(bytes_written, error);
+    return;
+  };
+
+  base::FilePath test_file_path = cache_path.Append(kTestFileName);
   base::File test_file(test_file_path,
                        base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
 
@@ -168,7 +182,16 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   std::optional<std::string> error;
   bool verified = false;
 
-  base::FilePath test_file_path = user_data_path_.Append(kTestFileName);
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                       kSbFileMaxPath)) {
+    error = "Failed to get cache directory path.";
+    std::move(callback).Run(bytes_read, error, verified);
+    return;
+  }
+
+  base::FilePath test_file_path =
+      base::FilePath(cache_dir.data()).Append(kTestFileName);
   base::File test_file(test_file_path,
                        base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!test_file.IsValid()) {
