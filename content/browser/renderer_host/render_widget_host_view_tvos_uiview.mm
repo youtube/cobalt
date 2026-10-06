@@ -4,29 +4,16 @@
 
 #include "content/browser/renderer_host/render_widget_host_view_tvos_uiview.h"
 
-#include <map>
-#include <memory>
-#include <variant>
-
 #include "base/apple/owned_objc.h"
 #include "base/strings/sys_string_conversions.h"
-#include "base/time/time.h"
-#include "base/timer/timer.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
-#include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/ime/mojom/ime_types.mojom-shared.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_codes.h"
-
-#if BUILDFLAG(IS_COBALT)
-#import <GameController/GameController.h>
-
-#include "components/input/web_input_event_builders_ios.h"
-#endif
 
 static void* kObservingContext = &kObservingContext;
 
@@ -38,7 +25,6 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
   kLeft,
   kRight,
   kMediaPlayPause,
-  kSelect,
   kMenu,
   kNone
 };
@@ -46,12 +32,6 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
 // The minimum velocity to generate left/right direction events from
 // UIPanGestureRecognizer.
 const CGFloat kMinVelocity = 100;
-
-// Key auto-repeat timing for held Up/Down/Left/Right presses, mirroring
-// standard keyboard auto-repeat: an initial delay before repeating starts,
-// then a fixed interval between each subsequent repeat.
-constexpr base::TimeDelta kKeyRepeatStartDelay = base::Milliseconds(500);
-constexpr base::TimeDelta kKeyRepeatInterval = base::Milliseconds(50);
 
 UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   // TODO(crbug.com/411452047): Implement textFieldShouldEndEditing to detect
@@ -91,9 +71,6 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     case UIPressTypePlayPause:
       button = kMediaPlayPause;
       break;
-    case UIPressTypeSelect:
-      button = kSelect;
-      break;
     case UIPressTypeMenu:
       button = kMenu;
       break;
@@ -103,42 +80,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return button;
 }
 
-// Only the directional pad buttons auto-repeat while held, matching the
-// behavior of a physical Siri Remote D-pad; Select/Menu/Play-Pause are
-// discrete actions.
-BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
-  switch (button) {
-    case kUp:
-    case kDown:
-    case kLeft:
-    case kRight:
-      return YES;
-    default:
-      return NO;
-  }
-}
-
 }  // namespace
-
-@interface RenderWidgetUIView () {
-#if BUILDFLAG(IS_COBALT)
-  NSMutableSet<GCController*>* _gameControllers;
-  CGPoint _lastSiriRemoteGamepadLocation;
-  BOOL _isBeingTouched;
-#endif
-  // Maps a held button to the timer currently driving its auto-repeat: a
-  // `base::OneShotTimer` while counting down the initial
-  // `kKeyRepeatStartDelay`, replaced with a `base::RepeatingTimer` once that
-  // delay elapses and the repeat proper begins (see
-  // `beginRepeatingKeyForButton:`).
-  // Entries are removed once the button is released or the press is
-  // cancelled.
-  std::map<RemoteButton,
-           std::variant<std::unique_ptr<base::OneShotTimer>,
-                        std::unique_ptr<base::RepeatingTimer>>>
-      _keyRepeatTimers;
-}
-@end
 
 @implementation RenderWidgetUIView
 
@@ -155,25 +97,38 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
     // tvOS supports multiple types of input events from the Remote, including
     // the clickpad (touch surface), the clickpad ring (directional control),
     // and various physical buttons.
-#if BUILDFLAG(IS_COBALT)
-    _gameControllers = [[NSMutableSet alloc] init];
-    NSNotificationCenter* notifications = [NSNotificationCenter defaultCenter];
-    [notifications addObserver:self
-                      selector:@selector(controllerConnected:)
-                          name:GCControllerDidConnectNotification
-                        object:nil];
-    [notifications addObserver:self
-                      selector:@selector(controllerDisconnected:)
-                          name:GCControllerDidDisconnectNotification
-                        object:nil];
-    // Only register swipe/pan gestures when no game controller is present;
-    // the controller provides its own input events.
-    if (![self addExistingControllers]) {
-      [self addSwipeAndPanGestureRecognizers];
+    // Add a tap gesture recognizer to handle center-clickpad press events.
+    UITapGestureRecognizer* tapGesture =
+        [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                action:@selector(tapGesture:)];
+    [self addGestureRecognizer:tapGesture];
+
+    // Create and add swipe gesture recognizers for all directions originating
+    // from the clickpad buttons.
+    [self addSwipeGestureRecognizerWithDirection:
+              UISwipeGestureRecognizerDirectionUp];
+    [self addSwipeGestureRecognizerWithDirection:
+              UISwipeGestureRecognizerDirectionLeft];
+    [self addSwipeGestureRecognizerWithDirection:
+              UISwipeGestureRecognizerDirectionRight];
+    [self addSwipeGestureRecognizerWithDirection:
+              UISwipeGestureRecognizerDirectionDown];
+
+    // Add a pan gesture recognizer to capture input from the clickpad ring,
+    // which allows for continuous movement to the left or right.
+    UIPanGestureRecognizer* panGesture =
+        [[UIPanGestureRecognizer alloc] initWithTarget:self
+                                                action:@selector(handlePan:)];
+    panGesture.delegate = self;
+    [self addGestureRecognizer:panGesture];
+
+    // Only allow the pan gesture to activate if the swipe gesture fails to
+    // recognize.
+    for (UIGestureRecognizer* swipeGesture in self.gestureRecognizers) {
+      if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
+        [panGesture requireGestureRecognizerToFail:swipeGesture];
+      }
     }
-#else
-    [self addSwipeAndPanGestureRecognizers];
-#endif
   }
   return self;
 }
@@ -219,15 +174,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
 }
 
 - (void)removeView {
-  [self stopAllKeyRepeats];
-#if BUILDFLAG(IS_COBALT)
-  // Release our strong references to controllers and stop observing
-  // connect/disconnect notifications. The valueChangedHandler blocks capture
-  // weakSelf, so they naturally become no-ops when this view deallocates.
-  [_gameControllers removeAllObjects];
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-#endif
-
   UIScrollView* view = (UIScrollView*)[self superview];
   [view removeObserver:self
             forKeyPath:NSStringFromSelector(@selector(contentInset))];
@@ -235,50 +181,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
 }
 
 #pragma mark - Private
-
-- (void)addSwipeAndPanGestureRecognizers {
-  // Create and add swipe gesture recognizers for all directions originating
-  // from the clickpad buttons.
-  [self addSwipeGestureRecognizerWithDirection:
-            UISwipeGestureRecognizerDirectionUp];
-  [self addSwipeGestureRecognizerWithDirection:
-            UISwipeGestureRecognizerDirectionLeft];
-  [self addSwipeGestureRecognizerWithDirection:
-            UISwipeGestureRecognizerDirectionRight];
-  [self addSwipeGestureRecognizerWithDirection:
-            UISwipeGestureRecognizerDirectionDown];
-
-  // Add a pan gesture recognizer to capture input from the clickpad ring,
-  // which allows for continuous movement to the left or right.
-  UIPanGestureRecognizer* panGesture =
-      [[UIPanGestureRecognizer alloc] initWithTarget:self
-                                              action:@selector(handlePan:)];
-  panGesture.delegate = self;
-  [self addGestureRecognizer:panGesture];
-
-  // Only allow the pan gesture to activate if the swipe gesture fails to
-  // recognize.
-  for (UIGestureRecognizer* swipeGesture in self.gestureRecognizers) {
-    if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
-      [panGesture requireGestureRecognizerToFail:swipeGesture];
-    }
-  }
-}
-
-#if BUILDFLAG(IS_COBALT)
-- (void)removeSwipeAndPanGestureRecognizers {
-  NSMutableArray<UIGestureRecognizer*>* toRemove = [NSMutableArray array];
-  for (UIGestureRecognizer* recognizer in self.gestureRecognizers) {
-    if ([recognizer isKindOfClass:[UISwipeGestureRecognizer class]] ||
-        [recognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
-      [toRemove addObject:recognizer];
-    }
-  }
-  for (UIGestureRecognizer* recognizer in toRemove) {
-    [self removeGestureRecognizer:recognizer];
-  }
-}
-#endif
 
 // Helper method to add swipe gestures for `direction`.
 - (void)addSwipeGestureRecognizerWithDirection:
@@ -289,6 +191,44 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   swipeGesture.direction = direction;
   swipeGesture.delegate = self;
   [self addGestureRecognizer:swipeGesture];
+}
+
+- (void)tapGesture:(UIGestureRecognizer*)gestureRecognizer {
+  if ([gestureRecognizer state] != UIGestureRecognizerStateEnded) {
+    return;
+  }
+
+  const ui::mojom::TextInputState* state = [self editState];
+  if (state && state->mode != ui::TextInputMode::TEXT_INPUT_MODE_NONE &&
+      state->type != ui::TextInputType::TEXT_INPUT_TYPE_NONE) {
+    [self showKeyboard:*state];
+    return;
+  }
+
+  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
+                                blink::WebInputEvent::kNoModifiers,
+                                ui::EventTimeForNow());
+  event.native_key_code = UIKeyboardHIDUsageKeyboardReturnOrEnter;
+  event.dom_code = static_cast<int>(ui::DomCode::ENTER);
+  event.dom_key = ui::DomKey::ENTER;
+  event.windows_key_code = ui::VKEY_RETURN;
+
+  // Copied from components/input/web_input_event_builders_mac.mm's
+  // WebKeyboardEventBuilder::Build().
+  // This is necessary due to way some HTML elements process keyboard activation
+  // (e.g. blink::HTMLElement::HandleKeyboardActivation()).
+  event.text[0] = '\r';
+  event.unmodified_text[0] = '\r';
+
+  _view->SendKeyEvent(
+      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
+
+  // We also need to send a keyup event so that e.g. checkboxes are properly
+  // activated/deactivated with the keyboard.
+  event.SetType(blink::WebInputEvent::Type::kKeyUp);
+  event.SetTimeStamp(ui::EventTimeForNow());
+  _view->SendKeyEvent(
+      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
 }
 
 - (void)swipeGesture:(UISwipeGestureRecognizer*)gestureRecognizer {
@@ -340,136 +280,50 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   }
 }
 
-// Handles keyboard-show logic for UIPressTypeSelect. Returns YES if the key
-// event should be suppressed (keyboard was shown or will be shown).
-- (BOOL)handleSelectPressWithType:(blink::WebInputEvent::Type)type {
-  const ui::mojom::TextInputState* state = [self editState];
-  if (type == blink::WebInputEvent::Type::kKeyDown) {
-    if (state && state->mode != ui::TextInputMode::TEXT_INPUT_MODE_NONE &&
-        state->type != ui::TextInputType::TEXT_INPUT_TYPE_NONE) {
-      _selectWillShowKeyboard = YES;
-      return YES;
-    }
-    _selectWillShowKeyboard = NO;
-  } else if (type == blink::WebInputEvent::Type::kKeyUp) {
-    if (_selectWillShowKeyboard) {
-      _selectWillShowKeyboard = NO;
-      if (state) {
-        [self showKeyboard:*state];
-      }
-      return YES;
-    }
-  }
-  return NO;
-}
-
-// Returns YES if events are handled. Otherwise, NO to allow the event
-// to propagate to `super`.
-- (BOOL)handlePresses:(NSSet<UIPress*>*)presses
-             withType:(blink::WebInputEvent::Type)type {
-  // If any of `presses` is not handled, set `needToHandleInFramework`.
-  BOOL needToHandleInFramework = NO;
+// Returns the set of unhanlded UIPress events to propagate to `super`.
+- (NSSet<UIPress*>*)handlePresses:(NSSet<UIPress*>*)presses
+                         withType:(blink::WebInputEvent::Type)type {
+  NSMutableSet<UIPress*>* unhandled = [NSMutableSet set];
   for (UIPress* press in presses) {
     RemoteButton button = remoteButtonFromPressType(press.type);
-    if (type == blink::WebInputEvent::Type::kKeyUp) {
-      // Unconditionally release any in-flight auto-repeat as soon as the
-      // physical press ends. Auto-repeat must track whether the button
-      // is physically held.
-      // No-op if `button` has no in-flight repeat.
-      [self stopKeyRepeatForButton:button];
-    }
     if (button == kNone) {
       // Since UIPress has key information from the physical keyboard,
       // NativeWebKeyboardEvent is built with it in `sendKeyboardEvent`.
-      needToHandleInFramework |= ![self sendKeyboardEvent:press eventType:type];
+      // If `press` is not handled in `sendKeyboardEvent`, it's
+      // added in `unhandled`.
+      if (![self sendKeyboardEvent:press eventType:type]) {
+        [unhandled addObject:press];
+      }
       continue;
     }
-    if (button == kSelect && [self handleSelectPressWithType:type]) {
+    if (![self sendKeyEventWithRemoteButton:button eventType:type]) {
+      [unhandled addObject:press];
       continue;
     }
-    needToHandleInFramework |= ![self sendKeyEventWithRemoteButton:button
-                                                         eventType:type];
     if (press.type == UIPressTypeMenu) {
       // Pass `UIPressTypeMenu` to the framework to manage app suspension.
-      needToHandleInFramework = YES;
-    }
-    if (type == blink::WebInputEvent::Type::kKeyDown &&
-        RemoteButtonSupportsAutoRepeat(button)) {
-      [self startKeyRepeatForButton:button];
+      [unhandled addObject:press];
     }
   }
-  return !needToHandleInFramework;
-}
-
-- (void)startKeyRepeatForButton:(RemoteButton)button {
-  if (_keyRepeatTimers.contains(button)) {
-    // Already repeating (or waiting to); ignore a duplicate pressesBegan.
-    return;
-  }
-  auto timer = std::make_unique<base::OneShotTimer>();
-  __weak RenderWidgetUIView* weakSelf = self;
-  timer->Start(FROM_HERE, kKeyRepeatStartDelay, base::BindOnce(^{
-                 [weakSelf beginRepeatingKeyForButton:button];
-               }));
-  _keyRepeatTimers[button] = std::move(timer);
-}
-
-- (void)beginRepeatingKeyForButton:(RemoteButton)button {
-  // Replaces the one-shot delay timer scheduled by `startKeyRepeatForButton:`
-  // for this button.
-  auto timer = std::make_unique<base::RepeatingTimer>();
-  __weak RenderWidgetUIView* weakSelf = self;
-  const blink::WebInputEvent::Type type = blink::WebInputEvent::Type::kKeyDown;
-  timer->Start(FROM_HERE, kKeyRepeatInterval, base::BindRepeating(^{
-                 [weakSelf sendKeyEventWithRemoteButton:button
-                                              eventType:type
-                                           isAutoRepeat:YES];
-               }));
-  _keyRepeatTimers[button] = std::move(timer);
-}
-
-- (void)stopKeyRepeatForButton:(RemoteButton)button {
-  _keyRepeatTimers.erase(button);
-}
-
-- (void)stopAllKeyRepeats {
-  _keyRepeatTimers.clear();
+  return unhandled;
 }
 
 - (void)pressesBegan:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-#if BUILDFLAG(IS_COBALT)
-  // A button press does not implicitly cancel an in-progress gamepad touch
-  // sequence, so cancel it explicitly here before dispatching the key event.
-  if (_isBeingTouched) {
-    [self touchCancelled];
-  }
-#endif
-  BOOL handled = [self handlePresses:presses
-                            withType:blink::WebInputEvent::Type::kKeyDown];
-  if (!handled) {
-    [super pressesBegan:presses withEvent:event];
+  NSSet<UIPress*>* unhandled =
+      [self handlePresses:presses
+                 withType:blink::WebInputEvent::Type::kKeyDown];
+  if (unhandled.count > 0) {
+    [super pressesBegan:unhandled withEvent:event];
   }
 }
 
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-  BOOL handled = [self handlePresses:presses
-                            withType:blink::WebInputEvent::Type::kKeyUp];
-  if (!handled) {
+  NSSet<UIPress*>* unhandled =
+      [self handlePresses:presses withType:blink::WebInputEvent::Type::kKeyUp];
+  if (unhandled.count > 0) {
     [super pressesEnded:presses withEvent:event];
-  }
-}
-
-// The system calls this instead of `pressesEnded:` when a press sequence is
-// interrupted (e.g. an alert or another app takes over), so it must also
-// stop any in-flight auto-repeat and report the button as released.
-- (void)pressesCancelled:(NSSet<UIPress*>*)presses
-               withEvent:(UIPressesEvent*)event {
-  BOOL handled = [self handlePresses:presses
-                            withType:blink::WebInputEvent::Type::kKeyUp];
-  if (!handled) {
-    [super pressesCancelled:presses withEvent:event];
   }
 }
 
@@ -488,27 +342,11 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   return YES;
 }
 
-// Helper method to generate WebKeyboardEvent with RemoteButton. It
-// sets `isAutoRepeat` to NO for general usages.
+// Helper method to generate WebKeyboardEvent with RemoteButton.
 - (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
                            eventType:(blink::WebInputEvent::Type)type {
-  return [self sendKeyEventWithRemoteButton:remoteButton
-                                  eventType:type
-                               isAutoRepeat:NO];
-}
-
-// Helper method to generate WebKeyboardEvent with RemoteButton.
-// `isAutoRepeat` marks events synthesized while the button is held down,
-// matching how physical keyboard repeat events are flagged (see
-// WebKeyboardEventBuilder::Build in web_input_event_builders_mac.mm).
-- (BOOL)sendKeyEventWithRemoteButton:(RemoteButton)remoteButton
-                           eventType:(blink::WebInputEvent::Type)type
-                        isAutoRepeat:(BOOL)isAutoRepeat {
-  int modifiers = blink::WebInputEvent::kNoModifiers;
-  if (isAutoRepeat) {
-    modifiers |= blink::WebInputEvent::kIsAutoRepeat;
-  }
-  blink::WebKeyboardEvent event(type, modifiers, ui::EventTimeForNow());
+  blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
+                                ui::EventTimeForNow());
 
   switch (remoteButton) {
     case kLeft:
@@ -540,18 +378,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
       event.dom_code = static_cast<int>(ui::DomCode::MEDIA_PLAY_PAUSE);
       event.dom_key = ui::DomKey::MEDIA_PLAY_PAUSE;
       event.windows_key_code = ui::VKEY_MEDIA_PLAY_PAUSE;
-      break;
-    case kSelect:
-      event.native_key_code = UIKeyboardHIDUsageKeyboardReturnOrEnter;
-      event.dom_code = static_cast<int>(ui::DomCode::ENTER);
-      event.dom_key = ui::DomKey::ENTER;
-      event.windows_key_code = ui::VKEY_RETURN;
-      // Copied from components/input/web_input_event_builders_mac.mm's
-      // WebKeyboardEventBuilder::Build().
-      // This is necessary due to way some HTML elements process keyboard
-      // activation (e.g. blink::HTMLElement::HandleKeyboardActivation()).
-      event.text[0] = '\r';
-      event.unmodified_text[0] = '\r';
       break;
     case kMenu:
       // Refer to https://support.apple.com/en-us/102337.
@@ -615,19 +441,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
 
 #pragma mark - NSObject
 
-- (NSArray*)accessibilityElements {
-  ui::BrowserAccessibilityManager* manager =
-      _view->host()->GetRootBrowserAccessibilityManager();
-  if (manager) {
-    id root =
-        manager->GetBrowserAccessibilityRoot()->GetNativeViewAccessible().Get();
-    if (root) {
-      return @[ root ];
-    }
-  }
-  return nil;
-}
-
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary*)change
@@ -641,16 +454,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
                            change:change
                           context:context];
   }
-}
-
-#pragma mark - UIAccessibilityElement
-
-- (BOOL)isAccessibilityElement {
-  return NO;
-}
-
-- (CGRect)accessibilityFrame {
-  return CGRectZero;
 }
 
 #pragma mark - UIResponder
@@ -673,21 +476,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
       (result || _view->CanBecomeFirstResponderForTesting())) {
     _view->OnFirstResponderChanged();
   }
-#if BUILDFLAG(IS_COBALT)
-  if (result) {
-    // Re-register gamepad handlers in case another UIView had overwritten them.
-    // Clear first so startListeningToInputForController: doesn't skip already-
-    // known controllers.
-    [_gameControllers removeAllObjects];
-    BOOL hasControllers = [self addExistingControllers];
-    // Sync gesture state: gestures are mutually exclusive with controller
-    // input.
-    [self removeSwipeAndPanGestureRecognizers];
-    if (!hasControllers) {
-      [self addSwipeAndPanGestureRecognizers];
-    }
-  }
-#endif
   return result;
 }
 
@@ -716,122 +504,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
 
   [self hideAndDeleteKeyboard];
 }
-
-#if BUILDFLAG(IS_COBALT)
-#pragma mark - Controller Connect/Disconnect Notifications
-
-- (void)controllerConnected:(NSNotification*)notification {
-  GCController* controller = (GCController*)notification.object;
-  [self startListeningToInputForController:controller];
-  if (_gameControllers.count == 1) {
-    // First controller connected — remove gestures so the controller drives
-    // input.
-    [self removeSwipeAndPanGestureRecognizers];
-  }
-}
-
-- (void)controllerDisconnected:(NSNotification*)notification {
-  GCController* controller = (GCController*)notification.object;
-  [self stopListeningToInputForController:controller];
-  if (_gameControllers.count == 0) {
-    // Last controller gone — restore gesture-based input.
-    [self addSwipeAndPanGestureRecognizers];
-  }
-}
-
-#pragma mark - Controller Connect/Disconnect
-
-// Adds controllers that are already connected to the system.
-// Returns YES if at least one controller was registered.
-- (BOOL)addExistingControllers {
-  NSArray<GCController*>* controllers = [GCController controllers];
-  for (GCController* controller in controllers) {
-    [self startListeningToInputForController:controller];
-  }
-  return _gameControllers.count > 0;
-}
-
-// Starts listening to inputs from the given controller.
-// `controller` is the controller to start listening for input events.
-- (void)startListeningToInputForController:(GCController*)controller {
-  // For now, GCMicroGamepad from the siri remote is only handled.
-  if (!controller.microGamepad) {
-    return;
-  }
-
-  if ([_gameControllers containsObject:controller]) {
-    return;
-  }
-
-  [_gameControllers addObject:controller];
-  [self addDpadHandler:controller];
-}
-
-// Stops listening to inputs from the given controller.
-- (void)stopListeningToInputForController:(GCController*)controller {
-  [_gameControllers removeObject:controller];
-  // Reset touch state so a reconnected controller starts fresh.
-  _isBeingTouched = NO;
-}
-
-- (void)addDpadHandler:(GCController*)controller {
-  if (controller.extendedGamepad) {
-    // Only handle Siri remotes here.
-    return;
-  }
-
-  GCMicroGamepad* siriRemoteGamepad = controller.microGamepad;
-  siriRemoteGamepad.reportsAbsoluteDpadValues = YES;
-  // Ensure the handler runs on the main queue so that base::WeakPtr (_view) is
-  // accessed on the same sequence it was created on.
-  controller.handlerQueue = dispatch_get_main_queue();
-  __weak RenderWidgetUIView* weakSelf = self;
-  siriRemoteGamepad.valueChangedHandler =
-      ^(GCMicroGamepad* gamepad, GCControllerElement* element) {
-        RenderWidgetUIView* strongSelf = weakSelf;
-        if (!strongSelf || !strongSelf.isFocused || element != gamepad.dpad) {
-          return;
-        }
-        GCControllerDirectionPad* dpad = gamepad.dpad;
-        // This follows the way of how Kabuki currently works.
-        // TODO(532457474): Use a more standardized approach.
-        CGPoint newLocation = CGPointMake(dpad.xAxis.value, -dpad.yAxis.value);
-        BOOL isBeingTouched = dpad.up.pressed || dpad.down.pressed ||
-                              dpad.left.pressed || dpad.right.pressed;
-        if (!strongSelf->_isBeingTouched && isBeingTouched) {
-          // If the dpad has gone from not being touched, to being touched,
-          // report a touch down.
-          [strongSelf touchAtPosition:newLocation
-                            eventType:blink::WebInputEvent::Type::kTouchStart];
-        } else if (isBeingTouched) {
-          [strongSelf touchAtPosition:newLocation
-                            eventType:blink::WebInputEvent::Type::kTouchMove];
-        } else {
-          // No longer being touched, report a touch up.
-          [strongSelf touchAtPosition:strongSelf->_lastSiriRemoteGamepadLocation
-                            eventType:blink::WebInputEvent::Type::kTouchEnd];
-        }
-        strongSelf->_lastSiriRemoteGamepadLocation = newLocation;
-        strongSelf->_isBeingTouched = isBeingTouched;
-      };
-}
-
-- (void)touchAtPosition:(CGPoint)position
-              eventType:(blink::WebInputEvent::Type)type {
-  if (!_view) {
-    return;
-  }
-  _view->OnTouchEvent(
-      input::WebTouchEventBuilder::BuildFromGamepadData(type, position));
-}
-
-- (void)touchCancelled {
-  [self touchAtPosition:_lastSiriRemoteGamepadLocation
-              eventType:blink::WebInputEvent::Type::kTouchCancel];
-  _isBeingTouched = NO;
-  _lastSiriRemoteGamepadLocation = CGPointMake(0, 0);
-}
-#endif
 
 #pragma mark - UIGestureRecognizerDelegate
 
