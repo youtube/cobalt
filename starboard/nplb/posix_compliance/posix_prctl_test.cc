@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/prctl.h>
 #include <unistd.h>
 
@@ -567,17 +568,19 @@ TEST_F(PosixPrctlPtracerTests, SetFailsWithInvalidValue) {
 const char kVmaName[] = "TestVmaName";
 
 TEST(PosixPrctlTest, SetVmaAnonName) {
-  const size_t kMapSize = 4096;
-  void* p = malloc(kMapSize);
-  ASSERT_NE(p, nullptr);
+  // The address must be page aligned.
+  const size_t map_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  void* p = mmap(nullptr, map_size, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(p, MAP_FAILED);
 
   int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
                      reinterpret_cast<unsigned long>(p),
-                     static_cast<unsigned long>(kMapSize),
+                     static_cast<unsigned long>(map_size),
                      reinterpret_cast<unsigned long>(kVmaName));
 
   if (result == -1 && errno == EINVAL) {
-    free(p);
+    munmap(p, map_size);
     GTEST_SKIP() << "PR_SET_VMA_ANON_NAME not supported by kernel.";
   }
 
@@ -588,7 +591,7 @@ TEST(PosixPrctlTest, SetVmaAnonName) {
   EXPECT_TRUE(VmaIsNamed(p, kVmaName))
       << "VMA name was not found in /proc/self/maps.";
 
-  free(p);
+  munmap(p, map_size);
 }
 
 }  // namespace

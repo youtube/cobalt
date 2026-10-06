@@ -74,9 +74,6 @@ public class JavaSwitches {
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
-  /** flag to enable smart flushing for DOM storage (0ms delay and onStop flush). */
-  public static final String ENABLE_DOM_STORAGE_SMART_FLUSHING = "EnableDomStorageSmartFlushing";
-
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -92,9 +89,6 @@ public class JavaSwitches {
 
   /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
   public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
-
-  /** flag to globally configure max HTTP cache size ceiling in bytes. */
-  public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
   /** flag to limit GPU image cache working set budget bytes */
   public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
@@ -157,9 +151,6 @@ public class JavaSwitches {
    */
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
-
-  /** Flag to disable BackForwardCache for WebContents. */
-  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
 
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
@@ -326,10 +317,6 @@ public class JavaSwitches {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
-      extraCommandLineArgs.add("--enable-features=DomStorageSmartFlushing");
-    }
-
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
     }
@@ -455,12 +442,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
 
-    String maxHttpCacheSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.MAX_HTTP_CACHE_SIZE);
-    if (maxHttpCacheSize != null) {
-      extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
-    }
-
     if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
@@ -499,10 +480,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
-      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
     List<String> enabledMemoryPressureFeatures = new ArrayList<>();

@@ -36,6 +36,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -458,6 +459,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
   }
 
+#if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "max-http-cache-size")) {
     std::string size_str =
@@ -468,6 +470,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
       network_context_params->http_cache_max_size = parsed_size;
     }
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
@@ -489,6 +492,28 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
+
+  PopulateCobaltExtraRequestHeaders(network_context_params);
+}
+
+// static
+void CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    return;
+  }
+
+  // Hand the client hint headers to the network service once, so it can add
+  // them to every request itself, rather than asking the browser through a
+  // TrustedHeaderClient on every request (see WillCreateURLLoaderFactory()).
+  // The values are captured here, when the NetworkContext is created. This
+  // works because all of them are set before the browser starts. If a value
+  // ever needs to change at runtime, add a NetworkContext setter for it, like
+  // SetAcceptLanguage().
+  for (const auto& [name, value] :
+       browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
+    network_context_params->cobalt_extra_request_headers.emplace(name, value);
+  }
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
@@ -561,6 +586,11 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
+  if (base::FeatureList::IsEnabled(features::kCobaltSkipTrustedHeaderClient)) {
+    // With kCobaltSkipTrustedHeaderClient, the network service adds the client
+    // hint headers itself (see ConfigureNetworkContextParams()).
+    return;
+  }
   if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
@@ -685,9 +715,9 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
 
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
+  const base::DictValue& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-  const base::Value::Dict& param_map = experiment_config->GetDict(
+  const base::DictValue& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 

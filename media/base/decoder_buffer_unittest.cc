@@ -307,4 +307,57 @@ TEST(DecoderBufferTest, IsEncrypted) {
   EXPECT_TRUE(buffer->is_encrypted());
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class DecoderBufferWithoutExternalAllocatorTest : public testing::Test {
+ public:
+  void SetUp() override {
+    DecoderBuffer::Allocator::Set(nullptr);
+  }
+
+  void TearDown() override {
+    DecoderBuffer::Allocator::Set(original_allocator_);
+  }
+
+ private:
+  DecoderBuffer::Allocator* const original_allocator_ =
+      DecoderBuffer::Allocator::Get();
+};
+
+TEST_F(DecoderBufferWithoutExternalAllocatorTest,
+       AllocatesHeapArrayAndFallbackHandle) {
+  auto buffer = base::MakeRefCounted<DecoderBuffer>(200);
+  EXPECT_EQ(buffer->size(), 200u);
+  EXPECT_NE(buffer->data(), nullptr);
+  EXPECT_EQ(buffer->handle(),
+            reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer->data()));
+
+  uint8_t test_data[200];
+  memset(test_data, 0x42, sizeof(test_data));
+  memcpy(buffer->writable_data(), test_data, sizeof(test_data));
+  EXPECT_EQ(memcmp(buffer->data(), test_data, sizeof(test_data)), 0);
+}
+
+TEST_F(DecoderBufferWithoutExternalAllocatorTest, CopyFrom) {
+  uint8_t test_data[100];
+  memset(test_data, 0x42, sizeof(test_data));
+
+  auto buffer = DecoderBuffer::CopyFrom(base::span(test_data));
+  EXPECT_EQ(buffer->size(), sizeof(test_data));
+  EXPECT_EQ(memcmp(buffer->data(), test_data, sizeof(test_data)), 0);
+  EXPECT_EQ(buffer->handle(),
+            reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer->data()));
+}
+
+TEST_F(DecoderBufferWithoutExternalAllocatorTest, FromArray) {
+  auto heap_array = base::HeapArray<uint8_t>::Uninit(50);
+  memset(heap_array.data(), 0x33, 50);
+
+  auto buffer = DecoderBuffer::FromArray(std::move(heap_array));
+  EXPECT_EQ(buffer->size(), 50u);
+  EXPECT_EQ(buffer->data()[0], 0x33);
+  EXPECT_EQ(buffer->handle(),
+            reinterpret_cast<DecoderBuffer::Allocator::Handle>(buffer->data()));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

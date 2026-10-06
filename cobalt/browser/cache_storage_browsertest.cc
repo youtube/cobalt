@@ -152,7 +152,7 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest, PutTwoMegabyteToCache) {
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
   ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  const base::DictValue& dict = eval_result.value.GetDict();
 
   std::optional<bool> success = dict.FindBool("success");
   ASSERT_TRUE(success.has_value())
@@ -232,7 +232,7 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest, PutAndOverwriteOneMegabyte) {
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
   ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  const base::DictValue& dict = eval_result.value.GetDict();
 
   std::optional<bool> success = dict.FindBool("success");
   ASSERT_TRUE(success.has_value())
@@ -355,7 +355,7 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest,
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
   ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  const base::DictValue& dict = eval_result.value.GetDict();
 
   std::optional<bool> failed_as_expected = dict.FindBool("failedAsExpected");
   ASSERT_TRUE(failed_as_expected.has_value())

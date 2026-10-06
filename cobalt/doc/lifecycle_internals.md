@@ -10,48 +10,39 @@ Cobalt's multi-process lifecycle is built directly on top of the **Starboard App
 
 ```mermaid
 graph TD
-  %% Styling Definitions
-  %%{init: {"flowchart": {"htmlLabels": false}} }%%
-  classDef launcher fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
-  classDef started fill:#C8E6C9,stroke:#388E3C,stroke-width:2px;
-  classDef blurred fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px;
-  classDef concealed fill:#E1BEE7,stroke:#7B1FA2,stroke-width:2px;
-  classDef frozen fill:#B3E5FC,stroke:#0288D1,stroke-width:2px;
-  classDef stopped fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px;
+  %%{init: {"flowchart": {"htmlLabels": false}, "themeVariables": {"edgeLabelBackground": "transparent"}} }%%
 
   %% Nodes Definitions
   Launcher[INITIAL]
 
   subgraph Foreground["Foreground (Visible)"]
-    direction TB
     Started[STARTED <br/> Focused]
     Blurred[BLURRED <br/> Unfocused]
   end
 
   subgraph Background["Background (Invisible)"]
-    direction TB
     Concealed[CONCEALED <br/> Running]
     Frozen[FROZEN <br/> Suspended]
   end
   Stopped[STOPPED <br/> Terminated]
 
   %% Apply Styles
-  class Launcher launcher;
-  class Started started;
-  class Blurred blurred;
-  class Concealed concealed;
-  class Frozen frozen;
-  class Stopped stopped;
+  style Launcher fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Started fill:#C8E6C9,stroke:#388E3C,stroke-width:2px;
+  style Blurred fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px;
+  style Concealed fill:#E1BEE7,stroke:#7B1FA2,stroke-width:2px;
+  style Frozen fill:#B3E5FC,stroke:#0288D1,stroke-width:2px;
+  style Stopped fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px;
   style Foreground fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
   style Background fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
 
   %% Transition Edges (Acyclic Double-Headed Column to force clean vertical layout)
   Launcher -->|"Start"| Started
-  Launcher ---->|"Preload"| Concealed
+  Launcher -->|"Preload"| Concealed
 
-  Started <-->|"Focus / Blur"| Blurred
-  Blurred <-->|"Conceal / Reveal"| Concealed
-  Concealed <-->|"Freeze / Unfreeze"| Frozen
+  Started <-->|"↓ Blur (↑ Focus)"| Blurred
+  Blurred <-->|"↓ Conceal (↑ Reveal)"| Concealed
+  Concealed <-->|"↓ Freeze (↑ Unfreeze)"| Frozen
   Frozen -->|"Stop (Shutdown)"| Stopped
 ```
 
@@ -92,14 +83,7 @@ This block chart illustrates how the Browser and Renderer processes coordinate l
 
 ```mermaid
 graph TD
-  %% Styling Definitions
   %%{init: {"flowchart": {"htmlLabels": false}} }%%
-  classDef os fill:#FFCCBC,stroke:#FF5722,stroke-width:2px;
-  classDef chromium fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
-  classDef delegate fill:#C5CAE9,stroke:#3F51B5,stroke-width:2px;
-  classDef runner fill:#D1C4E9,stroke:#673AB7,stroke-width:2px;
-  classDef manager fill:#FFE082,stroke:#FFB300,stroke-width:2px;
-  classDef renderer fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
 
   %% Nodes Definitions
   OS[OS Thread <br/> Starboard Event Loop <br/> OS System Events]
@@ -117,12 +101,14 @@ graph TD
   Controller[Renderer Process <br/> CobaltLifecycleController <br/> DOM Window Supplement]
 
   %% Apply Styles
-  class OS os;
-  class Shell,Storage chromium;
-  class Delegate delegate;
-  class Runner runner;
-  class Manager manager;
-  class BlinkCore,Controller renderer;
+  style OS fill:#FFCCBC,stroke:#FF5722,stroke-width:2px;
+  style Shell fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Storage fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Delegate fill:#C5CAE9,stroke:#3F51B5,stroke-width:2px;
+  style Runner fill:#D1C4E9,stroke:#673AB7,stroke-width:2px;
+  style Manager fill:#FFE082,stroke:#FFB300,stroke-width:2px;
+  style BlinkCore fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
+  style Controller fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
 
   %% Directed Coordination Edges
   OS -->|"SbEvent"| Delegate
