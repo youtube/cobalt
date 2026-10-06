@@ -827,8 +827,6 @@ void ConfigurePartitions(
           ? partition_alloc::PartitionOptions::kEnabled
           : partition_alloc::PartitionOptions::kDisabled;
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
   // If the initial PartitionRoot already matches the required options, skip
   // re-creating the root allocator to avoid duplicate PartitionRoot overhead.
@@ -853,7 +851,6 @@ void ConfigurePartitions(
   // invoked on an allocation during the runtime initialization.
   // ConfigurePartitions() is invoked explicitly from Chromium code, so this
   // shouldn't bite us here. Mentioning just in case we move this code earlier.
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static partition_alloc::internal::base::NoDestructor<
       partition_alloc::PartitionAllocator>
       new_main_allocators[2] = {

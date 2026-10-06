@@ -774,11 +774,11 @@ source_set("unit_tests") {
     ]
   }
 
-<<<<<<< HEAD
-  # Installed App is excluded on iOS (see sub_modules above).
+# Installed App is excluded on iOS (see sub_modules above).
   if (!is_ios) {
     sources += [ "installedapp/installed_app_controller_test.cc" ]
-=======
+  }
+
   if (is_cobalt) {
     sources -= filter_include(sources, [ "mediarecorder/*" ])
     sources += [
@@ -791,7 +791,6 @@ source_set("unit_tests") {
     _filtered_sources = filter_exclude(sources, [ "peerconnection/*" ])
     sources = []
     sources = _filtered_sources
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   configs += [

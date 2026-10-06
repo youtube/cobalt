@@ -109,17 +109,13 @@ void DownloadComplete(
     const std::string& id,
     scoped_refptr<CrxDownloader> crx_downloader,
     scoped_refptr<Cancellation> cancellation,
-<<<<<<< HEAD
-    base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+base::RepeatingCallback<void(base::DictValue)> event_adder,
 #if defined(IN_MEMORY_UPDATES)
     const std::string* crx_str,
 #endif
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,
@@ -183,17 +179,13 @@ void HandleAvailableSpace(
     int64_t size,
     const std::string& hash,
     CrxDownloader::ProgressCallback progress_callback,
-<<<<<<< HEAD
-    base::RepeatingCallback<void(base::DictValue)> event_adder,
-=======
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+base::RepeatingCallback<void(base::Value::Dict)> event_adder,
 #if defined(IN_MEMORY_UPDATES)
     std::string* crx_str,
 #endif
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,

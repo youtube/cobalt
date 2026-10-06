@@ -11,16 +11,12 @@
 
 namespace update_client {
 
-<<<<<<< HEAD
-base::DictValue MakeSimpleOperationEvent(
-=======
 #if BUILDFLAG(IS_STARBOARD)
-base::Value::Dict MakeSimpleOperationEvent(
+base::DictValue MakeSimpleOperationEvent(
     base::expected<OperationResult, CategorizedError> result,
     const int operation_type) {
 #else
-base::Value::Dict MakeSimpleOperationEvent(
->>>>>>> parent of df462f62d8c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+base::DictValue MakeSimpleOperationEvent(
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type) {
 #endif
