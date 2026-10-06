@@ -17,6 +17,10 @@
 #include <string>
 #include <vector>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontStyle.h"
@@ -235,6 +239,59 @@ TEST_F(SkFontMgrCobaltTest, NullFamilyNameReturnsDefaultFamily) {
   SkString name_legacy;
   legacy_typeface->getFamilyName(&name_legacy);
   EXPECT_STREQ(name_legacy.c_str(), "sans-serif");
+}
+
+TEST_F(SkFontMgrCobaltTest, LimitedFontPackageLastResortFallbackSimulation) {
+  // Simulates a platform using cobalt_font_package = "limited" or "minimal"
+  // where only "sans-serif" (Roboto) is present in fonts.xml and optional
+  // generic families like "monospace" and "serif" are omitted.
+  base::ScopedTempDir temp_config_dir;
+  ASSERT_TRUE(temp_config_dir.CreateUniqueTempDir());
+
+  static constexpr char kLimitedFontsXml[] =
+      R"xml(<?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
+  <family name="sans-serif">
+    <font weight="400" style="normal">Roboto-Regular.woff2</font>
+    <font weight="700" style="normal">Roboto-Bold.woff2</font>
+  </family>
+  <alias name="roboto" to="sans-serif" />
+</familyset>
+)xml";
+
+  base::FilePath fonts_xml_path =
+      temp_config_dir.GetPath().Append(FILE_PATH_LITERAL("fonts.xml"));
+  ASSERT_TRUE(base::WriteFile(fonts_xml_path, kLimitedFontsXml));
+
+  base::FilePath font_files_dir;
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SYSTEM_FONTS, &font_files_dir));
+
+  skia_private::TArray<SkString, true> default_families;
+  default_families.push_back(SkString("sans-serif"));
+
+  auto limited_font_mgr = sk_make_sp<SkFontMgr_Cobalt>(
+      temp_config_dir.GetPath().value().c_str(), font_files_dir.value().c_str(),
+      "", "", default_families);
+
+  // On a limited font package, "monospace", "serif", "Sans", and "Arial" are
+  // not in fonts.xml and return nullptr.
+  EXPECT_EQ(limited_font_mgr->matchFamilyStyle("monospace", SkFontStyle()),
+            nullptr);
+  EXPECT_EQ(limited_font_mgr->matchFamilyStyle("serif", SkFontStyle()),
+            nullptr);
+  EXPECT_EQ(limited_font_mgr->matchFamilyStyle("Sans", SkFontStyle()), nullptr);
+  EXPECT_EQ(limited_font_mgr->matchFamilyStyle("Arial", SkFontStyle()),
+            nullptr);
+
+  // When FontCache::GetLastResortFallbackFont falls back to g_empty_atom
+  // (passing nullptr to matchFamilyStyle), SkFontMgr_Cobalt resolves to
+  // default_families_[0] ("sans-serif").
+  sk_sp<SkTypeface> fallback_typeface =
+      limited_font_mgr->matchFamilyStyle(nullptr, SkFontStyle());
+  ASSERT_TRUE(fallback_typeface != nullptr);
+  SkString resolved_family;
+  fallback_typeface->getFamilyName(&resolved_family);
+  EXPECT_STREQ(resolved_family.c_str(), "sans-serif");
 }
 
 }  // namespace

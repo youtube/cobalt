@@ -8,6 +8,7 @@
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/threading/platform_thread.h"
 #include "build/blink_buildflags.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
@@ -55,14 +56,15 @@ BASE_FEATURE_PARAM(int,
 
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
-// Disabled by default on Android, enabled by default on other platforms.
+// Disabled by default on Android and tvOS, enabled by default on other
+// platforms.
 BASE_FEATURE(kCobaltInProcessImageTransferCache,
              "CobaltInProcessImageTransferCache",
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
              FEATURE_DISABLED_BY_DEFAULT);
-#else   // BUILDFLAG(IS_ANDROID)
+#else   // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
              FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS)
 
 BASE_FEATURE(kCobaltCCImageCacheLimitItems,
              "CobaltCCImageCacheLimitItems",
@@ -90,6 +92,27 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltForceGpuMemAvailable,
                    "force_gpu_mem_available_mb",
                    64);
+
+// Enabled by default on 3P/Starboard platforms so that they use the 1 MB GPU
+// discardable cache limit that upstream only applies to low-end Android
+// devices, instead of the upstream desktop default of 192 MB (256 MB with 4 GB+
+// of RAM). Disabled by default on Android, where Cobalt runs in low-end device
+// mode and upstream already uses 1 MB. Setting the parameter to a larger value
+// restores a bigger cache via Finch without requiring a binary change;
+// disabling the feature falls back to the upstream per-platform defaults.
+BASE_FEATURE(kCobaltGpuDiscardableCacheLimit,
+             "CobaltGpuDiscardableCacheLimit",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuDiscardableCacheLimitMb,
+                   &kCobaltGpuDiscardableCacheLimit,
+                   "CobaltGpuDiscardableCacheLimit_mb",
+                   1);
 
 BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
              "CobaltV8MaxOldSpaceSize",
