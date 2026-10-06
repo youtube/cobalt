@@ -40,6 +40,9 @@ jobs:
           path: src
           ref: ${{ matrix.branch.target }}
           fetch-depth: 1000
+          filter: blob:none
+          sparse-checkout: |
+            .github
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Prepare Cherry Pick Branch
@@ -167,7 +170,7 @@ jobs:
           } > "${PR_BODY_FILE}"
 
           IS_CONFLICTED=false
-          if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
+          if git show "HEAD:${AUTOROLL_FILE}" 2>/dev/null | grep -q "^CONFLICTED:" || ([[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"); then
             IS_CONFLICTED=true
             PR_TITLE="$(git log -1 --pretty=%s)"
             {

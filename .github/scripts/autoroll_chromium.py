@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Script to automatically roll Chromium branch."""
+"""Script to automatically roll Chromium branch using worktree-free git plumbing."""
 import argparse
 import contextlib
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import autoroll_lib as lib
 import gerrit_util
 
@@ -30,44 +32,116 @@ _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP = (
 )
 
 
-def remove_angle_from_recursedeps():
-  """Removes ANGLE from the top-level DEPS' recursedeps.
+def ancestor_meta_files(dirs):
+  """Collects ancestor .gitignore and .gitattributes for target directories."""
+  files = {'.gitignore', '.gitattributes'}
+  for d in dirs:
+    parts = d.split('/')
+    for i in range(1, len(parts)):
+      for n in ('.gitignore', '.gitattributes'):
+        files.add('/'.join(parts[:i] + [n]))
+  return sorted(files)
 
-  See b/565697787 for more information.
+
+def fetch_submodule_pins(commits, dirs):
+  """Fetches submodule pins in parallel into isolated shallow stores.
+
+  Attaches the stores to the repo via objects/info/alternates to avoid
+  shallow.lock collisions and redownloads.
   """
-  lib.run(['sed', '-i', r"/'src\/third_party\/angle',/s/^/\#/", 'DEPS'])
+  git_dir = lib.get_out(['git', 'rev-parse', '--git-dir']).strip()
+  alternates_file = os.path.join(git_dir, 'objects', 'info', 'alternates')
+  os.makedirs(os.path.dirname(alternates_file), exist_ok=True)
+
+  existing_alternates = set()
+  if os.path.exists(alternates_file):
+    with open(alternates_file, 'r', encoding='utf-8') as f:
+      existing_alternates = {line.strip() for line in f if line.strip()}
+
+  subs_base = os.path.join(tempfile.gettempdir(), 'cobalt_submodule_pins')
+  os.makedirs(subs_base, exist_ok=True)
+
+  pin_url_pairs = set()
+  for c in commits:
+    for p in dirs:
+      try:
+        pin = lib.get_out(['git', 'rev-parse', f'{c}:{p}']).strip()
+      except subprocess.CalledProcessError:
+        continue
+      try:
+        name_output = lib.get_out([
+            'git', 'config', '--blob', f'{c}:.gitmodules', '--get-regexp',
+            r'^submodule\..*\.path$'
+        ])
+      except subprocess.CalledProcessError:
+        continue
+      url = None
+      for line in name_output.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == p:
+          url_key = parts[0].replace('.path', '.url')
+          url = lib.get_out(
+              ['git', 'config', '--blob', f'{c}:.gitmodules', '--get',
+               url_key]).strip()
+          break
+      if pin and url:
+        pin_url_pairs.add((pin, url))
+
+  procs = []
+  new_alternates = []
+  for pin, url in pin_url_pairs:
+    pin_dir = os.path.join(subs_base, pin)
+    pin_obj_dir = os.path.join(pin_dir, 'objects')
+    new_alternates.append(pin_obj_dir)
+    if not os.path.exists(pin_obj_dir):
+      os.makedirs(pin_dir, exist_ok=True)
+      subprocess.run(['git', 'init', '-q', '--bare', pin_dir], check=True)
+      p = subprocess.Popen([
+          'git', '-C', pin_dir, 'fetch', '-q', '--depth=1', '--no-tags', url,
+          pin
+      ])
+      procs.append(p)
+
+  for p in procs:
+    p.wait()
+
+  with open(alternates_file, 'a', encoding='utf-8') as f:
+    for alt in new_alternates:
+      if alt not in existing_alternates:
+        f.write(f'{alt}\n')
+        existing_alternates.add(alt)
 
 
-def get_submodule_root_dirs():
-  paths = lib.get_out(
-      ['git', 'config', '--file', '.gitmodules', '--get-regexp', 'path'])
+def vendor_dirs(commit, dirs):
+  """Returns tree of `commit` with gitlinks at `dirs` replaced by contents."""
+  with tempfile.TemporaryDirectory(prefix='vendor_wt_') as tmp:
+    wt = os.path.join(tmp, 'wt')
+    os.makedirs(wt, exist_ok=True)
+    env = {'GIT_INDEX_FILE': os.path.join(tmp, 'index'), 'GIT_WORK_TREE': wt}
 
-  return sorted(
-      {line.split(' ', 1)[1].split('/')[0] for line in paths.splitlines()})
+    lib.run(['git', 'read-tree', commit], env=env)
+    meta = lib.get_out(
+        ['git', 'ls-files', '--', *ancestor_meta_files(dirs)],
+        env=env, cwd=wt).splitlines()
+    if meta:
+      lib.run(['git', 'checkout-index', '-f', '--', *meta], env=env, cwd=wt)
 
+    for d in dirs:
+      pin = lib.get_out(['git', 'rev-parse', f'{commit}:{d}']).strip()
+      sub_env = {
+          'GIT_INDEX_FILE': os.path.join(tmp, f'sub-index-{os.path.basename(d)}'),
+          'GIT_WORK_TREE': os.path.join(wt, d)
+      }
+      os.makedirs(sub_env['GIT_WORK_TREE'], exist_ok=True)
+      lib.run(['git', 'read-tree', pin], env=sub_env)
+      lib.run(['git', 'checkout-index', '-a', '-f'], env=sub_env,
+              cwd=sub_env['GIT_WORK_TREE'])
 
-def remove_local_checkout():
-  lib.log('Removing local checkout...')
-  roots = get_submodule_root_dirs()
-  if roots:
-    lib.run(['rm', '-rf', '--'] + roots)
-  lib.run(['git', 'rm', '-qrf', '--', '.'])
-  lib.run(['git', 'clean', '-qffdx'])
-
-
-def replace_submodules_with_dirs():
-  lib.log('Running gclient sync...')
-  repo_url = lib.get_out(['git', 'remote', 'get-url', 'origin']).strip()
-  lib.run(['gclient', 'config', '--name=src', '--unmanaged', repo_url],
-          cwd='..')
-  lib.run(['gclient', 'sync', '--no-history', '--nohooks'], cwd='..')
-  lib.run(['rm', '-f', '--', os.path.join('..', '.gclient')])
-  lib.log('Removing Chromium submodules for Cobalt directories...')
-  for submodule_dir in _COBALT_SUBMODULE_DIRS:
-    lib.run(['rm', '-rf', '--', os.path.join(submodule_dir, '.git')])
-    lib.run([
-        'git', 'rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir
-    ])
+    lib.run(['git', 'update-index', '--force-remove', '--', *dirs], env=env,
+            cwd=wt)
+    lib.run(['git', 'add', '--', *dirs], env=env, cwd=wt)
+    return lib.get_out(['git', 'write-tree', '--missing-ok'], env=env,
+                       cwd=wt).strip()
 
 
 def fetch_chromium_tree(chromium_sha):
@@ -94,8 +168,7 @@ def verify_chromium_commit(sha):
     sha: The SHA of the Cobalt commit being rolled in.
 
   Returns:
-    bool: True if the current tree matches the expected Chromium commit tree,
-      False otherwise.
+    bool: True if current tree matches expected Chromium commit tree.
   """
   upstream_sha = get_upstream_chromium_sha(sha)
   if not upstream_sha:
@@ -138,75 +211,61 @@ def verify_chromium_commit(sha):
 
 
 def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
-  """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
-
-  This function performs a "clean slate" cherry-pick by wiping the current
-  working directory, checking out the pure Chromium state at `previous_sha`,
-  and committing that as a temporary revert. It then applies the desired
-  Chromium `sha` and re-applies Cobalt's modifications over the result.
+  """Applies a Chromium cherry-pick sequence using pure git plumbing.
 
   Args:
-    previous_sha: The SHA of the clean Chromium base before Cobalt changes were
-      applied.
-    shas: A list of SHAs of the Chromium commits to be batch cherry-picked.
-    metadata: Metadata associated with the cherry-pick, passed to the final
-      conflicting revert call.
-    autoroll_metadata: autoroll file path and sha tuple that tracks progress.
+    previous_sha: Clean Chromium base before Cobalt modifications.
+    shas: List of SHAs of Chromium commits to roll.
+    metadata: Metadata tuple (date, author, msg) for final conflicting commit.
+    autoroll_metadata: (autoroll_file, sha) tuple tracking progress.
 
   Returns:
     CommitStatus and unmerged_files.
   """
-  lib.log(f'Checking out clean Chromium state: {previous_sha}')
-  remove_local_checkout()
-  lib.run(['git', 'checkout', previous_sha, '--', '.'])
+  head = lib.get_out(['git', 'rev-parse', 'HEAD']).strip()
+  date, author, _ = metadata
 
-  if previous_sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
-    # Just remove it from DEPS but do not commit the change, otherwise it will
-    # also add a lot of other changes made by the git checkout call above.
-    remove_angle_from_recursedeps()
+  lib.log('Fetching submodule pins in parallel...')
+  fetch_submodule_pins([previous_sha, *shas], _COBALT_SUBMODULE_DIRS)
 
-  replace_submodules_with_dirs()
-
-  lib.log('Committing Cobalt revert...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run([
-      'git', 'commit', '--no-verify', '-qm',
-      'CONFLICTED Chromium Cherry pick: Revert Cobalt.'
-  ])
-  revert_cobalt_sha = lib.get_out(['git', 'rev-parse', 'HEAD']).strip()
-
-  lib.log(f'Checking out clean Chromium state: {previous_sha}')
-  remove_local_checkout()
-  lib.run(['git', 'checkout', '-f', previous_sha, '--', '.'])
+  lib.log(f'Vendoring clean Chromium base: {previous_sha}')
+  revert_cobalt_tree = vendor_dirs(previous_sha, _COBALT_SUBMODULE_DIRS)
+  revert_cobalt_sha = lib.commit_tree(
+      revert_cobalt_tree, head, date, author,
+      'CONFLICTED Chromium Cherry pick: Revert Cobalt.')
 
   lib.log('Committing submodules restore...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run(['git', 'commit', '--no-verify', '-qm', 'Restore submodules.'])
+  restore_tree = lib.get_out(['git', 'rev-parse',
+                              f'{previous_sha}^{{tree}}']).strip()
+  restore_sha = lib.commit_tree(restore_tree, revert_cobalt_sha, date, author,
+                                'Restore submodules.')
 
+  current_restore_sha = restore_sha
   for sha in shas:
-    lib.log('Cherry picking Chromium...')
-    lib.run(['git', 'cherry-pick', sha])
-
-    if sha in _REVISIONS_WITH_BROKEN_ANGLE_SUBDEP:
-      remove_angle_from_recursedeps()
-      lib.run([
-          'git', 'commit', '-m', 'Remove angle from recursedeps', '--', 'DEPS'
-      ])
-
+    lib.log(f'Cherry picking Chromium commit {sha}...')
+    cp_tree, cp_conflicts = lib.merge_trees('cherry-pick', sha,
+                                            current_restore_sha)
+    if cp_conflicts:
+      lib.log(f'Warning: Upstream Chromium cherry-pick conflict: {cp_conflicts}')
+    current_restore_sha = lib.commit_tree(
+        cp_tree, current_restore_sha, date, author, f'Update to {sha}.')
+    lib.run(['git', 'update-ref', 'HEAD', current_restore_sha])
     if not verify_chromium_commit(sha):
       raise RuntimeError(
           f'Verification failed: Rolled-in tree for {sha} does not match '
           f'Chromium {sha}')
 
-  replace_submodules_with_dirs()
-
-  lib.log('Committing submodules replace...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
+  lib.log('Vendoring new Chromium state...')
+  remove_submodules_tree = vendor_dirs(current_restore_sha,
+                                       _COBALT_SUBMODULE_DIRS)
+  remove_submodules_sha = lib.commit_tree(
+      remove_submodules_tree, current_restore_sha, date, author,
+      'Remove submodules.')
+  lib.run(['git', 'update-ref', 'HEAD', remove_submodules_sha])
 
   lib.log('Reverting Cobalt revert...')
   return lib.apply_and_commit('revert', revert_cobalt_sha, metadata, True,
-                              autoroll_metadata)
+                              autoroll_metadata, head=remove_submodules_sha)
 
 
 def main():
