@@ -52,6 +52,9 @@
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
 
+// TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to be
+// adapted to the staging branch.
+#if 0
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/memory/memory_pressure_monitor.h"
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
@@ -62,6 +65,7 @@
 #include "media/base/media_client.h"
 #endif
 #endif  // BUILDFLAG(IS_STARBOARD)
+#endif
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -466,6 +470,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+// TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to be
+// adapted to the staging branch.
+#if 0
 #if BUILDFLAG(IS_STARBOARD)
   // Register the Cobalt system memory pressure evaluator on Starboard platforms
   // when enabled via Finch or command line.
@@ -498,6 +505,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
+#endif
 
   StartStorageMigration();
 
