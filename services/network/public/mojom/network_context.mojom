@@ -598,6 +598,7 @@ struct NetworkContextParams {
   // gets applied while constructing NetworkContext by updating the quic_params.
   int64? quic_idle_connection_timeout_seconds;
 
+<<<<<<< HEAD
   // If true, the HTTP cache will be encrypted on disk. For now, this only
   // switches the backend on Windows.
   bool enable_encrypted_http_cache = false;
@@ -608,6 +609,15 @@ struct NetworkContextParams {
   // Sessions and nothing else.
   pending_remote<unexportable_keys.mojom.UnexportableKeyService>?
       bound_sessions_unexportable_key_service;
+=======
+  // Extra request headers (e.g. Cobalt's Sec-CH-UA-Co-* client hints) that the
+  // network service adds to every request made through a URLLoader of this
+  // context, including each redirect hop. This avoids the per-request round
+  // trips to the browser that a TrustedHeaderClient would need. The headers
+  // are fixed for the lifetime of the context.
+  [EnableIf=is_cobalt]
+  map<string, string> cobalt_extra_request_headers;
+>>>>>>> 728ab0ff3eb (net: Send Cobalt client-hint headers once at startup instead of per-request Mojo IPCs (#13086))
 };
 
 struct NetworkConditions {
