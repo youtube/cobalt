@@ -50,6 +50,7 @@ pipeline () {
     -R \
     -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
+  publish_golden_workspace_snapshot
 
   # Run GN and Ninja.
   ##############################################################################
@@ -82,8 +83,6 @@ pipeline () {
       "${package_dir}" \
       "${package_dir}.tar.gz" \
       "${build_info_path}"
-
-    publish_golden_workspace_snapshot
   fi
 
 

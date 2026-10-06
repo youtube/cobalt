@@ -39,4 +39,3 @@ python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/dind_py/main_build_image
 # which do not need to run inside Cobalt containers.
 # If this build is not a release or nightly, then it will be a no-op.
 run_package_release_pipeline
-publish_golden_workspace_snapshot
