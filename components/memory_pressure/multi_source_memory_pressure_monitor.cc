@@ -11,6 +11,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "components/memory_pressure/system_memory_pressure_evaluator.h"
 
@@ -46,12 +47,23 @@ MultiSourceMemoryPressureMonitor::~MultiSourceMemoryPressureMonitor() {
   // MemoryPressureVoteAggregator::Delegate, and
   // delegate_->OnMemoryPressureLevelChanged() gets indirectly called during
   // ~SystemMemoryPressureEvaluator().
+#if BUILDFLAG(IS_COBALT)
+  system_evaluators_.clear();
+#else
   system_evaluator_.reset();
+#endif
 }
 
 void MultiSourceMemoryPressureMonitor::MaybeStartPlatformVoter() {
+#if BUILDFLAG(IS_COBALT)
+  if (auto evaluator =
+          SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this)) {
+    system_evaluators_.push_back(std::move(evaluator));
+  }
+#else
   system_evaluator_ =
       SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this);
+#endif
 }
 
 base::MemoryPressureListener::MemoryPressureLevel
@@ -74,7 +86,7 @@ base::TimeDelta MultiSourceMemoryPressureMonitor::GetCooldownPeriod() const {
         base::features::kCobaltMemoryPressureCooldownSeconds.Get();
     return base::Seconds(std::max(1, cooldown_sec));
   }
-  return base::Seconds(30);
+  return base::Seconds(60);
 }
 #endif
 
@@ -140,15 +152,25 @@ void MultiSourceMemoryPressureMonitor::OnNotifyListenersRequested() {
 
 void MultiSourceMemoryPressureMonitor::SetSystemEvaluator(
     std::unique_ptr<SystemMemoryPressureEvaluator> evaluator) {
+#if BUILDFLAG(IS_COBALT)
+  // This supports dual/multiple evaluators on Cobalt.
+  DCHECK(evaluator);
+  system_evaluators_.push_back(std::move(evaluator));
+#else
   DCHECK(!system_evaluator_);
   system_evaluator_ = std::move(evaluator);
+#endif
 }
 
 void MultiSourceMemoryPressureMonitor::SetDispatchCallbackForTesting(
     const DispatchCallback& callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Must be called before `Start()`.
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(system_evaluators_.empty());
+#else
   DCHECK(!system_evaluator_);
+#endif
   dispatch_callback_ = callback;
 }
 

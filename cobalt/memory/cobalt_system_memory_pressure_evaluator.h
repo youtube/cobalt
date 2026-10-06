@@ -29,27 +29,23 @@
 namespace cobalt {
 namespace memory {
 
-namespace switches {
-inline constexpr char kProcessMemoryBudgetMB[] = "process-memory-budget-mb";
-}  // namespace switches
-
-// Process-budget memory pressure evaluator for Cobalt platforms.
-// Currently active on Starboard/Evergreen and Linux targets, with Android TV
-// platform support planned in a subsequent phase.
+// Process-budget memory pressure evaluator for Cobalt platforms
+// (Starboard/Evergreen, Linux, and Android TV).
 //
 // Evaluates Cobalt's own private anonymous footprint against a target
 // process memory budget (expanded dynamically by active media buffer
 // allowance). Casts MODERATE at 85% of budget and CRITICAL at 95%.
 //
 // Parameter Resolution Hierarchy:
-// All runtime parameters (moderate/critical fraction, budget, poll interval,
-// cooldown) adhere to a 3-tier priority resolution:
-//   1. Command-Line Switch: Highest priority. Used for local debugging, QA, and
-//      integration tests.
-//   2. Finch Feature Param: Middle priority. Used for fleet-wide A/B studies
-//      and dynamic server-side tuning.
-//   3. Constexpr Defaults / Hardware RAM Tiering: Baseline fallback when no
+// All runtime parameters (moderate/critical fraction, budget, poll interval)
+// adhere to a 2-tier priority resolution:
+//   1. Finch Feature Param: Highest priority. Used for fleet-wide A/B studies,
+//      dynamic server-side tuning, and CLI overrides via --enable-features.
+//   2. Constexpr Defaults / Hardware RAM Tiering: Baseline fallback when no
 //      override is present.
+//
+// Cooldown and notification throttling are handled centrally by
+// memory_pressure::MultiSourceMemoryPressureMonitor.
 //
 // Lifetime and Ownership:
 // Owned by memory_pressure::MultiSourceMemoryPressureMonitor via
@@ -64,12 +60,10 @@ inline constexpr char kProcessMemoryBudgetMB[] = "process-memory-budget-mb";
 class CobaltSystemMemoryPressureEvaluator
     : public ::memory_pressure::SystemMemoryPressureEvaluator {
  public:
-  static constexpr int kDefaultBudgetMbSuperLowEnd = 120;  // RAM <= 512 MB
-  static constexpr int kDefaultBudgetMbLowEnd = 160;    // 512 MB < RAM <= 1 GB
+  static constexpr int kDefaultBudgetMbLowEnd = 160;    // RAM <= 1 GB
   static constexpr int kDefaultBudgetMbStandard = 300;  // 1 GB < RAM <= 2 GB
   static constexpr int kDefaultBudgetMbHighEnd = 500;   // RAM > 2 GB
   static constexpr base::TimeDelta kDefaultPollInterval = base::Seconds(10);
-  static constexpr base::TimeDelta kDefaultCooldown = base::Seconds(60);
 
   using ProcessMemoryInfoGetter = base::RepeatingCallback<
       base::expected<base::ProcessMemoryInfo, base::ProcessUsageError>()>;
@@ -88,17 +82,7 @@ class CobaltSystemMemoryPressureEvaluator
       uint64_t process_memory_budget_bytes,
       float moderate_process_memory_fraction,
       float critical_process_memory_fraction,
-      base::TimeDelta poll_interval,
-      base::TimeDelta cooldown);
-
-  CobaltSystemMemoryPressureEvaluator(
-      std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter,
-      ProcessMemoryInfoGetter process_memory_info_getter,
-      uint64_t process_memory_budget_bytes,
-      float moderate_process_memory_fraction,
-      float critical_process_memory_fraction,
-      base::TimeDelta poll_interval,
-      base::TimeDelta cooldown);
+      base::TimeDelta poll_interval);
 
   CobaltSystemMemoryPressureEvaluator(
       const CobaltSystemMemoryPressureEvaluator&) = delete;
@@ -120,10 +104,10 @@ class CobaltSystemMemoryPressureEvaluator
     return process_memory_budget_bytes_;
   }
 
-  // Resolves the baseline process memory budget in bytes based on command-line
-  // switches or device hardware RAM tiering. If total_physical_memory_bytes is
-  // 0, it queries SbSystemGetTotalCPUMemory() (falling back to
-  // base::SysInfo::AmountOfPhysicalMemory()).
+  // Resolves the baseline process memory budget in bytes based on Finch feature
+  // parameters or device hardware RAM tiering. If total_physical_memory_bytes
+  // is 0, it queries SbSystemGetTotalCPUMemory() on Starboard and
+  // base::GetSystemMemoryInfo()) on Android.
   static uint64_t ResolveProcessMemoryBudget(
       uint64_t total_physical_memory_bytes = 0);
 
@@ -139,13 +123,7 @@ class CobaltSystemMemoryPressureEvaluator
   const float moderate_process_memory_fraction_;
   const float critical_process_memory_fraction_;
   const base::TimeDelta poll_interval_;
-  const base::TimeDelta cooldown_;
 
-  // To slow down the amount of moderate pressure event calls, this gets used to
-  // count the number of events since the last event occurred. This is used by
-  // |UpdateMemoryPressureLevel| to apply hysteresis on the raw results of
-  // |CalculateCurrentMemoryPressureLevel|.
-  int moderate_pressure_repeat_count_ = 0;
   base::RepeatingTimer timer_;
   base::WeakPtrFactory<CobaltSystemMemoryPressureEvaluator> weak_ptr_factory_{
       this};

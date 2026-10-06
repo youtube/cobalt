@@ -37,9 +37,6 @@ class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
 namespace cobalt {
-namespace memory {
-class AndroidOsSignalEvaluator;
-}  // namespace memory
 
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
@@ -55,7 +52,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override;
+  ~CobaltBrowserMainParts() override = default;
 
   // ShellBrowserMainParts overrides.
   int PreEarlyInitialization() override;
@@ -94,11 +91,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
-
-#if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<cobalt::memory::AndroidOsSignalEvaluator>
-      android_os_signal_evaluator_;
-#endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

@@ -12,8 +12,6 @@
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "base/feature_list.h"
-#include "base/features.h"
 #include "base/logging.h"
 #endif
 

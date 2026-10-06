@@ -151,10 +151,6 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam;
 extern const base::FeatureParam<int>
     kCobaltMemoryPressurePollIntervalSecondsParam;
 
-// Cooldown period in seconds before re-notifying listeners of sustained
-// pressure.
-extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
-
 }  // namespace features
 }  // namespace cobalt
 

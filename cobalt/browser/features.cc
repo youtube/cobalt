@@ -173,8 +173,5 @@ const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
     &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
-const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
-
 }  // namespace features
 }  // namespace cobalt
