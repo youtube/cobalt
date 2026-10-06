@@ -315,6 +315,10 @@ source_set("common") {
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
+  }
 }
 
 action("cobalt_build_info") {
@@ -477,6 +481,10 @@ test("cobalt_unittests") {
       "//content/public/android:content_java",
       "//ui/android:ui_java",
     ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 
   if (use_aura) {

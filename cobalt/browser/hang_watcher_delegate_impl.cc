@@ -26,9 +26,36 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/build/configs/buildflags.h"
+#include "starboard/extension/native_stability.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#elif BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
+#endif
 
 namespace cobalt {
 namespace browser {
+
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+namespace {
+
+void SetHangUuidCrashAnnotation(const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
+  auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
+    crash_ext->SetString(kNativeStabilityHangUuidKey, hang_uuid.c_str());
+  }
+#elif BUILDFLAG(IS_ANDROIDTV)
+  CobaltCrashAnnotations::GetInstance()->SetAnnotation(
+      kNativeStabilityHangUuidKey, hang_uuid);
+#endif
+}
+
+}  // namespace
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
 // static
 void CobaltHangWatcherDelegate::Initialize() {
@@ -239,7 +266,8 @@ base::TimeDelta CobaltHangWatcherDelegate::GetLongHangTimeout() {
 
 void CobaltHangWatcherDelegate::RecordHangStarted(
     const std::string& hang_uuid) {
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+  SetHangUuidCrashAnnotation(hang_uuid);
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangStarted(hang_uuid);
@@ -249,7 +277,8 @@ void CobaltHangWatcherDelegate::RecordHangStarted(
 
 void CobaltHangWatcherDelegate::RecordHangRecovered(
     const std::string& hang_uuid) {
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+  SetHangUuidCrashAnnotation("");
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangRecovered(hang_uuid);
