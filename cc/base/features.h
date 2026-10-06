@@ -14,9 +14,6 @@
 
 namespace features {
 
-<<<<<<< HEAD
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
-=======
 #if BUILDFLAG(IS_COBALT)
 // When enabled, allows the compositor scheduler to send the next
 // BeginMainFrame before the previous commit has activated on the impl tree
@@ -25,8 +22,7 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
 #endif  // BUILDFLAG(IS_COBALT)
 
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);
->>>>>>> 861af764ec5 (cc/base/features.{cc,h}: Move kCobaltMainFrameBeforeActivation to the top of the files (#13134))
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
 // When enabled, the scheduler will allow deferring impl invalidation frames
