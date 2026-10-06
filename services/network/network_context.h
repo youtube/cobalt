@@ -214,12 +214,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return &cors_exempt_header_list_;
   }
 
-<<<<<<< HEAD
-=======
-  bool allow_any_cors_exempt_header_for_browser() const {
-    return params_ && params_->allow_any_cors_exempt_header_for_browser;
-  }
-
 #if BUILDFLAG(IS_COBALT)
   // Headers to add to every URLLoader request of this context. See
   // NetworkContextParams.cobalt_extra_request_headers.
@@ -229,7 +223,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> 728ab0ff3eb (net: Send Cobalt client-hint headers once at startup instead of per-request Mojo IPCs (#13086))
 #if BUILDFLAG(IS_ANDROID)
   const std::vector<std::unique_ptr<base::android::ApplicationStatusListener>>&
   app_status_listeners() const {
