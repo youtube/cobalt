@@ -258,13 +258,12 @@ void VideoFrameSubmitter::Initialize(cc::VideoFrameProvider* provider,
   // Defer acquiring a ContextProvider while the page is concealed so that
   // PostContextProviderToCallback does not block the renderer main thread
   // inside EstablishGpuChannelSync() while the GPU service is backgrounded.
-  if (!is_page_visible_) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
+  RequestContextProvider();
+#else
   context_provider_callback_.Run(
       nullptr, base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
                               weak_ptr_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void VideoFrameSubmitter::SetTransform(media::VideoTransformation transform) {
@@ -292,17 +291,20 @@ void VideoFrameSubmitter::SetIsSurfaceVisible(bool is_visible) {
 
 void VideoFrameSubmitter::SetIsPageVisible(bool is_visible) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  is_page_visible_ = is_visible;
 #if BUILDFLAG(IS_COBALT)
-  // If the context provider was lost or deferred while the page was concealed,
-  // acquire a new ContextProvider now that the page is visible again.
-  if (is_page_visible_ && video_frame_provider_ &&
-      !resource_provider_->IsInitialized()) {
-    context_provider_callback_.Run(
-        context_provider_,
-        base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
-                       weak_ptr_factory_.GetWeakPtr()));
+  if (is_page_visible_ == is_visible) {
+    return;
   }
+  is_page_visible_ = is_visible;
+  // Because Cobalt defers ContextProvider acquisition in Initialize() and
+  // OnContextLost() while concealed, acquire the deferred ContextProvider when
+  // the page becomes visible again unless a request is already in flight.
+  if (is_page_visible_ && video_frame_provider_ &&
+      !resource_provider_->IsInitialized() && !waiting_for_context_provider_) {
+    RequestContextProvider();
+  }
+#else
+  is_page_visible_ = is_visible;
 #endif  // BUILDFLAG(IS_COBALT)
   UpdateSubmissionState();
 }
@@ -352,15 +354,15 @@ void VideoFrameSubmitter::OnContextLost() {
   // requesting a new ContextProvider until SetIsPageVisible(true) so that
   // PostContextProviderToCallback does not block the renderer main thread
   // inside EstablishGpuChannelSync() while concealed.
-  if (!is_page_visible_) {
-    return;
+  if (!is_page_visible_ || !waiting_for_context_provider_) {
+    RequestContextProvider();
   }
-#endif  // BUILDFLAG(IS_COBALT)
-
+#else
   context_provider_callback_.Run(
       context_provider_,
       base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
                      weak_ptr_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void VideoFrameSubmitter::OnGpuChannelLost() {
@@ -584,11 +586,39 @@ void VideoFrameSubmitter::ReclaimResources(
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Centralizes ContextProvider acquisition across Initialize(),
+// SetIsPageVisible(true), OnContextLost(), and the 150ms retry tasks in
+// OnReceivedContextProvider(). Binding the 150ms retry PostDelayedTask to
+// RequestContextProvider() (instead of directly to context_provider_callback_)
+// ensures that if the page becomes concealed before the 150ms retry fires, the
+// retry checks is_page_visible_ and aborts rather than blocking the renderer
+// main thread in EstablishGpuChannelSync().
+void VideoFrameSubmitter::RequestContextProvider() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!is_page_visible_) {
+    waiting_for_context_provider_ = false;
+    return;
+  }
+  waiting_for_context_provider_ = true;
+  context_provider_callback_.Run(
+      context_provider_,
+      base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void VideoFrameSubmitter::OnReceivedContextProvider(
     bool use_gpu_compositing,
     scoped_refptr<viz::RasterContextProvider> context_provider,
     scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  waiting_for_context_provider_ = false;
+  if (!is_page_visible_) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   constexpr base::TimeDelta kGetContextProviderRetryTimeout =
       base::Milliseconds(150);
 
@@ -596,10 +626,13 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
     shared_image_interface_ = std::move(shared_image_interface);
     if (!shared_image_interface_) {
 #if BUILDFLAG(IS_COBALT)
-      if (!is_page_visible_) {
-        return;
-      }
-#endif  // BUILDFLAG(IS_COBALT)
+      waiting_for_context_provider_ = true;
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&VideoFrameSubmitter::RequestContextProvider,
+                         weak_ptr_factory_.GetWeakPtr()),
+          kGetContextProviderRetryTimeout);
+#else
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(
@@ -607,6 +640,7 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
               base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
                              weak_ptr_factory_.GetWeakPtr())),
           kGetContextProviderRetryTimeout);
+#endif  // BUILDFLAG(IS_COBALT)
       return;
     }
 
@@ -620,10 +654,13 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
 
   if (!MaybeAcceptContextProvider(std::move(context_provider))) {
 #if BUILDFLAG(IS_COBALT)
-    if (!is_page_visible_) {
-      return;
-    }
-#endif  // BUILDFLAG(IS_COBALT)
+    waiting_for_context_provider_ = true;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&VideoFrameSubmitter::RequestContextProvider,
+                       weak_ptr_factory_.GetWeakPtr()),
+        kGetContextProviderRetryTimeout);
+#else
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(
@@ -631,6 +668,7 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
             base::BindOnce(&VideoFrameSubmitter::OnReceivedContextProvider,
                            weak_ptr_factory_.GetWeakPtr())),
         kGetContextProviderRetryTimeout);
+#endif  // BUILDFLAG(IS_COBALT)
     return;
   }
 
