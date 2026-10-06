@@ -322,9 +322,11 @@ jobs:
                 .[] | select(
                   .target != null and (
                     if (.test_type == "gtest" or .test_type == "junit") then
-                      ($run_flags["gtest_" + .runs_on] // false)
-                    else
+                      ($run_flags["gtest_" + (.runs_on // "host")] // false)
+                    elif .test_type != null then
                       ($run_flags[.test_type] // false)
+                    else
+                      false
                     end
                   )
                 )

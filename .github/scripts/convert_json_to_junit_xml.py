@@ -19,7 +19,6 @@ import json
 import sys
 import xml.etree.ElementTree as ET
 
-
 # Characters disallowed by XML 1.0 (excluding valid whitespace \t, \n, \r):
 # Disallowed: 0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F-0x84, 0x86-0x9F
 _DISALLOWED_CODEPOINTS = (
@@ -27,8 +26,7 @@ _DISALLOWED_CODEPOINTS = (
     | {0x0B, 0x0C}
     | set(range(0x0E, 0x20))
     | set(range(0x7F, 0x85))
-    | set(range(0x86, 0xA0))
-)
+    | set(range(0x86, 0xA0)))
 _XML_CLEAN_TABLE = dict.fromkeys(_DISALLOWED_CODEPOINTS, None)
 
 
@@ -57,7 +55,8 @@ def _parse_entry_duration(test):
       return 0.0
   if 'start_time' in test and 'end_time' in test:
     try:
-      return max(0.0, (float(test['end_time']) - float(test['start_time'])) / 1000.0)
+      return max(0.0,
+                 (float(test['end_time']) - float(test['start_time'])) / 1000.0)
     except (ValueError, TypeError):
       return 0.0
   return 0.0
@@ -75,7 +74,7 @@ def _parse_entry_output(test):
 
 
 def _extract_cases(data):
-  """Extracts test cases grouped by classname from heterogeneous JSON schemas."""
+  """Extracts test cases grouped by classname from heterogeneous schemas."""
   suites = collections.defaultdict(list)
 
   if isinstance(data, dict) and 'per_iteration_data' in data:
@@ -99,12 +98,15 @@ def _extract_cases(data):
           })
     return suites
 
-  tests = data.get('tests', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+  tests = data.get('tests', []) if isinstance(
+      data, dict) else (data if isinstance(data, list) else [])
   for t in tests:
     if not isinstance(t, dict):
       continue
-    name = t.get('test_title') or t.get('name') or t.get('test_category') or 'UnknownTest'
-    classname = t.get('class_name') or t.get('suite_name') or t.get('test_category') or 'VegaTest'
+    name = t.get('test_title') or t.get('name') or t.get(
+        'test_category') or 'UnknownTest'
+    classname = t.get('class_name') or t.get('suite_name') or t.get(
+        'test_category') or 'VegaTest'
     suites[classname].append({
         'name': name,
         'status': _normalize_status(t.get('result', t.get('status', 'PASSED'))),
@@ -123,8 +125,14 @@ def convert(json_path, xml_path):
 
   all_cases = [c for cases in suites.values() for c in cases]
   testsuites.set('tests', str(len(all_cases)))
-  testsuites.set('failures', str(sum(1 for c in all_cases if c['status'] in ('FAILURE', 'FAIL'))))
-  testsuites.set('errors', str(sum(1 for c in all_cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
+  testsuites.set(
+      'failures',
+      str(sum(1 for c in all_cases if c['status'] in ('FAILURE', 'FAIL'))))
+  testsuites.set(
+      'errors',
+      str(
+          sum(1 for c in all_cases
+              if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
   testsuites.set('time', f"{sum(c['time'] for c in all_cases):.3f}")
   testsuites.set('name', 'AllTests')
 
@@ -132,8 +140,14 @@ def convert(json_path, xml_path):
     suite_el = ET.SubElement(testsuites, 'testsuite')
     suite_el.set('name', suite_name)
     suite_el.set('tests', str(len(cases)))
-    suite_el.set('failures', str(sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))))
-    suite_el.set('errors', str(sum(1 for c in cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
+    suite_el.set(
+        'failures',
+        str(sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))))
+    suite_el.set(
+        'errors',
+        str(
+            sum(1 for c in cases
+                if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
     suite_el.set('time', f"{sum(c['time'] for c in cases):.3f}")
 
     for case in cases:
