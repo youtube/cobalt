@@ -56,7 +56,6 @@ class H5vccStorageImpl : public content::DocumentService<mojom::H5vccStorage> {
   ~H5vccStorageImpl();
 
   THREAD_CHECKER(thread_checker_);
-  base::FilePath user_data_path_;
 };
 
 }  // namespace h5vcc_storage
