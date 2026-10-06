@@ -146,8 +146,33 @@ def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
   return "M_Unknown"
 
 
+def is_within_repo(path: str, repo_path: str) -> bool:
+  """Returns True if path (after normalization) is inside repo_path."""
+  if not path:
+    return False
+  repo_abs = os.path.abspath(repo_path)
+  path_abs = os.path.abspath(path)
+  try:
+    return os.path.commonpath([repo_abs, path_abs]) == repo_abs
+  except ValueError:  # e.g. different drives on Windows
+    return False
+
+
 def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
-  """Resolves command / compiler output paths into an existing file path."""
+  """Resolves command / compiler output paths into a path inside repo_path.
+
+  Returns "" when the resolved path falls outside repo_path, so AI tool calls
+  and patches cannot read or modify files elsewhere on the host (e.g.
+  /etc/passwd or ~/.config credentials) via absolute paths or ../ traversal.
+  """
+  resolved = _resolve_repo_file_path_unchecked(raw_path, repo_path)
+  if not is_within_repo(resolved, repo_path):
+    return ""
+  return os.path.abspath(resolved)
+
+
+def _resolve_repo_file_path_unchecked(raw_path: str, repo_path: str) -> str:
+  """Best-effort resolution of a raw path; may point outside repo_path."""
   clean = raw_path.strip().lstrip("\"'")
   if clean.startswith("//"):
     clean = clean[2:]
@@ -332,6 +357,13 @@ def validate_patch_target(target_file: str,
   Returns False (and prints guard warnings to sys.stderr) if target_file is
   a generated build artifact or an unmodified third-party source file.
   """
+  if not target_file:
+    print(
+        f"  [GUARD] Rejecting {operation_name} on path outside the repository: "
+        f"{rel_file}.",
+        file=sys.stderr,
+    )
+    return False
   if (rel_file.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
       rel_file in ("cobalt_apk", "all")):
     print(

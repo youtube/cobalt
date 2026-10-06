@@ -13,6 +13,7 @@ from autoninja import (
     AutoninjaResolver,
     CompilerDiagnostic,
     find_build_file_for_object,
+    find_referencing_build_file,
     parse_compiler_errors,
 )
 from base_resolver import (
@@ -29,6 +30,9 @@ from base_resolver import (
     get_chromium_milestone,
     has_cobalt_git_history,
     is_unmodified_third_party,
+    is_within_repo,
+    resolve_repo_file_path,
+    validate_patch_target,
 )
 from conflicts import (
     detect_language,
@@ -2522,6 +2526,81 @@ class MemoryReadOnlyTest(unittest.TestCase):
         os.environ.get(
             "GCS_MEMORY_URI",
             "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"))
+
+
+class RepoPathSafetyTest(unittest.TestCase):
+  """Paths from AI tool calls / patches must stay inside the repository."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.root = self._tmp.name
+    self.repo = os.path.join(self.root, "src")
+    os.makedirs(os.path.join(self.repo, "base"))
+    self.inside = os.path.join(self.repo, "base", "foo.h")
+    with open(self.inside, "w", encoding="utf-8") as f:
+      f.write("// foo\n")
+    self.outside = os.path.join(self.root, "secret.txt")
+    with open(self.outside, "w", encoding="utf-8") as f:
+      f.write("TOP-SECRET-CONTENT\n")
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  def test_is_within_repo(self):
+    self.assertTrue(is_within_repo(self.inside, self.repo))
+    self.assertTrue(is_within_repo(self.repo, self.repo))
+    self.assertFalse(is_within_repo(self.outside, self.repo))
+    self.assertFalse(is_within_repo(self.repo + "_other/x", self.repo))
+    self.assertFalse(is_within_repo("", self.repo))
+
+  def test_relative_and_compiler_paths_still_resolve(self):
+    self.assertEqual(
+        resolve_repo_file_path("base/foo.h", self.repo), self.inside)
+    self.assertEqual(
+        resolve_repo_file_path("//base/foo.h", self.repo), self.inside)
+    # Compiler output relative to out/<dir>.
+    self.assertEqual(
+        resolve_repo_file_path("../../base/foo.h", self.repo), self.inside)
+
+  def test_absolute_path_inside_repo_resolves(self):
+    self.assertEqual(
+        resolve_repo_file_path(self.inside, self.repo), self.inside)
+
+  def test_absolute_path_outside_repo_rejected(self):
+    self.assertEqual(resolve_repo_file_path(self.outside, self.repo), "")
+    self.assertEqual(resolve_repo_file_path("/etc/passwd", self.repo), "")
+
+  def test_traversal_outside_repo_rejected(self):
+    self.assertEqual(
+        resolve_repo_file_path("base/../../secret.txt", self.repo), "")
+
+  def test_read_file_tool_refuses_outside_repo(self):
+    out = execute_local_tool(f"TOOL_READ_FILE: {self.outside}", self.repo)
+    self.assertNotIn("TOP-SECRET-CONTENT", out or "")
+    self.assertIn("[ERROR]", out or "")
+
+  def test_patch_target_outside_repo_rejected(self):
+    self.assertFalse(validate_patch_target("", self.outside, self.repo))
+
+
+class AutoninjaHelpersSafetyTest(unittest.TestCase):
+  """Defensive behavior of autoninja path helpers."""
+
+  def test_git_grep_pattern_passed_with_e_flag(self):
+    with mock.patch("autoninja.subprocess.run") as run:
+      run.return_value = mock.Mock(stdout="", returncode=1)
+      find_referencing_build_file("-foo.cc", "/repo")
+    cmd = run.call_args[0][0]
+    self.assertEqual(cmd[cmd.index("-e") + 1], "-foo.cc")
+
+  def test_build_file_walk_terminates(self):
+    with tempfile.TemporaryDirectory() as repo:
+      self.assertIsNone(find_build_file_for_object("obj/a/b/c.o", repo))
+      os.makedirs(os.path.join(repo, "a"))
+      gn = os.path.join(repo, "a", "BUILD.gn")
+      with open(gn, "w", encoding="utf-8") as f:
+        f.write("")
+      self.assertEqual(find_build_file_for_object("obj/a/b/c.o", repo), gn)
 
 
 if __name__ == "__main__":

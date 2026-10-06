@@ -80,7 +80,7 @@ def find_referencing_build_file(
   clean_name = os.path.basename(missing_file.strip("\"'"))
   try:
     res = subprocess.run(
-        ["git", "grep", "-n", "-I", clean_name, "--", "*.gn", "*.gni"],
+        ["git", "grep", "-n", "-I", "-e", clean_name, "--", "*.gn", "*.gni"],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -115,10 +115,12 @@ def find_build_file_for_object(
   # Strip archive member syntax: libfreetype.a(autofit.o) -> libfreetype.a
   clean = re.sub(r"\(.*?\)", "", clean)
   dir_cand = os.path.dirname(clean)
-  while dir_cand and dir_cand != ".":
+  prev_dir = None
+  while dir_cand and dir_cand != "." and dir_cand != prev_dir:
     gn_cand = os.path.join(repo_path, dir_cand, "BUILD.gn")
     if os.path.isfile(gn_cand):
       return gn_cand
+    prev_dir = dir_cand
     dir_cand = os.path.dirname(dir_cand)
   return None
 
