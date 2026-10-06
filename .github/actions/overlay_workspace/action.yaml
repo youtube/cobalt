@@ -45,7 +45,7 @@ runs:
 
         # Determine whether the runner started warm (golden workspace hit on SSD)
         cache_hit=false
-        if [ -w "/runner-cache" ] && [ -d "${LOWER_DIR}" ]; then
+        if [ -w "/runner-cache" ] && [ -d "/runner-cache/snapshots" ] && [ -n "$(ls -A /runner-cache/snapshots 2>/dev/null)" ]; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -61,27 +61,49 @@ runs:
           '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
         gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json 2>/dev/null || true
 
-        # Hydrate golden workspace from GCS snapshot if cache is cold
-        if [ -w "/runner-cache" ] && [ ! -d "${LOWER_DIR}" ]; then
-          PROJECT_NAME=$(gcloud config get-value project)
-          ARCHIVE="gs://${PROJECT_NAME}-test-artifacts/golden-workspace/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
-          STAGING_DIR="${LOWER_DIR}.staging.$$"
+        PROJECT_NAME=$(gcloud config get-value project)
+        PUBKEY="${GITHUB_WORKSPACE}/.github/security/golden-workspace-pubkey.pem"
+        MANIFEST_DIR="${RUNNER_TEMP}/manifest-$$"
+        LOWER_DIR=""
 
-          rm -rf "${LOWER_DIR}.staging."*
-          mkdir -p "${STAGING_DIR}"
+        # Hydrate golden workspace from signed GCS snapshot if cache is writable
+        if [ -w "/runner-cache" ] && [ -f "${PUBKEY}" ]; then
+          mkdir -p "${MANIFEST_DIR}"
+          MANIFEST_GCS="gs://${PROJECT_NAME}-golden-workspace/${PLATFORM_INPUT}/manifest.json"
+          SIG_GCS="gs://${PROJECT_NAME}-golden-workspace/${PLATFORM_INPUT}/manifest.sig"
 
-          if gcloud storage cp "${ARCHIVE}" - 2>/dev/null | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
-            if [ -d "${STAGING_DIR}/src/.git" ]; then
-              git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+          if gcloud storage cp "${MANIFEST_GCS}" "${MANIFEST_DIR}/manifest.json" 2>/dev/null && \
+             gcloud storage cp "${SIG_GCS}" "${MANIFEST_DIR}/manifest.sig" 2>/dev/null && \
+             openssl dgst -sha256 -verify "${PUBKEY}" -signature "${MANIFEST_DIR}/manifest.sig" "${MANIFEST_DIR}/manifest.json" >/dev/null 2>&1; then
+            ARCHIVE_SHA=$(jq -r '.archive_sha256' "${MANIFEST_DIR}/manifest.json")
+            SNAPSHOT_DIR="/runner-cache/snapshots/${ARCHIVE_SHA}"
+
+            if [ -d "${SNAPSHOT_DIR}" ]; then
+              LOWER_DIR="${SNAPSHOT_DIR}"
+            else
+              ARCHIVE_GCS="gs://${PROJECT_NAME}-golden-workspace/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
+              STAGING_DIR="/runner-cache/staging.$$"
+              mkdir -p "${STAGING_DIR}"
+
+              if gcloud storage cp "${ARCHIVE_GCS}" "${STAGING_DIR}/archive.tar.zst" 2>/dev/null && \
+                 [ "$(sha256sum "${STAGING_DIR}/archive.tar.zst" | awk '{print $1}')" = "${ARCHIVE_SHA}" ] && \
+                 tar --no-same-owner --use-compress-program="zstd -d -T0" -xf "${STAGING_DIR}/archive.tar.zst" -C "${STAGING_DIR}"; then
+                rm -f "${STAGING_DIR}/archive.tar.zst"
+                if [ -d "${STAGING_DIR}/src/.git" ]; then
+                  git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+                fi
+                mkdir -p "/runner-cache/snapshots"
+                mv "${STAGING_DIR}" "${SNAPSHOT_DIR}"
+                LOWER_DIR="${SNAPSHOT_DIR}"
+                echo "Extracted and verified golden workspace snapshot ${ARCHIVE_SHA}"
+              fi
+              rm -rf "${STAGING_DIR}"
             fi
-            rm -rf "${LOWER_DIR}"
-            mv "${STAGING_DIR}" "${LOWER_DIR}"
-            echo "Extracted golden workspace snapshot from ${ARCHIVE}"
           fi
-          rm -rf "${STAGING_DIR}"
+          rm -rf "${MANIFEST_DIR}"
         fi
 
-        if [ ! -d "${LOWER_DIR}" ]; then
+        if [ -z "${LOWER_DIR}" ] || [ ! -d "${LOWER_DIR}" ]; then
           echo "Golden workspace not found on SSD or GCS. Proceeding with cold workspace."
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
           exit 0

@@ -80,7 +80,10 @@ pipeline () {
       "${package_dir}" \
       "${package_dir}.tar.gz" \
       "${build_info_path}"
+
+    publish_golden_workspace_snapshot
   fi
+
 
   if has_simulator_tests; then
     time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
