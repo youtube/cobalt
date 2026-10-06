@@ -698,9 +698,9 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
 
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
+  const base::DictValue& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-  const base::Value::Dict& param_map = experiment_config->GetDict(
+  const base::DictValue& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 

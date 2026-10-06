@@ -25,9 +25,9 @@ bool IsTrueDouble(double num) {
   return num != static_cast<double>(floored_double);
 }
 
-std::optional<base::Value::Dict> ParseConfigToDictionary(
+std::optional<base::DictValue> ParseConfigToDictionary(
     const ExperimentConfiguration* experiment_configuration) {
-  base::Value::Dict experiment_config_dict;
+  base::DictValue experiment_config_dict;
 
   // Reject experiment config if any of the required field is missing.
   if (!experiment_configuration->hasActiveExperimentConfigData() ||
@@ -45,7 +45,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
       cobalt::kLatestConfigHash,
       experiment_configuration->latestExperimentConfigHashData().Utf8());
 
-  base::Value::Dict features;
+  base::DictValue features;
   for (auto& feature_name_and_value : experiment_configuration->features()) {
     features.Set(feature_name_and_value.first.Utf8(),
                  feature_name_and_value.second);
@@ -54,7 +54,7 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
                              std::move(features));
 
   // All FieldTrialParams are stored as strings, including booleans.
-  base::Value::Dict feature_params;
+  base::DictValue feature_params;
   std::string param_value;
   for (auto& param_name_and_value : experiment_configuration->featureParams()) {
     if (param_name_and_value.second->IsString()) {
@@ -84,11 +84,11 @@ std::optional<base::Value::Dict> ParseConfigToDictionary(
   return experiment_config_dict;
 }
 
-std::optional<base::Value::Dict> ParseSettingsToDictionary(
+std::optional<base::DictValue> ParseSettingsToDictionary(
     const HeapVector<
         std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings) {
-  base::Value::Dict settings_dict;
+  base::DictValue settings_dict;
 
   for (auto& setting_name_and_value : settings) {
     std::string setting_name = setting_name_and_value.first.Utf8();

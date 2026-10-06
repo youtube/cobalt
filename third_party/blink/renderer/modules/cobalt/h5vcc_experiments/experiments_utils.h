@@ -31,13 +31,13 @@ bool IsTrueDouble(double num);
 // Returns an empty optional when featureParams field in the |config| contains
 // an unsupported type. All supported featureParams values are converted into
 // strings.
-std::optional<base::Value::Dict> ParseConfigToDictionary(
+std::optional<base::DictValue> ParseConfigToDictionary(
     const ExperimentConfiguration* config);
 
 // Tries to parse settings key value pairs and convert these to
 // base::value::Dict.
 // Returns an empty optional when settings value contains an unsupported type.
-std::optional<base::Value::Dict> ParseSettingsToDictionary(
+std::optional<base::DictValue> ParseSettingsToDictionary(
     const HeapVector<
         std::pair<String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
         settings);

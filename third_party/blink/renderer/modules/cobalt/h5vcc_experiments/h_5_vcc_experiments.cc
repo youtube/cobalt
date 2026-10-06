@@ -44,7 +44,7 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
 
   EnsureReceiverIsBound();
 
-  std::optional<base::Value::Dict> experiment_config_dict =
+  std::optional<base::DictValue> experiment_config_dict =
       ParseConfigToDictionary(experiment_configuration);
 
   if (!experiment_config_dict.has_value()) {
@@ -164,7 +164,7 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setFinchParameters(
 
   EnsureReceiverIsBound();
 
-  std::optional<base::Value::Dict> settings_dict =
+  std::optional<base::DictValue> settings_dict =
       ParseSettingsToDictionary(settings);
 
   if (!settings_dict.has_value()) {

@@ -65,7 +65,7 @@ H5vccExperimentsImpl::H5vccExperimentsImpl(
                                                         std::move(receiver)) {}
 
 void H5vccExperimentsImpl::SetExperimentState(
-    base::Value::Dict experiment_config,
+    base::DictValue experiment_config,
     SetExperimentStateCallback callback) {
   auto* global_features = cobalt::GlobalFeatures::GetInstance();
   auto* experiment_config_ptr = global_features->experiment_config();
@@ -176,7 +176,7 @@ void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
 }
 
 void H5vccExperimentsImpl::SetFinchParameters(
-    base::Value::Dict settings,
+    base::DictValue settings,
     SetFinchParametersCallback callback) {
   cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetDict(
       cobalt::kFinchParameters, std::move(settings));

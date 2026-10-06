@@ -114,7 +114,7 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
     return acked_uuids;
   }
 
-  std::optional<base::Value::List> parsed_list = base::JSONReader::ReadList(
+  std::optional<base::ListValue> parsed_list = base::JSONReader::ReadList(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_list) {
     LOG(WARNING) << "Failed to parse acked UUIDs JSON list in: "
@@ -159,7 +159,7 @@ void WriteAckedUuidsToDisk(const base::FilePath& file_path,
     return;
   }
 
-  base::Value::List list_of_uuids;
+  base::ListValue list_of_uuids;
   list_of_uuids.reserve(acked_uuids.size());
   for (const auto& uuid : acked_uuids) {
     list_of_uuids.Append(uuid);
@@ -196,7 +196,7 @@ std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
     return hang_attributes;
   }
 
-  std::optional<base::Value::Dict> parsed_dict = base::JSONReader::ReadDict(
+  std::optional<base::DictValue> parsed_dict = base::JSONReader::ReadDict(
       file_content, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!parsed_dict) {
     LOG(WARNING) << "Failed to parse hang attributes JSON dict in: "
@@ -210,7 +210,7 @@ std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
                    << uuid;
       continue;
     }
-    const base::Value::Dict& entry_dict = value.GetDict();
+    const base::DictValue& entry_dict = value.GetDict();
     std::optional<bool> is_recovered = entry_dict.FindBool(kIsRecoveredKey);
     if (!is_recovered.has_value()) {
       LOG(WARNING) << "Missing or invalid '" << kIsRecoveredKey
@@ -235,9 +235,9 @@ void WriteHangAttributesToDisk(
     return;
   }
 
-  base::Value::Dict uuid_to_attributes;
+  base::DictValue uuid_to_attributes;
   for (const auto& [uuid, attributes] : hang_attributes) {
-    base::Value::Dict entry_dict;
+    base::DictValue entry_dict;
     entry_dict.Set(kIsRecoveredKey, attributes.is_recovered);
     uuid_to_attributes.Set(uuid, std::move(entry_dict));
   }
