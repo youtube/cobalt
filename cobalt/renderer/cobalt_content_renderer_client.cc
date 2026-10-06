@@ -34,7 +34,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
-#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -45,6 +44,7 @@
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -167,7 +167,9 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
-    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+    : media_memory_allocator_(
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>()),
+      h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -227,6 +229,40 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+}
+
+void CobaltContentRendererClient::
+    SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() {
+  // Cobalt deliberately skips construction of several Content services (see
+  // the IS_COBALT carve-outs in content/browser/browser_main_loop.cc). Any web
+  // API whose backing service is absent must also be hidden from script.
+  // Leaving the API visible makes feature detection report support that does
+  // not exist, and the resulting call reaches a browser-side handler that has
+  // no service behind it.
+  //
+  // SpeechRecognitionManagerImpl is not created for Cobalt, so hide the Web
+  // Speech *recognition* entry points. `webkitSpeechRecognition` is a
+  // LegacyWindowAlias gated on this feature, and the `SpeechRecognition`
+  // interface itself is [LegacyNoInterfaceObject], so disabling the feature
+  // removes the only way to construct one. Script then observes a catchable
+  // ReferenceError/TypeError, which is what callers that feature-detect expect.
+  //
+  // This is the only guard: SpeechRecognitionDispatcherHost is left unmodified
+  // and would dereference the null manager if a session were started. Command
+  // line switches are applied after this function, so
+  // --enable-blink-features=ScriptedSpeechRecognition would re-expose the API;
+  // Cobalt does not pass that switch, and release builds ignore intent-supplied
+  // command line arguments.
+  //
+  // Note this does not affect speech *synthesis* (ScriptedSpeechSynthesis),
+  // which Cobalt still supports.
+  blink::WebRuntimeFeatures::EnableFeatureFromString(
+      "ScriptedSpeechRecognition", /*enable=*/false);
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -240,6 +276,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   const base::flat_set<::media::CdmSessionType> kSessionTypes = {
       ::media::CdmSessionType::kTemporary};
 
+#if !BUILDFLAG(IS_IOS_TVOS)
   key_system_infos->push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
       codecs,                        // Regular codecs.
       kEncryptionSchemes,            // Encryption schemes.
@@ -251,6 +288,8 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       Robustness::HW_SECURE_ALL,     // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 
   key_system_infos->push_back(std::make_unique<CobaltWidevineL3KeySystemInfo>(
       codecs,                                        // Regular codecs.
@@ -318,9 +357,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
 
 ::media::ExternalMemoryAllocator*
 CobaltContentRendererClient::GetMediaAllocator() {
-  base::AutoLock scoped_lock(media_allocator_lock_);
-  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
-                                          : nullptr;
+  // The external memory pool allocates from DecoderBufferAllocator, which is
+  // not installed when kCobaltDisableDecoderBufferAllocator is enabled.
+  return ::media::DecoderBuffer::Allocator::Get()
+             ? media_memory_allocator_.get()
+             : nullptr;
 }
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
@@ -336,8 +377,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   CHECK(content::RenderThread::IsMainThread());
 
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-  renderer_factory_traits->audio_write_duration_local =
-      base::Microseconds(kSbPlayerWriteDurationLocal);
+  // Note: The local audio write duration intentionally differs from
+  // |kSbPlayerWriteDurationLocal| (0.5s) to align with Cobalt C25 and earlier,
+  // which use 1s. It can be overridden by the "CobaltAudioWriteDuration"
+  // feature for experiments (e.g., 0.5s). See b/433993748.
+  renderer_factory_traits->audio_write_duration_local = base::Seconds(1);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
@@ -358,26 +402,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // The feature is enabled by default; H5vcc settings still take precedence
-  // when the web app explicitly sets the key, so external memory pooling can
-  // be toggled dynamically (e.g. for a holdback experiment). When the key is
-  // unset, fall back to the command-line/default feature state.
-  // TODO: b/378106931 - Once the H5vcc override is no longer needed, move this
-  // initialization back to
-  // CobaltContentRendererClient::RenderThreadStarted().
-  const bool enable_external_pool =
-      experimental_features.Get(::media::kMediaUseExternalMediaMemoryPool)
-          .value_or(base::FeatureList::IsEnabled(
-              ::media::kCobaltUseExternalMediaMemoryPool));
-  {
-    base::AutoLock scoped_lock(media_allocator_lock_);
-    is_external_memory_pool_enabled_ = enable_external_pool;
-    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
-      media_memory_allocator_ =
-          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
-    }
-  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

@@ -24,10 +24,33 @@ template("modular_apk") {
   _lib_name = invoker.lib_name
   _testonly = defined(invoker.testonly) && invoker.testonly
 
-  if (_name == "cobalt") {
-    _loader = "//starboard/loader_app"
-  } else {
+  if (_testonly) {
     _loader = "//starboard/elf_loader:elf_loader_sandbox"
+  } else {
+    _loader = "//starboard/loader_app"
+  }
+
+  if (_testonly) {
+    _instrumentation_manifest_target =
+        "${target_name}__instrumentation_manifest_resources"
+    _instrumentation_manifest =
+        "$target_gen_dir/$_instrumentation_manifest_target/AndroidManifest.xml"
+    jinja_template("${_instrumentation_manifest_target}__generate") {
+      testonly = true
+      input =
+          "//cobalt/aosp/apk/test/AndroidManifest_instrumentation.xml.jinja2"
+      output = _instrumentation_manifest
+      variables = [
+        "evergreen_library=app/${_name}/lib/${_lib_name}.lz4",
+        "evergreen_content=app/${_name}/content",
+      ]
+    }
+
+    android_resources(_instrumentation_manifest_target) {
+      testonly = true
+      mergeable_android_manifests = [ _instrumentation_manifest ]
+      deps = [ ":${_instrumentation_manifest_target}__generate" ]
+    }
   }
 
   _assets_target = "${target_name}__assets"
@@ -36,12 +59,12 @@ template("modular_apk") {
     disable_compression = true
 
     renaming_sources = [ "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4" ]
-    renaming_destinations = [ "app/cobalt/lib/${_lib_name}.lz4" ]
+    renaming_destinations = [ "app/${_name}/lib/${_lib_name}.lz4" ]
 
     # Cobalt Evergreen uses the empty font package.
     renaming_sources +=
         [ "$root_build_dir/app/${_name}/content/fonts/fonts.xml" ]
-    renaming_destinations += [ "app/cobalt/content/fonts/fonts.xml" ]
+    renaming_destinations += [ "app/${_name}/content/fonts/fonts.xml" ]
 
     # The platform provides the fonts from cobalt_font_package.
     renaming_sources += [ "$root_build_dir/fonts/fonts.xml" ]
@@ -52,36 +75,31 @@ template("modular_apk") {
       renaming_destinations += [ "fonts/$_font_file" ]
     }
 
+    foreach(_cert, network_certs) {
+      _cert_file = get_path_info(_cert, "file")
+      renaming_sources +=
+          [ "$root_build_dir/app/${_name}/content/ssl/certs/$_cert_file" ]
+      renaming_destinations += [ "app/${_name}/content/ssl/certs/$_cert_file" ]
+    }
+
     deps = [
+      ":copy_${_name}_certs($default_toolchain)",
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
       "//starboard/content/fonts:copy_fonts($default_toolchain)",
       "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
 
-    foreach(_cert, network_certs) {
-      renaming_sources += [ _cert ]
-      renaming_destinations +=
-          [ "app/cobalt/content/ssl/certs/" + get_path_info(_cert, "file") ]
-    }
-
     if (icu_use_data_file) {
       renaming_sources += [ "$root_build_dir/icudtl.dat" ]
-      renaming_destinations += [ "app/cobalt/content/icudtl.dat" ]
+      renaming_destinations += [ "app/${_name}/content/icudtl.dat" ]
       deps += [ "//third_party/icu:icudata($default_toolchain)" ]
     }
 
-    if (_name == "cobalt") {
+    if (!_testonly) {
       renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
-      renaming_destinations += [ "app/cobalt/content/cobalt_shell.pak" ]
+      renaming_destinations += [ "app/${_name}/content/cobalt_shell.pak" ]
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
-    }
-
-    if (_name == "nplb") {
-      # TODO(crbug.com/532068409): package player_test_data_assets and figure
-      # out a workaround for the increase in size.
-      deps +=
-          [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data_assets" ]
     }
   }
 
@@ -110,8 +128,11 @@ template("modular_apk") {
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so($native_toolchain)",
     ]
 
-    if (_name == "nplb") {
-      deps += [ "//cobalt/aosp:nplb_instrumentation_java" ]
+    if (_testonly) {
+      deps += [
+        ":$_instrumentation_manifest_target",
+        "//cobalt/aosp:test_instrumentation_java",
+      ]
     }
 
     loadable_modules = [

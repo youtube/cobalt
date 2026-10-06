@@ -62,15 +62,14 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("--hide-scrollbars");
     // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on startup.
     paramOverrides.add("--use-custom-android-fonts-xml");
+    // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
+    paramOverrides.add("--max-http-cache-size=26214400");
 
     return paramOverrides;
   }
 
   public static StringJoiner getDefaultJsFlagOverridesList() {
     StringJoiner paramOverrides = new StringJoiner(",");
-
-    // Trades a little V8 performance for significant memory savings.
-    paramOverrides.add("--optimize-for-size");
 
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
@@ -96,6 +95,9 @@ public final class CommandLineOverrideHelper {
     paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
     paramOverrides.add("ReclaimOldPrepaintTiles");
     paramOverrides.add("WebAudioRemoveAudioDestinationResampler");
+    // Commit localStorage/sessionStorage writes at the end of the JS task that
+    // made them so recent writes survive process termination.
+    paramOverrides.add("DomStorageSmartFlushing");
 
     return paramOverrides;
   }

@@ -66,6 +66,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
         decode_target_graphics_context_provider = nullptr;
     void* surface_view = nullptr;
     std::string max_video_capabilities;
+    std::string max_video_resolution;
   };
 
   struct TunnelModeConfig {
@@ -210,9 +211,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // mode.
   const bool skip_video_frames_over_60_fps_;
 
-  // Enable the workaround to ignore stale/dirty MediaCodec callback messages
-  // queued on the main thread during a flush.
-  const bool ignore_mediacodec_callbacks_during_flushing_;
   const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;

@@ -282,7 +282,7 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
-  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_sources = [ "$root_out_dir/fonts/fonts.xml" ]
   renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
   deps = [
@@ -294,6 +294,13 @@ android_assets("coat_assets") {
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
+
+  # Optimize at the ThinLTO link step, as Chrome's Android library does
+  # (chrome/android/chrome_common_shared_library.gni).
+  if (use_thin_lto) {
+    configs -= [ "//build/config/compiler:thinlto_optimize_default" ]
+    configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+  }
   deps = [
     ":app_event_bridge",
     "//cobalt:cobalt_app",
@@ -373,8 +380,11 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
     "apk/app/src/test/java/dev/cobalt/coat/PlatformErrorTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
+    "apk/app/src/test/java/dev/cobalt/media/AudioOutputManagerTest.java",
+    "apk/app/src/test/java/dev/cobalt/media/MediaCodecBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/DisplayUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]

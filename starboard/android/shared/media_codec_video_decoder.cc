@@ -307,9 +307,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_size_(
+      max_video_size_(GetLowestResolution(
           ParseMaxResolution(stream_config.max_video_capabilities,
-                             stream_config.video_stream_info.frame_size)),
+                             "max_video_capabilities",
+                             stream_config.video_stream_info.frame_size),
+          ParseMaxResolution(stream_config.max_video_resolution,
+                             "max_video_resolution",
+                             stream_config.video_stream_info.frame_size))),
       require_software_codec_(
           IsSoftwareDecoderRequired(pipeline_config.experimental_features,
                                     stream_config.max_video_capabilities)),
@@ -337,9 +341,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_video_frames_over_60_fps_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipVideoFramesOver60Fps)),
-      ignore_mediacodec_callbacks_during_flushing_(
-          pipeline_config.experimental_features.GetBool(
-              kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
       ignore_stale_rendered_frames_after_seek_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreStaleRenderedFramesAfterSeek)),
@@ -517,11 +518,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         if (IsFrameSizeExceedingCapabilities(frame_size,
                                              max_video_size_.value())) {
           SB_LOG(ERROR) << "Video frame size " << frame_size
-                        << " exceeds max_video_capabilities "
-                        << max_video_size_.value()
+                        << " exceeds max resolution " << max_video_size_.value()
                         << ". Raising kSbPlayerErrorCapabilityChanged.";
           ReportError(kSbPlayerErrorCapabilityChanged,
-                      "Video frame size exceeds max_video_capabilities.");
+                      "Video frame size exceeds max resolution.");
           return;
         }
       }
@@ -878,8 +878,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      skip_video_frames_over_60_fps_,
-      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
+      skip_video_frames_over_60_fps_, enable_ndk_video_,
       enable_trivial_optimizations_);
   if (result) {
     media_decoder_ = std::move(result.value());

@@ -58,6 +58,7 @@ class StarboardRendererTest : public testing::Test {
         /*audio_write_duration_local=*/base::Seconds(1),
         /*audio_write_duration_remote=*/base::Seconds(1),
         /*max_video_capabilities=*/"",
+        /*max_video_resolution=*/"",
         StarboardRendererConfig::ExperimentalFeatures{},
         /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
@@ -210,11 +211,25 @@ TEST_F(StarboardRendererTest, InitializeFailsWithNoStreams) {
 }
 
 TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
+  // No rendering mode is sent when CreatePlayerBridge() fails.
+  StrictMock<base::MockRepeatingCallback<void(const StarboardRenderingMode)>>
+      update_starboard_rendering_mode_cb;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      update_starboard_rendering_mode_cb.Get(),
+      /*get_sb_window_handle_cb=*/base::NullCallback()
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
   AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
   AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
 
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
       .WillOnce(Return(kSbPlayerInvalid));
+  EXPECT_CALL(update_starboard_rendering_mode_cb, Run(_)).Times(0);
   EXPECT_CALL(renderer_init_cb_,
               Run(HasStatusCode(DECODER_ERROR_NOT_SUPPORTED)));
 
@@ -222,6 +237,8 @@ TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
                         renderer_init_cb_.Get());
 
   task_environment_.RunUntilIdle();
+
+  renderer_.reset();
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {

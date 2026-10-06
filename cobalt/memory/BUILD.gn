@@ -33,6 +33,17 @@ source_set("memory") {
     "//base",
     "//cobalt/browser:features",
   ]
+
+  if (is_starboard) {
+    sources += [
+      "cobalt_system_memory_pressure_evaluator.cc",
+      "cobalt_system_memory_pressure_evaluator.h",
+    ]
+    deps += [
+      "//components/memory_pressure",
+      "//starboard:starboard_headers_only",
+    ]
+  }
 }
 
 source_set("unit_tests") {
@@ -50,4 +61,12 @@ source_set("unit_tests") {
     "//components/memory_pressure",
     "//testing/gtest",
   ]
+
+  if (is_starboard) {
+    sources += [ "cobalt_system_memory_pressure_evaluator_unittest.cc" ]
+    deps += [
+      "//components/memory_pressure",
+      "//starboard:starboard_headers_only",
+    ]
+  }
 }

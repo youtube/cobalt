@@ -32,6 +32,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/memory_ablation.h"
@@ -55,6 +56,17 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "cobalt/memory/android_os_signal_evaluator.h"
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/memory/memory_pressure_monitor.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // nogncheck
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -481,6 +493,39 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                << ". Aborting storage migration.";
     return result;
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Register the Cobalt system memory pressure evaluator on Starboard platforms
+  // when enabled via Finch or command line.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSystemMemoryPressureEvaluator)) {
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
+    // |monitor| may be nullptr in browser tests or if memory monitoring is
+    // disabled.
+    if (monitor) {
+      cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+          media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      media_allowance_getter = base::BindRepeating(
+          &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
+#endif
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+              monitor->CreateVoter(), std::move(media_allowance_getter)));
+      LOG(INFO)
+          << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluator.";
+    }
+  } else {
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   StartStorageMigration();
 

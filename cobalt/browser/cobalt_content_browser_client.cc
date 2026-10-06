@@ -458,6 +458,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
   }
 
+#if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "max-http-cache-size")) {
     std::string size_str =
@@ -468,6 +469,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
       network_context_params->http_cache_max_size = parsed_size;
     }
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
@@ -685,9 +687,9 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
 
-  const base::Value::Dict& feature_map = experiment_config->GetDict(
+  const base::DictValue& feature_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
-  const base::Value::Dict& param_map = experiment_config->GetDict(
+  const base::DictValue& param_map = experiment_config->GetDict(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 

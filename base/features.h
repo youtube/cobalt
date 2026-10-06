@@ -33,14 +33,28 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMemoryPressureCooldownSeconds);
 
-// When enabled, gates the CC image decode cache items limit via Finch feature
-// and parameter.
+// When enabled, gates the CC image decode cache items limit and size limit (in
+// MB) via Finch feature and parameters.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsMbs);
 
 // When enabled, gates the GPU memory budget via Finch feature and parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
+
+// When enabled, overrides the GPU discardable cache size limit returned by
+// gpu::DiscardableCacheSizeLimit(), which caps the unlocked entries kept by the
+// GPU service transfer cache (e.g. uploaded decoded images) and the
+// discardable texture managers. Enabled by default on 3P/Starboard platforms.
+// Disabled by default on Android TV, where Cobalt runs in low-end device mode
+// and the upstream limit is already 1 MB. The parameter is the limit in MB and
+// defaults to 1, the upstream low-end Android value. Values above 256 MB, the
+// largest upstream default, are capped. Disabling the feature restores the
+// upstream per-platform defaults. --force-gpu-mem-discardable-limit-mb still
+// takes precedence over both.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuDiscardableCacheLimit);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuDiscardableCacheLimitMb);
 
 // When enabled, gates the V8 max old space size via Finch feature and
 // parameter.
@@ -51,6 +65,13 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8MaxOldSpaceSizeMb);
 // parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
+
+// When enabled, V8 runs with --optimize-for-size, favoring memory reduction over
+// execution speed. Enabled by default on Android to preserve existing status
+// quo, and disabled by default on 3P (non-Android) platforms to unlock locked
+// 30 FPS UI framerates, while allowing dynamic control via Finch or command
+// line.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
 
 // When enabled, overrides the compositor skewport target times, which control
 // speculative pre-rastering of offscreen tiles. When disabled, the upstream

@@ -82,7 +82,6 @@ class MediaCodec {
   struct VideoPlatformOptions {
     int max_input_size = 0;
     bool skip_video_frames_over_60_fps = false;
-    bool ignore_mediacodec_callbacks_during_flushing = false;
     bool enable_frame_renderer_listener = false;
     bool require_secured_decoder = false;
     bool require_software_codec = false;

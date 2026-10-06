@@ -25,10 +25,10 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track.h"
 #include "starboard/audio_sink.h"
-#include "starboard/common/log.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"
@@ -74,20 +74,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      bool pause_using_audio_track_state,
                      void* context);
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    // TODO(b/330793785): Use audio_sink.flush() instead of re-creating a new
-    // audio_sink.
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
-
   void TestMinRequiredFrames();
 
  private:
@@ -102,10 +88,9 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
-class AudioTrackAudioSink : public SbAudioSinkImpl {
+class AudioTrackAudioSink : public AudioSinkAndroid {
  public:
   static std::unique_ptr<AudioTrackAudioSink> Create(
-      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -120,7 +105,6 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       bool pause_using_audio_track_state,
       void* context);
   static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
-      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -136,7 +120,6 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       void* context);
 
   AudioTrackAudioSink(PassKey<AudioTrackAudioSink>,
-                      Type* type,
                       int channels,
                       int sampling_frequency_hz,
                       SbMediaAudioSampleType sample_type,
@@ -152,14 +135,16 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       void* context);
   ~AudioTrackAudioSink() override;
 
-  bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
+  bool Flush() override;
+  void SetStartTime(int64_t start_time_us) override {
+    start_time_.store(start_time_us);
+  }
+
   int GetUnderrunCount();
   int GetStartThresholdInFrames();
-  bool Flush();
-  void SetStartTime(int64_t start_time) { start_time_.store(start_time); }
 
  private:
   class AudioTrackOutThread;
@@ -173,7 +158,6 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   int64_t GetFramesDurationUs(int64_t frames) const;
 
-  const raw_ptr<Type> type_;
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;

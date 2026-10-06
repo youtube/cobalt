@@ -106,6 +106,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+  base::WeakPtr<Shell> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
+
   static void OnBlur();
   static void OnFocus();
   static void OnConceal();
@@ -193,7 +195,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       RenderWidgetHost* render_widget_host,
       base::RepeatingClosure hang_monitor_restarter) override;
   void ActivateContents(WebContents* contents) override;
-  bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
       WebContents& web_contents,
       PreloadingTriggerType trigger_type) override;

@@ -632,6 +632,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
     if (useStarboardLifeCycle()) {
@@ -669,9 +671,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
 
-    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-    }
+    // Persist pending cookie and DOM storage writes so they are not lost if the
+    // process is killed while the app is in the background.
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       mForceCreateNewVideoSurfaceView = true;

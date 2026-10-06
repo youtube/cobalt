@@ -404,15 +404,12 @@ test("nplb") {
       ]
     }
 
-    data_deps += [
-      "//starboard/content/fonts:copy_font_data",
-      "//starboard/content/ssl:copy_ssl_certificates_evergreen",
-      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
-    ]
+    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 
   if (is_ios && target_platform == "tvos" && is_internal_build) {
     sources += internal_tvos_test_sources
+    deps += [ "//cobalt/internal/third_party/platform_drm:headers" ]
   }
 }
