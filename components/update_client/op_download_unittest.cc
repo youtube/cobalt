@@ -191,7 +191,7 @@ class OpDownloadTest : public testing::Test {
 #if BUILDFLAG(IS_STARBOARD)
   base::expected<OperationResult, CategorizedError> outcome_;
 #else
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::expected<base::FilePath, CategorizedError> outcome_;
 #endif
 };

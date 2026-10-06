@@ -286,7 +286,7 @@ std::queue<Operation> MakeErrorOperations(
          base::OnceCallback<void(
              base::expected<OperationResult, CategorizedError>)> callback)
 #else
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
          CategorizedError error, const int event_type, const base::FilePath&,
          base::OnceCallback<void(
              base::expected<base::FilePath, CategorizedError>)> callback)

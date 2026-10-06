@@ -411,7 +411,7 @@ bool CPU::StarboardDetectCPU() {
 #endif
 
 =======
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 CPU::CPU()
     : stepping_(0),
       model_(0),

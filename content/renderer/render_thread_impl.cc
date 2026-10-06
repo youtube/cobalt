@@ -575,7 +575,7 @@ void RenderThreadImpl::Init() {
 =======
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   ChildProcess::current()->SetIOThreadType(base::ThreadType::kDisplayCritical);
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
   process_foregrounded_count_ = 0;

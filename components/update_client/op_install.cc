@@ -105,7 +105,7 @@ void InstallComplete(
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& crx_operation_result,
 #else
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::FilePath crx_file,
 #endif
     const CrxInstaller::Result& result) {
@@ -335,7 +335,7 @@ base::OnceClosure InstallOperation(
     PersistedData* metadata,
 #endif
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>

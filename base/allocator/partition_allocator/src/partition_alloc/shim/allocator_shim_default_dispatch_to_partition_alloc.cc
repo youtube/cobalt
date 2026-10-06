@@ -853,7 +853,7 @@ void ConfigurePartitions(
   // invoked on an allocation during the runtime initialization.
   // ConfigurePartitions() is invoked explicitly from Chromium code, so this
   // shouldn't bite us here. Mentioning just in case we move this code earlier.
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static partition_alloc::internal::base::NoDestructor<
       partition_alloc::PartitionAllocator>
       new_main_allocators[2] = {

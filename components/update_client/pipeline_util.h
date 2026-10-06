@@ -30,7 +30,7 @@ base::Value::Dict MakeSimpleOperationEvent(
     const int operation_type);
 #else
 base::Value::Dict MakeSimpleOperationEvent(
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 4d4e9acf495 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type);
 #endif
