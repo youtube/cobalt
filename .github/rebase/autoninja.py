@@ -120,8 +120,7 @@ def find_build_file_for_object(
     gn_cand = os.path.join(repo_path, dir_cand, "BUILD.gn")
     if os.path.isfile(gn_cand):
       return gn_cand
-    prev_dir = dir_cand
-    dir_cand = os.path.dirname(dir_cand)
+    prev_dir, dir_cand = dir_cand, os.path.dirname(dir_cand)
   return None
 
 

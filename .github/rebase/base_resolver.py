@@ -165,10 +165,10 @@ def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
   and patches cannot read or modify files elsewhere on the host (e.g.
   /etc/passwd or ~/.config credentials) via absolute paths or ../ traversal.
   """
-  resolved = _resolve_repo_file_path_unchecked(raw_path, repo_path)
-  if not is_within_repo(resolved, repo_path):
-    return ""
-  return os.path.abspath(resolved)
+  if ((resolved := _resolve_repo_file_path_unchecked(raw_path, repo_path)) and
+      is_within_repo(resolved, repo_path)):
+    return os.path.abspath(resolved)
+  return ""
 
 
 def _resolve_repo_file_path_unchecked(raw_path: str, repo_path: str) -> str:
