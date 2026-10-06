@@ -19,7 +19,6 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
@@ -51,34 +50,6 @@ namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
-
-struct ActiveRendererEntry {
-  scoped_refptr<base::SequencedTaskRunner> task_runner;
-  base::WeakPtr<StarboardRenderer> weak_this;
-};
-
-// Tracks active StarboardRenderer instances and conceal state so
-// FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
-// thread during kSbEventTypeConceal.
-// TODO(b/570356133): Move StarboardRendererConcealRegistry ownership into
-// GpuMojoMediaClientStarboard via MediaService to avoid a static singleton.
-struct StarboardRendererConcealRegistry {
-  base::Lock lock;
-  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
-      GUARDED_BY(lock);
-  bool is_concealed GUARDED_BY(lock) = false;
-};
-
-StarboardRendererConcealRegistry& GetConcealRegistry() {
-  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
-  return *registry;
-}
-
-bool IsApplicationConcealed() {
-  auto& registry = GetConcealRegistry();
-  base::AutoLock auto_lock(registry.lock);
-  return registry.is_concealed;
-}
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -161,6 +132,30 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 }
 }  // namespace
 
+StarboardRendererConcealRegistry::StarboardRendererConcealRegistry() = default;
+
+StarboardRendererConcealRegistry::~StarboardRendererConcealRegistry() = default;
+
+void StarboardRendererConcealRegistry::Register(
+    StarboardRenderer* renderer,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    base::WeakPtr<StarboardRenderer> weak_renderer) {
+  base::AutoLock auto_lock(lock_);
+  active_renderers_.emplace(
+      renderer,
+      ActiveRendererEntry{std::move(task_runner), std::move(weak_renderer)});
+}
+
+void StarboardRendererConcealRegistry::Unregister(StarboardRenderer* renderer) {
+  base::AutoLock auto_lock(lock_);
+  active_renderers_.erase(renderer);
+}
+
+bool StarboardRendererConcealRegistry::IsConcealed() const {
+  base::AutoLock auto_lock(lock_);
+  return is_concealed_;
+}
+
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<MediaLog> media_log,
@@ -175,7 +170,8 @@ StarboardRenderer::StarboardRenderer(
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
-    )
+    ,
+    StarboardRendererConcealRegistry* conceal_registry)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -193,15 +189,13 @@ StarboardRenderer::StarboardRenderer(
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
-{
+      ,
+      conceal_registry_(conceal_registry) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
-  {
-    auto& registry = GetConcealRegistry();
-    base::AutoLock auto_lock(registry.lock);
-    registry.active_renderers.emplace(
-        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
+  if (conceal_registry_) {
+    conceal_registry_->Register(this, task_runner_, weak_factory_.GetWeakPtr());
   }
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
@@ -220,10 +214,8 @@ StarboardRenderer::~StarboardRenderer() {
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   player_bridge_.reset();
-  {
-    auto& registry = GetConcealRegistry();
-    base::AutoLock auto_lock(registry.lock);
-    registry.active_renderers.erase(this);
+  if (conceal_registry_) {
+    conceal_registry_->Unregister(this);
   }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
@@ -264,7 +256,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // If the application is concealed, abort initialization immediately so
   // SbPlayerCreate is not invoked on a destroyed native window.
-  if (IsApplicationConcealed()) {
+  if (conceal_registry_ && conceal_registry_->IsConcealed()) {
     state_ = STATE_ERROR;
     std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
     return;
@@ -781,7 +773,8 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   // If concealed while waiting for an asynchronous window handle or overlay,
   // abort before constructing SbPlayerBridge on a destroyed native window.
-  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
+  if ((conceal_registry_ && conceal_registry_->IsConcealed()) ||
+      state_ == STATE_ERROR) {
     state_ = STATE_ERROR;
     if (init_cb_) {
       std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
@@ -1285,16 +1278,14 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
   }
 }
 
-// static
-void StarboardRenderer::FlushAndSuspendActiveRenderers(
+void StarboardRendererConcealRegistry::FlushAndSuspendActiveRenderers(
     base::OnceClosure done_cb) {
   std::vector<ActiveRendererEntry> entries;
   {
-    auto& registry = GetConcealRegistry();
-    base::AutoLock auto_lock(registry.lock);
-    registry.is_concealed = true;
-    entries.reserve(registry.active_renderers.size());
-    for (const auto& [renderer, entry] : registry.active_renderers) {
+    base::AutoLock auto_lock(lock_);
+    is_concealed_ = true;
+    entries.reserve(active_renderers_.size());
+    for (const auto& [renderer, entry] : active_renderers_) {
       entries.push_back(entry);
     }
   }
@@ -1331,11 +1322,9 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
   }
 }
 
-// static
-void StarboardRenderer::ResumeActiveRenderers() {
-  auto& registry = GetConcealRegistry();
-  base::AutoLock auto_lock(registry.lock);
-  registry.is_concealed = false;
+void StarboardRendererConcealRegistry::ResumeActiveRenderers() {
+  base::AutoLock auto_lock(lock_);
+  is_concealed_ = false;
 }
 
 void StarboardRenderer::OnConcealFallbackSuspend() {

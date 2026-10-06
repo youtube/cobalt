@@ -36,4 +36,21 @@ void MediaService::CreateInterfaceFactory(
       std::move(receiver));
 }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaService::FlushAndSuspendActiveRenderers(
+    FlushAndSuspendActiveRenderersCallback callback) {
+  if (!mojo_media_client_) {
+    std::move(callback).Run();
+    return;
+  }
+  mojo_media_client_->FlushAndSuspendActiveRenderers(std::move(callback));
+}
+
+void MediaService::ResumeActiveRenderers() {
+  if (mojo_media_client_) {
+    mojo_media_client_->ResumeActiveRenderers();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

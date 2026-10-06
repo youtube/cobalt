@@ -62,12 +62,11 @@ class StarboardRendererTest : public testing::Test {
         /*max_video_capabilities=*/"",
         /*max_video_resolution=*/"",
         StarboardRendererConfig::ExperimentalFeatures{},
-        /*viewport_size=*/gfx::Size()
+        /*viewport_size=*/gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
-            ,
-        /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+        /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB(),
 #endif  // BUILDFLAG(IS_ANDROID)
-    );
+        &conceal_registry_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
         /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
@@ -90,7 +89,7 @@ class StarboardRendererTest : public testing::Test {
 
   ~StarboardRendererTest() override {
     renderer_.reset();
-    StarboardRenderer::ResumeActiveRenderers();
+    conceal_registry_.ResumeActiveRenderers();
   }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
@@ -148,6 +147,7 @@ class StarboardRendererTest : public testing::Test {
   void* context_ = nullptr;
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
+  StarboardRendererConcealRegistry conceal_registry_;
   std::unique_ptr<StarboardRenderer> renderer_;
 };
 
@@ -500,7 +500,7 @@ TEST_F(
     StarboardRendererTest,
     FlushAndSuspendActiveRenderersCoordinatesMultipleTaskRunnersAndDestroyedRenderer) {
   auto create_renderer =
-      [](scoped_refptr<base::SequencedTaskRunner> task_runner) {
+      [this](scoped_refptr<base::SequencedTaskRunner> task_runner) {
         return std::make_unique<StarboardRenderer>(
             std::move(task_runner), std::make_unique<NullMediaLog>(),
             /*overlay_plane_id=*/base::UnguessableToken::Create(),
@@ -509,12 +509,11 @@ TEST_F(
             /*max_video_capabilities=*/"",
             /*max_video_resolution=*/"",
             StarboardRendererConfig::ExperimentalFeatures{},
-            /*viewport_size=*/gfx::Size()
+            /*viewport_size=*/gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
-                ,
-            /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+            /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB(),
 #endif  // BUILDFLAG(IS_ANDROID)
-        );
+            &conceal_registry_);
       };
 
   auto second_task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
@@ -539,7 +538,7 @@ TEST_F(
       create_renderer(task_environment_.GetMainThreadTaskRunner());
 
   bool barrier_completed = false;
-  StarboardRenderer::FlushAndSuspendActiveRenderers(base::BindOnce(
+  conceal_registry_.FlushAndSuspendActiveRenderers(base::BindOnce(
       [](bool* completed) { *completed = true; }, &barrier_completed));
 
   // Destroy `destroyed_renderer` and allocate a new renderer before the queued
@@ -584,7 +583,7 @@ TEST_F(StarboardRendererTest,
 
   base::MockOnceClosure barrier_cb;
   EXPECT_CALL(barrier_cb, Run()).Times(1);
-  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  conceal_registry_.FlushAndSuspendActiveRenderers(barrier_cb.Get());
   task_environment_.RunUntilIdle();
 
   // Subsequent renderer destruction must not double-destroy SbPlayer.
@@ -621,7 +620,7 @@ TEST_F(StarboardRendererTest,
 
   base::MockOnceClosure barrier_cb;
   EXPECT_CALL(barrier_cb, Run()).Times(1);
-  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  conceal_registry_.FlushAndSuspendActiveRenderers(barrier_cb.Get());
   task_environment_.RunUntilIdle();
 
   // A late SbWindow handle callback arriving after conceal must not create an
@@ -639,7 +638,7 @@ TEST_F(StarboardRendererTest,
   EXPECT_CALL(barrier_cb, Run()).Times(1);
   // Conceal after StarboardRenderer construction (STATE_UNINITIALIZED) but
   // before Initialize() is called.
-  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  conceal_registry_.FlushAndSuspendActiveRenderers(barrier_cb.Get());
   task_environment_.RunUntilIdle();
 
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
