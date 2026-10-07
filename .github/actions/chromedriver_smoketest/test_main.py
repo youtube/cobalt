@@ -28,7 +28,6 @@ except ImportError as e:
   raise RuntimeError('Please install `selenium`, pip install selenium'
                      ' OR apt-get install python3-selenium') from e
 
-LOCAL_WEBDRIVER = 'http://127.0.0.1:4444'
 HOMEDIR = os.getenv('HOME', '/tmp')
 
 BASEDIR_LOCAL = f'{HOMEDIR}/code/chromium/src'
@@ -105,6 +104,7 @@ def connect_webdriver(chrome_binary_path, chrome_driver_path, output_dir):
   driver = webdriver.Chrome(service=service, options=chrome_options)
 
   try:
+    driver.set_page_load_timeout(30)
     driver.get('https://www.youtube.com/tv')
     sleep_time = 5
     logging.info('sleeping for %d secs ...', sleep_time)

@@ -15,6 +15,8 @@
 
 set -euo pipefail
 
+readonly XVFB_DISPLAY=":393"
+
 COBALT_PATH=""
 CONFIG="qa"
 DOWNLOAD_CHROMEDRIVER=0
@@ -51,7 +53,7 @@ if [[ ! -f "${COBALT_STRIPPED_BIN}" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${CHROMEDRIVER_BIN}" ]]; then
+if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 0 && ! -f "${CHROMEDRIVER_BIN}" ]]; then
   echo "Error: Chromedriver not found at ${CHROMEDRIVER_BIN}"
   exit 1
 fi
@@ -65,7 +67,6 @@ if [[ ! -f "${TEST_SCRIPT}" ]]; then
 fi
 
 XVFB_PID=""
-VENV_DIR="/tmp/smoketest_venv_$$"
 DOWNLOAD_DIR="/tmp/chromedriver_download_$$"
 
 cleanup() {
@@ -73,7 +74,6 @@ cleanup() {
   if [[ -n "${XVFB_PID}" ]] && kill -0 "${XVFB_PID}" 2>/dev/null; then
     kill "${XVFB_PID}" 2>/dev/null || true
   fi
-  rm -rf "${VENV_DIR}"
   if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
     rm -rf "${DOWNLOAD_DIR}"
   fi
@@ -82,8 +82,19 @@ trap cleanup EXIT
 
 if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
   echo "Downloading official Chromedriver..."
-  VERSION=$("${CHROMEDRIVER_BIN}" --version | awk '{print $2}')
-  echo "Detected local version: ${VERSION}"
+  if [[ -f "${COBALT_PATH}/chrome/VERSION" ]]; then
+    MAJOR=$(grep 'MAJOR=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
+    MINOR=$(grep 'MINOR=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
+    BUILD=$(grep 'BUILD=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
+    PATCH=$(grep 'PATCH=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
+    VERSION="${MAJOR}.${MINOR}.${BUILD}.${PATCH}"
+  elif [[ -f "${CHROMEDRIVER_BIN}" ]]; then
+    VERSION=$("${CHROMEDRIVER_BIN}" --version | awk '{print $2}')
+  else
+    echo "Error: Cannot determine version for download."
+    exit 1
+  fi
+  echo "Detected version: ${VERSION}"
 
   mkdir -p "${DOWNLOAD_DIR}"
   python3 "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
@@ -97,20 +108,15 @@ if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
   echo "Using downloaded driver: ${CHROMEDRIVER_BIN}"
 fi
 
-# Ensure Xvfb is running
-if ! pgrep -x "Xvfb" > /dev/null; then
-  echo "Starting Xvfb on display :393..."
-  Xvfb :393 -noreset -nolisten tcp -ac -screen 0 "1920x1080x24" >/dev/null 2>&1 &
+# Ensure Xvfb is running on XVFB_DISPLAY
+if ! pgrep -f "Xvfb ${XVFB_DISPLAY}" > /dev/null; then
+  echo "Starting Xvfb on display ${XVFB_DISPLAY}..."
+  Xvfb "${XVFB_DISPLAY}" -noreset -nolisten tcp -ac -screen 0 "1920x1080x24" >/dev/null 2>&1 &
   XVFB_PID=$!
   sleep 2
 else
-  echo "Xvfb is already running."
+  echo "Xvfb is already running on ${XVFB_DISPLAY}."
 fi
-
-# Setup python venv
-echo "Setting up Python virtual environment in ${VENV_DIR}..."
-python3 -m venv "${VENV_DIR}"
-"${VENV_DIR}/bin/pip" install selenium
 
 # Ensure log and screenshot directories exist
 mkdir -p "${OUTPUT_DIR}/logs" "${OUTPUT_DIR}/screenshots"
@@ -120,7 +126,7 @@ export LD_LIBRARY_PATH="${OUT_DIR}/starboard:${OUT_DIR}:${LD_LIBRARY_PATH:-}"
 # Run the test
 echo "Running smoke test..."
 exit_code=0
-DISPLAY=:393 "${VENV_DIR}/bin/python" "${TEST_SCRIPT}" \
+DISPLAY="${XVFB_DISPLAY}" python3 "${TEST_SCRIPT}" \
   --binary "${COBALT_BIN}" \
   --driver "${CHROMEDRIVER_BIN}" \
   --output-dir "${OUTPUT_DIR}" \

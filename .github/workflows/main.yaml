@@ -569,6 +569,8 @@ jobs:
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
@@ -968,18 +970,13 @@ jobs:
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: x64-no-starboard_chromedriver_qa
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [linux-x64x11-no-starboard]
-        config: [qa]
     container:
       image: ${{ needs.docker-build-image.outputs.docker_tag }}
       options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
       volumes:
         - /runner-cache:/runner-cache
     env:
-      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11-no-starboard
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
@@ -1030,22 +1027,22 @@ jobs:
       - name: Build Chromedriver (linux-x64x11-no-starboard)
         uses: ./.github/actions/build
         with:
+          platform: linux-x64x11-no-starboard
+          config: qa
           targets: '["chromedriver"]'
           test_root_target: 'null'
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          test_targets_json_file: out/linux-x64x11-no-starboard_qa/test_targets.json
           enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
       - name: Upload Chromedriver to GCS
         shell: bash
         env:
-          PLATFORM: ${{ matrix.platform }}
-          CONFIG: ${{ matrix.config }}
           CHROMEDRIVER_ARTIFACTS_KEY: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
         run: |
           set -eux
           project_name=$(gcloud config get-value project)
           gcloud storage cp \
-            "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/chromedriver" \
+            "${GITHUB_WORKSPACE}/cobalt/src/out/linux-x64x11-no-starboard_qa/chromedriver" \
             "gs://${project_name}-test-artifacts/${CHROMEDRIVER_ARTIFACTS_KEY}/chromedriver"
 
   chromedriver-smoketest:

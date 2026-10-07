@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y \
     openbox \
     python3 \
     python3-dev \
-    python3-venv \
+    python3-pip \
     unzip \
     x11-xserver-utils \
     xcompmgr \
@@ -37,6 +37,10 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     zstd \
     && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /tmp/
+RUN python3 -m pip install --no-cache-dir --break-system-packages --require-hashes -r /tmp/requirements.txt \
+    && rm -f /tmp/requirements.txt
 
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
 RUN cd /tmp \
