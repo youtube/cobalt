@@ -1643,7 +1643,7 @@
 =======
   "cobalt/shell/shell_resources.grd": {
     "includes": [31500]
->>>>>>> parent of 83af724c740 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bd328260efeca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   },
 
   # END "everything else" section.
