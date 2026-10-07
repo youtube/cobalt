@@ -318,21 +318,9 @@ jobs:
               --arg yts_finch_test "${run_yts_finch_test}" \
               '{"gtest_device": ($gtest_device == "true"), "gtest_host": ($gtest_host == "true"), "e2e_test": ($e2e_test == "true"), "yts_test": ($yts_test == "true"), "yts_playback_test": ($yts_playback_test == "true"), "yts_wpt_test": ($yts_wpt_test == "true"), "yts_finch_test": ($yts_finch_test == "true")}')
 
-            expected_tests=$(jq -c \
-              --argjson run_flags "${run_flags}" \
-              '[
-                .[] | select(
-                  .target != null and (
-                    if (.test_type == "gtest" or .test_type == "junit") then
-                      ($run_flags["gtest_" + (.runs_on // "host")] // false)
-                    elif .test_type != null then
-                      ($run_flags[.test_type] // false)
-                    else
-                      false
-                    end
-                  )
-                )
-              ]' "${test_targets_json_file}")
+            expected_tests=$(python3 "${GITHUB_WORKSPACE}/.github/scripts/filter_expected_tests.py" \
+              --targets_file "${test_targets_json_file}" \
+              --run_flags "${run_flags}")
           fi
 
           {

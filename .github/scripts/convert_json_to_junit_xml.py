@@ -116,56 +116,59 @@ def _extract_cases(data):
   return suites
 
 
+def _compute_stats(cases):
+  failures = sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))
+  errors = sum(1 for c in cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))
+  total_time = sum(c['time'] for c in cases)
+  return {
+      'tests': str(len(cases)),
+      'failures': str(failures),
+      'errors': str(errors),
+      'time': f'{total_time:.3f}',
+  }
+
+
+def _add_testcase(parent, case, suite_name):
+  case_el = ET.SubElement(
+      parent,
+      'testcase',
+      {
+          'name': case['name'],
+          'classname': suite_name,
+          'time': f"{case['time']:.3f}",
+      },
+  )
+  status = case['status']
+  output_text = _sanitize_xml_string(case['output'])
+  if status in ('FAILURE', 'FAIL'):
+    ET.SubElement(case_el, 'failure', {
+        'message': 'Test failed'
+    }).text = output_text
+  elif status in ('CRASH', 'TIMEOUT', 'ERROR'):
+    ET.SubElement(case_el, 'error', {
+        'message': f'Test {status}'
+    }).text = output_text
+  elif status in ('SKIPPED', 'SKIP'):
+    ET.SubElement(case_el, 'skipped')
+
+
 def convert(json_path, xml_path):
   with open(json_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
   suites = _extract_cases(data)
-  testsuites = ET.Element('testsuites')
-
   all_cases = [c for cases in suites.values() for c in cases]
-  testsuites.set('tests', str(len(all_cases)))
-  testsuites.set(
-      'failures',
-      str(sum(1 for c in all_cases if c['status'] in ('FAILURE', 'FAIL'))))
-  testsuites.set(
-      'errors',
-      str(
-          sum(1 for c in all_cases
-              if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
-  testsuites.set('time', f"{sum(c['time'] for c in all_cases):.3f}")
+
+  testsuites = ET.Element('testsuites', _compute_stats(all_cases))
   testsuites.set('name', 'AllTests')
 
   for suite_name, cases in suites.items():
-    suite_el = ET.SubElement(testsuites, 'testsuite')
-    suite_el.set('name', suite_name)
-    suite_el.set('tests', str(len(cases)))
-    suite_el.set(
-        'failures',
-        str(sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))))
-    suite_el.set(
-        'errors',
-        str(
-            sum(1 for c in cases
-                if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))))
-    suite_el.set('time', f"{sum(c['time'] for c in cases):.3f}")
-
+    suite_el = ET.SubElement(testsuites, 'testsuite', {
+        'name': suite_name,
+        **_compute_stats(cases)
+    })
     for case in cases:
-      case_el = ET.SubElement(suite_el, 'testcase')
-      case_el.set('name', case['name'])
-      case_el.set('classname', suite_name)
-      case_el.set('time', f"{case['time']:.3f}")
-
-      if case['status'] in ('FAILURE', 'FAIL'):
-        fail_el = ET.SubElement(case_el, 'failure')
-        fail_el.set('message', 'Test failed')
-        fail_el.text = _sanitize_xml_string(case['output'])
-      elif case['status'] in ('CRASH', 'TIMEOUT', 'ERROR'):
-        err_el = ET.SubElement(case_el, 'error')
-        err_el.set('message', 'Test ' + case['status'])
-        err_el.text = _sanitize_xml_string(case['output'])
-      elif case['status'] in ('SKIPPED', 'SKIP'):
-        ET.SubElement(case_el, 'skipped')
+      _add_testcase(suite_el, case, suite_name)
 
   tree = ET.ElementTree(testsuites)
   if hasattr(ET, 'indent'):

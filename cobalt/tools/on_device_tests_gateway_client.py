@@ -291,6 +291,12 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
 
+    gateway_test_type = test_type
+    if test_type in ('yts_test', 'yts_playback_test', 'yts_finch_test'):
+      gateway_test_type = 'yts_test'
+    elif test_type in ('e2e_test', 'yts_wpt_test'):
+      gateway_test_type = 'e2e_test'
+
     test_requests.append({
         'device_type': device_type,
         'device_pool': device_pool,
@@ -299,7 +305,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'files': files,
         'params': params,
         'test_target': test_target,
-        'test_type': test_type,
+        'test_type': gateway_test_type,
     })
 
   return test_requests
