@@ -106,6 +106,13 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   stack_size.rlim_cur = 2 * 1024 * 1024;
   setrlimit(RLIMIT_STACK, &stack_size);
 
+  // Double the fd limit since there is slow increase in fd are seen
+  // FIXME: Can be removed once b/571016159 is fixed.
+  rlimit fd_limit;
+  getrlimit(RLIMIT_NOFILE, &fd_limit);
+  fd_limit.rlim_cur *= 2;
+  setrlimit(RLIMIT_NOFILE, &fd_limit);
+
   starboard::InstallCrashSignalHandlers();
   starboard::InstallSuspendSignalHandlers();
   starboard::InstallStopSignalHandlers();
