@@ -323,6 +323,8 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
     EXPECT_EQ(received_status, VideoDecoder::kNeedMoreInput);
     EXPECT_EQ(need_more_input_count, kMaxPendingInputs);
   }
+
+  decoder_.reset();
 }
 
 }  // namespace

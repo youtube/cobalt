@@ -982,7 +982,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 
 void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
-    const DequeueOutputResult& dequeue_output_result) {
+    const DequeueOutputResult& dequeue_output_result,
+    size_t number_of_pending_inputs) {
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
@@ -1007,8 +1008,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   bool need_more_input =
-      !is_end_of_stream &&
-      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+      !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
   decoder_status_cb_(
       need_more_input ? kNeedMoreInput : kBufferFull,
       make_scoped_refptr<VideoFrameImpl>(
