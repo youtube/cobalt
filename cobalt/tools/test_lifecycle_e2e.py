@@ -28,10 +28,93 @@ import shutil
 import sys
 import time
 from typing import Optional
+import zlib
 
 _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
   sys.path.insert(0, _TOOLS_DIR)
+
+# Compact 3-frame VP9 WebM clip (from media/test/data/four-colors-vp9.webm,
+# sliced cleanly at the end of SimpleBlock #2 at 0x590 with matching EBML
+# Segment/Cluster lengths), zlib-compressed and base64-encoded so local runs
+# and CI sparse checkouts exercise the exact same valid WebM byte stream.
+_VP9_WEBM_ZLIB_B64 = (
+    'eNqTcr2/mJEBDOSd2hoZnb4D8adGFqfPjRxOTS3lqUm5Tu2NTE6tjUwSwQ3pEKWskYK+s0sc'
+    'rH13dwevbhH1XJkWvKbxqe/uHiBPLGRddvCaJkZlCFco5HA6iFsO4coE7wbJirK+gVo6m2Hw'
+    'ApDHoM400rq+sZnfycG3odcnsSzN1ELPyEDP0MAg3BGV79LZ4bBwClgLKCCguj3WQRn21xsZ'
+    'i482Ms5pZFDaOqc5NS+9rTUsPizAsrmRUflxcwvL9wlXH0DVCm9oYj6wq4lJJnRDR+j2RsbQ'
+    'HY1MoNCESDPGFRdDFU5JPgBlMaSfgLJEXRd3+zp6+QfFOwU5+rm4tLfkFpgYwaVFXBf3+nr6'
+    'AaXDXIOCPf39XNobDeGy8q6LJzr7+wY4hng6+bhCTAh2ae8AGZFYloxQKOW6uN3Vz9nfxTXI'
+    'pR01IOCuK4K7jiUZ6HO4Xm3XxT0eQIN9XIPi/Rx9XV3aZzoWFOSkKoRlpqTmK/impmQmKngk'
+    '5qXkpBbBNakiWzgDaGEy0EJjU5CFCjmZSWUFFbplBZZwu61w2K3kurjDJTQI6D+Qz6cYGFiB'
+    'kJGekakBBADDwHlbKUQ1U87zRobFTtKNDAwNTZ7NTgzWHxS3sVioyEhMEWDUqJt7P/GdftAD'
+    'Q179tPsHw5at1xD2idJcvdrXYXdigtGRt6sTqhtAphyomaCr63T6JFd5wX7tsG3/y3QdFC2V'
+    'pu2ITdnex99c8WbjjofbehRYHY77PGepDzjFOPPwWvvg+y1mzOYH5jz++1yU89vcdbrvT0sq'
+    'MvnPjoicwDT5+nUG9gdK0y5vvLTgQl4Dw7UFi5TnOpuqCuyNkEsQXdLtzj+X0av3d8SvS65L'
+    'zPRtbz24sW7NOa7IG476s/c4qVUe2bq8csnZc/HyHEbLjv7oWSAfwKmZ/SlZMrUlc9Xit5Kf'
+    'fYIYcxinSTNdbV6olh1/7YNZQ80EQy7m+tcymR6qv4ys7z5b/NvzSuC3JP2XPB+Ywl9WXovJ'
+    '+v/n0j2lC3/eiByObz2qWRQ53eq1p/S1Rfry035obbcLk2lgSI//IJsoKC8VfWaGZ9mbaJZn'
+    'q1cdE7hSfzdl6e9VL8MjP+47y/LIS2aFrIfrch2FxO9qIY1XFv4LF3l9jOGd1vzf97Osr2sb'
+    'PNqz4IZUVZVsqP/T/3k9musep9j/M7I592j3psPnHsh6vj84Zc3nUtvlsXzNwYpnZ1apLK7t'
+    '8nM68+uD/ZWA8O/8y6OtdqvrdCWrqyziObzS6KGPVNmiQNsK+Vca2r/bO5mKVJLDNK78j3r7'
+    '9rn5nFgl7wwXCZ09J4qWXIvLnLBt+/n1AapNB10bn6Zu6wxJMT3dHtuyrWFhdinD4mWNDMEM'
+    'bQwOk+ZwBDUysDCorVlkPusCOOLZciufPTjAkNspZJmxeGEjw3KouoiDDIwNCgzoSgBEu9BY')
+
+
+def _get_vp9_webm_base64() -> str:
+  """Returns a base64-encoded VP9 WebM test stream."""
+  raw_bytes = zlib.decompress(base64.b64decode(_VP9_WEBM_ZLIB_B64))
+  return base64.b64encode(raw_bytes).decode('ascii')
+
+
+def _verify_sbplayer_destroyed_before_conceal_complete(runner: 'CobaltRunner',
+                                                       destroy_nth: int,
+                                                       conceal_nth: int,
+                                                       label: str) -> None:
+  """Asserts the Nth SbPlayerDestroy log precedes the Mth conceal completion."""
+  conceal_line = None
+  destroy_line = None
+
+  # Wait up to 10s for the Mth final "Transition to kConcealed complete" line
+  # to be flushed. Match lines ending with "Transition to kConcealed complete"
+  # so intermediate "Transition to kConcealed complete (target: kStarted)" logs
+  # emitted during resume from kFrozen are excluded.
+  for _ in range(20):
+    lines = runner.get_log_content().splitlines()
+    conceal_matches = [
+        idx for idx, line in enumerate(lines, start=1)
+        if line.rstrip().endswith('Transition to kConcealed complete')
+    ]
+    if len(conceal_matches) >= conceal_nth:
+      conceal_line = conceal_matches[conceal_nth - 1]
+      break
+    time.sleep(0.5)
+
+  lines = runner.get_log_content().splitlines()
+  destroy_matches = [
+      idx for idx, line in enumerate(lines, start=1)
+      if 'Destroying SbPlayerPrivateImpl. There are 0 players.' in line
+  ]
+  if len(destroy_matches) >= destroy_nth:
+    destroy_line = destroy_matches[destroy_nth - 1]
+
+  if conceal_line is None:
+    raise AssertionError(
+        f"[{label}] 'Transition to kConcealed complete' (#{conceal_nth}) not"
+        f' found in {runner.log_file}')
+  if destroy_line is None:
+    raise AssertionError(
+        f"[{label}] 'Destroying SbPlayerPrivateImpl' (#{destroy_nth}) was not"
+        f' logged before conceal completed (line {conceal_line})')
+  if destroy_line >= conceal_line:
+    raise AssertionError(
+        f"[{label}] 'Destroying SbPlayerPrivateImpl' (line {destroy_line})"
+        " occurred after 'Transition to kConcealed complete'"
+        f' (line {conceal_line})')
+  logger.info(
+      'SUCCESS [%s]: SbPlayerDestroy (line %d) < Transition to kConcealed'
+      ' complete (line %d)', label, destroy_line, conceal_line)
+
 
 # pylint: disable=wrong-import-position
 try:
@@ -162,6 +245,7 @@ def run_lifecycle_test(executable: str,
 
     runner.launch([
         f'--url=data:text/html;base64,{b64_html}',
+        '--autoplay-policy=no-user-gesture-required',
         f'--remote-debugging-port={port}',
     ])
 
@@ -288,8 +372,128 @@ def run_lifecycle_test(executable: str,
           f'Expected >= 2 occurrences of "JS_EVENT: focus", found {focus_count}'
       )
 
-    # 6. Graceful Shutdown
-    logger.info('Step 6: Stopping Cobalt gracefully...')
+    # 6. Media Playback Conceal/Reveal Scenarios
+    # Verifies:
+    #   Scenario 1: Active playback on conceal pauses, destroys SbPlayer before
+    #     "Transition to kConcealed complete", and auto-resumes on reveal.
+    #   Scenario 2: Web-app-paused playback on conceal destroys SbPlayer before
+    #     "Transition to kConcealed complete", and stays paused on reveal.
+    #   Scenario 3: Web-app-removed <video> on conceal destroys SbPlayer before
+    #     "Transition to kConcealed complete".
+    logger.info('Step 6: Running Media Playback Conceal/Reveal Scenarios...')
+    webm_b64 = _get_vp9_webm_base64()
+
+    logger.info('Scenario 1: Launching MSE VP9 playback...')
+    cdp.evaluate(f"""
+      window.startTestVideo = async () => {{
+        const existing = document.getElementById('test_video');
+        if (existing) existing.remove();
+        const v = document.createElement('video');
+        v.id = 'test_video';
+        v.loop = true;
+        v.muted = true;
+        document.body.appendChild(v);
+        const ms = new MediaSource();
+        v.src = URL.createObjectURL(ms);
+        await new Promise(
+            r => ms.addEventListener('sourceopen', r, {{once: true}}));
+        const sb = ms.addSourceBuffer('video/webm; codecs="vp9"');
+        const raw = atob('{webm_b64}');
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        sb.appendBuffer(bytes);
+        await new Promise(
+            r => sb.addEventListener('updateend', r, {{once: true}}));
+        ms.endOfStream();
+        await v.play();
+        return true;
+      }};
+      window.startTestVideo();
+    """)
+
+    cdp.wait_for_state(
+        '(() => { const v = document.getElementById("test_video");'
+        ' return Boolean(v && !v.paused && v.readyState >= 2); })()',
+        True,
+        timeout=20.0,
+    )
+
+    if 'Creating SbPlayerPrivateImpl. There are 1 players.' not in (
+        runner.get_log_content()):
+      raise AssertionError('[Scenario 1] SbPlayerPrivateImpl was not created')
+
+    # Note: 1st conceal in run_lifecycle_test was in Step 3 (without media).
+    # Therefore this media conceal is conceal #2, and SbPlayerDestroy #1.
+    logger.info('Scenario 1: Concealing during active playback...')
+    controller.conceal()
+    cdp.wait_for_state('document.visibilityState', 'hidden', timeout=10.0)
+    _verify_sbplayer_destroyed_before_conceal_complete(
+        runner, destroy_nth=1, conceal_nth=2, label='Scenario 1')
+
+    logger.info('Scenario 1: Revealing and verifying auto-resume...')
+    controller.resume()
+    cdp.wait_for_state('document.visibilityState', 'visible', timeout=10.0)
+    cdp.wait_for_state(
+        "document.getElementById('test_video').paused", False, timeout=10.0)
+
+    # Scenario 2: Web app explicitly calls video.pause() on conceal.
+    logger.info(
+        'Scenario 2: Registering visibilitychange listener that pauses video...'
+    )
+    cdp.evaluate("""
+      document.addEventListener('visibilitychange', function onHidePause() {
+        if (document.visibilityState === 'hidden') {
+          document.removeEventListener('visibilitychange', onHidePause);
+          document.getElementById('test_video').pause();
+        }
+      });
+    """)
+
+    logger.info('Scenario 2: Concealing application...')
+    controller.conceal()
+    cdp.wait_for_state('document.visibilityState', 'hidden', timeout=10.0)
+    _verify_sbplayer_destroyed_before_conceal_complete(
+        runner, destroy_nth=2, conceal_nth=3, label='Scenario 2')
+
+    logger.info('Scenario 2: Revealing and verifying video remains paused...')
+    controller.resume()
+    cdp.wait_for_state('document.visibilityState', 'visible', timeout=10.0)
+    time.sleep(1)
+    cdp.wait_for_state(
+        "document.getElementById('test_video').paused", True, timeout=5.0)
+
+    # Scenario 3: Web app removes <video> on conceal.
+    logger.info('Scenario 3: Resuming playback and registering visibilitychange'
+                ' listener that removes <video>...')
+    cdp.evaluate("""
+      document.getElementById('test_video').play();
+      document.addEventListener('visibilitychange', function onHideRemove() {
+        if (document.visibilityState === 'hidden') {
+          document.removeEventListener('visibilitychange', onHideRemove);
+          const v = document.getElementById('test_video');
+          if (v) {
+            v.removeAttribute('src');
+            v.load();
+            v.remove();
+          }
+        }
+      });
+    """)
+    cdp.wait_for_state(
+        "document.getElementById('test_video').paused", False, timeout=10.0)
+
+    logger.info('Scenario 3: Concealing application...')
+    controller.conceal()
+    cdp.wait_for_state('document.visibilityState', 'hidden', timeout=10.0)
+    _verify_sbplayer_destroyed_before_conceal_complete(
+        runner, destroy_nth=3, conceal_nth=4, label='Scenario 3')
+
+    # Reveal before graceful shutdown so the app finishes in a visible state.
+    controller.resume()
+    cdp.wait_for_state('document.visibilityState', 'visible', timeout=10.0)
+
+    # 7. Graceful Shutdown
+    logger.info('Step 7: Stopping Cobalt gracefully...')
     controller.stop()
     runner.wait_for_exit(timeout=15.0)
 
