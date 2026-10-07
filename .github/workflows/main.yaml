@@ -641,7 +641,6 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_type: 'e2e_test'
           test_targets_json: ${{ steps.parse-e2e-targets.outputs.test_targets_json }}
-          cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
@@ -692,7 +691,6 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_type: 'yts_test'
           test_targets_json: ${{ steps.parse-yts-targets.outputs.test_targets_json }}
-          cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
@@ -737,7 +735,6 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_type: 'yts_playback_test'
           test_targets_json: ${{ steps.parse-yts-playback-targets.outputs.test_targets_json }}
-          cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
@@ -818,7 +815,6 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_type: 'yts_wpt_test'
           test_targets_json: ${{ steps.parse-yts-wpt-targets.outputs.test_targets_json }}
-          cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
@@ -867,7 +863,6 @@ jobs:
           nightly: ${{ inputs.nightly }}
           test_type: 'yts_finch_test'
           test_targets_json: ${{ steps.parse-yts-finch-targets.outputs.test_targets_json }}
-          cobalt_path: ${{ matrix.name }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}

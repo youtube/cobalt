@@ -100,6 +100,20 @@ runs:
       run: |
         set -x
 
+        artifact_name="${ARTIFACT_NAME}"
+        if [[ "${PLATFORM}" == *aosp* && "${artifact_name}" == "Cobalt.apk" ]]; then
+          artifact_name="cobalt.apk"
+        fi
+
+        cobalt_path="${COBALT_PATH}"
+        if [[ -z "${cobalt_path}" ]]; then
+          if [[ "${TEST_DEVICE_FAMILY}" == "rdk" ]]; then
+            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa"
+          else
+            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}"
+          fi
+        fi
+
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
@@ -125,8 +139,8 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --label target_branch:${GITHUB_BASE_REF} \
           --dimensions "${TEST_DIMENSIONS}" \
-          ${COBALT_PATH:+--cobalt_path "${COBALT_PATH}"} \
-          ${ARTIFACT_NAME:+--artifact_name "${ARTIFACT_NAME}"} \
+          ${cobalt_path:+--cobalt_path "${cobalt_path}"} \
+          ${artifact_name:+--artifact_name "${artifact_name}"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
