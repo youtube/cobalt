@@ -22,6 +22,11 @@ build = common.build {
             keyname = "buildbot-mac-6d110bc"
             backend = "blade:keystore-fastconfigpush"
           },
+          {
+            keystore_config_id = 77805
+            keyname = "cobalt-golden-workspace-signing-key"
+            backend = "blade:keystore-fastconfigpush"
+          },
         ]
       }
     },
