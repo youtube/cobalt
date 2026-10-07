@@ -1067,12 +1067,8 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     CHECK(base::FeatureList::GetInstance());
   }
 
-<<<<<<< HEAD
-  if (config.configure_dangling_pointer_detector) {
-=======
 #if !BUILDFLAG(IS_COBALT)
-  if (configure_dangling_pointer_detector) {
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (config.configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
@@ -1106,7 +1102,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  if (configure_dangling_pointer_detector) {
+  if (config.configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
