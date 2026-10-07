@@ -91,16 +91,12 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
     const gfx::Size& size,
     viz::SharedImageFormat format,
     gfx::BufferUsage usage) {
-<<<<<<< HEAD
-=======
-  CHECK(viz::HasEquivalentBufferFormat(format));
   VulkanDeviceQueue* device_queue = nullptr;
 #if BUILDFLAG(ENABLE_VULKAN)
   if (vulkan_context_provider) {
     device_queue = vulkan_context_provider->GetDeviceQueue();
   }
 #endif  // BUILDFLAG(ENABLE_VULKAN)
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   scoped_refptr<gfx::NativePixmap> pixmap =
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()
