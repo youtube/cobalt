@@ -34,6 +34,10 @@
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/rust/cxx/v1/cxx.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/base_switches.h"
+#endif
+
 static_assert(BUILDFLAG(IS_ANDROID), "This implementation only works safely "
               "on Android due to the way it assumes font files to be "
               "read-only and unmodifiable.");
@@ -254,7 +258,7 @@ std::vector<base::FilePath> FontUniqueNameLookup::GetFontFilePaths() const {
   std::vector<base::FilePath> font_files;
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-custom-android-fonts-xml")) {
+          switches::kUseCustomAndroidFontsXml)) {
     // When Cobalt custom Android fonts XML is enabled, custom fonts are
     // configured hermetically in Skia. Scanning 200+ Android OS ROM font files
     // is unnecessary and adds ~950 ms of cold-start indexing overhead.

@@ -25,6 +25,8 @@
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "content/public/common/content_switches.h"
+#include "third_party/blink/public/common/switches.h"
 
 namespace {
 
@@ -34,7 +36,8 @@ constexpr base::CommandLine::CharType kSwitchValueSeparator[] =
 
 void MergeFeatures(base::CommandLine* cmd_line,
                    std::string_view switch_name,
-                   const base::CommandLine::SwitchMap& switch_defaults) {
+                   const base::CommandLine::SwitchMap& switch_defaults,
+                   bool prepend_defaults = false) {
   if (!cmd_line->HasSwitch(switch_name)) {
     return;
   }
@@ -42,7 +45,9 @@ void MergeFeatures(base::CommandLine* cmd_line,
   const auto old_value = switch_defaults.find(switch_name);
   if (old_value != switch_defaults.end() && !old_value->second.empty()) {
     if (features.empty()) {
-      base::StrAppend(&features, {old_value->second});
+      features = old_value->second;
+    } else if (prepend_defaults) {
+      features = base::StrCat({old_value->second, ",", features});
     } else {
       base::StrAppend(&features, {",", old_value->second});
     }
@@ -54,16 +59,13 @@ void MergeFeatures(base::CommandLine* cmd_line,
 
 namespace cobalt {
 
-CommandLinePreprocessor::CommandLinePreprocessor(int argc,
-                                                 const char* const* argv)
-    : CommandLinePreprocessor(base::CommandLine(argc, argv)) {}
+// static
+void CommandLinePreprocessor::ApplyDefaults(base::CommandLine* cmd_line) {
+  CHECK(cmd_line);
 
-CommandLinePreprocessor::CommandLinePreprocessor(
-    const base::CommandLine& command_line)
-    : cmd_line_(command_line) {
   // Toggle-switch defaults are just turned on by default.
   for (const auto& cobalt_switch : GetCobaltToggleSwitches()) {
-    cmd_line_.AppendSwitch(cobalt_switch);
+    cmd_line->AppendSwitch(cobalt_switch);
   }
 
   const auto& cobalt_param_switch_defaults = GetCobaltParamSwitchDefaults();
@@ -72,18 +74,33 @@ CommandLinePreprocessor::CommandLinePreprocessor(
   // * Duplicate switches with arguments.
   // * Inconsistent settings across related switches.
 
-  // Merge all disabled and enabled feature lists together with their defaults.
-  MergeFeatures(&cmd_line_, ::switches::kDisableFeatures,
+  // Merge feature and V8 flag lists with their defaults so that
+  // caller/experiment overrides (e.g. JavaSwitches) always take precedence over
+  // Cobalt defaults:
+  // - --enable-features / --disable-features: [Existing],[Defaults]
+  //   base::FeatureList::RegisterOverride is first-wins (ignores duplicate
+  //   keys), so defaults are appended after existing flags
+  //   (prepend_defaults = false).
+  MergeFeatures(cmd_line, ::switches::kDisableFeatures,
                 cobalt_param_switch_defaults);
-  MergeFeatures(&cmd_line_, ::switches::kEnableFeatures,
+  MergeFeatures(cmd_line, ::switches::kEnableFeatures,
+                cobalt_param_switch_defaults);
+  MergeFeatures(cmd_line, ::switches::kEnableBlinkFeatures,
                 cobalt_param_switch_defaults);
 
+  // - --js-flags: [Defaults],[Existing]
+  //   V8's flag parser (SetFlagsFromString) is last-wins (overwrites on each
+  //   assignment), so defaults are prepended before existing flags
+  //   (prepend_defaults = true).
+  MergeFeatures(cmd_line, blink::switches::kJavaScriptFlags,
+                cobalt_param_switch_defaults, /*prepend_defaults=*/true);
+
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
-  if (cmd_line_.HasSwitch(switches::kWindowSize)) {
+  if (cmd_line->HasSwitch(switches::kWindowSize)) {
     std::string window_size =
-        cmd_line_.GetSwitchValueASCII(switches::kWindowSize);
+        cmd_line->GetSwitchValueASCII(switches::kWindowSize);
     std::replace(window_size.begin(), window_size.end(), ',', 'x');
-    cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
+    cmd_line->AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }
 
@@ -91,10 +108,20 @@ CommandLinePreprocessor::CommandLinePreprocessor(
   for (const auto& iter : cobalt_param_switch_defaults) {
     const auto& switch_key = iter.first;
     const auto& switch_val = iter.second;
-    if (!cmd_line_.HasSwitch(iter.first)) {
-      cmd_line_.AppendSwitchNative(switch_key, switch_val);
+    if (!cmd_line->HasSwitch(iter.first)) {
+      cmd_line->AppendSwitchNative(switch_key, switch_val);
     }
   }
+}
+
+CommandLinePreprocessor::CommandLinePreprocessor(int argc,
+                                                 const char* const* argv)
+    : CommandLinePreprocessor(base::CommandLine(argc, argv)) {}
+
+CommandLinePreprocessor::CommandLinePreprocessor(
+    const base::CommandLine& command_line)
+    : cmd_line_(command_line) {
+  ApplyDefaults(&cmd_line_);
 
   // Fix any remaining conflicts with the initial URL.
   const auto initial_url = switches::GetInitialURL(cmd_line_);

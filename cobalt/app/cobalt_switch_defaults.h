@@ -32,6 +32,10 @@ class CommandLinePreprocessor {
   explicit CommandLinePreprocessor(const base::CommandLine& command_line);
   CommandLinePreprocessor(int argc, const char* const* argv);
 
+  // Applies Cobalt's default switches and features to `cmd_line`, merging
+  // feature/flag lists and preserving any existing switch values.
+  static void ApplyDefaults(base::CommandLine* cmd_line);
+
   const base::CommandLine::StringVector argv() const;
 
 #ifdef UNIT_TEST
@@ -41,10 +45,10 @@ class CommandLinePreprocessor {
 
  private:
   // Returns the toggled switches for Cobalt.
-  const std::vector<const char*>& GetCobaltToggleSwitches();
+  static const std::vector<const char*>& GetCobaltToggleSwitches();
 
   // Returns the map of switches with parameters and their defaults.
-  const base::CommandLine::SwitchMap& GetCobaltParamSwitchDefaults();
+  static const base::CommandLine::SwitchMap& GetCobaltParamSwitchDefaults();
 
   base::CommandLine cmd_line_;
 
