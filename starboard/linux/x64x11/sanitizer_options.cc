@@ -26,8 +26,7 @@ extern "C" void _sanitizer_options_link_helper() {}
 #define SANITIZER_HOOK_ATTRIBUTE                                          \
   extern "C" __attribute__((no_sanitize_address))                         \
   __attribute__((no_sanitize_memory)) __attribute__((no_sanitize_thread)) \
-  __attribute__((visibility("default"))) __attribute__((weak))            \
-  __attribute__((used))
+  __attribute__((visibility("default"))) __attribute__((used))
 
 // Newline separated list of issues to suppress, see
 // http://clang.llvm.org/docs/AddressSanitizer.html#issue-suppression
@@ -39,13 +38,15 @@ SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
          "leak:base::ToolsSanityTest_MemoryLeak_Test::TestBody\n";
 }
 
-#if defined(ASAN_SYMBOLIZER_PATH)
-extern "C" const char* __asan_default_options() {
+SANITIZER_HOOK_ATTRIBUTE const char* __asan_default_options() {
   // TODO(b/278247547) : Remove detect_stack_use_after_return=0 once the issue
   // with AddressSanitizerFlags in Clang is resolved.
-  return "detect_stack_use_after_return=0:external_symbolizer_"
+#if defined(ASAN_SYMBOLIZER_PATH)
+  return "detect_leaks=0:detect_stack_use_after_return=0:external_symbolizer_"
          "path=" ASAN_SYMBOLIZER_PATH;
-}
+#else
+  return "detect_leaks=0:detect_stack_use_after_return=0";
 #endif
+}
 
 #endif  // defined(ADDRESS_SANITIZER)

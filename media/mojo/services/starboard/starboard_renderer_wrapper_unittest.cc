@@ -207,13 +207,18 @@ class StarboardRendererWrapperTest : public testing::Test {
         renderer_extension_.BindNewPipeAndPassReceiver();
     auto client_extension_remote =
         client_extension_.InitWithNewPipeAndPassRemote();
+    const base::UnguessableToken overlay_plane_id =
+        base::UnguessableToken::Create();
+    const std::string max_video_capabilities;
+    const std::string max_video_resolution;
+    const gfx::Size viewport_size;
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
-        base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), std::string(),
-        StarboardRendererConfig::ExperimentalFeatures{}, gfx::Size(),
+        overlay_plane_id, base::Seconds(1), base::Seconds(1),
+        max_video_capabilities, max_video_resolution,
+        StarboardRendererConfig::ExperimentalFeatures{}, viewport_size,
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
