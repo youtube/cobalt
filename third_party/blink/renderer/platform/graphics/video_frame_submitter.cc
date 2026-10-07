@@ -608,11 +608,8 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
 
   if (!use_gpu_compositing) {
     shared_image_interface_ = std::move(shared_image_interface);
-<<<<<<< HEAD
     if (!shared_image_interface_ ||
         !shared_image_interface_->AddGpuChannelLostObserver(this)) {
-=======
-    if (!shared_image_interface_) {
 #if BUILDFLAG(IS_COBALT)
       waiting_for_context_provider_ = true;
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -621,7 +618,6 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
                          weak_ptr_factory_.GetWeakPtr()),
           kGetContextProviderRetryTimeout);
 #else
->>>>>>> fe406e32704 (cobalt: Ensure SbPlayer destruction on conceal (#13098))
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(
