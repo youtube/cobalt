@@ -60,7 +60,7 @@ void InProcessRendererThread::Init() {
   if (base::FeatureList::IsEnabled(
           base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
     base::PlatformThread::SetCurrentThreadType(
-        base::ThreadType::kDisplayCritical);
+        base::ThreadType::kPresentation);
   }
 #endif
   blink::Platform::InitializeBlink();
