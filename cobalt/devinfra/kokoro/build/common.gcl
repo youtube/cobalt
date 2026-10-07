@@ -45,4 +45,17 @@ build = {
       value = 'cobalt-kokoro-gar'
     },
   ]
+  before_action = [
+    {
+      fetch_keystore = {
+        keystore_resource = [
+          {
+            keystore_config_id = 77805
+            keyname = 'cobalt-golden-workspace-signing-key'
+            backend = 'blade:keystore-fastconfigpush'
+          },
+        ]
+      }
+    },
+  ]
 }

@@ -271,6 +271,7 @@ _do_publish_golden_workspace_snapshot () {
   local platform="$2"
   local gcs_archive_path="$3"
   local src_commit="$4"
+  local signing_key="${5:-}"
 
   local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
   mkdir -p "${staging_dir}"
@@ -315,15 +316,34 @@ _do_publish_golden_workspace_snapshot () {
 }
 EOF
 
+  local signature="${staging_dir}/manifest.sig"
+  if [[ -n "${signing_key}" && -f "${signing_key}" ]]; then
+    echo "==> Signing manifest with Kokoro Keystore key..."
+    openssl dgst -sha256 -sign "${signing_key}" -out "${signature}" "${manifest}"
+  fi
+
   echo "==> Uploading golden workspace snapshot to ${gcs_archive_path}/..."
   "${GSUTIL}" cp "${archive}" "${gcs_archive_path}/golden-workspace-latest.tar.zst"
   "${GSUTIL}" cp "${manifest}" "${gcs_archive_path}/manifest.json"
+  if [[ -f "${signature}" ]]; then
+    "${GSUTIL}" cp "${signature}" "${gcs_archive_path}/manifest.sig"
+  fi
   echo "==> Successfully uploaded golden workspace snapshot to ${gcs_archive_path}/"
 
   rm -rf "${staging_dir}"
 }
 
 publish_golden_workspace_snapshot () {
+  local signing_key="${KOKORO_KEYSTORE_DIR:-}/77805_cobalt-golden-workspace-signing-key"
+  if [[ ! -f "${signing_key}" ]]; then
+    echo "Notice: Golden workspace signing key not present at ${signing_key}. Skipping archive publish."
+    return 0
+  fi
+
+  if [[ "${PUBLISH_GOLDEN_WORKSPACE:-0}" != "1" ]]; then
+    return 0
+  fi
+
   local gclient_root="${KOKORO_ARTIFACTS_DIR:-}/git"
   local platform="${TARGET_PLATFORM:-${PLATFORM:-}}"
   if [[ -z "${platform}" ]]; then
@@ -349,7 +369,7 @@ publish_golden_workspace_snapshot () {
   fi
 
   echo "==> Packaging golden workspace snapshot for ${platform}..."
-  if ! _do_publish_golden_workspace_snapshot "${gclient_root}" "${platform}" "${gcs_archive_path}" "${src_commit}"; then
+  if ! _do_publish_golden_workspace_snapshot "${gclient_root}" "${platform}" "${gcs_archive_path}" "${src_commit}" "${signing_key}"; then
     echo "==> WARNING: Failed to publish golden workspace snapshot. Continuing build." >&2
     return 0
   fi
