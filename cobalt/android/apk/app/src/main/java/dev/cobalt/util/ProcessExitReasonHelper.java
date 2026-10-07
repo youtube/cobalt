@@ -151,6 +151,23 @@ public final class ProcessExitReasonHelper {
     return am != null && ApiHelperForR.getWasLowMemoryKilled(am);
   }
 
+  /** Returns the ActivityManager using the application context (or test override). */
+  @RequiresApi(Build.VERSION_CODES.R)
+  public static @Nullable ActivityManager getActivityManager() {
+    Context context = null;
+    try {
+      context = ContextUtils.getApplicationContext();
+    } catch (Throwable ignored) {
+    }
+    return ApiHelperForR.getActivityManager(context);
+  }
+
+  /** Returns the cached latest historical ApplicationExitInfo for the process. */
+  @RequiresApi(Build.VERSION_CODES.R)
+  public static @Nullable ApplicationExitInfo getLatestProcessExitInfo() {
+    return ApiHelperForR.getLatestProcessExitInfo(getActivityManager());
+  }
+
   /** Records historical process exit reasons into UMA histograms. */
   @CalledByNative
   public static void recordHistoricalProcessExitReason() {

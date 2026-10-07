@@ -55,6 +55,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltProcessStateSummary.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -102,6 +103,15 @@ source_set("app_event_bridge") {
     "//starboard:starboard_headers_only",
     "//starboard/common",
   ]
+}
+
+source_set("cobalt_process_state_summary_jni") {
+  sources = [
+    "cobalt_process_state_summary_jni.cc",
+    "cobalt_process_state_summary_jni.h",
+  ]
+  public_deps = [ ":jni_headers" ]
+  deps = [ "//base" ]
 }
 
 android_library("cobalt_browser_java") {
@@ -155,6 +165,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltProcessStateSummary.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
