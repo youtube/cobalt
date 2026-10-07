@@ -54,6 +54,12 @@ dictionary SystemMemoryInfo {
     // Peak memory used by the decoded image cache in bytes.
     unsigned long long? decodedImageCachePeakMemory = null;
 
+    // Tile texture memory used by the compositor in bytes.
+    unsigned long long? usedTileMemory = null;
+
+    // Peak tile texture memory used by the compositor in bytes.
+    unsigned long long? peakTileMemory = null;
+
     // The portion of the heap currently used by JavaScript objects.
     unsigned long long? usedJSHeapSize = null;
 

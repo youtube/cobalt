@@ -515,4 +515,38 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_GT(parsed_pid, 0);
 }
 
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       TileMemorySurfacesInPerformanceApi) {
+  std::string html_content = R"(
+    <html>
+    <body style="width: 2000px; height: 2000px; background: linear-gradient(red, blue);">
+      <div style="width: 1000px; height: 1000px; background: green;"></div>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  EXPECT_GE(content::EvalJs(shell()->web_contents(),
+                            "window.performance.measureUsedTileMemory()")
+                .ExtractDouble(),
+            0.0);
+
+  EXPECT_GE(content::EvalJs(shell()->web_contents(),
+                            "window.performance.measurePeakTileMemory()")
+                .ExtractDouble(),
+            0.0);
+
+  EXPECT_TRUE(
+      content::EvalJs(
+          shell()->web_contents(),
+          "'usedTileMemory' in window.performance.measureSystemMemoryInfo()")
+          .ExtractBool());
+  EXPECT_TRUE(
+      content::EvalJs(
+          shell()->web_contents(),
+          "'peakTileMemory' in window.performance.measureSystemMemoryInfo()")
+          .ExtractBool());
+}
+
 }  // namespace cobalt
