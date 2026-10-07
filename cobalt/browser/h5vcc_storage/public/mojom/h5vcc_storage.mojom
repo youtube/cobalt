@@ -19,4 +19,12 @@ module h5vcc_storage.mojom;
 interface H5vccStorage {
   // Only intended to be used by tests.
   ClearCrashpadDatabase() => ();
+
+  [Sync]
+  WriteTest(uint32 test_size, string test_string)
+      => (int32? bytes_written, string? error);
+
+  [Sync]
+  VerifyTest(uint32 test_size, string test_string)
+      => (int32? bytes_read, string? error, bool verified);
 };

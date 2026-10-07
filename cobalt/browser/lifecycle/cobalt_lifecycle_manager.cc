@@ -26,6 +26,24 @@
 
 namespace cobalt {
 
+std::ostream& operator<<(std::ostream& os, PendingAck ack) {
+  switch (ack) {
+    case PendingAck::kNone:
+      return os << "kNone";
+    case PendingAck::kReveal:
+      return os << "kReveal";
+    case PendingAck::kConceal:
+      return os << "kConceal";
+    case PendingAck::kBlur:
+      return os << "kBlur";
+    case PendingAck::kUnfreeze:
+      return os << "kUnfreeze";
+    case PendingAck::kCookieFlush:
+      return os << "kCookieFlush";
+  }
+  return os << "Unknown(" << static_cast<int>(ack) << ")";
+}
+
 // static
 CobaltLifecycleManager* CobaltLifecycleManager::GetInstance() {
   static base::NoDestructor<CobaltLifecycleManager> instance;
@@ -482,7 +500,7 @@ void CobaltLifecycleManager::StartWaitingForAck(
     // immediately to avoid hanging the transition.
     LOG(WARNING) << __func__
                  << ": No connected frames! Completing immediately for "
-                 << static_cast<int>(ack_type);
+                 << ack_type;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&CobaltLifecycleManager::CompleteAckImmediately,
@@ -599,8 +617,7 @@ void CobaltLifecycleManager::OnAckTimeout(
   }
   content::WebContents* wc = web_contents.get();
   if (pending_acks_[wc] == ack_type) {
-    LOG(WARNING) << __func__
-                 << ": Timeout fired for ack = " << static_cast<int>(ack_type)
+    LOG(WARNING) << __func__ << ": Timeout fired for ack = " << ack_type
                  << ". Proceeding anyway.";
     pending_ack_frames_[wc].clear();
     CheckCompletion(wc);

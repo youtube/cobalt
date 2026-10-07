@@ -28,6 +28,7 @@
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "media/starboard/starboard_renderer.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -142,6 +143,7 @@ void ShellPlatformDelegate::OnConceal() {
   if (!IsVisible()) {
     return;
   }
+  weak_factory_.InvalidateWeakPtrs();
 
   // Save the set of WebContents that were visible before conceal.
   // This is used on reveal to decide which WebContents we should wait for
@@ -163,10 +165,12 @@ void ShellPlatformDelegate::OnConceal() {
 
   if (pending_conceal_web_contents_.empty()) {
     is_visible_ = false;
-    content::CleanupGpuProcessOnUI(base::BindOnce([] {
-      cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
-          nullptr);
-    }));
+    // Ensure all StarboardRenderers have flushed and destroyed their SbPlayer
+    // instances before ConcealShell destroys the SbWindow and
+    // CleanupGpuProcessOnUI terminates the EGLDisplay.
+    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+        base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
+                       weak_factory_.GetWeakPtr(), nullptr));
     return;
   }
 
@@ -180,7 +184,11 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
+  weak_factory_.InvalidateWeakPtrs();
   content::RestoreGpuProcessOnUI();
+  // Clear the concealed state in StarboardRenderer so subsequent playback or
+  // pipeline resume requests can create new SbPlayer instances.
+  media::StarboardRenderer::ResumeActiveRenderers();
   pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
@@ -353,10 +361,6 @@ void ShellPlatformDelegate::OnAllFramesVisible(
 void ShellPlatformDelegate::OnAllFramesConcealed(
     content::WebContents* web_contents) {
   if (web_contents) {
-    Shell* shell = Shell::FromWebContents(web_contents);
-    if (shell) {
-      ConcealShell(shell);
-    }
     pending_conceal_web_contents_.erase(web_contents);
   }
 
@@ -364,14 +368,35 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
     cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
         static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
     is_visible_ = false;
+    weak_factory_.InvalidateWeakPtrs();
 
-    content::CleanupGpuProcessOnUI(base::BindOnce(
-        [](base::WeakPtr<content::WebContents> wc) {
-          cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
-              wc ? wc.get() : nullptr);
-        },
-        web_contents ? web_contents->GetWeakPtr() : nullptr));
+    base::WeakPtr<content::WebContents> wc_weak =
+        web_contents ? web_contents->GetWeakPtr() : nullptr;
+    // Wait for StarboardRenderer to flush and destroy any remaining SbPlayer
+    // instances before unmapping the platform window (SbWindowDestroy) and
+    // tearing down GPU/EGL resources.
+    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+        base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
+                       weak_factory_.GetWeakPtr(), wc_weak));
   }
+}
+
+void ShellPlatformDelegate::CompleteConcealAfterMediaBarrier(
+    base::WeakPtr<content::WebContents> web_contents) {
+  if (is_visible_) {
+    return;
+  }
+
+  for (auto* shell : Shell::windows()) {
+    ConcealShell(shell);
+  }
+
+  content::CleanupGpuProcessOnUI(base::BindOnce(
+      [](base::WeakPtr<content::WebContents> wc) {
+        cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+            wc ? wc.get() : nullptr);
+      },
+      web_contents));
 }
 
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)
