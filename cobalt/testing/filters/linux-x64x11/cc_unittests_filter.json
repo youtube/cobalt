@@ -4,10 +4,10 @@
     "*LayerTreeHost*",
     "All/BackdropFilter*",
     "MixedFilterZoomAndOffsetTest.*",
-    "OopPixelTest.DrawImageWithSourceColorSpace",
-    "P/OopClearPixelTest.*",
-    "P/OopPathPixelTest.*",
-    "P/OopTextBlobPixelTest.*",
-    "P/OopYUVToRGBPixelTest.*"
+    "GpuRasterPixelTest.DrawImageWithSourceColorSpace",
+    "P/GpuRasterClearPixelTest.*",
+    "P/GpuRasterPathPixelTest.*",
+    "P/GpuRasterTextBlobPixelTest.*",
+    "P/GpuRasterYUVToRGBPixelTest.*"
   ]
 }

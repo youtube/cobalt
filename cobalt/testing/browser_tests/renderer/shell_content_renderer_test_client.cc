@@ -24,6 +24,7 @@
 #include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/renderer/shell_render_frame_observer.h"
+#include "content/common/pseudonymization_salt.h"
 #include "content/public/common/pseudonymization_util.h"
 #include "content/public/test/test_service.mojom.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -129,6 +130,16 @@ class TestRendererServiceImpl : public mojom::TestService {
                           PseudonymizeStringCallback callback) override {
     std::move(callback).Run(
         PseudonymizationUtil::PseudonymizeStringForTesting(value));
+  }
+
+  void GetPseudonymizationSalt(
+      GetPseudonymizationSaltCallback callback) override {
+    std::move(callback).Run(content::GetPseudonymizationSalt());
+  }
+
+  void IsPseudonymizationSaltInitialized(
+      IsPseudonymizationSaltInitializedCallback callback) override {
+    std::move(callback).Run(content::IsSaltInitialized());
   }
 
   void PassWriteableFile(base::File file,

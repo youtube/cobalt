@@ -161,12 +161,9 @@ class GpuRasterPixelTest : public testing::Test,
 
   void InitializeOOPContext() {
     if (oop_image_cache_) {
-<<<<<<< HEAD:cc/paint/gpu_raster_pixeltest.cc
-=======
 #if BUILDFLAG(IS_COBALT)
       FlushInProcessImageTransfers();
 #endif
->>>>>>> parent of 83af724c740 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):cc/paint/oop_pixeltest.cc
       oop_image_cache_.reset();
     }
 
