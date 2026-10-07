@@ -20,6 +20,7 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     _COBALT_GIT_HISTORY_CACHE,
+    _find_unique_tracked_file,
     apply_patch_or_replacement,
     execute_local_tool,
     extract_build_progress,
@@ -2601,6 +2602,123 @@ class AutoninjaHelpersSafetyTest(unittest.TestCase):
       with open(gn, "w", encoding="utf-8") as f:
         f.write("")
       self.assertEqual(find_build_file_for_object("obj/a/b/c.o", repo), gn)
+
+
+class AtomicPatchTest(unittest.TestCase):
+  """Multi-block SEARCH/REPLACE patches apply all-or-nothing."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.repo = self._tmp.name
+    self.a = os.path.join(self.repo, "a.cc")
+    self.b = os.path.join(self.repo, "b.cc")
+    with open(self.a, "w", encoding="utf-8") as f:
+      f.write("int a = 1;\nint a2 = 2;\n")
+    with open(self.b, "w", encoding="utf-8") as f:
+      f.write("int b = 1;\n")
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  @staticmethod
+  def _block(path, search, replace):
+    return (f"FILE: {path}\n<<<<<<< SEARCH\n{search}\n=======\n{replace}\n"
+            ">>>>>>> REPLACE\n")
+
+  def test_failing_block_rolls_back_earlier_blocks(self):
+    with open(self.a, "rb") as f:
+      before = f.read()
+    patch = (
+        self._block("a.cc", "int a = 1;", "int a = 10;") +
+        self._block("b.cc", "int does_not_exist;", "int x;"))
+    self.assertEqual(apply_patch_or_replacement(patch, self.repo), [])
+    with open(self.a, "rb") as f:
+      self.assertEqual(f.read(), before)
+
+  def test_multiple_blocks_same_file_all_apply(self):
+    patch = (
+        self._block("a.cc", "int a = 1;", "int a = 10;") +
+        self._block("a.cc", "int a2 = 2;", "int a2 = 20;"))
+    self.assertEqual(apply_patch_or_replacement(patch, self.repo), [self.a])
+    with open(self.a, encoding="utf-8") as f:
+      content = f.read()
+    self.assertIn("int a = 10;", content)
+    self.assertIn("int a2 = 20;", content)
+
+
+class GitToolOptionInjectionTest(unittest.TestCase):
+  """Model-supplied tool arguments must not be parsed as git options."""
+
+  def test_git_diff_rejects_output_option(self):
+    with tempfile.TemporaryDirectory() as repo:
+      target = os.path.join(repo, "pwned")
+      with mock.patch("base_resolver.subprocess.run") as run:
+        out = execute_local_tool(f"TOOL_GIT_DIFF: --output={target}", repo)
+      run.assert_not_called()
+      self.assertIn("[ERROR]", out or "")
+      self.assertFalse(os.path.exists(target))
+
+  def test_git_diff_allows_read_only_flags_and_paths(self):
+    with mock.patch("base_resolver.subprocess.run") as run:
+      run.return_value = mock.Mock(stdout="diff", returncode=0)
+      execute_local_tool("TOOL_GIT_DIFF: --stat -U5 HEAD -- -odd-name.cc",
+                         "/repo")
+    cmd = run.call_args[0][0]
+    self.assertEqual(cmd[:2], ["git", "diff"])
+    self.assertIn("--no-ext-diff", cmd)
+    self.assertEqual(cmd[-5:], ["--stat", "-U5", "HEAD", "--", "-odd-name.cc"])
+
+  def test_git_show_rejects_option_ref(self):
+    with mock.patch("base_resolver.subprocess.run") as run:
+      out = execute_local_tool("TOOL_GIT_SHOW: --output=/tmp/x", "/repo")
+    run.assert_not_called()
+    self.assertIn("[ERROR]", out or "")
+
+  def test_grep_query_passed_with_e_flag(self):
+    with mock.patch("base_resolver.subprocess.run") as run:
+      run.return_value = mock.Mock(stdout="", returncode=1)
+      execute_local_tool("TOOL_GREP: --open-files-in-pager=sh", "/repo")
+    cmd = run.call_args[0][0]
+    self.assertEqual(cmd[cmd.index("-e") + 1], "--open-files-in-pager=sh")
+
+
+class UniqueTrackedFileFallbackTest(unittest.TestCase):
+  """Basename fallback only resolves unique tracked files."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.repo = self._tmp.name
+    for rel in ("x/BUILD.gn", "y/BUILD.gn", "x/unique.cc", "y/dir/foo.cc",
+                "z/foo.cc"):
+      path = os.path.join(self.repo, rel)
+      os.makedirs(os.path.dirname(path), exist_ok=True)
+      with open(path, "w", encoding="utf-8") as f:
+        f.write("")
+    subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=self.repo, check=True)
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  def test_unique_basename_resolves(self):
+    self.assertEqual(
+        _find_unique_tracked_file("unique.cc", self.repo),
+        os.path.join(self.repo, "x", "unique.cc"))
+    self.assertEqual(
+        resolve_repo_file_path("gen/elsewhere/unique.cc", self.repo),
+        os.path.join(self.repo, "x", "unique.cc"))
+
+  def test_ambiguous_basename_rejected(self):
+    self.assertEqual(_find_unique_tracked_file("BUILD.gn", self.repo), "")
+    self.assertEqual(_find_unique_tracked_file("foo.cc", self.repo), "")
+
+  def test_path_suffix_disambiguates(self):
+    self.assertEqual(
+        _find_unique_tracked_file("dir/foo.cc", self.repo),
+        os.path.join(self.repo, "y", "dir", "foo.cc"))
+
+  def test_glob_characters_rejected(self):
+    self.assertEqual(_find_unique_tracked_file("uniq*.cc", self.repo), "")
 
 
 if __name__ == "__main__":

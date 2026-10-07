@@ -204,23 +204,89 @@ def _resolve_repo_file_path_unchecked(raw_path: str, repo_path: str) -> str:
     if os.path.isfile(siso_cand):
       return os.path.abspath(siso_cand)
 
-  # 5. Search by basename as fallback
-  fname = os.path.basename(clean)
-  if fname:
-    try:
-      res = subprocess.run(
-          ["find", repo_path, "-name", fname, "-not", "-path", "*/.*"],
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      matches = [m.strip() for m in res.stdout.splitlines() if m.strip()]
-      if matches:
-        return os.path.abspath(matches[0])
-    except (OSError, subprocess.SubprocessError):
-      pass
+  # 5. Fallback: look the path up in the git index, but only accept a unique
+  # match. Prefer the longest known suffix (e.g. "browser/foo.cc") and fall
+  # back to the bare basename; an ambiguous name like BUILD.gn resolves to
+  # nothing rather than to an arbitrary file.
+  for suffix in dict.fromkeys((stripped, os.path.basename(clean))):
+    if unique := _find_unique_tracked_file(suffix, repo_path):
+      return unique
 
   return direct
+
+
+_GITLINK_CACHE: Dict[str, List[str]] = {}
+
+
+def _git_ls_files(pathspec: str, cwd: str) -> List[str]:
+  """Runs `git ls-files -z -- pathspec` in cwd; [] on any failure."""
+  try:
+    res = subprocess.run(
+        ["git", "ls-files", "-z", "--", pathspec],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+  except (OSError, subprocess.SubprocessError):
+    return []
+  if res.returncode != 0:
+    return []
+  return [p for p in res.stdout.split("\0") if p]
+
+
+def _dependency_checkouts(repo_path: str) -> List[str]:
+  """Gitlink directories that are separate git checkouts (gclient deps)."""
+  key = os.path.abspath(repo_path)
+  if key in _GITLINK_CACHE:
+    return _GITLINK_CACHE[key]
+
+  try:
+    res = subprocess.run(
+        ["git", "ls-files", "-s"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    lines = res.stdout.splitlines() if res.returncode == 0 else []
+  except (OSError, subprocess.SubprocessError):
+    lines = []
+
+  _GITLINK_CACHE[key] = [
+      l.split("\t", 1)[1]
+      for l in lines
+      if l.startswith("160000 ") and "\t" in l and
+      os.path.exists(os.path.join(repo_path,
+                                  l.split("\t", 1)[1], ".git"))
+  ]
+  return _GITLINK_CACHE[key]
+
+
+def _find_unique_tracked_file(suffix: str, repo_path: str) -> str:
+  """Returns the only tracked file whose path ends with `suffix`, else "".
+
+  Searches the main repository index and every gclient dependency checkout
+  (git index only, so it is fast and ignores out/ and untracked files).
+  """
+  if not suffix or any(c in suffix for c in "*?[]"):
+    return ""
+  pathspec = f":(glob)**/{suffix}"
+  matches = _git_ls_files(pathspec, repo_path)
+  if len(matches) > 1:
+    return ""
+  for dep in _dependency_checkouts(repo_path):
+    matches += [
+        f"{dep}/{p}"
+        for p in _git_ls_files(pathspec, os.path.join(repo_path, dep))
+    ]
+    if len(matches) > 1:
+      return ""
+  if len(matches) != 1:
+    return ""
+  return os.path.abspath(os.path.join(repo_path, matches[0]))
 
 
 _COBALT_GIT_HISTORY_CACHE: Dict[Tuple[str, str], bool] = {}
@@ -568,16 +634,45 @@ _FILE_HEADER_PREFIX = (
 )
 
 
+def _apply_blocks_atomically(blocks: List[Tuple[str, str, str]]) -> List[str]:
+  """Applies (target_file, search, replace) blocks all-or-nothing.
+
+  Blocks are applied in order (so several blocks may edit the same file).
+  If any block fails to match, every touched file is restored to its exact
+  original bytes and [] is returned, so a half-applied patch never leaves
+  the working tree in a state the resolution loop does not know about.
+  """
+  originals: Dict[str, bytes] = {}
+  modified_files: List[str] = []
+  for target_file, search_b, replace_b in blocks:
+    if target_file not in originals and os.path.isfile(target_file):
+      with open(target_file, "rb") as f:
+        originals[target_file] = f.read()
+    if not apply_search_replace(target_file, search_b, replace_b):
+      for path, data in originals.items():
+        with open(path, "wb") as f:
+          f.write(data)
+      return []
+    if target_file not in modified_files:
+      modified_files.append(target_file)
+  return modified_files
+
+
 def apply_patch_or_replacement(
     patch_text: str,
     repo_path: str,
     default_file: Optional[str] = None,
 ) -> List[str]:
   """Parses and dispatches AI patch responses (SEARCH/REPLACE, DELETE, diffs).
+
+  SEARCH/REPLACE and DELETE responses are applied atomically: all blocks are
+  validated first and either every block applies or no file is changed.
   """
   clean_text = patch_text.strip()
   clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
   clean_text = re.sub(r"\n```$", "", clean_text)
+
+  blocks: List[Tuple[str, str, str]] = []
 
   # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
   if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
@@ -587,25 +682,18 @@ def apply_patch_or_replacement(
         r"(?:\s*```)?",
         re.DOTALL | re.IGNORECASE,
     )
-    matches = del_pattern.findall(clean_text)
-    if matches:
-      modified_files = []
-      for rel_file, delete_b in matches:
-        target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-            default_file or "")
-        if not target_rel:
-          continue
-        target_file = resolve_repo_file_path(target_rel, repo_path)
-        if not validate_patch_target(
-            target_file, target_rel, repo_path, operation_name="DELETE"):
-          return []
-        applied = apply_search_replace(target_file, delete_b, "")
-        if applied:
-          modified_files.append(target_file)
-        else:
-          return []
-      if modified_files:
-        return modified_files
+    for rel_file, delete_b in del_pattern.findall(clean_text):
+      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+          default_file or "")
+      if not target_rel:
+        continue
+      target_file = resolve_repo_file_path(target_rel, repo_path)
+      if not validate_patch_target(
+          target_file, target_rel, repo_path, operation_name="DELETE"):
+        return []
+      blocks.append((target_file, delete_b, ""))
+    if blocks:
+      return _apply_blocks_atomically(blocks)
 
   # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
   if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
@@ -616,43 +704,36 @@ def apply_patch_or_replacement(
         r"(?:\s*```)?",
         re.DOTALL | re.IGNORECASE,
     )
-    matches = sr_pattern.findall(clean_text)
-    if matches:
-      modified_files = []
-      for rel_file, search_b, replace_b in matches:
-        target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-            default_file or "")
-        if not target_rel:
-          continue
-        # Strip trailing ``` from replace_b if any leaked in
-        clean_replace = re.sub(r"\n```\s*$", "", replace_b)
-        if not clean_replace.strip() and len(search_b.splitlines()) > 80:
-          print(
-              f"  [GUARD] Rejecting bulk empty REPLACE block "
-              f"({len(search_b.splitlines())} lines) in {target_rel}. Use "
-              "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
-              "removals.",
-              file=sys.stderr,
-          )
-          return []
-        if re.search(r"^(?:FILE|Target File):", clean_replace, re.MULTILINE):
-          print(
-              f"  [GUARD] Rejecting malformed REPLACE block in {target_rel} "
-              "containing nested FILE directives.",
-              file=sys.stderr,
-          )
-          return []
-        target_file = resolve_repo_file_path(target_rel, repo_path)
-        if not validate_patch_target(
-            target_file, target_rel, repo_path, operation_name="patch"):
-          return []
-        applied = apply_search_replace(target_file, search_b, clean_replace)
-        if applied:
-          modified_files.append(target_file)
-        else:
-          return []
-      if modified_files:
-        return modified_files
+    for rel_file, search_b, replace_b in sr_pattern.findall(clean_text):
+      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
+          default_file or "")
+      if not target_rel:
+        continue
+      # Strip trailing ``` from replace_b if any leaked in
+      clean_replace = re.sub(r"\n```\s*$", "", replace_b)
+      if not clean_replace.strip() and len(search_b.splitlines()) > 80:
+        print(
+            f"  [GUARD] Rejecting bulk empty REPLACE block "
+            f"({len(search_b.splitlines())} lines) in {target_rel}. Use "
+            "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
+            "removals.",
+            file=sys.stderr,
+        )
+        return []
+      if re.search(r"^(?:FILE|Target File):", clean_replace, re.MULTILINE):
+        print(
+            f"  [GUARD] Rejecting malformed REPLACE block in {target_rel} "
+            "containing nested FILE directives.",
+            file=sys.stderr,
+        )
+        return []
+      target_file = resolve_repo_file_path(target_rel, repo_path)
+      if not validate_patch_target(
+          target_file, target_rel, repo_path, operation_name="patch"):
+        return []
+      blocks.append((target_file, search_b, clean_replace))
+    if blocks:
+      return _apply_blocks_atomically(blocks)
 
   return apply_unified_diff(clean_text, repo_path)
 
@@ -993,7 +1074,7 @@ def _tool_grep(args: str, ctx: ToolContext) -> Optional[str]:
   if not query:
     return "[ERROR] Empty query in TOOL_GREP."
 
-  grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", query]
+  grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", "-e", query]
   if path_filter:
     grep_cmd.extend(["--", path_filter])
   else:
@@ -1070,9 +1151,11 @@ def _tool_git_show(args: str, ctx: ToolContext) -> Optional[str]:
   """TOOL_GIT_SHOW: <ref> - shows a commit or object."""
   tokens = split_clean_tokens(args)
   ref = tokens[0] if tokens else args
+  if not ref or ref.startswith("-"):
+    return f"[ERROR] TOOL_GIT_SHOW expects a ref, got: {ref!r}"
   try:
     res = subprocess.run(
-        ["git", "show", "--no-color", ref],
+        ["git", "show", "--no-color", "--no-ext-diff", "--no-textconv", ref],
         cwd=ctx.repo_path,
         capture_output=True,
         text=True,
@@ -1124,12 +1207,38 @@ def _tool_pr_diff(args: str, ctx: ToolContext) -> Optional[str]:
     return f"[ERROR] gh pr diff failed: {e}"
 
 
+# Read-only git diff flags the model may pass to TOOL_GIT_DIFF (plus -U<n>).
+_GIT_DIFF_ALLOWED_FLAGS = frozenset({
+    "--cached",
+    "--staged",
+    "--stat",
+    "--numstat",
+    "--shortstat",
+    "--name-only",
+    "--name-status",
+    "--ignore-all-space",
+    "-w",
+})
+
+
 def _tool_git_diff(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GIT_DIFF: <args> - runs git diff with caller-supplied arguments."""
+  """TOOL_GIT_DIFF: <args> - runs git diff with caller-supplied arguments.
+
+  Arguments come from the model, so only refs, paths, "--" and the read-only
+  flags in _GIT_DIFF_ALLOWED_FLAGS are accepted. Anything else starting with
+  "-" is rejected (e.g. --output=<path> would write an arbitrary file).
+  """
   diff_args = args.split()
+  options = diff_args[:diff_args.index("--")] if "--" in diff_args else (
+      diff_args)
+  for x in options:
+    if (x.startswith("-") and x not in _GIT_DIFF_ALLOWED_FLAGS and
+        not re.fullmatch(r"-U\d+|--unified=\d+", x)):
+      return f"[ERROR] TOOL_GIT_DIFF option not allowed: {x}"
   try:
     res = subprocess.run(
-        ["git", "diff"] + diff_args,
+        ["git", "diff", "--no-color", "--no-ext-diff", "--no-textconv"] +
+        diff_args,
         cwd=ctx.repo_path,
         capture_output=True,
         text=True,
