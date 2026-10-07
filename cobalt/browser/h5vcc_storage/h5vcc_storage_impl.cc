@@ -25,6 +25,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/system.h"                   // nogncheck
 #endif
 
 namespace h5vcc_storage {
