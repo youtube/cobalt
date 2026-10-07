@@ -3758,7 +3758,7 @@ void WebMediaPlayerImpl::UpdateBackgroundVideoOptimizationState() {
     // Cobalt calls SuspendForFrameClosed() on conceal while the page is still
     // hidden, which makes IsPageHidden() return false. Keep the pause reason
     // so that OnPageShown() resumes a video paused when the page was hidden.
-    if (!was_suspended_for_frame_closed_) {
+    if (!was_suspended_for_frame_closed_or_frozen_) {
       visibility_pause_reason_.reset();
     }
 #else
