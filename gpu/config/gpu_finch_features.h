@@ -24,7 +24,15 @@ struct GpuFeatureInfo;
 namespace features {
 
 #if BUILDFLAG(IS_COBALT)
+<<<<<<< HEAD
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+=======
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltDecodedImagesMetrics);
+GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                       kCobaltDecodedImagesMetricsInterval);
+
+>>>>>>> 06001c3e730 (cobalt/metrics: Add decoded image cache memory telemetry and web performance APIs (#12985))
 #if BUILDFLAG(IS_ANDROID)
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
 #endif  // BUILDFLAG(IS_ANDROID)
