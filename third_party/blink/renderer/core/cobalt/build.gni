@@ -32,7 +32,7 @@ if (use_starboard_media) {
   ]
 }
 
-blink_core_tests_cobalt = []
+blink_core_tests_cobalt = [ "performance/cobalt_frame_timing_test.cc" ]
 
 if (use_starboard_media) {
   blink_core_tests_cobalt +=
