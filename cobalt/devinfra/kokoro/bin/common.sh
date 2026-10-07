@@ -39,6 +39,12 @@ configure_environment () {
   # Use Kokor's default credentials instead of boto file.
   unset BOTO_PATH
 
+  # Ensure vpython virtualenvs are populated in a persistent directory for snapshot packaging
+  if [ -n "${KOKORO_ARTIFACTS_DIR:-}" ]; then
+    export VPYTHON_VIRTUALENV_ROOT="${KOKORO_ARTIFACTS_DIR}/git/vpython"
+    mkdir -p "${VPYTHON_VIRTUALENV_ROOT}"
+  fi
+
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
@@ -228,3 +234,54 @@ run_package_release_pipeline () {
     "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
   fi
 }
+
+publish_golden_workspace_snapshot () {
+  local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
+  local platform="${PLATFORM:-linux}"
+  local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
+  local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
+
+  echo "==> Packaging golden workspace snapshot for ${platform}..."
+  mkdir -p "${staging_dir}"
+
+  local archive="${staging_dir}/golden-workspace-latest.tar.zst"
+  local extra_tar_args=()
+  if [[ -d "${gclient_root}/vpython" ]]; then
+    extra_tar_args+=("vpython")
+  elif [[ -d "${HOME}/.cache/vpython" ]]; then
+    extra_tar_args+=("-C" "${HOME}/.cache" "vpython")
+  fi
+
+  tar --exclude='src/out' \
+      --use-compress-program="zstd -T0 -3" \
+      -cf "${archive}" \
+      -C "${gclient_root}" src tools/depot_tools .gclient \
+      "${extra_tar_args[@]}"
+
+  local archive_sha
+  archive_sha=$(sha256sum "${archive}" | awk '{print $1}')
+  local archive_size
+  archive_size=$(stat -c%s "${archive}")
+  local src_commit
+  src_commit=$(git -C "${WORKSPACE_COBALT}" rev-parse HEAD)
+
+  local manifest="${staging_dir}/manifest.json"
+  cat > "${manifest}" <<EOF
+{
+  "schema_version": "1.0",
+  "platform": "${platform}",
+  "archive_sha256": "${archive_sha}",
+  "archive_size_bytes": ${archive_size},
+  "src_commit": "${src_commit}",
+  "timestamp_utc": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+}
+EOF
+
+  echo "==> Uploading golden workspace snapshot to gs://${bucket}/${platform}/..."
+  init_gcloud
+  "${GSUTIL}" cp "${archive}" "gs://${bucket}/${platform}/golden-workspace-latest.tar.zst"
+  "${GSUTIL}" cp "${manifest}" "gs://${bucket}/${platform}/manifest.json"
+
+  rm -rf "${staging_dir}"
+}
+

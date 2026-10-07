@@ -32,6 +32,8 @@ pipeline () {
   # `--end-of-options` to `git checkout`. Need to update git on runners.
   git -C tools/depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
   export DEPOT_TOOLS_UPDATE=0
+  export VPYTHON_VIRTUALENV_ROOT="${gclient_root}/vpython"
+  mkdir -p "${VPYTHON_VIRTUALENV_ROOT}"
   git config --global --add safe.directory '*'
   source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
@@ -48,6 +50,7 @@ pipeline () {
     -R \
     -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
+  publish_golden_workspace_snapshot
 
   # Run GN and Ninja.
   ##############################################################################
@@ -81,6 +84,7 @@ pipeline () {
       "${package_dir}.tar.gz" \
       "${build_info_path}"
   fi
+
 
   if has_simulator_tests; then
     time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
