@@ -483,6 +483,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
     Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance()
+        .setPreCrashHook(
+            () ->
+                CobaltProcessStateSummary.setStartupGuardTriggeredKill(
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().getHighestMilestone()));
     StartupGuard.getInstance().scheduleCrash(timeout);
   }
 
