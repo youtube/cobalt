@@ -46,6 +46,12 @@
     // Returns the amount of GPU memory used by the Cobalt process in bytes.
     [CallWith=ScriptState, RaisesException] unsigned long long measureUsedGpuMemory();
 
+    // Returns the amount of memory used by the decoded image cache in bytes.
+    [CallWith=ScriptState] unsigned long long measureDecodedImagesMemory();
+
+    // Returns the peak memory used by the decoded image cache in bytes.
+    [CallWith=ScriptState] unsigned long long measureDecodedImagesPeakMemory();
+
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
 };
