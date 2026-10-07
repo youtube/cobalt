@@ -19,7 +19,6 @@
 #include <optional>
 #include <vector>
 
-#include "base/base_paths.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -27,7 +26,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -36,6 +34,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 
 namespace h5vcc_storage {
 
