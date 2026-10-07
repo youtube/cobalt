@@ -545,6 +545,13 @@ source_set("browser_sources") {
     sources += [ "color_chooser.h" ]
   }
 
+  if (is_cobalt) {
+    sources += [
+      "media_player_utils.cc",
+      "media_player_utils.h",
+    ]
+  }
+
   if (rtc_use_pipewire) {
     configs +=
         [ "//third_party/webrtc/modules/desktop_capture:pipewire_config" ]
