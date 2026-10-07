@@ -112,7 +112,7 @@ except that it sets `is_starboard = false`.
 For example:
 
 ```
-gcc_toolchain("target") {
+gcc_toolchain("starboard") {
   ...
 }
 
@@ -170,8 +170,8 @@ Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
 
 
-The partner port of Starboard is built with the partner’s "target" toolchain and
-is linked into the `loader_app`, which knows how to dynamically load
+The partner port of Starboard is built with the partner's "starboard" toolchain
+and is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
 
