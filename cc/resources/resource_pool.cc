@@ -198,15 +198,9 @@ ResourcePool::ResourcePool(
       clock_(base::DefaultTickClock::GetInstance()) {
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "cc::ResourcePool", task_runner_.get());
-<<<<<<< HEAD
-=======
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE, base::BindRepeating(&ResourcePool::OnMemoryPressure,
-                                     weak_ptr_factory_.GetWeakPtr()));
 #if BUILDFLAG(IS_COBALT)
   ScheduleRecordTileMemoryMetrics();
 #endif
->>>>>>> 21c97696d68 (cobalt/metrics: Add tile texture memory metrics to cc::ResourcePool (#12961))
 }
 
 ResourcePool::~ResourcePool() {
@@ -741,21 +735,6 @@ bool ResourcePool::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
   return true;
 }
 
-<<<<<<< HEAD
-=======
-void ResourcePool::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  switch (level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
-      break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
-      EvictResourcesNotUsedSince(base::TimeTicks() + base::TimeDelta::Max());
-      FlushEvictedResources();
-      break;
-  }
-}
-
 #if BUILDFLAG(IS_COBALT)
 void ResourcePool::ScheduleRecordTileMemoryMetrics() {
   CHECK(task_runner_);
@@ -799,7 +778,6 @@ uint64_t ResourcePool::GetGlobalPeakTileMemoryUsageBytes() {
 }
 #endif
 
->>>>>>> 21c97696d68 (cobalt/metrics: Add tile texture memory metrics to cc::ResourcePool (#12961))
 ResourcePool::PoolResource::PoolResource(ResourcePool* resource_pool,
                                          size_t unique_id,
                                          const gfx::Size& size,
