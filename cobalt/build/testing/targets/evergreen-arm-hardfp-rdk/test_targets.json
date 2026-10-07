@@ -127,7 +127,7 @@
     "required": false
   },
   {
-    "target": "video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_rdk",
+    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_rdk",
     "runs_on": "device",
     "test_type": "e2e_test",
     "build": false
