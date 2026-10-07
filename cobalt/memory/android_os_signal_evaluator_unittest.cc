@@ -47,53 +47,47 @@ class AndroidOsSignalEvaluatorTest : public testing::Test {
   std::unique_ptr<AndroidOsSignalEvaluator> evaluator_;
 };
 
-// Test to verify that AndroidOsSignalEvaluator registers its forwarder callback with
-// MemoryPressureListenerAndroid on construction and unregisters on destruction.
+// Test to verify that AndroidOsSignalEvaluator registers its forwarder callback
+// with MemoryPressureListenerAndroid on construction, dispatches one-shot OS
+// signals without leaving a sticky vote, suppresses LEVEL_NONE, and unregisters
+// on destruction.
 TEST_F(AndroidOsSignalEvaluatorTest,
        RegistersForwarderAndCleansUpOnDestruction) {
   EXPECT_EQ(AndroidOsSignalEvaluator::GetInstance(), evaluator_.get());
 
-  // Verify forwarder callback was registered.
-  const auto& forwarder =
-      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting();
-  ASSERT_TRUE(forwarder);
-
-  // Simulate Android OS signal via forwarder.
-  forwarder.Run(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  EXPECT_EQ(evaluator_->current_vote(),
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-
-  // Destroy evaluator and ensure singleton instance and forwarder are cleared.
-  evaluator_.reset();
-  EXPECT_EQ(AndroidOsSignalEvaluator::GetInstance(), nullptr);
-  EXPECT_FALSE(
-      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting());
-}
-
-// Test to verify that LEVEL_NONE updates the voter vote but suppresses dispatch.
-TEST_F(AndroidOsSignalEvaluatorTest, NoneLevelUpdatesVoteWithoutDispatch) {
   std::vector<base::MemoryPressureListener::MemoryPressureLevel> dispatches;
   monitor_->SetDispatchCallbackForTesting(base::BindLambdaForTesting(
       [&](base::MemoryPressureListener::MemoryPressureLevel level) {
         dispatches.push_back(level);
       }));
 
-  // CRITICAL has notify = true, so it triggers a dispatch.
-  evaluator_->OnMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  EXPECT_EQ(evaluator_->current_vote(),
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  EXPECT_EQ(dispatches.size(), 1u);
+  // Verify forwarder callback was registered.
+  const auto& forwarder =
+      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting();
+  ASSERT_TRUE(forwarder);
 
-  // NONE updates current_vote to NONE, but notify = false suppresses dispatch.
-  evaluator_->OnMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
-  EXPECT_EQ(evaluator_->current_vote(),
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
-  // Verify no new dispatch occurred and that NONE was never dispatched.
-  EXPECT_EQ(dispatches.size(), 1u);
+  // Simulate Android OS signal via forwarder: dispatches CRITICAL and resets
+  // vote to NONE so no sticky vote remains.
+  forwarder.Run(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  ASSERT_EQ(dispatches.size(), 1u);
   EXPECT_EQ(dispatches[0],
             base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  EXPECT_EQ(evaluator_->current_vote(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  EXPECT_EQ(monitor_->GetCurrentPressureLevel(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+
+  // NONE updates current_vote to NONE, and notify = false suppresses dispatch.
+  forwarder.Run(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  EXPECT_EQ(evaluator_->current_vote(),
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  EXPECT_EQ(dispatches.size(), 1u);
+
+  // Destroy evaluator and ensure singleton instance and forwarder are cleared.
+  evaluator_.reset();
+  EXPECT_EQ(AndroidOsSignalEvaluator::GetInstance(), nullptr);
+  EXPECT_FALSE(
+      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting());
 }
 
 }  // namespace memory

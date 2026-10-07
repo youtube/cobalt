@@ -27,6 +27,15 @@ namespace memory {
 // Evaluator that ingests Android OS lifecycle memory signals (from JNI
 // onMemoryPressure) and translates them into Chromium MemoryPressureLevel votes
 // for the MultiSourceMemoryPressureMonitor.
+//
+// Ownership:
+// This class is owned by MultiSourceMemoryPressureMonitor via
+// SetSystemEvaluator() and its lifetime is tied to the monitor (and thus
+// CobaltBrowserMainParts).
+//
+// Threading Model:
+// This class is thread-affine and must be constructed, used, and destroyed on
+// the UI/main thread.
 class AndroidOsSignalEvaluator
     : public ::memory_pressure::SystemMemoryPressureEvaluator {
  public:

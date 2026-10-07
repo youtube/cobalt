@@ -56,12 +56,21 @@ AndroidOsSignalEvaluator* AndroidOsSignalEvaluator::GetInstance() {
 }
 
 void AndroidOsSignalEvaluator::OnMemoryPressure(MemoryPressureLevel level) {
-  bool notify =
-      level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-  LOG(INFO) << "[CobaltMemoryPressure] AndroidOsSignalEvaluator casting vote="
-            << level << " (notify=" << notify << ")";
   SetCurrentVote(level);
-  SendCurrentVote(notify);
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    SendCurrentVote(/*notify=*/false);
+    return;
+  }
+
+  LOG(INFO) << "[CobaltMemoryPressure] AndroidOsSignalEvaluator casting vote="
+            << level << " (notify=true)";
+  SendCurrentVote(/*notify=*/true);
+
+  // Android OS trim signals are one-shot events with no recovery callback.
+  // Reset this voter back to NONE without notifying after dispatching so it
+  // does not leave a sticky vote in MemoryPressureVoteAggregator.
+  SetCurrentVote(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  SendCurrentVote(/*notify=*/false);
 }
 
 }  // namespace memory

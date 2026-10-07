@@ -107,7 +107,7 @@ class CobaltSystemMemoryPressureEvaluator
   // Resolves the baseline process memory budget in bytes based on Finch feature
   // parameters or device hardware RAM tiering. If total_physical_memory_bytes
   // is 0, it queries SbSystemGetTotalCPUMemory() on Starboard and
-  // base::GetSystemMemoryInfo()) on Android.
+  // base::GetSystemMemoryInfo() on Android.
   static uint64_t ResolveProcessMemoryBudget(
       uint64_t total_physical_memory_bytes = 0);
 

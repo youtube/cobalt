@@ -57,10 +57,6 @@ class MemoryPressureVoteAggregator {
   void NotifyListenersForTesting();
 
   base::MemoryPressureListener::MemoryPressureLevel EvaluateVotesForTesting();
-  base::MemoryPressureListener::MemoryPressureLevel
-  current_pressure_level_for_testing() const {
-    return current_pressure_level_;
-  }
   void SetVotesForTesting(size_t none_votes,
                           size_t moderate_votes,
                           size_t critical_votes);
