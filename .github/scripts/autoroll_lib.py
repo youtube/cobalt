@@ -163,7 +163,7 @@ def resolve_conflicts(unmerged_files):
   if '.gitmodules' in unmerged_files:
     shutil.move('.gitmodules', '.gitmodules_conflict')
     run(['git', 'checkout', '--ours', '--', '.gitmodules'])
-    run(['git', 'add', '--', '.gitmodules', '.gitmodules_conflict'])
+    run(['git', 'add', '--sparse', '--', '.gitmodules', '.gitmodules_conflict'])
     unmerged_files.pop('.gitmodules', None)
 
   deleted_by_us = []
@@ -244,7 +244,7 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
         run(['git', 'reset', '--hard', 'HEAD'])
         return CommitStatus.FAILED, unmerged_files
 
-      run(['git', 'add', '--'] + unmerged_files)
+      run(['git', 'add', '--sparse', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED
 
