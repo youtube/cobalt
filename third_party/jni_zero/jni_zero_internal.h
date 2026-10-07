@@ -104,8 +104,6 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
   jmethodID method_id_;
 };
 
-<<<<<<< HEAD
-=======
 // Check whether a JNI function with the leading JNIEnv* parameter exists.
 // If so, call that JNI function. If not, call the JNI function without the
 // leading JNIEnv* parameter.
@@ -129,8 +127,6 @@ decltype(auto) DispatchJniFunc(Func&& func, JNIEnv* env, Args&&... args) {
     return func(std::forward<Args>(args)...);
   }
 }
-
->>>>>>> parent of 83af724c740 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace jni_zero::internal
 
 #endif  // JNI_ZERO_JNI_ZERO_INTERNAL_H
