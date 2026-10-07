@@ -998,6 +998,23 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.GPU.TileMemory" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Current tile texture memory usage tracked from cc::ResourcePool.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.TileMemory.Peak" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Peak tile texture memory usage tracked from cc::ResourcePool, updated once
+    per minute.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>
