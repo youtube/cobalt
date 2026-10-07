@@ -3754,7 +3754,16 @@ void WebMediaPlayerImpl::UpdateBackgroundVideoOptimizationState() {
     update_background_status_cb_.Cancel();
     is_background_status_change_cancelled_ = true;
     // There no visibility-related reason to pause the video.
+#if BUILDFLAG(IS_COBALT)
+    // Cobalt calls SuspendForFrameClosed() on conceal while the page is still
+    // hidden, which makes IsPageHidden() return false. Keep the pause reason
+    // so that OnPageShown() resumes a video paused when the page was hidden.
+    if (!was_suspended_for_frame_closed_) {
+      visibility_pause_reason_.reset();
+    }
+#else
     visibility_pause_reason_.reset();
+#endif  // BUILDFLAG(IS_COBALT)
 
     EnableVideoTrackIfNeeded();
   }
