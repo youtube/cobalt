@@ -434,6 +434,14 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
     bool disable_disk_cache =
         gpu_preferences_.disable_gpu_shader_disk_cache ||
         workarounds.disable_program_disk_cache;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // kCobaltGpuShaderDiskCache only opens the disk cache for Skia's
+    // GrShaderCache (see GpuHostImpl::SetChannelDiskCacheHandle). Keep the GL
+    // program cache memory-only, as it is when the feature is off.
+    if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+      disable_disk_cache = true;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
     // Use the EGL blob cache extension for the passthrough decoder.
     if (use_passthrough_cmd_decoder()) {
@@ -806,10 +814,9 @@ void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if BUILDFLAG(IS_ANDROID)
-  // Persist deferred shader cache entries; the app may be killed while in the
-  // background. Defer for CobaltGpuShaderDiskCache experiment.
-  if (gr_shader_cache_ &&
-      base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
     gr_shader_cache_->FlushPendingDiskWrites();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -848,10 +855,9 @@ void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // With kCobaltGpuShaderDiskCache, shader disk writes are deferred; write the
-  // pending entries now since the app may be killed while in the background.
-  if (gr_shader_cache_ &&
-      base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
     gr_shader_cache_->FlushPendingDiskWrites();
   }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)

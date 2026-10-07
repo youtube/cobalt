@@ -72,7 +72,7 @@ class RASTER_EXPORT GrShaderCache
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Writes the entries whose disk writes were deferred. No-op unless
-  // kCobaltGpuShaderDiskCache is enabled.
+  // kCobaltGpuShaderDiskCache was enabled when the cache was created.
   void FlushPendingDiskWrites();
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
@@ -145,6 +145,12 @@ class RASTER_EXPORT GrShaderCache
   base::flat_map<base::PlatformThreadId, int32_t> current_client_id_
       GUARDED_BY(lock_);
   bool need_store_pipeline_cache_ GUARDED_BY(lock_) = false;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Whether WriteToDisk() leaves new entries pending for
+  // FlushPendingDiskWrites() instead of writing them immediately. Set from
+  // kCobaltGpuShaderDiskCache when the cache is created.
+  const bool defer_disk_writes_;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   const bool enable_vk_pipeline_cache_;
 
   // Bound to the thread on which GrShaderCache is created. Some methods can

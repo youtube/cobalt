@@ -133,11 +133,9 @@ void GrCacheController::PurgeGrCache(uint64_t idle_id) {
   context_state_->StoreVkPipelineCacheIfNeeded();
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Write the shaders whose disk writes were deferred. Only the
-  // CobaltGpuShaderDiskCache experiment defers them.
-  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
-    context_state_->FlushGrShaderCacheDiskWrites();
-  }
+  // The GPU is idle, so write the shaders whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache).
+  context_state_->FlushGrShaderCacheDiskWrites();
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 }
 

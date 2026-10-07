@@ -46,6 +46,10 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
     : cache_size_limit_(max_cache_size_bytes),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      defer_disk_writes_(
+          base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)),
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       enable_vk_pipeline_cache_(
           base::FeatureList::IsEnabled(features::kEnableVkPipelineCache)) {
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
@@ -186,10 +190,9 @@ void GrShaderCache::PurgeMemory(
   cache_size_limit_ = gpu::UpdateShaderCacheSizeOnMemoryPressure(
       cache_size_limit_, memory_pressure_level);
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // With kCobaltGpuShaderDiskCache, disk writes are deferred, so write the
-  // pending entries before they are evicted.
-  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache) &&
-      curr_size_bytes_ > cache_size_limit_) {
+  // Deferred disk writes would be lost with the evicted entries, so write the
+  // pending entries first.
+  if (defer_disk_writes_ && curr_size_bytes_ > cache_size_limit_) {
     FlushPendingDiskWritesLocked();
   }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
@@ -231,6 +234,13 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   if (!data->pending_disk_write)
     return;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Keep the entry pending; FlushPendingDiskWrites() writes it later.
+  if (defer_disk_writes_) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   // Only cache the shader on disk if this client id is permitted.
 #if BUILDFLAG(IS_COBALT)
   // In Cobalt, we bypass this restriction and allow caching unless
@@ -238,14 +248,6 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
     return;
   }
-#if BUILDFLAG(IS_ANDROID)
-  // With kCobaltGpuShaderDiskCache, keep the entry pending instead of writing
-  // it now; FlushPendingDiskWrites() writes it later. Otherwise fall through
-  // to the immediate write.
-  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
 #else
   if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0)
     return;
@@ -259,18 +261,15 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 void GrShaderCache::FlushPendingDiskWrites() {
-  // Only kCobaltGpuShaderDiskCache defers writes; without it every entry was
-  // already written by WriteToDisk() and there is nothing to flush.
-  if (!base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
-    return;
-  }
   base::AutoLock auto_lock(lock_);
   FlushPendingDiskWritesLocked();
 }
 
 void GrShaderCache::FlushPendingDiskWritesLocked() {
   lock_.AssertAcquired();
-  if (!base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache) ||
+  // Without deferral, WriteToDisk() already wrote every entry it was allowed
+  // to. The incognito check mirrors the one in WriteToDisk().
+  if (!defer_disk_writes_ ||
       base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
     return;
   }

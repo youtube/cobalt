@@ -168,8 +168,8 @@ class GPU_GLES2_EXPORT SharedContextState
   void StoreVkPipelineCacheIfNeeded();
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Writes GrShaderCache entries whose disk writes were deferred. No-op unless
-  // kCobaltGpuShaderDiskCache is enabled.
+  // Writes GrShaderCache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache). No-op if nothing was deferred.
   void FlushGrShaderCacheDiskWrites();
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 

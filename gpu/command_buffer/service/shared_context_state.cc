@@ -10,7 +10,6 @@
 #include "gpu/command_buffer/service/shared_context_state.h"
 
 #include "base/debug/dump_without_crashing.h"
-#include "base/feature_list.h"
 #include "base/immediate_crash.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -1212,8 +1211,7 @@ void SharedContextState::StoreVkPipelineCacheIfNeeded() {
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 void SharedContextState::FlushGrShaderCacheDiskWrites() {
-  if (gr_shader_cache_ &&
-      base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+  if (gr_shader_cache_) {
     gr_shader_cache_->FlushPendingDiskWrites();
   }
 }
