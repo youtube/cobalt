@@ -9,7 +9,7 @@ The source for the RDK Starboard implementation originates in the [RDK Central r
 
 ## Prerequisites
 
-1. An AH212 running an RDK 6 image built on `20260420` or later, connected to your host over `USB-C`. To flash it, see [How do I flash the AH212?](#how_do_i_flash_the_ah212).
+1. An AH212 running an RDK 6 image built on `20260420` or later, connected to your host over `USB-C`. To flash it, see [How do I flash the AH212?](#how-do-i-flash-the-ah212).
 
 2. Install the required packages:
 
@@ -70,10 +70,10 @@ For testing and certification, always use the official prebuilt Cobalt library a
 1. Download the `arm-hardfp` Evergreen package for your `27.lts` version from [GitHub Releases](https://github.com/youtube/cobalt/releases). The filename has the format `cobalt_evergreen_<version>_arm-hardfp_sbversion-18_qa_compressed_<timestamp>.crx`, where `<version>` is the Evergreen version (such as `7.3.2` for `27.lts.3`). Unpack it into `app/cobalt/`:
 
    ```bash
-   export STAGE_DIR=~/rdk_stage
-   rm -rf ${STAGE_DIR} && mkdir -p ${STAGE_DIR}/app/cobalt ${STAGE_DIR}/gen
+   export OUT_DIR=~/cobalt/src/out/evergreen-arm-hardfp-rdk_qa
+   rm -rf ${OUT_DIR}/app/cobalt && mkdir -p ${OUT_DIR}/app/cobalt
    unzip /path/to/cobalt_evergreen_<version>_arm-hardfp_sbversion-18_qa_compressed_<timestamp>.crx \
-     -d ${STAGE_DIR}/app/cobalt
+     -d ${OUT_DIR}/app/cobalt
    ```
 
 2. Build `libloader_app.so`:
@@ -86,17 +86,16 @@ For testing and certification, always use the official prebuilt Cobalt library a
 3. Package the archive:
 
    ```bash
-   export STAGE_DIR=~/rdk_stage
-   export OUT_DIR=~/cobalt/src/out/evergreen-arm-hardfp-rdk_qa
-   cp ${OUT_DIR}/libloader_app.so ${STAGE_DIR}/
-   cp ${OUT_DIR}/gen/build_info.json ${STAGE_DIR}/gen/
-   cd ${STAGE_DIR}
+   cd ~/cobalt/src/out/evergreen-arm-hardfp-rdk_qa
    tar -czvf ~/archive.tar.gz libloader_app.so gen/build_info.json app/cobalt
    ```
 
-4. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy_and_run_cobalt).
+4. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy-and-run-cobalt).
 
 ### Build Cobalt from source for debugging
+
+> [!CAUTION]
+> Use the official Google prebuilt Cobalt library for testing and certification. Build Cobalt from source only for debugging.
 
 1. Build Cobalt and `libloader_app.so`:
 
@@ -115,7 +114,7 @@ For testing and certification, always use the official prebuilt Cobalt library a
    tar -czvf ~/archive.tar.gz libloader_app.so gen/build_info.json app/cobalt
    ```
 
-3. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy_and_run_cobalt). In that section, before you run the step 3 commands, run only the two `find` commands from [Why is the device not running your Cobalt build?](#why_is_the_device_not_running_your_cobalt_build).
+3. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy-and-run-cobalt). In that section, before you run the step 3 commands, run only the two `find` commands from [Why is the device not running your Cobalt build?](#why-is-the-device-not-running-your-cobalt-build).
 
 ### Deploy and run Cobalt
 
@@ -151,7 +150,7 @@ For testing and certification, always use the official prebuilt Cobalt library a
    curl -s 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc":"2.0","id":1,"method":"Controller.1.activate","params":{"callsign":"YouTube"}}'
    ```
 
-5. In the YouTube app, open **Settings** and confirm that the Cobalt version matches your build. If it doesn't, see [Why is the device not running your Cobalt build?](#why_is_the_device_not_running_your_cobalt_build).
+5. In the YouTube app, open **Settings** and confirm that the Cobalt version matches your build. If it doesn't, see [Why is the device not running your Cobalt build?](#why-is-the-device-not-running-your-cobalt-build).
 
 ## Running Tests
 
@@ -224,7 +223,7 @@ sync
 reboot -f
 ```
 
-After the device reboots, launch YouTube as described in step 4 of [Deploy and run Cobalt](#deploy_and_run_cobalt). Cobalt can download an update again after it starts. If that happens, repeat these steps.
+After the device reboots, launch YouTube as described in step 4 of [Deploy and run Cobalt](#deploy-and-run-cobalt). Cobalt can download an update again after it starts. If that happens, repeat these steps.
 
 ### How do I view the logs?
 
