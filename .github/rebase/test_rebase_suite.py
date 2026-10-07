@@ -2750,6 +2750,23 @@ class SearchReplaceMatchLevelsTest(unittest.TestCase):
   def test_no_match_leaves_file_unchanged(self):
     self.assertEqual(self._run("a\nb\n", "missing", "x"), (False, "a\nb\n"))
 
+  def test_trimmed_match_skips_mid_line_fragment(self):
+    # "foo();" also occurs inside the first line; only the whole line is
+    # a valid fuzzy match.
+    self.assertEqual(
+        self._run("x = foo();\n  foo();\n", "foo();  \n", "bar();"),
+        (True, "x = foo();\n  bar();\n"))
+
+  def test_trimmed_fragment_alone_does_not_match(self):
+    self.assertEqual(
+        self._run("x = foo();\n", " foo(); ", "bar();"),
+        (False, "x = foo();\n"))
+
+  def test_whole_line_match_keeps_missing_final_newline(self):
+    self.assertEqual(
+        self._run("a\n  b\n    last", "b\nlast", "B\nLAST"),
+        (True, "a\nB\nLAST"))
+
 
 class ParsePatchTest(unittest.TestCase):
   """parse_patch result is shared by apply and the change record."""

@@ -29,19 +29,23 @@ def _find_search_span(content: str, search: str,
 
   Match levels, tried in order:
     1. exact substring;
-    2. whitespace-trimmed substring;
+    2. whitespace-trimmed text spanning whole lines (the file's indentation
+       is kept);
     3. window of whole lines equal after stripping each line;
     4. window of whole lines equal after collapsing whitespace and dropping
        line-number prefixes (for re-indented or numbered model output).
-  Levels 3 and 4 replace whole lines, so the replacement is newline-terminated.
+  Fuzzy levels never match a fragment in the middle of a line, so they
+  cannot rewrite text the model did not quote.
   """
   if search in content:
     start = content.index(search)
     return start, start + len(search), replace
   trimmed = search.strip()
-  if trimmed and trimmed in content:
-    start = content.index(trimmed)
-    return start, start + len(trimmed), replace.strip()
+  if trimmed:
+    m = re.search(r"^[ \t]*(" + re.escape(trimmed) + r")[ \t]*$", content,
+                  re.MULTILINE)
+    if m:
+      return m.start(1), m.end(1), replace.strip()
 
   lines = content.splitlines(keepends=True)
   offsets = [0]
@@ -56,7 +60,11 @@ def _find_search_span(content: str, search: str,
     n = len(wanted)
     for i in range(len(lines) - n + 1):
       if keys[i:i + n] == wanted:
-        return offsets[i], offsets[i + n], replacement
+        end = offsets[i + n]
+        # Keep a file that lacks a final newline that way.
+        if end == len(content) and not content.endswith("\n"):
+          return offsets[i], end, replacement[:-1]
+        return offsets[i], end, replacement
   return None
 
 
