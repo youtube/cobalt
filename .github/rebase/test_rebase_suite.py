@@ -58,6 +58,9 @@ from reasoning_engine import CobaltReasoningEngine
 from reasoning_engine import deploy
 from token_usage import TokenUsage
 
+# ReasoningEngineClient has no default models; tests pass placeholders.
+_TEST_MODELS = {"flash_model": "flash-test", "expert_model": "expert-test"}
+
 SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
 
 vars = {
@@ -824,7 +827,7 @@ void Foo() {{}}
 
   def test_record_and_load_memory(self):
     """Tests recording and loading knowledge memory bank entries on engine."""
-    engine = CobaltReasoningEngine()
+    engine = CobaltReasoningEngine(**_TEST_MODELS)
     engine.record_successful_fix(
         issue_description="no member named 'InitStarboardMediaPipeline'",
         solution_diff="InitStarboardMediaPipelineV2();",
@@ -1139,6 +1142,7 @@ target("foo") {{}}
   def test_reasoning_engine_client_dispatch(self):
     """Tests that ReasoningEngineClient routes calls to remote mock engine."""
     client = ReasoningEngineClient(
+        **_TEST_MODELS,
         resource_id="projects/p/locations/l/reasoningEngines/123",
         project_id="test-p",
         location="us-central1",
@@ -1171,6 +1175,7 @@ target("foo") {{}}
   def test_reasoning_engine_client_local_in_process(self):
     """Tests ReasoningEngineClient with local=True uses in-process engine."""
     client = ReasoningEngineClient(
+        **_TEST_MODELS,
         project_id="test-p",
         location="us-central1",
         local=True,
@@ -1204,7 +1209,7 @@ target("foo") {{}}
   def test_engine_kwargs_safety_and_tolerance(self):
     """Guards kwargs safety when client sends unexpected arguments."""
     # pylint: disable=protected-access
-    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
     engine._generate_content_with_retry = mock.MagicMock(
         return_value=mock.MagicMock(text="SEARCH / REPLACE"))
     engine._generate_expert_content = mock.MagicMock(
@@ -1267,7 +1272,7 @@ target("foo") {{}}
   def test_anthropic_thinking_block_parsing(self):
     """Guards against AttributeError when Anthropic returns ThinkingBlock."""
     # pylint: disable=protected-access
-    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
 
     class FakeThinkingBlock:
       type = "thinking"
@@ -1296,7 +1301,7 @@ target("foo") {{}}
   def test_glm_maas_content_and_reasoning_extraction(self):
     """Guards OpenAI/GLM parsing when response has content or reasoning."""
     # pylint: disable=protected-access
-    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
     engine.glm_api_key = "test_key"
 
     fake_json_resp1 = json.dumps({
@@ -1355,18 +1360,21 @@ target("foo") {{}}
 
     # Verify engine memory bank default is independent of project_id
     engine_custom_proj = CobaltReasoningEngine(
-        project_id="arbitrary-gcp-project-12345")
+        project_id="arbitrary-gcp-project-12345", **_TEST_MODELS)
     self.assertEqual(
         engine_custom_proj.gcs_memory_uri,
         "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json",
     )
 
-    # Verify deploy staging bucket helper does not synthesize gs://{project_id}
-    staging_b = deploy._get_effective_staging_bucket(
-        staging_bucket=None,
-        project_id="arbitrary-gcp-project-12345",
-    )
-    self.assertEqual(staging_b, "gs://lxn-test-vertex-staging")
+    # The staging bucket has no default (neither gs://{project_id} nor a
+    # personal test bucket); it must be passed in or set via the env var.
+    with mock.patch.dict(os.environ):
+      os.environ.pop("GCS_STAGING_BUCKET", None)
+      with self.assertRaises(ValueError):
+        deploy._get_effective_staging_bucket(
+            staging_bucket=None,
+            project_id="arbitrary-gcp-project-12345",
+        )
 
     # Verify explicit override works cleanly
     staging_custom = deploy._get_effective_staging_bucket(
@@ -1968,14 +1976,29 @@ target("foo") {{}}
     self.assertIn("Modified Files (2): `goo.cc`, `hoo.java`", p_str)
 
   def test_expert_agent_omniscience_and_model_defaults(self):
-    """Verifies workhorse and expert defaults and omniscience guidance."""
-    engine = CobaltReasoningEngine(project_id="test-proj")
+    """Verifies models are caller-supplied and omniscience guidance."""
+    engine = CobaltReasoningEngine(
+        project_id="test-proj",
+        flash_model="gemini-3.7-flash",
+        expert_model="gemini-3.8-flash")
     self.assertEqual(engine.flash_model, "gemini-3.7-flash")
     self.assertEqual(engine.expert_model, "gemini-3.8-flash")
+    with self.assertRaises(TypeError):
+      CobaltReasoningEngine(project_id="test-proj")  # pylint: disable=missing-kwoa
 
-    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    client = ReasoningEngineClient(
+        project_id="test-proj",
+        local=True,
+        flash_model="gemini-3.7-flash",
+        expert_model="gemini-3.8-flash")
     self.assertEqual(client.flash_model, "gemini-3.7-flash")
     self.assertEqual(client.expert_model, "gemini-3.8-flash")
+    # Models must come from the caller; there are no built-in defaults.
+    with self.assertRaises(TypeError):
+      ReasoningEngineClient(project_id="test-proj", local=True)  # pylint: disable=missing-kwoa
+    with self.assertRaises(ValueError):
+      ReasoningEngineClient(
+          project_id="test-proj", local=True, flash_model="", expert_model="e")
 
     captured_prompts = []
 
@@ -2428,6 +2451,7 @@ class MemoryReadOnlyTest(unittest.TestCase):
     engine = CobaltReasoningEngine(
         project_id="test-proj",
         gcs_memory_uri="gs://test-bucket/rebase_memory/knowledge_bank.json",
+        **_TEST_MODELS,
         **kwargs)
     blob = mock.MagicMock()
     blob.exists.return_value = True
@@ -2480,7 +2504,10 @@ class MemoryReadOnlyTest(unittest.TestCase):
 
   def test_client_read_only_blocks_write_actions_without_engine_call(self):
     client = ReasoningEngineClient(
-        resource_id="123", project_id="test-proj", memory_read_only=True)
+        **_TEST_MODELS,
+        resource_id="123",
+        project_id="test-proj",
+        memory_read_only=True)
     with mock.patch.object(client, "_get_engine") as get_engine:
       self.assertFalse(
           client.record_successful_fix(
@@ -2491,7 +2518,10 @@ class MemoryReadOnlyTest(unittest.TestCase):
 
   def test_client_read_only_still_allows_reads(self):
     client = ReasoningEngineClient(
-        project_id="test-proj", local=True, memory_read_only=True)
+        **_TEST_MODELS,
+        project_id="test-proj",
+        local=True,
+        memory_read_only=True)
     fake_engine = mock.MagicMock()
     fake_engine.query.return_value = {"experience": "Example #1"}
     with mock.patch.object(client, "_get_engine", return_value=fake_engine):
@@ -2501,25 +2531,34 @@ class MemoryReadOnlyTest(unittest.TestCase):
 
   def test_client_read_only_from_env(self):
     os.environ["REBASE_MEMORY_READ_ONLY"] = "true"
-    client = ReasoningEngineClient(project_id="test-proj", local=True)
+    client = ReasoningEngineClient(
+        project_id="test-proj", local=True, **_TEST_MODELS)
     self.assertTrue(client.memory_read_only)
 
   def test_client_passes_read_only_to_local_engine(self):
     client = ReasoningEngineClient(
-        project_id="test-proj", local=True, memory_read_only=True)
+        **_TEST_MODELS,
+        project_id="test-proj",
+        local=True,
+        memory_read_only=True)
     engine = client._get_engine()  # pylint: disable=protected-access
     self.assertTrue(engine.memory_read_only)
 
   def test_pipeline_flag_parsing(self):
     import run_rebase_pipeline  # pylint: disable=import-outside-toplevel
     parser = run_rebase_pipeline.build_arg_parser()
-    self.assertFalse(parser.parse_args([]).memory_read_only)
-    self.assertTrue(parser.parse_args(["--memory-read-only"]).memory_read_only)
+    models = ["--model", "m", "--expert-model", "e"]
+    self.assertFalse(parser.parse_args(models).memory_read_only)
+    self.assertTrue(
+        parser.parse_args(models + ["--memory-read-only"]).memory_read_only)
     self.assertEqual(
-        parser.parse_args([]).gcs_memory_uri,
+        parser.parse_args(models).gcs_memory_uri,
         os.environ.get(
             "GCS_MEMORY_URI",
             "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"))
+    # Both models are required on the command line.
+    with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+      parser.parse_args(["--model", "m"])
 
 
 class RepoPathSafetyTest(unittest.TestCase):

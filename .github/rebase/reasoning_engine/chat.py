@@ -132,6 +132,17 @@ def print_help():
   print("  /exit, /quit                         : Exit chat session\n")
 
 
+def resolve_tier(name: str, args: argparse.Namespace) -> str:
+  """Maps a tier alias (flash / pro / expert) to the configured model."""
+  if name == "flash":
+    return args.flash_model
+  if name == "pro":
+    return args.pro_model or args.expert_model
+  if name in ("expert", "claude", "sonnet"):
+    return args.expert_model
+  return name
+
+
 def run_verification_test(engine_or_client: Any) -> bool:
   """Runs an automated verification test across Flash and Expert tiers."""
   print("\n==================================================")
@@ -139,7 +150,7 @@ def run_verification_test(engine_or_client: Any) -> bool:
   print("==================================================")
 
   # Test 1: Tier 1 Flash Model
-  print("\n[TEST 1] Testing Tier-1 Flash Model (Gemini 2.5 Flash)...")
+  print("\n[TEST 1] Testing Tier-1 Flash Model...")
   try:
     if hasattr(engine_or_client, "resolve_conflict"):
       res = engine_or_client.resolve_conflict(
@@ -170,9 +181,8 @@ def run_verification_test(engine_or_client: Any) -> bool:
     print(f"  [FAIL] Test 1 encountered exception: {e}")
     return False
 
-  # Test 2: Tier-2 Senior Architect Guidance (Claude Sonnet 4.6)
-  print("\n[TEST 2] Testing Tier-2 Senior Architect "
-        "(Claude Sonnet 4.6 Guidance)...")
+  # Test 2: Tier-2 Senior Architect Guidance
+  print("\n[TEST 2] Testing Tier-2 Senior Architect Guidance...")
   guidance_text = ""
   try:
     if hasattr(engine_or_client, "generate_expert_guidance"):
@@ -195,7 +205,7 @@ def run_verification_test(engine_or_client: Any) -> bool:
           mode="compiler",
       )
     status = res.get("status")
-    model = res.get("model_used", "claude-sonnet-4-6")
+    model = res.get("model_used", "expert")
     guidance_text = res.get("guidance", "")
     print(f"  [RESULT] Status: {status} | Architect Model: {model}")
     print(f"  [ARCHITECT DIRECTIVE]:\n{guidance_text[:250]}...")
@@ -254,9 +264,8 @@ def main():
                    "Reasoning Engine"))
   parser.add_argument(
       "--project-id",
-      default=os.environ.get("GCP_PROJECT") or
-      os.environ.get("GOOGLE_CLOUD_PROJECT") or "lxn-test",
-      help="GCP Project ID for Vertex AI (default: lxn-test)",
+      required=True,
+      help="GCP Project ID for Vertex AI.",
   )
   parser.add_argument(
       "--location",
@@ -271,10 +280,24 @@ def main():
       help="Optional Remote Reasoning Engine Resource ID to test hosted engine",
   )
   parser.add_argument(
+      "--flash-model",
+      required=True,
+      help="Workhorse model.",
+  )
+  parser.add_argument(
+      "--expert-model",
+      required=True,
+      help="Expert model for escalations.",
+  )
+  parser.add_argument(
+      "--pro-model",
+      default=None,
+      help="Model for 'pro' escalations (default: --expert-model).",
+  )
+  parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-      help=("Default model tier: 'flash', 'pro', 'expert', or "
-            "'claude-sonnet-4-6'"),
+      default="flash",
+      help="Starting tier: 'flash', 'pro', 'expert' or a model name.",
   )
   parser.add_argument(
       "--mode",
@@ -301,14 +324,16 @@ def main():
         resource_id=args.resource_id,
         project_id=args.project_id,
         location=args.location,
+        flash_model=args.flash_model,
+        expert_model=args.expert_model,
     )
   else:
     engine = CobaltReasoningEngine(
         project_id=args.project_id,
         location=args.location,
-        flash_model="gemini-2.5-flash",
-        pro_model="gemini-2.5-pro",
-        expert_model="claude-sonnet-4-6",
+        flash_model=args.flash_model,
+        pro_model=args.pro_model,
+        expert_model=args.expert_model,
     )
 
   if args.test:
@@ -316,15 +341,13 @@ def main():
     sys.exit(0 if ok else 1)
 
   current_mode = args.mode
-  current_model = args.model
+  current_model = resolve_tier(args.model, args)
   history: List[Dict[str, str]] = []
   latest_failure = load_latest_failure()
 
   # One-shot mode
   if args.prompt:
-    use_expert = current_model in ("expert", "claude", "sonnet",
-                                   "claude-sonnet-4-6")
-    use_pro = "pro" in current_model.lower() or use_expert
+    use_pro = current_model != args.flash_model
     prompt_with_context = args.prompt
     if latest_failure and "No recent" not in latest_failure:
       prompt_with_context = (
@@ -386,16 +409,7 @@ def main():
       elif user_input.startswith("/model"):
         parts = user_input.split(maxsplit=1)
         if len(parts) > 1:
-          target_model = parts[1].strip()
-          if target_model in ("flash", "gemini-2.5-flash", "2.5-flash"):
-            current_model = "gemini-2.5-flash"
-          elif target_model in ("pro", "gemini-2.5-pro"):
-            current_model = "gemini-2.5-pro"
-          elif target_model in ("expert", "claude", "sonnet",
-                                "claude-sonnet-4-6"):
-            current_model = "claude-sonnet-4-6"
-          else:
-            current_model = target_model
+          current_model = resolve_tier(parts[1].strip(), args)
           print(f"[OK] Model tier switched to: {current_model}\n")
         else:
           print(f"Current model: {current_model}")
@@ -431,9 +445,7 @@ def main():
             continue
 
       print("\n[Thinking...]")
-      use_expert = current_model in ("expert", "claude", "sonnet",
-                                     "claude-sonnet-4-6")
-      use_pro = "pro" in current_model.lower() or use_expert
+      use_pro = current_model != args.flash_model
       res = engine.chat(
           user_input,
           history=history,

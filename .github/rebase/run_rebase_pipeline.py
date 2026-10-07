@@ -57,10 +57,10 @@ def write_rebase_report(
     *,
     target: str,
     model: str,
+    expert_model: str,
     status: str,
     elapsed_seconds: float,
     repo_path: Optional[str] = None,
-    expert_model: Optional[str] = None,
     session_changes: Optional[List[AgentChangeRecord]] = None,
 ) -> str:
   """Generates the final comprehensive rebase summary report."""
@@ -71,8 +71,6 @@ def write_rebase_report(
   report_path = os.path.join(results_dir, report_filename)
   comp_status = ("[OK] Clean"
                  if "SUCCESS" in status else "[WARNING] Requires Attention")
-  workhorse = model or "gemini-3.7-flash"
-  expert = expert_model or "gemini-3.8-flash"
 
   changes_section = ""
   if session_changes:
@@ -96,8 +94,8 @@ def write_rebase_report(
 - **Platform**: `{platform}`
 - **Build Type**: `{build_type}`
 - **Target**: `{target}`
-- **Workhorse Model**: `{workhorse}`
-- **Expert Model**: `{expert}`
+- **Workhorse Model**: `{model}`
+- **Expert Model**: `{expert_model}`
 - **Total Execution Time**: `{elapsed_seconds:.1f}s`
 
 ## 2. Rebase Pipeline Stages
@@ -176,13 +174,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
-      help="Workhorse Gemini model (default: gemini-3.7-flash).",
+      required=True,
+      help="Workhorse model used for most fixes.",
   )
   parser.add_argument(
       "--expert-model",
-      default=os.environ.get("EXPERT_MODEL", "gemini-3.8-flash"),
-      help="Tier-2 Expert model (default: gemini-3.8-flash).",
+      required=True,
+      help="Tier-2 expert model used when a diagnostic repeats.",
   )
   parser.add_argument(
       "--skip-conflicts",
@@ -272,13 +270,11 @@ def run_pipeline(args: argparse.Namespace) -> int:
   start_time = time.time()
   log.info("=" * 80)
   log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
-  effective_model = args.model or "gemini-3.7-flash"
-  effective_expert = args.expert_model or "gemini-3.8-flash"
   if args.reasoning_engine_id:
     log.info("  - Reasoning Engine: %s", args.reasoning_engine_id)
   else:
-    log.info("  - Workhorse Model: %s", effective_model)
-    log.info("  - Expert Model:    %s", effective_expert)
+    log.info("  - Workhorse Model: %s", args.model)
+    log.info("  - Expert Model:    %s", args.expert_model)
   log.info("  - Platform:   %s", args.platform)
   log.info("  - Config:     %s", args.build_type)
   log.info("  - Out Dir:    out/%s", out_dir)
@@ -295,8 +291,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
       resource_id=args.reasoning_engine_id,
       project_id=args.project_id,
       location=args.location,
-      flash_model=effective_model,
-      expert_model=effective_expert,
+      flash_model=args.model,
+      expert_model=args.expert_model,
       skills_dir=args.skills_dir,
       gcs_memory_uri=args.gcs_memory_uri,
       memory_read_only=args.memory_read_only,
@@ -385,8 +381,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
         platform=args.platform,
         build_type=args.build_type,
         target=effective_target,
-        model=effective_model,
-        expert_model=effective_expert,
+        model=args.model,
+        expert_model=args.expert_model,
         session_changes=shared_session_changes,
         status=status_str,
         elapsed_seconds=time.time() - start_time,

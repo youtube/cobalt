@@ -190,10 +190,10 @@ class BaseResolver(abc.ABC):
 
   @property
   def model(self) -> str:
-    """Active primary model name from reasoning engine."""
-    if self.reasoning_engine is not None:
-      return getattr(self.reasoning_engine, "flash_model", "gemini-3.7-flash")
-    return "gemini-3.7-flash"
+    """Workhorse model name; "" when no reasoning engine is attached."""
+    if self.reasoning_engine is None:
+      return ""
+    return self.reasoning_engine.flash_model
 
   @property
   @abc.abstractmethod
@@ -640,8 +640,7 @@ class BaseResolver(abc.ABC):
             all_diagnostics=all_diags_str,
             investigation_history=investigation_history,
             mode=mode,
-            expert_model=getattr(self.reasoning_engine, "expert_model",
-                                 "gemini-3.8-flash"),
+            expert_model=self.reasoning_engine.expert_model,
         )
         expert_guidance = guidance_res.get("guidance", "")
         tool_cmds = extract_tool_commands(expert_guidance)

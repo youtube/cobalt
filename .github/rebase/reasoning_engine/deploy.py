@@ -52,10 +52,12 @@ def _get_effective_staging_bucket(
     staging_bucket: Optional[str],
     project_id: str,
 ) -> str:
-  """Resolves or defaults the GCS staging bucket for Vertex AI deployment."""
-  bucket = (
-      staging_bucket or os.environ.get("GCS_STAGING_BUCKET") or
-      "gs://lxn-test-vertex-staging")
+  """Resolves the GCS staging bucket; there is no built-in default."""
+  bucket = staging_bucket or os.environ.get("GCS_STAGING_BUCKET")
+  if not bucket:
+    raise ValueError(
+        "A staging bucket is required: pass --staging-bucket or set "
+        "$GCS_STAGING_BUCKET.")
   if not bucket.startswith("gs://"):
     bucket = f"gs://{bucket}"
   return bucket
@@ -67,9 +69,9 @@ def deploy_reasoning_engine(
     *,
     staging_bucket: Optional[str] = None,
     display_name: str = "CobaltReasoningEngine",
-    flash_model: str = "gemini-2.5-flash",
-    pro_model: str = "gemini-2.5-pro",
-    expert_model: Optional[str] = None,
+    flash_model: str,
+    expert_model: str,
+    pro_model: Optional[str] = None,
     expert_location: Optional[str] = None,
 ) -> str:
   """Deploys a new CobaltReasoningEngine instance to Vertex AI."""
@@ -124,9 +126,9 @@ def update_reasoning_engine(
     *,
     staging_bucket: Optional[str] = None,
     display_name: str = "CobaltReasoningEngine",
-    flash_model: str = "gemini-2.5-flash",
-    pro_model: str = "gemini-2.5-pro",
-    expert_model: Optional[str] = None,
+    flash_model: str,
+    expert_model: str,
+    pro_model: Optional[str] = None,
     expert_location: Optional[str] = None,
 ):
   """Updates an existing Reasoning Engine instance on Vertex AI."""
@@ -240,23 +242,23 @@ def main():
   )
   parser.add_argument(
       "--flash-model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
-      help=("Default Flash model, i.e. the workhorse tier that emits patches "
-            "(default: gemini-3.7-flash). This value is baked into the "
-            "deployment artifact; the $MODEL env var read by the CI workflow "
-            "is NOT forwarded to a hosted engine, so this flag is the only "
-            "way to change the workhorse model in CI."),
+      default=None,
+      help=("Workhorse model that emits patches (required for deploy and "
+            "update). This value is baked into the deployment artifact; the "
+            "$MODEL env var read by the CI workflow is NOT forwarded to a "
+            "hosted engine, so this flag is the only way to change the "
+            "workhorse model in CI."),
   )
   parser.add_argument(
       "--pro-model",
-      default="gemini-3.8-flash",
-      help="Default Pro model for complex escalations.",
+      default=None,
+      help="Model for chat use_pro escalations (default: --expert-model).",
   )
   parser.add_argument(
       "--expert-model",
-      default=os.environ.get("EXPERT_MODEL", "gemini-3.8-flash"),
-      help=("Expert LLM model (default: gemini-3.8-flash; supports "
-            "gemini-3.7-flash, gemini-2.5-pro, glm-5.2, claude-opus-5)"),
+      default=None,
+      help=("Expert model for escalations (required for deploy and update; "
+            "Gemini, GLM and Claude models are supported)."),
   )
   parser.add_argument(
       "--expert-location",
@@ -269,6 +271,15 @@ def main():
     print(
         "[ERROR] GCP Project ID required. Set $GCP_PROJECT or "
         "pass --project-id.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+  required = (args.flash_model, args.expert_model, args.staging_bucket)
+  if args.action in ("deploy", "update") and not all(required):
+    print(
+        "[ERROR] --flash-model, --expert-model and --staging-bucket (or "
+        f"$GCS_STAGING_BUCKET) are required for {args.action}.",
         file=sys.stderr,
     )
     sys.exit(1)

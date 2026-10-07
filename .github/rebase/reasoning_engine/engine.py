@@ -149,8 +149,8 @@ class CobaltReasoningEngine:
       *,
       project_id: Optional[str] = None,
       location: str = "global",
-      flash_model: Optional[str] = None,
-      expert_model: Optional[str] = None,
+      flash_model: str,
+      expert_model: str,
       expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
       pro_model: Optional[str] = None,
@@ -163,10 +163,10 @@ class CobaltReasoningEngine:
         project_id or os.environ.get("GCP_PROJECT") or
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
-    self.flash_model = flash_model or "gemini-3.7-flash"
-    self.expert_model = (
-        expert_model or pro_model or os.environ.get("EXPERT_MODEL") or
-        "gemini-3.8-flash")
+    if not flash_model or not expert_model:
+      raise ValueError("flash_model and expert_model are required.")
+    self.flash_model = flash_model
+    self.expert_model = expert_model
     self.pro_model = pro_model or self.expert_model
     self.expert_provider = (
         expert_provider or os.environ.get("EXPERT_PROVIDER") or
@@ -485,7 +485,7 @@ class CobaltReasoningEngine:
       temperature: float = 0.1,
   ) -> Optional[str]:
     """Generates content via Tier-2 Expert LLM (Sonnet 5, GLM 5.2)."""
-    expert_name = expert_model or self.expert_model or "gemini-3.8-flash"
+    expert_name = expert_model or self.expert_model
     provider = ("anthropic" if "claude" in expert_name.lower() else
                 ("glm" if "glm" in expert_name.lower() else "gemini"))
 
@@ -546,11 +546,10 @@ class CobaltReasoningEngine:
       if glm_resp:
         return glm_resp
 
-    # 3. Gemini Thinking Expert (e.g. gemini-3.7-flash)
+    # 3. Gemini thinking expert; a non-Gemini expert falls back to the
+    # (Gemini) workhorse model.
     target_gemini_model = (
-        expert_name if "gemini" in expert_name.lower() else
-        (self.flash_model
-         if "gemini" in self.flash_model.lower() else "gemini-3.7-flash"))
+        expert_name if "gemini" in expert_name.lower() else self.flash_model)
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
@@ -718,7 +717,7 @@ class CobaltReasoningEngine:
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
-    chosen_expert = expert_model or self.expert_model or "gemini-3.8-flash"
+    chosen_expert = expert_model or self.expert_model
 
     rebase_skill = self._get_skill("cobalt_rebase")
     domain_skill = self._get_skill(

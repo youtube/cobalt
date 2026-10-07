@@ -47,8 +47,8 @@ class ReasoningEngineClient:
       *,
       project_id: Optional[str] = None,
       location: str = "global",
-      flash_model: str = "gemini-3.7-flash",
-      expert_model: Optional[str] = None,
+      flash_model: str,
+      expert_model: str,
       expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
       skills_dir: Optional[str] = None,
@@ -67,8 +67,9 @@ class ReasoningEngineClient:
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
     self.flash_model = flash_model
-    self.expert_model = (
-        expert_model or os.environ.get("EXPERT_MODEL") or "gemini-3.8-flash")
+    if not flash_model or not expert_model:
+      raise ValueError("flash_model and expert_model are required.")
+    self.expert_model = expert_model
     self.expert_provider = (
         expert_provider or os.environ.get("EXPERT_PROVIDER") or
         ("anthropic" if "claude" in self.expert_model.lower() else
