@@ -13,12 +13,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
-#include "cc/base/features.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/returned_resource.h"
@@ -28,6 +24,12 @@
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
+#endif
 
 namespace cc {
 
@@ -855,6 +857,7 @@ TEST_F(ResourcePoolTest, TileMemoryAndPeakMetricsCustomInterval) {
       resource_provider_.get(), context_provider_.get(), test_task_runner_,
       ResourcePool::kDefaultExpirationDelay,
       /*disallow_non_exact_reuse=*/false);
+  pool->SetClockForTesting(test_task_runner_->GetMockTickClock());
 
   base::HistogramTester histogram_tester;
 

@@ -18,7 +18,6 @@
 #include "base/containers/contains.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -26,7 +25,6 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
-#include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
@@ -39,7 +37,9 @@
 #if BUILDFLAG(IS_COBALT)
 #include <atomic>
 
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
+#include "cc/base/features.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -771,6 +771,14 @@ void ResourcePool::ScheduleRecordTileMemoryMetrics() {
 }
 
 void ResourcePool::RecordTileMemoryMetrics() {
+  const base::TimeTicks now = clock_->NowTicks();
+  if (!last_tile_memory_metrics_time_.is_null() &&
+      now - last_tile_memory_metrics_time_ <
+          features::kCobaltTileMemoryMetricsInterval.Get()) {
+    return;
+  }
+  last_tile_memory_metrics_time_ = now;
+
   constexpr size_t kMiB = 1024 * 1024;
   base::UmaHistogramMemoryMB(
       "Memory.GPU.TileMemory",

@@ -505,6 +505,7 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   void RecordTileMemoryMetrics();
 
   size_t peak_memory_usage_bytes_ = 0;
+  base::TimeTicks last_tile_memory_metrics_time_;
 #endif
 
   base::WeakPtrFactory<ResourcePool> weak_ptr_factory_{this};
