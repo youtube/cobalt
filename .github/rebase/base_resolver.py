@@ -159,6 +159,7 @@ class _LoopState:
   iteration: int = 0
   history: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
   last_error: str = ""  # Error summary of the most recent failure.
+  last_error_file: str = ""  # File that failure was reported in.
   stuck_count: int = 0  # Consecutive iterations with the same error.
   # Last applied fix; stored in engine memory once its error goes away.
   pending_fix: Optional[Dict[str, Any]] = None
@@ -177,9 +178,7 @@ class BaseResolver(abc.ABC):
       max_iterations: int = 50,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
       session_changes: Optional[List[AgentChangeRecord]] = None,
-      **kwargs: Any,
   ):
-    del kwargs
     self.repo_path = repo_path
     self.max_iterations = max_iterations
     self.on_patch_applied_fn = on_patch_applied_fn
@@ -391,6 +390,7 @@ class BaseResolver(abc.ABC):
       state.stuck_count = (
           state.stuck_count + 1 if error_summary == state.last_error else 0)
       state.last_error = error_summary
+      state.last_error_file = rel_file
 
       # Escalation while the same error repeats (stuck_count N means N
       # failed fixes in a row): from 2 use the expert model; at 3 revert the
@@ -476,10 +476,11 @@ class BaseResolver(abc.ABC):
     if state.pending_record is not None:
       state.pending_record.error = error_summary
       state.pending_record.command_output = command_output[-4000:]
-    # The previous fix counts as successful if its error went away.
+    # The previous fix counts as successful if its error went away. Compare
+    # against where that error was reported, not the file the patch edited.
     if state.pending_fix and (state.pending_fix["error"],
-                              state.pending_fix["file"]) == (error_summary,
-                                                             rel_file):
+                              state.pending_fix["error_file"]) == (
+                                  error_summary, rel_file):
       state.pending_fix = None
     self._credit_pending_fix(state)
 
@@ -709,6 +710,7 @@ class BaseResolver(abc.ABC):
     if self.reasoning_engine is not None:
       state.pending_fix = {
           "error": state.last_error,
+          "error_file": state.last_error_file,
           "patch": patch,
           "file": rel_target,
       }

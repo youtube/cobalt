@@ -572,7 +572,6 @@ class ConflictResolver(BaseResolver):
       skip_sync: bool = False,
       session_changes: Optional[List[AgentChangeRecord]] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
-      **kwargs: Any,
   ):
     super().__init__(
         repo_path=repo_path,
@@ -580,7 +579,6 @@ class ConflictResolver(BaseResolver):
         max_iterations=max_iterations,
         session_changes=session_changes,
         on_patch_applied_fn=on_patch_applied_fn,
-        **kwargs,
     )
     self.explicit_files = files
     self.skip_sync = skip_sync

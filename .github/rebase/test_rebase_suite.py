@@ -2678,6 +2678,14 @@ class AtomicPatchTest(unittest.TestCase):
     self.assertIn("int a2 = 20;", content)
 
 
+class ResolverInitTest(unittest.TestCase):
+  """Resolver constructors reject unknown keyword arguments."""
+
+  def test_misspelled_kwarg_raises(self):
+    with self.assertRaises(TypeError):
+      GNGenResolver("/tmp", "linux-x64x11", "devel", max_iteration=3)  # pylint: disable=unexpected-keyword-arg
+
+
 class DiagnosticTest(unittest.TestCase):
   """Common Diagnostic base and its use in run_resolution_loop."""
 
@@ -2735,7 +2743,7 @@ class DiagnosticTest(unittest.TestCase):
     resolver = self._resolver([], [])
     resolver.reasoning_engine = engine
     state = base_resolver._LoopState()  # pylint: disable=protected-access
-    fix = {"error": "E1", "patch": "P", "file": "a.cc"}
+    fix = {"error": "E1", "error_file": "a.cc", "patch": "P", "file": "a.cc"}
 
     state.pending_fix = dict(fix)
     resolver._record_build_outcome(state, "E1", "a.cc", "out")  # pylint: disable=protected-access
@@ -2746,6 +2754,23 @@ class DiagnosticTest(unittest.TestCase):
     resolver._record_build_outcome(state, "E2", "a.cc", "out")  # pylint: disable=protected-access
     engine.record_successful_fix.assert_called_once_with(
         issue_description="E1", solution_diff="P", target_file="a.cc")
+
+  def test_pending_fix_not_credited_when_patch_edits_another_file(self):
+    # The fix for an error reported in a.cc edited a.h; the same error in
+    # a.cc afterwards means the fix did not work.
+    engine = mock.Mock()
+    resolver = self._resolver([], [])
+    resolver.reasoning_engine = engine
+    state = base_resolver._LoopState()  # pylint: disable=protected-access
+    state.pending_fix = {
+        "error": "E1",
+        "error_file": "a.cc",
+        "patch": "P",
+        "file": "a.h"
+    }
+    resolver._record_build_outcome(state, "E1", "a.cc", "out")  # pylint: disable=protected-access
+    engine.record_successful_fix.assert_not_called()
+    self.assertIsNone(state.pending_fix)
 
 
 class SearchReplaceMatchLevelsTest(unittest.TestCase):
