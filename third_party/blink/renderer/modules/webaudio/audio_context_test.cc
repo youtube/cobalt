@@ -34,14 +34,10 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/mediastream/sub_capture_target.h"
-<<<<<<< HEAD
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_playback_stats.h"
-=======
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "third_party/blink/renderer/modules/webaudio/audio_playback_stats.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
