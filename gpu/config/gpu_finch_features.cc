@@ -58,6 +58,18 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
              "CobaltInProcessDirectRaster",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, periodically records decoded image memory metrics
+// (Memory.GPU.DecodedImages and Memory.GPU.DecodedImages.Peak) for
+// ServiceTransferCache.
+BASE_FEATURE(kCobaltDecodedImagesMetrics,
+             "CobaltDecodedImagesMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDecodedImagesMetricsInterval,
+                   &kCobaltDecodedImagesMetrics,
+                   "interval",
+                   base::Minutes(1));
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, uses Android SurfaceControl for the display compositor with
 // Starboard media, removes the primary UI plane, and releases VizBufferQueue UI

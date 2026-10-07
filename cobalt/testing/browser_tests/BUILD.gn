@@ -273,6 +273,10 @@ test("cobalt_browsertests") {
     sources += [ "granular_memory_browsertest.cc" ]
   }
 
+  if ((is_linux || is_android) && !is_starboard) {
+    sources += [ "//cobalt/browser/performance/performance_browsertest.cc" ]
+  }
+
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   configs += [ "//build/config:precompiled_headers" ]
