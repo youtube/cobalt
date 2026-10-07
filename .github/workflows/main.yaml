@@ -304,7 +304,7 @@ jobs:
             [[ "${TEST_E2E}" == "true" && "${is_odt_enabled}" == "true" ]] && run_e2e_test="true"
             [[ "${TEST_YTS}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_test="true"
             [[ "${TEST_YTS_PLAYBACK}" == "true" && "${has_yts_playback_label}" == "true" ]] && run_yts_playback_test="true"
-            [[ "${TEST_YTS_WPT}" == "true" && ( "${IS_NON_DRAFT_PULL_REQUEST}" == "true" || "${RUN_ODT_ON_NIGHTLY}" == "true" || "${RUN_ODT_ON_PUSH}" == "true" ) ]] && run_yts_wpt_test="true"
+            [[ "${TEST_YTS_WPT}" == "true" && ( "${RUN_ODT_ON_NIGHTLY}" == "true" || "${RUN_ODT_ON_PUSH}" == "true" ) ]] && run_yts_wpt_test="true"
             [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
 
             # Expected test targets for results processing and reporting.
@@ -608,7 +608,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_e2e_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -658,7 +658,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_yts_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -702,7 +702,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_yts_playback_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -763,11 +763,10 @@ jobs:
 
   yts-wpt-test:
     needs: [initialize, build]
-    # Run YTS tests via presumit.
+    # Run YTS WPT tests on nightly or push.
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           (inputs.nightly == 'true' || github.event_name == 'schedule') ||
           (github.event_name == 'push')
         )
@@ -782,7 +781,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_yts_wpt_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -830,7 +829,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_yts_finch_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -1049,7 +1048,7 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/download_test_results
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*
           path: results/
       - name: Test Results
         id: test-results
