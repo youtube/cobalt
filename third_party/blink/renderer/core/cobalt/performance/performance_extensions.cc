@@ -75,6 +75,12 @@ SystemMemoryInfo* PerformanceExtensions::measureSystemMemoryInfo(
       result->setDecodedImageCachePeakMemory(
           info->decoded_image_cache_peak_memory.value());
     }
+    if (info->used_tile_memory.has_value()) {
+      result->setUsedTileMemory(info->used_tile_memory.value());
+    }
+    if (info->peak_tile_memory.has_value()) {
+      result->setPeakTileMemory(info->peak_tile_memory.value());
+    }
   }
 
   if (script_state && script_state->GetIsolate()) {
@@ -224,6 +230,20 @@ uint64_t PerformanceExtensions::measureDecodedImagesPeakMemory(
   BindRemotePerformance(script_state)
       ->MeasureDecodedImagesPeakMemory(&decoded_images_peak_memory);
   return decoded_images_peak_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedTileMemory(ScriptState* script_state,
+                                                      const Performance&) {
+  uint64_t used_tile_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedTileMemory(&used_tile_memory);
+  return used_tile_memory;
+}
+
+uint64_t PerformanceExtensions::measurePeakTileMemory(ScriptState* script_state,
+                                                      const Performance&) {
+  uint64_t peak_tile_memory = 0;
+  BindRemotePerformance(script_state)->MeasurePeakTileMemory(&peak_tile_memory);
+  return peak_tile_memory;
 }
 
 ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
