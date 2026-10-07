@@ -22,6 +22,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "content/public/browser/media_player_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -161,6 +162,15 @@ void ShellPlatformDelegate::OnConceal() {
     // Note: ConcealShell() is called asynchronously inside
     // OnAllFramesConcealed() after all frames have completed their deactivation
     // ACKs.
+
+    // Suspend all media players, audio-only ones included, so that their
+    // SbPlayers are released while concealed (b/568868974). As in Chrome
+    // Android's SuspendedTab, the page is hidden before its players are
+    // suspended. The suspend completes asynchronously; the media barrier
+    // (StarboardRenderer::FlushAndSuspendActiveRenderers()) force-suspends any
+    // StarboardRenderer that is still alive before the window is destroyed.
+    // Players resume when the page is shown again.
+    content::SuspendAllMediaPlayers(shell->web_contents());
   }
 
   if (pending_conceal_web_contents_.empty()) {
