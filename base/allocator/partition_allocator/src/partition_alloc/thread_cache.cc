@@ -413,13 +413,7 @@ void ThreadCache::Init(PartitionRoot* root) {
 }
 
 bool ThreadCache::IsInitialized() {
-<<<<<<< HEAD
   return g_thread_cache_roots->load(std::memory_order_acquire) != nullptr;
-=======
-  return PA_UNSAFE_TODO(
-             g_thread_cache_roots[internal::kDefaultRootThreadCacheIndex])
-             .load(std::memory_order_acquire) != nullptr;
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 // static
