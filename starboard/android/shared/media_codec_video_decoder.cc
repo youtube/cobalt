@@ -115,7 +115,7 @@ const int kTunnelModePrerollFrameCount = 1;
 // helps survive V8 JavaScript main-thread congestion without video starvation,
 // while not so large that it holds excessive buffers in memory. 512 was
 // determined through experimentation (see b/539672039#comment13).
-constexpr int kMaxPendingInputsSize = 512;
+constexpr size_t kMaxPendingInputsSize = 512;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
 // codec, and renderer). We set its capacity to accommodate the maximum input
@@ -956,9 +956,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() <
-      static_cast<size_t>(kMaxPendingInputsSize)) {
-    decoder_status_cb_(kNeedMoreInput, NULL);
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+    decoder_status_cb_(kNeedMoreInput, nullptr);
   } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
@@ -983,8 +982,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 
 void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
-    const DequeueOutputResult& dequeue_output_result,
-    int number_of_pending_inputs) {
+    const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
@@ -1009,7 +1007,8 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   bool need_more_input =
-      !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
+      !is_end_of_stream &&
+      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
   decoder_status_cb_(
       need_more_input ? kNeedMoreInput : kBufferFull,
       make_scoped_refptr<VideoFrameImpl>(
@@ -1144,9 +1143,8 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() <
-      static_cast<size_t>(kMaxPendingInputsSize)) {
-    decoder_status_cb_(kNeedMoreInput, NULL);
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+    decoder_status_cb_(kNeedMoreInput, nullptr);
     return;
   }
 

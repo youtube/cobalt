@@ -55,8 +55,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   class Host {
    public:
     virtual void ProcessOutputBuffer(MediaCodec* media_codec,
-                                     const DequeueOutputResult& output,
-                                     int number_of_pending_inputs) = 0;
+                                     const DequeueOutputResult& output) = 0;
     virtual void OnEndOfStreamWritten(MediaCodec* media_codec) = 0;
     virtual void RefreshOutputFormat(MediaCodec* media_codec) = 0;
     // This function gets called frequently on the decoding thread to give the
