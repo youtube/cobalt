@@ -16,9 +16,10 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 
-// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
 #if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#else
+#include "starboard/shared/starboard/application.h"
 #endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -45,10 +46,14 @@ bool TextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 }
 
 void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+  // TODO(b/492704919): Android TV calls into Cobalt directly, which is a
+  // layering violation. AOSP sends a Starboard event instead.
 #if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
+#else
+  Application::Get()->InjectAccessibilityTextToSpeechSettingsChangedEvent(
+      enabled);
 #endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 

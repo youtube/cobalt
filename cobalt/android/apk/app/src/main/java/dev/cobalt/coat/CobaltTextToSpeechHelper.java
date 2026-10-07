@@ -98,6 +98,10 @@ class CobaltTextToSpeechHelper
   public boolean isScreenReaderEnabled() {
     AccessibilityManager am =
         (AccessibilityManager) mContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
+    // Screen readers turn on touch exploration, even ones that don't report spoken feedback.
+    if (am.isTouchExplorationEnabled()) {
+      return true;
+    }
     final List<AccessibilityServiceInfo> screenReaders =
         am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN);
     return !screenReaders.isEmpty();
