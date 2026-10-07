@@ -49,6 +49,7 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "third_party/blink/public/web/web_view_observer.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -149,6 +150,34 @@ class CobaltWidevineL3KeySystemInfo : public cdm::WidevineKeySystemInfo {
   bool IsSupportedKeySystem(const std::string& key_system) const override {
     return key_system == kWidevineL3KeySystem;
   }
+};
+
+// Holds a deferred media load until the page is visible again, then runs it.
+// Deletes itself once the load has run, or when the WebView is destroyed.
+class MediaLoadDeferrer : public blink::WebViewObserver {
+ public:
+  MediaLoadDeferrer(blink::WebView* web_view, base::OnceClosure load_cb)
+      : blink::WebViewObserver(web_view), load_cb_(std::move(load_cb)) {}
+
+  MediaLoadDeferrer(const MediaLoadDeferrer&) = delete;
+  MediaLoadDeferrer& operator=(const MediaLoadDeferrer&) = delete;
+
+  // blink::WebViewObserver implementation.
+  void OnDestruct() override { delete this; }
+
+  void OnPageVisibilityChanged(
+      blink::mojom::PageVisibilityState visibility_state) override {
+    if (visibility_state != blink::mojom::PageVisibilityState::kVisible) {
+      return;
+    }
+    std::move(load_cb_).Run();
+    delete this;
+  }
+
+ private:
+  ~MediaLoadDeferrer() override = default;
+
+  base::OnceClosure load_cb_;
 };
 
 }  // namespace
@@ -453,6 +482,26 @@ CobaltContentRendererClient::OverrideDemuxerForUrl(
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   return nullptr;
+}
+
+bool CobaltContentRendererClient::DeferMediaLoad(
+    content::RenderFrame* render_frame,
+    bool has_played_media_before,
+    base::OnceClosure closure) {
+  CHECK(content::RenderThread::IsMainThread());
+  // The page is hidden while the app is concealed or preloading, when there is
+  // no window to create an SbPlayer on, so hold every media load until the
+  // page is visible again (b/568868974). Unlike Chrome, this includes pages
+  // that have played media before. Players that already exist are suspended
+  // by ShellPlatformDelegate::OnConceal().
+  blink::WebView* web_view = render_frame->GetWebView();
+  if (web_view && web_view->GetVisibilityState() !=
+                      blink::mojom::PageVisibilityState::kVisible) {
+    new MediaLoadDeferrer(web_view, std::move(closure));
+    return true;
+  }
+  std::move(closure).Run();
+  return false;
 }
 
 }  // namespace cobalt
