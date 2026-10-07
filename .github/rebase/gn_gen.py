@@ -7,7 +7,7 @@ Reasoning Engine, applies patches with third-party guards, and verifies
 clean GN manifest generation with header checks.
 """
 
-import dataclasses
+import logging
 import os
 import re
 import subprocess
@@ -19,23 +19,13 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     format_history_records,
-    get_clean_build_env,
 )
+from diagnostics import Diagnostic, GNDiagnostic
+from repo_guards import get_clean_build_env
+
+log = logging.getLogger(__name__)
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-
-@dataclasses.dataclass
-class GNDiagnostic:
-  """Represents a GN build error diagnostic parsed from gn gen output."""
-
-  error_message: str
-  raw_output: str
-  target_files: Dict[str, Optional[int]]
-  is_structural_break: bool
-  file_path: str = ""
-  line_number: int = 1
-
 
 # Each row maps a regex over gn/ninja output to the files it implicates.
 # Steps 1, 2 and 4 below were previously three verbatim copies of the
@@ -203,10 +193,7 @@ class GNGenResolver(BaseResolver):
       cmd.append("--check")
 
     cmd_str = " ".join(cmd)
-    print(
-        f"\n[gn_gen] Executing: {cmd_str} in {self.repo_path}",
-        file=sys.stderr,
-    )
+    log.info("\n[gn_gen] Executing: %s in %s", cmd_str, self.repo_path)
     clean_env = get_clean_build_env()
     try:
       proc = subprocess.run(
@@ -223,7 +210,7 @@ class GNGenResolver(BaseResolver):
       return False, f"Subprocess execution failed: {e}", ""
 
   def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Any]:
+                          siso_output: str) -> List[Diagnostic]:
     del siso_output  # Unused in GN generation
     err_lines = [
         l.strip()
@@ -253,7 +240,7 @@ class GNGenResolver(BaseResolver):
   # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",

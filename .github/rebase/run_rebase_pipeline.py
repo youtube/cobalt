@@ -11,23 +11,110 @@ Executes all rebase phases in sequence:
 """
 
 import argparse
+import collections
 import json
+import logging
 import os
 import subprocess
 import sys
 import time
-from typing import List
+from typing import List, Optional
 import warnings
 
 from autoninja import AutoninjaResolver
-from base_resolver import AgentChangeRecord, write_rebase_report
+from base_resolver import AgentChangeRecord
 from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
 from engine_client import ReasoningEngineClient
 
+log = logging.getLogger(__name__)
+
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+
+def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
+  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
+  base = repo_path or os.path.expanduser("~/cobalt/src")
+  version_file = os.path.join(base, "chrome", "VERSION")
+  if os.path.isfile(version_file):
+    try:
+      with open(version_file, "r", encoding="utf-8") as f:
+        for line in f:
+          if line.startswith("MAJOR="):
+            major_ver = line.strip().split("=")[1]
+            return f"M{major_ver}"
+    except OSError:
+      pass
+  return "M_Unknown"
+
+
+def write_rebase_report(
+    rebase_dir: str,
+    platform: str,
+    build_type: str,
+    *,
+    target: str,
+    model: str,
+    status: str,
+    elapsed_seconds: float,
+    repo_path: Optional[str] = None,
+    expert_model: Optional[str] = None,
+    session_changes: Optional[List[AgentChangeRecord]] = None,
+) -> str:
+  """Generates the final comprehensive rebase summary report."""
+  milestone = get_chromium_milestone(repo_path)
+  results_dir = os.path.join(rebase_dir, "results")
+  os.makedirs(results_dir, exist_ok=True)
+  report_filename = f"{milestone}_rebase_summary.md"
+  report_path = os.path.join(results_dir, report_filename)
+  comp_status = ("[OK] Clean"
+                 if "SUCCESS" in status else "[WARNING] Requires Attention")
+  workhorse = model or "gemini-3.7-flash"
+  expert = expert_model or "gemini-3.8-flash"
+
+  changes_section = ""
+  if session_changes:
+    phase_counts = collections.Counter(c.phase for c in session_changes)
+    clean_counts = sum(1 for c in session_changes if c.applied_cleanly)
+    error_counts = sum(1 for c in session_changes if c.error is not None)
+    phase_breakdown = ", ".join(f"`{k}`: {v}" for k, v in phase_counts.items())
+    changes_section = f"""
+## 3. Autonomous Change Trajectory Summary
+- **Total Changes Recorded**: `{len(session_changes)}`
+- **Clean Patches Applied**: `{clean_counts}`
+- **Subsequent Errors/Breaks**: `{error_counts}`
+- **Changes by Phase**: {phase_breakdown}
+"""
+
+  content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
+
+## 1. Executive Summary
+- **Status**: **{status}**
+- **Milestone**: `{milestone}`
+- **Platform**: `{platform}`
+- **Build Type**: `{build_type}`
+- **Target**: `{target}`
+- **Workhorse Model**: `{workhorse}`
+- **Expert Model**: `{expert}`
+- **Total Execution Time**: `{elapsed_seconds:.1f}s`
+
+## 2. Rebase Pipeline Stages
+| Phase | Stage | Description | Status |
+| :--- | :--- | :--- | :--- |
+| **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
+| **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
+| **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
+| **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
+{changes_section}"""
+  try:
+    with open(report_path, "w", encoding="utf-8") as f:
+      f.write(content)
+    log.info("[pipeline] [REPORT] Report written to: %s", report_path)
+  except OSError as e:
+    log.warning("[pipeline] [WARNING] Could not write report: %s", e)
+  return report_path
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -183,27 +270,23 @@ def run_pipeline(args: argparse.Namespace) -> int:
     effective_target = "cobalt_apk"
 
   start_time = time.time()
-  print("=" * 80, file=sys.stderr)
-  print(
-      "[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE",
-      file=sys.stderr,
-  )
+  log.info("=" * 80)
+  log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
   effective_model = args.model or "gemini-3.7-flash"
   effective_expert = args.expert_model or "gemini-3.8-flash"
   if args.reasoning_engine_id:
-    print(f"  - Reasoning Engine: {args.reasoning_engine_id}", file=sys.stderr)
+    log.info("  - Reasoning Engine: %s", args.reasoning_engine_id)
   else:
-    print(f"  - Workhorse Model: {effective_model}", file=sys.stderr)
-    print(f"  - Expert Model:    {effective_expert}", file=sys.stderr)
-  print(f"  - Platform:   {args.platform}", file=sys.stderr)
-  print(f"  - Config:     {args.build_type}", file=sys.stderr)
-  print(f"  - Out Dir:    out/{out_dir}", file=sys.stderr)
-  print(f"  - Target:     {effective_target}", file=sys.stderr)
+    log.info("  - Workhorse Model: %s", effective_model)
+    log.info("  - Expert Model:    %s", effective_expert)
+  log.info("  - Platform:   %s", args.platform)
+  log.info("  - Config:     %s", args.build_type)
+  log.info("  - Out Dir:    out/%s", out_dir)
+  log.info("  - Target:     %s", effective_target)
   if args.gcs_memory_uri:
     mem_mode = "read-only" if args.memory_read_only else "read-write"
-    print(
-        f"  - GCS Memory: {args.gcs_memory_uri} ({mem_mode})", file=sys.stderr)
-  print("=" * 80, file=sys.stderr)
+    log.info("  - GCS Memory: %s (%s)", args.gcs_memory_uri, mem_mode)
+  log.info("=" * 80)
 
   # -------------------------------------------------------------------------
   # REASONING ENGINE & RESOLVER SETUP
@@ -242,10 +325,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
   def on_gn_patch_applied(modified_files: List[str]) -> None:
     """Triggered if GN healing touches DEPS or other dependency files."""
     if any(os.path.basename(f) == "DEPS" for f in modified_files):
-      print(
-          "[Phase 3] DEPS was modified by GN fix. Re-running gclient sync...",
-          file=sys.stderr,
-      )
+      log.info("[Phase 3] DEPS was modified by GN fix. Re-running gclient "
+               "sync...")
       sync_resolver.run_resolution_loop()
 
   # Phase 3: Shared GN Resolver
@@ -263,17 +344,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
   def on_build_patch_applied(modified_files: List[str]) -> None:
     """Triggered if compiler loop touches DEPS or GN build files."""
     if any(os.path.basename(f) == "DEPS" for f in modified_files):
-      print(
-          "[Phase 4] DEPS modified by compiler fix. Re-running gclient sync...",
-          file=sys.stderr,
-      )
+      log.info("[Phase 4] DEPS modified by compiler fix. Re-running "
+               "gclient sync...")
       sync_resolver.run_resolution_loop()
 
     if any(f.endswith((".gn", ".gni", ".star")) for f in modified_files):
-      print(
-          "[Phase 4] Build files modified. Re-running GN generation...",
-          file=sys.stderr,
-      )
+      log.info("[Phase 4] Build files modified. Re-running GN "
+               "generation...")
       gn_resolver.run_resolution_loop()
 
   # Phase 4: autoninja Compiler Resolver
@@ -296,14 +373,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
         json.dump([rec.to_dict() for rec in shared_session_changes],
                   f,
                   indent=2)
-      print(
-          f"  - Change History: {history_file} "
-          f"({len(shared_session_changes)} records)",
-          file=sys.stderr,
-      )
+      log.info("  - Change History: %s (%s records)", history_file,
+               len(shared_session_changes))
     except OSError as e:
-      print(
-          f"  - Warning: Failed to write change history: {e}", file=sys.stderr)
+      log.info("  - Warning: Failed to write change history: %s", e)
 
   def write_report(status_str: str) -> str:
     dump_change_history()
@@ -324,21 +397,16 @@ def run_pipeline(args: argparse.Namespace) -> int:
   # PHASE 1: Unified Conflict Resolution (DEPS + Source)
   # -------------------------------------------------------------------------
   if not args.skip_conflicts:
-    print("\n" + "=" * 80, file=sys.stderr)
-    print(
-        "[PHASE] PHASE 1: Unified Conflict Resolution (DEPS + Source)",
-        file=sys.stderr,
-    )
-    print("=" * 80, file=sys.stderr)
+    log.info("\n%s", "=" * 80)
+    log.info("[PHASE] PHASE 1: Unified Conflict Resolution (DEPS + "
+             "Source)")
+    log.info("=" * 80)
     conflict_ok = conflict_resolver.run_resolution_loop()
     if not conflict_ok:
-      print(
-          "[FAIL] Phase 1 Conflict Resolution failed.",
-          file=sys.stderr,
-      )
+      log.warning("[FAIL] Phase 1 Conflict Resolution failed.")
       write_report("FAILED (Phase 1: Conflict Resolution)")
       return 1
-    print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
+    log.info("[OK] Phase 1 Completed Successfully.")
     # Checkpoint Phase 1 resolutions into a clean commit so HEAD is valid
     try:
       subprocess.run(["git", "add", "-u"], cwd=args.repo_path, check=False)
@@ -362,95 +430,72 @@ def run_pipeline(args: argparse.Namespace) -> int:
             cwd=args.repo_path,
             check=False,
         )
-        print(
-            "  [OK] Created clean baseline checkpoint commit for Phase 1.",
-            file=sys.stderr,
-        )
+        log.info("  [OK] Created clean baseline checkpoint commit for Phase "
+                 "1.")
     except Exception as cp_err:  # pylint: disable=broad-exception-caught
-      print(
-          f"  [WARNING] Failed to create Phase 1 checkpoint commit: {cp_err}",
-          file=sys.stderr,
-      )
+      log.warning("  [WARNING] Failed to create Phase 1 checkpoint commit: %s",
+                  cp_err)
 
   # -------------------------------------------------------------------------
   # PHASE 2: Toolchain & Dependency Sync: gclient sync -D
   # -------------------------------------------------------------------------
   if not getattr(args, "skip_sync", False):
-    print("\n" + "=" * 80, file=sys.stderr)
-    print(
-        "[PHASE] PHASE 2: Toolchain & Dependency Sync (gclient sync -D)",
-        file=sys.stderr,
-    )
-    print("=" * 80, file=sys.stderr)
+    log.info("\n%s", "=" * 80)
+    log.info("[PHASE] PHASE 2: Toolchain & Dependency Sync (gclient sync "
+             "-D)")
+    log.info("=" * 80)
     sync_ok = sync_resolver.run_resolution_loop()
     if not sync_ok:
-      print(
-          "[FAIL] Phase 2 Toolchain Sync failed.",
-          file=sys.stderr,
-      )
+      log.warning("[FAIL] Phase 2 Toolchain Sync failed.")
       write_report("FAILED (Phase 2: gclient sync)")
       return 1
-    print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
+    log.info("[OK] Phase 2 Completed Successfully.")
 
   # -------------------------------------------------------------------------
   # PHASE 3: GN Generation & Header Verification (cobalt/build/gn.py)
   # -------------------------------------------------------------------------
   if not args.skip_gn:
-    print("\n" + "=" * 80, file=sys.stderr)
-    print(
-        "[PHASE] PHASE 3: GN Build Generation (cobalt/build/gn.py)",
-        file=sys.stderr,
-    )
-    print("=" * 80, file=sys.stderr)
+    log.info("\n%s", "=" * 80)
+    log.info("[PHASE] PHASE 3: GN Build Generation (cobalt/build/gn.py)")
+    log.info("=" * 80)
     gn_ok = gn_resolver.run_resolution_loop()
     if not gn_ok:
-      print(
-          "[FAIL] Phase 3 GN Generation & Header Verification failed.",
-          file=sys.stderr,
-      )
+      log.warning("[FAIL] Phase 3 GN Generation & Header Verification failed.")
       write_report("FAILED (Phase 3: GN Generation)")
       return 1
-    print("[OK] Phase 3 Completed Successfully.", file=sys.stderr)
+    log.info("[OK] Phase 3 Completed Successfully.")
 
   # -------------------------------------------------------------------------
   # PHASE 4: autoninja Compiler Self-Healing Loop
   # -------------------------------------------------------------------------
   if not args.skip_build:
-    print("\n" + "=" * 80, file=sys.stderr)
-    print(
-        f"[PHASE] PHASE 4: autoninja Compiler Loop "
-        f"(Target: {effective_target})",
-        file=sys.stderr,
-    )
-    print("=" * 80, file=sys.stderr)
+    log.info("\n%s", "=" * 80)
+    log.info("[PHASE] PHASE 4: autoninja Compiler Loop (Target: %s)",
+             effective_target)
+    log.info("=" * 80)
     build_ok = autoninja_resolver.run_resolution_loop()
     if not build_ok:
-      print(
-          "[FAIL] Phase 4 Compiler Feedback Loop failed.",
-          file=sys.stderr,
-      )
+      log.warning("[FAIL] Phase 4 Compiler Feedback Loop failed.")
       write_report("FAILED (Phase 4: Compiler Loop)")
       return 1
-    print("[OK] Phase 4 Completed Successfully.", file=sys.stderr)
+    log.info("[OK] Phase 4 Completed Successfully.")
 
   elapsed = time.time() - start_time
   summary_path = write_report("SUCCESS (All Phases Complete)")
 
-  print("\n" + "=" * 80, file=sys.stderr)
-  print(
-      f"[SUCCESS] PIPELINE COMPLETED CLEANLY in {elapsed:.1f}s!",
-      file=sys.stderr,
-  )
-  print(
-      f"[REPORT] Summary Report: {summary_path}",
-      file=sys.stderr,
-  )
-  print("=" * 80, file=sys.stderr)
+  log.info("\n%s", "=" * 80)
+  log.info("[SUCCESS] PIPELINE COMPLETED CLEANLY in %.1fs!", elapsed)
+  log.info("[REPORT] Summary Report: %s", summary_path)
+  log.info("=" * 80)
   return 0
 
 
 def main():
   """Main CLI entry point for Cobalt rebase pipeline."""
+  # Resolver modules log through `logging`; keep their output identical to
+  # the previous plain stderr prints.
+  logging.basicConfig(
+      level=logging.INFO, format="%(message)s", stream=sys.stderr)
   parser = build_arg_parser()
   args = parser.parse_args()
   sys.exit(run_pipeline(args))

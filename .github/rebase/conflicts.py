@@ -8,22 +8,24 @@ validates Python AST on DEPS, and generates structured rebase summaries.
 
 import ast
 import dataclasses
+import logging
 import os
 import re
 import subprocess
-import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
-from base_resolver import (
-    AgentChangeRecord,
-    BaseResolver,
+from base_resolver import AgentChangeRecord, BaseResolver
+from diagnostics import Diagnostic
+from repo_guards import is_unmodified_third_party
+from tools import (
     execute_local_tool,
     extract_line_anchored_tool_commands,
     extract_tool_commands,
-    is_unmodified_third_party,
 )
 from token_usage import TokenUsage
+
+log = logging.getLogger(__name__)
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -361,12 +363,10 @@ def resolve_file_conflicts(
   # 1. Fast-path: Check if this is an unmodified third_party file
   if is_unmodified_third_party(file_path, repo_path):
     side = "ours/HEAD" if blocks[0].upstream_is_ours else "theirs"
-    print(
-        f"\n[resolve_conflicts] Fast-path: {rel_path} is unmodified "
-        f"third_party. Resolving {len(blocks)} conflict(s) with "
-        f"upstream ({side})...",
-        file=sys.stderr,
-    )
+    log.info(
+        "\n[resolve_conflicts] Fast-path: %s is unmodified "
+        "third_party. Resolving %s conflict(s) with upstream "
+        "(%s)...", rel_path, len(blocks), side)
     for block in blocks:
       upstream = block.upstream_content
       content = content.replace(block.raw_block, upstream, 1)
@@ -385,25 +385,17 @@ def resolve_file_conflicts(
             ))
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(content)
-    print(
-        f"  [OK] Resolved all {len(blocks)} block(s) in {rel_path} "
-        "using upstream.",
-        file=sys.stderr,
-    )
+    log.info("  [OK] Resolved all %s block(s) in %s using upstream.",
+             len(blocks), rel_path)
     return True
 
-  print(
-      f"\n[resolve_conflicts] Resolving {len(blocks)} conflict(s) in "
-      f"{rel_path} ({lang})...",
-      file=sys.stderr,
-  )
+  log.info("\n[resolve_conflicts] Resolving %s conflict(s) in %s "
+           "(%s)...", len(blocks), rel_path, lang)
 
   for block in blocks:
-    print(
-        f"  - Block #{block.index} (lines {block.start_line}-{block.end_line}, "
-        f"{len(block.raw_block.splitlines())} lines)...",
-        file=sys.stderr,
-    )
+    log.info("  - Block #%s (lines %s-%s, %s lines)...",
+             block.index, block.start_line, block.end_line,
+             len(block.raw_block.splitlines()))
 
     # Step 1: Pre-Flight Strategic Review by Expert Agent
     trajectory_str = git_context
@@ -434,27 +426,18 @@ def resolve_file_conflicts(
               f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
         if expert_guidance:
           first_g_line = expert_guidance.splitlines()[0][:100]
-          print(
-              f"    [TIER-2 ARCHITECT] Pre-Flight Plan:\n"
-              f"    >>> {first_g_line}...",
-              file=sys.stderr,
-          )
+          log.info("    [TIER-2 ARCHITECT] Pre-Flight Plan:\n    >>> %s...",
+                   first_g_line)
       except Exception as e:  # pylint: disable=broad-exception-caught
-        print(
-            f"    [TIER-2 ARCHITECT] Notice: Pre-flight query: {e}",
-            file=sys.stderr,
-        )
+        log.info("    [TIER-2 ARCHITECT] Notice: Pre-flight query: %s", e)
 
     resolved_code: Optional[str] = None
     investigation_history = ""
     for attempt in range(2):
       use_expert = attempt > 0
       if use_expert:
-        print(
-            f"    [EXPERT_RETRY] Retrying Block #{block.index} with Expert "
-            "Agent...",
-            file=sys.stderr,
-        )
+        log.info("    [EXPERT_RETRY] Retrying Block #%s with Expert Agent...",
+                 block.index)
       for _ in range(max_tool_rounds):
         if mock_mode:
           resolved_code = block.theirs_content
@@ -479,7 +462,7 @@ def resolve_file_conflicts(
               use_expert=use_expert,
           )
         except Exception as e:  # pylint: disable=broad-exception-caught
-          print(f"    [FAIL] Reasoning Engine Error: {e}", file=sys.stderr)
+          log.warning("    [FAIL] Reasoning Engine Error: %s", e)
           break
 
         raw_replacement = ""
@@ -497,7 +480,7 @@ def resolve_file_conflicts(
         tool_cmds = extract_line_anchored_tool_commands(raw_replacement)[:1]
         if tool_cmds:
           tool_cmd = tool_cmds[0]
-          print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
+          log.info("    [TOOL_USE] Model requested: %s", tool_cmd)
           tool_output = execute_local_tool(
               tool_cmd, repo_path, session_changes=session_changes)
           investigation_history += (
@@ -511,10 +494,8 @@ def resolve_file_conflicts(
         break
 
     if resolved_code is None or "<<<<<<<" in resolved_code:
-      print(
-          f"    [ESCALATE] Block #{block.index} could not be cleanly resolved.",
-          file=sys.stderr,
-      )
+      log.info("    [ESCALATE] Block #%s could not be cleanly resolved.",
+               block.index)
       if session_changes is not None:
         session_changes.append(
             AgentChangeRecord(
@@ -549,14 +530,14 @@ def resolve_file_conflicts(
               error=None,
               applied_cleanly=True,
           ))
-    print(f"    [OK] Resolved Block #{block.index}", file=sys.stderr)
+    log.info("    [OK] Resolved Block #%s", block.index)
 
   if os.path.basename(file_path) == "DEPS":
     try:
       ast.parse(content)
-      print("  [OK] DEPS Python AST syntax validated.", file=sys.stderr)
+      log.info("  [OK] DEPS Python AST syntax validated.")
     except SyntaxError as e:
-      print(f"  [FAIL] DEPS AST Syntax Error: {e}", file=sys.stderr)
+      log.warning("  [FAIL] DEPS AST Syntax Error: %s", e)
       if session_changes is not None:
         session_changes.append(
             AgentChangeRecord(
@@ -574,10 +555,7 @@ def resolve_file_conflicts(
 
   with open(file_path, "w", encoding="utf-8") as f:
     f.write(content)
-  print(
-      f"[resolve_conflicts] Successfully processed {rel_path}.",
-      file=sys.stderr,
-  )
+  log.info("[resolve_conflicts] Successfully processed %s.", rel_path)
   return True
 
 
@@ -645,7 +623,7 @@ class ConflictResolver(BaseResolver):
     return False, msg, ""
 
   def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Any]:
+                          siso_output: str) -> List[Diagnostic]:
     del build_output, siso_output
     if self.explicit_files:
       target_files = [
@@ -666,19 +644,22 @@ class ConflictResolver(BaseResolver):
             remaining.append(tf)
       except OSError:
         pass
-    return remaining
+    return [
+        Diagnostic(error_message="Unresolved conflict markers", file_path=tf)
+        for tf in remaining
+    ]
 
   # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
     del history_records, use_expert, expert_guidance
-    tf = str(diagnostic)
+    tf = diagnostic.file_path
     rel = os.path.relpath(tf, self.repo_path)
     ok = resolve_file_conflicts(
         file_path=tf,
@@ -706,22 +687,18 @@ class ConflictResolver(BaseResolver):
       target_files = [os.path.join(self.repo_path, f) for f in rel_files]
 
     if not target_files:
-      print(
-          "[resolve_conflicts] No conflicted files found in repository.",
-          file=sys.stderr,
-      )
+      log.info("[resolve_conflicts] No conflicted files found in "
+               "repository.")
       return True
 
-    print("=" * 70, file=sys.stderr)
-    print(
-        f"[resolve_conflicts] FOUND {len(target_files)} CONFLICTED FILE(S):",
-        file=sys.stderr,
-    )
+    log.info("=" * 70)
+    log.info("[resolve_conflicts] FOUND %s CONFLICTED FILE(S):",
+             len(target_files))
     for idx, tf in enumerate(target_files, 1):
       rel = os.path.relpath(tf, self.repo_path)
       lang = detect_language(tf)
-      print(f"  {idx:2d}. {rel} [{lang}]", file=sys.stderr)
-    print("=" * 70, file=sys.stderr)
+      log.info("  %2d. %s [%s]", idx, rel, lang)
+    log.info("=" * 70)
 
     deps_resolved = False
     for tf in target_files:
@@ -741,29 +718,22 @@ class ConflictResolver(BaseResolver):
         if os.path.basename(tf) == "DEPS":
           deps_resolved = True
       else:
-        print(f"[WARNING] Issues detected in: {tf}", file=sys.stderr)
+        log.warning("[WARNING] Issues detected in: %s", tf)
 
     # If DEPS was resolved and callback hook provided, trigger callback
     if deps_resolved and self.on_patch_applied_fn:
       self.on_patch_applied_fn(["DEPS"])
 
-    print("\n" + "=" * 70, file=sys.stderr)
-    print(
-        f"[resolve_conflicts] ALL {len(self.resolved_list)} CONFLICTED FILES "
-        "PROCESSED!",
-        file=sys.stderr,
-    )
+    log.info("\n%s", "=" * 70)
+    log.info("[resolve_conflicts] ALL %s CONFLICTED FILES PROCESSED!",
+             len(self.resolved_list))
     if self.escalations:
-      print(
-          f"  - [WARNING] Escalations Flagged: {len(self.escalations)} "
-          "block(s) require human review",
-          file=sys.stderr,
-      )
-    print(
-        f"  - Total Tokens:   {self.token_tracker.total_tokens:,}",
-        file=sys.stderr,
-    )
-    print(f"  - Total AI Calls: {self.token_tracker.calls}", file=sys.stderr)
-    print("=" * 70, file=sys.stderr)
+      log.warning(
+          "  - [WARNING] Escalations Flagged: %s block(s) require "
+          "human review", len(self.escalations))
+    log.info("  - Total Tokens:   %s",
+             format(self.token_tracker.total_tokens, ","))
+    log.info("  - Total AI Calls: %s", self.token_tracker.calls)
+    log.info("=" * 70)
 
     return len(self.resolved_list) == len(target_files)

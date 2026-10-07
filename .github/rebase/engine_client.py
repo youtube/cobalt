@@ -14,6 +14,7 @@
 """Local client agent for communicating with hosted Reasoning Engine."""
 
 import dataclasses
+import logging
 import os
 import sys
 import time
@@ -21,6 +22,8 @@ from typing import Any, Dict, List, Optional
 
 import vertexai
 from vertexai.preview import reasoning_engines
+
+log = logging.getLogger(__name__)
 
 # Engine actions that write to the GCS knowledge bank. Blocked when the client
 # is in memory read-only mode.
@@ -106,11 +109,8 @@ class ReasoningEngineClient:
           sys.path.insert(0, pkg_dir)
         from reasoning_engine.engine import CobaltReasoningEngine  # pylint: disable=import-outside-toplevel
 
-      print(
-          "  [REASONING_ENGINE_CLIENT] Running Reasoning Engine locally "
-          "(in-process)...",
-          file=sys.stderr,
-      )
+      log.info("  [REASONING_ENGINE_CLIENT] Running Reasoning Engine "
+               "locally (in-process)...")
       self._local_engine = CobaltReasoningEngine(
           project_id=self.project_id,
           location=self.location,
@@ -146,11 +146,9 @@ class ReasoningEngineClient:
     for attempt in range(1, self.max_connect_retries + 1):
       try:
         vertexai.init(project=self.project_id, location=loc)
-        print(
+        log.info(
             "  [REASONING_ENGINE_CLIENT] Connecting to hosted Reasoning "
-            f"Engine: {res_name}",
-            file=sys.stderr,
-        )
+            "Engine: %s", res_name)
         self._remote_engine = reasoning_engines.ReasoningEngine(res_name)
         return self._remote_engine
       except Exception as e:  # pylint: disable=broad-exception-caught
@@ -158,12 +156,10 @@ class ReasoningEngineClient:
           raise RuntimeError(
               f"Failed to connect to hosted Reasoning Engine '{res_name}' "
               f"after {attempt} attempt(s): {e}") from e
-        print(
+        log.info(
             "  [REASONING_ENGINE_CLIENT] Warning: Connection attempt "
-            f"{attempt}/{self.max_connect_retries} failed: {e}. "
-            f"Retrying in {backoff:.1f}s...",
-            file=sys.stderr,
-        )
+            "%s/%s failed: %s. Retrying in %.1fs...", attempt,
+            self.max_connect_retries, e, backoff)
         time.sleep(backoff)
         backoff *= 1.5
 
@@ -173,11 +169,9 @@ class ReasoningEngineClient:
     """Dispatches query to hosted or in-process Reasoning Engine."""
     if self.memory_read_only and action in _MEMORY_WRITE_ACTIONS:
       label = kwargs.get("target_file") or "<unknown>"
-      print(
-          "  [REASONING_ENGINE_CLIENT] Knowledge bank is read-only; skipping "
-          f"\"{action}\" for: {label}",
-          file=sys.stderr,
-      )
+      log.info(
+          "  [REASONING_ENGINE_CLIENT] Knowledge bank is read-only; "
+          "skipping \"%s\" for: %s", action, label)
       return {"success": False, "read_only": True}
     engine = self._get_engine()
     if self.local:
@@ -192,20 +186,16 @@ class ReasoningEngineClient:
       except Exception as e:  # pylint: disable=broad-exception-caught
         last_error = e
         if attempt == self.max_query_retries:
-          print(
-              "  [REASONING_ENGINE_CLIENT] Error querying hosted Reasoning "
-              f"Engine after {attempt} attempt(s): {e}",
-              file=sys.stderr,
-          )
+          log.info(
+              "  [REASONING_ENGINE_CLIENT] Error querying hosted "
+              "Reasoning Engine after %s attempt(s): %s", attempt, e)
           raise RuntimeError("Hosted Reasoning Engine query failed after "
                              f"{attempt} attempts: {e}") from e
 
-        print(
+        log.info(
             "  [REASONING_ENGINE_CLIENT] Notice: Remote query failed "
-            f"(attempt {attempt}/{self.max_query_retries}): {e}. "
-            f"Retrying in {backoff:.1f}s...",
-            file=sys.stderr,
-        )
+            "(attempt %s/%s): %s. Retrying in %.1fs...", attempt,
+            self.max_query_retries, e, backoff)
         time.sleep(backoff)
         backoff *= 1.5
 

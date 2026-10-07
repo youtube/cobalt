@@ -1,44 +1,29 @@
 #!/usr/bin/env python3
 """Base abstract class for AI-driven self-healing command resolvers.
 
-Provides the foundational execution loop, multi-turn filesystem tools,
-SEARCH/REPLACE patch application, and third-party protection guardrails
-shared by all rebase phases (gclient sync, gn gen, and autoninja).
+Provides the self-healing execution loop shared by all rebase phases
+(gclient sync, gn gen and autoninja).
 """
 
 import abc
 import collections
 import dataclasses
+import logging
 import os
 import re
 import subprocess
-import sys
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
+from diagnostics import Diagnostic
+from patching import apply_parsed_patch, parse_patch, patch_file_changes
+from tools import execute_local_tool, extract_tool_commands
+
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
-# Precompiled pattern matching investigation tool directives (e.g.,
-# TOOL_READ_FILE: ...).
-#
-# Models occasionally emit several directives run together on a single line
-# without separators (e.g. "TOOL_GREP: fooTOOL_READ_FILE: bar 1 20"), or glue a
-# trailing "FILE:" patch header onto the last directive. The negative lookahead
-# terminates each match at the next directive or patch header so malformed
-# batches still parse into individual commands.
-_TOOL_CMD_TERMINATORS = r"TOOL_[A-Z_]+:|FILE:|TARGET FILE:|<<<<<<<|>>>>>>>"
-# No leading word-boundary anchor: in run-on responses a directive begins
-# immediately after an alphanumeric character (e.g. "...mojomTOOL_READ_FILE:"),
-# where \b does not hold and every directive after the first would be lost.
-_TOOL_CMD_PATTERN = re.compile(r"(TOOL_[A-Z_]+:\s*"
-                               r"(?:(?!" + _TOOL_CMD_TERMINATORS + r")"
-                               r"[^\n<`])+)")
-
-# Upper bound on investigation directives honored from a single model response.
-# Prevents a speculative dump of a dozen commands from stalling the loop.
-_MAX_TOOL_CMDS_PER_TURN = 3
+log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -108,1396 +93,6 @@ class AgentChangeRecord:
     return "\n".join(lines)
 
 
-def get_clean_build_env(
-    depot_tools_path: Optional[str] = None,) -> Dict[str, str]:
-  """Builds the environment used to invoke gclient, gn and autoninja.
-
-  Prepending depot_tools to PATH is the only change from the ambient
-  environment: those tools live there and are not otherwise on PATH.
-  """
-  depot_tools = depot_tools_path or os.path.expanduser("~/depot_tools")
-  clean_env = dict(os.environ)
-  if os.path.isdir(depot_tools):
-    orig_path = clean_env.get("PATH", "")
-    clean_env["PATH"] = f"{depot_tools}:{orig_path}"
-  # Sets PYTHONNOUSERSITE=1: CI installs the agent's own requirements with
-  # `pip install --user` (e.g. protobuf 6.x for google-cloud-aiplatform).
-  # Without this, Chromium build scripts such as
-  # build/android/gyp/compile_resources.py import those user-site packages
-  # and fail ("Descriptors cannot be created directly"). Chromium build
-  # scripts must only see the system/vendored Python packages.
-  clean_env["PYTHONNOUSERSITE"] = "1"
-  return clean_env
-
-
-def get_chromium_milestone(repo_path: Optional[str] = None) -> str:
-  """Reads the Chromium major milestone from chrome/VERSION (e.g. 'M138')."""
-  base = repo_path or os.path.expanduser("~/cobalt/src")
-  version_file = os.path.join(base, "chrome", "VERSION")
-  if os.path.isfile(version_file):
-    try:
-      with open(version_file, "r", encoding="utf-8") as f:
-        for line in f:
-          if line.startswith("MAJOR="):
-            major_ver = line.strip().split("=")[1]
-            return f"M{major_ver}"
-    except OSError:
-      pass
-  return "M_Unknown"
-
-
-def is_within_repo(path: str, repo_path: str) -> bool:
-  """Returns True if path (after normalization) is inside repo_path."""
-  if not path:
-    return False
-  repo_abs = os.path.abspath(repo_path)
-  path_abs = os.path.abspath(path)
-  try:
-    return os.path.commonpath([repo_abs, path_abs]) == repo_abs
-  except ValueError:  # e.g. different drives on Windows
-    return False
-
-
-def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
-  """Resolves command / compiler output paths into a path inside repo_path.
-
-  Returns "" when the resolved path falls outside repo_path, so AI tool calls
-  and patches cannot read or modify files elsewhere on the host (e.g.
-  /etc/passwd or ~/.config credentials) via absolute paths or ../ traversal.
-  """
-  if ((resolved := _resolve_repo_file_path_unchecked(raw_path, repo_path)) and
-      is_within_repo(resolved, repo_path)):
-    return os.path.abspath(resolved)
-  return ""
-
-
-def _resolve_repo_file_path_unchecked(raw_path: str, repo_path: str) -> str:
-  """Best-effort resolution of a raw path; may point outside repo_path."""
-  clean = raw_path.strip().lstrip("\"'")
-  if clean.startswith("//"):
-    clean = clean[2:]
-
-  # 1. Direct absolute or relative join
-  direct = os.path.join(repo_path, clean) if not os.path.isabs(clean) else clean
-  if os.path.isfile(direct):
-    return os.path.abspath(direct)
-
-  # 2. Strip leading ../ and ./
-  stripped = clean
-  while stripped.startswith(("../", "./")):
-    stripped = stripped.split("/", 1)[1] if "/" in stripped else ""
-
-  if stripped:
-    cand_direct = os.path.join(repo_path, stripped)
-    if os.path.isfile(cand_direct):
-      return os.path.abspath(cand_direct)
-
-    # 3. Check cobalt/ prefix
-    cand_cobalt = os.path.join(repo_path, "cobalt", stripped)
-    if os.path.isfile(cand_cobalt):
-      return os.path.abspath(cand_cobalt)
-
-  # 4. Siso config fallback
-  if "main.star" in clean or clean.endswith(".star"):
-    siso_cand = os.path.join(repo_path, "build/config/siso",
-                             os.path.basename(clean))
-    if os.path.isfile(siso_cand):
-      return os.path.abspath(siso_cand)
-
-  # 5. Fallback: look the path up in the git index, but only accept a unique
-  # match. Prefer the longest known suffix (e.g. "browser/foo.cc") and fall
-  # back to the bare basename; an ambiguous name like BUILD.gn resolves to
-  # nothing rather than to an arbitrary file.
-  for suffix in dict.fromkeys((stripped, os.path.basename(clean))):
-    if unique := _find_unique_tracked_file(suffix, repo_path):
-      return unique
-
-  return direct
-
-
-_GITLINK_CACHE: Dict[str, List[str]] = {}
-
-
-def _git_ls_files(pathspec: str, cwd: str) -> List[str]:
-  """Runs `git ls-files -z -- pathspec` in cwd; [] on any failure."""
-  try:
-    res = subprocess.run(
-        ["git", "ls-files", "-z", "--", pathspec],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-  except (OSError, subprocess.SubprocessError):
-    return []
-  if res.returncode != 0:
-    return []
-  return [p for p in res.stdout.split("\0") if p]
-
-
-def _dependency_checkouts(repo_path: str) -> List[str]:
-  """Gitlink directories that are separate git checkouts (gclient deps)."""
-  key = os.path.abspath(repo_path)
-  if key in _GITLINK_CACHE:
-    return _GITLINK_CACHE[key]
-
-  try:
-    res = subprocess.run(
-        ["git", "ls-files", "-s"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    lines = res.stdout.splitlines() if res.returncode == 0 else []
-  except (OSError, subprocess.SubprocessError):
-    lines = []
-
-  _GITLINK_CACHE[key] = [
-      l.split("\t", 1)[1]
-      for l in lines
-      if l.startswith("160000 ") and "\t" in l and
-      os.path.exists(os.path.join(repo_path,
-                                  l.split("\t", 1)[1], ".git"))
-  ]
-  return _GITLINK_CACHE[key]
-
-
-def _find_unique_tracked_file(suffix: str, repo_path: str) -> str:
-  """Returns the only tracked file whose path ends with `suffix`, else "".
-
-  Searches the main repository index and every gclient dependency checkout
-  (git index only, so it is fast and ignores out/ and untracked files).
-  """
-  if not suffix or any(c in suffix for c in "*?[]"):
-    return ""
-  pathspec = f":(glob)**/{suffix}"
-  matches = _git_ls_files(pathspec, repo_path)
-  if len(matches) > 1:
-    return ""
-  for dep in _dependency_checkouts(repo_path):
-    matches += [
-        f"{dep}/{p}"
-        for p in _git_ls_files(pathspec, os.path.join(repo_path, dep))
-    ]
-    if len(matches) > 1:
-      return ""
-  if len(matches) != 1:
-    return ""
-  return os.path.abspath(os.path.join(repo_path, matches[0]))
-
-
-_COBALT_GIT_HISTORY_CACHE: Dict[Tuple[str, str], bool] = {}
-
-
-def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
-  """Checks if git history shows Cobalt-specific commits touching the file."""
-  cache_key = (os.path.abspath(repo_path), rel_path)
-  if cache_key in _COBALT_GIT_HISTORY_CACHE:
-    return _COBALT_GIT_HISTORY_CACHE[cache_key]
-
-  try:
-    cmd = [
-        "git",
-        "-C",
-        repo_path,
-        "log",
-        "-n",
-        "50",
-        "--format=%ae%x09%s",
-        "--",
-        rel_path,
-    ]
-    res = subprocess.run(
-        cmd, cwd=repo_path, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-      _COBALT_GIT_HISTORY_CACHE[cache_key] = False
-      return False
-    for line in res.stdout.splitlines():
-      if not line.strip():
-        continue
-      parts = line.split("\t", 1)
-      author_email = parts[0].strip().lower()
-      subject = parts[1].strip() if len(parts) > 1 else ""
-      s_lower = subject.lower()
-
-      # 1. Skip automated Chromium rolling PRs
-      is_roll = ("cherry pick commit" in s_lower or "update to " in s_lower or
-                 "autoroll" in s_lower or "releaser-bot" in author_email)
-      if is_roll:
-        continue
-
-      # 2. Skip upstream Chromium commits (@chromium.org)
-      if author_email.endswith(("@chromium.org", ".chromium.org")):
-        continue
-
-      # 3. Any commit with a Cobalt PR number (#<id>) or Cobalt/Starboard
-      # reference authored by developers/contractors (Google, Igalia, etc.)
-      # indicates Cobalt customization.
-      has_pr_number = bool(re.search(r"\(#\d+\)|cherry pick pr #", s_lower))
-      has_cobalt_keyword = any(k in s_lower for k in ("cobalt", "starboard"))
-      if has_pr_number or has_cobalt_keyword:
-        _COBALT_GIT_HISTORY_CACHE[cache_key] = True
-        return True
-  except (OSError, subprocess.SubprocessError):
-    _COBALT_GIT_HISTORY_CACHE[cache_key] = False
-    return False
-
-  _COBALT_GIT_HISTORY_CACHE[cache_key] = False
-  return False
-
-
-_FORKED_THIRD_PARTY_PREFIXES = ("third_party/jni_zero/",)
-
-# Repository metadata is never a valid patch target, even inside a forked
-# dependency.
-_NEVER_PATCHABLE_BASENAMES = (
-    "DEPS",
-    "DIR_METADATA",
-    "LICENSE",
-    "OWNERS",
-    "PRESUBMIT.py",
-    "README.chromium",
-)
-
-
-def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
-  """Checks if a file is pure third-party source code without Cobalt changes."""
-  rel = os.path.relpath(file_path, repo_path)
-  if not rel.startswith("third_party/"):
-    return False
-  if any(rel.startswith(p) for p in _FORKED_THIRD_PARTY_PREFIXES):
-    return os.path.basename(rel) in _NEVER_PATCHABLE_BASENAMES
-  rel_lower = rel.lower()
-  if "cobalt" in rel_lower or "starboard" in rel_lower:
-    return False
-  # Check if Cobalt git history previously touched this file
-  if has_cobalt_git_history(rel, repo_path):
-    return False
-  try:
-    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-      lines = f.readlines()
-    # Strip git conflict marker lines so commit messages don't trigger false
-    # positives
-    code_lines = [
-        l for l in lines
-        if not (l.startswith("<<<<<<<") or l.startswith(">>>>>>>") or
-                l.startswith("======="))
-    ]
-    content = "".join(code_lines)
-    content_lower = content.lower()
-    if "cobalt" in content_lower or "starboard" in content_lower:
-      return False
-    if any(
-        m in content for m in (
-            "BUILDFLAG(IS_COBALT)",
-            "BUILDFLAG(USE_STARBOARD_MEDIA)",
-            "defined(STARBOARD)",
-            "is_starboard",
-            "is_cobalt",
-            "checkout_cobalt_internal",
-            "checkout_copybara",
-            "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17",
-        )):
-      return False
-  except OSError:
-    pass
-  return True
-
-
-def is_generated_build_artifact(file_path: str, repo_path: str) -> bool:
-  """Checks if a file is an auto-generated build artifact (out/, gen/, obj/)."""
-  rel = os.path.relpath(file_path, repo_path)
-  return (rel.startswith("out/") or rel.startswith("gen/") or
-          rel.startswith("obj/") or "/gen/" in rel)
-
-
-def validate_patch_target(target_file: str,
-                          rel_file: str,
-                          repo_path: str,
-                          operation_name: str = "patch") -> bool:
-  """Validates if target_file is safe for AI patch modifications.
-
-  Returns False (and prints guard warnings to sys.stderr) if target_file is
-  a generated build artifact or an unmodified third-party source file.
-  """
-  if not target_file:
-    print(
-        f"  [GUARD] Rejecting {operation_name} on path outside the repository: "
-        f"{rel_file}.",
-        file=sys.stderr,
-    )
-    return False
-  if (rel_file.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
-      rel_file in ("cobalt_apk", "all")):
-    print(
-        f"  [GUARD] Rejecting {operation_name} on build target / binary: "
-        f"{rel_file}. Locate and patch the referencing source (.cc/.h) or "
-        "BUILD.gn file.",
-        file=sys.stderr,
-    )
-    return False
-  if is_generated_build_artifact(target_file, repo_path):
-    print(
-        f"  [GUARD] Rejecting {operation_name} on generated build artifact: "
-        f"{rel_file}. Trace #include stack to patch referencing source.",
-        file=sys.stderr,
-    )
-    return False
-  if rel_file.startswith("cobalt/build/configs/") or rel_file.endswith(
-      "args.gn"):
-    print(
-        f"  [GUARD] Rejecting {operation_name} on global build config file: "
-        f"{rel_file}. Modify component BUILD.gn or source code instead.",
-        file=sys.stderr,
-    )
-    return False
-  if (not target_file.endswith((".gn", ".gni", ".star")) and
-      is_unmodified_third_party(target_file, repo_path)):
-    print(
-        f"  [GUARD] Rejecting {operation_name} on unmodified third-party "
-        f"source file: {rel_file}. Patch the referencing BUILD.gn instead.",
-        file=sys.stderr,
-    )
-    return False
-  return True
-
-
-_LINE_NUMBER_RE = re.compile(r"^\s*\d+:\s*")
-_CONFLICT_MARKER_PREFIXES = ("=======", "<<<<<<<", ">>>>>>>")
-
-
-def _collapse_whitespace(line: str) -> str:
-  """Fuzzy line key: no line-number prefix, runs of whitespace collapsed."""
-  return re.sub(r"\s+", " ", _LINE_NUMBER_RE.sub("", line)).strip()
-
-
-def _find_search_span(content: str, search: str,
-                      replace: str) -> Optional[Tuple[int, int, str]]:
-  """Locates `search` in `content`; returns (start, end, replacement) or None.
-
-  Match levels, tried in order:
-    1. exact substring;
-    2. whitespace-trimmed substring;
-    3. window of whole lines equal after stripping each line;
-    4. window of whole lines equal after collapsing whitespace and dropping
-       line-number prefixes (for re-indented or numbered model output).
-  Levels 3 and 4 replace whole lines, so the replacement is newline-terminated.
-  """
-  if search in content:
-    start = content.index(search)
-    return start, start + len(search), replace
-  trimmed = search.strip()
-  if trimmed and trimmed in content:
-    start = content.index(trimmed)
-    return start, start + len(trimmed), replace.strip()
-
-  lines = content.splitlines(keepends=True)
-  offsets = [0]
-  for line in lines:
-    offsets.append(offsets[-1] + len(line))
-  replacement = "".join(l + "\n" for l in replace.splitlines())
-  for key in (str.strip, _collapse_whitespace):
-    wanted = [key(l) for l in search.splitlines() if key(l)]
-    if not wanted:
-      continue
-    keys = [key(l) for l in lines]
-    n = len(wanted)
-    for i in range(len(lines) - n + 1):
-      if keys[i:i + n] == wanted:
-        return offsets[i], offsets[i + n], replacement
-  return None
-
-
-def apply_search_replace(file_path: str, search_block: str,
-                         replace_block: str) -> bool:
-  """Applies a SEARCH/REPLACE block edit to a file.
-
-  Note on Sanitization:
-    LLMs occasionally hallucinate git 3-way merge conflict syntax (`=======`,
-    `<<<<<<<`, `>>>>>>>`) inside replacement blocks when operating on flat
-    configuration files. We strip any accidental marker lines to prevent
-    polluting the codebase with orphan markers that break GN/compiler parsing.
-  """
-  if not os.path.isfile(file_path):
-    return False
-
-  # Drop rogue conflict markers and pasted line numbers if prepended.
-  clean_replace = "\n".join(
-      _LINE_NUMBER_RE.sub("", l)
-      for l in replace_block.splitlines()
-      if not l.startswith(_CONFLICT_MARKER_PREFIXES))
-  search = "\n".join(
-      _LINE_NUMBER_RE.sub("", l) for l in search_block.splitlines())
-
-  with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-    content = f.read().replace("\r\n", "\n")
-
-  span = _find_search_span(content, search, clean_replace)
-  if span is None:
-    return False
-  start, end, replacement = span
-  with open(file_path, "w", encoding="utf-8") as f:
-    f.write(content[:start] + replacement + content[end:])
-  return True
-
-
-def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
-  """Applies a unified diff patch to source files, returning modified paths."""
-  file_match = re.search(
-      r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-\+]+)",
-      diff_text,
-      re.MULTILINE,
-  )
-  if not file_match:
-    return []
-
-  rel_file = file_match.group(1).strip()
-  file_path = resolve_repo_file_path(rel_file, repo_path)
-
-  if not os.path.isfile(file_path):
-    return []
-
-  if not validate_patch_target(
-      file_path, rel_file, repo_path, operation_name="unified diff"):
-    return []
-
-  with open(file_path, "r", encoding="utf-8") as f:
-    orig_lines = f.readlines()
-
-  hunk_pattern = re.compile(
-      r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")
-  lines = diff_text.splitlines()
-  new_lines = list(orig_lines)
-  offset = 0
-
-  try:
-    i = 0
-    while i < len(lines):
-      line = lines[i]
-      hm = hunk_pattern.match(line)
-      if hm:
-        orig_start = int(hm.group(1)) - 1
-        i += 1
-        hunk_src = []
-        hunk_dst = []
-        while i < len(lines) and not lines[i].startswith("@@"):
-          h_line = lines[i]
-          if h_line.startswith("-"):
-            hunk_src.append(h_line[1:] + "\n")
-          elif h_line.startswith("+"):
-            hunk_dst.append(h_line[1:] + "\n")
-          elif h_line.startswith(" "):
-            hunk_src.append(h_line[1:] + "\n")
-            hunk_dst.append(h_line[1:] + "\n")
-          i += 1
-
-        pos = orig_start + offset
-        if 0 <= pos <= len(new_lines):
-          current_slice = new_lines[pos:pos + len(hunk_src)]
-          if current_slice != hunk_src:
-            return []
-          new_lines[pos:pos + len(hunk_src)] = hunk_dst
-          offset += len(hunk_dst) - len(hunk_src)
-        else:
-          return []
-      else:
-        i += 1
-
-    with open(file_path, "w", encoding="utf-8") as f:
-      f.writelines(new_lines)
-    return [file_path]
-  except (OSError, ValueError, IndexError):
-    return []
-
-
-# Matches optional file directive headers produced by LLMs
-# preceding patch blocks: e.g., "FILE: foo.cc", "**FILE**: 'baz.gn'"
-_FILE_HEADER_PREFIX = (
-    r"(?:(?:#{1,6}\s*)?"  # Optional markdown header (### )
-    r"\*{0,2}(?:FILE|TARGET FILE)\*{0,2}"  # Optional bold (**)
-    r":\s*"  # Colon
-    r"[`'\"]*([a-zA-Z0-9_/\.\-\+]+)[`'\"]*"  # Captured relative path (Group 1)
-    r"\s*[\r\n]+)?"  # Trailing newline (entire header is optional)
-)
-
-_CODE_FENCE = r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
-_DELETE_BLOCK_RE = re.compile(
-    _FILE_HEADER_PREFIX + _CODE_FENCE +
-    r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE(?:\s*```)?",
-    re.DOTALL | re.IGNORECASE,
-)
-_SEARCH_REPLACE_BLOCK_RE = re.compile(
-    _FILE_HEADER_PREFIX + _CODE_FENCE + r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
-    r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE(?:\s*```)?",
-    re.DOTALL | re.IGNORECASE,
-)
-
-
-@dataclasses.dataclass(frozen=True)
-class PatchBlock:
-  """One DELETE or SEARCH/REPLACE block parsed from a model response."""
-  kind: str  # "DELETE" or "SEARCH"
-  rel_file: str  # As written by the model (or the default file).
-  target_file: str  # Resolved absolute path; "" if outside the repository.
-  search: str
-  replace: str = ""
-
-  def render(self) -> str:
-    if self.kind == "DELETE":
-      return f"<<<<<<< DELETE\n{self.search}\n>>>>>>> DELETE"
-    return (f"<<<<<<< SEARCH\n{self.search}\n=======\n"
-            f"{self.replace}\n>>>>>>> REPLACE")
-
-
-@dataclasses.dataclass(frozen=True)
-class ParsedPatch:
-  """A model patch response, parsed once and shared by apply and record."""
-  text: str  # Response with the outer markdown fence removed.
-  blocks: List[PatchBlock]  # Empty when the response is a unified diff.
-
-
-def parse_patch(patch_text: str,
-                repo_path: str,
-                default_file: Optional[str] = None) -> ParsedPatch:
-  """Parses DELETE or SEARCH/REPLACE blocks (DELETE wins if both appear)."""
-  text = patch_text.strip()
-  text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", text)
-  text = re.sub(r"\n```$", "", text)
-
-  def block(kind: str,
-            rel_file: str,
-            search: str,
-            replace: str = "") -> Optional[PatchBlock]:
-    rel = rel_file.strip() or default_file or ""
-    if not rel:
-      return None
-    # Strip a trailing ``` that leaked into the REPLACE section.
-    replace = re.sub(r"\n```\s*$", "", replace)
-    return PatchBlock(kind, rel, resolve_repo_file_path(rel, repo_path), search,
-                      replace)
-
-  blocks: List[PatchBlock] = []
-  if "<<<<<<< DELETE" in text and ">>>>>>> DELETE" in text:
-    blocks = [
-        b for rel, search in _DELETE_BLOCK_RE.findall(text)
-        if (b := block("DELETE", rel, search))
-    ]
-  if not blocks and "<<<<<<< SEARCH" in text and "=======" in text:
-    blocks = [
-        b for rel, search, replace in _SEARCH_REPLACE_BLOCK_RE.findall(text)
-        if (b := block("SEARCH", rel, search, replace))
-    ]
-  return ParsedPatch(text, blocks)
-
-
-def _check_patch_block(b: PatchBlock, repo_path: str) -> bool:
-  """Guards run on every block before any file is written."""
-  if b.kind == "SEARCH":
-    if not b.replace.strip() and len(b.search.splitlines()) > 80:
-      print(
-          f"  [GUARD] Rejecting bulk empty REPLACE block "
-          f"({len(b.search.splitlines())} lines) in {b.rel_file}. Use "
-          "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
-          "removals.",
-          file=sys.stderr,
-      )
-      return False
-    if re.search(r"^(?:FILE|Target File):", b.replace, re.MULTILINE):
-      print(
-          f"  [GUARD] Rejecting malformed REPLACE block in {b.rel_file} "
-          "containing nested FILE directives.",
-          file=sys.stderr,
-      )
-      return False
-  return validate_patch_target(
-      b.target_file,
-      b.rel_file,
-      repo_path,
-      operation_name="DELETE" if b.kind == "DELETE" else "patch")
-
-
-def _apply_blocks_atomically(blocks: List[PatchBlock]) -> List[str]:
-  """Applies blocks all-or-nothing.
-
-  Blocks are applied in order (so several blocks may edit the same file).
-  If any block fails to match, every touched file is restored to its exact
-  original bytes and [] is returned, so a half-applied patch never leaves
-  the working tree in a state the resolution loop does not know about.
-  """
-  originals: Dict[str, bytes] = {}
-  modified_files: List[str] = []
-  for b in blocks:
-    if b.target_file not in originals and os.path.isfile(b.target_file):
-      with open(b.target_file, "rb") as f:
-        originals[b.target_file] = f.read()
-    if not apply_search_replace(b.target_file, b.search, b.replace):
-      for path, data in originals.items():
-        with open(path, "wb") as f:
-          f.write(data)
-      return []
-    if b.target_file not in modified_files:
-      modified_files.append(b.target_file)
-  return modified_files
-
-
-def apply_parsed_patch(parsed: ParsedPatch, repo_path: str) -> List[str]:
-  """Applies a parsed patch; returns the modified absolute paths.
-
-  DELETE and SEARCH/REPLACE blocks are applied atomically: every block is
-  validated first and either all of them apply or no file is changed.
-  """
-  if not parsed.blocks:
-    return apply_unified_diff(parsed.text, repo_path)
-  if not all(_check_patch_block(b, repo_path) for b in parsed.blocks):
-    return []
-  return _apply_blocks_atomically(parsed.blocks)
-
-
-def patch_file_changes(parsed: ParsedPatch,
-                       repo_path: str,
-                       default_file: Optional[str] = None) -> Dict[str, str]:
-  """Groups a parsed patch into {repo-relative path: patch text} records."""
-
-  def rel_key(abs_path: str, fallback: str) -> str:
-    return os.path.relpath(abs_path, repo_path) if abs_path else fallback
-
-  file_changes: Dict[str, str] = {}
-  for b in parsed.blocks:
-    key = rel_key(b.target_file, b.rel_file)
-    file_changes[key] = (
-        file_changes[key] + "\n\n" +
-        b.render() if key in file_changes else b.render())
-  if file_changes:
-    return file_changes
-
-  diff_match = re.search(r"^(?:--- [ab]/(.+)|diff --git a/.* b/(.+))$",
-                         parsed.text, re.MULTILINE)
-  target_rel = ((diff_match.group(1) or diff_match.group(2) or "").strip()
-                if diff_match else "") or default_file or ""
-  if target_rel:
-    file_changes[rel_key(
-        resolve_repo_file_path(target_rel, repo_path),
-        target_rel)] = parsed.text
-  return file_changes
-
-
-def apply_patch_or_replacement(
-    patch_text: str,
-    repo_path: str,
-    default_file: Optional[str] = None,
-) -> List[str]:
-  """Parses and applies an AI patch response (SEARCH/REPLACE, DELETE, diff)."""
-  return apply_parsed_patch(
-      parse_patch(patch_text, repo_path, default_file), repo_path)
-
-
-def sanitize_filepath_token(raw_target: str) -> str:
-  """Extracts a clean, valid repository file path token from model output.
-
-  Strips surrounding backticks, quotes, parenthetical/inline commentary,
-  and trailing punctuation.
-  """
-  clean = raw_target.strip().strip("`'\"[]()<>")
-  tokens = re.split(r"[\s\(\[\#]+", clean)
-  if tokens and tokens[0]:
-    token = tokens[0].strip("`'\"[]()<>,;:")
-    return token.lstrip("./")
-  return clean.lstrip("./")
-
-
-def extract_tool_commands(text: str,
-                          max_commands: int = _MAX_TOOL_CMDS_PER_TURN
-                         ) -> List[str]:
-  """Extracts TOOL_ commands, stripping think tags/backticks/preambles.
-
-  Tolerates malformed batches: directives may be wrapped in backticks, prefixed
-  with markdown bullets or "Tool Call:", or run together on a single line with
-  no separators. At most `max_commands` directives are honored per response so
-  a speculative dump of a dozen commands cannot stall the investigation loop.
-  """
-  clean = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-  clean = re.sub(r"</?think>.*$", "", clean, flags=re.MULTILINE)
-  clean = re.sub(r"</?think>", "", clean)
-
-  # If model has already provided a full SEARCH/REPLACE block or unified diff,
-  # do not treat it as an investigation tool command.
-  if (("<<<<<<< SEARCH" in clean and ">>>>>>> REPLACE" in clean) or
-      ("<<<<<<< DELETE" in clean and ">>>>>>> DELETE" in clean) or
-      re.search(r"^@@\s+-\d+.*?\s+\+\d+.*?@@", clean, re.MULTILINE)):
-    return []
-
-  # Drop markdown bullets / "Tool Call:" preambles so directives start cleanly.
-  clean = re.sub(
-      r"^(?:[-*]\s+)?(?:Tool Call:\s*|Tool:\s*)",
-      "",
-      clean,
-      flags=re.IGNORECASE | re.MULTILINE,
-  )
-
-  commands: List[str] = []
-  seen = set()
-  # Scan the whole response rather than one match per line: models sometimes
-  # concatenate directives without newlines.
-  for match in _TOOL_CMD_PATTERN.finditer(clean):
-    cmd = re.sub(r"[`'\"]+$", "", match.group(1)).strip()
-    cmd = cmd.strip("`'\"").strip()
-    if not cmd or cmd in seen:
-      continue
-    seen.add(cmd)
-    commands.append(cmd)
-    if len(commands) >= max_commands:
-      break
-  return commands
-
-
-# Directives that occupy a line of their own, ignoring indentation.
-_TOOL_CMD_LINE_PATTERN = re.compile(r"^[ \t]*(TOOL_[A-Z_]+:[^\n]*)$",
-                                    re.MULTILINE)
-
-
-def extract_line_anchored_tool_commands(
-    text: str,
-    max_commands: int = _MAX_TOOL_CMDS_PER_TURN,
-) -> List[str]:
-  """Extracts TOOL_ directives that occupy a line of their own.
-
-  Use this when the response payload is source code; use
-  extract_tool_commands when it is prose.
-
-  extract_tool_commands scans anywhere in the text, which is required to
-  split run-on directives in prose but misfires on code: an indented
-  C++ 'case TOOL_TIP:' parses as a directive named TOOL_TIP. Requiring
-  the directive to own its line rejects those while still accepting the
-  indented requests that a strictly column-0 anchor would miss.
-  """
-  commands: List[str] = []
-  seen = set()
-  for match in _TOOL_CMD_LINE_PATTERN.finditer(text or ""):
-    cmd = match.group(1).strip().strip("`'\"").strip()
-    if not cmd or cmd in seen:
-      continue
-    seen.add(cmd)
-    commands.append(cmd)
-    if len(commands) >= max_commands:
-      break
-  return commands
-
-
-def find_roll_commit(repo_path: str, conflicted: bool) -> Optional[str]:
-  """Locates a commit from the most recent Chromium autoroll.
-
-  An autoroll lands as three commits:
-
-    1. "Revert Cobalt."                              (upstream baseline)
-    2. "Update to <milestone>."                      (pure upstream changes)
-    3. "CONFLICTED Cherry pick ...: Update to <milestone>."
-                                                     (Cobalt re-applied)
-
-  Diffing #2 answers "what did upstream change?". Diffing #3 answers "what
-  does Cobalt add on top of upstream, and did it still land correctly?".
-
-  Args:
-    repo_path: Repository to search.
-    conflicted: When True return commit #3, otherwise return commit #2.
-
-  Returns:
-    The commit SHA, or None if no matching roll commit exists.
-  """
-  # Both subjects contain "Update to <milestone>", so the pure upstream
-  # subject is anchored with ^ to exclude the cherry-picks.
-  pattern = ("^CONFLICTED Cherry pick.*Update to [0-9]"
-             if conflicted else "^Update to [0-9]")
-  try:
-    log_res = subprocess.run(
-        ["git", "log", "-n20", f"--grep={pattern}", "--format=%H %s"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-  except OSError:
-    return None
-
-  for line in log_res.stdout.splitlines():
-    parts = line.split(" ", 1)
-    if len(parts) != 2:
-      continue
-    # %H %s always begins with the SHA, so the subject must be inspected
-    # explicitly rather than testing the start of the whole line.
-    subject = parts[1]
-    if conflicted == subject.startswith("CONFLICTED"):
-      return parts[0]
-  return None
-
-
-def show_roll_diff(
-    repo_path: str,
-    sha: str,
-    target_path: str,
-    label: str,
-) -> str:
-  """Renders `git show` for a roll commit, optionally scoped to one file."""
-  cmd = (["git", "show", "--stat", "-p", sha, "--", target_path]
-         if target_path else ["git", "show", "--stat", sha])
-  diff_res = subprocess.run(
-      cmd,
-      cwd=repo_path,
-      capture_output=True,
-      text=True,
-      errors="replace",
-      check=False,
-  )
-  if diff_res.stdout:
-    return diff_res.stdout[:8000]
-  return f"No {label} changes in {sha} for: {target_path}"
-
-
-@dataclasses.dataclass(frozen=True)
-class ToolContext:
-  """Ambient state a tool handler may need beyond its own argument string."""
-
-  repo_path: str
-  session_changes: Optional[List[AgentChangeRecord]] = None
-
-
-def split_clean_tokens(raw: str) -> List[str]:
-  """Splits on whitespace, stripping quoting and punctuation noise.
-
-  Models routinely wrap paths in backticks or angle brackets and append
-  trailing punctuation (e.g. "`foo/bar.h`," or "<foo/bar.h>"). Only the
-  leading and trailing characters are stripped, so an interior colon in a
-  "path:line-range" token is preserved for the caller to interpret.
-  """
-  return [t.strip("`'\"<>,;:") for t in raw.split() if t.strip("`'\"<>,;:")]
-
-
-def _tool_read_file(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_READ_FILE: <path> [line_range] - reads a file or a line range."""
-  tokens = split_clean_tokens(args)
-  if not tokens:
-    return "[ERROR] No file path provided."
-  target_rel = tokens[0]
-  line_range = ""
-  for t in tokens[1:]:
-    if re.match(r"^\d+-\d+$", t) or re.match(r"^\d+\.\.\d+$", t):
-      line_range = t.replace("..", "-")
-      break
-  if ":" in target_rel and not line_range:
-    parts = target_rel.split(":", 1)
-    target_rel = parts[0]
-    if (re.match(r"^\d+-\d+$", parts[1]) or
-        re.match(r"^\d+\.\.\d+$", parts[1])):
-      line_range = parts[1].replace("..", "-")
-
-  target_abs = resolve_repo_file_path(target_rel, ctx.repo_path)
-  if not os.path.isfile(target_abs):
-    return f"[ERROR] File does not exist: {target_rel}"
-  try:
-    with open(target_abs, "r", encoding="utf-8", errors="replace") as f:
-      lines = f.readlines()
-    if line_range and "-" in line_range:
-      s_str, e_str = line_range.split("-", 1)
-      s_line = max(1, int(s_str))
-      e_line = min(len(lines), int(e_str))
-      selected = lines[s_line - 1:e_line]
-      numbered = [f"{s_line + i}: {l}" for i, l in enumerate(selected)]
-      return "".join(numbered)
-    if len(lines) <= 250:
-      numbered = [f"{i + 1}: {l}" for i, l in enumerate(lines)]
-      return "".join(numbered)
-    preview = lines[:150]
-    numbered = [f"{i + 1}: {l}" for i, l in enumerate(preview)]
-    numbered.append(
-        f"\n[... Truncated {len(lines) - 150} lines. Use TOOL_READ_FILE: "
-        f"{target_rel} <start>-<end> to view specific lines]\n")
-    return "".join(numbered)
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Could not read {target_rel}: {e}"
-
-
-def _tool_grep(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GREP: <query> [path_or_glob] - git grep across source files."""
-  query = ""
-  path_filter = ""
-  q_match = re.match(r'^([\'"])(.*?)\1(?:\s+(.*))?$', args)
-  if q_match:
-    query = q_match.group(2).strip()
-    path_filter = (q_match.group(3) or "").strip().strip("`'\"")
-  else:
-    parts = args.split(None, 1)
-    if len(parts) == 2:
-      query = parts[0].strip("`'\"")
-      path_filter = parts[1].strip("`'\"")
-    elif len(parts) == 1:
-      query = parts[0].strip("`'\"")
-    else:
-      return "[ERROR] No query provided to TOOL_GREP."
-
-  query = re.sub(r"\s*\(\s*\)\s*$", "", query).strip()
-  if not query:
-    return "[ERROR] Empty query in TOOL_GREP."
-
-  grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", "-e", query]
-  if path_filter:
-    grep_cmd.extend(["--", path_filter])
-  else:
-    grep_cmd.extend([
-        "--",
-        "*.gn",
-        "*.gni",
-        "*.h",
-        "*.cc",
-        "*.cpp",
-        "*.inc",
-        "*.java",
-        "*.rs",
-        "*.py",
-    ])
-  try:
-    res = subprocess.run(
-        grep_cmd,
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
-    lines = res.stdout.splitlines()[:30]
-    text = "\n".join(lines)
-    filt_desc = path_filter or "codebase"
-    return (text[:6000].strip()
-            if text else f"No matches found for: {query} (filter: {filt_desc})")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Grep failed: {e}"
-
-
-def _tool_find_file(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_FIND_FILE: <pattern> - locates files by name fragment."""
-  tokens = split_clean_tokens(args)
-  pattern = tokens[0] if tokens else args.strip("`'\"")
-  if not pattern.startswith("*") and not pattern.endswith("*"):
-    pattern = f"*{pattern}*"
-  try:
-    res = subprocess.run(
-        ["find", ".", "-iname", pattern, "-not", "-path", "*/.*"],
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    lines = [l.lstrip("./") for l in res.stdout.splitlines()[:25]]
-    return "\n".join(lines) if lines else f"No matches found for: {pattern}"
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Find failed: {e}"
-
-
-def _tool_list_dir(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_LIST_DIR: <dir_path> - lists directory entries."""
-  tokens = split_clean_tokens(args)
-  dir_rel = tokens[0] if tokens else "."
-  dir_abs = resolve_repo_file_path(dir_rel, ctx.repo_path)
-  if not os.path.isdir(dir_abs):
-    return f"[ERROR] Directory does not exist: {dir_rel}"
-  try:
-    entries = sorted(os.listdir(dir_abs))[:50]
-    formatted = []
-    for e in entries:
-      full_e = os.path.join(dir_abs, e)
-      is_d = "/" if os.path.isdir(full_e) else ""
-      formatted.append(f"{e}{is_d}")
-    return "\n".join(formatted) if formatted else "(Directory is empty)"
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] List directory failed: {e}"
-
-
-def _tool_git_show(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GIT_SHOW: <ref> - shows a commit or object."""
-  tokens = split_clean_tokens(args)
-  ref = tokens[0] if tokens else args
-  if not ref or ref.startswith("-"):
-    return f"[ERROR] TOOL_GIT_SHOW expects a ref, got: {ref!r}"
-  try:
-    res = subprocess.run(
-        ["git", "show", "--no-color", "--no-ext-diff", "--no-textconv", ref],
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
-    return (res.stdout[:4000] if res.stdout else f"Could not show ref: {ref}")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Git show failed: {e}"
-
-
-def _tool_read_pr(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_READ_PR: <number> - fetches PR metadata via the gh CLI."""
-  match = re.search(r"(\d+)", args)
-  if not match:
-    return f"[ERROR] Could not extract PR number from: {args}"
-  pr_target = match.group(1)
-  try:
-    res = subprocess.run(
-        ["gh", "pr", "view", pr_target, "--json", "number,title,body,commits"],
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return (res.stdout[:8000]
-            if res.stdout else f"Could not view PR: {pr_target} ({res.stderr})")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] gh pr view failed: {e}"
-
-
-def _tool_pr_diff(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_PR_DIFF: <number> - fetches a PR diff via the gh CLI."""
-  match = re.search(r"(\d+)", args)
-  if not match:
-    return f"[ERROR] Could not extract PR number from: {args}"
-  pr_target = match.group(1)
-  try:
-    res = subprocess.run(
-        ["gh", "pr", "diff", pr_target],
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return (res.stdout[:16384]
-            if res.stdout else f"Could not diff PR: {pr_target} ({res.stderr})")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] gh pr diff failed: {e}"
-
-
-# Read-only git diff flags the model may pass to TOOL_GIT_DIFF (plus -U<n>).
-_GIT_DIFF_ALLOWED_FLAGS = frozenset({
-    "--cached",
-    "--staged",
-    "--stat",
-    "--numstat",
-    "--shortstat",
-    "--name-only",
-    "--name-status",
-    "--ignore-all-space",
-    "-w",
-})
-
-
-def _tool_git_diff(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GIT_DIFF: <args> - runs git diff with caller-supplied arguments.
-
-  Arguments come from the model, so only refs, paths, "--" and the read-only
-  flags in _GIT_DIFF_ALLOWED_FLAGS are accepted. Anything else starting with
-  "-" is rejected (e.g. --output=<path> would write an arbitrary file).
-  """
-  diff_args = args.split()
-  options = diff_args[:diff_args.index("--")] if "--" in diff_args else (
-      diff_args)
-  for x in options:
-    if (x.startswith("-") and x not in _GIT_DIFF_ALLOWED_FLAGS and
-        not re.fullmatch(r"-U\d+|--unified=\d+", x)):
-      return f"[ERROR] TOOL_GIT_DIFF option not allowed: {x}"
-  try:
-    res = subprocess.run(
-        ["git", "diff", "--no-color", "--no-ext-diff", "--no-textconv"] +
-        diff_args,
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
-    return (res.stdout[:16384]
-            if res.stdout else f"Git diff empty or failed for: {diff_args}")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Git diff failed: {e}"
-
-
-def _tool_git_log(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GIT_LOG: [count] [path] - shows recent commits, optionally scoped."""
-  arg_list = args.split()
-  try:
-    count = 5
-    target_path = ""
-    if arg_list and arg_list[0].isdigit():
-      count = int(arg_list[0])
-      target_path = " ".join(arg_list[1:])
-    else:
-      target_path = " ".join(arg_list)
-    cmd = ["git", "log", f"-n{count}", "--oneline"]
-    if target_path:
-      cmd.extend(["--", target_path])
-    res = subprocess.run(
-        cmd,
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
-    return (res.stdout[:4000]
-            if res.stdout else f"No git log found for: {target_path}")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Git log failed: {e}"
-
-
-def _tool_upstream_diff(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_UPSTREAM_DIFF: <path> - shows the pure Chromium roll's changes."""
-  target_path = sanitize_filepath_token(args)
-  try:
-    upstream_sha = find_roll_commit(ctx.repo_path, conflicted=False)
-    if not upstream_sha:
-      return "Could not find upstream roll commit ('Update to <milestone>')"
-    return show_roll_diff(ctx.repo_path, upstream_sha, target_path, "upstream")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Upstream diff failed: {e}"
-
-
-def _tool_cobalt_diff(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_COBALT_DIFF: <path> - shows Cobalt's re-applied delta on the roll."""
-  target_path = sanitize_filepath_token(args)
-  try:
-    cobalt_sha = find_roll_commit(ctx.repo_path, conflicted=True)
-    if not cobalt_sha:
-      return ("Could not find Cobalt cherry-pick commit "
-              "('CONFLICTED Cherry pick ...: Update to <milestone>')")
-    return show_roll_diff(ctx.repo_path, cobalt_sha, target_path, "Cobalt")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] Cobalt diff failed: {e}"
-
-
-def _tool_gclient_sync(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GCLIENT_SYNC - resyncs dependencies. Takes no arguments."""
-  del args  # This directive carries no arguments.
-  try:
-    clean_env = get_clean_build_env()
-    res = subprocess.run(
-        ["gclient", "sync", "-D"],
-        cwd=ctx.repo_path,
-        capture_output=True,
-        text=True,
-        env=clean_env,
-        check=False,
-    )
-    out = f"{res.stdout}\n{res.stderr}".strip()
-    if out:
-      return out[:4000]
-    return f"gclient sync completed with exit code {res.returncode}"
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] gclient sync failed: {e}"
-
-
-def _tool_get_history(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GET_HISTORY: <count | all | iteration | start-end | filepath>.
-
-  Returns None when the argument parses as numeric but matches no branch,
-  letting the dispatcher fall through to the unknown-command error exactly
-  as the original if-chain did.
-  """
-  session_changes = ctx.session_changes
-  if not session_changes:
-    return "[NOTICE] No recorded change history available in this session yet."
-
-  if args.lower() in ("all", "full"):
-    return (
-        f"=== Full Change History ({len(session_changes)} records) ===\n\n" +
-        "\n\n".join(r.to_prompt_str() for r in session_changes))
-
-  clean_target = args.strip("`'\"")
-  # A non-numeric argument is treated as a file path (or a substring of one).
-  if not re.match(
-      r"^(?:iteration|iter|#)?\s*\d+(?:\s*(?:-|to|\.\.)\s*\d+)?$",
-      clean_target,
-      re.IGNORECASE,
-  ):
-    matched_files = [
-        r for r in session_changes if (clean_target in r.target_file or any(
-            clean_target in f for f in r.modified_files))
-    ]
-    if matched_files:
-      return (f"=== Change Records for '{clean_target}' "
-              f"({len(matched_files)} records) ===\n\n" +
-              "\n\n".join(r.to_prompt_str() for r in matched_files))
-    return f"[NOTICE] No change records found matching file '{clean_target}'."
-
-  # Iteration range: e.g. "1-5" or "1..5".
-  m_range = re.search(r"(\d+)\s*(?:-|to|\.\.)\s*(\d+)", args)
-  if m_range:
-    s_iter = int(m_range.group(1))
-    e_iter = int(m_range.group(2))
-    matched = [r for r in session_changes if s_iter <= r.iteration <= e_iter]
-    if not matched:
-      return ("[NOTICE] No change records found in iteration range "
-              f"{s_iter}-{e_iter}.")
-    return (f"=== Change Records for Iterations {s_iter}-{e_iter} "
-            f"({len(matched)} records) ===\n\n" +
-            "\n\n".join(r.to_prompt_str() for r in matched))
-
-  # Specific iteration, or a trailing count of recent records.
-  m_iter = re.search(r"(?:iteration|iter|#)?\s*(\d+)", args, re.IGNORECASE)
-  if m_iter:
-    num = int(m_iter.group(1))
-    if "iter" in args.lower():
-      matched = [r for r in session_changes if r.iteration == num]
-      if not matched:
-        return f"[NOTICE] No change record found for iteration {num}."
-      return (f"=== Change Record for Iteration {num} ===\n\n" +
-              "\n\n".join(r.to_prompt_str() for r in matched))
-    matched = (
-        session_changes[-num:]
-        if num < len(session_changes) else session_changes)
-    return (f"=== Last {len(matched)} Change Records (out of "
-            f"{len(session_changes)}) ===\n\n" +
-            "\n\n".join(r.to_prompt_str() for r in matched))
-
-  return None
-
-
-# Maps a directive prefix to its handler. Prefixes are matched longest-first,
-# so adding a shorter prefix later cannot shadow an existing longer one.
-# TOOL_GCLIENT_SYNC is intentionally colon-less: it takes no arguments.
-_TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
-    "TOOL_READ_FILE:": _tool_read_file,
-    "TOOL_GREP:": _tool_grep,
-    "TOOL_FIND_FILE:": _tool_find_file,
-    "TOOL_LIST_DIR:": _tool_list_dir,
-    "TOOL_GIT_SHOW:": _tool_git_show,
-    "TOOL_READ_PR:": _tool_read_pr,
-    "TOOL_PR_DIFF:": _tool_pr_diff,
-    "TOOL_GIT_DIFF:": _tool_git_diff,
-    "TOOL_GIT_LOG:": _tool_git_log,
-    "TOOL_UPSTREAM_DIFF:": _tool_upstream_diff,
-    "TOOL_COBALT_DIFF:": _tool_cobalt_diff,
-    "TOOL_GCLIENT_SYNC": _tool_gclient_sync,
-    "TOOL_GET_HISTORY:": _tool_get_history,
-    "TOOL_CHANGE_HISTORY:": _tool_get_history,
-    "TOOL_HISTORY:": _tool_get_history,
-}
-
-
-def execute_local_tool(
-    cmd: str,
-    repo_path: str,
-    session_changes: Optional[List[AgentChangeRecord]] = None,
-) -> str:
-  """Executes safe read-only multi-turn inspection tools for LLM.
-
-  Dispatches to the handler registered in _TOOL_HANDLERS for the directive's
-  prefix. The handler receives the text following the first colon, already
-  stripped. A handler returning None means "not handled", which surfaces the
-  unknown-command error.
-  """
-  clean_cmd = cmd.strip()
-  ctx = ToolContext(repo_path=repo_path, session_changes=session_changes)
-
-  for prefix in sorted(_TOOL_HANDLERS, key=len, reverse=True):
-    if not clean_cmd.startswith(prefix):
-      continue
-    args = clean_cmd.split(":", 1)[1].strip() if ":" in clean_cmd else ""
-    result = _TOOL_HANDLERS[prefix](args, ctx)
-    if result is not None:
-      return result
-    break
-
-  return f"[ERROR] Unknown tool command: {clean_cmd}"
-
-
-def extract_build_progress(build_output: str, siso_output: str = "") -> str:
-  """Extracts step progress like [11465/39291] or [50222/50832]."""
-  combined = f"{build_output}\n{siso_output}"
-  matches = re.findall(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]", combined)
-  if matches:
-    done_str, total_str = matches[-1]
-    done, total = int(done_str), int(total_str)
-    pct = (done / total * 100) if total > 0 else 0.0
-    return f"[{done}/{total}] ({pct:.1f}%)"
-
-  siso_matches = re.findall(r"Done:(\d+).*?Total:(\d+)", combined)
-  if siso_matches:
-    done_str, total_str = siso_matches[-1]
-    done, total = int(done_str), int(total_str)
-    pct = (done / total * 100) if total > 0 else 0.0
-    return f"[{done}/{total}] ({pct:.1f}%)"
-  return ""
-
-
-def write_rebase_report(
-    rebase_dir: str,
-    platform: str,
-    build_type: str,
-    *,
-    target: str,
-    model: str,
-    status: str,
-    elapsed_seconds: float,
-    repo_path: Optional[str] = None,
-    expert_model: Optional[str] = None,
-    session_changes: Optional[List[AgentChangeRecord]] = None,
-) -> str:
-  """Generates the final comprehensive rebase summary report."""
-  milestone = get_chromium_milestone(repo_path)
-  results_dir = os.path.join(rebase_dir, "results")
-  os.makedirs(results_dir, exist_ok=True)
-  report_filename = f"{milestone}_rebase_summary.md"
-  report_path = os.path.join(results_dir, report_filename)
-  comp_status = ("[OK] Clean"
-                 if "SUCCESS" in status else "[WARNING] Requires Attention")
-  workhorse = model or "gemini-3.7-flash"
-  expert = expert_model or "gemini-3.8-flash"
-
-  changes_section = ""
-  if session_changes:
-    phase_counts = collections.Counter(c.phase for c in session_changes)
-    clean_counts = sum(1 for c in session_changes if c.applied_cleanly)
-    error_counts = sum(1 for c in session_changes if c.error is not None)
-    phase_breakdown = ", ".join(f"`{k}`: {v}" for k, v in phase_counts.items())
-    changes_section = f"""
-## 3. Autonomous Change Trajectory Summary
-- **Total Changes Recorded**: `{len(session_changes)}`
-- **Clean Patches Applied**: `{clean_counts}`
-- **Subsequent Errors/Breaks**: `{error_counts}`
-- **Changes by Phase**: {phase_breakdown}
-"""
-
-  content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
-
-## 1. Executive Summary
-- **Status**: **{status}**
-- **Milestone**: `{milestone}`
-- **Platform**: `{platform}`
-- **Build Type**: `{build_type}`
-- **Target**: `{target}`
-- **Workhorse Model**: `{workhorse}`
-- **Expert Model**: `{expert}`
-- **Total Execution Time**: `{elapsed_seconds:.1f}s`
-
-## 2. Rebase Pipeline Stages
-| Phase | Stage | Description | Status |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
-| **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
-| **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
-| **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
-{changes_section}"""
-  try:
-    with open(report_path, "w", encoding="utf-8") as f:
-      f.write(content)
-    print(
-        f"[pipeline] [REPORT] Report written to: {report_path}",
-        file=sys.stderr,
-    )
-  except OSError as e:
-    print(
-        f"[pipeline] [WARNING] Could not write report: {e}",
-        file=sys.stderr,
-    )
-  return report_path
-
-
 def extract_meaningful_error_summary(raw_msg: str) -> str:
   """Extracts the first substantive error line, ignoring generic headers."""
   if not raw_msg:
@@ -1557,6 +152,20 @@ def format_history_records(
           "\n\n".join(investigation_items[-window:]))
 
 
+@dataclasses.dataclass
+class _LoopState:
+  """Mutable state carried across iterations of run_resolution_loop."""
+
+  iteration: int = 0
+  history: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
+  last_error: str = ""  # Error summary of the most recent failure.
+  stuck_count: int = 0  # Consecutive iterations with the same error.
+  # Last applied fix; stored in engine memory once its error goes away.
+  pending_fix: Optional[Dict[str, Any]] = None
+  # Record of the last applied patch; gets the next command's outcome.
+  pending_record: Optional[AgentChangeRecord] = None
+
+
 class BaseResolver(abc.ABC):
   """Abstract base class for all self-healing rebase command execution loops."""
 
@@ -1597,14 +206,14 @@ class BaseResolver(abc.ABC):
 
   @abc.abstractmethod
   def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Any]:
-    """Parses output into a list of diagnostic error objects."""
+                          siso_output: str) -> List[Diagnostic]:
+    """Parses failed command output into diagnostics (first one is fixed)."""
 
   @abc.abstractmethod
   # pylint: disable=too-many-positional-arguments,too-many-arguments
   def resolve_diagnostic(
       self,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
@@ -1665,7 +274,7 @@ class BaseResolver(abc.ABC):
   def execute_investigation_tools(
       self,
       initial_patch: str,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       *,
       max_rounds: int = 12,
       base_history_records: Optional[List[Dict[str, Any]]] = None,
@@ -1692,11 +301,8 @@ class BaseResolver(abc.ABC):
       for cmd_idx, tool_cmd in enumerate(tool_cmds, 1):
         prefix = (f"[{cmd_idx}/{len(tool_cmds)}] "
                   if len(tool_cmds) > 1 else "")
-        print(
-            f"  [{self.name}] [Investigation Round {round_idx}/{max_rounds}] "
-            f"{prefix}Model requested: {tool_cmd}",
-            file=sys.stderr,
-        )
+        log.info("  [%s] [Investigation Round %s/%s] %sModel requested: %s",
+                 self.name, round_idx, max_rounds, prefix, tool_cmd)
         tool_output = execute_local_tool(
             tool_cmd, self.repo_path, session_changes=self.session_changes)
         if len(tool_cmds) > 1:
@@ -1720,11 +326,9 @@ class BaseResolver(abc.ABC):
       })
 
       if any(seen_cmds[cmd] >= 3 for cmd in tool_cmds):
-        print(
-            f"  [{self.name}] [Anti-Loop] Breaking repeated tool loop after "
-            f"{round_idx} rounds.",
-            file=sys.stderr,
-        )
+        log.info(
+            "  [%s] [Anti-Loop] Breaking repeated tool loop after %s "
+            "rounds.", self.name, round_idx)
         break
 
       patch_res, m_used, _ = self.resolve_diagnostic(
@@ -1759,436 +363,370 @@ class BaseResolver(abc.ABC):
 
   def run_resolution_loop(self) -> bool:
     """Executes the standard self-healing loop until clean or exhausted."""
-    last_error_summary = ""
-    stuck_count = 0
-    history_records: List[Dict[str, Any]] = []
-    pending_fix: Optional[Dict[str, Any]] = None
-    pending_record: Optional[AgentChangeRecord] = None
-
+    state = _LoopState()
     for iteration in range(1, self.max_iterations + 1):
-      print(
-          f"\n[{self.name}] >>> Iteration {iteration}/{self.max_iterations}...",
-          file=sys.stderr,
-      )
+      state.iteration = iteration
+      log.info("\n[%s] >>> Iteration %s/%s...", self.name, iteration,
+               self.max_iterations)
       success, output, siso_out = self.run_command(iteration)
       if success:
-        print(
-            f"[{self.name}] [SUCCESS] Completed cleanly on iteration "
-            f"{iteration}/{self.max_iterations}!",
-            file=sys.stderr,
-        )
-        if pending_record is not None:
-          pending_record.error = None
-        if pending_fix and self.reasoning_engine is not None:
-          self.reasoning_engine.record_successful_fix(
-              issue_description=pending_fix["error"],
-              solution_diff=pending_fix["patch"],
-              target_file=pending_fix["file"],
-          )
+        log.info("[%s] [SUCCESS] Completed cleanly on iteration %s/%s!",
+                 self.name, iteration, self.max_iterations)
+        if state.pending_record is not None:
+          state.pending_record.error = None
+        self._credit_pending_fix(state)
         return True
 
-      diagnostics = self.extract_diagnostics(output, siso_out)
-      progress_str = extract_build_progress(output, siso_out)
-      if progress_str:
-        print(f"[{self.name}] Build Progress: {progress_str}", file=sys.stderr)
+      diagnostics = self._collect_diagnostics(output, siso_out)
+      diag = diagnostics[0]
+      rel_file = self._rel_path(diag.file_path)
+      error_summary = extract_meaningful_error_summary(diag.error_message)
+      self._record_build_outcome(state, error_summary, rel_file,
+                                 output + "\n" + (siso_out or ""))
+      self._print_failure(diagnostics, error_summary, rel_file)
 
-      if not diagnostics:
-        print(
-            f"[{self.name}] [WARNING] Command failed but no structured "
-            "diagnostics parsed. Using raw output snippet...",
-            file=sys.stderr,
-        )
-        diagnostics = [output]
+      if diag.file_path:
+        self.file_error_counts[diag.file_path] += 1
+      # Only consecutive identical errors count as being stuck.
+      state.stuck_count = (
+          state.stuck_count + 1 if error_summary == state.last_error else 0)
+      state.last_error = error_summary
 
-      first_diag = diagnostics[0]
-      diag_msg = getattr(first_diag, "error_message", str(first_diag))
-      diag_file = getattr(first_diag, "file_path", "")
-      diag_line = getattr(first_diag, "line_number", 0)
-      loc_str = ""
-      rel_f = ""
-      if diag_file:
-        try:
-          rel_f = os.path.relpath(diag_file, self.repo_path)
-          loc_str = f" in {rel_f}:{diag_line}"
-        except ValueError:
-          rel_f = diag_file
-          loc_str = f" in {diag_file}:{diag_line}"
-
-      error_summary = extract_meaningful_error_summary(diag_msg)
-
-      # Update the outcome of the previous patch attempt
-      if pending_record is not None:
-        pending_record.error = error_summary
-        pending_record.command_output = (output + "\n" +
-                                         (siso_out or ""))[-4000:]
-
-      # If previous fix succeeded in eliminating that error, record it
-      if pending_fix and self.reasoning_engine is not None:
-        if (pending_fix["error"] != error_summary or
-            pending_fix["file"] != rel_f):
-          self.reasoning_engine.record_successful_fix(
-              issue_description=pending_fix["error"],
-              solution_diff=pending_fix["patch"],
-              target_file=pending_fix["file"],
-          )
-      pending_fix = None
-
-      print(
-          f"[{self.name}] Detected {len(diagnostics)} error(s):\n"
-          f"  - Error{loc_str}: {error_summary}",
-          file=sys.stderr,
-      )
-      if raw_snip := getattr(first_diag, "raw_snippet", ""):
-        snippet_lines = raw_snip.strip().splitlines()[:5]
-        print(
-            "  [Compiler Snippet]:\n    " + "\n    ".join(snippet_lines),
-            file=sys.stderr,
-        )
-
-      # Track per-file error counts across build run and across iterations
-      file_diag_counts: Dict[str, int] = collections.defaultdict(int)
-      for d in diagnostics:
-        f_path = getattr(d, "file_path", "")
-        if f_path:
-          file_diag_counts[f_path] += 1
-
-      target_f = getattr(first_diag, "file_path", "")
-      rel_target_file = (
-          os.path.relpath(target_f, self.repo_path) if target_f else "")
-      if target_f:
-        self.file_error_counts[target_f] += 1
-
-      # Repetition check -> only count consecutive identical errors
-      if error_summary == last_error_summary:
-        stuck_count += 1
-      else:
-        stuck_count = 0
-      last_error_summary = error_summary
-
-      # --- Anti-Loop: Revert bad edits after repeated failures ---
-      if stuck_count in (3, 5) and rel_target_file and os.path.isfile(target_f):
-        print(
-            f"  [{self.name}] [Anti-Loop] Error '{error_summary}' repeated "
-            f"{stuck_count} times on {rel_target_file}. Reverting local edits "
-            f"in {rel_target_file} to clean baseline HEAD...",
-            file=sys.stderr,
-        )
-        try:
-          head_check = subprocess.run(
-              ["git", "show", f"HEAD:{rel_target_file}"],
-              cwd=self.repo_path,
-              capture_output=True,
-              text=True,
-              check=False,
-          )
-          if head_check.returncode == 0 and "<<<<<<<" in head_check.stdout:
-            print(
-                f"  [{self.name}] [Anti-Loop GUARD] Cannot revert "
-                f"{rel_target_file} to HEAD: HEAD contains raw conflict "
-                "markers. Keeping current working file.",
-                file=sys.stderr,
-            )
-          else:
-            subprocess.run(
-                ["git", "checkout", "HEAD", "--", rel_target_file],
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.on_patch_applied([target_f])
-            revert_msg = (
-                f"Reverted {rel_target_file} to clean baseline due to "
-                f"repeated failed fix attempts ({error_summary}). Please "
-                "re-investigate with an alternative approach.")
-            history_records.append({
-                "iteration": iteration,
-                "file": rel_target_file,
-                "error": revert_msg,
-                "status": "REVERTED_TO_BASELINE",
-            })
-            self.session_changes.append(
-                AgentChangeRecord(
-                    phase=self.name,
-                    iteration=iteration,
-                    target_file=rel_target_file,
-                    file_changes={
-                        rel_target_file:
-                            (f"# Reverted {rel_target_file} to clean "
-                             "baseline HEAD")
-                    },
-                    error=(f"Repeated failure ({error_summary}); reverted to "
-                           "baseline"),
-                    applied_cleanly=True,
-                ))
-        except (OSError, subprocess.SubprocessError) as rev_err:
-          print(
-              f"  [{self.name}] Notice: Revert failed for "
-              f"{rel_target_file}: {rev_err}",
-              file=sys.stderr,
-          )
-
-      # --- Anti-Loop Circuit Breaker: Abort runaway build loops ---
-      if stuck_count >= 8:
-        print(
-            f"\n[{self.name}] [CIRCUIT BREAKER] Aborting resolution loop: "
-            f"exceeded maximum repetition limit ({stuck_count}) on "
-            f"{rel_target_file or error_summary}. Halting runaway build.",
-            file=sys.stderr,
-        )
+      # Escalation while the same error repeats (stuck_count N means N
+      # failed fixes in a row): from 2 use the expert model; at 3 revert the
+      # file to HEAD so the model can retry from scratch, and again at 5 if
+      # that retry also fails; at 8 give up on this phase.
+      if (state.stuck_count in (3, 5) and rel_file and
+          os.path.isfile(diag.file_path)):
+        self._revert_to_baseline(diag.file_path, state)
+      if state.stuck_count >= 8:
+        log.warning(
+            "\n[%s] [CIRCUIT BREAKER] Aborting resolution loop: exceeded "
+            "maximum repetition limit (%s) on %s. Halting runaway "
+            "build.", self.name, state.stuck_count, rel_file or error_summary)
         return False
 
-      use_expert = stuck_count >= 2 or self.file_error_counts.get(target_f,
-                                                                  0) >= 3
-
-      # --- Step 1: Pre-Flight Strategic Review by Expert Agent ---
+      use_expert = (
+          state.stuck_count >= 2 or
+          self.file_error_counts.get(diag.file_path, 0) >= 3)
       expert_guidance = ""
       if self.reasoning_engine is not None:
-        action_label = (f"Consulting Expert Agent (repetition: {stuck_count})"
-                        if use_expert else
-                        "Performing Pre-Flight architectural review")
-        print(
-            f"  [{self.name}] [TIER-2 ARCHITECT] {action_label} for "
-            f"{target_f or self.name}...",
-            file=sys.stderr,
-        )
-        working_diff = self.get_working_diff(max_chars=200000)
+        expert_guidance = self._expert_preflight(
+            diagnostics, output + "\n" + (siso_out or ""), use_expert,
+            state.stuck_count)
 
-        # Collect modified files sorted by iteration number
-        entries_by_iter: List[str] = []
-        seen_files = set()
-        for rec in sorted(
-            self.session_changes,
-            key=lambda r: (
-                0 if getattr(r, "phase", "") in
-                ("resolve_conflicts", "conflicts") else 1,
-                r.iteration,
-            ),
-        ):
-          if not rec.file_changes:
-            continue
-          files = list(rec.file_changes.keys())
-          seen_files.update(files)
-          files_str = ", ".join(f"`{f}`" for f in files)
-          phase_lbl = (f"[{rec.phase}] " if getattr(rec, "phase", "") and
-                       rec.phase != self.name else "")
-          entries_by_iter.append(
-              f"- {phase_lbl}Iteration {rec.iteration}: {files_str}")
-
-        if entries_by_iter:
-          files_list_str = "\n".join(entries_by_iter)
-          full_trajectory = (
-              f"=== Files Modified in Current Session "
-              f"({len(seen_files)} files) ===\n"
-              f"{files_list_str}\n\n"
-              "FIRST-ROUND INVESTIGATION DIRECTIVE:\n"
-              "Review the failure and the list of modified files above.\n"
-              "Decide which file(s) you need to read and think about before "
-              "determining the fix.\n"
-              "Use investigation tools to inspect them on demand:\n"
-              "- `TOOL_READ_FILE: <filepath> [line_range]` to read source "
-              "context.\n"
-              "- `TOOL_GET_HISTORY: <filepath>` to view earlier "
-              "modifications/diffs for that file.\n"
-              "- `TOOL_UPSTREAM_DIFF: <filepath>` to inspect upstream "
-              "Chromium diff.\n"
-              "- `TOOL_COBALT_DIFF: <filepath>` to inspect what Cobalt"
-              "adds on top of upstream in this roll.\n")
-          print(
-              f"  [{self.name}] [TIER-2 ARCHITECT] Injected list of "
-              f"{len(seen_files)} modified session files into expert prompt.",
-              file=sys.stderr,
-          )
-        else:
-          full_trajectory = ""
-        raw_cmd_tail = (output + "\n" + (siso_out or ""))[-30000:]
-
-        def _format_diag(d: Any) -> str:
-          fp = getattr(d, "file_path", "")
-          ln = getattr(d, "line_number", 1)
-          msg = getattr(d, "error_message", str(d))
-          return f"- {fp}:{ln} {msg}"
-
-        all_diags_str = "\n".join(_format_diag(d) for d in diagnostics[:20])
-
-        if hasattr(first_diag, "error_message"):
-          notes_part = ("\n" + "\n".join(first_diag.notes)) if getattr(
-              first_diag, "notes", None) else ""
-          snippet_part = (f"\nSnippet:\n{first_diag.raw_snippet}") if getattr(
-              first_diag, "raw_snippet", None) else ""
-          diag_line = getattr(first_diag, "line_number", 1)
-          diag_file = getattr(first_diag, "file_path", "")
-          prefix = f"{diag_file}:{diag_line}: " if diag_file else ""
-          diag_trace = getattr(first_diag, "diagnostic_trace", None) or (
-              f"{prefix}{first_diag.error_message}{snippet_part}{notes_part}")
-        else:
-          diag_trace = str(first_diag)
-
-        file_ctx = ""
-        if hasattr(first_diag, "file_path") and os.path.isfile(
-            first_diag.file_path):
-          try:
-            with open(
-                first_diag.file_path, "r", encoding="utf-8",
-                errors="replace") as f:
-              lines = f.readlines()
-            ln = getattr(first_diag, "line_number", 1) or 1
-            s_l = max(1, ln - 30)
-            e_l = min(len(lines), ln + 30)
-            file_ctx = "".join(
-                f"{s_l + i}: {l}" for i, l in enumerate(lines[s_l - 1:e_l]))
-          except OSError:
-            pass
-
-        expert_investigation_history = ""
-        for expert_round in range(1, 4):
-          try:
-            guidance_res = self.reasoning_engine.generate_expert_guidance(
-                target=getattr(first_diag, "file_path", self.name),
-                diagnostics=diag_trace,
-                source_contexts=file_ctx,
-                trajectory_history=full_trajectory,
-                working_diff=working_diff,
-                raw_log=raw_cmd_tail,
-                all_diagnostics=all_diags_str,
-                investigation_history=expert_investigation_history,
-                mode="gn" if "gn" in self.name.lower() else
-                ("sync" if "sync" in self.name.lower() else "compiler"),
-                expert_model=getattr(self.reasoning_engine, "expert_model",
-                                     "gemini-3.8-flash"),
-            )
-            expert_guidance = guidance_res.get("guidance", "")
-            tool_cmds = extract_tool_commands(expert_guidance)
-            if tool_cmds and expert_round < 3:
-              batch_tool_res = []
-              for t_cmd in tool_cmds:
-                print(
-                    f"  [{self.name}] [TIER-2 ARCHITECT] Tool requested: "
-                    f"{t_cmd}",
-                    file=sys.stderr,
-                )
-                t_out = execute_local_tool(
-                    t_cmd,
-                    self.repo_path,
-                    session_changes=self.session_changes,
-                )
-                batch_tool_res.append(
-                    f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
-              expert_investigation_history += ("\n\n" +
-                                               "\n\n".join(batch_tool_res))
-              continue
-            break
-          except Exception as e:  # pylint: disable=broad-exception-caught
-            print(
-                f"  [{self.name}] Notice: Pre-flight expert guidance query: "
-                f"{e}",
-                file=sys.stderr,
-            )
-            break
-
-        if expert_guidance:
-          first_g_line = expert_guidance.splitlines()[0][:100]
-          print(
-              f"  [{self.name}] [TIER-2 ARCHITECT] Pre-Flight Plan:\n"
-              f"  >>> {first_g_line}...",
-              file=sys.stderr,
-          )
-
-      # --- Step 2: Workhorse Coding Agent Patch Generation (Gemini 3.7) ---
       patch, model_used, rel_target = self.resolve_diagnostic(
-          diagnostic=first_diag,
-          history_records=history_records,
+          diagnostic=diag,
+          history_records=state.history,
           use_expert=use_expert,
           expert_guidance=expert_guidance,
       )
-
-      # Check for multi-turn tool commands
       if extract_tool_commands(patch):
         patch, model_used = self.execute_investigation_tools(
             initial_patch=patch,
-            diagnostic=first_diag,
-            base_history_records=history_records,
+            diagnostic=diag,
+            base_history_records=state.history,
             expert_guidance=expert_guidance,
         )
-
       if not patch:
-        print(
-            f"[{self.name}] [FAIL] Model returned empty patch.",
-            file=sys.stderr,
-        )
+        log.warning("[%s] [FAIL] Model returned empty patch.", self.name)
         continue
+      self._apply_and_record(patch, model_used, rel_target, state)
 
-      print(
-          f"[{self.name}] Applying AI patch using {model_used} to "
-          f"{rel_target}...",
-          file=sys.stderr,
-      )
-      parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
-      modified_files = apply_parsed_patch(parsed, self.repo_path)
-      if modified_files:
-        mod_summary = ", ".join(
-            os.path.relpath(f, self.repo_path) for f in modified_files)
-        print(
-            f"[{self.name}] [OK] Patch applied cleanly to: {mod_summary}",
-            file=sys.stderr,
-        )
-        self.on_patch_applied(modified_files)
-        if self.reasoning_engine is not None:
-          pending_fix = {
-              "error": error_summary,
-              "patch": patch,
-              "file": rel_target,
-          }
-        file_changes = patch_file_changes(
-            parsed, self.repo_path, default_file=rel_target)
-        new_record = AgentChangeRecord(
-            phase=self.name,
-            iteration=iteration,
-            target_file=rel_target,
-            file_changes=file_changes,
-            error=None,
-            command_output=None,
-            applied_cleanly=True,
-        )
-        self.session_changes.append(new_record)
-        pending_record = new_record
-        history_records.append({
-            "iteration": iteration,
-            "file": rel_target,
-            "error": error_summary,
-            "status": "APPLIED",
-        })
-      else:
-        print(
-            f"[{self.name}] [FAIL] Could not apply patch to {rel_target}.\n"
-            f"  [AI Patch Preview]:\n"
-            f"  {patch[:300].strip()}",
-            file=sys.stderr,
-        )
-        fail_record = AgentChangeRecord(
-            phase=self.name,
-            iteration=iteration,
-            target_file=rel_target,
-            file_changes={rel_target: patch},
-            error=f"Patch failed to apply to {rel_target}",
-            command_output=None,
-            applied_cleanly=False,
-        )
-        self.session_changes.append(fail_record)
-        pending_record = None
-        history_records.append({
-            "iteration": iteration,
-            "file": rel_target,
-            "error": (
-                f"Patch failed to apply to {rel_target}. Ensure <<<<<<< SEARCH "
-                "matches exact file lines and >>>>>>> REPLACE contains clean "
-                "code without stray conflict markers."),
-            "status": "FAILED_TO_APPLY",
-        })
-
-    print(
-        f"[{self.name}] [FAIL] Exhausted maximum iterations "
-        f"({self.max_iterations}).",
-        file=sys.stderr,
-    )
+    log.warning("[%s] [FAIL] Exhausted maximum iterations (%s).", self.name,
+                self.max_iterations)
     return False
+
+  def _rel_path(self, path: str) -> str:
+    """Repo-relative form of a diagnostic path ("" stays "")."""
+    if not path:
+      return ""
+    try:
+      return os.path.relpath(path, self.repo_path)
+    except ValueError:
+      return path
+
+  def _collect_diagnostics(self, output: str,
+                           siso_out: str) -> List[Diagnostic]:
+    """Parses the failure; bare strings and empty results become Diagnostic."""
+    diagnostics = [
+        d if isinstance(d, Diagnostic) else Diagnostic(error_message=str(d))
+        for d in self.extract_diagnostics(output, siso_out)
+    ]
+    if not diagnostics:
+      log.warning(
+          "[%s] [WARNING] Command failed but no structured "
+          "diagnostics parsed. Using raw output snippet...", self.name)
+      diagnostics = [Diagnostic(error_message=output)]
+    return diagnostics
+
+  def _credit_pending_fix(self, state: _LoopState) -> None:
+    """Stores the last applied fix in the engine's memory, then forgets it."""
+    if state.pending_fix and self.reasoning_engine is not None:
+      self.reasoning_engine.record_successful_fix(
+          issue_description=state.pending_fix["error"],
+          solution_diff=state.pending_fix["patch"],
+          target_file=state.pending_fix["file"],
+      )
+    state.pending_fix = None
+
+  def _record_build_outcome(self, state: _LoopState, error_summary: str,
+                            rel_file: str, command_output: str) -> None:
+    """Attaches this failure to the previous patch attempt."""
+    if state.pending_record is not None:
+      state.pending_record.error = error_summary
+      state.pending_record.command_output = command_output[-4000:]
+    # The previous fix counts as successful if its error went away.
+    if state.pending_fix and (state.pending_fix["error"],
+                              state.pending_fix["file"]) == (error_summary,
+                                                             rel_file):
+      state.pending_fix = None
+    self._credit_pending_fix(state)
+
+  def _print_failure(self, diagnostics: List[Diagnostic], error_summary: str,
+                     rel_file: str) -> None:
+    diag = diagnostics[0]
+    loc_str = f" in {rel_file}:{diag.line_number}" if rel_file else ""
+    log.info("[%s] Detected %s error(s):\n  - Error%s: %s", self.name,
+             len(diagnostics), loc_str, error_summary)
+    if diag.raw_snippet:
+      snippet_lines = diag.raw_snippet.strip().splitlines()[:5]
+      log.info("  [Compiler Snippet]:\n    %s", "\n    ".join(snippet_lines))
+
+  def _revert_to_baseline(self, abs_path: str, state: _LoopState) -> None:
+    """Anti-loop: restores a file to HEAD after repeated identical failures."""
+    rel_file = self._rel_path(abs_path)
+    error_summary = state.last_error
+    iteration = state.iteration
+    log.info(
+        "  [%s] [Anti-Loop] Error '%s' repeated %s times on %s. "
+        "Reverting local edits in %s to clean baseline HEAD...", self.name,
+        error_summary, state.stuck_count, rel_file, rel_file)
+    try:
+      head_check = subprocess.run(
+          ["git", "show", f"HEAD:{rel_file}"],
+          cwd=self.repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      if head_check.returncode == 0 and "<<<<<<<" in head_check.stdout:
+        log.info(
+            "  [%s] [Anti-Loop GUARD] Cannot revert %s to HEAD: HEAD "
+            "contains raw conflict markers. Keeping current working "
+            "file.", self.name, rel_file)
+        return
+      subprocess.run(
+          ["git", "checkout", "HEAD", "--", rel_file],
+          cwd=self.repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      self.on_patch_applied([abs_path])
+    except (OSError, subprocess.SubprocessError) as rev_err:
+      log.info("  [%s] Notice: Revert failed for %s: %s", self.name, rel_file,
+               rev_err)
+      return
+    state.history.append({
+        "iteration": iteration,
+        "file": rel_file,
+        "error": (f"Reverted {rel_file} to clean baseline due to repeated "
+                  f"failed fix attempts ({error_summary}). Please "
+                  "re-investigate with an alternative approach."),
+        "status": "REVERTED_TO_BASELINE",
+    })
+    self.session_changes.append(
+        AgentChangeRecord(
+            phase=self.name,
+            iteration=iteration,
+            target_file=rel_file,
+            file_changes={
+                rel_file: f"# Reverted {rel_file} to clean baseline HEAD"
+            },
+            error=f"Repeated failure ({error_summary}); reverted to baseline",
+            applied_cleanly=True,
+        ))
+
+  def _session_trajectory(self) -> str:
+    """Lists files modified so far this session, for the expert prompt."""
+    entries: List[str] = []
+    seen_files = set()
+    for rec in sorted(
+        self.session_changes,
+        key=lambda r: (0 if r.phase in
+                       ("resolve_conflicts", "conflicts") else 1, r.iteration),
+    ):
+      if not rec.file_changes:
+        continue
+      files = list(rec.file_changes.keys())
+      seen_files.update(files)
+      files_str = ", ".join(f"`{f}`" for f in files)
+      other_phase = rec.phase and rec.phase != self.name
+      phase_lbl = f"[{rec.phase}] " if other_phase else ""
+      entries.append(f"- {phase_lbl}Iteration {rec.iteration}: {files_str}")
+    if not entries:
+      return ""
+    log.info(
+        "  [%s] [TIER-2 ARCHITECT] Injected list of %s modified "
+        "session files into expert prompt.", self.name, len(seen_files))
+    files_list_str = "\n".join(entries)
+    return (f"=== Files Modified in Current Session "
+            f"({len(seen_files)} files) ===\n"
+            f"{files_list_str}\n\n"
+            "FIRST-ROUND INVESTIGATION DIRECTIVE:\n"
+            "Review the failure and the list of modified files above.\n"
+            "Decide which file(s) you need to read and think about before "
+            "determining the fix.\n"
+            "Use investigation tools to inspect them on demand:\n"
+            "- `TOOL_READ_FILE: <filepath> [line_range]` to read source "
+            "context.\n"
+            "- `TOOL_GET_HISTORY: <filepath>` to view earlier "
+            "modifications/diffs for that file.\n"
+            "- `TOOL_UPSTREAM_DIFF: <filepath>` to inspect upstream "
+            "Chromium diff.\n"
+            "- `TOOL_COBALT_DIFF: <filepath>` to inspect what Cobalt"
+            "adds on top of upstream in this roll.\n")
+
+  @staticmethod
+  def _source_context(diag: Diagnostic, radius: int = 30) -> str:
+    """Numbered source lines around the diagnostic location."""
+    if not os.path.isfile(diag.file_path):
+      return ""
+    try:
+      with open(diag.file_path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+    except OSError:
+      return ""
+    ln = diag.line_number or 1
+    start = max(1, ln - radius)
+    end = min(len(lines), ln + radius)
+    return "".join(
+        f"{start + i}: {l}" for i, l in enumerate(lines[start - 1:end]))
+
+  def _expert_preflight(self, diagnostics: List[Diagnostic],
+                        command_output: str, use_expert: bool,
+                        stuck_count: int) -> str:
+    """Tier-2 review: asks the expert model for a plan before patching.
+
+    The expert may run up to two rounds of investigation tools first.
+    Returns the guidance text ("" on failure).
+    """
+    diag = diagnostics[0]
+    action_label = (f"Consulting Expert Agent (repetition: {stuck_count})"
+                    if use_expert else
+                    "Performing Pre-Flight architectural review")
+    log.info("  [%s] [TIER-2 ARCHITECT] %s for %s...", self.name, action_label,
+             diag.file_path or self.name)
+    working_diff = self.get_working_diff(max_chars=200000)
+    trajectory = self._session_trajectory()
+    all_diags_str = "\n".join(f"- {d.file_path}:{d.line_number} "
+                              f"{d.error_message}" for d in diagnostics[:20])
+    source_context = self._source_context(diag)
+    name = self.name.lower()
+    mode = "gn" if "gn" in name else ("sync" if "sync" in name else "compiler")
+
+    expert_guidance = ""
+    investigation_history = ""
+    for expert_round in range(1, 4):
+      try:
+        guidance_res = self.reasoning_engine.generate_expert_guidance(
+            target=diag.file_path or self.name,
+            diagnostics=diag.trace(),
+            source_contexts=source_context,
+            trajectory_history=trajectory,
+            working_diff=working_diff,
+            raw_log=command_output[-30000:],
+            all_diagnostics=all_diags_str,
+            investigation_history=investigation_history,
+            mode=mode,
+            expert_model=getattr(self.reasoning_engine, "expert_model",
+                                 "gemini-3.8-flash"),
+        )
+        expert_guidance = guidance_res.get("guidance", "")
+        tool_cmds = extract_tool_commands(expert_guidance)
+        if not tool_cmds or expert_round == 3:
+          break
+        investigation_history += "\n\n" + self._run_expert_tools(tool_cmds)
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        log.info("  [%s] Notice: Pre-flight expert guidance query: %s",
+                 self.name, e)
+        break
+
+    if expert_guidance:
+      log.info("  [%s] [TIER-2 ARCHITECT] Pre-Flight Plan:\n  >>> %s...",
+               self.name,
+               expert_guidance.splitlines()[0][:100])
+    return expert_guidance
+
+  def _run_expert_tools(self, tool_cmds: List[str]) -> str:
+    """Runs tools requested by the expert; returns their formatted results."""
+    results = []
+    for t_cmd in tool_cmds:
+      log.info("  [%s] [TIER-2 ARCHITECT] Tool requested: %s", self.name, t_cmd)
+      t_out = execute_local_tool(
+          t_cmd, self.repo_path, session_changes=self.session_changes)
+      results.append(f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
+    return "\n\n".join(results)
+
+  def _apply_and_record(self, patch: str, model_used: str, rel_target: str,
+                        state: _LoopState) -> None:
+    """Applies the model's patch and records the attempt either way."""
+    iteration = state.iteration
+    log.info("[%s] Applying AI patch using %s to %s...", self.name, model_used,
+             rel_target)
+    parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
+    modified_files = apply_parsed_patch(parsed, self.repo_path)
+    if not modified_files:
+      log.warning(
+          "[%s] [FAIL] Could not apply patch to %s.\n  [AI Patch "
+          "Preview]:\n  %s", self.name, rel_target, patch[:300].strip())
+      self.session_changes.append(
+          AgentChangeRecord(
+              phase=self.name,
+              iteration=iteration,
+              target_file=rel_target,
+              file_changes={rel_target: patch},
+              error=f"Patch failed to apply to {rel_target}",
+              command_output=None,
+              applied_cleanly=False,
+          ))
+      state.pending_record = None
+      state.history.append({
+          "iteration": iteration,
+          "file": rel_target,
+          "error":
+              (f"Patch failed to apply to {rel_target}. Ensure <<<<<<< SEARCH "
+               "matches exact file lines and >>>>>>> REPLACE contains clean "
+               "code without stray conflict markers."),
+          "status": "FAILED_TO_APPLY",
+      })
+      return
+
+    mod_summary = ", ".join(
+        os.path.relpath(f, self.repo_path) for f in modified_files)
+    log.info("[%s] [OK] Patch applied cleanly to: %s", self.name, mod_summary)
+    self.on_patch_applied(modified_files)
+    if self.reasoning_engine is not None:
+      state.pending_fix = {
+          "error": state.last_error,
+          "patch": patch,
+          "file": rel_target,
+      }
+    state.pending_record = AgentChangeRecord(
+        phase=self.name,
+        iteration=iteration,
+        target_file=rel_target,
+        file_changes=patch_file_changes(
+            parsed, self.repo_path, default_file=rel_target),
+        error=None,
+        command_output=None,
+        applied_cleanly=True,
+    )
+    self.session_changes.append(state.pending_record)
+    state.history.append({
+        "iteration": iteration,
+        "file": rel_target,
+        "error": state.last_error,
+        "status": "APPLIED",
+    })

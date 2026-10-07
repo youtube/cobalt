@@ -8,10 +8,10 @@ compilation progress until a clean build is achieved.
 """
 
 import dataclasses
+import logging
 import os
 import re
 import subprocess
-import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
@@ -19,10 +19,15 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     format_history_records,
+)
+from diagnostics import Diagnostic, CompilerDiagnostic
+from repo_guards import (
     get_clean_build_env,
     is_unmodified_third_party,
     resolve_repo_file_path,
 )
+
+log = logging.getLogger(__name__)
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -58,18 +63,6 @@ TEXT_FILE_EXTENSIONS = SOURCE_CODE_EXTENSIONS + BUILD_FILE_EXTENSIONS + (
 )
 
 MAX_CONTEXT_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-
-
-@dataclasses.dataclass
-class CompilerDiagnostic:
-  """Represents a compiler diagnostic error parsed from ninja build logs."""
-
-  file_path: str
-  line_number: int
-  column: int
-  error_message: str
-  raw_snippet: str
-  notes: List[str]
 
 
 def find_referencing_build_file(
@@ -474,10 +467,7 @@ class AutoninjaResolver(BaseResolver):
         self.target,
     ]
     cmd_str = " ".join(cmd)
-    print(
-        f"\n[autoninja] Executing: {cmd_str} in {self.repo_path}",
-        file=sys.stderr,
-    )
+    log.info("\n[autoninja] Executing: %s in %s", cmd_str, self.repo_path)
     try:
       proc = subprocess.run(
           cmd,
@@ -493,30 +483,23 @@ class AutoninjaResolver(BaseResolver):
       siso_snippet = read_siso_output_snippet(siso_path)
 
       if proc.returncode != 0:
-        print(
-            f"\n[autoninja FAIL (exit code {proc.returncode})]",
-            file=sys.stderr,
-        )
+        log.info("\n[autoninja FAIL (exit code %s)]", proc.returncode)
         if proc.stdout and proc.stdout.strip():
-          print(
-              f"--- stdout ---\n{proc.stdout.strip()[:10000]}", file=sys.stderr)
+          log.info("--- stdout ---\n%s", proc.stdout.strip()[:10000])
         if proc.stderr and proc.stderr.strip():
-          print(
-              f"--- stderr ---\n{proc.stderr.strip()[:10000]}", file=sys.stderr)
+          log.info("--- stderr ---\n%s", proc.stderr.strip()[:10000])
         if siso_snippet and siso_snippet.strip():
-          print(
-              f"--- siso_output ---\n{siso_snippet.strip()[:10000]}",
-              file=sys.stderr)
+          log.info("--- siso_output ---\n%s", siso_snippet.strip()[:10000])
 
       return proc.returncode == 0, combined_output, siso_snippet
     except Exception as e:  # pylint: disable=broad-exception-caught
       err_msg = f"Subprocess execution failed: {e}"
-      print(f"[autoninja ERROR] {err_msg}", file=sys.stderr)
+      log.info("[autoninja ERROR] %s", err_msg)
       return False, err_msg, ""
 
   def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Any]:
-    diags: List[Any] = []
+                          siso_output: str) -> List[Diagnostic]:
+    diags: List[Diagnostic] = []
     if siso_output and siso_output.strip():
       diags = parse_compiler_errors(siso_output, self.repo_path)
     if not diags and build_output and build_output.strip():
@@ -534,20 +517,21 @@ class AutoninjaResolver(BaseResolver):
           raw_chunks.append("Build stdout/stderr:\n" +
                             "\n".join(meaningful_lines[:100]))
       if raw_chunks:
-        diags = ["\n\n".join(raw_chunks)]
+        diags = [Diagnostic(error_message="\n\n".join(raw_chunks))]
     return diags
 
   # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
-    if isinstance(diagnostic, str):
-      error_trace = diagnostic[:32768]
+    if not isinstance(diagnostic, CompilerDiagnostic):
+      # Unstructured build output: let the model work from the raw text.
+      error_trace = diagnostic.error_message[:32768]
       history_items = []
       for h in history_records[-5:]:
         it = h.get("iteration", "")
@@ -577,9 +561,6 @@ class AutoninjaResolver(BaseResolver):
       model_used = res.get("model_used", self.model)
       return patch, model_used, target_cand or self.target
 
-    if not isinstance(diagnostic, CompilerDiagnostic):
-      return "", self.model, ""
-
     # Fast-path: Automatically remove stray conflict marker lines
     stray_res = self.check_and_clean_stray_marker(diagnostic.file_path,
                                                   diagnostic.line_number)
@@ -608,11 +589,8 @@ class AutoninjaResolver(BaseResolver):
           if send_full_file:
             rel_path = os.path.relpath(diagnostic.file_path, self.repo_path)
             label = "build" if is_build_file else "source"
-            print(
-                f"  [{self.name}] Sending full {label} file context "
-                f"({len(lines)} lines) for {rel_path}...",
-                file=sys.stderr,
-            )
+            log.info("  [%s] Sending full %s file context (%s lines) for %s...",
+                     self.name, label, len(lines), rel_path)
             file_context = "".join(f"{i + 1}: {l}" for i, l in enumerate(lines))
           else:
             s_line = max(1, diagnostic.line_number - 35)

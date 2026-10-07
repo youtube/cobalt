@@ -16,28 +16,35 @@ from autoninja import (
     find_referencing_build_file,
     parse_compiler_errors,
 )
+import base_resolver
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
-    _COBALT_GIT_HISTORY_CACHE,
-    _find_unique_tracked_file,
+    extract_meaningful_error_summary,
+    format_history_records,
+)
+from diagnostics import Diagnostic
+from patching import (
     apply_parsed_patch,
     apply_patch_or_replacement,
     apply_search_replace,
-    execute_local_tool,
-    extract_build_progress,
-    extract_line_anchored_tool_commands,
-    extract_meaningful_error_summary,
-    extract_tool_commands,
-    format_history_records,
-    get_chromium_milestone,
+    parse_patch,
+    patch_file_changes,
+)
+from repo_guards import (
+    _COBALT_GIT_HISTORY_CACHE,
+    _find_unique_tracked_file,
     has_cobalt_git_history,
     is_unmodified_third_party,
     is_within_repo,
-    parse_patch,
-    patch_file_changes,
     resolve_repo_file_path,
     validate_patch_target,
+)
+from run_rebase_pipeline import get_chromium_milestone
+from tools import (
+    execute_local_tool,
+    extract_line_anchored_tool_commands,
+    extract_tool_commands,
 )
 from conflicts import (
     detect_language,
@@ -389,21 +396,6 @@ void Foo() {{}}
       if os.path.exists(tmp_path):
         os.remove(tmp_path)
 
-  def test_extract_build_progress(self):
-    """Tests extraction of Ninja and Siso build step progress."""
-    # Ninja format
-    sample_ninja = ("[11464/39292] 3m35.89s F ACTION //foo:bar\n"
-                    "[11465/39291] 3m35.90s S ACTION //foo:baz\n")
-    res = extract_build_progress(sample_ninja)
-    self.assertIn("11465/39291", res)
-    self.assertIn("29.2%", res)
-
-    # Siso format
-    sample_siso = "build finished: Stats{Done:50222, Fail:1, Total:50832}"
-    res_siso = extract_build_progress("", sample_siso)
-    self.assertIn("50222/50832", res_siso)
-    self.assertIn("98.8%", res_siso)
-
   def test_autoninja_sends_full_file_context_on_repeated_errors(self):
     """Tests sending full source files when error count >= 3."""
     with tempfile.NamedTemporaryFile("w+", suffix=".cc", delete=False) as tmp:
@@ -469,7 +461,7 @@ void Foo() {{}}
     raw_error = (
         "FAILED: obj/cobalt/apk/cobalt_apk.jar\njavac: package not found")
     patch, model_used, rel_target = resolver.resolve_diagnostic(
-        raw_error, [], use_pro=False)
+        Diagnostic(error_message=raw_error), [], use_pro=False)
     self.assertEqual(patch, "PATCH")
     self.assertEqual(model_used, "gemini-2.5-flash")
     self.assertEqual(rel_target, "cobalt_apk")
@@ -827,8 +819,8 @@ void Foo() {{}}
       diags = resolver.extract_diagnostics(
           build_output="", siso_output=java_output)
       self.assertEqual(len(diags), 1)
-      self.assertIsInstance(diags[0], str)
-      self.assertIn("Java compilation failed", diags[0])
+      self.assertIs(type(diags[0]), Diagnostic)
+      self.assertIn("Java compilation failed", diags[0].error_message)
 
   def test_record_and_load_memory(self):
     """Tests recording and loading knowledge memory bank entries on engine."""
@@ -1491,13 +1483,11 @@ target("foo") {{}}
       os.makedirs(os.path.dirname(pure_tp), exist_ok=True)
       with open(pure_tp, "w", encoding="utf-8") as f:
         f.write("// upstream zlib header\n")
-      with mock.patch(
-          "base_resolver.has_cobalt_git_history", return_value=False):
+      with mock.patch("repo_guards.has_cobalt_git_history", return_value=False):
         self.assertTrue(is_unmodified_third_party(pure_tp, tmpdir))
 
       # 4. Third-party file with Cobalt git history is recognized as modified
-      with mock.patch(
-          "base_resolver.has_cobalt_git_history", return_value=True):
+      with mock.patch("repo_guards.has_cobalt_git_history", return_value=True):
         self.assertFalse(is_unmodified_third_party(pure_tp, tmpdir))
 
       # 5. Third-party file containing Cobalt macro is recognized as modified
@@ -1505,8 +1495,7 @@ target("foo") {{}}
       os.makedirs(os.path.dirname(cobalt_tp), exist_ok=True)
       with open(cobalt_tp, "w", encoding="utf-8") as f:
         f.write("#if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)\n")
-      with mock.patch(
-          "base_resolver.has_cobalt_git_history", return_value=False):
+      with mock.patch("repo_guards.has_cobalt_git_history", return_value=False):
         self.assertFalse(is_unmodified_third_party(cobalt_tp, tmpdir))
 
   def test_forked_third_party_metadata_is_not_patchable(self):
@@ -2650,6 +2639,76 @@ class AtomicPatchTest(unittest.TestCase):
     self.assertIn("int a2 = 20;", content)
 
 
+class DiagnosticTest(unittest.TestCase):
+  """Common Diagnostic base and its use in run_resolution_loop."""
+
+  def test_trace_includes_location_snippet_and_notes(self):
+    d = Diagnostic(
+        error_message="boom",
+        file_path="a.cc",
+        line_number=7,
+        raw_snippet="ctx",
+        notes=["note: here"])
+    self.assertEqual(d.trace(), "a.cc:7: boom\nSnippet:\nctx\nnote: here")
+    self.assertEqual(Diagnostic(error_message="raw").trace(), "raw")
+
+  def test_gclient_trace_prefers_sync_trace(self):
+    d = GClientSyncDiagnostic(
+        error_message="e", raw_output="out", diagnostic_trace="TRACE")
+    self.assertEqual(d.trace(), "TRACE")
+    self.assertEqual(d.file_path, "DEPS")
+
+  def _resolver(self, outputs, seen):
+    """Resolver whose command fails with each of `outputs`, then succeeds."""
+
+    class _Resolver(BaseResolver):
+      """Minimal resolver driven by canned command outputs."""
+
+      @property
+      def name(self):
+        return "DiagTest"
+
+      def run_command(self, iteration):
+        if iteration <= len(outputs):
+          return False, outputs[iteration - 1], ""
+        return True, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del siso_output
+        return [build_output]  # Bare string, as older subclasses return.
+
+      def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
+        del history_records, kwargs
+        seen.append(diagnostic)
+        return "", "flash", ""
+
+    return _Resolver(tempfile.gettempdir(), max_iterations=5)
+
+  def test_loop_wraps_bare_string_diagnostics(self):
+    seen = []
+    self.assertTrue(self._resolver(["raw failure"], seen).run_resolution_loop())
+    self.assertEqual(len(seen), 1)
+    self.assertIsInstance(seen[0], Diagnostic)
+    self.assertEqual(seen[0].error_message, "raw failure")
+
+  def test_pending_fix_credited_only_when_error_changes(self):
+    engine = mock.Mock()
+    resolver = self._resolver([], [])
+    resolver.reasoning_engine = engine
+    state = base_resolver._LoopState()  # pylint: disable=protected-access
+    fix = {"error": "E1", "patch": "P", "file": "a.cc"}
+
+    state.pending_fix = dict(fix)
+    resolver._record_build_outcome(state, "E1", "a.cc", "out")  # pylint: disable=protected-access
+    engine.record_successful_fix.assert_not_called()
+    self.assertIsNone(state.pending_fix)
+
+    state.pending_fix = dict(fix)
+    resolver._record_build_outcome(state, "E2", "a.cc", "out")  # pylint: disable=protected-access
+    engine.record_successful_fix.assert_called_once_with(
+        issue_description="E1", solution_diff="P", target_file="a.cc")
+
+
 class SearchReplaceMatchLevelsTest(unittest.TestCase):
   """apply_search_replace match levels and write-back."""
 
@@ -2752,14 +2811,14 @@ class GitToolOptionInjectionTest(unittest.TestCase):
   def test_git_diff_rejects_output_option(self):
     with tempfile.TemporaryDirectory() as repo:
       target = os.path.join(repo, "pwned")
-      with mock.patch("base_resolver.subprocess.run") as run:
+      with mock.patch("tools.subprocess.run") as run:
         out = execute_local_tool(f"TOOL_GIT_DIFF: --output={target}", repo)
       run.assert_not_called()
       self.assertIn("[ERROR]", out or "")
       self.assertFalse(os.path.exists(target))
 
   def test_git_diff_allows_read_only_flags_and_paths(self):
-    with mock.patch("base_resolver.subprocess.run") as run:
+    with mock.patch("tools.subprocess.run") as run:
       run.return_value = mock.Mock(stdout="diff", returncode=0)
       execute_local_tool("TOOL_GIT_DIFF: --stat -U5 HEAD -- -odd-name.cc",
                          "/repo")
@@ -2769,13 +2828,13 @@ class GitToolOptionInjectionTest(unittest.TestCase):
     self.assertEqual(cmd[-5:], ["--stat", "-U5", "HEAD", "--", "-odd-name.cc"])
 
   def test_git_show_rejects_option_ref(self):
-    with mock.patch("base_resolver.subprocess.run") as run:
+    with mock.patch("tools.subprocess.run") as run:
       out = execute_local_tool("TOOL_GIT_SHOW: --output=/tmp/x", "/repo")
     run.assert_not_called()
     self.assertIn("[ERROR]", out or "")
 
   def test_grep_query_passed_with_e_flag(self):
-    with mock.patch("base_resolver.subprocess.run") as run:
+    with mock.patch("tools.subprocess.run") as run:
       run.return_value = mock.Mock(stdout="", returncode=1)
       execute_local_tool("TOOL_GREP: --open-files-in-pager=sh", "/repo")
     cmd = run.call_args[0][0]

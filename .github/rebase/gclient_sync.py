@@ -7,7 +7,7 @@ traces, prompts Gemini via Vertex AI Reasoning Engine to heal DEPS syntax
 and revision errors, and validates Python AST before resuming sync.
 """
 
-import dataclasses
+import logging
 import os
 import re
 import subprocess
@@ -19,9 +19,11 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     format_history_records,
-    get_clean_build_env,
-    resolve_repo_file_path,
 )
+from diagnostics import Diagnostic, GClientSyncDiagnostic
+from repo_guards import get_clean_build_env, resolve_repo_file_path
+
+log = logging.getLogger(__name__)
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -51,17 +53,6 @@ DEFAULT_SYNC_FLAGS = [
     "--shallow",
     "--delete_unversioned_trees",
 ]
-
-
-@dataclasses.dataclass
-class GClientSyncDiagnostic:
-  """Represents a gclient sync error diagnostic."""
-
-  error_message: str
-  raw_output: str
-  diagnostic_trace: str
-  file_path: str = "DEPS"
-  line_number: int = 1
 
 
 def extract_sync_diagnostic_trace(output: str) -> str:
@@ -123,11 +114,8 @@ class GClientSyncResolver(BaseResolver):
     cfg_script = os.path.join(self.repo_path, "build", "config", "siso",
                               "configure_siso.py")
     if os.path.exists(cfg_script):
-      print(
-          f"[{self.name}] Configuring Siso environment via "
-          "configure_siso.py...",
-          file=sys.stderr,
-      )
+      log.info("[%s] Configuring Siso environment via configure_siso.py...",
+               self.name)
       subprocess.run(
           [
               sys.executable,
@@ -146,10 +134,7 @@ class GClientSyncResolver(BaseResolver):
     clean_env = get_clean_build_env()
     cmd = ["gclient", "sync"] + self.flags
     cmd_str = " ".join(cmd)
-    print(
-        f"\n[gclient_sync] Executing: {cmd_str} in {self.repo_path}",
-        file=sys.stderr,
-    )
+    log.info("\n[gclient_sync] Executing: %s in %s", cmd_str, self.repo_path)
     try:
       proc = subprocess.run(
           cmd,
@@ -165,11 +150,9 @@ class GClientSyncResolver(BaseResolver):
         return True, combined_output, ""
 
       # Auto-recover with --force --reset
-      print(
-          f"[WARNING] gclient sync returned {proc.returncode}. "
-          "Retrying with --force --reset...",
-          file=sys.stderr,
-      )
+      log.warning(
+          "[WARNING] gclient sync returned %s. Retrying with --force "
+          "--reset...", proc.returncode)
       retry_cmd = ["gclient", "sync"] + self.flags + ["--force", "--reset"]
       proc_retry = subprocess.run(
           retry_cmd,
@@ -181,11 +164,8 @@ class GClientSyncResolver(BaseResolver):
       )
       retry_output = f"{proc_retry.stdout}\n{proc_retry.stderr}"
       if proc_retry.returncode != 0:
-        print(
-            f"[ERROR] gclient sync failed with exit code "
-            f"{proc_retry.returncode}:\n{retry_output.strip()}",
-            file=sys.stderr,
-        )
+        log.warning("[ERROR] gclient sync failed with exit code %s:\n%s",
+                    proc_retry.returncode, retry_output.strip())
       else:
         self._ensure_siso_configured(clean_env)
       return proc_retry.returncode == 0, retry_output, ""
@@ -193,7 +173,7 @@ class GClientSyncResolver(BaseResolver):
       return False, f"Subprocess execution failed: {e}", ""
 
   def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Any]:
+                          siso_output: str) -> List[Diagnostic]:
     del siso_output  # Unused in gclient sync
     diag_trace = extract_sync_diagnostic_trace(build_output)
     non_empty = [l.strip() for l in diag_trace.splitlines() if l.strip()]
@@ -215,7 +195,7 @@ class GClientSyncResolver(BaseResolver):
   # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
-      diagnostic: Any,
+      diagnostic: Diagnostic,
       history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
