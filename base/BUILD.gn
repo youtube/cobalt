@@ -1179,7 +1179,6 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-<<<<<<< HEAD
   if (use_asan_backup_ref_ptr) {
     # raw_ptr_asan_service.cc depends on:
     deps += [ "//base/allocator/partition_allocator/src/partition_alloc" ]
@@ -1188,17 +1187,11 @@ component("base") {
     }
   }
 
-  sources += [
-    "containers/span_rust.h",
-    "strings/string_view_rust.h",
-  ]
-=======
   if (!(is_cobalt && is_partner_toolchain)) {
     sources += [
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Base provides conversions between CXX types and base types (e.g.
     # std::string_view).
@@ -4062,15 +4055,12 @@ test("base_unittests") {
     "//base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
-<<<<<<< HEAD
+  }
 
   if (is_asan) {
     sources += [ "memory/raw_ptr_asan_unittest.cc" ]
   }
 
-=======
-  }
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
   }
