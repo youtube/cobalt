@@ -83,7 +83,9 @@ class TestFilterExpectedTests(unittest.TestCase):
     }
     result = filter_expected_tests(self.sample_targets, run_flags)
     targets = [t['target'] for t in result]
-    self.assertEqual(targets, ['e2e:browse_test', 'yts:yts_finch'])
+    # YTS tests are excluded from expected tests because they do not output
+    # JUnit XMLs.
+    self.assertEqual(targets, ['e2e:browse_test'])
 
 
 if __name__ == '__main__':

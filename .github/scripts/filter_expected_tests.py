@@ -30,6 +30,10 @@ def filter_expected_tests(targets: List[Dict[str, Any]],
     test_type = t.get('test_type')
     if not test_type:
       continue
+    # YTS internal tests report status directly via their workflow jobs
+    # and do not produce XML test outputs for the test-results matrix.
+    if test_type.startswith('yts_'):
+      continue
     runs_on = t.get('runs_on', 'host')
     flag_key = f'gtest_{runs_on}' if test_type in ('gtest',
                                                    'junit') else test_type
