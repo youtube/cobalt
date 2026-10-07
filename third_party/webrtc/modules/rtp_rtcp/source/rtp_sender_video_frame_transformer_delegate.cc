@@ -164,14 +164,15 @@ RTPSenderVideoFrameTransformerDelegate::RTPSenderVideoFrameTransformerDelegate(
     scoped_refptr<FrameTransformerInterface> frame_transformer,
     uint32_t ssrc,
     std::string rid,
-    TaskQueueFactory* task_queue_factory)
+    TaskQueueFactory* task_queue_factory,
+    TaskQueueFactory::Priority transformation_queue_priority)
     : sender_(sender),
       frame_transformer_(std::move(frame_transformer)),
       ssrc_(ssrc),
       rid_(std::move(rid)),
-      transformation_queue_(task_queue_factory->CreateTaskQueue(
-          "video_frame_transformer",
-          TaskQueueFactory::Priority::NORMAL)) {}
+      transformation_queue_(
+          task_queue_factory->CreateTaskQueue("VideoFrameTransformerQueue",
+                                              transformation_queue_priority)) {}
 
 void RTPSenderVideoFrameTransformerDelegate::Init() {
   frame_transformer_->RegisterTransformedFrameSinkCallback(

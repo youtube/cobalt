@@ -2869,15 +2869,10 @@ THREADED_TEST(DescriptorInheritance2) {
 
 // Helper functions for Interceptor/Accessor interaction tests
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> self = info.This().As<Object>();
-  CHECK_EQ(info.This(), info.HolderV2());
+  Local<Object> self = info.HolderV2();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(),
                 String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
@@ -2887,17 +2882,12 @@ void SimpleAccessorGetter(Local<String> name,
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> self = info.This().As<Object>();
-  CHECK_EQ(info.This(), info.HolderV2());
+  Local<Object> self = info.HolderV2();
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
                   String::Concat(info.GetIsolate(), v8_str("accessor_"), name),
                   value)
             .FromJust());
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -3352,62 +3342,6 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0,
                                                             kTestTypeTagA));
 }
-
-START_ALLOW_USE_DEPRECATED()
-THREADED_TEST(SetAlignedPointerInInternalFields) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(2);
-  Local<v8::Object> obj = templ->GetFunction(env.local())
-                              .ToLocalChecked()
-                              ->NewInstance(env.local())
-                              .ToLocalChecked();
-  CHECK_EQ(2, obj->InternalFieldCount());
-
-  int* heap_allocated_1 = new int[100];
-  int* heap_allocated_2 = new int[100];
-  int indices[] = {0, 1};
-  void* values[] = {heap_allocated_1, heap_allocated_2};
-
-  obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::InvokeMajorGC(CcTest::heap());
-  {
-    v8::SealHandleScope no_handle_leak(isolate);
-    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                   0, v8::kEmbedderDataTypeTagDefault));
-    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                   1, v8::kEmbedderDataTypeTagDefault));
-
-    CHECK_EQ(heap_allocated_1,
-             obj->GetAlignedPointerFromInternalField(
-                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
-    CHECK_EQ(heap_allocated_2,
-             obj->GetAlignedPointerFromInternalField(
-                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
-  }
-
-  indices[0] = 1;
-  indices[1] = 0;
-  obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                 0, v8::kEmbedderDataTypeTagDefault));
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                 1, v8::kEmbedderDataTypeTagDefault));
-
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
-
-  delete[] heap_allocated_1;
-  delete[] heap_allocated_2;
-}
-END_ALLOW_USE_DEPRECATED()
 
 static void CheckAlignedPointerInEmbedderData(LocalContext* env,
                                               v8::Local<v8::Object> some_obj,
@@ -8603,10 +8537,6 @@ namespace {
 int p_getter_count;
 int p_getter_count2;
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 void PGetter(Local<Name> name,
              const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
@@ -8618,27 +8548,6 @@ void PGetter(Local<Name> name,
       info.HolderV2()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
-  if (name->Equals(context, v8_str("p1")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o1")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p2")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o2")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p3")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o3")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p4")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o4")).ToLocalChecked())
-              .FromJust());
-  }
 }
 
 void RunHolderTest(v8::Local<v8::ObjectTemplate> obj) {
@@ -8671,35 +8580,11 @@ v8::Intercepted PGetter2(Local<Name> name,
       info.HolderV2()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
-  if (name->Equals(context, v8_str("p1")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o1")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p2")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o2")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p3")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o3")).ToLocalChecked())
-              .FromJust());
-  } else if (name->Equals(context, v8_str("p4")).FromJust()) {
-    CHECK(info.This()
-              ->Equals(context,
-                       global->Get(context, v8_str("o4")).ToLocalChecked())
-              .FromJust());
-  }
+
   // Return something to indicate that the operation was intercepted.
   info.GetReturnValue().Set(True(isolate));
   return v8::Intercepted::kYes;
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace
 
@@ -9540,31 +9425,27 @@ THREADED_TEST(ExceptionCreateMessageLength) {
   CHECK_LT(1000, try_catch.Message()->Get()->Length());
 }
 
-static void YGetter(Local<Name> name,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+namespace {
+
+void YGetter(Local<Name> name,
+             const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(10));
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
-static void YSetter(Local<Name> name, Local<Value> value,
-                    const v8::PropertyCallbackInfo<void>& info) {
+void YSetter(Local<Name> name, Local<Value> value,
+             const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> this_obj = info.This().As<Object>();
-  CHECK_EQ(info.This(), info.HolderV2());
+  Local<Object> this_obj = info.HolderV2();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (this_obj->Has(context, name).FromJust())
+  if (this_obj->Has(context, name).FromJust()) {
     this_obj->Delete(context, name).FromJust();
+  }
   CHECK(this_obj->Set(context, name, value).FromJust());
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
+}  // namespace
 
 THREADED_TEST(DeleteAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -13869,8 +13750,6 @@ bool ApiTestFuzzer::NextThread() {
 }
 
 void ApiTestFuzzer::Run() {
-  v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
   // Wait until it is our turn.
   gate_.Wait();
   {
@@ -16396,8 +16275,10 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(
       dep->Run(c1.local()).ToLocalChecked()->Int32Value(c1.local()).FromJust(),
       100);
-  CHECK_EQ(indep->BindToCurrentContext()
-               ->Run(c1.local())
+  v8::Local<v8::Script> bound_script = indep->BindToCurrentContext();
+  CHECK_EQ(indep->ScriptId(), bound_script->ScriptId());
+  CHECK_NE(bound_script->ScriptId(), v8::UnboundScript::kNoScriptId);
+  CHECK_EQ(bound_script->Run(c1.local())
                .ToLocalChecked()
                ->Int32Value(c1.local())
                .FromJust(),
@@ -16410,8 +16291,10 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(
       dep->Run(c2.local()).ToLocalChecked()->Int32Value(c2.local()).FromJust(),
       100);
-  CHECK_EQ(indep->BindToCurrentContext()
-               ->Run(c2.local())
+  bound_script = indep->BindToCurrentContext();
+  CHECK_EQ(indep->ScriptId(), bound_script->ScriptId());
+  CHECK_NE(bound_script->ScriptId(), v8::UnboundScript::kNoScriptId);
+  CHECK_EQ(bound_script->Run(c2.local())
                .ToLocalChecked()
                ->Int32Value(c2.local())
                .FromJust(),
@@ -17631,16 +17514,14 @@ static bool TestStackOverflow(v8::Isolate* isolate) {
   return value->IsTrue();
 }
 
-class StackOverflowThread : public v8::base::Thread {
+class StackOverflowThread : public v8::internal::SandboxableThread {
  public:
   explicit StackOverflowThread(int stack_size, int js_stack_size)
-      : Thread(Options("StackOverflowThread", stack_size)),
+      : SandboxableThread(Options("StackOverflowThread", stack_size)),
         js_stack_size_(js_stack_size),
         result_(false) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
     uintptr_t stack_top = v8::base::Stack::GetStackStart();
     // Compute isolate stack limit by js stack size.
     uintptr_t stack_base = stack_top - js_stack_size_;
@@ -18580,8 +18461,8 @@ THREADED_TEST(FunctionGetScriptId) {
       env->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked());
   v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
       env->Global()->Get(env.local(), v8_str("bar")).ToLocalChecked());
-  CHECK_EQ(script->GetUnboundScript()->GetId(), foo->ScriptId());
-  CHECK_EQ(script->GetUnboundScript()->GetId(), bar->ScriptId());
+  CHECK_EQ(script->ScriptId(), foo->ScriptId());
+  CHECK_EQ(script->ScriptId(), bar->ScriptId());
 }
 
 
@@ -18643,14 +18524,9 @@ THREADED_TEST(FunctionProtoToString) {
   CHECK(value->Equals(context.local(), v8_str(kTestFunction)).FromJust());
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 static void GetterWhichReturns42(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   info.GetReturnValue().Set(v8_num(42));
 }
@@ -18659,11 +18535,8 @@ static void SetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
-  CHECK_EQ(info.This(), info.HolderV2());
-  info.This()
-      .As<Object>()
+  info.HolderV2()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
 }
@@ -18671,9 +18544,7 @@ static void SetterWhichSetsYOnThisTo23(
 v8::Intercepted FooGetInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
-  CHECK_EQ(info.This(), info.HolderV2());
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
@@ -18685,23 +18556,16 @@ v8::Intercepted FooGetInterceptor(
 v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
-  CHECK_EQ(info.This(), info.HolderV2());
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
   }
-  info.This()
-      .As<Object>()
+  info.HolderV2()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
   return v8::Intercepted::kYes;
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 TEST(SetterOnConstructorPrototype) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -18754,28 +18618,19 @@ TEST(SetterOnConstructorPrototype) {
   }
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 namespace {
 v8::Intercepted NamedPropertySetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  CHECK_EQ(info.This(), info.HolderV2());
   if (name->Equals(context, v8_str("x")).FromJust()) {
-    info.This().As<Object>()->Set(context, v8_str("y"), v8_num(23)).FromJust();
+    info.HolderV2()->Set(context, v8_str("y"), v8_num(23)).FromJust();
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
 }
 }  // namespace
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(InterceptorOnConstructorPrototype) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -19483,13 +19338,14 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
 
-class IsolateThread : public v8::base::Thread {
+class IsolateThread : public v8::internal::SandboxableThread {
  public:
   explicit IsolateThread(int fib_limit)
-      : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
+      : SandboxableThread(Options("IsolateThread")),
+        fib_limit_(fib_limit),
+        result_(0) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate::CreateParams create_params = CreateTestParams();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     result_ = CalcFibonacci(isolate, fib_limit_);
@@ -19502,7 +19358,6 @@ class IsolateThread : public v8::base::Thread {
   int fib_limit_;
   int result_;
 };
-
 
 TEST(MultipleIsolatesOnIndividualThreads) {
   IsolateThread thread1(21);
@@ -22666,22 +22521,11 @@ TEST(EscapableHandleScope) {
   }
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 static void SetterWhichExpectsThisAndHolderToDiffer(
     Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  CHECK_EQ(info.This(), info.HolderV2());
-  // TODO(https://crbug.com/455600234): remove this test since writes through
-  // prototypes do not trigger interceptor setter callback.
+  // Writes through prototypes do not trigger interceptor setter callback.
   UNREACHABLE();
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 TEST(Regress239669) {
   LocalContext context;
@@ -26939,21 +26783,11 @@ TEST(SetPrototypeTemplate) {
   ExpectTrue("Image.prototype === HTMLImageElement.prototype");
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
-// TODO(https://crbug.com/455600234): rename to EnsureReceiverIsGlobalProxy.
-void ensure_receiver_is_global_proxy(
+void EnsureHolderIsJSGlobalProxy(
     v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*info.This())));
-  CHECK_EQ(info.This(), info.HolderV2());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(GlobalAccessorInfo) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -26962,7 +26796,7 @@ THREADED_TEST(GlobalAccessorInfo) {
   global_template->SetNativeDataProperty(
       v8::String::NewFromUtf8Literal(isolate, "prop",
                                      v8::NewStringType::kInternalized),
-      &ensure_receiver_is_global_proxy);
+      &EnsureHolderIsJSGlobalProxy);
   LocalContext env(nullptr, global_template);
   CompileRun("for (var i = 0; i < 10; i++) this.prop");
   CompileRun("for (var i = 0; i < 10; i++) prop");
@@ -27603,11 +27437,13 @@ TEST(ModuleScriptId) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  int unbound_module_id = module->GetUnboundModuleScript()->ScriptId();
   int id_before_instantiation = module->ScriptId();
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
   int id_after_instantiation = module->ScriptId();
 
+  CHECK_EQ(unbound_module_id, id_before_instantiation);
   CHECK_EQ(id_before_instantiation, id_after_instantiation);
   CHECK_NE(id_before_instantiation, v8::UnboundScript::kNoScriptId);
 }

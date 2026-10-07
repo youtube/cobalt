@@ -67,12 +67,18 @@ ScreamV2::ScreamV2(const Environment& env)
       ref_window_(params_.min_ref_window.Get()),
       delay_based_congestion_control_(params_) {}
 
-void ScreamV2::SetTargetBitrateConstraints(DataRate min, DataRate max) {
+void ScreamV2::SetTargetBitrateConstraints(DataRate min,
+                                           DataRate max,
+                                           DataRate start) {
   RTC_DCHECK_GE(max, min);
   min_target_bitrate_ = min;
   max_target_bitrate_ = max;
+  if (!first_feedback_processed_) {
+    target_rate_ = start;
+  }
   RTC_LOG_F(LS_VERBOSE) << "min_target_bitrate_=" << min_target_bitrate_
-                        << " max_target_bitrate_=" << max_target_bitrate_;
+                        << " max_target_bitrate_=" << max_target_bitrate_
+                        << " start_bitrate_=" << target_rate_;
 }
 
 void ScreamV2::OnPacketSent(DataSize data_in_flight) {
@@ -85,6 +91,16 @@ void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
       std::max(max_data_in_flight_this_rtt_, msg.data_in_flight);
 
   delay_based_congestion_control_.OnTransportPacketsFeedback(msg);
+
+  if (!first_feedback_processed_) {
+    RTC_LOG(LS_INFO) << "Initial RTT: "
+                     << delay_based_congestion_control_.rtt().ms()
+                     << "ms, Start Bitrate: " << target_rate_.kbps() << "kbps";
+    ref_window_ =
+        std::max(params_.min_ref_window.Get(),
+                 target_rate_ * delay_based_congestion_control_.rtt());
+    first_feedback_processed_ = true;
+  }
   UpdateFeedbackHoldTime(msg);
   UpdateL4SAlpha(msg);
   UpdateRefWindow(msg);

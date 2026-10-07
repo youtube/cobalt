@@ -63,20 +63,10 @@ std::string GetNotificationIdForApp(const webapps::AppId& app_id) {
 
 }  // namespace
 
-bool ShouldShowNotificationForWindowOpen(const web_app::WebApp& web_app) {
-  if (!web_app.isolation_data()) {
-    return false;
-  }
-
-  const bool is_managed =
-      web_app.GetSources().HasAny({web_app::WebAppManagement::kKiosk,
-                                   web_app::WebAppManagement::kIwaShimlessRma,
-                                   web_app::WebAppManagement::kIwaPolicy});
-  if (is_managed) {
-    return false;
-  }
-  if (const auto& state =
-          web_app.isolation_data()->opened_tabs_counter_notification_state()) {
+bool ShouldShowNotificationForWindowOpen(
+    const std::optional<IsolationData::OpenedTabsCounterNotificationState>&
+        state) {
+  if (state) {
     return !state->acknowledged() &&
            (state->times_shown() < kMaxNotificationShowCount);
   }
@@ -105,12 +95,12 @@ void IsolatedWebAppsWindowOpenPermissionService::RetrieveNotificationStates() {
 
 void IsolatedWebAppsWindowOpenPermissionService::
     OnAllAppsLockAcquiredForStateRetrieval(web_app::AllAppsLock& lock,
-                                           base::Value::Dict& debug_value) {
-  for (const WebApp& web_app :
-       lock.registrar().GetApps(WebAppFilter::IsIsolatedApp())) {
+                                           base::DictValue& debug_value) {
+  for (const WebApp& web_app : lock.registrar().GetApps(
+           WebAppFilter::IsIsolatedWebAppWithOnlyUserManagement())) {
     const auto& state =
         web_app.isolation_data()->opened_tabs_counter_notification_state();
-    if (state && ShouldShowNotificationForWindowOpen(web_app)) {
+    if (state && ShouldShowNotificationForWindowOpen(state)) {
       notification_states_cache_.emplace(web_app.app_id(), *state);
     }
   }
@@ -135,10 +125,12 @@ void IsolatedWebAppsWindowOpenPermissionService::Shutdown() {
 
 void IsolatedWebAppsWindowOpenPermissionService::OnWebContentsCreated(
     const webapps::AppId& opener_app_id) {
-  const web_app::WebApp* web_app =
-      provider()->registrar_unsafe().GetAppById(opener_app_id);
+  const web_app::WebApp* iwa = provider()->registrar_unsafe().GetAppById(
+      opener_app_id, WebAppFilter::IsIsolatedWebAppWithOnlyUserManagement());
 
-  if (!web_app || !ShouldShowNotificationForWindowOpen(*web_app)) {
+  if (!iwa ||
+      !ShouldShowNotificationForWindowOpen(
+          iwa->isolation_data()->opened_tabs_counter_notification_state())) {
     return;
   }
 
@@ -247,7 +239,7 @@ void IsolatedWebAppsWindowOpenPermissionService::PersistNotificationState(
           [](const webapps::AppId& app_id,
              const web_app::IsolationData::OpenedTabsCounterNotificationState&
                  notification_state,
-             web_app::AppLock& lock, base::Value::Dict& debug_value) {
+             web_app::AppLock& lock, base::DictValue& debug_value) {
             web_app::ScopedRegistryUpdate update =
                 lock.sync_bridge().BeginUpdate();
 

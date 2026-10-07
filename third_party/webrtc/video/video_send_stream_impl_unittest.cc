@@ -151,7 +151,7 @@ class VideoSendStreamImplTest : public ::testing::Test {
         send_delay_stats_(time_controller_.GetClock()),
         encoder_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "encoder_queue",
-            TaskQueueFactory::Priority::NORMAL)),
+            TaskQueueFactory::Priority::kNormal)),
         stats_proxy_(time_controller_.GetClock(),
                      config_,
                      VideoEncoderConfig::ContentType::kRealtimeVideo,

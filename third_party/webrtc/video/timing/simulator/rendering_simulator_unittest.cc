@@ -12,6 +12,7 @@
 
 #include <memory>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -19,6 +20,7 @@
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "video/timing/simulator/frame_base.h"
 #include "video/timing/simulator/test/parsed_rtc_event_log_from_resources.h"
 
 namespace webrtc::video_timing_simulator {
@@ -28,6 +30,7 @@ using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Matcher;
+using ::testing::Ne;
 using ::testing::SizeIs;
 
 using Frame = RenderingSimulator::Frame;
@@ -163,13 +166,13 @@ TEST(RenderingSimulatorTest, VideoRecvVp9) {
            // Frame timestamps.
            .assembled_timestamp = Timestamp::Millis(98768284),
            .render_timestamp = Timestamp::Millis(98768325),
-           .decoded_timestamp = Timestamp::Micros(98768315261),
-           .rendered_timestamp = Timestamp::Micros(98768315261),
+           .decoded_timestamp = Timestamp::Micros(98768315253),
+           .rendered_timestamp = Timestamp::Micros(98768315253),
            // Jitter buffer state.
            .frames_dropped = 0,
-           .jitter_buffer_minimum_delay = TimeDelta::Micros(26611),
-           .jitter_buffer_target_delay = TimeDelta::Micros(26611),
-           .jitter_buffer_delay = TimeDelta::Micros(41261)}));
+           .jitter_buffer_minimum_delay = TimeDelta::Micros(26604),
+           .jitter_buffer_target_delay = TimeDelta::Micros(26604),
+           .jitter_buffer_delay = TimeDelta::Micros(41253)}));
 }
 
 TEST(RenderingSimulatorTest, VideoRecvAv1) {
@@ -211,13 +214,13 @@ TEST(RenderingSimulatorTest, VideoRecvAv1) {
            // Frame timestamps.
            .assembled_timestamp = Timestamp::Millis(98868790),
            .render_timestamp = Timestamp::Millis(98868822),
-           .decoded_timestamp = Timestamp::Micros(98868811531),
-           .rendered_timestamp = Timestamp::Micros(98868811531),
+           .decoded_timestamp = Timestamp::Micros(98868811530),
+           .rendered_timestamp = Timestamp::Micros(98868811530),
            // Jitter buffer state.
            .frames_dropped = 0,
            .jitter_buffer_minimum_delay = TimeDelta::Micros(23864),
            .jitter_buffer_target_delay = TimeDelta::Micros(23864),
-           .jitter_buffer_delay = TimeDelta::Micros(36531)}));
+           .jitter_buffer_delay = TimeDelta::Micros(36530)}));
 }
 
 TEST(RenderingSimulatorTest, VideoRecvSequentialJoinVp8Vp9Av1) {
@@ -235,6 +238,69 @@ TEST(RenderingSimulatorTest, VideoRecvSequentialJoinVp8Vp9Av1) {
                                 Field(&Stream::frames, SizeIs(1157))),
                           AllOf(Field(&Stream::ssrc, Eq(1934275846)),
                                 Field(&Stream::frames, SizeIs(361)))));
+}
+
+// This log starts experiencing packet losses after half the duration.
+TEST(RenderingSimulatorTest, VideoRecvVp8Lossy) {
+  std::unique_ptr<ParsedRtcEventLog> parsed_log =
+      ParsedRtcEventLogFromResources("video_recv_vp8_pt96_lossy");
+
+  RenderingSimulator::Config config{.name = "vp8"};
+  RenderingSimulator simulator(config);
+  RenderingSimulator::Results results = simulator.Simulate(*parsed_log);
+
+  EXPECT_THAT(results.config_name, Eq("vp8"));
+  ASSERT_THAT(results.streams, SizeIs(1));
+  const auto& stream = results.streams.front();
+  EXPECT_THAT(stream.creation_timestamp, Eq(Timestamp::Millis(821417933)));
+  EXPECT_THAT(stream.ssrc, Eq(4096673911));
+  EXPECT_THAT(stream.frames, SizeIs(1145));
+  // Number of rendered frames.
+  EXPECT_THAT(absl::c_count_if(stream.frames,
+                               [](const auto& e) {
+                                 return e.ArrivalTimestamp().IsFinite();
+                               }),
+              Eq(960));
+
+  // Find the last rendered frame.
+  EXPECT_TRUE(absl::c_is_sorted(stream.frames,
+                                ArrivalOrder<RenderingSimulator::Frame>));
+  auto it = stream.frames.rbegin();
+  while (it != stream.frames.rend() && !it->ArrivalTimestamp().IsFinite()) {
+    ++it;
+  }
+  ASSERT_THAT(it, Ne(stream.frames.rend()));
+
+  // Spot check the last rendered frame.
+  EXPECT_THAT(
+      *it,
+      EqualsFrame(
+          {// Frame information.
+           .num_packets = 4,
+           .size = DataSize::Bytes(3902),
+           // RTP header information.
+           .payload_type = 96,
+           .rtp_timestamp = 2607363343,
+           .unwrapped_rtp_timestamp = 2607363343,
+           // Dependency descriptor information.
+           .frame_id = 1165,
+           .spatial_id = 0,
+           .temporal_id = 1,
+           .num_references = 1,
+           // Packet timestamps.
+           .first_packet_arrival_timestamp = Timestamp::Millis(821457147),
+           .last_packet_arrival_timestamp = Timestamp::Millis(821457158),
+           // Frame timestamps.
+           .assembled_timestamp = Timestamp::Millis(821457158),
+           .render_timestamp = Timestamp::Millis(821457178),
+           .decoded_timestamp = Timestamp::Micros(821457168065),
+           .rendered_timestamp = Timestamp::Micros(821457168065),
+           // Jitter buffer information.
+           .frames_dropped = 0,
+           // The value below is unreasonably low, we should fix this.
+           .jitter_buffer_minimum_delay = TimeDelta::Micros(13085),
+           .jitter_buffer_target_delay = TimeDelta::Micros(13085),
+           .jitter_buffer_delay = TimeDelta::Micros(21065)}));
 }
 
 }  // namespace

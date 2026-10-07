@@ -24,7 +24,7 @@ namespace {
 TEST(SimulatedTimeTaskQueueControllerTest, SetsCurrent) {
   SimulatedTimeTaskQueueController controller(Timestamp::Zero());
   auto task_queue = controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "TestQueue", TaskQueueFactory::Priority::NORMAL);
+      "TestQueue", TaskQueueFactory::Priority::kNormal);
 
   bool done = false;
   task_queue->PostTask([&] {
@@ -39,7 +39,7 @@ TEST(SimulatedTimeTaskQueueControllerTest, SetsCurrent) {
 TEST(SimulatedTimeTaskQueueControllerTest, TaskIsExecuted) {
   SimulatedTimeTaskQueueController controller(Timestamp::Zero());
   auto task_queue = controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "TestQueue", TaskQueueFactory::Priority::NORMAL);
+      "TestQueue", TaskQueueFactory::Priority::kNormal);
 
   bool done = false;
   task_queue->PostTask([&] { done = true; });
@@ -52,7 +52,7 @@ TEST(SimulatedTimeTaskQueueControllerTest, TaskIsExecuted) {
 TEST(SimulatedTimeTaskQueueControllerTest, DelayedTaskIsExecuted) {
   SimulatedTimeTaskQueueController controller(Timestamp::Zero());
   auto task_queue = controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "TestQueue", TaskQueueFactory::Priority::NORMAL);
+      "TestQueue", TaskQueueFactory::Priority::kNormal);
 
   bool done = false;
   task_queue->PostDelayedTask([&] { done = true; }, TimeDelta::Millis(10));

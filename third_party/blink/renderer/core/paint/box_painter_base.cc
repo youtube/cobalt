@@ -131,7 +131,8 @@ Animation* GetCompositableBackgroundColorAnimation(Node* node) {
     return nullptr;
   }
 
-  if (animation->CheckCanStartAnimationOnCompositor(nullptr) !=
+  if (animation->CheckCanStartAnimationOnCompositor(
+          nullptr, StartOnCompositorReason::kGeneric) !=
       CompositorAnimations::kNoFailure) {
     return nullptr;
   }
@@ -571,9 +572,10 @@ BoxPainterBase::FillLayerInfo::FillLayerInfo(
   is_printing = doc.Printing();
 
   String failing_url;
-  should_paint_image = image && image->CanRender() &&
-                       (!(paint_flags & PaintFlag::kPrivacyPreserving) ||
-                        image->IsAccessAllowed(failing_url));
+  should_paint_image =
+      image && image->CanRender() &&
+      (!(paint_flags & PaintFlag::kPrivacyPreserving) ||
+       (image->IsLoaded() && image->IsAccessAllowed(failing_url)));
   if (should_paint_image) {
     respect_image_orientation =
         image->ForceOrientationIfNecessary(respect_image_orientation);
@@ -1485,7 +1487,8 @@ void BoxPainterBase::PaintBorder(
   // border-image is not affected by border-radius.
   String failing_url;
   if (!(info.IsPrivacyPreserving() && style.BorderImage().GetImage() &&
-        !style.BorderImage().GetImage()->IsAccessAllowed(failing_url))) {
+        (!style.BorderImage().GetImage()->IsLoaded() ||
+         !style.BorderImage().GetImage()->IsAccessAllowed(failing_url)))) {
     if (NinePieceImagePainter::Paint(info.context, obj, document, node, rect,
                                      style, style.BorderImage())) {
       return;
@@ -1510,7 +1513,8 @@ void BoxPainterBase::PaintMaskImages(
                   paint_rect, bg_paint_context);
   String failing_url;
   if (!(paint_info.IsPrivacyPreserving() && style_.MaskBoxImage().GetImage() &&
-        !style_.MaskBoxImage().GetImage()->IsAccessAllowed(failing_url))) {
+        (!style_.MaskBoxImage().GetImage()->IsLoaded() ||
+         !style_.MaskBoxImage().GetImage()->IsAccessAllowed(failing_url)))) {
     NinePieceImagePainter::Paint(paint_info.context, obj, document_, node_,
                                  paint_rect, style_, style_.MaskBoxImage(),
                                  sides_to_include);

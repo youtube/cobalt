@@ -156,6 +156,9 @@ int32_t DeviceInfoImpl::GetBestMatchedCapability(
                      capability.videoType == VideoType::kYUY2 ||
                      capability.videoType == VideoType::kYV12 ||
                      capability.videoType == VideoType::kNV12)) {
+                  bestWidth = capability.width;
+                  bestHeight = capability.height;
+                  bestFrameRate = capability.maxFPS;
                   bestVideoType = capability.videoType;
                   bestformatIndex = tmp;
                 }
@@ -163,7 +166,11 @@ int32_t DeviceInfoImpl::GetBestMatchedCapability(
                 // camera for encoding if it is supported.
                 if (capability.height == requested.height &&
                     capability.width == requested.width &&
-                    capability.maxFPS >= requested.maxFPS) {
+                    capability.maxFPS >= requested.maxFPS &&
+                    capability.maxFPS != bestFrameRate) {
+                  bestWidth = capability.width;
+                  bestHeight = capability.height;
+                  bestFrameRate = capability.maxFPS;
                   bestVideoType = capability.videoType;
                   bestformatIndex = tmp;
                 }

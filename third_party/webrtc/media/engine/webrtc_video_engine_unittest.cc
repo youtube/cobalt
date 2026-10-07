@@ -786,42 +786,6 @@ TEST_F(WebRtcVideoEngineTest, UseFactoryForVp8WhenSupported) {
   EXPECT_EQ(0u, encoder_factory_->encoders().size());
 }
 
-TEST_F(WebRtcVideoEngineTest, OnRtpSendParametersChangedCallback) {
-  AddSupportedVideoCodecType("VP8");
-  auto send_channel = SetSendParamsWithAllSupportedCodecs();
-  EXPECT_TRUE(send_channel->AddSendStream(StreamParams::CreateLegacy(kSsrc)));
-
-  std::optional<uint32_t> callback_ssrc;
-  RtpParameters callback_params;
-  int callback_count = 0;
-  send_channel->SubscribeRtpSendParametersChanged(
-      this, [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
-        callback_ssrc = ssrc;
-        callback_params = params;
-        ++callback_count;
-      });
-
-  RtpParameters parameters = send_channel->GetRtpSendParameters(kSsrc);
-  EXPECT_EQ(callback_count, 0);
-
-  // Change parameters.
-  parameters.encodings[0].max_bitrate_bps = 500000;
-  EXPECT_TRUE(send_channel->SetRtpSendParameters(kSsrc, parameters).ok());
-
-  EXPECT_EQ(callback_count, 1);
-  EXPECT_EQ(callback_ssrc, kSsrc);
-  EXPECT_EQ(callback_params.encodings[0].max_bitrate_bps, 500000);
-
-  // Now set the parameters again. This time we're setting them to the same
-  // value as they were already set to. That should not result in the
-  // callback being issued.
-  EXPECT_TRUE(send_channel->SetRtpSendParameters(kSsrc, parameters).ok());
-  // No additional callback should have been issued.
-  EXPECT_EQ(callback_count, 1);
-
-  send_channel->UnsubscribeRtpSendParametersChanged(this);
-}
-
 // Test that when an encoder factory supports H264, we add an RTX
 // codec for it.
 // TODO(deadbeef): This test should be updated if/when we start
@@ -4588,7 +4552,7 @@ TEST_F(WebRtcVideoChannelFlexfecRecvTest, SetDefaultRecvCodecsWithSsrc) {
   const auto* stream = streams.front();
   const FlexfecReceiveStream::Config& config = stream->GetConfig();
   EXPECT_EQ(GetEngineCodec("flexfec-03").id, config.payload_type);
-  EXPECT_EQ(kFlexfecSsrc, config.rtp.remote_ssrc);
+  EXPECT_EQ(kFlexfecSsrc, config.remote_ssrc);
   ASSERT_EQ(1U, config.protected_media_ssrcs.size());
   EXPECT_EQ(kSsrcs1[0], config.protected_media_ssrcs[0]);
 
@@ -4779,7 +4743,7 @@ TEST_F(WebRtcVideoChannelFlexfecRecvTest, SetRecvCodecsWithFec) {
       flexfec_stream->GetConfig();
   EXPECT_EQ(GetEngineCodec("flexfec-03").id,
             flexfec_stream_config.payload_type);
-  EXPECT_EQ(kFlexfecSsrc, flexfec_stream_config.rtp.remote_ssrc);
+  EXPECT_EQ(kFlexfecSsrc, flexfec_stream_config.remote_ssrc);
   ASSERT_EQ(1U, flexfec_stream_config.protected_media_ssrcs.size());
   EXPECT_EQ(kSsrcs1[0], flexfec_stream_config.protected_media_ssrcs[0]);
   const std::vector<FakeVideoReceiveStream*>& video_streams =
@@ -4788,7 +4752,7 @@ TEST_F(WebRtcVideoChannelFlexfecRecvTest, SetRecvCodecsWithFec) {
   const VideoReceiveStreamInterface::Config& video_stream_config =
       video_stream->GetConfig();
   EXPECT_EQ(video_stream_config.rtp.local_ssrc,
-            flexfec_stream_config.rtp.local_ssrc);
+            flexfec_stream_config.local_ssrc);
   EXPECT_EQ(video_stream_config.rtp.rtcp_mode, flexfec_stream_config.rtcp_mode);
   EXPECT_EQ(video_stream_config.rtcp_send_transport,
             flexfec_stream_config.rtcp_send_transport);
@@ -5626,7 +5590,7 @@ TEST_F(WebRtcVideoChannelFlexfecSendRecvTest,
   const FakeFlexfecReceiveStream* stream_with_recv_params = streams.front();
   EXPECT_EQ(GetEngineCodec("flexfec-03").id,
             stream_with_recv_params->GetConfig().payload_type);
-  EXPECT_EQ(kFlexfecSsrc, stream_with_recv_params->GetConfig().rtp.remote_ssrc);
+  EXPECT_EQ(kFlexfecSsrc, stream_with_recv_params->GetConfig().remote_ssrc);
   EXPECT_EQ(1U,
             stream_with_recv_params->GetConfig().protected_media_ssrcs.size());
   EXPECT_EQ(kSsrcs1[0],
@@ -5640,7 +5604,7 @@ TEST_F(WebRtcVideoChannelFlexfecSendRecvTest,
   const FakeFlexfecReceiveStream* stream_with_send_params = streams.front();
   EXPECT_EQ(GetEngineCodec("flexfec-03").id,
             stream_with_send_params->GetConfig().payload_type);
-  EXPECT_EQ(kFlexfecSsrc, stream_with_send_params->GetConfig().rtp.remote_ssrc);
+  EXPECT_EQ(kFlexfecSsrc, stream_with_send_params->GetConfig().remote_ssrc);
   EXPECT_EQ(1U,
             stream_with_send_params->GetConfig().protected_media_ssrcs.size());
   EXPECT_EQ(kSsrcs1[0],

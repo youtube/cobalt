@@ -200,7 +200,7 @@ TEST(CallTest, CreateDestroy_FlexfecReceiveStream) {
     MockTransport rtcp_send_transport;
     FlexfecReceiveStream::Config config(&rtcp_send_transport);
     config.payload_type = 118;
-    config.rtp.remote_ssrc = 38837212;
+    config.remote_ssrc = 38837212;
     config.protected_media_ssrcs = {27273};
 
     FlexfecReceiveStream* stream = call->CreateFlexfecReceiveStream(config);
@@ -219,7 +219,7 @@ TEST(CallTest, CreateDestroy_FlexfecReceiveStreams) {
 
     for (int i = 0; i < 2; ++i) {
       for (uint32_t ssrc = 0; ssrc < 1234567; ssrc += 34567) {
-        config.rtp.remote_ssrc = ssrc;
+        config.remote_ssrc = ssrc;
         config.protected_media_ssrcs = {ssrc + 1};
         FlexfecReceiveStream* stream = call->CreateFlexfecReceiveStream(config);
         EXPECT_NE(stream, nullptr);
@@ -247,22 +247,22 @@ TEST(CallTest, MultipleFlexfecReceiveStreamsProtectingSingleVideoStream) {
     FlexfecReceiveStream* stream;
     std::list<FlexfecReceiveStream*> streams;
 
-    config.rtp.remote_ssrc = 838383;
+    config.remote_ssrc = 838383;
     stream = call->CreateFlexfecReceiveStream(config);
     EXPECT_NE(stream, nullptr);
     streams.push_back(stream);
 
-    config.rtp.remote_ssrc = 424993;
+    config.remote_ssrc = 424993;
     stream = call->CreateFlexfecReceiveStream(config);
     EXPECT_NE(stream, nullptr);
     streams.push_back(stream);
 
-    config.rtp.remote_ssrc = 99383;
+    config.remote_ssrc = 99383;
     stream = call->CreateFlexfecReceiveStream(config);
     EXPECT_NE(stream, nullptr);
     streams.push_back(stream);
 
-    config.rtp.remote_ssrc = 5548;
+    config.remote_ssrc = 5548;
     stream = call->CreateFlexfecReceiveStream(config);
     EXPECT_NE(stream, nullptr);
     streams.push_back(stream);
@@ -516,7 +516,7 @@ class CallRtcEventLogTest : public ::testing::Test {
 
     // Flexfec.
     FlexfecReceiveStream::Config flexfec_config(&transport_);
-    flexfec_config.rtp.remote_ssrc = kVideoFlexfecSsrc;
+    flexfec_config.remote_ssrc = kVideoFlexfecSsrc;
     flexfec_stream_ = call_->CreateFlexfecReceiveStream(flexfec_config);
   }
   ~CallRtcEventLogTest() override {

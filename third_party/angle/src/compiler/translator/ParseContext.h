@@ -16,6 +16,7 @@
 #include "compiler/translator/FunctionLookup.h"
 #include "compiler/translator/QualifierTypes.h"
 #include "compiler/translator/SymbolTable.h"
+#include "compiler/translator/ValidateVaryingLocations.h"
 
 namespace sh
 {
@@ -54,6 +55,12 @@ enum class FunctionDeclaration
 {
     Prototype,
     Definition,
+};
+
+struct VariableAndLocation
+{
+    TSourceLoc line           = {};
+    const TVariable *variable = nullptr;
 };
 
 //
@@ -749,6 +756,10 @@ class TParseContext : angle::NonCopyable
     void checkVariableSize(const TSourceLoc &line,
                            const ImmutableString &identifier,
                            const TType *type);
+    void checkVaryingLocations(const TSourceLoc &line, const TVariable *variable);
+    void checkFragmentOutputLocations(const TSourceLoc &line, const TVariable *variable);
+    void checkVariableLocations(const TSourceLoc &line, const TVariable *variable);
+    void postParseValidateFragmentOutputLocations();
 
     void sizeUnsizedArrayTypes(uint32_t arraySize);
 
@@ -933,12 +944,7 @@ class TParseContext : angle::NonCopyable
     // variable, where the loop doesn't have break or return, at the end of parse we can detect
     // these loops as infinite loop.
     TUnorderedSet<TSymbolUniqueId> mConstantTrueVariables;
-    struct PossiblyInfiniteLoop
-    {
-        TSourceLoc line;
-        const TVariable *loopVariable;
-    };
-    TVector<PossiblyInfiniteLoop> mPossiblyInfiniteLoops;
+    TVector<VariableAndLocation> mPossiblyInfiniteLoops;
 
     // Track the static call graph.  Static recursion is disallowed by GLSL.
     TUnorderedMap<const TFunction *, TUnorderedSet<const TFunction *>> mCallGraph;
@@ -954,6 +960,17 @@ class TParseContext : angle::NonCopyable
 
     // Potential errors to generate immediately upon encountering a pixel local storage uniform.
     std::vector<std::tuple<const TSourceLoc, PLSIllegalOperations>> mPLSPotentialErrors;
+
+    // Track the locations used by input and output varyings to detect conflicts.
+    LocationValidationMap mInputVaryingLocations;
+    LocationValidationMap mOutputVaryingLocations;
+
+    // Track the locations used by fragment shader outputs to detect conflicts.
+    TVector<VariableAndLocation> mFragmentOutputsWithLocation;
+    TVector<VariableAndLocation> mFragmentOutputsWithoutLocation;
+    TVector<VariableAndLocation> mFragmentOutputsYuv;
+    bool mFragmentOutputIndex1Used;
+    bool mFragmentOutputFragDepthUsed;
 
     // Track the geometry shader global parameters declared in layout.
     TLayoutPrimitiveType mGeometryShaderInputPrimitiveType;

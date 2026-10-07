@@ -192,7 +192,7 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
                                &log_)),
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "RtpVideoStreamReceiver2Test",
-            TaskQueueFactory::Priority::NORMAL)),
+            TaskQueueFactory::Priority::kNormal)),
         task_queue_setter_(task_queue_.get()),
         config_(CreateConfig()) {
     rtp_receive_statistics_ = ReceiveStatistics::Create(&env_.clock());

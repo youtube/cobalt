@@ -314,11 +314,11 @@ void DiceWebSigninInterceptorDelegate::ShowSigninError(
 
   LoginUIServiceFactory::GetForProfile(
       Profile::FromBrowserContext(web_contents->GetBrowserContext()))
-      ->DisplayLoginResult(browser, error, /*from_profile_picker=*/false);
+      ->DisplayLoginResult(browser->GetFeatures(), error);
 }
 
 // static
-std::string DiceWebSigninInterceptorDelegate::GetHistogramSuffix(
+std::string_view DiceWebSigninInterceptorDelegate::GetHistogramSuffix(
     WebSigninInterceptor::SigninInterceptionType interception_type) {
   switch (interception_type) {
     case WebSigninInterceptor::SigninInterceptionType::kEnterprise:

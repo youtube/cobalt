@@ -47,6 +47,7 @@
 #include "build/chromecast_buildflags.h"
 #include "components/cookie_config/cookie_store_util.h"
 #include "components/domain_reliability/monitor.h"
+#include "components/enterprise/buildflags/buildflags.h"
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -322,6 +323,9 @@ void CookieOSCryptAsyncDelegate::InitCallback(
     mojo::Remote<network::mojom::CookieEncryptionProvider> lifetime,
     os_crypt_async::Encryptor encryptor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // The Encryptor is moved between sequences here. Verify that it's only moved
+  // once.
+  CHECK(!instance_.has_value());
   instance_.emplace(std::move(encryptor));
   is_initialized_ = true;
   callbacks_.Notify();
@@ -564,7 +568,7 @@ bool GetFullDataFilePath(
 // processes.
 mojom::URLLoaderFactoryParamsPtr CreateURLLoaderFactoryParamsForPrefetch() {
   auto params = mojom::URLLoaderFactoryParams::New();
-  params->process_id = mojom::kBrowserProcessId;
+  params->process_id = OriginatingProcess::browser();
   // We want to be able to use TrustedParams to set the IsolationInfo for each
   // prefetch separately, so make it trusted.
   // TODO(crbug.com/342445996): Maybe stop using TrustedParams and lock this
@@ -998,7 +1002,7 @@ void NetworkContext::CreateURLLoaderFactoryForCertNetFetcher(
   // TODO(crbug.com/40695068): investigate changing these params.
   auto url_loader_factory_params = mojom::URLLoaderFactoryParams::New();
   url_loader_factory_params->is_trusted = true;
-  url_loader_factory_params->process_id = mojom::kBrowserProcessId;
+  url_loader_factory_params->process_id = OriginatingProcess::browser();
   url_loader_factory_params->automatically_assign_isolation_info = true;
   url_loader_factory_params->is_orb_enabled = false;
   if (url_request_context()->bound_network() !=
@@ -1034,7 +1038,7 @@ void NetworkContext::CreateURLLoaderFactory(
   scoped_refptr<ResourceSchedulerClient> resource_scheduler_client =
       base::MakeRefCounted<ResourceSchedulerClient>(
           ResourceScheduler::ClientId::Create(),
-          IsBrowserInitiated(params->process_id == mojom::kBrowserProcessId),
+          IsBrowserInitiated(params->process_id.is_browser()),
           resource_scheduler_.get(),
           url_request_context_->network_quality_estimator());
   CreateURLLoaderFactory(std::move(receiver), std::move(params),
@@ -1279,11 +1283,11 @@ void NetworkContext::Remove(WebTransport* transport) {
   }
 }
 
-void NetworkContext::LoaderCreated(uint32_t process_id) {
+void NetworkContext::LoaderCreated(const OriginatingProcess& process_id) {
   loader_count_per_process_[process_id] += 1;
 }
 
-void NetworkContext::LoaderDestroyed(uint32_t process_id) {
+void NetworkContext::LoaderDestroyed(const OriginatingProcess& process_id) {
   auto it = loader_count_per_process_.find(process_id);
   CHECK(it != loader_count_per_process_.end());
   it->second -= 1;
@@ -1292,7 +1296,7 @@ void NetworkContext::LoaderDestroyed(uint32_t process_id) {
   }
 }
 
-bool NetworkContext::CanCreateLoader(uint32_t process_id) {
+bool NetworkContext::CanCreateLoader(const OriginatingProcess& process_id) {
   auto it = loader_count_per_process_.find(process_id);
   uint32_t count = (it == loader_count_per_process_.end() ? 0 : it->second);
   return count < max_loaders_per_process_;
@@ -1556,7 +1560,7 @@ void NetworkContext::QueueReport(
     const GURL& url,
     const std::optional<base::UnguessableToken>& reporting_source,
     const net::NetworkAnonymizationKey& network_anonymization_key,
-    base::Value::Dict body) {
+    base::DictValue body) {
   QueueReportInternal(type, group, url, reporting_source,
                       network_anonymization_key, std::move(body),
                       net::ReportingTargetType::kDeveloper);
@@ -1565,7 +1569,7 @@ void NetworkContext::QueueReport(
 void NetworkContext::QueueEnterpriseReport(const std::string& type,
                                            const std::string& group,
                                            const GURL& url,
-                                           base::Value::Dict body) {
+                                           base::DictValue body) {
   // Enterprise reports don't use a |reporting_source| or
   // |network_anonymization_key|. Enterprise endpoints are profile-bound and not
   // document-bound like web developer endpoints.
@@ -1580,7 +1584,7 @@ void NetworkContext::QueueReportInternal(
     const GURL& url,
     const std::optional<base::UnguessableToken>& reporting_source,
     const net::NetworkAnonymizationKey& network_anonymization_key,
-    base::Value::Dict body,
+    base::DictValue body,
     net::ReportingTargetType target_type) {
 #if BUILDFLAG(ENABLE_REPORTING)
   // If |reporting_source| is provided, it must not be empty.
@@ -2018,13 +2022,27 @@ void NetworkContext::ResolveHost(
     const net::NetworkAnonymizationKey& network_anonymization_key,
     mojom::ResolveHostParametersPtr optional_parameters,
     mojo::PendingRemote<mojom::ResolveHostClient> response_client) {
-  // Dns request is disallowed if network access is disabled for the nonce.
-  if (network_anonymization_key.GetNonce().has_value() &&
+  // Dns request is disallowed if network access is disabled for the partition
+  // nonce or the network_restrictions_id.
+  // TODO(crbug.com/447954811): For Connection Allowlist DNS lookups, define a
+  // less-strict mechanism that matches against the host portion of the URL.
+  GURL url = host->is_host_port_pair()
+                 ? url::SchemeHostPort(url::kHttpsScheme,
+                                       host->get_host_port_pair().host(),
+                                       host->get_host_port_pair().port())
+                       .GetURL()
+                 : host->get_scheme_host_port().GetURL();
+  bool is_network_disallowed_for_nonce =
+      network_anonymization_key.GetNonce().has_value() &&
       !IsNetworkForNonceAndUrlAllowed(
-          /*nonce=*/network_anonymization_key.GetNonce().value(),
-          /*url=*/host->is_host_port_pair()
-              ? GURL(host->get_host_port_pair().ToString())
-              : host->get_scheme_host_port().GetURL())) {
+          network_anonymization_key.GetNonce().value(), url);
+  bool is_network_disallowed_for_restrictions_id =
+      (optional_parameters &&
+       optional_parameters->network_restrictions_id.has_value() &&
+       !IsNetworkForNonceAndUrlAllowed(
+           optional_parameters->network_restrictions_id.value(), url));
+  if (is_network_disallowed_for_nonce ||
+      is_network_disallowed_for_restrictions_id) {
     mojo::Remote<mojom::ResolveHostClient> remote_response_client(
         std::move(response_client));
     remote_response_client->OnComplete(
@@ -2207,7 +2225,7 @@ void NetworkContext::IsHSTSActiveForHost(const std::string& host,
 
 void NetworkContext::GetHSTSState(const std::string& domain,
                                   GetHSTSStateCallback callback) {
-  base::Value::Dict result;
+  base::DictValue result;
 
   if (base::IsStringASCII(domain)) {
     net::TransportSecurityState* transport_security_state =
@@ -2803,32 +2821,42 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
             params_->file_paths->no_vary_search_directory->path();
       }
       cache_params.type = network_session_configurator::ChooseCacheType();
-#if BUILDFLAG(IS_WIN)
-      // For enterprise users, we always use simple backend when encryption is
-      // enabled.
-      if (params_->enable_encrypted_http_cache) {
-        cache_params.type =
-            net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE;
-      }
-#endif
+
       if (params_->http_cache_file_operations_factory) {
         cache_params.file_operations_factory =
             base::MakeRefCounted<MojoBackendFileOperationsFactory>(
                 std::move(params_->http_cache_file_operations_factory));
       }
 
-      // For enterprise users, we wrap `BackendFileOperations` to intercept file
-      // I/O with encryption ops.
       if (params_->enable_encrypted_http_cache) {
-        if (!cache_params.file_operations_factory) {
-          // Since it's the fallback later anyways, explicitly created here to
-          // wrap.
-          cache_params.file_operations_factory =
-              base::MakeRefCounted<disk_cache::TrivialFileOperationsFactory>();
+#if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
+        // For enterprise users, we always use simple backend when encryption is
+        // enabled.
+        cache_params.type =
+            net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE;
+
+        // For enterprise users, we wrap `BackendFileOperations` to intercept
+        // file I/O with encryption ops, and create and pass in a
+        // `CacheEncryptionDelegate` to encrypt/decrypt cache entries on disk.
+        if (params_->encryption_provider) {
+          std::unique_ptr<net::CacheEncryptionDelegate>
+              cache_encryption_delegate = std::make_unique<
+                  enterprise_encryption::OSCryptCacheEncryptionDelegate>(
+                  std::move(params_->encryption_provider));
+          if (!cache_params.file_operations_factory) {
+            // Since it's the fallback later anyways, explicitly created here to
+            // wrap. EncryptedBackendFileOperationsFactory will wrap this later
+            // when os_crypt_cache_encryption_delegate is created and
+            // initialized.
+            cache_params.file_operations_factory = base::MakeRefCounted<
+                disk_cache::TrivialFileOperationsFactory>();
+          }
+          builder.set_cache_encryption_delegate(
+              std::move(cache_encryption_delegate));
         }
-        cache_params.file_operations_factory = base::MakeRefCounted<
-            enterprise_encryption::EncryptedBackendFileOperationsFactory>(
-            std::move(cache_params.file_operations_factory));
+#else
+        NOTREACHED();
+#endif  // BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
       }
     }
     cache_params.reset_cache = params_->reset_http_cache_backend;
@@ -2839,15 +2867,6 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
             cache_params.app_status_listener_getter));
 #endif  // BUILDFLAG(IS_ANDROID)
     builder.EnableHttpCache(cache_params);
-
-    std::unique_ptr<net::CacheEncryptionDelegate> cache_encryption_delegate;
-    if (params_->encryption_provider) {
-      cache_encryption_delegate = std::make_unique<
-          enterprise_encryption::OSCryptCacheEncryptionDelegate>(
-          std::move(params_->encryption_provider));
-    }
-
-    builder.set_cache_encryption_delegate(std::move(cache_encryption_delegate));
   }
 
   std::unique_ptr<SSLConfigServiceMojo> ssl_config_service =
@@ -3062,6 +3081,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
 
   if (params_->device_bound_sessions_enabled) {
     builder.set_has_device_bound_session_service(true);
+    builder.set_device_bound_sessions_restricted_sites(
+        params_->device_bound_sessions_restricted_sites);
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
     if (params_->bound_sessions_unexportable_key_service.is_valid()) {
@@ -3373,7 +3394,7 @@ void NetworkContext::CreateTrustedUrlLoaderFactoryForNetworkService(
         url_loader_factory_pending_receiver) {
   auto url_loader_factory_params = mojom::URLLoaderFactoryParams::New();
   url_loader_factory_params->is_trusted = true;
-  url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
+  url_loader_factory_params->process_id = OriginatingProcess::browser();
   CreateURLLoaderFactory(std::move(url_loader_factory_pending_receiver),
                          std::move(url_loader_factory_params));
 }
@@ -3663,7 +3684,5 @@ void NetworkContext::InitializePrefetchURLLoaderFactory() {
   CreateURLLoaderFactory(std::move(pending_receiver),
                          CreateURLLoaderFactoryParamsForPrefetch());
 }
-
-
 
 }  // namespace network

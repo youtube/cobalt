@@ -5,9 +5,10 @@
 import("//build/config/gclient_args.gni")
 import("//build/config/ozone.gni")
 import("//chrome/common/features.gni")
+import("//components/guest_view/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(enable_glic || enable_glic_android)
+assert(enable_glic)
 
 # TODO(b/430371855): This target should eventually become Glic's public target,
 # to be imported from external BUILD files. The "impl" source set below would
@@ -68,7 +69,6 @@ source_set("glic") {
       "browser_ui/scoped_glic_button_indicator.h",
       "fre/glic_fre_ui.h",
       "host/context/glic_focused_tab_manager.h",
-      "public/glic_keyed_service.h",
       "widget/glic_window_controller.h",
     ]
 
@@ -305,6 +305,7 @@ source_set("impl") {
     "//chrome/browser/glic/actor",
     "//chrome/browser/glic/common",
     "//chrome/browser/glic/fre",
+    "//chrome/browser/glic/media",
     "//chrome/browser/glic/shared",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/media/webrtc",
@@ -322,6 +323,7 @@ source_set("impl") {
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/passwords",
     "//chrome/browser/ui/profiles",
+    "//chrome/browser/ui/tabs:tab_list_interface",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//components/application_locale_storage",
@@ -338,6 +340,7 @@ source_set("impl") {
     "//components/prefs",
     "//components/sessions",
     "//components/skills:features",
+    "//components/skills/public",
     "//components/variations/service",
     "//components/webui/chrome_urls",
     "//third_party/metrics_proto",
@@ -352,11 +355,11 @@ source_set("impl") {
       "//chrome/browser/actor/ui",
       "//chrome/browser/background/glic",
       "//chrome/browser/glic/browser_ui",
-      "//chrome/browser/glic/media",
       "//chrome/browser/lens/region_search",
+      "//chrome/browser/skills",
+      "//chrome/browser/skills:public",
       "//chrome/browser/themes",
       "//chrome/browser/ui/views/tabs/glic",
-      "//components/guest_view/browser",
       "//components/password_manager/core/browser/actor_login:common",
       "//extensions/browser",
     ]
@@ -376,6 +379,14 @@ source_set("impl") {
     ]
   } else {  # is_android
     deps += [ ":actor_types_for_migration" ]
+  }
+
+  if (enable_guest_view) {
+    deps += [ "//components/guest_view/browser" ]
+
+    if (!enable_extensions_core) {
+      deps += [ "//components/guest_view/browser/slim_web_view" ]
+    }
   }
 
   if (is_mac) {
@@ -426,6 +437,7 @@ source_set("unit_tests") {
   if (!is_android) {
     sources += [
       "glic_metrics_unittest.cc",
+      "host/context/glic_delegating_sharing_manager_unittest.cc",
       "host/context/glic_pin_candidate_comparator_unittest.cc",
       "host/context/glic_screenshot_capturer_unittest.cc",
       "host/context/glic_tab_data_unittest.cc",
@@ -485,17 +497,19 @@ source_set("unit_tests") {
   }
 }
 
-if (!is_android) {
-  source_set("browser_tests") {
-    testonly = true
-    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-    sources = [
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = []
+  if (!is_android) {
+    sources += [
       "glic_browsertest.cc",
       "glic_metrics_browsertest.cc",
       "glic_net_log_browsertest.cc",
       "glic_policy_browsertest.cc",
       "glic_profile_manager_browsertest.cc",
       "glic_user_status_browsertest.cc",
+      "host/context/glic_active_instance_sharing_manager_browsertest.cc",
       "host/context/glic_pinned_tab_manager_browsertest.cc",
       "host/context/glic_tab_data_browsertest.cc",
       "host/glic_api_browsertest.cc",
@@ -504,7 +518,13 @@ if (!is_android) {
       "service/glic_instance_coordinator_browsertest.cc",
       "widget/application_hotkey_delegate_browsertest.cc",
     ]
-    deps = [
+  }
+  deps = [
+    "//chrome/browser/glic/common:browser_tests",
+    "//chrome/browser/ui/tabs:tab_list_interface",
+  ]
+  if (!is_android) {
+    deps += [
       ":glic",
       ":impl",
       "//base/test:test_support",
@@ -518,12 +538,14 @@ if (!is_android) {
       "//chrome/browser/background/glic",
       "//chrome/browser/contextual_cueing:test_support",
       "//chrome/browser/extensions",
+      "//chrome/browser/glic/common",
       "//chrome/browser/glic/common:browser_tests",
       "//chrome/browser/glic/fre:browser_tests",
       "//chrome/browser/glic/test_support",
       "//chrome/browser/permissions:test_support",
       "//chrome/browser/policy:test_support",
       "//chrome/browser/prefs",
+      "//chrome/browser/skills",
       "//chrome/browser/subscription_eligibility",
       "//chrome/browser/ui",
       "//chrome/browser/ui:ui_features",
@@ -533,6 +555,8 @@ if (!is_android) {
       "//chrome/common:constants",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
+      "//components/skills:features",
+      "//components/skills/public",
       "//components/tabs:test_support",
       "//components/variations/service",
       "//content/test:browsertest_support",
@@ -543,20 +567,24 @@ if (!is_android) {
       "//ui/base:ozone_buildflags",
       "//ui/events:test_support",
     ]
-    if (is_chromeos) {
-      deps += [ "//components/account_id:test_support" ]
-    }
-    if (use_ozone) {
-      deps += [ "//ui/ozone" ]
-    }
-
-    data_deps = [ "//chrome/test/data/webui/glic:generate_test_files" ]
-
-    # TODO(crbug.com/432285114): Fix code that adds exit-time destructors and
-    # enable the diagnostic by removing this line.
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+  }
+  if (is_chromeos) {
+    deps += [ "//components/account_id:test_support" ]
+  }
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
   }
 
+  if (!is_android) {
+    data_deps = [ "//chrome/test/data/webui/glic:generate_test_files" ]
+  }
+
+  # TODO(crbug.com/432285114): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+if (!is_android) {
   source_set("interactive_ui_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]

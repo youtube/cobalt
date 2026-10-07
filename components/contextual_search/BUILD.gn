@@ -30,11 +30,8 @@ source_set("public") {
     "contextual_search_session_handle.h",
     "contextual_search_types.cc",
     "contextual_search_types.h",
+    "input_state_model.h",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model.h" ]
-  }
 
   deps = [
     "//components/keyed_service/core",
@@ -66,11 +63,8 @@ source_set("impl") {
     "contextual_search_session_entry.cc",
     "contextual_search_session_entry.h",
     "contextual_search_session_handle.cc",
+    "input_state_model.cc",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model.cc" ]
-  }
 
   deps = [
     ":prefs",
@@ -112,11 +106,8 @@ source_set("unit_tests") {
     "contextual_search_metrics_recorder_unittest.cc",
     "contextual_search_service_unittest.cc",
     "contextual_search_session_entry_unittest.cc",
+    "input_state_model_unittest.cc",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model_unittest.cc" ]
-  }
 
   deps = [
     ":impl",
@@ -136,7 +127,7 @@ source_set("unit_tests") {
     "//testing/gtest",
   ]
 
-  if (!is_android && !is_fuchsia) {
+  if (!is_fuchsia) {
     sources += [ "search_content_sharing_policy_handler_unittest.cc" ]
     deps += [
       ":policy_handler",
@@ -145,7 +136,7 @@ source_set("unit_tests") {
   }
 }
 
-if (!is_android && !is_fuchsia) {
+if (!is_fuchsia) {
   source_set("policy_handler") {
     sources = [
       "search_content_sharing_policy_handler.cc",

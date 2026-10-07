@@ -4516,15 +4516,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esi                 : context
+  //  -- ecx                 : name
   //  -- eax                 : accessor info
-  //  -- sp[2]               : receiver
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
 
-  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register isolate_reg = edx;
-  Register name = ecx;
+  Register name = CallApiGetterDescriptor::NameRegister();
   Register scratch = edi;
   DCHECK(!AreAliased(callback, isolate_reg, name, scratch));
 
@@ -4532,8 +4532,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kGetterApiArgsLength == 5);
-  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
   static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
@@ -4544,10 +4543,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[5]: receiver        <- kThisIndex
   //                           |  sp[4]: holder          <- kHolderIndex
-  //  ...                      |  sp[3]: callback info   <- kCallbackInfoIndex
-  //  sp[2]: receiver          |  sp[2]: undefined       <- kReturnValueIndex
+  //                           |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  ...                      |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //
@@ -4579,7 +4577,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register property_callback_info_arg = ReassignRegister(scratch);
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
-    __ mov(name, FieldOperand(callback, AccessorInfo::kNameOffset));
     // kPropertyKeyIndex
     __ mov(Operand(ebp, FC::kPropertyKeyOffset), name);
 

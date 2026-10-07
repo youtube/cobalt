@@ -335,7 +335,9 @@ void VideoEncoderWrapper::OnEncodedFrame(
 
   CodecSpecificInfo info(ParseCodecSpecificInfo(frame));
 
-  callback_->OnEncodedImage(frame_copy, &info);
+  if (callback_) {
+    callback_->OnEncodedImage(frame_copy, &info);
+  }
 }
 
 int32_t VideoEncoderWrapper::HandleReturnCode(JNIEnv* jni,

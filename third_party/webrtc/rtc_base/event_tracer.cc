@@ -17,7 +17,7 @@
 
 #if defined(RTC_USE_PERFETTO)
 #include "rtc_base/trace_categories.h"
-#include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#include "third_party/perfetto/include/perfetto/tracing/tracing.h"  // nogncheck
 #else
 #include <atomic>
 #include <cinttypes>

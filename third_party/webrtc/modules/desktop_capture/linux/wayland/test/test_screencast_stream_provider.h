@@ -24,6 +24,8 @@
 
 namespace webrtc {
 
+class EglDmaBuf;
+
 class TestScreenCastStreamProvider {
  public:
   class Observer {
@@ -48,6 +50,7 @@ class TestScreenCastStreamProvider {
 
   uint32_t PipeWireNodeId();
 
+  void MarkModifierFailed(uint64_t modifier);
   void RecordFrame(RgbaColor rgba_color, FrameDefect frame_defect = None);
   void StartStreaming();
   void StopStreaming();
@@ -76,7 +79,11 @@ class TestScreenCastStreamProvider {
   pw_core_events pw_core_events_ = {};
   pw_stream_events pw_stream_events_ = {};
 
-  struct spa_video_info_raw spa_video_format_;
+  struct spa_video_info_raw spa_video_format_ = {};
+  uint64_t modifier_ = 0;
+
+  // Test EGL DMA-BUF for testing
+  std::unique_ptr<EglDmaBuf> egl_dmabuf_;
 
   // PipeWire callbacks
   static void OnCoreError(void* data,

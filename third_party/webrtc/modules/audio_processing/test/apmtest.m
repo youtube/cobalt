@@ -23,7 +23,6 @@ function apmtest(task, testname, filepath, casenumber, legacy)
 %     'apm'   The standard APM test set (default).
 %     'apmm'  The mobile APM test set.
 %     'aec'   The AEC test set.
-%     'aecm'  The AECM test set.
 %     'agc'   The AGC test set.
 %     'ns'    The NS test set.
 %     'vad'   The VAD test set.
@@ -68,7 +67,7 @@ outpath = [filepath 'output/'];
 refpath = [filepath 'reference/'];
 
 if strcmp(testname, 'all')
-  tests = {'apm','apmm','aec','aecm','agc','ns','vad'};
+  tests = {'apm','apmm','aec','agc','ns','vad'};
 else
   tests = {testname};
 end

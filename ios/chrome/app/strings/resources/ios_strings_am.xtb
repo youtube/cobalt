@@ -315,6 +315,7 @@
 <translation id="21133533946938348">ትር አጣብቅ</translation>
 <translation id="2117650889962717098">ወደ ማንነት የማያሳውቅ ሁነታ በመቀየር አሳሽዎን የግል አድርገው ያቆዩ</translation>
 <translation id="2119636449201577317">ክፈት በ…</translation>
+<translation id="2119962645034852864">አንዳንድ አገልግሎቶች ለመለያዎ አይገኙም</translation>
 <translation id="2120553909046681540">የእርስዎ ድርጅት የግል አሰሳን አጥፍቷል።</translation>
 <translation id="2122754583996902531">የእርስዎ አሳሽ ይተዳደራል። <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">የድርጅትዎ ውይይቶች የእኛን ሞዴሎች ለማሻሻል ጥቅም ላይ አይውሉም። Gemini ስለ ሰዎች ያለ መረጃን ጨምሮ ትክክል ያልሆነ መረጃን ሊያሳይ ይችላል፣ ስለዚህ በድጋሚ ያረጋግጡት። <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">የይለፍ ቃላትዎን እና ሌሎችንም በሁሉም መሳሪያዎችዎ ላይ ለማግኘት ይግቡ</translation>
 <translation id="2186206192313702726">Google ሌንስ</translation>
 <translation id="2188993354115194873"><ph name="BEGIN_BOLD" />ወደ ውርዶች አስቀምጥ<ph name="END_BOLD" /> የሚለውን መታ ያድርጉ</translation>
+<translation id="2191406283620379491">የሆነ ከባድ ስሕተት ተከስቷል። እባክዎ የiOS ሥሪትዎን ያዘምኑ።</translation>
 <translation id="219283042927675668">በቡድን ውስጥ ያሉ ትሮች</translation>
 <translation id="2194856509914051091">ከግምት ውስጥ መግባት ያለባቸው ነገሮች</translation>
 <translation id="2196428379625389579">በድር ላይ ይፈልጉ</translation>
@@ -935,6 +937,7 @@
 <translation id="4565377596337484307">የይለፍ ቃል ደብቅ</translation>
 <translation id="4568230126482344545">የቅርብ ጊዜ ትሮችን ደብቅ</translation>
 <translation id="4578835633387306383">አብራ…</translation>
+<translation id="4580621046861724270">የተወሰኑ እልባቶች አልተቀመጡም</translation>
 <translation id="4580716718466706433">ወደ «የምሥጢር ቁልፍ አስተዳዳሪ» ይሂዱ</translation>
 <translation id="4585751637295612750">ወደ ጥያቄዎ ለማከል አዲስ ትር ይክፈቱ</translation>
 <translation id="4587589328781138893">ጣቢያዎች</translation>
@@ -1018,6 +1021,7 @@
 <translation id="483689884442613745">አስቀምጥ…</translation>
 <translation id="4840495572919996524">የእርስዎ እልባቶች፣ ታሪክ፣ የይለፍ ቃላት እና ተጨማሪ ነገሮች ከእንግዲህ ከGoogle መለያዎ ጋር አይሰምሩም።</translation>
 <translation id="484280513275854557">እርስዎ ዘግተው ወጥተዋል፤ የአሰሳ ውሂብ ተሰርዟል</translation>
+<translation id="484462545196658690">ራስ-ሰር</translation>
 <translation id="4850886885716139402">አሳይ</translation>
 <translation id="4854068532375923088">«Gemini» ካሜራዎን እንዲጠቀም ይፍቀዱ</translation>
 <translation id="4860895144060829044">ደውል</translation>
@@ -1162,6 +1166,7 @@
 <translation id="5318298563956633672">አስቀድመው ይህን ምርት ትራክ እያደረጉት ነው።</translation>
 <translation id="5327248766486351172">ስም</translation>
 <translation id="5329451663851195956">ለማደስ ወደታች መጎተት ይችላሉ።</translation>
+<translation id="5336910966955551309">የእርስዎን ተወዳጅ ጣቢያዎች ለመሰካት መታ አድርገው ይያዙ</translation>
 <translation id="5338512273860059533">በመለያ መግባት በሂደት ላይ ነው።</translation>
 <translation id="5343472494710226394">በዝንባሌዎችዎ ላይ የተመሰረተ ዜና፣ ስፖርት እና ይዘት።</translation>
 <translation id="5352128922772839949">ፋይል አስቀምጥ</translation>
@@ -1896,6 +1901,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="7958575506592576831">የገፅ ደህንነት መረጃ</translation>
 <translation id="7961015016161918242">በፍጹም</translation>
 <translation id="7971136598759319605">1 ቀን በፊት ንቁ ነበር</translation>
+<translation id="7972837668077967426">ሸራ</translation>
 <translation id="7975036700432177008">ይሞክሩ</translation>
 <translation id="797588153137233716">ምናሌ → ታሪክ → የአሰሳ ውሂብን ሰርዝ</translation>
 <translation id="7977451675950311423">በውሂብ ጥሰት ውስጥ የተጠለፈ የይለፍ ቃል ከተጠቀሙ ያስጠነቅቅዎታል።</translation>
@@ -2003,6 +2009,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="8319282042900445670">አስታዋሽ ለ<ph name="TIME" />፣ <ph name="DATE" /> ተቀናብሯል</translation>
 <translation id="8320212361750431956">የቅርብ ጊዜ እንቅስቃሴ</translation>
 <translation id="8325455175867928593">«በዝንባሌዎችዎ ላይ የተመሠረቱ ግምገማዎች» የሚለውን ደብቅ</translation>
+<translation id="8328777765163860529">ሁሉንም ዝጋ</translation>
 <translation id="833647236762414178">በቀላሉ ወደ ጣቢያዎች እና መተግበሪያዎች በመለያ ለመግባት የእርስዎን የይለፍ ቃሎች እና የይለፍ ቁልፎች ይፍጠሩ፣ ያስቀምጡ እና ያስተዳድሩ። <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">የእርስዎን ነገሮች ምትኬ ያስቀምጡ እና በማንኛውም መሣሪያ ላይ ይጠቀሙበት።</translation>
 <translation id="8348530355586151720">ባለ ሦስት ነጥብ ምናሌውን መታ ያድርጉ</translation>

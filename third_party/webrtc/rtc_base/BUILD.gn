@@ -222,13 +222,26 @@ rtc_library("event_tracer") {
     ":platform_thread_types",
     ":rtc_event",
     ":timeutils",
-    "..:tracing",
     "../api:sequence_checker",
     "../api/units:time_delta",
     "synchronization:mutex",
     "system:rtc_export",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
+  all_dependent_configs = [ "//third_party/perfetto/gn:public_config" ]
+  if (rtc_use_perfetto) {
+    if (build_with_chromium) {
+      deps += [ "//third_party/perfetto:libperfetto" ]
+    } else {
+      deps += [
+        "//third_party/perfetto/include/perfetto/tracing",
+        "//third_party/perfetto/src/tracing:client_api_without_backends",
+        "//third_party/perfetto/src/tracing:platform_impl",
+      ]
+    }
+  } else {
+    deps += [ "//third_party/perfetto/include/perfetto/tracing" ]
+  }
 }
 
 rtc_library("histogram_percentile_counter") {

@@ -13,7 +13,8 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
@@ -39,8 +40,8 @@ public class TracingCategoriesSettings extends ChromeBaseSettingsFragment
 
     // Non-translated strings:
     private static final String MSG_CATEGORY_SELECTION_TITLE = "Select categories";
-    private final MonotonicObservableSupplier<String> mPageTitle =
-            new ObservableSupplierImpl<>(MSG_CATEGORY_SELECTION_TITLE);
+    private final NonNullObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createNonNull(MSG_CATEGORY_SELECTION_TITLE);
 
     private static final String SELECT_ALL_KEY = "select-all";
     private static final String SELECT_ALL_TITLE = "Select all";
@@ -135,8 +136,8 @@ public class TracingCategoriesSettings extends ChromeBaseSettingsFragment
         return AnimationType.PROPERTY;
     }
 
-    // TODO(crbug.com/444470792): Determine what pieces of logic are dynamic and need handling. Any
-    // entries that need adding?
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
-            new ChromeBaseSearchIndexProvider(TracingCategoriesSettings.class.getName(), 0);
+            new ChromeBaseSearchIndexProvider(
+                    TracingCategoriesSettings.class.getName(),
+                    ChromeBaseSearchIndexProvider.INDEX_OPT_OUT);
 }

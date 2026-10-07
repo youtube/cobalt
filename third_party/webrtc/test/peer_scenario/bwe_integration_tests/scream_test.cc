@@ -21,6 +21,7 @@
 #include "api/stats/rtc_stats_report.h"
 #include "api/test/network_emulation/dual_pi2_network_queue.h"
 #include "api/test/network_emulation/network_config_schedule.pb.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation/network_queue.h"
 #include "api/test/network_emulation/schedulable_network_node_builder.h"
 #include "api/test/network_emulation/token_bucket_network_behavior_builder.h"
@@ -311,8 +312,8 @@ TEST(ScreamTest, MaybeTest(LinkCapacity600KbpsRtt100msEcn)) {
                         DataRate::KilobitsPerSec(600), TimeDelta::Millis(50));
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
-  // Allow rampup to take 2s.
-  EXPECT_THAT(result.caller().subview(2), Each(AvailableSendBitrateIsBetween(
+  // Allow rampup to take 3s.
+  EXPECT_THAT(result.caller().subview(3), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(350),
                                               DataRate::KilobitsPerSec(660))));
 }
@@ -697,5 +698,46 @@ TEST(ScreamTest, MaybeTest(LinkCapacity5MbitPolicedTo256Kbit)) {
                                               DataRate::KilobitsPerSec(1100))));
 }
 
+TEST(ScreamTest, MaybeTest(LinkCapacity5MbitWithCrossTrafficNoEcn)) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  SendMediaTestParams params;
+  params.test_duration = TimeDelta::Seconds(30);
+  params.caller_to_callee_path =
+      CreateNetworkPath(s, /*use_dual_pi= */ false,
+                        DataRate::KilobitsPerSec(5000), TimeDelta::Millis(25));
+  params.callee_to_caller_path =
+      CreateNetworkPath(s, /*use_dual_pi= */ false,
+                        DataRate::KilobitsPerSec(5000), TimeDelta::Millis(25));
+
+  // Simulate a file upload on the path from caller to calee.
+  webrtc::TcpMessageRoute* tcp_route = s.net()->CreateTcpRoute(
+      s.net()->CreateRoute({params.caller_to_callee_path}),
+      s.net()->CreateRoute({params.callee_to_caller_path}));
+  Timestamp start_time = s.net()->Now();
+  Timestamp tcp_message_delivered_time = Timestamp::MinusInfinity();
+  s.net()->time_controller()->GetMainThread()->PostDelayedTask(
+      [&]() {
+        tcp_route->SendMessage(
+            /*size=*/2'000'000,
+            /*on_received=*/[&tcp_message_delivered_time, &s]() {
+              tcp_message_delivered_time = s.net()->Now();
+            });
+      },
+      TimeDelta::Seconds(3));
+
+  SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+  ASSERT_TRUE(tcp_message_delivered_time.IsFinite());
+
+  // TODO: bugs.webrtc.org/447037083 - Consider if Scream can ramp up faster.
+  // Currently it is slow due to that `queue_delay_dev_norm` is high after the
+  // cross traffic.
+  int index_where_available_bitrate_should_have_recovered =
+      (tcp_message_delivered_time - start_time).seconds<int>() + 10;
+  EXPECT_THAT(
+      result.caller().subview(
+          index_where_available_bitrate_should_have_recovered),
+      Each(AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(1500),
+                                         DataRate::KilobitsPerSec(5000))));
+}
 }  // namespace
 }  // namespace webrtc

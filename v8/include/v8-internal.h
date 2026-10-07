@@ -451,6 +451,35 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // the type check to use even fewer instructions (essentially replace a AND +
 // SUB with a single AND).
 //
+// Tag ranges can also to a limited degree be used for union types. For
+// example, with the type graph as above, it would be possible to specify a
+// Union(D, E, F) as the tag range [D, F]. However, this only works as long as
+// the (otherwise independent) types that form the union have adjacent tags.
+//
+//
+// There are broadly speaking two options for performing the type check when
+// given the expected type range and the actual tag of the entry.
+//
+// The first option is to simply have the equivalent of
+//
+//     CHECK(expected_tag_range.Contains(actual_tag))
+//
+// This is nice and simple, and friendly to both the branch-predictor and the
+// user/developer as it produces clear error messages. However, this approach
+// may result in quite a bit of code being generated, for example for calling
+// RuntimeAbort from generated code or similar.
+//
+// The second option is to generate code such as
+//
+//     if (!expected_tag_range.Contains(actual_tag)) return nullptr;
+//
+// With this, we are also guaranteed to crash safely when the returned pointer
+// is used, but this may result in significantly less code being generated, for
+// example because the compiler can implement this with a single conditional
+// select in combination with the zero register (e.g. on Arm).
+//
+// The choice of which approach to use therefore depends on the use case, the
+// performance and code size constraints, and the importance of debuggability.
 template <typename Tag>
 struct TagRange {
   static_assert(std::is_enum_v<Tag> &&
@@ -458,7 +487,12 @@ struct TagRange {
                 "Tag parameter must be an enum with base type uint16_t");
 
   // Construct the inclusive tag range [first, last].
-  constexpr TagRange(Tag first, Tag last) : first(first), last(last) {}
+  constexpr TagRange(Tag first, Tag last) : first(first), last(last) {
+#ifdef V8_ENABLE_CHECKS
+    // This would typically be a DCHECK, but that's not available here.
+    if (first > last) __builtin_unreachable();  // Invalid tag range.
+#endif
+  }
 
   // Construct a tag range consisting of a single tag.
   //
@@ -504,8 +538,8 @@ struct TagRange {
   }
 
   // Internally we represent tag ranges as closed ranges [first, last].
-  const Tag first;
-  const Tag last;
+  Tag first;
+  Tag last;
 };
 
 //
@@ -948,6 +982,7 @@ class Internals {
       4 * kApiSystemPointerSize +
       kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
   static const int kTrustedPointerTableBasePointerOffset = 0;
+  static const int kJSDispatchTableSize = kExternalPointerTableSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
@@ -1005,20 +1040,20 @@ class Internals {
       kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
   static const int kIsolateCodePointerTableBaseAddressOffset =
       kIsolateTrustedPointerPublishingScopeOffset + kApiSystemPointerSize;
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateCodePointerTableBaseAddressOffset + kApiSystemPointerSize;
 #else
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
 #endif  // V8_ENABLE_SANDBOX
 #else
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kJSDispatchTableOffset =
-      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateJSDispatchTableOffset + kJSDispatchTableSize;
   static const int kIsolateRegexpExecVectorArgumentOffset =
-      kJSDispatchTableOffset + kApiSystemPointerSize;
+      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =

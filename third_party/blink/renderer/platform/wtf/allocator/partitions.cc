@@ -289,22 +289,22 @@ size_t Partitions::TotalSizeOfCommittedPages() {
           base::features::kPartitionAllocReuseMainPartitionForBuffers)) {
     if (buffer_root_) {
       total_size +=
-          TS_UNCHECKED_READ(buffer_root_->total_size_of_committed_pages);
+          TS_UNCHECKED_READ(buffer_root_->total_size_of_committed_pages_);
     }
     return total_size;
   }
 #endif
   // Racy reads below: this is fine to collect statistics.
   if (auto* fast_malloc_partition = FastMallocPartition()) {
-    total_size +=
-        TS_UNCHECKED_READ(fast_malloc_partition->total_size_of_committed_pages);
+    total_size += TS_UNCHECKED_READ(
+        fast_malloc_partition->total_size_of_committed_pages_);
   }
   if (ArrayBufferPartitionInitialized()) {
     total_size += TS_UNCHECKED_READ(
-        ArrayBufferPartition()->total_size_of_committed_pages);
+        ArrayBufferPartition()->total_size_of_committed_pages_);
   }
   total_size +=
-      TS_UNCHECKED_READ(BufferPartition()->total_size_of_committed_pages);
+      TS_UNCHECKED_READ(BufferPartition()->total_size_of_committed_pages_);
   return total_size;
 }
 

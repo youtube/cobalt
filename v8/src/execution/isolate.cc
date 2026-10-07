@@ -4197,140 +4197,6 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
   table_.clear();
 }
 
-class TracingAccountingAllocator : public AccountingAllocator {
- public:
-  explicit TracingAccountingAllocator(Isolate* isolate)
-      : AccountingAllocator(isolate) {}
-  ~TracingAccountingAllocator() = default;
-
- protected:
-  void TraceAllocateSegmentImpl(v8::internal::Segment* segment) override {
-    base::MutexGuard lock(&mutex_);
-    UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
-  }
-
-  void TraceZoneCreationImpl(const Zone* zone) override {
-    base::MutexGuard lock(&mutex_);
-    active_zones_.insert(zone);
-    nesting_depth_++;
-  }
-
-  void TraceZoneDestructionImpl(const Zone* zone) override {
-    base::MutexGuard lock(&mutex_);
-#ifdef V8_ENABLE_PRECISE_ZONE_STATS
-    if (v8_flags.trace_zone_type_stats) {
-      type_stats_.MergeWith(zone->type_stats());
-    }
-#endif
-    UpdateMemoryTrafficAndReportMemoryUsage(zone->segment_bytes_allocated());
-    active_zones_.erase(zone);
-    nesting_depth_--;
-
-#ifdef V8_ENABLE_PRECISE_ZONE_STATS
-    if (v8_flags.trace_zone_type_stats && active_zones_.empty()) {
-      type_stats_.Dump();
-    }
-#endif
-  }
-
- private:
-  void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta) {
-    if (!v8_flags.trace_zone_stats &&
-        !(TracingFlags::zone_stats.load(std::memory_order_relaxed) &
-          v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-      // Don't print anything if the zone tracing was enabled only because of
-      // v8_flags.trace_zone_type_stats.
-      return;
-    }
-
-    memory_traffic_since_last_report_ += memory_traffic_delta;
-    if (memory_traffic_since_last_report_ < v8_flags.zone_stats_tolerance)
-      return;
-    memory_traffic_since_last_report_ = 0;
-
-    Dump(buffer_, true);
-
-    {
-      std::string trace_str = buffer_.str();
-
-      if (v8_flags.trace_zone_stats) {
-        PrintF(
-            "{"
-            "\"type\": \"v8-zone-trace\", "
-            "\"stats\": %s"
-            "}\n",
-            trace_str.c_str());
-      }
-      if (V8_UNLIKELY(
-              TracingFlags::zone_stats.load(std::memory_order_relaxed) &
-              v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-        TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
-                             "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
-                             TRACE_STR_COPY(trace_str.c_str()));
-      }
-    }
-
-    // Clear the buffer.
-    buffer_.str(std::string());
-  }
-
-  void Dump(std::ostringstream& out, bool dump_details) {
-    // Note: Neither isolate nor zones are locked, so be careful with accesses
-    // as the allocator is potentially used on a concurrent thread.
-    double time = isolate()->time_millis_since_init();
-    out << "{" << "\"isolate\": \"" << reinterpret_cast<void*>(isolate())
-        << "\", " << "\"time\": " << time << ", ";
-    size_t total_segment_bytes_allocated = 0;
-    size_t total_zone_allocation_size = 0;
-    size_t total_zone_freed_size = 0;
-
-    if (dump_details) {
-      // Print detailed zone stats if memory usage changes direction.
-      out << "\"zones\": [";
-      bool first = true;
-      for (const Zone* zone : active_zones_) {
-        size_t zone_segment_bytes_allocated = zone->segment_bytes_allocated();
-        size_t zone_allocation_size = zone->allocation_size_for_tracing();
-        size_t freed_size = zone->freed_size_for_tracing();
-        if (first) {
-          first = false;
-        } else {
-          out << ", ";
-        }
-        out << "{" << "\"name\": \"" << zone->name() << "\", "
-            << "\"allocated\": " << zone_segment_bytes_allocated << ", "
-            << "\"used\": " << zone_allocation_size << ", "
-            << "\"freed\": " << freed_size << "}";
-        total_segment_bytes_allocated += zone_segment_bytes_allocated;
-        total_zone_allocation_size += zone_allocation_size;
-        total_zone_freed_size += freed_size;
-      }
-      out << "], ";
-    } else {
-      // Just calculate total allocated/used memory values.
-      for (const Zone* zone : active_zones_) {
-        total_segment_bytes_allocated += zone->segment_bytes_allocated();
-        total_zone_allocation_size += zone->allocation_size_for_tracing();
-        total_zone_freed_size += zone->freed_size_for_tracing();
-      }
-    }
-    out << "\"allocated\": " << total_segment_bytes_allocated << ", "
-        << "\"used\": " << total_zone_allocation_size << ", "
-        << "\"freed\": " << total_zone_freed_size << "}";
-  }
-
-  std::atomic<size_t> nesting_depth_{0};
-
-  base::Mutex mutex_;
-  std::unordered_set<const Zone*> active_zones_;
-#ifdef V8_ENABLE_PRECISE_ZONE_STATS
-  TypeStats type_stats_;
-#endif
-  std::ostringstream buffer_;
-  // This value is increased on both allocations and deallocations.
-  size_t memory_traffic_since_last_report_ = 0;
-};
-
 #ifdef DEBUG
 std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
@@ -4576,6 +4442,11 @@ void Isolate::CheckIsolateLayout() {
                     Isolate, isolate_data_.code_pointer_table_base_address_)) ==
                 Internals::kIsolateCodePointerTableBaseAddressOffset);
 #endif
+
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.js_dispatch_table_)) ==
+      Internals::kIsolateJSDispatchTableOffset);
+
   static_assert(static_cast<int>(OFFSET_OF(
                     Isolate, isolate_data_.api_callback_thunk_argument_)) ==
                 Internals::kIsolateApiCallbackThunkArgumentOffset);
@@ -4583,10 +4454,6 @@ void Isolate::CheckIsolateLayout() {
       static_cast<int>(OFFSET_OF(
           Isolate, isolate_data_.continuation_preserved_embedder_data_)) ==
       Internals::kContinuationPreservedEmbedderDataOffset);
-
-  static_assert(static_cast<int>(OFFSET_OF(
-                    Isolate, isolate_data_.js_dispatch_table_base_)) ==
-                Internals::kJSDispatchTableOffset);
 
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)) ==
@@ -4909,8 +4776,14 @@ void Isolate::Deinit() {
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
-  IsolateGroup::current()->js_dispatch_table()->TearDownSpace(
-      heap()->js_dispatch_table_space());
+  js_dispatch_table().TearDownSpace(heap()->js_dispatch_table_space());
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+  js_dispatch_table().DetachSpaceFromReadOnlySegments(
+      heap()->read_only_js_dispatch_table_space());
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+  js_dispatch_table().TearDownSpace(
+      heap()->read_only_js_dispatch_table_space());
+  js_dispatch_table().TearDown();
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -5944,6 +5817,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
+  js_dispatch_table().Initialize();
+
   isolate_data_.external_reference_table()->Init(this);
 
 #ifdef V8_COMPRESS_POINTERS
@@ -5980,8 +5855,22 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #endif  // V8_ENABLE_SANDBOX
-  IsolateGroup::current()->js_dispatch_table()->InitializeSpace(
-      heap()->js_dispatch_table_space());
+  JSDispatchTable::Space* read_only_js_dispatch_table_space =
+      heap()->read_only_js_dispatch_table_space();
+  js_dispatch_table().InitializeSpace(read_only_js_dispatch_table_space);
+  // To avoid marking trying to write to these read-only cells they are
+  // allocated black. Target code objects in the read-only dispatch table are
+  // read-only code objects.
+  read_only_js_dispatch_table_space->set_allocate_black(true);
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+  js_dispatch_table().AttachSpaceToReadOnlySegments(
+      read_only_js_dispatch_table_space);
+  // TODO(omerkatz): Consider allocating and populating the read only space
+  // once for the first isolate, and remapping it for every other isolate.
+  js_dispatch_table().PreAllocateEntries(read_only_js_dispatch_table_space,
+                                         JSBuiltinDispatchHandleRoot::kCount);
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+  js_dispatch_table().InitializeSpace(heap()->js_dispatch_table_space());
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -8049,7 +7938,7 @@ base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
 void Isolate::InitializeBuiltinJSDispatchTable() {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = js_dispatch_table();
 
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   // For static dispatch handles we need:
@@ -8065,39 +7954,37 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
   // should be allowed to proceed until the table is initialized.
   base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
 
-  if (jdt->PreAllocatedEntryNeedsInitialization(
-          read_only_heap_->js_dispatch_table_space(),
-          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst))) {
-    JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(jdt);
-    for (JSBuiltinDispatchHandleRoot::Idx idx =
-             JSBuiltinDispatchHandleRoot::kFirst;
-         idx < JSBuiltinDispatchHandleRoot::kCount;
-         idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
-             static_cast<int>(idx) + 1)) {
-      Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
-      DCHECK(Builtins::IsIsolateIndependent(builtin));
-      Tagged<Code> code = builtins_.code(builtin);
-      if (code->is_disabled_builtin()) {
-        // Initialize preallocated entry for disabled builtin with kIllegal
-        // builtin's Code to ensure that the actual builtin's code can't be
-        // called by reusing the dispatch table handle.
-        code = builtins_.code(Builtin::kIllegal);
-      }
-      DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
-      // Since we are sharing the dispatch handles we need all isolates to
-      // share the builtin code objects.
-      DCHECK_IMPLIES(!serializer_enabled_, HeapLayout::InReadOnlySpace(code));
-
-      // TODO(olivf, 40931165): It might be more robust to get the static
-      // parameter count of this builtin.
-      int parameter_count = code->parameter_count();
-
-      JSDispatchHandle handle = builtin_dispatch_handle(builtin);
-      DCHECK_EQ(builtin_dispatch_handle(idx), handle);
-      jdt->InitializePreAllocatedEntry(
-          read_only_heap_->js_dispatch_table_space(), handle, code,
-          parameter_count);
+  CHECK(jdt.PreAllocatedEntryNeedsInitialization(
+      heap()->read_only_js_dispatch_table_space(),
+      builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst)));
+  JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(&jdt);
+  for (JSBuiltinDispatchHandleRoot::Idx idx =
+           JSBuiltinDispatchHandleRoot::kFirst;
+       idx < JSBuiltinDispatchHandleRoot::kCount;
+       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+           static_cast<int>(idx) + 1)) {
+    Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
+    DCHECK(Builtins::IsIsolateIndependent(builtin));
+    Tagged<Code> code = builtins_.code(builtin);
+    if (code->is_disabled_builtin()) {
+      // Initialize preallocated entry for disabled builtin with kIllegal
+      // builtin's Code to ensure that the actual builtin's code can't be
+      // called by reusing the dispatch table handle.
+      code = builtins_.code(Builtin::kIllegal);
     }
+    DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
+    // Since we are sharing the dispatch handles we need all isolates to
+    // share the builtin code objects.
+    DCHECK_IMPLIES(!serializer_enabled_, HeapLayout::InReadOnlySpace(code));
+
+    // TODO(olivf, 40931165): It might be more robust to get the static
+    // parameter count of this builtin.
+    int parameter_count = code->parameter_count();
+
+    JSDispatchHandle handle = builtin_dispatch_handle(builtin);
+    DCHECK_EQ(builtin_dispatch_handle(idx), handle);
+    jdt.InitializePreAllocatedEntry(heap()->read_only_js_dispatch_table_space(),
+                                    handle, code, parameter_count);
   }
 #else
   for (JSBuiltinDispatchHandleRoot::Idx idx =
@@ -8113,8 +8000,8 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
     // it's impossible to call it.
     if (!code->is_disabled_builtin()) {
       int parameter_count = code->parameter_count();
-      handle = jdt->AllocateAndInitializeEntry(
-          heap()->js_dispatch_table_space(), parameter_count, code);
+      handle = jdt.AllocateAndInitializeEntry(heap()->js_dispatch_table_space(),
+                                              parameter_count, code);
     }
     isolate_data_.builtin_dispatch_table()[idx] = handle;
   }

@@ -12,6 +12,7 @@
 #import "base/memory/raw_ptr.h"
 #import "base/time/time.h"
 #import "base/types/expected.h"
+#import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper_observer.h"
@@ -41,9 +42,9 @@ class PageContext;
 // A browser agent responsible for presenting the floaty and managing
 // its protocol handlers.
 class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
-                        FullscreenControllerObserver,
-                        public TabsDependencyInstaller,
-                        public GeminiTabHelperObserver {
+                        public GeminiTabHelperObserver,
+                        public FullscreenControllerObserver,
+                        public TabsDependencyInstaller {
  public:
   BwgBrowserAgent(const BwgBrowserAgent&) = delete;
   BwgBrowserAgent& operator=(const BwgBrowserAgent&) = delete;
@@ -100,13 +101,27 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Dismisses the floaty and resets the Gemini flow.
   void DismissFloaty();
 
-  // Hide Gemini floaty. When in a hidden state, the floaty view is dismissed
-  // but still persists in memory and needs to be properly cleaned up. Properly
-  // cleaning up the floaty can be done by resetting the Gemini instance.
-  void HideFloatyIfInvoked();
+  // Hide Gemini floaty with `animated` flag. When in a hidden state, the floaty
+  // view is dismissed but still persists in memory and needs to be properly
+  // cleaned up. Properly cleaning up the floaty can be done by resetting the
+  // Gemini instance.
+  void HideFloatyIfInvoked(bool animated);
 
-  // Show Gemini floaty. Used to re-show an invoked Gemini floaty.
-  void ShowFloatyIfInvoked();
+  // Show Gemini floaty with `animated` flag. Used to re-show an invoked Gemini
+  // floaty with the `last_view_state_`.
+  void ShowFloatyIfInvoked(bool animated);
+
+  // Collapses floaty if invoked.
+  void CollapseFloatyIfInvoked();
+
+  // Setter for `last_shown_view_state_`.
+  void SetLastShownViewState(ios::provider::GeminiViewState view_state);
+
+  // Called when trait collection is updated.
+  void UpdateForTraitCollection(UITraitCollection* traitCollection);
+
+  // Dismisses Gemini from all other windows and executes the completion block.
+  void DismissGeminiFromOtherWindows(base::OnceClosure completion);
 
  private:
   explicit BwgBrowserAgent(Browser* browser);
@@ -166,11 +181,21 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
                                  CGFloat progress) override;
   void FullscreenWillAnimate(FullscreenController* controller,
                              FullscreenAnimator* animator) override;
+  void FullscreenDidAnimate(FullscreenController* controller,
+                            FullscreenAnimatorStyle style) override;
   void FullscreenControllerWillShutDown(
       FullscreenController* controller) override;
+  void FullscreenViewportInsetRangeChanged(
+      FullscreenController* controller,
+      UIEdgeInsets min_viewport_insets,
+      UIEdgeInsets max_viewport_insets) override;
 
   // Returns true if the user has completed the FRE.
   bool HasCompletedFirstRun();
+
+  // Returns the floaty offset from a FullscreenController.
+  CGFloat GetFloatyOffsetFromFullscreenController(
+      FullscreenController* controller);
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -197,9 +222,19 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // updates related to the Gemini overlay.
   raw_ptr<FullscreenController> fullscreen_controller_ = nullptr;
 
-  // Used to track the last view state of an invoked floaty. Used to show a
-  // hidden floaty with the previous view state.
-  ios::provider::GeminiViewState last_view_state_ =
+  // Observers for keyboard events.
+  id keyboard_show_observer_ = nil;
+  id keyboard_hide_observer_ = nil;
+
+  // Whether the keyboard is currently visible.
+  bool is_keyboard_visible_ = false;
+
+  // Called when keyboard state changes.
+  void OnKeyboardStateChanged(bool is_visible);
+
+  // Used to track the last shown view state of an invoked floaty. Used to show
+  // a hidden floaty with the previous view state.
+  ios::provider::GeminiViewState last_shown_view_state_ =
       ios::provider::GeminiViewState::kUnknown;
 
   // Whether the floaty is currently invoked.
@@ -208,6 +243,18 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Whether the floaty is temporarily hidden. Used to hide the floaty without
   // triggering logic related to ending floaty persistence.
   bool is_floaty_temporarily_hidden_ = false;
+
+  // Records when the floaty was last hidden. Prevents the floaty from
+  // reappearing too soon, particularly after a
+  // `HideFloatyIfInvoked()` call during parent/child view
+  // transitions.
+  base::TimeTicks floaty_hidden_timestamp_;
+
+  // Registrar for pref changes.
+  PrefChangeRegistrar pref_change_registrar_;
+
+  // Called when the page content sharing preference changes.
+  void OnPageContentPrefChanged();
 
   // Weak pointer factory.
   base::WeakPtrFactory<BwgBrowserAgent> weak_factory_{this};

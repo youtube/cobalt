@@ -22,6 +22,7 @@ import {NodeStore} from '../content/node_store.js';
 import {DEFAULT_SETTINGS, type LineFocusMovement, type LineFocusStyle, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
+import type {Segment} from '../read_aloud/read_aloud_types.js';
 import {SpeechController} from '../read_aloud/speech_controller.js';
 import type {SpeechListener} from '../read_aloud/speech_controller.js';
 import {TextSegmenter} from '../read_aloud/text_segmenter.js';
@@ -93,6 +94,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
   private isReadAloudEnabled_: boolean;
   protected isDocsLoadMoreButtonVisible_: boolean = false;
+  protected isImmersiveEnabled_: boolean = false;
 
   // If the speech engine is considered "loaded." If it is, we should display
   // the play / pause buttons normally. Otherwise, we should disable the
@@ -160,6 +162,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
     if (chrome.readingMode.isReadabilityEnabled) {
       this.contentController_.configureTrustedTypes();
     }
+    this.isImmersiveEnabled_ = chrome.readingMode.isImmersiveEnabled;
   }
 
   override disconnectedCallback() {
@@ -472,12 +475,16 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.getSelection()?.removeAllRanges();
   }
 
+  onWordBoundary(segments: Segment[]): void {
+    if (chrome.readingMode.isLineFocusEnabled) {
+      this.lineFocusController_.onWordBoundary(segments);
+    }
+  }
+
   onIsSpeechActiveChange(): void {
     this.isSpeechActive_ = this.speechController_.isSpeechActive();
-    // TODO (crbug.com/475223538): Implement updateLinks for Readability flag.
     if (chrome.readingMode.linksEnabled &&
-        !this.speechController_.isTemporaryPause() &&
-        !chrome.readingMode.isReadabilityEnabled) {
+        !this.speechController_.isTemporaryPause()) {
       this.updateLinks_();
     }
   }
@@ -630,6 +637,21 @@ export class AppElement extends AppElementBase implements SpeechListener,
           event.detail.data, this.$.container,
           this.$.containerParent.clientHeight);
       this.setLineFocus_();
+      if (!this.lineFocusController_.isEnabled()) {
+        return;
+      }
+
+      const padding = Math.floor(this.$.containerParent.clientHeight / 2);
+      if (this.lineFocusController_.isStatic()) {
+        // Add padding so the top and bottom lines of the page can still be
+        // focused even though line focus stays in the middle.
+        this.styleUpdater_.setPaddingForLineFocus(padding);
+        this.$.containerScroller.scrollBy({top: padding, behavior: 'instant'});
+      } else {
+        // Reset the padding and maintain the current scroll position.
+        this.styleUpdater_.setPaddingForLineFocus(0);
+        this.$.containerScroller.scrollBy({top: -padding, behavior: 'instant'});
+      }
     }
   }
 
@@ -642,6 +664,12 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
   private onTextLocationsChange_() {
     if (chrome.readingMode.isLineFocusEnabled) {
+      if (this.lineFocusController_.isEnabled()) {
+        const padding = this.lineFocusController_.isStatic() ?
+            Math.floor(this.$.containerParent.clientHeight / 2) :
+            0;
+        this.styleUpdater_.setPaddingForLineFocus(padding);
+      }
       this.lineFocusController_.onTextLocationsChange(
           this.$.container, this.$.containerParent.clientHeight);
     }
@@ -676,7 +704,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
       e.preventDefault();
       this.lineFocusController_.snapToNextLine(isForwardArrow(e.key));
     } else if (
-        chrome.readingMode.isLineFocusEnabled && isLineFocusShortcut(e.key)) {
+        chrome.readingMode.isLineFocusEnabled && isLineFocusShortcut(e)) {
       this.lineFocusController_.toggle(
           this.$.container, this.$.containerParent.offsetHeight);
       this.styleUpdater_.setLineFocusStyle(

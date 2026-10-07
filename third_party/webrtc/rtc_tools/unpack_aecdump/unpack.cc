@@ -507,9 +507,6 @@ int do_main(int argc, char* argv[]) {
       PRINT_CONFIG(aec_drift_compensation_enabled);
       PRINT_CONFIG(aec_extended_filter_enabled);
       PRINT_CONFIG(aec_suppression_level);
-      PRINT_CONFIG(aecm_enabled);
-      PRINT_CONFIG(aecm_comfort_noise_enabled);
-      PRINT_CONFIG(aecm_routing_mode);
       PRINT_CONFIG(agc_enabled);
       PRINT_CONFIG(agc_mode);
       PRINT_CONFIG(agc_limiter_enabled);

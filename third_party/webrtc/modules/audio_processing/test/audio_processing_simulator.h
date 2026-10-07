@@ -99,7 +99,6 @@ struct SimulationSettings {
   std::optional<std::string> artificial_nearend_filename;
   std::optional<std::string> linear_aec_output_filename;
   std::optional<bool> use_aec;
-  std::optional<bool> use_aecm;
   std::optional<bool> use_ed;  // Residual Echo Detector.
   std::optional<std::string> ed_graph_output_filename;
   std::optional<bool> use_agc;

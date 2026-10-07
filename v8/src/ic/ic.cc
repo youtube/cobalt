@@ -3692,16 +3692,11 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
     // map is deprecated.
     DCHECK(!IsNone(type));
     DCHECK(!IsNone(target_type));
-    // With move_prototype_transitions_first enabled field updates don't
-    // generalize across prototype transitions, because the transitions happen
-    // on root maps (i.e., before any field is added). In other words we cannot
-    // rely on changes in the source map propagating to the target map when
-    // there is a SetPrototype involved. NB, technically without
-    // move_prototype_transitions_first we also don't update field types across
-    // prototype transitions, however we preemptively generalize all fields of
-    // prototype transition target maps.
+    // Field updates don't generalize across prototype transitions, because the
+    // transitions happen on root maps (i.e., before any field is added). In
+    // other words we cannot rely on changes in the source map propagating to
+    // the target map when there is a SetPrototype involved.
     bool prototype_transition_is_shortcutted =
-        v8_flags.move_prototype_transitions_first &&
         source_map->prototype() != target_map->prototype();
     if (!prototype_transition_is_shortcutted &&
         CanCacheCloneTargetMapTransition(source_map, target_map,
@@ -4046,8 +4041,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 #endif
 
   Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>();
-  PropertyCallbackArguments arguments(isolate, *receiver, *holder,
-                                      should_throw);
+  PropertyCallbackArguments arguments(isolate, *holder, should_throw);
   bool result = arguments.CallAccessorSetter(isolate, info, name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   if (!result && GetShouldThrow(isolate, should_throw) == kThrowOnError) {
@@ -4209,7 +4203,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
-  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(1);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(1);
   DirectHandle<JSObject> holder = args.at<JSObject>(2);
   DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 #ifdef DEBUG
@@ -4222,7 +4216,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, *receiver, *holder);
+    PropertyCallbackArguments arguments(isolate, *holder);
 
     DirectHandle<Object> result =
         arguments.CallNamedGetter(isolate, interceptor, name);
@@ -4293,7 +4287,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+    PropertyCallbackArguments arguments(isolate, *holder,
                                         Nothing<ShouldThrow>());
 
     v8::Intercepted intercepted =
@@ -4347,20 +4341,22 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   // TODO(verwaest): This should probably get the holder and receiver as input.
   HandleScope scope(isolate);
-  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> holder = args.at<JSObject>(0);
+  // This function is called only for receiver-is-holder case.
+  DirectHandle<JSObject> receiver = holder;
   DCHECK_GE(args.smi_value_at(1), 0);
   uint32_t index = args.smi_value_at(1);
 
-  DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+  DirectHandle<InterceptorInfo> interceptor(holder->GetIndexedInterceptor(),
                                             isolate);
-  PropertyCallbackArguments arguments(isolate, *receiver, *receiver);
+  PropertyCallbackArguments arguments(isolate, *holder);
   DirectHandle<Object> result =
       arguments.CallIndexedGetter(isolate, interceptor, index);
   // An exception was thrown in the interceptor. Propagate.
   RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
   if (result.is_null()) {
-    LookupIterator it(isolate, receiver, index, receiver);
+    LookupIterator it(isolate, receiver, index, holder);
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
     it.Next();
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
@@ -4392,14 +4388,14 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   HandleScope scope(isolate);
-  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> holder = args.at<JSObject>(0);
   DCHECK_GE(args.smi_value_at(1), 0);
   uint32_t index = args.smi_value_at(1);
 
   {
-    DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+    DirectHandle<InterceptorInfo> interceptor(holder->GetIndexedInterceptor(),
                                               isolate);
-    PropertyCallbackArguments arguments(isolate, *receiver, *receiver);
+    PropertyCallbackArguments arguments(isolate, *holder);
 
     if (interceptor->has_query()) {
       DirectHandle<Object> result =
@@ -4429,7 +4425,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
     // side effects.
   }
 
-  LookupIterator it(isolate, receiver, index, receiver);
+  LookupIterator it(isolate, holder, index, holder);
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
   it.Next();
   Maybe<bool> maybe = JSReceiver::HasProperty(&it);

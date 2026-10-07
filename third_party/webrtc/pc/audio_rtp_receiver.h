@@ -57,6 +57,8 @@ class AudioRtpReceiver : public ObserverInterface,
                    VoiceMediaReceiveChannelInterface* voice_channel = nullptr);
   // Note: This is a PlanB-only constructor.
   // TODO(https://crbug.com/webrtc/9480): Remove this when streams() is removed.
+  // This should be PLAN_B_ONLY; but this marking is deferred due to templating
+  // issues
   AudioRtpReceiver(
       Thread* worker_thread,
       absl::string_view receiver_id,
@@ -64,6 +66,8 @@ class AudioRtpReceiver : public ObserverInterface,
       bool is_unified_plan,  // must always be set to false.
       VoiceMediaReceiveChannelInterface* media_channel = nullptr);
   // TODO(https://crbug.com/webrtc/9480): Remove this when streams() is removed.
+  // This should be PLAN_B_ONLY; but this marking is deferred due to templating
+  // issues
   AudioRtpReceiver(
       Thread* worker_thread,
       absl::string_view receiver_id,

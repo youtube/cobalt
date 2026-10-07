@@ -8,6 +8,7 @@
 #import "ios/chrome/browser/contextual_panel/model/active_contextual_panel_tab_helper_observation_forwarder.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper_observer_bridge.h"
+#import "ios/chrome/browser/find_in_page/model/find_in_page_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
@@ -46,24 +47,19 @@
     DCHECK(webStateList);
     _webStateList = webStateList->AsWeakPtr();
 
-    // Web state list observation is only necessary for Contextual Panel
-    // feature.
-    if (IsContextualPanelEnabled()) {
-      // Set up web state list observation.
-      _webStateListObserver =
-          std::make_unique<WebStateListObserverBridge>(self);
-      _webStateListObservation = std::make_unique<
-          base::ScopedObservation<WebStateList, WebStateListObserverBridge>>(
-          _webStateListObserver.get());
-      _webStateListObservation->Observe(_webStateList.get());
+    // Set up web state list observation.
+    _webStateListObserver = std::make_unique<WebStateListObserverBridge>(self);
+    _webStateListObservation = std::make_unique<
+        base::ScopedObservation<WebStateList, WebStateListObserverBridge>>(
+        _webStateListObserver.get());
+    _webStateListObservation->Observe(_webStateList.get());
 
-      // Set up active ContextualPanelTabHelper observation.
-      _contextualPanelObserverBridge =
-          std::make_unique<ContextualPanelTabHelperObserverBridge>(self);
-      _activeContextualPanelObservationForwarder =
-          std::make_unique<ActiveContextualPanelTabHelperObservationForwarder>(
-              webStateList, _contextualPanelObserverBridge.get());
-    }
+    // Set up active ContextualPanelTabHelper observation.
+    _contextualPanelObserverBridge =
+        std::make_unique<ContextualPanelTabHelperObserverBridge>(self);
+    _activeContextualPanelObservationForwarder =
+        std::make_unique<ActiveContextualPanelTabHelperObservationForwarder>(
+            webStateList, _contextualPanelObserverBridge.get());
   }
   return self;
 }
@@ -85,6 +81,13 @@
     return _webStateList->GetActiveWebState()
         ->GetWebViewProxy()
         .keyboardVisible;
+  }
+  return NO;
+}
+
+- (BOOL)isFindNavigatorVisibleForWebContent {
+  if (_webStateList && _webStateList->GetActiveWebState()) {
+    return IsFindNavigatorVisibleInTab(_webStateList->GetActiveWebState());
   }
   return NO;
 }

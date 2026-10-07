@@ -11,7 +11,6 @@
 #include "video/rtp_video_stream_receiver2.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
@@ -141,7 +140,7 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
   configuration.local_media_ssrc = local_ssrc;
   configuration.non_sender_rtt_measurement = non_sender_rtt_measurement;
 
-  auto rtp_rtcp = std::make_unique<ModuleRtpRtcpImpl2>(env, configuration);
+  auto rtp_rtcp = ModuleRtpRtcpImpl2::CreateReceiveModule(env, configuration);
   rtp_rtcp->SetRTCPStatus(RtcpMode::kCompound);
 
   return rtp_rtcp;

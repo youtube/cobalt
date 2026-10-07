@@ -75,7 +75,7 @@ void FakeDecoder::SetDelayedDecoding(int decode_delay_ms) {
   RTC_CHECK(task_queue_factory_);
   if (!task_queue_) {
     task_queue_ = task_queue_factory_->CreateTaskQueue(
-        "fake_decoder", TaskQueueFactory::Priority::NORMAL);
+        "fake_decoder", TaskQueueFactory::Priority::kNormal);
   }
   decode_delay_ms_ = decode_delay_ms;
 }

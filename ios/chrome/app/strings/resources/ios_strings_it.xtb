@@ -315,6 +315,7 @@
 <translation id="21133533946938348">Fissa scheda</translation>
 <translation id="2117650889962717098">Mantieni privata la navigazione passando alla modalità di navigazione in incognito</translation>
 <translation id="2119636449201577317">Apri in…</translation>
+<translation id="2119962645034852864">Alcuni servizi non sono disponibili per il tuo account</translation>
 <translation id="2120553909046681540">La tua organizzazione ha disattivato la navigazione privata.</translation>
 <translation id="2122754583996902531">Il tuo browser è gestito. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Le chat della tua organizzazione non vengono usate per migliorare i nostri modelli. Gemini potrebbe mostrare informazioni imprecise, anche riguardo a persone, quindi verifica le sue risposte. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +333,7 @@
 <translation id="2184272387334793084">Accedi per avere a disposizione le password e altri dati su tutti i tuoi dispositivi</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Tocca <ph name="BEGIN_BOLD" />Salva nei download<ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">Si è verificato un problema. Aggiorna la versione di iOS.</translation>
 <translation id="219283042927675668">Schede nel gruppo</translation>
 <translation id="2194856509914051091">Aspetti da considerare</translation>
 <translation id="2196428379625389579">Cerca sul web</translation>
@@ -873,6 +875,7 @@
 <translation id="4302061870579014542">Imposta posizione</translation>
 <translation id="4304713468139749426">Gestore delle password</translation>
 <translation id="4309403553630140242">Tocca due volte per ulteriori informazioni</translation>
+<translation id="4310738531374808763">Personalizza la tua home page</translation>
 <translation id="4320848494125124980">Recenti</translation>
 <translation id="4322394346347055525">Chiudi le altre schede</translation>
 <translation id="4324735664183300693">Attiva le notifiche</translation>
@@ -934,6 +937,7 @@
 <translation id="4565377596337484307">Nascondi password</translation>
 <translation id="4568230126482344545">Nascondi schede recenti</translation>
 <translation id="4578835633387306383">Attiva…</translation>
+<translation id="4580621046861724270">Alcuni preferiti non sono stati salvati</translation>
 <translation id="4580716718466706433">Vai a "Gestore delle password"</translation>
 <translation id="4585751637295612750">Apri una nuova scheda per aggiungerla alla tua domanda</translation>
 <translation id="4587589328781138893">Siti</translation>
@@ -1017,6 +1021,7 @@
 <translation id="483689884442613745">Salva…</translation>
 <translation id="4840495572919996524">I preferiti, la cronologia, le password e altre impostazioni non verranno più sincronizzati con il tuo Account Google.</translation>
 <translation id="484280513275854557">Il tuo account è stato disconnesso; i dati di navigazione sono stati eliminati</translation>
+<translation id="484462545196658690">Automatico</translation>
 <translation id="4850886885716139402">Visualizza</translation>
 <translation id="4854068532375923088">Consenti a "Gemini" di usare la fotocamera</translation>
 <translation id="4860895144060829044">Chiama</translation>
@@ -1161,6 +1166,7 @@
 <translation id="5318298563956633672">Stai già monitorando questo prodotto.</translation>
 <translation id="5327248766486351172">Nome</translation>
 <translation id="5329451663851195956">Puoi trascinare verso il basso per aggiornare.</translation>
+<translation id="5336910966955551309">Tocca e tieni premuto per fissare i tuoi siti preferiti</translation>
 <translation id="5338512273860059533">Accesso in corso…</translation>
 <translation id="5343472494710226394">Notizie, sport e contenuti basati sui tuoi interessi.</translation>
 <translation id="5352128922772839949">Salva file</translation>
@@ -1711,6 +1717,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" />% scaricato</translation>
 <translation id="7345061034321640811">Importazione non consentita</translation>
+<translation id="7347998088283246662">Importa password, cronologia, preferiti e altro</translation>
 <translation id="7352651011704765696">Si è verificato un problema</translation>
 <translation id="7364796246159120393">Scegli file</translation>
 <translation id="736564850024123010">Cambia la posizione della barra degli indirizzi per un'esperienza personalizzata.</translation>
@@ -1894,6 +1901,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7958575506592576831">Info sicurezza pagina</translation>
 <translation id="7961015016161918242">Mai</translation>
 <translation id="7971136598759319605">Attivo 1 giorno fa</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Prova</translation>
 <translation id="797588153137233716">Menu → Cronologia → Elimina dati di navigazione</translation>
 <translation id="7977451675950311423">Ricevi un avviso se utilizzi una password che è stata compromessa a causa di una violazione dei dati.</translation>
@@ -2001,6 +2009,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8319282042900445670">Promemoria impostato per le ore <ph name="TIME" /> del giorno <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Attività recente</translation>
 <translation id="8325455175867928593">Nascondi "Recensioni basate sui tuoi interessi"</translation>
+<translation id="8328777765163860529">Chiudi tutte</translation>
 <translation id="833647236762414178">Crea, salva e gestisci le tue password e passkey in modo da poter accedere facilmente ai siti e alle app. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Esegui il backup dei tuoi dati e usali su qualsiasi dispositivo.</translation>
 <translation id="8348530355586151720">Tocca il menu con tre puntini</translation>
@@ -2236,6 +2245,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="914781932147356857">Segna tutti come…</translation>
 <translation id="9148126808321036104">Esegui di nuovo l'accesso</translation>
 <translation id="9149866541089851383">Modifica...</translation>
+<translation id="9152637745605628097">Scegli tra i temi, i colori oppure carica un'immagine</translation>
 <translation id="9159628751968616911">Invia pagina web</translation>
 <translation id="9162432979321511934">Attiva l'opzione Compila automaticamente le password.</translation>
 <translation id="9165320910061267720">Per ricevere notifiche relative agli avvisi sui cali di prezzo, devi attivare le notifiche nelle impostazioni di iOS.</translation>

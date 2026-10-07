@@ -243,6 +243,11 @@
 
 // Starts the sign in process.
 - (void)startSignIn {
+  if (self.mediator.signinInProgress) {
+    // Skip sign-in if there is a double tap.
+    // See crbug.com/478202195.
+    return;
+  }
   DCHECK(self.mediator.selectedIdentity);
   AuthenticationFlow* authenticationFlow =
       [[AuthenticationFlow alloc] initWithBrowser:self.browser
@@ -299,23 +304,21 @@
 
 #pragma mark - IdentityChooserCoordinatorDelegate
 
-- (void)identityChooserCoordinatorDidClose:
-    (IdentityChooserCoordinator*)coordinator {
-  CHECK_EQ(self.identityChooserCoordinator, coordinator);
-  [self stopIdentityChooserCoordinator];
-}
-
 - (void)identityChooserCoordinatorDidTapOnAddAccount:
     (IdentityChooserCoordinator*)coordinator {
   CHECK_EQ(self.identityChooserCoordinator, coordinator);
   DCHECK(!self.addAccountSigninCoordinator);
+  [self stopIdentityChooserCoordinator];
   [self triggerAddAccount];
 }
 
 - (void)identityChooserCoordinator:(IdentityChooserCoordinator*)coordinator
-                 didSelectIdentity:(id<SystemIdentity>)identity {
+      didCloseWithSelectedIdentity:(id<SystemIdentity>)identity {
   CHECK_EQ(self.identityChooserCoordinator, coordinator);
-  self.mediator.selectedIdentity = identity;
+  if (identity) {
+    self.mediator.selectedIdentity = identity;
+  }
+  [self stopIdentityChooserCoordinator];
 }
 
 #pragma mark - PromoStyleViewControllerDelegate
@@ -361,12 +364,11 @@
   }
   self.identityChooserCoordinator = [[IdentityChooserCoordinator alloc]
       initWithBaseViewController:self.viewController
-                         browser:self.browser];
+                         browser:self.browser
+                 defaultIdentity:self.mediator.selectedIdentity];
   self.identityChooserCoordinator.delegate = self;
   self.identityChooserCoordinator.origin = point;
   [self.identityChooserCoordinator start];
-  self.identityChooserCoordinator.selectedIdentity =
-      self.mediator.selectedIdentity;
 }
 
 #pragma mark - TOSCoordinatorDelegate

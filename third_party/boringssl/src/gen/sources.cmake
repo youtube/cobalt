@@ -708,6 +708,11 @@ set(
   crypto/spake2plus/internal.h
   crypto/trust_token/internal.h
   crypto/x509/internal.h
+  gen/boringssl_prefix_symbols_internal_x86_64_win_asm.inc
+  gen/boringssl_prefix_symbols_internal_x86_win_asm.inc
+  include/openssl/prefix_symbols.h
+  include/openssl/prefix_symbols_internal_S.h
+  include/openssl/prefix_symbols_internal_c.h
   third_party/fiat/bedrock_unverified_bareminimum.c.inc
   third_party/fiat/bedrock_unverified_platform.c.inc
   third_party/fiat/curve25519_32.h
@@ -2898,6 +2903,7 @@ set(
   rust/bssl-crypto/src/mem.rs
   rust/bssl-crypto/src/mldsa.rs
   rust/bssl-crypto/src/mlkem.rs
+  rust/bssl-crypto/src/pkcs8.rs
   rust/bssl-crypto/src/rand.rs
   rust/bssl-crypto/src/rsa.rs
   rust/bssl-crypto/src/scoped.rs

@@ -16,6 +16,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/function-kind.h"
 #include "src/zone/zone-containers.h"
 
@@ -477,9 +478,10 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     Phi* phi = value->Cast<Phi>();
     if (!phi->is_loop_phi()) return;
     if (phi->merge_state() != this) return;
-    NodeType old_type = known_node_aspects_->GetType(builder->broker(), phi);
+    NodeType old_type =
+        known_node_aspects_->GetTypeUnchecked(builder->broker(), phi);
     if (old_type != NodeType::kUnknown) {
-      NodeType new_type = loop_end_state.known_node_aspects()->GetType(
+      NodeType new_type = loop_end_state.known_node_aspects()->GetTypeUnchecked(
           builder->broker(), loop_end_state.get(reg));
       // TODO(428667907): Ideally we should bail out early for the kNone type.
       if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
@@ -675,20 +677,6 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
   return tagged;
 }
 
-ValueNode* FromShiftedInt53ToTagged(const MaglevGraphBuilder* builder,
-                                    NodeType node_type, ValueNode* value,
-                                    BasicBlock* predecessor) {
-  DCHECK(value->is_shifted_int53());
-  DCHECK(!value->properties().is_conversion());
-
-  // Create a tagged version, and insert it at the end of the predecessor.
-  ValueNode* tagged = Node::New<ShiftedInt53ToNumber>(builder->zone(), {value});
-
-  predecessor->nodes().push_back(tagged);
-  builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
-  return tagged;
-}
-
 ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
                                     NodeType node_type, ValueNode* value,
                                     BasicBlock* predecessor) {
@@ -719,8 +707,6 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
       return FromIntPtrToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kFloat64:
       return FromFloat64ToTagged(builder, node_type, value, predecessor);
-    case ValueRepresentation::kShiftedInt53:
-      return FromShiftedInt53ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kHoleyFloat64:
       return FromHoleyFloat64ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kNone:
@@ -823,7 +809,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
 
     NodeType unmerged_type =
-        unmerged_aspects.GetType(builder->broker(), unmerged);
+        unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
     if (result->is_loop_phi()) {
       UpdateLoopPhiType(result, unmerged_type);
     } else {
@@ -908,7 +894,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   // EnsureTagged, since untagged nodes have a higher chance of having a
   // StaticType.
   NodeType unmerged_type =
-      unmerged_aspects.GetType(builder->broker(), unmerged);
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
@@ -934,7 +920,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   Phi* result = merged->TryCast<Phi>();
   if (result != nullptr && result->merge_state() == this) {
     NodeType unmerged_type =
-        unmerged_aspects.GetType(builder->broker(), unmerged);
+        unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
     for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -992,7 +978,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   }
 
   NodeType unmerged_type =
-      unmerged_aspects.GetType(builder->broker(), unmerged);
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1015,7 +1001,8 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
-  NodeType type = unmerged_aspects.GetType(builder->broker(), unmerged);
+  NodeType type =
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);

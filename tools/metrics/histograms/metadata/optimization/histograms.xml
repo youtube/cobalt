@@ -84,6 +84,7 @@ chromium-metrics-reviews@google.com.
   <variant name="PromptApi" summary="Prompt API"/>
   <variant name="ProofreaderApi" summary="Proofreader API"/>
   <variant name="ScamDetection" summary="Scam Detection"/>
+  <variant name="Skills" summary="Skills"/>
   <variant name="Summarize" summary="Summarize"/>
   <variant name="TabOrganization" summary="Tab Organization"/>
   <variant name="Test" summary="Test"/>
@@ -1015,6 +1016,24 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="OptimizationGuide.ModelExecution.FetchLatency2.{ModelExecutionFeature}"
+    units="ms" expires_after="2026-12-01">
+  <owner>arabm@google.com</owner>
+  <owner>dullweber@chromium.org</owner>
+  <owner>lamzin@google.com</owner>
+  <owner>nikhiljakhar@google.com</owner>
+  <owner>saeideid@google.com</owner>
+  <owner>sophiechang@google.com</owner>
+  <summary>
+    Records the latency of a model execution request for a given feature. This
+    is the time from when the request is sent from the manager to when the
+    response is received. Recorded for every request. This metric supersedes
+    OptimizationGuide.ModelExecutionFetcher.FetchLatency.{ModelExecutionFeature}.
+  </summary>
+  <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
+</histogram>
+
+<histogram
     name="OptimizationGuide.ModelExecution.OnDeviceAdaptationModelAvailability.{ModelExecutionFeature}"
     enum="OnDeviceModelAdaptationAvailability" expires_after="2026-07-05">
   <owner>rajendrant@chromium.org</owner>
@@ -1061,7 +1080,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceBaseModelLoadVersion"
-    enum="OnDeviceBaseModelVersion" expires_after="2026-05-17">
+    enum="OnDeviceBaseModelVersion" expires_after="2026-07-19">
   <owner>rajendrant@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1084,7 +1103,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceDestroyedWhileWaitingForResponseTime.{ModelExecutionFeature}"
-    units="ms" expires_after="2026-05-24">
+    units="ms" expires_after="2026-07-26">
   <owner>holte@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1121,7 +1140,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceModelCrashCount"
-    enum="OnDeviceModelValidationResult" expires_after="2026-05-19">
+    enum="OnDeviceModelValidationResult" expires_after="2026-07-19">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1216,7 +1235,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceModelStatusAtUseTime"
-    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-05-17">
+    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-07-19">
   <owner>holte@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1242,7 +1261,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelValidationResult"
-    enum="OnDeviceModelValidationResult" expires_after="2026-05-17">
+    enum="OnDeviceModelValidationResult" expires_after="2026-07-19">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1375,19 +1394,6 @@ chromium-metrics-reviews@google.com.
   <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
 </histogram>
 
-<histogram
-    name="OptimizationGuide.ModelExecutionFetcher.FetchLatency.{ModelExecutionFeature}"
-    units="ms" expires_after="2026-06-28">
-  <owner>rajendrant@chromium.org</owner>
-  <owner>freedjm@google.com</owner>
-  <summary>
-    The duration of a request to fetch model execution from the remote
-    Optimization Guide Service starts until it completes. Recorded every time
-    model execution results are fetched and parsed successfully.
-  </summary>
-  <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
-</histogram>
-
 <histogram name="OptimizationGuide.ModelExecutionFetcher.NetErrorCode"
     enum="NetErrorCodes" expires_after="2026-06-28">
   <owner>rajendrant@chromium.org</owner>
@@ -1464,7 +1470,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.ExecutionThreadTime.{OptimizationTarget}"
-    units="ms" expires_after="2026-05-17">
+    units="ms" expires_after="2026-07-19">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -1527,7 +1533,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.TaskExecutionLatency.{OptimizationTarget}"
-    units="ms" expires_after="2026-05-17">
+    units="ms" expires_after="2026-07-19">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -2222,7 +2228,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ProcessHintsResult"
-    enum="OptimizationGuideProcessHintsResult" expires_after="2026-05-17">
+    enum="OptimizationGuideProcessHintsResult" expires_after="2026-07-19">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>

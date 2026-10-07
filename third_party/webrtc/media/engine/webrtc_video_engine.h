@@ -63,7 +63,6 @@
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -199,11 +198,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   RTCError SetRtpSendParameters(uint32_t ssrc,
                                 const RtpParameters& parameters,
                                 SetParametersCallback callback) override;
-  void SubscribeRtpSendParametersChanged(
-      const void* tag,
-      absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
-          callback) override;
-  void UnsubscribeRtpSendParametersChanged(const void* tag) override;
   RtpParameters GetRtpSendParameters(uint32_t ssrc) const override;
   std::optional<Codec> GetSendCodec() const override;
   bool SetSend(bool send) override;
@@ -464,44 +458,17 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
       SequenceChecker::kDetached};
   RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
 
-  uint32_t rtcp_receiver_report_ssrc_ RTC_GUARDED_BY(thread_checker_);
   bool sending_ RTC_GUARDED_BY(thread_checker_);
-  bool receiving_ RTC_GUARDED_BY(&thread_checker_);
   Call* const call_;
 
-  VideoSinkInterface<VideoFrame>* default_sink_ RTC_GUARDED_BY(thread_checker_);
-
-  // Delay for unsignaled streams, which may be set before the stream exists.
-  int default_recv_base_minimum_delay_ms_ RTC_GUARDED_BY(thread_checker_) = 0;
-
   const MediaConfig::Video video_config_ RTC_GUARDED_BY(thread_checker_);
-
-  mutable CallbackList<std::optional<uint32_t>, const RtpParameters&>
-      on_rtp_send_parameters_changed_callback_ RTC_GUARDED_BY(thread_checker_);
 
   // Using primary-ssrc (first ssrc) as key.
   std::map<uint32_t, WebRtcVideoSendStream*> send_streams_
       RTC_GUARDED_BY(thread_checker_);
-  // When the channel and demuxer get reconfigured, there is a window of time
-  // where we have to be prepared for packets arriving based on the old demuxer
-  // criteria because the streams live on the worker thread and the demuxer
-  // lives on the network thread. Because packets are posted from the network
-  // thread to the worker thread, they can still be in-flight when streams are
-  // reconfgured. This can happen when `demuxer_criteria_id_` and
-  // `demuxer_criteria_completed_id_` don't match. During this time, we do not
-  // want to create unsignalled receive streams and should instead drop the
-  // packets. E.g:
-  // * If RemoveRecvStream(old_ssrc) was recently called, there may be packets
-  //   in-flight for that ssrc. This happens when a receiver becomes inactive.
-  // * If we go from one to many m= sections, the demuxer may change from
-  //   forwarding all packets to only forwarding the configured ssrcs, so there
-  //   is a risk of receiving ssrcs for other, recently added m= sections.
-  uint32_t demuxer_criteria_id_ RTC_GUARDED_BY(thread_checker_) = 0;
-  uint32_t demuxer_criteria_completed_id_ RTC_GUARDED_BY(thread_checker_) = 0;
   std::optional<int64_t> last_unsignalled_ssrc_creation_time_ms_
       RTC_GUARDED_BY(thread_checker_);
   std::set<uint32_t> send_ssrcs_ RTC_GUARDED_BY(thread_checker_);
-  std::set<uint32_t> receive_ssrcs_ RTC_GUARDED_BY(thread_checker_);
 
   std::optional<VideoCodecSettings> send_codec_ RTC_GUARDED_BY(thread_checker_);
   std::vector<VideoCodecSettings> negotiated_codecs_
@@ -516,37 +483,21 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
       RTC_GUARDED_BY(thread_checker_);
   // See reason for keeping track of the FlexFEC payload type separately in
   // comment in WebRtcVideoChannel::ChangedReceiverParameters.
-  int recv_flexfec_payload_type_ RTC_GUARDED_BY(thread_checker_);
   BitrateConstraints bitrate_config_ RTC_GUARDED_BY(thread_checker_);
   // TODO(deadbeef): Don't duplicate information between
   // send_params/recv_params, rtp_extensions, options, etc.
   VideoSenderParameters send_params_ RTC_GUARDED_BY(thread_checker_);
   VideoOptions default_send_options_ RTC_GUARDED_BY(thread_checker_);
-  VideoReceiverParameters recv_params_ RTC_GUARDED_BY(thread_checker_);
   int64_t last_send_stats_log_ms_ RTC_GUARDED_BY(thread_checker_);
-  int64_t last_receive_stats_log_ms_ RTC_GUARDED_BY(thread_checker_);
-  const bool discard_unknown_ssrc_packets_ RTC_GUARDED_BY(thread_checker_);
-  // This is a stream param that comes from the remote description, but wasn't
-  // signaled with any a=ssrc lines. It holds information that was signaled
-  // before the unsignaled receive stream is created when the first packet is
-  // received.
-  StreamParams unsignaled_stream_params_ RTC_GUARDED_BY(thread_checker_);
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
   const CryptoOptions crypto_options_ RTC_GUARDED_BY(thread_checker_);
-
-  // Optional frame transformer set on unsignaled streams.
-  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
-      RTC_GUARDED_BY(thread_checker_);
 
   // RTP parameters that need to be set when creating a video receive stream.
   // Only used in Receiver mode - in Both mode, it reads those things from the
   // codec.
   VideoReceiveStreamInterface::Config::Rtp rtp_config_;
 
-  // Callback invoked whenever the send codec changes.
-  // TODO(bugs.webrtc.org/13931): Remove again when coupling isn't needed.
-  absl::AnyInvocable<void()> send_codec_changed_callback_;
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_;
@@ -812,15 +763,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   uint32_t demuxer_criteria_completed_id_ RTC_GUARDED_BY(thread_checker_) = 0;
   std::optional<int64_t> last_unsignalled_ssrc_creation_time_ms_
       RTC_GUARDED_BY(thread_checker_);
-  std::set<uint32_t> send_ssrcs_ RTC_GUARDED_BY(thread_checker_);
   std::set<uint32_t> receive_ssrcs_ RTC_GUARDED_BY(thread_checker_);
-
-  std::optional<VideoCodecSettings> send_codec_ RTC_GUARDED_BY(thread_checker_);
-  std::vector<VideoCodecSettings> negotiated_codecs_
-      RTC_GUARDED_BY(thread_checker_);
-
-  std::vector<RtpExtension> send_rtp_extensions_
-      RTC_GUARDED_BY(thread_checker_);
 
   VideoDecoderFactory* const decoder_factory_ RTC_GUARDED_BY(thread_checker_);
   std::vector<VideoCodecSettings> recv_codecs_ RTC_GUARDED_BY(thread_checker_);
@@ -830,11 +773,8 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // See reason for keeping track of the FlexFEC payload type separately in
   // comment in WebRtcVideoChannel::ChangedReceiverParameters.
   int recv_flexfec_payload_type_ RTC_GUARDED_BY(thread_checker_);
-  BitrateConstraints bitrate_config_ RTC_GUARDED_BY(thread_checker_);
   // TODO(deadbeef): Don't duplicate information between
   // send_params/recv_params, rtp_extensions, options, etc.
-  VideoSenderParameters send_params_ RTC_GUARDED_BY(thread_checker_);
-  VideoOptions default_send_options_ RTC_GUARDED_BY(thread_checker_);
   VideoReceiverParameters recv_params_ RTC_GUARDED_BY(thread_checker_);
   int64_t last_receive_stats_log_ms_ RTC_GUARDED_BY(thread_checker_);
   const bool discard_unknown_ssrc_packets_ RTC_GUARDED_BY(thread_checker_);
@@ -855,13 +795,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // Only used in Receiver mode - in Both mode, it reads those things from the
   // codec.
   VideoReceiveStreamInterface::Config::Rtp rtp_config_;
-
-  // Callback invoked whenever the send codec changes.
-  // TODO(bugs.webrtc.org/13931): Remove again when coupling isn't needed.
-  absl::AnyInvocable<void()> send_codec_changed_callback_;
-  // Callback invoked whenever the list of SSRCs changes.
-  absl::AnyInvocable<void(const std::set<uint32_t>&)>
-      ssrc_list_changed_callback_;
 
   const int receive_buffer_size_;
 };

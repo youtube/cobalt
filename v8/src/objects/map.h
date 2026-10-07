@@ -608,9 +608,24 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       DirectHandle<Object> value);
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
+      Isolate* isolate, DirectHandle<Map> map, InstanceType new_instance_type,
+      ElementsKind new_elements_kind, DirectHandle<JSPrototype> new_prototype,
+      PropertyNormalizationMode mode, bool use_cache, const char* reason);
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, DirectHandle<Map> map, ElementsKind new_elements_kind,
       DirectHandle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
-      bool use_cache, const char* reason);
+      bool use_cache, const char* reason) {
+    return Normalize(isolate, map, map->instance_type(), new_elements_kind,
+                     new_prototype, mode, use_cache, reason);
+  }
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(
+      Isolate* isolate, DirectHandle<Map> map, InstanceType new_instance_type,
+      ElementsKind new_elements_kind, DirectHandle<JSPrototype> new_prototype,
+      PropertyNormalizationMode mode, const char* reason) {
+    const bool kUseCache = true;
+    return Normalize(isolate, map, new_instance_type, new_elements_kind,
+                     new_prototype, mode, kUseCache, reason);
+  }
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, DirectHandle<Map> map, ElementsKind new_elements_kind,
       DirectHandle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
@@ -851,6 +866,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                         ElementsKind kind, TransitionFlag flag);
 
+  V8_EXPORT_PRIVATE static Handle<Map> AsDetachedTypedArray(
+      Isolate* isolate, DirectHandle<Map> map);
+
   static DirectHandle<Map> AsLanguageMode(
       Isolate* isolate, DirectHandle<Map> initial_map,
       DirectHandle<SharedFunctionInfo> shared_info);
@@ -1056,7 +1074,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   bool EquivalentToForTransition(
       const Tagged<Map> other, ConcurrencyMode cmode,
-      DirectHandle<HeapObject> new_prototype = {}) const;
+      DirectHandle<HeapObject> new_prototype = {},
+      std::optional<InstanceType> new_instance_type = {}) const;
   bool EquivalentToForElementsKindTransition(const Tagged<Map> other,
                                              ConcurrencyMode cmode) const;
   static Handle<Map> RawCopy(Isolate* isolate, DirectHandle<Map> map,

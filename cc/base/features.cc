@@ -147,7 +147,7 @@ BASE_FEATURE(kThrottleMainFrameTo60HzWebView,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kBoostFrameRateForUrgentMainFrame,
+BASE_FEATURE(kHighFramerateRequestFromClient,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 void SetIsEligibleForThrottleMainFrameTo60Hz(bool is_eligible) {
@@ -267,9 +267,6 @@ const base::FeatureParam<std::string> kHistogramEmissionPolicy(
 
 BASE_FEATURE(kManualBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDropMetricsFromNonProducedFramesOnlyIfTheyHadNoDamage,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kUnlockDuringGpuImageOperations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -282,5 +279,8 @@ BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Killswitch for disabling Headless scheduler state machine.
+BASE_FEATURE(kHeadlessSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

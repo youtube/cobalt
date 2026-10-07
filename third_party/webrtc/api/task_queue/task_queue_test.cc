@@ -53,7 +53,7 @@ void SleepFor(TimeDelta duration) {
 std::unique_ptr<TaskQueueBase, TaskQueueDeleter> CreateTaskQueue(
     const std::unique_ptr<TaskQueueFactory>& factory,
     absl::string_view task_queue_name,
-    TaskQueueFactory::Priority priority = TaskQueueFactory::Priority::NORMAL) {
+    TaskQueueFactory::Priority priority = TaskQueueFactory::Priority::kNormal) {
   return factory->CreateTaskQueue(task_queue_name, priority);
 }
 
@@ -122,8 +122,8 @@ TEST_P(TaskQueueTest, PostFromQueue) {
 TEST_P(TaskQueueTest, PostDelayed) {
   std::unique_ptr<TaskQueueFactory> factory = GetParam()(nullptr);
   Event event;
-  auto queue =
-      CreateTaskQueue(factory, "PostDelayed", TaskQueueFactory::Priority::HIGH);
+  auto queue = CreateTaskQueue(factory, "PostDelayed",
+                               TaskQueueFactory::Priority::kHigh);
 
   int64_t start = TimeMillis();
   queue->PostDelayedTask(

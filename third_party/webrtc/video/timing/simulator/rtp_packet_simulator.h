@@ -18,8 +18,20 @@
 
 namespace webrtc::video_timing_simulator {
 
+// The `RtpPacketSimulator` takes a `LoggedRtpPacket` and produces a simulated
+// `RtpPacketReceived`.
 class RtpPacketSimulator {
  public:
+  struct SimulatedPacket {
+    RtpPacketReceived rtp_packet;
+    // The presence of RTX OSN is provided here, out-of-band, since not all
+    // RTX packets were historically logged with OSN.
+    // See https://webrtc-review.googlesource.com/c/src/+/442320.
+    // The value of the RTX OSN is passed in-band (as the RTX payload header),
+    // when it is present.
+    bool has_rtx_osn = false;
+  };
+
   explicit RtpPacketSimulator(const Environment& env);
   ~RtpPacketSimulator() = default;
 
@@ -30,7 +42,7 @@ class RtpPacketSimulator {
   // Notably, the simulated arrival time is taken from `env_.clock()` and not
   // from `logged_packet.log_time()`. This allows the caller to provide its own
   // clock offset, that might be different from the logged time base.
-  RtpPacketReceived SimulateRtpPacketReceived(
+  SimulatedPacket SimulateRtpPacketReceived(
       const LoggedRtpPacket& logged_packet) const;
 
  private:

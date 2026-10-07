@@ -390,11 +390,6 @@ BASE_FEATURE(kCellularBypassESimInstallationConnectivityCheck,
 // and Settings.
 BASE_FEATURE(kCellularUseSecondEuicc, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, Multiple scraped passwords should be checked against password in
-// cryptohome.
-BASE_FEATURE(kCheckPasswordsAgainstCryptohomeHelper,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // When enabled alongside the keyboard auto-repeat setting, holding down Ctrl+V
 // will cause the clipboard history menu to show. From there, the user can
 // select a clipboard history item to replace the initially pasted content.
@@ -466,9 +461,6 @@ BASE_FEATURE(kCrostiniGpuSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Force enable recreating the LXD DB at LXD launch.
 BASE_FEATURE(kCrostiniResetLxdDb, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables experimental UI creating and managing multiple Crostini containers.
-BASE_FEATURE(kCrostiniMultiContainer, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables Crostini Qt application IME support.
 BASE_FEATURE(kCrostiniQtImeSupport, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -596,10 +588,6 @@ BASE_FEATURE(kEnableBrightnessControlInSettings,
 BASE_FEATURE(kEnableExternalKeyboardsInDiagnostics,
              "EnableExternalKeyboardsInDiagnosticsApp",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables setting the device hostname.
-// TODO(crbug.com/466903206): Remove this.
-BASE_FEATURE(kEnableHostnameSetting, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables OAuth support when printing via the IPP protocol.
 BASE_FEATURE(kEnableOAuthIpp, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1277,9 +1265,6 @@ BASE_FEATURE(kManagedLocalPinAndPassword, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables policy management for USB printers.
 BASE_FEATURE(kManagedUsbPrinters, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables Mahi on PDF contents in the Media App.
-BASE_FEATURE(kMediaAppPdfMahi, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Mantis on image contents in the Media App
 BASE_FEATURE(kMediaAppImageMantis, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2440,10 +2425,6 @@ bool IsCaptureModeOnDeviceOcrEnabled() {
          base::FeatureList::IsEnabled(kCaptureModeOnDeviceOcr);
 }
 
-bool IsCheckPasswordsAgainstCryptohomeHelperEnabled() {
-  return base::FeatureList::IsEnabled(kCheckPasswordsAgainstCryptohomeHelper);
-}
-
 bool IsContinuousOverviewScrollAnimationEnabled() {
   return base::FeatureList::IsEnabled(kContinuousOverviewScrollAnimation);
 }
@@ -2813,10 +2794,6 @@ bool IsHideShelfControlsInTabletModeEnabled() {
 
 bool IsHybridChargerNotificationsEnabled() {
   return base::FeatureList::IsEnabled(kHybridChargerNotifications);
-}
-
-bool IsHostnameSettingEnabled() {
-  return base::FeatureList::IsEnabled(kEnableHostnameSetting);
 }
 
 bool IsInstantHotspotRebrandEnabled() {

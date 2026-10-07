@@ -91,6 +91,7 @@
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -577,14 +578,14 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
            local_rendered_height();
   }
 
-  size_t number_of_remote_streams() {
+  PLAN_B_ONLY size_t number_of_remote_streams() {
     if (!pc()) {
       return 0;
     }
     return pc()->remote_streams()->count();
   }
 
-  StreamCollectionInterface* remote_streams() const {
+  PLAN_B_ONLY StreamCollectionInterface* remote_streams() const {
     if (!pc()) {
       ADD_FAILURE();
       return nullptr;
@@ -592,7 +593,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     return pc()->remote_streams().get();
   }
 
-  StreamCollectionInterface* local_streams() {
+  PLAN_B_ONLY StreamCollectionInterface* local_streams() {
     if (!pc()) {
       ADD_FAILURE();
       return nullptr;

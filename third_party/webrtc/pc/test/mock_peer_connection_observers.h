@@ -44,6 +44,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -93,17 +94,19 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     state_ = new_state;
   }
 
-  MediaStreamInterface* RemoteStream(const std::string& label) {
+  PLAN_B_ONLY MediaStreamInterface* RemoteStream(const std::string& label) {
     return remote_streams_->find(label);
   }
-  StreamCollectionInterface* remote_streams() const {
+  PLAN_B_ONLY StreamCollectionInterface* remote_streams() const {
     return remote_streams_.get();
   }
-  void OnAddStream(scoped_refptr<MediaStreamInterface> stream) override {
+  PLAN_B_ONLY void OnAddStream(
+      scoped_refptr<MediaStreamInterface> stream) override {
     last_added_stream_ = stream;
     remote_streams_->AddStream(stream);
   }
-  void OnRemoveStream(scoped_refptr<MediaStreamInterface> stream) override {
+  PLAN_B_ONLY void OnRemoveStream(
+      scoped_refptr<MediaStreamInterface> stream) override {
     last_removed_stream_ = stream;
     remote_streams_->RemoveStream(stream.get());
   }
@@ -198,12 +201,12 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
 
   // Returns the id of the last added stream.
   // Empty string if no stream have been added.
-  std::string GetLastAddedStreamId() {
+  PLAN_B_ONLY std::string GetLastAddedStreamId() {
     if (last_added_stream_)
       return last_added_stream_->id();
     return "";
   }
-  std::string GetLastRemovedStreamId() {
+  PLAN_B_ONLY std::string GetLastRemovedStreamId() {
     if (last_removed_stream_)
       return last_removed_stream_->id();
     return "";

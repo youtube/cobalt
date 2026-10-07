@@ -611,7 +611,7 @@ TEST(FrameCadenceAdapterTest, IgnoresDropInducedCallbacksPostDestruction) {
   auto callback = std::make_unique<MockCallback>();
   GlobalSimulatedTimeController time_controller(Timestamp::Zero());
   auto queue = time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "queue", TaskQueueFactory::Priority::NORMAL);
+      "queue", TaskQueueFactory::Priority::kNormal);
   FieldTrials no_field_trials = CreateTestFieldTrials();
   auto adapter = FrameCadenceAdapterInterface::Create(
       time_controller.GetClock(), queue.get(), /*metronome=*/nullptr,
@@ -638,9 +638,9 @@ TEST(FrameCadenceAdapterTest, EncodeFramesAreAlignedWithMetronomeTick) {
   // infrequent then the encode tasks are aligned with the tick period.
   static constexpr TimeDelta kTickPeriod = TimeDelta::Millis(33);
   auto queue = time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "queue", TaskQueueFactory::Priority::NORMAL);
+      "queue", TaskQueueFactory::Priority::kNormal);
   auto worker_queue = time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "work_queue", TaskQueueFactory::Priority::NORMAL);
+      "work_queue", TaskQueueFactory::Priority::kNormal);
   test::FakeMetronome metronome(kTickPeriod);
   FieldTrials no_field_trials = CreateTestFieldTrials();
   auto adapter = FrameCadenceAdapterInterface::Create(
@@ -714,7 +714,7 @@ TEST(FrameCadenceAdapterTest, ShutdownUnderMetronome) {
   GlobalSimulatedTimeController time_controller(Timestamp::Zero());
   static constexpr TimeDelta kTickPeriod = TimeDelta::Millis(100);
   auto queue = time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "queue", TaskQueueFactory::Priority::NORMAL);
+      "queue", TaskQueueFactory::Priority::kNormal);
   test::FakeMetronome metronome(kTickPeriod);
   FieldTrials no_field_trials = CreateTestFieldTrials();
   auto adapter = FrameCadenceAdapterInterface::Create(
@@ -1076,7 +1076,7 @@ TEST(FrameCadenceAdapterRealTimeTest, TimestampsDoNotDrift) {
   // the repeated frames.
   auto factory = CreateDefaultTaskQueueFactory();
   auto queue =
-      factory->CreateTaskQueue("test", TaskQueueFactory::Priority::NORMAL);
+      factory->CreateTaskQueue("test", TaskQueueFactory::Priority::kNormal);
   MockCallback callback;
   Clock* clock = Clock::GetRealTimeClock();
   std::unique_ptr<FrameCadenceAdapterInterface> adapter;
@@ -1133,7 +1133,7 @@ TEST(FrameCadenceAdapterRealTimeTest, ScheduledRepeatAllowsForSlowEncode) {
   // OnFrame (frame 3).
   auto factory = CreateDefaultTaskQueueFactory();
   auto queue =
-      factory->CreateTaskQueue("test", TaskQueueFactory::Priority::NORMAL);
+      factory->CreateTaskQueue("test", TaskQueueFactory::Priority::kNormal);
   MockCallback callback;
   Clock* clock = Clock::GetRealTimeClock();
   std::unique_ptr<FrameCadenceAdapterInterface> adapter;

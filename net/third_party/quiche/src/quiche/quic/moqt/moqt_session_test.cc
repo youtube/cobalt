@@ -21,8 +21,10 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -294,9 +296,10 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       session_callbacks_.AsSessionCallbacks());
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
-  MoqtClientSetup setup = {
-      MoqtSessionParameters(quic::Perspective::IS_CLIENT),
-  };
+  MoqtClientSetup setup;
+  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
+
+  parameters.ToSetupParameters(setup.parameters);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
   EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));
@@ -403,16 +406,14 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
                             publish_namespace_resolved_callback.AsStdFunction(),
                             VersionSpecificParameters());
 
-  MoqtPublishNamespaceOk ok = {
-      /*request_id=*/0,
-  };
+  MoqtRequestOk ok = {/*request_id=*/0, VersionSpecificParameters()};
   EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtErrorPair> error) {
         EXPECT_EQ(track_namespace, TrackNamespace("foo"));
         EXPECT_FALSE(error.has_value());
       });
-  stream_input->OnPublishNamespaceOkMessage(ok);
+  stream_input->OnRequestOkMessage(ok);
 
   MoqtPublishNamespaceCancel cancel = {
       TrackNamespace("foo"),
@@ -446,16 +447,14 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
                             publish_namespace_resolved_callback.AsStdFunction(),
                             VersionSpecificParameters());
 
-  MoqtPublishNamespaceOk ok = {
-      /*request_id=*/0,
-  };
+  MoqtRequestOk ok = {/*request_id=*/0, VersionSpecificParameters()};
   EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtErrorPair> error) {
         EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         EXPECT_FALSE(error.has_value());
       });
-  stream_input->OnPublishNamespaceOkMessage(ok);
+  stream_input->OnRequestOkMessage(ok);
 
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(
@@ -953,8 +952,8 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
         std::move(callback)(std::nullopt);
       });
   EXPECT_CALL(mock_stream_,
-              Writev(SerializedControlMessage(
-                         MoqtPublishNamespaceOk{kDefaultPeerRequestId}),
+              Writev(SerializedControlMessage(MoqtRequestOk{
+                         kDefaultPeerRequestId, VersionSpecificParameters()}),
                      _));
   stream_input->OnPublishNamespaceMessage(publish_namespace);
   MoqtPublishNamespaceDone unpublish_namespace = {
@@ -991,8 +990,8 @@ TEST_F(MoqtSessionTest,
         std::move(callback)(std::nullopt);
       });
   EXPECT_CALL(mock_stream_,
-              Writev(SerializedControlMessage(
-                         MoqtPublishNamespaceOk{kDefaultPeerRequestId}),
+              Writev(SerializedControlMessage(MoqtRequestOk{
+                         kDefaultPeerRequestId, VersionSpecificParameters()}),
                      _));
   stream_input->OnPublishNamespaceMessage(publish_namespace);
   EXPECT_CALL(mock_stream_,
@@ -1052,10 +1051,8 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
         EXPECT_EQ(reason, "");
       },
       VersionSpecificParameters());
-  MoqtSubscribeNamespaceOk ok = {
-      kDefaultLocalRequestId,
-  };
-  stream_input->OnSubscribeNamespaceOkMessage(ok);
+  MoqtRequestOk ok = {kDefaultLocalRequestId, VersionSpecificParameters()};
+  stream_input->OnRequestOkMessage(ok);
   EXPECT_TRUE(got_callback);
   EXPECT_CALL(
       mock_stream_,
@@ -1959,9 +1956,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
       session_callbacks_.AsSessionCallbacks());
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
-  MoqtClientSetup setup = {
-      MoqtSessionParameters(),
-  };
+  MoqtClientSetup setup;
+  MoqtSessionParameters params;
+  params.ToSetupParameters(setup.parameters);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
   EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));
@@ -2771,9 +2768,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
   MoqtUnsubscribeNamespace unsubscribe_namespace{track_namespace};
   EXPECT_CALL(
@@ -2818,9 +2814,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithError) {
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Cleanup.
@@ -2854,9 +2849,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Overlapping request is rejected.
@@ -2884,9 +2878,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Cleanup.
@@ -3876,12 +3869,15 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
             .WillRepeatedly(Return(MoqtDeliveryOrder::kAscending));
         EXPECT_CALL(*track, largest_location)
             .WillRepeatedly(Return(std::nullopt));
-        MoqtTrackStatusOk expected_ok;
+        MoqtRequestOk expected_ok;
         expected_ok.request_id = track_status.request_id;
+    // TODO(martinduke): Add parameters.
+#if 0
         expected_ok.track_alias = 0;
         expected_ok.expires = quic::QuicTimeDelta::FromMilliseconds(10000);
         expected_ok.group_order = MoqtDeliveryOrder::kAscending;
         expected_ok.largest_location = std::nullopt;
+#endif
         EXPECT_CALL(control_stream,
                     Writev(SerializedControlMessage(expected_ok), _));
         EXPECT_CALL(*track, RemoveObjectListener);
@@ -3907,12 +3903,15 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
   EXPECT_CALL(*track, delivery_order)
       .WillRepeatedly(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track, largest_location).WillRepeatedly(Return(std::nullopt));
-  MoqtTrackStatusOk expected_ok;
+  MoqtRequestOk expected_ok;
   expected_ok.request_id = track_status.request_id;
+  // TODO(martinduke): Add parameters.
+#if 0
   expected_ok.track_alias = 0;
   expected_ok.expires = quic::QuicTimeDelta::FromMilliseconds(10000);
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
   expected_ok.largest_location = std::nullopt;
+#endif
   EXPECT_CALL(control_stream, Writev(SerializedControlMessage(expected_ok), _));
   EXPECT_CALL(*track, RemoveObjectListener(listener));
   listener->OnSubscribeAccepted();
@@ -4064,9 +4063,8 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
                     MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnPublishNamespaceMessage(publish_namespace);
 
   publish_namespace = MoqtPublishNamespace(
@@ -4078,9 +4076,8 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
                     MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespaceOk), _));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_input->OnPublishNamespaceMessage(publish_namespace);
 
   // Revoke "bar"
@@ -4120,6 +4117,19 @@ TEST_F(MoqtSessionTest, NoSubprotocol) {
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
   session_.OnSessionReady();
+}
+
+TEST_F(MoqtSessionTest, SubscribeThenRequestOk) {
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                  &remote_track_visitor_,
+                                  VersionSpecificParameters());
+  EXPECT_CALL(mock_session_, CloseSession);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
+  stream_input->OnRequestOkMessage(
+      MoqtRequestOk{0, VersionSpecificParameters()});
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.

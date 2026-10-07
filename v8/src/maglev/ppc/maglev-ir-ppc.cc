@@ -32,23 +32,12 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ CmpS32(value, Operand::Zero(), r0);
   __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
 
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    // On CPUs that do not support overflow detection, always deopt.
     __ neg(out, value, SetOE);
     __ MoveToCrFromXer(cr0);
-
     // Output register must not be a register input into the eager deopt info.
     DCHECK_REGLIST_EMPTY(RegList{out} &
                          GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
     __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
-  } else {
-    // For PPC8, we don't have direct overflow detection for negation.
-    // We need to check for the special overflow case: value == INT32_MIN.
-    // If so, deopt; otherwise, perform negation.
-    __ CmpS32(value, Operand(0x80000000), r0);
-    __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
-    __ neg(out, value);
-  }
 
   __ extsw(out, out);
 }
@@ -61,20 +50,11 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ CmpS32(out, Operand::Zero(), r0);
   __ bge(&done);
 
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    __ neg(out, out, SetOE);
-    __ MoveToCrFromXer(cr0);
-    DCHECK_REGLIST_EMPTY(RegList{out} &
-                         GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-    __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
-  } else {
-    // For PPC8, we don't have direct overflow detection for negation.
-    // We need to check for the special overflow case: value == INT32_MIN.
-    // If so, deopt; otherwise, perform negation.
-    __ CmpS32(out, Operand(0x80000000), r0);
-    __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
-    __ neg(out, out);
-  }
+  __ neg(out, out, SetOE);
+  __ MoveToCrFromXer(cr0);
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
 
   __ bind(&done);
   __ extsw(out, out);
@@ -88,7 +68,8 @@ void Int32Increment::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-  __ AddS32(out, value, Operand(1));
+  __ addi(out, value, Operand(1));
+  __ extsw(out, out);
 }
 
 void Int32Decrement::SetValueLocationConstraints() {
@@ -99,7 +80,8 @@ void Int32Decrement::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-  __ SubS32(out, value, Operand(1));
+  __ addi(out, value, Operand(-1));
+  __ extsw(out, out);
 }
 
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
@@ -111,7 +93,6 @@ void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     __ li(r0, Operand(1));
     __ add(out, value, r0, SetOE);
     __ MoveToCrFromXer(cr0);
@@ -120,14 +101,6 @@ void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
     DCHECK_REGLIST_EMPTY(RegList{out} &
                          GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
     __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
-  } else {
-    // For PPC8, we don't have direct overflow detection for addition.
-    // We need to check for the special overflow case: value == INT32_MAX.
-    // If so, deopt; otherwise, perform increment.
-    __ CmpS32(value, Operand(0x7fffffff), r0);
-    __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
-    __ addi(out, value, Operand(1));
-  }
 
   __ extsw(out, out);
 }
@@ -141,7 +114,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     __ li(r0, Operand(-1));
     __ add(out, value, r0, SetOE);
     __ MoveToCrFromXer(cr0);
@@ -150,14 +122,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
     DCHECK_REGLIST_EMPTY(RegList{out} &
                          GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
     __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
-  } else {
-    // For PPC8, we don't have direct overflow detection for subtraction.
-    // We need to check for the special overflow case: value == INT32_MIN.
-    // If so, deopt; otherwise, perform decrement.
-    __ CmpS32(value, Operand(0x80000000), r0);
-    __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
-    __ addi(out, value, Operand(-1));
-  }
 
   __ extsw(out, out);
 }
@@ -413,7 +377,6 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(LeftInput());
   Register right = ToRegister(RightInput());
   Register out = ToRegister(result());
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     __ add(out, left, right, SetOE);
     __ MoveToCrFromXer(cr0);
     // The output register shouldn't be a register input into the eager deopt
@@ -422,18 +385,6 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
                          GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
     __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
     __ extsw(out, out);
-  } else {
-    // For PPC8, we don't have direct overflow detection for addition.
-    MaglevAssembler::TemporaryRegisterScope temps(masm);
-    Register temp = temps.AcquireScratch();
-    Register temp2 = temps.AcquireScratch();
-    __ extsw(temp, left);
-    __ extsw(temp2, right);
-    __ add(temp, temp, temp2);
-    __ extsw(out, temp);
-    __ CmpS64(temp, out);
-    __ EmitEagerDeoptIf(ne, DeoptimizeReason::kOverflow, this);
-  }
 }
 
 void Int32SubtractWithOverflow::SetValueLocationConstraints() {
@@ -446,7 +397,6 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(LeftInput());
   Register right = ToRegister(RightInput());
   Register out = ToRegister(result());
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     __ sub(out, left, right, SetOE);
     __ MoveToCrFromXer(cr0);
     // The output register shouldn't be a register input into the eager deopt
@@ -455,18 +405,6 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
                          GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
     __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
     __ extsw(out, out);
-  } else {
-    // For PPC8, we don't have direct overflow detection for subtraction.
-    MaglevAssembler::TemporaryRegisterScope temps(masm);
-    Register temp = temps.AcquireScratch();
-    Register temp2 = temps.AcquireScratch();
-    __ extsw(temp, left);
-    __ extsw(temp2, right);
-    __ sub(temp, temp, temp2);
-    __ extsw(out, temp);
-    __ CmpS64(temp, out);
-    __ EmitEagerDeoptIf(ne, DeoptimizeReason::kOverflow, this);
-  }
 }
 
 void Int32MultiplyWithOverflow::SetValueLocationConstraints() {
@@ -1031,6 +969,25 @@ void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
 }
 void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {}
+
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+void HoleyFloat64ConvertHoleToUndefined::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64ConvertHoleToUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(ValueInput());
+  Label done;
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ JumpIfNotHoleNan(value, scratch, &done);
+  __ Move(value, UndefinedNan());
+  __ bind(&done);
+}
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 namespace {
 

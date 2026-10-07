@@ -50,6 +50,7 @@ if (rtc_include_tests) {
         "../../../api/test/network_emulation:network_queue",
         "../../../api/test/network_emulation:schedulable_network_node_builder",
         "../../../api/test/network_emulation:token_bucket_network_behavior_builder",
+        "../../../api/transport:bitrate_settings",
         "../../../api/transport:ecn_marking",
         "../../../api/transport:stun_types",
         "../../../api/units:data_rate",

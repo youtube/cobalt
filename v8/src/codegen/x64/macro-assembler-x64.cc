@@ -755,10 +755,10 @@ void MacroAssembler::LoadExternalPointerField(
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              Operand field_operand,
-                                             IndirectPointerTag tag,
+                                             IndirectPointerTagRange tag_range,
                                              Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag, scratch);
+  LoadIndirectPointerField(destination, field_operand, tag_range, scratch);
 #else
   LoadTaggedField(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
@@ -797,8 +797,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       j(not_zero, &done, Label::kNear);
     }
 
-    ResolveTrustedPointerHandle(destination, handle,
-                                kUnknownIndirectPointerTag);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -839,13 +838,13 @@ void MacroAssembler::StoreTrustedPointerField(Operand dst_field_operand,
 
 void MacroAssembler::LoadIndirectPointerField(Register destination,
                                               Operand field_operand,
-                                              IndirectPointerTag tag,
+                                              IndirectPointerTagRange tag_range,
                                               Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(destination, scratch));
   Register handle = scratch;
   movl(handle, field_operand);
-  ResolveIndirectPointerHandle(destination, handle, tag);
+  ResolveIndirectPointerHandle(destination, handle, tag_range);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -863,24 +862,24 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
-                                                  Register handle,
-                                                  IndirectPointerTag tag) {
-  // This function must not be used to resolve kUnknownIndirectPointerTag. Use
+void MacroAssembler::ResolveIndirectPointerHandle(
+    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+  // This function must not be used to resolve kAllIndirectPointerTags. Use
   // LoadTrustedUnknownPointerField for that instead.
-  CHECK_NE(tag, kUnknownIndirectPointerTag);
+  CHECK_NE(tag_range, kAllIndirectPointerTags);
+
   // The tag implies which pointer table to use.
-  if (tag == kCodeIndirectPointerTag) {
+  if (tag_range == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
   } else {
-    ResolveTrustedPointerHandle(destination, handle, tag);
+    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
+    ResolveTrustedPointerHandle(destination, handle, tag_range);
   }
 }
 
-void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
-                                                 Register handle,
-                                                 IndirectPointerTag tag) {
-  DCHECK_NE(tag, kCodeIndirectPointerTag);
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+  DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
   DCHECK(!AreAliased(handle, destination));
   shrl(handle, Immediate(kTrustedPointerHandleShift));
   static_assert(kTrustedPointerTableEntrySize == 8);
@@ -888,10 +887,31 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   movq(destination,
        Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
   movq(destination, Operand{destination, handle, times_8, 0});
-  // Untag the pointer and remove the marking bit in one operation.
-  Register tag_reg = handle;
-  movq(tag_reg, Immediate64(~(tag | kTrustedPointerTableMarkBit)));
-  andq(destination, tag_reg);
+
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    movq(kScratchRegister, Immediate64(mask));
+    andq(destination, kScratchRegister);
+  } else {
+    Register scratch = kScratchRegister;
+    movq(scratch, destination);
+    shrq(scratch, Immediate(kTrustedPointerTableTagShift));
+
+    Label done;
+    if (tag_range.Size() == 1) {
+      cmpl(scratch, Immediate(tag_range.first));
+      j(equal, &done, Label::kNear);
+    } else {
+      subl(scratch, Immediate(tag_range.first));
+      cmpl(scratch, Immediate(tag_range.last - tag_range.first));
+      j(below_equal, &done, Label::kNear);
+    }
+    xorq(destination, destination);
+    bind(&done);
+
+    shlq(destination, Immediate(16));
+    shrq(destination, Immediate(16));
+  }
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
@@ -968,7 +988,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   // The following is not isolate group independent and thus cannot be used in
   // builtin code.
   DCHECK_EQ(builtin(), Builtin::kNoBuiltinId);
-  Move(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  Move(kScratchRegister,
+       ExternalReference::js_dispatch_table_address(isolate()));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -3571,8 +3592,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   static_assert(!JSDispatchTable::kSupportsCompaction);
   LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
   CHECK_EQ(argument_count,
-           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-               dispatch_handle));
+           isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
   call(rcx);
 }
 

@@ -4,9 +4,11 @@
 
 #include "third_party/blink/renderer/platform/image-decoders/jxl/jxl_image_decoder.h"
 
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/platform/image-decoders/fast_shared_buffer_reader.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkTypes.h"
 
@@ -101,18 +103,9 @@ wtf_size_t JXLImageDecoder::DecodeFrameCount() {
     }
   }
 
-  // Return discovered count, +1 if more frames might exist during streaming.
-  wtf_size_t count = all_frames_discovered_ ? num_discovered_frames_
-                                            : num_discovered_frames_ + 1;
-
-  // Ensure we report at least 1 frame for animations.
-  if (count == 0 && have_basic_info_) {
-    count = 1;
-  }
-
-  if (frame_buffer_cache_.size() < count) {
-    frame_buffer_cache_.resize(count);
-  }
+  // Return discovered count. Frame count increases as more data arrives and
+  // frames are parsed via FrameCount() -> DecodeFrameCount().
+  wtf_size_t count = num_discovered_frames_;
 
   return count;
 }
@@ -130,7 +123,9 @@ void JXLImageDecoder::InitializeNewFrame(wtf_size_t index) {
   buffer.SetOriginalFrameRect(gfx::Rect(Size()));
   buffer.SetRequiredPreviousFrameIndex(kNotFound);
 
-  if (index < frame_info_.size() && frame_info_[index].received) {
+  // Set duration/timestamp if the frame header has been parsed.
+  // This is available before the frame is fully decoded.
+  if (index < frame_info_.size()) {
     const FrameInfo& info = frame_info_[index];
     buffer.SetDuration(info.duration);
     buffer.SetTimestamp(info.timestamp);
@@ -196,7 +191,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
     ImageFrame& frame = frame_buffer_cache_[frame_index];
     if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
       frame.SetPremultiplyAlpha(premultiply_alpha_);
-      InitializeNewFrame(frame_index);
       if (!InitFrameBuffer(frame_index)) {
         SetFailed();
         return;
@@ -293,6 +287,16 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           }
         }
 
+        // Record bpp information only for 8-bit, color, still images without
+        // alpha.
+        if (!have_basic_info_ && basic_info_.bits_per_sample == 8 &&
+            !basic_info_.is_grayscale && !basic_info_.have_animation &&
+            !basic_info_.has_alpha) {
+          static constexpr char kType[] = "Jxl";
+          update_bpp_histogram_callback_ =
+              CrossThreadBindOnce(&UpdateBppHistogram<kType>);
+        }
+
         have_basic_info_ = true;
         decoder_state_ = DecoderState::kHaveBasicInfo;
 
@@ -335,7 +339,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           FrameInfo info;
           info.duration = base::Milliseconds(header.duration_ms);
           info.timestamp = base::TimeDelta();
-          info.received = false;
 
           if (frame_idx > 0 && frame_idx - 1 < frame_info_.size()) {
             const FrameInfo& prev = frame_info_[frame_idx - 1];
@@ -345,6 +348,7 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           if (frame_idx < frame_info_.size()) {
             frame_info_[frame_idx] = info;
           } else {
+            CHECK_EQ(frame_idx, frame_info_.size());
             frame_info_.push_back(info);
           }
         }
@@ -364,7 +368,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
         ImageFrame& frame = frame_buffer_cache_[frame_index];
         if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
           frame.SetPremultiplyAlpha(premultiply_alpha_);
-          InitializeNewFrame(frame_index);
         }
 
         if (!InitFrameBuffer(frame_index)) {
@@ -417,13 +420,17 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
         frame.SetStatus(ImageFrame::kFrameComplete);
 
         if (frame_index < frame_info_.size()) {
-          FrameInfo& info = frame_info_[frame_index];
-          info.received = true;
+          const FrameInfo& info = frame_info_[frame_index];
           frame.SetDuration(info.duration);
           frame.SetTimestamp(info.timestamp);
         }
 
         num_decoded_frames_++;
+
+        // Record bpp histogram for still images when fully decoded.
+        if (IsAllDataReceived() && update_bpp_histogram_callback_) {
+          std::move(update_bpp_histogram_callback_).Run(Size(), data_->size());
+        }
 
         // Check if there are more frames after this one.
         if (!(*decoder_)->has_more_frames()) {
@@ -466,11 +473,9 @@ std::optional<base::TimeDelta> JXLImageDecoder::FrameTimestampAtIndex(
 }
 
 base::TimeDelta JXLImageDecoder::FrameDurationAtIndex(wtf_size_t index) const {
-  // Use frame_info_ which is populated at header parsing time.
-  // If the frame hasn't been discovered yet, trigger decoding to get its info.
-  if (index >= frame_info_.size() && !all_frames_discovered_ && !Failed()) {
-    const_cast<JXLImageDecoder*>(this)->Decode(index, /*only_size=*/false);
-  }
+  // Durations are available in frame_info_ for all discovered frames.
+  // Frame discovery happens in DecodeFrameCount() which is called by
+  // FrameCount() whenever new data arrives.
   if (index < frame_info_.size()) {
     return frame_info_[index].duration;
   }

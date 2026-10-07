@@ -26,8 +26,6 @@
 #include "compiler/translator/OutputTree.h"
 #include "compiler/translator/ParseContext.h"
 #include "compiler/translator/SizeClipCullDistance.h"
-#include "compiler/translator/ValidateOutputs.h"
-#include "compiler/translator/ValidateVaryingLocations.h"
 #include "compiler/translator/VariablePacker.h"
 #include "compiler/translator/ir/src/compile.h"
 #include "compiler/translator/tree_ops/ClampFragDepth.h"
@@ -39,7 +37,6 @@
 #include "compiler/translator/tree_ops/EmulateMultiDrawShaderBuiltins.h"
 #include "compiler/translator/tree_ops/FoldExpressions.h"
 #include "compiler/translator/tree_ops/InitializeVariables.h"
-#include "compiler/translator/tree_ops/MonomorphizeUnsupportedFunctions.h"
 #include "compiler/translator/tree_ops/PruneEmptyCases.h"
 #include "compiler/translator/tree_ops/PruneNoOps.h"
 #include "compiler/translator/tree_ops/RemoveArrayLengthMethod.h"
@@ -48,7 +45,6 @@
 #include "compiler/translator/tree_ops/RemoveInvariantDeclaration.h"
 #include "compiler/translator/tree_ops/RemoveUnreferencedVariables.h"
 #include "compiler/translator/tree_ops/RemoveUnusedFramebufferFetch.h"
-#include "compiler/translator/tree_ops/RescopeGlobalVariables.h"
 #include "compiler/translator/tree_ops/RewritePixelLocalStorage.h"
 #include "compiler/translator/tree_ops/ScalarizeVecAndMatConstructorArgs.h"
 #include "compiler/translator/tree_ops/SeparateDeclarations.h"
@@ -486,8 +482,9 @@ bool TCompiler::Init(const ShBuiltInResources &resources)
 }
 
 TIntermBlock *TCompiler::compileTreeForTesting(angle::Span<const char *const> shaderStrings,
-                                               const ShCompileOptions &compileOptions)
+                                               const ShCompileOptions &compileOptionsIn)
 {
+    const ShCompileOptions compileOptions = adjustOptions(compileOptionsIn);
     return compileTreeImpl(shaderStrings, compileOptions);
 }
 
@@ -685,7 +682,7 @@ void TCompiler::setShaderMetadata(const TParseContext &parseContext)
         // rbegin().
         mPixelLocalStorageFormats.resize(plsFormats.empty() ? 0 : plsFormats.rbegin()->first + 1,
                                          ShPixelLocalStorageFormat::NotPLS);
-        for (auto [binding, format] : parseContext.pixelLocalStorageFormats())
+        for (auto [binding, format] : plsFormats)
         {
             mPixelLocalStorageFormats[binding] = format;
         }
@@ -842,11 +839,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
 {
     mValidateASTOptions = {};
 
-#if defined(ANGLE_IR)
     const bool useIR = compileOptions.useIR;
-#else
-    const bool useIR = false;
-#endif
 
     // Disallow expressions deemed too complex.
     // This needs to be checked before other functions that will traverse the AST
@@ -856,9 +849,28 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         return false;
     }
 
+    // Some AST validation cannot be done until an AST pass is done. With IR, those passes (if
+    // needed) are done before AST is generated.
+    if (!useIR)
+    {
+        mValidateASTOptions.validateNoStatementsAfterBranch = false;
+        mValidateASTOptions.validateMultiDeclarations       = false;
+    }
+
     if (!validateAST(root))
     {
         return false;
+    }
+
+    const bool hasAnyClipCullDistance =
+        parseContext.isExtensionEnabled(TExtension::ANGLE_clip_cull_distance) ||
+        parseContext.isExtensionEnabled(TExtension::EXT_clip_cull_distance) ||
+        parseContext.isExtensionEnabled(TExtension::APPLE_clip_distance);
+    if (hasAnyClipCullDistance)
+    {
+        mClipDistanceSize = static_cast<uint8_t>(parseContext.getClipDistanceArraySize());
+        mCullDistanceSize = static_cast<uint8_t>(parseContext.getCullDistanceArraySize());
+        mMetadataFlags[MetadataFlags::HasClipDistance] = parseContext.isClipDistanceUsed();
     }
 
     if (!useIR)
@@ -884,17 +896,8 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
         // Folding should only be able to generate warnings.
         ASSERT(mDiagnostics.numErrors() == 0);
-    }
 
-    if (parseContext.isExtensionEnabled(TExtension::ANGLE_clip_cull_distance) ||
-        parseContext.isExtensionEnabled(TExtension::EXT_clip_cull_distance) ||
-        parseContext.isExtensionEnabled(TExtension::APPLE_clip_distance))
-    {
-        mClipDistanceSize = static_cast<uint8_t>(parseContext.getClipDistanceArraySize());
-        mCullDistanceSize = static_cast<uint8_t>(parseContext.getCullDistanceArraySize());
-        mMetadataFlags[MetadataFlags::HasClipDistance] = parseContext.isClipDistanceUsed();
-
-        if (!useIR)
+        if (hasAnyClipCullDistance)
         {
             // gl_ClipDistance and gl_CullDistance built-in arrays have unique semantics.
             // They are pre-declared as unsized and must be sized by the shader either
@@ -915,10 +918,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
                 return false;
             }
         }
-    }
 
-    if (!useIR)
-    {
         // We prune no-ops to work around driver bugs and to keep AST processing and output simple.
         // The following kinds of no-ops are pruned:
         //   1. Empty declarations "int;".
@@ -931,27 +931,28 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         {
             return false;
         }
+        mValidateASTOptions.validateNoStatementsAfterBranch = true;
     }
-    mValidateASTOptions.validateNoStatementsAfterBranch = true;
 
     // We need to generate globals early if we have non constant initializers enabled.
     bool initializeLocalsAndGlobals    = compileOptions.initializeUninitializedLocals;
     bool canUseLoopsToInitialize       = !compileOptions.dontUseLoopsToInitializeVariables;
     bool enableNonConstantInitializers = IsExtensionEnabled(
         mExtensionBehavior, TExtension::EXT_shader_non_constant_global_initializers);
-    if (enableNonConstantInitializers &&
-        !DeferGlobalInitializers(this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
-                                 compileOptions.forceDeferNonConstGlobalInitializers,
-                                 &mSymbolTable))
-    {
-        return false;
-    }
-
-    // Create the function DAG.
-    initCallDag(root);
 
     if (!useIR)
     {
+        if (enableNonConstantInitializers &&
+            !DeferGlobalInitializers(
+                this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
+                compileOptions.forceDeferNonConstGlobalInitializers, &mSymbolTable))
+        {
+            return false;
+        }
+
+        // Create the function DAG.
+        initCallDag(root);
+
         // Checks which functions are used
         mFunctionMetadata.clear();
         mFunctionMetadata.resize(mCallDag.size());
@@ -961,10 +962,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         {
             return false;
         }
-    }
 
-    if (!useIR)
-    {
         if (IsSpecWithFunctionBodyNewScope(mShaderSpec, mShaderVersion))
         {
             if (!ReplaceShadowingVariables(this, root, &mSymbolTable))
@@ -972,27 +970,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
                 return false;
             }
         }
-    }
-
-    if (mShaderVersion >= 310 && !ValidateVaryingLocations(root, &mDiagnostics, mShaderType))
-    {
-        return false;
-    }
-
-    // anglebug.com/42265954: The ESSL spec has a bug with images as function arguments. The
-    // recommended workaround is to inline functions that accept image arguments.
-    if (mShaderVersion >= 310 && !MonomorphizeUnsupportedFunctions(
-                                     this, root, &mSymbolTable,
-                                     UnsupportedFunctionArgsBitSet{UnsupportedFunctionArgs::Image}))
-    {
-        return false;
-    }
-
-    if (mShaderVersion >= 300 && mShaderType == GL_FRAGMENT_SHADER &&
-        !ValidateOutputs(root, getExtensionBehavior(), mResources, hasPixelLocalStorageUniforms(),
-                         IsWebGLBasedSpec(mShaderSpec), &mDiagnostics))
-    {
-        return false;
     }
 
     // For now, rewrite pixel local storage before collecting variables or any operations on images.
@@ -1009,14 +986,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
                                       getShaderVersion()))
         {
             mDiagnostics.globalError("internal compiler error translating pixel local storage");
-            return false;
-        }
-    }
-
-    if (compileOptions.clampIndirectArrayBounds)
-    {
-        if (!ClampIndirectIndices(this, root, &mSymbolTable))
-        {
             return false;
         }
     }
@@ -1109,6 +1078,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
+    // Needs to run before SimplifyLoopConditions to be able to detect |for| loops correctly.
     if (compileOptions.ensureLoopForwardProgress)
     {
         if (!EnsureLoopForwardProgress(this, root))
@@ -1148,14 +1118,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    if (compileOptions.rescopeGlobalVariables)
-    {
-        if (!RescopeGlobalVariables(*this, *root))
-        {
-            return false;
-        }
-    }
-
     mValidateASTOptions.validateMultiDeclarations = true;
 
     if (!useIR)
@@ -1181,10 +1143,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         {
             return false;
         }
-    }
 
-    if (!useIR)
-    {
         // In case the last case inside a switch statement is a certain type of no-op, GLSL
         // compilers in drivers may not accept it. In this case we clean up the dead code from the
         // end of switch statements. This is also required because PruneNoOps or
@@ -1201,14 +1160,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     initBuiltInFunctionEmulator(&mBuiltInFunctionEmulator, compileOptions);
     GetGlobalPoolAllocator()->unlock();
     mBuiltInFunctionEmulator.markBuiltInFunctionsForEmulation(root);
-
-    if (compileOptions.scalarizeVecAndMatConstructorArgs)
-    {
-        if (!ScalarizeVecAndMatConstructorArgs(this, root, &mSymbolTable))
-        {
-            return false;
-        }
-    }
 
     collectVariables(root);
 
@@ -1235,6 +1186,22 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
+    if (compileOptions.scalarizeVecAndMatConstructorArgs)
+    {
+        if (!ScalarizeVecAndMatConstructorArgs(this, root, &mSymbolTable))
+        {
+            return false;
+        }
+    }
+
+    if (compileOptions.clampIndirectArrayBounds)
+    {
+        if (!ClampIndirectIndices(this, root, &mSymbolTable))
+        {
+            return false;
+        }
+    }
+
     // Remove declarations of inactive shader interface variables so backends don't need to account
     // for them.  Note that currently, CollectVariables marks every field of an active uniform
     // that's of struct type as active, i.e. no extracted sampler is inactive, so this can be done
@@ -1253,11 +1220,14 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    if (compileOptions.initOutputVariables)
+    if (!useIR)
     {
-        if (!initializeOutputVariables(root))
+        if (compileOptions.initOutputVariables)
         {
-            return false;
+            if (!initializeOutputVariables(root))
+            {
+                return false;
+            }
         }
     }
 
@@ -1271,30 +1241,33 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    // gl_Position may have already been initialized among other output variables, in that case we
-    // don't need to initialize it twice.
-    if (!mGLPositionInitialized && compileOptions.initGLPosition)
+    if (!useIR)
     {
-        if (!initializeGLPosition(root))
+        // gl_Position may have already been initialized among other output variables, in that case
+        // we don't need to initialize it twice.
+        if (!mGLPositionInitialized && compileOptions.initGLPosition)
+        {
+            if (!initializeGLPosition(root))
+            {
+                return false;
+            }
+            mGLPositionInitialized = true;
+        }
+
+        // DeferGlobalInitializers needs to be run before other AST transformations that generate
+        // new statements from expressions. But it's fine to run DeferGlobalInitializers after the
+        // above SplitSequenceOperator and RemoveArrayLengthMethod since they only have an effect on
+        // the AST on ESSL >= 3.00, and the initializers that need to be deferred can only exist in
+        // ESSL < 3.00.  Exception: if EXT_shader_non_constant_global_initializers is enabled, we
+        // must generate global initializers before we generate the DAG, since initializers may call
+        // functions which must not be optimized out
+        if (!enableNonConstantInitializers &&
+            !DeferGlobalInitializers(
+                this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
+                compileOptions.forceDeferNonConstGlobalInitializers, &mSymbolTable))
         {
             return false;
         }
-        mGLPositionInitialized = true;
-    }
-
-    // DeferGlobalInitializers needs to be run before other AST transformations that generate new
-    // statements from expressions. But it's fine to run DeferGlobalInitializers after the above
-    // SplitSequenceOperator and RemoveArrayLengthMethod since they only have an effect on the AST
-    // on ESSL >= 3.00, and the initializers that need to be deferred can only exist in ESSL < 3.00.
-    // Exception: if EXT_shader_non_constant_global_initializers is enabled, we must generate global
-    // initializers before we generate the DAG, since initializers may call functions which must not
-    // be optimized out
-    if (!enableNonConstantInitializers &&
-        !DeferGlobalInitializers(this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
-                                 compileOptions.forceDeferNonConstGlobalInitializers,
-                                 &mSymbolTable))
-    {
-        return false;
     }
 
     if (initializeLocalsAndGlobals)
@@ -1318,10 +1291,13 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
             }
         }
 
-        if (!InitializeUninitializedLocals(this, root, getShaderVersion(), canUseLoopsToInitialize,
-                                           &getSymbolTable()))
+        if (!useIR)
         {
-            return false;
+            if (!InitializeUninitializedLocals(this, root, getShaderVersion(),
+                                               canUseLoopsToInitialize, &getSymbolTable()))
+            {
+                return false;
+            }
         }
     }
 
@@ -1390,6 +1366,10 @@ ShCompileOptions TCompiler::adjustOptions(const ShCompileOptions &compileOptions
     {
         compileOptions.initGLPosition = true;
     }
+
+#if !defined(ANGLE_IR)
+    compileOptions.useIR = false;
+#endif
 
     return compileOptions;
 }

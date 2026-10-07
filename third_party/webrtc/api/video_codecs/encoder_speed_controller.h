@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 
 namespace webrtc {
 
@@ -40,6 +41,28 @@ class EncoderSpeedController {
     kNoneReference  // A frame not used as reference sub subsequent frames.
   };
   struct Config {
+    struct PsnrProbingSettings {
+      enum class Mode {
+        // Sample one base layer frame every `sampling_interval`, and sample
+        // both alternatives when doing PSNR probing.
+        kRegularBaseLayerSampling,
+        // Only perform sampling of a base-layer frame when a PSNR probe is
+        // needed.
+        kOnlyWhenProbing,
+      };
+      Mode mode;
+
+      // Detfault time between frames that should be sampled for PSNR.
+      TimeDelta sampling_interval;
+      // The expected ratio of base-layer to non-base-layer frames. E.g. for
+      // L1T3 this will be 0.25;
+      double average_base_layer_ratio = 1.0;
+    };
+    // The PSNR settings to used. If not set, PSNR gain levels must not be
+    // present in the speed levels. Do not populate if the encoder does not
+    // support calculating PSNR.
+    std::optional<PsnrProbingSettings> psnr_probing_settings;
+
     // Represents an assignable speed level, with specific speeds for one or
     // more temporal layers.
     struct SpeedLevel {
@@ -53,6 +76,19 @@ class EncoderSpeedController {
 
       // Don't use this speed level if the average QP is lower than `min_qp`.
       std::optional<int> min_qp;
+      // Minimum PSNR gain required to go from the previous speed level to this
+      // one, or nullopt if no PSNR calculation is required. This value must
+      // not be set unless the encoder is capable of encoding a frame twice.
+      struct PsnrComparison {
+        // The baseline (faster) speed to compare the new `base_layer_speed`
+        // speed with.
+        int baseline_speed;
+        // The min PSNR gain required to move to this speed level, where the
+        // PSNR for `alternate_base_layer_speed` is expected to be lower than
+        // the PSNR for `base_layer_speed`.
+        double psnr_threshold;
+      };
+      std::optional<PsnrComparison> min_psnr_gain;
     };
     // Ordered vector of speed levels, start with the slowest speed (lower
     // effort) and the increasing the average speed for each entry.
@@ -69,6 +105,10 @@ class EncoderSpeedController {
     // True iff the frame is a repeat of the previous frame (e.g. the frames
     // used during quality convergence of a variable fps screenshare feed).
     bool is_repeat_frame;
+    // The capture time of the frame.
+    // TODO: webrtc:443906251 - Remove default value once downstream usage
+    // is updated.
+    Timestamp timestamp = Timestamp::MinusInfinity();
   };
 
   // Output from the controller, indicates which speed the encoder should be
@@ -76,6 +116,13 @@ class EncoderSpeedController {
   struct EncodeSettings {
     // Speed the encoder should use for this frame.
     int speed;
+    // If set, the encoder should encode this frame twice. FIRST with a speed of
+    // `baseline_comparison_speed` and SECONDLY at speed `speed`. The two
+    // results should then both be provided in `OnEncodedFrame()`.
+    std::optional<int> baseline_comparison_speed;
+    // If true, the encoder should calculate the PSNR for this frame - including
+    // the second encoding if `baseline_comparison_speed` is set.
+    bool calculate_psnr;
   };
 
   // Data the controller should be fed with after a frame has been encoded,
@@ -87,6 +134,8 @@ class EncoderSpeedController {
     TimeDelta encode_time;
     // The _average_ frame QP of the encoded frame.
     int qp;
+    // If set, the PSNR of the reconstructed frame vs the original raw frame.
+    std::optional<double> psnr;
     // The frame encoding info - same as what was originally given as argument
     // to `GetEncodingSettings()`.
     FrameEncodingInfo frame_info;
@@ -109,8 +158,19 @@ class EncoderSpeedController {
   // thereafter be configured with requested settings.
   virtual EncodeSettings GetEncodeSettings(FrameEncodingInfo frame_info) = 0;
 
-  // Should be called after each frame has completed encoding.
-  virtual void OnEncodedFrame(EncodeResults results) = 0;
+  // TODO: webrtc:443906251 - Remove once downstream usage is gone.
+  [[deprecated(
+      "Use OnEncodedFrame(EncodeResults, std::optional<EncodeResults>)")]]
+  virtual void OnEncodedFrame(EncodeResults results) {
+    return OnEncodedFrame(results, std::nullopt);
+  }
+
+  // Should be called after each frame has completed encoding. If a baseline
+  // comparison speed was set in the `EncodeSettings`, the `baseline_results`
+  // parameter should be set with the results corresponding to those settings.
+  virtual void OnEncodedFrame(
+      EncodeResults results,
+      std::optional<EncodeResults> baseline_results) = 0;
 };
 
 }  // namespace webrtc

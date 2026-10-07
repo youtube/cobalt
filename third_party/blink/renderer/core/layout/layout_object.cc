@@ -34,6 +34,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/feature_list.h"
 #include "partition_alloc/partition_alloc.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
@@ -118,6 +119,7 @@
 #include "third_party/blink/renderer/core/layout/table/layout_table_row.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_section.h"
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
+#include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/page/autoscroll_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/paint/fragment_data_iterator.h"
@@ -151,6 +153,10 @@
 namespace blink {
 
 namespace {
+
+// Kill switch for the new GeneratingNode() algorithm traversing ancestors
+BASE_FEATURE(kGeneratingNodeTraversesAncestorsKillSwitch,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 LayoutObject* FindColumnSpannerContainer(
     const LayoutObject* spanner,
@@ -1644,17 +1650,7 @@ void LayoutObject::MarkParentForSpannerOrOutOfFlowPositionedChange() {
   //
   // Note that this isn't necessary if we're dealing with a column spanner here,
   // but in order to keep things simple, we'll make no difference.
-  bool is_atomic_inline_level = false;
-  if (RuntimeEnabledFeatures::SkipSetNeedsCollectInlinesEnabled()) {
-    if (auto* block_flow = DynamicTo<LayoutBlockFlow>(object)) {
-      if (block_flow->IsAtomicInlineLevel()) {
-        is_atomic_inline_level = true;
-      }
-    }
-  }
-  if (!is_atomic_inline_level) {
-    object->SetNeedsCollectInlines();
-  }
+  object->SetNeedsCollectInlines();
 
   const LayoutBlock* containing_block = ContainingBlock();
   while (object != containing_block) {
@@ -3449,6 +3445,17 @@ void LayoutObject::StyleDidChange(
   if (StyleRef().AnchorName())
     MarkMayContainAnchor();
 
+  if (MayContainAnchor() && old_style &&
+      RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled()) {
+    // If there's an anchor here, and the new style might want to run animations
+    // on the compositor, anchors may affect layout of the anchored elements.
+    // Mark for layout to update the anchor references and thus request main
+    // frame animations if needed.
+    if (StyleRef().IsRunningTransformRelatedAnimationOnCompositor() &&
+        !old_style->IsRunningTransformRelatedAnimationOnCompositor()) {
+      SetNeedsLayout(layout_invalidation_reason::kStyleChange);
+    }
+  }
   const bool style_focusability = style_ && style_->IsFocusable();
   const bool old_style_focusability = old_style && old_style->IsFocusable();
   if (!style_focusability && old_style_focusability) {
@@ -3897,6 +3904,23 @@ bool LayoutObject::IsRooted() const {
   return false;
 }
 
+Node* LayoutObject::GeneratingNode() const {
+  NOT_DESTROYED();
+  if (base::FeatureList::IsEnabled(
+          kGeneratingNodeTraversesAncestorsKillSwitch)) {
+    Node* node = GetNode();
+    if (!node) {
+      return Parent() ? Parent()->GeneratingNode() : nullptr;
+    }
+    if (node->IsPseudoElement()) {
+      return &To<PseudoElement>(node)->UltimateOriginatingElement();
+    }
+    return node;
+  } else {
+    return IsPseudoElement() ? GetNode()->ParentOrShadowHostNode() : GetNode();
+  }
+}
+
 Node* LayoutObject::EnclosingNode() const {
   NOT_DESTROYED();
   Node* node = GetNode();
@@ -4059,8 +4083,9 @@ void LayoutObject::WillBeRemovedFromTree() {
     RemoveLayers(layer);
   }
 
-  if (IsOutOfFlowPositioned() && Parent()->ChildrenInline())
+  if (Parent()->ChildrenInline()) {
     Parent()->DirtyLinesFromChangedChild(this);
+  }
 
   if (bitfields_.IsScrollAnchorObject()) {
     // Clear the bit first so that anchor.clear() doesn't recurse into
@@ -4088,28 +4113,34 @@ void LayoutObject::SetNeedsPaintPropertyUpdate() {
   // reparenting in PaintPropertyTreeBuilder. Without this, we can end up with
   // cycles if only *some* of the related objects are dirtied.
   if (IsOverscrollContainer()) {
-    auto* container = IsPseudo(kPseudoIdOverscrollAreaParent) ? Parent() : this;
-    CHECK(container);
-    CHECK(container->StyleRef().IsInternalOverscrollAreaAuto());
-    CHECK(container->GetNode());
+    LayoutObject* container =
+        IsPseudo(kPseudoIdOverscrollAreaParent) ? Parent() : this;
+    if (container) {
+      Element* container_element = DynamicTo<Element>(container->GetNode());
+      CHECK(container_element);
 
-    if (auto* overscroll_area_parent_vector =
-            To<Element>(*container->GetNode())
-                .GetOverscrollAreaParentPseudoElements()) {
-      for (const auto& overscroll_area_parent :
-           *overscroll_area_parent_vector) {
-        if (auto* object = overscroll_area_parent->GetLayoutObject()) {
-          object->bitfields_.SetNeedsPaintPropertyUpdate(true);
+      if (OverscrollAreaTracker* overscroll_area_tracker =
+              container_element->GetOverscrollAreaTracker()) {
+        for (Element* overscroll_area :
+             overscroll_area_tracker->DOMSortedElements()) {
+          if (PseudoElement* overscroll_area_parent =
+                  overscroll_area->GetPseudoElement(
+                      kPseudoIdOverscrollAreaParent)) {
+            if (auto* object = overscroll_area_parent->GetLayoutObject()) {
+              object->bitfields_.SetNeedsPaintPropertyUpdate(true);
+              object->SetDescendantNeedsPaintPropertyUpdate();
+            }
+          }
         }
-      }
 
-      container->bitfields_.SetNeedsPaintPropertyUpdate(true);
-      // Note that we mark descendants needing property update starting from
-      // container, as opposed to container's parent, since we invalidated the
-      // direct children of the container
-      // (::-internal-overscroll-area-parent).
-      container->SetDescendantNeedsPaintPropertyUpdate();
-      return;
+        container->bitfields_.SetNeedsPaintPropertyUpdate(true);
+        // Note that we mark descendants needing property update starting from
+        // container, as opposed to container's parent, since we invalidated the
+        // direct children of the container
+        // (::-internal-overscroll-area-parent).
+        container->SetDescendantNeedsPaintPropertyUpdate();
+        return;
+      }
     }
   }
 

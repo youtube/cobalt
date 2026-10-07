@@ -679,7 +679,7 @@ TEST(TaskQueuePacedSenderTest, PostedPacketsNotSendFromRemovePacketsForSsrc) {
   pacer.EnsureStarted();
 
   auto encoder_queue = time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-      "encoder_queue", TaskQueueFactory::Priority::HIGH);
+      "encoder_queue", TaskQueueFactory::Priority::kHigh);
 
   EXPECT_CALL(packet_router, SendPacket).Times(5);
   encoder_queue->PostTask([&pacer] {

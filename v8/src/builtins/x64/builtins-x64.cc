@@ -4628,17 +4628,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
+  //  -- rdi (rcx on Win)    : name
   //  -- rbx                 : accessor info
-  //  -- sp[2]               : receiver
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
+  // |name| is already in the required register.
+  DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
 
   Register api_function_address = r8;
-  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
 
   DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch));
@@ -4647,8 +4649,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kGetterApiArgsLength == 5);
-  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
   static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
@@ -4659,10 +4660,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[5]: receiver        <- kThisIndex
   //                           |  sp[4]: holder          <- kHolderIndex
-  //  ...                      |  sp[3]: callback info   <- kCallbackInfoIndex
-  //  sp[2]: receiver          |  sp[2]: undefined       <- kReturnValueIndex
+  //                           |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  ...                      |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //
@@ -4684,8 +4684,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
-    __ LoadTaggedField(name_arg,
-                       FieldOperand(callback, AccessorInfo::kNameOffset));
     // kPropertyKeyIndex
     __ movq(Operand(rbp, FC::kPropertyKeyOffset), name_arg);
 
@@ -4980,6 +4978,193 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 }
 
 }  // namespace
+
+#ifdef V8_DUMPLING
+// TODO(mdanylo): shares a lot with Generate_DeoptimizationEntry. Refactor?
+void Builtins::Generate_DumpFrame(MacroAssembler* masm) {
+  __ ExitSandbox();
+  __ SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode::kUnsandboxed);
+
+  constexpr int kXmmRegsSize = kSimd128Size * XMMRegister::kNumRegisters;
+  __ AllocateStackSpace(kXmmRegsSize);
+
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kSimd128Size;
+    __ movdqu(Operand(rsp, offset), xmm_reg);
+  }
+
+  constexpr int kNumberOfRegisters = Register::kNumRegisters;
+  for (int i = 0; i < kNumberOfRegisters; i++) {
+    __ pushq(Register::from_code(i));
+  }
+
+  constexpr int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kSystemPointerSize + kXmmRegsSize;
+
+  constexpr int kCurrentOffsetToReturnAddress = kSavedRegistersAreaSize;
+
+  constexpr int kCurrentOffsetToParentSP =
+      kCurrentOffsetToReturnAddress + kPCOnStackSize;
+
+  __ movq(__ AsMemOperand(IsolateFieldId::kCEntryFP), rbp);
+
+  __ movq(kCArgRegs[2], Operand(rsp, kCurrentOffsetToReturnAddress));
+
+  // TODO(mdanylo): avoid this fixup?
+  // There's quite a lot to unpack here.
+  // The assembly listing looks the following way in deoptimizing
+  // (non-dumping) mode
+  // ....
+  // jump to deopt point: J
+  // ....
+  // deopt_point_x: go to this builtin and deoptimizer
+  // deopt_point_(x+1): <- from_
+  // ....
+  // In deoptimizing mode from_ is set correctly from the start.
+  // In dumping mode we need to fixup from because assembly looks this way:
+  // ....
+  // jump to deopt point: J
+  // call DumpFrame builtin
+  // some random instruction <- from_
+  // ....
+  // deopt_point_x
+  // deopt_point_(x+1) <- from_ should actually be set here to calculate
+  // deopt_exit_index correctly
+  // ....
+  // we know DumpFrame builtin size (5 bytes), we know that last 4 bytes of J
+  // is the offset to deopt point. Therefore we can calculate from_.
+  // This fixup can be also done in Deoptimizer class, but we prefer to have
+  // from_ set correctly from the start there.
+  {
+    Register from_reg = kCArgRegs[2];
+    constexpr int kCallDumpFrameBuiltinInstructionSize = 5;
+    constexpr int kJumpDeoptPointOffsetSize = 4;
+
+    __ movsxlq(kScratchRegister,
+               Operand(from_reg, -(kCallDumpFrameBuiltinInstructionSize +
+                                   kJumpDeoptPointOffsetSize)));
+
+    __ addq(from_reg, kScratchRegister);
+    __ subq(from_reg, Immediate(kCallDumpFrameBuiltinInstructionSize -
+                                Deoptimizer::kEagerDeoptExitSize));
+  }
+
+  __ leaq(kCArgRegs[3], Operand(rsp, kCurrentOffsetToParentSP));
+  __ subq(kCArgRegs[3], rbp);
+  __ negq(kCArgRegs[3]);
+  __ PrepareCallCFunction(5);
+
+  Label context_check;
+  __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
+  __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
+  __ movq(kCArgRegs[0], rax);
+
+  __ Move(kCArgRegs[1], static_cast<int>(DeoptimizeKind::kEager));
+
+  __ LoadAddress(r8, ExternalReference::isolate_address());
+
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  }
+
+  __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
+
+  for (int i = 0; i < kNumberOfRegisters; i++) {
+    int dst_offset =
+        (i * kSystemPointerSize) + FrameDescription::registers_offset();
+
+    int src_offset = (kNumberOfRegisters - 1 - i) * kSystemPointerSize;
+
+    __ movq(kScratchRegister, Operand(rsp, src_offset));
+    __ movq(Operand(rbx, dst_offset), kScratchRegister);
+  }
+
+  constexpr int kSimd128RegsOffset =
+      FrameDescription::simd128_registers_offset();
+  constexpr int kXmmBaseOffset = kNumberOfRegisters * kSystemPointerSize;
+
+  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+    int dst_offset = i * kSimd128Size + kSimd128RegsOffset;
+    __ movdqu(kScratchDoubleReg,
+              Operand(rsp, kXmmBaseOffset + (i * kSimd128Size)));
+    __ movdqu(Operand(rbx, dst_offset), kScratchDoubleReg);
+  }
+
+  __ movq(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
+
+  __ leaq(rdx, Operand(rbx, FrameDescription::frame_content_offset()));
+
+  __ leaq(r8, Operand(rsp, kCurrentOffsetToParentSP));
+
+  __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
+          Immediate(0));
+
+  Label copy_loop, copy_done;
+  __ testq(rcx, rcx);
+  __ j(zero, &copy_done);
+
+  __ bind(&copy_loop);
+  __ movq(kScratchRegister, Operand(r8, 0));
+  __ movq(Operand(rdx, 0), kScratchRegister);
+
+  __ addq(r8, Immediate(kSystemPointerSize));
+  __ addq(rdx, Immediate(kSystemPointerSize));
+  __ subq(rcx, Immediate(kSystemPointerSize));
+  __ j(not_zero, &copy_loop);
+  __ bind(&copy_done);
+  __ pushq(rax);
+
+  __ PrepareCallCFunction(2);
+  __ movq(kCArgRegs[0], rax);
+  __ LoadAddress(kCArgRegs[1], ExternalReference::isolate_address());
+
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
+  }
+
+  __ popq(rax);
+
+  __ leaq(kScratchRegister, Operand(rsp, kSavedRegistersAreaSize));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ pushq(kScratchRegister);
+    __ Move(rsi, 0);
+    __ CallRuntime(Runtime::kPrintDumpedFrame, 1);
+    __ popq(kScratchRegister);
+  }
+
+  for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
+    Register r = Register::from_code(i);
+    if (r == rsp) {
+      __ popq(kScratchRegister);
+    } else {
+      __ popq(Register::from_code(i));
+    }
+  }
+
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kSimd128Size;
+    __ movdqu(xmm_reg, Operand(rsp, offset));
+  }
+  __ addq(rsp, Immediate(kXmmRegsSize));
+
+  __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
+          Immediate(1));
+
+  __ EnterSandbox();
+
+  __ ret(0);
+}
+#endif  // V8_DUMPLING
 
 void Builtins::Generate_DeoptimizationEntry_Eager(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kEager);

@@ -678,12 +678,11 @@ bool ProfileSubMenuModel::BuildSyncSection() {
           icon = &vector_icons::kErrorOutlineIcon;
           break;
         case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
-          // TODO(crbug.com/452968646): For kBookmarksLimitExceeded, lead to
-          // sync settings instead of a help article. The "Learn more" string is
-          // generic, and the sync settings page would show the user the
-          // specific error.
-          break;
+          // For this specific error (as opposed to all others), there is no
+          // error UI in the menu.
+          return true;
       }
+      CHECK_NE(command_id, 0);
       AddItemWithStringIdAndVectorIcon(this, command_id, button_string_id,
                                        *icon);
       return true;
@@ -1979,20 +1978,9 @@ void AppMenuModel::Build() {
   if (!browser_->profile()->IsGuestSession()) {
     sub_menus_.push_back(
         std::make_unique<PasswordsAndAutofillSubMenuModel>(this));
-    bool use_your_saved_info_branding =
-        base::FeatureList::IsEnabled(
-            autofill::features::kYourSavedInfoSettingsPage) ||
-        base::FeatureList::IsEnabled(
-            autofill::features::kYourSavedInfoBrandingInSettings);
-    int string_id = use_your_saved_info_branding
-                        ? IDS_SETTINGS_YOUR_SAVED_INFO
-                        : IDS_PASSWORDS_AND_AUTOFILL_MENU;
-    const gfx::VectorIcon& vector_icon =
-        use_your_saved_info_branding ? vector_icons::kPersonTextIcon
-                                     : vector_icons::kPasswordManagerIcon;
     AddSubMenuWithStringIdAndVectorIcon(this, IDC_PASSWORDS_AND_AUTOFILL_MENU,
-                                        string_id, sub_menus_.back().get(),
-                                        vector_icon);
+                                        IDS_PASSWORDS_AND_AUTOFILL_MENU, sub_menus_.back().get(),
+                                        vector_icons::kPasswordManagerIcon);
     SetElementIdentifierAt(
         GetIndexOfCommandId(IDC_PASSWORDS_AND_AUTOFILL_MENU).value(),
         kPasswordAndAutofillMenuItem);

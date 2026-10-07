@@ -420,7 +420,7 @@ std::unique_ptr<StreamState> ConfigureFromFlags(
     FlexfecReceiveStream::Config flexfec_config(&(stream_state->transport));
     flexfec_config.payload_type = absl::GetFlag(FLAGS_flexfec_payload_type);
     flexfec_config.protected_media_ssrcs.push_back(absl::GetFlag(FLAGS_ssrc));
-    flexfec_config.rtp.remote_ssrc = absl::GetFlag(FLAGS_ssrc_flexfec);
+    flexfec_config.remote_ssrc = absl::GetFlag(FLAGS_ssrc_flexfec);
     FlexfecReceiveStream* flexfec_stream =
         call->CreateFlexfecReceiveStream(flexfec_config);
     receive_config.rtp.packet_sink_ = flexfec_stream;
@@ -510,7 +510,7 @@ class RtpReplayer final {
             time_sim_ ? time_sim_->GetClock() : nullptr)),
         rtp_reader_(CreateRtpReader(rtp_dump_path_)) {
     worker_thread_ = env_.task_queue_factory().CreateTaskQueue(
-        "worker_thread", TaskQueueFactory::Priority::NORMAL);
+        "worker_thread", TaskQueueFactory::Priority::kNormal);
     Event event;
     worker_thread_->PostTask([&]() {
       call_ = Call::Create(CallConfig(env_));

@@ -44,9 +44,9 @@ class TaskQueueForTest {
  public:
   explicit TaskQueueForTest(
       std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue);
-  explicit TaskQueueForTest(
-      absl::string_view name = "TestQueue",
-      TaskQueueFactory::Priority priority = TaskQueueFactory::Priority::NORMAL);
+  explicit TaskQueueForTest(absl::string_view name = "TestQueue",
+                            TaskQueueFactory::Priority priority =
+                                TaskQueueFactory::Priority::kNormal);
   TaskQueueForTest(const TaskQueueForTest&) = delete;
   TaskQueueForTest& operator=(const TaskQueueForTest&) = delete;
   ~TaskQueueForTest();

@@ -217,6 +217,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
 
+    [[unlikely]] case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return kVisitJSTypedArray;
+
     case DOUBLE_STRING_CACHE_TYPE:
       return kVisitDoubleStringCache;
 
@@ -665,11 +668,6 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
   transitions.ForEachTransition(
       &no_gc,
       [&](Tagged<Map> map) { map->DeprecateTransitionTreeImpl(isolate); },
-      [&](Tagged<Map> map) {
-        if (v8_flags.move_prototype_transitions_first) {
-          map->DeprecateTransitionTreeImpl(isolate);
-        }
-      },
       nullptr);
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   set_is_deprecated(true);
@@ -1307,6 +1305,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
 }
 
 Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
+                           InstanceType new_instance_type,
                            ElementsKind new_elements_kind,
                            DirectHandle<JSPrototype> new_prototype,
                            PropertyNormalizationMode mode, bool use_cache,
@@ -1315,6 +1314,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
 
   Tagged<Map> meta_map = fast_map->map();
   if (fast_map->is_prototype_map()) {
+    use_cache = false;
+  }
+  if (fast_map->instance_type() != new_instance_type) {
     use_cache = false;
   }
   DirectHandle<NormalizedMapCache> cache;
@@ -1386,6 +1388,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
     }
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
+    new_map->set_instance_type(new_instance_type);
     new_map->set_elements_kind(new_elements_kind);
     if (!new_prototype.is_null()) {
       Map::SetPrototype(isolate, new_map, new_prototype);
@@ -1631,8 +1634,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
 
       DCHECK(!maybe_name.is_null());
       is_connected = true;
-    } else if ((transition_kind == PROTOTYPE_TRANSITION &&
-                v8_flags.move_prototype_transitions_first) ||
+    } else if (transition_kind == PROTOTYPE_TRANSITION ||
                isolate->bootstrapper()->IsActive()) {
       // Prototype transitions are always between root maps. UpdatePrototype
       // uses the MapUpdater and instance migration. Thus, field generalization
@@ -1641,9 +1643,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
                      IsUndefined(map->GetBackPointer()));
       result->InitializeDescriptors(isolate, *descriptors);
     } else {
-      DCHECK_IMPLIES(transition_kind == PROTOTYPE_TRANSITION,
-                     !v8_flags.move_prototype_transitions_first);
-      descriptors->GeneralizeAllFields(transition_kind == PROTOTYPE_TRANSITION);
+      descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors);
     }
   }
@@ -1731,6 +1731,24 @@ void Map::InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent,
   }
   ConnectTransition(isolate, parent, child, name, SIMPLE_PROPERTY_TRANSITION,
                     force_connect);
+}
+
+// static
+Handle<Map> Map::AsDetachedTypedArray(Isolate* isolate, DirectHandle<Map> map) {
+  DCHECK(InstanceTypeChecker::IsJSTypedArray(map->instance_type()));
+  ReadOnlyRoots roots(isolate);
+  Handle<Map> new_map;
+  if (!TransitionsAccessor::SearchSpecial(isolate, map, roots.detached_symbol())
+           .ToHandle(&new_map)) {
+    new_map = Map::Copy(isolate, map, "detached TypedArray");
+    new_map->set_instance_type(JS_DETACHED_TYPED_ARRAY_TYPE);
+    if (TransitionsAccessor::CanHaveMoreTransitions(isolate, map)) {
+      DirectHandle<Name> name = isolate->factory()->detached_symbol();
+      Map::ConnectTransition(isolate, map, new_map, name, SPECIAL_TRANSITION);
+    }
+    map->NotifyLeafMapLayoutChange(isolate);
+  }
+  return new_map;
 }
 
 Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
@@ -2327,10 +2345,14 @@ bool CheckEquivalentModuloProto(const Tagged<Map> first,
 
 bool Map::EquivalentToForTransition(
     const Tagged<Map> other, ConcurrencyMode cmode,
-    DirectHandle<HeapObject> new_prototype) const {
+    DirectHandle<HeapObject> new_prototype,
+    std::optional<InstanceType> new_instance_type) const {
   CHECK_EQ(GetConstructor(), other->GetConstructor());
-  CHECK_EQ(instance_type(), other->instance_type());
-
+  if (new_instance_type) {
+    if (*new_instance_type != other->instance_type()) return false;
+  } else {
+    CHECK_EQ(instance_type(), other->instance_type());
+  }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {
     if (prototype() != other->prototype()) return false;
@@ -2570,8 +2592,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<JSPrototype> prototype) {
   Handle<Map> new_map;
-  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
-                 IsUndefined(map->GetBackPointer()));
+  DCHECK(IsUndefined(map->GetBackPointer()));
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {
     new_map = handle(*maybe_map, isolate);

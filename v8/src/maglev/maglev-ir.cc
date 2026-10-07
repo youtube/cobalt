@@ -83,6 +83,48 @@ CONVERSION_NODE_LIST(ASSERT_IS_CONV)
 
 }  // namespace
 
+void ValueNode::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+  DCHECK(!Is<VirtualObject>());
+  if (InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
+    VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+    if (vobject) {
+      vobject->AddDeoptUse(virtual_objects);
+      // Add an escaping use for the allocation.
+      alloc->AddNonEscapingUses(1);
+    }
+    alloc->add_use();
+  } else {
+    add_use();
+  }
+}
+
+void VirtualObject::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+  ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
+    if (InlinedAllocation* nested_allocation =
+            value->TryCast<InlinedAllocation>()) {
+      VirtualObject* nested_object =
+          virtual_objects.FindAllocatedWith(nested_allocation);
+      if (nested_object == nullptr) {
+        CHECK(v8_flags.turbolev_non_eager_inlining ||
+              v8_flags.maglev_non_eager_inlining);
+        // The nested object must have been created by a different inlining
+        // and we cannot see it here in the virtual object list.
+        // TODO(victorgomes): Propagate somehow virtual object lists? For
+        // now, we force the allocation to escape.
+        nested_allocation->ForceEscaping();
+      } else {
+        nested_object->AddDeoptUse(virtual_objects);
+      }
+    } else if (!IsConstantNode(value->opcode()) &&
+               value->opcode() != Opcode::kArgumentsElements &&
+               value->opcode() != Opcode::kArgumentsLength &&
+               value->opcode() != Opcode::kRestLength) {
+      value->AddDeoptUse(virtual_objects);
+    }
+    return true;
+  });
+}
+
 #ifdef DEBUG
 
 void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
@@ -149,8 +191,6 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
       return os << "TruncatedInt32";
     case UseRepresentation::kUint32:
       return os << "Uint32";
-    case UseRepresentation::kShiftedInt53:
-      return os << "ShiftedInt53";
     case UseRepresentation::kFloat64:
       return os << "Float64";
     case UseRepresentation::kHoleyFloat64:
@@ -586,7 +626,6 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kIntPtr:
-    case ValueRepresentation::kShiftedInt53:
       return NodeType::kNumber;
     case ValueRepresentation::kHoleyFloat64:
       return NodeType::kNumberOrOddball;
@@ -743,7 +782,6 @@ void Phi::VerifyInputs() const {
     CASE_REPR(Tagged)
     CASE_REPR(Int32)
     CASE_REPR(Uint32)
-    CASE_REPR(ShiftedInt53)
     CASE_REPR(Float64)
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
@@ -908,11 +946,6 @@ DirectHandle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
-DirectHandle<Object> ShiftedInt53Constant::DoReify(
-    LocalIsolate* isolate) const {
-  UNREACHABLE();
-}
-
 DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromInt64<AllocationType::kOld>(value());
 }
@@ -1037,11 +1070,6 @@ void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm,
   __ Move(reg, value());
 }
 
-void ShiftedInt53Constant::DoLoadToRegister(MaglevAssembler* masm,
-                                            Register reg) const {
-  UNREACHABLE();
-}
-
 void IntPtrConstant::DoLoadToRegister(MaglevAssembler* masm,
                                       Register reg) const {
   __ Move(reg, value());
@@ -1083,20 +1111,6 @@ void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm,
 TURBOLEV_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 TURBOLEV_NON_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 
-TURBOLEV_UNREACHABLE_NODE(CheckedShiftedInt53ToInt32)
-TURBOLEV_UNREACHABLE_NODE(CheckedShiftedInt53ToUint32)
-TURBOLEV_UNREACHABLE_NODE(CheckedIntPtrToShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(CheckedHoleyFloat64ToShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(UnsafeSmiTagShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(CheckedNumberToShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(CheckedSmiTagShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(ShiftedInt53ToNumber)
-TURBOLEV_UNREACHABLE_NODE(ChangeInt32ToShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(ChangeUint32ToShiftedInt53)
-TURBOLEV_UNREACHABLE_NODE(ChangeShiftedInt53ToFloat64)
-TURBOLEV_UNREACHABLE_NODE(ChangeShiftedInt53ToHoleyFloat64)
-TURBOLEV_UNREACHABLE_NODE(ShiftedInt53ToBoolean)
-
 TURBOLEV_UNREACHABLE_NODE(AssertRangeInt32)
 TURBOLEV_UNREACHABLE_NODE(AssertRangeFloat64)
 
@@ -1119,12 +1133,6 @@ void Int32Constant::GenerateCode(MaglevAssembler* masm,
 void Uint32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Uint32Constant::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {}
-
-void ShiftedInt53Constant::SetValueLocationConstraints() { UNREACHABLE(); }
-void ShiftedInt53Constant::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  UNREACHABLE();
-}
 
 void IntPtrConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void IntPtrConstant::GenerateCode(MaglevAssembler* masm,
@@ -3740,6 +3748,22 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
                            NegateCondition(ToCondition(condition())), fail);
+}
+
+int CheckMaglevType::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kCheckMaglevType>::type;
+  return D::GetStackParameterCount();
+}
+
+void CheckMaglevType::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kCheckMaglevType>::type;
+  UseFixed(ValueInput(), D::GetRegisterParameter(0));
+}
+
+void CheckMaglevType::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kCheckMaglevType>(ValueInput(),
+                                            Smi::FromEnum(expected_type_));
 }
 
 int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
@@ -8028,10 +8052,6 @@ void Uint32Constant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
-void ShiftedInt53Constant::PrintParams(std::ostream& os) const {
-  os << "(" << value() << ")";
-}
-
 void IntPtrConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
@@ -8268,6 +8288,10 @@ void CheckInt32Condition::PrintParams(std::ostream& os) const {
   os << "(" << condition() << ", " << deoptimize_reason() << ")";
 }
 
+void CheckMaglevType::PrintParams(std::ostream& os) const {
+  os << "(" << expected_type_ << ")";
+}
+
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(" << index_ << ")";
 }
@@ -8430,12 +8454,6 @@ void Int32Compare::PrintParams(std::ostream& os) const {
 }
 
 void Int32ToBoolean::PrintParams(std::ostream& os) const {
-  if (flip()) {
-    os << "(flipped)";
-  }
-}
-
-void ShiftedInt53ToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }

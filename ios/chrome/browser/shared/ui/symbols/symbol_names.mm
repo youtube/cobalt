@@ -16,6 +16,7 @@ NSString* const kGoogleIconSymbol = @"google_icon";
 NSString* const kGoogleShieldSymbol = @"google_shield";
 NSString* const kGoogleMapsSymbol = @"google_maps";
 NSString* const kGooglePaySymbol = @"google_pay";
+NSString* const kGoogleWalletSymbol = @"google_wallet";
 NSString* const kGooglePhotosSymbol = @"google_photos";
 NSString* const kMulticolorChromeballSymbol = @"multicolor_chromeball";
 NSString* const kPageInsightsSymbol = @"page_insights";
@@ -73,6 +74,7 @@ NSString* const kTextSparkSymbol = @"text_spark";
 NSString* const kIncognitoCircleFillSymbol = @"incognito_circle_fill";
 NSString* const kPlusCircleFillSymbol = @"plus_circle_fill";
 NSString* const kPDFFillSymbol = @"pdf_fill";
+NSString* const kLineThreeSparkSymbol = @"line_three_spark";
 
 // Use custom symbol for camera because the default video icon in iOS should
 // always represent “Apple Facetime”.

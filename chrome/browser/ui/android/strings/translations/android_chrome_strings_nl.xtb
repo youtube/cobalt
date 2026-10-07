@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> wordt geopend in Chrome. Als je doorgaat, ga je akkoord met de <ph name="BEGIN_LINK1" />Servicevoorwaarden van Google<ph name="END_LINK1" /> en met de <ph name="BEGIN_LINK2" />Aanvullende servicevoorwaarden van Google Chrome en Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Je hebt geen wachtwoorden opgeslagen in Google Wachtwoordmanager.</translation>
 <translation id="115483310321669804">Wachtwoord <ph name="PASSWORD" /> gebruiken</translation>
+<translation id="1161065531352634524">Tabbladen en geschiedenis synchroniseren</translation>
 <translation id="1165109137568919258">Maak een foto of voeg een afbeelding uit je fotogalerij toe om te zoeken</translation>
 <translation id="1173894706177603556">Naam wijzigen</translation>
 <translation id="1174479719160874822">Chrome vraagt de mobiele site op als het scherm smal is</translation>
@@ -126,6 +127,7 @@ Ga naar <ph name="BEGIN_LINK2" />Google-services<ph name="END_LINK2" /> voor mee
 <translation id="147982357559798527">Gewijzigd</translation>
 <translation id="1480287803138246127">Een deel van je geschiedenis wordt hier misschien niet getoond. Open de volledige Chrome-geschiedenis om al je Chrome-geschiedenis te bekijken.</translation>
 <translation id="1493287004536771723">Je volgt <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Terug naar tabblad</translation>
 <translation id="1496514951988037011">gebruikersnaam</translation>
 <translation id="1501480321619201731">Groep verwijderen</translation>
 <translation id="1506061864768559482">Zoekmachine</translation>
@@ -433,6 +435,7 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="2885355868600171871">Naar adresbalk gaan</translation>
 <translation id="2888126860611144412">Over Chrome</translation>
 <translation id="2891154217021530873">Stoppen met het laden van de pagina</translation>
+<translation id="2893168226686371498">Standaardbrowser</translation>
 <translation id="2894821468041866720">Je browser of apparaat wordt hier niet merkbaar langzamer van.</translation>
 <translation id="2895521649038438824">Je kunt naar deze pagina luisteren</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, vastgezet tabblad met audio</translation>
@@ -980,6 +983,7 @@ Voor je Google-account kunnen andere vormen van browsegeschiedenis (zoals zoekop
 <translation id="5210286577605176222">Naar het vorige tabblad gaan</translation>
 <translation id="5210365745912300556">Tabblad sluiten</translation>
 <translation id="5212800876504289412">Start Chrome opnieuw op om deze wijziging af te ronden. Tabbladen worden automatisch opnieuw geopend als je opnieuw opstart.</translation>
+<translation id="5213114823401215820">Gesloten groep heropenen</translation>
 <translation id="5215957675041756913">Je gegevens en account beheren</translation>
 <translation id="5218324087477576825">Kaartnummer, vereist</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> en meer <ph name="SEPARATOR" /> Chrome heeft deze rechten verwijderd omdat je deze site niet recent hebt bezocht</translation>
@@ -1098,7 +1102,6 @@ Voor je Google-account kunnen andere vormen van browsegeschiedenis (zoals zoekop
 <translation id="5765780083710877561">Beschrijving:</translation>
 <translation id="5776970333778123608">Onbelangrijke gegevens</translation>
 <translation id="5793665092639000975">Er wordt <ph name="SPACE_USED" /> van de <ph name="SPACE_AVAILABLE" /> gebruikt</translation>
-<translation id="5795872532621730126">Zoeken en browsen</translation>
 <translation id="5797949256525811424">Geblokkeerd onderwerp</translation>
 <translation id="580893287573699959">Beheer de onderwerpen en sites waarin je bent geïnteresseerd</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# uur geleden}other{# uur geleden}}</translation>
@@ -1415,7 +1418,6 @@ Zo kunnen sommige websites op dit verzoek reageren door advertenties te bekijken
 <translation id="6937524809504266803">Personalisatie en koppelen</translation>
 <translation id="6937876069006524083">Bijnaam (optioneel)</translation>
 <translation id="6942665639005891494">Je kunt via de menuoptie Instellingen op elk gewenst moment de standaard downloadlocatie wijzigen</translation>
-<translation id="694267552845942083">Je past momenteel je synchronisatie-instellingen aan. Als je synchronisatie wilt aanzetten, tik je onderaan het scherm op Bevestigen. Omhoog navigeren</translation>
 <translation id="6945221475159498467">Selecteren</translation>
 <translation id="6955535239952325894">Deze instelling staat uit in beheerde browsers</translation>
 <translation id="6963766334940102469">Bookmarks verwijderen</translation>
@@ -1437,6 +1439,7 @@ Zo kunnen sommige websites op dit verzoek reageren door advertenties te bekijken
 <translation id="7020741890149022655">Toevoegen aan leeslijst <ph name="BEGIN_NEW" />Nieuw<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Openen in browser</translation>
 <translation id="7029809446516969842">Wachtwoorden</translation>
+<translation id="7037994709569287156">Chrome instellen als standaard</translation>
 <translation id="7053256416619638731">Maak je wachtwoorden op dit apparaat sterker</translation>
 <translation id="7053983685419859001">Blokkeren</translation>
 <translation id="7054588988317389591">Afbeeldingsbeschrijvingen ophalen?</translation>
@@ -1469,6 +1472,7 @@ Zo kunnen sommige websites op dit verzoek reageren door advertenties te bekijken
 Als je deze instelling wilt wijzigen, <ph name="BEGIN_LINK" />verwijder je de Chrome-gegevens in je account<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Meer informatie over waarom Chrome bepaalde bestanden blokkeert</translation>
 <translation id="7168323970702333693">Ingelogd als <ph name="USER_NAME" />. Hiermee worden de instellingen geopend.</translation>
+<translation id="7170930892977483182">Alle beveiligingscodes die zijn opgeslagen op je apparaat en in Google Wallet, worden verwijderd</translation>
 <translation id="7173114856073700355">Instellingen openen</translation>
 <translation id="7173338713290252554">Prijsgeschiedenis op internet</translation>
 <translation id="7177466738963138057">Je kunt dit later wijzigen in Instellingen</translation>
@@ -1801,6 +1805,7 @@ Als je deze instelling wilt wijzigen, <ph name="BEGIN_LINK" />verwijder je de Ch
 <translation id="8458413889418591446">Synchroniseer je geschiedenis en tabbladen om snel terug te gaan naar sites die je hebt bezocht</translation>
 <translation id="84594714173170813">Blijf de Chrome-gegevens in je Google-account gebruiken</translation>
 <translation id="8460448946170646641">Neem belangrijke privacy- en beveiligingsopties door</translation>
+<translation id="8460932807646981183">Zoekmachines en Site Search beheren</translation>
 <translation id="8473863474539038330">Adressen en meer</translation>
 <translation id="847433688444405067">Browse op verschillende apparaten</translation>
 <translation id="8477178913400731244">Gegevens verwijderen</translation>
@@ -1936,7 +1941,6 @@ Als je deze instelling wilt wijzigen, <ph name="BEGIN_LINK" />verwijder je de Ch
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, meervoudig geselecteerd tabblad voor content delen</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Sites die je bezoekt, worden niet opgeslagen in de incognitomodus</translation>
-<translation id="9086302186042011942">Synchroniseren</translation>
 <translation id="9086455579313502267">Geen toegang tot het netwerk</translation>
 <translation id="9093915805850895575">Openen in Chrome-venster</translation>
 <translation id="909756639352028172">Voor de meest gepersonaliseerde functionaliteit neem je Chrome op in Web- en app-activiteit en gekoppelde Google-services</translation>

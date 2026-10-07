@@ -40,17 +40,17 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
-import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChrome;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChromePhone;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerHost;
@@ -76,7 +76,6 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
-import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -139,9 +138,6 @@ public class SensitiveContentTest {
     @Mock private HubLayoutDependencyHolder mHubLayoutDependencyHolder;
     @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
     @Mock private TabWindowManager mTabWindowManager;
-    @Mock private MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
-    @Mock private MonotonicObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier;
-    @Mock private MonotonicObservableSupplier<Boolean> mScrimVisibilitySupplier;
     @Mock private ToolbarManager mToolbarManager;
     @Mock private ViewGroup mContentView;
 
@@ -287,6 +283,7 @@ public class SensitiveContentTest {
     @Test
     @LargeTest
     @EnableFeatures(SensitiveContentFeatures.SENSITIVE_CONTENT_WHILE_SWITCHING_TABS)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testIncognitoTabSwitcherBecomesSensitive() {
         final String histogram =
                 "SensitiveContent.TabSwitching.IncognitoTabSwitcherPane.Sensitivity";
@@ -355,6 +352,8 @@ public class SensitiveContentTest {
     @EnableFeatures(SensitiveContentFeatures.SENSITIVE_CONTENT_WHILE_SWITCHING_TABS)
     // TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    // Don't run on desktop because desktop requires incognito tabs in their own window.
+    @Restriction(DeviceFormFactor.PHONE_OR_TABLET)
     public void testIncognitoTabSwitcherBecomesSensitiveWithTabGroups() {
         // Open the first incognito tab.
         CtaPageStation page = mPage.openNewIncognitoTabOrWindowFast();
@@ -594,6 +593,7 @@ public class SensitiveContentTest {
     @Test
     @LargeTest
     @EnableFeatures(SensitiveContentFeatures.SENSITIVE_CONTENT_WHILE_SWITCHING_TABS)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testSensitiveContentIsRestoredFromTabState() {
         // Create a new tab.
         CtaPageStation page = mPage.openNewTabFast();
@@ -692,8 +692,8 @@ public class SensitiveContentTest {
         TabContentManager tabContentManager =
                 new TabContentManager(context, null, false, null, mTabWindowManager);
         tabContentManager.initWithNative();
-        ObservableSupplierImpl<TabContentManager> tabContentManagerSupplier =
-                new ObservableSupplierImpl<>();
+        SettableMonotonicObservableSupplier<TabContentManager> tabContentManagerSupplier =
+                ObservableSuppliers.createMonotonic();
         OneshotSupplierImpl tabSwitcherSupplier = new OneshotSupplierImpl();
 
         // Build a fake content container
@@ -710,11 +710,11 @@ public class SensitiveContentTest {
                         tabContentManagerSupplier,
                         () -> mTopUiThemeColorProvider,
                         mHubLayoutDependencyHolder,
-                        mCompositorViewHolderSupplier,
+                        ObservableSuppliers.alwaysNull(),
                         mContentView,
                         mToolbarManager,
-                        mScrimVisibilitySupplier,
-                        mTopInsetProviderSupplier);
+                        ObservableSuppliers.alwaysFalse(),
+                        ObservableSuppliers.alwaysNull());
 
         tabContentManagerSupplier.set(tabContentManager);
         CompositorAnimationHandler.setTestingMode(true);
@@ -724,7 +724,7 @@ public class SensitiveContentTest {
                 null,
                 null,
                 mTopUiThemeColorProvider,
-                new ObservableSupplierImpl<>(0));
+                ObservableSuppliers.alwaysZero());
     }
 
     /**

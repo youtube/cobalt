@@ -2339,19 +2339,9 @@ void RenderProcessHostImpl::CreateLockManager(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  storage_partition_impl_->GetQuotaManager()->proxy()->UpdateOrCreateBucket(
-      storage::BucketInitParams::ForDefaultBucket(storage_key),
-      GetUIThreadTaskRunner({}),
-      base::BindOnce(&RenderProcessHostImpl::CreateLockManagerWithBucketInfo,
-                     instance_weak_factory_.GetWeakPtr(), std::move(receiver)));
-}
-
-void RenderProcessHostImpl::CreateLockManagerWithBucketInfo(
-    mojo::PendingReceiver<blink::mojom::LockManager> receiver,
-    storage::QuotaErrorOr<storage::BucketInfo> bucket) {
-  storage_partition_impl_->GetLockManager()->BindReceiver(
-      bucket.has_value() ? bucket->id : storage::BucketId(),
-      std::move(receiver));
+  base::UnguessableToken token = base::UnguessableToken::Create();
+  storage_partition_impl_->BindLockManager(storage_key, token,
+                                           std::move(receiver));
 }
 
 void RenderProcessHostImpl::CreatePermissionService(
@@ -3466,14 +3456,6 @@ void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
   if (process_lock.is_invalid())
     return;
 
-  // Check if the process is cross_origin isolated based on the
-  // WebExposedIsolationLevel and the AgentClusterKey.
-  bool is_cross_origin_isolated = process_lock.GetWebExposedIsolationLevel() >=
-                                  WebExposedIsolationLevel::kIsolated;
-  is_cross_origin_isolated |=
-      process_lock.agent_cluster_key().IsCrossOriginIsolated();
-  GetRendererInterface()->SetIsCrossOriginIsolated(is_cross_origin_isolated);
-
   GetRendererInterface()->SetIsIsolatedContext(IsIsolatedContext(this));
 
   GetRendererInterface()->SetIsWebSecurityDisabled(
@@ -4025,7 +4007,8 @@ bool RenderProcessHostImpl::ShutdownRequested() {
 bool RenderProcessHostImpl::FastShutdownIfPossible(size_t page_count,
                                                    bool skip_unload_handlers,
                                                    bool ignore_workers,
-                                                   bool ignore_keep_alive) {
+                                                   bool ignore_keep_alive,
+                                                   bool ignore_pending_reuse) {
   base::UmaHistogramBoolean(
       "BrowserRenderProcessHost.FastShutdownIfPossible.Total", true);
   // Do not shut down the process if there are active or pending views other
@@ -4095,7 +4078,7 @@ bool RenderProcessHostImpl::FastShutdownIfPossible(size_t page_count,
     return false;
   }
 
-  if (pending_reuse_ref_count_ != 0) {
+  if (!ignore_pending_reuse && pending_reuse_ref_count_ != 0) {
     LogDelayReasonForFastShutdown(DelayShutdownReason::kPendingReuse);
     return false;
   }
@@ -4462,15 +4445,6 @@ void RenderProcessHostImpl::Cleanup() {
   // shutdown delay has now been cancelled.
   StopTrackingProcessForShutdownDelay();
 
-  if (IsEmptyRendererProcessesReuseAllowed()) {
-    // Remove this host from the tracker of empty processes. This is required
-    // to ensure that the process' id is not kept in the tracker if it's
-    // cleaned up while non-empty.
-    SiteProcessCountTracker::GetInstance(GetBrowserContext(),
-                                         kEmptySiteProcessCountTrackerKey)
-        ->ClearProcessForAllSites(GetID());
-  }
-
   // Use `DeleteSoon` to delete `this` RenderProcessHost *after* the tasks
   // that are *already* queued on the UI thread have been given a chance to run
   // (this may include IPC handling tasks that depend on the existence of
@@ -4643,11 +4617,22 @@ void RenderProcessHostImpl::UnregisterHost(ChildProcessId host_id) {
                           host->GetBrowserContext()->GetUserData(
                               kCommittedSiteProcessCountTrackerKey)));
 
+  if (IsEmptyRendererProcessesReuseAllowed()) {
+    // Remove this host from the tracker of empty processes. This guarantees
+    // the tracker is cleaned up if the process is destroyed if the standard
+    // RenderProcessHostImpl::Cleanup() path is bypassed (e.g.
+    // MockRenderProcessHost in unit tests).
+    SiteProcessCountTracker::GetInstance(host->GetBrowserContext(),
+                                         kEmptySiteProcessCountTrackerKey)
+        ->ClearProcessForAllSites(host_id);
+  }
+
   // Look up the map of site to process for the given browser_context,
   // in case we need to remove this process from it.  It will be registered
   // under any sites it rendered that use process-per-site mode.
   SiteProcessMap* map =
       GetSiteProcessMapForBrowserContext(host->GetBrowserContext());
+
   map->RemoveProcess(host);
 }
 

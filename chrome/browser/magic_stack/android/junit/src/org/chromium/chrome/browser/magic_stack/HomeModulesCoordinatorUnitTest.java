@@ -53,7 +53,8 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.FeatureOverrides;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -94,7 +95,11 @@ public class HomeModulesCoordinatorUnitTest {
     @Mock private ApplicationInfo mApplicationInfo;
     @Mock private DisplayMetrics mDisplayMetrics;
     @Mock private HomeModulesConfigManager mHomeModulesConfigManager;
-    @Spy private ObservableSupplierImpl<Profile> mProfileSupplier;
+
+    @Spy
+    private final SettableMonotonicObservableSupplier<Profile> mProfileSupplier =
+            ObservableSuppliers.createMonotonic();
+
     @Mock private Profile mProfile;
     @Mock SegmentationPlatformService mSegmentationPlatformService;
     @Mock private ModuleRegistry mModuleRegistry;
@@ -247,10 +252,7 @@ public class HomeModulesCoordinatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures({
-        ChromeFeatureList.EDUCATIONAL_TIP_MODULE,
-        ChromeFeatureList.SEGMENTATION_PLATFORM_EPHEMERAL_CARD_RANKER
-    })
+    @EnableFeatures({ChromeFeatureList.SEGMENTATION_PLATFORM_EPHEMERAL_CARD_RANKER})
     public void testOnModuleConfigChangedForEducationalTipModules() {
         assertFalse(DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity));
         when(mModuleDelegateHost.isHomeSurface()).thenReturn(true);
@@ -267,7 +269,10 @@ public class HomeModulesCoordinatorUnitTest {
                         ModuleType.TIPS_NOTIFICATIONS_PROMO,
                         ModuleType.ENHANCED_SAFE_BROWSING_PROMO,
                         ModuleType.ADDRESS_BAR_PLACEMENT_PROMO,
-                        ModuleType.SETUP_LIST_TWO_CELL_CONTAINER);
+                        ModuleType.SETUP_LIST_TWO_CELL_CONTAINER,
+                        ModuleType.SIGN_IN_PROMO,
+                        ModuleType.SAVE_PASSWORDS_PROMO,
+                        ModuleType.PASSWORD_CHECKUP_PROMO);
         when(mHomeModulesConfigManager.getEnabledModuleSet())
                 .thenReturn(new HashSet<>(expectedModuleListBeforeHidingModule));
         mCoordinator = createCoordinator(/* skipInitProfile= */ false);

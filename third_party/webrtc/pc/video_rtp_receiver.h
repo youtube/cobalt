@@ -52,6 +52,8 @@ class VideoRtpReceiver : public RtpReceiverInternal {
                    VideoMediaReceiveChannelInterface* media_channel = nullptr);
   // TODO(hbos): Remove this when streams() is removed.
   // https://crbug.com/webrtc/9480
+  // This should be PLAN_B_ONLY; but this marking is deferred due to templating
+  // issues
   VideoRtpReceiver(
       Thread* worker_thread,
       absl::string_view receiver_id,

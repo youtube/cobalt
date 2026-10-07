@@ -505,6 +505,9 @@ TEST_P(LibaomAv1EncoderTest, AdheresToTargetBitrateDespiteUnevenFrameTiming) {
       bytes_encoded_ += DataSize::Bytes(encoded_image.size());
       return Result(Result::Error::OK);
     }
+    void OnFrameDropped(uint32_t rtp_timestamp,
+                        int spatial_id,
+                        bool is_end_of_temporal_unit) override {}
 
     DataSize bytes_encoded_ = DataSize::Zero();
   } callback;
@@ -611,6 +614,9 @@ TEST_P(LibaomAv1EncoderTest, PostEncodeFrameDrop) {
       frames_encoded_++;
       return Result(Result::Error::OK);
     }
+    void OnFrameDropped(uint32_t rtp_timestamp,
+                        int spatial_id,
+                        bool is_end_of_temporal_unit) override {}
 
     int frames_encoded_ = 0;
   } callback;
@@ -850,6 +856,180 @@ TEST_P(LibaomAv1EncoderTest, L1T2RepeatFrameNotDroppedIfDeltaTooLarge) {
           .set_is_repeat_frame(true)
           .build();
   ASSERT_EQ(encoder->Encode(delta_frame_keep, &delta_frame_types),
+            WEBRTC_VIDEO_CODEC_OK);
+}
+
+TEST_P(LibaomAv1EncoderTest, TriggerFrameDropOnBaseLayer) {
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateTestEnvironment());
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.width = 640;
+  codec_settings.height = 360;
+  codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
+  codec_settings.SetFrameDropEnabled(true);
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  MockEncodedImageCallback callback;
+  encoder->RegisterEncodeCompleteCallback(&callback);
+
+  VideoEncoder::RateControlParameters rate_parameters;
+  rate_parameters.framerate_fps = 30;
+  // Set sufficient bitrate for both layers initially.
+  // Layer 0: 50 kbps.
+  rate_parameters.bitrate.SetBitrate(0, 0, 50000);
+  // Layer 1: 50 kbps.
+  rate_parameters.bitrate.SetBitrate(1, 0, 50000);
+  encoder->SetRates(rate_parameters);
+
+  auto frame_generator = test::CreateSquareFrameGenerator(
+      codec_settings.width, codec_settings.height,
+      test::FrameGeneratorInterface::OutputType::kI420, std::nullopt);
+
+  // Encode a keyframe first. Both layers should be encoded.
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(0)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(false))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(false)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(1)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(true))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(true)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+
+  VideoFrame key_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(frame_generator->NextFrame().buffer)
+          .set_rtp_timestamp(1000)
+          .build();
+
+  std::vector<VideoFrameType> key_frame_types = {
+      VideoFrameType::kVideoFrameKey};
+  ASSERT_EQ(encoder->Encode(key_frame, &key_frame_types),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  // Now lower Layer 1 bitrate to force a drop.
+  // Layer 1: 0 kbps (force drop).
+  rate_parameters.bitrate.SetBitrate(1, 0, 0);
+  encoder->SetRates(rate_parameters);
+
+  // Expect OnEncodedImage for spatial layer 0.
+  // Since L1 is dropped, L0 is the last encoded frame, so
+  // is_end_of_temporal_unit should be true.
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(0)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(false))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(true)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+
+  // Expect OnFrameDropped for spatial layer 1.
+  EXPECT_CALL(callback, OnFrameDropped(_, /*spatial_id=*/1,
+                                       /*is_end_of_temporal_unit=*/true));
+
+  VideoFrame delta_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(frame_generator->NextFrame().buffer)
+          .set_rtp_timestamp(2000)
+          .build();
+
+  std::vector<VideoFrameType> delta_frame_types = {
+      VideoFrameType::kVideoFrameDelta};
+  ASSERT_EQ(encoder->Encode(delta_frame, &delta_frame_types),
+            WEBRTC_VIDEO_CODEC_OK);
+}
+
+TEST_P(LibaomAv1EncoderTest, TriggerFrameDropOnLayer0WhileLayer1Encoded) {
+  std::unique_ptr<VideoEncoder> encoder =
+      CreateLibaomAv1Encoder(CreateTestEnvironment());
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.SetScalabilityMode(ScalabilityMode::kS2T1);
+  codec_settings.SetFrameDropEnabled(true);
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  MockEncodedImageCallback callback;
+  encoder->RegisterEncodeCompleteCallback(&callback);
+
+  VideoEncoder::RateControlParameters rate_parameters;
+  rate_parameters.framerate_fps = 30;
+  // Set moderate bitrate for both layers initially to prevent excessive buffer
+  // accumulation, but ensure it's enough to encode.
+  // Layer 0: 30 kbps.
+  rate_parameters.bitrate.SetBitrate(0, 0, 30000);
+  // Layer 1: High bitrate.
+  rate_parameters.bitrate.SetBitrate(1, 0, 1000000);
+  encoder->SetRates(rate_parameters);
+
+  auto frame_generator = test::CreateSquareFrameGenerator(
+      codec_settings.width, codec_settings.height,
+      test::FrameGeneratorInterface::OutputType::kI420, std::nullopt);
+
+  // Encode a keyframe first. Both layers should be encoded.
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(0)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(false))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(false)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(1)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(true))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(true)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+
+  VideoFrame key_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(frame_generator->NextFrame().buffer)
+          .set_rtp_timestamp(1000)
+          .build();
+
+  std::vector<VideoFrameType> key_frame_types = {
+      VideoFrameType::kVideoFrameKey};
+  ASSERT_EQ(encoder->Encode(key_frame, &key_frame_types),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  // Now lower Layer 0 bitrate to force a drop.
+  // Layer 0: 1 kbps.
+  rate_parameters.bitrate.SetBitrate(0, 0, 1000);
+  encoder->SetRates(rate_parameters);
+
+  // Expect OnFrameDropped for spatial layer 0.
+  EXPECT_CALL(callback, OnFrameDropped(_, /*spatial_id=*/0,
+                                       /*is_end_of_temporal_unit=*/false));
+  // Expect OnEncodedImage for spatial layer 1.
+  EXPECT_CALL(
+      callback,
+      OnEncodedImage(
+          AllOf(Property(&EncodedImage::SpatialIndex, Eq(1)),
+                Property(&EncodedImage::is_end_of_temporal_unit, Eq(true))),
+          Pointee(Field(&CodecSpecificInfo::end_of_picture, Eq(true)))))
+      .WillOnce(Return(EncodedImageCallback::Result(
+          EncodedImageCallback::Result::Error::OK)));
+
+  VideoFrame delta_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(frame_generator->NextFrame().buffer)
+          .set_rtp_timestamp(2000)
+          .build();
+
+  std::vector<VideoFrameType> delta_frame_types = {
+      VideoFrameType::kVideoFrameDelta};
+  ASSERT_EQ(encoder->Encode(delta_frame, &delta_frame_types),
             WEBRTC_VIDEO_CODEC_OK);
 }
 

@@ -9,8 +9,10 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/webui/metrics_handler.h"
@@ -19,23 +21,28 @@
 #include "chrome/browser/ui/webui/theme_colors_source_manager_factory.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar.mojom.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_page_handler.h"
+#include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/webui_toolbar_resources.h"
 #include "chrome/grit/webui_toolbar_resources_map.h"
+#include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/views/widget/widget.h"
+#include "ui/webui/tracked_element/tracked_element_handler.h"
 #include "ui/webui/webui_util.h"
 
 WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
     // Sets `enable_chrome_send` to true to allow chrome.send() to be called in
     // TypeScript to record non-timestamp histograms, which can't be done by
     // MetricsReporter.
-    : TopChromeWebUIController(web_ui, /*enable_chrome_send=*/true) {
+    : TopChromeWebUIController(web_ui,
+                               /*enable_chrome_send=*/true,
+                               /*enable_chrome_histograms=*/true) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIWebUIToolbarHost);
@@ -67,46 +74,77 @@ WebUIToolbarConfig::WebUIToolbarConfig()
 
 bool WebUIToolbarConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return features::IsWebUIReloadButtonEnabled();
+  return features::IsWebUIToolbarEnabled();
 }
 
 void WebUIToolbarUI::BindInterface(
-    mojo::PendingReceiver<webui_toolbar::mojom::PageHandlerFactory> receiver) {
+    mojo::PendingReceiver<browser_controls_api::mojom::BrowserControlsFactory>
+        receiver) {
   page_factory_receiver_.reset();
   page_factory_receiver_.Bind(std::move(receiver));
 }
 
-void WebUIToolbarUI::SetReloadButtonState(bool is_loading,
-                                          bool is_menu_enabled) {
-  if (webui_toolbar_page_handler_) {
-    webui_toolbar_page_handler_->SetReloadButtonState(is_loading,
-                                                      is_menu_enabled);
+void WebUIToolbarUI::BindInterface(
+    mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
+        receiver) {
+  BrowserWindowInterface* browser_interface =
+      webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+  if (browser_interface) {
+    ui::ElementContext element_context =
+        BrowserElements::From(browser_interface)->GetContext();
+
+    tracked_element_handler_ = std::make_unique<ui::TrackedElementHandler>(
+        web_ui()->GetWebContents(), std::move(receiver), element_context,
+        GetKnownElementIdentifiers());
   }
 }
 
-void WebUIToolbarUI::CreatePageHandler(
-    mojo::PendingRemote<webui_toolbar::mojom::Page> page,
-    mojo::PendingReceiver<webui_toolbar::mojom::PageHandler> receiver) {
-  CHECK(page);
+void WebUIToolbarUI::OnDevToolsStatusChanged(
+    browser_controls_api::mojom::DevToolsState state) {
+  if (browser_controls_service_) {
+    browser_controls_service_->OnDevToolsStatusChanged(state);
+  }
+}
+
+void WebUIToolbarUI::OnNavigationStatusChanged(
+    browser_controls_api::mojom::NavigationState state) {
+  if (browser_controls_service_) {
+    browser_controls_service_->OnNavigationStatusChanged(state);
+  }
+}
+
+void WebUIToolbarUI::OnContextMenuStateChanged(
+    browser_controls_api::mojom::ContextMenuType menu_type,
+    browser_controls_api::mojom::ContextMenuState state) {
+  if (browser_controls_service_) {
+    browser_controls_service_->OnContextMenuStateChanged(menu_type, state);
+  }
+}
+
+void WebUIToolbarUI::CreateBrowserControls(
+    mojo::PendingRemote<browser_controls_api::mojom::BrowserControlsObserver>
+        observer,
+    mojo::PendingReceiver<browser_controls_api::mojom::BrowserControlsService>
+        service) {
+  CHECK(observer);
   auto* web_contents = web_ui()->GetWebContents();
   auto* command_updater = GetCommandUpdater();
   if (!command_updater) {
     return;
   }
-  webui_toolbar_page_handler_ = std::make_unique<WebUIToolbarPageHandler>(
-      std::move(receiver), std::move(page), web_contents, command_updater,
+  browser_controls_service_ = std::make_unique<BrowserControlsService>(
+      std::move(service), std::move(observer), web_contents, command_updater,
       delegate_);
 }
 
 void WebUIToolbarUI::SetDelegate(
-    WebUIToolbarPageHandler::WebUIToolbarDelegate* delegate) {
-  DCHECK(!webui_toolbar_page_handler_);
+    BrowserControlsService::BrowserControlsServiceDelegate* delegate) {
+  DCHECK(!browser_controls_service_);
   delegate_ = delegate;
 }
 
-WebUIToolbarPageHandler*
-WebUIToolbarUI::webui_toolbar_page_handler_for_testing() {
-  return webui_toolbar_page_handler_.get();
+BrowserControlsService* WebUIToolbarUI::browser_controls_service_for_testing() {
+  return browser_controls_service_.get();
 }
 
 CommandUpdater* WebUIToolbarUI::GetCommandUpdater() const {
@@ -122,6 +160,18 @@ CommandUpdater* WebUIToolbarUI::GetCommandUpdater() const {
   return browser_interface->GetFeatures().browser_command_controller();
 }
 
+void WebUIToolbarUI::WebUIRenderFrameCreated(
+    content::RenderFrameHost* render_frame_host) {
+  TopChromeWebUIController::WebUIRenderFrameCreated(render_frame_host);
+
+  // Set the custom timeout for WebUI toolbar renderer to restart on
+  // unresponsiveness.
+  if (features::kWebUIReloadButtonRestartUnresponsive.Get()) {
+    render_frame_host->GetRenderWidgetHost()->SetHungRendererDelay(
+        features::kWebUIReloadButtonRestartUnresponsiveRenderersTimeout.Get());
+  }
+}
+
 void WebUIToolbarUI::SetCommandUpdaterForTesting(
     CommandUpdater* command_updater) {
   command_updater_for_testing_ = command_updater;
@@ -135,4 +185,9 @@ void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(
   CHECK(theme_colors_manager);
   theme_colors_manager->PopulateLocalResourceLoaderConfig(
       config, requesting_origin, web_ui()->GetWebContents());
+}
+
+const std::vector<ui::ElementIdentifier>
+WebUIToolbarUI::GetKnownElementIdentifiers() const {
+  return {kReloadButtonElementId};
 }

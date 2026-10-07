@@ -553,20 +553,6 @@ targets.bundle(
     },
 )
 
-# Android desktop tests that run on a Linux host.
-targets.bundle(
-    name = "android_desktop_junit_tests",
-    targets = [
-        "chrome_junit_tests",
-    ],
-    mixins = [
-        "has_native_resultdb_integration",
-        "junit-swarming-emulator",
-        "linux-jammy",
-        "x86-64",
-    ],
-)
-
 targets.bundle(
     name = "android_emulator_specific_chrome_public_tests",
     targets = [
@@ -1886,6 +1872,13 @@ targets.bundle(
                 "10-x86-emulator",
                 "16-x64-emulator",
             ],
+            mixins = [
+                targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 10,
+                    ),
+                ),
+            ],
         ),
         "components_junit_tests": targets.per_test_modification(
             remove_mixins = [
@@ -2592,6 +2585,18 @@ targets.bundle(
 )
 
 targets.bundle(
+    name = "cronet_python_unittest",
+    targets = ["cronet_python_unittests"],
+    per_test_modifications = {
+        "cronet_python_unittests": targets.per_test_modification(
+            remove_mixins = [
+                "16-x64-emulator",
+            ],
+        ),
+    },
+)
+
+targets.bundle(
     name = "cronet_rel_isolated_scripts",
     targets = [
         "cronet_resource_sizes",
@@ -2880,6 +2885,7 @@ targets.bundle(
     name = "fieldtrial_browser_tests_mac",
     targets = [
         "accessibility_unittests_no_field_trial",
+        "browser_tests_no_field_trial",
         "components_browsertests_no_field_trial",
         "content_browsertests_no_field_trial",
         "interactive_ui_tests_no_field_trial",
@@ -2888,6 +2894,12 @@ targets.bundle(
     per_test_modifications = {
         "accessibility_unittests_no_field_trial": targets.mixin(
             ci_only = True,
+        ),
+        "browser_tests_no_field_trial": targets.mixin(
+            ci_only = True,
+            swarming = targets.swarming(
+                shards = 10,
+            ),
         ),
         "components_browsertests_no_field_trial": targets.mixin(
             ci_only = True,
@@ -6337,7 +6349,7 @@ targets.bundle(
     per_test_modifications = {
         "browser_tests": targets.mixin(
             swarming = targets.swarming(
-                shards = 10,
+                shards = 15,
             ),
         ),
         "interactive_ui_tests": targets.mixin(

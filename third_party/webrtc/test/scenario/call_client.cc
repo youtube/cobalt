@@ -242,7 +242,7 @@ CallClient::CallClient(
       network_controller_factory_(log_writer_factory_.get(), config.transport),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "CallClient",
-          TaskQueueFactory::Priority::NORMAL)) {
+          TaskQueueFactory::Priority::kNormal)) {
   SendTask([this, config] {
     if (log_writer_factory_ != nullptr) {
       EnvironmentFactory env_factory(env_);

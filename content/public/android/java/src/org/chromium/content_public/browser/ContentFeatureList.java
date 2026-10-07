@@ -162,7 +162,7 @@ public class ContentFeatureList {
     // Use a CachedFlag as this is often checked before native is loaded, and must stay consistent
     // once decided upon.
     public static final CachedFlag sJavalessRenderers =
-            new CachedFlag(ContentFeatureMap.getInstance(), JAVALESS_RENDERERS, false, false);
+            new CachedFlag(ContentFeatureMap.getInstance(), JAVALESS_RENDERERS, false, true);
 
     public static final MutableFlagWithSafeDefault sAndroidDesktopZoomScaling =
             new MutableFlagWithSafeDefault(

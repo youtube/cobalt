@@ -907,6 +907,7 @@
   V(_, call_site_info_symbol)                             \
   V(_, class_fields_symbol)                               \
   V(_, class_positions_symbol)                            \
+  V(_, detached_symbol)                                   \
   V(_, error_end_pos_symbol)                              \
   V(_, error_message_symbol)                              \
   V(_, error_script_symbol)                               \
@@ -1075,7 +1076,6 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                   \
   F(MC_CLEAR_WEAK_GLOBAL_HANDLES)                \
   F(MC_CLEAR_WEAK_LISTS)                         \
-  F(MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL) \
   F(MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB)    \
   F(MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL)        \
   F(MC_CLEAR_WEAK_REFERENCES_TRIVIAL)            \

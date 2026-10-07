@@ -93,6 +93,7 @@
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/weak_ptr.h"
@@ -132,10 +133,11 @@ class PeerConnection : public PeerConnectionInternal,
       const ServerAddresses& stun_servers,
       const std::vector<RelayServerConfig>& turn_servers);
 
-  scoped_refptr<StreamCollectionInterface> local_streams() override;
-  scoped_refptr<StreamCollectionInterface> remote_streams() override;
-  bool AddStream(MediaStreamInterface* local_stream) override;
-  void RemoveStream(MediaStreamInterface* local_stream) override;
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> local_streams() override;
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> remote_streams()
+      override;
+  PLAN_B_ONLY bool AddStream(MediaStreamInterface* local_stream) override;
+  PLAN_B_ONLY void RemoveStream(MediaStreamInterface* local_stream) override;
 
   RTCErrorOr<scoped_refptr<RtpSenderInterface>> AddTrack(
       scoped_refptr<MediaStreamTrackInterface> track,
@@ -162,7 +164,7 @@ class PeerConnection : public PeerConnectionInternal,
       webrtc::MediaType media_type,
       const RtpTransceiverInit& init) override;
 
-  scoped_refptr<RtpSenderInterface> CreateSender(
+  PLAN_B_ONLY scoped_refptr<RtpSenderInterface> CreateSender(
       const std::string& kind,
       const std::string& stream_id) override;
 

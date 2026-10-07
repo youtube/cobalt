@@ -131,6 +131,14 @@ config("absl_flags_configs") {
   defines = [ "ABSL_FLAGS_STRIP_NAMES=0" ]
 }
 
+config("suppress_plan_b_deprecation") {
+  if (is_clang) {
+    cflags = [ "-Wno-deprecated-declarations" ]
+  } else if (is_win && !is_clang) {
+    cflags = [ "/wd4996" ]
+  }
+}
+
 config("library_impl_config") {
   # Build targets that contain WebRTC implementation need this macro to
   # be defined in order to correctly export symbols when is_component_build
@@ -175,6 +183,10 @@ config("common_inherited_config") {
 
   if (rtc_enable_win_wgc) {
     defines += [ "RTC_ENABLE_WIN_WGC" ]
+  }
+
+  if (deprecate_plan_b) {
+    defines += [ "WEBRTC_DEPRECATE_PLAN_B" ]
   }
 
   if (!rtc_use_perfetto) {
@@ -270,33 +282,6 @@ config("rtc_prod_config") {
     cflags = [
       "-Wexit-time-destructors",
       "-Wglobal-constructors",
-    ]
-  }
-}
-
-group("tracing") {
-  all_dependent_configs = [ "//third_party/perfetto/gn:public_config" ]
-  if (rtc_use_perfetto) {
-    if (build_with_chromium) {
-      public_deps =  # no-presubmit-check TODO(webrtc:8603)
-          [ "//third_party/perfetto:libperfetto" ]
-    } else {
-      public_deps = [  # no-presubmit-check TODO(webrtc:8603)
-        ":webrtc_libperfetto",
-        "//third_party/perfetto/include/perfetto/tracing",
-      ]
-    }
-  } else {
-    public_deps =  # no-presubmit-check TODO(webrtc:8603)
-        [ "//third_party/perfetto/include/perfetto/tracing" ]
-  }
-}
-
-if (rtc_use_perfetto) {
-  rtc_library("webrtc_libperfetto") {
-    deps = [
-      "//third_party/perfetto/src/tracing:client_api_without_backends",
-      "//third_party/perfetto/src/tracing:platform_impl",
     ]
   }
 }
@@ -565,7 +550,6 @@ if (!build_with_chromium) {
       "modules/video_capture:video_capture_internal_impl",
       "pc:libjingle_peerconnection",
       "pc:rtc_pc",
-      "sdk",
       "video",
     ]
 
@@ -589,6 +573,14 @@ if (!build_with_chromium) {
 
     if (rtc_include_internal_audio_device) {
       deps += [ "api/audio:create_audio_device_module" ]
+    }
+    if (!build_with_chromium) {
+      if (is_android) {
+        deps += [ "sdk/android" ]
+      }
+      if (is_ios) {
+        deps += [ "sdk:framework_objc" ]
+      }
     }
   }
 
@@ -646,6 +638,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "api/task_queue:pending_task_safety_flag_unittests",
       "api/test/metrics:metrics_unittests",
       "api/test/network_emulation:network_queue_unittests",
+      "api/transport:ecn_marking_unittest",
       "api/transport:stun_unittest",
       "api/transport/rtp:corruption_detection_message_unittest",
       "api/video/test:rtc_api_video_unittests",

@@ -92,6 +92,12 @@ class RecomputePhiUseHintsProcessor {
 
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
+    if (ValueNode* value_node = node->TryCast<ValueNode>()) {
+      if (value_node->use_count() == 0 &&
+          !value_node->properties().is_required_when_unused()) {
+        return ProcessResult::kContinue;
+      }
+    }
     for (Input input : node->inputs()) {
       if (!input.node()) continue;
       if (Phi* phi = input.node()->TryCast<Phi>()) {
@@ -101,22 +107,13 @@ class RecomputePhiUseHintsProcessor {
               node->Cast<ValueNode>()->value_representation());
         } else if (node->Is<ReturnedValue>()) {
           ValueNode* unwrapped = node->input_node(0);
-          while (!unwrapped->Is<ReturnedValue>()) {
+          while (unwrapped->Is<ReturnedValue>()) {
             unwrapped = unwrapped->input_node(0);
           }
           DCHECK(!unwrapped->is_conversion());
-          DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUint32ToInt32>());
-          DCHECK(!node->Is<TruncateFloat64ToInt32>());
-          DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
-        } else if (node->Is<TruncateUint32ToInt32>() ||
-                   node->Is<TruncateFloat64ToInt32>() ||
-                   node->Is<TruncateHoleyFloat64ToInt32>() ||
-                   node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
-                   node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
+        } else if (IsTruncatingToInt32(node->opcode())) {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
           use_repr = UseRepresentation::kTaggedForNumberToString;
@@ -143,8 +140,6 @@ class RecomputePhiUseHintsProcessor {
         return UseRepresentation::kInt32;
       case ValueRepresentation::kUint32:
         return UseRepresentation::kUint32;
-      case ValueRepresentation::kShiftedInt53:
-        return UseRepresentation::kShiftedInt53;
       case ValueRepresentation::kFloat64:
         return UseRepresentation::kFloat64;
       case ValueRepresentation::kHoleyFloat64:

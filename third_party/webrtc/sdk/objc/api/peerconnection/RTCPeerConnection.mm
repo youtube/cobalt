@@ -34,6 +34,7 @@
 #include "api/set_remote_description_observer_interface.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "sdk/objc/native/api/ssl_certificate_verifier.h"
 
 NSString *const kRTCPeerConnectionErrorDomain =
@@ -151,6 +152,7 @@ void PeerConnectionDelegateAdapter::OnSignalingChange(
 
 void PeerConnectionDelegateAdapter::OnAddStream(
     webrtc::scoped_refptr<MediaStreamInterface> stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -165,10 +167,12 @@ void PeerConnectionDelegateAdapter::OnAddStream(
       alloc] initWithFactory:peer_connection.factory nativeMediaStream:stream];
 
   [delegate peerConnection:peer_connection didAddStream:media_stream];
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void PeerConnectionDelegateAdapter::OnRemoveStream(
     webrtc::scoped_refptr<MediaStreamInterface> stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -182,6 +186,7 @@ void PeerConnectionDelegateAdapter::OnRemoveStream(
       alloc] initWithFactory:peer_connection.factory nativeMediaStream:stream];
 
   [delegate peerConnection:peer_connection didRemoveStream:mediaStream];
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void PeerConnectionDelegateAdapter::OnTrack(
@@ -637,16 +642,20 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (void)addStream:(RTC_OBJC_TYPE(RTCMediaStream) *)stream {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   if (!_peerConnection->AddStream(stream.nativeMediaStream.get())) {
     RTCLogError(@"Failed to add stream: %@", stream);
     return;
   }
   [_localStreams addObject:stream];
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 - (void)removeStream:(RTC_OBJC_TYPE(RTCMediaStream) *)stream {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   _peerConnection->RemoveStream(stream.nativeMediaStream.get());
   [_localStreams removeObject:stream];
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 - (nullable RTC_OBJC_TYPE(RTCRtpSender) *)
@@ -838,8 +847,10 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                                        streamId:(NSString *)streamId {
   std::string nativeKind = [NSString stdStringForString:kind];
   std::string nativeStreamId = [NSString stdStringForString:streamId];
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   webrtc::scoped_refptr<webrtc::RtpSenderInterface> nativeSender(
       _peerConnection->CreateSender(nativeKind, nativeStreamId));
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   return nativeSender ?
       [[RTC_OBJC_TYPE(RTCRtpSender) alloc] initWithFactory:self.factory
                                            nativeRtpSender:nativeSender] :

@@ -55,7 +55,7 @@ AudioChannel::AudioChannel(const Environment& env,
   rtp_config.outgoing_transport = transport;
   rtp_config.local_media_ssrc = local_ssrc;
 
-  rtp_rtcp_ = std::make_unique<ModuleRtpRtcpImpl2>(env, rtp_config);
+  rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateSendModule(env, rtp_config);
 
   rtp_rtcp_->SetSendingMediaStatus(false);
   rtp_rtcp_->SetRTCPStatus(RtcpMode::kCompound);

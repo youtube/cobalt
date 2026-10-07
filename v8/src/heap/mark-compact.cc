@@ -208,7 +208,7 @@ class FullMarkingVerifier : public MarkingVerifierBase {
 
     CHECK(HeapLayout::InReadOnlySpace(heap_object) ||
           (v8_flags.black_allocated_pages &&
-           HeapLayout::InBlackAllocatedPage(heap_object)) ||
+           TrustedHeapLayout::InBlackAllocatedPage(heap_object)) ||
           marking_state_->IsMarked(heap_object));
   }
 
@@ -325,7 +325,7 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(NormalPage* p) {
   DCHECK(!p->never_evacuate());
-  DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!p->is_black_allocated());
 
   if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
@@ -1029,19 +1029,17 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
-    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+    JSDispatchTable& jdt = collector_->heap()->isolate()->js_dispatch_table();
 #ifdef DEBUG
     JSDispatchTable::Space* space =
         collector_->heap()->js_dispatch_table_space();
-    JSDispatchTable::Space* ro_space = collector_->heap()
-                                           ->isolate()
-                                           ->read_only_heap()
-                                           ->js_dispatch_table_space();
-    jdt->VerifyEntry(handle, space, ro_space);
+    JSDispatchTable::Space* ro_space =
+        collector_->heap()->read_only_js_dispatch_table_space();
+    jdt.VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
-    jdt->Mark(handle);
+    jdt.Mark(handle);
     if (handle != kNullJSDispatchHandle) {
-      MarkObject(jdt->GetCode(handle));
+      MarkObject(jdt.GetCode(handle));
     } else {
       // The only case we are allowed to see a zero handle installed here is if
       // the code is already marked deoptimized for cleared weak references.
@@ -1933,7 +1931,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
                               SkipRoot::kReadOnlyBuiltins});
 
 #if !V8_STATIC_DISPATCH_HANDLES_BOOL
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   // Builtin dispatch handles are custom roots which are handled here.
   // TODO(olivf): Once dispatch handles are supported by the GC this should be
   // done by Heap::IterateBuiltins.
@@ -1942,7 +1940,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
        idx < JSBuiltinDispatchHandleRoot::kCount;
        idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
            static_cast<int>(idx) + 1)) {
-    jdt->Mark(heap_->isolate_->builtin_dispatch_handle(idx));
+    jdt.Mark(heap_->isolate_->builtin_dispatch_handle(idx));
   }
 #endif
 
@@ -2893,6 +2891,22 @@ class FullStringForwardingTableCleaner final
         // doesn't visit any of its fields. For i.e. ExternalStrings we need
         // to mark the EPT entries for the external resources as well.
         marking_visitor_->Visit(Cast<HeapObject>(forward));
+        // If we just marked the forwarded string, it wasn't kept alive by
+        // anything but this entry in the forwarding table.
+        // This could mean that previous entries in the table with
+        // `original_string` equal to the current `forward_string` might have
+        // been considered dead. This is in general not a problem, but we need
+        // to reset the hash to not be a forwarding index anymore.
+        // I.e. An internalized string gets externalized (creating an entry A in
+        // the forwarding table with the external resource), followed by
+        // internalization of a shared string with the same content (creating an
+        // entry B in the forwarding table with the internalized string of A
+        // being the forwarded string of B).
+        // If the string in A is only live due to B, we dispose the external
+        // resource in A. When we later iterate entry B, we mark the forwarded
+        // string (the string in entry A) as alive, which now still has the
+        // forwarding index as it's hash (as it was considered dead previously).
+        Cast<String>(forward)->set_raw_hash_field(record->raw_hash(isolate_));
       }
     } else {
       DisposeExternalResource(record);
@@ -3178,13 +3192,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   MakeParallelItem(
       "SweepJSDispatchTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
+      [this, isolate](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE,
                   delegate);
-        JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+        JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
-        jdt->Sweep(heap_->js_dispatch_table_space(),
+        jdt
+            .Sweep(heap_->js_dispatch_table_space(),
                    heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
                      Tagged<Code> code = entry.GetCode();
                      if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
@@ -3271,25 +3286,25 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                             TRACE_EVENT_FLAG_FLOW_OUT);
   }
 
-  auto filter_non_trivial_weak_ref_job_item =
-      MakeParallelItem(
-          "FilterNonTrivialWeakRefs",
-          [this](ParallelItem* item, JobDelegate* delegate) {
-            TRACE_GC1_WITH_FLOW(
-                heap()->tracer(),
-                GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL,
-                delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-            FilterNonTrivialWeakReferences();
-          })
-          // Do not run before these items finished, these may change the value
-          // of weak references.
-          .DependsOn(process_old_code_candidates_item)
-          .DependsOn(process_all_weak_references)
-          .DependsOn(clear_maps_items)
-          .Enqueue(parallel_clearing_job);
-  TRACE_GC_NOTE_WITH_FLOW("FilterNonTrivialWeakRefJob started",
-                          filter_non_trivial_weak_ref_job_item->trace_id(),
-                          TRACE_EVENT_FLAG_FLOW_OUT);
+  {
+    auto item = MakeParallelItem(
+                    "ClearNonTrivialWeakRefs",
+                    [this](ParallelItem* item, JobDelegate* delegate) {
+                      TRACE_GC1_WITH_FLOW(
+                          heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL,
+                          delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+                      ClearNonTrivialWeakReferences();
+                    })
+                    // Do not run before these items finished, these may change
+                    // the value of weak references.
+                    .DependsOn(process_old_code_candidates_item)
+                    .DependsOn(process_all_weak_references)
+                    .DependsOn(clear_maps_items)
+                    .Enqueue(parallel_clearing_job);
+    TRACE_GC_NOTE_WITH_FLOW("ClearNonTrivialWeakRefs started", item->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   MakeParallelItem(
@@ -3369,18 +3384,24 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }).Enqueue(parallel_clearing_job);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  MakeParallelItem("ClearNonTrivialWeakRefs",
+  MakeParallelItem("ClearWeakCollections", [this](ParallelItem*,
+                                                  JobDelegate* delegate) {
+    TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS,
+              delegate);
+    ClearWeakCollections();
+  }).Enqueue(parallel_clearing_job);
+
+  MakeParallelItem("ProcessJSWeakRefs",
                    [this](ParallelItem*, JobDelegate* delegate) {
                      TRACE_GC1(heap_->tracer(),
-                               GCTracer::Scope::MC_WEAKNESS_HANDLING, delegate);
-                     ClearNonTrivialWeakReferences(delegate);
-                     ClearWeakCollections(delegate);
+                               GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES,
+                               delegate);
                      ProcessJSWeakRefs(delegate);
                    })
-      // ClearNonTrivialWeakReferences() processes
-      // weak_references_non_trivial_unmarked which gets filled by
-      // FilterNonTrivialWeakReferences().
-      .DependsOn(filter_non_trivial_weak_ref_job_item)
+      // Both tasks access the dirty_js_finalization_registries_list.
+      // ProcessAllWeakReferences() iterates/updates it and ProcessJSWeakRefs()
+      // loads it for posting the cleanup task.
+      .DependsOn(process_all_weak_references)
       .Enqueue(parallel_clearing_job);
 
   if (v8_flags.print_gc_clearing_dependency_graph) [[unlikely]] {
@@ -3439,11 +3460,11 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
       MarkForDeoptimization(weak_object_in_code.code);
     }
   }
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   DispatchHandleAndCode dispatch_handle_in_code;
   while (local_weak_objects()->weak_dispatch_handles_in_code_local.Pop(
       &dispatch_handle_in_code)) {
-    if (!jdt->IsMarked(dispatch_handle_in_code.dispatch_handle)) {
+    if (!jdt.IsMarked(dispatch_handle_in_code.dispatch_handle)) {
       MarkForDeoptimization(dispatch_handle_in_code.code);
     }
   }
@@ -3894,15 +3915,20 @@ bool MarkCompactCollector::CompactTransitionArray(
   return descriptors_owner_died;
 }
 
-void MarkCompactCollector::RightTrimDescriptorArray(
-    Tagged<DescriptorArray> array, int descriptors_to_trim) {
-  int old_nof_all_descriptors = array->number_of_all_descriptors();
-  int new_nof_all_descriptors = old_nof_all_descriptors - descriptors_to_trim;
+namespace {
+
+void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
+                              int descriptors_to_trim) {
   DCHECK_LT(0, descriptors_to_trim);
+  const int old_nof_all_descriptors = array->number_of_all_descriptors();
+  const int new_nof_all_descriptors =
+      old_nof_all_descriptors - descriptors_to_trim;
   DCHECK_LE(0, new_nof_all_descriptors);
-  Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
-  Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
-  MutablePage* chunk = MutablePage::FromHeapObject(heap_->isolate(), array);
+  const Address start =
+      array->GetDescriptorSlot(new_nof_all_descriptors).address();
+  const Address end =
+      array->GetDescriptorSlot(old_nof_all_descriptors).address();
+  MutablePage* chunk = MutablePage::FromHeapObject(heap->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
@@ -3911,24 +3937,39 @@ void MarkCompactCollector::RightTrimDescriptorArray(
                                             SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
-  if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-    Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
-    Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
-    if (aligned_start < aligned_end) {
-      heap_->CreateFillerObjectAt(
-          aligned_start, static_cast<int>(aligned_end - aligned_start));
-    }
-    if (heap::ShouldZapGarbage()) {
-      Address zap_end = std::min(aligned_start, end);
-      MemsetTagged(ObjectSlot(start),
-                   Tagged<Object>(static_cast<Address>(kZapValue)),
-                   (zap_end - start) >> kTaggedSizeLog2);
-    }
-  } else {
-    heap_->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  const Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
+  const Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
+  if (aligned_start < aligned_end) {
+    heap->CreateFillerObjectAt(aligned_start,
+                               static_cast<int>(aligned_end - aligned_start));
+  }
+  if (heap::ShouldZapGarbage()) {
+    heap::ZapBlock(start, aligned_start - start, kZapValue);
   }
   array->set_number_of_all_descriptors(new_nof_all_descriptors);
 }
+
+void TrimEnumCache(Heap* heap, Tagged<Map> map,
+                   Tagged<DescriptorArray> descriptors) {
+  int live_enum = map->EnumLength();
+  if (live_enum == kInvalidEnumCacheSentinel) {
+    live_enum = map->NumberOfEnumerableProperties();
+  }
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+  Tagged<EnumCache> enum_cache = descriptors->enum_cache();
+
+  Tagged<FixedArray> keys = enum_cache->keys();
+  int keys_length = keys->length();
+  if (live_enum >= keys_length) return;
+  heap->RightTrimArray(keys, live_enum, keys_length);
+
+  Tagged<FixedArray> indices = enum_cache->indices();
+  int indices_length = indices->length();
+  if (live_enum >= indices_length) return;
+  heap->RightTrimArray(indices, live_enum, indices_length);
+}
+
+}  // namespace
 
 void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
     GlobalHandleVector<DescriptorArray> strong_descriptor_arrays) {
@@ -3956,45 +3997,30 @@ void MarkCompactCollector::TrimDescriptorArray(
     Tagged<Map> map, Tagged<DescriptorArray> descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
-    DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
+    DCHECK_EQ(descriptors, ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
+  const bool can_trim = v8_flags.trim_descriptor_arrays_in_gc &&
+                        (v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
+                         !heap_->IsGCWithStack());
   int to_trim =
       descriptors->number_of_all_descriptors() - number_of_own_descriptors;
+  DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
+                                   number_of_own_descriptors);
   if (to_trim > 0) {
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
-    RightTrimDescriptorArray(descriptors, to_trim);
-
-    TrimEnumCache(map, descriptors);
+    if (can_trim) {
+      RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    }
+    TrimEnumCache(heap_, map, descriptors);
     descriptors->Sort();
   }
-  DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  DCHECK_IMPLIES(can_trim, descriptors->number_of_all_descriptors() ==
+                               number_of_own_descriptors);
   map->set_owns_descriptors(true);
 }
 
-void MarkCompactCollector::TrimEnumCache(Tagged<Map> map,
-                                         Tagged<DescriptorArray> descriptors) {
-  int live_enum = map->EnumLength();
-  if (live_enum == kInvalidEnumCacheSentinel) {
-    live_enum = map->NumberOfEnumerableProperties();
-  }
-  if (live_enum == 0) return descriptors->ClearEnumCache();
-  Tagged<EnumCache> enum_cache = descriptors->enum_cache();
-
-  Tagged<FixedArray> keys = enum_cache->keys();
-  int keys_length = keys->length();
-  if (live_enum >= keys_length) return;
-  heap_->RightTrimArray(keys, live_enum, keys_length);
-
-  Tagged<FixedArray> indices = enum_cache->indices();
-  int indices_length = indices->length();
-  if (live_enum >= indices_length) return;
-  heap_->RightTrimArray(indices, live_enum, indices_length);
-}
-
-void MarkCompactCollector::ClearWeakCollections(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS,
-            delegate);
+void MarkCompactCollector::ClearWeakCollections() {
   Tagged<EphemeronHashTable> table;
   while (local_weak_objects()->ephemeron_hash_tables_local.Pop(&table)) {
     for (InternalIndex i : table->IterateEntries()) {
@@ -4062,8 +4088,9 @@ void MarkCompactCollector::ClearTrustedWeakReferences() {
       local_weak_objects()->weak_references_trusted_local, cleared_weak_ref);
 }
 
-void MarkCompactCollector::FilterNonTrivialWeakReferences() {
+void MarkCompactCollector::ClearNonTrivialWeakReferences() {
   HeapObjectAndSlot slot;
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   while (local_weak_objects()->weak_references_non_trivial_local.Pop(&slot)) {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
@@ -4071,6 +4098,10 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsWeakCell(value));
+      DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
+                                                              value));
+      DCHECK(!HeapLayout::InReadOnlySpace(value));
+
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
       if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, non_atomic_marking_state_,
@@ -4078,45 +4109,18 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
-        DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(
-            slot.heap_object, value));
-        // The value is non-live, defer the actual clearing.
-        // This is non-atomic, which is fine as long as we only have a single
-        // filtering job.
-        local_weak_objects_->weak_references_non_trivial_unmarked_local.Push(
-            slot);
+        DCHECK_IMPLIES(v8_flags.black_allocated_pages,
+                       !TrustedHeapLayout::InBlackAllocatedPage(value));
+        if (!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
+                                 slot.slot)) {
+          slot.slot.store(cleared_weak_ref);
+        }
       }
     }
   }
 }
 
-void MarkCompactCollector::ClearNonTrivialWeakReferences(
-    JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(),
-            GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL, delegate);
-  HeapObjectAndSlot slot;
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
-  while (local_weak_objects()->weak_references_non_trivial_unmarked_local.Pop(
-      &slot)) {
-    // The slot may not have been overwritten since it was filtered, so we can
-    // directly read its value.
-    Tagged<HeapObject> value = (*slot.slot).GetHeapObjectAssumeWeak();
-    DCHECK(!IsWeakCell(value));
-    DCHECK(!HeapLayout::InReadOnlySpace(value));
-    DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                   !HeapLayout::InBlackAllocatedPage(value));
-    DCHECK(!non_atomic_marking_state_->IsMarked(value));
-    DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
-                                                            value));
-    if (!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value), slot.slot)) {
-      slot.slot.store(cleared_weak_ref);
-    }
-  }
-}
-
 void MarkCompactCollector::ProcessJSWeakRefs(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES,
-            delegate);
   Tagged<JSWeakRef> weak_ref;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
@@ -5097,7 +5101,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       Tagged<HeapObject> object = current->GetObject();
       // The black-allocated flag was already cleared in SweepLargeSpace().
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                     !HeapLayout::InBlackAllocatedPage(object));
+                     !TrustedHeapLayout::InBlackAllocatedPage(object));
       if (marking_state_->IsMarked(object)) {
         heap_->lo_space()->PromoteNewLargeObject(current);
         current->set_will_be_promoted(true);
@@ -5866,12 +5870,12 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
       });
 #endif  // V8_ENABLE_SANDBOX
 
-  JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(heap_->isolate());
-  jdt->IterateActiveEntriesIn(
+  jdt.IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        Address code_address = jdt->GetCodeAddress(handle);
-        Address entrypoint_address = jdt->GetEntrypoint(handle);
+        Address code_address = jdt.GetCodeAddress(handle);
+        Address entrypoint_address = jdt.GetEntrypoint(handle);
         Tagged<TrustedObject> relocated_code = process_entry(code_address);
         bool code_object_was_relocated = !relocated_code.is_null();
         Tagged<Code> code = TrustedCast<Code>(
@@ -5880,7 +5884,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
-          Address old_entrypoint = jdt->GetEntrypoint(handle);
+          Address old_entrypoint = jdt.GetEntrypoint(handle);
           // Ensure tiering trampolines are not overwritten here.
           Address new_entrypoint = ([&]() {
 #define CASE(name, ...)                                                       \
@@ -5891,8 +5895,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
 #undef CASE
             return code->instruction_start();
           })();
-          jdt->SetCodeAndEntrypointNoWriteBarrier(handle, code, new_entrypoint);
-          CHECK_IMPLIES(jdt->IsTieringRequested(handle),
+          jdt.SetCodeAndEntrypointNoWriteBarrier(handle, code, new_entrypoint);
+          CHECK_IMPLIES(jdt.IsTieringRequested(handle),
                         old_entrypoint == new_entrypoint);
         }
       });
@@ -6035,7 +6039,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     NormalPage* p = *(it++);
     DCHECK(p->SweepingDone());
-    DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+    DCHECK(!p->is_black_allocated());
 
     if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
@@ -6059,7 +6063,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
 void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(PagedSpace* space,
                                                             NormalPage* page) {
-  DCHECK(page->Chunk()->IsBlackAllocatedPage());
+  DCHECK(page->is_black_allocated());
   DCHECK_EQ(page->live_bytes(), 0);
   DCHECK_GE(page->allocated_bytes(), 0);
   DCHECK(page->marking_bitmap()->IsClean());
@@ -6067,7 +6071,7 @@ void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(PagedSpace* space,
   if (page->is_executable()) {
     scope.emplace("For writing flags.");
   }
-  page->ClearFlagUnlocked(MemoryChunk::BLACK_ALLOCATED);
+  page->ClearBlackAllocation();
   space->IncreaseAllocatedBytes(page->allocated_bytes(), page);
   space->RelinkFreeListCategories(page);
 }
@@ -6087,7 +6091,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
-      DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+      DCHECK(!p->is_black_allocated());
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
       continue;
@@ -6095,7 +6099,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
     // If the page is black, just reset the flag and don't add the page to the
     // sweeper.
-    if (p->Chunk()->IsBlackAllocatedPage()) {
+    if (p->is_black_allocated()) {
       ResetAndRelinkBlackAllocatedPage(space, p);
       continue;
     }
@@ -6161,7 +6165,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   }
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
-    DCHECK(!current->Chunk()->IsBlackAllocatedPage());
+    DCHECK(!current->is_black_allocated());
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.

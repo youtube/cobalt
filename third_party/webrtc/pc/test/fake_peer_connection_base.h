@@ -67,6 +67,7 @@
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -80,17 +81,21 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   // PeerConnectionInterface implementation.
   FakePeerConnectionBase() : env_(CreateEnvironment()) {}
 
-  scoped_refptr<StreamCollectionInterface> local_streams() override {
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> local_streams()
+      override {
     return nullptr;
   }
 
-  scoped_refptr<StreamCollectionInterface> remote_streams() override {
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> remote_streams()
+      override {
     return nullptr;
   }
 
-  bool AddStream(MediaStreamInterface* stream) override { return false; }
+  PLAN_B_ONLY bool AddStream(MediaStreamInterface* stream) override {
+    return false;
+  }
 
-  void RemoveStream(MediaStreamInterface* stream) override {}
+  PLAN_B_ONLY void RemoveStream(MediaStreamInterface* stream) override {}
 
   RTCErrorOr<scoped_refptr<RtpSenderInterface>> AddTrack(
       scoped_refptr<MediaStreamTrackInterface> track,
@@ -132,7 +137,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }
 
-  scoped_refptr<RtpSenderInterface> CreateSender(
+  PLAN_B_ONLY scoped_refptr<RtpSenderInterface> CreateSender(
       const std::string& kind,
       const std::string& stream_id) override {
     return nullptr;

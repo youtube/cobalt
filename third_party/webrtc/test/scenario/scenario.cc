@@ -98,7 +98,7 @@ Scenario::Scenario(
       task_queue_(network_manager_.time_controller()
                       ->GetTaskQueueFactory()
                       ->CreateTaskQueue("Scenario",
-                                        TaskQueueFactory::Priority::NORMAL)) {}
+                                        TaskQueueFactory::Priority::kNormal)) {}
 
 Scenario::~Scenario() {
   if (start_time_.IsFinite())

@@ -30,12 +30,13 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kCheckedObjectToIndex:
     case Opcode::kTruncateCheckedNumberOrOddballToInt32:
     case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
+    case Opcode::kTruncateCheckedNumberAsSafeIntToInt32:
+    case Opcode::kTruncateUnsafeNumberAsSafeIntToInt32:
     case Opcode::kCheckedNumberOrOddballToFloat64:
     case Opcode::kCheckedNumberToFloat64:
     case Opcode::kUnsafeNumberOrOddballToFloat64:
     case Opcode::kUnsafeNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
-    case Opcode::kCheckedNumberToShiftedInt53:
       return true;
     default:
       return false;
@@ -150,18 +151,20 @@ class MaglevPhiRepresentationSelector {
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
-                          const UntaggingKindList& untagging_kinds);
+                          const UntaggingKindList& untagging_kinds,
+                          bool truncating = false);
   void UntagInputWithHoistedUntagging(Phi* phi, ValueRepresentation repr,
-                                      int input_index, ValueNode* input,
+                                      bool truncating, int input_index,
+                                      ValueNode* input,
                                       UntaggingKind untagging_kind);
   void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
                              int input_index, const SmiConstant* input);
-  void UntagConstantInput(Phi* phi, ValueRepresentation repr, int input_index,
-                          const Constant* input);
-  void UntagConversionInput(Phi* phi, ValueRepresentation repr, int input_index,
-                            ValueNode* input);
+  void UntagConstantInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                          int input_index, const Constant* input);
+  void UntagConversionInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                            int input_index, ValueNode* input);
   void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,
-                             int input_index, Phi* input_phi);
+                             bool truncating, int input_index, Phi* input_phi);
   void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
                              int input_index, Phi* input_phi);
   template <class NodeT>

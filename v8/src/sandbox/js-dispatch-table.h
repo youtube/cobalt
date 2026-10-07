@@ -57,7 +57,7 @@ struct JSDispatchEntry {
   // called even when the entry is not a freelist entry. However, the result
   // is only valid if this is a freelist entry. This behaviour is required
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
-  inline uint32_t GetNextFreelistEntryIndex() const;
+  inline std::optional<uint32_t> GetNextFreelistEntryIndex() const;
 
   // Mark this entry as alive during garbage collection.
   inline void Mark();
@@ -331,6 +331,10 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
 
   friend class MarkCompactCollector;
+
+  // Using `ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable)` in the
+  // macro assembler to get the table's base address relies the offset being 0.
+  static_assert(JSDispatchTable::kBaseAddressOffset == 0);
 };
 
 }  // namespace internal

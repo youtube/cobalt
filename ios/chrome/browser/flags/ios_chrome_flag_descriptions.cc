@@ -164,13 +164,6 @@ const char kAutofillEnableWalletBrandingDescription[] =
     "When enabled, certain strings and logos referencing Google Account, "
     "Google Payments, and Google Pay will instead reference Google Wallet.";
 
-const char kAutofillLocalSaveCardBottomSheetName[] =
-    "Enable save card bottomsheet for local save";
-const char kAutofillLocalSaveCardBottomSheetDescription[] =
-    "When enabled, save card bottomsheet will be shown to save the card "
-    "locally when the user has not previously rejected the offer to save the "
-    "card.";
-
 const char kAutofillManualTestingDataName[] = "Autofill manual testing data";
 const char kAutofillManualTestingDataDescription[] =
     "When set, imports the addresses and cards specified on startup. WARNING: "
@@ -192,13 +185,6 @@ const char kAutofillPaymentsSheetV2Description[] =
 const char kAutofillPruneSuggestionsName[] = "Autofill Prune Suggestions";
 const char kAutofillPruneSuggestionsDescription[] =
     "Further limits the number of suggestions in the Autofill dropdown.";
-
-const char kAutofillSaveCardBottomSheetName[] =
-    "Enable save card bottomsheet for upload save";
-const char kAutofillSaveCardBottomSheetDescription[] =
-    "When enabled, save card bottomsheet will be shown to save the card to the "
-    "server when the user has not previously rejected the offer to save the "
-    "card, and both a valid expiry date and cardholder name are present.";
 
 const char kAutofillShowManualFillForVirtualCardsName[] =
     "Show Manual Fill for Virtual Cards";
@@ -283,12 +269,6 @@ const char kCacheIdentityListInChromeDescription[] =
 const char kChromeNextIaName[] = "ChromeNextIa";
 const char kChromeNextIaDescription[] = "Enables the chrome_next_ia feature.";
 
-const char kChromeStartupParametersAsyncName[] =
-    "Enable the async chrome startup";
-const char kChromeStartupParametersAsyncDescription[] =
-    "When enabled the async version of the chrome startup method is used. This "
-    "method is used to parse the startup parameters.";
-
 const char kCloseOtherTabsName[] = "CloseOtherTabs";
 const char kCloseOtherTabsDescription[] = "Enables the CloseOtherTabs feature.";
 
@@ -306,6 +286,12 @@ const char kComposeboxAIMNudgeName[] = "ComposeboxAIMNudge";
 const char kComposeboxAIMNudgeDescription[] =
     "Enables the AIM nudge button in the composebox, tapping on the button "
     "enables AIM. This is conditionned by AIM availability.";
+
+const char kComposeboxAdditionalAdvancedToolsName[] =
+    "Enable additional advanced tools in composebox";
+extern const char kComposeboxAdditionalAdvancedToolsDescription[] =
+    "When enabled, the additional tools in the input plate are shown, such as "
+    "canvas and the model picker";
 
 const char kComposeboxAttachmentsTypedStateName[] =
     "Enable contextual suggestions for typed state";
@@ -392,10 +378,6 @@ const char kContentNotificationProvisionalIgnoreConditionsDescription[] =
 const char kContentPushNotificationsName[] = "Content Push Notifications";
 const char kContentPushNotificationsDescription[] =
     "Enables the content push notifications.";
-
-const char kContextualPanelName[] = "Contextual Panel";
-const char kContextualPanelDescription[] =
-    "Enables the contextual panel feature.";
 
 const char kCredentialProviderExtensionPromoName[] =
     "Enable the Credential Provider Extension promo.";
@@ -520,11 +502,6 @@ const char kEditPasswordsInSettingsDescription[] =
 const char kEnableACPrefetchName[] = "Enable AC Prefetch";
 const char kEnableACPrefetchDescription[] =
     "Ensures that account capabilities are prefetched and cached.";
-
-const char kEnableASWebAuthenticationSessionName[] =
-    "Enable ASWebAuthenticationSession";
-const char kEnableASWebAuthenticationSessionDescription[] =
-    "Enables using ASWebAuthenticationSession to add Google accounts to device";
 
 const char kEnableAutofillAddressSavePromptName[] =
     "Autofill Address Save Prompts";
@@ -867,10 +844,6 @@ const char kIdentityConfirmationSnackbarName[] =
 const char kIdentityConfirmationSnackbarDescription[] =
     "When enabled, the identity confirmation snackbar will show on startup.";
 
-const char kImportPasswordsFromSafariName[] = "Import Passwords From Safari";
-const char kImportPasswordsFromSafariDescription[] =
-    "When enabled, allows users to import passwords from Safari.";
-
 const char kInProductHelpDemoModeName[] = "In-Product Help Demo Mode";
 const char kInProductHelpDemoModeDescription[] =
     "When enabled, in-product help promotions occur exactly once per cold "
@@ -1047,11 +1020,6 @@ const char kMetrickitNonCrashReportName[] = "Metrickit non-crash reports";
 const char kMetrickitNonCrashReportDescription[] =
     "Enables sending Metrickit reports for non crash type (hang, "
     "cpu-exception, diskwrite-exception)";
-
-const char kMigrateAccountPrefsOnMobileName[] =
-    "Migrate account prefs on mobile";
-const char kMigrateAccountPrefsOnMobileDescription[] =
-    "Migrate account prefs on Mobile to the single-json implementation.";
 
 const char kMigrateIOSKeychainAccessibilityName[] =
     "Migrate iOS Keychain Accessibility";
@@ -1487,11 +1455,6 @@ const char kSmartTabGroupingDescription[] =
     "When enabled, users will have access to use the smart tab grouping "
     "feature in the tab grid.";
 
-const char kSpotlightNeverRetainIndexName[] = "Don't retain spotlight index";
-const char kSpotlightNeverRetainIndexDescription[] =
-    "Tentative spotlight memory improvement by not storing a strong pointer to "
-    "the spotlight default index";
-
 const char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 const char kStrokesAPIEnabledDescription[] =
     "When enabled, Lens will use the Strokes API.";
@@ -1500,6 +1463,19 @@ const char kSupervisedUserBlockInterstitialV3Name[] =
     "Enable URL filter interstitial V3";
 const char kSupervisedUserBlockInterstitialV3Description[] =
     "Enables URL filter interstitial V3 for Family Link users.";
+
+const char kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsName[] =
+    "Merge device parental controls and Family Link prefs";
+const char
+    kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsDescription[] =
+        "Merges non-web filtering device parental controls settings with "
+        "Family Link settings in the SupervisedUserPrefStore.";
+
+const char kSupervisedUserUseUrlFilteringServiceName[] =
+    "Use URL filtering service";
+const char kSupervisedUserUseUrlFilteringServiceDescription[] =
+    "Use the SupervisedUserUrlFilteringService to get URL filtering settings "
+    "directly from supervision services instead of using PrefService.";
 
 const char kSyncAutofillWalletCredentialDataName[] =
     "Sync Autofill Wallet Credential Data";
@@ -1597,6 +1573,10 @@ const char kVariationsSeedCorpusDescription[] =
     "The value of the 'corpus' parameter in the variations seed request. "
     "If unspecified, the 'corpus' parameter is omitted from the request.";
 
+const char kViewCertificateInformationName[] = "View Certificate Information";
+const char kViewCertificateInformationDescription[] =
+    "Enables viewing detailed certificate information in Page Info.";
+
 const char kWaitThresholdMillisecondsForCapabilitiesApiName[] =
     "Maximum wait time (in seconds) for a response from the Account "
     "Capabilities API";
@@ -1631,12 +1611,6 @@ const char kWebPageTextZoomIPadDescription[] =
 const char kWelcomeBackName[] = "Enable Welcome Back screen";
 const char kWelcomeBackDescription[] =
     "When enabled, returning users will see the Welcome Back screen.";
-
-const char kYoutubeIncognitoName[] =
-    "Enable the opening of links from Youtube incognito in Chrome incognito";
-const char kYoutubeIncognitoDescription[] =
-    "When enabled, the links from Youtube incognito will be opened in Chrome "
-    "incognito.";
 
 const char kZeroStateSuggestionsName[] = "Enable Zero-State Suggestions";
 const char kZeroStateSuggestionsDescription[] =

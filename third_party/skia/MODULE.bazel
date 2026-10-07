@@ -63,7 +63,6 @@ use_repo(
     "org_chromium_go_luci",
     "org_golang_google_api",
     "org_golang_google_protobuf",
-    "org_golang_x_exp",
     "org_skia_go_infra",
 )
 
@@ -147,7 +146,7 @@ crate.spec(
 )
 crate.spec(
     package = "moxcms",
-    version = "=0.7.9",
+    version = "=0.8.0",
 )
 crate.spec(
     features = [

@@ -132,7 +132,7 @@ TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
 }
 
 TEST(Heap, LimitsComputationBoundariesClamp) {
-  using Boundaries = Heap::LimitBounds;
+  using Boundaries = HeapLimitBounds;
   Boundaries boundaries;
   boundaries.minimum_old_generation_allocation_limit = 100u;
   boundaries.maximum_old_generation_allocation_limit = 200u;
@@ -149,7 +149,7 @@ TEST(Heap, LimitsComputationBoundariesClamp) {
 }
 
 TEST(Heap, LimitsComputationBoundariesAtLeastAndAtMost) {
-  Heap::LimitBounds boundaries;
+  HeapLimitBounds boundaries;
   boundaries.maximum_old_generation_allocation_limit = 200u;
   boundaries.maximum_global_allocation_limit = 400u;
 
@@ -179,13 +179,13 @@ TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
   Heap* heap = i_isolate()->heap();
 
   const size_t kSizeMax = std::numeric_limits<size_t>::max();
-  Heap::LimitBounds no_boundaries;
+  HeapLimitBounds no_boundaries;
   EXPECT_EQ(0u, no_boundaries.minimum_old_generation_allocation_limit);
   EXPECT_EQ(0u, no_boundaries.minimum_global_allocation_limit);
   EXPECT_EQ(kSizeMax, no_boundaries.maximum_old_generation_allocation_limit);
   EXPECT_EQ(kSizeMax, no_boundaries.maximum_global_allocation_limit);
 
-  Heap::LimitBounds at_least = Heap::LimitBounds::AtLeastCurrentLimits(heap);
+  HeapLimitBounds at_least = heap->limits()->AtLeastCurrentLimits();
   EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
             at_least.minimum_old_generation_allocation_limit);
   EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
@@ -193,7 +193,7 @@ TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
   EXPECT_EQ(kSizeMax, at_least.maximum_old_generation_allocation_limit);
   EXPECT_EQ(kSizeMax, at_least.maximum_global_allocation_limit);
 
-  Heap::LimitBounds at_most = Heap::LimitBounds::AtMostCurrentLimits(heap);
+  HeapLimitBounds at_most = heap->limits()->AtMostCurrentLimits();
   EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
             at_most.maximum_old_generation_allocation_limit);
   EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
@@ -976,7 +976,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   EXPECT_FALSE(in_free_list(page, next));
 
   // The page allocated before incremental marking is not black.
-  EXPECT_FALSE(page->Chunk()->IsBlackAllocatedPage());
+  EXPECT_FALSE(page->is_black_allocated());
 
   // Allocate a new object on a BLACK_ALLOCATED page.
   arr = iso->factory()->NewFixedArray(1, AllocationType::kOld);
@@ -984,13 +984,13 @@ TEST_F(HeapTest, BlackAllocatedPages) {
 
   // Expect the page to be black.
   page = NormalPage::FromHeapObject(*arr);
-  EXPECT_TRUE(page->Chunk()->IsBlackAllocatedPage());
+  EXPECT_TRUE(page->is_black_allocated());
 
   // Invoke GC.
   InvokeMajorGC();
 
   // The page is not black now.
-  EXPECT_FALSE(page->Chunk()->IsBlackAllocatedPage());
+  EXPECT_FALSE(page->is_black_allocated());
   // After the GC the next free-space object must be in freelist.
   EXPECT_TRUE(in_free_list(page, next));
 }

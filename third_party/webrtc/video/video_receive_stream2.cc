@@ -268,8 +268,10 @@ VideoReceiveStream2::VideoReceiveStream2(
           false)),
       frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
-          "DecodingQueue",
-          TaskQueueFactory::Priority::HIGH)) {
+          "VideoDecoderQueue",
+          env_.field_trials().IsEnabled("WebRTC-MediaTaskQueuePriorities")
+              ? TaskQueueFactory::Priority::kVideo
+              : TaskQueueFactory::Priority::kHigh)) {
   RTC_LOG(LS_INFO) << "VideoReceiveStream2: " << config_.ToString();
 
   RTC_DCHECK(call_->worker_thread());

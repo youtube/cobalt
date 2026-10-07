@@ -174,7 +174,7 @@ class RtcpTransceiverImplTest : public ::testing::Test {
   void AdvanceTime(TimeDelta time) { time_->AdvanceTime(time); }
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> CreateTaskQueue() {
     return time_->GetTaskQueueFactory()->CreateTaskQueue(
-        "rtcp", TaskQueueFactory::Priority::NORMAL);
+        "rtcp", TaskQueueFactory::Priority::kNormal);
   }
 
  private:

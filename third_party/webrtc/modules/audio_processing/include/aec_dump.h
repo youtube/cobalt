@@ -40,9 +40,6 @@ struct InternalAPMConfig {
   bool aec_drift_compensation_enabled = false;
   bool aec_extended_filter_enabled = false;
   int aec_suppression_level = 0;
-  bool aecm_enabled = false;
-  bool aecm_comfort_noise_enabled = false;
-  int aecm_routing_mode = 0;
   bool agc_enabled = false;
   int agc_mode = 0;
   bool agc_limiter_enabled = false;

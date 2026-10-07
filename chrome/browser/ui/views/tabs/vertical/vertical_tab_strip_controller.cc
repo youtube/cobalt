@@ -8,6 +8,7 @@
 
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_factory.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_view.h"
 #include "components/tabs/public/tab_collection_types.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
@@ -198,6 +200,14 @@ void VerticalTabStripController::ToggleTabGroupCollapsedState(
   }
 }
 
+void VerticalTabStripController::ShowGroupEditorBubble(
+    const TabCollectionNode* group_node) {
+  auto* group_header_view =
+      static_cast<VerticalTabGroupView*>(group_node->view())->group_header();
+  group_header_view->ShowContextMenuForViewImpl(
+      group_header_view, gfx::Point(), ui::mojom::MenuSourceType::kNone);
+}
+
 views::Widget* VerticalTabStripController::ShowGroupEditorBubble(
     const tab_groups::TabGroupId& group_id,
     views::View* anchor_view,
@@ -208,10 +218,16 @@ views::Widget* VerticalTabStripController::ShowGroupEditorBubble(
       /*stop_context_menu_propagation=*/stop_context_menu_propagation);
 }
 
-bool VerticalTabStripController::IsCollapsed() {
-  tabs::VerticalTabStripStateController* state_controller =
+bool VerticalTabStripController::IsCollapsed() const {
+  const tabs::VerticalTabStripStateController* state_controller =
       tabs::VerticalTabStripStateController::From(browser_view_->browser());
   return state_controller && state_controller->IsCollapsed();
+}
+
+tab_groups::TabGroupSyncService*
+VerticalTabStripController::GetTabGroupSyncService() {
+  return tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+      browser_view_->GetProfile());
 }
 
 bool VerticalTabStripController::IsContextMenuCommandChecked(
@@ -255,4 +271,10 @@ bool VerticalTabStripController::GetContextMenuAccelerator(
   return TabStripModel::ContextMenuCommandToBrowserCommand(command_id,
                                                            &browser_cmd) &&
          browser_view_->GetWidget()->GetAccelerator(browser_cmd, accelerator);
+}
+
+void VerticalTabStripController::OnTabGroupFocusChanged(
+    std::optional<tab_groups::TabGroupId> new_focused_group_id,
+    std::optional<tab_groups::TabGroupId> old_focused_group_id) {
+  // TODO(crbug.com/479232024): Implement this.
 }

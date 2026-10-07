@@ -855,6 +855,7 @@ quiche_test_support_hdrs = [
     "quic/test_tools/quic_connection_id_manager_peer.h",
     "quic/test_tools/quic_connection_peer.h",
     "quic/test_tools/quic_crypto_server_config_peer.h",
+    "quic/test_tools/quic_crypto_stream_peer.h",
     "quic/test_tools/quic_dispatcher_peer.h",
     "quic/test_tools/quic_flow_controller_peer.h",
     "quic/test_tools/quic_framer_peer.h",
@@ -952,6 +953,7 @@ quiche_test_support_srcs = [
     "quic/test_tools/quic_config_peer.cc",
     "quic/test_tools/quic_connection_peer.cc",
     "quic/test_tools/quic_crypto_server_config_peer.cc",
+    "quic/test_tools/quic_crypto_stream_peer.cc",
     "quic/test_tools/quic_dispatcher_peer.cc",
     "quic/test_tools/quic_flow_controller_peer.cc",
     "quic/test_tools/quic_framer_peer.cc",
@@ -1570,8 +1572,10 @@ load_balancer_srcs = [
 ]
 moqt_hdrs = [
     "quic/moqt/moqt_bitrate_adjuster.h",
+    "quic/moqt/moqt_error.h",
     "quic/moqt/moqt_fetch_task.h",
     "quic/moqt/moqt_framer.h",
+    "quic/moqt/moqt_key_value_pair.h",
     "quic/moqt/moqt_known_track_publisher.h",
     "quic/moqt/moqt_messages.h",
     "quic/moqt/moqt_names.h",
@@ -1601,7 +1605,9 @@ moqt_hdrs = [
 ]
 moqt_srcs = [
     "quic/moqt/moqt_bitrate_adjuster.cc",
+    "quic/moqt/moqt_error.cc",
     "quic/moqt/moqt_framer.cc",
+    "quic/moqt/moqt_key_value_pair.cc",
     "quic/moqt/moqt_known_track_publisher.cc",
     "quic/moqt/moqt_messages.cc",
     "quic/moqt/moqt_names.cc",

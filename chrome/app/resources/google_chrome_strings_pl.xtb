@@ -46,7 +46,6 @@
 <translation id="146866447420868597">Chcesz zalogować się w Chrome?</translation>
 <translation id="1476347941828409626">Za&amp;rządzaj profilami Chrome</translation>
 <translation id="1492280395845991349">Uruchom ponownie, aby dokończyć aktualizację Chrome</translation>
-<translation id="1496875977627931224">Cześć <ph name="USER_NAME" />,<ph name="LINE_BREAK" />nco dziś chodzi Ci po głowie?</translation>
 <translation id="1497802159252041924">Błąd instalacji: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">Dostosuj swój nowy profil w Chrome</translation>
 <translation id="1518627427551567882">Ta strona jest zabezpieczona</translation>
@@ -172,7 +171,6 @@
 <translation id="2857540653560290388">Uruchamiam Chrome…</translation>
 <translation id="286025080868315611">Dlaczego Chrome blokuje pobieranie niektórych plików</translation>
 <translation id="2861074815332034794">Aktualizuję Chrome (<ph name="PROGRESS_PERCENT" />)</translation>
-<translation id="2871893339301912279">Jesteś zalogowany w Chrome.</translation>
 <translation id="2875053229394024379">Gdy zalogujesz się w Chrome na swoje konto Google, możesz używać swojego profilu Chrome z Gemini. <ph name="BEGIN_LINK" />Jak zalogować się w Chrome<ph name="END_LINK" /></translation>
 <translation id="2876628302275096482">Dowiedz się więcej o tym, <ph name="BEGIN_LINK" />jak Chrome dba o prywatność Twoich danych<ph name="END_LINK" />.</translation>
 <translation id="2885378588091291677">Menedżer zadań</translation>
@@ -304,6 +302,7 @@
 <translation id="4242034826641750751">Ta strona musi mieć w Chrome dostęp do aparatu i mikrofonu</translation>
 <translation id="424864128008805179">Wylogować z Chrome?</translation>
 <translation id="4251615635259297716">Połączyć Twoje dane Chrome z tym kontem?</translation>
+<translation id="4280647692742956593">Pobierz Chrome na telefon, aby otwierać lub tworzyć nowe grupy kart, gdziekolwiek jesteś.</translation>
 <translation id="4281844954008187215">Warunki korzystania z usługi</translation>
 <translation id="4293420128516039005">Zaloguj się, by synchronizować dane Chrome i korzystać z własnych ustawień przeglądarki na wielu urządzeniach</translation>
 <translation id="430327780270213103">Zezwalaj rozszerzeniu na wyświetlanie próśb o dostęp na pasku narzędzi Chrome</translation>
@@ -325,7 +324,6 @@
 <translation id="4459234553906210702">W ramach pomiaru skuteczności reklam odwiedzane przez Ciebie witryny mogą prosić Chrome o dostęp do potrzebnych w tym celu informacji. Pomiar skuteczności reklam ogranicza śledzenie w witrynach, ponieważ pomiędzy poszczególnymi stronami przenoszona jest możliwie najmniejsza ilość informacji.</translation>
 <translation id="4493028449971051158">Błąd uruchamiania: uruchom instalator z uprawnieniami administratora.</translation>
 <translation id="4501471624619070934">Ze względu na ograniczenie dostępu w tym kraju instalacja się nie udała.</translation>
-<translation id="4567424176335768812">Jesteś zalogowany jako <ph name="USER_EMAIL_ADDRESS" />. Teraz możesz korzystać ze swoich zakładek, historii i innych ustawień na wszystkich zalogowanych urządzeniach.</translation>
 <translation id="4571503333518166079">Otwórz ustawienia powiadomień Chrome</translation>
 <translation id="4592634244097223647">Zapytaj Google o ten obraz</translation>
 <translation id="459622048091363950">Gdy Chrome będzie mieć dostęp, strony będą mogły prosić Cię o dostęp.</translation>
@@ -359,7 +357,6 @@
 <translation id="4918844574251943176">Zdjęcie zostało skopiowane</translation>
 <translation id="4926882258455737990">Aby korzystać z Gemini w Chrome na innym koncie Google, <ph name="BEGIN_LINK" />utwórz nowy profil<ph name="END_LINK" /> i zaloguj się na wybrane konto</translation>
 <translation id="492720062778050435">Chrome zaleca sprawdzenie tego rozszerzenia</translation>
-<translation id="4946912144186040233">Chrome lepiej rozumie formularze i szybciej je uzupełnia. To ustawienie jest wyłączone.</translation>
 <translation id="4953650215774548573">Ustaw Google Chrome jako domyślną przeglądarkę</translation>
 <translation id="495931528404527476">W Chrome</translation>
 <translation id="4969674060580488087">W ChromeOS Flex nie udało się zsynchronizować danych, ponieważ dane logowania na Twoje konto są nieaktualne.</translation>
@@ -378,7 +375,6 @@
 <translation id="5139423532931106058">Dostosuj swój profil Chrome</translation>
 <translation id="5163087008893166964">Witamy w Chrome. Zostało otwarte nowe okno przeglądarki.</translation>
 <translation id="5166439563123238795">Chrome potrzebuje uprawnień do śledzenia rąk</translation>
-<translation id="5167819546851111585">Co dziś chodzi Ci po głowie?</translation>
 <translation id="5169778651486082413">Używaj haseł w Chrome na telefonie</translation>
 <translation id="5170938038195470297">Nie można użyć Twojego profilu, ponieważ został utworzony w nowszej wersji Google Chrome. Niektóre funkcje mogą być niedostępne. Podaj inny katalog z profilem lub użyj nowszej wersji Chrome.</translation>
 <translation id="5174969993834422967">Zazwyczaj blokujesz powiadomienia. Aby zezwolić tej stronie na wysyłanie powiadomień, kliknij ikonę powiadomienia w prawym rogu paska lokalizacji.</translation>
@@ -406,7 +402,6 @@
 <translation id="5465210843490471889">Wybierz profil Chrome, którego chcesz używać z <ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /></translation>
 <translation id="5468572406162360320">Aby pomóc nam w ulepszaniu tych funkcji, Chrome wysyła do Google informacje o Twoich interakcjach z nimi. Weryfikatorzy mogą odczytywać i przetwarzać te dane oraz dodawać do nich adnotacje.</translation>
 <translation id="5524890928877629608">lewy górny róg obszaru wyszukiwania: po lewej stronie <ph name="LEFT" />%, u góry <ph name="TOP" />%</translation>
-<translation id="5530733413481476019">Przyspiesz działanie Chrome</translation>
 <translation id="5550137307985173298">Kliknij przycisk Dostosuj Chrome na stronie nowej karty, aby zmienić wygląd przeglądarki</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Błąd uruchamiania: uruchom instalator jako zwykły użytkownik, a nie jako administrator.</translation>
@@ -587,12 +582,14 @@
 <translation id="7193885263065350793">Twoja organizacja zamyka przeglądarkę Chrome, jeśli przez <ph name="TIMEOUT_DURATION" /> nie jest ona używana.</translation>
 <translation id="7242029209006116544">Logujesz się na zarządzane konto i przekazujesz jego administratorowi kontrolę nad swoim profilem Google Chrome. Twoje dane Chrome, takie jak aplikacje, zakładki, historia, hasła i inne ustawienia, zostaną trwale powiązane z użytkownikiem <ph name="USER_NAME" />. Będzie można je usunąć w Panelu kont Google, ale nie będzie można ich powiązać z innym kontem. Możesz też utworzyć nowy profil, by przechowywać swoje dotychczasowe dane Chrome osobno. <ph name="LEARN_MORE" /></translation>
 <translation id="7285616922384953075">Przeglądarką Chrome zarządza <ph name="MANAGER" /></translation>
+<translation id="7285990705317078173">Pobierz Chrome na telefon, aby śledzić ceny i otrzymywać alerty, gdy w którejś z witryn cena spadnie</translation>
 <translation id="7288567540154601580">Karty i rozszerzenia</translation>
 <translation id="7296210096911315575">Ważne informacje dotyczące użytkowania i bezpieczeństwa</translation>
 <translation id="7302361266603927550">Niektóre dane z Chrome nie zostały jeszcze zapisane na Twoim koncie Google. Odczekaj kilka minut, zanim się wylogujesz. Jeśli wylogujesz się teraz, te dane zostaną usunięte.</translation>
 <translation id="7308322188646931570">Chrome musi mieć dostęp do pamięci, by pobierać pliki</translation>
 <translation id="7339898014177206373">Nowe okno</translation>
 <translation id="7352651011704765696">Coś poszło nie tak</translation>
+<translation id="7379321689415048316">Chrome może automatycznie uzupełniać trudne pola, które standardowe autouzupełnianie mogłoby pominąć</translation>
 <translation id="7386878009611068389">Aby zapewnić sobie większe bezpieczeństwo online dzięki ustawieniom wybranym przez Twojego rodzica, przełącz się na swój profil Chrome, na który jesteś już zalogowany(-a) jako <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="7398801000654795464">Byłeś zalogowany w Chrome jako <ph name="USER_EMAIL_ADDRESS" />. Zaloguj się ponownie, korzystając z tego samego konta.</translation>
 <translation id="7412494426921990001">Kliknij menu Chrome</translation>
@@ -607,7 +604,6 @@
 <translation id="7481213027396403996">Korzystaj z najlepszych zabezpieczeń Chrome</translation>
 <translation id="749228101751499733">Po zalogowaniu się w Chrome możesz używać haseł i innych danych z konta Google. Aby zmienić swoje ustawienia usług Google, możesz nacisnąć <ph name="SHORTCUT" />.</translation>
 <translation id="7496017508659652909">Chrome wstępnie wczytuje strony, co przyspiesza przeglądanie i wyszukiwanie. <ph name="BEGIN_LINK" />Więcej informacji o wstępnym wczytywaniu stron<ph name="END_LINK" /></translation>
-<translation id="7510927761955779701">Chrome lepiej rozumie formularze i szybciej je uzupełnia. To ustawienie jest włączone.</translation>
 <translation id="7514258452813684157">Usługa aktualizatora Google</translation>
 <translation id="7515191208480168435">Możesz przypiąć Obiektyw Google, aby mieć do niego łatwy dostęp</translation>
 <translation id="7535429826459677826">Wersja deweloperska Google Chrome</translation>
@@ -747,7 +743,6 @@ Dopóki nie usuniesz niektórych zakładek, nie będzie można zapisywać nowych
 <translation id="8821043148920470810">Aby w przyszłości otrzymywać aktualizacje Google Chrome, musisz mieć system Windows 10 lub nowszy. Na tym komputerze jest zainstalowany system Windows 7.</translation>
 <translation id="8823341990149967727">Chrome jest nieaktualny</translation>
 <translation id="8834965163890861871">Google Chrome próbuje edytować hasła. Aby na to zezwolić, podaj swoje hasło do systemu Windows.</translation>
-<translation id="8843516219908676469">Chrome lepiej rozumie formularze i szybciej je uzupełnia</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome zaleca jego usunięcie}few{Chrome zaleca ich usunięcie}many{Chrome zaleca ich usunięcie}other{Chrome zaleca ich usunięcie}}</translation>
 <translation id="8862326446509486874">Nie masz odpowiednich uprawnień do przeprowadzenia instalacji na poziomie systemowym. Uruchom ponownie program instalacyjny jako administrator.</translation>
 <translation id="8865415417596392024">Dane z Chrome na Twoim koncie</translation>

@@ -8,6 +8,9 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_features.mojom-features.h"
+#include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -58,6 +61,7 @@ class GlicEnablingTest : public testing::Test {
     scoped_feature_list_.InitWithFeatures(
         {
             features::kGlic,
+            features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -206,6 +210,7 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
         /*enabled_features=*/
         {
             features::kGlic,
+            features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -268,7 +273,8 @@ class GlicEnablingProfileReadyStateTestBase
     // Disable rollout check and user status check complexities for these tests.
     // We already have kGlic enabled from the base class.
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicRollout},
+        /*enabled_features=*/{features::kGlicRollout,
+                              features::kTabstripComboButton},
         /*disabled_features=*/{features::kGlicUserStatusCheck});
 
     // Make sure we have a primary account so we don't fail the "capable" check.
@@ -290,8 +296,11 @@ class GlicEnablingTrustFirstOnboardingTest
  public:
   void SetUp() override {
     GlicEnablingProfileReadyStateTestBase::SetUp();
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kGlicTrustFirstOnboarding);
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {features::kGlicTrustFirstOnboarding, features::kGlicMultiInstance,
+         mojom::features::kGlicMultiTab, features::kGlicMultitabUnderlines},
+        /*disabled_features=*/{});
   }
 
  private:
@@ -335,11 +344,17 @@ class GlicEnablingAnyFreModeTest : public GlicEnablingProfileReadyStateTestBase,
   void SetUp() override {
     GlicEnablingProfileReadyStateTestBase::SetUp();
     if (GetParam()) {
-      scoped_feature_list_.InitAndEnableFeature(
-          features::kGlicTrustFirstOnboarding);
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/
+          {features::kGlicTrustFirstOnboarding, features::kGlicMultiInstance,
+           mojom::features::kGlicMultiTab, features::kGlicMultitabUnderlines,
+           features::kTabstripComboButton},
+          /*disabled_features=*/{});
     } else {
-      scoped_feature_list_.InitAndDisableFeature(
-          features::kGlicTrustFirstOnboarding);
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/
+          {features::kTabstripComboButton}, /*disabled_features=*/
+          {features::kGlicTrustFirstOnboarding});
     }
   }
 

@@ -319,7 +319,7 @@ ExtensionInstallStatus AddExtensionToPendingList(
   ScopedDictPrefUpdate pending_requests_update(
       profile->GetPrefs(), prefs::kCloudExtensionRequestIds);
   DCHECK(!pending_requests_update->Find(id));
-  base::Value::Dict request_data;
+  base::DictValue request_data;
   request_data.Set(extension_misc::kExtensionRequestTimestamp,
                    ::base::TimeToValue(base::Time::Now()));
   if (!justification.empty()) {
@@ -515,7 +515,7 @@ WebstorePrivateBeginInstallWithManifest3Function::Run() {
 void WebstorePrivateBeginInstallWithManifest3Function::OnWebstoreParseSuccess(
     const std::string& id,
     const SkBitmap& icon,
-    base::Value::Dict parsed_manifest) {
+    base::DictValue parsed_manifest) {
   CHECK_EQ(details().id, id);
   parsed_manifest_ = std::move(parsed_manifest);
   icon_ = icon;
@@ -1049,19 +1049,16 @@ WebstorePrivateCompleteInstallFunction::Run() {
       InstallTrackerFactory::GetForBrowserContext(browser_context()),
       params->expected_id);
 
-  // Balanced in OnExtensionInstallSuccess() or OnExtensionInstallFailure().
-  AddRef();
-
   // The extension will install through the normal extension install flow, but
   // the allowlist entry will bypass the normal permissions install dialog.
   scoped_refptr<WebstoreInstaller> installer = new WebstoreInstaller(
       profile,
       base::BindOnce(
           &WebstorePrivateCompleteInstallFunction::OnExtensionInstallSuccess,
-          weak_ptr_factory_.GetWeakPtr()),
+          this),
       base::BindOnce(
           &WebstorePrivateCompleteInstallFunction::OnExtensionInstallFailure,
-          weak_ptr_factory_.GetWeakPtr()),
+          this),
       web_contents, params->expected_id, std::move(approval_),
       WebstoreInstaller::INSTALL_SOURCE_OTHER);
   installer->Start();
@@ -1074,9 +1071,6 @@ void WebstorePrivateCompleteInstallFunction::OnExtensionInstallSuccess(
   OnInstallSuccess(id);
   VLOG(1) << "Install success, sending response";
   Respond(NoArguments());
-
-  // Matches the AddRef in Run().
-  Release();
 }
 
 void WebstorePrivateCompleteInstallFunction::OnExtensionInstallFailure(
@@ -1089,9 +1083,6 @@ void WebstorePrivateCompleteInstallFunction::OnExtensionInstallFailure(
 
   VLOG(1) << "Install failed, sending response";
   Respond(Error(error));
-
-  // Matches the AddRef in Run().
-  Release();
 }
 
 void WebstorePrivateCompleteInstallFunction::OnInstallSuccess(

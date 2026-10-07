@@ -71,6 +71,9 @@ declare_args() {
   # Sets -DENABLE_DISASSEMBLER.
   v8_enable_disassembler = ""
 
+  # Sets -DV8_ENABLE_REGEXP_DIAGNOSTICS.
+  v8_enable_regexp_diagnostics = !build_with_chromium
+
   # Sets the number of internal fields on promise objects.
   v8_promise_internal_field_count = 0
 
@@ -85,6 +88,9 @@ declare_args() {
 
   # Sets -DENABLE_VTUNE_TRACEMARK.
   v8_enable_vtunetracemark = false
+
+  # Sets -DV8_ENABLE_APX_F.
+  v8_enable_apx_f = false
 
   # Sets -DENABLE_HUGEPAGE
   v8_enable_hugepage = false
@@ -463,8 +469,7 @@ declare_args() {
   v8_enable_experimental_tq_to_tsa = false
 
   # Use the encoding of undefined in double values.
-  v8_enable_undefined_double =
-      v8_target_cpu != "ppc64" && v8_target_cpu != "s390x"
+  v8_enable_undefined_double = true
 
   v8_dcheck_always_on = dcheck_always_on
 
@@ -574,7 +579,6 @@ if (v8_multi_arch_build &&
     rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
     "clang_x64_fuzzer_experiments") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
-  v8_enable_undefined_double = !v8_enable_undefined_double
   v8_lower_limits_mode = !v8_lower_limits_mode
 }
 
@@ -1249,6 +1253,9 @@ config("features") {
   if (v8_enable_vtunetracemark) {
     defines += [ "ENABLE_VTUNE_TRACEMARK" ]
   }
+  if (v8_enable_apx_f) {
+    defines += [ "V8_ENABLE_APX_F" ]
+  }
   if (v8_enable_hugepage) {
     defines += [ "ENABLE_HUGEPAGE" ]
   }
@@ -1278,6 +1285,9 @@ config("features") {
   }
   if (v8_enable_trace_feedback_updates) {
     defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
+  }
+  if (v8_enable_regexp_diagnostics) {
+    defines += [ "V8_ENABLE_REGEXP_DIAGNOSTICS" ]
   }
   if (v8_enable_test_features) {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
@@ -2697,7 +2707,7 @@ template("run_mksnapshot") {
                                         "root_out_dir") + "/mksnapshot",
                          root_build_dir),
       "--turbo_instruction_scheduling",
-      "--stress-turbo-late-spilling",
+      "--turbo-always-optimize-spills",
 
       # In cross builds, the snapshot may be generated for both the host and
       # target toolchains.  The same host binary is used to generate both, so
@@ -3604,6 +3614,9 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-descriptors.h",
     "src/builtins/builtins-effects-analyzer.h",
     "src/builtins/builtins-inl.h",
+    "src/builtins/builtins-iterator-inl.h",
+    "src/builtins/builtins-iterator.h",
+    "src/builtins/builtins-math-xsum.h",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-utils-inl.h",
     "src/builtins/builtins-utils.h",
@@ -3855,6 +3868,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-phase.h",
     "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
+    "src/compiler/turboshaft/maglev-assert-types-reducer.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
@@ -4465,12 +4479,10 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/regexp-bytecodes.h",
     "src/regexp/regexp-code-generator.h",
     "src/regexp/regexp-compiler.h",
-    "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-error.h",
     "src/regexp/regexp-flags.h",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
-    "src/regexp/regexp-macro-assembler-tracer.h",
     "src/regexp/regexp-macro-assembler.h",
     "src/regexp/regexp-nodes.h",
     "src/regexp/regexp-parser.h",
@@ -4521,6 +4533,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/js-dispatch-table.h",
     "src/sandbox/sandbox-malloc.h",
     "src/sandbox/sandbox.h",
+    "src/sandbox/sandboxable-thread.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",
     "src/sandbox/tagged-payload.h",
@@ -4617,6 +4630,17 @@ v8_header_set("v8_internal_headers") {
     sources += [ "src/snapshot/snapshot-compression.h" ]
   }
 
+  if (v8_enable_regexp_diagnostics) {
+    sources += [
+      "src/regexp/regexp-ast-printer.h",
+      "src/regexp/regexp-dotprinter.h",
+      "src/regexp/regexp-graph-printer.h",
+      "src/regexp/regexp-macro-assembler-tracer.h",
+      "src/regexp/regexp-node-printer.h",
+      "src/regexp/regexp-printer.h",
+    ]
+  }
+
   if (v8_enable_temporal_support) {
     sources += [
       "src/objects/js-temporal-objects-inl.h",
@@ -4647,6 +4671,7 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/hamt.h",
       "src/maglev/maglev-assembler-inl.h",
       "src/maglev/maglev-assembler.h",
       "src/maglev/maglev-basic-block.h",
@@ -4671,6 +4696,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-ir.h",
       "src/maglev/maglev-kna-processor.h",
       "src/maglev/maglev-known-node-aspects.h",
+      "src/maglev/maglev-node-type.h",
       "src/maglev/maglev-phi-representation-selector.h",
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
@@ -5466,6 +5492,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-known-node-aspects.cc",
+    "src/maglev/maglev-node-type.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
     "src/maglev/maglev-range-verification.cc",
     "src/maglev/maglev-truncation.cc",
@@ -5734,6 +5761,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-intl.cc",
     "src/builtins/builtins-json.cc",
+    "src/builtins/builtins-math-xsum.cc",
+    "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-reflect.cc",
@@ -6076,10 +6105,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-code-generator.cc",
     "src/regexp/regexp-compiler-tonode.cc",
     "src/regexp/regexp-compiler.cc",
-    "src/regexp/regexp-dotprinter.cc",
     "src/regexp/regexp-error.cc",
     "src/regexp/regexp-interpreter.cc",
-    "src/regexp/regexp-macro-assembler-tracer.cc",
     "src/regexp/regexp-macro-assembler.cc",
     "src/regexp/regexp-parser.cc",
     "src/regexp/regexp-result-vector.cc",
@@ -6126,6 +6153,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/sandbox/hardware-support.cc",
     "src/sandbox/js-dispatch-table.cc",
     "src/sandbox/sandbox.cc",
+    "src/sandbox/sandboxable-thread.cc",
     "src/sandbox/testing.cc",
     "src/sandbox/trusted-pointer-scope.cc",
     "src/sandbox/trusted-pointer-table.cc",
@@ -6185,6 +6213,17 @@ v8_source_set("v8_base_without_compiler") {
     sources += [ "src/snapshot/snapshot-compression.cc" ]
   }
 
+  if (v8_enable_regexp_diagnostics) {
+    sources += [
+      "src/regexp/regexp-ast-printer.cc",
+      "src/regexp/regexp-dotprinter.cc",
+      "src/regexp/regexp-graph-printer.cc",
+      "src/regexp/regexp-macro-assembler-tracer.cc",
+      "src/regexp/regexp-node-printer.cc",
+      "src/regexp/regexp-printer.cc",
+    ]
+  }
+
   if (v8_enable_temporal_support) {
     sources += [
       "src/builtins/builtins-temporal.cc",
@@ -6217,6 +6256,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-known-node-aspects.cc",
+      "src/maglev/maglev-node-type.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
       "src/maglev/maglev-range-verification.cc",
@@ -8217,6 +8257,8 @@ v8_executable("d8") {
     "src/d8/d8-test.cc",
     "src/d8/d8.cc",
     "src/d8/d8.h",
+    "src/d8/hardware-watchpoints.cc",
+    "src/d8/hardware-watchpoints.h",
   ]
 
   configs = [

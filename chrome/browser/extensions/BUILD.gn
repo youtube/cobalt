@@ -9,6 +9,7 @@ import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
+import("//components/guest_view/buildflags/buildflags.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
@@ -444,6 +445,8 @@ source_set("extensions") {
     "sync/extension_sync_service_factory.h",
     "sync/extension_sync_util.cc",
     "sync/extension_sync_util.h",
+    "sync/features.cc",
+    "sync/features.h",
     "sync/sync_bundle.cc",
     "sync/sync_bundle.h",
     "system_display/display_info_provider.h",
@@ -501,6 +504,7 @@ source_set("extensions") {
     "//chrome/app:command_ids",
     "//chrome/app/theme:chrome_unscaled_resources",
     "//chrome/browser:browser_process",
+    "//chrome/browser:chrome_content_browser_client_parts",
     "//chrome/browser:shell_integration",
     "//chrome/browser/app_mode",
     "//chrome/browser/apps:user_type_filter",
@@ -537,6 +541,7 @@ source_set("extensions") {
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
+    "//chrome/browser/ui/dialogs",
     "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/safety_hub",
@@ -587,12 +592,12 @@ source_set("extensions") {
     "//components/vector_icons",
     "//content/public/browser",
     "//extensions/browser",
+    "//extensions/browser:keepalive",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/storage:settings_observer",
     "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
     "//extensions/browser/forced_extensions",
     "//extensions/browser/updater",
-    "//extensions/browser/updater:keepalive",
     "//extensions/common",
     "//extensions/strings",
     "//google_apis/common:request_util",
@@ -677,6 +682,13 @@ source_set("extensions") {
     if (is_posix) {
       sources += [ "api/messaging/launch_context_posix.cc" ]
     }
+  }
+
+  if (enable_guest_view) {
+    deps += [
+      "//components/guest_view/browser",
+      "//components/guest_view/common:mojom",
+    ]
   }
 
   if (enable_extensions) {
@@ -899,7 +911,6 @@ source_set("extensions") {
       "//chrome/browser/accessibility/tree_fixing:prefs",
       "//chrome/browser/affiliations",
       "//chrome/browser/apps:user_type_filter",
-      "//chrome/browser/apps/app_service:constants",
       "//chrome/browser/chooser_controller",
       "//chrome/browser/device_identity",
       "//chrome/browser/feedback",
@@ -932,6 +943,7 @@ source_set("extensions") {
       "//chrome/browser/ui/window_sizer",
       "//chrome/browser/ui/zoom",
       "//chrome/browser/webauthn",
+      "//components/services/app_service",
 
       # Only for allow_circular_includes_from
       "//chrome/browser/apps/app_service/app_icon",
@@ -984,8 +996,6 @@ source_set("extensions") {
       "//components/favicon/content",
       "//components/feedback",
       "//components/gcm_driver",
-      "//components/guest_view/browser",
-      "//components/guest_view/common:mojom",
       "//components/history/core/browser",
       "//components/history/core/common",
       "//components/javascript_dialogs",
@@ -1017,7 +1027,6 @@ source_set("extensions") {
       "//components/safe_browsing/content/browser/web_ui",
       "//components/safe_browsing/core/common/proto:csd_proto",
       "//components/search_engines",
-      "//components/services/app_service",
       "//components/services/unzip/public/cpp",
       "//components/sessions",
       "//components/signin/public/identity_manager",
@@ -1369,6 +1378,7 @@ source_set("extensions") {
         "//chromeos/services/media_perception/public/mojom",
         "//chromeos/services/tts/public/mojom",
         "//chromeos/ui/base",
+        "//chromeos/ui/clipboard_history",
         "//chromeos/version",
         "//components/constrained_window",
         "//components/crash/content/browser/error_reporting",
@@ -1704,9 +1714,9 @@ source_set("chrome_extensions_browser_client") {
     "//components/proxy_config",
     "//components/sessions",
     "//components/update_client",
+    "//extensions/browser:keepalive",
     "//extensions/browser/api/content_settings",
     "//extensions/browser/updater",
-    "//extensions/browser/updater:keepalive",
   ]
 
   if (enable_desktop_android_extensions) {

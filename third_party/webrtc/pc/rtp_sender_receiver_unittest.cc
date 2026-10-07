@@ -1990,9 +1990,13 @@ TEST_F(RtpSenderReceiverTest,
   RtpParameters parameters = video_rtp_sender_->GetParameters();
   RtpParameters new_parameters = video_rtp_sender_->GetParametersInternal();
   new_parameters.encodings[0].active = false;
-  video_rtp_sender_->SetParametersInternal(new_parameters, nullptr, true);
+  EXPECT_TRUE(
+      video_rtp_sender_->SetParametersInternal(new_parameters, nullptr, true)
+          .ok());
   new_parameters.encodings[0].active = true;
-  video_rtp_sender_->SetParametersInternal(new_parameters, nullptr, true);
+  EXPECT_TRUE(
+      video_rtp_sender_->SetParametersInternal(new_parameters, nullptr, true)
+          .ok());
   parameters.encodings[0].active = false;
   EXPECT_TRUE(video_rtp_sender_->SetParameters(parameters).ok());
 }

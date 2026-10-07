@@ -60,6 +60,8 @@ Address SegmentedTable<Entry, size>::base() const {
 
 template <typename Entry, size_t size>
 void SegmentedTable<Entry, size>::Initialize() {
+  static_assert(offsetof(SegmentedTable, base_) == kBaseAddressOffset);
+
   DCHECK(!is_initialized());
   DCHECK_EQ(vas_, nullptr);
 
@@ -100,6 +102,7 @@ void SegmentedTable<Entry, size>::Initialize() {
     V8::FatalProcessOutOfMemory(
         nullptr, "SegmentedTable::InitializeTable (subspace allocation)");
   }
+  vas_->SetName(kPointerTableAddressSpaceName);
 #else  // V8_TARGET_ARCH_64_BIT
   static_assert(!kUseContiguousMemory);
   vas_ = root_space;

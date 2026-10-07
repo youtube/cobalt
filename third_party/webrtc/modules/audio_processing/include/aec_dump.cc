@@ -24,9 +24,6 @@ bool InternalAPMConfig::operator==(const InternalAPMConfig& other) const {
              other.aec_drift_compensation_enabled &&
          aec_extended_filter_enabled == other.aec_extended_filter_enabled &&
          aec_suppression_level == other.aec_suppression_level &&
-         aecm_enabled == other.aecm_enabled &&
-         aecm_comfort_noise_enabled == other.aecm_comfort_noise_enabled &&
-         aecm_routing_mode == other.aecm_routing_mode &&
          agc_enabled == other.agc_enabled && agc_mode == other.agc_mode &&
          agc_limiter_enabled == other.agc_limiter_enabled &&
          hpf_enabled == other.hpf_enabled && ns_enabled == other.ns_enabled &&

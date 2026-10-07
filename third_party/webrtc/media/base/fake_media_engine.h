@@ -66,7 +66,6 @@
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
@@ -350,13 +349,8 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
       if (!result.ok()) {
         return InvokeSetParametersCallback(callback, result);
       }
-      bool changed = (parameters_iterator->second != parameters);
       parameters_iterator->second = parameters;
-      if (changed) {
-        on_rtp_send_parameters_changed_callback_.Send(ssrc, parameters);
-      }
-      InvokeSetParametersCallback(callback, RTCError::OK());
-      return RTCError::OK();
+      return InvokeSetParametersCallback(callback, RTCError::OK());
     }
     // Replicate the behavior of the real media channel: return false
     // when setting parameters for unknown SSRCs.
@@ -406,19 +400,6 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   void OnRtcpPacketReceived(CopyOnWriteBuffer* packet,
                             int64_t /* packet_time_us */) {
     rtcp_packets_.push_back(std::string(packet->cdata<char>(), packet->size()));
-  }
-
-  // Stuff that deals with encryptors, transformers and the like
-  void SubscribeRtpSendParametersChanged(
-      const void* tag,
-      absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
-          callback) override {
-    on_rtp_send_parameters_changed_callback_.AddReceiver(tag,
-                                                         std::move(callback));
-  }
-
-  void UnsubscribeRtpSendParametersChanged(const void* tag) override {
-    on_rtp_send_parameters_changed_callback_.RemoveReceivers(tag);
   }
 
   void SetFrameEncryptor(uint32_t /* ssrc */,
@@ -493,8 +474,6 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   MediaChannelNetworkInterface* network_interface_ = nullptr;
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ = nullptr;
-  mutable CallbackList<std::optional<uint32_t>, const RtpParameters&>
-      on_rtp_send_parameters_changed_callback_;
 };
 
 class FakeVoiceMediaReceiveChannel

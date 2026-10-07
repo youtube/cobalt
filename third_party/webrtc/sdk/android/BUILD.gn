@@ -890,6 +890,7 @@ if (current_os == "linux" || is_android) {
       "../../rtc_base:ssl",
       "../../rtc_base:stringutils",
       "../../rtc_base:threading",
+      "../../rtc_base/system:plan_b_only",
       "../../stats:rtc_stats",
       "//third_party/abseil-cpp/absl/memory",
       "//third_party/abseil-cpp/absl/strings",

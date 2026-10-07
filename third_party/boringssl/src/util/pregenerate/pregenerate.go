@@ -21,12 +21,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/hexops/gotextdiff"
+	"github.com/hexops/gotextdiff/myers"
+	"github.com/hexops/gotextdiff/span"
 
 	"boringssl.googlesource.com/boringssl.git/util/build"
 )
@@ -36,16 +42,50 @@ var (
 	numWorkers = flag.Int("num-workers", runtime.NumCPU(), "Runs the given number of workers")
 	dryRun     = flag.Bool("dry-run", false, "Skip actually writing any files")
 	perlPath   = flag.String("perl", "perl", "Path to the perl command")
+	clangPath  = flag.String("clang", findClang(), "Path to the clang command")
 	list       = flag.Bool("list", false, "List all generated files, rather than actually run them")
 )
 
-func runTask(t Task) error {
+// findClang returns where clang likely is installed.
+//
+// TODO(crbug.com/42220000): Have the CI builder pass the flag, then remove this hack.
+func findClang() string {
+	if path, err := exec.LookPath("clang"); err == nil {
+		return path
+	}
+	for _, path := range []string{
+		filepath.Join(runtime.GOROOT(), "../llvm-build/bin/clang"),
+		filepath.Join(runtime.GOROOT(), "../llvm-build/bin/clang.exe"),
+		filepath.Join(runtime.GOROOT(), "../llvm-build/bin/clang-cl"),
+		filepath.Join(runtime.GOROOT(), "../llvm-build/bin/clang-cl.exe"),
+	} {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return "clang"
+}
+
+type gotextdiffHandleWrapper struct {
+	io.Writer
+	fmt.State // Usually left as nil as gotextdiff doesn't use it.
+}
+
+func (w gotextdiffHandleWrapper) Write(p []byte) (n int, err error) {
+	return w.Writer.Write(p)
+}
+
+func runTask(t *Task) error {
 	expected, err := t.Run()
 	if err != nil {
+		if errors.Is(err, TaskSkipped) {
+			fmt.Fprintf(os.Stderr, "task %q skipped - carrying on with previously saved data: %v\n", t, err)
+			return nil
+		}
 		return err
 	}
 
-	dst := t.Destination()
+	dst := t.Destination
 	dstPath := filepath.FromSlash(dst)
 	if *check {
 		actual, err := os.ReadFile(dstPath)
@@ -57,6 +97,11 @@ func runTask(t Task) error {
 		}
 
 		if !bytes.Equal(expected, actual) {
+			uri := span.URIFromPath(dstPath)
+			// Diff is from actual (i.e. what's in the repo) to expected (i.e. what should be in the repo).
+			edits := myers.ComputeEdits(uri, string(actual), string(expected))
+			unified := gotextdiff.ToUnified(dstPath, dstPath, string(actual), edits)
+			unified.Format(gotextdiffHandleWrapper{Writer: os.Stderr}, 's')
 			return errors.New("file out of date")
 		}
 		return nil
@@ -78,11 +123,11 @@ type taskError struct {
 	err error
 }
 
-func worker(taskChan <-chan Task, errorChan chan<- taskError, wg *sync.WaitGroup) {
+func worker(taskChan <-chan *Task, errorChan chan<- taskError, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for t := range taskChan {
 		if err := runTask(t); err != nil {
-			errorChan <- taskError{t.Destination(), err}
+			errorChan <- taskError{t.Destination, err}
 		}
 	}
 }
@@ -113,8 +158,8 @@ func run() error {
 		return fmt.Errorf("error decoding build config: %s", err)
 	}
 
-	var tasks []Task
-	var perlAsmTasks []WaitableTask
+	var tasks []*Task
+	var perlAsmTasks []*Task
 	var allAsmSrcs []string
 	targetsOut := make(map[string]build.Target)
 	for name, targetIn := range targetsIn {
@@ -125,44 +170,42 @@ func run() error {
 		targetsOut[name] = targetOut
 		tasks = append(tasks, targetTasks...)
 		for _, task := range targetTasks {
-			waitable, ok := task.(WaitableTask)
-			if !ok {
+			if !slices.Contains(targetAsmSrcs, task.Destination) {
 				continue
 			}
-			if !slices.Contains(targetAsmSrcs, task.Destination()) {
-				return errors.New("asm destination is not contained in target asm sources")
-			}
-			perlAsmTasks = append(perlAsmTasks, waitable)
-
+			perlAsmTasks = append(perlAsmTasks, task)
 		}
 		allAsmSrcs = append(allAsmSrcs, targetAsmSrcs...)
 	}
 
+	tasks = append(tasks, MakePrefixingIncludes(targetsIn, targetsOut)...)
+	tasks = append(tasks, MakeCollectAsmGlobalTasks(perlAsmTasks, allAsmSrcs, targetsOut)...)
 	tasks = append(tasks, MakeBuildFiles(targetsOut)...)
-	tasks = append(tasks, MakeCollectAsmGlobalTask(perlAsmTasks, allAsmSrcs))
 	tasks = append(tasks, NewSimpleTask("gen/README.md", func() ([]byte, error) {
 		return []byte(readme), nil
 	}))
 
 	// Filter tasks by command-line argument.
 	if args := flag.Args(); len(args) != 0 {
-		var filtered []Task
 		for _, t := range tasks {
-			dst := t.Destination()
+			dst := t.Destination
+			matched := false
 			for _, arg := range args {
 				if strings.Contains(dst, arg) {
-					filtered = append(filtered, t)
+					matched = true
 					break
 				}
 			}
+			if !matched {
+				t.Close(fmt.Errorf("%w: not included by filter", TaskSkipped))
+			}
 		}
-		tasks = filtered
 	}
 
 	if *list {
 		paths := make([]string, len(tasks))
 		for i, t := range tasks {
-			paths[i] = t.Destination()
+			paths[i] = t.Destination
 		}
 		slices.Sort(paths)
 		for _, p := range paths {
@@ -174,7 +217,7 @@ func run() error {
 	// Schedule tasks in parallel. Perlasm benefits from running in parallel. The
 	// others likely do not, but it is simpler to parallelize them all.
 	var wg sync.WaitGroup
-	taskChan := make(chan Task, *numWorkers)
+	taskChan := make(chan *Task, *numWorkers)
 	errorChan := make(chan taskError, *numWorkers)
 	for i := 0; i < *numWorkers; i++ {
 		wg.Add(1)

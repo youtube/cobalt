@@ -144,6 +144,7 @@
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
 
@@ -763,12 +764,14 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // Accessor methods to active local streams.
   // This method is not supported with kUnifiedPlan semantics. Please use
   // GetSenders() instead.
-  virtual scoped_refptr<StreamCollectionInterface> local_streams() = 0;
+  PLAN_B_ONLY virtual scoped_refptr<StreamCollectionInterface>
+  local_streams() = 0;
 
   // Accessor methods to remote streams.
   // This method is not supported with kUnifiedPlan semantics. Please use
   // GetReceivers() instead.
-  virtual scoped_refptr<StreamCollectionInterface> remote_streams() = 0;
+  PLAN_B_ONLY virtual scoped_refptr<StreamCollectionInterface>
+  remote_streams() = 0;
 
   // Add a new MediaStream to be sent on this PeerConnection.
   // Note that a SessionDescription negotiation is needed before the
@@ -782,7 +785,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   //
   // This method is not supported with kUnifiedPlan semantics. Please use
   // AddTrack instead.
-  virtual bool AddStream(MediaStreamInterface* stream) = 0;
+  PLAN_B_ONLY virtual bool AddStream(MediaStreamInterface* stream) = 0;
 
   // Remove a MediaStream from this PeerConnection.
   // Note that a SessionDescription negotiation is needed before the
@@ -790,7 +793,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   //
   // This method is not supported with kUnifiedPlan semantics. Please use
   // RemoveTrack instead.
-  virtual void RemoveStream(MediaStreamInterface* stream) = 0;
+  PLAN_B_ONLY virtual void RemoveStream(MediaStreamInterface* stream) = 0;
 
   // Add a new MediaStreamTrack to be sent on this PeerConnection, and return
   // the newly created RtpSender. The RtpSender will be associated with the
@@ -888,7 +891,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   //
   // This method is not supported with kUnifiedPlan semantics. Please use
   // AddTransceiver instead.
-  virtual scoped_refptr<RtpSenderInterface> CreateSender(
+  PLAN_B_ONLY virtual scoped_refptr<RtpSenderInterface> CreateSender(
       const std::string& kind,
       const std::string& stream_id) = 0;
 

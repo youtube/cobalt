@@ -34,13 +34,16 @@ class AutofillAiImportDataController {
       content::WebContents* web_contents,
       const std::string& app_locale);
 
+  // Hides the Autofill AI import bubble if it is showing for `web_contents`.
+  static void Hide(content::WebContents& web_contents);
+
   // Shows a save or update Autofill AI data bubble which the user can accept or
   // decline. `old_entity` is used in the update case to give users an overview
   // of what was changed.
   virtual void ShowPrompt(EntityInstance new_entity,
                           std::optional<EntityInstance> old_entity,
                           AutofillClient::EntityImportPromptResultCallback
-                              prompt_acceptance_callback) = 0;
+                              prompt_result_callback) = 0;
 
   // Called when the user accepts to save or update Autofill AI data.
   virtual void OnSaveButtonClicked() = 0;
@@ -79,7 +82,7 @@ class AutofillAiImportDataController {
 
   // Called when the Autofill AI data bubble is closed.
   virtual void OnBubbleClosed(
-      AutofillClient::AutofillAiBubbleClosedReason closed_reason) = 0;
+      AutofillClient::AutofillAiBubbleResult result) = 0;
 
   virtual base::WeakPtr<AutofillAiImportDataController> GetWeakPtr() = 0;
 };

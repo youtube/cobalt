@@ -1957,10 +1957,11 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 }
 
 TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
-    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
+    TNode<HeapObject> object, int field_offset,
+    IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_NE(tag, kUnknownIndirectPointerTag);
-  return LoadIndirectPointerFromObject(object, field_offset, tag);
+  CHECK_NE(tag_range, kAllIndirectPointerTags);
+  return LoadIndirectPointerFromObject(object, field_offset, tag_range);
 #else
   return LoadObjectField<TrustedObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -1969,7 +1970,8 @@ TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
 void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
     TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
     Label* if_empty, Label* if_default,
-    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+    IndirectPointerTagRange tag_range) {
   Label unreachable(this, Label::kDeferred);
   if (!if_default) if_default = &unreachable;
   if (!if_empty) if_empty = &unreachable;
@@ -1982,7 +1984,7 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
          if_empty);
 
   ResolveIndirectUnknownPointerHandle(handle, value_out, /* type_out */ nullptr,
-                                      if_default, cases);
+                                      if_default, cases, tag_range);
 #else
   *value_out = LoadObjectField<Object>(object, offset);
   GotoIf(TaggedIsSmi(value_out->value()), if_empty);
@@ -2000,12 +2002,11 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
 void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
     TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
     TVariable<Uint16T>* type_out, Label* if_default,
-    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+    IndirectPointerTagRange tag_range) {
   *value_out = Select<TrustedObject>(
       IsTrustedPointerHandle(handle),
-      [=, this] {
-        return ResolveTrustedPointerHandle(handle, kUnknownIndirectPointerTag);
-      },
+      [=, this] { return ResolveTrustedPointerHandle(handle, tag_range); },
       [=, this] { return ResolveCodePointerHandle(handle); });
 
   DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
@@ -2034,7 +2035,7 @@ TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
 TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
     TNode<JSDispatchHandleT> handle) {
   TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::js_dispatch_table_address());
+      ExternalConstant(ExternalReference::js_dispatch_table_address(isolate()));
   TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
   offset =
       UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
@@ -2060,7 +2061,7 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
 TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
     TNode<JSDispatchHandleT> handle) {
   TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::js_dispatch_table_address());
+      ExternalConstant(ExternalReference::js_dispatch_table_address(isolate()));
   TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
   offset = UintPtrAdd(offset,
                       UintPtrConstant(JSDispatchEntry::kParameterCountOffset));
@@ -2100,10 +2101,11 @@ void CodeStubAssembler::TailCallJSCode(
 #ifdef V8_ENABLE_SANDBOX
 
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
-    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
+    TNode<HeapObject> object, int field_offset,
+    IndirectPointerTagRange tag_range) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  return ResolveIndirectPointerHandle(handle, tag);
+  return ResolveIndirectPointerHandle(handle, tag_range);
 }
 
 TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
@@ -2113,13 +2115,16 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
-  CHECK_NE(tag, kUnknownIndirectPointerTag);
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
   // The tag implies which pointer table to use.
-  if (tag == kCodeIndirectPointerTag) {
+  if (tag_range == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
-    return ResolveTrustedPointerHandle(handle, tag);
+    // We don't currently support ranges that include the code pointer tag
+    // here. If we ever need that, we'd have to look at the handle to determine
+    // if it is a code pointer handle.
+    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
+    return ResolveTrustedPointerHandle(handle, tag_range);
   }
 }
 
@@ -2138,7 +2143,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
   TNode<Uint32T> index =
@@ -2149,9 +2154,27 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   TNode<UintPtrT> offset = ChangeUint32ToWord(
       Word32Shl(index, Uint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // Untag the pointer and remove the marking bit in one operation.
-  value = UncheckedCast<UintPtrT>(
-      WordAnd(value, UintPtrConstant(~(tag | kTrustedPointerTableMarkBit))));
+
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    value = WordAnd(value, UintPtrConstant(mask));
+  } else {
+    TNode<UintPtrT> tag =
+        WordShr(value, UintPtrConstant(kTrustedPointerTableTagShift));
+
+    TNode<BoolT> is_valid;
+    if (tag_range.Size() == 1) {
+      is_valid = WordEqual(tag, UintPtrConstant(tag_range.first));
+    } else {
+      TNode<UintPtrT> diff = UintPtrSub(tag, UintPtrConstant(tag_range.first));
+      is_valid = UintPtrLessThanOrEqual(
+          diff, UintPtrConstant(tag_range.last - tag_range.first));
+    }
+
+    value = SelectConstant<UintPtrT>(is_valid, value, UintPtrConstant(0));
+
+    value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
+  }
   return CAST(BitcastWordToTagged(value));
 }
 
@@ -3793,7 +3816,8 @@ void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
   TVARIABLE(Object, var_result);
   LoadTrustedUnknownPointerFromObject(
       sfi, SharedFunctionInfo::kTrustedFunctionDataOffset, &var_result,
-      &if_default, &if_default, {{CODE_TYPE, if_baseline}});
+      &if_default, &if_default, {{CODE_TYPE, if_baseline}},
+      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&if_default);
 }
@@ -3816,7 +3840,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       nullptr,
       {{BYTECODE_ARRAY_TYPE, &done},
        {INTERPRETER_DATA_TYPE, &is_interpreter_data},
-       {CODE_TYPE, &is_code}});
+       {CODE_TYPE, &is_code}},
+      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&is_interpreter_data);
   {
@@ -3860,38 +3885,20 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-TNode<WasmFunctionData>
-CodeStubAssembler::LoadSharedFunctionInfoWasmFunctionData(
-    TNode<SharedFunctionInfo> sfi) {
-  return CAST(LoadTrustedPointerFromObject(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
-      kWasmFunctionDataIndirectPointerTag));
-}
-
 TNode<WasmExportedFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmExportedFunctionData(
     TNode<SharedFunctionInfo> sfi) {
-  TNode<WasmFunctionData> function_data =
-      LoadSharedFunctionInfoWasmFunctionData(sfi);
-  // TODO(saelo): it would be nice if we could use LoadTrustedPointerFromObject
-  // with a kWasmExportedFunctionDataIndirectPointerTag to avoid the SBXCHECK,
-  // but for that our tagging scheme first needs to support type hierarchies.
-  CSA_SBXCHECK(
-      this, HasInstanceType(function_data, WASM_EXPORTED_FUNCTION_DATA_TYPE));
-  return CAST(function_data);
+  return CAST(LoadTrustedPointerFromObject(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
+      kWasmExportedFunctionDataIndirectPointerTag));
 }
 
 TNode<WasmJSFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmJSFunctionData(
     TNode<SharedFunctionInfo> sfi) {
-  TNode<WasmFunctionData> function_data =
-      LoadSharedFunctionInfoWasmFunctionData(sfi);
-  // TODO(saelo): it would be nice if we could use LoadTrustedPointerFromObject
-  // with a kWasmJSFunctionDataIndirectPointerTag to avoid the SBXCHECK, but
-  // for that our tagging scheme first needs to support type hierarchies.
-  CSA_SBXCHECK(this,
-               HasInstanceType(function_data, WASM_JS_FUNCTION_DATA_TYPE));
-  return CAST(function_data);
+  return CAST(LoadTrustedPointerFromObject(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
+      kWasmJSFunctionDataIndirectPointerTag));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -7736,6 +7743,35 @@ void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
   BIND(&out);
 }
 
+void CodeStubAssembler::ThrowIfNotJSTypedArray(TNode<Context> context,
+                                               TNode<Object> value,
+                                               Label* if_marked_detached,
+                                               char const* method_name) {
+  Label out(this), not_typed_array_type(this),
+      throw_exception(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(value), &throw_exception);
+
+  // Load the instance type of the {value}.
+  TNode<Map> map = LoadMap(CAST(value));
+  const TNode<Uint16T> value_instance_type = LoadMapInstanceType(map);
+
+  Branch(IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(value_instance_type),
+         &out, &not_typed_array_type);
+
+  BIND(&not_typed_array_type);
+  Branch(Word32Equal(value_instance_type,
+                     Int32Constant(JS_DETACHED_TYPED_ARRAY_TYPE)),
+         if_marked_detached, &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  BIND(&throw_exception);
+  ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                 StringConstant(method_name), value);
+
+  BIND(&out);
+}
+
 void CodeStubAssembler::ThrowRangeError(TNode<Context> context,
                                         MessageTemplate message,
                                         std::optional<TNode<Object>> arg0,
@@ -8808,7 +8844,7 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(TNode<Map> map) {
   return IsJSFunctionInstanceType(LoadMapInstanceType(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE);
 }
@@ -8819,6 +8855,12 @@ TNode<BoolT> CodeStubAssembler::IsJSTypedArrayMap(TNode<Map> map) {
 
 TNode<BoolT> CodeStubAssembler::IsJSTypedArray(TNode<HeapObject> object) {
   return IsJSTypedArrayMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, JS_TYPED_ARRAY_TYPE,
+                   JS_DETACHED_TYPED_ARRAY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayBuffer(TNode<HeapObject> object) {
@@ -12329,7 +12371,6 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
   BIND(&if_accessor_info);
   {
     if (holder.has_value()) {
-      TNode<AccessorInfo> accessor_info = CAST(value);
       Label if_array(this), if_function(this), if_wrapper(this);
       // Dispatch based on {holder} instance type.
       TNode<Map> holder_map = LoadMap(*holder);
@@ -12343,9 +12384,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       BIND(&if_array);
       {
         // We only deal with the "length" accessor on JSArray.
-        GotoIfNot(IsLengthString(LoadObjectField(accessor_info,
-                                                 AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsLengthString(name), if_bailout);
         TNode<JSArray> array = CAST(*holder);
         var_value = LoadJSArrayLength(array);
         Goto(&done);
@@ -12355,9 +12394,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       BIND(&if_function);
       {
         // We only deal with the "prototype" accessor on JSFunction here.
-        GotoIfNot(IsPrototypeString(LoadObjectField(accessor_info,
-                                                    AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsPrototypeString(name), if_bailout);
 
         TNode<JSFunction> function = CAST(*holder);
         GotoIfPrototypeRequiresRuntimeLookup(function, holder_map, if_bailout);
@@ -12370,9 +12407,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       {
         // We only deal with the "length" accessor on JSPrimitiveWrapper string
         // wrappers.
-        GotoIfNot(IsLengthString(LoadObjectField(accessor_info,
-                                                 AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsLengthString(name), if_bailout);
         TNode<Object> holder_value = LoadJSPrimitiveWrapperValue(CAST(*holder));
         GotoIfNot(TaggedIsNotSmi(holder_value), if_bailout);
         GotoIfNot(IsString(CAST(holder_value)), if_bailout);
@@ -12945,7 +12980,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
       BIND(&check_integer_indexed_exotic);
       {
         // Bailout if it can be an integer indexed exotic case.
-        GotoIfNot(InstanceTypeEqual(holder_instance_type, JS_TYPED_ARRAY_TYPE),
+        GotoIfNot(IsJSTypedArrayInstanceType(holder_instance_type),
                   &next_proto);
         GotoIfNot(IsString(var_unique.value()), &next_proto);
         BranchIfMaybeSpecialIndex(CAST(var_unique.value()), if_bailout,
@@ -13431,24 +13466,41 @@ void CodeStubAssembler::DCheckReceiver(ConvertReceiverMode mode,
   }
 }
 
-TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {
-  TVARIABLE(Map, value);
-  Label vtrue(this, Label::kDeferred), vfalse(this), end(this);
-  Branch(TaggedIsSmi(receiver), &vtrue, &vfalse);
+std::tuple<TNode<JSAny>, TNode<Map>>
+CodeStubAssembler::SanitizeReceiverAndLoadReceiverMap(
+    TNode<Object> unsanitized_receiver) {
+  TVARIABLE(JSAny, receiver);
+  TVARIABLE(Map, map);
+  Label if_smi(this, Label::kDeferred), if_not_smi(this), done(this);
+  Branch(TaggedIsSmi(unsanitized_receiver), &if_smi, &if_not_smi);
 
-  BIND(&vtrue);
+  BIND(&if_smi);
   {
-    value = HeapNumberMapConstant();
-    Goto(&end);
+    TNode<Smi> smi_receiver = CAST(unsanitized_receiver);
+#if V8_ENABLE_SANDBOX
+    // TODO(ishell): add SanitizeSmi instruction.
+    TNode<UintPtrT> smi_payload =
+        Unsigned(ChangeUint32ToWord(TruncateWordToInt32(
+            BitcastTaggedToWordForTagAndSmiBits(smi_receiver))));
+    TNode<UintPtrT> cage_base =
+        Load<UintPtrT>(IsolateField(IsolateFieldId::kCageBase));
+    smi_receiver =
+        BitcastWordToTaggedSigned(UintPtrAdd(cage_base, smi_payload));
+#endif  // V8_ENABLE_SANDBOX
+    receiver = smi_receiver;
+    map = HeapNumberMapConstant();
+    Goto(&done);
   }
-  BIND(&vfalse);
+  BIND(&if_not_smi);
   {
-    value = LoadMap(UncheckedCast<HeapObject>(receiver));
-    Goto(&end);
+    TNode<JSAnyNotSmi> ho_receiver = CAST(unsanitized_receiver);
+    receiver = ho_receiver;
+    map = LoadMap(ho_receiver);
+    Goto(&done);
   }
 
-  BIND(&end);
-  return value.value();
+  BIND(&done);
+  return {receiver.value(), map.value()};
 }
 
 TNode<IntPtrT> CodeStubAssembler::TryToIntptr(

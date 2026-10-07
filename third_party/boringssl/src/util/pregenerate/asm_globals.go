@@ -17,10 +17,17 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
 )
+
+// addedAsmSymbols are additional symbols to include in prefixing,
+// even if not found by scanning the asm files.
+var addedAsmSymbols = []string{
+	"p_thread_callback_boringssl",
+}
 
 // CollectAsmGlobals collects assembly global symbols, deduplicated and sorted.
 // Inputs are paths to both original and fully templated assembly source files,
@@ -28,7 +35,10 @@ import (
 // It will understand symbols prefixed with double underscores as private,
 // symbols prefixed with a *single* underscore as public on Apple platforms.
 func CollectAsmGlobals(srcs []string) ([]string, error) {
-	syms := make(map[string]bool)
+	syms := make(map[string]struct{})
+	for _, sym := range addedAsmSymbols {
+		syms[sym] = struct{}{}
+	}
 	for _, src := range srcs {
 		var file *os.File
 		file, err := os.Open(src)
@@ -52,7 +62,7 @@ func CollectAsmGlobals(srcs []string) ([]string, error) {
 				}
 				sym := strings.TrimPrefix(sym, "_")
 				if _, exists := syms[sym]; !exists {
-					syms[sym] = true
+					syms[sym] = struct{}{}
 				}
 			}
 		}
@@ -63,4 +73,96 @@ func CollectAsmGlobals(srcs []string) ([]string, error) {
 	}
 	slices.Sort(ret)
 	return ret, nil
+}
+
+// BuildAsmGlobalsCHeader builds a symbol prefixing include for C.
+func BuildAsmGlobalsCHeader(syms []string) []byte {
+	var output bytes.Buffer
+	writeHeader(&output, "//")
+	output.WriteString(`
+#ifndef OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_C_H
+#define OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_C_H
+
+#include <openssl/prefix_symbols.h>
+
+
+`)
+	// Not using redefine_extname here, as some asm symbols are conditionally inline functions
+	// (on platforms with no asm implementation).
+	for _, sym := range syms {
+		fmt.Fprintf(&output, "#define %s BORINGSSL_ADD_PREFIX(%s)\n", sym, sym)
+	}
+	output.WriteString(`
+#endif  // OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_C_H
+`)
+	return output.Bytes()
+}
+
+// BuildAsmGlobalsGasHeader builds a symbol prefixing include for the GNU Assembler (gas).
+func BuildAsmGlobalsGasHeader(syms []string) []byte {
+	var output bytes.Buffer
+	writeHeader(&output, "//")
+	output.WriteString(`
+#ifndef OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_S_H
+#define OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_S_H
+
+#include <openssl/prefix_symbols.h>
+
+
+`)
+	fmt.Fprintf(&output, "#if defined(__APPLE__)\n")
+	output.WriteString("\n")
+	for _, sym := range syms {
+		fmt.Fprintf(&output, "#define _%s BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(%s))\n", sym, sym)
+	}
+	output.WriteString("\n")
+	fmt.Fprintf(&output, "#else  // __APPLE__\n")
+	output.WriteString("\n")
+	for _, sym := range syms {
+		fmt.Fprintf(&output, "#define %s BORINGSSL_ADD_PREFIX(%s)\n", sym, sym)
+	}
+	output.WriteString("\n")
+	fmt.Fprintf(&output, "#endif  // __APPLE__\n")
+	output.WriteString(`
+#endif  // OPENSSL_HEADER_PREFIX_SYMBOLS_INTERNAL_S_H
+`)
+	return output.Bytes()
+}
+
+// BuildAsmGlobalsNasmX86Header builds a symbol prefixing include for the Netwide Assembler (nasm).
+func BuildAsmGlobalsNasmX86Header(syms []string) []byte {
+	var output bytes.Buffer
+	writeHeader(&output, ";")
+	output.WriteString(`
+%ifndef OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_WIN_ASM_H
+%define OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_WIN_ASM_H
+
+
+`)
+	for _, sym := range syms {
+		fmt.Fprintf(&output, "%%define _%s _ %%+ BORINGSSL_PREFIX %%+ _%s\n", sym, sym)
+	}
+	output.WriteString(`
+%endif  ; OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_WIN_ASM_H
+`)
+	return output.Bytes()
+}
+
+// BuildAsmGlobalsNasmHeader builds a symbol prefixing include for the Netwide Assembler (nasm).
+func BuildAsmGlobalsNasmX8664Header(syms []string) []byte {
+	var output bytes.Buffer
+	writeHeader(&output, ";")
+	output.WriteString(`
+%ifndef OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_64_WIN_ASM_H
+%define OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_64_WIN_ASM_H
+
+
+`)
+	for _, sym := range syms {
+		fmt.Fprintf(&output, "%%define %s BORINGSSL_PREFIX %%+ _%s\n", sym, sym)
+	}
+	output.WriteString(`
+%endif  ; OPENSSL_HEADER_GEN_BORINGSSL_PREFIX_SYMBOLS_INTERNAL_X86_64_WIN_ASM_H
+`)
+	return output.Bytes()
 }

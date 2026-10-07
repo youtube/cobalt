@@ -17,6 +17,7 @@
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
@@ -54,6 +55,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
 #include "src/numbers/conversions.h"
@@ -1762,13 +1764,6 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagHoleyFloat64>({value}));
     }
-    case ValueRepresentation::kShiftedInt53:
-      if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagShiftedInt53>({value}));
-      }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagShiftedInt53>({value}));
     case ValueRepresentation::kIntPtr:
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
@@ -1865,8 +1860,6 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
       return AddNewNodeNoInputConversion<Uint32ToUint8Clamped>({value});
-    case ValueRepresentation::kShiftedInt53:
-      UNIMPLEMENTED();
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -2499,6 +2492,20 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
   return SetAccumulator(AddNewNode<StringConcat>({left, right}));
 }
 
+ReduceResult MaglevGraphBuilder::BuildFloat64SpeculateSafeAdd(
+    ValueNode* left, ValueNode* right) {
+  DCHECK(can_speculative_additive_safe_int());
+  PROCESS_AND_RETURN_IF_DONE(
+      reducer_.TryFoldFloat64BinaryOperationForToNumber<Operation::kAdd>(
+          TaggedToFloat64ConversionType::kOnlyNumber, left, right),
+      SetAccumulator);
+  ReduceResult result = AddNewNode<Float64SpeculateSafeAdd>({left, right});
+  if (result.IsDoneWithValue()) {
+    result.value()->set_can_truncate_to_int32(true);
+  }
+  return SetAccumulator(result);
+}
+
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
@@ -2508,15 +2515,15 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kAdditiveSafeInteger:
-      if (is_turbolev() && Is64() &&
-          v8_flags.turbolev_additive_safe_int_feedback) {
+      if (can_speculative_additive_safe_int()) {
         DCHECK_EQ(kOperation, Operation::kAdd);
-        ValueNode* left = LoadRegister(0);
-        ValueNode* right = GetAccumulator();
-        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
-                                   SetAccumulator);
-        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
-            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+        ValueNode* left;
+        GET_VALUE_OR_ABORT(
+            left, LoadRegisterFloat64ForToNumber(0, NodeType::kNumber));
+        ValueNode* right;
+        GET_VALUE_OR_ABORT(right,
+                           GetAccumulatorFloat64ForToNumber(NodeType::kNumber));
+        return BuildFloat64SpeculateSafeAdd(left, right);
       }
       [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:
@@ -2593,15 +2600,13 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kAdditiveSafeInteger:
-      if (is_turbolev() && Is64() &&
-          v8_flags.turbolev_additive_safe_int_feedback) {
+      if (can_speculative_additive_safe_int()) {
         DCHECK_EQ(kOperation, Operation::kAdd);
-        ValueNode* left = GetAccumulator();
-        ValueNode* right = GetInt32Constant(iterator_.GetImmediateOperand(0));
-        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
-                                   SetAccumulator);
-        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
-            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+        ValueNode* left;
+        GET_VALUE_OR_ABORT(left,
+                           GetAccumulatorFloat64ForToNumber(NodeType::kNumber));
+        double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
+        return BuildFloat64SpeculateSafeAdd(left, GetFloat64Constant(constant));
       }
       [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:
@@ -3483,7 +3488,7 @@ ReduceResult MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
   if (tagged_lhs == tagged_rhs) {
     return GetBooleanConstant(true);
   }
-  if (HaveDisjointTypes(tagged_lhs, tagged_rhs)) {
+  if (reducer_.HaveDisjointTypes(tagged_lhs, tagged_rhs)) {
     return GetBooleanConstant(false);
   }
   // TODO(victorgomes): We could retrieve the HeapObjectRef in Constant and
@@ -4127,8 +4132,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     case ValueRepresentation::kIntPtr:
       AddNewNodeNoInputConversion<CheckIntPtrIsSmi>({object});
       break;
-    case ValueRepresentation::kShiftedInt53:
-      UNIMPLEMENTED();
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -5700,7 +5703,6 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
-    case ValueRepresentation::kShiftedInt53:
       return GetInt32(object);
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
@@ -5741,8 +5743,6 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kUint32:
       return object;
 
-    case ValueRepresentation::kShiftedInt53:
-      return AddNewNodeNoInputConversion<CheckedShiftedInt53ToUint32>({object});
     case ValueRepresentation::kFloat64:
       if (auto constant = TryGetFloat64OrHoleyFloat64Constant(
               UseRepresentation::kFloat64, object,
@@ -6121,6 +6121,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
       elements_kind == BIGUINT64_ELEMENTS ||
       elements_kind == BIGINT64_ELEMENTS) {
     return {};
+  }
+  // No point in optimizing access to detached typed arrays.
+  for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
+    if (map.IsJSDetachedTypedArrayMap()) return {};
   }
   if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
       LoadModeHandlesOOB(keyed_mode.load_mode())) {
@@ -8664,7 +8668,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
     }
   }
 
-  // TODO(verwaest): Add a node that checks the instance type.
+  if (is_turbolev()) {
+    return AddNewNode<ObjectIsArray>({node});
+  }
+  // TODO(dmercadier): consider supporting ObjectIsArray in Maglev.
   return {};
 }
 
@@ -10444,9 +10451,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     FAIL(" to reduce Array.prototype.push - no receiver");
   }
 
-  // TODO(pthier): Support multiple arguments.
-  if (args.count() != 1) {
-    FAIL("  to reduce Array.prototype.push - invalid argument count");
+  if (args.count() == 0) {
+    FAIL("  to reduce Array.prototype.push - no argument");
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
@@ -10521,50 +10527,88 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   ValueNode* old_array_length;
   GET_VALUE_OR_ABORT(old_array_length,
                      AddNewNode<UnsafeSmiUntag>({old_array_length_smi}));
-  ValueNode* new_array_length_smi;
-  GET_VALUE_OR_ABORT(new_array_length_smi,
-                     AddNewNode<CheckedSmiIncrement>({old_array_length_smi}));
+  // TODO(dmercadier): consider computing on Smis directly rather than untagging
+  // and then retagging.
+  ValueNode* new_array_length;
+  GET_VALUE_OR_ABORT(new_array_length,
+                     AddNewNode<Int32AddWithOverflow>(
+                         {old_array_length,
+                          GetInt32Constant(static_cast<int>(args.count()))}));
+
+  ValueNode* last_index;
+  GET_VALUE_OR_ABORT(last_index,
+                     AddNewNode<Int32Decrement>({new_array_length}));
 
   ValueNode* elements_array;
   GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(receiver));
   ValueNode* elements_array_length = BuildLoadFixedArrayLength(elements_array);
 
   auto build_array_push = [&](ElementsKind kind) {
-    ValueNode* value;
-    GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
-
-    if (IsObjectElementsKind(kind)) {
-      // Storing to object kinds don't add conversions; no extra code will be
-      // added to the smi case if it falls through the object case.
-      DCHECK_EQ(value, args[0]);
-    }
-
+    // We first make sure that all inputs have the expected type, so that if we
+    // need to deopt, we'll do so before writing anything to the array.
     if (make_smi_fallthrough_to_object && IsSmiElementsKind(kind)) {
-      // The object case will execute the steps below, so we don't do them
-      // for the SMI case.
+      // Usually, we rely on ConvertForStoring below to ensure that the inputs
+      // have the right type. However, when make_smi_fallthrough_to_object is
+      // true, we'll share the Object and Smi storing loop, and
+      // ConvertForStoring will be a no-op since we'll just be storing AnyTagged
+      // objects. Thus, we have to insert CheckSmis here, before falling through
+      // to the Object case.
+      for (ValueNode*& arg : args) {
+        RETURN_IF_ABORT(BuildCheckSmi(arg));
+      }
       return ReduceResult::Done();
     }
 
+    base::SmallVector<ValueNode*, 16> args_to_store;
+    args_to_store.reserve(args.count());
+    for (ValueNode* arg : args) {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(value, ConvertForStoring(arg, kind));
+      args_to_store.push_back(value);
+
+      // Storing to object kinds don't add conversions; no extra code will be
+      // added to the smi case if it falls through the object case.
+      DCHECK_IMPLIES(IsObjectElementsKind(kind), value == arg);
+    }
+    DCHECK_EQ(args_to_store.size(), args.count());
+
+    // All inputs have the right type, we can now extend the array and write.
     ValueNode* writable_elements_array;
     GET_VALUE_OR_ABORT(
         writable_elements_array,
         AddNewNode<MaybeGrowFastElements>(
-            {elements_array, receiver, old_array_length, elements_array_length},
+            {elements_array, receiver, last_index, elements_array_length},
             kind));
-
+    // If {MaybeGrowFastElements} doesn't deopt, then we're guaranteed that the
+    // new length fits in a Smi.
+    EnsureType(new_array_length, NodeType::kSmi);
+    ValueNode* new_array_length_smi;
+    GET_VALUE_OR_ABORT(new_array_length_smi,
+                       AddNewNode<UnsafeSmiTagInt32>({new_array_length}));
     RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {receiver, new_array_length_smi}, JSArray::kLengthOffset,
         StoreTaggedMode::kDefault));
 
-    // Do the store
-    if (IsDoubleElementsKind(kind)) {
-      return BuildStoreFixedDoubleArrayElement(kind, writable_elements_array,
-                                               old_array_length, value);
-    } else {
-      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
-      return BuildStoreFixedArrayElement(writable_elements_array,
-                                         old_array_length, value);
+    for (int index = 0; index < static_cast<int>(args_to_store.size());
+         index++) {
+      ValueNode* store_index;
+      GET_VALUE_OR_ABORT(
+          store_index,
+          AddNewNode<Int32Add>({old_array_length, GetInt32Constant(index)}));
+
+      ValueNode* value = args_to_store[index];
+
+      // Do the store
+      if (IsDoubleElementsKind(kind)) {
+        RETURN_IF_ABORT(BuildStoreFixedDoubleArrayElement(
+            kind, writable_elements_array, store_index, value));
+      } else {
+        DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+        RETURN_IF_ABORT(BuildStoreFixedArrayElement(writable_elements_array,
+                                                    store_index, value));
+      }
     }
+    return ReduceResult::Done();
   };
 
   RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
@@ -10575,9 +10619,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
   }
-  RecordKnownProperty(receiver, broker()->length_string(), new_array_length_smi,
+  RecordKnownProperty(receiver, broker()->length_string(), new_array_length,
                       false, compiler::AccessMode::kStore);
-  return new_array_length_smi;
+  return new_array_length;
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
@@ -10931,7 +10975,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kIntPtr:
-    case ValueRepresentation::kShiftedInt53:
       return arg;
     case ValueRepresentation::kTagged:
       switch (CheckTypes(arg, {NodeType::kSmi})) {
@@ -10963,9 +11006,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     case ValueRepresentation::kIntPtr:
       // TODO(388844115): Rename IntPtr to make it clear it's non-negative.
       return arg;
-    case ValueRepresentation::kShiftedInt53:
-      // TODO(victorgomes): Optimize the shifted case.
-      return {};
     case ValueRepresentation::kInt32:
       if (!CanSpeculateCall()) return {};
       return AddNewNode<Int32AbsWithOverflow>({arg});
@@ -11017,7 +11057,6 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   auto arg_repr = arg->value_representation();
   if (arg_repr == ValueRepresentation::kInt32 ||
       arg_repr == ValueRepresentation::kUint32 ||
-      arg_repr == ValueRepresentation::kShiftedInt53 ||
       arg_repr == ValueRepresentation::kIntPtr) {
     return arg;
   }
@@ -11708,8 +11747,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   if (args.mode() == CallArguments::kDefault &&
       shared.object()->CanOnlyAccessFixedFormalParameters()) {
     auto parameter_count =
-        IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-            dispatch_handle);
+        local_isolate_->js_dispatch_table().GetParameterCount(dispatch_handle);
     if (args.count() > parameter_count - kJSArgcReceiverSlots) {
       args.ResizeDefaultArguments(parameter_count - kJSArgcReceiverSlots);
     }
@@ -13769,9 +13807,6 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     case ValueRepresentation::kInt32:
       return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
 
-    case ValueRepresentation::kShiftedInt53:
-      return AddNewNodeNoInputConversion<ShiftedInt53ToBoolean>({value}, flip);
-
     case ValueRepresentation::kIntPtr:
       return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
 
@@ -13923,7 +13958,6 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kIntPtr:
-    case ValueRepresentation::kShiftedInt53:
       return ReduceResult::Done();
 
     case ValueRepresentation::kHoleyFloat64: {
@@ -14774,30 +14808,7 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
-  vobject->ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
-    if (InlinedAllocation* nested_allocation =
-            value->TryCast<InlinedAllocation>()) {
-      VirtualObject* nested_object =
-          current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-              nested_allocation);
-      if (nested_object == nullptr) {
-        CHECK(is_non_eager_inlining_enabled());
-        // The nested object must have been created by a different inlining
-        // and we cannot see it here in the virtual object list.
-        // TODO(victorgomes): Propagate somehow virtual object lists? For
-        // now, we force the allocation to escape.
-        nested_allocation->ForceEscaping();
-      } else {
-        AddDeoptUse(nested_object);
-      }
-    } else if (!IsConstantNode(value->opcode()) &&
-               value->opcode() != Opcode::kArgumentsElements &&
-               value->opcode() != Opcode::kArgumentsLength &&
-               value->opcode() != Opcode::kRestLength) {
-      AddDeoptUse(value);
-    }
-    return true;
-  });
+  vobject->AddDeoptUse(current_interpreter_frame_.virtual_objects());
 }
 
 ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
@@ -15997,9 +16008,6 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
 
     case ValueRepresentation::kIntPtr:
       return BuildBranchIfIntPtrToBooleanTrue(builder, node);
-
-    case ValueRepresentation::kShiftedInt53:
-      UNIMPLEMENTED();
 
     case ValueRepresentation::kTagged:
       break;
@@ -17916,19 +17924,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
   if (node == nullptr) return;
-  DCHECK(!node->Is<VirtualObject>());
-  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-    VirtualObject* vobject =
-        current_interpreter_frame_.virtual_objects().FindAllocatedWith(alloc);
-    if (vobject) {
-      AddDeoptUse(vobject);
-      // Add an escaping use for the allocation.
-      AddNonEscapingUses(alloc, 1);
-    }
-    alloc->add_use();
-  } else {
-    node->add_use();
-  }
+  node->AddDeoptUse(current_interpreter_frame().virtual_objects());
 }
 
 void MaglevGraphBuilder::CalculatePredecessorCounts() {

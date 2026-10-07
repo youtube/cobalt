@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-truncation.h"
 
+#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer-inl.h"
@@ -14,7 +15,14 @@ void TruncationProcessor::UnwrapInputs(NodeBase* node) {
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input(i).node();
     if (!input) continue;
-    node->change_input(i, input->UnwrapIdentities());
+    ValueNode* unwrapped = input->UnwrapIdentities();
+    if (unwrapped != input) {
+      TRACE_TRUNCATION("unwrapping input " << i << " of "
+                                           << PrintNodeBrief{node} << " from "
+                                           << PrintNodeBrief{input} << " to "
+                                           << PrintNodeBrief{unwrapped});
+      node->change_input(i, unwrapped);
+    }
   }
 }
 
@@ -89,6 +97,9 @@ void TruncationProcessor::ConvertInputsToFloat64(ValueNode* node) {
     if (input->is_int32()) {
       ValueNode* converted_input =
           reducer_.AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({input});
+      TRACE_TRUNCATION("converting input " << i << " of "
+                                           << PrintNodeBrief{node} << " to "
+                                           << PrintNodeBrief{converted_input});
       node->change_input(i, converted_input);
     }
   }
@@ -107,14 +118,49 @@ ValueNode* TruncationProcessor::GetTruncatedInt32Input(ValueNode* node,
   return input;
 }
 
+ValueNode* TruncationProcessor::GetSpeculatedTruncatedInt32Input(
+    ValueNode* node, int index) {
+  ValueNode* input = node->input_node(index);
+  if (auto f64_cst = input->TryCast<Float64Constant>()) {
+    DCHECK(input->GetStaticRange().IsSafeInt());
+    input = GetTruncatedInt32Constant(f64_cst->value().get_scalar());
+  } else if (input->Is<ChangeInt32ToFloat64>()) {
+    input = input->input(0).node();
+  } else if (input->Is<UnsafeNumberToFloat64>()) {
+    input =
+        reducer_
+            .AddNewNodeNoInputConversion<TruncateUnsafeNumberAsSafeIntToInt32>(
+                {input->input_node(0)});
+  } else if (input->Is<CheckedNumberToFloat64>()) {
+    input =
+        reducer_
+            .AddNewNodeNoInputConversion<TruncateCheckedNumberAsSafeIntToInt32>(
+                {input->input_node(0)});
+  } else if (input->is_float64()) {
+    input =
+        reducer_.AddNewNodeNoInputConversion<TruncateFloat64AsSafeIntToInt32>(
+            {input});
+  }
+  DCHECK(input->is_int32());
+  return input;
+}
+
 void TruncationProcessor::EnsureTruncatedInt32Inputs(ValueNode* node) {
   for (int i = 0; i < node->input_count(); i++) {
-    node->change_input(i, GetTruncatedInt32Input(node, i));
+    ValueNode* input = node->input_node(i);
+    ValueNode* truncated = GetTruncatedInt32Input(node, i);
+    if (input != truncated) {
+      TRACE_TRUNCATION("truncating input " << i << " of "
+                                           << PrintNodeBrief{node} << " to "
+                                           << PrintNodeBrief{truncated});
+      node->change_input(i, truncated);
+    }
   }
 }
 
 ProcessResult TruncationProcessor::ProcessTruncatedConversion(ValueNode* node) {
   if (NonInt32InputCount(node) == 0) {
+    TRACE_TRUNCATION("eliding truncated conversion " << PrintNodeBrief{node});
     node->OverwriteWithIdentityTo(GetTruncatedInt32Input(node, 0));
     return ProcessResult::kRemove;
   }
@@ -122,6 +168,7 @@ ProcessResult TruncationProcessor::ProcessTruncatedConversion(ValueNode* node) {
 }
 
 ValueNode* TruncationProcessor::GetTruncatedInt32Constant(double constant) {
+  TRACE_TRUNCATION("created int32 constant " << DoubleToInt32(constant));
   return reducer_.GetInt32Constant(DoubleToInt32(constant));
 }
 

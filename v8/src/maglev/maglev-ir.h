@@ -40,6 +40,7 @@
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-range.h"
 #include "src/maglev/maglev-regalloc-node-info.h"
 #include "src/objects/arguments.h"
@@ -149,6 +150,7 @@ class ExceptionHandlerInfo;
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
   V(Float64Abs)                         \
   V(Float64Add)                         \
+  V(Float64SpeculateSafeAdd)            \
   V(Float64Subtract)                    \
   V(Float64Multiply)                    \
   V(Float64Divide)                      \
@@ -175,7 +177,6 @@ class ExceptionHandlerInfo;
   V(HoleyFloat64Constant)           \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
-  V(ShiftedInt53Constant)           \
   V(IntPtrConstant)                 \
   V(RootConstant)                   \
   V(SmiConstant)                    \
@@ -196,7 +197,8 @@ class ExceptionHandlerInfo;
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)                \
-  V(StringSlice)
+  V(StringSlice)                    \
+  V(ObjectIsArray)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
@@ -240,19 +242,7 @@ class ExceptionHandlerInfo;
   V(UnsafeSmiTagInt32)                  \
   V(UnsafeSmiTagIntPtr)                 \
   V(UnsafeSmiTagUint32)                 \
-  V(UnsafeSmiUntag)                     \
-  V(CheckedShiftedInt53ToUint32)        \
-  V(CheckedIntPtrToShiftedInt53)        \
-  V(CheckedHoleyFloat64ToShiftedInt53)  \
-  V(UnsafeSmiTagShiftedInt53)           \
-  V(CheckedNumberToShiftedInt53)        \
-  V(ShiftedInt53ToNumber)               \
-  V(CheckedShiftedInt53ToInt32)         \
-  V(ChangeInt32ToShiftedInt53)          \
-  V(ChangeUint32ToShiftedInt53)         \
-  V(ChangeShiftedInt53ToFloat64)        \
-  V(ChangeShiftedInt53ToHoleyFloat64)   \
-  V(CheckedSmiTagShiftedInt53)
+  V(UnsafeSmiUntag)
 
 #define VALUE_NODE_LIST(V)                                            \
   V(Identity)                                                         \
@@ -334,12 +324,14 @@ class ExceptionHandlerInfo;
   V(Phi)                                                              \
   V(RegisterInput)                                                    \
   V(CheckedInternalizedString)                                        \
+  V(TruncateCheckedNumberAsSafeIntToInt32)                            \
+  V(TruncateUnsafeNumberAsSafeIntToInt32)                             \
+  V(TruncateFloat64AsSafeIntToInt32)                                  \
   V(TruncateCheckedNumberOrOddballToInt32)                            \
   V(TruncateUnsafeNumberOrOddballToInt32)                             \
   V(TruncateFloat64ToInt32)                                           \
   V(TruncateHoleyFloat64ToInt32)                                      \
   V(TruncateUint32ToInt32)                                            \
-  V(TruncateShiftedInt53ToInt32)                                      \
   V(Int32ToUint8Clamped)                                              \
   V(Uint32ToUint8Clamped)                                             \
   V(Float64ToUint8Clamped)                                            \
@@ -347,7 +339,6 @@ class ExceptionHandlerInfo;
   V(Int32CountLeadingZeros)                                           \
   V(TaggedCountLeadingZeros)                                          \
   V(Float64CountLeadingZeros)                                         \
-  V(ShiftedInt53ToBoolean)                                            \
   V(IntPtrToBoolean)                                                  \
   V(Float64ToHeapNumberForField)                                      \
   V(CheckedNumberOrOddballToFloat64)                                  \
@@ -391,7 +382,6 @@ class ExceptionHandlerInfo;
   V(VirtualObject)                                                    \
   V(GetContinuationPreservedEmbedderData)                             \
   V(ReturnedValue)                                                    \
-  V(ShiftedInt53AddWithOverflow)                                      \
   CONSTANT_VALUE_NODE_LIST(V)                                         \
   CONVERSION_NODE_LIST(V)                                             \
   INT32_OPERATIONS_NODE_LIST(V)                                       \
@@ -478,6 +468,7 @@ class ExceptionHandlerInfo;
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
   V(FulfillPromise)                           \
+  V(CheckMaglevType)                          \
   GAP_MOVE_NODE_LIST(V)                       \
   TURBOLEV_NON_VALUE_NODE_LIST(V)
 
@@ -607,6 +598,7 @@ constexpr bool IsConversionNode(Opcode opcode) {
 constexpr bool IsCommutativeNode(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
+    case Opcode::kFloat64SpeculateSafeAdd:
     case Opcode::kFloat64Min:
     case Opcode::kFloat64Max:
     case Opcode::kFloat64Multiply:
@@ -693,6 +685,22 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
          opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
+constexpr bool IsTruncatingToInt32(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kTruncateUint32ToInt32:
+    case Opcode::kTruncateFloat64ToInt32:
+    case Opcode::kTruncateHoleyFloat64ToInt32:
+    case Opcode::kTruncateCheckedNumberAsSafeIntToInt32:
+    case Opcode::kTruncateUnsafeNumberAsSafeIntToInt32:
+    case Opcode::kTruncateFloat64AsSafeIntToInt32:
+    case Opcode::kTruncateCheckedNumberOrOddballToInt32:
+    case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
+      return true;
+    default:
+      return false;
+  }
+}
+
 constexpr bool CanTriggerTruncationPass(Opcode opcode) {
   if (IsInt32BitwiseBinaryOperationNode(opcode)) return true;
   switch (opcode) {
@@ -745,6 +753,7 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
 constexpr bool HasRangeField(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
+    case Opcode::kFloat64SpeculateSafeAdd:
     case Opcode::kFloat64Subtract:
     case Opcode::kFloat64Multiply:
     case Opcode::kFloat64Divide:
@@ -854,9 +863,6 @@ enum class ValueRepresentation : uint8_t {
   kHoleyFloat64,
   kIntPtr,
   kRawPtr,
-  // Only enabled in 64 bit archs, this is an Int53 (AdditiveSafeInteger range)
-  // shifted by 11 bits. The lower 11 bits are 0.
-  kShiftedInt53,
   kNone,
 };
 
@@ -874,29 +880,6 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
           repr == ValueRepresentation::kInt32);
 #endif
 }
-
-class ShiftedInt53 {
- public:
-  constexpr explicit ShiftedInt53(int64_t value = 0) : value_(value << 11) {
-    DCHECK(IsSafeInteger(value));
-  }
-
-  constexpr explicit ShiftedInt53(int32_t value)
-      : ShiftedInt53(static_cast<int64_t>(value)) {}
-
-  constexpr explicit ShiftedInt53(double value)
-      : ShiftedInt53(static_cast<int64_t>(value)) {
-    DCHECK(IsSafeInteger(value));
-  }
-
-  constexpr auto operator<=>(const ShiftedInt53& other) const = default;
-
-  constexpr int64_t ToInt64() const { return value_ >> 11; }
-  constexpr int64_t value() const { return value_; }
-
- private:
-  int64_t value_;
-};
 
 inline bool ValueRepresentationIs(ValueRepresentation got,
                                   ValueRepresentation expected) {
@@ -916,7 +899,6 @@ enum class UseRepresentation : uint8_t {
   kInt32,
   kTruncatedInt32,
   kUint32,
-  kShiftedInt53,
   kFloat64,
   kHoleyFloat64,
   kLast = kHoleyFloat64
@@ -926,418 +908,6 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
 
 typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
 typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
-
-// TODO(olivf): Rename Unknown to Any.
-
-/* Every object should belong to exactly one of these.*/
-#define LEAF_NODE_TYPE_LIST(V)                      \
-  V(Smi, (1 << 0))                                  \
-  V(HeapNumber, (1 << 1))                           \
-  V(Null, (1 << 2))                                 \
-  V(Undefined, (1 << 3))                            \
-  V(Boolean, (1 << 4))                              \
-  V(Symbol, (1 << 5))                               \
-  /* String Venn diagram:                        */ \
-  /* ┌String───────────────────────────────────┐ */ \
-  /* │                            OtherString  │ */ \
-  /* │┌InternalizedString───┐                  │ */ \
-  /* ││                     │                  │ */ \
-  /* ││OtherInternalized    │                  │ */ \
-  /* ││String               │                  │ */ \
-  /* │├─────────────────────┼─SeqOneByteString┐│ */ \
-  /* ││                     │                 ││ */ \
-  /* ││OtherSeqInternalized │ OtherSeqOneByte ││ */ \
-  /* ││OneByteString        │ String          ││ */ \
-  /* │├──────────────────┐  │                 ││ */ \
-  /* ││ROSeqInternalized │  │                 ││ */ \
-  /* ││OneByteString     │  │                 ││ */ \
-  /* │└──────────────────┴──┴─────────────────┘│ */ \
-  /* └─────────────────────────────────────────┘ */ \
-  V(ROSeqInternalizedOneByteString, (1 << 6))       \
-  V(OtherSeqInternalizedOneByteString, (1 << 7))    \
-  V(OtherInternalizedString, (1 << 8))              \
-  V(OtherSeqOneByteString, (1 << 9))                \
-  V(OtherString, (1 << 10))                         \
-                                                    \
-  V(Context, (1 << 11))                             \
-  V(StringWrapper, (1 << 12))                       \
-  V(JSArray, (1 << 13))                             \
-  V(JSFunction, (1 << 14))                          \
-  V(OtherCallable, (1 << 15))                       \
-  V(JSDataView, (1 << 16))                          \
-  V(OtherHeapObject, (1 << 17))                     \
-  V(OtherJSReceiver, (1 << 18))
-
-#define COUNT(...) +1
-static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
-#undef COUNT
-
-#define COMBINED_NODE_TYPE_LIST(V)                                          \
-  /* A value which has all the above bits set */                            \
-  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                           \
-  /* All bits cleared, useful as initial value when combining types. */     \
-  V(None, 0)                                                                \
-  V(Callable, kJSFunction | kOtherCallable)                                 \
-  V(NullOrUndefined, kNull | kUndefined)                                    \
-  V(Oddball, kNullOrUndefined | kBoolean)                                   \
-  V(Number, kSmi | kHeapNumber)                                             \
-  V(NumberOrBoolean, kNumber | kBoolean)                                    \
-  V(NumberOrUndefined, kNumber | kUndefined)                                \
-  V(NumberOrOddball, kNumber | kOddball)                                    \
-  V(InternalizedString, kROSeqInternalizedOneByteString |                   \
-                            kOtherSeqInternalizedOneByteString |            \
-                            kOtherInternalizedString)                       \
-  V(SeqOneByteString, kROSeqInternalizedOneByteString |                     \
-                          kOtherSeqInternalizedOneByteString |              \
-                          kOtherSeqOneByteString)                           \
-  V(String, kInternalizedString | kSeqOneByteString | kOtherString)         \
-  V(StringOrStringWrapper, kString | kStringWrapper)                        \
-  V(StringOrOddball, kString | kOddball)                                    \
-  V(Name, kString | kSymbol)                                                \
-  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */             \
-  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)           \
-  V(JSReceiver,                                                             \
-    kJSArray | kCallable | kStringWrapper | kJSDataView | kOtherJSReceiver) \
-  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)            \
-  V(AnyHeapObject, kUnknown - kSmi)
-
-#define NODE_TYPE_LIST(V) \
-  LEAF_NODE_TYPE_LIST(V)  \
-  COMBINED_NODE_TYPE_LIST(V)
-
-enum class NodeType : uint32_t {
-#define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
-  NODE_TYPE_LIST(DEFINE_NODE_TYPE)
-#undef DEFINE_NODE_TYPE
-};
-using NodeTypeInt = std::underlying_type_t<NodeType>;
-
-// Some leaf node types only exist to complement other leaf node types in a
-// combined type. We never expect to see these as standalone types.
-inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
-  switch (type) {
-    // "Other" string types should be considered internal and never appear as
-    // standalone leaf types.
-    case NodeType::kOtherCallable:
-    case NodeType::kOtherInternalizedString:
-    case NodeType::kOtherSeqInternalizedOneByteString:
-    case NodeType::kOtherSeqOneByteString:
-    case NodeType::kOtherString:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
-
-enum class NodeTypeIsVariant {
-  kDefault,
-  // Allows the lhs of `NodeTypeIs` to be kNone, in which case the result is
-  // always true. Usually this is unexpected and caused by dead code.
-  kAllowNone,
-};
-
-inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
-  DCHECK(!NodeTypeIsNeverStandalone(left));
-  DCHECK(!NodeTypeIsNeverStandalone(right));
-  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
-                               static_cast<NodeTypeInt>(right));
-}
-inline constexpr NodeType UnionType(NodeType left, NodeType right) {
-  DCHECK(!NodeTypeIsNeverStandalone(left));
-  DCHECK(!NodeTypeIsNeverStandalone(right));
-  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
-                               static_cast<NodeTypeInt>(right));
-}
-// TODO(jgruber): Switch the default value back to kDefault once
-// BranchResult/BuildBranchIfFoo can signal an Abort.
-inline constexpr bool NodeTypeIs(
-    NodeType type, NodeType to_check,
-    NodeTypeIsVariant variant = NodeTypeIsVariant::kAllowNone) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-  DCHECK(!NodeTypeIsNeverStandalone(to_check));
-  if (variant != NodeTypeIsVariant::kAllowNone) {
-    DCHECK_NE(type, NodeType::kNone);
-  }
-  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
-  return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
-}
-inline constexpr bool NodeTypeIsForPrinting(NodeType type, NodeType to_check) {
-  // Like NodeTypeIs, but without the DCHECKs, since non-standalone types can be
-  // part of larger types and we still need to print them individually, which
-  // will trigger the DCHECKs of NodeTypeIs.
-  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
-  return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
-}
-inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-  DCHECK(!NodeTypeIsNeverStandalone(to_check));
-  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
-  return (static_cast<NodeTypeInt>(type) & (right)) != 0;
-}
-
-static_assert(!NodeTypeCanBe(NodeType::kJSPrimitive, NodeType::kJSReceiver));
-
-inline constexpr bool NodeTypeIsUnstable(NodeType type) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-  // Any type that can be a string might be unstable, if the string part of the
-  // type is unstable.
-  if (NodeTypeCanBe(type, NodeType::kString)) {
-    // Extract out the string part of the node type.
-    NodeType string_type = IntersectType(type, NodeType::kString);
-    // RO-space strings are ok, since they can't change.
-    if (string_type == NodeType::kROSeqInternalizedOneByteString) return false;
-    // The generic internalized string type is ok, since it doesn't consider
-    // seqness and internalized strings stay internalized.
-    if (string_type == NodeType::kInternalizedString) return false;
-    // The generic string type is ok, since it defines all strings.
-    if (string_type == NodeType::kString) return false;
-    // Otherwise, a string can get in-place externalized, or in-place converted
-    // to thin if not already internalized, both of which lose seq-ness.
-    // TODO(leszeks): We could probably consider byteness of internalized
-    // strings to be stable, since we can't change byteness with in-place
-    // externalization.
-    return true;
-  }
-  // All other node types are stable.
-  return false;
-}
-// Seq strings are unstable because they could be in-place converted to thin
-// strings.
-static_assert(NodeTypeIsUnstable(NodeType::kSeqOneByteString));
-// Internalized strings are stable because they have to stay internalized.
-static_assert(!NodeTypeIsUnstable(NodeType::kInternalizedString));
-// RO internalized strings are stable because they are read-only.
-static_assert(!NodeTypeIsUnstable(NodeType::kROSeqInternalizedOneByteString));
-// The generic string type is stable because we've already erased any
-// information about it.
-static_assert(!NodeTypeIsUnstable(NodeType::kString));
-// A type which contains an unstable string should also be unstable.
-static_assert(NodeTypeIsUnstable(UnionType(NodeType::kNumber,
-                                           NodeType::kSeqOneByteString)));
-// A type which contains a stable string should also be stable.
-static_assert(!NodeTypeIsUnstable(UnionType(NodeType::kNumber,
-                                            NodeType::kInternalizedString)));
-
-inline constexpr NodeType MakeTypeStable(NodeType type) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-  if (!NodeTypeIsUnstable(type)) return type;
-  // Strings can be in-place internalized, turned into thin strings, and
-  // in-place externalized, and byteness can change from one->two byte (because
-  // of internalized external strings with two-byte encoding of one-byte data)
-  // or two->one byte (because of internalizing a two-byte slice with one-byte
-  // data). The only invariant that we can preserve is that internalized strings
-  // stay internalized.
-  DCHECK(NodeTypeCanBe(type, NodeType::kString));
-  // Extract out the string part of the node type.
-  NodeType string_type = IntersectType(type, NodeType::kString);
-  if (NodeTypeIs(string_type, NodeType::kInternalizedString)) {
-    // Strings that can't be anything but internalized become generic
-    // internalized.
-    type = UnionType(type, NodeType::kInternalizedString);
-  } else {
-    // All other strings become fully generic.
-    type = UnionType(type, NodeType::kString);
-  }
-  DCHECK(!NodeTypeIsUnstable(type));
-  return type;
-}
-// Seq strings become normal strings with unspecified byteness when made stable,
-// because they could have been internalized into a two-byte external string.
-static_assert(MakeTypeStable(NodeType::kSeqOneByteString) == NodeType::kString);
-// Generic internalized strings stay as they are.
-static_assert(MakeTypeStable(NodeType::kInternalizedString) ==
-              NodeType::kInternalizedString);
-// Read-only seq internalized strings become generic.
-static_assert(MakeTypeStable(NodeType::kROSeqInternalizedOneByteString) ==
-              NodeType::kROSeqInternalizedOneByteString);
-// Stabilizing a type which is partially an unstable string should generalize
-// the string part of the type
-static_assert(MakeTypeStable(UnionType(NodeType::kNumber,
-                                       NodeType::kSeqOneByteString)) ==
-              UnionType(NodeType::kNumber, NodeType::kString));
-
-// Assert that the Unknown type is constructed correctly.
-#define ADD_STATIC_ASSERT(Name, Value)                          \
-  static_assert(NodeTypeIsNeverStandalone(NodeType::k##Name) || \
-                NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
-LEAF_NODE_TYPE_LIST(ADD_STATIC_ASSERT)
-#undef ADD_STATIC_ASSERT
-
-inline NodeType StaticTypeForMap(compiler::MapRef map,
-                                 compiler::JSHeapBroker* broker) {
-  if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
-  if (map.IsStringMap()) {
-    if (map.IsInternalizedStringMap()) {
-      return NodeType::kInternalizedString;
-    }
-    if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
-      return NodeType::kSeqOneByteString;
-    }
-    return NodeType::kString;
-  }
-  if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
-  if (map.IsSymbolMap()) return NodeType::kSymbol;
-  if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
-  if (map.IsOddballMap()) {
-    // Oddball but not a Boolean.
-    return NodeType::kNullOrUndefined;
-  }
-  if (map.IsContextMap()) return NodeType::kContext;
-  if (map.IsJSArrayMap()) return NodeType::kJSArray;
-  if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
-  if (map.is_callable()) {
-    return NodeType::kCallable;
-  }
-  if (map.IsJSDataViewMap()) return NodeType::kJSDataView;
-  if (map.IsJSReceiverMap()) {
-    // JSReceiver but not any of the above.
-    return NodeType::kOtherJSReceiver;
-  }
-  return NodeType::kOtherHeapObject;
-}
-
-inline constexpr bool IsEmptyNodeType(NodeType type) {
-  // No bits are set.
-  return static_cast<int>(type) == 0;
-}
-
-inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
-                                      compiler::ObjectRef ref) {
-  if (ref.IsSmi()) return NodeType::kSmi;
-  if (ref.HoleType() != compiler::HoleType::kNone)
-    return NodeType::kOtherHeapObject;
-  NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
-  DCHECK(!IsEmptyNodeType(type));
-  if (type == NodeType::kInternalizedString && ref.is_read_only()) {
-    if (ref.AsString().IsSeqString() &&
-        ref.AsString().IsOneByteRepresentation()) {
-      type = NodeType::kROSeqInternalizedOneByteString;
-    }
-  }
-  return type;
-}
-
-inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
-                                     compiler::JSHeapBroker* broker) {
-  switch (type) {
-    case NodeType::kSmi:
-      return false;
-    case NodeType::kHeapNumber:
-      return map.IsHeapNumberMap();
-    case NodeType::kNull:
-      return map.IsNullMap(broker);
-    case NodeType::kUndefined:
-      return map.IsUndefinedMap(broker);
-    case NodeType::kBoolean:
-      return map.IsBooleanMap(broker);
-    case NodeType::kSymbol:
-      return map.IsSymbolMap();
-    case NodeType::kOtherString:
-      // This doesn't exclude other string leaf types, which means one should
-      // never test for this node type alone.
-      return map.IsStringMap();
-    case NodeType::kOtherSeqOneByteString:
-      return map.IsSeqStringMap() && map.IsOneByteStringMap();
-    // We can't prove with a map alone that an object is in RO-space, but
-    // these maps will be potential candidates.
-    case NodeType::kROSeqInternalizedOneByteString:
-    case NodeType::kOtherSeqInternalizedOneByteString:
-      return map.IsInternalizedStringMap() && map.IsSeqStringMap() &&
-             map.IsOneByteStringMap();
-    case NodeType::kOtherInternalizedString:
-      return map.IsInternalizedStringMap();
-    case NodeType::kStringWrapper:
-      return map.IsStringWrapperMap();
-    case NodeType::kContext:
-      return map.IsContextMap();
-    case NodeType::kJSArray:
-      return map.IsJSArrayMap();
-    case NodeType::kJSFunction:
-      return map.IsJSFunctionMap();
-    case NodeType::kCallable:
-      return map.is_callable();
-    case NodeType::kOtherCallable:
-      return map.is_callable() && !map.IsJSFunctionMap();
-    case NodeType::kJSDataView:
-      return map.IsJSDataViewMap();
-    case NodeType::kOtherJSReceiver:
-      return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
-             !map.is_callable() && !map.IsStringWrapperMap();
-    case NodeType::kOtherHeapObject:
-      return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
-             !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
-             !map.IsJSReceiverMap();
-    default:
-      UNREACHABLE();
-  }
-}
-
-inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
-                                 compiler::JSHeapBroker* broker) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-
-  // Early return for any heap object.
-  if (NodeTypeIs(NodeType::kAnyHeapObject, type)) {
-    // Unknown types will be handled here too.
-    static_assert(NodeTypeIs(NodeType::kAnyHeapObject, NodeType::kUnknown));
-    return true;
-  }
-
-  // Iterate over each leaf type bit in the type bitmask, and check if the map
-  // matches it.
-  NodeTypeInt type_bits = static_cast<NodeTypeInt>(type);
-  while (type_bits != 0) {
-    NodeTypeInt current_bit =
-        1 << base::bits::CountTrailingZerosNonZero(type_bits);
-    NodeType leaf_type = static_cast<NodeType>(current_bit);
-    if (IsInstanceOfLeafNodeType(map, leaf_type, broker)) return true;
-    type_bits = base::bits::ClearLsb(type_bits);
-  }
-  return false;
-}
-
-inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
-  if (IsEmptyNodeType(type)) {
-    out << "Empty";
-    return out;
-  }
-  switch (type) {
-#define CASE(Name, _)     \
-  case NodeType::k##Name: \
-    out << #Name;         \
-    break;
-    NODE_TYPE_LIST(CASE)
-#undef CASE
-    default:
-#define CASE(Name, _)                                        \
-  if (NodeTypeIsForPrinting(NodeType::k##Name, type)) {      \
-    if constexpr (NodeType::k##Name != NodeType::kUnknown) { \
-      out << #Name "|";                                      \
-    }                                                        \
-  }
-      LEAF_NODE_TYPE_LIST(CASE)
-#undef CASE
-  }
-  return out;
-}
-
-// TODO(jgruber): Switch the default value back to kDefault once
-// BranchResult/BuildBranchIfFoo can signal an Abort.
-#define DEFINE_NODE_TYPE_CHECK(Type, _)                            \
-  inline bool NodeTypeIs##Type(                                    \
-      NodeType type,                                               \
-      NodeTypeIsVariant variant = NodeTypeIsVariant::kAllowNone) { \
-    return NodeTypeIs(type, NodeType::k##Type, variant);           \
-  }
-NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
-#undef DEFINE_NODE_TYPE_CHECK
-
-inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
-  return (static_cast<int>(type) &
-          static_cast<int>(NodeType::kNullOrUndefined)) != 0;
-}
 
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
@@ -1399,8 +969,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "IntPtr";
     case ValueRepresentation::kRawPtr:
       return os << "RawPtr";
-    case ValueRepresentation::kShiftedInt53:
-      return os << "ShiftedInt53";
     case ValueRepresentation::kNone:
       return os << "None";
   }
@@ -1694,10 +1262,6 @@ class OpProperties {
   static constexpr OpProperties Uint32() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kUint32));
-  }
-  static constexpr OpProperties ShiftedInt53() {
-    return OpProperties(
-        kValueRepresentationBits::encode(ValueRepresentation::kShiftedInt53));
   }
   static constexpr OpProperties Float64() {
     return OpProperties(
@@ -2992,6 +2556,7 @@ class ValueNode : public Node {
     DCHECK_EQ(use_count_, 0);
     use_count_ = -1;
   }
+  void AddDeoptUse(const VirtualObjectList& virtual_objects);
 
   // Used by the register allocator. Only available at the backend.
   void SetHint(compiler::InstructionOperand hint);
@@ -3026,10 +2591,6 @@ class ValueNode : public Node {
   constexpr bool is_uint32() const {
     return (properties().value_representation() ==
             ValueRepresentation::kUint32);
-  }
-  constexpr bool is_shifted_int53() const {
-    return (properties().value_representation() ==
-            ValueRepresentation::kShiftedInt53);
   }
   constexpr bool is_float64() const {
     return (properties().value_representation() ==
@@ -3088,8 +2649,6 @@ class ValueNode : public Node {
       case ValueRepresentation::kInt32:
       case ValueRepresentation::kUint32:
         return MachineRepresentation::kWord32;
-      case ValueRepresentation::kShiftedInt53:
-        return MachineRepresentation::kWord64;
       case ValueRepresentation::kIntPtr:
       case ValueRepresentation::kRawPtr:
         return MachineType::PointerRepresentation();
@@ -3122,6 +2681,11 @@ class ValueNode : public Node {
 
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
+
+  ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt(
+      const VirtualObjectList& virtual_objects);
+  ValueNode* UnwrapAndUpdateUseCountForDeopt(
+      const VirtualObjectList& virtual_objects);
 
   RegallocValueNodeInfo* regalloc_info() const {
     DCHECK_EQ(state_, kRegallocInfo);
@@ -3198,10 +2762,41 @@ inline const ValueNode* ValueNode::UnwrapIdentities() const {
 
 inline ValueNode* ValueNode::Unwrap() {
   ValueNode* node = this;
-  while (node->Is<Identity>() || node->is_conversion()) {
+  while (node->Is<Identity>() || node->Is<ReturnedValue>() ||
+         node->is_conversion()) {
     node = node->input(0).node();
   }
   return node;
+}
+
+// Unwraps identities on the current node and, if unwrapping succeeds,
+// decrements its use-count and increments the use-count of the unwrapped node.
+inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt(
+    const VirtualObjectList& virtual_objects) {
+  ValueNode* unwrapped = UnwrapIdentities();
+  if (unwrapped != this) {
+    // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
+    // recursively remove uses in VirtualObjects (basically doing the oppositve
+    // of AddDeoptUse).
+    this->remove_use();
+    unwrapped->AddDeoptUse(virtual_objects);
+  }
+  return unwrapped;
+}
+
+// Unwraps the current node and, if unwrapping succeeds, decrements its
+// use-count and increments the use-count of the unwrapped node.
+inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt(
+    const VirtualObjectList& virtual_objects) {
+  ValueNode* unwrapped = Unwrap();
+  if (unwrapped != this) {
+    // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
+    // recursively remove uses in VirtualObjects (basically doing the oppositve
+    // of AddDeoptUse).
+    this->remove_use();
+    unwrapped->AddDeoptUse(virtual_objects);
+  }
+  return unwrapped;
 }
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -3645,19 +3240,6 @@ class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class ShiftedInt53AddWithOverflow
-    : public FixedInputValueNodeT<2, ShiftedInt53AddWithOverflow> {
- public:
-  explicit ShiftedInt53AddWithOverflow(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::ShiftedInt53();
-  DECLARE_BINOP(ShiftedInt53, ShiftedInt53)
-
-  void SetValueLocationConstraints() { UNREACHABLE(); }
-  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
-};
-
 template <class Derived, Operation kOperation>
 class Int32UnaryWithOverflowNode : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
@@ -3737,26 +3319,6 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
       : Base(FlipBitField::update(bitfield, flip)) {}
 
   DECLARE_UNOP(Int32)
-
-  constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-
-  auto options() const { return std::tuple{flip()}; }
-
- private:
-  using FlipBitField = NextBitField<bool, 1>;
-};
-
-class ShiftedInt53ToBoolean
-    : public FixedInputValueNodeT<1, ShiftedInt53ToBoolean> {
- public:
-  explicit ShiftedInt53ToBoolean(uint64_t bitfield, bool flip)
-      : Base(FlipBitField::update(bitfield, flip)) {}
-
-  DECLARE_UNOP(ShiftedInt53)
 
   constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
 
@@ -3855,6 +3417,26 @@ class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
 
  protected:
   explicit Float64BinaryNodeWithCall(uint64_t bitfield) : Base(bitfield) {}
+};
+
+// Many additions can be optimized to Int32 if the result is
+// truncated to 32 bits and the intermediate values stay within the "safe
+// integer" range (where Float64 can represent integers exactly).
+//
+// We use Float64SpeculateSafeAdd to represent an addition where
+// feedback suggests the result will be a safe integer. This node is
+// currently ONLY used to enable Int32 truncations during the truncation pass.
+class Float64SpeculateSafeAdd
+    : public Float64BinaryNode<Float64SpeculateSafeAdd, Operation::kAdd> {
+  using Base = Float64BinaryNode<Float64SpeculateSafeAdd, Operation::kAdd>;
+
+ public:
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::EagerDeopt();
+
+  explicit Float64SpeculateSafeAdd(uint64_t bitfield) : Base(bitfield) {}
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
 };
 
 #define DEF_FLOAT64_BINARY_NODE(Name) \
@@ -4154,33 +3736,6 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
 
  private:
   const uint32_t value_;
-};
-
-class ShiftedInt53Constant
-    : public FixedInputValueNodeT<0, ShiftedInt53Constant> {
- public:
-  using OutputRegister = Register;
-
-  explicit ShiftedInt53Constant(uint64_t bitfield, ShiftedInt53 value)
-      : Base(bitfield), value_(value) {}
-
-  static constexpr OpProperties kProperties = OpProperties::ShiftedInt53();
-
-  ShiftedInt53 as_shifted_int53() const { return value_; }
-  int64_t value() const { return value_.value(); }
-  int64_t ToInt64() const { return value_.ToInt64(); }
-
-  bool ToBoolean(LocalIsolate* local_isolate) const { return value() != 0; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-
-  void DoLoadToRegister(MaglevAssembler*, OutputRegister) const;
-  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
-
- private:
-  const ShiftedInt53 value_;
 };
 
 class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
@@ -4504,16 +4059,11 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
       OpProperties::CanAllocate() | OpProperties::DeferredCall(), Number)
 
 // (NodeName, FromRepr, ToRepr, NodeType)
-DEFINE_PURE_CONV(ChangeInt32ToShiftedInt53, Int32, ShiftedInt53, Number)
 DEFINE_PURE_CONV(ChangeInt32ToFloat64, Int32, Float64, Number)
 DEFINE_PURE_CONV(ChangeInt32ToHoleyFloat64, Int32, HoleyFloat64, Number)
 DEFINE_PURE_CONV(ChangeIntPtrToFloat64, IntPtr, Float64, Number)
-DEFINE_PURE_CONV(ChangeShiftedInt53ToFloat64, ShiftedInt53, Float64, Number)
-DEFINE_PURE_CONV(ChangeShiftedInt53ToHoleyFloat64, ShiftedInt53, HoleyFloat64,
-                 Number)
 DEFINE_PURE_CONV(ChangeUint32ToFloat64, Uint32, Float64, Number)
 DEFINE_PURE_CONV(ChangeUint32ToHoleyFloat64, Uint32, HoleyFloat64, Number)
-DEFINE_PURE_CONV(ChangeUint32ToShiftedInt53, Uint32, ShiftedInt53, Number)
 DEFINE_PURE_CONV(ChangeFloat64ToHoleyFloat64, Float64, HoleyFloat64, Number)
 DEFINE_PURE_CONV(UnsafeFloat64ToInt32, Float64, Int32, Number)
 DEFINE_PURE_CONV(UnsafeHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
@@ -4521,7 +4071,6 @@ DEFINE_PURE_CONV(UnsafeInt32ToUint32, Int32, Uint32, Number)
 DEFINE_PURE_CONV(UnsafeSmiTagInt32, Int32, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagIntPtr, IntPtr, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagUint32, Uint32, TaggedValue, Smi)
-DEFINE_PURE_CONV(UnsafeSmiTagShiftedInt53, ShiftedInt53, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
 DEFINE_PURE_CONV(UnsafeNumberToFloat64, Tagged, Float64, Number)
 
@@ -4530,21 +4079,14 @@ DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
 DEFINE_CHECKED_CONV(CheckedFloat64ToSmiSizedInt32, Float64, Int32, Smi)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToSmiSizedInt32, HoleyFloat64, Int32,
                     Smi)
-DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToShiftedInt53, HoleyFloat64,
-                    ShiftedInt53, Number)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToFloat64, HoleyFloat64, Float64, Number)
 DEFINE_CHECKED_CONV(CheckedInt32ToUint32, Int32, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedIntPtrToInt32, IntPtr, Int32, Number)
-DEFINE_CHECKED_CONV(CheckedIntPtrToShiftedInt53, IntPtr, ShiftedInt53, Number)
-DEFINE_CHECKED_CONV(CheckedShiftedInt53ToInt32, ShiftedInt53, Int32, Number)
-DEFINE_CHECKED_CONV(CheckedShiftedInt53ToUint32, ShiftedInt53, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedNumberToInt32, Tagged, Int32, Number)
-DEFINE_CHECKED_CONV(CheckedNumberToShiftedInt53, Tagged, ShiftedInt53, Number)
 DEFINE_CHECKED_CONV(CheckedNumberToFloat64, Tagged, Float64, Number)
 DEFINE_CHECKED_CONV(CheckedSmiTagFloat64, Float64, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagHoleyFloat64, HoleyFloat64, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagInt32, Int32, TaggedValue, Smi)
-DEFINE_CHECKED_CONV(CheckedSmiTagShiftedInt53, ShiftedInt53, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagIntPtr, IntPtr, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagUint32, Uint32, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
@@ -4553,7 +4095,6 @@ DEFINE_CHECKED_CONV(CheckedUint32ToInt32, Uint32, Int32, Number)
 // TODO(victorgomes): Shouldn't these actually be prefixed by Change?
 DEFINE_TO_NUMBER(Int32ToNumber, Int32)
 DEFINE_TO_NUMBER(IntPtrToNumber, IntPtr)
-DEFINE_TO_NUMBER(ShiftedInt53ToNumber, ShiftedInt53)
 DEFINE_TO_NUMBER(Uint32ToNumber, Uint32)
 
 // TODO(victorgomes): Shouldn't Float64ToTagged actually be called
@@ -4592,18 +4133,6 @@ DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, Float64, OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 #undef DEFINE_TRUNCATE_NODE
-
-class TruncateShiftedInt53ToInt32
-    : public FixedInputValueNodeT<1, TruncateShiftedInt53ToInt32> {
- public:
-  explicit TruncateShiftedInt53ToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32();
-  DECLARE_UNOP(ShiftedInt53)
-
-  void SetValueLocationConstraints() { UNREACHABLE(); }
-  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
-};
 
 class CheckedNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
@@ -4864,6 +4393,56 @@ class TruncateUnsafeNumberOrOddballToInt32
  private:
   using TaggedToFloat64ConversionTypeOffset =
       NextBitField<TaggedToFloat64ConversionType, 2>;
+};
+
+// This node checks that the input is a Number and that it is in the SafeInt
+// range.
+class TruncateCheckedNumberAsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateCheckedNumberAsSafeIntToInt32> {
+ public:
+  explicit TruncateCheckedNumberAsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
+};
+
+// This node assumes the input is a Number and only checks that it is in the
+// SafeInt range.
+class TruncateUnsafeNumberAsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateUnsafeNumberAsSafeIntToInt32> {
+ public:
+  explicit TruncateUnsafeNumberAsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
+};
+
+// This node checks that the input is in the SafeInt range.
+class TruncateFloat64AsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateFloat64AsSafeIntToInt32> {
+ public:
+  explicit TruncateFloat64AsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Float64)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
 };
 
 class TruncateCheckedNumberOrOddballToInt32
@@ -5938,6 +5517,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   compiler::OptionalMapRef TryGetMapFromSlot(
       compiler::JSHeapBroker* broker) const;
 
+  void AddDeoptUse(const VirtualObjectList& virtual_objects);
+
   uint32_t id() const { return id_; }
 
   size_t size() const {
@@ -6622,7 +6203,8 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
         // Subtle: this modifies the location of the caller's `value` in-place.
         // TODO(jgruber): Change the behavior of all related ForEach functions
         // such that they don't do anything besides iteration.
-        value = value->UnwrapIdentities();
+        value =
+            value->UnwrapIdentitiesAndUpdateUseCountForDeopt(virtual_objects);
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
           return true;
@@ -7502,6 +7084,29 @@ class CheckCacheIndicesNotCleared
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
+class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
+ public:
+  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type)
+      : Base(bitfield), expected_type_(expected_type) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Call();
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  NodeType expected_type() const { return expected_type_; }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{expected_type_}; }
+
+ private:
+  const NodeType expected_type_;
+};
+
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
  public:
   explicit CheckJSDataViewBounds(uint64_t bitfield,
@@ -7979,6 +7584,29 @@ class StringSlice : public FixedInputValueNodeT<3, StringSlice> {
   DECLARE_INPUT_TYPES(Tagged, Int32, Int32)
 
   NodeType type() const { return NodeType::kString; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class ObjectIsArray : public FixedInputValueNodeT<1, ObjectIsArray> {
+ public:
+  explicit ObjectIsArray(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanThrow() | OpProperties::CanRead() |
+      OpProperties::TaggedValue();
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  NodeType type() const { return NodeType::kBoolean; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

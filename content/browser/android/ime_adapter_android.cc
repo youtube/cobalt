@@ -26,6 +26,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/content_features.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/mojom/input/ime_host.mojom.h"
 #include "third_party/blink/public/mojom/input/stylus_writing_gesture.mojom.h"
@@ -57,7 +58,7 @@ input::NativeWebKeyboardEvent NativeWebKeyboardEventFromKeyEvent(
     const base::android::JavaRef<jobject>& java_key_event,
     int type,
     int modifiers,
-    jlong time_ms,
+    int64_t time_ms,
     int key_code,
     int scan_code,
     bool is_system_key,
@@ -70,9 +71,9 @@ input::NativeWebKeyboardEvent NativeWebKeyboardEventFromKeyEvent(
 
 }  // anonymous namespace
 
-static jlong JNI_ImeAdapterImpl_Init(JNIEnv* env,
-                                     const JavaRef<jobject>& obj,
-                                     const JavaRef<jobject>& jweb_contents) {
+static int64_t JNI_ImeAdapterImpl_Init(JNIEnv* env,
+                                       const JavaRef<jobject>& obj,
+                                       const JavaRef<jobject>& jweb_contents) {
   WebContents* web_contents = WebContents::FromJavaWebContents(jweb_contents);
   DCHECK(web_contents);
   auto* ime_adapter = new ImeAdapterAndroid(env, obj, web_contents);
@@ -84,7 +85,7 @@ static jlong JNI_ImeAdapterImpl_Init(JNIEnv* env,
 // ui::ImeTextSpan instance, and append it to |ime_text_spans_ptr|.
 static void JNI_ImeAdapterImpl_AppendBackgroundColorSpan(
     JNIEnv*,
-    jlong ime_text_spans_ptr,
+    int64_t ime_text_spans_ptr,
     int32_t start,
     int32_t end,
     int32_t background_color) {
@@ -105,7 +106,7 @@ static void JNI_ImeAdapterImpl_AppendBackgroundColorSpan(
 // ui::ImeTextSpan instance, and append it to |ime_text_spans_ptr|.
 static void JNI_ImeAdapterImpl_AppendForegroundColorSpan(
     JNIEnv*,
-    jlong ime_text_spans_ptr,
+    int64_t ime_text_spans_ptr,
     int32_t start,
     int32_t end,
     int32_t foreground_color) {
@@ -126,7 +127,7 @@ static void JNI_ImeAdapterImpl_AppendForegroundColorSpan(
 // ui::ImeTextSpan instance, and append it to |ime_text_spans_ptr|.
 static void JNI_ImeAdapterImpl_AppendSuggestionSpan(
     JNIEnv* env,
-    jlong ime_text_spans_ptr,
+    int64_t ime_text_spans_ptr,
     int32_t start,
     int32_t end,
     bool is_misspelling,
@@ -160,7 +161,7 @@ static void JNI_ImeAdapterImpl_AppendSuggestionSpan(
 // Callback from Java to convert UnderlineSpan data to a
 // ui::ImeTextSpan instance, and append it to |ime_text_spans_ptr|.
 static void JNI_ImeAdapterImpl_AppendUnderlineSpan(JNIEnv*,
-                                                   jlong ime_text_spans_ptr,
+                                                   int64_t ime_text_spans_ptr,
                                                    int32_t start,
                                                    int32_t end) {
   DCHECK_GE(start, 0);
@@ -257,11 +258,11 @@ void ImeAdapterAndroid::UpdateFrameInfo(
   const bool has_insertion_marker =
       selection_start.type() != gfx::SelectionBound::EMPTY;
   const bool is_insertion_marker_visible = selection_start.visible();
-  const jfloat insertion_marker_horizontal =
+  const float insertion_marker_horizontal =
       has_insertion_marker ? selection_start.edge_start().x() : 0.0f;
-  const jfloat insertion_marker_top =
+  const float insertion_marker_top =
       has_insertion_marker ? selection_start.edge_start().y() : 0.0f;
-  const jfloat insertion_marker_bottom =
+  const float insertion_marker_bottom =
       has_insertion_marker ? selection_start.edge_end().y() : 0.0f;
 
   Java_ImeAdapterImpl_updateFrameInfo(
@@ -292,7 +293,7 @@ bool ImeAdapterAndroid::SendKeyEvent(JNIEnv* env,
                                      const JavaRef<jobject>& original_key_event,
                                      int type,
                                      int modifiers,
-                                     jlong time_ms,
+                                     int64_t time_ms,
                                      int key_code,
                                      int scan_code,
                                      bool is_system_key,
@@ -636,7 +637,7 @@ std::vector<ui::ImeTextSpan> ImeAdapterAndroid::GetImeTextSpansFromJava(
   // BackgroundColorSpan) to a matching callback (e.g.,
   // AppendBackgroundColorSpan()), and populate |ime_text_spans|.
   Java_ImeAdapterImpl_populateImeTextSpansFromJava(
-      env, obj, text, reinterpret_cast<jlong>(&ime_text_spans));
+      env, obj, text, reinterpret_cast<int64_t>(&ime_text_spans));
 
   std::sort(ime_text_spans.begin(), ime_text_spans.end(),
             [](const ui::ImeTextSpan& span1, const ui::ImeTextSpan& span2) {
@@ -654,6 +655,29 @@ void ImeAdapterAndroid::PerformSpellCheck(JNIEnv* env) {
   }
 
   rfh->GetAssociatedLocalFrame()->PerformSpellCheck();
+}
+
+void ImeAdapterAndroid::AppendAutocorrectUnderlineSpan(JNIEnv* env,
+                                                       int32_t start,
+                                                       int32_t end) {
+  if (!base::FeatureList::IsEnabled(features::kAndroidPkAutocorrectUnderline)) {
+    return;
+  }
+  blink::mojom::FrameWidgetInputHandler* input_handler =
+      GetFocusedFrameWidgetInputHandler();
+  if (!input_handler) {
+    return;
+  }
+  ui::ImeTextSpan ime_text_span =
+      ui::ImeTextSpan(ui::ImeTextSpan::Type::kAutocorrect,
+                      /*start_offset=*/0,
+                      /*end_offset=*/static_cast<unsigned>(end - start),
+                      ui::ImeTextSpan::Thickness::kThick,
+                      ui::ImeTextSpan::UnderlineStyle::kDot);
+  ime_text_span.underline_color =
+      SkColorSetA(gfx::kGoogleGrey700, SK_AlphaOPAQUE * 0.7);
+
+  input_handler->AddImeTextSpansToExistingText(start, end, {ime_text_span});
 }
 
 }  // namespace content

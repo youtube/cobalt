@@ -5,6 +5,7 @@
 package org.chromium.components.browser_ui.widget.scrim;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient.BOOKMARK_ACTIVITY;
 import static org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient.CREATOR_COORDINATOR;
 import static org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient.HISTORY_ACTIVITY;
 import static org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient.NONE;
@@ -25,6 +26,7 @@ import androidx.core.util.Function;
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -62,6 +64,7 @@ public class ScrimManager {
         TABBED_ROOT_UI_COORDINATOR,
         HISTORY_ACTIVITY,
         SETTINGS_ACTIVITY,
+        BOOKMARK_ACTIVITY,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ScrimClient {
@@ -72,7 +75,8 @@ public class ScrimManager {
         int TABBED_ROOT_UI_COORDINATOR = 4;
         int HISTORY_ACTIVITY = 5;
         int SETTINGS_ACTIVITY = 6;
-        int COUNT = 7;
+        int BOOKMARK_ACTIVITY = 7;
+        int COUNT = 8;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:ScrimClient)
@@ -80,9 +84,9 @@ public class ScrimManager {
     private final SettableNonNullObservableSupplier<Boolean> mScrimVisibilitySupplier =
             ObservableSuppliers.createNonNull(false);
     private final SettableNonNullObservableSupplier<Integer> mStatusBarColorSupplier =
-            ObservableSuppliers.createNonNull(ScrimProperties.INVALID_COLOR);
+            ObservableSuppliers.createNonNull(Color.TRANSPARENT);
     private final SettableNonNullObservableSupplier<Integer> mNavigationBarColorSupplier =
-            ObservableSuppliers.createNonNull(ScrimProperties.INVALID_COLOR);
+            ObservableSuppliers.createNonNull(Color.TRANSPARENT);
 
     private final Context mContext;
     private final ViewGroup mParent;
@@ -112,8 +116,8 @@ public class ScrimManager {
         }
         mModelToScrim.clear();
         mScrimVisibilitySupplier.set(false);
-        mStatusBarColorSupplier.set(ScrimProperties.INVALID_COLOR);
-        mNavigationBarColorSupplier.set(ScrimProperties.INVALID_COLOR);
+        mStatusBarColorSupplier.set(Color.TRANSPARENT);
+        mNavigationBarColorSupplier.set(Color.TRANSPARENT);
     }
 
     /** Temporary alternative to {@link #getScrimVisibilitySupplier()} to make migration easier. */
@@ -135,7 +139,7 @@ public class ScrimManager {
     }
 
     /** Returns observable visibility information about all scrims. */
-    public MonotonicObservableSupplier<Boolean> getScrimVisibilitySupplier() {
+    public NonNullObservableSupplier<Boolean> getScrimVisibilitySupplier() {
         return mScrimVisibilitySupplier;
     }
 

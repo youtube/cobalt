@@ -15,23 +15,24 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
-#include "chrome/browser/passage_embeddings/page_embeddings_service.h"
 #include "chrome/browser/passage_embeddings/page_embeddings_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "components/tabs/public/tab_interface.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
+#include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
+#include "components/page_content_annotations/core/page_content_extraction_types.h"
 #include "components/page_content_annotations/core/test_page_content_annotator.h"
-#include "components/passage_embeddings/passage_embeddings_features.h"
-#include "components/passage_embeddings/passage_embeddings_test_util.h"
+#include "components/passage_embeddings/content/page_embeddings_service.h"
+#include "components/passage_embeddings/core/passage_embeddings_features.h"
+#include "components/passage_embeddings/core/passage_embeddings_test_util.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -285,15 +286,15 @@ class ContextualTasksContextServiceTest : public InProcessBrowserTest {
 
   void NavigateToValidURL() {
     // Navigate to a valid URL.
-    content::WebContents* web_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
-    if (auto* tab = tabs::TabInterface::GetFromContents(web_contents)) {
-      if (auto* tracker =
-              tab->GetTabFeatures()->contextual_tasks_tab_visit_tracker()) {
-        tracker->SetClockForTesting(&test_clock_);
-      }
+    tabs::TabInterface* tab = TabListInterface::From(browser())->GetActiveTab();
+    if (!tab) {
+      return;
     }
-    content::NavigateToURLBlockUntilNavigationsComplete(web_contents,
+    if (auto* tracker =
+            tab->GetTabFeatures()->contextual_tasks_tab_visit_tracker()) {
+      tracker->SetClockForTesting(&test_clock_);
+    }
+    content::NavigateToURLBlockUntilNavigationsComplete(tab->GetContents(),
                                                         valid_url(), 1);
   }
 
@@ -544,7 +545,7 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksContextServiceParameterizedTest,
   // Simulate a long time spent on the tab.
   test_clock_.Advance(base::Seconds(60));
   // Simulate a short time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(3));
 
   NotifyEmbedderMetadata();
@@ -635,7 +636,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
   // Simulate low time spent on the tab.
   test_clock_.Advance(base::Seconds(3));
   // Simulate a long time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(1800));
 
   NotifyEmbedderMetadata();
@@ -681,7 +682,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
   // Simulate a long time spent on the tab.
   test_clock_.Advance(base::Seconds(60));
   // Simulate a short time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(3));
 
   NotifyEmbedderMetadata();
@@ -717,7 +718,7 @@ IN_PROC_BROWSER_TEST_F(
   // Simulate a short time spent on the tab.
   test_clock_.Advance(base::Seconds(3));
   // Simulate a short time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(3));
 
   NotifyEmbedderMetadata();
@@ -753,7 +754,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
   // Simulate a short time spent on the tab.
   test_clock_.Advance(base::Seconds(3));
   // Simulate a long time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(1800));
 
   NotifyEmbedderMetadata();
@@ -781,7 +782,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
   // Simulate a short time spent on the tab.
   test_clock_.Advance(base::Seconds(3));
   // Simulate a long time passed since the tab has been hidden.
-  browser()->tab_strip_model()->GetActiveWebContents()->WasHidden();
+  TabListInterface::From(browser())->GetActiveTab()->GetContents()->WasHidden();
   test_clock_.Advance(base::Seconds(1800));
 
   NotifyEmbedderMetadata();

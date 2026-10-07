@@ -26,6 +26,7 @@
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation/network_queue.h"
 #include "api/test/network_emulation/schedulable_network_node_builder.h"
+#include "api/transport/bitrate_settings.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -369,6 +370,40 @@ TEST(BweRampupTest, CanReconfigureBweAfterStopingVideo) {
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
   EXPECT_GT(bwe_after_restart.kbps(), bwe_before_restart.kbps() + 300);
   EXPECT_LT(bwe_after_restart.kbps(), 1000);
+}
+
+TEST(BweRampupTest, RespectsStartRateFromSetBitrate) {
+  PeerScenario s(*test_info_);
+
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-PcFactoryDefaultBitrates", "max:100000");
+
+  PeerScenarioClient* caller = s.CreateClient(config);
+  webrtc::BitrateSettings bitrate_settings;
+  bitrate_settings.min_bitrate_bps = 5'000'000;
+  bitrate_settings.start_bitrate_bps = 70'000'000;
+  bitrate_settings.max_bitrate_bps = 100'000'000;
+
+  caller->pc()->SetBitrate(bitrate_settings);
+  PeerScenarioClient* callee = s.CreateClient({});
+
+  // No network constraints.
+  auto caller_to_calee_node =
+      s.net()->NodeBuilder().capacity_Mbps(100).Build().node;
+  auto callee_to_caler_node =
+      s.net()->NodeBuilder().capacity_Mbps(100).Build().node;
+
+  FrameGeneratorCapturerConfig::SquaresVideo video_resolution = {
+      .framerate = 30, .width = 1280 * 4, .height = 720 * 4};
+  PeerScenarioClient::VideoSendTrack track = caller->CreateVideo(
+      "VIDEO", {.generator = {.squares_video = video_resolution}});
+
+  s.SimpleConnection(caller, callee, {caller_to_calee_node},
+                     {callee_to_caler_node});
+
+  s.ProcessMessages(TimeDelta::Seconds(1));
+  DataRate bwe = GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
+  EXPECT_GE(bwe.kbps(), 70000);
 }
 
 }  // namespace test

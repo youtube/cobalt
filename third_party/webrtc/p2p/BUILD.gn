@@ -439,6 +439,7 @@ rtc_library("p2p_constants") {
     "../api/units:data_rate",
     "../api/units:data_size",
     "../api/units:time_delta",
+    "../rtc_base/system:plan_b_only",
     "../rtc_base/system:rtc_export",
   ]
 }

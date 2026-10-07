@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -165,9 +166,8 @@ void MoqtSession::OnSessionReady() {
   control_stream->SetVisitor(
       std::make_unique<ControlStream>(this, control_stream));
   control_stream_ = control_stream->GetStreamId();
-  MoqtClientSetup setup = MoqtClientSetup{
-      .parameters = parameters_,
-  };
+  MoqtClientSetup setup;
+  parameters_.ToSetupParameters(setup.parameters);
   SendControlMessage(framer_.SerializeClientSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
 }
@@ -989,16 +989,17 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                     "Received CLIENT_SETUP from server");
     return;
   }
-  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
+  session_->peer_supports_object_ack_ =
+      message.parameters.support_object_acks.value_or(
+          kDefaultSupportObjectAcks);
+  session_->peer_max_request_id_ =
+      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
-  if (session_->parameters_.perspective == Perspective::IS_SERVER) {
-    MoqtServerSetup response;
-    response.parameters = session_->parameters_;
-    SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
-    QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
-  }
+  MoqtServerSetup response;
+  session_->parameters_.ToSetupParameters(response.parameters);
+  SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   // TODO: handle path.
-  session_->peer_max_request_id_ = message.parameters.max_request_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -1009,11 +1010,20 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
                     "Received SERVER_SETUP from client");
     return;
   }
-  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
+  session_->peer_supports_object_ack_ =
+      message.parameters.support_object_acks.value_or(
+          kDefaultSupportObjectAcks);
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
-  session_->peer_max_request_id_ = message.parameters.max_request_id;
+  session_->peer_max_request_id_ =
+      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   std::move(session_->callbacks_.session_established_callback)();
+}
+
+void MoqtSession::ControlStream::SendRequestOk(
+    uint64_t request_id, const VersionSpecificParameters& parameters) {
+  SendOrBufferMessage(session_->framer_.SerializeRequestOk(
+      MoqtRequestOk{request_id, parameters}));
 }
 
 void MoqtSession::ControlStream::SendRequestError(
@@ -1122,6 +1132,43 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
         SubscribeOkData{message.expires, message.group_order,
                         message.largest_location, message.parameters});
   }
+}
+
+void MoqtSession::ControlStream::OnRequestOkMessage(
+    const MoqtRequestOk& message) {
+  if (session_->upstream_by_id_.contains(message.request_id)) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received REQUEST_OK for SUBSCRIBE, FETCH, or PUBLISH");
+    return;
+  }
+  // Response to PUBLISH_NAMESPACE.
+  auto pn_it =
+      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
+  if (pn_it != session_->pending_outgoing_publish_namespaces_.end()) {
+    TrackNamespace track_namespace = pn_it->second;
+    session_->pending_outgoing_publish_namespaces_.erase(pn_it);
+    auto callback_it =
+        session_->outgoing_publish_namespaces_.find(track_namespace);
+    if (callback_it == session_->outgoing_publish_namespaces_.end()) {
+      // It might have already been destroyed due to PUBLISH_NAMESPACE_DONE.
+      return;
+    }
+    std::move(callback_it->second)(track_namespace, std::nullopt);
+    return;
+  }
+  // Response to SUBSCRIBE_NAMESPACE.
+  auto sn_it =
+      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
+  if (sn_it != session_->pending_outgoing_subscribe_namespaces_.end()) {
+    std::move(sn_it->second.callback)(sn_it->second.track_namespace,
+                                      std::nullopt, "");
+    session_->pending_outgoing_subscribe_namespaces_.erase(sn_it);
+    return;
+  }
+  // TRACK_STATUS response would go here, but we don't support upstream
+  // TRACK_STATUS.
+  // If it doesn't match any state, it might be because the local application
+  // cancelled the request. Do nothing.
 }
 
 void MoqtSession::ControlStream::OnRequestErrorMessage(
@@ -1262,34 +1309,10 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
           SendRequestError(message.request_id, error->error_code,
                            error->reason_phrase);
         } else {
-          MoqtPublishNamespaceOk ok;
-          ok.request_id = message.request_id;
-          SendOrBufferMessage(session->framer_.SerializePublishNamespaceOk(ok));
+          SendRequestOk(message.request_id, VersionSpecificParameters());
           session->incoming_publish_namespaces_.insert(message.track_namespace);
         }
       });
-}
-
-// Do not enforce that there is only one of OK or ERROR per PUBLISH_NAMESPACE.
-// Upon ERROR, we immediately destroy the state.
-void MoqtSession::ControlStream::OnPublishNamespaceOkMessage(
-    const MoqtPublishNamespaceOk& message) {
-  auto it =
-      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
-  if (it == session_->pending_outgoing_publish_namespaces_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received PUBLISH_NAMESPACE_OK for unknown request_id");
-    return;
-  }
-  TrackNamespace track_namespace = it->second;
-  session_->pending_outgoing_publish_namespaces_.erase(it);
-  auto callback_it =
-      session_->outgoing_publish_namespaces_.find(track_namespace);
-  if (callback_it == session_->outgoing_publish_namespaces_.end()) {
-    // It might have already been destroyed due to PUBLISH_NAMESPACE_DONE.
-    return;
-  }
-  std::move(callback_it->second)(track_namespace, std::nullopt);
 }
 
 void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
@@ -1393,25 +1416,9 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
           session_->incoming_subscribe_namespace_.UnsubscribeNamespace(
               message.track_namespace);
         } else {
-          MoqtSubscribeNamespaceOk ok;
-          ok.request_id = message.request_id;
-          SendOrBufferMessage(
-              session_->framer_.SerializeSubscribeNamespaceOk(ok));
+          SendRequestOk(message.request_id, VersionSpecificParameters());
         }
       });
-}
-
-void MoqtSession::ControlStream::OnSubscribeNamespaceOkMessage(
-    const MoqtSubscribeNamespaceOk& message) {
-  auto it =
-      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
-  if (it == session_->pending_outgoing_subscribe_namespaces_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_NAMESPACE_OK for unknown request_id");
-    return;  // UNSUBSCRIBE_NAMESPACE may already have deleted the entry.
-  }
-  std::move(it->second.callback)(it->second.track_namespace, std::nullopt, "");
-  session_->pending_outgoing_subscribe_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeNamespaceMessage(

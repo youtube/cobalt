@@ -5508,6 +5508,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
+void Genesis::InitializeGlobal_js_esm_ns_reexport() {}
+
 void Genesis::InitializeGlobal_js_atomics_pause() {
   if (!v8_flags.js_atomics_pause) return;
   DirectHandle<JSGlobalObject> global(native_context()->global_object(),
@@ -6020,6 +6022,17 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     JSObject::SetAccessor(date_prototype, name, accessor, DONT_ENUM).Check();
   }
 #endif  // V8_TEMPORAL_SUPPORT
+}
+
+void Genesis::InitializeGlobal_js_sum_precise() {
+  if (!v8_flags.js_sum_precise) return;
+  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
+                                      isolate());
+  DirectHandle<JSObject> math = Cast<JSObject>(
+      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
+
+  SimpleInstallFunction(isolate_, math, "sumPrecise", Builtin::kMathSumPrecise,
+                        1, kAdapt);
 }
 
 DirectHandle<JSFunction> Genesis::CreateArrayBuffer(

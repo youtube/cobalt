@@ -1854,13 +1854,13 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadWord(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTrustedPointerField(
+  Label is_interpreter_data;
+  __ LoadTrustedUnknownPointerField(
       t0, FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
-  __ GetObjectType(t0, kInterpreterDispatchTableRegister,
-                   kInterpreterDispatchTableRegister);
-  __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
-            Operand(INTERPRETER_DATA_TYPE), Label::Distance::kNear);
+      kInterpreterDispatchTableRegister, kScratchReg,
+      {{INTERPRETER_DATA_TYPE, &is_interpreter_data}});
+  __ Branch(&builtin_trampoline);
+  __ bind(&is_interpreter_data);
 
   __ LoadInterpreterDataInterpreterTrampoline(t0, t0);
   __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
@@ -4061,25 +4061,44 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeThrowDescriptor::GetRegisterParameter(0);
-  // The target stack may not have a frame yet. In that case, do not switch
-  // stacks and throw the exception immediately instead.
-  Register scratch = s10;
-  __ LoadWord(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
-  Label throw_;
-  __ Branch(&throw_, eq, scratch, Operand(kNullAddress));
+
   Register tag = WasmFXResumeThrowDescriptor::GetRegisterParameter(1);
   Register array = WasmFXResumeThrowDescriptor::GetRegisterParameter(2);
   Register trusted_instance_data =
       WasmFXResumeThrowDescriptor::GetRegisterParameter(3);
+  // If the target stack is in a suspended state, switch to it and throw the
+  // exception from there.
+  // If the stack has not been started yet, switching to it is invalid as it
+  // does not have a stack entry frame. Instead, retire it and throw the
+  // exception from the current stack.
+  // Both blocks exit with the arguments of the runtime call pushed on the
+  // stack.
+  Register scratch = t0;
+  Label throw_;
+  Label retire_and_throw;
+  __ LoadWord(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
+  __ Branch(&retire_and_throw, eq, scratch, Operand(kNullAddress));
+
   Label return_;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
                target_stack, &return_, no_reg, scratch,
                {target_stack, tag, array, trusted_instance_data});
   // Switch to the target stack without restoring the PC.
   LoadJumpBuffer(masm, target_stack, false, scratch);
+  __ Push(tag, array, trusted_instance_data);
+  __ Branch(&throw_);
+  __ bind(&retire_and_throw);
+  __ Push(tag, array, trusted_instance_data);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(2, scratch);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], target_stack);
+    __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
+  }
+
   __ bind(&throw_);
   // Throw the exception.
-  __ Push(tag, array, trusted_instance_data);
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmThrow);
   __ Trap();
@@ -4676,17 +4695,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- cp                  : context
+  //  -- a0                  : name
   //  -- a3                  : accessor info
-  //  -- sp[0]               : receiver
   //  -- sp[1]               : holder
   // -----------------------------------
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
+  // |name| is already in the required register.
+  DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
 
   Register api_function_address = kCArgRegs[2];
 
-  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register scratch = a4;
   Register undef = a5;
   Register scratch2 = a6;
@@ -4697,8 +4718,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kGetterApiArgsLength == 5);
-  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
   static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
@@ -4708,10 +4728,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[4]: receiver        <- kThisIndex
   //                           |  sp[3]: holder          <- kHolderIndex
-  //  ...                      |  sp[2]: callback info   <- kCallbackInfoIndex
-  //  sp[1]: receiver          |  sp[1]: undefined       <- kReturnValueIndex
+  //                           |  sp[2]: callback info   <- kCallbackInfoIndex
+  //  ...                      |  sp[1]: undefined       <- kReturnValueIndex
   //  sp[0]: holder            |  sp[0]: isolate         <- kIsolateIndex
   //
 
@@ -4733,8 +4752,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
-    __ LoadTaggedField(name_arg,
-                       FieldMemOperand(callback, AccessorInfo::kNameOffset));
     // kPropertyKeyIndex
     __ StoreWord(name_arg, MemOperand(fp, FC::kPropertyKeyOffset));
     // property_callback_info_arg = v8::PropertyCallbackInfo&
@@ -4932,6 +4949,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
 
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
+  // If != 0, then simd is available.
+  Label done_pop_simd128;
+  __ Branch(&done_pop_simd128, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
   __ VU.set(16, E8, m1);
   int simd128_regs_offset = FrameDescription::simd128_registers_offset();
   for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
@@ -4943,6 +4966,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ addi(kScratchReg, a1, dst_offset);
     __ vs(kSimd128ScratchReg, kScratchReg, 0, E8);
   }
+  __ bind(&done_pop_simd128);
 
   // Remove the saved registers from the stack.
   __ AddWord(sp, sp, Operand(kSavedRegistersAreaSize));

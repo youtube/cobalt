@@ -64,6 +64,7 @@
 #include "rtc_base/operations_chain.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/unique_id_generator.h"
@@ -170,8 +171,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
                                 const std::vector<Candidate>& candidates);
   bool ShouldFireNegotiationNeededEvent(uint32_t event_id);
 
-  bool AddStream(MediaStreamInterface* local_stream);
-  void RemoveStream(MediaStreamInterface* local_stream);
+  PLAN_B_ONLY bool AddStream(MediaStreamInterface* local_stream);
+  PLAN_B_ONLY void RemoveStream(MediaStreamInterface* local_stream);
 
   std::optional<bool> is_caller() const;
   bool HasNewIceCredentials();
@@ -191,8 +192,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
       std::vector<absl::AnyInvocable<void() &&>>& network_tasks,
       std::vector<absl::AnyInvocable<void() &&>>& worker_tasks);
 
-  scoped_refptr<StreamCollectionInterface> local_streams();
-  scoped_refptr<StreamCollectionInterface> remote_streams();
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> local_streams();
+  PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> remote_streams();
 
   bool initial_offerer() {
     RTC_DCHECK_RUN_ON(signaling_thread());
@@ -278,7 +279,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   void ApplyRemoteDescriptionUpdateTransceiverState(SdpType sdp_type);
 
   // Part of ApplyRemoteDescription steps specific to plan b.
-  void PlanBUpdateSendersAndReceivers(
+  PLAN_B_ONLY void PlanBUpdateSendersAndReceivers(
       const ContentInfo* audio_content,
       const AudioContentDescription* audio_desc,
       const ContentInfo* video_content,
@@ -316,17 +317,17 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   bool IsUnifiedPlan() const;
 
   // Signals from MediaStreamObserver.
-  void OnAudioTrackAdded(AudioTrackInterface* track,
-                         MediaStreamInterface* stream)
+  PLAN_B_ONLY void OnAudioTrackAdded(AudioTrackInterface* track,
+                                     MediaStreamInterface* stream)
       RTC_RUN_ON(signaling_thread());
-  void OnAudioTrackRemoved(AudioTrackInterface* track,
-                           MediaStreamInterface* stream)
+  PLAN_B_ONLY void OnAudioTrackRemoved(AudioTrackInterface* track,
+                                       MediaStreamInterface* stream)
       RTC_RUN_ON(signaling_thread());
-  void OnVideoTrackAdded(VideoTrackInterface* track,
-                         MediaStreamInterface* stream)
+  PLAN_B_ONLY void OnVideoTrackAdded(VideoTrackInterface* track,
+                                     MediaStreamInterface* stream)
       RTC_RUN_ON(signaling_thread());
-  void OnVideoTrackRemoved(VideoTrackInterface* track,
-                           MediaStreamInterface* stream)
+  PLAN_B_ONLY void OnVideoTrackRemoved(VideoTrackInterface* track,
+                                       MediaStreamInterface* stream)
       RTC_RUN_ON(signaling_thread());
 
   // | desc_type | is the type of the description that caused the rollback.
@@ -414,7 +415,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   void GetOptionsForOffer(const PeerConnectionInterface::RTCOfferAnswerOptions&
                               offer_answer_options,
                           MediaSessionOptions* session_options);
-  void GetOptionsForPlanBOffer(
+  PLAN_B_ONLY void GetOptionsForPlanBOffer(
       const PeerConnectionInterface::RTCOfferAnswerOptions&
           offer_answer_options,
       MediaSessionOptions* session_options) RTC_RUN_ON(signaling_thread());
@@ -428,7 +429,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   void GetOptionsForAnswer(const PeerConnectionInterface::RTCOfferAnswerOptions&
                                offer_answer_options,
                            MediaSessionOptions* session_options);
-  void GetOptionsForPlanBAnswer(
+  PLAN_B_ONLY void GetOptionsForPlanBAnswer(
       const PeerConnectionInterface::RTCOfferAnswerOptions&
           offer_answer_options,
       MediaSessionOptions* session_options) RTC_RUN_ON(signaling_thread());
@@ -475,14 +476,15 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Remove all local and remote senders of type `media_type`.
   // Called when a media type is rejected (m-line set to port 0).
-  void RemoveSenders(webrtc::MediaType media_type);
+  PLAN_B_ONLY void RemoveSenders(webrtc::MediaType media_type);
 
   // Loops through the vector of `streams` and finds added and removed
   // StreamParams since last time this method was called.
   // For each new or removed StreamParam, OnLocalSenderSeen or
   // OnLocalSenderRemoved is invoked.
-  void UpdateLocalSendersPlanB(const std::vector<StreamParams>& streams,
-                               webrtc::MediaType media_type);
+  PLAN_B_ONLY void UpdateLocalSendersPlanB(
+      const std::vector<StreamParams>& streams,
+      webrtc::MediaType media_type);
 
   // Makes sure a MediaStreamTrack is created for each StreamParam in `streams`,
   // and existing MediaStreamTracks are removed if there is no corresponding
@@ -490,10 +492,11 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // is created if it doesn't exist; if false, it's removed if it exists.
   // `media_type` is the type of the `streams` and can be either audio or video.
   // If a new MediaStream is created it is added to `new_streams`.
-  void UpdateRemoteSendersListPlanB(const std::vector<StreamParams>& streams,
-                                    bool default_track_needed,
-                                    webrtc::MediaType media_type,
-                                    StreamCollection* new_streams);
+  PLAN_B_ONLY void UpdateRemoteSendersListPlanB(
+      const std::vector<StreamParams>& streams,
+      bool default_track_needed,
+      webrtc::MediaType media_type,
+      StreamCollection* new_streams);
 
   // Enables media channels to allow sending of media.
   // This enables media to flow on all configured audio/video channels.
@@ -543,7 +546,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Allocates media channels based on the `desc`. If `desc` doesn't have
   // the BUNDLE option, this method will disable BUNDLE in PortAllocator.
   // This method will also delete any existing media channels before creating.
-  RTCError CreateChannels(const SessionDescription& desc);
+  PLAN_B_ONLY RTCError CreateChannels(const SessionDescription& desc);
 
   // Generates MediaDescriptionOptions for the `session_opts` based on existing
   // local description or remote description.

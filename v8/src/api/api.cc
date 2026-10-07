@@ -1887,10 +1887,12 @@ Local<Script> UnboundScript::BindToCurrentContext() {
   return ToApiHandle<Script>(function);
 }
 
-int UnboundScript::GetId() const {
+int UnboundScript::GetId() const { return ScriptId(); }
+
+int UnboundScript::ScriptId() const {
   auto function_info = Utils::OpenDirectHandle(this);
   ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
-                                     RCCId::kAPI_UnboundScript_GetId);
+                                     RCCId::kAPI_UnboundScript_ScriptId);
   return i::Cast<i::Script>(function_info->script())->id();
 }
 
@@ -1961,6 +1963,14 @@ Local<Value> UnboundModuleScript::GetSourceURL() {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
   return Utils::ToLocal(i::direct_handle(url, i_isolate));
+}
+
+int UnboundModuleScript::ScriptId() const {
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
+                                     RCCId::kAPI_UnboundModuleScript_ScriptId);
+  auto obj = Utils::OpenDirectHandle(this);
+  if (!i::IsScript(obj->script())) return kNoScriptId;
+  return i::Cast<i::Script>(obj->script())->id();
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
@@ -2037,6 +2047,16 @@ Local<UnboundScript> Script::GetUnboundScript() {
                                              i::Isolate::Current());
   DCHECK(!i::HeapLayout::InReadOnlySpace(*sfi));
   return ToApiHandle<UnboundScript>(sfi);
+}
+
+int Script::ScriptId() const {
+  i::DisallowGarbageCollection no_gc;
+  auto obj = Utils::OpenDirectHandle(this);
+  auto sfi = obj->shared();
+  DCHECK(!i::HeapLayout::InReadOnlySpace(sfi));
+  auto script = sfi->script();
+  CHECK(IsScript(sfi->script()));
+  return i::Cast<i::Script>(script)->id();
 }
 
 Local<Value> Script::GetResourceName() {
@@ -6143,32 +6163,6 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
 
-void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
-                                                   void* values[]) {
-  EmbedderDataTypeTag tag = kEmbedderDataTypeTagDefault;
-
-  auto obj = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*obj)) return;
-  i::DisallowGarbageCollection no_gc;
-  const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
-  auto js_obj = i::Cast<i::JSObject>(*obj);
-  int nof_embedder_fields = js_obj->GetEmbedderFieldCount();
-  for (int i = 0; i < argc; i++) {
-    int index = indices[i];
-    if (!Utils::ApiCheck(index < nof_embedder_fields, location,
-                         "Internal field out of bounds")) {
-      return;
-    }
-    void* value = values[i];
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(js_obj, index)
-            .store_aligned_pointer(i::Isolate::Current(), *obj, value,
-                                   ToExternalPointerTag(tag)),
-        location, "Unaligned pointer");
-    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
-  }
-}
-
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
@@ -8904,9 +8898,11 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
 void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
 
 void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::HandleScope scope(i_isolate);
   auto obj = Utils::OpenDirectHandle(this);
   auto i_key = Utils::OpenDirectHandle(*key);
-  obj->set_detach_key(*i_key);
+  i::JSArrayBuffer::SetDetachKey(obj, i_key, i_isolate);
 }
 
 size_t v8::ArrayBuffer::ByteLength() const {
@@ -12366,11 +12362,6 @@ template <typename T>
 bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
-  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-  // TODO(https://crbug.com/455600234): remove.
-  START_ALLOW_USE_DEPRECATED()
-  CHECK(info.This()->IsValue());
-  END_ALLOW_USE_DEPRECATED()
   CHECK(info.HolderV2()->IsObject());
   CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
 

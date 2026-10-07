@@ -101,7 +101,7 @@ CallTest::CallTest(FieldTrials field_trials)
       audio_encoder_factory_(CreateBuiltinAudioEncoderFactory()),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "CallTestTaskQueue",
-          TaskQueueFactory::Priority::NORMAL)) {}
+          TaskQueueFactory::Priority::kNormal)) {}
 
 CallTest::~CallTest() = default;
 
@@ -512,9 +512,9 @@ void CallTest::CreateMatchingFecConfig(
     const VideoSendStream::Config& send_config) {
   FlexfecReceiveStream::Config config(transport);
   config.payload_type = send_config.rtp.flexfec.payload_type;
-  config.rtp.remote_ssrc = send_config.rtp.flexfec.ssrc;
+  config.remote_ssrc = send_config.rtp.flexfec.ssrc;
   config.protected_media_ssrcs = send_config.rtp.flexfec.protected_media_ssrcs;
-  config.rtp.local_ssrc = VideoTestConstants::kReceiverLocalVideoSsrc;
+  config.local_ssrc = VideoTestConstants::kReceiverLocalVideoSsrc;
   if (!video_receive_configs_.empty()) {
     video_receive_configs_[0].rtp.protected_by_flexfec = true;
     video_receive_configs_[0].rtp.packet_sink_ = this;

@@ -787,8 +787,8 @@ TEST_P(GLSLValidationTest_ES3, TwoOutputsNoLayoutQualifiers)
       )";
 
     validateError(GL_FRAGMENT_SHADER, kFS,
-                  "'my_FragColor' : must explicitly specify all locations when using multiple "
-                  "fragment outputs");
+                  "'my_FragColor' : when EXT_blend_func_extended extension is not enabled, must "
+                  "explicitly specify all locations when using multiple fragment outputs");
 }
 
 // (ESSL 3.00.04 section 4.3.8.2)
@@ -804,9 +804,10 @@ TEST_P(GLSLValidationTest_ES3, TwoOutputsFirstLayoutQualifier)
             my_SecondaryFragColor = vec4(0.5);
         })";
 
-    validateError(GL_FRAGMENT_SHADER, kFS,
-                  "'my_SecondaryFragColor' : must explicitly specify all locations when using "
-                  "multiple fragment outputs");
+    validateError(
+        GL_FRAGMENT_SHADER, kFS,
+        "'my_SecondaryFragColor' : when EXT_blend_func_extended extension is not enabled, must "
+        "explicitly specify all locations when using multiple fragment outputs");
 }
 
 // (ESSL 3.00.04 section 4.3.8.2)
@@ -823,8 +824,8 @@ TEST_P(GLSLValidationTest_ES3, TwoOutputsSecondLayoutQualifier)
     })";
 
     validateError(GL_FRAGMENT_SHADER, kFS,
-                  "'my_FragColor' : must explicitly specify all locations when using multiple "
-                  "fragment outputs");
+                  "'my_FragColor' : when EXT_blend_func_extended extension is not enabled, must "
+                  "explicitly specify all locations when using multiple fragment outputs");
 }
 
 // Uniforms can be arrays (ESSL 3.00 section 4.3.5)
@@ -1954,7 +1955,7 @@ color = uvec4(atomicCounterIncrement(a_counter));
 // Check that having an invalid char after the "." doesn't cause an assert.
 TEST_P(GLSLValidationTest, InvalidFieldFirstChar)
 {
-    const char kVS[] = "void main() {vec4 x; x.}";
+    constexpr char kVS[] = "void main() {vec4 x; x.}";
     validateError(GL_VERTEX_SHADER, kVS, ": '}' : Illegal character at fieldname start");
 }
 
@@ -2043,7 +2044,7 @@ void main()
 // > * opaque types are not allowed
 TEST_P(GLSLValidationTest_ES3, StructWithSamplersDisallowedInInterfaceBlock)
 {
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 precision mediump float;
 struct S { sampler2D samp; bool b; };
 
@@ -2338,7 +2339,7 @@ TEST_P(GLSLValidationTest_ES3, ManySamplerFieldsInStructComplex)
     // D3D and OpenGL may be more restrictive about this many samplers.
     ANGLE_SKIP_TEST_IF(IsD3D() || IsOpenGL());
 
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 precision highp float;
 
 struct X {
@@ -2377,7 +2378,7 @@ TEST_P(GLSLValidationTest, ManySamplers)
     // D3D and OpenGL may be more restrictive about this many samplers.
     ANGLE_SKIP_TEST_IF(IsD3D() || IsOpenGL());
 
-    const char kFS[] = R"(precision highp float;
+    constexpr char kFS[] = R"(precision highp float;
 
 uniform mediump sampler2D c[0x12000];
 
@@ -2394,7 +2395,7 @@ TEST_P(GLSLValidationTest, ManySamplersInStruct)
     // D3D and OpenGL may be more restrictive about this many samplers.
     ANGLE_SKIP_TEST_IF(IsD3D() || IsOpenGL());
 
-    const char kFS[] = R"(precision highp float;
+    constexpr char kFS[] = R"(precision highp float;
 
 struct X {
     mediump sampler2D c[0x12000];
@@ -3464,7 +3465,7 @@ void main()
 // as invalid because S2's declaration was not visible.
 TEST_P(GLSLValidationTest, SamplerInStructAsFunctionArg)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 struct S { sampler2D samp; bool b; };
 struct S2 { float f; };
 
@@ -3940,6 +3941,39 @@ void main()
     validateSuccess(GL_VERTEX_SHADER, kVS);
 }
 
+// Test that structs-with-samplers cannot be the result of the ternary operator.  The spec says for
+// the ternary operator that:
+//
+// > The second and third expressions cannot be opaque types, or there will be an error.
+//
+// While it doesn't specifically rule out structs with samplers in them, it's reasonable to also
+// disallow that.
+TEST_P(GLSLValidationTest_ES31, StructWithSamplerAsTernaryResult)
+{
+    constexpr char kVS[] = R"(#version 310 es
+struct A {
+    vec4 v;
+    sampler2D s;
+};
+struct B {
+    A a[2];
+};
+uniform B b1[3];
+uniform B b2[4];
+uniform bool choose;
+
+vec4 f(A a[2])
+{
+    return texture(a[0].s, vec2(0));
+}
+
+void main()
+{
+    gl_Position = f(choose ? b1[0].a : b2[0].a);
+})";
+    validateError(GL_VERTEX_SHADER, kVS, "'?:' : ternary operator is not allowed for opaque types");
+}
+
 // Test that gl_FragDepth can be marked invariant.
 TEST_P(GLSLValidationTest_ES3, FragDepthInvariant)
 {
@@ -3977,7 +4011,7 @@ void main() {
 // See limitations in ESSL 1.00 Appendix A.
 TEST_P(WebGLGLSLValidationTest, IndexAsFunctionOutParameter)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 void fun(out int a)
 {
    a = 2;
@@ -3998,7 +4032,7 @@ void main()
 // See limitations in ESSL 1.00 Appendix A.
 TEST_P(WebGLGLSLValidationTest, IndexAsFunctionInOutParameter)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 void fun(int b, inout int a)
 {
    a += b;
@@ -4020,7 +4054,7 @@ void main()
 // See limitations in ESSL 1.00 Appendix A.
 TEST_P(WebGLGLSLValidationTest, IndexAsFunctionInParameter)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 void fun(int b, inout int a)
 {
    a += b;
@@ -4041,7 +4075,7 @@ void main()
 // See limitations in ESSL 1.00 Appendix A.
 TEST_P(WebGLGLSLValidationTest, IndexAsTargetOfAssignment)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 void main()
 {
     for (int i = 0; i < 2; ++i)
@@ -4058,7 +4092,7 @@ void main()
 // See limitations in ESSL 1.00 Appendix A.
 TEST_P(WebGLGLSLValidationTest, IndexIncrementedInLoopBody)
 {
-    const char kFS[] = R"(precision mediump float;
+    constexpr char kFS[] = R"(precision mediump float;
 void main()
 {
     for (int i = 0; i < 2; ++i)
@@ -4076,7 +4110,7 @@ TEST_P(GLSLValidationTest, BlendFuncExtendedSecondaryColorAndData)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
+    constexpr char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
 precision mediump float;
 void main() {
     gl_SecondaryFragColorEXT = vec4(1.0);
@@ -4092,7 +4126,7 @@ TEST_P(GLSLValidationTest, BlendFuncExtendedColorAndSecondaryData)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
+    constexpr char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
 precision mediump float;
 void main() {
     gl_FragColor = vec4(1.0);
@@ -4109,7 +4143,7 @@ TEST_P(GLSLValidationTest, BlendFuncExtendedDataAndSecondaryColor)
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_draw_buffers"));
 
-    const char kFS[] = R"(#extension GL_EXT_draw_buffers : require
+    constexpr char kFS[] = R"(#extension GL_EXT_draw_buffers : require
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
 void main() {
@@ -4126,7 +4160,7 @@ TEST_P(WebGL2GLSLValidationTest, BlendFuncExtendedSecondaryDataIndexing)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
+    constexpr char kFS[] = R"(#extension GL_EXT_blend_func_extended : require
 precision mediump float;
 void main() {
     for (int i = 0; i < 2; ++i) {
@@ -4142,7 +4176,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedNoLocationQualifier)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4160,7 +4194,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedMultipleIndexQualifiers)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4181,7 +4215,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedOutOfBoundsLocationQualifier)
     glGetIntegerv(GL_MAX_DUAL_SOURCE_DRAW_BUFFERS_EXT, &maxDualSourceDrawBuffers);
     ANGLE_SKIP_TEST_IF(maxDualSourceDrawBuffers > 1);
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4204,7 +4238,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedOutOfBoundsLocationQualifierInde
     glGetIntegerv(GL_MAX_DUAL_SOURCE_DRAW_BUFFERS_EXT, &maxDualSourceDrawBuffers);
     ANGLE_SKIP_TEST_IF(maxDualSourceDrawBuffers > 1);
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4222,7 +4256,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedLocationOverlap)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4242,7 +4276,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedGlobalIndexQualifier)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4261,7 +4295,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedIndexQualifierOnUniform)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4280,7 +4314,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedIndexQualifierOnStruct)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4301,7 +4335,7 @@ TEST_P(GLSLValidationTest_ES3, BlendFuncExtendedIndexQualifierOnField)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_blend_func_extended"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_blend_func_extended : require
 precision mediump float;
@@ -4322,7 +4356,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetYuvQualifierOnInput)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4339,7 +4373,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetYuvQualifierOnUniform)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4359,7 +4393,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetYuvQualifierAndLocation)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4375,7 +4409,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetYuvAndColorOutput)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4394,7 +4428,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetYuvAndColorOutputWithLocation)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4413,7 +4447,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetWithFragDepth)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4432,7 +4466,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetMultipleYuvOutputs)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4454,7 +4488,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetEmptyCscStandardConstructor)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4470,7 +4504,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardConstructor)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4486,7 +4520,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetImplicitTypeConversionToCscStandardFromB
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4503,7 +4537,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetImplicitTypeConversionToCscStandardFromI
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4520,7 +4554,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetImplicitTypeConversionToCscStandardFromF
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4537,7 +4571,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardOr)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4556,7 +4590,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardAnd)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4575,7 +4609,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardInput)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4591,7 +4625,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardOutput)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4607,7 +4641,7 @@ TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardUniform)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_YUV_target : require
 precision mediump float;
@@ -4623,7 +4657,7 @@ TEST_P(GLSLValidationTest_ES3, OverloadRgb2Yuv)
 {
     ANGLE_SKIP_TEST_IF(IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 precision mediump float;
 float rgb_2_yuv(float x) { return x + 1.0; }
 
@@ -4643,7 +4677,7 @@ TEST_P(GLSLValidationTest_ES3, OverloadYuv2Rgb)
 {
     ANGLE_SKIP_TEST_IF(IsGLExtensionEnabled("GL_EXT_YUV_target"));
 
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 precision mediump float;
 float yuv_2_rgb(float x) { return x + 1.0; }
 
@@ -4663,7 +4697,7 @@ TEST_P(GLSLValidationTest, FramebufferFetchNoLastFragDataRedeclaration)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_shader_framebuffer_fetch_non_coherent"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#extension GL_EXT_shader_framebuffer_fetch_non_coherent : require
 uniform highp vec4 u_color;
 
@@ -4682,7 +4716,7 @@ TEST_P(GLSLValidationTest, FramebufferFetchLastFragDataWithoutNoncoherentQualifi
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_shader_framebuffer_fetch_non_coherent"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#extension GL_EXT_shader_framebuffer_fetch_non_coherent : require
 uniform highp vec4 u_color;
 highp vec4 gl_LastFragData[gl_MaxDrawBuffers];
@@ -4702,7 +4736,7 @@ TEST_P(GLSLValidationTest_ES3, FramebufferFetchInoutWithoutNoncoherentQualifier)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_shader_framebuffer_fetch_non_coherent"));
 
-    const char kFS[] =
+    constexpr char kFS[] =
         R"(#version 300 es
 #extension GL_EXT_shader_framebuffer_fetch_non_coherent : require
 layout(location = 0) inout highp vec4 o_color;
@@ -4721,7 +4755,7 @@ void main (void)
 // Ensure that a negative index after a comma generates an error.
 TEST_P(GLSLValidationTest_ES3, NegativeIndexAfterComma)
 {
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 layout(location = 0) out mediump vec4 o_color;
 uniform mediump float u;
 uniform mediump vec4 u_color[4];
@@ -4737,7 +4771,7 @@ void main (void)
 // Ensure that a negative const-variable index after a comma generates an error.
 TEST_P(GLSLValidationTest_ES3, NegativeConstVarIndexAfterComma)
 {
-    const char kFS[] = R"(#version 300 es
+    constexpr char kFS[] = R"(#version 300 es
 layout(location = 0) out mediump vec4 o_color;
 uniform mediump float u;
 uniform mediump vec4 u_color[4];
@@ -4756,7 +4790,7 @@ TEST_P(GLSLValidationTest, ClipCullDistance)
 {
     if (IsGLExtensionEnabled("GL_ANGLE_clip_cull_distance"))
     {
-        const char kVS[] = R"(#extension GL_ANGLE_clip_cull_distance : require
+        constexpr char kVS[] = R"(#extension GL_ANGLE_clip_cull_distance : require
 attribute vec4 aPosition;
 void main()
 {
@@ -4768,7 +4802,7 @@ void main()
 
     if (IsGLExtensionEnabled("GL_EXT_clip_cull_distance"))
     {
-        const char kVS[] = R"(#extension GL_EXT_clip_cull_distance : require
+        constexpr char kVS[] = R"(#extension GL_EXT_clip_cull_distance : require
 attribute vec4 aPosition;
 void main()
 {
@@ -4777,6 +4811,70 @@ void main()
         validateError(GL_VERTEX_SHADER, kVS,
                       "'GL_EXT_clip_cull_distance' : extension is not supported");
     }
+}
+
+// Validate that conflicts are generated for locations consumed by an I/O block array.
+TEST_P(GLSLValidationTest_ES31, IOBlockArrayLocations)
+{
+    constexpr char kVS[] = R"(#version 310 es
+#extension GL_EXT_shader_io_blocks : require
+
+in highp vec4 position;
+
+// This should consume locations [3, 8]
+layout(location = 3) out Block
+{
+    vec4 a;
+    vec4 b;
+} block[3];
+
+// c will conflict with block[0].a
+layout(location = 2) out vec4 c[2];
+
+// d will conflict with block[0].b, block[1].a and block[1].b
+layout(location = 4) out vec4 d[3];
+
+// e will conflict with block[2].a
+layout(location = 7) out vec4 e;
+
+// f will conflict with block[2].b
+layout(location = 7) out vec4 f[2];
+
+void main()
+{
+    block[0].a = vec4(0.1);
+    block[0].b = vec4(0.2);
+    block[1].a = vec4(0.3);
+    block[1].b = vec4(0.4);
+    block[2].a = vec4(0.5);
+    block[2].b = vec4(0.6);
+    c[0] = vec4(0.7);
+    c[1] = vec4(0.8);
+    d[0] = vec4(0.9);
+    d[1] = vec4(1.0);
+    d[2] = vec4(1.1);
+    e = vec4(1.2);
+    f[0] = vec4(1.3);
+    f[1] = vec4(1.4);
+    gl_Position = position;
+})";
+
+    const CompiledShader &shader = compile(GL_VERTEX_SHADER, kVS);
+    EXPECT_FALSE(shader.success());
+
+    const char *kExpect[] = {
+        "'c' conflicting location with 'block.a'",
+        "'d' conflicting location with 'block.b'",
+        "'e' conflicting location with 'block'",
+        "'f' conflicting location with 'block'",
+    };
+
+    for (const char *expect : kExpect)
+    {
+        EXPECT_TRUE(shader.hasInfoLog(expect)) << expect;
+    }
+
+    reset();
 }
 
 class GLSLValidationClipDistanceTest_ES3 : public GLSLValidationTest_ES3
@@ -4895,7 +4993,7 @@ TEST_P(GLSLValidationClipDistanceTest_ES3, TooManyCombined)
     glGetIntegerv(GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_EXT, &maxCombinedClipAndCullDistances);
     ANGLE_SKIP_TEST_IF(maxCombinedClipAndCullDistances > 11);
 
-    const char kVS[] =
+    constexpr char kVS[] =
         R"(uniform vec4 uPlane;
 
 in vec4 aPosition;
@@ -4938,7 +5036,7 @@ TEST_P(GLSLValidationClipDistanceTest_ES3, TooManyCombined2)
     glGetIntegerv(GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_EXT, &maxCombinedClipAndCullDistances);
     ANGLE_SKIP_TEST_IF(maxCombinedClipAndCullDistances > 9);
 
-    const char kVS[] =
+    constexpr char kVS[] =
         R"(uniform vec4 uPlane;
 
 in vec4 aPosition;
@@ -4978,7 +5076,7 @@ void main()
 // But, the array size is greater than gl_MaxClipDistances
 TEST_P(GLSLValidationClipDistanceTest_ES3, TooManyClip)
 {
-    const char kVS[] =
+    constexpr char kVS[] =
         R"(uniform vec4 uPlane;
 
 in vec4 aPosition;
@@ -5008,7 +5106,7 @@ void main()
 // But, the index is gl_MaxCullDistances, greater than gl_CullDistance array size.
 TEST_P(GLSLValidationClipDistanceTest_ES3, OutOfBoundsCullIndex)
 {
-    const char kVS[] =
+    constexpr char kVS[] =
         R"(uniform vec4 uPlane;
 
 in vec4 aPosition;
@@ -5048,7 +5146,7 @@ TEST_P(GLSLValidationClipDistanceTest_ES3, TooManyCombinedFS)
     glGetIntegerv(GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_EXT, &maxCombinedClipAndCullDistances);
     ANGLE_SKIP_TEST_IF(maxCombinedClipAndCullDistances > 11);
 
-    const char kFS[] = R"(out highp vec4 fragColor;
+    constexpr char kFS[] = R"(out highp vec4 fragColor;
 
 void main()
 {
@@ -5086,7 +5184,7 @@ TEST_P(GLSLValidationClipDistanceTest_ES3, TooManyCombinedFS2)
     glGetIntegerv(GL_MAX_COMBINED_CLIP_AND_CULL_DISTANCES_EXT, &maxCombinedClipAndCullDistances);
     ANGLE_SKIP_TEST_IF(maxCombinedClipAndCullDistances > 9);
 
-    const char kFS[] = R"(in highp float gl_ClipDistance[5];
+    constexpr char kFS[] = R"(in highp float gl_ClipDistance[5];
 in highp float gl_CullDistance[4];
 
 in highp vec4 aPosition;
@@ -5123,7 +5221,7 @@ void main()
 // In fragment shader, writing to gl_ClipDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES3, FragmentWriteToClipDistance)
 {
-    const char kFS[] = R"(out highp vec4 fragColor;
+    constexpr char kFS[] = R"(out highp vec4 fragColor;
 
 void main()
 {
@@ -5148,7 +5246,7 @@ void main()
 // array size
 TEST_P(GLSLValidationClipDistanceTest_ES3, FragmentWriteToCullDistance)
 {
-    const char kFS[] = R"(out highp vec4 fragColor;
+    constexpr char kFS[] = R"(out highp vec4 fragColor;
 
 in highp float gl_CullDistance[1];
 
@@ -5175,7 +5273,7 @@ void main()
 // gl_Clip/CullDistance is not decided.
 TEST_P(GLSLValidationClipDistanceTest_ES3, FragmentDynamicIndexWhenNotRedeclared)
 {
-    const char kFS[] = R"(out highp vec4 fragColor;
+    constexpr char kFS[] = R"(out highp vec4 fragColor;
 
 void main()
 {
@@ -5204,7 +5302,7 @@ void main()
 // In compute shader, redeclaring gl_ClipDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeDeclareClipDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 highp float gl_ClipDistance[1];
 void main() {})";
     constexpr char kExpect[] = "reserved built-in name";
@@ -5223,7 +5321,7 @@ void main() {})";
 // In compute shader, writing to gl_ClipDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeWriteClipDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 void main() { gl_ClipDistance[0] = 1.0; })";
     constexpr char kExpect[] = "'gl_ClipDistance' : undeclared identifier";
 
@@ -5241,7 +5339,7 @@ void main() { gl_ClipDistance[0] = 1.0; })";
 // In compute shader, reading gl_ClipDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeReadClipDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 void main() { highp float c = gl_ClipDistance[0]; })";
     constexpr char kExpect[] = "'gl_ClipDistance' : undeclared identifier";
 
@@ -5259,7 +5357,7 @@ void main() { highp float c = gl_ClipDistance[0]; })";
 // In compute shader, redeclaring gl_CullDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeDeclareCullDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 highp float gl_CullDistance[1];
 void main() {})";
     constexpr char kExpect[] = "reserved built-in name";
@@ -5278,7 +5376,7 @@ void main() {})";
 // In compute shader, writing to gl_CullDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeWriteCullDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 void main() { gl_CullDistance[0] = 1.0; })";
     constexpr char kExpect[] = "'gl_CullDistance' : undeclared identifier";
 
@@ -5296,7 +5394,7 @@ void main() { gl_CullDistance[0] = 1.0; })";
 // In compute shader, reading gl_CullDistance should be denied.
 TEST_P(GLSLValidationClipDistanceTest_ES31, ComputeReadCullDistance)
 {
-    const char kCS[]         = R"(layout(local_size_x = 1) in;
+    constexpr char kCS[]     = R"(layout(local_size_x = 1) in;
 void main() { highp float c = gl_CullDistance[0]; })";
     constexpr char kExpect[] = "'gl_CullDistance' : undeclared identifier";
 
@@ -5323,7 +5421,7 @@ class GLSLValidationTextureRectangleTest : public GLSLValidationTest
 // #extension mechanism was in place so it doesn't require explicit enabling.
 TEST_P(GLSLValidationTextureRectangleTest, NewTypeAndBuiltinsWithoutExtensionDirective)
 {
-    const char kFS[] = R"(
+    constexpr char kFS[] = R"(
 precision mediump float;
 uniform sampler2DRect tex;
 void main()
@@ -5348,7 +5446,7 @@ void main()
 // If the extension is supported, test that using the feature with the extension directive passes.
 TEST_P(GLSLValidationTextureRectangleTest, NewTypeAndBuiltinsWithExtensionDirective)
 {
-    const char kFS[] = R"(#extension GL_ARB_texture_rectangle : enable
+    constexpr char kFS[] = R"(#extension GL_ARB_texture_rectangle : enable
 precision mediump float;
 uniform sampler2DRect tex;
 void main()
@@ -5374,7 +5472,7 @@ TEST_P(GLSLValidationTextureRectangleTest, Rect2DVs2DMismatch)
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
 
     {
-        const char kFS[] = R"(
+        constexpr char kFS[] = R"(
 #extension GL_ARB_texture_rectangle : require
 precision mediump float;
 uniform sampler2DRect tex;
@@ -5386,7 +5484,7 @@ void main() {
     }
 
     {
-        const char kFS[] = R"(
+        constexpr char kFS[] = R"(
 #extension GL_ARB_texture_rectangle : require
 precision mediump float;
 uniform sampler2D tex;
@@ -5405,7 +5503,7 @@ TEST_P(GLSLValidationTextureRectangleTest, DisableARBTextureRectangle)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
 
-    const char kFS[] = R"(#extension GL_ARB_texture_rectangle : disable
+    constexpr char kFS[] = R"(#extension GL_ARB_texture_rectangle : disable
 precision mediump float;
 
 uniform sampler2DRect s;
@@ -6568,7 +6666,7 @@ TEST_P(GLSLValidationExtensionDirectiveTest_ES3, LastFragData)
     const bool hasNonCoherent =
         IsGLExtensionEnabled("GL_EXT_shader_framebuffer_fetch_non_coherent");
 
-    const char kFS100Coherent[] = R"(
+    constexpr char kFS100Coherent[] = R"(
 uniform highp vec4 u_color;
 highp vec4 gl_LastFragData[gl_MaxDrawBuffers];
 
@@ -6577,7 +6675,7 @@ void main (void)
     gl_FragColor = u_color + gl_LastFragData[0] + gl_LastFragData[2];
 })";
 
-    const char kFS300Coherent[] = R"(
+    constexpr char kFS300Coherent[] = R"(
 inout highp vec4 o_color;
 uniform highp vec4 u_color;
 
@@ -6586,7 +6684,7 @@ void main (void)
     o_color = clamp(o_color + u_color, vec4(0.0f), vec4(1.0f));
 })";
 
-    const char kFS100NonCoherent[] = R"(
+    constexpr char kFS100NonCoherent[] = R"(
 uniform highp vec4 u_color;
 layout(noncoherent) highp vec4 gl_LastFragData[gl_MaxDrawBuffers];
 
@@ -6595,7 +6693,7 @@ void main (void)
     gl_FragColor = u_color + gl_LastFragData[0] + gl_LastFragData[2];
 })";
 
-    const char kFS300NonCoherent[] = R"(
+    constexpr char kFS300NonCoherent[] = R"(
 layout(noncoherent, location = 0) inout highp vec4 o_color;
 uniform highp vec4 u_color;
 

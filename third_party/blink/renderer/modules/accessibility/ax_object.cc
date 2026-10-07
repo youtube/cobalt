@@ -32,6 +32,7 @@
 #include <ostream>
 
 #include "base/auto_reset.h"
+#include "base/debug/crash_logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
@@ -112,6 +113,7 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/scrolling/top_document_root_scroller_controller.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/svg/svg_desc_element.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_g_element.h"
@@ -727,16 +729,17 @@ Node* AXObject::GetParentNodeForComputeParent(AXObjectCacheImpl& cache,
 
   // Targets of toggle-overscroll actions are reparented under their
   // corresponding ::-internal-overscroll-area on their overscroll container.
-  Element* element = DynamicTo<Element>(node);
-  if (Element* container =
-          element ? element->GetOverscrollContainer() : nullptr) {
-    wtf_size_t index =
-        container->GetOverscrollAreaTracker()->DOMSortedElements().Find(
-            element);
-    PseudoElement* pseudo_element =
-        container->GetOverscrollAreaParentPseudoElements()->at(index);
-    CHECK(pseudo_element->GetPseudoId() == kPseudoIdOverscrollAreaParent);
-    return pseudo_element;
+  if (Element* element = DynamicTo<Element>(node)) {
+    if (PseudoElement* overscroll_area_parent =
+            element->GetPseudoElement(kPseudoIdOverscrollAreaParent)) {
+      return overscroll_area_parent;
+    }
+  }
+  if (PseudoElement* pseudo_element = DynamicTo<PseudoElement>(node);
+      pseudo_element &&
+      pseudo_element->GetPseudoId() == kPseudoIdOverscrollAreaParent) {
+    return pseudo_element->UltimateOriginatingElement()
+        .GetOverscrollContainer();
   }
 
   // Use LayoutTreeBuilderTraversal::Parent(), which handles pseudo content.
@@ -8288,6 +8291,8 @@ const AXObject* AXObject::LowestCommonAncestor(const AXObject& first,
 
 // Extra checks that only occur during serialization.
 void AXObject::PreSerializationConsistencyCheck() const{
+  SCOPED_CRASH_KEY_STRING256("AXObject", "Error",
+                             this->ToString().Utf8().c_str());
   CHECK(!IsDetached()) << "Do not serialize detached nodes: " << this;
   CHECK(AXObjectCache().IsFrozen());
   CHECK(!NeedsToUpdateCachedValues()) << "Stale values on: " << this;

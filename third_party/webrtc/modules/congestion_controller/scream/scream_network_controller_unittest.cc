@@ -446,5 +446,26 @@ TEST(ScreamControllerTest, PadsToMinOf2xCurrentMaxAndEverSeenMax) {
   EXPECT_LT(result_2.target_rate, DataRate::KilobitsPerSec(1100));
 }
 
+TEST(ScreamControllerTest, CanSetStartBitrate) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(3000);
+  ScreamNetworkController scream_controller(config);
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 50,
+                          .link_capacity = DataRate::KilobitsPerSec(5000)}});
+
+  TransportPacketsFeedback feedback =
+      feedback_generator.ProcessUntilNextFeedback(
+          /*send_rate=*/DataRate::KilobitsPerSec(100), clock,
+          [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+  NetworkControlUpdate update =
+      scream_controller.OnTransportPacketsFeedback(feedback);
+  EXPECT_GE(update.target_rate->target_rate, DataRate::KilobitsPerSec(2980));
+  EXPECT_LT(update.target_rate->target_rate, DataRate::KilobitsPerSec(3300));
+}
+
 }  // namespace
 }  // namespace webrtc

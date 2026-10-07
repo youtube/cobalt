@@ -7,12 +7,14 @@ package org.chromium.chrome.browser.feed;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -54,8 +56,8 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.LocaleUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -70,6 +72,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.cards.SignInPromo;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageCoordinator;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -119,7 +122,7 @@ import java.util.function.Supplier;
     ChromeFeatureList.FEED_CONTAINMENT,
     ChromeFeatureList.FEED_HEADER_REMOVAL
 })
-@EnableFeatures({ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP, SigninFeatures.ENABLE_SEAMLESS_SIGNIN})
+@EnableFeatures({SigninFeatures.ENABLE_SEAMLESS_SIGNIN})
 public class FeedSurfaceCoordinatorTest {
     private static final @SurfaceType int SURFACE_TYPE = SurfaceType.NEW_TAB_PAGE;
     private static final long SURFACE_CREATION_TIME_NS = 1234L;
@@ -220,8 +223,8 @@ public class FeedSurfaceCoordinatorTest {
             ObservableSuppliers.createNonNull(0);
     private FeedSurfaceMediator mMediatorSpy;
     private int mTabStripHeight;
-    private final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier =
+            ObservableSuppliers.createMonotonic();
 
     @Before
     @SuppressWarnings("DirectInvocationOnMock")
@@ -526,6 +529,20 @@ public class FeedSurfaceCoordinatorTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testSetBackground_disabledByPolicy() {
+        assertNotNull(mCoordinator.getNtpBackgroundImageCoordinatorForTesting());
+        mCoordinator.destroy();
+
+        NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
+        NtpCustomizationPolicyManager.setInstanceForTesting(policyManager);
+        when(policyManager.isNtpCustomBackgroundEnabled()).thenReturn(false);
+
+        mCoordinator = createCoordinator(mRecyclerView);
+        assertNull(mCoordinator.getNtpBackgroundImageCoordinatorForTesting());
+    }
+
+    @Test
     @EnableFeatures(ChromeFeatureList.FLUID_RESIZE)
     @Config(qualifiers = "sw800dp-w800dp-h1200dp") // More specific tablet config
     public void testResize_onTablet_withFeatureEnabled_takesSnapshot() throws Exception {
@@ -580,6 +597,15 @@ public class FeedSurfaceCoordinatorTest {
         // After the delay, RecyclerView should be visible again, and the snapshot overlay gone.
         assertEquals(View.VISIBLE, recyclerView.getVisibility());
         assertEquals(View.GONE, snapshotOverlay.getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    @Config(qualifiers = "sw600dp")
+    public void testNtpCustomizationButtonCreated() {
+        assertNotNull(
+                "NTP customization button should be created.",
+                mCoordinator.getNtpCustomizationButtonForTesting());
     }
 
     private boolean hasStreamBound() {

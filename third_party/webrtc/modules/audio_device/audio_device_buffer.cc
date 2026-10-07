@@ -53,7 +53,7 @@ AudioDeviceBuffer::AudioDeviceBuffer(const Environment& env,
     : env_(env),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           kTimerQueueName,
-          TaskQueueFactory::Priority::NORMAL)),
+          TaskQueueFactory::Priority::kNormal)),
       audio_transport_cb_(nullptr),
       rec_sample_rate_(0),
       play_sample_rate_(0),

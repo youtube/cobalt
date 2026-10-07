@@ -27,6 +27,8 @@
 #include <sys/mman.h>
 #include <sys/ucontext.h>
 #include <unistd.h>
+
+#include "src/base/platform/platform-linux.h"
 #endif  // V8_OS_LINUX
 
 #if defined(V8_USE_ADDRESS_SANITIZER)
@@ -39,12 +41,25 @@
 #include <sanitizer/common_interface_defs.h>
 #endif
 
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+#include "src/sandbox/external-strings-cage.h"
+#endif  // V8_ENABLE_SANDBOX && V8_ENABLE_MEMORY_CORRUPTION_API
+
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
 SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
+
+namespace {
+void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                              static_cast<int>(message.size()))
+          .ToLocalChecked()));
+}
+}  // namespace
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
@@ -371,41 +386,6 @@ void SandboxGetInstanceTypeIdFor(
   info.GetReturnValue().Set(type_id);
 }
 
-void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
-  isolate->ThrowException(v8::Exception::TypeError(
-      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
-                              static_cast<int>(message.size()))
-          .ToLocalChecked()));
-}
-
-std::optional<int> GetFieldOffset(v8::Isolate* isolate,
-                                  InstanceType instance_type,
-                                  const std::string& field_name) {
-  SandboxTesting::FieldOffsetMap& all_fields =
-      SandboxTesting::GetFieldOffsetMap();
-  auto fields_it = all_fields.find(instance_type);
-  if (fields_it == all_fields.end()) {
-    std::ostringstream error;
-    error << "Unknown object type \"" << ToString(instance_type)
-          << "\". If needed, add it in SandboxTesting::GetFieldOffsetMap";
-    ThrowTypeError(isolate, error.view());
-    return std::nullopt;
-  }
-
-  SandboxTesting::FieldOffsets& obj_fields = fields_it->second;
-  auto offset_it = obj_fields.find(field_name);
-  if (offset_it == obj_fields.end()) {
-    std::ostringstream error;
-    error << "Unknown field \"" << field_name << "\" of instance type "
-          << ToString(instance_type)
-          << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
-    ThrowTypeError(isolate, error.view());
-    return std::nullopt;
-  }
-
-  return offset_it->second;
-}
-
 // Obtain the offset of a field in an object.
 //
 // This can be used to obtain the offsets of internal object fields in order to
@@ -446,7 +426,7 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   if (std::optional<int> offset =
-          GetFieldOffset(isolate, instance_type, *field_name)) {
+          SandboxTesting::GetFieldOffset(isolate, instance_type, *field_name)) {
     info.GetReturnValue().Set(offset.value());
   } else {
     DCHECK(isolate->HasPendingException());
@@ -547,8 +527,8 @@ void SandboxCorruptObjectField(
     }
 
     InstanceType instance_type = obj->map()->instance_type();
-    if (std::optional<int> offset_from_name =
-            GetFieldOffset(isolate, instance_type, *field_name)) {
+    if (std::optional<int> offset_from_name = SandboxTesting::GetFieldOffset(
+            isolate, instance_type, *field_name)) {
       offset = offset_from_name.value();
     } else {
       DCHECK(isolate->HasPendingException());
@@ -687,15 +667,6 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   Handle<String> name =
       isolate->factory()->NewStringFromAsciiChecked("Sandbox");
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
-
-  // Remember the address range belonging to the external strings cage, to be
-  // used for crash filters.
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  g_external_strings_cage_region =
-      i_isolate->isolate_group()->external_strings_cage()->reservation_region();
-  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
-          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
-          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
 }
 
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
@@ -708,6 +679,61 @@ void PrintToStderr(const char* output) {
   // NO malloc or stdio is allowed here.
   ssize_t return_val = write(STDERR_FILENO, output, strlen(output));
   USE(return_val);
+}
+
+bool IsSafeAccessViolation(Address faultaddr) {
+  base::SignalSafeMapsParser parser;
+  if (!parser.IsValid()) {
+    PrintToStderr(
+        "Could not access /proc/self/maps so cannot determine if access "
+        "violation is safe.\n");
+    return false;
+  }
+
+  std::optional<base::MemoryRegion> fault_entry;
+  bool custom_memory_region_names_are_supported = false;
+  while (auto entry = parser.Next()) {
+    if (faultaddr >= entry->start && faultaddr < entry->end) {
+      fault_entry = entry;
+    }
+    // Custom names for virtual memory regions aren't always supported. We know
+    // they are supported if we see the "v8-sandbox" mapping though.
+    if (strstr(entry->pathname, Sandbox::kSandboxAddressSpaceName)) {
+      custom_memory_region_names_are_supported = true;
+    }
+  }
+
+  if (!fault_entry) {
+    PrintToStderr(
+        "Could not find faulting address in /proc/self/maps so cannot "
+        "determine if access violation is safe.\n");
+    return false;
+  }
+
+  if (custom_memory_region_names_are_supported) {
+    // The simple and precise case: just check if we crashed inside one of the
+    // known-safe-to-crash memory regions.
+    const char* kSafeNames[] = {
+        Sandbox::kSandboxAddressSpaceName,
+        kPointerTableAddressSpaceName,
+        nullptr,
+    };
+    for (const char** name = kSafeNames; *name; ++name) {
+      // We need to perform a substring search here as the actual mapping name
+      // will be something like "[anon:v8-sandbox]".
+      if (strstr(fault_entry->pathname, *name)) return true;
+    }
+    // We crashed somewhere else, so that's probably unsafe.
+    return false;
+  } else {
+    // If we don't have names then we need to rely on the page permissions,
+    // which is less accurate. With in-sandbox corruption it is possible to
+    // cause (safe) access violations inside the pointer table memory mappings.
+    // Unfortunately, these can be both PROT_NONE and PROT_READ mappings (as
+    // some table have RO segments), so we need to treat both of these as safe.
+    return fault_entry->permissions == PagePermissions::kNoAccess ||
+           fault_entry->permissions == PagePermissions::kRead;
+  }
 }
 
 [[noreturn]] void FilterCrash(const char* reason) {
@@ -930,18 +956,15 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         // writing to a read-only mapping.
         //
         // The sandbox relies on such accesses crashing in a safe way in some
-        // cases. For example, the accesses into the various pointer tables are
-        // not bounds checked, but instead it is guaranteed that an
-        // out-of-bounds access will hit a PROT_NONE mapping.
-        //
-        // Memory accesses that _always_ cause such a permission violation are
-        // not exploitable and the crashes are therefore filtered out here.
-        // However, testcases need to be written with this behavior in mind and
-        // should typically try to access non-existing memory to demonstrate the
-        // ability to escape from the sandbox.
-        FilterCrash(
-            "Caught harmless memory access violation (memory permission "
-            "violation).");
+        // cases. For example, accesses into the various pointer tables are not
+        // bounds checked, but instead it is guaranteed that an out-of-bounds
+        // access will hit a PROT_NONE mapping. As such, here we try to
+        // identify whether the crash represents one of these known-safe cases,
+        // in which case we filter it out.
+        if (IsSafeAccessViolation(faultaddr)) {
+          FilterCrash(
+              "Caught harmless memory access violation (safe SEGV_ACCERR).");
+        }
       }
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
@@ -1075,6 +1098,16 @@ void SandboxTesting::Enable(Mode mode) {
           reinterpret_cast<void*>(Sandbox::current()->base()),
           reinterpret_cast<void*>(Sandbox::current()->end()));
 
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  // Remember the address range belonging to the external strings cage, to be
+  // used for crash filters.
+  g_external_strings_cage_region =
+      i::ExternalStringsCage::GetInstance()->reservation_region();
+  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
+          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
+          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+
 #ifdef V8_OS_LINUX
   InstallCrashFilter();
 #else
@@ -1207,6 +1240,34 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;
+}
+
+std::optional<int> SandboxTesting::GetFieldOffset(
+    v8::Isolate* isolate_for_errors, InstanceType instance_type,
+    const std::string& field_name) {
+  SandboxTesting::FieldOffsetMap& all_fields =
+      SandboxTesting::GetFieldOffsetMap();
+  auto fields_it = all_fields.find(instance_type);
+  if (fields_it == all_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown object type \"" << ToString(instance_type)
+          << "\". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate_for_errors, error.view());
+    return std::nullopt;
+  }
+
+  SandboxTesting::FieldOffsets& obj_fields = fields_it->second;
+  auto offset_it = obj_fields.find(field_name);
+  if (offset_it == obj_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown field \"" << field_name << "\" of instance type "
+          << ToString(instance_type)
+          << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate_for_errors, error.view());
+    return std::nullopt;
+  }
+
+  return offset_it->second;
 }
 
 #endif  // V8_ENABLE_SANDBOX

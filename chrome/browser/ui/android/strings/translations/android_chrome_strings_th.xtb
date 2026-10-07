@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> จะเปิดใน Chrome การดำเนินการต่อหมายความว่า คุณยอมรับ<ph name="BEGIN_LINK1" />ข้อกำหนดในการให้บริการของ Google<ph name="END_LINK1" /> และ<ph name="BEGIN_LINK2" />ข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ Chrome OS<ph name="END_LINK2" /></translation>
 <translation id="1154555449933432029">คุณไม่มีรหัสผ่านที่บันทึกไว้ในเครื่องมือจัดการรหัสผ่านบน Google</translation>
 <translation id="115483310321669804">ใช้รหัสผ่าน <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">ซิงค์แท็บและประวัติการเข้าชม</translation>
 <translation id="1165109137568919258">ถ่ายรูปหรือเพิ่มรูปภาพจากแกลเลอรีรูปภาพเพื่อค้นหา</translation>
 <translation id="1173894706177603556">เปลี่ยนชื่อ</translation>
 <translation id="1174479719160874822">Chrome จะขอเว็บไซต์เวอร์ชันมือถือเมื่อหน้าจอแคบ</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">เปลี่ยนแปลงแล้ว</translation>
 <translation id="1480287803138246127">ประวัติการเข้าชมเว็บบางส่วนอาจไม่แสดงที่นี่ หากต้องการดูประวัติการเข้าชมใน Chrome ทั้งหมด ให้เปิดประวัติการเข้าชมใน Chrome แบบเต็ม</translation>
 <translation id="1493287004536771723">คุณกำลังติดตาม <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">กลับไปที่แท็บ</translation>
 <translation id="1496514951988037011">ชื่อผู้ใช้</translation>
 <translation id="1501480321619201731">ลบกลุ่ม</translation>
 <translation id="1506061864768559482">เครื่องมือค้นหา</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">ข้ามไปยังแถบที่อยู่</translation>
 <translation id="2888126860611144412">เกี่ยวกับ Chrome</translation>
 <translation id="2891154217021530873">หยุดการโหลดหน้า</translation>
+<translation id="2893168226686371498">เบราว์เซอร์เริ่มต้น</translation>
 <translation id="2894821468041866720">ไม่ทำให้เบราว์เซอร์หรืออุปกรณ์ของคุณทำงานช้าลงอย่างเห็นได้ชัด</translation>
 <translation id="2895521649038438824">คุณฟังหน้านี้ได้</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, แท็บที่ปักหมุดซึ่งมีเสียง</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">ข้ามไปยังแท็บก่อนหน้า</translation>
 <translation id="5210365745912300556">ปิดแท็บ</translation>
 <translation id="5212800876504289412">รีสตาร์ท Chrome เพื่อทำการเปลี่ยนแปลงนี้ให้เสร็จ แท็บจะเปิดขึ้นอีกครั้งโดยอัตโนมัติเมื่อคุณรีสตาร์ท</translation>
+<translation id="5213114823401215820">เปิดกลุ่มที่ปิดไปแล้วอีกครั้ง</translation>
 <translation id="5215957675041756913">ควบคุมข้อมูลและบัญชีของคุณ</translation>
 <translation id="5218324087477576825">ต้องระบุหมายเลขบัตร</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และอื่นๆ <ph name="SEPARATOR" /> Chrome นำสิทธิ์เหล่านี้ออกเนื่องจากคุณไม่ได้เข้าชมเมื่อเร็วๆ นี้</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">คำอธิบาย:</translation>
 <translation id="5776970333778123608">ข้อมูลที่ไม่สำคัญ</translation>
 <translation id="5793665092639000975">ใช้ไป <ph name="SPACE_USED" /> จาก <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">ค้นหาและเรียกดู</translation>
 <translation id="5797949256525811424">บล็อกหัวข้อแล้ว</translation>
 <translation id="580893287573699959">จัดการหัวข้อและเว็บไซต์ที่คุณสนใจ</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# ชั่วโมงที่ผ่านมา}other{# ชั่วโมงที่ผ่านมา}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">การปรับเปลี่ยนในแบบของคุณและการลิงก์</translation>
 <translation id="6937876069006524083">ชื่อเล่น (ไม่บังคับ)</translation>
 <translation id="6942665639005891494">เปลี่ยนตำแหน่งเริ่มต้นในการดาวน์โหลดได้ทุกเมื่อโดยใช้ตัวเลือกเมนู "การตั้งค่า"</translation>
-<translation id="694267552845942083">ขณะนี้คุณกำลังปรับแต่งการตั้งค่าการซิงค์ แตะปุ่ม "ยืนยัน" ใกล้ด้านล่างของหน้าจอเพื่อเปิดการซิงค์ให้เสร็จสิ้น กลับ</translation>
 <translation id="6945221475159498467">เลือก</translation>
 <translation id="6955535239952325894">การตั้งค่านี้ปิดใช้อยู่ในเบราว์เซอร์ที่มีการจัดการ</translation>
 <translation id="6963766334940102469">ลบบุ๊กมาร์ก</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">เพิ่มลงในเรื่องรออ่าน <ph name="BEGIN_NEW" />ใหม่<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">เปิดในเบราว์เซอร์</translation>
 <translation id="7029809446516969842">รหัสผ่าน</translation>
+<translation id="7037994709569287156">กำหนดให้ Chrome เป็นเบราว์เซอร์เริ่มต้น</translation>
 <translation id="7053256416619638731">เสริมความรัดกุมให้รหัสผ่านในอุปกรณ์นี้</translation>
 <translation id="7053983685419859001">บล็อก</translation>
 <translation id="7054588988317389591">รับคำอธิบายรูปภาพใช่ไหม</translation>
@@ -1469,6 +1472,7 @@
 หากต้องการเปลี่ยนการตั้งค่านี้ ให้<ph name="BEGIN_LINK" />ลบข้อมูล Chrome ในบัญชี<ph name="END_LINK" /></translation>
 <translation id="7165972437814027679">ดูข้อมูลเพิ่มเติมเกี่ยวกับสาเหตุที่ Chrome บล็อกบางไฟล์</translation>
 <translation id="7168323970702333693">ลงชื่อเข้าใช้ด้วย <ph name="USER_NAME" /> เปิดการตั้งค่า</translation>
+<translation id="7170930892977483182">ระบบจะลบรหัสความปลอดภัยทั้งหมดที่บันทึกไว้ในอุปกรณ์และใน Google Wallet ของคุณ</translation>
 <translation id="7173114856073700355">เปิดการตั้งค่า</translation>
 <translation id="7173338713290252554">ประวัติราคาในเว็บ</translation>
 <translation id="7177466738963138057">คุณสามารถเปลี่ยนค่านี้ภายหลังใน "การตั้งค่า"</translation>
@@ -1568,6 +1572,7 @@
 <translation id="7523960634226602883">ค้นหาด้วยกล้องโดยใช้ Google Lens</translation>
 <translation id="7525248386620136756">ปิดและบันทึก <ph name="TAB_GROUPS_AND_TABS_PART" />แล้ว</translation>
 <translation id="7545347190366646170">บุคคลที่มีสิทธิ์เข้าถึง</translation>
+<translation id="7553482318994371148">เปิดแท็บที่ปิดไปแล้วขึ้นมาใหม่</translation>
 <translation id="7554643625247105821">ตรวจสอบเวอร์ชัน Chrome ไม่ได้</translation>
 <translation id="7557508262441527045">ออกจากระบบแล้ว</translation>
 <translation id="7573665567024262965">เลือกแอปเริ่มต้น</translation>
@@ -1641,6 +1646,7 @@
 <translation id="784652447248278262">หน้าต่างปัจจุบัน</translation>
 <translation id="784934925303690534">ช่วงเวลา</translation>
 <translation id="7851858861565204677">อุปกรณ์อื่นๆ</translation>
+<translation id="78527117619130387">กด ^W อีกครั้งเพื่อปิดแท็บที่ปักหมุด</translation>
 <translation id="7853202427316060426">กิจกรรม</translation>
 <translation id="7859988229622350291">ไม่ต้องแปล</translation>
 <translation id="7866213166286285359">ดูข้อความแจ้งเกี่ยวกับการแปลหน้าเว็บที่นี่</translation>
@@ -1654,6 +1660,7 @@
 <translation id="7919123827536834358">แปลภาษาเหล่านี้โดยอัตโนมัติ</translation>
 <translation id="7921782882718083488">สรุปหน้านี้</translation>
 <translation id="7926975587469166629">ชื่อเล่นของบัตร</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome จะนำสิทธิ์ออกจากเว็บไซต์ที่ส่งการแจ้งเตือนมากเกินไปหรือที่คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้โดยอัตโนมัติ</translation>
 <translation id="7934668619883965330">ดาวน์โหลดไฟล์ไม่ได้ ไม่รองรับรูปแบบไฟล์</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> ล้าสมัย</translation>
@@ -1799,6 +1806,7 @@
 <translation id="8458413889418591446">ซิงค์ประวัติการเข้าชมและแท็บเพื่อกลับไปยังเว็บไซต์ที่เคยเข้าชมอีกครั้งได้อย่างรวดเร็ว</translation>
 <translation id="84594714173170813">ใช้ข้อมูล Chrome ในบัญชี Google ต่อไป</translation>
 <translation id="8460448946170646641">ตรวจสอบการควบคุมที่สำคัญด้านความเป็นส่วนตัวและความปลอดภัย</translation>
+<translation id="8460932807646981183">จัดการเครื่องมือค้นหาและการค้นหาเว็บไซต์</translation>
 <translation id="8473863474539038330">ที่อยู่และอื่นๆ</translation>
 <translation id="847433688444405067">ท่องเว็บในอุปกรณ์ต่างๆ</translation>
 <translation id="8477178913400731244">ลบข้อมูล</translation>
@@ -1934,7 +1942,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, แท็บการแชร์ซึ่งเลือกไว้หลายแท็บ</translation>
 <translation id="9074739597929991885">บลูทูธ</translation>
 <translation id="9081543426177426948">ระบบจะไม่บันทึกเว็บไซต์ที่คุณเข้าชมในโหมดไม่ระบุตัวตน</translation>
-<translation id="9086302186042011942">กำลังซิงค์</translation>
 <translation id="9086455579313502267">ไม่สามารถเข้าถึงเครือข่าย</translation>
 <translation id="9093915805850895575">เปิดในหน้าต่าง Chrome</translation>
 <translation id="909756639352028172">รวม Chrome ไว้ในกิจกรรมบนเว็บและแอป ตลอดจนบริการของ Google ที่ลิงก์ไว้เพื่อรับประสบการณ์การใช้งานที่ปรับเปลี่ยนในแบบของคุณมากที่สุด</translation>

@@ -383,6 +383,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
        IDS_CONTEXTUAL_TASKS_CONTEXT_MENU_MOST_RECENT_TABS},
       {"composeboxContextMenuGeminiModels",
        IDS_CONTEXTUAL_TASKS_CONTEXT_MENU_GEMINI_MODELS},
+      {"canvas", IDS_NTP_COMPOSE_CANVAS},
+      {"geminiModelAuto", IDS_NTP_COMPOSE_AUTO_MODEL},
+      {"geminiModelThinking", IDS_NTP_COMPOSE_THINKING_3_PRO},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -434,6 +437,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       profile->GetPrefs()->GetInteger(
           prefs::kNtpComposeButtonShownCountPrefName) <
           composebox_config.entry_point().num_page_load_animations());
+  source->AddBoolean("contextualMenuShowModelPicker",
+                     ntp_composebox::kShowModelPicker.Get());
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -1065,6 +1070,10 @@ void SearchboxHandler::GetPlaceholderConfig(
 }
 
 void SearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
+  std::move(callback).Run({});
+}
+
+void SearchboxHandler::GetInputState(GetInputStateCallback callback) {
   std::move(callback).Run({});
 }
 

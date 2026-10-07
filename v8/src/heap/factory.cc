@@ -390,11 +390,13 @@ DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
+    DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<Context> context,
     DirectHandle<ClosureFeedbackCellArray> feedback_array) {
   auto result = NewStructInternal<PrototypeSharedClosureInfo>(
       PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
+  result->set_boilerplate_description(*object_boilerplate_description);
   result->set_context(*context);
   result->set_closure_feedback_cell_array(*feedback_array);
   return direct_handle(result, isolate());
@@ -3782,6 +3784,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw->set_byte_offset(byte_offset);
   raw->set_byte_length(byte_length);
   raw->set_bit_field(0);
+  buffer->AttachView(*array_buffer_view);
   // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw->GetEmbedderFieldCount(),
@@ -4960,8 +4963,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       DCHECK_NE(feedback_cell->dispatch_handle(), kNullJSDispatchHandle);
 
       JSDispatchHandle dispatch_handle = feedback_cell->dispatch_handle();
-      JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-      Tagged<Code> old_code = jdt->GetCode(dispatch_handle);
+      JSDispatchTable& jdt = isolate_->js_dispatch_table();
+      Tagged<Code> old_code = jdt.GetCode(dispatch_handle);
 
       // A write barrier is needed when settings code, because the update can
       // race with marking which could leave the dispatch slot unmarked.
@@ -4975,7 +4978,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       // needed and maybe find some alternative to initialize it correctly
       // from the beginning.
       if (old_code->is_builtin()) {
-        jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+        jdt.SetCodeNoWriteBarrier(dispatch_handle, *code);
         function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
       } else {
         // On a transition of a feedback cell from one closure to many, make
@@ -4983,7 +4986,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
         // specialized, and if it was, eagerly re-optimize.
         if (cell_transition == FeedbackCell::kOneToMany &&
             old_code->is_context_specialized()) {
-          jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+          jdt.SetCodeNoWriteBarrier(dispatch_handle, *code);
           function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
           DCHECK(old_code->kind() == CodeKind::MAGLEV ||
                  old_code->kind() == CodeKind::TURBOFAN_JS);

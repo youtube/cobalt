@@ -9,6 +9,7 @@
 #ifndef MODULES_VIDEO_CODING_CODECS_AV1_LIBAOM_SPEED_CONFIG_FACTORY_H_
 #define MODULES_VIDEO_CODING_CODECS_AV1_LIBAOM_SPEED_CONFIG_FACTORY_H_
 
+#include "api/field_trials_view.h"
 #include "api/video_codecs/encoder_speed_controller.h"
 #include "api/video_codecs/video_codec.h"
 
@@ -19,9 +20,11 @@ class LibaomSpeedConfigFactory {
   LibaomSpeedConfigFactory(VideoCodecComplexity complexity,
                            VideoCodecMode mode);
 
-  EncoderSpeedController::Config GetSpeedConfig(int width,
-                                                int height,
-                                                int num_temporal_layers) const;
+  EncoderSpeedController::Config GetSpeedConfig(
+      int width,
+      int height,
+      int num_temporal_layers,
+      const FieldTrialsView& field_trials);
 
  private:
   const VideoCodecComplexity complexity_;

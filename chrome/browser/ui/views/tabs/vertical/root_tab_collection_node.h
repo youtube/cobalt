@@ -17,15 +17,19 @@
 
 class TabStripModel;
 
-// The viewmodel for the VerticalTabStrip.
+// The view model for the VerticalTabStrip.
 class RootTabCollectionNode : public TabCollectionNode,
                               public tabs::TabCollectionObserver,
                               public TabStripModelObserver {
  public:
   explicit RootTabCollectionNode(
       TabStripModel* tab_strip_model,
-      CustomAddChildViewCallback add_node_view_to_parent);
+      CustomAddChildViewCallback add_node_view_to_parent,
+      CustomRemoveChildViewCallback remove_node_view_from_parent);
   ~RootTabCollectionNode() override;
+
+  void Init();
+  void Reset();
 
  private:
   using SelectionHandles = base::flat_set<tabs::TabHandle>;
@@ -48,16 +52,15 @@ class RootTabCollectionNode : public TabCollectionNode,
   void OnTabChangedAt(tabs::TabInterface* tab,
                       int model_index,
                       TabChangeType change_type) override;
-  void OnTabPinnedStateChanged(tabs::TabInterface* tab,
-                               int model_index) override;
   void OnTabBlockedStateChanged(tabs::TabInterface* tab,
                                 int model_index) override;
-  void OnSplitTabChanged(const SplitTabChange& change) override;
 
   void UpdateTabData(tabs::TabInterface* tab);
 
   raw_ptr<TabStripModel> tab_strip_model_;
   SelectionHandles selected_tabs_;
+  CustomAddChildViewCallback add_node_view_to_parent_;
+  CustomRemoveChildViewCallback remove_node_view_from_parent_;
   base::WeakPtrFactory<RootTabCollectionNode> weak_ptr_factory_{this};
 };
 

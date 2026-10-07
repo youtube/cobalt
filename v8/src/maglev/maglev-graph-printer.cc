@@ -508,7 +508,39 @@ void PrintSingleDeoptFrame(
       break;
     }
   }
+  if (v8_flags.print_maglev_deopt_verbose) {
+    os << " (addr:" << &frame << ")";
+  }
 }
+
+namespace {
+void PrintVirtualObject(std::ostream& os, VirtualObject* vobj) {
+  os << "[";
+  bool is_first = true;
+  vobj->ForEachSlot(
+      [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
+        switch (desc.type) {
+          case maglev::vobj::FieldType::kTagged:
+          case maglev::vobj::FieldType::kTrustedPointer:
+          case maglev::vobj::FieldType::kFloat64: {
+            if (!is_first) os << ",";
+            is_first = false;
+            os << PrintNodeLabel(value_node);
+            if (VirtualObject* nested = value_node->TryCast<VirtualObject>()) {
+              os << "=VO";
+              PrintVirtualObject(os, nested);
+            }
+            break;
+          }
+          case maglev::vobj::FieldType::kInt32:
+          case maglev::vobj::FieldType::kNone:
+            UNREACHABLE();
+        }
+        return true;
+      });
+  os << "]";
+}
+}  // namespace
 
 void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
                          const DeoptFrame& frame, int max_node_id) {
@@ -518,7 +550,9 @@ void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "  │       VOs : { ";
   const VirtualObjectList& virtual_objects = frame.GetVirtualObjects();
   for (auto vo : virtual_objects) {
-    os << PrintNodeLabel(vo) << "; ";
+    os << PrintNodeLabel(vo) << "=";
+    PrintVirtualObject(os, vo);
+    os << ";";
   }
   os << "}\n";
 }
@@ -777,9 +811,6 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kInt32:
       os_ << "ᴵ";
       break;
-    case ValueRepresentation::kShiftedInt53:
-      os_ << "ᴵ⁵³";
-      break;
     case ValueRepresentation::kUint32:
       os_ << "ᵁ";
       break;
@@ -983,9 +1014,6 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kUint32:
             os_ << "ᵁ";
-            break;
-          case ValueRepresentation::kShiftedInt53:
-            os_ << "ᴵ⁵³";
             break;
           case ValueRepresentation::kFloat64:
             os_ << "ᶠ";

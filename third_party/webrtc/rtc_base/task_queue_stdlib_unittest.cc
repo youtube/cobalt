@@ -54,7 +54,7 @@ TEST(TaskQueueStdlib, AvoidsSpammingLogOnInactivity) {
   StringPtrLogSink stream(&log_output);
   LogMessage::AddLogToStream(&stream, LS_VERBOSE);
   auto task_queue = CreateTaskQueueStdlibFactory()->CreateTaskQueue(
-      "test", TaskQueueFactory::Priority::NORMAL);
+      "test", TaskQueueFactory::Priority::kNormal);
   auto wait_duration = Event::kDefaultWarnDuration + TimeDelta::Seconds(1);
   Thread::SleepMs(wait_duration.ms());
   EXPECT_EQ(log_output.length(), 0u);

@@ -12,11 +12,11 @@
 namespace update_client {
 
 #if BUILDFLAG(IS_STARBOARD)
-base::Value::Dict MakeSimpleOperationEvent(
+base::DictValue MakeSimpleOperationEvent(
     base::expected<OperationResult, CategorizedError> result,
     const int operation_type) {
 #else
-base::Value::Dict MakeSimpleOperationEvent(
+base::DictValue MakeSimpleOperationEvent(
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type) {
 #endif
@@ -28,9 +28,9 @@ base::Value::Dict MakeSimpleOperationEvent(
       operation_type);
 }
 
-base::Value::Dict MakeSimpleOperationEvent(const CategorizedError& error,
-                                           const int operation_type) {
-  base::Value::Dict event;
+base::DictValue MakeSimpleOperationEvent(const CategorizedError& error,
+                                         const int operation_type) {
+  base::DictValue event;
   event.Set("eventtype", operation_type);
   event.Set("eventresult",
             static_cast<int>(error.category == ErrorCategory::kNone

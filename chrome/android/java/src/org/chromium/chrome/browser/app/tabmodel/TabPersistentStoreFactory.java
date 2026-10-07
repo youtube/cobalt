@@ -7,10 +7,7 @@ package org.chromium.chrome.browser.app.tabmodel;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.crypto.CipherFactory;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.TabStateStorageFlagHelper;
-import org.chromium.chrome.browser.tab.TabStateStorageService;
-import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tabmodel.AccumulatingTabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -24,6 +21,9 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
  *
  * <p>This factory encapsulates the logic for creating different variations of stores, including
  * shadow stores and authoritative stores.
+ *
+ * <p>The {@link TabPersistentStore}s returned from this class are uninitialized, and {@link
+ * TabPersistentStore#onNativeLibraryReady()} must be called to initialize them.
  */
 @NullMarked
 public class TabPersistentStoreFactory {
@@ -66,7 +66,10 @@ public class TabPersistentStoreFactory {
      * <p>This method creates a {@link TabStateStore} that operates in "shadow" mode. It captures
      * the state of a selector without affecting the authoritative application state.
      *
-     * @param profile The original profile associated with the tabs.
+     * <p>Shadow stores may only be initialized post-native. This is due to feature flags only being
+     * updated post-native, which may result in stale flag data being used to determine which
+     * implementation to use.
+     *
      * @param regularShadowTabCreator The accumulator for regular tabs loaded by the shadow store.
      * @param incognitoShadowTabCreator The accumulator for incognito tabs loaded by the shadow
      *     store.
@@ -80,7 +83,6 @@ public class TabPersistentStoreFactory {
      *     is for.
      */
     public static @Nullable TabPersistentStore buildShadowStore(
-            Profile profile,
             AccumulatingTabCreator regularShadowTabCreator,
             AccumulatingTabCreator incognitoShadowTabCreator,
             TabModelSelector selector,
@@ -93,7 +95,6 @@ public class TabPersistentStoreFactory {
                 incognito -> incognito ? incognitoShadowTabCreator : regularShadowTabCreator;
 
         return buildShadowStoreInternal(
-                profile,
                 shadowTabCreatorManager,
                 selector,
                 tabPersistencePolicy,
@@ -112,7 +113,10 @@ public class TabPersistentStoreFactory {
      * <p>This method creates a {@link TabStateStore} that operates in "shadow" mode. It captures
      * the state of a selector without affecting the authoritative application state.
      *
-     * @param profile The original profile associated with the tabs.
+     * <p>Shadow stores may only be initialized post-native. This is due to feature flags only being
+     * updated post-native, which may result in stale flag data being used to determine which
+     * implementation to use.
+     *
      * @param regularShadowTabCreator The accumulator for regular tabs loaded by the shadow store.
      * @param selector The selector associated with the store.
      * @param tabPersistencePolicy The tab persistence to use for the shadow store.
@@ -123,7 +127,6 @@ public class TabPersistentStoreFactory {
      *     is for.
      */
     public static @Nullable TabPersistentStore buildNonOtrShadowStore(
-            Profile profile,
             AccumulatingTabCreator regularShadowTabCreator,
             TabModelSelector selector,
             TabPersistencePolicy tabPersistencePolicy,
@@ -137,7 +140,6 @@ public class TabPersistentStoreFactory {
                 };
 
         return buildShadowStoreInternal(
-                profile,
                 shadowTabCreatorManager,
                 selector,
                 tabPersistencePolicy,
@@ -149,7 +151,6 @@ public class TabPersistentStoreFactory {
     }
 
     private static @Nullable TabPersistentStore buildShadowStoreInternal(
-            Profile profile,
             TabCreatorManager shadowTabCreatorManager,
             TabModelSelector selector,
             TabPersistencePolicy tabPersistencePolicy,
@@ -159,14 +160,9 @@ public class TabPersistentStoreFactory {
             AccumulatingTabCreator regularShadowTabCreator,
             String orchestratorTag) {
         if (!TabStateStorageFlagHelper.isTabStorageEnabled()) return null;
-        assert !profile.isOffTheRecord();
-
-        TabStateStorageService service = TabStateStorageServiceFactory.getForProfile(profile);
-        assert service != null;
 
         TabPersistentStore shadowTabPersistentStore =
                 new TabStateStore(
-                        service,
                         selector,
                         windowTag,
                         shadowTabCreatorManager,

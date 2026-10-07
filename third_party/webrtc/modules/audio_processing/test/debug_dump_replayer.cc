@@ -204,11 +204,9 @@ void DebugDumpReplayer::MaybeRecreateApm(const audioproc::Config& msg) {
 void DebugDumpReplayer::ConfigureApm(const audioproc::Config& msg) {
   AudioProcessing::Config apm_config;
 
-  // AEC2/AECM configs.
+  // AEC2 configs.
   RTC_CHECK(msg.has_aec_enabled());
-  RTC_CHECK(msg.has_aecm_enabled());
-  apm_config.echo_canceller.enabled = msg.aec_enabled() || msg.aecm_enabled();
-  apm_config.echo_canceller.mobile_mode = msg.aecm_enabled();
+  apm_config.echo_canceller.enabled = msg.aec_enabled();
 
   // HPF configs.
   RTC_CHECK(msg.has_hpf_enabled());

@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> sẽ mở trong Chrome. Bằng việc tiếp tục, bạn đồng ý với <ph name="BEGIN_LINK1" />Điều khoản dịch vụ của Google<ph name="END_LINK1" /> cũng như <ph name="BEGIN_LINK2" />Điều khoản dịch vụ bổ sung của Google Chrome và ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Bạn chưa lưu mật khẩu nào vào Trình quản lý mật khẩu của Google.</translation>
 <translation id="115483310321669804">Sử dụng mật khẩu <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Đồng bộ hoá các thẻ và nhật ký</translation>
 <translation id="1165109137568919258">Chụp ảnh hoặc thêm hình ảnh từ thư viện ảnh để tìm kiếm</translation>
 <translation id="1173894706177603556">Đổi tên</translation>
 <translation id="1174479719160874822">Chrome sẽ yêu cầu trang web dành cho thiết bị di động khi màn hình bị thu hẹp</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">Đã thay đổi</translation>
 <translation id="1480287803138246127">Một phần nhật ký duyệt web của bạn có thể không xuất hiện ở đây. Để xem toàn bộ nhật ký duyệt web trên Chrome, hãy mở nhật ký duyệt web đầy đủ trên Chrome.</translation>
 <translation id="1493287004536771723">Bạn đang theo dõi <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Quay lại thẻ</translation>
 <translation id="1496514951988037011">tên người dùng</translation>
 <translation id="1501480321619201731">Xóa nhóm</translation>
 <translation id="1506061864768559482">Công cụ tìm kiếm</translation>
@@ -433,6 +435,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2885355868600171871">Chuyển đến thanh địa chỉ</translation>
 <translation id="2888126860611144412">Giới thiệu về Chrome</translation>
 <translation id="2891154217021530873">Ngừng tải trang</translation>
+<translation id="2893168226686371498">Trình duyệt mặc định</translation>
 <translation id="2894821468041866720">Gần như không ảnh hưởng đến tốc độ của trình duyệt hoặc thiết bị.</translation>
 <translation id="2895521649038438824">Bạn có thể nghe trang này</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, Thẻ đang phát âm thanh được ghim</translation>
@@ -980,6 +983,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5210286577605176222">Quay về thẻ trước</translation>
 <translation id="5210365745912300556">Đóng thẻ</translation>
 <translation id="5212800876504289412">Hãy khởi động lại Chrome để hoàn tất thay đổi này. Các thẻ sẽ tự động mở lại khi bạn khởi động lại.</translation>
+<translation id="5213114823401215820">Mở lại nhóm đã đóng</translation>
 <translation id="5215957675041756913">Kiểm soát dữ liệu và tài khoản của bạn</translation>
 <translation id="5218324087477576825">Bạn cần điền số thẻ</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> và các quyền khác <ph name="SEPARATOR" /> Chrome đã loại bỏ các quyền này vì gần đây bạn không truy cập</translation>
@@ -1098,7 +1102,6 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5765780083710877561">Mô tả:</translation>
 <translation id="5776970333778123608">Dữ liệu không quan trọng</translation>
 <translation id="5793665092639000975">Đang dùng: <ph name="SPACE_USED" />/<ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Tìm kiếm và duyệt xem</translation>
 <translation id="5797949256525811424">Đã chặn chủ đề</translation>
 <translation id="580893287573699959">Quản lý các chủ đề và trang web mà bạn quan tâm</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# giờ trước}other{# giờ trước}}</translation>
@@ -1415,7 +1418,6 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="6937524809504266803">Chế độ cá nhân hoá và liên kết</translation>
 <translation id="6937876069006524083">Biệt hiệu (tuỳ ý)</translation>
 <translation id="6942665639005891494">Thay đổi vị trí tải xuống mặc định bất cứ lúc nào bằng cách sử dụng tùy chọn menu Cài đặt</translation>
-<translation id="694267552845942083">Bạn hiện đang tùy chỉnh các chế độ cài đặt Đồng bộ hóa của mình. Để hoàn tất thao tác bật tính năng đồng bộ hóa, hãy nhấn vào nút Xác nhận ở gần cuối màn hình. Di chuyển lên</translation>
 <translation id="6945221475159498467">Chọn</translation>
 <translation id="6955535239952325894">Tùy chọn cài đặt này bị tắt trên các trình duyệt được quản lý</translation>
 <translation id="6963766334940102469">Xóa dấu trang</translation>
@@ -1437,6 +1439,7 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="7020741890149022655">Thêm vào danh sách đọc <ph name="BEGIN_NEW" />Mới<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Mở trong trình duyệt</translation>
 <translation id="7029809446516969842">Mật khẩu</translation>
+<translation id="7037994709569287156">Đặt Chrome làm trình duyệt mặc định</translation>
 <translation id="7053256416619638731">Tăng độ mạnh của mật khẩu trên thiết bị này</translation>
 <translation id="7053983685419859001">Chặn</translation>
 <translation id="7054588988317389591">Tải nội dung mô tả hình ảnh?</translation>
@@ -1469,6 +1472,7 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 Để thay đổi chế độ cài đặt này, hãy <ph name="BEGIN_LINK" />xoá dữ liệu trên Chrome khỏi tài khoản của bạn<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Tìm hiểu thêm về lý do Chrome chặn một số tệp</translation>
 <translation id="7168323970702333693">Đã đăng nhập bằng <ph name="USER_NAME" />. Mở phần cài đặt.</translation>
+<translation id="7170930892977483182">Mọi mã bảo mật đã lưu trên thiết bị và trong Google Wallet sẽ bị xoá</translation>
 <translation id="7173114856073700355">Mở phần Cài đặt</translation>
 <translation id="7173338713290252554">Giá trên Internet theo thời gian</translation>
 <translation id="7177466738963138057">Bạn có thể thay đổi cài đặt này sau trong Cài đặt</translation>
@@ -1801,6 +1805,7 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="8458413889418591446">Để nhanh chóng quay lại các trang web bạn đã truy cập, hãy đồng bộ hoá nhật ký và các thẻ</translation>
 <translation id="84594714173170813">Tiếp tục sử dụng dữ liệu Chrome trong Tài khoản Google</translation>
 <translation id="8460448946170646641">Xem xét các chế độ kiểm soát quan trọng đối với quyền riêng tư và tính bảo mật</translation>
+<translation id="8460932807646981183">Quản lý các công cụ tìm kiếm và tính năng tìm kiếm trong trang web</translation>
 <translation id="8473863474539038330">Địa chỉ và các lựa chọn khác</translation>
 <translation id="847433688444405067">Duyệt xem trên các thiết bị</translation>
 <translation id="8477178913400731244">Xoá dữ liệu</translation>
@@ -1936,7 +1941,6 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, Thẻ đang chia sẻ được chọn cùng với nhiều thẻ khác</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Các trang web bạn truy cập không được lưu ở chế độ Ẩn danh</translation>
-<translation id="9086302186042011942">Đang đồng bộ hóa</translation>
 <translation id="9086455579313502267">Không thể truy cập mạng</translation>
 <translation id="9093915805850895575">Mở trong cửa sổ Chrome</translation>
 <translation id="909756639352028172">Để có trải nghiệm phù hợp với nhu cầu cá nhân nhất, hãy tích hợp Chrome vào phần Hoạt động trên web và ứng dụng cũng như các dịch vụ của Google được liên kết</translation>

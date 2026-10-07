@@ -61,7 +61,7 @@ class AudioIngressTest : public ::testing::Test {
     rtp_config.rtcp_report_interval_ms = 5000;
     rtp_config.outgoing_transport = &transport_;
     rtp_config.local_media_ssrc = 0xdeadc0de;
-    rtp_rtcp_ = std::make_unique<ModuleRtpRtcpImpl2>(env_, rtp_config);
+    rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateSendModule(env_, rtp_config);
 
     rtp_rtcp_->SetSendingMediaStatus(false);
     rtp_rtcp_->SetRTCPStatus(RtcpMode::kCompound);

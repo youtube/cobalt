@@ -55,8 +55,6 @@ class FakeTabSlotController : public TabSlotController {
                              ui::mojom::MenuSourceType source_type) override {}
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
-  bool IsTabPinned(const TabSlotView* tab) const override;
-  bool IsTabFirst(const TabSlotView* tab) const override;
   bool IsFocusInTabs() const override;
   bool ShouldCompactLeadingEdge() const override;
   void MaybeStartDrag(TabSlotView* source,
@@ -77,8 +75,6 @@ class FakeTabSlotController : public TabSlotController {
   int GetStrokeThickness() const override;
   bool CanPaintThrobberToLayer() const override;
   SkColor GetTabSeparatorColor() const override;
-  std::optional<int> GetCustomBackgroundId(
-      BrowserFrameActiveState active_state) const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
   float GetHoverOpacityForTab(float range_parameter) const override;
   float GetHoverOpacityForRadialHighlight() const override;
@@ -96,16 +92,7 @@ class FakeTabSlotController : public TabSlotController {
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override {}
   Browser* GetBrowser() override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
-  bool IsFrameCondensed() const override;
   TabGroup* GetTabGroup(const tab_groups::TabGroupId& group_id) const override;
-
-#if BUILDFLAG(IS_CHROMEOS)
-  bool IsLockedForOnTask() override;
-
-  // Sets OnTask locked for testing purposes. Only relevant for non-web browser
-  // scenarios.
-  void SetLockedForOnTask(bool locked) { on_task_locked_ = locked; }
-#endif
 
  private:
   raw_ptr<TabStripController> tab_strip_controller_;
@@ -113,9 +100,6 @@ class FakeTabSlotController : public TabSlotController {
   ui::ListSelectionModel selection_model_;
   raw_ptr<Tab, DanglingUntriaged> active_tab_ = nullptr;
   bool paint_throbber_to_layer_ = true;
-#if BUILDFLAG(IS_CHROMEOS)
-  bool on_task_locked_ = false;
-#endif
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_FAKE_TAB_SLOT_CONTROLLER_H_

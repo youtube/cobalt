@@ -179,7 +179,7 @@ TEST_F(NetworkStateEndToEndTest, RespectsNetworkState) {
           e2e_test_task_queue_(task_queue),
           task_queue_(env.task_queue_factory().CreateTaskQueue(
               "NetworkStateTest",
-              TaskQueueFactory::Priority::NORMAL)),
+              TaskQueueFactory::Priority::kNormal)),
           sender_call_(nullptr),
           receiver_call_(nullptr),
           encoder_factory_(this),

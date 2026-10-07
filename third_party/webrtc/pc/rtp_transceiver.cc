@@ -54,6 +54,7 @@
 #include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
+#include "pc/dtls_transport.h"
 #include "pc/legacy_stats_collector_interface.h"
 #include "pc/rtp_media_utils.h"
 #include "pc/rtp_receiver.h"
@@ -66,6 +67,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -330,7 +332,10 @@ RtpTransceiver::RtpTransceiver(
   receivers_.push_back(std::move(receiver));
   if (media_type_ == MediaType::VIDEO) {
     ConfigureExtraVideoHeaderExtensions(
-        sender_internal->GetParametersInternal().encodings,
+        sender_internal
+            ->GetParametersInternal(/*may_use_cache*/ true,
+                                    /*with_all_layers=*/false)
+            .encodings,
         header_extensions_to_negotiate_);
   }
   ConfigureSendCodecs(codec_vendor(), media_type_, sender_internal);
@@ -517,6 +522,7 @@ RTCError RtpTransceiver::SetChannel(
   RTC_DCHECK(mid_ || channel->mid().empty());
   signaling_thread_safety_ = PendingTaskSafetyFlag::Create();
   channel_ = std::move(channel);
+  transport_name_ = std::nullopt;
 
   // An alternative to this, could be to require SetChannel to be called
   // on the network thread. The channel object operates for the most part
@@ -527,12 +533,17 @@ RTCError RtpTransceiver::SetChannel(
   // Similarly, if the channel() accessor is limited to the network thread, that
   // helps with keeping the channel implementation requirements being met and
   // avoids synchronization for accessing the pointer or network related state.
+  std::optional<std::string> transport_name;
   RTCError err = context()->network_thread()->BlockingCall(
       [&, flag = signaling_thread_safety_, channel = channel_.get()]() {
-        if (!channel->SetRtpTransport(
-                std::move(transport_lookup)(channel->mid()))) {
+        RtpTransportInternal* transport =
+            std::move(transport_lookup)(channel->mid());
+        if (!channel->SetRtpTransport(transport)) {
           return RTCError::InvalidParameter()
                  << "Invalid transport for mid=" << channel->mid();
+        }
+        if (transport) {
+          transport_name = transport->transport_name();
         }
         channel->SetFirstPacketReceivedCallback([thread = thread_, flag = flag,
                                                  this]() mutable {
@@ -551,8 +562,11 @@ RTCError RtpTransceiver::SetChannel(
         return RTCError::OK();
       });
 
-  if (err.ok() && set_media_channels) {
-    PushNewMediaChannel();
+  if (err.ok()) {
+    transport_name_ = std::move(transport_name);
+    if (set_media_channels) {
+      PushNewMediaChannel();
+    }
   }
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
@@ -598,6 +612,8 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetDeleteChannelWorkerTask(
   if (stop_senders) {
     stop = DetachAndGetStopTasksForSenders(senders_);
   }
+
+  transport_name_ = std::nullopt;
 
   // Ensure that channel_ is not reachable via the transceiver, but is deleted
   // only after clearing the references in senders_ and receivers_.
@@ -663,7 +679,7 @@ void RtpTransceiver::ClearMediaChannelReferences() {
   media_engine_ref_ = nullptr;
 }
 
-void RtpTransceiver::AddSenderPlanB(
+PLAN_B_ONLY void RtpTransceiver::AddSenderPlanB(
     scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> sender) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!stopped_);
@@ -675,7 +691,7 @@ void RtpTransceiver::AddSenderPlanB(
   senders_.push_back(sender);
 }
 
-scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>
+PLAN_B_ONLY scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>
 RtpTransceiver::AddSenderPlanB(
     scoped_refptr<MediaStreamTrackInterface> track,
     absl::string_view sender_id,
@@ -697,7 +713,7 @@ RtpTransceiver::AddSenderPlanB(
   return senders_.back();
 }
 
-bool RtpTransceiver::RemoveSenderPlanB(RtpSenderInterface* sender) {
+PLAN_B_ONLY bool RtpTransceiver::RemoveSenderPlanB(RtpSenderInterface* sender) {
   RTC_DCHECK(!unified_plan_);
   RTC_DCHECK_EQ(media_type(), sender->media_type());
   auto it = absl::c_find(senders_, sender);
@@ -709,7 +725,7 @@ bool RtpTransceiver::RemoveSenderPlanB(RtpSenderInterface* sender) {
   return true;
 }
 
-void RtpTransceiver::AddReceiverPlanB(
+PLAN_B_ONLY void RtpTransceiver::AddReceiverPlanB(
     scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>> receiver) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!stopped_);
@@ -720,7 +736,8 @@ void RtpTransceiver::AddReceiverPlanB(
   receivers_.push_back(receiver);
 }
 
-bool RtpTransceiver::RemoveReceiverPlanB(RtpReceiverInterface* receiver) {
+PLAN_B_ONLY bool RtpTransceiver::RemoveReceiverPlanB(
+    RtpReceiverInterface* receiver) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!unified_plan_);
   RTC_DCHECK_EQ(media_type(), receiver->media_type());
@@ -1228,18 +1245,66 @@ bool RtpTransceiver::SetChannelLocalContent(
     const MediaContentDescription* content,
     SdpType type,
     std::string& error_desc) {
-  RTC_DCHECK_RUN_ON(context()->worker_thread());
-  RTC_DCHECK(channel_);
-  return channel_->SetLocalContent(content, type, error_desc);
+  RTC_DCHECK_RUN_ON(context()->signaling_thread());
+  return SetChannelContent([&]() {
+    RTC_DCHECK_RUN_ON(context()->worker_thread());
+    return channel_->SetLocalContent(content, type, error_desc);
+  });
 }
 
 bool RtpTransceiver::SetChannelRemoteContent(
     const MediaContentDescription* content,
     SdpType type,
     std::string& error_desc) {
-  RTC_DCHECK_RUN_ON(context()->worker_thread());
-  RTC_DCHECK(channel_);
-  return channel_->SetRemoteContent(content, type, error_desc);
+  RTC_DCHECK_RUN_ON(context()->signaling_thread());
+  return SetChannelContent([&]() {
+    RTC_DCHECK_RUN_ON(context()->worker_thread());
+    return channel_->SetRemoteContent(content, type, error_desc);
+  });
+}
+
+bool RtpTransceiver::SetChannelContent(
+    absl::AnyInvocable<bool() &&> set_content) {
+  RTC_DCHECK_RUN_ON(context()->signaling_thread());
+  if (!channel_) {
+    return false;
+  }
+
+  struct SenderParameters {
+    const uint32_t ssrc;
+    RtpSenderInternal* const sender;
+    std::optional<RtpParameters> parameters;
+  };
+
+  std::vector<SenderParameters> sender_parameters;
+  sender_parameters.reserve(senders_.size());
+  for (const auto& sender : senders_) {
+    sender_parameters.push_back(
+        {.ssrc = sender->ssrc(), .sender = sender->internal()});
+  }
+
+  // Calls the callback on the worker thread, fetches and returns the
+  // RtpParameters for the senders.
+  bool result = context()->worker_thread()->BlockingCall([&]() {
+    if (!std::move(set_content)()) {
+      return false;
+    }
+    for (auto& entry : sender_parameters) {
+      if (entry.ssrc != 0) {
+        entry.parameters =
+            channel_->media_send_channel()->GetRtpSendParameters(entry.ssrc);
+      }
+    }
+    return true;
+  });
+
+  for (auto& entry : sender_parameters) {
+    if (entry.parameters) {
+      entry.sender->SetCachedParameters(std::move(*entry.parameters));
+    }
+  }
+
+  return result;
 }
 
 bool RtpTransceiver::SetChannelPayloadTypeDemuxingEnabled(bool enabled) {
@@ -1318,6 +1383,22 @@ RtpTransceiver::voice_media_receive_channel() {
   // Accessed from multiple threads.
   // See https://issues.webrtc.org/475126742
   return channel_ ? channel_->voice_media_receive_channel() : nullptr;
+}
+
+void RtpTransceiver::SetTransport(scoped_refptr<DtlsTransport> transport,
+                                  std::optional<std::string> transport_name) {
+  RTC_DCHECK_RUN_ON(thread_);
+  RTC_DCHECK(HasChannel() || !transport);
+  RTC_DCHECK((transport && transport_name.has_value()) ||
+             (!transport && !transport_name));
+  RTC_DCHECK(!transport_name.has_value() || !transport_name.value().empty());
+  transport_name_ = std::move(transport_name);
+  for (auto& sender : senders_) {
+    sender->internal()->set_transport(transport);
+  }
+  for (auto& receiver : receivers_) {
+    receiver->internal()->set_transport(transport);
+  }
 }
 
 }  // namespace webrtc

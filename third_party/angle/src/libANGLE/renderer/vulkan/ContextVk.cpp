@@ -2679,11 +2679,9 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffersVertexInputDynamicState
 
     if (maxAttrib > 0)
     {
-        if (getFeatures().useVertexInputBindingStrideDynamicState.enabled)
+        if (getFeatures().supportsBindVertexBuffers2.enabled)
         {
-            // bindVertexBuffers2EXT() requires extended dynamic state or shader object extension.
             // Since the strides are already set in setVertexInput(), they need not be set here.
-            ASSERT(getFeatures().supportsExtendedDynamicState.enabled);
             if (mUseSizePointerForBindingVertexBuffers)
             {
                 const gl::AttribArray<VkDeviceSize> &bufferSizes =
@@ -2748,8 +2746,7 @@ angle::Result ContextVk::handleDirtyGraphicsVertexBuffersVertexInputDynamicState
                 mismatchingType ? 0 : vertexArrayVk->getCurrentArrayBufferStride(attribIndex);
         }
 
-        // bindVertexBuffers2EXT() requires the extension extended dynamic state or shader object.
-        ASSERT(getFeatures().supportsExtendedDynamicState.enabled);
+        ASSERT(getFeatures().supportsBindVertexBuffers2.enabled);
         if (mUseSizePointerForBindingVertexBuffers)
         {
             const gl::AttribArray<VkDeviceSize> &bufferSizes =
@@ -8305,6 +8302,7 @@ angle::Result ContextVk::beginRenderPassQuery(QueryVk *queryVk)
 
     ASSERT(mActiveRenderPassQueries[type] == nullptr);
     mActiveRenderPassQueries[type] = queryVk;
+    mActiveRenderPassQueryBitmask.set(type);
 
     return angle::Result::Continue;
 }
@@ -8341,6 +8339,7 @@ angle::Result ContextVk::endRenderPassQuery(QueryVk *queryVk)
 
     ASSERT(mActiveRenderPassQueries[type] == queryVk);
     mActiveRenderPassQueries[type] = nullptr;
+    mActiveRenderPassQueryBitmask.reset(type);
 
     return angle::Result::Continue;
 }
@@ -8425,6 +8424,8 @@ bool ContextVk::isEmulatingRasterizerDiscardDuringPrimitivesGeneratedQuery(
 
 QueryVk *ContextVk::getActiveRenderPassQuery(gl::QueryType queryType) const
 {
+    ASSERT(mActiveRenderPassQueryBitmask[queryType] ==
+           (mActiveRenderPassQueries[queryType] != nullptr));
     return mActiveRenderPassQueries[queryType];
 }
 
@@ -8781,7 +8782,7 @@ angle::Result ContextVk::endRenderPassIfComputeAccessAfterGraphicsImageAccess()
 
             // This is to handle the implicit layout transition in render pass of this image,
             // while it currently be bound and used by current compute program.
-            if (mRenderPassCommands->startedAndUsesImageWithBarrier(image))
+            if (isRenderPassStartedAndUsesImage(image))
             {
                 return flushCommandsAndEndRenderPass(
                     RenderPassClosureReason::GraphicsTextureImageAccessThenComputeAccess);
@@ -8817,7 +8818,7 @@ angle::Result ContextVk::endRenderPassIfComputeAccessAfterGraphicsImageAccess()
         }
 
         // Take care of the read image layout transition require implicit synchronization.
-        if (mRenderPassCommands->startedAndUsesImageWithBarrier(image))
+        if (isRenderPassStartedAndUsesImage(image))
         {
             return flushCommandsAndEndRenderPass(
                 RenderPassClosureReason::GraphicsTextureImageAccessThenComputeAccess);
@@ -9156,5 +9157,14 @@ angle::Result ContextVk::finalizeImagesWithTileMemory()
     mImagesWithTileMemory.clear();
 
     return angle::Result::Continue;
+}
+
+void ContextVk::restoreAllGraphicsState()
+{
+    // Recover states that may have been changed by UtilsVk::depthStencilBlitResolve. We dirty all
+    // states except DIRTY_BIT_RENDER_PASS so that render pass could still reused.
+    DirtyBits allDrawStateDirtyBits =
+        mNewGraphicsCommandBufferDirtyBits & ~DirtyBits{DIRTY_BIT_RENDER_PASS};
+    mGraphicsDirtyBits |= allDrawStateDirtyBits;
 }
 }  // namespace rx

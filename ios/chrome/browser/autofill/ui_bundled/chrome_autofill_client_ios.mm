@@ -408,13 +408,6 @@ bool ChromeAutofillClientIOS::IsContextSecure() const {
          IsContextSecureForWebState(web_state());
 }
 
-FormInteractionsFlowId
-ChromeAutofillClientIOS::GetCurrentFormInteractionsFlowId() {
-  // Currently not in use here. See `ChromeAutofillClient` for a proper
-  // implementation.
-  return {};
-}
-
 LogManager* ChromeAutofillClientIOS::GetCurrentLogManager() {
   if (!log_manager_ && log_router_ && log_router_->HasReceivers()) {
     // TODO(crbug.com/40612524): Replace the closure with a callback to the
@@ -443,9 +436,9 @@ bool ChromeAutofillClientIOS::ShouldFormatForLargeKeyboardAccessory() const {
 }
 
 std::unique_ptr<device_reauth::DeviceAuthenticator>
-ChromeAutofillClientIOS::GetDeviceAuthenticator() {
+ChromeAutofillClientIOS::GetDeviceAuthenticator(std::string histogram) {
   device_reauth::DeviceAuthParams params(
-      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill);
+      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill, std::move(histogram));
   id<ReauthenticationProtocol> reauthModule =
       ScopedAutofillPaymentReauthModuleOverride::Get();
   if (!reauthModule) {

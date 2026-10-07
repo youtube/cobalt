@@ -123,7 +123,7 @@ public class StatusBarColorController
     private boolean mIsOmniboxFocused;
     private boolean mAreSuggestionsScrolled;
 
-    private @ColorInt int mScrimColor = ScrimProperties.INVALID_COLOR;
+    private @ColorInt int mScrimColor = Color.TRANSPARENT;
 
     private boolean mShouldUpdateStatusBarColorForNtp;
     private @ColorInt int mStatusIndicatorColor;
@@ -131,7 +131,7 @@ public class StatusBarColorController
 
     // Tab strip transition states.
     private boolean mTabStripHiddenOnTablet;
-    private @ColorInt int mTabStripTransitionOverlayColor = ScrimProperties.INVALID_COLOR;
+    private @ColorInt int mTabStripTransitionOverlayColor = Color.TRANSPARENT;
     private float mTabStripTransitionOverlayAlpha;
     private boolean mAllowToolbarColorOnTablets;
 
@@ -436,7 +436,7 @@ public class StatusBarColorController
      *
      * @param scrimColor The scrim color int.
      */
-    public void setScrimColor(@ColorInt int scrimColor) {
+    public void onScrimColorChanged(@ColorInt int scrimColor) {
         mScrimColor = scrimColor;
         updateStatusBarColor();
     }
@@ -450,6 +450,9 @@ public class StatusBarColorController
 
     /**
      * Add the tab strip transition scrim overlay on the status bar during a tab strip transition.
+     * Note that unlike setting a scrim color, this method does not respect {@link
+     * ScrimProperties#INVALID_COLOR}. Do not use that constant when calling this method. This value
+     * means full transparency to this method, and thus {@link Color#TRANSPARENT} is more correct.
      *
      * @param overlayColor The overlay color.
      * @param overlayAlpha The alpha that |overlayColor| should have on the status bar color.

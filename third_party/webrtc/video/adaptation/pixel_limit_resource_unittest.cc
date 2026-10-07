@@ -47,7 +47,7 @@ class PixelLimitResourceTest : public ::testing::Test {
       : time_controller_(Timestamp::Micros(1234)),
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "TestQueue",
-            TaskQueueFactory::Priority::NORMAL)),
+            TaskQueueFactory::Priority::kNormal)),
         input_state_provider_() {}
 
   void SetCurrentPixels(int current_pixels) {

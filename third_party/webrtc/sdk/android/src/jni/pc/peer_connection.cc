@@ -59,6 +59,7 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_identity.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "sdk/android/generated_peerconnection_jni/CandidatePairChangeEvent_jni.h"
 #include "sdk/android/generated_peerconnection_jni/IceCandidateErrorEvent_jni.h"
 #include "sdk/android/generated_peerconnection_jni/PeerConnection_jni.h"
@@ -141,8 +142,11 @@ SdpSemantics JavaToNativeSdpSemantics(
     const jni_zero::JavaRef<jobject>& j_sdp_semantics) {
   std::string enum_name = GetJavaEnumName(jni, j_sdp_semantics);
 
-  if (enum_name == "PLAN_B")
+  if (enum_name == "PLAN_B") {
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     return SdpSemantics::kPlanB_DEPRECATED;
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
+  }
 
   if (enum_name == "UNIFIED_PLAN")
     return SdpSemantics::kUnifiedPlan;
@@ -412,14 +416,17 @@ void PeerConnectionObserverJni::OnIceGatheringChange(
 
 void PeerConnectionObserverJni::OnAddStream(
     scoped_refptr<MediaStreamInterface> stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onAddStream(
       env, j_observer_global_,
       GetOrCreateJavaStream(env, stream).j_media_stream());
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void PeerConnectionObserverJni::OnRemoveStream(
     scoped_refptr<MediaStreamInterface> stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   NativeToJavaStreamsMap::iterator it = remote_streams_.find(stream.get());
   RTC_CHECK(it != remote_streams_.end())
@@ -427,6 +434,7 @@ void PeerConnectionObserverJni::OnRemoveStream(
   Java_Observer_onRemoveStream(env, j_observer_global_,
                                it->second.j_media_stream());
   remote_streams_.erase(it);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void PeerConnectionObserverJni::OnDataChannel(
@@ -744,16 +752,20 @@ static jboolean JNI_PeerConnection_AddLocalStream(
     JNIEnv* jni,
     const jni_zero::JavaRef<jobject>& j_pc,
     jlong native_stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   return ExtractNativePC(jni, j_pc)->AddStream(
       reinterpret_cast<MediaStreamInterface*>(native_stream));
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 static void JNI_PeerConnection_RemoveLocalStream(
     JNIEnv* jni,
     const jni_zero::JavaRef<jobject>& j_pc,
     jlong native_stream) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   ExtractNativePC(jni, j_pc)->RemoveStream(
       reinterpret_cast<MediaStreamInterface*>(native_stream));
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 static jni_zero::ScopedJavaLocalRef<jobject> JNI_PeerConnection_CreateSender(
@@ -763,8 +775,10 @@ static jni_zero::ScopedJavaLocalRef<jobject> JNI_PeerConnection_CreateSender(
     const jni_zero::JavaRef<jstring>& j_stream_id) {
   std::string kind = JavaToNativeString(jni, j_kind);
   std::string stream_id = JavaToNativeString(jni, j_stream_id);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   scoped_refptr<RtpSenderInterface> sender =
       ExtractNativePC(jni, j_pc)->CreateSender(kind, stream_id);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   return NativeToJavaRtpSender(jni, sender);
 }
 

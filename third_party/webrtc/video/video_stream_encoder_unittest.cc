@@ -772,7 +772,7 @@ class SimpleVideoStreamEncoderFactory {
       TaskQueueBase** encoder_queue_ptr = nullptr) {
     auto encoder_queue =
         time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
-            "EncoderQueue", TaskQueueFactory::Priority::NORMAL);
+            "EncoderQueue", TaskQueueFactory::Priority::kNormal);
     if (encoder_queue_ptr)
       *encoder_queue_ptr = encoder_queue.get();
     return CreateWithEncoderQueue(std::move(zero_hertz_adapter),
@@ -937,7 +937,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
       video_stream_encoder_->Stop();
 
     auto encoder_queue = env_.task_queue_factory().CreateTaskQueue(
-        "EncoderQueue", TaskQueueFactory::Priority::NORMAL);
+        "EncoderQueue", TaskQueueFactory::Priority::kNormal);
     TaskQueueBase* encoder_queue_ptr = encoder_queue.get();
     std::unique_ptr<FrameCadenceAdapterInterface> cadence_adapter =
         FrameCadenceAdapterInterface::Create(
@@ -10381,7 +10381,7 @@ TEST(VideoStreamEncoderFrameCadenceTest,
      RequestsRefreshFrameForEarlyZeroHertzKeyFrameRequest) {
   SimpleVideoStreamEncoderFactory factory;
   auto encoder_queue = factory.env().task_queue_factory().CreateTaskQueue(
-      "EncoderQueue", TaskQueueFactory::Priority::NORMAL);
+      "EncoderQueue", TaskQueueFactory::Priority::kNormal);
 
   auto adapter = FrameCadenceAdapterInterface::Create(
       &factory.env().clock(), encoder_queue.get(),

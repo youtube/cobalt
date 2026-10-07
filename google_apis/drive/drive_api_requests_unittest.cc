@@ -162,7 +162,7 @@ class DriveApiRequestsTest : public testing::Test {
 
     network::mojom::URLLoaderFactoryParamsPtr params =
         network::mojom::URLLoaderFactoryParams::New();
-    params->process_id = network::mojom::kBrowserProcessId;
+    params->process_id = network::OriginatingProcess::browser();
     params->is_orb_enabled = false;
     network_context_->CreateURLLoaderFactory(
         url_loader_factory_.BindNewPipeAndPassReceiver(), std::move(params));
@@ -2094,11 +2094,11 @@ TEST_F(DriveApiRequestsTest, PermissionsInsertRequest) {
             http_request_.relative_url);
   EXPECT_EQ("application/json", http_request_.headers["Content-Type"]);
 
-  base::Value::Dict expected = base::test::ParseJsonDict(
+  base::DictValue expected = base::test::ParseJsonDict(
       "{\"additionalRoles\":[\"commenter\"], \"role\":\"reader\", "
       "\"type\":\"user\",\"value\":\"user@example.com\"}");
 
-  base::Value::Dict result = base::test::ParseJsonDict(http_request_.content);
+  base::DictValue result = base::test::ParseJsonDict(http_request_.content);
   EXPECT_TRUE(http_request_.has_content);
   EXPECT_EQ(expected, result);
 

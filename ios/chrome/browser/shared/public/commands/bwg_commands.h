@@ -11,7 +11,11 @@
 
 namespace gemini {
 enum class EntryPoint;
-}
+}  // namespace gemini
+
+namespace web {
+class WebState;
+}  // namespace web
 
 // Commands relating to the BWG flow.
 @protocol BWGCommands <NSObject>
@@ -32,10 +36,15 @@ enum class EntryPoint;
 
 // Hide Gemini floaty. When in a hidden state, the floaty still persists in
 // memory and needs to be properly cleaned up.
-- (void)hideFloatyIfInvoked;
+- (void)hideFloatyIfInvokedAnimated:(BOOL)animated;
 
 // Show Gemini floaty. Used to re-show an invoked Gemini floaty.
-- (void)showFloatyIfInvoked;
+- (void)showFloatyIfInvokedAnimated:(BOOL)animated;
+
+// Updates floaty visibility when persisting across WebStates.
+- (void)updateFloatyVisibilityForWebState:(web::WebState*)webState;
+
+- (void)updateFloatyWithTraitCollection:(UITraitCollection*)traitCollection;
 
 // Starts the FRE flow with a completion block.
 - (void)startGeminiFREWithCompletion:(void (^)(BOOL success))completion

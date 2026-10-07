@@ -51,9 +51,11 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
   }
   // `arrival_time_offset` is null if TWCC is used. We assume feedback was sent
   // when the last sent packet was received.
-  TimeDelta rtt_sample =
+  TimeDelta rtt_sample = std::max(
       msg.feedback_time - received_packets.back().sent_packet.send_time -
-      received_packets.back().arrival_time_offset.value_or(TimeDelta::Zero());
+          received_packets.back().arrival_time_offset.value_or(
+              TimeDelta::Zero()),
+      TimeDelta::Zero());
   UpdateSmoothedRtt(rtt_sample);
 
   TimeDelta min_queue_delay = min_one_way_delay - min_base_delay();
@@ -96,6 +98,7 @@ void DelayBasedCongestionControl::UpdateQueueDelayAverage(
 }
 
 void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample) {
+  RTC_DCHECK(rtt_sample >= TimeDelta::Zero());
   if (last_smoothed_rtt_.IsZero()) {
     last_smoothed_rtt_ = rtt_sample;
   } else {

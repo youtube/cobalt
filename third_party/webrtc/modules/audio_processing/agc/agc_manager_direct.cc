@@ -669,7 +669,7 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
   }
 }
 
-std::optional<int> AgcManagerDirect::GetDigitalComressionGain() {
+std::optional<int> AgcManagerDirect::GetDigitalCompressionGain() {
   return new_compressions_to_set_[channel_controlling_gain_];
 }
 

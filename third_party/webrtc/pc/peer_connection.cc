@@ -119,6 +119,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/unique_id_generator.h"
@@ -986,8 +987,10 @@ RTCErrorOr<scoped_refptr<RtpSenderInterface>> PeerConnection::AddTrack(
         sdp_handler_->video_bitrate_allocator_factory(), track, stream_ids,
         init_send_encodings);
   } else {
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     sender_or_error =
         rtp_manager()->AddTrackPlanB(track, stream_ids, init_send_encodings);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
   }
   if (sender_or_error.ok()) {
     sdp_handler_->UpdateNegotiationNeeded();
@@ -1025,6 +1028,7 @@ RTCError PeerConnection::RemoveTrackOrError(
     }
   } else {
     bool removed;
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     if (sender->media_type() == webrtc::MediaType::AUDIO) {
       removed =
           rtp_manager()->GetAudioTransceiver()->internal()->RemoveSenderPlanB(
@@ -1035,6 +1039,7 @@ RTCError PeerConnection::RemoveTrackOrError(
           rtp_manager()->GetVideoTransceiver()->internal()->RemoveSenderPlanB(
               sender.get());
     }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
     if (!removed) {
       LOG_AND_RETURN_ERROR(
           RTCErrorType::INVALID_PARAMETER,
@@ -1282,6 +1287,9 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
         new_sender);
   } else {
     RTC_LOG(LS_ERROR) << "CreateSender called with invalid kind: " << kind;
+  }
+
+  if (!new_sender) {
     return nullptr;
   }
   new_sender->internal()->set_stream_ids(stream_ids);

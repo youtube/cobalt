@@ -47,16 +47,14 @@ message Stream {
 // Contains the configurations of various APM component. A Config message is
 // added when any of the fields are changed.
 message Config {
+  reserved 6 to 8;  // AECm
+
   // Acoustic echo canceler.
   optional bool aec_enabled = 1;
   optional bool aec_delay_agnostic_enabled = 2;
   optional bool aec_drift_compensation_enabled = 3;
   optional bool aec_extended_filter_enabled = 4;
   optional int32 aec_suppression_level = 5;
-  // Mobile AEC.
-  optional bool aecm_enabled = 6;
-  optional bool aecm_comfort_noise_enabled = 7 [deprecated = true];
-  optional int32 aecm_routing_mode = 8 [deprecated = true];
   // Automatic gain controller.
   optional bool agc_enabled = 9;
   optional int32 agc_mode = 10;

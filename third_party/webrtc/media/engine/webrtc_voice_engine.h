@@ -60,7 +60,6 @@
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -223,12 +222,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   RTCError SetRtpSendParameters(uint32_t ssrc,
                                 const RtpParameters& parameters,
                                 SetParametersCallback callback) override;
-  void SubscribeRtpSendParametersChanged(
-      const void* tag,
-      absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
-          callback) override;
-  void UnsubscribeRtpSendParametersChanged(const void* tag) override;
-
   void SetSend(bool send) override;
   bool SetAudioSend(uint32_t ssrc,
                     bool enable,
@@ -318,8 +311,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ RTC_GUARDED_BY(worker_thread_);
-  mutable CallbackList<std::optional<uint32_t>, const RtpParameters&>
-      on_rtp_send_parameters_changed_callback_ RTC_GUARDED_BY(worker_thread_);
 };
 
 class WebRtcVoiceReceiveChannel final

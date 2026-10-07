@@ -52,7 +52,6 @@ std::u16string GetMessageDescription(content::WebContents* web_contents,
 
 int GetMessageIconResourceId(const EntityInstance& entity) {
   if (entity.record_type() == EntityInstance::RecordType::kServerWallet) {
-    // TODO: crbug.com/460410690 - Use colorful icon for branded builds.
     return IDR_ANDROID_AUTOFILL_WALLET;
   }
   switch (entity.type().name()) {
@@ -88,52 +87,60 @@ AutofillAiSaveUpdateEntityFlowManager::
     ~AutofillAiSaveUpdateEntityFlowManager() = default;
 
 void AutofillAiSaveUpdateEntityFlowManager::OfferSave(
-    const EntityInstance& entity,
+    EntityInstance entity,
     std::optional<EntityInstance> old_entity,
-    AutofillClient::EntityImportPromptResultCallback prompt_closed_callback) {
-  prompt_closed_callback_ = std::move(prompt_closed_callback);
+    AutofillClient::EntityImportPromptResultCallback prompt_result_callback) {
+  if (prompt_result_callback_) {
+    return;
+  }
+  prompt_result_callback_ = std::move(prompt_result_callback);
   autofill_message_controller_->Show(
-      CreateMessageModel(entity, /*is_save_prompt=*/!old_entity.has_value()));
+      CreateMessageModel(std::move(entity), std::move(old_entity)));
 }
 
 std::unique_ptr<AutofillMessageModel>
 AutofillAiSaveUpdateEntityFlowManager::CreateMessageModel(
-    const EntityInstance& entity,
-    bool is_save_prompt) {
+    EntityInstance entity,
+    std::optional<EntityInstance> old_entity) {
   // Binding with base::Unretained(this) is safe here because
   // AutofillAiSaveUpdateEntityMessageController owns message_. Callbacks won't
   // be called after the current object is destroyed.
   auto message = std::make_unique<messages::MessageWrapper>(
       messages::MessageIdentifier::SAVE_UPDATE_ENTITY);
 
-  message->SetTitle(GetPromptTitle(entity.type().name(), is_save_prompt));
+  message->SetTitle(GetPromptTitle(entity.type().name(), !old_entity));
   message->SetDescription(GetMessageDescription(
       web_contents_,
       entity.record_type() == EntityInstance::RecordType::kServerWallet));
   message->SetDescriptionMaxLines(kDescriptionMaxLines);
-  message->SetPrimaryButtonText(GetPrimaryButtonText(is_save_prompt));
+  message->SetPrimaryButtonText(GetPrimaryButtonText(!old_entity));
   message->SetPrimaryButtonTextMaxLines(1);
   message->SetIconResourceId(
       ResourceMapper::MapToJavaDrawableId(GetMessageIconResourceId(entity)));
+  // TODO: crbug.com/460410690 - Fix the tinting issue for unbranded icons.
+  message->DisableIconTint();
 
   return std::make_unique<AutofillMessageModel>(
       std::move(message), AutofillMessageModel::Type::kEntitySaveUpdateFlow,
       base::BindOnce(
           &AutofillAiSaveUpdateEntityFlowManager::OnMessagePrimaryAction,
-          weak_ptr_factory_.GetWeakPtr(), entity),
+          weak_ptr_factory_.GetWeakPtr(), std::move(entity),
+          std::move(old_entity)),
       base::BindOnce(&AutofillAiSaveUpdateEntityFlowManager::OnMessageDismissed,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void AutofillAiSaveUpdateEntityFlowManager::OnMessagePrimaryAction(
-    const EntityInstance& entity) {
+    EntityInstance entity,
+    std::optional<EntityInstance> old_entity) {
   auto prompt_view_android =
       std::make_unique<AutofillAiSaveUpdateEntityPromptViewAndroid>(
           web_contents_);
   save_update_entity_prompt_controller_ =
       std::make_unique<AutofillAiSaveUpdateEntityPromptController>(
-          web_contents_, std::move(prompt_view_android), entity, app_locale_,
-          std::move(prompt_closed_callback_));
+          web_contents_, std::move(prompt_view_android), std::move(entity),
+          std::move(old_entity), app_locale_,
+          std::move(prompt_result_callback_));
   save_update_entity_prompt_controller_->DisplayPrompt();
 }
 
@@ -146,21 +153,20 @@ void AutofillAiSaveUpdateEntityFlowManager::OnMessageDismissed(
       break;
     case messages::DismissReason::GESTURE:
       // User explicitly dismissed the message.
-      RunPromptClosedCallback(
-          AutofillClient::AutofillAiBubbleClosedReason::kClosed);
+      RunPromptClosedCallback(AutofillClient::AutofillAiBubbleResult::kClosed);
       break;
     default:
       // Dismissal for any other reason like timeout, tab switch, etc.
       RunPromptClosedCallback(
-          AutofillClient::AutofillAiBubbleClosedReason::kNotInteracted);
+          AutofillClient::AutofillAiBubbleResult::kNotInteracted);
       break;
   }
 }
 
 void AutofillAiSaveUpdateEntityFlowManager::RunPromptClosedCallback(
-    AutofillClient::AutofillAiBubbleClosedReason decision) {
-  if (prompt_closed_callback_) {
-    std::move(prompt_closed_callback_).Run(decision);
+    AutofillClient::AutofillAiBubbleResult result) {
+  if (prompt_result_callback_) {
+    std::move(prompt_result_callback_).Run(result);
   }
 }
 

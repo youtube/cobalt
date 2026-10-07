@@ -348,9 +348,9 @@ scoped_refptr<MockRtpSenderInternal> CreateMockSender(
   EXPECT_CALL(*sender, ssrc()).WillRepeatedly(Return(ssrc));
   EXPECT_CALL(*sender, media_type()).WillRepeatedly(Return(media_type));
   EXPECT_CALL(*sender, GetParameters()).WillRepeatedly([s = sender.get()]() {
-    return s->GetParametersInternal();
+    return s->GetParametersInternal(false, false);
   });
-  EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly([ssrc]() {
+  EXPECT_CALL(*sender, GetParametersInternal(_, _)).WillRepeatedly([ssrc]() {
     RtpParameters params;
     params.encodings.push_back(RtpEncodingParameters());
     params.encodings[0].ssrc = ssrc;
@@ -454,9 +454,9 @@ class RTCStatsCollectorWrapper {
       return media_type;
     });
     EXPECT_CALL(*sender, GetParameters()).WillRepeatedly([s = sender.get()]() {
-      return s->GetParametersInternal();
+      return s->GetParametersInternal(false, false);
     });
-    EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly([ssrc]() {
+    EXPECT_CALL(*sender, GetParametersInternal(_, _)).WillRepeatedly([ssrc]() {
       RtpParameters params;
       params.encodings.push_back(RtpEncodingParameters());
       params.encodings[0].ssrc = ssrc;
@@ -3957,6 +3957,8 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
       const std::map<std::string, TransportStats>& transport_stats_by_name,
       const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
       const std::vector<RtpTransceiverStatsInfo>& transceiver_stats_infos,
+      const Call::Stats& call_stats,
+      const std::optional<AudioDeviceModule::Stats>& audio_device_stats,
       RTCStatsReport* partial_report) override {
     EXPECT_TRUE(network_thread_->IsCurrent());
     {

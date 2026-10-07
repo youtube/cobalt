@@ -47,7 +47,7 @@ base::OnceClosure InstallOperation(
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>

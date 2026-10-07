@@ -61,7 +61,8 @@ TEST(ScreamV2Test, TargetRateIncreaseToMaxOnUnConstrainedNetwork) {
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2 scream(env);
   const DataRate kMaxDataRate = DataRate::KilobitsPerSec(2000);
-  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate);
+  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate,
+                                     DataRate::KilobitsPerSec(300));
   DataRate send_rate = DataRate::KilobitsPerSec(100);
   // Configure a feedback generator simulating a network with infinite
   // capacity but 25ms one way delay.
@@ -86,7 +87,8 @@ TEST(ScreamV2Test,
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2 scream(env);
   const DataRate kMaxDataRate = DataRate::KilobitsPerSec(2000);
-  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate);
+  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate,
+                                     DataRate::KilobitsPerSec(300));
   DataRate send_rate = DataRate::KilobitsPerSec(100);
   // Configure a feedback generator simulating a network with infinite
   // capacity but 25ms one way delay.

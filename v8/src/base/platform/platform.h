@@ -362,6 +362,13 @@ class V8_BASE_EXPORT OS {
   static void SetDataReadOnly(void* address, size_t size);
 
  private:
+  // Assign a name to a memory region.
+  //
+  // For example on Linux, if the kernel supports this, the name will
+  // afterwards show up in /proc/$pid/maps.
+  static bool SetMemoryRegionName(const void* address, size_t size,
+                                  const char* name);
+
   static int GetCurrentThreadIdInternal();
 
   // These classes use the private memory management API below.
@@ -491,6 +498,10 @@ class V8_BASE_EXPORT AddressSpaceReservation {
   V8_WARN_UNUSED_RESULT bool DiscardSystemPages(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT bool DecommitPages(void* address, size_t size);
+
+  bool SetName(const char* name) {
+    return OS::SetMemoryRegionName(base_, size_, name);
+  }
 
   V8_WARN_UNUSED_RESULT std::optional<AddressSpaceReservation>
   CreateSubReservation(void* address, size_t size,
@@ -627,10 +638,15 @@ class V8_BASE_EXPORT Thread {
   PlatformData* data() { return data_; }
   Priority priority() const { return priority_; }
 
-  void NotifyStartedAndRun() {
+  virtual void NotifyStartedAndDispatch() {
     if (start_semaphore_) start_semaphore_->Signal();
-    Run();
+    Dispatch();
   }
+
+ protected:
+  // The default implementation simply calls Run().
+  // This can be overridden to perform initialization before Run() is called.
+  virtual void Dispatch() { Run(); }
 
  private:
   void set_name(const char* name);

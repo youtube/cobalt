@@ -407,10 +407,7 @@ rtc_library("perf_test") {
 if (is_ios && !build_with_chromium) {
   rtc_library("test_support_objc") {
     testonly = true
-    visibility = [
-      ":google_test_runner_objc",
-      ":test_support",
-    ]
+    visibility = [ "*" ]
     sources = [
       "ios/coverage_util_ios.h",
       "ios/coverage_util_ios.mm",
@@ -482,11 +479,6 @@ rtc_source_set("test_support") {
     "gmock.h",
     "gtest.h",
   ]
-
-  if (is_ios && !build_with_chromium) {
-    public_deps +=  # no-presubmit-check TODO(webrtc:8603)
-        [ ":test_support_objc" ]
-  }
 
   public_configs = [ ":test_main_direct_config" ]
   deps = [
@@ -638,14 +630,19 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/strings:string_view",
-        "//third_party/perfetto/include/perfetto/tracing",
       ]
 
+      if (is_ios) {
+        deps += [ ":test_support_objc" ]
+      }
       if (is_win) {
         deps += [ "../rtc_base:win32_socket_init" ]
       }
       if (rtc_use_perfetto) {
-        deps += [ "//third_party/perfetto/src/tracing:client_api" ]
+        deps += [
+          "//third_party/perfetto/include/perfetto/tracing",
+          "//third_party/perfetto/src/tracing:client_api",
+        ]
       }
     }
 

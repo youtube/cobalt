@@ -3,7 +3,6 @@
 <translationbundle lang="ja">
 <translation id="1026101648481255140">インストールを再開</translation>
 <translation id="1029669172902658969">再起動して Chromium OS を更新</translation>
-<translation id="103359417695385097">Chromium でフォームの内容を正確に把握して、すばやく自動入力できます。この設定はオフになっています。</translation>
 <translation id="1040916596585577953">この拡張機能を確認することをおすすめします</translation>
 <translation id="1042552502243217427">ページのリンクを非公開でプリロードするようサイトから求められた場合、Chromium は Google サーバーを使用します。これによりプリロードしたサイトにユーザーの情報が知られることはありませんが、Google はどのようなサイトがプリロードされたかを学習します。</translation>
 <translation id="1051793555070215510">シークレット モードの改善のため、1 分程度のアンケートにご協力ください。</translation>
@@ -35,11 +34,9 @@
 <translation id="1356661055722410047">New! 画面上のテキストや画像を翻訳できるようになりました</translation>
 <translation id="1383876407941801731">検索</translation>
 <translation id="1397530502368084401">Chromium プロフィールを管理(&amp;M)</translation>
-<translation id="1414495520565016063">Chromium にログインしました</translation>
 <translation id="141901961143729572">ご意見をお聞かせください</translation>
 <translation id="1465192221147974788">ウィンドウを共有するには、[システム設定] で Chromium に画面の録画を許可してください。</translation>
 <translation id="1478370723027452770">Chrome for Testing のヘルプを見る</translation>
-<translation id="1496875977627931224"><ph name="USER_NAME" /> さん、<ph name="LINE_BREAK" />何かお手伝いできることはありますか？</translation>
 <translation id="1497802159252041924">インストール エラー: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1518627427551567882">このページは保護されています</translation>
 <translation id="1524282610922162960">Chromium タブの共有</translation>
@@ -69,6 +66,7 @@
 <translation id="183031085822326697">次回 <ph name="DEVICE_TYPE" /> で Chromium を開いたときに、Google パスワード マネージャーを使用するよう求めるメッセージが表示されます。</translation>
 <translation id="1838374766361614909">検索をクリア</translation>
 <translation id="18552579716432081">閲覧履歴データをこのデバイスからのみ削除して、Google アカウントに残すには、<ph name="BEGIN_LINK" />Chromium からログアウト<ph name="END_LINK" />します。</translation>
+<translation id="1857749206890802997">スマートフォンに Chromium をダウンロードして、外出先でタブグループを開いたり、新しいタブグループを作成したりできます。</translation>
 <translation id="185970820835152459">ログインする Google アカウントを管理できます。Google アカウントは、Chromium ブラウザ、Play ストア、Gmail などで使用されます。家族など、あなた以外の人のアカウントを追加する場合は、<ph name="DEVICE_TYPE" /> に新しいユーザーを追加してください。<ph name="LINK_BEGIN" />詳細<ph name="LINK_END" /></translation>
 <translation id="1862852878885210965">画像検索で検索</translation>
 <translation id="1880677175115548835">テキストを選択</translation>
@@ -159,6 +157,7 @@
 <translation id="2738871930057338499">インターネットに接続できません。HTTP 403 アクセス不可エラーが発生しました。プロキシ設定をご確認ください。</translation>
 <translation id="2753623023919742414">クリックして検索</translation>
 <translation id="2768103863314748511">Chromium をデフォルトの PDF ビューアに設定する</translation>
+<translation id="277828055419948999">標準の自動入力が難しい項目に自動入力できます</translation>
 <translation id="2785438272836277133">この拡張機能にはマルウェアが含まれており、安全ではありません。アクセスしたサイトでユーザーデータ（個人情報を含む）が参照、変更されないように、Chromium からこの拡張機能を削除してください。</translation>
 <translation id="2799223571221894425">再起動</translation>
 <translation id="2803971713792056305">あなたの Chromium</translation>
@@ -319,10 +318,8 @@
 <translation id="4510853178268397146">この拡張機能は、データの収集方法や使用方法などのプライバシー保護の取り組みを公開していません。削除することをおすすめします。</translation>
 <translation id="452711251841752011">Chromium へようこそ。新しいブラウザ ウィンドウが開いています</translation>
 <translation id="4531137820806573936">Chromium にシーン認識とハンド トラッキングを許可する必要があります</translation>
-<translation id="4534145890176164066">Chromium でフォームの内容を正確に把握して、すばやく自動入力できます</translation>
 <translation id="4536805923587466102">別の Chromium プロフィールに <ph name="USER_EMAIL_ADDRESS" /> としてすでにログインしています</translation>
 <translation id="4548534452171747496">ページがプリロードされ、閲覧と検索をすばやく行えるようになります。<ph name="BEGIN_LINK" />ページのプリロードの詳細<ph name="END_LINK" /></translation>
-<translation id="4567424176335768812"><ph name="USER_EMAIL_ADDRESS" /> としてログインしています。ログインしているすべてのデバイスで、ブックマーク、履歴、その他の設定にアクセスできます。</translation>
 <translation id="4570813286784708942">このダウンロードは Chromium でブロックされました。セーフ ブラウジングがオフになっており、ファイルを確認できません</translation>
 <translation id="4583692638088316420">スマートフォンの Chromium で Google レンズを試す</translation>
 <translation id="4594305310729380060">このデバイスのパスワード マネージャーに保存</translation>
@@ -331,7 +328,6 @@
 <translation id="4613863813562375431">Chromium OS のバージョン</translation>
 <translation id="4621240073146040695">Chromium を再起動して更新を完了してください。</translation>
 <translation id="4625064703209785397">Chromium の V8 エンジンでサイトを高速化する（攻撃に対する Chromium の耐性は若干低下します）</translation>
-<translation id="4654936675281451226">Chromium でフォームの内容を正確に把握して、すばやく自動入力できます。この設定はオンになっています。</translation>
 <translation id="4665829708273112819">警告: 拡張機能による閲覧履歴の記録を Chromium で停止することはできません。シークレット モードでこの拡張機能を無効にするには、このオプションの選択を解除してください。</translation>
 <translation id="4673151026126227699">Chromium の使用状況レポートを送信する場合は、アクセスした URL がこのレポートに含められます</translation>
 <translation id="4677944499843243528">プロフィールは、別のコンピュータ（<ph name="HOST_NAME" />）の別の Chromium プロセス（<ph name="PROCESS_ID" />）で使用されているようです。Chromium はプロフィールが破損しないようにプロフィールをロックしています。他のプロセスがこのプロフィールを使用していないことが確実であれば、プロフィールのロックを解除して Chromium を再起動できます。</translation>
@@ -360,7 +356,6 @@
 <translation id="5083712646171654472">Gemini in Chromium が自動でブラウジングして、タブ上の作業や指定されたタスクを行います。<ph name="LINK_BEGIN" />詳細<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">Chromium がハンド トラッキングの許可を求めています</translation>
 <translation id="5141988424377517949">最近アクセスしていないため、Chromium で <ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />、<ph name="PERMISSION_3" /> の権限を削除しました。</translation>
-<translation id="5167819546851111585">何かお手伝いできることはありますか？</translation>
 <translation id="5174969993834422967">通知はデフォルトでブロックされています。このサイトの通知を表示するには、ロケーション バーの右上にある通知アイコンをクリックしてください。</translation>
 <translation id="5174983315706567306">ディスクの空き容量が不足しています。</translation>
 <translation id="5187123684706427865">Chromium アカウントの再認証が必要です</translation>
@@ -435,7 +430,6 @@
 <translation id="6063093106622310249">Chromium で開く(&amp;O)</translation>
 <translation id="6069027071882229820">画像としてコピー</translation>
 <translation id="6072279588547424923">「<ph name="EXTENSION_NAME" />」が Chromium に追加されました</translation>
-<translation id="6072463441809498330">Chromium を高速化する</translation>
 <translation id="6096348254544841612">Chromium をカスタマイズしてご活用ください。アップデートが利用可能です。</translation>
 <translation id="6107893135096467929">オン • Chromium では、この拡張機能の提供元を確認できません</translation>
 <translation id="611228897408671387">Chromium のアカウント設定</translation>
@@ -478,6 +472,7 @@
 <translation id="6436260184216827876">画像検索は使用できません。しばらくしてからもう一度お試しください。</translation>
 <translation id="6442900851116057561">Chromium OS を再起動してください</translation>
 <translation id="6443470774889161065">アクセスする可能性の高いページがさらに多くプリロードされ、該当のページにアクセスしたときにページの読み込み速度が向上します。</translation>
+<translation id="6450948450282634257">スマートフォンに Chromium をダウンロードして、価格をトラッキングしたり、サイトで値下げがあった際に通知を受け取ったりできます</translation>
 <translation id="645458117210240797">オフ • Chromium では、この拡張機能の提供元を確認できません</translation>
 <translation id="6455857529632101747">Chromium プロフィールへようこそ</translation>
 <translation id="6466344609055215035">Chromium からアカウントを削除</translation>
@@ -555,7 +550,7 @@
 <translation id="7274695763216404502">固定しました。ツールバーから画像検索を使用できます</translation>
 <translation id="7288567540154601580">タブと拡張機能</translation>
 <translation id="7295544978856094497">{NUM_EXTENSIONS,plural, =1{削除することをおすすめします}other{削除することをおすすめします}}</translation>
-<translation id="7296334833518879294">システム音声を共有するには、[システム設定] を開き、Chromium に [システム音声の録音のみ] を許可してください。その後、Chromium を再起動する必要があります。</translation>
+<translation id="7296334833518879294">システム音声を共有するには、[システム設定] を開き、Chromium に [システムオーディオ録音のみ] を許可してください。その後、Chromium を再起動する必要があります。</translation>
 <translation id="7309928523159922338">広告の測定により、アクセスしたサイトは、サイトが広告のパフォーマンスを測定する際に役立つ Chromium の情報をリクエストできます。広告の測定は、サイト間で転送する情報をできるだけ少なくすることで、クロスサイト トラッキングを制限します。</translation>
 <translation id="731795002583552498">Chromium を更新しています</translation>
 <translation id="7318036098707714271">ユーザー設定ファイルが壊れているか無効です。

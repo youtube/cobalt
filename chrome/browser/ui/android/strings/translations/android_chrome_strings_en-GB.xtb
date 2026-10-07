@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> will open in Chrome. By continuing, you agree to the <ph name="BEGIN_LINK1" />Google Terms of Service<ph name="END_LINK1" />, and the <ph name="BEGIN_LINK2" />Google Chrome and Chrome OS additional Terms of Service<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">You don't have passwords saved in Google Password Manager.</translation>
 <translation id="115483310321669804">Use password <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Sync tabs and history</translation>
 <translation id="1165109137568919258">Take a photo or add an image from your photo gallery to search</translation>
 <translation id="1173894706177603556">Rename</translation>
 <translation id="1174479719160874822">Chrome will request the mobile site when the screen is narrow</translation>
@@ -126,6 +127,7 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
 <translation id="147982357559798527">Changed</translation>
 <translation id="1480287803138246127">Some of your history might not show up here. To see all your Chrome history, open full Chrome history.</translation>
 <translation id="1493287004536771723">You’re following <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Back to tab</translation>
 <translation id="1496514951988037011">username</translation>
 <translation id="1501480321619201731">Delete group</translation>
 <translation id="1506061864768559482">Search engine</translation>
@@ -433,6 +435,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2885355868600171871">Jump to address bar</translation>
 <translation id="2888126860611144412">About Chrome</translation>
 <translation id="2891154217021530873">Stop page loading</translation>
+<translation id="2893168226686371498">Default browser</translation>
 <translation id="2894821468041866720">Doesn't noticeably slow down your browser or device.</translation>
 <translation id="2895521649038438824">You can listen to this page</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, pinned audible tab</translation>
@@ -980,6 +983,7 @@ Your Google Account may have other forms of browsing history such as searches an
 <translation id="5210286577605176222">Jump to the previous tab</translation>
 <translation id="5210365745912300556">Close tab</translation>
 <translation id="5212800876504289412">Restart Chrome to finish this change. Tabs automatically reopen when you restart.</translation>
+<translation id="5213114823401215820">Reopen closed group</translation>
 <translation id="5215957675041756913">Control your data and account</translation>
 <translation id="5218324087477576825">Card number required</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> and more <ph name="SEPARATOR" /> Chrome removed these permissions because you haven't visited recently</translation>
@@ -1098,7 +1102,6 @@ Your Google Account may have other forms of browsing history such as searches an
 <translation id="5765780083710877561">Description:</translation>
 <translation id="5776970333778123608">Unimportant data</translation>
 <translation id="5793665092639000975">Using <ph name="SPACE_USED" /> of <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">Search and browse</translation>
 <translation id="5797949256525811424">Blocked topic</translation>
 <translation id="580893287573699959">Manage the topics and sites that you're interested in</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# hour ago}other{# hours ago}}</translation>
@@ -1415,7 +1418,6 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="6937524809504266803">Personalisation and linking</translation>
 <translation id="6937876069006524083">Nickname (optional)</translation>
 <translation id="6942665639005891494">Change the default download location at any time using the Settings menu option</translation>
-<translation id="694267552845942083">You are currently customising your Sync settings. To finish turning on sync, tap the Confirm button near the bottom of the screen. Navigate up</translation>
 <translation id="6945221475159498467">Select</translation>
 <translation id="6955535239952325894">This setting is disabled on managed browsers</translation>
 <translation id="6963766334940102469">Delete bookmarks</translation>
@@ -1437,6 +1439,7 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="7020741890149022655">Add to reading list <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Open in browser</translation>
 <translation id="7029809446516969842">Passwords</translation>
+<translation id="7037994709569287156">Make Chrome default</translation>
 <translation id="7053256416619638731">Strengthen your passwords on this device</translation>
 <translation id="7053983685419859001">Block</translation>
 <translation id="7054588988317389591">Get image descriptions?</translation>
@@ -1469,6 +1472,7 @@ For example, some websites may respond to this request by showing you ads that a
 To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your account<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Learn more about why Chrome blocks some files</translation>
 <translation id="7168323970702333693">Signed in as <ph name="USER_NAME" />. Opens settings.</translation>
+<translation id="7170930892977483182">All security codes saved on your device and in Google Wallet will be deleted</translation>
 <translation id="7173114856073700355">Open settings</translation>
 <translation id="7173338713290252554">Price history across the web</translation>
 <translation id="7177466738963138057">You can change this later in Settings</translation>
@@ -1568,6 +1572,7 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="7523960634226602883">Search with your camera using Google Lens</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> closed and saved</translation>
 <translation id="7545347190366646170">People with access</translation>
+<translation id="7553482318994371148">Reopen closed tabs</translation>
 <translation id="7554643625247105821">Can't check Chrome version</translation>
 <translation id="7557508262441527045">Signed out</translation>
 <translation id="7573665567024262965">Choose your default apps</translation>
@@ -1801,6 +1806,7 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="8458413889418591446">To quickly get back to sites that you've visited, sync your history and tabs</translation>
 <translation id="84594714173170813">Keep using the Chrome data in your Google Account</translation>
 <translation id="8460448946170646641">Review key privacy and security controls</translation>
+<translation id="8460932807646981183">Manage search engines and site search</translation>
 <translation id="8473863474539038330">Addresses and more</translation>
 <translation id="847433688444405067">Browse across devices</translation>
 <translation id="8477178913400731244">Delete data</translation>
@@ -1936,7 +1942,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, multi-selected sharing tab</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Sites that you visit aren’t saved in Incognito</translation>
-<translation id="9086302186042011942">Syncing</translation>
 <translation id="9086455579313502267">Unable to access the network</translation>
 <translation id="9093915805850895575">Open in Chrome window</translation>
 <translation id="909756639352028172">To get the most personalised experience, include Chrome in Web &amp; App Activity and linked Google services</translation>

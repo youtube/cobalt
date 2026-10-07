@@ -13,7 +13,6 @@
 #include "chrome/browser/ash/crosapi/crosapi_id.h"
 #include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#include "chromeos/crosapi/mojom/mahi.mojom-forward.h"
 #include "chromeos/crosapi/mojom/print_preview_cros.mojom-forward.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "media/gpu/buildflags.h"
@@ -41,7 +40,6 @@ class PrintPreviewWebcontentsAdapterAsh;
 namespace crosapi {
 
 class DocumentScanAsh;
-class KeystoreServiceAsh;
 class LocalPrinterAsh;
 
 // Implementation of Crosapi in Ash. It provides a set of APIs that
@@ -76,8 +74,6 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindInSessionAuth(
       mojo::PendingReceiver<chromeos::auth::mojom::InSessionAuth> receiver)
       override;
-  void BindKeystoreService(
-      mojo::PendingReceiver<mojom::KeystoreService> receiver) override;
   void BindLocalPrinter(
       mojo::PendingReceiver<mojom::LocalPrinter> receiver) override;
   void BindMachineLearningService(
@@ -107,15 +103,8 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindVideoCaptureDeviceFactory(
       mojo::PendingReceiver<mojom::VideoCaptureDeviceFactory> receiver)
       override;
-  void BindGuestOsSkForwarderFactory(
-      mojo::PendingReceiver<mojom::GuestOsSkForwarderFactory> receiver)
-      override;
 
   DocumentScanAsh* document_scan_ash() { return document_scan_ash_.get(); }
-
-  KeystoreServiceAsh* keystore_service_ash() {
-    return keystore_service_ash_.get();
-  }
 
   LocalPrinterAsh* local_printer_ash() { return local_printer_ash_.get(); }
 
@@ -132,7 +121,6 @@ class CrosapiAsh : public mojom::Crosapi {
 
   std::unique_ptr<ash::DiagnosticsServiceAsh> diagnostics_service_ash_;
   std::unique_ptr<DocumentScanAsh> document_scan_ash_;
-  std::unique_ptr<KeystoreServiceAsh> keystore_service_ash_;
   std::unique_ptr<LocalPrinterAsh> local_printer_ash_;
   std::unique_ptr<ash::TelemetryDiagnosticsRoutineServiceAsh>
       telemetry_diagnostic_routine_service_ash_;

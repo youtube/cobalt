@@ -41,9 +41,9 @@
 
 #if defined(RTC_USE_PERFETTO)
 #include "rtc_base/event_tracer.h"
-#include "third_party/perfetto/include/perfetto/tracing/backend_type.h"
-#include "third_party/perfetto/include/perfetto/tracing/tracing.h"
-#include "third_party/perfetto/protos/perfetto/config/trace_config.gen.h"
+#include "third_party/perfetto/include/perfetto/tracing/backend_type.h"  // nogncheck
+#include "third_party/perfetto/include/perfetto/tracing/tracing.h"  // nogncheck
+#include "third_party/perfetto/protos/perfetto/config/trace_config.gen.h"  // nogncheck
 #endif
 
 #if defined(WEBRTC_WIN)

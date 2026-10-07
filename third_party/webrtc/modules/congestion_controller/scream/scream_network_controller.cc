@@ -37,7 +37,12 @@ ScreamNetworkController::ScreamNetworkController(NetworkControllerConfig config)
           config.stream_based_config.enable_repeated_initial_probing),
       current_pacing_window_(config.default_pacing_time_window),
       scream_(std::in_place, env_),
-      target_rate_constraints_(config.constraints),
+      min_target_rate_(
+          config.constraints.min_data_rate.value_or(DataRate::Zero())),
+      max_target_rate_(
+          config.constraints.max_data_rate.value_or(DataRate::PlusInfinity())),
+      starting_rate_(
+          config.constraints.starting_rate.value_or(kDefaultStartRate)),
       streams_config_(config.stream_based_config),
       last_padding_interval_started_(Timestamp::Zero()) {
   UpdateScreamTargetBitrateConstraints();
@@ -47,18 +52,16 @@ void ScreamNetworkController::UpdateScreamTargetBitrateConstraints() {
   // TODO: bugs.webrtc.org/447037083 - We should also consider remote network
   // state estimates.
   scream_->SetTargetBitrateConstraints(
-      target_rate_constraints_.min_data_rate.value_or(DataRate::Zero()),
-      std::min(target_rate_constraints_.max_data_rate.value_or(
-                   DataRate::PlusInfinity()),
-               remote_bitrate_report_.value_or(DataRate::PlusInfinity())));
+      min_target_rate_,
+      std::min(max_target_rate_,
+               remote_bitrate_report_.value_or(DataRate::PlusInfinity())),
+      starting_rate_);
 }
 
 NetworkControlUpdate ScreamNetworkController::CreateFirstUpdate(Timestamp now) {
   RTC_DCHECK(network_available_);
   RTC_DCHECK(!first_update_created_);
   first_update_created_ = true;
-  scream_->SetFirstTargetRate(
-      target_rate_constraints_.starting_rate.value_or(kDefaultStartRate));
   NetworkControlUpdate update = CreateUpdate(now);
 
   if (allow_initial_bwe_before_media_) {
@@ -91,7 +94,9 @@ NetworkControlUpdate ScreamNetworkController::OnNetworkAvailability(
 NetworkControlUpdate ScreamNetworkController::OnNetworkRouteChange(
     NetworkRouteChange msg) {
   RTC_LOG(LS_INFO) << " OnNetworkRouteChange, resetting ScreamV2.";
-  target_rate_constraints_ = msg.constraints;
+  min_target_rate_ = msg.constraints.min_data_rate.value_or(min_target_rate_);
+  max_target_rate_ = msg.constraints.max_data_rate.value_or(max_target_rate_);
+  starting_rate_ = msg.constraints.starting_rate.value_or(starting_rate_);
   scream_.emplace(env_);
   first_update_created_ = false;
   UpdateScreamTargetBitrateConstraints();
@@ -154,7 +159,9 @@ NetworkControlUpdate ScreamNetworkController::OnStreamsConfig(
 
 NetworkControlUpdate ScreamNetworkController::OnTargetRateConstraints(
     TargetRateConstraints msg) {
-  target_rate_constraints_ = msg;
+  min_target_rate_ = msg.min_data_rate.value_or(min_target_rate_);
+  max_target_rate_ = msg.max_data_rate.value_or(max_target_rate_);
+  starting_rate_ = msg.starting_rate.value_or(starting_rate_);
   UpdateScreamTargetBitrateConstraints();
   // No need to change target rate immediately. Wait until next feedback.
   return NetworkControlUpdate();
@@ -214,9 +221,7 @@ std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig() {
   // lower than what the user intended since it depends on video resolution
   // that may be scaled down due to low quality.
   DataRate max_padding_rate =
-      std::min({target_rate_constraints_.max_data_rate.value_or(
-                    DataRate::PlusInfinity()),
-                max_seen_total_allocated_bitrate_,
+      std::min({max_target_rate_, max_seen_total_allocated_bitrate_,
                 2 * streams_config_.max_total_allocated_bitrate.value_or(
                         DataRate::Zero()),
                 remote_bitrate_report_.value_or(DataRate::PlusInfinity())});

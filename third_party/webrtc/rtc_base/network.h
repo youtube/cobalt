@@ -16,6 +16,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -426,8 +427,8 @@ class RTC_EXPORT Network {
   NetworkSlice network_slice() const { return network_slice_; }
   void set_network_slice(NetworkSlice slice) { network_slice_ = slice; }
 
-  static std::pair<AdapterType, bool /* vpn */> GuessAdapterFromNetworkCost(
-      int network_cost);
+  static std::tuple<AdapterType, bool /* vpn */, NetworkSlice>
+  GuessAdapterFromNetworkCost(int network_cost);
 
   // Debugging description of this network
   std::string ToString() const;
@@ -624,6 +625,5 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
 };
 
 }  //  namespace webrtc
-
 
 #endif  // RTC_BASE_NETWORK_H_

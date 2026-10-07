@@ -45,10 +45,6 @@ void CopyFromConfigToEvent(const InternalAPMConfig& config,
   pb_cfg->set_aec_extended_filter_enabled(config.aec_extended_filter_enabled);
   pb_cfg->set_aec_suppression_level(config.aec_suppression_level);
 
-  pb_cfg->set_aecm_enabled(config.aecm_enabled);
-  pb_cfg->set_aecm_comfort_noise_enabled(config.aecm_comfort_noise_enabled);
-  pb_cfg->set_aecm_routing_mode(config.aecm_routing_mode);
-
   pb_cfg->set_agc_enabled(config.agc_enabled);
   pb_cfg->set_agc_mode(config.agc_mode);
   pb_cfg->set_agc_limiter_enabled(config.agc_limiter_enabled);

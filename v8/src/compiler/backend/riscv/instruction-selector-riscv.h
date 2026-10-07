@@ -434,32 +434,32 @@ static Instruction* VisitCompare(InstructionSelector* selector,
                                  InstructionOperand left,
                                  InstructionOperand right,
                                  FlagsContinuation* cont) {
+  RiscvOperandGenerator g(selector);
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = left;
+  inputs[input_count++] = right;
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
 #ifdef V8_COMPRESS_POINTERS
   if (opcode == kRiscvCmp32) {
-    RiscvOperandGenerator g(selector);
-    InstructionOperand inputs[] = {left, right};
     if (right.IsImmediate()) {
       InstructionOperand temps[1] = {g.TempRegister()};
-      return selector->EmitWithContinuation(opcode, 0, nullptr,
-                                            arraysize(inputs), inputs,
-                                            arraysize(temps), temps, cont);
+      return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
+                                            inputs, arraysize(temps), temps,
+                                            cont);
     } else {
       InstructionOperand temps[2] = {g.TempRegister(), g.TempRegister()};
-      return selector->EmitWithContinuation(opcode, 0, nullptr,
-                                            arraysize(inputs), inputs,
-                                            arraysize(temps), temps, cont);
+      return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
+                                            inputs, arraysize(temps), temps,
+                                            cont);
     }
   }
 #endif
-  return selector->EmitWithContinuation(opcode, left, right, cont);
-}
-
-// Shared routine for multiple compare operations.
-
-static Instruction* VisitWordCompareZero(InstructionSelector* selector,
-                                         InstructionOperand value,
-                                         FlagsContinuation* cont) {
-  return selector->EmitWithContinuation(kRiscvCmpZero, value, cont);
+  return selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs,
+                                        cont);
 }
 
 // Shared routine for multiple float32 compare operations.
@@ -536,35 +536,20 @@ Instruction* VisitWordCompare(InstructionSelector* selector, OpIndex node,
             return VisitCompare(selector, opcode, g.UseRegister(left),
                                 g.UseImmediate(right), cont);
           } else {
-            if (g.CanBeZero(right)) {
-              return VisitWordCompareZero(
-                  selector, g.UseRegisterOrImmediateZero(left), cont);
-            } else {
               return VisitCompare(selector, opcode, g.UseRegister(left),
                                   g.UseRegister(right), cont);
-            }
           }
           break;
         case kSignedLessThan:
         case kSignedGreaterThanOrEqual:
         case kUnsignedLessThan:
         case kUnsignedGreaterThanOrEqual: {
-          if (g.CanBeZero(right)) {
-            return VisitWordCompareZero(
-                selector, g.UseRegisterOrImmediateZero(left), cont);
-          } else {
             return VisitCompare(selector, opcode, g.UseRegister(left),
                                 g.UseImmediate(right), cont);
-          }
         } break;
         default:
-          if (g.CanBeZero(right)) {
-            return VisitWordCompareZero(
-                selector, g.UseRegisterOrImmediateZero(left), cont);
-          } else {
             return VisitCompare(selector, opcode, g.UseRegister(left),
                                 g.UseRegister(right), cont);
-          }
       }
     }
   } else {
@@ -1719,11 +1704,23 @@ void InstructionSelector::VisitF64x2Pmax(OpIndex node) {
 }
 
 void InstructionSelector::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
-  UNIMPLEMENTED();
+  RiscvOperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kRiscvFloat64ToFloat16RawBits, arraysize(outputs), outputs,
+       arraysize(inputs), inputs, arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
-  UNIMPLEMENTED();
+  RiscvOperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kRiscvFloat16RawBitsToFloat64, arraysize(outputs), outputs,
+       arraysize(inputs), inputs, arraysize(temps), temps);
 }
 
 // static
@@ -1741,7 +1738,7 @@ InstructionSelector::AlignmentRequirements() {
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         int first_input_index,
                                                         OpIndex node) {
-  UNREACHABLE();
+  continuation_outputs_.push_back(g->DefineAsRegister(node));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

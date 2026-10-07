@@ -37,8 +37,7 @@ class ScreamV2 {
   explicit ScreamV2(const Environment& env);
   ~ScreamV2() = default;
 
-  void SetTargetBitrateConstraints(DataRate min, DataRate max);
-  void SetFirstTargetRate(DataRate target_rate) { target_rate_ = target_rate; }
+  void SetTargetBitrateConstraints(DataRate min, DataRate max, DataRate start);
 
   void OnPacketSent(DataSize data_in_flight);
   void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
@@ -150,6 +149,7 @@ class ScreamV2 {
   Timestamp drain_queue_start_ = Timestamp::MinusInfinity();
 
   DelayBasedCongestionControl delay_based_congestion_control_;
+  bool first_feedback_processed_ = false;
 };
 
 }  // namespace webrtc

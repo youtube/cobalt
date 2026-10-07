@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -16,7 +17,7 @@
 #include "base/version.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "components/passage_embeddings/passage_embeddings_types.h"
+#include "components/passage_embeddings/core/passage_embeddings_types.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
 #include "components/permissions/request_type.h"
@@ -168,6 +169,7 @@ enum class PermissionSourceUI {
 // LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionSourceUI)
 
 // Any new values should be inserted immediately prior to NUM.
+// LINT.IfChange(PermissionEmbargoStatus)
 enum class PermissionEmbargoStatus {
   NOT_EMBARGOED = 0,
   // Removed: PERMISSIONS_BLACKLISTING = 1,
@@ -178,11 +180,13 @@ enum class PermissionEmbargoStatus {
   // Keep this at the end.
   NUM,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionEmbargoStatus)
 
 // Used for UMA to record the strict level of permission policy which is
 // configured to allow sub-frame origin. Any new values should be inserted
 // immediately prior to NUM. All values here should have corresponding entries
 // PermissionsPolicyConfiguration area of enums.xml.
+// LINT.IfChange(PermissionHeaderPolicyForUMA)
 enum class PermissionHeaderPolicyForUMA {
   // No (or an invalid) Permissions-Policy header was present, results in an
   // empty features list. It indicates none security-awareness of permissions
@@ -214,6 +218,7 @@ enum class PermissionHeaderPolicyForUMA {
   // Always keep this at the end.
   NUM,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionsPolicyConfiguration)
 
 // The kind of permission prompt UX used to surface a permission request.
 // Enum used in UKMs and UMAs, do not re-order or change values. Deprecated
@@ -289,6 +294,7 @@ enum class PermissionPromptDisposition {
 // The reason why the permission prompt disposition was used. Enum used in UKMs,
 // do not re-order or change values. Deprecated items should only be commented
 // out.
+// LINT.IfChange(PermissionPromptDispositionReason)
 enum class PermissionPromptDispositionReason {
   // Disposition was selected in prefs.
   USER_PREFERENCE_IN_SETTINGS = 0,
@@ -307,7 +313,11 @@ enum class PermissionPromptDispositionReason {
   // Disposition was chosen based on grant likelihood predicted by the On-Device
   // Permission Prediction Model.
   ON_DEVICE_PREDICTION_MODEL = 4,
+
+  // Disposition was chosen because the request lacked a user gesture.
+  LACK_OF_GESTURE = 5,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:PermissionPromptDispositionReason)
 
 enum class AdaptiveTriggers {
   // None of the adaptive triggers were met. Currently this means two or less
@@ -368,6 +378,7 @@ enum class OsScreenAction {
 // These values are logged to UMA. Entries should not be renumbered and
 // numeric values should never be reused. Please keep in sync with
 // "OneTimePermissionEvent" in tools/metrics/histograms/enums.xml.
+// LINT.IfChange(OneTimePermissionEvent)
 enum class OneTimePermissionEvent {
   // Recorded for each one time grant
   GRANTED_ONE_TIME = 0,
@@ -392,6 +403,7 @@ enum class OneTimePermissionEvent {
 
   kMaxValue = EXPIRED_ON_SUSPEND,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:OneTimePermissionEvent)
 
 // LINT.IfChange(ElementAnchoredBubbleVariant)
 // Prompt views shown after the user clicks on the embedded permission prompt.
@@ -426,44 +438,20 @@ enum class ElementAnchoredBubbleVariant {
 };
 // LINT.ThenChange(//tools/metrics/histograms/enums.xml:ElementAnchoredBubbleVariant)
 
+// LINT.IfChange(PermissionAutoRevocationHistory)
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class PermissionAutoRevocationHistory {
   // Permission has not been automatically revoked.
   NONE = 0,
 
   // Permission has been automatically revoked.
   PREVIOUSLY_AUTO_REVOKED = 0x01,
-};
-
-// This enum backs up the `AutoDSEPermissionRevertTransition` histogram enum.
-// Never reuse values and mirror any updates to it.
-// Describes the transition that has occurred for the setting of a DSE origin
-// when DSE autogrant becomes disabled.
-enum class AutoDSEPermissionRevertTransition {
-  // The user has not previously made any decision so it results in an `ASK` end
-  // state.
-  NO_DECISION_ASK = 0,
-  // The user has decided to `ALLOW` the origin before it was the DSE origin and
-  // has not reverted this decision.
-  PRESERVE_ALLOW = 1,
-  // The user has previously `BLOCKED` the origin but has allowed it after it
-  // became the DSE origin. Resolve the conflict by setting it to `ASK` so the
-  // user will make a decision again.
-  CONFLICT_ASK = 2,
-  // The user has blocked the DSE origin and has not made a previous decision
-  // before the origin became the DSE origin.
-  PRESERVE_BLOCK_ASK = 3,
-  // The user has blocked the DSE origin and has `ALLOWED` it before it became
-  // the DSE origin, preserve the latest decision.
-  PRESERVE_BLOCK_ALLOW = 4,
-  // The user has blocked the DSE origin and has `BLOCKED` it before it became
-  // the DSE origin as well.
-  PRESERVE_BLOCK_BLOCK = 5,
-  // There has been an invalid transition.
-  INVALID_END_STATE = 6,
 
   // Always keep at the end.
-  kMaxValue = INVALID_END_STATE,
+  kMaxValue = PREVIOUSLY_AUTO_REVOKED,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:PermissionAutoRevocationHistory)
 
 // This enum backs up the
 // 'Permissions.PageInfo.ChangedWithin1m.{PermissionType}' histograms enum. It
@@ -471,6 +459,10 @@ enum class AutoDSEPermissionRevertTransition {
 // first minute after a PermissionAction has been taken. Note that
 // PermissionActions  DISMISSED and IGNORED are not taken into account, as they
 // don't have an effect on the content settings.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(PermissionChangeAction)
 enum class PermissionChangeAction {
   // PermissionAction was one of {GRANTED, GRANTED_ONCE} and the content
   // setting is changed to CONTENT_SETTING_BLOCK.
@@ -496,6 +488,7 @@ enum class PermissionChangeAction {
   // Always keep at the end.
   kMaxValue = REMEMBER_CHECKBOX_TOGGLED,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionChangeAction)
 
 // LINT.IfChange(ElementAnchoredBubbleAction)
 enum class ElementAnchoredBubbleAction {
@@ -527,6 +520,10 @@ enum class ElementAnchoredBubbleAction {
 // LINT.ThenChange(//tools/metrics/histograms/enums.xml:ElementAnchoredBubbleAction)
 
 // The reason the permission action `PermissionAction::IGNORED` was triggered.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(PermissionIgnoredReason)
 enum class PermissionIgnoredReason {
   // Ignore was triggered due to closure of the browser window
   WINDOW_CLOSED = 0,
@@ -543,6 +540,7 @@ enum class PermissionIgnoredReason {
   // Always keep at the end
   NUM,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionRequestIgnoredReason)
 
 // This enum backs up the
 // 'Permissions.PageInfo.Changed.{PermissionType}.Reallowed.Outcome' histograms
@@ -552,6 +550,7 @@ enum class PermissionIgnoredReason {
 //
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(PermissionChangeInfo)
 enum class PermissionChangeInfo {
   kInfobarShownPageReloadPermissionUsed = 0,
 
@@ -572,6 +571,7 @@ enum class PermissionChangeInfo {
   // Always keep at the end.
   kMaxValue = kInfobarNotShownNoPageReloadPermissionNotUsed,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionChangeInfo)
 
 // LINT.IfChange(DismissalType)
 
@@ -763,12 +763,6 @@ class PermissionUmaUtil {
   static void RecordTimeElapsedBetweenGrantAndRevoke(ContentSettingsType type,
                                                      base::TimeDelta delta);
 
-  static void RecordAutoDSEPermissionReverted(
-      ContentSettingsType permission_type,
-      ContentSetting backed_up_setting,
-      ContentSetting effective_setting,
-      ContentSetting end_state_setting);
-
   static void RecordDSEEffectiveSetting(ContentSettingsType permission_type,
                                         ContentSetting setting);
 
@@ -889,9 +883,10 @@ class PermissionUmaUtil {
       bool always_active);
 
   // Records if the browser was always active before user's interaction.
-  static void RecordActionBrowserAlwaysActive(RequestTypeForUma request_type,
-                                              std::string permission_action,
-                                              bool always_active);
+  static void RecordActionBrowserAlwaysActive(
+      RequestTypeForUma request_type,
+      std::string_view permission_action,
+      bool always_active);
 
   // Records the execution time of prediction model inquiries.
   static void RecordPredictionModelInquireTime(

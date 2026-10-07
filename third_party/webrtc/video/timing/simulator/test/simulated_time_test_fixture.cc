@@ -26,7 +26,7 @@ SimulatedTimeTestFixture::SimulatedTimeTestFixture()
           CreateTestEnvironmentOptions{.time = &time_controller_})),
       queue_(env_.task_queue_factory().CreateTaskQueue(
           "test_queue",
-          TaskQueueFactory::Priority::NORMAL)),
+          TaskQueueFactory::Priority::kNormal)),
       queue_ptr_(queue_.get()) {}
 
 SimulatedTimeTestFixture::~SimulatedTimeTestFixture() = default;

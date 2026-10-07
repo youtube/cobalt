@@ -256,7 +256,7 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
       config.retransmission_rate_limiter = &retransmission_rate_limiter_;
       config.local_media_ssrc = remb_sender_local_ssrc_;
 
-      rtp_rtcp_ = std::make_unique<ModuleRtpRtcpImpl2>(env_, config);
+      rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateReceiveModule(env_, config);
       rtp_rtcp_->SetRemoteSSRC(remb_sender_remote_ssrc_);
       rtp_rtcp_->SetRTCPStatus(RtcpMode::kReducedSize);
     }

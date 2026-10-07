@@ -3156,12 +3156,12 @@ void Context::getProgramResourceiv(ShaderProgramID program,
                                    GLuint index,
                                    GLsizei propCount,
                                    const GLenum *props,
-                                   GLsizei bufSize,
+                                   GLsizei count,
                                    GLsizei *length,
                                    GLint *params)
 {
     const Program *programObject = getProgramResolveLink(program);
-    QueryProgramResourceiv(programObject, programInterface, {index}, propCount, props, bufSize,
+    QueryProgramResourceiv(programObject, programInterface, {index}, propCount, props, count,
                            length, params);
 }
 
@@ -6081,16 +6081,7 @@ void *Context::mapBufferRange(BufferBinding target,
         return nullptr;
     }
 
-    // TODO: (anglebug.com/42266294): Modify return value in entry point layer
-    angle::FrameCaptureShared *frameCaptureShared = getShareGroup()->getFrameCaptureShared();
-    if (frameCaptureShared->enabled())
-    {
-        return frameCaptureShared->maybeGetShadowMemoryPointer(buffer, length, access);
-    }
-    else
-    {
-        return buffer->getMapPointer();
-    }
+    return buffer->getMapPointer();
 }
 
 void Context::flushMappedBufferRange(BufferBinding /*target*/,
@@ -6687,7 +6678,7 @@ void Context::framebufferTexture2DMultisample(GLenum target,
 
 void Context::getSynciv(SyncID syncPacked,
                         GLenum pname,
-                        GLsizei bufSize,
+                        GLsizei count,
                         GLsizei *length,
                         GLint *values)
 {
@@ -6696,7 +6687,7 @@ void Context::getSynciv(SyncID syncPacked,
     {
         syncObject = getSync(syncPacked);
     }
-    ANGLE_CONTEXT_TRY(QuerySynciv(this, syncObject, pname, bufSize, length, values));
+    ANGLE_CONTEXT_TRY(QuerySynciv(this, syncObject, pname, count, length, values));
 }
 
 void Context::getFramebufferParameteriv(GLenum target, GLenum pname, GLint *params)
@@ -8120,7 +8111,7 @@ void Context::deleteSamplers(GLsizei count, const SamplerID *samplers)
 void Context::getInternalformativ(GLenum target,
                                   GLenum internalformat,
                                   GLenum pname,
-                                  GLsizei bufSize,
+                                  GLsizei count,
                                   GLint *params)
 {
     Texture *texture    = nullptr;
@@ -8130,7 +8121,7 @@ void Context::getInternalformativ(GLenum target,
         texture = getTextureByType(textype);
     }
     const TextureCaps &formatCaps = mState.getTextureCap(internalformat);
-    QueryInternalFormativ(this, texture, internalformat, formatCaps, pname, bufSize, params);
+    QueryInternalFormativ(this, texture, internalformat, formatCaps, pname, count, params);
 }
 
 void Context::getInternalformativRobust(GLenum target,

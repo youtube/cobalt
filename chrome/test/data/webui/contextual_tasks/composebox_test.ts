@@ -97,7 +97,7 @@ function createAutocompleteMatch(modifiers: Partial<AutocompleteMatch> = {}):
     allowedToBeDefaultMatch: false,
     isSearchType: true,
     contents: 'a suggestion',
-    destinationUrl: {url: `https://google.com/search?q=a+suggestion`},
+    destinationUrl: `https://google.com/search?q=a+suggestion`,
     fillIntoEdit: 'a suggestion',
     type: 'search-suggest',
 
@@ -114,7 +114,7 @@ function createAutocompleteMatch(modifiers: Partial<AutocompleteMatch> = {}):
     descriptionClass: [{offset: 0, style: 0}],
     inlineAutocompletion: '',
     iconPath: '',
-    iconUrl: {url: ''},
+    iconUrl: '',
     imageDominantColor: '',
     imageUrl: '',
     isNoncannedAimSuggestion: false,
@@ -241,7 +241,7 @@ suite('ContextualTasksComposeboxTest', () => {
       createAutocompleteMatch({
         allowedToBeDefaultMatch: true,
         contents: testQuery,
-        destinationUrl: {url: `https://google.com/search?q=${testQuery}`},
+        destinationUrl: `https://google.com/search?q=${testQuery}`,
         type: 'search-what-you-typed',
         fillIntoEdit: testQuery,
       }),
@@ -296,6 +296,18 @@ suite('ContextualTasksComposeboxTest', () => {
     mockSearchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
     mockSearchboxPageHandler.setResultFor(
         'getRecentTabs', Promise.resolve({tabs: []}));
+    mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+      },
+    }));
     const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
     searchboxCallbackRouterRemote =
         searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
@@ -451,7 +463,7 @@ suite('ContextualTasksComposeboxTest', () => {
     const [matchIndex, url] =
         await mockSearchboxPageHandler.whenCalled('openAutocompleteMatch');
     assertEquals(0, matchIndex);
-    assertEquals(`https://google.com/search?q=${TEST_QUERY}`, url.url);
+    assertEquals(`https://google.com/search?q=${TEST_QUERY}`, url);
     mockTimer.tick(0);
 
     assertEquals(
@@ -1600,4 +1612,63 @@ suite('ContextualTasksComposeboxTest', () => {
 
     assertEquals(0, composebox.$.context.files_.size);
   });
+
+  test('queries autocomplete on load when isZeroState is true', async () => {
+    // Clear the body and reset the mock to test a fresh instance.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    mockSearchboxPageHandler.reset();
+    mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+      },
+    }));
+
+    loadTimeData.overrideValues({composeboxShowZps: false});
+
+    const app = document.createElement('contextual-tasks-app') as unknown as
+        MockContextualTasksAppElement;
+    app.isZeroState_ = true;
+    document.body.appendChild(app);
+    await microtasksFinished();
+
+    assertEquals(1, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
+  });
+
+  test(
+      'does not query autocomplete on load when isZeroState is false',
+      async () => {
+        // Clear the body and reset the mock to test a fresh instance.
+        document.body.innerHTML = window.trustedTypes!.emptyHTML;
+        mockSearchboxPageHandler.reset();
+        mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
+          state: {
+            allowedModels: [],
+            allowedTools: [],
+            allowedInputTypes: [],
+            activeModel: 0,
+            activeTool: 0,
+            disabledModels: [],
+            disabledTools: [],
+            disabledInputTypes: [],
+          },
+        }));
+
+        loadTimeData.overrideValues({composeboxShowZps: false});
+
+        const app = document.createElement('contextual-tasks-app') as unknown as
+            MockContextualTasksAppElement;
+        app.isZeroState_ = false;
+        document.body.appendChild(app);
+        await microtasksFinished();
+
+        assertEquals(
+            0, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
+      });
 });

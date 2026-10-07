@@ -115,7 +115,6 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/autofill_switches.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/form_interactions_flow.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/compose/buildflags.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -163,7 +162,6 @@
 #include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/autofill/android/android_sms_otp_backend_factory.h"
-#include "chrome/browser/fast_checkout/fast_checkout_client_impl.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
 #include "chrome/browser/ui/android/autofill/autofill_ai_save_update_entity_flow_manager.h"
@@ -750,14 +748,6 @@ profile_metrics::BrowserProfileType ChromeAutofillClient::GetProfileType()
                  : profile_metrics::BrowserProfileType::kRegular;
 }
 
-FastCheckoutClient* ChromeAutofillClient::GetFastCheckoutClient() {
-#if BUILDFLAG(IS_ANDROID)
-  return fast_checkout_client_.get();
-#else
-  return nullptr;
-#endif
-}
-
 void ChromeAutofillClient::ShowAutofillSettings(
     SuggestionType suggestion_type) {
 #if BUILDFLAG(IS_ANDROID)
@@ -878,12 +868,16 @@ void ChromeAutofillClient::ShowPlusAddressEmailOverrideNotification(
       AutofillSnackbarType::kPlusAddressEmailOverride,
       std::move(email_override_undo_callback));
 #else
-  Browser* const browser = chrome::FindBrowserWithTab(web_contents());
-  if (!browser) {
+  tabs::TabInterface* tab = GetTabInterface();
+  if (!tab) {
     return;
   }
-  if (ToastController* const controller =
-          browser->browser_window_features()->toast_controller()) {
+  BrowserWindowInterface* window_interface = tab->GetBrowserWindowInterface();
+  if (!window_interface) {
+    return;
+  }
+  if (ToastController* controller =
+          window_interface->GetFeatures().toast_controller()) {
     ToastParams params(ToastId::kPlusAddressOverride);
     params.menu_model = std::make_unique<plus_addresses::PlusAddressMenuModel>(
         base::UTF8ToUTF16(
@@ -1149,24 +1143,12 @@ ChromeAutofillClient::GetAutofillMessageController() {
 }
 #endif
 
-FormInteractionsFlowId
-ChromeAutofillClient::GetCurrentFormInteractionsFlowId() {
-  constexpr base::TimeDelta max_flow_time = base::Minutes(20);
-  base::Time now = AutofillClock::Now();
-
-  if (now - flow_id_date_ > max_flow_time || now < flow_id_date_) {
-    flow_id_ = FormInteractionsFlowId();
-    flow_id_date_ = now;
-  }
-  return flow_id_;
-}
-
 std::unique_ptr<device_reauth::DeviceAuthenticator>
-ChromeAutofillClient::GetDeviceAuthenticator() {
+ChromeAutofillClient::GetDeviceAuthenticator(std::string histogram) {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_CHROMEOS)
   device_reauth::DeviceAuthParams params(
-      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill);
+      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill, std::move(histogram));
 
   return ChromeDeviceAuthenticatorFactory::GetForProfile(
       Profile::FromBrowserContext(web_contents()->GetBrowserContext()),
@@ -1230,7 +1212,6 @@ void ChromeAutofillClient::NotifyIphFeatureUsed(
 
 ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
     : ContentAutofillClient(web_contents),
-      content::WebContentsObserver(web_contents),
       ablation_study_(g_browser_process->local_state()),
       identity_credential_delegate_(web_contents),
       otp_field_detector_(std::make_unique<OtpFieldDetector>(this)),
@@ -1254,7 +1235,6 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
   save_update_address_profile_flow_manager_ =
       std::make_unique<SaveUpdateAddressProfileFlowManager>(
           this, GetAutofillMessageController());
-  fast_checkout_client_ = std::make_unique<FastCheckoutClientImpl>(this);
 #else
   // TODO(crbug.com/469428128) Enable on android once crrev.com/c/7298488 lands.
   if (actor::ActorKeyedService* actor_service =
@@ -1279,9 +1259,14 @@ Profile* ChromeAutofillClient::GetProfile() const {
   return Profile::FromBrowserContext(web_contents()->GetBrowserContext());
 }
 
+tabs::TabInterface* ChromeAutofillClient::GetTabInterface() {
+  // Autofill is (currently) instantiated also in non-tab contexts - therefore
+  // use the `MaybeGet` function.
+  return tabs::TabInterface::MaybeGetFromContents(web_contents());
+}
+
 void ChromeAutofillClient::ShowEmailVerifiedToast() {
-  tabs::TabInterface* tab_interface =
-      tabs::TabInterface::GetFromContents(web_contents());
+  tabs::TabInterface* tab_interface = GetTabInterface();
   if (!tab_interface) {
     return;
   }
@@ -1293,9 +1278,8 @@ void ChromeAutofillClient::ShowEmailVerifiedToast() {
   if (!window_interface) {
     return;
   }
-  ToastController* toast_controller =
-      window_interface->GetFeatures().toast_controller();
-  if (toast_controller) {
+  if (ToastController* toast_controller =
+          window_interface->GetFeatures().toast_controller()) {
     toast_controller->MaybeShowToast(ToastParams(ToastId::kEmailVerified));
   }
 #endif
@@ -1423,20 +1407,26 @@ ChromeAutofillClient::GetMqlsUploadService() {
 void ChromeAutofillClient::ShowEntityImportBubble(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
-    EntityImportPromptResultCallback prompt_closed_callback) {
+    EntityImportPromptResultCallback prompt_result_callback) {
 #if BUILDFLAG(IS_ANDROID)
   autofill_ai_save_update_entity_flow_manager_->OfferSave(
-      new_entity, std::move(old_entity), std::move(prompt_closed_callback));
+      new_entity, std::move(old_entity), std::move(prompt_result_callback));
 #else
   if (auto* controller = AutofillAiImportDataController::GetOrCreate(
-          &*web_contents(), GetAppLocale())) {
+          web_contents(), GetAppLocale())) {
     controller->ShowPrompt(std::move(new_entity), std::move(old_entity),
-                           std::move(prompt_closed_callback));
+                           std::move(prompt_result_callback));
   } else {
-    std::move(prompt_closed_callback)
-        .Run(AutofillClient::AutofillAiBubbleClosedReason::kUnknown);
+    std::move(prompt_result_callback)
+        .Run(AutofillClient::AutofillAiBubbleResult::kUnknown);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void ChromeAutofillClient::CloseEntityImportBubble() {
+#if !BUILDFLAG(IS_ANDROID)
+  AutofillAiImportDataController::Hide(CHECK_DEREF(web_contents()));
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1471,8 +1461,7 @@ void ChromeAutofillClient::OnActorTaskStateChange(
     return;
   }
 
-  const tabs::TabInterface* tab_interface =
-      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  const tabs::TabInterface* tab_interface = GetTabInterface();
   if (tab_interface && !task->HasTab(tab_interface->GetHandle())) {
     // The status update is for an actor that isn't interacting with this tab.
     // The value of `is_actor_mode_` shouldn't be updated.

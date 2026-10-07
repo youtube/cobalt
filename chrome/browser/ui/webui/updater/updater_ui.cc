@@ -16,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/updater/updater_page_handler.h"
@@ -95,6 +96,7 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"duration", IDS_UPDATER_DURATION},
       {"endDate", IDS_UPDATER_END_DATE},
       {"errorDetails", IDS_UPDATER_ERROR_DETAILS},
+      {"eventListTitle", IDS_UPDATER_EVENT_LIST_TITLE},
       {"eventType", IDS_UPDATER_EVENT_TYPE},
       {"eventTypeACTIVATE", IDS_UPDATER_EVENT_TYPE_ACTIVATE},
       {"eventTypeAPP_COMMAND", IDS_UPDATER_EVENT_TYPE_APP_COMMAND},
@@ -112,10 +114,16 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"filterChipEventType", IDS_UPDATER_FILTER_CHIP_EVENT_TYPE},
       {"filterChipUpdateOutcome", IDS_UPDATER_FILTER_CHIP_UPDATE_OUTCOME},
       {"filterChipUpdaterScope", IDS_UPDATER_FILTER_CHIP_UPDATER_SCOPE},
+      {"inactiveVersions", IDS_UPDATER_INACTIVE_VERSIONS_LABEL},
+      {"installPath", IDS_UPDATER_INSTALL_PATH_LABEL},
       {"installSummary", IDS_UPDATER_INSTALL_SUMMARY},
       {"internal", IDS_UPDATER_INTERNAL},
+      {"lastChecked", IDS_UPDATER_LAST_CHECKED_LABEL},
+      {"lastStarted", IDS_UPDATER_LAST_STARTED_LABEL},
+      {"never", IDS_UPDATER_NEVER},
       {"nextVersion", IDS_UPDATER_NEXT_VERSION},
       {"noUpdate", IDS_UPDATER_NO_UPDATE},
+      {"noUpdaterFound", IDS_UPDATER_NO_UPDATER_FOUND},
       {"omahaRequest", IDS_UPDATER_OMAHA_REQUEST},
       {"omahaResponse", IDS_UPDATER_OMAHA_RESPONSE},
       {"other", IDS_UPDATER_OTHER},
@@ -131,6 +139,7 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"scopeSystem", IDS_UPDATER_SCOPE_SYSTEM},
       {"scopeUser", IDS_UPDATER_SCOPE_USER},
       {"startDate", IDS_UPDATER_START_DATE},
+      {"title", IDS_UPDATER_PAGE_TITLE},
       {"uninstallSummary", IDS_UPDATER_UNINSTALL_SUMMARY},
       {"updateError", IDS_UPDATER_UPDATE_ERROR},
       {"updateOutcome", IDS_UPDATER_UPDATE_OUTCOME},
@@ -138,7 +147,10 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
       {"updateOutcomeUPDATED", IDS_UPDATER_UPDATE_OUTCOME_UPDATED},
       {"updateOutcomeUPDATE_ERROR", IDS_UPDATER_UPDATE_OUTCOME_UPDATE_ERROR},
       {"updatedTo", IDS_UPDATER_UPDATED_TO},
+      {"updaterStateQueryFailed", IDS_UPDATER_QUERY_FAILED},
+      {"updaterStateTitle", IDS_UPDATER_STATE_TITLE},
       {"updaterVersion", IDS_UPDATER_UPDATER_VERSION},
+      {"versionLabel", IDS_UPDATER_VERSION_LABEL},
       {"viewRawDetails", IDS_UPDATER_VIEW_RAW_DETAILS},
   });
 
@@ -191,6 +203,6 @@ void UpdaterUI::CreatePageHandler(
     mojo::PendingRemote<updater_ui::mojom::Page> page,
     mojo::PendingReceiver<updater_ui::mojom::PageHandler> receiver) {
   CHECK(page);
-  page_handler_ = std::make_unique<UpdaterPageHandler>(std::move(receiver),
-                                                       std::move(page));
+  page_handler_ = std::make_unique<UpdaterPageHandler>(
+      Profile::FromWebUI(web_ui()), std::move(receiver), std::move(page));
 }

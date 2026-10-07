@@ -263,12 +263,12 @@ void BodyDescriptorBase::IterateCustomWeakPointer(Tagged<HeapObject> obj,
 }
 
 template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateTrustedPointer(Tagged<HeapObject> obj,
-                                               int offset, ObjectVisitor* v,
-                                               IndirectPointerMode mode,
-                                               IndirectPointerTag tag) {
+void BodyDescriptorBase::IterateTrustedPointer(
+    Tagged<HeapObject> obj, int offset, ObjectVisitor* v,
+    IndirectPointerMode mode, IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag), mode);
+  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag_range),
+                          mode);
 #else
   if (mode == IndirectPointerMode::kStrong) {
     IteratePointer(obj, offset, v);
@@ -286,13 +286,13 @@ void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
 }
 
 template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateSelfIndirectPointer(Tagged<HeapObject> obj,
-                                                    IndirectPointerTag tag,
-                                                    ObjectVisitor* v) {
+void BodyDescriptorBase::IterateSelfIndirectPointer(
+    Tagged<HeapObject> obj, IndirectPointerTagRange tag_range,
+    ObjectVisitor* v) {
 #ifdef V8_ENABLE_SANDBOX
   v->VisitTrustedPointerTableEntry(
       obj, obj->RawIndirectPointerField(
-               ExposedTrustedObject::kSelfIndirectPointerOffset, tag));
+               ExposedTrustedObject::kSelfIndirectPointerOffset, tag_range));
 #endif
 }
 
@@ -597,9 +597,10 @@ class JSArrayBuffer::BodyDescriptor final
                                  int object_size, ObjectVisitor* v) {
     // JSObject with wrapper field.
     IterateJSAPIObjectWithEmbedderSlotsHeader(map, obj, object_size, v);
-    // JSArrayBuffer.
-    IteratePointers(obj, JSArrayBuffer::kStartOfStrongFieldsOffset,
-                    JSArrayBuffer::kEndOfStrongFieldsOffset, v);
+    static_assert(JSArrayBuffer::kStartOfStrongFieldsOffset ==
+                  JSArrayBuffer::kEndOfStrongFieldsOffset);
+    IterateMaybeWeakPointers(obj, JSArrayBuffer::kStartOfWeakFieldsOffset,
+                             JSArrayBuffer::kEndOfWeakFieldsOffset, v);
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(JSArrayBuffer::kExtensionOffset,
                                           kArrayBufferExtensionTag));
@@ -922,7 +923,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateTrustedPointer(obj, kTrustedFunctionDataOffset, v,
                           IndirectPointerMode::kCustom,
-                          kUnknownIndirectPointerTag);
+                          kTrustedDataIndirectPointerRange);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
   }

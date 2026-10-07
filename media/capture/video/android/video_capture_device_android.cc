@@ -307,7 +307,7 @@ void VideoCaptureDeviceAndroid::OnFrameAvailable(
     return;
   }
 
-  jbyte* buffer = env->GetByteArrayElements(data.obj(), NULL);
+  int8_t* buffer = env->GetByteArrayElements(data.obj(), NULL);
   if (!buffer) {
     LOG(ERROR) << "VideoCaptureDeviceAndroid::OnFrameAvailable: "
                   "failed to GetByteArrayElements";
@@ -337,7 +337,9 @@ void VideoCaptureDeviceAndroid::OnI420FrameAvailable(
     int32_t width,
     int32_t height,
     int32_t rotation,
-    jlong timestamp) {
+    int64_t timestamp) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
+               "VideoCaptureDeviceAndroid::OnI420FrameAvailable");
   if (!IsClientConfigured())
     return;
   const base::TimeDelta capture_time = base::Nanoseconds(timestamp);
@@ -384,8 +386,11 @@ void VideoCaptureDeviceAndroid::OnI420FrameAvailable(
 void VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread(
     base::android::ScopedHardwareBufferHandle ahb_handle,
     int32_t rotation,
-    jlong timestamp) {
+    int64_t timestamp) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
+  TRACE_EVENT0(
+      TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
+      "VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread");
 
   const base::TimeTicks current_time = base::TimeTicks::Now();
   ProcessFirstFrameAvailable(current_time);
@@ -466,7 +471,7 @@ void VideoCaptureDeviceAndroid::OnHardwareBufferAvailable(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& hardware_buffer,
     int32_t rotation,
-    jlong timestamp) {
+    int64_t timestamp) {
   if (!IsClientConfigured()) {
     return;
   }
@@ -519,7 +524,7 @@ void VideoCaptureDeviceAndroid::OnFrameDropped(
 
 void VideoCaptureDeviceAndroid::OnGetPhotoCapabilitiesReply(
     JNIEnv* env,
-    jlong callback_id,
+    int64_t callback_id,
     const base::android::JavaRef<jobject>& result) {
   base::AutoLock lock(photo_callbacks_lock_);
 
@@ -671,7 +676,7 @@ void VideoCaptureDeviceAndroid::OnGetPhotoCapabilitiesReply(
 
 void VideoCaptureDeviceAndroid::OnPhotoTaken(
     JNIEnv* env,
-    jlong callback_id,
+    int64_t callback_id,
     const base::android::JavaRef<jbyteArray>& data) {
   DCHECK(callback_id);
   TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),

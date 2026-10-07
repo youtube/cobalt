@@ -81,7 +81,7 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case ContentSettingsType::NOTIFICATIONS:
       case ContentSettingsType::MIDI:
       case ContentSettingsType::MIDI_SYSEX:
-      case ContentSettingsType::DURABLE_STORAGE:
+      case ContentSettingsType::PERSISTENT_STORAGE:
       case ContentSettingsType::MEDIASTREAM_CAMERA:
       case ContentSettingsType::MEDIASTREAM_MIC:
       case ContentSettingsType::BACKGROUND_SYNC:
@@ -183,7 +183,6 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case ContentSettingsType::SUB_APP_INSTALLATION_PROMPTS:
       case ContentSettingsType::DIRECT_SOCKETS:
       case ContentSettingsType::REVOKED_ABUSIVE_NOTIFICATION_PERMISSIONS:
-      case ContentSettingsType::TRACKING_PROTECTION:
       case ContentSettingsType::DISPLAY_MEDIA_SYSTEM_AUDIO:
       case ContentSettingsType::JAVASCRIPT_OPTIMIZER:
       case ContentSettingsType::STORAGE_ACCESS_HEADER_ORIGIN_TRIAL:
@@ -230,7 +229,7 @@ TEST_F(ControlledFramePermissionsTest, Verify) {
       case blink::PermissionType::GEOLOCATION_APPROXIMATE:
       case blink::PermissionType::PROTECTED_MEDIA_IDENTIFIER:
       case blink::PermissionType::MIDI:
-      case blink::PermissionType::DURABLE_STORAGE:
+      case blink::PermissionType::PERSISTENT_STORAGE:
       case blink::PermissionType::AUDIO_CAPTURE:
       case blink::PermissionType::VIDEO_CAPTURE:
       case blink::PermissionType::BACKGROUND_SYNC:
