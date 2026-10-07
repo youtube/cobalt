@@ -103,25 +103,56 @@ init_gcloud () {
     return
   fi
 
-  local gsutil="$(command -v gsutil)"
+  if [[ -z "${GSUTIL:-}" ]]; then
+    if command -v gcloud >/dev/null 2>&1 && gcloud storage --help >/dev/null 2>&1; then
+      gcloud_storage_shim() {
+        gcloud storage "$@"
+      }
+      export GSUTIL="gcloud_storage_shim"
+    else
+      local gsutil="$(command -v gsutil || true)"
 
-  # Installs Google Cloud CLI if not already present.
-  if [[ ! -f "${gsutil}" ]]; then
-    apt-get update -y
-    apt-get install -y apt-transport-https ca-certificates gnupg
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-      gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
-      tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    apt-get update -y
-    apt-get install -y google-cloud-cli
-    rm -rf "/var/lib/apt/lists"/* "/tmp"/* "/var/tmp"/*
-    rm -rf "/var/lib"/{apt,dpkg,cache,log}
+      # Installs Google Cloud CLI if not already present.
+      if [[ -z "${gsutil}" || ! -f "${gsutil}" ]]; then
+        apt-get update -y
+        apt-get install -y apt-transport-https ca-certificates gnupg
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+          gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
+          tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        apt-get update -y
+        apt-get install -y google-cloud-cli
+        rm -rf "/var/lib/apt/lists"/* "/tmp"/* "/var/tmp"/*
+        rm -rf "/var/lib"/{apt,dpkg,cache,log}
 
-    gsutil="$(command -v gsutil)"
+        gsutil="$(command -v gsutil)"
+      fi
+
+      export GSUTIL="${gsutil}"
+    fi
   fi
 
-  export GSUTIL="${gsutil}"
+  # Authenticate gcloud and gsutil if running on Kokoro or GCE.
+  if command -v gcloud >/dev/null 2>&1; then
+    gcloud config set pass_credentials_to_gsutil true 2>/dev/null || true
+    local current_account
+    current_account="$(gcloud config get-value account 2>/dev/null || true)"
+    if [[ -z "${current_account}" || "${current_account}" == "(unset)" ]]; then
+      local meta_url="${REGISTRY_METADATA:-http://metadata.google.internal./computeMetadata/v1}"
+      local svc_account="${meta_url}/instance/service-accounts/default"
+      local sa_email
+      sa_email="$(curl -s -f -m 5 -H 'Metadata-Flavor: Google' "${svc_account}/email" 2>/dev/null || true)"
+      if [[ -z "${sa_email}" ]]; then
+        meta_url="http://169.254.169.254/computeMetadata/v1"
+        svc_account="${meta_url}/instance/service-accounts/default"
+        sa_email="$(curl -s -f -m 5 -H 'Metadata-Flavor: Google' "${svc_account}/email" 2>/dev/null || true)"
+      fi
+      if [[ -n "${sa_email}" ]]; then
+        echo "Configuring gcloud account: ${sa_email}"
+        gcloud config set account "${sa_email}" 2>/dev/null || true
+      fi
+    fi
+  fi
 }
 
 
@@ -281,6 +312,7 @@ EOF
   init_gcloud
   "${GSUTIL}" cp "${archive}" "gs://${bucket}/${platform}/golden-workspace-latest.tar.zst"
   "${GSUTIL}" cp "${manifest}" "gs://${bucket}/${platform}/manifest.json"
+  echo "==> Successfully uploaded golden workspace snapshot to gs://${bucket}/${platform}/"
 
   rm -rf "${staging_dir}"
 }

@@ -124,7 +124,8 @@ def exec_cmd(command):
   Helper method to run commands as string in the shell via subprocess.
   """
   try:
-    output = subprocess.check_output(command, shell=True, encoding='UTF-8')
+    output = subprocess.check_output(
+        command, shell=True, stderr=subprocess.STDOUT, encoding='UTF-8')
     # Leading newline inserted to ensure captured logs appear as if in stdout.
     logging.info('%s\n%s', command, output)
   except subprocess.CalledProcessError as e:
