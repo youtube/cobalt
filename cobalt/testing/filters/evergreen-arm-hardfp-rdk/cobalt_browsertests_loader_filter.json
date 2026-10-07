@@ -47,6 +47,7 @@
     "WebContentsImplBrowserTest.*",
     "FrameTreeBrowserTest.*",
     "EncryptedMediaTest.*",
+    "MediaConcealLifecycleBrowserTest.*",
     "MediaSessionBrowserTest.*",
     "MediaTest.*",
     "CustomMimeTypeBrowserTest.*",
