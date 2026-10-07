@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <signal.h>
 
+#include "build/build_config.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
@@ -408,8 +409,8 @@ int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
   }
 
   if (!EnsureInitialized(&(INTERNAL_ONCE(once_control)->initialized_state))) {
-    SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
     init_routine();
+    SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
   }
   return 0;
 }
@@ -492,14 +493,12 @@ int __abi_wrap_pthread_setname_np(musl_pthread_t thread, const char* name) {
 int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
                                   char* name,
                                   size_t len) {
-#if __ANDROID_API__ < 26 && defined(__clang__)
-// The API doesn exist before API Level 26
-// TODO(b/374300500): add back posix emulation
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 26 && defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 #endif
   return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
-#if __ANDROID_API__ < 26 && defined(__clang__)
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 26 && defined(__clang__)
 #pragma clang diagnostic pop
 #endif
 }

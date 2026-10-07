@@ -84,10 +84,7 @@ if (!is_cobalt) {
   }
 
   group("default") {
-    deps = [
-      ":starboard_group",
-      "//starboard/tools:build_app_launcher_zip",
-    ]
+    deps = [ ":starboard_group" ]
     if (is_starboard) {
       deps += [
         "//starboard/loader_app($starboard_toolchain)",
@@ -108,7 +105,7 @@ if (is_cobalt_hermetic_build) {
       deps += [ ":starboard($starboard_toolchain)" ]
     }
 
-    if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
+    if (!sb_is_evergreen && current_toolchain == default_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
       # non-Evergreen builds, this is done via the below wrapper implementations
@@ -257,8 +254,8 @@ if (current_toolchain == starboard_toolchain) {
     if (platform_tests_path != "" && !(is_android && is_starboard)) {
       deps += [ platform_tests_path ]
     }
-    if (sb_filter_based_player) {
-      deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
+    if (sb_filter_based_player && !is_android) {
+      deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
     if (use_evergreen && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]

@@ -85,6 +85,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "starboard/shared/starboard/player/filter/testing:player_filter_tests",
+    "executable": "out/android-arm64_devel/player_filter_tests_apk/player_filter_tests-debug.apk",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
     "target": "third_party/blink/renderer/controller:blink_unittests",
     "executable": "out/android-arm64_devel/blink_unittests_apk/blink_unittests-debug.apk",
     "runs_on": "device",

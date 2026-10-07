@@ -19,6 +19,11 @@
 
 #include "base/test/task_environment.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/shell/common/url_constants.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 
 namespace content {
@@ -60,6 +65,49 @@ void ContentBrowserTestContentBrowserClient::
   cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+namespace {
+
+class ContentBrowserTestBrowserMainParts
+    : public cobalt::CobaltBrowserMainParts {
+ public:
+  ContentBrowserTestBrowserMainParts()
+      : cobalt::CobaltBrowserMainParts("", /*is_visible=*/true) {}
+
+  void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override {
+    // In browser tests, do not defer window creation tasks.
+    std::move(task).Run();
+  }
+
+ protected:
+  void InitializeMessageLoopContext() override {
+    // In browser tests, ensure the initial test shell window is created on all
+    // platforms including Android.
+    ShellBrowserMainParts::InitializeMessageLoopContext();
+  }
+};
+
+}  // namespace
+
+std::unique_ptr<BrowserMainParts>
+ContentBrowserTestContentBrowserClient::CreateBrowserMainParts(
+    bool /*is_integration_test*/) {
+  auto browser_main_parts =
+      std::make_unique<ContentBrowserTestBrowserMainParts>();
+  set_browser_main_parts(browser_main_parts.get());
+  return browser_main_parts;
+}
+
+void ContentBrowserTestContentBrowserClient::OnWebContentsCreated(
+    content::WebContents* web_contents) {
+  if (web_contents->GetPrimaryMainFrame() &&
+      web_contents->GetPrimaryMainFrame()->GetFrameName() ==
+          content::kCobaltSplashMainFrameName) {
+    return;
+  }
+  web_contents_observer_ =
+      std::make_unique<cobalt::CobaltWebContentsObserver>(web_contents);
 }
 
 }  // namespace content

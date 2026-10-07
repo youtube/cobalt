@@ -17,10 +17,17 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "gin/per_isolate_data.h"
+#include "partition_alloc/buildflags.h"
 #include "partition_alloc/page_allocator.h"
 #include "partition_alloc/partition_alloc.h"
 #include "partition_alloc/partition_root.h"
 #include "v8/include/v8-initialization.h"
+
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#include "base/allocator/partition_alloc_features.h"
+#include "base/feature_list.h"
+#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
+#endif
 
 #if BUILDFLAG(IS_POSIX)
 #include <sys/mman.h>
@@ -82,6 +89,13 @@ ArrayBufferAllocator* ArrayBufferAllocator::SharedInstance() {
 
 // static
 void ArrayBufferAllocator::InitializePartition() {
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  if (base::FeatureList::IsEnabled(
+          base::features::kPartitionAllocReuseMainPartitionForBuffers)) {
+    partition_ = allocator_shim::internal::PartitionAllocMalloc::Allocator();
+    return;
+  }
+#endif
   partition_alloc::PartitionOptions opts;
   opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
   opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;

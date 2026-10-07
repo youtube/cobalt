@@ -53,6 +53,46 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.GpuMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the amount of GPU memory requested in megabytes when the GPU memory
+    ablation Finch feature is enabled. Recorded in the GPU process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether the GPU memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.GlErrorDrainExhausted"
+    enum="Boolean" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether GL errors were still pending after the bounded glGetError()
+    drain loop used by the GPU memory ablation study. True indicates unexpected
+    driver behavior that may skew experiment results. Recorded each time the
+    errors are drained.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Result"
+    enum="GpuMemoryAblationResult" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the outcome of the GPU memory ablation allocation attempt, including
+    the failure reason if the allocation did not succeed. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -200,12 +240,47 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
   <owner>hwarriner@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
+    The time it takes for the ELF dynamic shared library, stored as an LZ4
+    compressed file, to be decompressed. This metric is only recorded when the
+    shared library is stored as an LZ4 compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for Cobalt's ELF Loader to load the dynamic shared
+    library, which under normal operation is the Cobalt Core library. This
+    metric is only recorded when the shared library is stored as a compressed
+    file, and this metric includes decompression time.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt.LoaderApp.ElfLoadDuration minus
+    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
+    the shared library is stored as an LZ4 compressed file.
   </summary>
 </histogram>
 
@@ -274,6 +349,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.Android.DecoderFramework"
+    enum="AndroidDecoderFramework" expires_after="never">
+  <owner>kjyoun@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Tracks whether the active Android hardware video decoder is running on
+    Codec2 (c2.*), OpenMAX (OMX.*), or an unknown framework. Recorded when a
+    video decoder is created in MediaCodecBridge.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
     expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -336,6 +422,121 @@ Always run the pretty print utility on this file after editing:
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
     splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.SystemExitReason"
+    enum="AndroidProcessExitReason" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Reason given by Android ActivityManager for the exit of the previous Cobalt
+    browser process, recorded on startup for Android R+ (API 30+) devices.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.SystemExitReason.Foreground"
+    enum="AndroidProcessExitReason" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Reason given by Android ActivityManager for the exit of the previous Cobalt
+    browser process when the process importance was foreground (&lt;=
+    IMPORTANCE_FOREGROUND), recorded on startup for Android R+ (API 30+)
+    devices.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.IsNearCapacity" enum="Boolean"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the Cobalt Persistent Memory Allocator (PMA) for stability
+    metrics is full or within 90% of capacity. Recorded at key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PercentFull" units="%"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The percentage of capacity currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.UsedKilobytes" units="KB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    The number of kilobytes currently used in the Cobalt Persistent Memory
+    Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
+    key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration in milliseconds taken for startup milestone
+    {Milestone} since the previous milestone.
+  </summary>
+  <token key="Milestone">
+    <variant name="ActivityOnDestroy"/>
+    <variant name="ActivityOnPause"/>
+    <variant name="ActivityOnResume"/>
+    <variant name="ActivityOnStart"/>
+    <variant name="ActivityOnStop"/>
+    <variant name="ActivityWindowConfigured"/>
+    <variant name="ApplicationAndroidInitialize"/>
+    <variant name="DidFinishNavigation"/>
+    <variant name="DidStartNavigation"/>
+    <variant name="JavaActivityCreated"/>
+    <variant name="MainDelegateBasicStartupComplete"/>
+    <variant name="MainDelegatePostEarlyInitialization"/>
+    <variant name="MainDelegatePreSandboxStartup"/>
+    <variant name="PlatformErrorRaised"/>
+    <variant name="PostLibraryLoaderInit"/>
+    <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreCreateThreads"/>
+    <variant name="PreLibraryLoaderInit"/>
+    <variant name="PreStarboardBridgeInit"/>
+    <variant name="ShellCreateWindowNoSplash"/>
+    <variant name="ShellCreateWindowWithSplash"/>
+    <variant name="ShellDidFinishLoad"/>
+    <variant name="ShellDidFinishNavigationNonSplash"/>
+    <variant name="ShellDidStartLoading"/>
+    <variant name="ShellDidStartNavigationNonSplash"/>
+    <variant name="ShellDocumentElementAvailable"/>
+    <variant name="ShellRenderFrameCreated"/>
+    <variant name="SplashObserverDidFailLoad"/>
+    <variant name="SplashObserverDidFinishNavigation"/>
+    <variant name="SplashObserverDidStartLoading"/>
+    <variant name="SplashObserverDidStartNavigation"/>
+    <variant name="StarboardBridgeNativeInit"/>
+    <variant name="StartupGuardObserverDidFailLoad"/>
+    <variant name="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="StartupGuardObserverDidStartLoading"/>
+    <variant name="StartupGuardObserverDidStartNavigation"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records startup milestone markers reached during browser initialization and
+    initial navigation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Time.NavigationDispatchToCommit" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration from DidStartNavigation to DidFinishNavigation
+    (commit) for the initial startup navigation in the primary main frame.
   </summary>
 </histogram>
 
@@ -677,6 +878,126 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram
+    name="Memory.Experimental.Renderer.HighestPrivateMemoryFootprintWhenForegrounded{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The highest private memory footprint of a renderer process in the (X, Y]
+    mins after resuming from a background state interval. (X, Y] is (0, 2], (2,
+    4], (4, 8], and (8, 16]. The metric is recorded at the Y's timing.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint
+    when foregrounded.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint{Interval}"
+    units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-dev@google.com</owner>
+  <summary>
+    The peak resident set at the time of the highest private memory footprint.
+  </summary>
+  <token key="Interval">
+    <variant name=".0to2min" summary="0 to 2 minutes"/>
+    <variant name=".2to4min" summary="2 to 4 minutes"/>
+    <variant name=".4to8min" summary="4 to 8 minutes"/>
+    <variant name=".8to16min" summary="8 to 16 minutes"/>
+  </token>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.FragmentationRatio"
+    units="%" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Percentage of free virtual address (VA) space that lies outside the single
+    largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
+    free address space is one contiguous block, 50% means the largest block
+    holds half of it. This measures how concentrated the free space is, not how
+    much of it there is, so a low value on its own does not imply headroom; read
+    it alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted on 32-bit
+    Android, where the ~3GB user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.LargestFreeGapMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Size in MB of the single largest contiguous unmapped gap between the lowest
+    and highest mapped regions of the process address space. Only emitted on
+    32-bit Android, where the ~3GB user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.TotalUnmappedVaMb"
+    units="MB" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total size in MB of unmapped virtual address space, summed over every gap
+    between the lowest and highest mapped regions of the process address space.
+    Only emitted on 32-bit Android, where the ~3GB user address space is
+    exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.VirtualAddress.VmaCount" units="count"
+    expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>johnx@google.com</owner>
+  <summary>
+    Total count of Virtual Memory Areas (VMAs) parsed from /proc/self/maps.
+    Guards against reaching the kernel vm.max_map_count limit and tracks virtual
+    address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
+    user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Current decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages.Peak" units="MB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Peak decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache, updated once per minute.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -713,16 +1034,6 @@ Always run the pretty print utility on this file after editing:
     are emitted.
   </summary>
 </histogram>
-
-<histogram name="Memory.Experimental.Renderer.PeakResidentSet.AtHighestPrivateMemoryFootprint"
-    units="MB" expires_after="2027-08-13">
-  <owner>avvall@google.com</owner>
-  <owner>cobalt-dev@google.com</owner>
-  <summary>
-    The peak resident set at the time of the highest private memory footprint.
-  </summary>
-</histogram>
-
 
 </histograms>
 

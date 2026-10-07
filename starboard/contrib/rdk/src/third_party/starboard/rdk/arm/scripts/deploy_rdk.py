@@ -46,7 +46,6 @@ os.environ.pop("GEMINI_CLI", None)
 # Constants
 PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
-EXECUTABLE_REMOTE_DIR = "/data/out_loader_app_executable"
 TEST_REMOTE_DIR = "/data/test"
 MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
@@ -140,12 +139,12 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
     print(f"=== Configuring {platform} ({config}) ===")
     cmd = [
         "python3", "cobalt/build/gn.py", "-p", platform, "-C", config,
-        "--out_directory",
         str(out_dir)
     ]
     if no_rbe:
         cmd.append("--no-rbe")
     run_command(cmd)
+
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
@@ -171,16 +170,14 @@ def package_and_deploy(
     device_ip: Optional[str],
     out_dir: Path,
     remote_dir: str,
-    deps_file: Optional[Path],
-    mode: str,
-) -> None:
+    deps_file: Optional[Path], is_test: bool) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
     if deps_file and deps_file.exists():
         tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-        if mode == "plugin":
+        if not is_test:
             tar_cmd.append("libloader_app.so")
         build_info = out_dir / "gen/build_info.json"
         if build_info.exists():
@@ -193,9 +190,27 @@ def package_and_deploy(
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
+    if not remote_dir or remote_dir == "/":
+        print(f"Error: remote_dir '{remote_dir}' is invalid or dangerous for cleanup.")
+        sys.exit(1)
+    print("=== Cleaning previous remote deployment ===")
+    # Remove old app directories and binaries, ignoring errors if they don't exist
+    run_remote_command(
+        f"rm -rf {remote_dir}/app {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
+        device_id, device_ip, check=False)
+
     run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
     push_to_device(archive_name, f"{remote_dir}/", device_id, device_ip)
     Path(archive_name).unlink(missing_ok=True)
+
+    print("=== Extracting archive on device ===")
+    extract_cmds = [
+        f"cd {remote_dir}",
+        "tar -xzf archive.tar.gz",
+        "rm archive.tar.gz",
+        f"chmod -R 777 {remote_dir}",
+    ]
+    run_remote_command(" && ".join(extract_cmds), device_id, device_ip)
 
 
 def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str]) -> None:
@@ -255,9 +270,7 @@ def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
     remote_dir: str,
-    extract_archive: bool,
     test_name: Optional[str],
-    mode: str,
     devtools: bool = False,
     param: Optional[List[str]] = None,
     deeplink: Optional[str] = None,
@@ -265,14 +278,6 @@ def launch_on_device(
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
     remote_cmds = [f"cd {remote_dir}"]
-
-    if extract_archive:
-        # Ensure unprivileged container users have access to extracted artifacts.
-        remote_cmds += [
-            "tar -xzf archive.tar.gz",
-            "rm archive.tar.gz",
-            f"chmod -R 777 {remote_dir}",
-        ]
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]
@@ -293,7 +298,7 @@ def launch_on_device(
             "rdkDisplay remove",
             "sleep 2",
         ]
-    elif mode == "plugin":
+    else:
         if devtools:
             print("[INFO] Enabling DevTools support...")
 
@@ -374,16 +379,7 @@ def launch_on_device(
                 except Exception as e:
                     print(f"[WARNING] Failed to start SSH tunnel: {e}")
             print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
-    else:
-        remote_cmds += [
-            "rdkDisplay remove || true",
-            "sleep 2",
-            "rdkDisplay create",
-            "sleep 2",
-            f"XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app {' '.join(param)}" if param else "XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app",
-            "rdkDisplay remove",
-            "sleep 2",
-        ]
+
 
     full_cmd = " && ".join(remote_cmds)
     output = run_remote_command(f"bash -l -c \"{full_cmd}\"", device_id, device_ip)
@@ -398,12 +394,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build and deploy Cobalt to RDK.")
     parser.add_argument(
-        "--mode",
-        choices=["executable", "plugin"],
-        default="plugin",
-        help="Deploy as standalone executable or plugin (default).",
-    )
-    parser.add_argument(
         "--only-lib", action="store_true", help="Deploy only libcobalt.lz4.")
     parser.add_argument(
         "--tests",
@@ -415,6 +405,15 @@ def parse_args() -> argparse.Namespace:
         "--device-ip",
         type=str,
         help="Target RDK device IP address (uses SSH/SCP instead of ADB).",
+    )
+    parser.add_argument(
+        "--device-id",
+        type=str,
+        help=(
+            "Target RDK device ADB serial (e.g. 'localhost:44133'). Use when more "
+            "than one RDK device is attached, to avoid auto-detection picking the "
+            "wrong one. Mutually exclusive with --device-ip."
+        ),
     )
     parser.add_argument(
         "--config", type=str, help="Override default build configuration.")
@@ -437,11 +436,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force deployment even if up-to-date.",
     )
+
     parser.add_argument(
         "--deeplink",
         type=str,
         dest="deeplink",
-        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt when launching in plugin mode.",
+        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt.",
     )
     parser.add_argument(
         "--reset",
@@ -564,6 +564,7 @@ def get_device_id() -> str:
     # Explicit assumption: if multiple devices are connected, the first one is picked.
     if len(rdk_devices) > 1:
         print(f"Note: Multiple RDK devices detected: {rdk_devices}. Picking the first one: {rdk_devices[0]}")
+        print("      Pass --device-id <serial> (or --device-ip <ip>) to target a specific device.")
 
     dev = rdk_devices[0]
     print(f"Using RDK device: {dev} (AH212)")
@@ -705,18 +706,24 @@ def main() -> None:
     """Main execution flow."""
     args = parse_args()
 
-    if args.deeplink and (args.mode != "plugin" or args.tests):
-        print("Error: --deeplink is only supported when running in plugin mode (without --tests).")
+    if args.deeplink and args.tests:
+        print("Error: --deeplink is only supported when running the Cobalt plugin (not tests).")
         sys.exit(1)
 
     if args.setup_toolchain:
         setup_toolchain()
         return
 
+    if args.device_ip and args.device_id:
+        print(
+            "Error: --device-ip and --device-id are mutually exclusive.",
+            file=sys.stderr)
+        sys.exit(1)
+
     device_ip = args.device_ip
     device_id = None
     if not device_ip:
-        device_id = get_device_id()
+        device_id = args.device_id or get_device_id()
 
     if args.revert_c25:
         revert_to_cobalt_25(device_id, device_ip)
@@ -762,7 +769,7 @@ def main() -> None:
             return
 
     assert_software_version(device_id, device_ip, MIN_SYSTEM_SOFTWARE_VERSION)
-    if args.mode == "plugin" and not args.tests:
+    if not args.tests:
         check_and_switch_cobalt_version(device_id, device_ip)
 
     # Setup Build Paths
@@ -775,18 +782,13 @@ def main() -> None:
         deps_file = out_dir / f"{args.tests}_loader.runtime_deps"
     elif args.only_lib:
         targets = ["cobalt"]
-        remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader", "loader_app"]
+        targets = ["cobalt_loader"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
-        
-        if args.mode == "plugin":
-            targets.append("loader_app_rdk_plugin")
-            remote_dir = DEFAULT_REMOTE_DIR
-        else:
-            remote_dir = EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
 
     if not args.skip_build:
         rdk_home = os.environ.get("RDK_HOME")
@@ -821,7 +823,6 @@ def main() -> None:
 
     skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and remote_dir_exists)
 
-    deployed_archive = False
     if skip_deployment:
         print("=== Skipping deployment ===")
         if not args.run:
@@ -830,8 +831,7 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
-            deployed_archive = True
+            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, is_test=bool(args.tests))
 
     if args.run:
         ensure_dolby_vision_policy(device_id, device_ip)
@@ -839,12 +839,10 @@ def main() -> None:
             device_id,
             device_ip,
             remote_dir,
-            deployed_archive,
             args.tests,
-            "executable" if args.tests else args.mode,
-            config != "gold" and args.mode == "plugin" and not args.tests,
-            args.param,
-            args.deeplink,
+            devtools=(config != "gold" and not args.tests),
+            param=args.param,
+            deeplink=args.deeplink,
         )
 
     print("=== Finished ===")

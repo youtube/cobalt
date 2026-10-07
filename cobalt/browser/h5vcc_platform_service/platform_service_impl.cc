@@ -33,6 +33,11 @@ namespace h5vcc_platform_service {
 
 namespace {
 
+// The limit is defined by the platform service extension, so that Cobalt and
+// the platform service implementations agree on it.
+constexpr uint64_t kMaxMessageLength =
+    kCobaltExtensionPlatformServiceMaxMessageLength;
+
 const CobaltExtensionPlatformServiceApi* GetPlatformServiceApi() {
   static const CobaltExtensionPlatformServiceApi* s_api = []() {
     auto api = static_cast<const CobaltExtensionPlatformServiceApi*>(
@@ -74,17 +79,25 @@ void PlatformServiceImpl::StarboardReceiveMessageCallback(void* context,
     LOG(WARNING) << "StarboardReceiveMessageCallback has null context.";
     return;
   }
+
+  if (length > kMaxMessageLength) {
+    LOG(ERROR) << "Dropping a received message of " << length
+               << " bytes, the limit is " << kMaxMessageLength << " bytes.";
+    return;
+  }
+
+  if (length > 0 && !data) {
+    LOG(ERROR) << "Dropping a received message with null data and a length of "
+               << length << " bytes.";
+    return;
+  }
+
   PlatformServiceImpl* instance = static_cast<PlatformServiceImpl*>(context);
 
   const uint8_t* byte_data = static_cast<const uint8_t*>(data);
   std::vector<uint8_t> data_vector(byte_data, byte_data + length);
 
-  // content::DocumentService is bound to the UI thread, via the RFH.
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&PlatformServiceImpl::OnDataReceivedFromStarboard,
-                     instance->weak_factory_.GetWeakPtr(),
-                     std::move(data_vector)));
+  instance->on_data_received_callback_.Run(std::move(data_vector));
 }
 
 PlatformServiceImpl::PlatformServiceImpl(
@@ -95,6 +108,10 @@ PlatformServiceImpl::PlatformServiceImpl(
     : DocumentService(render_frame_host, std::move(receiver)),
       service_name_(service_name),
       observer_(std::move(observer)) {
+  on_data_received_callback_ = base::BindPostTask(
+      content::GetUIThreadTaskRunner({}),
+      base::BindRepeating(&PlatformServiceImpl::OnDataReceivedFromStarboard,
+                          weak_factory_.GetWeakPtr()));
   observer_.set_disconnect_handler(base::BindOnce(
       [] { LOG(INFO) << "PlatformServiceObserver disconnected."; }));
   LOG(INFO) << "PlatformServiceImpl created for " << service_name_;
@@ -134,6 +151,14 @@ bool PlatformServiceImpl::OpenStarboardService() {
 
 void PlatformServiceImpl::Send(base::span<const uint8_t> data,
                                SendCallback callback) {
+  if (data.size() > kMaxMessageLength) {
+    LOG(ERROR) << "Rejecting a message of " << data.size()
+               << " bytes, the limit is " << kMaxMessageLength << " bytes, for "
+               << service_name_;
+    std::move(callback).Run(std::nullopt, "Message too large");
+    return;
+  }
+
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
@@ -162,9 +187,21 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
     return;
   }
 
+  if (output_length == 0) {
+    std::move(callback).Run(mojo_base::BigBuffer(), std::nullopt);
+    return;
+  }
+
+  if (!response_ptr) {
+    LOG(ERROR) << "Send failed: null response with non-zero length for "
+               << service_name_;
+    std::move(callback).Run(std::nullopt, "Failed to retrieve response data.");
+    return;
+  }
+
   std::move(callback).Run(
-      base::span<const uint8_t>(response_ptr.get(),
-                                base::checked_cast<size_t>(output_length)),
+      mojo_base::BigBuffer(base::span<const uint8_t>(
+          response_ptr.get(), base::checked_cast<size_t>(output_length))),
       std::nullopt);
 }
 

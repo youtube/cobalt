@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -199,6 +200,8 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
 #endif
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnAllFramesConcealed(content::WebContents* web_contents) override;
+  void CompleteConcealAfterMediaBarrier(
+      base::WeakPtr<content::WebContents> web_contents);
 
   // Flag to remember that an OS-initiated focus event arrived while we were
   // waiting for Reveal ACK. If true, focus will be applied to the window
@@ -236,6 +239,8 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   base::flat_map<content::WebContents*,
                  std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
       previously_visible_web_contents_;
+  std::set<content::WebContents*> pending_conceal_web_contents_;
+  std::set<content::WebContents*> pending_reveal_web_contents_;
 
   void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
   void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
@@ -248,6 +253,8 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   std::unique_ptr<PlatformData> platform_;
 
   bool skip_for_testing_ = false;
+
+  base::WeakPtrFactory<ShellPlatformDelegate> weak_factory_{this};
 };
 
 }  // namespace content

@@ -39,8 +39,18 @@
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 #include "third_party/starboard/rdk/shared/time_constants.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
+#include "third_party/starboard/rdk/shared/libcobalt.h"
 
+#if defined(ENABLE_RDKSERVICES_API)
+#include "third_party/starboard/rdk/shared/rdkservices.h"
+#endif
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <fcntl.h>
+#include <locale.h>
 #include <poll.h>
 #include <cstring>
 #include <sys/eventfd.h>
@@ -97,19 +107,20 @@ static void setTimerInterval(int fd, microseconds time) {
 ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
   , input_handler_(new EssInput)
-  , hang_monitor_(new HangMonitor("ApplicationRdk")) {
-  essos_context_destroy_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
+#if !defined(COBALT_BUILD_TYPE_DEVEL)
+  , hang_monitor_(new HangMonitor("ApplicationRdk"))
+#endif
+{
   BuildEssosContext();
 }
 
 ApplicationRdk::~ApplicationRdk() {
-  if (native_window_) {
-    EssContextDestroyNativeWindow(ctx_, native_window_);
-    native_window_ = 0;
+  if (SbWindowIsValid(window_)) {
+    DestroySbWindow(window_);
   }
   if (ctx_) {
     EssContextDestroy(ctx_);
-    ctx_ = NULL;
+    ctx_ = nullptr;
   }
 }
 
@@ -122,8 +133,6 @@ void ApplicationRdk::Initialize() {
   ess_timer_fd_ = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
   if ( ess_timer_fd_ == -1 ) {
     SB_LOG(ERROR) << "Failed to create timerfd, error: " << errno << " (" << strerror(errno) << ')';
-  } else {
-    setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
   }
 
 #if defined(COBALT_BUILD_TYPE_DEVEL)
@@ -140,18 +149,17 @@ void ApplicationRdk::Initialize() {
 #endif
 
   SbAudioSinkImpl::Initialize();
-  ::starboard::Initialize();
+  libcobalt_api::Initialize();
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
   ScheduleMemoryUsageCheck(kSbTimeSecond);
-  NetworkInfo::Initialize();
 }
 
 void ApplicationRdk::Teardown() {
   SbAudioSinkImpl::TearDown();
-  ::starboard::Teardown();
-  TeardownJSONRPCLink();
+  libcobalt_api::Teardown();
+  platform::PlatformInterface::get().teardown();
 
   close(ess_timer_fd_);
   close(wakeup_fd_);
@@ -165,10 +173,17 @@ bool ApplicationRdk::MayHaveSystemEvents() {
 }
 
 ApplicationRdk::Event* ApplicationRdk::PollNextSystemEvent() {
-  auto now = steady_clock::now();
-  if ((now - ess_loop_last_ts_) > kEssRunLoopPeriod) {
-    ess_loop_last_ts_ = now;
-    EssContextRunEventLoopOnce( ctx_ );
+  // Only poll the Essos event loop while an active native window exists.
+  // When concealed or frozen (native_window_ == 0), DestroySbWindow() has
+  // already pumped the event loop once to flush window teardown, so skipping
+  // periodic polling avoids unnecessary Essos event loop dispatches whenever
+  // WakeSystemEventWait() wakes the main loop.
+  if (ctx_ && native_window_ != 0) {
+    auto now = steady_clock::now();
+    if ((now - ess_loop_last_ts_) > kEssRunLoopPeriod) {
+      ess_loop_last_ts_ = now;
+      EssContextRunEventLoopOnce(ctx_);
+    }
   }
   return NULL;
 }
@@ -214,7 +229,7 @@ ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t tim
       uint64_t tmp;
       read(fds[i].fd, &tmp, sizeof(uint64_t));
 
-      if ( fds[i].fd == monitor_timer_fd_ ) {
+      if ( fds[i].fd == monitor_timer_fd_ && hang_monitor_ ) {
         hang_monitor_->Reset();
       }
     }
@@ -230,19 +245,99 @@ void ApplicationRdk::WakeSystemEventWait() {
 
 SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
   SB_DCHECK(window_ == nullptr);
-  if (window_ != nullptr)
+  SB_DCHECK(native_window_ == 0);
+  if (window_ != nullptr || !ctx_) {
     return kSbWindowInvalid;
-  MaterializeNativeWindow();
-  window_  = new SbWindowPrivate(options);
+  }
+
+  bool error = false;
+
+  if (!EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
+    error = true;
+  }
+
+  if (!error && resize_pending_) {
+    EssContextResizeWindow(ctx_, window_width_, window_height_);
+    resize_pending_ = false;
+  }
+
+  if (!error) {
+    if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
+                                      &native_window_)) {
+      error = true;
+    } else if (!EssContextStart(ctx_)) {
+      error = true;
+      EssContextDestroyNativeWindow(ctx_, native_window_);
+      native_window_ = 0;
+    }
+  }
+
+  if (error) {
+    const char* detail = EssContextGetLastErrorDetail(ctx_);
+    SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
+    FatalError();
+    return kSbWindowInvalid;
+  }
+
+#if !defined(COBALT_BUILD_TYPE_DEVEL)
+  if (!(monitor_timer_fd_ < 0)) {
+    if (!hang_monitor_) {
+      hang_monitor_ = std::make_unique<HangMonitor>("ApplicationRdk");
+    }
+    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
+  }
+#endif
+
+  if (!(ess_timer_fd_ < 0)) {
+    setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
+  }
+
+  platform::PlatformInterface::get().resume();
+
+  window_ = new SbWindowPrivate(options);
   return window_;
 }
 
 bool ApplicationRdk::DestroySbWindow(SbWindow window) {
-  if (!SbWindowIsValid(window))
+  SB_CHECK(window == window_);
+  if (!SbWindowIsValid(window)) {
     return false;
-  window_ = nullptr;
+  }
+
+  SbSpeechSynthesisCancel();
+
+  if (!(monitor_timer_fd_ < 0)) {
+    hang_monitor_.reset();
+    setTimerInterval(monitor_timer_fd_, 0s);
+  }
+
+  // Disarm the Essos event loop timer while no native window exists to prevent
+  // periodic CPU wakeups while concealed or suspended.
+  if (!(ess_timer_fd_ < 0)) {
+    setTimerInterval(ess_timer_fd_, 0s);
+  }
+
+  if (ctx_ && native_window_ != 0) {
+    // Stop the Essos event loop and destroy the native window. Note that
+    // EssContextDestroyNativeWindow leaves an internal shell surface handle in
+    // EssContext that is overwritten on the next EssContextCreateNativeWindow
+    // call (a small client-side handle leak per suspend/resume cycle).
+    EssContextStop(ctx_);
+    if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
+      const char* detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" << (detail ? detail : "") << '\'';
+    }
+    native_window_ = 0;
+    // Pump the Essos event loop once after destroying the native window so
+    // Essos flushes the pending window teardown before the application enters
+    // the concealed state, while keeping the Essos context alive for resume.
+    EssContextRunEventLoopOnce(ctx_);
+  }
+
+  platform::PlatformInterface::get().suspend();
+
+  window_ = kSbWindowInvalid;
   delete window;
-  DestroyNativeWindow();
   return true;
 }
 
@@ -265,39 +360,6 @@ void ApplicationRdk::Inject(Event* e) {
   QueueApplication::Inject(e);
 }
 
-void ApplicationRdk::OnSuspend() {
-  SbSpeechSynthesisCancel();
-
-  if ( !(monitor_timer_fd_ < 0) ) {
-    setTimerInterval(monitor_timer_fd_, 0s);
-  }
-
-  // Unset the Essos terminate listener to prevent callback loops
-  // when the window is destroyed during suspend.
-  EssContextSetTerminateListener(ctx_, nullptr, nullptr);
-
-  if (essos_context_destroy_) {
-    DestroyNativeWindow();
-  }
-
-  TeardownJSONRPCLink();
-}
-
-void ApplicationRdk::OnResume() {
-  if ( essos_context_destroy_ ) {
-    BuildEssosContext();
-  } else {
-    EssContextSetTerminateListener(ctx_, this, &terminateListener);
-  }
-
-  if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
-    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
-  }
-
-  // Only restart the Essos timer run loop once the window is materialized.
-  setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
-}
-
 void ApplicationRdk::OnTerminated() {
   Stop(0);
 }
@@ -318,61 +380,6 @@ void ApplicationRdk::OnDisplaySize(int width, int height) {
 
   SB_DCHECK(native_window_ == 0);
   resize_pending_ = true;
-}
-
-void ApplicationRdk::MaterializeNativeWindow() {
-  if (native_window_ != 0) {
-    return;
-  }
-
-  bool error = false;
-
-  if ( !EssContextGetDisplaySize(ctx_, &window_width_, &window_height_) ) {
-    error = true;
-  }
-
-  if ( resize_pending_ ) {
-    EssContextResizeWindow(ctx_, window_width_, window_height_);
-    resize_pending_ = false;
-  }
-
-  if ( !EssContextCreateNativeWindow(ctx_, window_width_, window_height_, &native_window_) ) {
-    error = true;
-  }
-  else if ( !EssContextStart(ctx_) ) {
-    error = true;
-  }
-
-  if ( error ) {
-    const char *detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
-    FatalError();
-  }
-}
-
-void ApplicationRdk::DestroyNativeWindow() {
-  if (native_window_ == 0) {
-    return;
-  }
-
-  if ( essos_context_destroy_ ) {
-    // If recycling context, we must destroy the window now as it cannot
-    // survive without the context.
-    if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
-      const char *detail = EssContextGetLastErrorDetail(ctx_);
-      SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
-    }
-    native_window_ = 0;
-    EssContextDestroy(ctx_);
-    ctx_ = NULL;
-  }
-  else {
-    // Keep the underlying OS-level native window plane (EssWindow handle)
-    // alive inside ApplicationRdk. This ensures that Chromium's cached EGL
-    // surfaces have a valid window reference in memory during suspend, preventing
-    // graphics driver or Wayland marshalling segmentation faults upon unfreeze.
-    EssContextStop(ctx_);
-  }
 }
 
 void ApplicationRdk::DisplayInfoChanged() {
@@ -463,11 +470,82 @@ int64_t ApplicationRdk::CheckMemoryUsage() {
   return kSbTimeSecond;
 }
 
-void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
-  bool* enabled_data = new bool(enabled);
-  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
-                   enabled_data,
-                   &ApplicationRdk::DeleteDestructor<bool>));
+void ApplicationRdk::InjectAccessibilitySettingsChanged() {
+  // Event deprecated in Starboard 17+
 }
 
+void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
+  // Event deprecated in Starboard 17+
+}
+
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+}
+
+const char* ApplicationRdk::GetLocaleId() {
+  std::lock_guard<std::mutex> lock(locale_mutex_);
+
+  auto is_valid = [](const char* id) {
+    return id != nullptr && id[0] != '\0' && strcmp(id, "C") != 0 &&
+           strcmp(id, "POSIX") != 0;
+  };
+
+  auto normalize_locale = [](std::string& s) {
+    // Handle inverted format: "US_en" or "US-en" -> "en_US"
+    if (s.length() == 5 && (s[2] == '_' || s[2] == '-') &&
+        std::isupper(static_cast<unsigned char>(s[0])) &&
+        std::isupper(static_cast<unsigned char>(s[1])) &&
+        std::islower(static_cast<unsigned char>(s[3])) &&
+        std::islower(static_cast<unsigned char>(s[4]))) {
+      s = s.substr(3, 2) + "_" + s.substr(0, 2);
+      return;
+    }
+    // Handle standard BCP-47 "en-US" -> "en_US"
+    std::replace(s.begin(), s.end(), '-', '_');
+  };
+
+  std::string new_locale;
+#if defined(ENABLE_RDKSERVICES_API)
+  std::string lang;
+  if (UserPreferences::GetUILanguage(lang) && !lang.empty()) {
+    normalize_locale(lang);
+    if (is_valid(lang.c_str())) {
+      new_locale = std::move(lang);
+    }
+  }
+  if (new_locale.empty()) {
+    if (UserSettings::GetPresentationLanguage(lang) && !lang.empty()) {
+      normalize_locale(lang);
+      if (is_valid(lang.c_str())) {
+        new_locale = std::move(lang);
+      }
+    }
+  }
+#endif
+
+  if (new_locale.empty()) {
+    // Fallback to POSIX locale or environment variables.
+    const char* posix_id = setlocale(LC_MESSAGES, NULL);
+    if (!is_valid(posix_id)) {
+      posix_id = getenv("LC_ALL");
+      if (!is_valid(posix_id)) {
+        posix_id = getenv("LC_MESSAGES");
+        if (!is_valid(posix_id)) {
+          posix_id = getenv("LANG");
+        }
+      }
+    }
+
+    if (is_valid(posix_id)) {
+      new_locale = posix_id;
+    } else {
+      new_locale = "";
+    }
+  }
+
+  // Store locales in a pool to guarantee pointer stability for the lifetime
+  // of the application, as required by Starboard C API consumers holding
+  // const char* references across dynamic runtime locale changes.
+  return locale_pool_.insert(std::move(new_locale)).first->c_str();
+}
 }  // namespace starboard

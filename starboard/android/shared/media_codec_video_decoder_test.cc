@@ -50,17 +50,19 @@ const VideoStreamInfo kDefaultVideoStreamInfo = [] {
 
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
-  void CreateDecoder(ExperimentalFeatures experimental_features = {}) {
+  void CreateDecoder(const std::string& max_video_capabilities = "",
+                     const VideoStreamInfo* initial_stream_info = nullptr,
+                     ExperimentalFeatures experimental_features = {}) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
-        kDefaultVideoStreamInfo,
+        initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
         /*drm_system=*/kSbDrmSystemInvalid,
         kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/nullptr,
         /*surface_view=*/dummy_surface_.obj(),
-        /*max_video_capabilities=*/""};
+        max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
@@ -82,8 +84,11 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         [](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {});
   }
 
-  scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(int64_t timestamp,
-                                                         int size) {
+  scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
+      int64_t timestamp,
+      int size,
+      const VideoStreamInfo* stream_info = nullptr,
+      bool is_key_frame = false) {
     uint8_t* buffer = new uint8_t[size];
     memset(buffer, 0, size);
 
@@ -92,8 +97,10 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     sample_info.buffer = buffer;
     sample_info.buffer_size = size;
     sample_info.timestamp = timestamp;
-    kDefaultVideoStreamInfo.ConvertTo(
-        &sample_info.video_sample_info.stream_info);
+    const VideoStreamInfo& info =
+        stream_info ? *stream_info : kDefaultVideoStreamInfo;
+    info.ConvertTo(&sample_info.video_sample_info.stream_info);
+    sample_info.video_sample_info.is_key_frame = is_key_frame;
 
     auto deallocate_func = [](SbPlayer player, void* context,
                               const void* sample_buffer) {
@@ -193,9 +200,59 @@ TEST_F(MediaCodecVideoDecoderTest, BasicDecodingFlow) {
   EXPECT_FALSE(error_called);
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       InitializeCodecWithOversizedStreamSizeUpdatesMaxVideoSize) {
+  // Create stream info with 1920x1080 resolution exceeding
+  // max_video_capabilities (1280x720).
+  VideoStreamInfo oversized_info = kDefaultVideoStreamInfo;
+  oversized_info.frame_size = {1920, 1080};
+
+  // Initializing codec with oversized initial stream resolution should
+  // dynamically update max_video_size_.
+  CreateDecoder("width=1280; height=720", &oversized_info);
+
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    KeyFrameExceedingMaxVideoSizeRaisesCapabilityChangedErrorInWriteInputBuffers) {
+  VideoStreamInfo initial_info = kDefaultVideoStreamInfo;
+  initial_info.frame_size = {1280, 720};
+
+  // Create decoder configured with max_video_capabilities="width=1280;
+  // height=720".
+  CreateDecoder("width=1280; height=720", &initial_info);
+
+  SbPlayerError reported_error = kSbPlayerErrorDecode;
+  bool error_called = false;
+
+  decoder_->Initialize([](VideoDecoder::Status status,
+                          const scoped_refptr<VideoFrame>& frame) {},
+                       [&](SbPlayerError error, const std::string& msg) {
+                         error_called = true;
+                         reported_error = error;
+                       });
+
+  // Create a key frame stream info with 1920x1080 resolution (exceeding
+  // 1280x720).
+  VideoStreamInfo oversized_info = kDefaultVideoStreamInfo;
+  oversized_info.frame_size = {1920, 1080};
+
+  auto input_buffer = CreateDummyVideoInputBuffer(10000, 1024, &oversized_info,
+                                                  /*is_key_frame=*/true);
+  decoder_->WriteInputBuffers({input_buffer});
+
+  EXPECT_TRUE(error_called);
+  EXPECT_EQ(reported_error, kSbPlayerErrorCapabilityChanged);
+}
+
 TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
-  CreateDecoder(ExperimentalFeatures(
-      {{std::string(kMediaFixNeedMoreInputBackpressure.key()), 1}}));
+  CreateDecoder(
+      /*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+      ExperimentalFeatures(
+          {{std::string(kMediaFixNeedMoreInputBackpressure.key()), 1}}));
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);

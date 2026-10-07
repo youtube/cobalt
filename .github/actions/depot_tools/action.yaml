@@ -30,11 +30,18 @@ runs:
           echo "path=" >> ${GITHUB_OUTPUT}
         fi
 
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
     - name: Clone Depot Tools
       uses: ./.github/actions/checkout
       with:
         repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-        ref: main
+        # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+        # `--end-of-options` to `git checkout`. Need to update git on runners.
+        ref: 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
         fetch_depth: 0
         path: cobalt/depot_tools
         use_cache: ${{ inputs.use_cache }}
@@ -64,7 +71,6 @@ runs:
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
         set -x
         cd cobalt
@@ -86,7 +92,7 @@ runs:
         PLATFORM: ${{ matrix.platform }}
       run: |
         if ! grep -q "target_os" .gclient; then
-          if [[ "${PLATFORM}" == *"android"* ]]; then
+          if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
             echo "target_os=['android']" >> .gclient
           elif [[ "${PLATFORM}" == *"tvos"* ]]; then
             echo "target_os=['ios']" >> .gclient
@@ -108,11 +114,6 @@ runs:
           fi
         fi
         gclient validate
-
-    - name: Authenticate with GoB
-      uses: ./.github/actions/gob_auth
-      with:
-        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Clean dirty sub-repositories
       shell: bash

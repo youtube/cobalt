@@ -39,6 +39,8 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void DidStartLoading() override;
   void DidStopLoading() override;
 
+  void DidFirstVisuallyNonEmptyPaint() override;
+
  private:
   void LoadProgressChanged(double progress) override;
 

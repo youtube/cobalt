@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "starboard/common/log.h"
@@ -33,6 +34,7 @@ namespace {
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
+using ::testing::ByMove;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
@@ -47,34 +49,29 @@ class AudioRendererTest : public ::testing::Test {
   static const int kDefaultSamplesPerSecond;
   static const SbMediaAudioSampleType kDefaultAudioSampleType =
       kSbMediaAudioSampleTypeFloat32;
-  static const SbMediaAudioFrameStorageType kDefaultAudioFrameStorageType =
-      kSbMediaAudioFrameStorageTypeInterleaved;
 
-  AudioRendererTest() {
-    ResetToFormat(kSbMediaAudioSampleTypeFloat32,
-                  kSbMediaAudioFrameStorageTypeInterleaved);
-  }
+  AudioRendererTest() { ResetToFormat(kSbMediaAudioSampleTypeFloat32); }
 
   // This function should be called in the fixture before any other functions
   // to set the desired format of the decoder.
-  void ResetToFormat(SbMediaAudioSampleType sample_type,
-                     SbMediaAudioFrameStorageType storage_type) {
+  void ResetToFormat(SbMediaAudioSampleType sample_type) {
     audio_renderer_.reset(NULL);
     sample_type_ = sample_type;
-    storage_type_ = storage_type;
     audio_renderer_sink_ = new ::testing::StrictMock<MockAudioRendererSink>;
-    audio_decoder_ = new MockAudioDecoder(sample_type_, storage_type_,
-                                          kDefaultSamplesPerSecond);
+    audio_decoder_ =
+        new MockAudioDecoder(sample_type_, kDefaultSamplesPerSecond);
 
     ON_CALL(*audio_decoder_, Read(_))
-        .WillByDefault(
-            DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                  Return(scoped_refptr<DecodedAudio>(new DecodedAudio()))));
-    ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _, _))
+        .WillByDefault(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
+                             InvokeWithoutArgs([]() {
+                               return std::optional<DecodedAudio>(
+                                   DecodedAudio::CreateEOSBuffer());
+                             })));
+    ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _))
         .WillByDefault(DoAll(InvokeWithoutArgs([this]() {
                                audio_renderer_sink_->SetHasStarted(true);
                              }),
-                             SaveArg<7>(&renderer_callback_)));
+                             SaveArg<6>(&renderer_callback_)));
     ON_CALL(*audio_renderer_sink_, Stop())
         .WillByDefault(InvokeWithoutArgs([this]() {
           audio_renderer_sink_->SetHasStarted(false);
@@ -140,9 +137,9 @@ class AudioRendererTest : public ::testing::Test {
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
-      scoped_refptr<DecodedAudio> decoded_audio =
+      DecodedAudio decoded_audio =
           CreateDecodedAudio(timestamp, kFramesPerBuffer);
-      SendDecoderOutput(decoded_audio);
+      SendDecoderOutput(std::move(decoded_audio));
       frames_written += kFramesPerBuffer;
     }
 
@@ -186,12 +183,13 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  void SendDecoderOutput(const scoped_refptr<DecodedAudio>& decoded_audio) {
+  void SendDecoderOutput(DecodedAudio decoded_audio) {
     ASSERT_TRUE(output_cb_);
 
     EXPECT_CALL(*audio_decoder_, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                        Return(decoded_audio)));
+                        Return(ByMove(std::optional<DecodedAudio>(
+                            std::move(decoded_audio))))));
     output_cb_();
     job_queue_.RunUntilIdle();
   }
@@ -208,12 +206,11 @@ class AudioRendererTest : public ::testing::Test {
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
   }
 
-  scoped_refptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
-                                                 int frames) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
+  DecodedAudio CreateDecodedAudio(int64_t timestamp, int frames) {
+    DecodedAudio decoded_audio(
+        kDefaultNumberOfChannels, sample_type_, timestamp,
         frames * kDefaultNumberOfChannels * GetBytesPerSample(sample_type_));
-    memset(decoded_audio->data(), 0, decoded_audio->size_in_bytes());
+    memset(decoded_audio.data(), 0, decoded_audio.size_in_bytes());
     return decoded_audio;
   }
 
@@ -225,7 +222,6 @@ class AudioRendererTest : public ::testing::Test {
   void OnEnded() {}
 
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
 
   JobQueue job_queue_;
   std::set<const void*> buffers_in_decoder_;
@@ -310,10 +306,9 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   {
     InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -334,7 +329,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -390,15 +385,13 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Resets |audio_renderer_sink_|, so all the gtest codes need to be below
   // this line.
-  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated,
-                kSbMediaAudioFrameStorageTypeInterleaved);
+  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated);
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   // It is OK to set the rate to 1.0 any number of times.
@@ -423,7 +416,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -470,10 +463,9 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -482,7 +474,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   bool is_playing = false;
   bool is_eos_played = true;
@@ -537,10 +529,9 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -555,7 +546,7 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
   EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(prerolled_);
@@ -580,10 +571,9 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -605,7 +595,7 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
   EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(prerolled_);
@@ -629,10 +619,9 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -668,7 +657,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -722,11 +711,10 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
     ::testing::InSequence seq;
     EXPECT_CALL(*audio_renderer_sink_, HasStarted())
         .WillRepeatedly(Return(false));
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _))
-        .WillOnce(SaveArg<7>(&renderer_callback_));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _))
+        .WillOnce(SaveArg<6>(&renderer_callback_));
     EXPECT_CALL(*audio_renderer_sink_, HasStarted())
         .WillRepeatedly(Return(true));
   }
@@ -763,7 +751,7 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -810,16 +798,15 @@ TEST_F(AudioRendererTest, Seek) {
 
   {
     ::testing::InSequence seq;
-    EXPECT_CALL(
-        *audio_renderer_sink_,
-        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+                      kDefaultAudioSampleType, _, _, _));
     EXPECT_CALL(*audio_renderer_sink_, Reset());
     EXPECT_CALL(*audio_decoder_, Reset());
     EXPECT_CALL(
         *audio_renderer_sink_,
         Start(kSeekTime, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
-              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+              kDefaultAudioSampleType, _, _, _));
   }
 
   Seek(0);
@@ -837,7 +824,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   audio_renderer_->Play();
 
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
@@ -873,7 +860,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
-  SendDecoderOutput(new DecodedAudio);
+  SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
   renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
                                       &is_playing, &is_eos_reached);

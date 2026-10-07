@@ -16,10 +16,10 @@
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_
 
 #include <memory>
+#include <optional>
 #include <queue>
 
 #include "starboard/common/pass_key.h"
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
@@ -57,12 +57,11 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
   SbMediaAudioSampleType GetSampleType() const;
-  SbMediaAudioFrameStorageType GetStorageType() const;
 
   bool InitializeCodec();
   void TeardownCodec();
@@ -82,7 +81,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   AVFrame* av_frame_ = nullptr;
 
   bool stream_ended_ = false;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
 };
 

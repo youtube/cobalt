@@ -26,9 +26,9 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
-#if BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
-#endif  // BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#endif
 
 namespace starboard {
 

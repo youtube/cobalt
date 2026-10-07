@@ -77,6 +77,7 @@ class UserAgentPlatformInfo {
   const std::string& build_configuration() const {
     return build_configuration_;
   }
+  const std::string& finch_version() const { return finch_version_; }
 
   // Other: Setters that sanitize the strings where needed.
   //
@@ -98,6 +99,7 @@ class UserAgentPlatformInfo {
   void set_evergreen_type(const std::string& evergreen_type);
   void set_evergreen_file_type(const std::string& evergreen_file_type);
   void set_evergreen_version(const std::string& evergreen_version);
+  void set_finch_version(const std::string& finch_version);
   void set_android_build_fingerprint(
       const std::string& android_build_fingerprint);
   void set_android_os_experience(const std::string& android_os_experience);
@@ -136,6 +138,7 @@ class UserAgentPlatformInfo {
   std::string evergreen_type_;
   std::string evergreen_file_type_;
   std::string evergreen_version_;
+  std::string finch_version_;
   std::string android_build_fingerprint_;      // Only via Client Hints
   std::string android_os_experience_;          // Only via Client Hints
   std::string android_play_services_version_;  // Only via Client Hints

@@ -7,9 +7,14 @@
 
 #include <stddef.h>
 
+#include "base/feature_list.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/size.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif
 
 namespace gpu {
 
@@ -32,6 +37,17 @@ struct SharedMemoryLimits {
       start_transfer_buffer_size = 32 * 1024;
       min_transfer_buffer_size = 32 * 1024;
       mapped_memory_chunk_size = 256 * 1024;
+    }
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+    // When in-process image transfer is enabled, decoded images bypass
+    // transfer cache serialization and no longer use MappedMemoryManager.
+    // MappedMemoryManager is therefore only used for lightweight operations.
+    // Reducing the chunk size to 64KB avoids wasting shared memory.
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltInProcessImageTransferCache)) {
+      mapped_memory_chunk_size = 64 * 1024;
     }
 #endif
   }

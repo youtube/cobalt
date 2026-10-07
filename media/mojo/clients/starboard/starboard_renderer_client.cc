@@ -34,6 +34,8 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
+#include "media/base/eme_constants.h"
+#include "media/base/platform_init_data_types.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -109,6 +111,9 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
   DCHECK(!init_cb_);
 
   client_ = client;
+#if BUILDFLAG(IS_IOS_TVOS)
+  media_resource_ = media_resource;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   init_cb_ = std::move(init_cb);
 
   DCHECK(!AreMojoPipesConnected());
@@ -287,6 +292,56 @@ void StarboardRendererClient::GetSbWindowHandle() {
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererClient::OnEncryptedMediaInitDataEncountered(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+
+  if (!media_resource_) {
+    LOG(ERROR) << "[UrlPlayer] OnEncryptedMediaInitDataEncountered called "
+               << "without media_resource_";
+    return;
+  }
+
+  EmeInitDataType eme_type = EmeInitDataType::UNKNOWN;
+  const std::string& platform_type = GetPlatformDrmInitDataTypeString();
+  if (!platform_type.empty() && init_data_type == platform_type) {
+    eme_type = EmeInitDataType::PLATFORM_DRM;
+  } else if (init_data_type == "cenc") {
+    eme_type = EmeInitDataType::CENC;
+  } else if (init_data_type == "webm") {
+    eme_type = EmeInitDataType::WEBM;
+  } else if (init_data_type == "keyids") {
+    eme_type = EmeInitDataType::KEYIDS;
+  }
+  if (eme_type == EmeInitDataType::UNKNOWN) {
+    LOG(ERROR) << "[UrlPlayer] Unknown init data type: " << init_data_type;
+    return;
+  }
+
+  DVLOG(1) << "[UrlPlayer] Forwarding encrypted init data, type="
+           << init_data_type << " size=" << init_data.size();
+  media_resource_->ForwardEncryptedMediaInitData(eme_type, init_data);
+}
+
+void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardDurationChangeToDemuxerHost(duration);
+  }
+}
+
+void StarboardRendererClient::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardBufferedTimeRangesToDemuxerHost(start, length);
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
@@ -460,7 +515,7 @@ void StarboardRendererClient::InitAndConstructMojoRenderer(
 
 void StarboardRendererClient::OnMojoRendererInitialized(PipelineStatus status) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  if (rendering_mode_ != StarboardRenderingMode::kInvalid) {
+  if (!status.is_ok() || rendering_mode_ != StarboardRenderingMode::kInvalid) {
     DCHECK(!init_cb_.is_null());
     std::move(init_cb_).Run(status);
   }

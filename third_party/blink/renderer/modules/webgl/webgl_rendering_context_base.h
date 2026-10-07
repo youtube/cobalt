@@ -675,9 +675,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
   friend class EXTTextureCompressionBPTC;
   friend class EXTTextureCompressionRGTC;
   friend class OESDrawBuffersIndexed;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  friend class OESEGLImageExternal;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class OESTextureFloat;
   friend class OESVertexArrayObject;
   friend class OVRMultiview2;
@@ -698,6 +695,13 @@ class MODULES_EXPORT WebGLRenderingContextBase
   friend class WebGLMultiDrawInstancedBaseVertexBaseInstance;
   friend class WebGLPolygonMode;
   friend class WebGLShaderPixelLocalStorage;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class OESEGLImageExternal;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  friend class CobaltVideoTextureTransform;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+
 
   WebGLRenderingContextBase(CanvasRenderingContextHost*,
                             std::unique_ptr<WebGraphicsContext3DProvider>,

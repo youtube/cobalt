@@ -18,7 +18,11 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/notreached.h"
+#include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
@@ -187,6 +191,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
+          traits.max_video_resolution,
           traits.experimental_features,
           traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -246,6 +251,18 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
           weak_factory_.GetWeakPtr())
 #endif  // BUILDFLAG(IS_ANDROID)
   );
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire duration and buffered ranges callbacks.
+  GetRenderer()->SetDurationChangeCB(base::BindRepeating(
+      &StarboardRendererWrapper::OnDurationChange, weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetBufferedRangesCB(
+      base::BindRepeating(&StarboardRendererWrapper::OnBufferedTimeRangesChange,
+                          weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetEncryptedMediaInitDataCB(
+      base::BindRepeating(&StarboardRendererWrapper::OnEncryptedMediaInitData,
+                          weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   base::ScopedClosureRunner scoped_init_cb(
       base::BindOnce(&StarboardRendererWrapper::ContinueInitialization,
@@ -625,6 +642,28 @@ void StarboardRendererWrapper::OnGetSbWindowHandle() {
   client_extension_remote_->GetSbWindowHandle();
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererWrapper::OnEncryptedMediaInitData(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnEncryptedMediaInitDataEncountered(init_data_type,
+                                                                init_data);
+}
+
+void StarboardRendererWrapper::OnDurationChange(base::TimeDelta duration) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnDurationChange(duration);
+}
+
+void StarboardRendererWrapper::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnBufferedTimeRangesChange(start, length);
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 void StarboardRendererWrapper::OnSubscribeToVideoGeometryChange(
     MediaResource* /* media_resource */,
     RendererClient* /* client */) {
@@ -684,27 +723,112 @@ void StarboardRendererWrapper::GraphicsContextRunner(
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
+  using GlesClosureRun = StarboardGpuFactory::GlesClosureRun;
+  using Outcome = GlesClosureRun::Outcome;
+
+  // The constants below bound the time this call may block its caller
+  // (normally an SbPlayer worker thread, during decode target creation in
+  // MediaCodecVideoDecoder::InitializeCodec() or release in TeardownCodec()).
+  // Worst case is ~kGpuWaitTimeout (wedged gpu thread) or ~kRetryBudget plus
+  // one gpu round trip (persistent context loss).
+
+  // How long to keep retrying while the gpu thread reports that the GL
+  // context could not be made current. This is a transient condition after
+  // the app sat idle; in the lab the context was always back within a few
+  // hundred ms. There is no retry at all when the command buffer stub is gone
+  // (kNoStub), which is what happens when a player is torn down after its
+  // renderer lost the stub: waiting cannot help, and this path used to stall
+  // SbPlayerDestroy().
+  constexpr base::TimeDelta kRetryBudget = base::Seconds(1);
+
+  // Pause between two retries of a kContextNotCurrent request.
+  constexpr base::TimeDelta kRetryDelay = base::Milliseconds(100);
+
+  // How long to wait for the gpu thread to service one request. If it does
+  // not respond (wedged gpu main thread) the request is abandoned and the
+  // caller fails the decode target, which surfaces as a decode error on the
+  // player rather than a hang or a process abort.
+  constexpr base::TimeDelta kGpuWaitTimeout = base::Seconds(2);
+
   auto provider = reinterpret_cast<StarboardRendererWrapper*>(
       graphics_context_provider->gles_context_runner_context);
   if (!provider || !provider->is_gpu_factory_initialized_) {
+    // The provider is only handed to SbPlayer from ContinueInitialization(),
+    // after |is_gpu_factory_initialized_| is set, so this is not expected.
+    LOG(ERROR) << __func__
+               << ": decode target closure dropped, gpu factory not "
+               << "initialized.";
     return;
   }
   if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
-    // If it is on the gpu thread, post target_function() directly on it.
+    // If it is on the gpu thread, run target_function() directly on it.
     target_function(target_function_context);
-  } else if (provider->gpu_factory_) {
-    // If it is not on the gpu thread, post target_function() with
-    // |gpu_factory_|.
-    base::WaitableEvent done_event(
-        base::WaitableEvent::ResetPolicy::MANUAL,
-        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    return;
+  }
+  if (!provider->gpu_factory_) {
+    LOG(ERROR) << __func__
+               << ": decode target closure dropped, no gpu factory.";
+    return;
+  }
+
+  // Not on the gpu thread: post target_function() with |gpu_factory_| and
+  // wait for it. Blocking is okay here to allow SbPlayer to post
+  // |target_function| on the gpu thread, and StarboardRenderer waits for the
+  // execution. Callers (e.g. DecodeTarget's constructor) assume the closure
+  // ran when this returns, so do not return silently when it did not: retry
+  // transient failures within the budget, and log the rest.
+  const base::TimeTicks start = base::TimeTicks::Now();
+  int attempt = 0;
+  while (true) {
+    ++attempt;
+    auto run = base::MakeRefCounted<GlesClosureRun>();
     provider->gpu_factory_
         .AsyncCall(&StarboardGpuFactory::RunSbDecodeTargetFunctionOnGpu)
-        .WithArgs(target_function, target_function_context, &done_event);
-    // Blocking is okay here to allow SbPlayer to post |target_function|
-    // on gpu thread, and StarboardRenderer waits for the execution.
-    base::ScopedAllowBaseSyncPrimitives allow_wait;
-    done_event.Wait();
+        .WithArgs(target_function, target_function_context, run);
+
+    bool timed_out = false;
+    {
+      base::ScopedAllowBaseSyncPrimitives allow_wait;
+      timed_out = !run->done.TimedWait(kGpuWaitTimeout);
+    }
+    if (timed_out) {
+      // Taking the lock excludes the gpu task: either it has not started and
+      // will see |abandoned|, or it is running and we wait for it to finish,
+      // so |target_function_context| stays valid for as long as it is used.
+      base::AutoLock lock(run->lock);
+      if (!run->done.IsSignaled()) {
+        run->abandoned = true;
+        LOG(ERROR) << __func__ << ": gpu thread did not run the decode target "
+                   << "closure within " << kGpuWaitTimeout
+                   << "; giving up (attempt " << attempt << ").";
+        return;
+      }
+    }
+
+    switch (run->outcome) {
+      case Outcome::kRan:
+        if (attempt > 1) {
+          LOG(WARNING) << __func__ << ": decode target closure ran after "
+                       << attempt << " attempts ("
+                       << (base::TimeTicks::Now() - start) << ").";
+        }
+        return;
+      case Outcome::kNoStub:
+        LOG(WARNING) << __func__ << ": decode target closure not run, no "
+                     << "command buffer stub (not retrying).";
+        return;
+      case Outcome::kContextNotCurrent:
+        break;
+      case Outcome::kPending:
+        NOTREACHED();
+    }
+
+    if (base::TimeTicks::Now() - start >= kRetryBudget) {
+      LOG(ERROR) << __func__ << ": giving up on decode target closure after "
+                 << attempt << " attempts (" << kRetryBudget << ").";
+      return;
+    }
+    base::PlatformThread::Sleep(kRetryDelay);
   }
 }
 

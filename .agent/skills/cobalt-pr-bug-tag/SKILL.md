@@ -1,6 +1,6 @@
 ---
 name: cobalt-pr-bug-tag
-description: Guides the agent to explicitly search for related bugs and append "Bug: <id>" to commit messages and pull request descriptions when making Cobalt PRs.
+description: 'Guides the agent to explicitly search for related bugs and append "Bug: <id>" to commit messages and pull request descriptions when making Cobalt PRs.'
 ---
 
 # Skill: Cobalt PR Bug Tagging

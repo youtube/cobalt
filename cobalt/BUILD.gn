@@ -65,8 +65,6 @@ group("gn_all") {
   if (is_cobalt_hermetic_build) {
     deps += [
       ":cobalt_loader",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app:loader_app($starboard_toolchain)",
       "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
@@ -287,6 +285,7 @@ source_set("common") {
     "//cobalt/browser:features",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
+    "//cobalt/browser/h5vcc_memory:low_memory_manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/gpu",
     "//cobalt/renderer",
@@ -348,26 +347,30 @@ test("cobalt_unittests") {
     "//cobalt/browser/command_line_logger_unittest.cc",
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
+    "//cobalt/browser/h5vcc_memory/low_memory_manager_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
-    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/memory_ablation_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
+    "//cobalt/browser/metrics/cobalt_memory_metrics_emitter_unittest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
+    "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
 
-  # The symbolizer pipeline test requires launching external Python and
-  # llvm-symbolizer processes, which is not supported on Starboard and
-  # modular/Evergreen platforms due to subprocess spawning restrictions.
+  # Memory instrumentation host-side tool tests require launching external
+  # Python processes, which is not supported on Starboard and modular/Evergreen
+  # platforms due to subprocess spawning restrictions.
   if (!is_starboard && !sb_is_modular) {
     sources += [
       "//cobalt/tools/performance/memory/symbolize_in_process_heap_unittest.cc",
+      "//cobalt/tools/performance/memory/verify_memory_trace_unittest.cc",
     ]
   }
 
@@ -383,6 +386,10 @@ test("cobalt_unittests") {
       "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
+  }
+
+  if (use_evergreen) {
+    sources += [ "//cobalt/browser/loader_app_metrics_unittest.cc" ]
   }
 
   sources += [ "//cobalt/shell/browser/shell_test_support.h" ]
@@ -413,9 +420,11 @@ test("cobalt_unittests") {
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
+    "//cobalt/browser/h5vcc_memory",
+    "//cobalt/browser/h5vcc_memory:low_memory_manager",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/browser/h5vcc_native_stability",
-    "//cobalt/browser/h5vcc_native_stability/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability:unit_tests",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
@@ -429,6 +438,8 @@ test("cobalt_unittests") {
     "//components/variations",
     "//components/variations/service",
     "//content/test:test_support",
+    "//gin",
+    "//gin:gin_test",
     "//media:test_support",
     "//mojo/core/embedder",
     "//mojo/core/test:run_all_unittests",
@@ -437,6 +448,7 @@ test("cobalt_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/metrics_proto",
+    "//v8",
   ]
 
   # All configs that provide definitions for switch constants.

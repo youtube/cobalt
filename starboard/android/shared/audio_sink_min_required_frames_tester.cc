@@ -127,7 +127,7 @@ void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
     }
 
     audio_sink_ = AudioTrackAudioSink::Create(
-        NULL, task.number_of_channels, task.sample_rate, task.sample_type,
+        task.number_of_channels, task.sample_rate, task.sample_type,
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
@@ -135,7 +135,8 @@ void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
         /*start_media_time=*/0,
         /*tunnel_mode_audio_session_id=*/std::nullopt,
         /*is_web_audio=*/false,
-        /*allow_audio_writing_on_pause=*/false, this);
+        /*allow_audio_writing_on_pause=*/false,
+        /*pause_using_audio_track_state=*/false, this);
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(

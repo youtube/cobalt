@@ -14,18 +14,24 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/barrier_closure.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -45,6 +51,34 @@ namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
+
+struct ActiveRendererEntry {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  base::WeakPtr<StarboardRenderer> weak_this;
+};
+
+// Tracks active StarboardRenderer instances and conceal state so
+// FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
+// thread during kSbEventTypeConceal.
+// TODO(b/570356133): Move StarboardRendererConcealRegistry ownership into
+// GpuMojoMediaClientStarboard via MediaService to avoid a static singleton.
+struct StarboardRendererConcealRegistry {
+  base::Lock lock;
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
+      GUARDED_BY(lock);
+  bool is_concealed GUARDED_BY(lock) = false;
+};
+
+StarboardRendererConcealRegistry& GetConcealRegistry() {
+  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
+  return *registry;
+}
+
+bool IsApplicationConcealed() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  return registry.is_concealed;
+}
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -134,6 +168,7 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    const std::string& max_video_resolution,
     const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -149,6 +184,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+      max_video_resolution_(max_video_resolution),
       experimental_features_(experimental_features),
       max_samples_per_write_(experimental_features.Get(kMediaMaxSamplesPerWrite)
                                  .value_or(kDefaultMaxSamplePerWrite)),
@@ -161,6 +197,12 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.emplace(
+        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
+  }
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
@@ -173,10 +215,16 @@ StarboardRenderer::StarboardRenderer(
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   player_bridge_.reset();
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.erase(this);
+  }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
 }
@@ -213,6 +261,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
+
+  // If the application is concealed, abort initialization immediately so
+  // SbPlayerCreate is not invoked on a destroyed native window.
+  if (IsApplicationConcealed()) {
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
 
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
@@ -310,6 +366,13 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   drm_system_ = cdm_context_->GetSbDrmSystem();
   std::move(cdm_attached_cb).Run(true);
   LOG(INFO) << "CDM set successfully.";
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire DRM to URL player bridge if it was created before CDM arrived.
+  if (IsUrlPlayer() && player_bridge_ && SbDrmSystemIsValid(drm_system_)) {
+    player_bridge_->SetDrmSystem(drm_system_);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   if (state_ != STATE_INIT_PENDING_CDM) {
     return;
@@ -468,10 +531,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
   uint32_t video_frames_decoded, video_frames_dropped;
   uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time;
+  TimeDelta media_time, duration;
   SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded, &video_bytes_decoded,
-                                  &media_time};
+                                  &audio_bytes_decoded,  &video_bytes_decoded,
+                                  &media_time,           &duration};
 
   player_bridge_->GetInfo(&info);
 
@@ -502,6 +565,34 @@ TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    UpdateUrlPlayerVideoResolution();
+
+    if (duration_change_cb_ && duration != kNoTimestamp &&
+        duration != last_duration_) {
+      last_duration_ = duration;
+      duration_change_cb_.Run(duration);
+    }
+
+    // Polling buffered ranges on every media-time update may affect
+    // performance. Since the URL player exposes only the last loaded range and
+    // polling is not synchronized with platform buffer updates, reported ranges
+    // may be incomplete or stale.
+    if (buffered_ranges_cb_) {
+      TimeDelta buffer_start, buffer_length;
+      player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                     &buffer_length);
+      if (buffer_start != last_buffer_start_ ||
+          buffer_length != last_buffer_length_) {
+        last_buffer_start_ = buffer_start;
+        last_buffer_length_ = buffer_length;
+        buffered_ranges_cb_.Run(buffer_start, buffer_length);
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   StoreMediaTime(media_time);
 
   return media_time;
@@ -567,24 +658,40 @@ bool StarboardRenderer::IsUrlPlayer() const {
   return !source_url_.empty();
 }
 
+void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
+  if (width <= 0 || height <= 0) {
+    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
+                 << "x" << height
+                 << ") at presenting; skipping video hole update.";
+    return;
+  }
+
+  const gfx::Size size(width, height);
+  if (size == url_player_video_size_) {
+    return;
+  }
+
+  url_player_video_size_ = size;
+  client_->OnVideoNaturalSizeChange(size);
+  if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
+    paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
 void StarboardRenderer::OnUrlPlayerPresenting() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!player_bridge_) {
     return;
   }
-  int width = 0, height = 0;
-  player_bridge_->GetVideoResolution(&width, &height);
-  if (width > 0 && height > 0) {
-    gfx::Size size(width, height);
-    client_->OnVideoNaturalSizeChange(size);
-    // TODO(b/541996730): Handle resolution changes during adaptive HLS
-    // playback. Currently this is only called once at presenting state.
-    paint_video_hole_frame_cb_.Run(size);
-  } else {
-    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
-                 << "x" << height
-                 << ") at presenting; skipping video hole update.";
-  }
+
+  UpdateUrlPlayerVideoResolution();
 
   // Re-apply playback rate; the platform player ignores rate changes
   // before it is ready to play.
@@ -597,10 +704,12 @@ void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
 }
 
 void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
-    const char* init_data_type,
-    const unsigned char* init_data,
-    unsigned int init_data_length) {
-  // TODO: Forward encrypted media init data to the EME/DRM layer.
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -646,10 +755,8 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  if (test_sbplayer_interface_) {
-    return test_sbplayer_interface_;
-  }
-  return &sbplayer_interface_;
+  SbPlayerInterface* testing_interface = GetSbPlayerInterfaceForTesting();
+  return testing_interface ? testing_interface : &sbplayer_interface_;
 }
 
 void StarboardRenderer::UpdateAudioWriteDuration() {
@@ -672,6 +779,15 @@ void StarboardRenderer::UpdateAudioWriteDuration() {
 
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // If concealed while waiting for an asynchronous window handle or overlay,
+  // abort before constructing SbPlayerBridge on a destroyed native window.
+  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    }
+    return;
+  }
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -727,6 +843,10 @@ void StarboardRenderer::CreatePlayerBridge() {
         /*pipeline_identifier=*/""
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
         ));
+    // Wire DRM if CDM arrived before bridge creation.
+    if (SbDrmSystemIsValid(drm_system_)) {
+      player_bridge_->SetDrmSystem(drm_system_);
+    }
   } else {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
     player_bridge_.reset(new SbPlayerBridge(
@@ -740,6 +860,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        max_video_resolution_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
@@ -843,8 +964,11 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     }
 #endif  // 0
     color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
-    paint_video_hole_frame_cb_.Run(
-        stream->video_decoder_config().visible_rect().size());
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModePunchOut) {
+      paint_video_hole_frame_cb_.Run(
+          stream->video_decoder_config().visible_rect().size());
+    }
   }
 }
 
@@ -878,7 +1002,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
+  if (state_ == STATE_ERROR || !player_bridge_) {
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = false;
+    } else if (stream == video_stream_) {
+      video_read_in_progress_ = false;
+    }
+    return;
+  }
 
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
@@ -925,8 +1056,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+      if (player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModePunchOut) {
+        paint_video_hole_frame_cb_.Run(
+            stream->video_decoder_config().visible_rect().size());
+      }
     }
     UpdateDecoderConfig(stream);
     stream->Read(
@@ -1146,9 +1280,74 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
   // pointer dereference in `MojoRenderer::OnError()`.
   if (init_cb_) {
     std::move(init_cb_).Run(status);
-  } else {
+  } else if (client_) {
     client_->OnError(status);
   }
+}
+
+// static
+void StarboardRenderer::FlushAndSuspendActiveRenderers(
+    base::OnceClosure done_cb) {
+  std::vector<ActiveRendererEntry> entries;
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.is_concealed = true;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
+  }
+
+  base::OnceClosure reply_cb =
+      base::SequencedTaskRunner::HasCurrentDefault()
+          ? base::BindPostTaskToCurrentDefault(std::move(done_cb))
+          : std::move(done_cb);
+
+  if (entries.empty()) {
+    std::move(reply_cb).Run();
+    return;
+  }
+
+  // Post to the tail of each active StarboardRenderer's sequence so any queued
+  // MojoRendererService disconnect tasks execute first, then fallback-suspend
+  // any remaining StarboardRenderer instances before replying to the conceal
+  // barrier.
+  base::RepeatingClosure barrier_cb =
+      base::BarrierClosure(entries.size(), std::move(reply_cb));
+  for (auto& entry : entries) {
+    if (!entry.task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](base::WeakPtr<StarboardRenderer> renderer,
+                              base::OnceClosure done) {
+                             if (renderer) {
+                               renderer->OnConcealFallbackSuspend();
+                             }
+                             std::move(done).Run();
+                           },
+                           std::move(entry.weak_this), barrier_cb))) {
+      barrier_cb.Run();
+    }
+  }
+}
+
+// static
+void StarboardRenderer::ResumeActiveRenderers() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  registry.is_concealed = false;
+}
+
+void StarboardRenderer::OnConcealFallbackSuspend() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_) {
+    player_bridge_->Suspend();
+  }
+  if (state_ == STATE_UNINITIALIZED || state_ == STATE_ERROR) {
+    return;
+  }
+  state_ = STATE_ERROR;
+  NotifyError(PIPELINE_ERROR_ABORT);
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {

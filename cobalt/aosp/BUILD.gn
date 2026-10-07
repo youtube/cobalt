@@ -39,3 +39,17 @@ android_library("cobalt_apk_java") {
   ]
   srcjar_deps = [ ":jni_headers" ]
 }
+
+android_library("test_instrumentation_java") {
+  testonly = true
+
+  sources = [
+    "apk/test/java/dev/cobalt/testing/CobaltInstrumentationTestRunner.java",
+    "apk/test/java/dev/cobalt/testing/CobaltTestActivity.java",
+  ]
+  deps = [
+    ":cobalt_apk_java",
+    "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
+    "//testing/android/reporter:reporter_java",
+  ]
+}

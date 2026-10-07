@@ -134,15 +134,15 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
-  if (!service || !service->cobalt_service) {
+  if (!service) {
     return;
   }
 
-  JNIEnv* env = AttachCurrentThread();
-  Java_CobaltService_onClose(env, service->cobalt_service);
-
-  starboard::StarboardBridge::GetInstance()->CloseCobaltService(
-      env, service->name.c_str());
+  if (service->cobalt_service) {
+    JNIEnv* env = AttachCurrentThread();
+    starboard::StarboardBridge::GetInstance()->CloseCobaltService(
+        env, reinterpret_cast<jlong>(service));
+  }
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 

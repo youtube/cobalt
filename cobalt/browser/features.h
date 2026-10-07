@@ -33,8 +33,42 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Enables emitting the Finch token in the User-Agent string for experiment
+// verification.
+extern const base::Feature kEnableUserAgentFinchToken;
+
+// Token value to emit in the User-Agent string.
+extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
+
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
+
+// Sets the timeout in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchTimeSeconds;
+
+// Sets the monitoring period in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchMonitoringPeriodSeconds;
+
+// Enables thread dump on hang for the main thread.
+extern const base::Feature kHangWatchMainThreadDump;
+
+// Enables thread dump on hang for the IO thread.
+extern const base::Feature kHangWatchIOThreadDump;
+
+// Enables thread dump on hang for the thread pool threads.
+extern const base::Feature kHangWatchThreadPoolDump;
+
+// Enables thread dump on hang for the renderer thread.
+extern const base::Feature kHangWatchRendererThreadDump;
+
+// Enables detecting severe hangs (long hangs) via UMA without terminating.
+extern const base::Feature kHangWatcherLongHangDetection;
+
+// Enables native abort (LOG(FATAL)) when a long hang is detected.
+extern const base::Feature kHangWatcherLongHangKill;
+
+// Sets the timeout in seconds for a hang to be considered a long hang.
+extern const base::FeatureParam<int> kLongHangTimeoutSeconds;
 
 // Enables overriding the default metrics collection interval with a fixed
 // value.
@@ -45,6 +79,15 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
+
+// Enables virtual address space fragmentation metrics, which are only
+// collected on 32-bit Android.
+extern const base::Feature kCobaltVirtualAddressSpaceMetrics;
+
+// Probability of emitting the metrics on any given memory collection cycle
+// (default 0.01, i.e. one cycle in a hundred).
+extern const base::FeatureParam<double>
+    kVirtualAddressSpaceSampleProbabilityParam;
 
 // Enables Cobalt Memory Attribution Manager.
 extern const base::Feature kCobaltMemoryAttributionManager;
@@ -71,12 +114,51 @@ extern const base::Feature kEnablePictureInPicture;
 
 // Enables native memory ablation study to verify Finch and memory metrics.
 extern const base::Feature kCobaltNativeMemoryAblation;
+// Disables the dismiss button on network error dialogs
+BASE_DECLARE_FEATURE(kDisableNetworkDialogDismissButton);
 
 // Memory ablation size to allocate in Megabytes (default: 0).
 extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
 
 // Delay before performing memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
+
+// Enables GPU memory ablation study to allocate and hold GPU memory.
+BASE_DECLARE_FEATURE(kCobaltGpuMemoryAblation);
+
+// GPU memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
+
+// Delay before performing GPU memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
+
+// Enables Cobalt System Memory Pressure Evaluator on Starboard platforms.
+extern const base::Feature kCobaltSystemMemoryPressureEvaluator;
+
+// Threshold fraction of process memory budget for moderate memory pressure.
+extern const base::FeatureParam<double>
+    kCobaltMemoryPressureModerateFractionParam;
+
+// Threshold fraction of process memory budget for critical memory pressure.
+extern const base::FeatureParam<double>
+    kCobaltMemoryPressureCriticalFractionParam;
+
+// Process memory budget override in Megabytes (0 = auto-resolve from physical
+// RAM).
+extern const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam;
+
+// Polling interval in seconds for memory pressure evaluation.
+extern const base::FeatureParam<int>
+    kCobaltMemoryPressurePollIntervalSecondsParam;
+
+// Cooldown period in seconds before re-notifying listeners of sustained
+// pressure.
+extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
+
+// Hands the Cobalt client hint headers to the network service once, through
+// NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
+// that costs Mojo round trips to the browser UI thread on every request.
+BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
 }  // namespace features
 }  // namespace cobalt

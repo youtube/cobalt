@@ -184,6 +184,9 @@ source_set("test_support") {
     "//media/renderers:test_support",
     "//media/video:test_support",
   ]
+  if (use_starboard_media) {
+    public_deps += [ "//media/starboard:test_support" ]
+  }
 }
 
 if (is_ios) {

@@ -77,4 +77,8 @@ bool SetCurrentThreadPriority(ThreadPriority priority) {
 
 void TerminateOnThread() {}
 
+std::optional<size_t> GetDefaultThreadStackSize() {
+  return std::nullopt;
+}
+
 }  // namespace starboard

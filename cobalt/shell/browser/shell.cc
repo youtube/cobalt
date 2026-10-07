@@ -41,7 +41,10 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
+#endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -96,6 +99,8 @@ using ::starboard::StarboardBridge;
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #endif
+
+#include "starboard/system.h"
 
 namespace content {
 
@@ -212,6 +217,17 @@ ShellPlatformDelegate* g_platform = nullptr;
 
 std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+std::atomic<bool> Shell::has_hidden_system_splash_screen_{false};
+
+void Shell::MaybeHideSystemSplashScreen() {
+  if (!has_hidden_system_splash_screen_.exchange(true)) {
+    SbSystemHideSplashScreen();
+  }
+}
+
+void Shell::ResetSystemSplashScreenForTesting() {
+  has_hidden_system_splash_screen_.store(false);
+}
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
@@ -552,6 +568,10 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 #endif
 }
 
+void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MaybeHideSystemSplashScreen();
+}
+
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -774,20 +794,24 @@ void Shell::Stop() {
 }
 
 void Shell::ShowDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
     devtools_frontend_ = devtools_frontend->GetWeakPtr();
   }
 
   devtools_frontend_->Activate();
+#endif
 }
 
 void Shell::CloseDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     return;
   }
   devtools_frontend_->Close();
   devtools_frontend_ = nullptr;
+#endif
 }
 
 void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
@@ -976,11 +1000,6 @@ void Shell::ActivateContents(WebContents* contents) {
   if (!g_platform->IsWaitingForRevealAck()) {
     contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
   }
-}
-
-bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
-  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(

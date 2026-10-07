@@ -16,27 +16,25 @@
 #include <tuple>
 #include <vector>
 
-#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
 namespace {
 
-using ::starboard::VideoDmpReader;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
+  void SetUp() override { SkipTestIfNotSupported(GetParam()); }
+
   starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
@@ -70,34 +68,11 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
   const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                              kSbPlayerOutputModePunchOut};
 
-  std::vector<const char*> video_files;
-  for (auto video_filename : kVideoFilenames) {
-    VideoDmpReader video_dmp_reader(video_filename,
-                                    VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK_GT(video_dmp_reader.number_of_video_buffers(),
-                 static_cast<size_t>(0));
-    if (SbMediaCanPlayMimeAndKeySystem(
-            video_dmp_reader.video_mime_type().c_str(), "")) {
-      video_files.push_back(video_filename);
-    }
-  }
-
-  VideoDmpReader audio_dmp_reader(kAudioFilename,
-                                  VideoDmpReader::kEnableReadOnDemand);
-  SbMediaAudioCodec audio_codec = audio_dmp_reader.audio_codec();
-
   std::vector<SbPlayerTestConfig> test_configs;
-  for (auto video_filename : video_files) {
-    SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-    VideoDmpReader video_dmp_reader(video_filename,
-                                    VideoDmpReader::kEnableReadOnDemand);
-    video_codec = video_dmp_reader.video_codec();
-
+  for (auto video_filename : kVideoFilenames) {
     for (auto output_mode : kOutputModes) {
-      if (IsOutputModeSupported(output_mode, audio_codec, video_codec, "")) {
-        test_configs.emplace_back(kAudioFilename, video_filename, output_mode,
-                                  "");
-      }
+      test_configs.emplace_back(kAudioFilename, video_filename, output_mode,
+                                "");
     }
   }
 

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -30,6 +31,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -226,6 +228,7 @@ SbPlayerBridge::SbPlayerBridge(
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const std::string& max_video_capabilities,
+    const std::string& max_video_resolution,
     int max_video_input_size,
     const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
@@ -250,6 +253,7 @@ SbPlayerBridge::SbPlayerBridge(
       audio_config_(audio_config),
       video_config_(video_config),
       max_video_capabilities_(max_video_capabilities),
+      max_video_resolution_(max_video_resolution),
       experimental_features_(experimental_features),
       enable_batched_buffer_deallocation_(
           experimental_features_.GetBool(kMediaEnableTrivialOptimizations))
@@ -382,6 +386,15 @@ void SbPlayerBridge::WriteBuffers(
     return;
   }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
+
+  // Ignore buffer writes if the player has been suspended or invalidated
+  // during a conceal transition so Starboard APIs are not called on an
+  // invalid SbPlayer.
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    LOG(WARNING) << "Ignore WriteBuffers when SbPlayerBridge is suspended or "
+                    "SbPlayer is invalid.";
+    return;
+  }
 
   WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
@@ -553,24 +566,6 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   *frame_height = video_stream_info_.frame_height;
 }
 
-TimeDelta SbPlayerBridge::GetDuration() {
-  DCHECK(is_url_based_);
-
-  if (state_ == kSuspended) {
-    return TimeDelta();
-  }
-
-  DCHECK(SbPlayerIsValid(player_));
-
-  SbPlayerInfo info;
-  sbplayer_interface_->GetInfo(player_, &info);
-  if (info.duration == SB_PLAYER_NO_DURATION) {
-    // URL-based player may not have loaded asset yet, so map no duration to 0.
-    return TimeDelta();
-  }
-  return base::Microseconds(info.duration);
-}
-
 TimeDelta SbPlayerBridge::GetStartDate() {
   DCHECK(is_url_based_);
 
@@ -601,7 +596,10 @@ void SbPlayerBridge::Suspend() {
     return;
   }
 
-  DCHECK(SbPlayerIsValid(player_));
+  if (!SbPlayerIsValid(player_)) {
+    state_ = kSuspended;
+    return;
+  }
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
@@ -665,10 +663,21 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     const unsigned char* init_data,
     unsigned int init_data_length) {
   SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
-  DCHECK(
-      !sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.is_null());
-  sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.Run(
-      init_data_type, init_data, init_data_length);
+  auto data_span = base::span(init_data, init_data_length);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnEncryptedMediaInitDataEncountered,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     std::string(init_data_type),
+                     std::vector<uint8_t>(data_span.begin(), data_span.end())));
+}
+
+void SbPlayerBridge::OnEncryptedMediaInitDataEncountered(
+    std::string init_data_type,
+    std::vector<uint8_t> init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
+  on_encrypted_media_init_data_encountered_cb_.Run(init_data_type, init_data);
 }
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
@@ -767,6 +776,11 @@ void SbPlayerBridge::CreatePlayer() {
     }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 #if BUILDFLAG(IS_ANDROID)
+    if (player_settings_extension->SetMaxVideoResolutionForCurrentThread) {
+      player_settings_extension->SetMaxVideoResolutionForCurrentThread(
+          max_video_resolution_.empty() ? nullptr
+                                        : max_video_resolution_.c_str());
+    }
     if (player_settings_extension->SetVideoSurfaceViewForCurrentThread) {
       player_settings_extension->SetVideoSurfaceViewForCurrentThread(
           surface_view_);
@@ -1005,6 +1019,9 @@ void SbPlayerBridge::WriteBuffersInternal(
 }
 
 SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    return kSbDecodeTargetInvalid;
+  }
   return sbplayer_interface_->GetCurrentFrame(player_);
 }
 
@@ -1016,7 +1033,7 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(out_info);
   DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
-         out_info->media_time);
+         out_info->media_time || out_info->duration);
 
   if (state_ == kSuspended) {
     if (out_info->video_frames_decoded) {
@@ -1027,6 +1044,9 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
     }
     if (out_info->media_time) {
       *out_info->media_time = preroll_timestamp_;
+    }
+    if (out_info->duration) {
+      *out_info->duration = kNoTimestamp;
     }
   } else {
     DCHECK(SbPlayerIsValid(player_));
@@ -1042,6 +1062,13 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
     }
     if (out_info->video_frames_dropped) {
       *out_info->video_frames_dropped = info.dropped_video_frames;
+    }
+    if (out_info->duration) {
+      if (info.duration == SB_PLAYER_NO_DURATION) {
+        *out_info->duration = kNoTimestamp;
+      } else {
+        *out_info->duration = base::Microseconds(info.duration);
+      }
     }
   }
 

@@ -6,60 +6,51 @@ This document provides a comprehensive, high-fidelity systems architecture guide
 
 ## 1. The Starboard Application Lifecycle
 
-Cobalt's multi-process lifecycle is built directly on top of the **Starboard Application Lifecycle** specification defined in [`starboard/event.h`](file:///usr/local/google/home/jfoks/cobalt.main3/src/starboard/event.h). Starboard defines a strict linear state machine for applications to manage resource consumption, background capabilities, and clean shutdowns on diverse platforms:
+Cobalt's multi-process lifecycle is built directly on top of the **Starboard Application Lifecycle** specification defined in [`starboard/event.h`](../../starboard/event.h). Starboard defines a strict linear state machine for applications to manage resource consumption, background capabilities, and clean shutdowns on diverse platforms:
 
 ```mermaid
 graph TD
-  %% Styling Definitions
-  %%{init: {"flowchart": {"htmlLabels": false}} }%%
-  classDef launcher fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
-  classDef started fill:#C8E6C9,stroke:#388E3C,stroke-width:2px;
-  classDef blurred fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px;
-  classDef concealed fill:#E1BEE7,stroke:#7B1FA2,stroke-width:2px;
-  classDef frozen fill:#B3E5FC,stroke:#0288D1,stroke-width:2px;
-  classDef stopped fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px;
+  %%{init: {"flowchart": {"htmlLabels": false}, "themeVariables": {"edgeLabelBackground": "transparent"}} }%%
 
   %% Nodes Definitions
   Launcher[INITIAL]
 
   subgraph Foreground["Foreground (Visible)"]
-    direction TB
     Started[STARTED <br/> Focused]
     Blurred[BLURRED <br/> Unfocused]
   end
 
   subgraph Background["Background (Invisible)"]
-    direction TB
     Concealed[CONCEALED <br/> Running]
     Frozen[FROZEN <br/> Suspended]
   end
   Stopped[STOPPED <br/> Terminated]
 
   %% Apply Styles
-  class Launcher launcher;
-  class Started started;
-  class Blurred blurred;
-  class Concealed concealed;
-  class Frozen frozen;
-  class Stopped stopped;
+  style Launcher fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Started fill:#C8E6C9,stroke:#388E3C,stroke-width:2px;
+  style Blurred fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px;
+  style Concealed fill:#E1BEE7,stroke:#7B1FA2,stroke-width:2px;
+  style Frozen fill:#B3E5FC,stroke:#0288D1,stroke-width:2px;
+  style Stopped fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px;
   style Foreground fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
   style Background fill:#F9F9F9,stroke:#A0A0A0,stroke-width:1px,stroke-dasharray: 5;
 
   %% Transition Edges (Acyclic Double-Headed Column to force clean vertical layout)
   Launcher -->|"Start"| Started
-  Launcher ---->|"Preload"| Concealed
+  Launcher -->|"Preload"| Concealed
 
-  Started <-->|"Focus / Blur"| Blurred
-  Blurred <-->|"Conceal / Reveal"| Concealed
-  Concealed <-->|"Freeze / Unfreeze"| Frozen
+  Started <-->|"↓ Blur (↑ Focus)"| Blurred
+  Blurred <-->|"↓ Conceal (↑ Reveal)"| Concealed
+  Concealed <-->|"↓ Freeze (↑ Unfreeze)"| Frozen
   Frozen -->|"Stop (Shutdown)"| Stopped
 ```
 
 ### Starboard State Specification:
 *   **`STARTED`** (`kSbEventTypeStart`): The application is in the foreground, visible, and has focus. It is expected to perform all normal operations (video playback, UI animations) and is expected to receive user keyboard and remote control input.
 *   **`BLURRED`** (`kSbEventTypeBlur`): The application is still visible but has lost focus (e.g., obscured by a system dialog or on its way to shutdown). Foreground activities like rendering and animations should be paused, and the application must not receive or process keyboard/remote control input.
-*   **`CONCEALED`** (`kSbEventTypeConceal` / `kSbEventTypePreload`): The application is fully invisible but can still run background tasks (audio playback, network fetching, low-priority synchronization) with reduced CPU/memory allocations.
-*   **`FROZEN`** (`kSbEventTypeFreeze`): The application is invisible and periodic background work is completely stopped. It **must release all GPU, graphics, and video resources**, and flush storage writes to disk. The application can be forcefully killed by the OS in this state at any time.
+*   **`CONCEALED`** (`kSbEventTypeConceal` / `kSbEventTypePreload`): The application is fully invisible. In Cobalt, transitioning to `CONCEALED` pauses active media playbacks, suspends media pipelines, and releases all hardware media (`SbPlayerDestroy`), platform window (`SbWindowDestroy`), and GPU/EGL (`eglTerminate`) resources in strict sequence before the transition completes, while allowing low-priority non-graphical background tasks (such as network fetching or state synchronization) to continue.
+*   **`FROZEN`** (`kSbEventTypeFreeze`): The application is invisible and periodic background work is completely stopped (pages are frozen and cookies/local storage are flushed to disk). All GPU, graphics, window, and video resources have already been released upon entering `CONCEALED`. The application can be forcefully killed by the OS in this state at any time.
 *   **`STOPPED`** (`kSbEventTypeStop`): The application is cleanly terminated, freeing all remaining resources.
 
 All Starboard-compliant platforms guarantee that applications traverse these states linearly (e.g., an application must go through `BLURRED` and `CONCEALED` to reach `FROZEN` before stopping or being killed). Cobalt's architecture is designed to enforce this exact linear progression, synthesizing intermediate states when the OS dispatches events out-of-order or skips them.
@@ -92,14 +83,7 @@ This block chart illustrates how the Browser and Renderer processes coordinate l
 
 ```mermaid
 graph TD
-  %% Styling Definitions
   %%{init: {"flowchart": {"htmlLabels": false}} }%%
-  classDef os fill:#FFCCBC,stroke:#FF5722,stroke-width:2px;
-  classDef chromium fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
-  classDef delegate fill:#C5CAE9,stroke:#3F51B5,stroke-width:2px;
-  classDef runner fill:#D1C4E9,stroke:#673AB7,stroke-width:2px;
-  classDef manager fill:#FFE082,stroke:#FFB300,stroke-width:2px;
-  classDef renderer fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
 
   %% Nodes Definitions
   OS[OS Thread <br/> Starboard Event Loop <br/> OS System Events]
@@ -117,12 +101,14 @@ graph TD
   Controller[Renderer Process <br/> CobaltLifecycleController <br/> DOM Window Supplement]
 
   %% Apply Styles
-  class OS os;
-  class Shell,Storage chromium;
-  class Delegate delegate;
-  class Runner runner;
-  class Manager manager;
-  class BlinkCore,Controller renderer;
+  style OS fill:#FFCCBC,stroke:#FF5722,stroke-width:2px;
+  style Shell fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Storage fill:#CFD8DC,stroke:#37474F,stroke-width:1px;
+  style Delegate fill:#C5CAE9,stroke:#3F51B5,stroke-width:2px;
+  style Runner fill:#D1C4E9,stroke:#673AB7,stroke-width:2px;
+  style Manager fill:#FFE082,stroke:#FFB300,stroke-width:2px;
+  style BlinkCore fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
+  style Controller fill:#F8BBD0,stroke:#C2185B,stroke-width:1px;
 
   %% Directed Coordination Edges
   OS -->|"SbEvent"| Delegate
@@ -162,7 +148,7 @@ graph TD
 ## 4. Transition Sequence Diagrams
 
 ### A. Conceal Transition
-This sequence diagram illustrates how the browser blocks the UI thread synchronously while waiting for Mojo visibility layout ACKs from the Renderer Process:
+This sequence diagram illustrates how the browser blocks the UI thread synchronously while waiting for Mojo visibility layout ACKs from the Renderer Process, followed by the 3-step hardware teardown barrier (`SbPlayerDestroy` $\rightarrow$ `SbWindowDestroy` $\rightarrow$ `eglTerminate`) before `DoConceal` completes:
 
 ```mermaid
 sequenceDiagram
@@ -170,25 +156,31 @@ sequenceDiagram
   participant OS as Starboard <br/> Event Loop
   participant Delegate as AppEventDelegate <br/> (Sequencer)
   participant Runner as AppEventRunnerImpl <br/> (Orchestrator)
-  participant Shell as content::Shell <br/> (Chromium Shell)
+  participant Shell as ShellPlatformDelegate <br/> (Browser UI)
+  participant Media as StarboardRenderer <br/> (Media Sequence)
   participant Manager as CobaltLifecycleManager <br/> (Observer)
-  participant Blink as Blink Core <br/> (Renderer)
+  participant Blink as Blink Core & WMPI <br/> (Renderer)
   participant Controller as CobaltLifecycle <br/> Controller
 
   OS->>Delegate: SbEvent (Conceal)
   Note over Delegate: Resolve intermediate step:<br/>kBlurred ➔ kConcealed
   Delegate->>Runner: DoConceal()
-  Runner->>Blink: Mojo: blink::mojom::Widget::WasHidden() <br/> (via WebContents::WasHidden)
-  Runner->>Shell: content::Shell::OnConceal()
-  Note over Shell: Triggers platform Aura window hides<br/>& schedules layout Conceal
+  Runner->>Shell: ShellPlatformDelegate::OnConceal()
+  Shell->>Blink: Mojo: blink::mojom::Widget::WasHidden() <br/> (via WebContents::WasHidden)
   Note over Runner: Initialize visual wait state:<br/>pending_ack_ = kConceal
   Note over Runner: WaitForAck(kConceal)<br/>(Blocks UI thread via nested RunLoop)
 
-  Note over Blink: 1. Blink updates visibilityState = hidden<br/>2. Dispatches JS event: 'visibilitychange' (hidden)
+  Note over Blink: 1. Blink updates visibilityState = hidden<br/>2. Dispatches JS event: 'visibilitychange' (hidden)<br/>3. WMPI auto-pauses (kPageHidden) & suspends pipeline
   Blink-->>Controller: C++ PageVisibilityObserver::OnPageVisibilityChanged()
   Controller->>Manager: Mojo: OnPageVisibilityChanged(hidden)
   Note over Manager: All active frames completed Conceal!
-  Manager->>Runner: OnAllFramesConcealed(web_contents)
+  Manager->>Shell: OnAllFramesConcealed(web_contents)
+  Shell->>Media: StarboardRenderer::FlushAndSuspendActiveRenderers()
+  Note over Media: Flushes & destroys active SbPlayers<br/>(SbPlayerDestroy completes on media thread)
+  Media-->>Shell: FlushAndSuspendActiveRenderers callback
+  Note over Shell: CompleteConcealAfterMediaBarrier:<br/>1. ConcealShell() (SbWindowDestroy)<br/>2. CleanupGpuProcessOnUI() (eglTerminate)
+  Shell->>Manager: OnConcealCompleted(web_contents)
+  Manager->>Runner: OnConcealCompleted(web_contents)
   Note over Runner: Quit nested RunLoop!<br/>run_loop.Quit()
   Note over Runner: DoConceal() returns synchronously
   Runner-->>Delegate: DoConceal complete
@@ -259,7 +251,7 @@ sequenceDiagram
 ```
 
 ### D. Reveal Transition
-This sequence diagram illustrates how the browser blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and triggers the visual `WasShown()` viewport before returning:
+This sequence diagram illustrates how the browser restores GPU and `StarboardRenderer` state (`RestoreGpuProcessOnUI` and `StarboardRenderer::ResumeActiveRenderers`), recreates the platform window (`RevealShell`), blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and conditionally auto-resumes media playback when the web application did not explicitly pause or tear down the player on conceal:
 
 ```mermaid
 sequenceDiagram
@@ -267,21 +259,23 @@ sequenceDiagram
   participant OS as Starboard <br/> Event Loop
   participant Delegate as AppEventDelegate <br/> (Sequencer)
   participant Runner as AppEventRunnerImpl <br/> (Orchestrator)
-  participant Shell as content::Shell <br/> (Chromium Shell)
+  participant Shell as ShellPlatformDelegate <br/> (Browser UI)
+  participant Media as StarboardRenderer <br/> (Media Sequence)
   participant Manager as CobaltLifecycleManager <br/> (Observer)
-  participant Blink as Blink Core <br/> (Renderer)
+  participant Blink as Blink Core & WMPI <br/> (Renderer)
   participant Controller as CobaltLifecycle <br/> Controller
 
   OS->>Delegate: SbEvent (Reveal)
   Note over Delegate: Resolve intermediate step:<br/>kConcealed ➔ kBlurred
   Delegate->>Runner: DoReveal()
-  Runner->>Blink: Mojo: blink::mojom::Widget::WasShown() <br/> (via WebContents::WasShown)
-  Runner->>Shell: content::Shell::OnReveal()
-  Note over Shell: Triggers platform Aura window shows<br/>& schedules layout Reveal
+  Runner->>Shell: ShellPlatformDelegate::OnReveal()
+  Note over Shell: 1. RestoreGpuProcessOnUI()<br/>2. StarboardRenderer::ResumeActiveRenderers()<br/>3. RevealShell() (SbWindowCreate)
+  Shell->>Media: StarboardRenderer::ResumeActiveRenderers()
+  Shell->>Blink: Mojo: blink::mojom::Widget::WasShown() <br/> (via WebContents::WasShown)
   Note over Runner: Initialize visual wait state:<br/>pending_ack_ = kReveal
   Note over Runner: WaitForAck(kReveal)<br/>(Blocks UI thread via nested RunLoop)
 
-  Note over Blink: Main Blink Frame layouts<br/>& renders viewport
+  Note over Blink: 1. Main Blink Frame layouts & renders viewport<br/>2. WMPI auto-resumes if paused with kPageHidden
   Blink-->>Controller: C++ PageVisibilityObserver::OnPageVisibilityChanged()
   Controller->>Manager: Mojo: OnPageVisibilityChanged(visible)
   Note over Manager: All active frames completed Reveal!
@@ -590,11 +584,11 @@ sequenceDiagram
 3.  **Synchronous Trigger**: The delegate calls `AppEventRunnerImpl`'s corresponding transition wrapper synchronously (e.g., `DoFreeze(callback)`).
 4.  **Wait-State Injection**: The runner caches any test mock callback, sets the active wait type (`pending_ack_ = kCookieFlush`), and calls its unified blocking helper `WaitForAck()`.
 5.  **UI Main Thread Sleep**: Inside `WaitForAck()`, the runner authorizes synchronous waits, triggers the transition work (either registering Mojo layout ACKs in `CobaltLifecycleManager` OR launching local Cookies and LocalStorage flushes in `ContentBrowserClient`), and **synchronously sleeps the UI thread inside a nested `base::RunLoop`**.
-6.  **Mojo/Storage Completion**:
-    *   *Mojo Viewports*: As the Blink frame renders, it sends visibility changes over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals and broadcasts completion (e.g., `OnAllFramesConcealed`) back to the runner.
+6.  **Mojo/Hardware/Storage Completion**:
+    *   *Mojo Viewports & Conceal Hardware Barrier*: As the Blink frame processes visibility or focus changes, it sends ACKs over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals. On conceal, once all active frames report concealed (`OnAllFramesConcealed`), `ShellPlatformDelegate` executes the 3-step hardware teardown barrier: (a) `media::StarboardRenderer::FlushAndSuspendActiveRenderers` flushes and destroys any active `SbPlayer` instances (`SbPlayerDestroy`) on the media thread, (b) `ConcealShell` unmaps the platform window (`SbWindowDestroy`), and (c) `content::CleanupGpuProcessOnUI` tears down GPU resources (`eglTerminate`) and invokes `CobaltLifecycleManager::OnConcealCompleted`.
     *   *Disk Storage*: Once the Cookies and LocalStorage storage thread finishes writing files to disk, the storage client executes the runner's local callback `OnCookieFlushComplete()`.
-7.  **Nested Loop Quit**: The runner's callback handler receives the completion signal and calls `run_loop.Quit()`, waking up the sleeping UI thread.
-8.  **State Finalization**: The nested loop exits, `WaitForAck()` returns, the runner transition wrapper returns synchronously to `AppEventDelegate`, and the delegate immediately updates its canonical state (`SetApplicationState(kFrozen)`), safely triggering the next sequential step.
+7.  **Nested Loop Quit (or Timeout Warning)**: The runner's callback handler receives the completion signal (`OnConcealCompleted`, `OnAllFramesVisible`, `OnAllFramesBlurred`, or `OnCookieFlushComplete`) and calls `std::move(quit_closure_).Run()`, waking up the sleeping UI thread. If the transition exceeds `kTransitionTimeout` (5 seconds) and is unblocked by the delayed timeout task instead, `quit_closure_` remains non-null; `WaitForAck()` logs a `LOG(WARNING)` and resets `quit_closure_`.
+8.  **State Finalization**: The nested loop exits, `WaitForAck()` returns, the runner transition wrapper returns synchronously to `AppEventDelegate`, and the delegate immediately updates its canonical state (`SetApplicationState(...)`), safely triggering the next sequential step.
 
 ---
 

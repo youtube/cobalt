@@ -174,13 +174,7 @@ void PlatformWindowStarboard::Show(bool inactive) {
     (*g_created_callback).Run(sb_window_);
   }
 
-  if (!widget_available_) {
-    widget_available_ = true;
-
-    intptr_t handle =
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
-    delegate_->OnAcceleratedWidgetAvailable(handle);
-  }
+  EnsureAcceleratedWidgetAvailable();
 }
 
 void PlatformWindowStarboard::Hide() {
@@ -188,6 +182,7 @@ void PlatformWindowStarboard::Hide() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::Close() {
@@ -235,6 +230,7 @@ void PlatformWindowStarboard::Minimize() {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
+  DestroySbWindowInstance();
 }
 
 void PlatformWindowStarboard::DestroySbWindowInstance() {
@@ -266,11 +262,15 @@ void PlatformWindowStarboard::Restore() {
     (*g_created_callback).Run(sb_window_);
   }
 
+  EnsureAcceleratedWidgetAvailable();
+}
+
+void PlatformWindowStarboard::EnsureAcceleratedWidgetAvailable() {
   if (!widget_available_) {
     widget_available_ = true;
 
-    intptr_t handle =
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    gfx::AcceleratedWidget handle = reinterpret_cast<gfx::AcceleratedWidget>(
+        SbWindowGetPlatformHandle(sb_window_));
     delegate_->OnAcceleratedWidgetAvailable(handle);
   }
 }

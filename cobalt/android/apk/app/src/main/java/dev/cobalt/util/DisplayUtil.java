@@ -18,6 +18,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.Display;
@@ -25,6 +26,7 @@ import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -71,6 +73,21 @@ public class DisplayUtil {
   public static DisplayDpi getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
     return new DisplayDpi(metrics.xdpi, metrics.ydpi);
+  }
+
+  /** Return supported hdr types. */
+  @CalledByNative
+  @Nullable
+  public static int[] getSupportedHdrTypes() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return null;
+    }
+    Display display = getDefaultDisplay();
+    if (display == null) {
+      return null;
+    }
+    Display.HdrCapabilities hdrCapabilities = display.getHdrCapabilities();
+    return hdrCapabilities != null ? hdrCapabilities.getSupportedHdrTypes() : null;
   }
 
   /** Returns the default display associated with a context. */
@@ -222,19 +239,52 @@ public class DisplayUtil {
         }
       };
 
-  private static boolean sDisplayerListenerAdded = false;
+  private static final AtomicInteger sListenerRefCount = new AtomicInteger(0);
 
   public static void addDisplayListener(Context context) {
-    if (sDisplayerListenerAdded) {
+    if (context == null) {
       return;
     }
 
-    DisplayManager displayManager = context.getSystemService(DisplayManager.class);
-    displayManager.registerDisplayListener(sDisplayerListener, null);
-    sDisplayerListenerAdded = true;
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    DisplayManager displayManager = appContext.getSystemService(DisplayManager.class);
+    if (displayManager == null) {
+      return;
+    }
+    if (sListenerRefCount.getAndIncrement() == 0) {
+      displayManager.registerDisplayListener(sDisplayerListener, null);
 
-    // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
-    // Display created.
-    DisplayUtilJni.get().onDisplayChanged();
+      // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
+      // Display created.
+      DisplayUtilJni.get().onDisplayChanged();
+    }
+  }
+
+  public static void removeDisplayListener(Context context) {
+    if (context == null) {
+      return;
+    }
+
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    DisplayManager displayManager = appContext.getSystemService(DisplayManager.class);
+    if (displayManager == null) {
+      return;
+    }
+    int previousCount;
+    do {
+      previousCount = sListenerRefCount.get();
+      if (previousCount == 0) {
+        return;
+      }
+    } while (!sListenerRefCount.compareAndSet(previousCount, previousCount - 1));
+    if (previousCount == 1) {
+      displayManager.unregisterDisplayListener(sDisplayerListener);
+    }
   }
 }

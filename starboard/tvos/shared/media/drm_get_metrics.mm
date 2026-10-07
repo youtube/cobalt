@@ -12,27 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/drm.h"
-#include "starboard/shared/widevine/drm_system_widevine.h"
+#include <optional>
+#include <string_view>
 
-using starboard::DrmSystemWidevine;
+#include "starboard/common/log.h"
+#include "starboard/drm.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
-  if (size == NULL) {
+  if (size == nullptr) {
     SB_DLOG(WARNING) << "|size| cannot be NULL.";
-    return NULL;
+    return nullptr;
   }
 
   *size = 0;
 
   if (!SbDrmSystemIsValid(drm_system)) {
     SB_DLOG(WARNING) << "Invalid drm system";
-    return NULL;
+    return nullptr;
   }
 
-  if (DrmSystemWidevine::IsDrmSystemWidevine(drm_system)) {
-    return drm_system->GetMetrics(size);
+  std::optional<std::string_view> metrics = drm_system->GetMetrics();
+  if (!metrics) {
+    return nullptr;
   }
 
-  return NULL;
+  *size = static_cast<int>(metrics->size());
+  return metrics->data();
 }

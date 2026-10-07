@@ -68,14 +68,19 @@ static_library("elf_loader") {
   if (current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
   }
+
+  if (use_asan) {
+    sources += [ "dl_iterate_phdr_override.cc" ]
+  }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   starboard_executable("elf_loader_sandbox") {
     testonly = true
+    target_type = starboard_level_gtest_target_type
     sources = [ "elf_loader_sandbox.cc" ]
-    configs += [ ":elf_loader_config" ]
+    extra_configs = [ ":elf_loader_config" ]
 
     deps = [
       ":constants",
@@ -85,10 +90,13 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
     ]
 
+    data_deps =
+        [ "//starboard/content/ssl:copy_ssl_certificates($default_toolchain)" ]
+
     if (is_android) {
       deps += [ "//starboard/android/shared:test_support" ]
     } else {
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+      data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     }
 
     if (is_starboard && use_crashpad) {
@@ -122,6 +130,9 @@ if (current_toolchain == starboard_toolchain) {
         "relocations_test.cc",
         "zstd_file_impl_test.cc",
       ]
+      if (use_asan) {
+        sources += [ "dl_iterate_phdr_override_test.cc" ]
+      }
       deps += [
         ":copy_elf_loader_testdata",
         ":elf_loader",

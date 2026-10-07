@@ -246,11 +246,9 @@ bool PlayerComponents::Factory::OutputModeSupported(
     return false;
   }
 
-  if (codec == kSbMediaVideoCodecNone || codec == kSbMediaVideoCodecH264) {
-    return true;
-  }
-
-  if (codec == kSbMediaVideoCodecVp9) {
+  if (codec == kSbMediaVideoCodecNone ||
+      codec == kSbMediaVideoCodecH264 || codec == kSbMediaVideoCodecVp9 ||
+      codec == kSbMediaVideoCodecAv1) {
     return true;
   }
   return false;

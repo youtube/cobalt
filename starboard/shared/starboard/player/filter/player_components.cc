@@ -17,6 +17,8 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
@@ -123,7 +125,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    const std::string& max_video_resolution)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info),
       player_(player),
@@ -134,7 +137,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      max_video_resolution_(max_video_resolution) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);
@@ -149,7 +153,7 @@ PlayerComponents::Factory::CreateComponents(
 
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
   use_stub_audio_decoder =
       features::FeatureList::IsEnabled(features::kUseStubAudioDecoder);
   use_stub_video_decoder =
@@ -158,7 +162,7 @@ PlayerComponents::Factory::CreateComponents(
   auto command_line = Application::Get()->GetCommandLine();
   use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
   use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 
   MediaComponents components;
   if (use_stub_audio_decoder && use_stub_video_decoder) {

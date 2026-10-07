@@ -20,6 +20,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -27,6 +28,7 @@
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "media/starboard/starboard_renderer.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -87,6 +89,17 @@ void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
 void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     content::WebContents* web_contents) {
   previously_visible_web_contents_.erase(web_contents);
+  pending_reveal_web_contents_.erase(web_contents);
+
+  if (is_visible_ && IsWaitingForRevealAck() &&
+      pending_reveal_web_contents_.empty()) {
+    OnAllFramesVisible(nullptr);
+  } else if (!is_visible_) {
+    // If concealing, delegate to OnAllFramesConcealed which handles erasing
+    // from pending_conceal_web_contents_, unregistering the observer, and
+    // triggering CleanupGpuProcessOnUI once all pending windows are gone.
+    OnAllFramesConcealed(web_contents);
+  }
 }
 
 void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
@@ -130,20 +143,18 @@ void ShellPlatformDelegate::OnConceal() {
   if (!IsVisible()) {
     return;
   }
-
-  // Register as lifecycle manager observer to receive OnAllFramesConcealed
-  // callback!
-  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  weak_factory_.InvalidateWeakPtrs();
 
   // Save the set of WebContents that were visible before conceal.
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were actually active/visible.
   previously_visible_web_contents_.clear();
+  pending_conceal_web_contents_.clear();
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()->GetVisibility() ==
         content::Visibility::VISIBLE) {
       TrackPreviouslyVisibleWebContents(shell->web_contents());
+      pending_conceal_web_contents_.insert(shell->web_contents());
     }
     // Trigger logical JS conceal.
     shell->web_contents()->WasHidden();
@@ -151,17 +162,38 @@ void ShellPlatformDelegate::OnConceal() {
     // OnAllFramesConcealed() after all frames have completed their deactivation
     // ACKs.
   }
+
+  if (pending_conceal_web_contents_.empty()) {
+    is_visible_ = false;
+    // Ensure all StarboardRenderers have flushed and destroyed their SbPlayer
+    // instances before ConcealShell destroys the SbWindow and
+    // CleanupGpuProcessOnUI terminates the EGLDisplay.
+    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+        base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
+                       weak_factory_.GetWeakPtr(), nullptr));
+    return;
+  }
+
+  // Register as lifecycle manager observer to receive OnAllFramesConcealed
+  // callback!
+  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 }
 
 void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
-  // Used to ensure we only register as observer once, even if there are
-  // multiple windows to wait for.
+  weak_factory_.InvalidateWeakPtrs();
+  content::RestoreGpuProcessOnUI();
+  // Clear the concealed state in StarboardRenderer so subsequent playback or
+  // pipeline resume requests can create new SbPlayer instances.
+  media::StarboardRenderer::ResumeActiveRenderers();
+  pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
     if (previously_visible_web_contents_.count(shell->web_contents())) {
+      pending_reveal_web_contents_.insert(shell->web_contents());
       if (!started_waiting) {
         waiting_for_reveal_ack_ = true;
         cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
@@ -196,6 +228,11 @@ void ShellPlatformDelegate::OnUnfreeze() {
 
   // Resume the hangwatcher.
   base::HangWatcher::Resume();
+
+  // Restore GPU process on UI early so that renderer IPCs (e.g.
+  // EstablishGpuChannel) are no longer blocked by the backgrounded GPU service.
+  content::RestoreGpuProcessOnUI();
+
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);
   }
@@ -204,7 +241,13 @@ void ShellPlatformDelegate::OnUnfreeze() {
 void ShellPlatformDelegate::OnStop() {}
 
 void ShellPlatformDelegate::DidCloseLastWindow() {
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+  // Android's application lifecycle owns shutdown. An Activity can be destroyed
+  // and recreated while the browser process stays alive; release its Shell and
+  // WebContents without tearing down the platform needed by the next Activity.
+#else
   Shell::Shutdown();
+#endif
 }
 
 std::unique_ptr<JavaScriptDialogManager>
@@ -270,8 +313,7 @@ bool ShellPlatformDelegate::IsWaitingForRevealAck() const {
 void ShellPlatformDelegate::ClearWaitingForRevealAck() {
   waiting_for_reveal_ack_ = false;
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-  auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
-  if (shell) {
+  for (auto* shell : Shell::windows()) {
     auto* platform_window = GetPlatformWindowStarboard(shell);
     if (platform_window) {
       platform_window->SetWaitingForRevealAck(false);
@@ -293,43 +335,78 @@ void ShellPlatformDelegate::OnProactiveMapWindow(
 
 void ShellPlatformDelegate::OnAllFramesVisible(
     content::WebContents* web_contents) {
-  // Called by CobaltLifecycleManager when all frames in the specified
-  // WebContents have completed layout and are visible. This breaks the wait
-  // initiated in OnReveal.
-  ClearWaitingForRevealAck();
-  is_visible_ = true;
-
-  // If an OS focus event arrived while we were waiting, apply it now that
-  // the page is ready.
-  if (deferred_focus_) {
-    for (auto* w : Shell::windows()) {
-      w->Focus();
-    }
-    deferred_focus_ = false;
+  if (web_contents) {
+    pending_reveal_web_contents_.erase(web_contents);
   }
 
-  // Stop observing as we only need one notification per reveal.
-  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  if (pending_reveal_web_contents_.empty()) {
+    ClearWaitingForRevealAck();
+    is_visible_ = true;
+
+    // If an OS focus event arrived while we were waiting, apply it now that
+    // all pages are ready.
+    if (deferred_focus_) {
+      for (auto* w : Shell::windows()) {
+        w->Focus();
+      }
+      deferred_focus_ = false;
+    }
+
+    // Stop observing once all expected windows have completed reveal.
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  }
 }
 
 void ShellPlatformDelegate::OnAllFramesConcealed(
     content::WebContents* web_contents) {
-  Shell* shell = Shell::FromWebContents(web_contents);
-  if (shell) {
+  if (web_contents) {
+    pending_conceal_web_contents_.erase(web_contents);
+  }
+
+  if (pending_conceal_web_contents_.empty()) {
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+    is_visible_ = false;
+    weak_factory_.InvalidateWeakPtrs();
+
+    base::WeakPtr<content::WebContents> wc_weak =
+        web_contents ? web_contents->GetWeakPtr() : nullptr;
+    // Wait for StarboardRenderer to flush and destroy any remaining SbPlayer
+    // instances before unmapping the platform window (SbWindowDestroy) and
+    // tearing down GPU/EGL resources.
+    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+        base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
+                       weak_factory_.GetWeakPtr(), wc_weak));
+  }
+}
+
+void ShellPlatformDelegate::CompleteConcealAfterMediaBarrier(
+    base::WeakPtr<content::WebContents> web_contents) {
+  if (is_visible_) {
+    return;
+  }
+
+  for (auto* shell : Shell::windows()) {
     ConcealShell(shell);
   }
-  is_visible_ = false;
 
-  // Stop observing as we only need one notification per conceal.
-  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  content::CleanupGpuProcessOnUI(base::BindOnce(
+      [](base::WeakPtr<content::WebContents> wc) {
+        cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+            wc ? wc.get() : nullptr);
+      },
+      web_contents));
 }
 
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
-    WebContents* web_contents) {}
+    WebContents* web_contents) {
+  if (!is_visible_) {
+    TrackPreviouslyVisibleWebContents(web_contents);
+  }
+}
 #endif
 
 }  // namespace content

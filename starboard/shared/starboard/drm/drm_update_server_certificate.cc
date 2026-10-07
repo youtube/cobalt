@@ -33,5 +33,7 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);
+  drm_system->UpdateServerCertificate(
+      ticket, std::string_view(static_cast<const char*>(certificate),
+                               certificate_size));
 }

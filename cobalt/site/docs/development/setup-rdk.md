@@ -93,9 +93,6 @@ cd ~/chromium/src
 # Run installer
 ./build/install-build-deps.sh
 
-# Install host binutils for ARM
-sudo apt-get update && sudo apt-get install -y binutils-arm-linux-gnueabi
-
 # Install sysroot for ARM
 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 ```
@@ -120,11 +117,8 @@ Generate the build files and compile Cobalt:
 3.  **Compile targets**:
 
     ```
-    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
+    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader
     ```
-
-> [!NOTE]
-> The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because this target compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`). Both build successfully.
 
 
 ### Generate Archive

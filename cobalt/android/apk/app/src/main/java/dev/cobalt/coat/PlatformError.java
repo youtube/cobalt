@@ -24,7 +24,6 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
-import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -70,6 +69,7 @@ public class PlatformError
   private final long mData;
   private final Handler mUiThreadHandler;
   @NonNull private final String mUrl;
+  private final boolean mDisableDismissButton;
 
   private Dialog mDialog;
   private int mResponse;
@@ -78,11 +78,16 @@ public class PlatformError
    * @param url The URL that caused the navigation error.
    */
   public PlatformError(
-      Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
+      Holder<Activity> activityHolder,
+      @ErrorType int errorType,
+      long data,
+      String url,
+      boolean disableDismissButton) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
     mUrl = url == null ? "" : url;
+    mDisableDismissButton = disableDismissButton;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -114,8 +119,10 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
-            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+        if (!mDisableDismissButton) {
+          dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+        }
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
@@ -123,21 +130,6 @@ public class PlatformError
     }
     StartupGuard.getInstance().disarm();
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-
-    // When the user presses the back button, suspend the app without dismissing the dialog
-    mDialog.setOnKeyListener(
-        (dialog, keyCode, event) -> {
-          if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
-              && event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (mActivityHolder.get() instanceof CobaltActivity cobaltActivity) {
-              cobaltActivity.getStarboardBridge().requestSuspend();
-            }
-            // Consume the event and do not dismiss the dialog.
-            return true;
-          }
-          return false;
-        });
-
     mDialog.show();
   }
 

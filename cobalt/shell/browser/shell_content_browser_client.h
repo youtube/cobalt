@@ -107,6 +107,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       bool* out_block_is_site_setting_specific) override;
   GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
+  base::FilePath GetCacheStoragePath(
+      content::BrowserContext* browser_context,
+      const base::FilePath& partition_path,
+      const base::FilePath& relative_partition_path) override;
   base::OnceClosure SelectClientCertificate(
       BrowserContext* browser_context,
       int process_id,
@@ -147,7 +151,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       bool first_auth_attempt,
       GuestPageHolder* guest,
       LoginDelegate::LoginAuthRequiredCallback auth_required_callback) override;
-  base::Value::Dict GetNetLogConstants() override;
+  base::DictValue GetNetLogConstants() override;
   base::FilePath GetSandboxedStorageServiceDataDirectory() override;
   base::FilePath GetFirstPartySetsDirectory() override;
   std::string GetUserAgent() override;

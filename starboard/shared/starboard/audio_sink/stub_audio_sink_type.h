@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_AUDIO_SINK_STUB_AUDIO_SINK_TYPE_H_
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_STUB_AUDIO_SINK_TYPE_H_
 
-#include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
@@ -27,25 +26,12 @@ class StubAudioSinkType : public SbAudioSinkPrivate::Type {
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
-      SbMediaAudioFrameStorageType audio_frame_storage_type,
       SbAudioSinkFrameBuffers frame_buffers,
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
 };
 
 }  // namespace starboard

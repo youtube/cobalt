@@ -113,13 +113,19 @@ def main(source_dir, output_dir=None):
   # used must be listed here.
   # Note that `root_out_dir` is not a build argument and cannot be overridden.
   args = ['clang_base_path']
-  args_overrides = ' '.join(f'{x}="<{x}>"' for x in args)
   try:
     out_dir = '/project_out_dir'
-    subprocess.check_call(['gn', 'gen', out_dir], cwd=source_dir)
+    subprocess.check_call([
+        sys.executable, 'cobalt/build/gn.py', '-p', 'evergreen-x64', '-c',
+        'devel', '--no-rbe', out_dir
+    ],
+                          cwd=source_dir)
+
+    with open(os.path.join(out_dir, 'args.gn'), 'a', encoding='utf-8') as f:
+      f.write('\n' + '\n'.join(f'{x}="<{x}>"' for x in args) + '\n')
+
     output = subprocess.check_output(
-        ['gn', 'args', out_dir, '--list', '--json', '--args=' + args_overrides],
-        cwd=source_dir)
+        ['gn', 'args', out_dir, '--list', '--json'], cwd=source_dir)
   except subprocess.CalledProcessError as cpe:
     raise RuntimeError(f'Failed to run GN: {cpe.output}') from cpe
 

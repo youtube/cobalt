@@ -91,7 +91,9 @@ static_library("app") {
   }
 
   if (is_cobalt_hermetic_build) {
-    sources -= [ "crashpad_linux.cc" ]
+    if (is_linux || is_chromeos) {
+      sources -= [ "crashpad_linux.cc" ]
+    }
     sources += [ "crashpad_starboard.cc" ]
   }
 

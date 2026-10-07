@@ -14,11 +14,13 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -140,6 +142,11 @@ void CobaltWebContentsObserver::DidStartNavigation(
   }
 
   latest_navigation_id_ = handle->GetNavigationId();
+  if (handle->IsInPrimaryMainFrame() && !has_recorded_startup_navigation_ &&
+      navigation_start_ticks_.is_null()) {
+    navigation_start_ticks_ = base::TimeTicks::Now();
+    base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
+  }
 
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
@@ -166,6 +173,19 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 
   timeout_timer_->Stop();
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      !has_recorded_startup_navigation_ && !navigation_start_ticks_.is_null() &&
+      navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage() &&
+      navigation_handle->GetNetErrorCode() == net::OK) {
+    base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 26);
+    base::TimeDelta nav_duration =
+        base::TimeTicks::Now() - navigation_start_ticks_;
+    base::UmaHistogramCustomTimes(
+        "Cobalt.Startup.Time.NavigationDispatchToCommit", nav_duration,
+        base::Milliseconds(10), base::Seconds(60), 50);
+    has_recorded_startup_navigation_ = true;
+    navigation_start_ticks_ = base::TimeTicks();
+  }
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
@@ -232,8 +252,11 @@ void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
+
+  bool disable_dismiss_button = base::FeatureList::IsEnabled(
+      features::kDisableNetworkDialogDismissButton);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
-                                       url);
+                                       url, disable_dismiss_button);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #elif BUILDFLAG(IS_STARBOARD)

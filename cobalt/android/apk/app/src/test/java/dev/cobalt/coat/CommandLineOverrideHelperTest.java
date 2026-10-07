@@ -16,6 +16,8 @@ package dev.cobalt.coat;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.chromium.base.CommandLine;
 import org.junit.Assert;
@@ -36,14 +38,14 @@ public class CommandLineOverrideHelperTest {
   @Test
   public void testDefaultCommandLineOverridesList() {
     List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
-    assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
+    assertThat(overrides.contains("--use-custom-android-fonts-xml")).isTrue();
+    assertThat(overrides.contains("--max-http-cache-size=26214400")).isTrue();
   }
 
   @Test
   public void testDefaultJsFlagOverridesList() {
     String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-    assertThat(overrides.contains("--optimize-for-size")).isTrue();
-    assertThat(overrides.contains("--max-old-space-size=512")).isTrue();
+    assertThat(overrides.contains("--no-decommit-pooled-pages")).isTrue();
   }
 
   @Test
@@ -51,6 +53,7 @@ public class CommandLineOverrideHelperTest {
     String overrides = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     assertThat(overrides.contains("LogJsConsoleMessages")).isTrue();
     assertThat(overrides.contains("LimitImageDecodeCacheSize:mb/24")).isTrue();
+    assertThat(overrides.contains("DomStorageSmartFlushing")).isTrue();
   }
 
   @Test
@@ -69,25 +72,24 @@ public class CommandLineOverrideHelperTest {
   }
 
   @Test
-  public void testFlagOverrides_NullParam() {
-    CommandLineOverrideHelper.getFlagOverrides(null);
+  public void testFlagOverrides_EmptyArgs() {
+    CommandLineOverrideHelper.getFlagOverrides(Collections.emptyList());
 
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
-    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml"));
+    Assert.assertEquals(
+        "26214400", CommandLine.getInstance().getSwitchValue("max-http-cache-size"));
 
     String expected = "no-user-gesture-required";
     String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
     Assert.assertEquals(expected, actual);
 
-    expected = "1";
-    actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
-    Assert.assertEquals(expected, actual);
+    Assert.assertFalse(CommandLine.getInstance().hasSwitch("force-device-scale-factor"));
 
     actual = CommandLine.getInstance().getSwitchValue("enable-features");
     expected = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
@@ -106,10 +108,8 @@ public class CommandLineOverrideHelperTest {
 
   @Test
   public void testFlagOverrides_SingleArg() {
-    String[] commandLineArgs = {"--enable-features=TestFeature1;TestFeature2"};
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs = Arrays.asList("--enable-features=TestFeature1;TestFeature2");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     String actual = CommandLine.getInstance().getSwitchValue("enable-features");
     String expected =
@@ -120,15 +120,13 @@ public class CommandLineOverrideHelperTest {
 
   @Test
   public void testFlagOverrides_MultipleArgs() {
-    String[] commandLineArgs = {
-      "--enable-features=TestFeature1;TestFeature2",
-      "--disable-features=TestFeature3",
-      "--js-flags=--test-flag;--another-flag",
-      "--enable-h5vcc-settings=TestSetting1;TestSetting2"
-    };
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs =
+        Arrays.asList(
+            "--enable-features=TestFeature1;TestFeature2",
+            "--disable-features=TestFeature3",
+            "--js-flags=--test-flag;--another-flag",
+            "--enable-h5vcc-settings=TestSetting1;TestSetting2");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
@@ -155,10 +153,8 @@ public class CommandLineOverrideHelperTest {
 
   @Test
   public void testFlagOverrides_WithRegularSwitch() {
-    String[] commandLineArgs = {"--some-other-switch=value"};
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs = Arrays.asList("--some-other-switch=value");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     Assert.assertTrue(CommandLine.getInstance().hasSwitch("some-other-switch"));
     String actual = CommandLine.getInstance().getSwitchValue("some-other-switch");
@@ -166,13 +162,31 @@ public class CommandLineOverrideHelperTest {
   }
 
   @Test
+  public void testFlagOverrides_UserOverrideTakesPrecedence() {
+    List<String> commandLineArgs =
+        Arrays.asList(
+            "--remote-allow-origins=https://chrome-devtools-frontend.appspot.com",
+            "--remote-allow-origins=*");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    Assert.assertEquals("*", CommandLine.getInstance().getSwitchValue("remote-allow-origins"));
+  }
+
+  @Test
+  public void testFlagOverrides_ForceDeviceScaleFactorFromParams() {
+    List<String> commandLineArgs = Arrays.asList("--force-device-scale-factor=1.5");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-device-scale-factor"));
+    String actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
+    Assert.assertEquals("1.5", actual);
+  }
+
+  @Test
   public void testFlagOverrides_EmptyAndNullArgs() {
-    String[] commandLineArgs = {
-      "--enable-features=TestFeature1;", null, "--disable-features=TestFeature2"
-    };
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs =
+        Arrays.asList("--enable-features=TestFeature1;", null, "--disable-features=TestFeature2");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
@@ -189,10 +203,9 @@ public class CommandLineOverrideHelperTest {
 
   @Test
   public void testFlagOverrides_FeaturesWithValues() {
-    String[] commandLineArgs = {"--enable-features=TestFeature1=value1;TestFeature2=value2"};
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs =
+        Arrays.asList("--enable-features=TestFeature1=value1;TestFeature2=value2");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
@@ -203,12 +216,54 @@ public class CommandLineOverrideHelperTest {
 
   @Test
   public void testFlagOverrides_EnableH5vccSettings() {
-    String[] commandLineArgs = {"--enable-h5vcc-settings=Setting1=val1;Setting2=val2"};
-    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
-        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
-    CommandLineOverrideHelper.getFlagOverrides(params);
+    List<String> commandLineArgs =
+        Arrays.asList("--enable-h5vcc-settings=Setting1=val1;Setting2=val2");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
 
     String h5vccSettings = CommandLine.getInstance().getSwitchValue("enable-h5vcc-settings");
     Assert.assertEquals("Setting1=val1;Setting2=val2", h5vccSettings);
+  }
+
+  @Test
+  public void testFlagOverrides_TraceStartup() {
+    List<String> commandLineArgs =
+        Arrays.asList("--trace-startup=-*;disabled-by-default-memory-infra");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    String traceStartup = CommandLine.getInstance().getSwitchValue("trace-startup");
+    Assert.assertEquals("-*,disabled-by-default-memory-infra", traceStartup);
+  }
+
+  @Test
+  public void testFlagOverrides_TraceStartupEmpty() {
+    List<String> commandLineArgs = Arrays.asList("--trace-startup");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("trace-startup"));
+  }
+
+  @Test
+  public void testFlagOverrides_HeapProfilingAdbArgs() {
+    List<String> commandLineArgs =
+        Arrays.asList(
+            "--enable-heap-profiling",
+            "--memlog=all",
+            "--memlog-stack-mode=native-with-thread-names",
+            "--trace-startup=-*;disabled-by-default-memory-infra",
+            "--trace-startup-duration=60",
+            "--trace-startup-file=/sdcard/Download/trace_atv.pftrace");
+    CommandLineOverrideHelper.getFlagOverrides(commandLineArgs);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-heap-profiling"));
+    Assert.assertEquals("all", CommandLine.getInstance().getSwitchValue("memlog"));
+    Assert.assertEquals(
+        "native-with-thread-names", CommandLine.getInstance().getSwitchValue("memlog-stack-mode"));
+    Assert.assertEquals(
+        "-*,disabled-by-default-memory-infra",
+        CommandLine.getInstance().getSwitchValue("trace-startup"));
+    Assert.assertEquals("60", CommandLine.getInstance().getSwitchValue("trace-startup-duration"));
+    Assert.assertEquals(
+        "/sdcard/Download/trace_atv.pftrace",
+        CommandLine.getInstance().getSwitchValue("trace-startup-file"));
   }
 }

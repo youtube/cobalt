@@ -23,7 +23,9 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Handler;
 import android.os.Looper;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
+import org.chromium.base.CommandLine;
 
 /** Class to help Cobalt monitor status change. */
 public class NetworkStatus {
@@ -65,7 +67,12 @@ public class NetworkStatus {
   }
 
   private void sendStatusChangeInternal(boolean online) {
-    // nativeOnNetworkStatusChange(online);
+    // NetworkStatus receives Context and lacks a reference to CobaltActivity/getJavaSwitches(),
+    // so it queries the global CommandLine singleton for the converted command-line switch.
+    if (CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH)) {
+      AppEventBridge.handleOsNetworkEvent(online);
+    }
   }
 
   public NetworkStatus(Context appContext) {

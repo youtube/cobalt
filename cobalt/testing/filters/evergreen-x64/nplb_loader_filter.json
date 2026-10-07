@@ -14,16 +14,13 @@
     "PosixSocketListenTest.SunnyDayUnbound",
     "PosixSocketReceiveTest.SunnyDay",
     "PosixSocketRecvfromTest.SunnyDay",
-    "PosixSocketSendTest.RainyDaySendToClosedSocket",
     "PosixSocketSendTest.RainyDaySendToSocketConnectionReset",
     "PosixSocketSendTest.RainyDaySendToSocketUntilBlocking",
-    "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
     "PosixSocketSendtoTest.RainyDaySendToSocketConnectionReset",
     "PosixSocketSendtoTest.RainyDaySendToSocketUntilBlocking",
     "PosixSocketShutdownTest.ShutdownRD",
     "PosixSocketShutdownTest.ShutdownRDWR",
     "PosixSocketShutdownTest.ShutdownWR",
-    "PosixThreadAttrTest.SchedParam",
-    "PosixTimeClockTests.ClockIncreasesOverTime"
+    "PosixThreadAttrTest.SchedParam"
   ]
 }

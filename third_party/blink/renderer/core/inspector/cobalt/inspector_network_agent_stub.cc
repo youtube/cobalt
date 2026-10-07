@@ -16,11 +16,17 @@
 
 namespace blink {
 
+// The real implementation never returns null; its final fallback builds an
+// Initiator with TypeEnum::Other, which callers expect — notably
+// SetInitiator() in inspector_trace_events.cc. Returning null here crashes
+// the renderer whenever a trace is collected. See b/564844345.
 std::unique_ptr<protocol::Network::Initiator>
 InspectorNetworkAgent::BuildInitiatorObject(Document*,
                                             const FetchInitiatorInfo&,
                                             int) {
-  return nullptr;
+  return protocol::Network::Initiator::create()
+      .setType(protocol::Network::Initiator::TypeEnum::Other)
+      .build();
 }
 String InspectorNetworkAgent::GetProtocolAsString(const ResourceResponse&) {
   return String();
@@ -177,6 +183,14 @@ void InspectorNetworkAgent::ShouldApplyDevtoolsCookieSettingOverrides(
     bool* should_apply_devtools_overrides) const {}
 void InspectorNetworkAgent::ShouldBlockRequest(const KURL&, bool*) {}
 void InspectorNetworkAgent::ShouldBypassServiceWorker(bool*) {}
+void InspectorNetworkAgent::ShouldForceCorsPreflight(bool*) {}
+void InspectorNetworkAgent::WillCreateP2PSocketUdp(
+    std::optional<base::UnguessableToken>*) {}
+void InspectorNetworkAgent::DidReceiveCorsRedirectResponse(
+    uint64_t,
+    DocumentLoader*,
+    const ResourceResponse&,
+    Resource*) {}
 void InspectorNetworkAgent::Trace(Visitor*) const {}
 
 }  // namespace blink

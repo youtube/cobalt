@@ -21,6 +21,7 @@
 */
 
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include <string>
@@ -99,6 +100,33 @@ TEST(PosixDirectoryOpenTest, FailsRegularFile) {
   EXPECT_FALSE(directory != NULL);
   if (directory != NULL) {
     closedir(directory);
+  }
+}
+
+// ENOTDIR: The path names a file rather than a directory, for static content.
+TEST(PosixDirectoryOpenTest, FailsRegularFileStaticContent) {
+  for (auto path : GetFileTestsFilePaths()) {
+    errno = 0;
+    DIR* directory = opendir(path.c_str());
+    EXPECT_EQ(directory, nullptr) << path;
+    EXPECT_EQ(errno, ENOTDIR) << path;
+    if (directory != NULL) {
+      closedir(directory);
+    }
+  }
+}
+
+// ENOENT: The path does not exist, for static content.
+TEST(PosixDirectoryOpenTest, FailsMissingStaticContent) {
+  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+    std::string path = dir_path + kSbFileSepChar + "does_not_exist";
+    errno = 0;
+    DIR* directory = opendir(path.c_str());
+    EXPECT_EQ(directory, nullptr) << path;
+    EXPECT_EQ(errno, ENOENT) << path;
+    if (directory != NULL) {
+      closedir(directory);
+    }
   }
 }
 

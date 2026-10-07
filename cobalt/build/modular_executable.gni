@@ -15,6 +15,7 @@
 import("//build/compiled_action.gni")
 import("//starboard/build/platform_path.gni")
 import("//starboard/content/fonts/variables.gni")
+import("//starboard/content/ssl/certs.gni")
 import("//third_party/icu/config.gni")
 
 if (is_android) {
@@ -137,6 +138,11 @@ template("evergreen_final_target") {
       if (_is_aosp && filter_include([ original_target_name ],
                                      _failing_android_targets) == []) {
         data_deps += [ ":${original_target_name}_apk($starboard_toolchain)" ]
+
+        if (defined(invoker.testonly) && invoker.testonly) {
+          data_deps +=
+              [ ":${target_name}__test_runner_script($starboard_toolchain)" ]
+        }
       }
 
       write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
@@ -147,8 +153,8 @@ template("evergreen_final_target") {
       data_deps = [
         ":copy_${original_target_name}_content",
         ":copy_${original_target_name}_lib",
+        ":copy_${original_target_name}_uncompressed_lib",
         ":copy_${original_target_name}_zstd_lib",
-        "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       ]
     }
 
@@ -175,7 +181,15 @@ template("evergreen_final_target") {
         "//cobalt/shell:pak",
         "//third_party/icu:icudata",
       ]
-      data_deps = [ ":copy_${original_target_name}_empty_fonts" ]
+      data_deps = [
+        ":copy_${original_target_name}_certs",
+        ":copy_${original_target_name}_empty_fonts",
+      ]
+    }
+
+    copy("copy_${original_target_name}_certs") {
+      sources = network_certs
+      outputs = [ "$root_out_dir/app/${original_target_name}/content/ssl/certs/{{source_file_part}}" ]
     }
 
     copy("copy_${original_target_name}_empty_fonts") {
@@ -183,6 +197,14 @@ template("evergreen_final_target") {
       outputs = [
         "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml",
       ]
+    }
+
+    copy("copy_${original_target_name}_uncompressed_lib") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      sources = [ "$root_out_dir/${lib_name}.so" ]
+      outputs =
+          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
+      deps = [ ":${original_target_name}" ]
     }
 
     compiled_action("copy_${original_target_name}_lib") {

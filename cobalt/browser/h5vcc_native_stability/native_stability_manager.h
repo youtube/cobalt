@@ -15,12 +15,15 @@
 #ifndef COBALT_BROWSER_H5VCC_NATIVE_STABILITY_NATIVE_STABILITY_MANAGER_H_
 #define COBALT_BROWSER_H5VCC_NATIVE_STABILITY_NATIVE_STABILITY_MANAGER_H_
 
+#include <string>
 #include <vector>
 
+#include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
 #include "starboard/extension/native_stability.h"
@@ -33,10 +36,16 @@ namespace h5vcc_native_stability {
 // lifetime is scoped to the application.
 //
 // Threading Model:
-// Calls must originate on the UI sequence. Offloads blocking disk I/O to a
-// background SequencedTaskRunner and posts response callbacks back to the UI
-// sequence. Using a SequencedTaskRunner guarantees that disk operations execute
-// sequentially, preventing concurrent reads and writes.
+// - Calls from Mojo (GetPendingReports, AcknowledgeReports) must originate on
+//   the UI sequence, and their response callbacks are posted back to the UI
+//   sequence.
+// - All other public methods (GetInstance, ArmCrashUuidAnnotation,
+//   RecordHangStarted, RecordHangRecovered, PruneStorage) are thread-safe and
+//   may be called from any thread.
+//
+// Blocking disk I/O is offloaded to a background SequencedTaskRunner. Using a
+// SequencedTaskRunner guarantees that disk operations execute sequentially,
+// preventing concurrent reads and writes.
 class NativeStabilityManager {
  public:
   static NativeStabilityManager* GetInstance();
@@ -49,7 +58,15 @@ class NativeStabilityManager {
   // with it.
   void ArmCrashUuidAnnotation();
 
+  // Asynchronously records that a hang with the given UUID has started,
+  // persisting an unrecovered status for the hang to disk. Expected to be
+  // called exactly once for a given hang, before any call to
+  // RecordHangRecovered.
   void RecordHangStarted(const std::string& hang_uuid);
+
+  // Asynchronously updates the status of a hang with the given UUID to
+  // recovered on disk. Expected to be called at most once for a given hang,
+  // sometime after a call to RecordHangStarted.
   void RecordHangRecovered(const std::string& hang_uuid);
 
   // Asynchronously reads and summarizes stability reports stored on disk that
@@ -81,18 +98,16 @@ class NativeStabilityManager {
   void AcknowledgeReports(std::vector<std::string> native_stability_event_uuids,
                           base::OnceClosure callback);
 
-  // Asynchronously removes acknowledged report UUIDs from disk if their
-  // corresponding stability reports are no longer stored on disk.
+  // Asynchronously removes acknowledged report UUIDs and hang attributes from
+  // disk if their corresponding stability reports are no longer stored on disk.
   //
   // Note that stability report storage is managed by the platform's crash
   // reporting system, which is expected to implement its own pruning strategy.
   // We prune by reflecting that system's state.
   //
-  // As with GetPendingReports(), disk I/O is offloaded to a background
-  // ThreadPool task runner and |callback| is posted back to the UI sequence.
-  // The |callback| parameter is optional to accommodate fire-and-forget callers
-  // that do not require completion notification.
-  void PruneStorage(base::OnceClosure callback = base::OnceClosure());
+  // As with other disk operations, disk I/O is offloaded to a background
+  // ThreadPool task runner.
+  void PruneStorage();
 
   using GetExtensionCallback =
       base::RepeatingCallback<const void*(const char*)>;
@@ -103,6 +118,9 @@ class NativeStabilityManager {
   // Injects a custom path for acked_event_uuids.json for testing.
   void SetAckedUuidsFilePathForTesting(base::FilePath file_path);
 
+  // Injects a custom path for hang_attributes.json for testing.
+  void SetHangAttributesFilePathForTesting(base::FilePath file_path);
+
   // Resets internal state for unit testing between test cases.
   void ResetForTesting();
 
@@ -111,6 +129,13 @@ class NativeStabilityManager {
 
   NativeStabilityManager();
   ~NativeStabilityManager() = default;
+
+  // Thread-safe helper that lazily creates and returns the background
+  // SequencedTaskRunner used for sequential disk I/O.
+  scoped_refptr<base::SequencedTaskRunner> GetOrCreateTaskRunner();
+
+  void RecordHangStartedOnTaskRunner(std::string hang_uuid);
+  void RecordHangRecoveredOnTaskRunner(std::string hang_uuid);
 
   void GetPendingReportsOnTaskRunner(
       const StarboardExtensionNativeStabilityApi* native_stability_extension,
@@ -122,17 +147,20 @@ class NativeStabilityManager {
       base::OnceClosure callback);
 
   void PruneStorageOnTaskRunner(
-      const StarboardExtensionNativeStabilityApi* native_stability_extension,
-      base::OnceClosure callback);
+      const StarboardExtensionNativeStabilityApi* native_stability_extension);
 
   base::FilePath GetAckedUuidsFilePath();
+  base::FilePath GetHangAttributesFilePath();
 
   const void* GetExtension(const char* name);
 
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  base::Lock task_runner_lock_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_
+      GUARDED_BY(task_runner_lock_);
 
   GetExtensionCallback get_extension_callback_for_testing_;
   base::FilePath acked_uuids_file_path_for_testing_;
+  base::FilePath hang_attributes_file_path_for_testing_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

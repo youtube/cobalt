@@ -1,5 +1,3 @@
-"""A simple util that prints failing tests from JUnit xml using only the Python
-standard library."""
 #!/usr/bin/env python3
 #
 # Copyright 2025 The Cobalt Authors. All Rights Reserved.
@@ -15,8 +13,11 @@ standard library."""
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A simple util that prints failing tests from JUnit xml using only the Python
+standard library."""
 
 import collections
+import json
 import logging
 import os
 import sys
@@ -24,23 +25,19 @@ import xml.etree.ElementTree
 
 
 def find_failing_tests(
-    junit_xml_files: list[str]) -> dict[str, list[tuple[str, str]]]:
+    junit_xml_files: list[str]) -> dict[str, list[dict[str, str]]]:
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
     junit_xml_files (list): A list of paths to JUnit XML files.
 
   Returns:
-    A map of test target -> list of (failing test name, failure message) tuples.
+    A map of test target -> list of dicts containing failing test name
+    and message.
   """
   failing_tests = collections.defaultdict(list)
   for filename in junit_xml_files:
-    try:
-      tree = xml.etree.ElementTree.parse(filename)
-    except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
-      logging.error('Failed to parse %s: %s', filename, e)
-      continue
-
+    tree = xml.etree.ElementTree.parse(filename)
     root = tree.getroot()
     for testsuite in root.findall('testsuite'):
       suite_name = testsuite.get('name', os.path.basename(filename))
@@ -53,7 +50,10 @@ def find_failing_tests(
               case.attrib.get('message', '').strip() + '\n' +
               (case.text or '').strip() for case in failures + errors)
           rel_path = os.path.relpath(filename)
-          failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
+          failing_tests[rel_path].append({
+              'name': f'{suite_name}.{test_name}',
+              'message': message.strip()
+          })
   return failing_tests
 
 
@@ -67,21 +67,9 @@ def main(xml_files: list[str]) -> int:
     1 if failing tests are found, 0 otherwise.
   """
   failing_tests = find_failing_tests(xml_files)
-
-  if failing_tests:
-    logging.info('Failing Tests:')
-    for target, test_status in sorted(failing_tests.items()):
-      logging.info('%s', target)
-      for test, message in sorted(test_status):
-        logging.info('[  FAILED  ] %s', test)
-        if message:
-          logging.info('%s', message)
-      logging.info('')  # Blank line between targets
-    return 1
-
-  if xml_files:
-    logging.info('No failing tests found in the test results.')
-  return 0
+  output = {'failing_tests': failing_tests}
+  print(json.dumps(output, indent=2))
+  return 1 if failing_tests else 0
 
 
 if __name__ == '__main__':

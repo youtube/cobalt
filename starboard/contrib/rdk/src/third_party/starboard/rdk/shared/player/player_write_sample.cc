@@ -40,6 +40,6 @@ SB_EXPORT void SbPlayerWriteSamples(
                           int number_of_sample_infos) {
   if (player == kSbPlayerInvalid)
     return;
-  player->player_->WriteSample(sample_type, sample_infos,
-                               number_of_sample_infos);
+  player->player_->WriteSamples(sample_type, sample_infos,
+                                number_of_sample_infos);
 }

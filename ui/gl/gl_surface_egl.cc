@@ -23,6 +23,7 @@
 #include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/gpu_fence.h"
@@ -540,6 +541,9 @@ void NativeViewGLSurfaceEGL::Destroy() {
     }
     surface_ = NULL;
   }
+#if BUILDFLAG(IS_COBALT)
+  config_ = nullptr;
+#endif
 }
 
 bool NativeViewGLSurfaceEGL::IsOffscreen() {
@@ -1038,6 +1042,9 @@ void PbufferGLSurfaceEGL::Destroy() {
     }
     surface_ = NULL;
   }
+#if BUILDFLAG(IS_COBALT)
+  config_ = nullptr;
+#endif
 }
 
 bool PbufferGLSurfaceEGL::IsOffscreen() {

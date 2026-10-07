@@ -34,12 +34,24 @@ PERFETTO_DEFINE_CATEGORIES(perfetto::Category("starboard"));
 #define MEDIA_TRACE_EVENT_BEGIN(...) TRACE_EVENT_BEGIN(__VA_ARGS__)
 #define MEDIA_TRACE_EVENT_END(...) TRACE_EVENT_END(__VA_ARGS__)
 
+extern "C" bool IsTestExecutable() __attribute__((weak));
+
+inline bool IsRunningInTest() {
+  if (IsTestExecutable) {
+    return IsTestExecutable();
+  }
+  return false;
+}
+
 // Ideally, this should be called right after perfetto::Tracing::Initialize() in
 // PerfettoTracedProcess::SetupClientLibrary().  However, this would require
 // moving "media_tracing.*" to //starboard/common, and probably being exposed as
 // STARBOARD_TRACE_EVENT.
 // I would limit the scope to media for now, and expand its scope when needed.
 inline void EnsureMediaTracingIsInitialized() {
+  if (IsRunningInTest()) {
+    return;
+  }
   static std::once_flag s_once_flag;
   std::call_once(s_once_flag,
                  []() { starboard_tracing::TrackEvent::Register(); });

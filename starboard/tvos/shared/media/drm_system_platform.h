@@ -40,22 +40,19 @@ class DrmSystemPlatform : public SbDrmSystemPrivate {
   static std::string GetKeySystemName();
 
   // SbDrmSystemPrivate overrides
-  void GenerateSessionUpdateRequest(int ticket,
-                                    const char* type,
-                                    const void* initialization_data,
-                                    int initialization_data_size) override = 0;
+  void GenerateSessionUpdateRequest(
+      int ticket,
+      std::string_view type,
+      std::string_view initialization_data) override = 0;
   void UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size) override = 0;
-  void CloseSession(const void* session_id, int session_id_size) override = 0;
+                     std::string_view key,
+                     std::string_view session_id) override = 0;
+  void CloseSession(std::string_view session_id) override = 0;
   DecryptStatus Decrypt(InputBuffer* buffer) override = 0;
   bool IsServerCertificateUpdatable() override = 0;
   void UpdateServerCertificate(int ticket,
-                               const void* certificate,
-                               int certificate_size) override = 0;
-  const void* GetMetrics(int* size) override = 0;
+                               std::string_view certificate) override = 0;
+  std::optional<std::string_view> GetMetrics() override = 0;
 
   virtual AVContentKey* GetContentKey(const uint8_t* key_id, int key_id_size)
       API_AVAILABLE(tvos(14.5)) = 0;

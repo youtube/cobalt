@@ -301,6 +301,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   FileSystemAccessManagerImpl* GetFileSystemAccessManager();
   BucketManager* GetBucketManager();
   QuotaContext* GetQuotaContext();
+  #if BUILDFLAG(IS_COBALT)
+  bool HasSplitQuota();
+  #endif
   // Use inside content.
   AttributionManager* GetAttributionManager();
   void SetFontAccessManagerForTesting(
@@ -744,6 +747,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   // Function used by the quota system to ask the embedder for the
   // storage configuration info.
   void GetQuotaSettings(storage::OptionalQuotaSettingsCallback callback);
+  #if BUILDFLAG(IS_COBALT)
+  void GetCacheQuotaSettings(storage::OptionalQuotaSettingsCallback callback);
+  #endif
 
   // Called to initialize `network_context_` when `GetNetworkContext()` is
   // first called or there is an error.
@@ -784,6 +790,10 @@ class CONTENT_EXPORT StoragePartitionImpl
   mojo::Remote<storage::mojom::Partition> remote_partition_;
   scoped_refptr<QuotaContext> quota_context_;
   scoped_refptr<storage::QuotaManager> quota_manager_;
+  #if BUILDFLAG(IS_COBALT)
+  scoped_refptr<QuotaContext> cache_quota_context_;
+  scoped_refptr<storage::QuotaManager> cache_quota_manager_;
+  #endif
   scoped_refptr<storage::FileSystemContext> filesystem_context_;
   scoped_refptr<DOMStorageContextWrapper> dom_storage_context_;
   std::unique_ptr<LockManager<storage::BucketId>> lock_manager_;

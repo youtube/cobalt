@@ -142,10 +142,39 @@ bool AppEventDelegate::IsFrozenLocked() const {
 }
 
 void AppEventDelegate::HandleEvent(const SbEvent* event) {
-  // Use a lock to ensure thread safety as HandleEvent might be called from
-  // different threads (e.g., Starboard thread, UI thread).
-  base::AutoLock lock(lock_);
-  HandleEventLocked(event);
+  if (event->type == kSbEventTypeConceal || event->type == kSbEventTypeFreeze ||
+      event->type == kSbEventTypeStop) {
+    // Wait for the Conceal, Freeze, or Stop transition to complete natively
+    // before allowing HandleEvent to return (or proceeding to teardown on
+    // Stop), ensuring the platform return-time state contract is satisfied
+    // (SbWindow destroyed and GPU resources released on Conceal; persistent
+    // storage flushed on Freeze) and event callbacks are invoked only after
+    // Cobalt has reached the target state.
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+
+    // SetQuitClosure / quit_closure_ receives the callback to quit this local
+    // run_loop; it does not quit the application. This unblocks HandleEvent to
+    // return once the target state is reached.
+    {
+      base::AutoLock lock(lock_);
+      quit_closure_ = run_loop.QuitClosure();
+      HandleEventLocked(event);
+    }
+    run_loop.Run();
+
+    if (event->type == kSbEventTypeStop) {
+      // Run pending tasks until idle before teardown.
+      base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).RunUntilIdle();
+
+      // Start synchronous teardown.
+      DoTeardown();
+    }
+  } else {
+    // Use a lock to ensure thread safety as HandleEvent might be called from
+    // different threads (e.g., Starboard thread, UI thread).
+    base::AutoLock lock(lock_);
+    HandleEventLocked(event);
+  }
 }
 
 void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
@@ -154,6 +183,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       target_state_ == ApplicationState::kStopped) {
     LOG(WARNING) << "Received event " << event->type
                  << " after stopping. Event is ignored.";
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
     return;
   }
 
@@ -348,6 +380,14 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   {
     base::AutoLock lock(lock_);
     SetApplicationState(next_state);
+    if (application_state_ != target_state_) {
+      LOG(INFO) << "Transition to " << GetStateString(next_state)
+                << " complete (target: " << GetStateString(target_state_)
+                << ")";
+    } else {
+      LOG(INFO) << "Transition to " << GetStateString(next_state)
+                << " complete";
+    }
     if (next_state == ApplicationState::kStopped) {
       quit_closure = std::move(quit_closure_);
     } else {
@@ -388,18 +428,14 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   CHECK_GT(state, ApplicationState::kInitial);
   CHECK_LE(state, ApplicationState::kStopped);
 
-  LOG(INFO) << "AppEventDelegate::TransitionToLifeCycleState called, current="
-            << static_cast<int>(application_state_) << " ("
-            << GetStateString(application_state_)
-            << ") target=" << static_cast<int>(state) << " ("
-            << GetStateString(state) << ")";
+  LOG(INFO) << "Transitioning from " << GetStateString(application_state_)
+            << " to " << GetStateString(state);
 
   target_state_ = state;
 
   if (is_transitioning_) {
-    LOG(INFO) << "Transition already in progress. Updated target_state_ to "
-              << static_cast<int>(state) << " (" << GetStateString(state)
-              << ")";
+    DLOG(INFO) << "Transition already in progress. Updated target to "
+               << GetStateString(state);
     return;
   } else {
     is_transitioning_ = true;

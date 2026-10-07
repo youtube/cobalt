@@ -89,9 +89,7 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
-  if (!cl->HasSwitch("enable-gpu-shader-disk-cache")) {
-    cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
-  }
+  cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
@@ -138,12 +136,12 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+  InitializeHangWatcher();
+
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
-  // This delegate is for reading the flag value.
+  // This delegate is for reading the flag value and updates the configuration.
   cobalt::browser::CobaltHangWatcherDelegate::Initialize();
 #endif
-
-  InitializeHangWatcher();
 
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
@@ -235,7 +233,9 @@ void CobaltMainDelegate::PreSandboxStartup() {
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  main_runner_->Shutdown();
+  if (main_runner_) {
+    main_runner_->Shutdown();
+  }
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {

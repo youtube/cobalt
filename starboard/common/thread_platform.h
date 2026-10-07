@@ -17,6 +17,9 @@
 #ifndef STARBOARD_COMMON_THREAD_PLATFORM_H_
 #define STARBOARD_COMMON_THREAD_PLATFORM_H_
 
+#include <cstddef>
+#include <optional>
+
 #include "starboard/common/thread_options.h"
 
 namespace starboard {
@@ -26,6 +29,8 @@ void SetCurrentThreadName(const char* name);
 bool SetCurrentThreadPriority(ThreadPriority priority);
 
 void TerminateOnThread();
+
+std::optional<size_t> GetDefaultThreadStackSize();
 
 }  // namespace starboard
 

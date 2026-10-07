@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   autoroll:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, odt-runner]
     env:
       DEPOT_TOOLS_METRICS: 0
       GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
@@ -23,8 +23,7 @@ jobs:
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     defaults:
       run:
         working-directory: src
@@ -39,7 +38,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: src
-          ref: main
+          ref: ${{ matrix.branch.target }}
           fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
@@ -54,10 +53,11 @@ jobs:
           git config --global submodule.recurse false
 
           # Copy script from main branch.
+          git fetch --depth=1 --no-recurse-submodules origin main:main
           git show main:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
           git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
-
-          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+          mkdir -p "${GITHUB_WORKSPACE}/.github/actions/gob_auth"
+          git show main:.github/actions/gob_auth/action.yaml > "${GITHUB_WORKSPACE}/.github/actions/gob_auth/action.yaml"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
           if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
@@ -68,6 +68,20 @@ jobs:
 
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
+
+      - name: Set Up GitHub CLI
+        env:
+          GH_VERSION: '2.101.0'
+          GH_SHA256SUM: '9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8'
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            GH_TARBALL="${RUNNER_TEMP}/gh_${GH_VERSION}_linux_amd64.tar.gz"
+            curl -sSL --fail "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+              --output "${GH_TARBALL}"
+            echo "${GH_SHA256SUM}  ${GH_TARBALL}" | sha256sum --check
+            tar -xzf "${GH_TARBALL}" -C "${RUNNER_TEMP}"
+            echo "${RUNNER_TEMP}/gh_${GH_VERSION}_linux_amd64/bin" >> "${GITHUB_PATH}"
+          fi
 
       - name: Get Existing PR Info
         id: pr_info
@@ -81,11 +95,15 @@ jobs:
           FIRST_SHA=$(gh pr list --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --state open --json commits --jq '.[0].commits[0].oid // ""')
           echo "first_sha=${FIRST_SHA}" >> "${GITHUB_OUTPUT}"
 
+      - name: Authenticate with GoB
+        uses: ./.github/actions/gob_auth
+
       - name: Set Up Depot Tools
         run: |
           DEPOT_TOOLS_TEMP="${RUNNER_TEMP}/depot_tools"
           git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_TEMP}"
           echo "${DEPOT_TOOLS_TEMP}" >> "${GITHUB_PATH}"
+          echo "PYTHONPATH=${DEPOT_TOOLS_TEMP}:${PYTHONPATH:-}" >> "${GITHUB_ENV}"
           source "${DEPOT_TOOLS_TEMP}/bootstrap_python3" && bootstrap_python3
 
       - name: Cherry Pick Merged PRs
@@ -99,7 +117,7 @@ jobs:
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_chromium.py" \
+          PR_LINKS=$(vpython3 -vpython-spec "${RUNNER_TEMP}/depot_tools/.vpython3" "${RUNNER_TEMP}/autoroll_chromium.py" \
             --source-branch "${SOURCE_BRANCH}" \
             --autoroll-file "${AUTOROLL_FILE}" \
             --max-commits "${MAX_COMMITS}" \
@@ -117,6 +135,7 @@ jobs:
           fi
 
       - name: Push and Create PR
+        id: create_pr
         if: steps.autoroll.outputs.pr_links != ''
         env:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
@@ -137,9 +156,19 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
+            echo ""
+            echo "To merge these changes, run the autoroll script:"
+            echo ""
+            echo '```bash'
+            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "  --source-branch ${SOURCE_BRANCH} \\"
+            echo "  --target-branch ${TARGET_BRANCH}"
+            echo '```'
           } > "${PR_BODY_FILE}"
 
+          IS_CONFLICTED=false
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
+            IS_CONFLICTED=true
             PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
@@ -167,4 +196,23 @@ jobs:
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
+            PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
+            echo "created=true" >> "${GITHUB_OUTPUT}"
           fi
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          echo "is_conflicted=${IS_CONFLICTED}" >> "${GITHUB_OUTPUT}"
+
+      - name: Trigger AI Rebase Agent
+        if: steps.create_pr.outputs.created == 'true' && steps.create_pr.outputs.is_conflicted == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          PR_NUMBER: ${{ steps.create_pr.outputs.pr_number }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
+        run: |
+          set -x
+          echo "Dispatching AI Rebase Agent workflow for conflicted PR #${PR_NUMBER} on branch ${TARGET_BRANCH}..."
+          gh workflow run ai_rebase_resolver.yaml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref "${TARGET_BRANCH}" \
+            -f pr_number="${PR_NUMBER}" \
+            -f dry_run=false || echo "::warning::Failed to trigger AI Rebase Agent workflow for PR #${PR_NUMBER}"

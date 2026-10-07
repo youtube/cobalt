@@ -37,7 +37,7 @@
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-#if defined(HAS_CRYPTOGRAPHY)
+#if defined(HAS_WPECRYPTOGRAPHY)
 #include <cryptography/cryptography.h>
 #if defined(HAS_RFC_API)
 #include <rfcapi.h>
@@ -62,7 +62,7 @@ bool SbSystemSignWithCertificationSecretKey(const uint8_t* message,
                                             size_t digest_size_in_bytes) {
   bool result = false;
 
-#if defined(HAS_CRYPTOGRAPHY)
+#if defined(HAS_WPECRYPTOGRAPHY)
 
 #if (THUNDER_VERSION_MAJOR > 4 || (THUNDER_VERSION_MAJOR == 4 && THUNDER_VERSION_MINOR >= 4))
   using namespace WPEFramework::Exchange;

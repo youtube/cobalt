@@ -17,6 +17,7 @@
 
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "media/base/media_export.h"
 #include "media/starboard/buildflags.h"
 #include "starboard/player.h"
 
@@ -33,7 +34,7 @@
 
 namespace media {
 
-class SbPlayerInterface {
+class MEDIA_EXPORT SbPlayerInterface {
  public:
   virtual ~SbPlayerInterface() {}
 
@@ -135,7 +136,7 @@ class SbPlayerInterface {
   MediaMetricsProvider media_metrics_provider_;
 };
 
-class DefaultSbPlayerInterface final : public SbPlayerInterface {
+class MEDIA_EXPORT DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
   SbPlayer Create(
       SbWindow window,
@@ -189,6 +190,37 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbPlayer player,
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) override;
+};
+
+// Sets a custom SbPlayerInterface for testing.
+MEDIA_EXPORT void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
+
+// Returns the current testing SbPlayerInterface instance, or nullptr if none.
+MEDIA_EXPORT SbPlayerInterface* GetSbPlayerInterfaceForTesting();
+
+// Helper class to automatically register and restore a custom SbPlayerInterface
+// for testing using RAII.
+//
+// Lifetime and ownership:
+// This object is typically instantiated as a local or member variable within a
+// test scope. It does not own the passed SbPlayerInterface pointer.
+//
+// Threading model:
+// Should be instantiated on the test thread before initiating media playback.
+// The media pipeline or renderer using the mocked interface must be
+// completely stopped or destroyed before this scoped object (and the underlying
+// mock interface) is destroyed to avoid use-after-free on the media thread.
+class MEDIA_EXPORT ScopedSbPlayerInterfaceForTesting {
+ public:
+  explicit ScopedSbPlayerInterfaceForTesting(SbPlayerInterface* interface);
+  ~ScopedSbPlayerInterfaceForTesting();
+  ScopedSbPlayerInterfaceForTesting(const ScopedSbPlayerInterfaceForTesting&) =
+      delete;
+  ScopedSbPlayerInterfaceForTesting& operator=(
+      const ScopedSbPlayerInterfaceForTesting&) = delete;
+
+ private:
+  SbPlayerInterface* previous_interface_;
 };
 
 }  // namespace media

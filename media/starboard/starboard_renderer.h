@@ -34,6 +34,7 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "ui/gfx/color_space.h"
 
@@ -58,6 +59,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const std::string& max_video_resolution,
                     const StarboardRendererConfig::ExperimentalFeatures&
                         experimental_features,
                     const gfx::Size& viewport_size
@@ -107,6 +109,28 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
   using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
+#if BUILDFLAG(IS_IOS_TVOS)
+  using DurationChangeCB =
+      base::RepeatingCallback<void(base::TimeDelta duration)>;
+  using BufferedRangesCB =
+      base::RepeatingCallback<void(base::TimeDelta start,
+                                   base::TimeDelta length)>;
+  using EncryptedMediaInitDataCB =
+      base::RepeatingCallback<void(const std::string& init_data_type,
+                                   const std::vector<uint8_t>& init_data)>;
+
+  void SetDurationChangeCB(DurationChangeCB cb) {
+    duration_change_cb_ = std::move(cb);
+  }
+  void SetBufferedRangesCB(BufferedRangesCB cb) {
+    buffered_ranges_cb_ = std::move(cb);
+  }
+  void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {
+    encrypted_media_init_data_cb_ = std::move(cb);
+  }
+  void SetSourceUrl(const std::string& source_url);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
@@ -123,12 +147,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
-#if BUILDFLAG(IS_IOS_TVOS)
-  void SetSourceUrl(const std::string& source_url);
-  void OnEncryptedMediaInitDataEncountered(const char* init_data_type,
-                                           const unsigned char* init_data,
-                                           unsigned int init_data_length);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -143,9 +161,16 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
-  void SetSbPlayerInterfaceForTesting(SbPlayerInterface* sbplayer_interface) {
-    test_sbplayer_interface_ = sbplayer_interface;
-  }
+  // Drains pending renderer disconnects on the StarboardRenderer sequence,
+  // fallback-suspends any remaining active StarboardRenderer instances so
+  // SbPlayerDestroy completes before the native window is destroyed, and
+  // prevents new SbPlayerBridge creations while concealed. Safe to call from
+  // any thread; |done_cb| is posted back to the caller's sequence.
+  static void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
+
+  // Clears the concealed state so newly created or resumed renderers can
+  // create SbPlayerBridge instances again. Safe to call from any thread.
+  static void ResumeActiveRenderers();
 
  private:
   enum State {
@@ -158,11 +183,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   };
 
 #if BUILDFLAG(IS_IOS_TVOS)
-  // Returns true when the renderer is operating in URL player mode.
   bool IsUrlPlayer() const;
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
   void OnUrlPlayerPresenting();
+  // Reads and propagates a valid URL-player resolution when it changes.
+  void UpdateUrlPlayerVideoResolution();
+  void OnEncryptedMediaInitDataEncountered(
+      const std::string& init_data_type,
+      const std::vector<uint8_t>& init_data);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void UpdateAudioWriteDuration();
@@ -208,6 +237,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnBufferingStateChange(BufferingState state);
 
   void NotifyError(PipelineStatus status);
+  void OnConcealFallbackSuspend();
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -217,9 +247,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
-#if BUILDFLAG(IS_IOS_TVOS)
-  std::string source_url_;
-#endif  // BUILDFLAG(IS_IOS_TVOS)
+  const std::string max_video_resolution_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;
@@ -242,6 +270,19 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
   GetSbWindowHandleCallback get_sb_window_handle_cb_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::string source_url_;
+
+  DurationChangeCB duration_change_cb_;
+  BufferedRangesCB buffered_ranges_cb_;
+  EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
+
+  // Cached values for change-detection; only notify upstream when they differ.
+  TimeDelta last_buffer_start_;
+  TimeDelta last_buffer_length_;
+  TimeDelta last_duration_ = kNoTimestamp;
+  gfx::Size url_player_video_size_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -296,8 +337,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_dropped_ = 0;
 
   SbWindow sb_window_ = kSbWindowInvalid;
-
-  raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc

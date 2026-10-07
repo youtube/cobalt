@@ -18,6 +18,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "cobalt/browser/memory_ablation.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
@@ -33,6 +34,11 @@ CobaltContentGpuClient::CobaltContentGpuClient()
               base::OnTaskRunnerDeleter(nullptr))) {}
 
 CobaltContentGpuClient::~CobaltContentGpuClient() = default;
+
+void CobaltContentGpuClient::GpuServiceInitialized(
+    gpu::GpuChannelManager* channel_manager) {
+  MaybeApplyGpuMemoryAblation(channel_manager);
+}
 
 void CobaltContentGpuClient::PostCompositorThreadCreated(
     base::SingleThreadTaskRunner* task_runner) {

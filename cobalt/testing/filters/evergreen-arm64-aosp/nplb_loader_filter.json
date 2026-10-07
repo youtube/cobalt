@@ -1,0 +1,18 @@
+{
+  "comment": "AOSP nplb exclusions.",
+  "failing_tests": [
+    "*MaximumPlayerConfigurationExplorer*",
+    "*MultiplePlayer*",
+    "*SbMediaSetAudioWriteDuration*",
+    "*SbPlayer*",
+    "*VerticalVideoTest*",
+    "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
+    "PosixFileGetInfoTest.ReportsHardLinkCount",
+    "PosixLinkTest.SuccessfulCreation",
+    "PosixSetPriorityTests.ErrorOnPermissionDenied",
+    "SbAudioSinkTest.ContinuousAppend",
+    "SbDrmSessionTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbTimeZoneGetNameTest.IsIANAFormat"
+  ]
+}

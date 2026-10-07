@@ -450,7 +450,7 @@ BASE_FEATURE(kClientHintsXRFormFactor,
 // bypassing BufferingBytesConsumer Oilpan heap buffering.
 BASE_FEATURE(kCobaltBypassBufferingBytesConsumer,
              "CobaltBypassBufferingBytesConsumer",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Bypasses Blink HTMLPreloadScanner and HTMLResourcePreloader in Cobalt
 // since Cobalt UI is a single-page app with dynamically generated DOM.
@@ -462,6 +462,16 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
 // in Cobalt, dispatching requests immediately.
 BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
              "CobaltBypassResourceLoadScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
+// devices so that shelf tracks and carousels are promoted to dedicated
+// hardware-composited cc::PictureLayers rather than triggering CPU repaints.
+// Disabled by default on all platforms: on 3P Starboard devices (RDK) the extra
+// composited layers regress YTS Tile-to-Tile P95 from 30 FPS to 20 FPS. Can be
+// enabled via Finch for experimentation.
+BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
+             "CobaltPreserveTrivial3DTransform",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
@@ -1980,7 +1990,9 @@ BASE_FEATURE(kMixedContentAutoupgrade,
 BASE_FEATURE(kMemoryCacheStrongReference,
              "MemoryCacheStrongReference",
 // Finch study showed no improvement on Android for strong memory cache.
-#if BUILDFLAG(IS_ANDROID)
+// Starboard (Cobalt) opts out for the same reason, and to keep the memory
+// footprint down on constrained TV devices.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT

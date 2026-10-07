@@ -9,20 +9,20 @@ import static dev.cobalt.shell.Shell.TAG;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.os.Build;
+import android.view.AttachedSurfaceControl;
 import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.SurfaceControl;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 import android.widget.FrameLayout;
-import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
-import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -39,7 +39,7 @@ public class ContentViewRenderView extends FrameLayout {
   private long mNativeContentViewRenderView;
   private WindowAndroid mWindowAndroid;
 
-  protected SurfaceBridge mSurfaceBridge;
+  private final WindowSurfaceBridge mSurfaceBridge = new WindowSurfaceBridge();
   protected WebContents mWebContents;
 
   private int mWidth;
@@ -47,25 +47,14 @@ public class ContentViewRenderView extends FrameLayout {
 
   /**
    * Constructs a new ContentViewRenderView. This should be called and the {@link
-   * ContentViewRenderView} should be added to the view hierarchy before the first draw to avoid a
-   * black flash that is seen every time a {@link SurfaceView} is added.
+   * ContentViewRenderView} should be added to the view hierarchy before the first draw.
    *
    * @param context The context used to create this.
    */
   public ContentViewRenderView(Context context) {
     super(context);
 
-    mSurfaceBridge = createSurfaceBridge();
-    mSurfaceBridge.initialize(this);
-  }
-
-  protected SurfaceBridge createSurfaceBridge() {
-    if (CommandLine.getInstance().hasSwitch("use-window-surface-for-ui")) {
-      Log.i(TAG, "ContentViewRenderView: created using WindowSurfaceBridge");
-      return new WindowSurfaceBridge();
-    }
-    Log.i(TAG, "ContentViewRenderView: created with SurfaceView");
-    return new SurfaceViewBridge();
+    Log.i(TAG, "ContentViewRenderView: created using WindowSurfaceBridge");
   }
 
   /**
@@ -75,9 +64,6 @@ public class ContentViewRenderView extends FrameLayout {
    * @param rootWindow The {@link WindowAndroid} this render view should be linked to.
    */
   public void onNativeLibraryLoaded(WindowAndroid rootWindow) {
-    assert mSurfaceBridge.getSurfaceView() == null
-            || !mSurfaceBridge.getSurfaceView().getHolder().getSurface().isValid()
-        : "Surface created before native library loaded.";
     assert rootWindow != null;
     mNativeContentViewRenderView =
         ContentViewRenderViewJni.get().init(ContentViewRenderView.this, rootWindow);
@@ -98,6 +84,7 @@ public class ContentViewRenderView extends FrameLayout {
                     width,
                     height,
                     holder.getSurface(),
+                    mSurfaceBridge.getSurfaceControl(),
                     /* hostInputToken= */ null);
             if (mWebContents != null) {
               ContentViewRenderViewJni.get()
@@ -115,16 +102,6 @@ public class ContentViewRenderView extends FrameLayout {
             assert mNativeContentViewRenderView != 0;
             ContentViewRenderViewJni.get()
                 .surfaceCreated(mNativeContentViewRenderView, ContentViewRenderView.this);
-
-            // On pre-M Android, layers start in the hidden state until a relayout happens.
-            // There is a bug that manifests itself when entering overlay mode on pre-M
-            // devices, where a relayout never happens. This bug is out of Chromium's
-            // control, but can be worked around by forcibly re-setting the visibility of
-            // the surface view. Otherwise, the screen stays black, and some tests fail.
-            SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
-            if (surfaceView != null) {
-              surfaceView.setVisibility(surfaceView.getVisibility());
-            }
 
             onReadyToRender();
           }
@@ -161,12 +138,11 @@ public class ContentViewRenderView extends FrameLayout {
   }
 
   /**
-   * Gets the View used for layout anchoring, animation placeholder, or accessibility (child
-   * SurfaceView in SurfaceView mode, or this host View in Window Surface mode).
+   * Gets the View used for layout anchoring, animation placeholder, or accessibility (this host
+   * View in Window Surface mode).
    */
   public View getAnchorView() {
-    SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
-    return surfaceView != null ? surfaceView : this;
+    return this;
   }
 
   /**
@@ -207,17 +183,6 @@ public class ContentViewRenderView extends FrameLayout {
   protected void onReadyToRender() {}
 
   /**
-   * This method could be subclassed optionally to provide a custom SurfaceView object to this
-   * ContentViewRenderView.
-   *
-   * @param context The context used to create the SurfaceView object.
-   * @return The created SurfaceView object.
-   */
-  protected SurfaceView createSurfaceView(Context context) {
-    return new SurfaceView(context);
-  }
-
-  /**
    * Enter or leave overlay video mode.
    *
    * @param enabled Whether overlay mode is enabled.
@@ -229,98 +194,17 @@ public class ContentViewRenderView extends FrameLayout {
         .setOverlayVideoMode(mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
   }
 
-  @CalledByNative
-  private void didSwapFrame() {
-    SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
-    if (surfaceView == null) {
-      // In Window Surface mode, no child SurfaceView background to clear.
-      return;
-    }
-
-    if (surfaceView.getBackground() != null) {
-      post(
-          new Runnable() {
-            @Override
-            public void run() {
-              surfaceView.setBackgroundResource(0);
-            }
-          });
-    }
-  }
-
-  /** Connecting class to hold a surface management strategy. */
-  protected abstract static class SurfaceBridge {
-    protected abstract void initialize(ContentViewRenderView renderView);
-
-    protected abstract void connect(
-        SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid);
-
-    protected abstract void disconnect();
-
-    protected abstract SurfaceView getSurfaceView();
-
-    protected abstract void setFormat(int format);
-  }
-
   /**
-   * SurfaceBridge implementation that uses a standard SurfaceView. This is used for the default
-   * rendering path where a child SurfaceView is embedded within the ContentViewRenderView.
-   *
-   * <p>Lifetime: Bound to the lifetime of the outer ContentViewRenderView. Threading: Must be
-   * called on the UI thread.
-   */
-  protected static class SurfaceViewBridge extends SurfaceBridge {
-    private SurfaceView mSurfaceView;
-    private SurfaceHolder.Callback mSurfaceCallback;
-
-    @Override
-    protected SurfaceView getSurfaceView() {
-      return mSurfaceView;
-    }
-
-    @Override
-    protected void setFormat(int format) {
-      if (mSurfaceView == null) {
-        return;
-      }
-      mSurfaceView.getHolder().setFormat(format);
-    }
-
-    @Override
-    protected void initialize(ContentViewRenderView renderView) {
-      mSurfaceView = renderView.createSurfaceView(renderView.getContext());
-      mSurfaceView.setZOrderMediaOverlay(true);
-
-      renderView.addView(
-          mSurfaceView,
-          new FrameLayout.LayoutParams(
-              FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-      mSurfaceView.setVisibility(GONE);
-    }
-
-    @Override
-    protected void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
-      mSurfaceCallback = surfaceCallback;
-      mSurfaceView.getHolder().addCallback(mSurfaceCallback);
-      mSurfaceView.setVisibility(VISIBLE);
-    }
-
-    @Override
-    protected void disconnect() {
-      mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
-    }
-  }
-
-  /**
-   * SurfaceBridge implementation that takes ownership of the Activity's Window surface. This allows
-   * direct rendering to the window surface instead of a child SurfaceView.
+   * Takes ownership of the Activity's Window surface. This allows direct rendering to the window
+   * surface instead of a child SurfaceView.
    *
    * <p>Lifetime: Bound to the lifetime of the outer ContentViewRenderView and the associated
    * Activity. Threading: Must be called on the UI thread.
    */
-  protected static class WindowSurfaceBridge extends SurfaceBridge {
+  private static class WindowSurfaceBridge {
     private Window mWindow;
     private SurfaceHolder mWindowSurfaceHolder;
+    private SurfaceControl mSurfaceControl;
 
     /**
      * The pending PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
@@ -339,6 +223,70 @@ public class ContentViewRenderView extends FrameLayout {
       }
       Activity activity = windowAndroid.getActivity().get();
       return activity != null ? activity.getWindow() : null;
+    }
+
+    private void ensureSurfaceControl() {
+      if (mSurfaceControl != null || mWindow == null) {
+        return;
+      }
+      // Native can only use a Java SurfaceControl on Android 14+
+      // (ASurfaceControl_fromJava).
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        return;
+      }
+      // Only create the SurfaceControl if native will use it (see
+      // CompositorImpl::SetSurface()); otherwise it would leave an unused, empty
+      // layer attached to the window.
+      if (!ContentViewRenderViewJni.get().shouldUseWindowSurfaceControl()) {
+        return;
+      }
+
+      AttachedSurfaceControl rootSurfaceControl = mWindow.getRootSurfaceControl();
+      if (rootSurfaceControl == null && mWindow.peekDecorView() != null) {
+        rootSurfaceControl = mWindow.peekDecorView().getRootSurfaceControl();
+      }
+      if (rootSurfaceControl == null) {
+        Log.w(TAG, "ContentViewRenderView: AttachedSurfaceControl rootSurfaceControl is null");
+        return;
+      }
+
+      SurfaceControl surfaceControl =
+          new SurfaceControl.Builder().setName("CobaltWindowSurfaceControl").build();
+      try (SurfaceControl.Transaction transaction =
+          rootSurfaceControl.buildReparentTransaction(surfaceControl)) {
+        if (transaction == null) {
+          Log.w(TAG, "ContentViewRenderView: buildReparentTransaction returned null");
+          surfaceControl.release();
+          return;
+        }
+
+        transaction.setVisibility(surfaceControl, true).apply();
+      }
+      mSurfaceControl = surfaceControl;
+    }
+
+    /**
+     * Releases the window SurfaceControl.
+     *
+     * @param detachFromWindow Whether to also reparent it away from the window. Pass false when the
+     *     window surface is being destroyed: the window layer is destroyed together with its
+     *     children, and detaching early would defeat PreserveChildSurfaceControls() (b/157439199).
+     */
+    private void releaseSurfaceControl(boolean detachFromWindow) {
+      if (mSurfaceControl == null) {
+        return;
+      }
+
+      try {
+        if (detachFromWindow) {
+          try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+            transaction.reparent(mSurfaceControl, null).apply();
+          }
+        }
+      } finally {
+        mSurfaceControl.release();
+        mSurfaceControl = null;
+      }
     }
 
     private void registerStartupListener() {
@@ -369,11 +317,7 @@ public class ContentViewRenderView extends FrameLayout {
               });
     }
 
-    @Override
-    protected void initialize(ContentViewRenderView renderView) {}
-
-    @Override
-    protected void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
+    private void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
       mWindow = getWindow(windowAndroid);
       if (mWindow == null) {
         Log.w(
@@ -417,11 +361,11 @@ public class ContentViewRenderView extends FrameLayout {
               mWindowSurfaceHolder = null;
               mPendingTasks.clear();
 
-              if (!mIsSurfaceCreatedDispatched) {
-                return;
+              if (mIsSurfaceCreatedDispatched) {
+                mIsSurfaceCreatedDispatched = false;
+                surfaceCallback.surfaceDestroyed(holder);
               }
-              mIsSurfaceCreatedDispatched = false;
-              surfaceCallback.surfaceDestroyed(holder);
+              releaseSurfaceControl(/* detachFromWindow= */ false);
             }
 
             @Override
@@ -434,6 +378,7 @@ public class ContentViewRenderView extends FrameLayout {
 
             private void handleSurfaceCreated(SurfaceHolder holder) {
               Log.i(TAG, "ContentViewRenderView: Surface created");
+              ensureSurfaceControl();
               applyPendingSurfaceFormat();
               surfaceCallback.surfaceCreated(holder);
               mIsSurfaceCreatedDispatched = true;
@@ -441,13 +386,13 @@ public class ContentViewRenderView extends FrameLayout {
           });
     }
 
-    @Override
-    protected void disconnect() {
+    private void disconnect() {
       if (mWindow != null) {
         mWindow.takeSurface(null);
       } else {
         Log.w(TAG, "ContentViewRenderView: disconnect() is called w/o connect().");
       }
+      releaseSurfaceControl(/* detachFromWindow= */ true);
       mWindow = null;
       mWindowSurfaceHolder = null;
       mPendingSurfaceFormat = null;
@@ -455,13 +400,11 @@ public class ContentViewRenderView extends FrameLayout {
       mIsSurfaceCreatedDispatched = false;
     }
 
-    @Override
-    protected SurfaceView getSurfaceView() {
-      return null;
+    private SurfaceControl getSurfaceControl() {
+      return mSurfaceControl;
     }
 
-    @Override
-    protected void setFormat(int format) {
+    private void setFormat(int format) {
       mPendingSurfaceFormat = format;
       applyPendingSurfaceFormat();
     }
@@ -541,9 +484,12 @@ public class ContentViewRenderView extends FrameLayout {
         int width,
         int height,
         Surface surface,
+        SurfaceControl surfaceControl,
         Object hostInputToken);
 
     void setOverlayVideoMode(
         long nativeContentViewRenderView, ContentViewRenderView caller, boolean enabled);
+
+    boolean shouldUseWindowSurfaceControl();
   }
 }
