@@ -85,18 +85,131 @@ jobs:
 
           echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
 
+  shepherd-analysis:
+    runs-on: ubuntu-latest
+    needs: [init-comment]
+    if: always() && !cancelled() && needs.init-comment.outputs.pr_number != '' && (github.event.workflow_run.conclusion == 'failure' || inputs.action == 'completed')
+    concurrency:
+      group: shepherd-analysis @ ${{ needs.init-comment.outputs.head_sha }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      verdict: ${{ steps.extract.outputs.verdict }}
+      confidence: ${{ steps.extract.outputs.confidence }}
+      findings: ${{ steps.extract.outputs.findings }}
+      recommendation: ${{ steps.extract.outputs.recommendation }}
+    steps:
+      - name: Configure environment for Gemini CLI
+        run: |
+          echo "GEMINI_CLI_TRUST_WORKSPACE=true" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+
+      - name: Checkout files
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            .agent
+            cobalt/devinfra/github
+
+      - name: Run PR Shepherd Script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.init-comment.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cobalt/devinfra/github/shepherd_pr.py \
+            --repo "${REPO}" \
+            --pr "${PR_NUMBER}" \
+            --artifacts-dir artifacts \
+            --exit-zero || true
+
+      - name: Run Gemini PR Shepherd Analysis
+        id: trigger_gemini_analysis
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
+          gemini_model: 'gemini-3.8-flash'
+          upload_artifacts: true
+          prompt: |
+            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }} using the downloaded failure logs and test results in `artifacts/` (and the `gh` tool if needed).
+
+            Provide your final determination as a JSON object with the following fields:
+            - "verdict": "failure" (if real failure introduced in PR code), "flaky" (if failures are due to flakes, timeouts, or infra), or "pass" (if all checks passed)
+            - "confidence": a number from 0 to 1 indicating your confidence in the verdict
+            - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
+            - "recommendation": an action recommendation object for automated recovery:
+              - "action": "restart_failed_jobs" (if flaky tests should be retried), "apply_labels" (if trigger labels should be applied), or "none" (if PR code changes are needed)
+              - "labels": optional array of label strings to apply to the PR if applicable (e.g. ["kokoro:run"], ["kokoro:force-run"], ["runtest"])
+              - "restart_failed_jobs": boolean (true if failed jobs in this workflow run should be restarted)
+
+            For a flaky verdict all retries of a workflow run must be analyzed/triaged.
+            All output must be a single valid JSON object.
+
+      - name: Validate JSON Output
+        if: always() && !cancelled()
+        env:
+          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
+        run: |
+          clean_json=$(echo "${AGENT_SUMMARY:-{}}" | sed -e '1{/^```json/d}' -e '${/^```/d}')
+          echo "${clean_json}" | jq -e . >/dev/null || exit 1
+
+      - name: Extract Analysis Results
+        id: extract
+        if: always() && !cancelled()
+        env:
+          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          clean_json=$(echo "${AGENT_SUMMARY:-}" | sed -e '1{/^```json/d}' -e '${/^```/d}')
+          verdict=$(echo "${clean_json:-}" | jq -r '.verdict // empty' 2>/dev/null || true)
+          confidence=$(echo "${clean_json:-}" | jq -r '.confidence // empty' 2>/dev/null || true)
+          findings=$(echo "${clean_json:-}" | jq -r '.findings_summary // empty' 2>/dev/null || true)
+          if [[ -z "${findings}" ]]; then
+            findings="${clean_json:-}"
+          fi
+          recommendation=$(echo "${clean_json:-}" | jq -c '.recommendation // empty' 2>/dev/null || true)
+
+          echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
+          echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "findings<<${DELIMITER}"
+            echo "${findings}"
+            echo "${DELIMITER}"
+          } >> "${GITHUB_OUTPUT}"
+          REC_DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "recommendation<<${REC_DELIMITER}"
+            echo "${recommendation}"
+            echo "${REC_DELIMITER}"
+          } >> "${GITHUB_OUTPUT}"
+
   status-and-deflake:
     runs-on: ubuntu-latest
+    needs: [init-comment, shepherd-analysis]
+    if: always() && !cancelled() && needs.init-comment.result == 'success'
     permissions:
       statuses: write
       actions: write
       contents: read
-      pull-requests: read
+      pull-requests: write
     outputs:
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
       rerun_triggered: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
-      run_analysis: ${{ steps.update-commit-status.outputs.run_analysis || 'false' }}
     steps:
       - name: Resolve Context
         id: resolve
@@ -162,40 +275,62 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
           DEFAULT_MAX_ATTEMPTS: ${{ env.DEFAULT_MAX_DEFLAKE_ATTEMPTS }}
+          RECOMMENDATION_JSON: ${{ needs.shepherd-analysis.outputs.recommendation }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -f .github/config/infra/deflake.json ]]; then
-            max_attempts=$(jq -r '.deflake_runs | tonumber? // empty' .github/config/infra/deflake.json)
-          fi
-          max_attempts="${max_attempts:-${DEFAULT_MAX_ATTEMPTS}}"
-
-          if [[ "${RUN_ATTEMPT}" -ge "${max_attempts}" ]]; then
-            echo "Max attempts reached (${RUN_ATTEMPT}/${max_attempts}). Skipping rerun."
+          if [[ -z "${RECOMMENDATION_JSON:-}" ]]; then
+            echo "No recommendation JSON received from shepherd-analysis. Skipping deflake."
             exit 0
           fi
 
-          current_sha=$(git ls-remote "https://github.com/${HEAD_REPO}.git" "refs/heads/${HEAD_BRANCH}" | cut -f1)
-          if [[ "${current_sha}" != "${HEAD_SHA}" ]]; then
-            echo "Branch head moved to ${current_sha} (run SHA: ${HEAD_SHA}). Skipping rerun."
-            exit 0
-          fi
+          action=$(echo "${RECOMMENDATION_JSON}" | jq -r '.action // empty' 2>/dev/null || true)
+          should_restart=$(echo "${RECOMMENDATION_JSON}" | jq -r '
+            if .restart_failed_jobs == true or .action == "restart_failed_jobs" then "true"
+            else "false"
+            end
+          ' 2>/dev/null || echo "false")
+          mapfile -t labels < <(echo "${RECOMMENDATION_JSON}" | jq -r '(.labels // [])[]' 2>/dev/null || true)
 
-          failed_tests=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '[.jobs[] | select(.conclusion=="failure" and (.name | contains("_tests")))] | length')
-          if [[ "${failed_tests}" -eq 0 ]]; then
-            echo "No failing '_tests' jobs found to rerun."
-            exit 0
-          fi
+          # Apply recommended labels to PR if any
+          for label in "${labels[@]}"; do
+            if [[ -n "${label}" && -n "${PR_NUMBER}" ]]; then
+              echo "Applying label '${label}' to PR #${PR_NUMBER}"
+              gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "${label}" || true
+            fi
+          done
 
-          echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
-          gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
-          echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
+          # Restart failed jobs if recommended
+          if [[ "${should_restart}" == "true" ]]; then
+            if [[ -f .github/config/infra/deflake.json ]]; then
+              max_attempts=$(jq -r '.deflake_runs | tonumber? // empty' .github/config/infra/deflake.json)
+            fi
+            max_attempts="${max_attempts:-${DEFAULT_MAX_ATTEMPTS}}"
+
+            if [[ "${RUN_ATTEMPT}" -ge "${max_attempts}" ]]; then
+              echo "Max attempts reached (${RUN_ATTEMPT}/${max_attempts}). Skipping rerun."
+              exit 0
+            fi
+
+            current_sha=$(git ls-remote "https://github.com/${HEAD_REPO}.git" "refs/heads/${HEAD_BRANCH}" | cut -f1)
+            if [[ "${current_sha}" != "${HEAD_SHA}" ]]; then
+              echo "Branch head moved to ${current_sha} (run SHA: ${HEAD_SHA}). Skipping rerun."
+              exit 0
+            fi
+
+            echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
+            gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
+            echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "No job restart recommended by shepherd agent (action: ${action:-none})."
+          fi
 
       - name: Update Workflow and Overall Commit Status
         id: update-commit-status
@@ -284,95 +419,6 @@ jobs:
               -f description="${overall_desc}" \
               -f context="CI / All Pass"
           fi
-
-          run_analysis="false"
-          if [[ "${has_failures}" == "true" && "${all_done}" == "true" && -n "${PR_NUMBER:-}" ]]; then
-            run_analysis="true"
-          fi
-
-          echo "run_analysis=${run_analysis}" >> "${GITHUB_OUTPUT}"
-
-  shepherd-analysis:
-    runs-on: ubuntu-latest
-    needs: [init-comment, status-and-deflake]
-    if: always() && needs.status-and-deflake.outputs.run_analysis == 'true' && needs.status-and-deflake.outputs.rerun_triggered != 'true' && !cancelled()
-    concurrency:
-      group: shepherd-analysis @ ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      actions: read
-      pull-requests: read
-    outputs:
-      verdict: ${{ steps.extract.outputs.verdict }}
-      confidence: ${{ steps.extract.outputs.confidence }}
-      findings: ${{ steps.extract.outputs.findings }}
-    steps:
-      - name: Configure environment for Gemini CLI
-        run: |
-          echo "GEMINI_CLI_TRUST_WORKSPACE=true" >> "$GITHUB_ENV"
-          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
-          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
-
-      - name: Checkout files
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: |
-            .github
-            .agent
-
-      - name: Run Gemini PR Shepherd Analysis
-        id: trigger_gemini_analysis
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
-          github_pr_number: ${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }}
-          gemini_model: 'gemini-2.5-flash'
-          upload_artifacts: true
-          prompt: |
-            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number || needs.status-and-deflake.outputs.pr_number }} using the `gh` tool.
-            Provide your final determination as a JSON object with the following fields:
-            - "verdict": "failure" (if real failure in PR), "flaky" (if failures are due to flakes/infra), or "pass" (if all passed)
-            - "confidence": a number from 0 to 1 indicating your confidence in the verdict
-            - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
-
-            For a flaky verdict all retries of a workflow run must be analyzed/triaged.
-
-
-      - name: Validate JSON Output
-        if: always() && !cancelled()
-        env:
-          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
-        run: |
-          echo "${AGENT_SUMMARY:-{}}" | jq -e . >/dev/null || exit 1
-
-      - name: Extract Analysis Results
-        id: extract
-        if: always() && !cancelled()
-        env:
-          AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          verdict=$(echo "${AGENT_SUMMARY:-}" | jq -r '.verdict // empty' 2>/dev/null || true)
-          confidence=$(echo "${AGENT_SUMMARY:-}" | jq -r '.confidence // empty' 2>/dev/null || true)
-          findings=$(echo "${AGENT_SUMMARY:-}" | jq -r '.findings_summary // empty' 2>/dev/null || true)
-          if [[ -z "${findings}" ]]; then
-            findings="${AGENT_SUMMARY:-}"
-          fi
-
-          echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
-          echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
-          DELIMITER=$(openssl rand -hex 16)
-          {
-            echo "findings<<${DELIMITER}"
-            echo "${findings}"
-            echo "${DELIMITER}"
-          } >> "${GITHUB_OUTPUT}"
 
   comment-pr:
     runs-on: ubuntu-latest
