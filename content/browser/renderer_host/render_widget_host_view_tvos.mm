@@ -24,11 +24,4 @@ void RenderWidgetHostViewTVOS::UpdateCALayerTree(
   display_tree_->UpdateCALayerTree(ca_layer_params);
 }
 
-void RenderWidgetHostViewTVOS::OnGestureEvent(
-    const ui::GestureEventData& gesture) {}
-
-bool RenderWidgetHostViewTVOS::RequiresDoubleTapGestureEvents() const {
-  return false;
-}
-
 }  // namespace content

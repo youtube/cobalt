@@ -8,7 +8,6 @@
 #include <stdint.h>
 
 #include "net/base/net_export.h"
-#include "net/net_buildflags.h"
 #include "net/socket/datagram_client_socket.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/udp_socket.h"
@@ -60,11 +59,6 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
   int Read(IOBuffer* buf,
            int buf_len,
            CompletionOnceCallback callback) override;
-#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
-  int ReadMultiplePackets(ReadPacketResults* results,
-                          int read_buffer_size,
-                          CompletionOnceCallback callback) override;
-#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   int Write(IOBuffer* buf,
             int buf_len,
             CompletionOnceCallback callback,

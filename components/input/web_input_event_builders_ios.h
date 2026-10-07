@@ -37,11 +37,6 @@ class COMPONENT_EXPORT(INPUT) WebTouchEventBuilder {
       UIEvent* event,
       UIView* view,
       const std::optional<gfx::Vector2dF>& view_offset);
-#if BUILDFLAG(IS_COBALT)
-  static blink::WebTouchEvent BuildFromGamepadData(
-      blink::WebInputEvent::Type type,
-      CGPoint point);
-#endif
 };
 
 }  // namespace input
