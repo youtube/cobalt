@@ -93,9 +93,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlayerSettingsApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    // TODO(b/377052218): Re-enable
-    // return starboard::GetAccessibilityApi();
-    return NULL;
+    return starboard::GetAccessibilityApi();
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();

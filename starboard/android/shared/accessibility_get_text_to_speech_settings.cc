@@ -12,12 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/android/shared/accessibility_extension.h"
+#include "starboard/android/shared/text_to_speech_helper.h"
+#include "third_party/jni_zero/jni_zero.h"
+
 namespace starboard {
-// ATV no longer supports GetTextToSpeechSettings in Chrobalt,
-// Please reference starboard/android/shared/text_to_speech_helper.h for
-// supported text-to-speech APIs instead.
+
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
-  return false;
+  if (!out_setting) {
+    return false;
+  }
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  TextToSpeechHelper* helper = TextToSpeechHelper::GetInstance();
+  helper->Initialize(env);
+  out_setting->has_text_to_speech_setting = true;
+  out_setting->is_text_to_speech_enabled = helper->IsTextToSpeechEnabled(env);
+  return true;
 }
 
 }  // namespace starboard
