@@ -506,20 +506,6 @@ void OverlayProcessorOzone::InsertPrimaryPlane(
   candidates.insert(insert_positon, std::move(primary_plane));
 }
 
-<<<<<<< HEAD
-=======
-bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
-#if BUILDFLAG(IS_CASTOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Cobalt reports supports_surfaceless from SkiaOutputDeviceGL, which never
-  // sets renderer_allocates_images, so SkiaRenderer cannot back a primary
-  // plane overlay.
-  return false;
-#else
-  return true;
-#endif
-}
-
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     ui::OverlaySurfaceCandidate* candidate,
     const gpu::Mailbox& mailbox,

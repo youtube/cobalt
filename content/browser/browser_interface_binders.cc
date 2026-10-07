@@ -727,72 +727,6 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
 }  // namespace
 
 // Documents/frames
-<<<<<<< HEAD
-=======
-void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
-#if !BUILDFLAG(IS_COBALT)
-  map->Add<blink::mojom::SerialService>(base::BindRepeating(
-      &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-  map->Add<blink::mojom::SmartCardService>(base::BindRepeating(
-      &RenderFrameHostImpl::GetSmartCardService, base::Unretained(host)));
-#endif
-
-#if BUILDFLAG(IS_MAC)
-  map->Add<blink::mojom::TextInputHost>(&BindTextInputHost);
-#endif
-
-  map->Add<blink::mojom::RenderAccessibilityHost>(
-      base::BindRepeating(&RenderFrameHostImpl::BindRenderAccessibilityHost,
-                          base::Unretained(host)));
-
-  map->Add<blink::mojom::NonAssociatedLocalFrameHost>(
-      base::BindRepeating(&RenderFrameHostImpl::BindNonAssociatedLocalFrameHost,
-                          base::Unretained(host)));
-
-  map->Add<blink::mojom::AIManager>(base::BindRepeating(
-      [](ContentBrowserClient* browser_client, RenderFrameHostImpl* host,
-         mojo::PendingReceiver<blink::mojom::AIManager> receiver) {
-        browser_client->BindAIManager(host->GetBrowserContext(),
-                                      &host->document_associated_data(), host,
-                                      std::move(receiver));
-      },
-      base::Unretained(GetContentClient()->browser()), base::Unretained(host)));
-
-#if BUILDFLAG(IS_FUCHSIA)
-  map->Add<media::mojom::FuchsiaMediaCodecProvider>(
-      base::BindRepeating(&RenderProcessHost::BindMediaCodecProvider,
-                          base::Unretained(host->GetProcess())));
-#endif
-
-  map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
-      [](RenderFrameHostImpl* host,
-         mojo::PendingReceiver<blink::mojom::TranslationManager> receiver) {
-        GetContentClient()->browser()->BindTranslationManager(
-            host->GetProcess(), host->GetBrowserContext(),
-            &host->document_associated_data(), host->GetLastCommittedOrigin(),
-            std::move(receiver));
-      },
-      base::Unretained(host)));
-
-#if !BUILDFLAG(IS_COBALT)
-  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-      base::BindRepeating(
-          [](RenderFrameHostImpl* host,
-             mojo::PendingReceiver<
-                 language_detection::mojom::ContentLanguageDetectionDriver>
-                 receiver) {
-            GetContentClient()->browser()->BindLanguageDetectionDriver(
-                host->GetBrowserContext(), &host->document_associated_data(),
-                std::move(receiver));
-          },
-          base::Unretained(host)));
-#endif  // !BUILDFLAG(IS_COBALT)
-}
-
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void PopulateBinderMapWithContext(
     RenderFrameHostImpl* host,
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {
@@ -1169,8 +1103,10 @@ void PopulateBinderMapWithContext(
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(
@@ -1221,6 +1157,7 @@ void PopulateBinderMapWithContext(
             host->GetLastCommittedOrigin(), std::move(receiver));
       }));
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
       base::BindRepeating(
           [](RenderFrameHost* host,
@@ -1232,6 +1169,7 @@ void PopulateBinderMapWithContext(
                 &RenderFrameHostImpl::From(host)->document_associated_data(),
                 std::move(receiver));
           }));
+#endif  // !BUILDFLAG(IS_COBALT)
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);

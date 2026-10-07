@@ -759,18 +759,18 @@ bool SettingsMatch(
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_global_config,
+          current_root->settings_.scheduler_loop_quarantine_global_config,
           scheduler_loop_quarantine_global_config)) {
     return false;
   }
 
   if (!QuarantineConfigMatches(
-          current_root->settings.scheduler_loop_quarantine_thread_local_config,
+          current_root->settings_.scheduler_loop_quarantine_thread_local_config,
           scheduler_loop_quarantine_thread_local_config)) {
     return false;
   }
 
-  if (current_root->settings.eventually_zero_freed_memory !=
+  if (current_root->settings_.eventually_zero_freed_memory !=
       eventually_zero_freed_memory.value()) {
     return false;
   }
@@ -827,19 +827,35 @@ void ConfigurePartitions(
           ? partition_alloc::PartitionOptions::kEnabled
           : partition_alloc::PartitionOptions::kDisabled;
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
-  // If the initial PartitionRoot already matches the required options, skip
-  // re-creating the root allocator to avoid duplicate PartitionRoot overhead.
-  if (SettingsMatch(
-          current_root, enable_brp, brp_extra_extras_size,
-          enable_memory_tagging, memory_tagging_reporting_mode,
-          scheduler_loop_quarantine_global_config,
-          scheduler_loop_quarantine_thread_local_config,
-          eventually_zero_freed_memory)) {
-    if (distribution == BucketDistribution::kDenser) {
-      current_root->SwitchToDenserBucketDistribution();
+  // If the initial PartitionRoots already match the required options, skip
+  // re-creating the root allocators to avoid duplicate PartitionRoot overhead.
+  bool settings_match = true;
+  for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
+       alloc_token++) {
+    // Calling Get() is actually important, even if the return value isn't
+    // used, because it has a side effect of initializing the variable, if it
+    // wasn't already.
+    if (!SettingsMatch(PA_UNSAFE_TODO(g_roots[alloc_token]).Get(), enable_brp,
+                       brp_extra_extras_size, enable_memory_tagging,
+                       memory_tagging_reporting_mode,
+                       scheduler_loop_quarantine_global_config,
+                       scheduler_loop_quarantine_thread_local_config,
+                       eventually_zero_freed_memory)) {
+      settings_match = false;
+      break;
+    }
+  }
+  if (settings_match) {
+    for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
+         alloc_token++) {
+      auto* root = PA_UNSAFE_TODO(g_roots[alloc_token]).Get();
+      // EnableThreadCacheIfSupported() no longer assigns the thread cache
+      // index, so give the reused root the one `new_main_allocators` would.
+      root->settings_.thread_cache_index = alloc_token;
+      if (distribution == BucketDistribution::kDenser) {
+        root->SwitchToDenserBucketDistribution();
+      }
     }
 
     PA_CHECK(!g_roots_finalized.exchange(true));  // Ensure configured once.
@@ -847,13 +863,6 @@ void ConfigurePartitions(
   }
 #endif  // BUILDFLAG(IS_COBALT)
 
-  // We've been bitten before by using a static local when initializing a
-  // partition. For synchronization, static local variables call into the
-  // runtime on Windows, which may not be ready to handle it, if the path is
-  // invoked on an allocation during the runtime initialization.
-  // ConfigurePartitions() is invoked explicitly from Chromium code, so this
-  // shouldn't bite us here. Mentioning just in case we move this code earlier.
->>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static partition_alloc::internal::base::NoDestructor<
       partition_alloc::PartitionAllocator>
       new_main_allocators[2] = {
