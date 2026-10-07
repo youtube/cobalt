@@ -64,6 +64,8 @@ class PerformanceImpl
       MeasureDecodedImagesMemoryCallback callback) override;
   void MeasureDecodedImagesPeakMemory(
       MeasureDecodedImagesPeakMemoryCallback callback) override;
+  void MeasureUsedTileMemory(MeasureUsedTileMemoryCallback) override;
+  void MeasurePeakTileMemory(MeasurePeakTileMemoryCallback) override;
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
