@@ -141,13 +141,13 @@ class GpuRasterPixelTest : public testing::Test,
   void TearDown() override { FlushInProcessImageTransfers(); }
 
   // Lets pending in-process image transfer unref tasks run while
-  // |oop_image_cache_| is still alive.
+  // |image_cache_| is still alive.
   void FlushInProcessImageTransfers() {
     if (!base::FeatureList::IsEnabled(
             base::features::kCobaltInProcessImageTransferCache)) {
       return;
     }
-    if (!oop_image_cache_ || !raster_context_provider_) {
+    if (!image_cache_ || !raster_context_provider_) {
       return;
     }
     raster_context_provider_->RasterInterface()->Finish();
@@ -159,18 +159,12 @@ class GpuRasterPixelTest : public testing::Test,
   void StoreShader(const std::string& key, const std::string& shader) override {
   }
 
-<<<<<<< HEAD
   void InitializeContext() {
     if (image_cache_) {
-      image_cache_.reset();
-=======
-  void InitializeOOPContext() {
-    if (oop_image_cache_) {
 #if BUILDFLAG(IS_COBALT)
       FlushInProcessImageTransfers();
 #endif
-      oop_image_cache_.reset();
->>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      image_cache_.reset();
     }
 
     raster_context_provider_ =
