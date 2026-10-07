@@ -214,6 +214,15 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return &cors_exempt_header_list_;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // Headers to add to every URLLoader request of this context. See
+  // NetworkContextParams.cobalt_extra_request_headers.
+  const base::flat_map<std::string, std::string>* cobalt_extra_request_headers()
+      const {
+    return params_ ? &params_->cobalt_extra_request_headers : nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(IS_ANDROID)
   const std::vector<std::unique_ptr<base::android::ApplicationStatusListener>>&
   app_status_listeners() const {

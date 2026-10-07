@@ -176,5 +176,9 @@ const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
 const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
     &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
 
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
