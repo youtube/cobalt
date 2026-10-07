@@ -104,7 +104,7 @@ def connect_webdriver(chrome_binary_path, chrome_driver_path, output_dir):
   driver = webdriver.Chrome(service=service, options=chrome_options)
 
   try:
-    driver.set_page_load_timeout(30)
+    driver.set_page_load_timeout(60)
     driver.get('https://www.youtube.com/tv')
     sleep_time = 5
     logging.info('sleeping for %d secs ...', sleep_time)
