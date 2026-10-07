@@ -14,6 +14,7 @@
 
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/texture_manager.h"
@@ -56,6 +57,10 @@ void StarboardGpuFactoryImpl::Initialize(base::UnguessableToken channel_token,
   std::move(callback).Run();
 }
 
+// Disable CFI checks for this method because it executes function pointers
+// provided by the Starboard library, which cannot be verified across the
+// DSO boundary.
+NO_SANITIZE("cfi-icall")
 void StarboardGpuFactoryImpl::RunSbDecodeTargetFunctionOnGpu(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context,
