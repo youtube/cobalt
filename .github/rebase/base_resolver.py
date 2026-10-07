@@ -465,6 +465,52 @@ def validate_patch_target(target_file: str,
   return True
 
 
+_LINE_NUMBER_RE = re.compile(r"^\s*\d+:\s*")
+_CONFLICT_MARKER_PREFIXES = ("=======", "<<<<<<<", ">>>>>>>")
+
+
+def _collapse_whitespace(line: str) -> str:
+  """Fuzzy line key: no line-number prefix, runs of whitespace collapsed."""
+  return re.sub(r"\s+", " ", _LINE_NUMBER_RE.sub("", line)).strip()
+
+
+def _find_search_span(content: str, search: str,
+                      replace: str) -> Optional[Tuple[int, int, str]]:
+  """Locates `search` in `content`; returns (start, end, replacement) or None.
+
+  Match levels, tried in order:
+    1. exact substring;
+    2. whitespace-trimmed substring;
+    3. window of whole lines equal after stripping each line;
+    4. window of whole lines equal after collapsing whitespace and dropping
+       line-number prefixes (for re-indented or numbered model output).
+  Levels 3 and 4 replace whole lines, so the replacement is newline-terminated.
+  """
+  if search in content:
+    start = content.index(search)
+    return start, start + len(search), replace
+  trimmed = search.strip()
+  if trimmed and trimmed in content:
+    start = content.index(trimmed)
+    return start, start + len(trimmed), replace.strip()
+
+  lines = content.splitlines(keepends=True)
+  offsets = [0]
+  for line in lines:
+    offsets.append(offsets[-1] + len(line))
+  replacement = "".join(l + "\n" for l in replace.splitlines())
+  for key in (str.strip, _collapse_whitespace):
+    wanted = [key(l) for l in search.splitlines() if key(l)]
+    if not wanted:
+      continue
+    keys = [key(l) for l in lines]
+    n = len(wanted)
+    for i in range(len(lines) - n + 1):
+      if keys[i:i + n] == wanted:
+        return offsets[i], offsets[i + n], replacement
+  return None
+
+
 def apply_search_replace(file_path: str, search_block: str,
                          replace_block: str) -> bool:
   """Applies a SEARCH/REPLACE block edit to a file.
@@ -478,80 +524,24 @@ def apply_search_replace(file_path: str, search_block: str,
   if not os.path.isfile(file_path):
     return False
 
-  # Sanitize replace_block against rogue conflict markers from model output
-  sanitized_lines = [
-      line for line in replace_block.splitlines()
-      if not line.startswith("=======") and not line.startswith("<<<<<<<") and
-      not line.startswith(">>>>>>>")
-  ]
-  clean_replace = "\n".join(sanitized_lines)
-  if replace_block.endswith("\n"):
-    clean_replace += "\n"
-
-  # Strip leading line numbers (e.g. `1060: `) if model attached them
-  cleaned_search_lines = [
-      re.sub(r"^\s*\d+:\s*", "", l) for l in search_block.splitlines()
-  ]
-  search_block = "\n".join(cleaned_search_lines)
-
-  cleaned_replace_lines = [
-      re.sub(r"^\s*\d+:\s*", "", l) for l in clean_replace.splitlines()
-  ]
-  clean_replace = "\n".join(cleaned_replace_lines)
+  # Drop rogue conflict markers and pasted line numbers if prepended.
+  clean_replace = "\n".join(
+      _LINE_NUMBER_RE.sub("", l)
+      for l in replace_block.splitlines()
+      if not l.startswith(_CONFLICT_MARKER_PREFIXES))
+  search = "\n".join(
+      _LINE_NUMBER_RE.sub("", l) for l in search_block.splitlines())
 
   with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-    content = f.read()
+    content = f.read().replace("\r\n", "\n")
 
-  # Normalize CRLF to LF across search, replace, and file content
-  search_block = search_block.replace("\r\n", "\n")
-  clean_replace = clean_replace.replace("\r\n", "\n")
-  content = content.replace("\r\n", "\n")
-
-  # 1. Exact match
-  if search_block in content:
-    new_content = content.replace(search_block, clean_replace, 1)
-    with open(file_path, "w", encoding="utf-8") as f:
-      f.write(new_content)
-    return True
-
-  # 2. Whitespace-trimmed match
-  s_stripped = search_block.strip()
-  if s_stripped and s_stripped in content:
-    new_content = content.replace(s_stripped, clean_replace.strip(), 1)
-    with open(file_path, "w", encoding="utf-8") as f:
-      f.write(new_content)
-    return True
-
-  c_lines = content.splitlines()
-
-  # 3. Normalized line-by-line match
-  s_lines = [line.strip() for line in search_block.splitlines() if line.strip()]
-  if s_lines:
-    for i in range(len(c_lines) - len(s_lines) + 1):
-      window = [c_lines[i + j].strip() for j in range(len(s_lines))]
-      if window == s_lines:
-        new_lines = c_lines[:i] + clean_replace.splitlines(
-        ) + c_lines[i + len(s_lines):]
-        with open(file_path, "w", encoding="utf-8") as f:
-          f.write("\n".join(new_lines) + "\n")
-        return True
-
-  # 4. Token-normalized & line-number stripped match (for auto-generated files)
-  def norm(l: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"^\s*\d+:\s*", "", l)).strip()
-
-  s_norm = [norm(l) for l in search_block.splitlines() if norm(l)]
-  if s_norm:
-    for i in range(len(c_lines) - len(s_norm) + 1):
-      window = [norm(c_lines[i + j]) for j in range(len(s_norm))]
-      if window == s_norm:
-        new_lines = c_lines[:i] + clean_replace.splitlines(
-        ) + c_lines[i + len(s_norm):]
-        with open(file_path, "w", encoding="utf-8") as f:
-          f.write("\n".join(new_lines) + "\n")
-        return True
-
-  return False
+  span = _find_search_span(content, search, clean_replace)
+  if span is None:
+    return False
+  start, end, replacement = span
+  with open(file_path, "w", encoding="utf-8") as f:
+    f.write(content[:start] + replacement + content[end:])
+  return True
 
 
 def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
@@ -633,9 +623,104 @@ _FILE_HEADER_PREFIX = (
     r"\s*[\r\n]+)?"  # Trailing newline (entire header is optional)
 )
 
+_CODE_FENCE = r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
+_DELETE_BLOCK_RE = re.compile(
+    _FILE_HEADER_PREFIX + _CODE_FENCE +
+    r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE(?:\s*```)?",
+    re.DOTALL | re.IGNORECASE,
+)
+_SEARCH_REPLACE_BLOCK_RE = re.compile(
+    _FILE_HEADER_PREFIX + _CODE_FENCE + r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
+    r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE(?:\s*```)?",
+    re.DOTALL | re.IGNORECASE,
+)
 
-def _apply_blocks_atomically(blocks: List[Tuple[str, str, str]]) -> List[str]:
-  """Applies (target_file, search, replace) blocks all-or-nothing.
+
+@dataclasses.dataclass(frozen=True)
+class PatchBlock:
+  """One DELETE or SEARCH/REPLACE block parsed from a model response."""
+  kind: str  # "DELETE" or "SEARCH"
+  rel_file: str  # As written by the model (or the default file).
+  target_file: str  # Resolved absolute path; "" if outside the repository.
+  search: str
+  replace: str = ""
+
+  def render(self) -> str:
+    if self.kind == "DELETE":
+      return f"<<<<<<< DELETE\n{self.search}\n>>>>>>> DELETE"
+    return (f"<<<<<<< SEARCH\n{self.search}\n=======\n"
+            f"{self.replace}\n>>>>>>> REPLACE")
+
+
+@dataclasses.dataclass(frozen=True)
+class ParsedPatch:
+  """A model patch response, parsed once and shared by apply and record."""
+  text: str  # Response with the outer markdown fence removed.
+  blocks: List[PatchBlock]  # Empty when the response is a unified diff.
+
+
+def parse_patch(patch_text: str,
+                repo_path: str,
+                default_file: Optional[str] = None) -> ParsedPatch:
+  """Parses DELETE or SEARCH/REPLACE blocks (DELETE wins if both appear)."""
+  text = patch_text.strip()
+  text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", text)
+  text = re.sub(r"\n```$", "", text)
+
+  def block(kind: str,
+            rel_file: str,
+            search: str,
+            replace: str = "") -> Optional[PatchBlock]:
+    rel = rel_file.strip() or default_file or ""
+    if not rel:
+      return None
+    # Strip a trailing ``` that leaked into the REPLACE section.
+    replace = re.sub(r"\n```\s*$", "", replace)
+    return PatchBlock(kind, rel, resolve_repo_file_path(rel, repo_path), search,
+                      replace)
+
+  blocks: List[PatchBlock] = []
+  if "<<<<<<< DELETE" in text and ">>>>>>> DELETE" in text:
+    blocks = [
+        b for rel, search in _DELETE_BLOCK_RE.findall(text)
+        if (b := block("DELETE", rel, search))
+    ]
+  if not blocks and "<<<<<<< SEARCH" in text and "=======" in text:
+    blocks = [
+        b for rel, search, replace in _SEARCH_REPLACE_BLOCK_RE.findall(text)
+        if (b := block("SEARCH", rel, search, replace))
+    ]
+  return ParsedPatch(text, blocks)
+
+
+def _check_patch_block(b: PatchBlock, repo_path: str) -> bool:
+  """Guards run on every block before any file is written."""
+  if b.kind == "SEARCH":
+    if not b.replace.strip() and len(b.search.splitlines()) > 80:
+      print(
+          f"  [GUARD] Rejecting bulk empty REPLACE block "
+          f"({len(b.search.splitlines())} lines) in {b.rel_file}. Use "
+          "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
+          "removals.",
+          file=sys.stderr,
+      )
+      return False
+    if re.search(r"^(?:FILE|Target File):", b.replace, re.MULTILINE):
+      print(
+          f"  [GUARD] Rejecting malformed REPLACE block in {b.rel_file} "
+          "containing nested FILE directives.",
+          file=sys.stderr,
+      )
+      return False
+  return validate_patch_target(
+      b.target_file,
+      b.rel_file,
+      repo_path,
+      operation_name="DELETE" if b.kind == "DELETE" else "patch")
+
+
+def _apply_blocks_atomically(blocks: List[PatchBlock]) -> List[str]:
+  """Applies blocks all-or-nothing.
 
   Blocks are applied in order (so several blocks may edit the same file).
   If any block fails to match, every touched file is restored to its exact
@@ -644,18 +729,59 @@ def _apply_blocks_atomically(blocks: List[Tuple[str, str, str]]) -> List[str]:
   """
   originals: Dict[str, bytes] = {}
   modified_files: List[str] = []
-  for target_file, search_b, replace_b in blocks:
-    if target_file not in originals and os.path.isfile(target_file):
-      with open(target_file, "rb") as f:
-        originals[target_file] = f.read()
-    if not apply_search_replace(target_file, search_b, replace_b):
+  for b in blocks:
+    if b.target_file not in originals and os.path.isfile(b.target_file):
+      with open(b.target_file, "rb") as f:
+        originals[b.target_file] = f.read()
+    if not apply_search_replace(b.target_file, b.search, b.replace):
       for path, data in originals.items():
         with open(path, "wb") as f:
           f.write(data)
       return []
-    if target_file not in modified_files:
-      modified_files.append(target_file)
+    if b.target_file not in modified_files:
+      modified_files.append(b.target_file)
   return modified_files
+
+
+def apply_parsed_patch(parsed: ParsedPatch, repo_path: str) -> List[str]:
+  """Applies a parsed patch; returns the modified absolute paths.
+
+  DELETE and SEARCH/REPLACE blocks are applied atomically: every block is
+  validated first and either all of them apply or no file is changed.
+  """
+  if not parsed.blocks:
+    return apply_unified_diff(parsed.text, repo_path)
+  if not all(_check_patch_block(b, repo_path) for b in parsed.blocks):
+    return []
+  return _apply_blocks_atomically(parsed.blocks)
+
+
+def patch_file_changes(parsed: ParsedPatch,
+                       repo_path: str,
+                       default_file: Optional[str] = None) -> Dict[str, str]:
+  """Groups a parsed patch into {repo-relative path: patch text} records."""
+
+  def rel_key(abs_path: str, fallback: str) -> str:
+    return os.path.relpath(abs_path, repo_path) if abs_path else fallback
+
+  file_changes: Dict[str, str] = {}
+  for b in parsed.blocks:
+    key = rel_key(b.target_file, b.rel_file)
+    file_changes[key] = (
+        file_changes[key] + "\n\n" +
+        b.render() if key in file_changes else b.render())
+  if file_changes:
+    return file_changes
+
+  diff_match = re.search(r"^(?:--- [ab]/(.+)|diff --git a/.* b/(.+))$",
+                         parsed.text, re.MULTILINE)
+  target_rel = ((diff_match.group(1) or diff_match.group(2) or "").strip()
+                if diff_match else "") or default_file or ""
+  if target_rel:
+    file_changes[rel_key(
+        resolve_repo_file_path(target_rel, repo_path),
+        target_rel)] = parsed.text
+  return file_changes
 
 
 def apply_patch_or_replacement(
@@ -663,169 +789,9 @@ def apply_patch_or_replacement(
     repo_path: str,
     default_file: Optional[str] = None,
 ) -> List[str]:
-  """Parses and dispatches AI patch responses (SEARCH/REPLACE, DELETE, diffs).
-
-  SEARCH/REPLACE and DELETE responses are applied atomically: all blocks are
-  validated first and either every block applies or no file is changed.
-  """
-  clean_text = patch_text.strip()
-  clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
-  clean_text = re.sub(r"\n```$", "", clean_text)
-
-  blocks: List[Tuple[str, str, str]] = []
-
-  # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
-  if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
-    del_pattern = re.compile(
-        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
-        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE"
-        r"(?:\s*```)?",
-        re.DOTALL | re.IGNORECASE,
-    )
-    for rel_file, delete_b in del_pattern.findall(clean_text):
-      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-          default_file or "")
-      if not target_rel:
-        continue
-      target_file = resolve_repo_file_path(target_rel, repo_path)
-      if not validate_patch_target(
-          target_file, target_rel, repo_path, operation_name="DELETE"):
-        return []
-      blocks.append((target_file, delete_b, ""))
-    if blocks:
-      return _apply_blocks_atomically(blocks)
-
-  # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
-  if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
-    sr_pattern = re.compile(
-        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
-        r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
-        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE"
-        r"(?:\s*```)?",
-        re.DOTALL | re.IGNORECASE,
-    )
-    for rel_file, search_b, replace_b in sr_pattern.findall(clean_text):
-      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-          default_file or "")
-      if not target_rel:
-        continue
-      # Strip trailing ``` from replace_b if any leaked in
-      clean_replace = re.sub(r"\n```\s*$", "", replace_b)
-      if not clean_replace.strip() and len(search_b.splitlines()) > 80:
-        print(
-            f"  [GUARD] Rejecting bulk empty REPLACE block "
-            f"({len(search_b.splitlines())} lines) in {target_rel}. Use "
-            "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
-            "removals.",
-            file=sys.stderr,
-        )
-        return []
-      if re.search(r"^(?:FILE|Target File):", clean_replace, re.MULTILINE):
-        print(
-            f"  [GUARD] Rejecting malformed REPLACE block in {target_rel} "
-            "containing nested FILE directives.",
-            file=sys.stderr,
-        )
-        return []
-      target_file = resolve_repo_file_path(target_rel, repo_path)
-      if not validate_patch_target(
-          target_file, target_rel, repo_path, operation_name="patch"):
-        return []
-      blocks.append((target_file, search_b, clean_replace))
-    if blocks:
-      return _apply_blocks_atomically(blocks)
-
-  return apply_unified_diff(clean_text, repo_path)
-
-
-def extract_file_changes_from_patch(
-    patch_text: str,
-    repo_path: str,
-    default_file: Optional[str] = None,
-) -> Dict[str, str]:
-  """Extracts per-file patch/diff blocks from AI patch text."""
-  clean_text = patch_text.strip()
-  clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
-  clean_text = re.sub(r"\n```$", "", clean_text)
-  file_changes: Dict[str, str] = {}
-
-  # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
-  if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
-    del_pattern = re.compile(
-        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
-        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE"
-        r"(?:\s*```)?",
-        re.DOTALL | re.IGNORECASE,
-    )
-    for rel_file, delete_b in del_pattern.findall(clean_text):
-      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-          default_file or "")
-      if target_rel:
-        try:
-          rel_norm = os.path.relpath(
-              resolve_repo_file_path(target_rel, repo_path), repo_path)
-        except ValueError:
-          rel_norm = target_rel
-        block = f"<<<<<<< DELETE\n{delete_b}\n>>>>>>> DELETE"
-        if rel_norm in file_changes:
-          file_changes[rel_norm] += "\n\n" + block
-        else:
-          file_changes[rel_norm] = block
-    if file_changes:
-      return file_changes
-
-  # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
-  if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
-    sr_pattern = re.compile(
-        _FILE_HEADER_PREFIX + r"(?:\s*```[a-zA-Z0-9_-]*\s*[\r\n]+)?"
-        r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
-        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE"
-        r"(?:\s*```)?",
-        re.DOTALL | re.IGNORECASE,
-    )
-    for rel_file, search_b, replace_b in sr_pattern.findall(clean_text):
-      target_rel = rel_file.strip() if rel_file and rel_file.strip() else (
-          default_file or "")
-      if target_rel:
-        clean_replace = re.sub(r"\n```\s*$", "", replace_b)
-        try:
-          rel_norm = os.path.relpath(
-              resolve_repo_file_path(target_rel, repo_path), repo_path)
-        except ValueError:
-          rel_norm = target_rel
-        block = (f"<<<<<<< SEARCH\n{search_b}\n=======\n"
-                 f"{clean_replace}\n>>>>>>> REPLACE")
-        if rel_norm in file_changes:
-          file_changes[rel_norm] += "\n\n" + block
-        else:
-          file_changes[rel_norm] = block
-    if file_changes:
-      return file_changes
-
-  # 3. Unified diff format: detect target file from diff header
-  diff_match = re.search(r"^(?:--- [ab]/(.+)|diff --git a/.* b/(.+))$",
-                         clean_text, re.MULTILINE)
-  if diff_match:
-    target_rel = (diff_match.group(1) or diff_match.group(2) or "").strip()
-    if target_rel:
-      try:
-        rel_norm = os.path.relpath(
-            resolve_repo_file_path(target_rel, repo_path), repo_path)
-      except ValueError:
-        rel_norm = target_rel
-      file_changes[rel_norm] = clean_text
-      return file_changes
-
-  # Fallback to default_file if available
-  if default_file:
-    try:
-      rel_norm = os.path.relpath(
-          resolve_repo_file_path(default_file, repo_path), repo_path)
-    except ValueError:
-      rel_norm = default_file
-    file_changes[rel_norm] = patch_text
-
-  return file_changes
+  """Parses and applies an AI patch response (SEARCH/REPLACE, DELETE, diff)."""
+  return apply_parsed_patch(
+      parse_patch(patch_text, repo_path, default_file), repo_path)
 
 
 def sanitize_filepath_token(raw_target: str) -> str:
@@ -2157,8 +2123,8 @@ class BaseResolver(abc.ABC):
           f"{rel_target}...",
           file=sys.stderr,
       )
-      modified_files = apply_patch_or_replacement(
-          patch, self.repo_path, default_file=rel_target)
+      parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
+      modified_files = apply_parsed_patch(parsed, self.repo_path)
       if modified_files:
         mod_summary = ", ".join(
             os.path.relpath(f, self.repo_path) for f in modified_files)
@@ -2173,8 +2139,8 @@ class BaseResolver(abc.ABC):
               "patch": patch,
               "file": rel_target,
           }
-        file_changes = extract_file_changes_from_patch(
-            patch, self.repo_path, default_file=rel_target)
+        file_changes = patch_file_changes(
+            parsed, self.repo_path, default_file=rel_target)
         new_record = AgentChangeRecord(
             phase=self.name,
             iteration=iteration,

@@ -21,7 +21,9 @@ from base_resolver import (
     BaseResolver,
     _COBALT_GIT_HISTORY_CACHE,
     _find_unique_tracked_file,
+    apply_parsed_patch,
     apply_patch_or_replacement,
+    apply_search_replace,
     execute_local_tool,
     extract_build_progress,
     extract_line_anchored_tool_commands,
@@ -32,6 +34,8 @@ from base_resolver import (
     has_cobalt_git_history,
     is_unmodified_third_party,
     is_within_repo,
+    parse_patch,
+    patch_file_changes,
     resolve_repo_file_path,
     validate_patch_target,
 )
@@ -2644,6 +2648,102 @@ class AtomicPatchTest(unittest.TestCase):
       content = f.read()
     self.assertIn("int a = 10;", content)
     self.assertIn("int a2 = 20;", content)
+
+
+class SearchReplaceMatchLevelsTest(unittest.TestCase):
+  """apply_search_replace match levels and write-back."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.path = os.path.join(self._tmp.name, "f.cc")
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  def _run(self, content, search, replace):
+    with open(self.path, "w", encoding="utf-8") as f:
+      f.write(content)
+    ok = apply_search_replace(self.path, search, replace)
+    with open(self.path, encoding="utf-8") as f:
+      return ok, f.read()
+
+  def test_exact_substring(self):
+    self.assertEqual(
+        self._run("a = 1; b = 2;\n", "b = 2;", "b = 3;"),
+        (True, "a = 1; b = 3;\n"))
+
+  def test_trimmed_substring(self):
+    self.assertEqual(
+        self._run("x\n  y();\nz\n", "\n  y();  \n\n", "  w();\n"),
+        (True, "x\n  w();\nz\n"))
+
+  def test_reindented_lines_keep_rest_of_file(self):
+    # No trailing newline at EOF: lines outside the window stay untouched.
+    self.assertEqual(
+        self._run("a\n    b\n    c\nlast", "b\nc", "B\nC"),
+        (True, "a\nB\nC\nlast"))
+
+  def test_collapsed_whitespace_and_line_numbers(self):
+    self.assertEqual(
+        self._run("int  x =  1;\nint y;\n", "12: int x = 1;\n13: int y;",
+                  "14: int x = 2;\nint y;"), (True, "int x = 2;\nint y;\n"))
+
+  def test_no_match_leaves_file_unchanged(self):
+    self.assertEqual(self._run("a\nb\n", "missing", "x"), (False, "a\nb\n"))
+
+
+class ParsePatchTest(unittest.TestCase):
+  """parse_patch result is shared by apply and the change record."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.repo = self._tmp.name
+    os.makedirs(os.path.join(self.repo, "base"))
+    self.a = os.path.join(self.repo, "base", "a.cc")
+    with open(self.a, "w", encoding="utf-8") as f:
+      f.write("int a = 1;\nint b = 2;\n")
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  def test_blocks_resolved_and_grouped_per_file(self):
+    patch = ("```\nFILE: base/a.cc\n<<<<<<< SEARCH\nint a = 1;\n=======\n"
+             "int a = 10;\n>>>>>>> REPLACE\n\nFILE: //base/a.cc\n"
+             "<<<<<<< SEARCH\nint b = 2;\n=======\nint b = 20;\n"
+             ">>>>>>> REPLACE\n```")
+    parsed = parse_patch(patch, self.repo)
+    self.assertEqual([b.target_file for b in parsed.blocks], [self.a, self.a])
+    self.assertEqual(apply_parsed_patch(parsed, self.repo), [self.a])
+    changes = patch_file_changes(parsed, self.repo)
+    self.assertEqual(list(changes), [os.path.join("base", "a.cc")])
+    self.assertEqual(changes[os.path.join("base", "a.cc")].count("SEARCH"), 2)
+
+  def test_delete_blocks_take_precedence(self):
+    patch = ("FILE: base/a.cc\n<<<<<<< DELETE\nint b = 2;\n>>>>>>> DELETE\n"
+             "FILE: base/a.cc\n<<<<<<< SEARCH\nint a = 1;\n=======\n"
+             "int a = 3;\n>>>>>>> REPLACE")
+    parsed = parse_patch(patch, self.repo)
+    self.assertEqual([b.kind for b in parsed.blocks], ["DELETE"])
+
+  def test_default_file_used_when_header_missing(self):
+    patch = "<<<<<<< SEARCH\nint a = 1;\n=======\nint a = 5;\n>>>>>>> REPLACE"
+    parsed = parse_patch(patch, self.repo, default_file="base/a.cc")
+    self.assertEqual(parsed.blocks[0].target_file, self.a)
+
+  def test_unified_diff_recorded_by_header(self):
+    diff = "--- a/base/a.cc\n+++ b/base/a.cc\n@@ -1 +1 @@\n-int a = 1;\n+int a;"
+    parsed = parse_patch(diff, self.repo)
+    self.assertEqual(parsed.blocks, [])
+    self.assertEqual(
+        patch_file_changes(parsed, self.repo),
+        {os.path.join("base", "a.cc"): diff})
+
+  def test_outside_repo_target_rejected(self):
+    patch = ("FILE: ../../etc/passwd\n<<<<<<< SEARCH\nroot\n=======\nx\n"
+             ">>>>>>> REPLACE")
+    parsed = parse_patch(patch, self.repo)
+    self.assertEqual(parsed.blocks[0].target_file, "")
+    self.assertEqual(apply_parsed_patch(parsed, self.repo), [])
 
 
 class GitToolOptionInjectionTest(unittest.TestCase):
