@@ -14,7 +14,10 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
 
+#include <memory>
+
 #include "base/time/time.h"
+#include "cc/metrics/begin_main_frame_metrics.h"
 #include "components/viz/common/frame_timing_details.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -102,6 +105,50 @@ TEST(CobaltFrameDrawBreakdownTest, NegativeIntervalIsNull) {
   EXPECT_DOUBLE_EQ(*b.gpu_queue_duration, 2.0);
   ASSERT_TRUE(b.gpu_draw_duration.has_value());
   EXPECT_DOUBLE_EQ(*b.gpu_draw_duration, 2.0);
+}
+
+TEST(CobaltFrameInputTimingTest, MainFrameSnapshot) {
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = AtMs(0);
+  snapshot.main_frame_run_time = AtMs(6.5);
+  snapshot.metrics = std::make_unique<cc::BeginMainFrameMetrics>();
+  snapshot.metrics->handle_input_events = base::Milliseconds(1.25);
+
+  CobaltFrameInputTiming t =
+      CobaltFrameInputTiming::FromMainFrameSnapshot(&snapshot);
+
+  ASSERT_TRUE(t.main_frame_queue_duration.has_value());
+  EXPECT_DOUBLE_EQ(*t.main_frame_queue_duration, 6.5);
+  ASSERT_TRUE(t.handle_input_events_duration.has_value());
+  EXPECT_DOUBLE_EQ(*t.handle_input_events_duration, 1.25);
+}
+
+TEST(CobaltFrameInputTimingTest, CompositorOnlyFrameIsNull) {
+  CobaltFrameInputTiming t =
+      CobaltFrameInputTiming::FromMainFrameSnapshot(nullptr);
+  EXPECT_FALSE(t.main_frame_queue_duration.has_value());
+  EXPECT_FALSE(t.handle_input_events_duration.has_value());
+
+  // A snapshot without metrics is treated the same way.
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = AtMs(0);
+  snapshot.main_frame_run_time = AtMs(1);
+  t = CobaltFrameInputTiming::FromMainFrameSnapshot(&snapshot);
+  EXPECT_FALSE(t.main_frame_queue_duration.has_value());
+  EXPECT_FALSE(t.handle_input_events_duration.has_value());
+}
+
+TEST(CobaltFrameInputTimingTest, MissingRunTimeGivesNullQueue) {
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = AtMs(0);
+  snapshot.metrics = std::make_unique<cc::BeginMainFrameMetrics>();
+
+  CobaltFrameInputTiming t =
+      CobaltFrameInputTiming::FromMainFrameSnapshot(&snapshot);
+
+  EXPECT_FALSE(t.main_frame_queue_duration.has_value());
+  ASSERT_TRUE(t.handle_input_events_duration.has_value());
+  EXPECT_DOUBLE_EQ(*t.handle_input_events_duration, 0.0);
 }
 
 }  // namespace blink
