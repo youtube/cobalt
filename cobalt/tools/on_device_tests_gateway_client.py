@@ -259,10 +259,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_target = target_data.get('target', '')
       else:
         test_target = target_data
-      if test_target.startswith('//video/youtube/'):
-        test_target = test_target[len('//video/youtube/'):]
-      elif test_target.startswith('video/youtube/'):
-        test_target = test_target[len('video/youtube/'):]
       target_name = test_target.split(':')[-1]
 
       if args.filter_json_dir:
