@@ -227,6 +227,17 @@ bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
 }
 
+bool AudioOutputManager::GetDirectPlaybackSupport(JNIEnv* env,
+                                                  int encoding,
+                                                  int sample_rate,
+                                                  int channel_count,
+                                                  bool require_hw_av_sync) {
+  SB_DCHECK(env);
+  return Java_AudioOutputManager_getDirectPlaybackSupport(
+             env, j_audio_output_manager_, encoding, sample_rate, channel_count,
+             require_hw_av_sync) == JNI_TRUE;
+}
+
 bool AudioOutputManager::GetAudioConfiguration(
     JNIEnv* env,
     int index,

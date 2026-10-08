@@ -22,9 +22,9 @@ interface H5vccStorage {
 
   [Sync]
   WriteTest(uint32 test_size, string test_string)
-      => (int32? bytes_written, string? error);
+      => (uint32? bytes_written, string? error);
 
   [Sync]
   VerifyTest(uint32 test_size, string test_string)
-      => (int32? bytes_read, string? error, bool verified);
+      => (uint32? bytes_read, string? error, bool verified);
 };
