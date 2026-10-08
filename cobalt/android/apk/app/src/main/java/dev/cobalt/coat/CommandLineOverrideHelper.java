@@ -85,8 +85,6 @@ public final class CommandLineOverrideHelper {
 
     // Pass javascript console log to adb log.
     paramOverrides.add("LogJsConsoleMessages");
-    // Limit decoded image cache to 32 mbytes.
-    paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
     // It is important to use a feature override instead of the
     // rendering switch, to make sure certain devices are excluded.
     paramOverrides.add("DefaultPassthroughCommandDecoder");
