@@ -49,16 +49,9 @@ def _normalize_status(raw_status):
 
 def _parse_entry_duration(test):
   if 'duration' in test:
-    try:
-      return float(test['duration'])
-    except (ValueError, TypeError):
-      return 0.0
+    return float(test['duration'])
   if 'start_time' in test and 'end_time' in test:
-    try:
-      return max(0.0,
-                 (float(test['end_time']) - float(test['start_time'])) / 1000.0)
-    except (ValueError, TypeError):
-      return 0.0
+    return (float(test['end_time']) - float(test['start_time'])) / 1000.0
   return 0.0
 
 
@@ -74,22 +67,17 @@ def _parse_entry_output(test):
 
 
 def _extract_cases(data):
-  """Extracts test cases grouped by classname from heterogeneous schemas."""
+  """Extracts test cases grouped by classname."""
   suites = collections.defaultdict(list)
 
-  if isinstance(data, dict) and 'per_iteration_data' in data:
-    for iteration in data.get('per_iteration_data', []):
+  if 'per_iteration_data' in data:
+    for iteration in data['per_iteration_data']:
       for test_key, results in iteration.items():
         for res in results:
-          if not isinstance(res, dict):
-            continue
           classname, _, method = test_key.partition('#')
-          if not method:
-            classname, method = 'UnknownClass', classname
-          try:
-            elapsed_time = float(res.get('elapsed_time_ms') or 0) / 1000.0
-          except (ValueError, TypeError):
-            elapsed_time = 0.0
+          elapsed_ms = res.get('elapsed_time_ms')
+          elapsed_time = float(
+              elapsed_ms) / 1000.0 if elapsed_ms is not None else 0.0
           suites[classname].append({
               'name': method.split('[')[0],
               'status': _normalize_status(res.get('status', 'SUCCESS')),
@@ -98,17 +86,9 @@ def _extract_cases(data):
           })
     return suites
 
-  tests = data.get('tests', []) if isinstance(
-      data, dict) else (data if isinstance(data, list) else [])
-  for t in tests:
-    if not isinstance(t, dict):
-      continue
-    name = t.get('test_title') or t.get('name') or t.get(
-        'test_category') or 'UnknownTest'
-    classname = t.get('class_name') or t.get('suite_name') or t.get(
-        'test_category') or 'VegaTest'
-    suites[classname].append({
-        'name': name,
+  for t in data['tests']:
+    suites[t['class_name']].append({
+        'name': t['test_title'],
         'status': _normalize_status(t.get('result', t.get('status', 'PASSED'))),
         'time': _parse_entry_duration(t),
         'output': _parse_entry_output(t)
