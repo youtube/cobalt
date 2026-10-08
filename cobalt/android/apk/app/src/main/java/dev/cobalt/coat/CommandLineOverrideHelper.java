@@ -138,9 +138,9 @@ public final class CommandLineOverrideHelper {
   public static void getFlagOverrides(@NonNull List<String> commandLineArgs) {
     List<String> cliOverrides = getDefaultCommandLineOverridesList();
     StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
-    StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
-    StringJoiner disableFeatureOverrides = getDefaultDisableFeatureOverridesList();
-    StringJoiner blinkEnableFeatureOverrides = getDefaultBlinkEnableFeatureOverridesList();
+    StringJoiner enableFeatureOverrides = new StringJoiner(",");
+    StringJoiner disableFeatureOverrides = new StringJoiner(",");
+    StringJoiner blinkEnableFeatureOverrides = new StringJoiner(",");
     StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
@@ -175,6 +175,10 @@ public final class CommandLineOverrideHelper {
         }
       }
     }
+
+    enableFeatureOverrides.merge(getDefaultEnableFeatureOverridesList());
+    disableFeatureOverrides.merge(getDefaultDisableFeatureOverridesList());
+    blinkEnableFeatureOverrides.merge(getDefaultBlinkEnableFeatureOverridesList());
 
     cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
     cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
