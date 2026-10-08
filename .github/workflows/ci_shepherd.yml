@@ -144,9 +144,13 @@ jobs:
           gemini_debug: true
           upload_artifacts: true
           prompt: |
-            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }} using the downloaded failure logs and test results in `artifacts/` (and the `gh` tool if needed).
+            Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }}.
+            All test failure artifacts, reports, and check statuses have already been fetched and preloaded into the `artifacts/` directory.
+            Inspect `artifacts/summary.json` and any logs in `artifacts/logs/` or `artifacts/test_results/`.
+            Do not run git fetch or git clone. Do not perform extraneous network searches or repetitive commands.
+            If detailed step logs could not be retrieved or the check is an external build status, formulate your determination directly from the available check statuses and failure descriptions.
 
-            Provide your final determination as a JSON object with the following fields:
+            Provide your final determination immediately as a single JSON object with the following fields:
             - "verdict": "failure" (if real failure introduced in PR code), "flaky" (if failures are due to flakes, timeouts, or infra), or "pass" (if all checks passed)
             - "confidence": a number from 0 to 1 indicating your confidence in the verdict
             - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment

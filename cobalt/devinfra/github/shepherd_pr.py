@@ -618,7 +618,7 @@ def evaluate_pr(
                 and decision != "CHANGES_REQUESTED" and not is_draft
                 and state == "OPEN" and mergeable == "MERGEABLE")
 
-    return {
+    res = {
         "pr": pr_number,
         "head_sha": head_sha,
         "is_green": is_green,
@@ -633,6 +633,17 @@ def evaluate_pr(
         "mergeable": mergeable,
         "merge_state_status": merge_status,
     }
+
+    if artifacts_dir:
+        try:
+            os.makedirs(artifacts_dir, exist_ok=True)
+            summary_path = os.path.join(artifacts_dir, "summary.json")
+            with open(summary_path, "w", encoding="utf-8") as f:
+                json.dump(res, f, indent=2)
+        except Exception:
+            pass
+
+    return res
 
 
 def print_initial_summary(pr_num: int, curr: Dict[str, Any]):
