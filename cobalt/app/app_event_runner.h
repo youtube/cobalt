@@ -59,6 +59,8 @@ class AppEventRunner {
   // Returns all active WebContents.
   virtual std::vector<content::WebContents*> GetWebContents() = 0;
 
+  virtual void PrecreateWindow() {}
+
   // Returns the currently active pending transition ACK.
   virtual PendingAck pending_ack() const = 0;
 
