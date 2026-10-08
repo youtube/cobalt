@@ -18,6 +18,7 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include "starboard/android/shared/audio_track.h"
@@ -30,9 +31,11 @@ namespace starboard {
 // This class is thread-safe.
 class FakeAudioTrack : public AudioTrack {
  public:
-  explicit FakeAudioTrack(int channels,
-                          int sampling_frequency_hz,
-                          SbMediaAudioSampleType sample_type);
+  explicit FakeAudioTrack(
+      int channels,
+      int sampling_frequency_hz,
+      SbMediaAudioSampleType sample_type,
+      std::optional<int> tunnel_mode_audio_session_id = std::nullopt);
   ~FakeAudioTrack() override = default;
 
   void Play() override;
@@ -60,6 +63,9 @@ class FakeAudioTrack : public AudioTrack {
   double volume() const;
   PlayState play_state() const;
   int pause_and_flush_count() const;
+  std::optional<int> tunnel_mode_audio_session_id() const {
+    return tunnel_mode_audio_session_id_;
+  }
   void set_consumed_frames(int64_t consumed);
   void simulate_device_change(AudioDeviceChange change);
   void simulate_device_change(bool changed);
@@ -69,6 +75,7 @@ class FakeAudioTrack : public AudioTrack {
  private:
   const int channels_;
   const SbMediaAudioSampleType sample_type_;
+  const std::optional<int> tunnel_mode_audio_session_id_;
 
   mutable std::mutex mutex_;
   PlayState play_state_ = PlayState::kStopped;
