@@ -177,13 +177,14 @@ class CORE_EXPORT HTMLVideoElement final
     return visibility_tracker_.Get();
   }
 
-<<<<<<< HEAD
-  // HTMLMediaElement overrides.
+// HTMLMediaElement overrides.
   void OnEncryptedMediaInitData() final;
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
-  void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
+  void SetMaxVideoCapabilities(const String& max_video_capabilities,
+                               ExceptionState& exception_state);
+  void SetMaxVideoResolution(const String& max_video_resolution,
+                             ExceptionState& exception_state);
 
   // GetMaxVideoCapabilities() overrides the function in web_media_player_client.h to allow
   // other cc/h files to access the max_video_capabilities_ variable.
@@ -193,7 +194,6 @@ class CORE_EXPORT HTMLVideoElement final
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of ff7f0f0e23c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // EventTarget overrides.

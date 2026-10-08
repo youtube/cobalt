@@ -20,11 +20,8 @@
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
-<<<<<<< HEAD
-#include "content/common/pseudonymization_salt.h"
-=======
 #include "build/buildflag.h"
->>>>>>> parent of ff7f0f0e23c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "content/common/pseudonymization_salt.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/pseudonymization_util.h"
 #include "content/public/common/web_identity.h"
