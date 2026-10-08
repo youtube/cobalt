@@ -15,6 +15,7 @@
 #include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -26,7 +27,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
@@ -47,6 +48,18 @@ const char kCrashpadDBName[] = "crashpad_database";
 #if !BUILDFLAG(IS_ANDROID)
 constexpr char kTestFileName[] = "cache_test_file.json";
 constexpr uint32_t kBufferSizeBytes = 16 * 1024;
+
+constexpr char kClearCacheDirectoryError[] = "Failed to clear cache directory.";
+constexpr char kContentsMismatchError[] =
+    "File test data does not match with test data string";
+constexpr char kFileSizeMismatchError[] =
+    "File test data size does not match kTestDataSize";
+constexpr char kCreateDirectoryError[] = "Failed to create cache directory.";
+constexpr char kFileOpenError[] = "Error while opening file: ";
+constexpr char kFileReadError[] = "ReadAtCurrentPosNoBestEffort() failed.";
+constexpr char kFileWriteError[] = "WriteAtCurrentPosNoBestEffort() failed.";
+constexpr char kGetCacheDirectoryError[] =
+    "Failed to get cache directory path.";
 
 base::FilePath GetCacheDirectory() {
   std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
@@ -158,43 +171,38 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
                           "WriteTest is not supported on Android.");
 #else
   base::ScopedAllowBlockingForTesting allow_blocking;
-  std::optional<int32_t> bytes_written;
-  std::optional<std::string> error;
 
-  base::FilePath cache_path = GetCacheDirectory();
+  const base::FilePath cache_path = GetCacheDirectory();
   if (cache_path.empty()) {
-    error = "Failed to get cache directory path.";
-    std::move(callback).Run(bytes_written, error);
+    std::move(callback).Run(0U, kGetCacheDirectoryError);
     return;
   }
 
   // Make sure the cache directory exists, then empty it in place so that the
   // directory itself (and its mode/ownership) is left untouched.
   if (!base::CreateDirectory(cache_path)) {
-    error = "Failed to create cache directory.";
-    std::move(callback).Run(bytes_written, error);
+    std::move(callback).Run(0U, kCreateDirectoryError);
     return;
   }
   if (!DeleteDirectoryContents(cache_path)) {
-    error = "Failed to clear cache directory.";
-    std::move(callback).Run(bytes_written, error);
+    std::move(callback).Run(0U, kClearCacheDirectoryError);
     return;
   }
 
-  base::FilePath test_file_path = cache_path.Append(kTestFileName);
+  const base::FilePath test_file_path = cache_path.Append(kTestFileName);
   base::File test_file(test_file_path,
                        base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
 
   if (!test_file.IsValid()) {
-    error = base::StringPrintf("Error while opening ScopedFile: %s",
-                               test_file_path.value().c_str());
-    std::move(callback).Run(bytes_written, error);
+    std::move(callback).Run(
+        0U, base::StrCat({kFileOpenError, test_file_path.value()}));
     return;
   }
 
   // Repeatedly write `test_string` to test_size bytes of `write_buffer`.
   std::string write_buffer;
-  int iterations = test_size / test_string.length();
+  write_buffer.reserve(test_size);
+  const int iterations = test_size / test_string.length();
   for (int i = 0; i < iterations; ++i) {
     write_buffer.append(test_string);
   }
@@ -205,22 +213,22 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   uint32_t total_bytes_written = 0;
 
   do {
-    auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
-        write_buffer.data() + total_bytes_written,
-        std::min(kBufferSizeBytes, test_size - total_bytes_written));
-    if (current_bytes_written <= 0) {
+    const auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
+        base::as_byte_span(write_buffer)
+            .subspan(
+                total_bytes_written,
+                std::min(kBufferSizeBytes, test_size - total_bytes_written)));
+    if (!current_bytes_written.has_value() || *current_bytes_written == 0) {
       base::DeleteFile(test_file_path);
-      error = "SbWrite -1 return value error";
-      std::move(callback).Run(bytes_written, error);
+      std::move(callback).Run(0U, kFileWriteError);
       return;
     }
-    total_bytes_written += current_bytes_written;
+    total_bytes_written += *current_bytes_written;
   } while (total_bytes_written < test_size);
 
   test_file.Flush();
 
-  bytes_written = total_bytes_written;
-  std::move(callback).Run(bytes_written, error);
+  std::move(callback).Run(total_bytes_written, std::nullopt);
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
@@ -233,25 +241,22 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
                           "VerifyTest is not supported on Android.",
                           /*verified=*/false);
 #else
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  std::optional<int32_t> bytes_read;
-  std::optional<std::string> error;
-  bool verified = false;
 
-  base::FilePath cache_path = GetCacheDirectory();
+  base::ScopedAllowBlockingForTesting allow_blocking;
+
+  const base::FilePath cache_path = GetCacheDirectory();
   if (cache_path.empty()) {
-    error = "Failed to get cache directory path.";
-    std::move(callback).Run(bytes_read, error, verified);
+    std::move(callback).Run(0U, kGetCacheDirectoryError, /*verified=*/false);
     return;
   }
 
-  base::FilePath test_file_path = cache_path.Append(kTestFileName);
+  const base::FilePath test_file_path = cache_path.Append(kTestFileName);
   base::File test_file(test_file_path,
                        base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!test_file.IsValid()) {
-    error = base::StringPrintf("Error while opening ScopedFile: %s",
-                               test_file_path.value().c_str());
-    std::move(callback).Run(bytes_read, error, verified);
+    std::move(callback).Run(
+        0U, base::StrCat({kFileOpenError, test_file_path.value()}),
+        /*verified=*/false);
     return;
   }
 
@@ -259,43 +264,38 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   // `kBufferSize` per write.
   uint32_t total_bytes_read = 0;
 
-  auto read_buffer = std::make_unique<char[]>(kBufferSizeBytes);
+  std::array<unsigned char, kBufferSizeBytes> read_buffer;
   do {
-    auto current_bytes_read = test_file.ReadAtCurrentPosNoBestEffort(
-        read_buffer.get(),
-        std::min(kBufferSizeBytes, test_size - total_bytes_read));
-    if (current_bytes_read <= 0) {
+    const auto current_bytes_read =
+        test_file.ReadAtCurrentPosNoBestEffort(read_buffer);
+    if (!current_bytes_read.has_value() || *current_bytes_read == 0) {
       base::DeleteFile(test_file_path);
-      error = "SbRead -1 return value error";
-      std::move(callback).Run(bytes_read, error, verified);
+      std::move(callback).Run(0U, kFileReadError, /*verified=*/false);
       return;
     }
 
     // Verify `read_buffer` equivalent to a repeated `test_string`.
-    for (auto i = 0; i < current_bytes_read; ++i) {
-      if (read_buffer.get()[i] !=
+    for (size_t i = 0; i < *current_bytes_read; ++i) {
+      if (read_buffer[i] !=
           test_string[(total_bytes_read + i) % test_string.size()]) {
         base::DeleteFile(test_file_path);
-        error = "File test data does not match with test data string";
-        std::move(callback).Run(bytes_read, error, verified);
+        std::move(callback).Run(0U, kContentsMismatchError, /*verified=*/false);
         return;
       }
     }
 
-    total_bytes_read += current_bytes_read;
+    total_bytes_read += *current_bytes_read;
   } while (total_bytes_read < test_size);
 
   if (total_bytes_read != test_size) {
     base::DeleteFile(test_file_path);
-    error = "File test data size does not match kTestDataSize";
-    std::move(callback).Run(bytes_read, error, verified);
+    std::move(callback).Run(0U, kFileSizeMismatchError, /*verified=*/false);
     return;
   }
 
   base::DeleteFile(test_file_path);
-  verified = true;
-  bytes_read = total_bytes_read;
-  std::move(callback).Run(bytes_read, error, verified);
+
+  std::move(callback).Run(total_bytes_read, std::nullopt, /*verified=*/true);
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
