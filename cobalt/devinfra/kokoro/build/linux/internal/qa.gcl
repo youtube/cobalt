@@ -12,9 +12,5 @@ config build = common.build {
       key = 'CONFIG'
       value = 'qa'
     },
-    {
-      key = 'PUBLISH_GOLDEN_WORKSPACE'
-      value = '1'
-    },
   ]
 }
