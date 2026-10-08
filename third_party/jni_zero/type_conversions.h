@@ -29,8 +29,8 @@ namespace jni_zero {
   "_jni.h one."
 
 namespace internal {
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+
+#if !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
 
@@ -83,64 +83,10 @@ concept HasSpecificSpecialization = requires(T t) {
   requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
                IsPrimitive<T> || IsJavaRef<T>;
 };
-#else   // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 inline constexpr bool IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
-
-template <typename T>
-concept HasReserve = requires(T t) { t.reserve(0); };
-
-template <typename T>
-concept HasPushBack = requires(T t, T::value_type v) { t.push_back(v); };
-
-template <typename T>
-concept HasInsert = requires(T t, T::value_type v) { t.insert(v); };
-
-template <typename T>
-concept IsMap = requires(T t) {
-  typename T::key_type;
-  typename T::mapped_type;
-};
-
-template <typename T>
-concept IsContainer = requires(T t) {
-  requires !IsMap<T>;
-  typename T::value_type;
-  t.begin();
-  t.end();
-  t.size();
-};
-
-template <typename T>
-concept IsObjectContainer =
-    IsContainer<T> && !std::is_arithmetic_v<typename T::value_type> &&
-    !std::is_enum_v<typename T::value_type>;
-
-// TODO(agrieve): We should be able to at least define FromJniType() /
-// ToJniArray() for other container types by delegating to helpers that accept
-// start/end pointers.
-template <typename T>
-concept IsEnumVector =
-    IsContainer<T> && std::is_enum_v<typename T::value_type> && HasReserve<T> &&
-    HasPushBack<T>;
-
-template <typename T>
-concept IsOptional = !std::is_arithmetic_v<T> &&
-                     std::same_as<T, std::optional<typename T::value_type>>;
-
-template <typename T>
-concept IsPrimitive = std::is_arithmetic<T>::value;
-
-template <typename T>
-concept HasSpecificSpecialization = requires(T t) {
-  requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
-               IsPrimitive<T> || IsJavaRef<T>;
-};
-#endif  // BUILDFLAG(IS_COBALT)
+#endif   // !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
 
 // Used to allow for the c++ type to be non-primitive even if the java type is
 // primitive, when doing type conversions. primitive<->primitive conversions use
