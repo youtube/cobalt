@@ -193,11 +193,6 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
-// To check the regression of the fix for the bug that pending frame grows
-// 2000+. For details, see http://b/517914191.
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
@@ -233,10 +228,6 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
-
-inline constexpr ExperimentalFeatureKey<int>
-    kMediaVideoDecoderMaxPendingInputsSize(
-        "Media.VideoDecoderMaxPendingInputsSize");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
