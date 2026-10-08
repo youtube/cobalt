@@ -160,18 +160,10 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
-<<<<<<< HEAD
-  const bool is_android_sink =
-      audio_sink_ && audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType());
-  if (allow_flush_during_seek_ && is_android_sink && channels == channels_ &&
-      sampling_frequency_hz == sampling_frequency_hz_ &&
-      audio_sample_type == audio_sample_type_) {
-=======
   const AudioFormat audio_format = {channels, audio_sample_type,
                                     sampling_frequency_hz};
   if (allow_flush_during_seek_ && audio_sink_ &&
       audio_format == current_audio_format_) {
->>>>>>> e9f629c10 (android: Convert audio to a supported format in tunnel mode (#13061))
     SB_LOG(INFO) << "Audio sink is already started with the same config, "
                  << "skipping Start().";
     auto* android_sink = static_cast<AudioSinkAndroid*>(audio_sink_);
