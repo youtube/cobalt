@@ -24,6 +24,7 @@ import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.Window;
+import android.widget.FrameLayout;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
@@ -44,6 +45,7 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class MainActivity extends BaseCobaltActivity {
+  private VideoSurfaceView mVideoSurfaceView;
 
   static {
     // Each aosp apk ships exactly one app loader under its natural name
@@ -174,7 +176,8 @@ public class MainActivity extends BaseCobaltActivity {
           }
         });
 
-    setContentView(new VideoSurfaceView(this));
+    mVideoSurfaceView = new VideoSurfaceView(this);
+    setContentView(mVideoSurfaceView);
   }
 
   /**
@@ -233,6 +236,21 @@ public class MainActivity extends BaseCobaltActivity {
       MainActivityJni.get().nativeSendStopEvent();
     }
     super.onDestroy();
+  }
+
+  @Override
+  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (width == 0 || height == 0) {
+      // The UI covers the video in this case.
+      return;
+    }
+    runOnUiThread(
+        () -> {
+          var layoutParams = new FrameLayout.LayoutParams(width, height);
+          layoutParams.setMargins(x, y, 0, 0);
+          // This makes the SurfaceView move and resize its surface to the new bounds.
+          mVideoSurfaceView.setLayoutParams(layoutParams);
+        });
   }
 
   @Override
