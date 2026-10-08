@@ -266,17 +266,23 @@ run_package_release_pipeline () {
   fi
 }
 
-publish_golden_workspace_snapshot () {
-  local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
-  local platform="${TARGET_PLATFORM:-${PLATFORM}}"
-  if [[ -z "${platform}" ]]; then
-    echo "==> Error: Neither TARGET_PLATFORM nor PLATFORM is set. Cannot determine snapshot platform." >&2
+should_publish_golden_workspace () {
+  if [[ "${PUBLISH_GOLDEN_WORKSPACE:-0}" != "1" ]]; then
     return 1
   fi
-  local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
-  local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
+  if [[ -n "${KOKORO_ROOT_JOB_TYPE:-}" ]] && ! is_release_build; then
+    return 1
+  fi
+  return 0
+}
 
-  echo "==> Packaging golden workspace snapshot for ${platform}..."
+_do_publish_golden_workspace_snapshot () {
+  local gclient_root="$1"
+  local platform="$2"
+  local bucket="$3"
+  local src_commit="$4"
+
+  local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
   mkdir -p "${staging_dir}"
 
   local archive="${staging_dir}/golden-workspace-latest.tar.zst"
@@ -306,8 +312,6 @@ publish_golden_workspace_snapshot () {
   else
     archive_size=$(stat -f%z "${archive}")
   fi
-  local src_commit
-  src_commit=$(git -C "${WORKSPACE_COBALT}" rev-parse HEAD)
 
   local manifest="${staging_dir}/manifest.json"
   cat > "${manifest}" <<EOF
@@ -322,11 +326,42 @@ publish_golden_workspace_snapshot () {
 EOF
 
   echo "==> Uploading golden workspace snapshot to gs://${bucket}/${platform}/..."
-  init_gcloud
   "${GSUTIL}" cp "${archive}" "gs://${bucket}/${platform}/golden-workspace-latest.tar.zst"
   "${GSUTIL}" cp "${manifest}" "gs://${bucket}/${platform}/manifest.json"
   echo "==> Successfully uploaded golden workspace snapshot to gs://${bucket}/${platform}/"
 
   rm -rf "${staging_dir}"
+}
+
+publish_golden_workspace_snapshot () {
+  if ! should_publish_golden_workspace; then
+    echo "==> Skipping golden workspace snapshot (not designated publisher job)."
+    return 0
+  fi
+
+  local gclient_root="${KOKORO_ARTIFACTS_DIR:-}/git"
+  local platform="${TARGET_PLATFORM:-${PLATFORM:-}}"
+  if [[ -z "${platform}" ]]; then
+    echo "==> Error: Neither TARGET_PLATFORM nor PLATFORM is set. Cannot determine snapshot platform." >&2
+    return 1
+  fi
+  local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
+  local src_commit
+  src_commit=$(git -C "${WORKSPACE_COBALT}" rev-parse HEAD)
+
+  init_gcloud
+  local manifest_url="gs://${bucket}/${platform}/manifest.json"
+  local remote_commit
+  remote_commit="$("${GSUTIL}" cat "${manifest_url}" 2>/dev/null | grep -o '"src_commit": *"[^"]*"' | head -n1 | cut -d'"' -f4 || true)"
+  if [[ -n "${remote_commit}" && "${remote_commit}" == "${src_commit}" ]]; then
+    echo "==> Golden workspace snapshot for ${platform} at commit ${src_commit} is already uploaded. Skipping."
+    return 0
+  fi
+
+  echo "==> Packaging golden workspace snapshot for ${platform}..."
+  if ! _do_publish_golden_workspace_snapshot "${gclient_root}" "${platform}" "${bucket}" "${src_commit}"; then
+    echo "==> WARNING: Failed to publish golden workspace snapshot. Continuing build." >&2
+    return 0
+  fi
 }
 
