@@ -16,7 +16,7 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if !BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #else
 #include "starboard/shared/starboard/application.h"
@@ -48,7 +48,7 @@ bool TextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
   // TODO(b/492704919): Android TV calls into Cobalt directly, which is a
   // layering violation. AOSP sends a Starboard event instead.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if !BUILDFLAG(IS_STARBOARD)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
 #else
@@ -58,7 +58,7 @@ void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
   if (Application* application = Application::GetIfExists()) {
     application->InjectAccessibilityTextToSpeechSettingsChangedEvent(enabled);
   }
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
