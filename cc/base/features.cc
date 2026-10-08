@@ -283,4 +283,13 @@ BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
 // Killswitch for disabling Headless scheduler state machine.
 BASE_FEATURE(kHeadlessSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltTileMemoryMetrics,
+             "CobaltTileMemoryMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
+    &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
+#endif
+
 }  // namespace features
