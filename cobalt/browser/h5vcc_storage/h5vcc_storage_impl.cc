@@ -165,6 +165,8 @@ void H5vccStorageImpl::ClearCrashpadDatabase(
 void H5vccStorageImpl::WriteTest(uint32_t test_size,
                                  const std::string& test_string,
                                  WriteTestCallback callback) {
+  CHECK_GT(test_size, 0U);
+  CHECK(!test_string.empty());
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
   std::move(callback).Run(std::nullopt,
@@ -207,6 +209,7 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
     write_buffer.append(test_string);
   }
   write_buffer.append(test_string.substr(0, test_size % test_string.length()));
+  CHECK_EQ(test_size, write_buffer.size());
 
   // Incremental Writes of `test_string`, copies `SbWriteAll`, using a maximum
   // `kBufferSize` per write.
@@ -235,6 +238,8 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
 void H5vccStorageImpl::VerifyTest(uint32_t test_size,
                                   const std::string& test_string,
                                   VerifyTestCallback callback) {
+  CHECK_GT(test_size, 0U);
+  CHECK(!test_string.empty());
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
   std::move(callback).Run(std::nullopt,
