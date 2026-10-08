@@ -161,6 +161,10 @@ TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
   struct rlimit nice_limit;
   ASSERT_EQ(0, getrlimit(RLIMIT_NICE, &nice_limit))
       << "getrlimit failed. Errno: " << errno << " (" << strerror(errno) << ")";
+  // getrlimit(2): "The actual ceiling for the nice value is calculated as
+  // 20 - rlim_cur. The useful range for this limit is thus from 1
+  // (corresponding to a nice value of 19) to 40 (corresponding to a nice
+  // value of -20)." https://man7.org/linux/man-pages/man2/getrlimit.2.html
   const int ceiling =
       20 - static_cast<int>(std::min<rlim_t>(nice_limit.rlim_cur, 40));
   const int denied_priority = std::min(current_priority, ceiling) - 1;
