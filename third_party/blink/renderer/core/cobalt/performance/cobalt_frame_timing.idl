@@ -17,28 +17,36 @@
 //   new PerformanceObserver(cb).observe({type: 'cobalt-frame'}).
 // Note: Drops are detectable via frameToken gaps or presentationTime deltas;
 // no synthetic entries are generated for skipped BeginFrames.
+// Entries are delivered to the local root frame's window only (not to
+// same-process iframes). The main-thread fields require the threaded
+// compositor (ProxyMain); with a single-threaded compositor every entry is
+// compositor-only.
 [Exposed=Window, RuntimeEnabled=CobaltFrameTiming]
 interface CobaltFrameTiming : PerformanceEntry {
     readonly attribute unsigned long frameToken;
     readonly attribute DOMHighResTimeStamp presentationTime;
 
     // --- Main thread 5 representative UMAs (null for compositor-only frames, e.g. CSS transform anims)
-    readonly attribute double? animateDuration;
-    readonly attribute double? styleDuration;
-    readonly attribute double? layoutDuration;
-    readonly attribute double? prepaintDuration;
-    readonly attribute double? paintDuration;
+    readonly attribute DOMHighResTimeStamp? animateDuration;
+    readonly attribute DOMHighResTimeStamp? styleDuration;
+    readonly attribute DOMHighResTimeStamp? layoutDuration;
+    readonly attribute DOMHighResTimeStamp? prepaintDuration;
+    readonly attribute DOMHighResTimeStamp? paintDuration;
 
     // --- Compositor & EGL timings (always present)
-    // framePrepDuration: previous swap_end -> this swap_start (CPU-side time
-    //   between consecutive swaps: main + cc + viz, i.e. everything that is not
-    //   the swap itself).
+    // framePrepDuration: previous swap_end -> this swap_start. Everything
+    //   between consecutive swaps that is not the swap itself (main + cc +
+    //   viz), *including idle time* when no frame was being produced; filter
+    //   by cadence when measuring steady-state animation.
     // drawDuration: viz Display draw_start -> swap_start (SkiaRenderer /
     //   GPU-thread draw of the aggregated frame).
     // swapDuration: swap_start -> swap_end (eglSwapBuffers).
-    readonly attribute double framePrepDuration;
-    readonly attribute double drawDuration;
-    readonly attribute double swapDuration;
+    readonly attribute DOMHighResTimeStamp framePrepDuration;
+    readonly attribute DOMHighResTimeStamp drawDuration;
+    readonly attribute DOMHighResTimeStamp swapDuration;
 
+    // Blink's bindings do not support [Default] toJSON, and a PerformanceEntry
+    // subclass has to be an interface (not a dictionary), so toJSON follows
+    // the same pattern as the other PerformanceEntry types.
     [CallWith=ScriptState, ImplementedAs=toJSONForBinding] object toJSON();
 };

@@ -27,7 +27,10 @@
 
 namespace blink {
 
+// Main-thread data captured when a main frame commits, and attached to the
+// CobaltFrameTiming entry of the frame that presents it. Move-only.
 struct CORE_EXPORT CobaltMainFrameSnapshot {
+  // BeginFrameArgs::frame_time of the main frame (the VSync it targets).
   base::TimeTicks bmf_start;
   std::unique_ptr<cc::BeginMainFrameMetrics> metrics;
 
@@ -37,6 +40,15 @@ struct CORE_EXPORT CobaltMainFrameSnapshot {
   ~CobaltMainFrameSnapshot();
 };
 
+// Non-standard, Cobalt-only performance entry ("cobalt-frame") describing one
+// successfully presented compositor frame: the main-thread lifecycle stages
+// (when the frame contains a main-frame update) and the compositor / viz /
+// EGL swap timings, all taken from the same presentation feedback so they
+// are correlated without polling.
+//
+// Lifetime: garbage collected; created by WindowPerformance and handed to
+// PerformanceObservers (entries are not buffered in the performance timeline).
+// Threading: main thread only.
 class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
   DEFINE_WRAPPERTYPEINFO();
 

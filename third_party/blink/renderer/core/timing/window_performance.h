@@ -34,6 +34,7 @@
 #include <optional>
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -53,7 +54,6 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-#include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
 #endif
@@ -207,6 +207,18 @@ class CORE_EXPORT WindowPerformance final : public Performance,
       ExecutionContext*,
       bool has_multiple_contexts,
       LocalFrame* observer_frame);
+
+#if BUILDFLAG(IS_COBALT)
+  // Builds the cobalt-frame entry for a presented frame and advances
+  // `last_cobalt_swap_end_`. Returns nullptr when detached from a window.
+  CobaltFrameTiming* CreateCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot);
+  // Returns framePrepDuration for `details` (previous swap_end -> this
+  // swap_start, in ms) and advances `last_cobalt_swap_end_`.
+  double UpdateCobaltFramePrep(const viz::FrameTimingDetails& details);
+#endif
 
   void BuildJSONValue(V8ObjectBuilder&) const override;
 

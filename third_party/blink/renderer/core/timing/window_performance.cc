@@ -44,9 +44,6 @@
 #include "base/trace_event/trace_id_helper.h"
 #include "build/build_config.h"
 #include "components/viz/common/frame_timing_details.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
-#endif
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/public/mojom/load_timing_info.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
@@ -1313,16 +1310,19 @@ void WindowPerformance::QueueCobaltFrameTiming(
     const viz::FrameTimingDetails& details,
     std::optional<CobaltMainFrameSnapshot> main_snapshot) {
   if (!HasObserverFor(PerformanceEntry::kCobaltFrame)) {
+    // Keep following the swap cadence while unobserved so that the first
+    // entry after an observer attaches gets a correct framePrepDuration.
+    UpdateCobaltFramePrep(details);
     return;
   }
-  DOMWindow* window = DomWindow();
-  if (!window) {
-    return;
+  if (CobaltFrameTiming* entry = CreateCobaltFrameTiming(
+          frame_token, details, std::move(main_snapshot))) {
+    NotifyObserversOfEntry(*entry);
   }
+}
 
-  DOMHighResTimeStamp presentation_time =
-      MonotonicTimeToDOMHighResTimeStamp(details.presentation_feedback.timestamp);
-
+double WindowPerformance::UpdateCobaltFramePrep(
+    const viz::FrameTimingDetails& details) {
   // Frame prep: time between previous swap_end and current swap_start.
   double frame_prep_duration = 0.0;
   if (!last_cobalt_swap_end_.is_null() &&
@@ -1335,6 +1335,27 @@ void WindowPerformance::QueueCobaltFrameTiming(
   }
   if (!details.swap_timings.swap_end.is_null()) {
     last_cobalt_swap_end_ = details.swap_timings.swap_end;
+  }
+  return frame_prep_duration;
+}
+
+CobaltFrameTiming* WindowPerformance::CreateCobaltFrameTiming(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& details,
+    std::optional<CobaltMainFrameSnapshot> main_snapshot) {
+  DOMWindow* window = DomWindow();
+  if (!window) {
+    return nullptr;
+  }
+
+  DOMHighResTimeStamp presentation_time = MonotonicTimeToDOMHighResTimeStamp(
+      details.presentation_feedback.timestamp);
+
+  double frame_prep_duration = UpdateCobaltFramePrep(details);
+  // Failed presentations only advance `last_cobalt_swap_end_`; their
+  // timestamps are not meaningful, so no entry is reported.
+  if (details.presentation_feedback.failed()) {
+    return nullptr;
   }
 
   // Draw duration: viz draw_start -> swap_start (Display compositor draw).
@@ -1366,30 +1387,31 @@ void WindowPerformance::QueueCobaltFrameTiming(
   std::optional<double> prepaint_duration;
   std::optional<double> paint_duration;
 
-  if (main_snapshot.has_value() && main_snapshot->metrics) {
+  if (main_snapshot.has_value() && !main_snapshot->bmf_start.is_null()) {
     start_time = MonotonicTimeToDOMHighResTimeStamp(main_snapshot->bmf_start);
+  } else if (!details.draw_start_timestamp.is_null()) {
+    // Compositor-only frame (e.g. CSS transform animation).
+    start_time =
+        MonotonicTimeToDOMHighResTimeStamp(details.draw_start_timestamp);
+  } else {
+    start_time = presentation_time;
+  }
+  if (main_snapshot.has_value() && main_snapshot->metrics) {
     animate_duration = main_snapshot->metrics->animate.InMillisecondsF();
     style_duration = main_snapshot->metrics->style_update.InMillisecondsF();
     layout_duration = main_snapshot->metrics->layout_update.InMillisecondsF();
     prepaint_duration = main_snapshot->metrics->prepaint.InMillisecondsF();
     paint_duration = main_snapshot->metrics->paint.InMillisecondsF();
-  } else {
-    // Compositor-only frame (e.g. CSS transform animation).
-    start_time =
-        MonotonicTimeToDOMHighResTimeStamp(details.draw_start_timestamp);
   }
 
   double duration = presentation_time >= start_time
                         ? (presentation_time - start_time)
                         : 0.0;
 
-  auto* entry = MakeGarbageCollected<CobaltFrameTiming>(
-      duration, start_time, frame_token, presentation_time,
-      animate_duration, style_duration, layout_duration,
-      prepaint_duration, paint_duration, frame_prep_duration, draw_duration,
-      swap_duration, window);
-
-  NotifyObserversOfEntry(*entry);
+  return MakeGarbageCollected<CobaltFrameTiming>(
+      duration, start_time, frame_token, presentation_time, animate_duration,
+      style_duration, layout_duration, prepaint_duration, paint_duration,
+      frame_prep_duration, draw_duration, swap_duration, window);
 }
 #endif
 

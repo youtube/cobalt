@@ -455,6 +455,11 @@ void LayerTreeView::DidPresentCompositorFrame(
              ->RunsTasksInCurrentSequence());
   // Only run callbacks on successful presentations.
   if (frame_timing_details.presentation_feedback.failed()) {
+#if BUILDFLAG(IS_COBALT)
+    // cobalt-frame does not report failed frames, but still needs their swap
+    // end to compute the next frame's framePrepDuration.
+    delegate_->DidPresentCobaltFrame(frame_token, frame_timing_details);
+#endif
     return;
   }
   while (!presentation_callbacks_.empty()) {

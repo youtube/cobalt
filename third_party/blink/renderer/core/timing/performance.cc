@@ -34,8 +34,6 @@
 #include <algorithm>
 #include <optional>
 
-#include "build/build_config.h"
-
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/metrics/histogram_functions.h"
@@ -44,6 +42,7 @@
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/permissions_policy/document_policy_feature.mojom-blink.h"

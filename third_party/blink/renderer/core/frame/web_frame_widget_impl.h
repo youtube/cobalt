@@ -39,9 +39,6 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
-#endif
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "cc/input/event_listener_properties.h"
 #include "cc/input/overscroll_behavior.h"
@@ -91,6 +88,11 @@
 #include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
 #include "ui/base/mojom/window_show_state.mojom-blink-forward.h"
 #include "ui/gfx/ca_layer_result.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
+#endif
 
 namespace gfx {
 class Point;
@@ -795,6 +797,9 @@ class CORE_EXPORT WebFrameWidgetImpl
   void OnCobaltPresentationCallback(
       CobaltMainFrameSnapshot snapshot,
       const viz::FrameTimingDetails& frame_timing_details);
+  // Captures this main frame's lifecycle metrics and requests a presentation
+  // callback for the commit that carries them. Called from EndUpdateLayers().
+  void RequestCobaltMainFramePresentation();
 #endif
   void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) override;
   void RecordDispatchRafAlignedInputTime(
@@ -1307,8 +1312,9 @@ class CORE_EXPORT WebFrameWidgetImpl
 
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks cobalt_bmf_start_time_;
-  std::unique_ptr<cc::BeginMainFrameMetrics> pending_cobalt_bmf_metrics_;
-  std::optional<CobaltMainFrameSnapshot> pending_cobalt_main_snapshot_;
+  // Snapshots resolved by the presentation currently being processed; see
+  // OnCobaltPresentationCallback().
+  Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
 #endif
 };
 

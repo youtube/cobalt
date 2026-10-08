@@ -95,6 +95,14 @@ class WindowPerformanceTest : public testing::Test,
   void RemoveCobaltFrameObserver() {
     performance_->observer_filter_options_ &= ~PerformanceEntry::kCobaltFrame;
   }
+
+  CobaltFrameTiming* CreateCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot) {
+    return performance_->CreateCobaltFrameTiming(frame_token, details,
+                                                 std::move(main_snapshot));
+  }
 #endif
 
   void SimulateJustPaintFinished() { performance_->OnPaintFinished(); }
@@ -2209,17 +2217,27 @@ TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithoutObserver) {
 TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithObserver) {
   AddCobaltFrameObserver();
   EXPECT_TRUE(performance_->HasCobaltFrameObserver());
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  // Must not crash without a real PerformanceObserver attached.
+  performance_->QueueCobaltFrameTiming(100, details, std::nullopt);
+  RemoveCobaltFrameObserver();
+}
 
-  // First frame with main snapshot.
-  viz::FrameTimingDetails details1;
-  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
-  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
-  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
-  details1.presentation_feedback.timestamp =
+TEST_P(WindowPerformanceTest, CobaltFrameTimingMainFrame) {
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
       GetTimeOrigin() + base::Milliseconds(16);
 
   CobaltMainFrameSnapshot snapshot;
-  snapshot.bmf_start = GetTimeOrigin() + base::Milliseconds(0);
+  snapshot.bmf_start = GetTimeOrigin();
   snapshot.metrics = std::make_unique<cc::BeginMainFrameMetrics>();
   snapshot.metrics->animate = base::Milliseconds(2);
   snapshot.metrics->style_update = base::Milliseconds(3);
@@ -2227,19 +2245,131 @@ TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithObserver) {
   snapshot.metrics->prepaint = base::Milliseconds(1);
   snapshot.metrics->paint = base::Milliseconds(2);
 
-  performance_->QueueCobaltFrameTiming(100, details1, std::move(snapshot));
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(100, details, std::move(snapshot));
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(entry->entryType(), performance_entry_names::kCobaltFrame);
+  EXPECT_EQ(entry->frameToken(), 100u);
+  EXPECT_NEAR(entry->startTime(), 0, 0.2);
+  EXPECT_NEAR(entry->presentationTime(), 16, 0.2);
+  EXPECT_NEAR(entry->duration(), 16, 0.2);
+  EXPECT_DOUBLE_EQ(entry->animateDuration().value(), 2);
+  EXPECT_DOUBLE_EQ(entry->styleDuration().value(), 3);
+  EXPECT_DOUBLE_EQ(entry->layoutDuration().value(), 4);
+  EXPECT_DOUBLE_EQ(entry->prepaintDuration().value(), 1);
+  EXPECT_DOUBLE_EQ(entry->paintDuration().value(), 2);
+  // No previous swap yet.
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 0);
+  EXPECT_DOUBLE_EQ(entry->drawDuration(), 4);
+  EXPECT_DOUBLE_EQ(entry->swapDuration(), 2);
+}
 
-  // Second frame: compositor-only (no main snapshot), tests framePrepDuration.
+TEST_P(WindowPerformanceTest, CobaltFrameTimingCompositorOnlyFrame) {
+  viz::FrameTimingDetails details1;
+  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details1.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  ASSERT_TRUE(CreateCobaltFrameTiming(100, details1, std::nullopt));
+
   viz::FrameTimingDetails details2;
   details2.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
   details2.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
   details2.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
   details2.presentation_feedback.timestamp =
       GetTimeOrigin() + base::Milliseconds(33);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(101, details2, std::nullopt);
+  ASSERT_TRUE(entry);
+  EXPECT_FALSE(entry->animateDuration().has_value());
+  EXPECT_FALSE(entry->styleDuration().has_value());
+  EXPECT_FALSE(entry->layoutDuration().has_value());
+  EXPECT_FALSE(entry->prepaintDuration().has_value());
+  EXPECT_FALSE(entry->paintDuration().has_value());
+  // Compositor-only frames start at the viz draw.
+  EXPECT_NEAR(entry->startTime(), 25, 0.2);
+  EXPECT_NEAR(entry->duration(), 8, 0.2);
+  // Previous swap_end (16 ms) -> this swap_start (30 ms).
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 14);
+  EXPECT_DOUBLE_EQ(entry->drawDuration(), 5);
+  EXPECT_DOUBLE_EQ(entry->swapDuration(), 2);
+}
 
+TEST_P(WindowPerformanceTest, CobaltFrameTimingFailedPresentation) {
+  viz::FrameTimingDetails failed;
+  failed.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  failed.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  failed.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  failed.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  failed.presentation_feedback.flags = gfx::PresentationFeedback::kFailure;
+  // Failed presentations are not reported.
+  EXPECT_FALSE(CreateCobaltFrameTiming(100, failed, std::nullopt));
+
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(101, details, std::nullopt);
+  ASSERT_TRUE(entry);
+  // The failed frame's swap_end (16 ms) still feeds framePrepDuration.
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 14);
+}
+
+TEST_P(WindowPerformanceTest,
+       CobaltFrameTimingFramePrepTrackedWhileUnobserved) {
+  // Frame 1, observed: swap_end at 16 ms.
+  viz::FrameTimingDetails details1;
+  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details1.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  ASSERT_TRUE(CreateCobaltFrameTiming(100, details1, std::nullopt));
+
+  // Frame 2 arrives while no observer is attached: no entry, but the swap
+  // cadence must still be followed (swap_end at 32 ms).
+  viz::FrameTimingDetails details2;
+  details2.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details2.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details2.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details2.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+  RemoveCobaltFrameObserver();
   performance_->QueueCobaltFrameTiming(101, details2, std::nullopt);
 
+  // Frame 3, observed again: framePrepDuration is measured from frame 2's
+  // swap_end (32 ms), not frame 1's (16 ms).
+  AddCobaltFrameObserver();
+  viz::FrameTimingDetails details3;
+  details3.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(40);
+  details3.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(45);
+  details3.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(47);
+  details3.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(48);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(102, details3, std::nullopt);
+  ASSERT_TRUE(entry);
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 13);
   RemoveCobaltFrameObserver();
+}
+
+TEST_P(WindowPerformanceTest, CobaltFrameTimingNullDrawStart) {
+  viz::FrameTimingDetails details;
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(100, details, std::nullopt);
+  ASSERT_TRUE(entry);
+  // Without a draw start, the entry starts at presentation time.
+  EXPECT_NEAR(entry->startTime(), 16, 0.2);
+  EXPECT_DOUBLE_EQ(entry->duration(), 0);
 }
 #endif
 

@@ -19,6 +19,20 @@
 
 namespace blink {
 
+namespace {
+
+void AddOptionalNumber(V8ObjectBuilder& builder,
+                       const char* name,
+                       const std::optional<double>& value) {
+  if (value.has_value()) {
+    builder.AddNumber(name, *value);
+  } else {
+    builder.AddNull(name);
+  }
+}
+
+}  // namespace
+
 CobaltMainFrameSnapshot::CobaltMainFrameSnapshot() = default;
 CobaltMainFrameSnapshot::CobaltMainFrameSnapshot(CobaltMainFrameSnapshot&&) =
     default;
@@ -65,31 +79,11 @@ void CobaltFrameTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
   PerformanceEntry::BuildJSONValue(builder);
   builder.AddNumber("frameToken", frame_token_);
   builder.AddNumber("presentationTime", presentation_time_);
-  if (animate_duration_.has_value()) {
-    builder.AddNumber("animateDuration", *animate_duration_);
-  } else {
-    builder.AddNull("animateDuration");
-  }
-  if (style_duration_.has_value()) {
-    builder.AddNumber("styleDuration", *style_duration_);
-  } else {
-    builder.AddNull("styleDuration");
-  }
-  if (layout_duration_.has_value()) {
-    builder.AddNumber("layoutDuration", *layout_duration_);
-  } else {
-    builder.AddNull("layoutDuration");
-  }
-  if (prepaint_duration_.has_value()) {
-    builder.AddNumber("prepaintDuration", *prepaint_duration_);
-  } else {
-    builder.AddNull("prepaintDuration");
-  }
-  if (paint_duration_.has_value()) {
-    builder.AddNumber("paintDuration", *paint_duration_);
-  } else {
-    builder.AddNull("paintDuration");
-  }
+  AddOptionalNumber(builder, "animateDuration", animate_duration_);
+  AddOptionalNumber(builder, "styleDuration", style_duration_);
+  AddOptionalNumber(builder, "layoutDuration", layout_duration_);
+  AddOptionalNumber(builder, "prepaintDuration", prepaint_duration_);
+  AddOptionalNumber(builder, "paintDuration", paint_duration_);
   builder.AddNumber("framePrepDuration", frame_prep_duration_);
   builder.AddNumber("drawDuration", draw_duration_);
   builder.AddNumber("swapDuration", swap_duration_);
