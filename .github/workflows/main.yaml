@@ -307,20 +307,24 @@ jobs:
             [[ "${TEST_YTS_WPT}" == "true" && ( "${IS_NON_DRAFT_PULL_REQUEST}" == "true" || "${RUN_ODT_ON_NIGHTLY}" == "true" || "${RUN_ODT_ON_PUSH}" == "true" ) ]] && run_yts_wpt_test="true"
             [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
 
-            # Expected test targets for results processing and reporting.
-            run_flags=$(jq -cn \
-              --arg gtest_device "${run_on_device_test}" \
-              --arg gtest_host "${TEST_ON_HOST}" \
-              --arg e2e_test "${run_e2e_test}" \
-              --arg yts_test "${run_yts_test}" \
-              --arg yts_playback_test "${run_yts_playback_test}" \
-              --arg yts_wpt_test "${run_yts_wpt_test}" \
-              --arg yts_finch_test "${run_yts_finch_test}" \
-              '{"gtest_device": ($gtest_device == "true"), "gtest_host": ($gtest_host == "true"), "e2e_test": ($e2e_test == "true"), "yts_test": ($yts_test == "true"), "yts_playback_test": ($yts_playback_test == "true"), "yts_wpt_test": ($yts_wpt_test == "true"), "yts_finch_test": ($yts_finch_test == "true")}')
+            # Filter expected test targets for results processing and reporting.
+            active_test_types=()
+            [[ "${TEST_ON_HOST}" == "true" ]] && active_test_types+=(gtest:host junit:host)
+            [[ "${run_on_device_test}" == "true" ]] && active_test_types+=(gtest:device junit:device)
+            [[ "${run_e2e_test}" == "true" ]] && active_test_types+=(e2e_test)
+            [[ "${run_yts_test}" == "true" ]] && active_test_types+=(yts_test)
+            [[ "${run_yts_playback_test}" == "true" ]] && active_test_types+=(yts_playback_test)
+            [[ "${run_yts_wpt_test}" == "true" ]] && active_test_types+=(yts_wpt_test)
+            [[ "${run_yts_finch_test}" == "true" ]] && active_test_types+=(yts_finch_test)
 
-            expected_tests=$(python3 "${GITHUB_WORKSPACE}/.github/scripts/filter_expected_tests.py" \
-              --targets_file "${test_targets_json_file}" \
-              --run_flags "${run_flags}")
+            active_types_json=$(printf '%s\n' "${active_test_types[@]}" | jq -R . | jq -cs .)
+            expected_tests=$(jq -c --argjson active "${active_types_json}" '[
+              .[] | select(
+                (.target != null) and (
+                  (.test_type as $tt | (.runs_on // "host") as $ro | $active | any(. == $tt or . == ($tt + ":" + $ro)))
+                )
+              )
+            ]' "${test_targets_json_file}")
           fi
 
           {

@@ -101,9 +101,6 @@ runs:
         set -x
 
         artifact_name="${ARTIFACT_NAME}"
-        if [[ "${PLATFORM}" == *aosp* && "${artifact_name}" == "Cobalt.apk" ]]; then
-          artifact_name="cobalt.apk"
-        fi
 
         cobalt_path="${COBALT_PATH}"
         if [[ -z "${cobalt_path}" ]]; then
