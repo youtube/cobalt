@@ -1,0 +1,13 @@
+diff --git a/source/data/brkitr/root.txt b/source/data/brkitr/root.txt
+index 0cdc36e8c..53d11ecd6 100644
+--- a/source/data/brkitr/root.txt
++++ b/source/data/brkitr/root.txt
+@@ -22,8 +22,4 @@ root{
+         Mymr:process(dependency){"burmesedict.dict"}
+         Thai:process(dependency){"thaidict.dict"}
+     }
+-    lstm{
+-        Mymr{"Burmese_graphclust_model5_heavy.res"}
+-        Thai{"Thai_graphclust_model4_heavy.res"}
+-    }
+ }
