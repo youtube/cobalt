@@ -195,7 +195,7 @@ class MediaCapabilitiesCache {
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
 
-  // Returns whether PCM audio with |encoding| (Android AudioFormat encoding),
+  // Returns whether audio with |encoding| (Android AudioFormat encoding),
   // |sampling_frequency_hz| and |channels| can be played directly in tunnel
   // mode.
   bool IsTunneledAudioSupported(int encoding,
