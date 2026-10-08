@@ -72,6 +72,9 @@ class ApplicationAOSP : public QueueApplication {
   // Android invalidates the Surface as soon as SurfaceHolder.surfaceDestroyed()
   // returns, so the engine has to let go of the ANativeWindow first, otherwise
   // it could use a stale surface.
+  //
+  // The surface is cleared first, so no new window is created on it. Returns
+  // immediately if no window holds the surface.
   bool ReleaseWindowSurfaceAndWait(int64_t timeout_usec);
 
   // Reports that the engine has let go of the Android surface, releasing a
@@ -118,6 +121,10 @@ class ApplicationAOSP : public QueueApplication {
   // window they belong to. Written on the Starboard thread, read on the Android
   // UI thread from InjectKeyEvent().
   std::atomic<SbWindow> window_{kSbWindowInvalid};
+
+  // Held while CreateWindow() takes the surface and publishes the window, and
+  // while ReleaseWindowSurfaceAndWait() clears the surface and checks for one.
+  std::mutex window_mutex_;
 
   std::mutex surface_release_mutex_;
   std::condition_variable surface_release_cv_;
