@@ -223,5 +223,17 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
     "runs_on": "host",
     "test_type": "browsertest"
+  },
+  {
+    "target": "cobalt/testing/e2e:chromedriver_smoke_tests",
+    "executable": "out/linux-x64x11_devel/chromedriver_smoke_tests",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "cobalt/testing/e2e:lifecycle_e2e_tests",
+    "executable": "out/linux-x64x11_devel/lifecycle_e2e_tests",
+    "runs_on": "host",
+    "test_type": "gtest"
   }
 ]

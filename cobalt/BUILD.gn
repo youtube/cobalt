@@ -71,6 +71,9 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
+  if (is_linux) {
+    deps += [ "//cobalt/testing/e2e:lifecycle_e2e_tests" ]
+  }
   if (use_crashpad) {
     # On Starboard platforms, build both the crashpad_handler binary and the
     # crashpad_database_util tool. On other platforms (e.g. ATV, tvOS) it is

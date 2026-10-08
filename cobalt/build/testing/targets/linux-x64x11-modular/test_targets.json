@@ -176,5 +176,11 @@
     "executable": "out/linux-x64x11-modular_devel/url_unittests_loader",
     "runs_on": "host",
     "test_type": "gtest"
+  },
+  {
+    "target": "cobalt/testing/e2e:lifecycle_e2e_tests",
+    "executable": "out/linux-x64x11-modular_devel/lifecycle_e2e_tests",
+    "runs_on": "host",
+    "test_type": "gtest"
   }
 ]
