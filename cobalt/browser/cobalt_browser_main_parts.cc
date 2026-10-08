@@ -38,6 +38,7 @@
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
@@ -265,6 +266,14 @@ void RecordPriorSessionExitReasons() {
   }
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
+  }
 }
 #endif
 
@@ -377,6 +386,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 17);
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(17);
   LogStabilityMetricsCapacity("PreCreateThreads");
   SetupMetrics();
 
