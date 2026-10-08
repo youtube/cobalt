@@ -80,7 +80,8 @@ AudioRendererPcm::AudioRendererPcm(
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause)),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
-      channels_(audio_stream_info.number_of_channels),
+      channels_(audio_renderer_sink->GetOutputNumberOfChannels(
+          audio_stream_info.number_of_channels)),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),

@@ -144,6 +144,46 @@ bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
       /*must_support_tunnel_mode=*/true);
 }
 
+// Returns a callback that adjusts the output format of AdaptiveAudioDecoder
+// to the format returned by |sink| for |audio_stream_info|, or nullptr if no
+// adjustment is needed.
+// The audio renderer configures itself and the sink with the number of
+// channels and the sampling rate returned by the sink, so adjust the decoder
+// output to match them.  As AdaptiveAudioDecoder resamples the audio when it
+// adjusts the output format, setting the sampling rate here as well avoids
+// resampling the audio again in the renderer.
+// TODO(b/568452069): Ideally |resampler_| and |channel_mixer_| should be moved
+// out of AdaptiveAudioDecoder and into the audio renderer, so the renderer can
+// convert the audio to the format required by the sink in one place.
+// Adjusting the decoder output here is a shortcut for now.
+AdaptiveAudioDecoder::OutputFormatAdjustmentCallback
+CreateOutputFormatAdjustmentCallback(const AudioStreamInfo& audio_stream_info,
+                                     const AudioRendererSink& sink) {
+  const int source_channels = audio_stream_info.number_of_channels;
+  const int source_samples_per_second =
+      static_cast<int>(audio_stream_info.samples_per_second);
+  const int output_channels = sink.GetOutputNumberOfChannels(source_channels);
+  const int output_samples_per_second =
+      sink.GetNearestSupportedSampleFrequency(source_samples_per_second);
+  if (output_channels == source_channels &&
+      output_samples_per_second == source_samples_per_second) {
+    return nullptr;
+  }
+
+  SB_LOG(INFO) << "Audio decoder output is adjusted from " << source_channels
+               << " channel(s) at " << source_samples_per_second << "Hz to "
+               << output_channels << " channel(s) at "
+               << output_samples_per_second << "Hz.";
+  return [output_channels, output_samples_per_second](SbMediaAudioSampleType*,
+                                                      int* samples_per_second,
+                                                      int* number_of_channels) {
+    SB_DCHECK(samples_per_second);
+    SB_DCHECK(number_of_channels);
+    *samples_per_second = output_samples_per_second;
+    *number_of_channels = output_channels;
+  };
+}
+
 class PlayerComponentsPassthrough : public PlayerComponents {
  public:
   PlayerComponentsPassthrough(
@@ -419,17 +459,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
+      auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
+          creation_parameters.audio_stream_info(), tunnel_mode_audio_session_id,
+          allow_audio_writing_on_pause, enable_video_renderer_vsp_adjustment,
+          allow_flush_audio_track_during_seek, pause_using_audio_track_state);
+
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
-          enable_reset_audio_decoder);
-
-      components.audio.renderer_sink =
-          std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek,
-              pause_using_audio_track_state);
+          enable_reset_audio_decoder,
+          CreateOutputFormatAdjustmentCallback(
+              creation_parameters.audio_stream_info(), *renderer_sink));
+      components.audio.renderer_sink = std::move(renderer_sink);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
