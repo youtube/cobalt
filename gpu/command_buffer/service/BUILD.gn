@@ -423,15 +423,9 @@ target(link_target_type, "gles2_sources") {
     "//ui/gl/init",
   ]
 
-<<<<<<< HEAD
-=======
-  if (is_cobalt) {
+if (is_cobalt) {
     deps -= [ "//third_party/dawn/src/dawn:proc" ]
   }
-
-  deps += [ "//third_party/angle:translator" ]
-
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (use_ozone) {
     sources += [
       "shared_image/gl_ozone_image_representation.cc",

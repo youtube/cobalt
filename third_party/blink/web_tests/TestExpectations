@@ -9608,17 +9608,15 @@ crbug.com/477530170 http/tests/devtools/console/console-revoke-error-in-worker.j
 # Gardener 2026-02-02
 crbug.com/479874917 external/wpt/navigation-api/scroll-behavior/manual-scroll-fragment-does-not-exist.html [ Crash Timeout Failure Pass ]
 
-<<<<<<< HEAD
+# Gardener 2026-02-03
+crbug.com/478186112 [ Win ] external/wpt/pointerevents#pointerevent_attributes.html?touch [ Timeout Pass ]
+
 # Gardener 2026-02-06
 crbug.com/482449299 [ Win11 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/scatterND.https.any.html?gpu [ Failure ]
 
 # Flakily times out when initial navigation commits before about:blank on headless.
 crbug.com/40615943 [ Linux ] external/wpt/html/browsers/the-window-object/navigate-to-about-blank-while-initial-load-pending.html [ Pass Timeout ]
 crbug.com/40615943 [ Mac ] external/wpt/html/browsers/the-window-object/navigate-to-about-blank-while-initial-load-pending.html [ Pass Timeout ]
-
-=======
-# Gardener 2026-02-03
-crbug.com/478186112 [ Win ] external/wpt/pointerevents#pointerevent_attributes.html?touch [ Timeout Pass ]
 
 # Cobalt bug: b/461834934.
 wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
@@ -9632,4 +9630,3 @@ wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Time
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

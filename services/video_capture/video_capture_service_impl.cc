@@ -14,11 +14,7 @@
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
-<<<<<<< HEAD
 #include "media/capture/video/create_video_capture_device_factory.h"
-=======
-#include "media/capture/video/fake_video_capture_device_factory.h"
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
 #include "media/capture/video/video_capture_system_impl.h"
