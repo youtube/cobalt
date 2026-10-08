@@ -143,7 +143,7 @@ jobs:
           gemini_model: 'gemini-3.8-flash'
           gemini_debug: true
           upload_artifacts: true
-          settings: '{"tools":{"core":["read_file","list_directory"]}}'
+          settings: '{"tools":{"core":["read_file","list_directory","write_file"]}}'
           prompt: |
             Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }}.
             All test failure artifacts, reports, and check statuses have already been fetched and preloaded into the `artifacts/` directory.
@@ -151,7 +151,8 @@ jobs:
             Do not run git fetch or git clone. Do not perform extraneous network searches or repetitive commands.
             If detailed step logs could not be retrieved or the check is an external build status, formulate your determination directly from the available check statuses and failure descriptions.
 
-            Provide your final determination immediately as a single JSON object with the following fields:
+            You MUST write your final determination JSON object directly to the file `artifacts/triage_analysis.json` using the `write_file` tool.
+            The JSON object must contain the following fields:
             - "verdict": "failure" (if real failure introduced in PR code), "flaky" (if failures are due to flakes, timeouts, or infra), or "pass" (if all checks passed)
             - "confidence": a number from 0 to 1 indicating your confidence in the verdict
             - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
@@ -161,15 +162,44 @@ jobs:
               - "restart_failed_jobs": boolean (true if failed jobs in this workflow run should be restarted)
 
             For a flaky verdict all retries of a workflow run must be analyzed/triaged.
-            All output must be a single valid JSON object.
 
       - name: Validate JSON Output
         if: always() && !cancelled()
         env:
           AGENT_SUMMARY: ${{ steps.trigger_gemini_analysis.outputs.summary }}
         run: |
-          clean_json=$(echo "${AGENT_SUMMARY:-{}}" | sed -e '1{/^```json/d}' -e '${/^```/d}')
-          echo "${clean_json}" | jq -e . >/dev/null || exit 1
+          python3 -c '
+          import json, os, sys
+
+          file_path = "artifacts/triage_analysis.json"
+          if os.path.exists(file_path):
+              with open(file_path, "r", encoding="utf-8") as f:
+                  data = json.load(f)
+              if isinstance(data, dict) and "verdict" in data:
+                  print("Found valid triage_analysis.json")
+                  sys.exit(0)
+
+          # Fallback: check AGENT_SUMMARY output
+          raw = os.environ.get("AGENT_SUMMARY", "").strip()
+          start, end = raw.find("{"), raw.rfind("}")
+          if start == -1 or end == -1 or end <= start:
+              sys.exit(1)
+          try:
+              data = json.loads(raw[start:end+1])
+              if isinstance(data, dict) and "response" in data:
+                  resp = data["response"]
+                  if isinstance(resp, str):
+                      r_clean = resp.strip()
+                      if r_clean.startswith("```json"):
+                          r_clean = r_clean[7:]
+                      if r_clean.startswith("```"):
+                          r_clean = r_clean[3:]
+                      if r_clean.endswith("```"):
+                          r_clean = r_clean[:-3]
+                      json.loads(r_clean.strip())
+          except Exception:
+              sys.exit(1)
+          '
 
       - name: Extract Analysis Results
         id: extract
@@ -179,30 +209,64 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -c '
+          import json, os, secrets, sys
 
-          clean_json=$(echo "${AGENT_SUMMARY:-}" | sed -e '1{/^```json/d}' -e '${/^```/d}')
-          verdict=$(echo "${clean_json:-}" | jq -r '.verdict // empty' 2>/dev/null || true)
-          confidence=$(echo "${clean_json:-}" | jq -r '.confidence // empty' 2>/dev/null || true)
-          findings=$(echo "${clean_json:-}" | jq -r '.findings_summary // empty' 2>/dev/null || true)
-          if [[ -z "${findings}" ]]; then
-            findings="${clean_json:-}"
-          fi
-          recommendation=$(echo "${clean_json:-}" | jq -c '.recommendation // empty' 2>/dev/null || true)
+          file_path = "artifacts/triage_analysis.json"
+          gh_output = os.environ.get("GITHUB_OUTPUT", "")
+          res = {}
 
-          echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
-          echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
-          DELIMITER=$(openssl rand -hex 16)
-          {
-            echo "findings<<${DELIMITER}"
-            echo "${findings}"
-            echo "${DELIMITER}"
-          } >> "${GITHUB_OUTPUT}"
-          REC_DELIMITER=$(openssl rand -hex 16)
-          {
-            echo "recommendation<<${REC_DELIMITER}"
-            echo "${recommendation}"
-            echo "${REC_DELIMITER}"
-          } >> "${GITHUB_OUTPUT}"
+          if os.path.exists(file_path):
+              try:
+                  with open(file_path, "r", encoding="utf-8") as f:
+                      data = json.load(f)
+                  if isinstance(data, dict):
+                      res = data
+              except Exception:
+                  pass
+
+          if not res:
+              raw = os.environ.get("AGENT_SUMMARY", "").strip()
+              start, end = raw.find("{"), raw.rfind("}")
+              if start != -1 and end != -1 and end > start:
+                  try:
+                      parsed = json.loads(raw[start:end+1])
+                      if isinstance(parsed, dict) and "response" in parsed:
+                          resp = parsed["response"]
+                          if isinstance(resp, str):
+                              r_clean = resp.strip()
+                              if r_clean.startswith("```json"):
+                                  r_clean = r_clean[7:]
+                              if r_clean.startswith("```"):
+                                  r_clean = r_clean[3:]
+                              if r_clean.endswith("```"):
+                                  r_clean = r_clean[:-3]
+                              try:
+                                  res = json.loads(r_clean.strip())
+                              except Exception:
+                                  res = parsed
+                          elif isinstance(resp, dict):
+                              res = resp
+                      else:
+                          res = parsed
+                  except Exception:
+                      pass
+
+          verdict = str(res.get("verdict") or "")
+          confidence = str(res.get("confidence") or "")
+          findings = str(res.get("findings_summary") or res.get("response") or "")
+          rec = res.get("recommendation")
+          rec_json = json.dumps(rec) if rec is not None else ""
+
+          delimiter = secrets.token_hex(16)
+          rec_delimiter = secrets.token_hex(16)
+
+          with open(gh_output, "a", encoding="utf-8") as f:
+              f.write(f"verdict={verdict}\n")
+              f.write(f"confidence={confidence}\n")
+              f.write(f"findings<<{delimiter}\n{findings}\n{delimiter}\n")
+              f.write(f"recommendation<<{rec_delimiter}\n{rec_json}\n{rec_delimiter}\n")
+          '
 
   status-and-deflake:
     runs-on: ubuntu-latest
