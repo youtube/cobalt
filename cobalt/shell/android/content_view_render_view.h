@@ -47,6 +47,7 @@ class ContentViewRenderView : public content::CompositorClient {
                       jint width,
                       jint height,
                       const base::android::JavaRef<jobject>& surface,
+                      const base::android::JavaRef<jobject>& surface_control,
                       const base::android::JavaRef<jobject>& host_input_token);
   void SetOverlayVideoMode(JNIEnv* env,
                            const base::android::JavaRef<jobject>& obj,
