@@ -1,5 +1,0 @@
-uniform half4 colorGreen;
-
-half4 main(float2 coords) {
-    return half4(half(-(-int(colorGreen.r))), -(-colorGreen.g), -(-(colorGreen.ba)));
-}

@@ -1,3 +1,0 @@
-Handle session disconnect while paused
-frobnicate("test", "self") = self test
-paused in: the-right-place.js
