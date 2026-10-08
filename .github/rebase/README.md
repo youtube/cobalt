@@ -66,7 +66,6 @@ The pipeline decomposes rebase automation into five self-healing phases built up
 └── reasoning_engine/      # [DEPLOYED TO VERTEX AI]
     ├── engine.py          # CobaltReasoningEngine service (prompts & model calls)
     ├── deploy.py          # Vertex AI deployment & lifecycle CLI
-    ├── chat.py            # Interactive terminal debugger
     ├── requirements.txt   # Packages installed into the hosted engine
     └── skills/            # Declarative domain instructions (Markdown)
         ├── cobalt_rebase.md           # Master guidelines & behavior preservation
