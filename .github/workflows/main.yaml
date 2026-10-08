@@ -39,6 +39,7 @@ env:
     cobalt/docker
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
+    cobalt/testing/e2e
     cobalt/tools
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   IS_NON_DRAFT_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
