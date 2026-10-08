@@ -130,7 +130,8 @@ runs:
         deps_match=false
         LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace}"
 
-        if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
+        if [ -f "${LOWER_DIR}/src/DEPS" ] && [ -f "${LOWER_DIR}/.gclient" ] && \
+           cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
           deps_match=true
         fi

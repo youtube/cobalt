@@ -41,7 +41,7 @@ runs:
       shell: bash
       run: |
         cache_hit=false
-        if [ -w "/runner-cache" ] && [ -d "/runner-cache/snapshots" ] && [ -n "$(ls -A /runner-cache/snapshots 2>/dev/null)" ]; then
+        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ] && [ -n "$(ls -A /runner-cache/golden-workspace 2>/dev/null)" ]; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -79,14 +79,11 @@ runs:
             | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
           # Refresh git stat cache so files extracted from the tarball match
           # the recorded index mtime/size, preventing false-positive dirty status.
-          if [ -d "${STAGING_DIR}/src/.git" ]; then
-            git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
-          fi
-          # Seed vpython cache directory on the runner if present in snapshot
-          if [ -d "${STAGING_DIR}/vpython" ]; then
-            mkdir -p /runner-cache/vpython
-            cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
-          fi
+          git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+
+          # Seed vpython cache directory on the runner from snapshot
+          mkdir -p /runner-cache/vpython
+          cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
           rm -rf "${LOWER_DIR}"
           mv "${STAGING_DIR}" "${LOWER_DIR}"
           echo "Extracted golden workspace snapshot to ${LOWER_DIR}"
