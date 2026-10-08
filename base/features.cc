@@ -54,10 +54,7 @@ std::atomic_bool g_is_reduce_ppms_enabled{false};
 
 // Alphabetical:
 
-// When enabled, the compositor threads (including GPU) will be boosted to
-// kInteractive when not in input or loading scenarios.
-BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
-             FEATURE_DISABLED_BY_DEFAULT);
+
 
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
