@@ -69,3 +69,4 @@ services:
       REGISTRY_METADATA: ${REGISTRY_METADATA:-http://metadata.google.internal./computeMetadata/v1}
       REGISTRY_HOSTNAME: ${REGISTRY_HOSTNAME:-us-central1-docker.pkg.dev}
       REGISTRY_GCP_PROJECT: ${REGISTRY_GCP_PROJECT:-cobalt-kokoro-gar}
+      PUBLISH_GOLDEN_WORKSPACE: ${PUBLISH_GOLDEN_WORKSPACE:-0}
