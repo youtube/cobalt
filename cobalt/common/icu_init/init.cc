@@ -62,14 +62,23 @@ std::string GetIcuDataPath() {
 }
 
 off_t GetIcuDataLength(const std::string& data_path) {
-  struct stat st;
+  struct stat st = {};
   int stat_result = stat(data_path.c_str(), &st);
   if (stat_result != 0 || st.st_size <= 0) {
-    SB_CHECK(stat_result != -1) << "Failed to stat ICU data " << data_path
-                                << ", error " << strerror(errno);
-    SB_CHECK(stat_result == 0 && st.st_size > 0)
-        << "ICU data file unexpectedly has zero length.";
-    return -1;
+    // Use SbLogRawFormatF instead of SB_CHECK here: GetIcuDataLength() is
+    // called inside InitializeIcuDatabase() while g_initialization_once is in
+    // progress. Formatting a fatal LogMessage in SB_CHECK re-enters IcuInit()
+    // on the same thread and deadlocks in __abi_wrap_pthread_once.
+    if (stat_result != 0) {
+      SbLogRawFormatF("FATAL: Failed to stat ICU data file %s, error %d: %s\n",
+                      data_path.c_str(), errno, strerror(errno));
+    } else {
+      SbLogRawFormatF(
+          "FATAL: ICU data file %s unexpectedly has zero or negative length: "
+          "%lld\n",
+          data_path.c_str(), static_cast<long long>(st.st_size));
+    }
+    SbSystemBreakIntoDebugger();
   }
   return st.st_size;
 }
