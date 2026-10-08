@@ -158,6 +158,11 @@ class SB_EXPORT_ANDROID Application {
   // instance is constructed.
   static Application* Get();
 
+  // Gets the current instance of the Application, or nullptr when there is
+  // none. Use this from threads that can run before the application is
+  // constructed or after it is destroyed.
+  static Application* GetIfExists();
+
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.

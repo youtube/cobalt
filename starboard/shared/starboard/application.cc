@@ -78,6 +78,10 @@ Application* Application::Get() {
   return instance;
 }
 
+Application* Application::GetIfExists() {
+  return g_instance.load(std::memory_order_acquire);
+}
+
 int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
   command_line_.reset(new CommandLine(command_line));
