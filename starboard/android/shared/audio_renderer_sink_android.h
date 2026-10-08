@@ -38,6 +38,7 @@ namespace starboard {
 class AudioRendererSinkAndroid final : public AudioRendererSinkImpl {
  public:
   AudioRendererSinkAndroid(
+      const AudioStreamInfo& audio_stream_info,
       std::optional<int> tunnel_mode_audio_session_id,
       bool allow_audio_writing_on_pause,
       bool enable_video_renderer_vsp_adjustment,
@@ -53,6 +54,8 @@ class AudioRendererSinkAndroid final : public AudioRendererSinkImpl {
                               int* max_cached_frames,
                               int* min_frames_per_append) const override;
 
+  int GetOutputNumberOfChannels(int number_of_channels) const override;
+
   void Start(int64_t media_start_time,
              int channels,
              int sampling_frequency_hz,
@@ -65,19 +68,47 @@ class AudioRendererSinkAndroid final : public AudioRendererSinkImpl {
   void Stop() override;
 
  private:
+  struct AudioFormat {
+    int channels = -1;
+    SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
+    int sampling_frequency_hz = -1;
+
+    // Not defaulted, as defaulted comparison operators require C++20, while
+    // some platforms (e.g. AOSP) build Starboard with C++17.
+    bool operator==(const AudioFormat& other) const {
+      return channels == other.channels && sample_type == other.sample_type &&
+             sampling_frequency_hz == other.sampling_frequency_hz;
+    }
+  };
+
+  // Returns the output format required by the platform for
+  // |audio_stream_info|.  Currently it's only called when tunnel mode is
+  // enabled: in tunnel mode (FLAG_HW_AV_SYNC), Android's software mixer and
+  // resampler are bypassed, so the audio has to be converted to a format that
+  // the hardware supports.
+  // Note that AC3 and E-AC3 audio is played through AudioRendererPassthrough
+  // instead of AudioRendererSinkAndroid, so it is never passed in here.
+  static AudioFormat GetPlatformRequiredFormat(
+      const AudioStreamInfo& audio_stream_info);
+
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override;
+  int GetNearestSupportedSampleFrequency(
+      int sampling_frequency_hz) const override;
 
   const bool is_tunnel_mode_enabled_;
   const bool enable_video_renderer_vsp_adjustment_;
   const bool allow_flush_during_seek_;
+  // The output format required by the platform. Currently it's only set when
+  // tunnel mode is enabled. To avoid duplicated calculations, it's calculated
+  // once in the ctor, and then returned by GetOutputNumberOfChannels(),
+  // IsAudioSampleTypeSupported() and GetNearestSupportedSampleFrequency().
+  const std::optional<AudioFormat> platform_required_format_;
 
   bool is_flushed_ = false;
 
-  int channels_ = -1;
-  int sampling_frequency_hz_ = -1;
-  SbMediaAudioSampleType audio_sample_type_ =
-      kSbMediaAudioSampleTypeInt16Deprecated;
+  // The format of the currently started audio sink.
+  AudioFormat current_audio_format_;
 };
 
 }  // namespace starboard
