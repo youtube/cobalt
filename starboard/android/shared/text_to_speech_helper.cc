@@ -52,8 +52,12 @@ void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
 #else
-  Application::Get()->InjectAccessibilityTextToSpeechSettingsChangedEvent(
-      enabled);
+  // This runs on an Android thread, which can run before the application
+  // exists or after it is gone. Cobalt reads the current state when it starts,
+  // so the change can be dropped then.
+  if (Application* application = Application::GetIfExists()) {
+    application->InjectAccessibilityTextToSpeechSettingsChangedEvent(enabled);
+  }
 #endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
