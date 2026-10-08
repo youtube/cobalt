@@ -75,7 +75,7 @@ runs:
         mkdir -p "${STAGING_DIR}"
 
         echo "Streaming and decompressing snapshot from ${ARCHIVE_GCS}..."
-        if gcloud storage cat "${ARCHIVE_GCS}" 2>/dev/null \
+        if gcloud storage cat "${ARCHIVE_GCS}" \
             | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
           # Refresh git stat cache so files extracted from the tarball match
           # the recorded index mtime/size, preventing false-positive dirty status.
