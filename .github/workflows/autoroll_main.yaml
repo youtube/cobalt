@@ -163,7 +163,7 @@ jobs:
             echo '```'
           } > "${PR_BODY_FILE}"
 
-          if git show "HEAD:${AUTOROLL_FILE}" 2>/dev/null | grep -q "^CONFLICTED:" || ([[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"); then
+          if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
             PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
