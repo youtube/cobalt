@@ -207,8 +207,11 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
 
   do {
     const auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
-        base::as_byte_span(write_buffer));
-    if (!current_bytes_written.has_value() || current_bytes_written <= 0) {
+        base::as_byte_span(write_buffer)
+            .subspan(
+                total_bytes_written,
+                std::min(kBufferSizeBytes, test_size - total_bytes_written)));
+    if (!current_bytes_written.has_value() || *current_bytes_written == 0) {
       base::DeleteFile(test_file_path);
       error = "SbWrite -1 return value error";
       std::move(callback).Run(bytes_written, error);
@@ -263,7 +266,7 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   do {
     const auto current_bytes_read =
         test_file.ReadAtCurrentPosNoBestEffort(read_buffer);
-    if (!current_bytes_read.has_value() || current_bytes_read <= 0) {
+    if (!current_bytes_read.has_value() || *current_bytes_read == 0) {
       base::DeleteFile(test_file_path);
       error = "SbRead -1 return value error";
       std::move(callback).Run(bytes_read, error, verified);
