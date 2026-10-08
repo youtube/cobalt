@@ -166,7 +166,7 @@ class GpuRasterPixelTest : public testing::Test,
 #if BUILDFLAG(IS_COBALT)
       FlushInProcessImageTransfers();
 #endif
->>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.):cc/paint/oop_pixeltest.cc
+>>>>>>> parent of bd328260efeca (CONFLICTED Chromium Cherry pick: Revert Cobalt.):cc/paint/oop_pixeltest.cc
       oop_image_cache_.reset();
     }
 

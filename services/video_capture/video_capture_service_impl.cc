@@ -353,7 +353,7 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
   std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
       media::CreateVideoCaptureDeviceFactory(ui_task_runner_);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bd328260efeca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   auto video_capture_system = std::make_unique<media::VideoCaptureSystemImpl>(
       std::move(media_device_factory));
