@@ -14,7 +14,6 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
-#include "base/command_line.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
@@ -24,7 +23,6 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
-#include "cc/base/switches.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -33,23 +31,8 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include <atomic>
-
-#include "base/metrics/histogram_functions.h"
-#include "base/numerics/safe_conversions.h"
-#include "cc/base/features.h"
-#endif
-
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
-
-#if BUILDFLAG(IS_COBALT)
-namespace {
-std::atomic<uint64_t> g_total_tile_memory_usage_bytes{0};
-std::atomic<uint64_t> g_peak_tile_memory_usage_bytes{0};
-}  // namespace
-#endif
 
 namespace cc {
 
@@ -198,9 +181,6 @@ ResourcePool::ResourcePool(
       clock_(base::DefaultTickClock::GetInstance()) {
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "cc::ResourcePool", task_runner_.get());
-#if BUILDFLAG(IS_COBALT)
-  ScheduleRecordTileMemoryMetrics();
-#endif
 }
 
 ResourcePool::~ResourcePool() {
@@ -278,25 +258,9 @@ ResourcePool::InUsePoolResource ResourcePool::AcquireResource(
     viz::SharedImageFormat format,
     const gfx::ColorSpace& color_space,
     const std::string& debug_name) {
-#if BUILDFLAG(IS_COBALT)
-  static bool avoid_cc_reuse_resource =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kAvoidCCReuseResource);
-  PoolResource* resource = avoid_cc_reuse_resource
-                               ? nullptr
-                               : ReuseResource(size, format, color_space);
-#else
   PoolResource* resource = ReuseResource(size, format, color_space);
-#endif
-
   if (!resource)
     resource = CreateResource(size, format, color_space);
-
-#if BUILDFLAG(IS_COBALT)
-  if (avoid_cc_reuse_resource) {
-    resource->mark_avoid_reuse();
-  }
-#endif
   resource->set_debug_name(debug_name);
   return InUsePoolResource(resource);
 }
@@ -319,13 +283,6 @@ ResourcePool::TryAcquireResourceForPartialRaster(
     gfx::Rect* total_invalidated_rect,
     const gfx::ColorSpace& raster_color_space,
     const std::string& debug_name) {
-#if BUILDFLAG(IS_COBALT)
-  static bool avoid_cc_reuse_resource =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kAvoidCCReuseResource);
-  if (avoid_cc_reuse_resource)
-    return InUsePoolResource();
-#endif
   DCHECK(new_content_id);
   DCHECK(previous_content_id);
   *total_invalidated_rect = gfx::Rect();
@@ -405,18 +362,6 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
   total_memory_usage_bytes_ += size;
   if (resource->state() == PoolResource::kUnused)
     unused_memory_usage_bytes_ += size;
-#if BUILDFLAG(IS_COBALT)
-  peak_memory_usage_bytes_ =
-      std::max(peak_memory_usage_bytes_, total_memory_usage_bytes_);
-  g_total_tile_memory_usage_bytes.fetch_add(size, std::memory_order_relaxed);
-  uint64_t current_global =
-      g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
-  if (current_global >
-      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed)) {
-    g_peak_tile_memory_usage_bytes.store(current_global,
-                                         std::memory_order_relaxed);
-  }
-#endif
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,
@@ -607,10 +552,6 @@ bool ResourcePool::ResourceUsageTooHigh() {
 void ResourcePool::DeleteResource(std::unique_ptr<PoolResource> resource) {
   DCHECK_GE(total_memory_usage_bytes_, resource->memory_usage());
   total_memory_usage_bytes_ -= resource->memory_usage();
-#if BUILDFLAG(IS_COBALT)
-  g_total_tile_memory_usage_bytes.fetch_sub(resource->memory_usage(),
-                                            std::memory_order_relaxed);
-#endif
   --total_resource_count_;
   if (flush_evicted_resources_deadline_ == base::TimeTicks::Max()) {
     flush_evicted_resources_deadline_ =
@@ -734,49 +675,6 @@ bool ResourcePool::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
   }
   return true;
 }
-
-#if BUILDFLAG(IS_COBALT)
-void ResourcePool::ScheduleRecordTileMemoryMetrics() {
-  CHECK(task_runner_);
-  if (!base::FeatureList::IsEnabled(features::kCobaltTileMemoryMetrics)) {
-    return;
-  }
-  task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&ResourcePool::RecordTileMemoryMetrics,
-                     weak_ptr_factory_.GetWeakPtr()),
-      features::kCobaltTileMemoryMetricsInterval.Get());
-}
-
-void ResourcePool::RecordTileMemoryMetrics() {
-  const base::TimeTicks now = clock_->NowTicks();
-  if (!last_tile_memory_metrics_time_.is_null() &&
-      now - last_tile_memory_metrics_time_ <
-          features::kCobaltTileMemoryMetricsInterval.Get()) {
-    return;
-  }
-  last_tile_memory_metrics_time_ = now;
-
-  constexpr size_t kMiB = 1024 * 1024;
-  base::UmaHistogramMemoryMB(
-      "Memory.GPU.TileMemory",
-      base::checked_cast<int>(total_memory_usage_bytes_ / kMiB));
-  base::UmaHistogramMemoryMB(
-      "Memory.GPU.TileMemory.Peak",
-      base::checked_cast<int>(peak_memory_usage_bytes_ / kMiB));
-  peak_memory_usage_bytes_ = total_memory_usage_bytes_;
-
-  ScheduleRecordTileMemoryMetrics();
-}
-
-uint64_t ResourcePool::GetGlobalTotalTileMemoryUsageBytes() {
-  return g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
-}
-
-uint64_t ResourcePool::GetGlobalPeakTileMemoryUsageBytes() {
-  return g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
-}
-#endif
 
 ResourcePool::PoolResource::PoolResource(ResourcePool* resource_pool,
                                          size_t unique_id,

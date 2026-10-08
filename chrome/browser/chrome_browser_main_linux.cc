@@ -24,11 +24,9 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_LINUX)
-#include "ui/ozone/public/ozone_platform.h"
-#if BUILDFLAG(USE_DBUS)
 #include "components/dbus/thread_linux/dbus_thread_linux.h"
-#endif  // BUILDFLAG(USE_DBUS)
-#endif  // BUILDFLAG(IS_LINUX)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/installer/util/google_update_settings.h"
@@ -67,10 +65,8 @@ void ChromeBrowserMainPartsLinux::PostCreateMainMessageLoop() {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(USE_DBUS)
   bluez::BluezDBusManager::Initialize(
       dbus_thread_linux::GetSharedSystemBus().get());
-#endif  // BUILDFLAG(USE_DBUS)
 
   // Set up crypt config. This needs to be done before anything starts the
   // network service, as the raw encryption key needs to be shared with the
