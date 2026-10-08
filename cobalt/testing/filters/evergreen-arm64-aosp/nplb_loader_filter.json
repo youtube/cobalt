@@ -9,7 +9,6 @@
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
-    "PosixSetPriorityTests.ErrorOnPermissionDenied",
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
