@@ -7,7 +7,6 @@
 #include "base/android/pre_freeze_background_memory_trimmer.h"
 #include "base/feature_list.h"
 #include "base/features.h"
-#include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 
@@ -34,13 +33,9 @@ static void JNI_MemoryPressureListener_OnMemoryPressure(
       memory_pressure_level);
   auto& forwarder = GetForwarderCallback();
   if (forwarder) {
-    LOG(INFO) << "[CobaltMemoryPressure] JNI received level=" << level
-              << ", forwarding to AndroidOsSignalEvaluator";
     forwarder.Run(level);
     return;
   }
-  LOG(INFO) << "[CobaltMemoryPressure] JNI received level=" << level
-            << ", no forwarder registered, calling NotifyMemoryPressure directly";
   base::MemoryPressureListener::NotifyMemoryPressure(level);
 }
 

@@ -93,8 +93,8 @@ uint64_t CobaltSystemMemoryPressureEvaluator::ResolveProcessMemoryBudget(
   // - Safety Margin
 
   uint64_t budget = 0;
-   if (total_physical_memory_bytes > 0 &&
-             total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
+  if (total_physical_memory_bytes > 0 &&
+      total_physical_memory_bytes <= 1024ULL * 1024 * 1024) {
     // Tier 1: Low-End Hardware (> 512 MB and <= 1024 MB physical RAM)
     // Target: 1 GB RDK set-top boxes, 1 GB Android TV dongles.
     // Device Memory Ceiling: 400 MB (Phase 2 Bonsai target; Phase 1 reclaimer
@@ -234,6 +234,12 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
 
 void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
     base::MemoryPressureListener::MemoryPressureLevel new_level) {
+  if (new_level != current_vote() ||
+      new_level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    LOG(INFO)
+        << "CobaltSystemMemoryPressureEvaluator: Resolved memory pressure level="
+        << new_level;
+  }
   SetCurrentVote(new_level);
   bool notify = current_vote() !=
                 base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;

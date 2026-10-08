@@ -18,7 +18,6 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/feature_list.h"
 #include "base/features.h"
-#include "base/logging.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
@@ -33,13 +32,7 @@ MultiSourceMemoryPressureMonitor::MultiSourceMemoryPressureMonitor()
       dispatch_callback_(base::BindRepeating(
           &base::MemoryPressureListener::NotifyMemoryPressure)),
       aggregator_(this),
-      level_reporter_(current_pressure_level_) {
-#if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "[CobaltMemoryPressure] MultiSourceMemoryPressureMonitor "
-               "initialized (cooldown="
-            << GetCooldownPeriod().InSeconds() << "s)";
-#endif
-}
+      level_reporter_(current_pressure_level_) {}
 
 MultiSourceMemoryPressureMonitor::~MultiSourceMemoryPressureMonitor() {
   // Destroy system evaluator early while the remaining members of this class
@@ -127,24 +120,10 @@ void MultiSourceMemoryPressureMonitor::OnNotifyListenersRequested() {
   bool is_escalation = current_pressure_level_ > last_dispatched_level_;
 
   if (is_in_cooldown && !is_escalation) {
-    LOG(INFO) << "[CobaltMemoryPressure] Monitor SUPPRESSED pulse (level="
-              << current_pressure_level_ << ", elapsed="
-              << (now - last_dispatch_time_).InMilliseconds() << "ms < "
-              << cooldown_period.InMilliseconds() << "ms cooldown)";
     return;
   }
 
-  if (is_in_cooldown && is_escalation) {
-    LOG(INFO) << "[CobaltMemoryPressure] Monitor ESCALATION OVERRIDE ("
-              << last_dispatched_level_ << " -> " << current_pressure_level_
-              << "), bypassing cooldown!";
-  }
-
-  LOG(INFO) << "[CobaltMemoryPressure] Monitor DISPATCHING level="
-            << current_pressure_level_
-            << " to base::MemoryPressureListener";
-
-  last_dispatch_time_ = base::TimeTicks::Now();
+  last_dispatch_time_ = now;
   last_dispatched_level_ = current_pressure_level_;
 #endif
   dispatch_callback_.Run(current_pressure_level_);

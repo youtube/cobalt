@@ -37,8 +37,6 @@ AndroidOsSignalEvaluator::AndroidOsSignalEvaluator(
   base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
       base::BindRepeating(&AndroidOsSignalEvaluator::OnMemoryPressure,
                           base::Unretained(this)));
-  LOG(INFO) << "[CobaltMemoryPressure] AndroidOsSignalEvaluator initialized "
-               "and registered JNI forwarder";
 }
 
 AndroidOsSignalEvaluator::~AndroidOsSignalEvaluator() {
@@ -47,7 +45,6 @@ AndroidOsSignalEvaluator::~AndroidOsSignalEvaluator() {
 
   base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
       base::NullCallback());
-  LOG(INFO) << "[CobaltMemoryPressure] AndroidOsSignalEvaluator destroyed";
 }
 
 // static
@@ -56,14 +53,14 @@ AndroidOsSignalEvaluator* AndroidOsSignalEvaluator::GetInstance() {
 }
 
 void AndroidOsSignalEvaluator::OnMemoryPressure(MemoryPressureLevel level) {
+  LOG(INFO) << "AndroidOsSignalEvaluator: Resolved memory pressure level="
+            << level;
   SetCurrentVote(level);
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
     SendCurrentVote(/*notify=*/false);
     return;
   }
 
-  LOG(INFO) << "[CobaltMemoryPressure] AndroidOsSignalEvaluator casting vote="
-            << level << " (notify=true)";
   SendCurrentVote(/*notify=*/true);
 
   // Android OS trim signals are one-shot events with no recovery callback.

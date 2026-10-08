@@ -496,8 +496,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
       monitor->SetSystemEvaluator(
           std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
               monitor->CreateVoter()));
-      LOG(INFO) << "[CobaltMemoryPressure] CobaltBrowserMainParts attached "
-                   "AndroidOsSignalEvaluator to MultiSourceMemoryPressureMonitor";
+      LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
 #endif  // BUILDFLAG(IS_ANDROID)
     } else {
       LOG(WARNING)
