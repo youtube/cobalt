@@ -471,6 +471,10 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard || is_androidtv) {
+    deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
