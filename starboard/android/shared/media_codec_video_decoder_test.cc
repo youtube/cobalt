@@ -249,10 +249,7 @@ TEST_F(
 }
 
 TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
-  CreateDecoder(
-      /*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-      ExperimentalFeatures(
-          {{std::string(kMediaFixNeedMoreInputBackpressure.key()), 1}}));
+  CreateDecoder();
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
@@ -277,7 +274,7 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
       },
       [](SbPlayerError error, const std::string& msg) {});
 
-  constexpr int kMaxPendingInputs = 128;
+  constexpr int kMaxPendingInputs = 512;
 
   // Write `kMaxPendingInputs + 1` buffers to fill the queue and go beyond.
   // We expect signals for the first `kMaxPendingInputs - 1` writes.

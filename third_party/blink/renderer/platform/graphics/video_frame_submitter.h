@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
 #include "cc/metrics/frame_sorter.h"
 #include "cc/metrics/video_playback_roughness_reporter.h"
@@ -159,6 +160,13 @@ class PLATFORM_EXPORT VideoFrameSubmitter
   void NotifyOpacityIfNeeded(Opacity new_opacity);
 
   void ClearFrameResources();
+#if BUILDFLAG(IS_COBALT)
+  // Centralizes ContextProvider acquisition and 150ms retry callbacks so that
+  // requests and delayed retries check `is_page_visible_` before invoking
+  // `context_provider_callback_` (preventing synchronous GPU channel waits
+  // while concealed) and update `waiting_for_context_provider_`.
+  void RequestContextProvider();
+#endif  // BUILDFLAG(IS_COBALT)
 
   raw_ptr<cc::VideoFrameProvider> video_frame_provider_ = nullptr;
   bool is_media_stream_ = false;
@@ -254,6 +262,14 @@ class PLATFORM_EXPORT VideoFrameSubmitter
 
   THREAD_CHECKER(thread_checker_);
 
+#if BUILDFLAG(IS_COBALT)
+  // True while an asynchronous `context_provider_callback_` request (or its
+  // 150ms retry task) is in flight and `OnReceivedContextProvider()` has not
+  // yet completed. Prevents `SetIsPageVisible(true)` or `OnContextLost()` from
+  // issuing duplicate overlapping ContextProvider requests before
+  // `resource_provider_->IsInitialized()` becomes true.
+  bool waiting_for_context_provider_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
   base::WeakPtrFactory<VideoFrameSubmitter> weak_ptr_factory_{this};
 };
 

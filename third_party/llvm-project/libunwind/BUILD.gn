@@ -72,9 +72,6 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
     ]
 
     defines = [
-      # Build libunwind with concurrency built upon Starboard mutexes and
-      # condition variables.
-      "_LIBUNWIND_HAS_STARBOARD_THREADS",
       "LIBUNWIND_PRINT_APIS",
       "LIBUNWIND_PRINT_DWARF",
       "LIBUNWIND_PRINT_UNWINDING",
@@ -104,12 +101,7 @@ config("unwind_starboard_config") {
     "//starboard/build/config:starboard_implementation",
   ]
 
-  defines = [
-    # Build libunwind with concurrency built upon Starboard mutexes and
-    # condition variables.
-    "_LIBUNWIND_HAS_STARBOARD_THREADS",
-    "NDEBUG",
-  ]
+  defines = [ "NDEBUG" ]
 }
 
 config("unwind_hide_symbols_config") {

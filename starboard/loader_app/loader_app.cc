@@ -234,10 +234,11 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
 }
 
 void InstallCrashpadHandler(const std::string& evergreen_content_path) {
-  std::string ca_certificates_path =
-      evergreen_content_path.empty()
-          ? starboard::GetCACertificatesPath()
-          : starboard::GetCACertificatesPath(evergreen_content_path);
+  // `EvergreenConfig` hasn't been created yet, so pass the library's content
+  // path explicitly.
+  std::string ca_certificates_path = starboard::GetCACertificatesPath(
+      evergreen_content_path.empty() ? kSystemImageContentPath
+                                     : evergreen_content_path);
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }

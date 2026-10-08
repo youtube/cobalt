@@ -25,6 +25,9 @@ interface CobaltLifecycleObserver {
   // Notify the Browser that the page has gained focus in the Renderer.
   OnPageFocused();
 
+  // Notify the Browser that the page has frozen in the Renderer.
+  OnPageFrozen();
+
   // Notify the Browser that the page has resumed in the Renderer.
   OnPageResumed();
 

@@ -57,6 +57,21 @@ configure_environment () {
   env | sort
 }
 
+configure_gob_auth () {
+  # Authenticate git to *.googlesource.com (depot_tools clone, gclient sync)
+  # via the active gcloud identity (GCE service account on Linux DinD runners,
+  # or Keystore service account activated by setup_mac on macOS).
+  # Expiry timestamp set to 3600s so curl drops the cookie if expired rather
+  # than getting HTTP 400 from GoB.
+  set +x
+  local token
+  token="$(gcloud auth print-access-token)"
+  printf '.googlesource.com\tTRUE\t/\tTRUE\t%d\to\t%s\n' \
+    "$(( $(date +%s) + 3600 ))" "${token}" > "${HOME}/.gitcookies"
+  set -x
+  git config --global http.cookiefile "${HOME}/.gitcookies"
+}
+
 configure_dind_environment () {
   export REGISTRY_PATH="$(get_registry_bucket_path)"
 

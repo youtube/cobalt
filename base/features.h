@@ -43,6 +43,19 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsMbs);
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
 
+// When enabled, overrides the GPU discardable cache size limit returned by
+// gpu::DiscardableCacheSizeLimit(), which caps the unlocked entries kept by the
+// GPU service transfer cache (e.g. uploaded decoded images) and the
+// discardable texture managers. Enabled by default on 3P/Starboard platforms.
+// Disabled by default on Android TV, where Cobalt runs in low-end device mode
+// and the upstream limit is already 1 MB. The parameter is the limit in MB and
+// defaults to 1, the upstream low-end Android value. Values above 256 MB, the
+// largest upstream default, are capped. Disabling the feature restores the
+// upstream per-platform defaults. --force-gpu-mem-discardable-limit-mb still
+// takes precedence over both.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuDiscardableCacheLimit);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuDiscardableCacheLimitMb);
+
 // When enabled, gates the V8 max old space size via Finch feature and
 // parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MaxOldSpaceSize);
@@ -54,10 +67,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 
 // When enabled, V8 runs with --optimize-for-size, favoring memory reduction over
-// execution speed. Enabled by default on Cobalt to preserve existing status quo,
-// while allowing experimentation tiers or partners to disable it dynamically
-// via Finch (--disable-features=CobaltV8OptimizeForSize) or command line to
-// evaluate UI framerate and latency improvements.
+// execution speed. Enabled by default on Android to preserve existing status
+// quo, and disabled by default on 3P (non-Android) platforms to unlock locked
+// 30 FPS UI framerates, while allowing dynamic control via Finch or command
+// line.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
 
 // When enabled, overrides the compositor skewport target times, which control
@@ -99,6 +112,13 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, sets InProcessRendererThread to kDisplayCritical thread type
+// on Android, matching multi-process Chromium renderer main thread priority.
+// Disabled by default to enable controlled Finch experimentation
+// (--enable-features=CobaltAndroidDisplayCriticalInProcessRenderer).
+// This is strictly turned off / omitted on Starboard/Linux.
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltAndroidDisplayCriticalInProcessRenderer);
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundNotPerceptibleBinding);
 BASE_EXPORT BASE_DECLARE_FEATURE(kCollectAndroidFrameTimelineMetrics);
 BASE_EXPORT BASE_DECLARE_FEATURE(

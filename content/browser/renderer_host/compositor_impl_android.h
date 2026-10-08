@@ -113,6 +113,10 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
       const base::android::JavaRef<jobject>& surface,
       bool can_be_used_with_surface_control,
       const base::android::JavaRef<jobject>& host_input_token) override;
+#if BUILDFLAG(IS_COBALT)
+  void SetWindowSurfaceControl(
+      const base::android::JavaRef<jobject>& surface_control) override;
+#endif  // BUILDFLAG(IS_COBALT)
   void SetBackgroundColor(int color) override;
   void SetWindowBounds(const gfx::Size& size) override;
   const gfx::Size& GetWindowBounds() override;
@@ -227,6 +231,10 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
 
   gl::ScopedANativeWindow window_;
   gpu::SurfaceHandle surface_handle_;
+#if BUILDFLAG(IS_COBALT)
+  // See SetWindowSurfaceControl().
+  base::android::ScopedJavaGlobalRef<jobject> window_surface_control_;
+#endif  // BUILDFLAG(IS_COBALT)
   std::unique_ptr<ScopedCachedBackBuffer> cached_back_buffer_;
 
   raw_ptr<CompositorClient> client_;
