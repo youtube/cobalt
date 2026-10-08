@@ -30,7 +30,7 @@ namespace jni_zero {
 
 namespace internal {
 
-#if !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
 
@@ -83,10 +83,10 @@ concept HasSpecificSpecialization = requires(T t) {
   requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
                IsPrimitive<T> || IsJavaRef<T>;
 };
-#else   // !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 inline constexpr bool IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
-#endif   // !BUILDFLAG(IS_COBALT) || defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#endif   // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 
 // Used to allow for the c++ type to be non-primitive even if the java type is
 // primitive, when doing type conversions. primitive<->primitive conversions use
