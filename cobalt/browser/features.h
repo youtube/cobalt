@@ -20,6 +20,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 
 namespace cobalt {
 namespace features {
@@ -108,6 +109,27 @@ extern const base::Feature kDisableSplashScreen;
 
 // Forces the display of a video as the splash screen.
 extern const base::Feature kForceVideoSplashScreen;
+
+// Enables overriding the splash screen configuration with the params below.
+BASE_DECLARE_FEATURE(kSplashScreenConfig);
+
+// How long after the splash screen finishes loading Cobalt switches to the main
+// WebContents, once that has loaded (default: 1500ms). If SplashScreenConfig is
+// enabled, it is also passed to the splash screen as the "timeout" query param
+// (in ms), and the built-in splash screen stays up until then instead of
+// closing when its animation ends. Values need a unit, e.g., "3s" or "2500ms".
+// Locally: --enable-features=SplashScreenConfig:timeout/3s
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+// Overrides the URL loaded as the splash screen. If empty (the default) or not
+// a valid URL, the built-in splash screen (switches::kSplashScreenURL) is used.
+// The "force_image", "cache" and "timeout" query params are still appended.
+// Only available in non-gold builds; gold builds always use the built-in
+// splash screen. The value must be URL-encoded, e.g., for http://example.com:
+// --enable-features=SplashScreenConfig:url/http%3A%2F%2Fexample.com
+BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 // Enables video Picture-in-Picture support.
 extern const base::Feature kEnablePictureInPicture;

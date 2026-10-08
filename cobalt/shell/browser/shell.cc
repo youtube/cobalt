@@ -207,7 +207,24 @@ const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
 constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
 
-constexpr int kSplashTimeoutMs = 1500;
+// Returns the URL to load as the splash screen: the SplashScreenConfig "url"
+// feature param if it's set to a valid URL (non-gold builds only), or the
+// built-in splash screen otherwise.
+// See cobalt::features::kSplashScreenUrlParam.
+GURL GetSplashScreenURL() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  const std::string url_param = cobalt::features::kSplashScreenUrlParam.Get();
+  if (!url_param.empty()) {
+    GURL url(url_param);
+    if (url.is_valid()) {
+      return url;
+    }
+    LOG(WARNING) << "NativeSplash: Ignoring invalid splash screen URL: "
+                 << url_param;
+  }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return GURL(switches::kSplashScreenURL);
+}
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
@@ -661,7 +678,7 @@ void Shell::LoadSplashScreenWebContents() {
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
     GetPlatform()->LoadSplashScreenContents(this);
 
-    GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    GURL splash_screen_url = GetSplashScreenURL();
     if (!is_video_splash_screen_) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
@@ -669,6 +686,14 @@ void Shell::LoadSplashScreenWebContents() {
     if (!splash_topic_.empty()) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
+    }
+    if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
+      // Lets the splash screen stay up until the timeout, instead of closing
+      // when its animation ends.
+      splash_screen_url = net::AppendQueryParameter(
+          splash_screen_url, "timeout",
+          base::NumberToString(cobalt::features::kSplashScreenTimeoutParam.Get()
+                                   .InMilliseconds()));
     }
     NavigationController::LoadURLParams params(splash_screen_url);
     params.frame_name = std::string();
@@ -1205,16 +1230,8 @@ void Shell::ScheduleSwitchToMainWebContents() {
   base::TimeDelta splash_screen_elapsed =
       base::TimeTicks::Now() - splash_screen_start_time_;
 
-  int splash_timeout_ms = kSplashTimeoutMs;
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kSplashScreenShutdownDelayMs)) {
-    std::string switch_value = command_line->GetSwitchValueASCII(
-        switches::kSplashScreenShutdownDelayMs);
-    base::StringToInt(switch_value, &splash_timeout_ms);
-  }
-
   base::TimeDelta min_splash_screen_duration =
-      base::Milliseconds(splash_timeout_ms);
+      cobalt::features::kSplashScreenTimeoutParam.Get();
   base::TimeDelta remaining_delay =
       min_splash_screen_duration - splash_screen_elapsed;
 
