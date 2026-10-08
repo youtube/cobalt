@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 #define COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -52,6 +53,8 @@ enum class PendingAck {
   kUnfreeze,
   kCookieFlush,
 };
+
+std::ostream& operator<<(std::ostream& os, PendingAck ack);
 
 class CobaltLifecycleManagerObserver {
  public:

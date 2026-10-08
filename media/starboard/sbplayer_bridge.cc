@@ -388,6 +388,15 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
+  // Ignore buffer writes if the player has been suspended or invalidated
+  // during a conceal transition so Starboard APIs are not called on an
+  // invalid SbPlayer.
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    LOG(WARNING) << "Ignore WriteBuffers when SbPlayerBridge is suspended or "
+                    "SbPlayer is invalid.";
+    return;
+  }
+
   WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 
@@ -588,7 +597,10 @@ void SbPlayerBridge::Suspend() {
     return;
   }
 
-  DCHECK(SbPlayerIsValid(player_));
+  if (!SbPlayerIsValid(player_)) {
+    state_ = kSuspended;
+    return;
+  }
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
@@ -1014,6 +1026,9 @@ void SbPlayerBridge::WriteBuffersInternal(
 }
 
 SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    return kSbDecodeTargetInvalid;
+  }
   return sbplayer_interface_->GetCurrentFrame(player_);
 }
 
