@@ -1102,7 +1102,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  if (configure_dangling_pointer_detector) {
+  if (config.configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();

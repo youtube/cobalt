@@ -1004,6 +1004,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
+#endif
 
 #undef FAIL_INIT_IF_NOT
 
