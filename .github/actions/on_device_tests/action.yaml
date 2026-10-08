@@ -158,7 +158,6 @@ runs:
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         RESULT_FILES: ${{ inputs.result_files }}
-        TEST_TYPE: ${{ inputs.test_type }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -212,10 +211,8 @@ runs:
           fi
 
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            if [[ "${TEST_TYPE}" != yts_* ]]; then
-              echo "::error::Test result xml is missing for ${test_target}."
-              target_failed=1
-            fi
+            echo "::error::Test result xml is missing for ${test_target}."
+            target_failed=1
           elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
             # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
