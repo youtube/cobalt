@@ -161,6 +161,53 @@ TEST_F(AppEventRunnerTest, OnFreeze) {
   EXPECT_TRUE(test_web_contents->IsPageFrozen());
 }
 
+TEST_F(AppEventRunnerTest, OnFreezeWaitsForFrameFrozenAck) {
+  CreateTestShell(false /* is_visible */, false /* is_focused */,
+                  false /* is_frozen */);
+  content::TestWebContents* test_web_contents =
+      static_cast<content::TestWebContents*>(shell_->web_contents());
+
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  CobaltLifecycleManager::GetInstance()->BindReceiver(
+      shell_->web_contents()->GetPrimaryMainFrame(),
+      remote.BindNewPipeAndPassReceiver());
+  remote->OnFrameReady();
+  remote->OnPageResumed();
+  base::RunLoop().RunUntilIdle();
+
+  bool freeze_ack_sent = false;
+  bool freeze_callback_called = false;
+
+  EXPECT_CALL(*platform_, OnFreeze()).WillOnce([&]() {
+    platform_->ShellPlatformDelegate::OnFreeze();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](mojo::Remote<cobalt::mojom::CobaltLifecycleObserver>*
+                              observer_remote,
+                          bool* ack_sent, bool* cb_called) {
+                         EXPECT_FALSE(*cb_called);
+                         *ack_sent = true;
+                         (*observer_remote)->OnPageFrozen();
+                       },
+                       &remote, &freeze_ack_sent, &freeze_callback_called));
+  });
+
+  runner_->OnFreeze(base::BindOnce(
+      [](bool* ack_sent, bool* cb_called) {
+        EXPECT_TRUE(*ack_sent);
+        *cb_called = true;
+      },
+      &freeze_ack_sent, &freeze_callback_called));
+
+  EXPECT_TRUE(freeze_ack_sent);
+  EXPECT_TRUE(freeze_callback_called);
+  EXPECT_TRUE(runner_->is_frozen());
+  EXPECT_TRUE(test_web_contents->IsPageFrozen());
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
+}
+
 TEST_F(AppEventRunnerTest, OnUnfreeze) {
   CreateTestShell(false /* is_visible */, false /* is_focused */,
                   true /* is_frozen */);
