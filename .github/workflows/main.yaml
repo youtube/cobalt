@@ -1070,6 +1070,7 @@ jobs:
           config: qa
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           chromedriver_artifacts_key: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
+          download_chromedriver: 'true'
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]

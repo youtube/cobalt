@@ -28,11 +28,12 @@ inputs:
     required: true
   chromedriver_artifacts_key:
     description: "GCS artifact key for the linux-x64x11-no-starboard Chromedriver binary."
-    required: true
+    required: false
+    default: ""
   download_chromedriver:
     description: "Download official Chromedriver instead of using the built binary."
     required: false
-    default: "false"
+    default: "true"
 
 runs:
   using: "composite"
@@ -45,6 +46,7 @@ runs:
         destination_path: artifacts
 
     - name: Download Chromedriver QA Binary from GCS
+      if: inputs.download_chromedriver != 'true'
       uses: ./.github/actions/download_test_artifacts
       with:
         test_artifacts_key: ${{ inputs.chromedriver_artifacts_key }}
@@ -57,12 +59,16 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
+        DOWNLOAD_CHROMEDRIVER: ${{ inputs.download_chromedriver }}
       run: |
         set -euxo pipefail
         project_name=$(gcloud config get-value project)
         out_root="${GITHUB_WORKSPACE}/cobalt/src/out"
         out_dir="${out_root}/${PLATFORM}_${CONFIG}"
         mkdir -p "${out_root}"
+
+        mkdir -p "${GITHUB_WORKSPACE}/cobalt/src/chrome"
+        git -c safe.directory="${GITHUB_WORKSPACE}" -C "${GITHUB_WORKSPACE}" show HEAD:chrome/VERSION > "${GITHUB_WORKSPACE}/cobalt/src/chrome/VERSION"
 
         unzip -q -o "${GITHUB_WORKSPACE}/artifacts/${PLATFORM}_${CONFIG}.zip" -d "${out_root}"
 
@@ -77,8 +83,11 @@ runs:
         mkdir -p "${out_dir}/starboard"
         cp -f "${out_dir}/libstarboard.so.18" "${out_dir}/starboard/libstarboard.so.18"
 
-        cp -f "${GITHUB_WORKSPACE}/artifacts/chromedriver_no_starboard/chromedriver" "${out_dir}/chromedriver"
-        chmod +x "${out_dir}/cobalt" "${out_dir}/cobalt.stripped" "${out_dir}/chromedriver"
+        chmod +x "${out_dir}/cobalt" "${out_dir}/cobalt.stripped"
+        if [[ "${DOWNLOAD_CHROMEDRIVER}" != "true" ]]; then
+          cp -f "${GITHUB_WORKSPACE}/artifacts/chromedriver_no_starboard/chromedriver" "${out_dir}/chromedriver"
+          chmod +x "${out_dir}/chromedriver"
+        fi
         ls -la "${out_dir}"
 
     - name: Run Chromedriver Smoke Test
