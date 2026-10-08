@@ -99,6 +99,7 @@ jobs:
     outputs:
       verdict: ${{ steps.extract.outputs.verdict }}
       confidence: ${{ steps.extract.outputs.confidence }}
+      summary: ${{ steps.extract.outputs.summary }}
       findings: ${{ steps.extract.outputs.findings }}
       recommendation: ${{ steps.extract.outputs.recommendation }}
     steps:
@@ -151,17 +152,49 @@ jobs:
             Do not run git fetch or git clone. Do not perform extraneous network searches or repetitive commands.
             If detailed step logs could not be retrieved or the check is an external build status, formulate your determination directly from the available check statuses and failure descriptions.
 
+            CRITICAL TRIAGE & DEDUCTION RULES:
+            1. VERDICT DETERMINATION:
+               - "pass": All CI checks succeeded, no failed checks, and `is_green` is true.
+               - "failure": Any deterministic failure introduced by PR code, including:
+                 - Compilation or build errors (e.g. clang, gcc, ninja, rustc).
+                 - Deterministic test assertion failures (e.g. gtest, junit, math or unit test failures).
+                 - Lint, formatting, or missing trailer checks (e.g. missing Bug ID).
+                 - Merge conflicts or dirty state (`mergeable: CONFLICTING` or `merge_state_status: DIRTY`).
+               - "flaky": Failures caused by transient issues, infrastructure errors, or intermittent flakes, including:
+                 - Network/socket timeouts, runner disconnects, or VM infrastructure failures.
+                 - Tests that failed on attempt 1 but passed on subsequent retry attempts.
+                 - External service/worker timeouts (e.g. Kokoro worker VM communication timeout).
+
+            2. RECOMMENDATION RULES:
+               - When verdict is "pass":
+                 - `action`: "none"
+                 - `restart_failed_jobs`: false
+                 - `labels`: []
+               - When verdict is "failure":
+                 - `action`: "none"
+                 - `restart_failed_jobs`: false
+                 - `labels`: []
+               - When verdict is "flaky":
+                 - If the failure is in an external Kokoro check (e.g. starts with `ci/kokoro:` or platform is `tvos` / kokoro):
+                   - Kokoro builds cannot be restarted via GitHub Actions run rerun.
+                   - `action`: "apply_labels"
+                   - `labels`: ["kokoro:run"]
+                   - `restart_failed_jobs`: false
+                 - If the failure is in a standard GitHub Actions workflow (e.g. linux, android, evergreen):
+                   - `action`: "restart_failed_jobs"
+                   - `restart_failed_jobs`: true
+                   - `labels`: []
+
             You MUST write your final determination JSON object directly to the file `artifacts/triage_analysis.json` using the `write_file` tool.
             The JSON object must contain the following fields:
-            - "verdict": "failure" (if real failure introduced in PR code), "flaky" (if failures are due to flakes, timeouts, or infra), or "pass" (if all checks passed)
+            - "verdict": "failure" | "flaky" | "pass"
             - "confidence": a number from 0 to 1 indicating your confidence in the verdict
+            - "summary": a short, concise description of the CI results in plain text (under 100 characters, no line breaks, suitable for a GitHub commit status description, e.g. "All checks passed", "Compilation error in window.cc", "Flaky network timeout in web_platform_tests")
             - "findings_summary": markdown text explaining the root cause and triage recommendations to append to the PR comment
-            - "recommendation": an action recommendation object for automated recovery:
-              - "action": "restart_failed_jobs" (if flaky tests should be retried), "apply_labels" (if trigger labels should be applied), or "none" (if PR code changes are needed)
-              - "labels": optional array of label strings to apply to the PR if applicable (e.g. ["kokoro:run"], ["kokoro:force-run"], ["runtest"])
-              - "restart_failed_jobs": boolean (true if failed jobs in this workflow run should be restarted)
-
-            For a flaky verdict all retries of a workflow run must be analyzed/triaged.
+            - "recommendation": an object with:
+              - "action": "restart_failed_jobs" | "apply_labels" | "none"
+              - "labels": array of label strings (e.g. ["kokoro:run"] or [])
+              - "restart_failed_jobs": boolean (ALWAYS explicitly set to true or false, never null or omitted)
 
       - name: Validate JSON Output
         if: always() && !cancelled()
@@ -254,6 +287,7 @@ jobs:
 
           verdict = str(res.get("verdict") or "")
           confidence = str(res.get("confidence") or "")
+          summary = str(res.get("summary") or "").replace("\r", " ").replace("\n", " ").strip()[:135]
           findings = str(res.get("findings_summary") or res.get("response") or "")
           rec = res.get("recommendation")
           rec_json = json.dumps(rec) if rec is not None else ""
@@ -264,6 +298,7 @@ jobs:
           with open(gh_output, "a", encoding="utf-8") as f:
               f.write(f"verdict={verdict}\n")
               f.write(f"confidence={confidence}\n")
+              f.write(f"summary={summary}\n")
               f.write(f"findings<<{delimiter}\n{findings}\n{delimiter}\n")
               f.write(f"recommendation<<{rec_delimiter}\n{rec_json}\n{rec_delimiter}\n")
           '
@@ -415,6 +450,7 @@ jobs:
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RERUN_TRIGGERED: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
+          CI_SUMMARY: ${{ needs.shepherd-analysis.outputs.summary }}
         shell: bash
         run: |
           set -euo pipefail
@@ -475,14 +511,17 @@ jobs:
           # 3. Determine overall status and description
           if [[ "${has_failures}" == "true" ]]; then
             overall_state="failure"
-            overall_desc="Some checks failed"
+            overall_desc="${CI_SUMMARY:-Some checks failed}"
           elif [[ "${all_passed}" == "true" ]]; then
             overall_state="success"
-            overall_desc="All checks passed"
+            overall_desc="${CI_SUMMARY:-All checks passed}"
           else
             overall_state="pending"
             overall_desc="Checks are running"
           fi
+
+          # Ensure commit status description does not exceed GitHub limit of 140 chars
+          overall_desc="${overall_desc:0:135}"
 
           if [[ -n "${overall_state:-}" && "${overall_state}" != "pending" ]]; then
             gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
