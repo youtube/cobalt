@@ -64,7 +64,20 @@ except ImportError:
 
 
 class CDPClient:
-  """Asynchronous Chrome DevTools Protocol client over WebSocket."""
+  """Asynchronous Chrome DevTools Protocol client over WebSocket.
+
+  This class manages sending commands and receiving events/responses over a
+  WebSocket connection to a running Cobalt/Chromium instance.
+
+  Lifetime and Ownership:
+    Instances are created and owned by the tracing orchestrator (e.g.,
+    capture_meminfra_trace) and their lifetime is tied to the active tracing
+    session.
+
+  Threading Model:
+    This class is designed to be used within an asyncio event loop and is
+    Thread-affine to the thread running the event loop.
+  """
 
   def __init__(self, ws: Any):
     self.ws = ws

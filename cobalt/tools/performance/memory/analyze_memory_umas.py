@@ -184,7 +184,8 @@ def median(histogram):
   """Returns the upper bound of the bucket containing the median sample."""
   total = histogram.get('count', 0)
   cumulative = 0
-  for bucket in sorted(histogram.get('buckets', []), key=lambda b: b['low']):
+  for bucket in sorted(
+      histogram.get('buckets', []), key=lambda b: b.get('low', 0)):
     cumulative += bucket.get('count', 0)
     if cumulative * 2 >= total:
       return bucket.get('high')

@@ -122,7 +122,20 @@ def to_int(val: Any) -> int:
 
 
 class MemoryDump:
-  """Represents a single global memory dump captured within a trace."""
+  """Represents a single global memory dump captured within a trace.
+
+  This class aggregates allocator node allocations and computes subsystem
+  totals to analyze memory-infra dumps.
+
+  Lifetime and Ownership:
+    Instances are created during trace parsing (e.g., in load_trace) and are
+    owned by the caller/parser. They are expected to live as long as the
+    analysis or report generation is active.
+
+  Threading Model:
+    This class is not thread-safe and is Thread-affine (intended to be used
+    from a single thread).
+  """
 
   def __init__(
       self,
@@ -303,30 +316,60 @@ def _parse_trace_packet(p: bytes, dumps: List[MemoryDump]):
                           epos += eslen
                       elif ewtype == 0:
                         _, epos = read_varint(edata, epos)
+                      elif ewtype == 1:
+                        epos += 8
+                      elif ewtype == 5:
+                        epos += 4
                       elif ewtype == 2:
                         l, epos = read_varint(edata, epos)
                         if l is not None:
                           epos += l
+                      else:
+                        break
                     if ename:
                       entries[ename] = eval_u if eval_u is not None else eval_s
                 elif nwtype == 0:
                   _, npos = read_varint(ndata, npos)
+                elif nwtype == 1:
+                  npos += 8
+                elif nwtype == 5:
+                  npos += 4
                 elif nwtype == 2:
                   l, npos = read_varint(ndata, npos)
                   if l is not None:
                     npos += l
+                else:
+                  break
 
               if node_name:
                 dump.add_node(node_name, size_bytes, entries)
+            elif pwtype == 0:
+              _, pr_pos = read_varint(proc_data, pr_pos)
+            elif pwtype == 1:
+              pr_pos += 8
+            elif pwtype == 5:
+              pr_pos += 4
+            elif pwtype == 2:
+              l, pr_pos = read_varint(proc_data, pr_pos)
+              if l is not None:
+                pr_pos += l
+            else:
+              break
 
           if dump.nodes:
             dumps.append(dump)
         elif swtype == 0:
           _, spos = read_varint(snap_data, spos)
+        elif swtype == 1:
+          spos += 8
+        elif swtype == 5:
+          spos += 4
         elif swtype == 2:
           l, spos = read_varint(snap_data, spos)
           if l is not None:
             spos += l
+        else:
+          break
     elif wtype == 2:
       pl, ppos = read_varint(p, ppos)
       if pl is not None:
@@ -337,6 +380,8 @@ def _parse_trace_packet(p: bytes, dumps: List[MemoryDump]):
       ppos += 8
     elif wtype == 5:
       ppos += 4
+    else:
+      break
 
 
 def parse_perfetto_proto(data: bytes) -> List[MemoryDump]:

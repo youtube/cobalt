@@ -73,7 +73,21 @@ CAT_SPECIAL = 'Special kernel mappings'
 
 
 class Mapping:
-  """One VMA from smaps."""
+  """One VMA from smaps.
+
+  This class represents a single Virtual Memory Area (VMA) parsed from a Linux
+  smaps file, holding its address range, permissions, offset, device, inode,
+  path, and various memory fields (RSS, PSS, Swap, etc.).
+
+  Lifetime and Ownership:
+    Instances are created during smaps parsing in parse_smaps and are owned
+    by the returned list. They are short-lived, typically surviving only for
+    the duration of the analysis and report generation.
+
+  Threading Model:
+    This class is not thread-safe and is Thread-affine (intended to be used
+    from a single thread).
+  """
 
   def __init__(self, match):
     self.start = int(match.group(1), 16)
